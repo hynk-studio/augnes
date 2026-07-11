@@ -19,6 +19,7 @@ import {
   DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
   DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
   DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+  DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
   DURABLE_LOCAL_LOOP_FOLLOWUP_CONFIRMED_AT,
   DURABLE_LOCAL_LOOP_FOLLOWUP_CURRENT_STATE_OBSERVED_AT,
   DURABLE_LOCAL_LOOP_FOLLOWUP_ELIGIBILITY_EVALUATED_AT,
@@ -36,6 +37,11 @@ import {
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
+  buildTaskContextPacketV01,
+  validateTaskContextPacketV01,
+} from "../lib/vnext/task-context-packet";
+import {
+  VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
   buildVNextPersistedSemanticStateV01,
   deriveVNextSemanticTargetKeyV01,
   ensureVNextDurableSemanticStoreSchemaV01,
@@ -54,11 +60,15 @@ import {
   type VNextSemanticCommitPreviewV01,
 } from "../lib/vnext/runtime/durable-semantic-transition";
 import {
+  validateSemanticTransitionFullChainV01,
   validateStateTransitionReceiptAgainstEligibilityV01,
+  validateTaskContextPacketTransitionRelationV01,
 } from "../lib/vnext/state-transition-eligibility";
+import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition-receipt";
 import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
+import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dbPath = requireIsolatedDatabasePath(process.env.AUGNES_DB_PATH);
@@ -121,6 +131,8 @@ const DURABLE_LOCAL_LOOP_FOLLOWUP_APPLIED_AT = "2026-07-10T14:13:00.000Z";
 const DURABLE_LOCAL_LOOP_FOLLOWUP_RECORDED_AT = "2026-07-10T14:14:00.000Z";
 const DURABLE_LOCAL_LOOP_CONFLICT_APPLIED_AT = "2026-07-10T14:13:30.000Z";
 const DURABLE_LOCAL_LOOP_CONFLICT_RECORDED_AT = "2026-07-10T14:14:30.000Z";
+const DURABLE_LOCAL_LOOP_FOLLOWUP_PACKET_GENERATED_AT =
+  "2026-07-10T14:15:00.000Z";
 
 try {
   db = new Database(dbPath);
@@ -339,6 +351,70 @@ try {
     ),
   );
 
+  const beforeContextCompile = readDatabaseSnapshot(db);
+  const compiledContext = compileTaskContextPacketFromPersistedSemanticStateV01(
+    db,
+    {
+      workspace_id: prefix.project.workspace_id,
+      project_id: prefix.project.project_id,
+      prior_packet: prefix.prior_packet,
+      transition_receipt_id: receipt.transition_receipt_id,
+      transition_receipt_fingerprint: receipt.integrity.fingerprint,
+      generated_at: DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+      expiry_policy: { mode: "reuse_prior" },
+    },
+  );
+  assert.equal(compiledContext.status, "inserted");
+  assert.equal(compiledContext.full_chain_relation.status, "valid");
+  assertCanonicalCompiledPacket(
+    prefix.prior_packet,
+    receipt,
+    committed.projection!,
+    compiledContext.later_packet,
+  );
+  const compiledPacketValidation = validateTaskContextPacketV01(
+    compiledContext.later_packet,
+    { evaluated_at: compiledContext.later_packet.generated_at },
+  );
+  assert.equal(
+    compiledPacketValidation.status,
+    "valid",
+    JSON.stringify(compiledPacketValidation),
+  );
+  const afterContextCompile = readDatabaseSnapshot(db);
+  assert.equal(
+    afterContextCompile.counts.vnext_core_records,
+    beforeContextCompile.counts.vnext_core_records + 1,
+    "validated context compilation persists exactly one later packet",
+  );
+  assertLegacySnapshotUnchanged(afterContextCompile, legacyBaseline);
+  const compiledReplay = compileTaskContextPacketFromPersistedSemanticStateV01(
+    db,
+    {
+      workspace_id: prefix.project.workspace_id,
+      project_id: prefix.project.project_id,
+      prior_packet: prefix.prior_packet,
+      transition_receipt_id: receipt.transition_receipt_id,
+      transition_receipt_fingerprint: receipt.integrity.fingerprint,
+      generated_at: DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+      expiry_policy: { mode: "reuse_prior" },
+    },
+  );
+  assert.equal(compiledReplay.status, "exact_replay");
+  assert.deepEqual(compiledReplay.later_packet, compiledContext.later_packet);
+  assert.deepEqual(
+    readDatabaseSnapshot(db),
+    afterContextCompile,
+    "deterministic compiler replay writes no duplicate packet",
+  );
+  const contextCompilerCoverage = runContextCompilerCoverage(
+    dirname(dbPath),
+    gateScenarios,
+    buildDurableLocalSemanticGateScenariosForProjectV01(
+      durableLocalClosedLoopProjectBFixture,
+    ),
+  );
+
   db.pragma("wal_checkpoint(TRUNCATE)");
   db.close();
   db = null;
@@ -346,7 +422,11 @@ try {
   db = new Database(dbPath, { readonly: true, fileMustExist: true });
   db.pragma("foreign_keys = ON");
   const reopenedSnapshot = readDatabaseSnapshot(db);
-  assert.deepEqual(reopenedSnapshot, appliedSnapshot, "close/reopen preserves exact rows and hashes");
+  assert.deepEqual(
+    reopenedSnapshot,
+    afterContextCompile,
+    "close/reopen preserves exact transition and compiled packet rows and hashes",
+  );
   assert.deepEqual(
     JSON.parse(
       requireCoreRecord(
@@ -357,6 +437,17 @@ try {
     ),
     receipt,
     "close/reopen preserves exact receipt payload",
+  );
+  assert.deepEqual(
+    JSON.parse(
+      requireCoreRecord(
+        db,
+        "task_context_packet",
+        compiledContext.later_packet.packet_id,
+      ).payload_json,
+    ),
+    compiledContext.later_packet,
+    "close/reopen preserves exact later TaskContextPacket payload",
   );
   assert.equal(db.pragma("integrity_check", { simple: true }), "ok");
 
@@ -371,8 +462,14 @@ try {
       databaseExistedAtStart && legacyMode === "canonical"
         ? "preinitialized_temp_canonical"
         : "standalone_phase_a",
-    positive_cases: 19 + writerCoverage.positive_cases,
-    negative_cases: 10 + writerCoverage.negative_cases,
+    positive_cases:
+      21 +
+      writerCoverage.positive_cases +
+      contextCompilerCoverage.positive_cases,
+    negative_cases:
+      10 +
+      writerCoverage.negative_cases +
+      contextCompilerCoverage.negative_cases,
     fetch_calls: fetchCalls,
     provider_calls: 0,
     network_calls: networkCalls,
@@ -406,6 +503,7 @@ try {
       transition_receipt_fingerprint: receipt.integrity.fingerprint,
       pre_transition_db_checksum: authorizedSnapshot.logical_checksum,
       post_transition_db_checksum: appliedSnapshot.logical_checksum,
+      post_context_compile_db_checksum: afterContextCompile.logical_checksum,
       reopened_db_checksum: reopenedSnapshot.logical_checksum,
       db_checksum_scope: "vnext_core_records_and_vnext_semantic_state_entries",
     },
@@ -418,6 +516,14 @@ try {
     migration_coverage: migrationCoverage,
     semantic_gate_coverage: gateCoverage,
     full_writer_coverage: writerCoverage,
+    context_compiler_coverage: contextCompilerCoverage,
+    later_task_context_packet: {
+      packet_id: compiledContext.later_packet.packet_id,
+      fingerprint: compiledContext.later_packet.integrity.fingerprint,
+      status: compiledContext.status,
+      exact_replay: compiledReplay.status === "exact_replay",
+      full_chain_relation: compiledContext.full_chain_relation.status,
+    },
   };
 } finally {
   if (db?.open) db.close();
@@ -1320,6 +1426,648 @@ function injectedFailure(expected: string) {
       }
     },
   };
+}
+
+function assertCanonicalCompiledPacket(
+  priorPacket: TaskContextPacketV01,
+  receipt: StateTransitionReceiptV01,
+  projection: NonNullable<
+    ReturnType<typeof commitVNextSemanticTransitionV01>["projection"]
+  >,
+  laterPacket: TaskContextPacketV01,
+) {
+  const accepted = laterPacket.selected_context.filter(
+    (entry) => entry.entry_kind === "accepted_state_ref",
+  );
+  assert.equal(accepted.length, 1, "create compilation selects one accepted state");
+  assert.equal(accepted[0]!.source_ref, projection.state_fingerprint);
+  assert.deepEqual(accepted[0]!.external_ref, projection.state_ref);
+  assert.equal(
+    accepted[0]!.compatibility_source_ref?.external_id,
+    receipt.transition_receipt_id,
+  );
+  assert.equal(
+    accepted[0]!.compatibility_source_ref?.source_ref,
+    receipt.integrity.fingerprint,
+  );
+  for (const priorEntry of priorPacket.selected_context) {
+    assert(
+      laterPacket.selected_context.some(
+        (entry) =>
+          canonicalizeProtocolValueV01(entry) ===
+          canonicalizeProtocolValueV01(priorEntry),
+      ),
+      `unrelated prior context remains unchanged: ${priorEntry.entry_id}`,
+    );
+  }
+  const lowLevel = validateTaskContextPacketTransitionRelationV01(
+    priorPacket,
+    receipt,
+    laterPacket,
+  );
+  assert.equal(lowLevel.status, "valid", JSON.stringify(lowLevel));
+}
+
+function runContextCompilerCoverage(
+  parentDirectory: string,
+  projectAScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+  projectBScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  const suffix = `${process.pid}`;
+  const databases = new Map<string, Database.Database>();
+  const ownedPaths = new Set<string>();
+  const openDatabase = (label: string): WriterCoverageDatabaseV01 => {
+    const path = resolve(
+      parentDirectory,
+      `m3c-context-compiler-${label}-${suffix}.db`,
+    );
+    for (const owned of [path, `${path}-wal`, `${path}-shm`]) {
+      assert.equal(existsSync(owned), false, `context compiler coverage owns ${owned}`);
+      ownedPaths.add(owned);
+    }
+    const database = new Database(path);
+    database.pragma("foreign_keys = ON");
+    database.pragma("journal_mode = WAL");
+    ensureVNextDurableSemanticStoreSchemaV01(database);
+    const legacyMode = prepareLegacyTables(database);
+    const legacyBaseline = readLegacySnapshot(readDatabaseSnapshot(database));
+    databases.set(label, database);
+    return { database, path, legacyMode, legacyBaseline };
+  };
+
+  const operationPackets: Record<
+    string,
+    { packet_id: string; fingerprint: string }
+  > = {};
+  try {
+    const lookup = openDatabase("lookup-refusals");
+    const lookupApplied = applyCreateScenario(
+      lookup.database,
+      projectAScenarios.create,
+    );
+    const canonicalInput = compilerInput(
+      projectAScenarios.create,
+      projectAScenarios.prefix.prior_packet,
+      lookupApplied.committed.transition_receipt,
+      DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+    );
+    const lookupBaseline = readDatabaseSnapshot(lookup.database);
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          {
+            ...canonicalInput,
+            transition_receipt_id: "state-transition-receipt:missing-fixture",
+          },
+        ),
+      lookupBaseline,
+      /persisted_transition_receipt_missing/,
+      "missing receipt",
+    );
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          {
+            ...canonicalInput,
+            transition_receipt_fingerprint: createProtocolSha256V01(
+              "wrong-compiler-receipt-fingerprint",
+            ),
+          },
+        ),
+      lookupBaseline,
+      /persisted_transition_receipt_fingerprint_mismatch/,
+      "wrong receipt fingerprint",
+    );
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          {
+            ...canonicalInput,
+            project_id: projectBScenarios.prefix.project.project_id,
+            prior_packet: projectBScenarios.prefix.prior_packet,
+          },
+        ),
+      lookupBaseline,
+      /persisted_transition_receipt_missing/,
+      "foreign project receipt",
+    );
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          { ...canonicalInput, generated_at: "malformed-timestamp" },
+        ),
+      lookupBaseline,
+      /compiled_task_context_packet_invalid/,
+      "packet validation failure",
+    );
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          {
+            ...canonicalInput,
+            generated_at: "2026-07-10T14:05:30.000Z",
+          },
+        ),
+      lookupBaseline,
+      /semantic_transition_full_chain_invalid:.*later_packet_precedes_transition_receipt/,
+      "composed relation failure",
+    );
+    const boundedPrior = rebuildPacketV01(
+      projectAScenarios.prefix.prior_packet,
+      {},
+      { max_selected_entries: 1 },
+    );
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          { ...canonicalInput, prior_packet: boundedPrior },
+        ),
+      lookupBaseline,
+      /semantic_transition_full_chain_invalid/,
+      "bounded packet cannot silently drop required context",
+    );
+    const staleLocalPrior = rebuildPacketV01(
+      projectAScenarios.prefix.prior_packet,
+      {
+        selected_context: [
+          ...projectAScenarios.prefix.prior_packet.selected_context,
+          acceptedStateFixtureEntry(
+            VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
+            "stale-local-selection",
+          ),
+        ],
+      },
+    );
+    assertCompilerRefusalNoWrite(
+      lookup,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          lookup.database,
+          { ...canonicalInput, prior_packet: staleLocalPrior },
+        ),
+      lookupBaseline,
+      /prior_packet_stale_local_semantic_state_selection/,
+      "unresolved local accepted-state selection",
+    );
+
+    const lookupCompiled =
+      compileTaskContextPacketFromPersistedSemanticStateV01(
+        lookup.database,
+        canonicalInput,
+      );
+    assert.equal(lookupCompiled.status, "inserted");
+    const compiledSnapshot = readDatabaseSnapshot(lookup.database);
+    const alteredPacket = clone(lookupCompiled.later_packet);
+    alteredPacket.compatibility.warnings.push(
+      "Altered duplicate packet identity must fail closed.",
+    );
+    assert.throws(
+      () =>
+        insertVNextCoreRecordV01(lookup.database, {
+          record_kind: "task_context_packet",
+          record_id: lookupCompiled.later_packet.packet_id,
+          workspace_id: lookupCompiled.later_packet.workspace_id,
+          project_id: lookupCompiled.later_packet.project_id,
+          fingerprint: lookupCompiled.later_packet.integrity.fingerprint,
+          idempotency_key: null,
+          payload: alteredPacket,
+          created_at: lookupCompiled.later_packet.generated_at,
+        }),
+      /vnext_core_record_conflict/,
+      "duplicate packet identity with altered payload fails closed",
+    );
+    assert.deepEqual(readDatabaseSnapshot(lookup.database), compiledSnapshot);
+    assertLegacySnapshotUnchanged(compiledSnapshot, lookup.legacyBaseline);
+
+    const nonLocal = openDatabase("non-local-accepted-selection");
+    const nonLocalApplied = applyCreateScenario(
+      nonLocal.database,
+      projectAScenarios.create,
+    );
+    const compatibilityAccepted = acceptedStateFixtureEntry(
+      "compatibility.provider.semantic-state.v0.1",
+      "non-local-selection",
+    );
+    const nonLocalPrior = rebuildPacketV01(
+      projectAScenarios.prefix.prior_packet,
+      {
+        selected_context: [
+          ...projectAScenarios.prefix.prior_packet.selected_context,
+          compatibilityAccepted,
+        ],
+      },
+    );
+    const nonLocalCompiled =
+      compileTaskContextPacketFromPersistedSemanticStateV01(
+        nonLocal.database,
+        compilerInput(
+          projectAScenarios.create,
+          nonLocalPrior,
+          nonLocalApplied.committed.transition_receipt,
+          DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+        ),
+      );
+    assert(
+      nonLocalCompiled.later_packet.selected_context.some(
+        (entry) =>
+          canonicalizeProtocolValueV01(entry) ===
+          canonicalizeProtocolValueV01(compatibilityAccepted),
+      ),
+      "non-local compatibility accepted-state selection remains unrelated and preserved",
+    );
+
+    for (const operation of ["replace", "supersede", "retract"] as const) {
+      const opened = openDatabase(operation);
+      const scenario = projectAScenarios[operation];
+      const seedScenario: DurableLocalSemanticGateScenarioV01 =
+        operation === "supersede"
+          ? {
+              scenario_id: "create",
+              proposal: scenario.proposal,
+              decision: projectAScenarios.supersede_prior_accept_decision,
+              expected_operations: ["create"],
+              expected_target_count: 1,
+            }
+          : projectAScenarios.create;
+      const seed = applyCreateScenario(opened.database, seedScenario);
+      const priorCompiled =
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          opened.database,
+          compilerInput(
+            seedScenario,
+            projectAScenarios.prefix.prior_packet,
+            seed.committed.transition_receipt,
+            DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+          ),
+        );
+      const followupPrepared = prepareAndAuthorizeGateScenario(
+        opened.database,
+        scenario,
+        false,
+      );
+      const followup = commitVNextSemanticTransitionV01(
+        opened.database,
+        writerCommitInput(scenario, followupPrepared.authorization),
+      );
+      const compiled = compileTaskContextPacketFromPersistedSemanticStateV01(
+        opened.database,
+        compilerInput(
+          scenario,
+          priorCompiled.later_packet,
+          followup.transition_receipt,
+          DURABLE_LOCAL_LOOP_FOLLOWUP_PACKET_GENERATED_AT,
+        ),
+      );
+      assert.equal(compiled.status, "inserted");
+      assert.equal(compiled.full_chain_relation.status, "valid");
+      const priorAccepted = priorCompiled.later_packet.selected_context.find(
+        (entry) => entry.entry_kind === "accepted_state_ref",
+      );
+      assert(priorAccepted, `${operation} prior packet contains applied state`);
+      assert.equal(
+        compiled.later_packet.selected_context.some(
+          (entry) =>
+            entry.entry_kind === "accepted_state_ref" &&
+            entry.source_ref === priorAccepted.source_ref &&
+            canonicalizeProtocolValueV01(entry.external_ref) ===
+              canonicalizeProtocolValueV01(priorAccepted.external_ref),
+        ),
+        false,
+        `${operation} compiler excludes the exact retired before-state`,
+      );
+      const retainedBefore = rebuildPacketV01(compiled.later_packet, {
+        selected_context: [
+          ...compiled.later_packet.selected_context,
+          priorAccepted,
+        ],
+      });
+      const retainedRelation = validateSemanticTransitionFullChainV01({
+        ...compiled.full_chain_input,
+        later_packet: retainedBefore,
+      });
+      assert.notEqual(retainedRelation.status, "valid");
+      assert(
+        retainedRelation.errors.some(
+          (issue) => issue.code === "retired_before_state_retained",
+        ),
+        `${operation} retained before-state fails composed validation`,
+      );
+      if (operation === "retract") {
+        const invented = clone(priorAccepted);
+        invented.entry_id = `${invented.entry_id}:invented`;
+        invented.source_ref = createProtocolSha256V01(
+          "invented-retracted-state",
+        );
+        if (invented.external_ref) {
+          invented.external_ref.external_id = `${invented.external_ref.external_id}:invented`;
+          invented.external_ref.source_ref = invented.source_ref;
+        }
+        const inventedPacket = rebuildPacketV01(compiled.later_packet, {
+          selected_context: [
+            ...compiled.later_packet.selected_context,
+            invented,
+          ],
+        });
+        const inventedRelation = validateSemanticTransitionFullChainV01({
+          ...compiled.full_chain_input,
+          later_packet: inventedPacket,
+        });
+        assert.notEqual(
+          inventedRelation.status,
+          "valid",
+          "retract cannot invent a replacement accepted state",
+        );
+      }
+      const snapshot = readDatabaseSnapshot(opened.database);
+      assertLegacySnapshotUnchanged(snapshot, opened.legacyBaseline);
+      operationPackets[operation] = {
+        packet_id: compiled.later_packet.packet_id,
+        fingerprint: compiled.later_packet.integrity.fingerprint,
+      };
+    }
+
+    runProjectionCompilerRefusals(openDatabase, projectAScenarios.create);
+    runPriorReceiptEnvelopeRefusals(openDatabase, projectAScenarios);
+    for (const database of databases.values()) {
+      assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+    }
+    return {
+      status: "pass",
+      positive_cases: 6,
+      negative_cases: 15,
+      operation_packets: operationPackets,
+      deterministic_compile_replay: true,
+      packet_persisted_after_validation_only: true,
+      refusal_cases: [
+        "missing_receipt",
+        "wrong_receipt_fingerprint",
+        "foreign_project_receipt",
+        "projection_drift",
+        "missing_state_after_create",
+        "retained_before_after_replace",
+        "retained_before_after_supersede",
+        "retained_before_after_retract",
+        "invented_state_after_retract",
+        "packet_bound_or_validation_failure",
+        "composed_relation_failure",
+        "duplicate_packet_identity_altered_payload",
+        "stale_local_accepted_state_selection",
+        "supersede_prior_receipt_envelope_idempotency_mismatch",
+        "retract_prior_receipt_envelope_idempotency_mismatch",
+      ],
+      legacy_table_deltas: {
+        state_delta_proposals: 0,
+        state_entries: 0,
+        state_transitions: 0,
+      },
+      fetch_calls: fetchCalls,
+      provider_calls: 0,
+      network_calls: networkCalls,
+      integrity_check: "ok",
+    };
+  } finally {
+    for (const database of databases.values()) {
+      if (database.open) database.close();
+    }
+    for (const path of ownedPaths) rmSync(path, { force: true });
+    for (const path of ownedPaths) {
+      assert.equal(existsSync(path), false, `context compiler coverage removes ${path}`);
+    }
+  }
+}
+
+function compilerInput(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  priorPacket: TaskContextPacketV01,
+  receipt: StateTransitionReceiptV01,
+  generatedAt: string,
+) {
+  return {
+    workspace_id: scenario.proposal.workspace_id,
+    project_id: scenario.proposal.project_id,
+    prior_packet: priorPacket,
+    transition_receipt_id: receipt.transition_receipt_id,
+    transition_receipt_fingerprint: receipt.integrity.fingerprint,
+    generated_at: generatedAt,
+    expiry_policy: { mode: "reuse_prior" as const },
+  };
+}
+
+function assertCompilerRefusalNoWrite(
+  opened: WriterCoverageDatabaseV01,
+  action: () => unknown,
+  baseline: DatabaseSnapshot,
+  error: RegExp,
+  label: string,
+) {
+  assert.throws(action, error, label);
+  assert.deepEqual(
+    readDatabaseSnapshot(opened.database),
+    baseline,
+    `${label} creates no TaskContextPacket record`,
+  );
+  assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function runProjectionCompilerRefusals(
+  openDatabase: (label: string) => WriterCoverageDatabaseV01,
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  for (const mode of ["drift", "missing"] as const) {
+    const opened = openDatabase(`projection-${mode}`);
+    const applied = applyCreateScenario(opened.database, scenario);
+    const projection = applied.committed.projection_entries[0]!;
+    if (mode === "drift") {
+      opened.database
+        .prepare(
+          `UPDATE vnext_semantic_state_entries
+           SET current_state_fingerprint = ?
+           WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+        )
+        .run(
+          createProtocolSha256V01("compiler-projection-drift"),
+          projection.workspace_id,
+          projection.project_id,
+          projection.target_key,
+        );
+    } else {
+      opened.database
+        .prepare(
+          `DELETE FROM vnext_semantic_state_entries
+           WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+        )
+        .run(
+          projection.workspace_id,
+          projection.project_id,
+          projection.target_key,
+        );
+    }
+    const baseline = readDatabaseSnapshot(opened.database);
+    assertCompilerRefusalNoWrite(
+      opened,
+      () =>
+        compileTaskContextPacketFromPersistedSemanticStateV01(
+          opened.database,
+          compilerInput(
+            scenario,
+            buildDurableLocalSemanticGateScenariosV01().prefix.prior_packet,
+            applied.committed.transition_receipt,
+            DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+          ),
+        ),
+      baseline,
+      mode === "drift"
+        ? /applied_semantic_state_projection_drift/
+        : /applied_semantic_state_projection_missing/,
+      `semantic-state projection ${mode}`,
+    );
+  }
+}
+
+function runPriorReceiptEnvelopeRefusals(
+  openDatabase: (label: string) => WriterCoverageDatabaseV01,
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  for (const operation of ["supersede", "retract"] as const) {
+    const opened = openDatabase(`lineage-envelope-${operation}`);
+    const scenario = scenarios[operation];
+    const seedScenario: DurableLocalSemanticGateScenarioV01 =
+      operation === "supersede"
+        ? {
+            scenario_id: "create",
+            proposal: scenario.proposal,
+            decision: scenarios.supersede_prior_accept_decision,
+            expected_operations: ["create"],
+            expected_target_count: 1,
+          }
+        : scenarios.create;
+    const seed = applyCreateScenario(opened.database, seedScenario);
+    opened.database.exec(
+      "DROP TRIGGER trg_vnext_core_records_immutable_update",
+    );
+    opened.database
+      .prepare(
+        `UPDATE vnext_core_records
+         SET idempotency_key = ?
+         WHERE record_kind = 'state_transition_receipt' AND record_id = ?`,
+      )
+      .run(
+        createProtocolSha256V01(`wrong-envelope-idempotency:${operation}`),
+        seed.committed.transition_receipt.transition_receipt_id,
+      );
+    ensureVNextDurableSemanticStoreSchemaV01(opened.database);
+    persistVNextSemanticReviewMaterialV01(opened.database, {
+      proposal: scenario.proposal,
+      decision: scenario.decision,
+    });
+    const baseline = readDatabaseSnapshot(opened.database);
+    const times = semanticGateScenarioTimes(scenario);
+    assert.throws(
+      () =>
+        prepareVNextSemanticCommitPreviewV01(opened.database, {
+          workspace_id: scenario.proposal.workspace_id,
+          project_id: scenario.proposal.project_id,
+          proposal_id: scenario.proposal.proposal_id,
+          proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+          decision_id: scenario.decision.decision_id,
+          decision_fingerprint: scenario.decision.integrity.fingerprint,
+          current_state_observed_at: times.current_state_observed_at,
+          previewed_at: times.previewed_at,
+        }),
+      /semantic_commit_prior_receipt_identity_mismatch/,
+      `${operation} lineage rejects a valid receipt payload under a wrong envelope idempotency key`,
+    );
+    assert.deepEqual(
+      readDatabaseSnapshot(opened.database),
+      baseline,
+      `${operation} wrong lineage envelope writes no preview, gate, state, packet, or receipt`,
+    );
+    assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+  }
+}
+
+function acceptedStateFixtureEntry(
+  compatibilityNamespace: string,
+  label: string,
+): TaskContextPacketV01["selected_context"][number] {
+  const fingerprint = createProtocolSha256V01(
+    `accepted-state-fixture:${compatibilityNamespace}:${label}`,
+  );
+  const stateRef: ExternalRefV01 = {
+    ref_version: "external_ref.v0.1",
+    ref_type: "accepted_semantic_state",
+    external_id: `semantic-state:${label}`,
+    trust_class: "direct_local_observation",
+    observed_at: "2026-07-10T00:00:00.000Z",
+    source_ref: fingerprint,
+    compatibility_namespace: compatibilityNamespace,
+  };
+  return {
+    entry_id: `accepted-state-fixture:${label}`,
+    entry_kind: "accepted_state_ref",
+    source_ref: fingerprint,
+    external_ref: stateRef,
+    why_included: "Compatibility accepted-state fixture for compiler isolation coverage.",
+    currentness: {
+      status: "fresh",
+      as_of: "2026-07-10T00:00:00.000Z",
+      basis: "Bounded fixture state currentness.",
+      source_ref: stateRef,
+    },
+    trust_class: stateRef.trust_class,
+    compatibility_source_ref: stateRef,
+    bounded_summary: "Compatibility accepted-state fixture.",
+  };
+}
+
+function rebuildPacketV01(
+  packet: TaskContextPacketV01,
+  overrides: {
+    selected_context?: TaskContextPacketV01["selected_context"];
+    excluded_context?: TaskContextPacketV01["excluded_context"];
+  },
+  budgetOverrides: Partial<
+    TaskContextPacketV01["constraints"]["context_budget"]
+  > = {},
+): TaskContextPacketV01 {
+  return buildTaskContextPacketV01({
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    work_ref: packet.work_ref,
+    generated_at: packet.generated_at,
+    expires_at: packet.expires_at,
+    task: packet.task,
+    current_projection: packet.current_projection,
+    selected_context: overrides.selected_context ?? packet.selected_context,
+    excluded_context: overrides.excluded_context ?? packet.excluded_context,
+    tensions: packet.tensions,
+    risks: packet.risks,
+    gaps: packet.gaps,
+    constraints: {
+      ...packet.constraints,
+      context_budget: {
+        ...packet.constraints.context_budget,
+        ...budgetOverrides,
+      },
+    },
+    capability_grant: packet.capability_grant,
+    return_contract: packet.return_contract,
+    source_status: packet.source_status,
+    compatibility: packet.compatibility,
+    authority_notes: packet.authority_summary.notes,
+  });
 }
 
 function applyCreateScenario(

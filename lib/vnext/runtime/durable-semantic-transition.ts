@@ -228,6 +228,22 @@ export interface CommitVNextSemanticTransitionInputV01 {
   test_options?: VNextSemanticTransitionTestOptionsV01;
 }
 
+export interface LoadValidatedVNextSemanticTransitionInputV01 {
+  workspace_id: string;
+  project_id: string;
+  transition_receipt_id: string;
+  transition_receipt_fingerprint: string;
+}
+
+export interface ValidatedVNextSemanticTransitionRelationV01 {
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  gate_record: VNextSemanticCommitGateRecordV01;
+  receipt: StateTransitionReceiptV01;
+  eligibility_input: StateTransitionEligibilityEvaluationInputV01;
+  eligibility: StateTransitionEligibilityResultV01;
+}
+
 export function persistVNextSemanticReviewMaterialV01(
   input: PersistVNextSemanticReviewMaterialInputV01 & { db: Database.Database },
 ): VNextSemanticReviewMaterialPersistenceResultV01;
@@ -494,6 +510,115 @@ export function commitVNextSemanticTransitionV01(
 ): VNextSemanticTransitionCommitResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   return commitVNextSemanticTransitionInternalV01(db, input);
+}
+
+export function loadValidatedVNextSemanticTransitionRelationV01(
+  db: Database.Database,
+  input: LoadValidatedVNextSemanticTransitionInputV01,
+): ValidatedVNextSemanticTransitionRelationV01 {
+  const receiptRecord = readVNextCoreRecordV01(db, {
+    record_kind: "state_transition_receipt",
+    record_id: input.transition_receipt_id,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+  });
+  if (!receiptRecord) throw new Error("persisted_transition_receipt_missing");
+  if (receiptRecord.fingerprint !== input.transition_receipt_fingerprint) {
+    throw new Error("persisted_transition_receipt_fingerprint_mismatch");
+  }
+  const receiptValidation = validateStateTransitionReceiptV01(
+    receiptRecord.payload,
+  );
+  if (receiptValidation.status !== "valid") {
+    throw new Error("persisted_transition_receipt_invalid");
+  }
+  const receipt = receiptRecord.payload as StateTransitionReceiptV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(receiptRecord, {
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    fingerprint: receipt.integrity.fingerprint,
+  });
+  if (
+    receiptRecord.record_id !== receipt.transition_receipt_id ||
+    receiptRecord.idempotency_key !== receipt.idempotency_key ||
+    receiptRecord.created_at !== receipt.recorded_at
+  ) {
+    throw new Error("persisted_transition_receipt_envelope_mismatch");
+  }
+  const { proposal, decision } = loadReviewMaterial({
+    db,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    proposal_id: receipt.source_proposal.proposal_id,
+    proposal_fingerprint: receipt.source_proposal.proposal_fingerprint,
+    decision_id: receipt.source_decision.decision_id,
+    decision_fingerprint: receipt.source_decision.decision_fingerprint,
+  });
+  const gateRecordId = receipt.semantic_commit_gate.evaluation_ref.external_id;
+  const gateEnvelope = readVNextCoreRecordV01(db, {
+    record_kind: "semantic_commit_gate",
+    record_id: gateRecordId,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+  });
+  if (!gateEnvelope) throw new Error("persisted_semantic_commit_gate_missing");
+  const gateRecord = loadGateRecord(
+    db,
+    {
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      proposal_id: proposal.proposal_id,
+      proposal_fingerprint: proposal.integrity.fingerprint,
+      decision_id: decision.decision_id,
+      decision_fingerprint: decision.integrity.fingerprint,
+      gate_record_id: gateRecordId,
+      gate_record_fingerprint: gateEnvelope.fingerprint,
+      applied_at: receipt.applied_at,
+      recorded_at: receipt.recorded_at,
+    },
+    proposal,
+    decision,
+    { allow_historical_snapshot: true },
+  );
+  const lineage = loadAppliedLineageFromStore(
+    db,
+    proposal,
+    decision,
+    gateRecord.current_state_observations,
+    {
+      prior_review_decision_bindings:
+        gateRecord.prior_review_decision_bindings,
+      prior_state_transition_receipt_bindings:
+        gateRecord.prior_state_transition_receipt_bindings,
+    },
+  );
+  const eligibilityInput = eligibilityInputFor(
+    proposal,
+    decision,
+    gateRecord.current_state_observations,
+    gateRecord.semantic_commit_gate_evaluation,
+    gateRecord.eligibility_evaluated_at,
+    lineage,
+  );
+  const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01(
+    eligibilityInput,
+  );
+  if (
+    eligibility.status !== "eligible" ||
+    eligibility.precondition_fingerprint !==
+      gateRecord.eligibility_precondition_fingerprint
+  ) {
+    throw new Error("persisted_transition_eligibility_invalid");
+  }
+  assertValidReceiptRelation(eligibilityInput, receipt);
+  return {
+    proposal,
+    decision,
+    gate_record: gateRecord,
+    receipt,
+    eligibility_input: eligibilityInput,
+    eligibility,
+  };
 }
 
 interface BuiltVNextSemanticTransitionV01 {
@@ -1568,6 +1693,7 @@ function loadAppliedLineageFromStore(
   });
   if (
     priorReceiptRecord.record_id !== priorReceipt.transition_receipt_id ||
+    priorReceiptRecord.idempotency_key !== priorReceipt.idempotency_key ||
     priorReceiptRecord.created_at !== priorReceipt.recorded_at
   ) {
     throw new Error("semantic_commit_prior_receipt_identity_mismatch");
