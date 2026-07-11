@@ -19,15 +19,23 @@ import {
   DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
   DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
   DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+  DURABLE_LOCAL_LOOP_FOLLOWUP_CONFIRMED_AT,
+  DURABLE_LOCAL_LOOP_FOLLOWUP_CURRENT_STATE_OBSERVED_AT,
+  DURABLE_LOCAL_LOOP_FOLLOWUP_ELIGIBILITY_EVALUATED_AT,
+  DURABLE_LOCAL_LOOP_FOLLOWUP_GATE_EVALUATED_AT,
+  DURABLE_LOCAL_LOOP_FOLLOWUP_PREVIEWED_AT,
   DURABLE_LOCAL_LOOP_PREVIEWED_AT,
   DURABLE_LOCAL_LOOP_RECORDED_AT,
-  buildDurableLocalClosedLoopProjectAFixtureV01,
+  buildDurableLocalSemanticGateScenariosV01,
+  durableLocalClosedLoopProjectBFixture,
+  type DurableLocalSemanticGateScenarioV01,
 } from "../fixtures/vnext/runtime/durable-local-closed-loop-v0-1";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
+  buildVNextPersistedSemanticStateV01,
   deriveVNextSemanticTargetKeyV01,
   ensureVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
@@ -40,6 +48,9 @@ import {
   persistVNextSemanticReviewMaterialV01,
   prepareVNextSemanticCommitPreviewV01,
   recordVNextSemanticCommitAuthorizationV01,
+  type VNextSemanticCommitAuthorizationResultV01,
+  type VNextSemanticCommitGateRecordV01,
+  type VNextSemanticCommitPreviewV01,
 } from "../lib/vnext/runtime/durable-semantic-transition";
 import {
   validateStateTransitionReceiptAgainstEligibilityV01,
@@ -125,7 +136,8 @@ try {
     "isolated durable smoke starts with an empty vNext state projection",
   );
 
-  const prefix = buildDurableLocalClosedLoopProjectAFixtureV01();
+  const gateScenarios = buildDurableLocalSemanticGateScenariosV01();
+  const prefix = gateScenarios.prefix;
   const persistedReview = persistVNextSemanticReviewMaterialV01(db, {
     proposal: prefix.proposal,
     decision: prefix.decision,
@@ -310,6 +322,10 @@ try {
   assert.equal(db.pragma("integrity_check", { simple: true }), "ok");
 
   const migrationCoverage = runMigrationCoverage(dirname(dbPath));
+  const gateCoverage = runSemanticGateCoverage(
+    dirname(dbPath),
+    gateScenarios,
+  );
 
   db.pragma("wal_checkpoint(TRUNCATE)");
   db.close();
@@ -336,15 +352,15 @@ try {
   assert.equal(networkCalls, 0, "durable semantic smoke makes zero runtime network calls");
   summary = {
     smoke: "vnext-durable-semantic-loop-v0-1",
-    phase: "M3C-A isolated SQLite pilot",
+    phase: "M3C-A/B/C isolated storage and semantic commit gate",
     status: "pass",
     project_fixture: prefix.project.fixture_id,
     database_mode:
       databaseExistedAtStart && legacyMode === "canonical"
         ? "preinitialized_temp_canonical"
         : "standalone_phase_a",
-    positive_cases: 14,
-    negative_cases: 3,
+    positive_cases: 19,
+    negative_cases: 10,
     fetch_calls: fetchCalls,
     provider_calls: 0,
     network_calls: networkCalls,
@@ -388,6 +404,7 @@ try {
     conflicting_identity_blocked: true,
     integrity_check: "ok",
     migration_coverage: migrationCoverage,
+    semantic_gate_coverage: gateCoverage,
   };
 } finally {
   if (db?.open) db.close();
@@ -516,6 +533,523 @@ function assertLegacySnapshotUnchanged(
       `${table} logical row hash remains unchanged`,
     );
   }
+}
+
+function runSemanticGateCoverage(
+  parentDirectory: string,
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  const suffix = `${process.pid}`;
+  const primaryPath = resolve(parentDirectory, `m3c-gate-primary-${suffix}.db`);
+  const supersedePath = resolve(
+    parentDirectory,
+    `m3c-gate-supersede-${suffix}.db`,
+  );
+  const forgedPath = resolve(parentDirectory, `m3c-gate-forged-${suffix}.db`);
+  const ownedPaths = [primaryPath, supersedePath, forgedPath].flatMap((path) => [
+    path,
+    `${path}-wal`,
+    `${path}-shm`,
+  ]);
+  for (const path of ownedPaths) {
+    assert.equal(existsSync(path), false, `semantic gate coverage owns ${path}`);
+  }
+
+  let primary: Database.Database | null = null;
+  let supersede: Database.Database | null = null;
+  let forged: Database.Database | null = null;
+  try {
+    primary = new Database(primaryPath);
+    primary.pragma("foreign_keys = ON");
+    ensureVNextDurableSemanticStoreSchemaV01(primary);
+    const createApplied = applyCreateScenario(primary, scenarios.create);
+    const replace = prepareAndAuthorizeGateScenario(
+      primary,
+      scenarios.replace,
+      true,
+    );
+    const retract = prepareAndAuthorizeGateScenario(
+      primary,
+      scenarios.retract,
+      false,
+    );
+    const multiTarget = prepareAndAuthorizeGateScenario(
+      primary,
+      scenarios.multi_target,
+      false,
+    );
+
+    supersede = new Database(supersedePath);
+    supersede.pragma("foreign_keys = ON");
+    ensureVNextDurableSemanticStoreSchemaV01(supersede);
+    applyCreateScenario(supersede, {
+      scenario_id: "create",
+      proposal: scenarios.supersede.proposal,
+      decision: scenarios.supersede_prior_accept_decision,
+      expected_operations: ["create"],
+      expected_target_count: 1,
+    });
+    const supersedeGate = prepareAndAuthorizeGateScenario(
+      supersede,
+      scenarios.supersede,
+      false,
+    );
+
+    forged = new Database(forgedPath);
+    forged.pragma("foreign_keys = ON");
+    ensureVNextDurableSemanticStoreSchemaV01(forged);
+    persistVNextSemanticReviewMaterialV01(forged, {
+      proposal: scenarios.create.proposal,
+      decision: scenarios.create.decision,
+    });
+    const forgedGate = createSelfConsistentForgedGate(
+      createApplied.authorization.gate_record,
+    );
+    insertVNextCoreRecordV01(forged, {
+      record_kind: "semantic_commit_gate",
+      record_id: forgedGate.gate_record_id,
+      workspace_id: forgedGate.workspace_id,
+      project_id: forgedGate.project_id,
+      fingerprint: forgedGate.integrity.fingerprint,
+      idempotency_key: forgedGate.confirmation_digest,
+      payload: forgedGate,
+      created_at: forgedGate.confirmed_at,
+    });
+    const beforeForgedCommit = readNamedTablesSnapshot(forged, [
+      "vnext_core_records",
+      "vnext_semantic_state_entries",
+    ]);
+    assert.throws(
+      () =>
+        commitVNextSemanticTransitionV01(forged!, {
+          workspace_id: forgedGate.workspace_id,
+          project_id: forgedGate.project_id,
+          proposal_id: forgedGate.proposal_id,
+          proposal_fingerprint: forgedGate.proposal_fingerprint,
+          decision_id: forgedGate.decision_id,
+          decision_fingerprint: forgedGate.decision_fingerprint,
+          gate_record_id: forgedGate.gate_record_id,
+          gate_record_fingerprint: forgedGate.integrity.fingerprint,
+          applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
+          recorded_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+        }),
+      /operator_actor_mismatch|semantic_commit_gate_relation_invalid|semantic_commit_precondition_mismatch|transition_not_eligible/,
+      "fully re-signed forged gate payload fails closed",
+    );
+    assert.deepEqual(
+      readNamedTablesSnapshot(forged, [
+        "vnext_core_records",
+        "vnext_semantic_state_entries",
+      ]),
+      beforeForgedCommit,
+      "forged gate refusal writes no state or receipt",
+    );
+
+    for (const database of [primary, supersede, forged]) {
+      assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+    }
+
+    return {
+      status: "pass",
+      positive_cases: 5,
+      negative_cases: 6,
+      preview_zero_write_scenarios: [
+        "create",
+        "replace",
+        "supersede",
+        "retract",
+        "multi_target",
+      ],
+      gate_only_persistence_scenarios: [
+        "create",
+        "replace",
+        "supersede",
+        "retract",
+        "multi_target",
+      ],
+      exact_effect_operations: {
+        create: createApplied.preview.intended_effects.map(
+          (effect) => effect.operation,
+        ),
+        replace: replace.preview.intended_effects.map(
+          (effect) => effect.operation,
+        ),
+        supersede: supersedeGate.preview.intended_effects.map(
+          (effect) => effect.operation,
+        ),
+        retract: retract.preview.intended_effects.map(
+          (effect) => effect.operation,
+        ),
+        multi_target: multiTarget.preview.intended_effects.map(
+          (effect) => effect.operation,
+        ),
+      },
+      refusal_cases: [
+        "operator_actor_mismatch",
+        "confirmation_digest_mismatch",
+        "chronology_mismatch",
+        "expired_or_invalid_gate_timing",
+        "cross_project_binding",
+        "fully_resigned_forged_gate_payload",
+      ],
+      synthetic_operator_trust_class:
+        scenarios.create.decision.actor_ref.trust_class,
+      human_identity_authenticated: false,
+      integrity_check: "ok",
+    };
+  } finally {
+    if (primary?.open) primary.close();
+    if (supersede?.open) supersede.close();
+    if (forged?.open) forged.close();
+    for (const path of ownedPaths) rmSync(path, { force: true });
+    for (const path of ownedPaths) {
+      assert.equal(existsSync(path), false, `semantic gate coverage removes ${path}`);
+    }
+  }
+}
+
+function applyCreateScenario(
+  database: Database.Database,
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  const prepared = prepareAndAuthorizeGateScenario(database, scenario, false);
+  const committed = commitVNextSemanticTransitionV01(database, {
+    workspace_id: scenario.proposal.workspace_id,
+    project_id: scenario.proposal.project_id,
+    proposal_id: scenario.proposal.proposal_id,
+    proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+    decision_id: scenario.decision.decision_id,
+    decision_fingerprint: scenario.decision.integrity.fingerprint,
+    gate_record_id: prepared.authorization.gate_record.gate_record_id,
+    gate_record_fingerprint:
+      prepared.authorization.gate_record.integrity.fingerprint,
+    applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
+    recorded_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+  });
+  assert.equal(committed.status, "applied", `${scenario.scenario_id} seed applies`);
+  return { ...prepared, committed };
+}
+
+function prepareAndAuthorizeGateScenario(
+  database: Database.Database,
+  scenario: DurableLocalSemanticGateScenarioV01,
+  runRefusalCases: boolean,
+): {
+  preview: VNextSemanticCommitPreviewV01;
+  authorization: VNextSemanticCommitAuthorizationResultV01;
+} {
+  const persisted = persistVNextSemanticReviewMaterialV01(database, {
+    proposal: scenario.proposal,
+    decision: scenario.decision,
+  });
+  assert(
+    ["inserted", "exact_replay"].includes(persisted.proposal_record.status),
+  );
+  assert(
+    ["inserted", "exact_replay"].includes(persisted.decision_record.status),
+  );
+  const beforePreview = readNamedTablesSnapshot(database, [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+  ]);
+  const times = semanticGateScenarioTimes(scenario);
+  const preview = prepareVNextSemanticCommitPreviewV01(database, {
+    workspace_id: scenario.proposal.workspace_id,
+    project_id: scenario.proposal.project_id,
+    proposal_id: scenario.proposal.proposal_id,
+    proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+    decision_id: scenario.decision.decision_id,
+    decision_fingerprint: scenario.decision.integrity.fingerprint,
+    current_state_observed_at: times.current_state_observed_at,
+    previewed_at: times.previewed_at,
+  });
+  assert.deepEqual(
+    readNamedTablesSnapshot(database, [
+      "vnext_core_records",
+      "vnext_semantic_state_entries",
+    ]),
+    beforePreview,
+    `${scenario.scenario_id} preview writes zero rows`,
+  );
+  assertPreviewMatchesScenario(scenario, preview);
+  if (runRefusalCases) {
+    assertAuthorizationRefusals(database, scenario, preview, beforePreview);
+  }
+
+  const beforeAuthorization = readNamedTablesSnapshot(database, [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+  ]);
+  const authorization = recordVNextSemanticCommitAuthorizationV01(
+    database,
+    authorizationInput(scenario, preview),
+  );
+  assert.equal(authorization.status, "inserted");
+  assert.equal(authorization.eligibility.status, "eligible");
+  const afterAuthorization = readNamedTablesSnapshot(database, [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+  ]);
+  assert.equal(
+    afterAuthorization.counts.vnext_core_records,
+    beforeAuthorization.counts.vnext_core_records + 1,
+    `${scenario.scenario_id} confirmation persists one gate record only`,
+  );
+  assert.equal(
+    afterAuthorization.table_hashes.vnext_semantic_state_entries,
+    beforeAuthorization.table_hashes.vnext_semantic_state_entries,
+    `${scenario.scenario_id} confirmation does not mutate current state`,
+  );
+  assert.equal(
+    scenario.decision.actor_ref.trust_class,
+    "user_declaration",
+    "synthetic operator binding remains a declaration, not authentication",
+  );
+  return { preview, authorization };
+}
+
+function assertPreviewMatchesScenario(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  preview: VNextSemanticCommitPreviewV01,
+) {
+  assert.equal(preview.intended_effects.length, scenario.expected_target_count);
+  assert.deepEqual(
+    preview.intended_effects.map((effect) => effect.operation).sort(),
+    [...scenario.expected_operations].sort(),
+    `${scenario.scenario_id} derives exact operations`,
+  );
+  assert.deepEqual(
+    canonicalRefSet(preview.intended_effects.map((effect) => effect.target_ref)),
+    canonicalRefSet(
+      scenario.decision.requested_transition_intent?.target_refs ?? [],
+    ),
+    `${scenario.scenario_id} preserves the exact target set`,
+  );
+  const stateMaterialCandidate =
+    scenario.decision.decision === "supersede"
+      ? scenario.proposal.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id ===
+            scenario.decision.lineage.superseding_candidate?.candidate_id,
+        )
+      : scenario.decision.decision === "retract"
+        ? null
+        : scenario.proposal.proposed_deltas.find(
+            (candidate) =>
+              candidate.candidate_id === scenario.decision.candidate.candidate_id,
+          );
+  for (const effect of preview.intended_effects) {
+    assert.equal(
+      effect.expected_revision,
+      effect.operation === "create" ? 1 : 2,
+      `${scenario.scenario_id} derives the exact expected revision`,
+    );
+    if (!stateMaterialCandidate) {
+      assert.equal(effect.expected_after_state_fingerprint, null);
+      continue;
+    }
+    const expectedState = buildVNextPersistedSemanticStateV01({
+      proposal: scenario.proposal,
+      candidate_id: stateMaterialCandidate.candidate_id,
+      target_ref: effect.target_ref,
+      source_decision: {
+        decision_id: scenario.decision.decision_id,
+        decision_fingerprint: scenario.decision.integrity.fingerprint,
+      },
+      created_at: semanticGateScenarioTimes(scenario).previewed_at,
+    });
+    assert.equal(
+      effect.expected_after_state_fingerprint,
+      expectedState.state_content_fingerprint,
+      `${scenario.scenario_id} authorizes exact candidate-derived state content`,
+    );
+  }
+}
+
+function assertAuthorizationRefusals(
+  database: Database.Database,
+  scenario: DurableLocalSemanticGateScenarioV01,
+  preview: VNextSemanticCommitPreviewV01,
+  baseline: ReturnType<typeof readNamedTablesSnapshot>,
+) {
+  const mismatchedActor = clone(scenario.decision.actor_ref);
+  mismatchedActor.external_id = `${mismatchedActor.external_id}:mismatch`;
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      recordVNextSemanticCommitAuthorizationV01(database, {
+        ...authorizationInput(scenario, preview),
+        operator_actor_ref: mismatchedActor,
+      }),
+    baseline,
+    /operator_actor_mismatch/,
+    "operator actor mismatch",
+  );
+
+  const mismatchedDigest = createProtocolSha256V01(
+    `${preview.confirmation_digest}|mismatch`,
+  );
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      recordVNextSemanticCommitAuthorizationV01(database, {
+        ...authorizationInput(scenario, preview),
+        confirmation_digest: mismatchedDigest,
+        confirmation_observation_ref: directLocalRef(
+          "semantic_commit_confirmation",
+          `confirmation:${scenario.scenario_id}:digest-mismatch`,
+          DURABLE_LOCAL_LOOP_CONFIRMED_AT,
+          mismatchedDigest,
+        ),
+      }),
+    baseline,
+    /semantic_commit_confirmation_digest_mismatch/,
+    "confirmation digest mismatch",
+  );
+
+  const earlyConfirmation = "2026-07-10T14:08:30.000Z";
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      recordVNextSemanticCommitAuthorizationV01(database, {
+        ...authorizationInput(scenario, preview),
+        confirmed_at: earlyConfirmation,
+        confirmation_observation_ref: directLocalRef(
+          "semantic_commit_confirmation",
+          `confirmation:${scenario.scenario_id}:chronology-mismatch`,
+          earlyConfirmation,
+          preview.confirmation_digest,
+        ),
+      }),
+    baseline,
+    /semantic_commit_confirmation_precedes_preview/,
+    "confirmation chronology mismatch",
+  );
+
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      recordVNextSemanticCommitAuthorizationV01(database, {
+        ...authorizationInput(scenario, preview),
+        gate_expires_at: "2026-07-10T14:10:30.000Z",
+      }),
+    baseline,
+    /semantic_commit_chronology_invalid|semantic_commit_gate_expiry_invalid/,
+    "expired or invalid gate timing",
+  );
+
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      prepareVNextSemanticCommitPreviewV01(database, {
+        workspace_id: durableLocalClosedLoopProjectBFixture.workspace_id,
+        project_id: durableLocalClosedLoopProjectBFixture.project_id,
+        proposal_id: scenario.proposal.proposal_id,
+        proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+        decision_id: scenario.decision.decision_id,
+        decision_fingerprint: scenario.decision.integrity.fingerprint,
+        current_state_observed_at:
+          semanticGateScenarioTimes(scenario).current_state_observed_at,
+        previewed_at: semanticGateScenarioTimes(scenario).previewed_at,
+      }),
+    baseline,
+    /persisted_proposal_missing|persisted_decision_missing/,
+    "cross-project binding",
+  );
+}
+
+function authorizationInput(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  preview: VNextSemanticCommitPreviewV01,
+) {
+  const times = semanticGateScenarioTimes(scenario);
+  const applierFingerprint = createProtocolSha256V01(
+    `semantic-gate-applier|${scenario.scenario_id}|${scenario.proposal.project_id}`,
+  );
+  return {
+    preview,
+    confirmation_digest: preview.confirmation_digest,
+    operator_actor_ref: scenario.decision.actor_ref,
+    confirmation_observation_ref: directLocalRef(
+      "semantic_commit_confirmation",
+      `confirmation:${scenario.scenario_id}:${preview.confirmation_digest}`,
+      times.confirmed_at,
+      preview.confirmation_digest,
+    ),
+    authorized_applier_ref: directLocalRef(
+      "semantic_transition_applier",
+      `local-core-applier:${scenario.scenario_id}:${scenario.proposal.project_id}`,
+      times.gate_evaluated_at,
+      applierFingerprint,
+    ),
+    confirmed_at: times.confirmed_at,
+    gate_evaluated_at: times.gate_evaluated_at,
+    gate_expires_at: DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+    eligibility_evaluated_at: times.eligibility_evaluated_at,
+  };
+}
+
+function semanticGateScenarioTimes(
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  if (scenario.scenario_id === "create") {
+    return {
+      current_state_observed_at: DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
+      previewed_at: DURABLE_LOCAL_LOOP_PREVIEWED_AT,
+      confirmed_at: DURABLE_LOCAL_LOOP_CONFIRMED_AT,
+      gate_evaluated_at: DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
+      eligibility_evaluated_at:
+        DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
+    };
+  }
+  return {
+    current_state_observed_at:
+      DURABLE_LOCAL_LOOP_FOLLOWUP_CURRENT_STATE_OBSERVED_AT,
+    previewed_at: DURABLE_LOCAL_LOOP_FOLLOWUP_PREVIEWED_AT,
+    confirmed_at: DURABLE_LOCAL_LOOP_FOLLOWUP_CONFIRMED_AT,
+    gate_evaluated_at: DURABLE_LOCAL_LOOP_FOLLOWUP_GATE_EVALUATED_AT,
+    eligibility_evaluated_at:
+      DURABLE_LOCAL_LOOP_FOLLOWUP_ELIGIBILITY_EVALUATED_AT,
+  };
+}
+
+function assertGateRefusalNoWrite(
+  database: Database.Database,
+  action: () => unknown,
+  baseline: ReturnType<typeof readNamedTablesSnapshot>,
+  expectedError: RegExp,
+  label: string,
+) {
+  assert.throws(action, expectedError, label);
+  assert.deepEqual(
+    readNamedTablesSnapshot(database, [
+      "vnext_core_records",
+      "vnext_semantic_state_entries",
+    ]),
+    baseline,
+    `${label} writes nothing`,
+  );
+}
+
+function createSelfConsistentForgedGate(
+  source: VNextSemanticCommitGateRecordV01,
+): VNextSemanticCommitGateRecordV01 {
+  const gate = clone(source);
+  const forgedActor = clone(gate.operator_actor_ref);
+  forgedActor.external_id = `${forgedActor.external_id}:forged`;
+  gate.operator_actor_ref = forgedActor;
+  gate.semantic_commit_gate_evaluation.decision_actor_ref = clone(forgedActor);
+  gate.integrity.fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      ...gate,
+      integrity: { ...gate.integrity, fingerprint: undefined },
+    }),
+  );
+  return gate;
+}
+
+function canonicalRefSet(refs: ExternalRefV01[]): string[] {
+  return refs.map((ref) => canonicalizeProtocolValueV01(ref)).sort();
 }
 
 function runMigrationCoverage(parentDirectory: string) {
