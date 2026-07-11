@@ -163,6 +163,7 @@ export interface SemanticTransitionLoopConformanceSummaryV01 {
   transition_receipt_lineage_checked: true;
   composed_full_chain_validation_checked: true;
   semantic_no_op_rejected_checked: true;
+  whitespace_disguised_no_op_rejected_checked: true;
   malformed_receipt_full_chain_fail_closed_checked: true;
   two_project_isolation_checked: true;
   repeated_execution_deterministic: true;
@@ -334,6 +335,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
   }
   assertComposedFullChainRejectsUnauthorizedReceipt(projectA);
   assertComposedFullChainRejectsSemanticNoOp(acceptReplace);
+  assertComposedFullChainRejectsWhitespaceDisguisedNoOp(acceptReplace);
   const malformedFullChainNegativeCount =
     assertMalformedReceiptFullChainCases(projectA);
 
@@ -345,7 +347,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     later_packet_relation_negative_fixture_count:
       laterPacketRelationCases.length,
     full_chain_negative_fixture_count:
-      2 + malformedFullChainNegativeCount,
+      3 + malformedFullChainNegativeCount,
     existing_m3a_anchor_count: 9,
     canonical_transition_receipt_id:
       projectA.transition_receipt.transition_receipt_id,
@@ -370,6 +372,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     transition_receipt_lineage_checked: true,
     composed_full_chain_validation_checked: true,
     semantic_no_op_rejected_checked: true,
+    whitespace_disguised_no_op_rejected_checked: true,
     malformed_receipt_full_chain_fail_closed_checked: true,
     two_project_isolation_checked: true,
     repeated_execution_deterministic: true,
@@ -1286,6 +1289,84 @@ function assertComposedFullChainRejectsSemanticNoOp(
   assert.ok(
     composed.errors.some(
       (issue) => issue.code === "state_content_change_required",
+    ),
+    format(composed),
+  );
+}
+
+function assertComposedFullChainRejectsWhitespaceDisguisedNoOp(
+  source: TransitionScenarioV01,
+) {
+  const observations = clone(source.current_state_observations);
+  const observation = observations[0];
+  const authorizedEffect =
+    source.semantic_commit_gate_evaluation.authorized_effects[0];
+  if (
+    !observation ||
+    observation.presence !== "present" ||
+    !authorizedEffect ||
+    authorizedEffect.expected_after_state.presence !== "present"
+  ) {
+    throw new Error(
+      "Whitespace no-op full-chain case requires present state material.",
+    );
+  }
+  observation.presence =
+    " present " as StateTransitionCurrentStateObservationV01["presence"];
+  observation.state_fingerprint =
+    ` ${authorizedEffect.expected_after_state.state_fingerprint} `;
+  let eligibility: StateTransitionEligibilityResultV01 | undefined;
+  assert.doesNotThrow(() => {
+    eligibility = evaluateReviewDecisionStateTransitionEligibilityV01({
+      proposal: source.proposal,
+      decision: source.decision,
+      current_state_observations: observations,
+      semantic_commit_gate_evaluation:
+        source.semantic_commit_gate_evaluation,
+      prior_review_decisions: source.prior_review_decisions,
+      prior_state_transition_receipts:
+        source.prior_state_transition_receipts,
+      evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+    });
+  }, "whitespace-disguised no-op eligibility must not throw");
+  assert.ok(eligibility);
+  assert.equal(eligibility.status, "ineligible", format(eligibility));
+  assert.ok(
+    eligibility.errors.some(
+      (issue) => issue.code === "state_content_change_required",
+    ),
+    format(eligibility),
+  );
+  let composed:
+    | ReturnType<typeof validateSemanticTransitionFullChainV01>
+    | undefined;
+  assert.doesNotThrow(() => {
+    composed = validateSemanticTransitionFullChainV01({
+      proposal: source.proposal,
+      decision: source.decision,
+      current_state_observations: observations,
+      semantic_commit_gate_evaluation:
+        source.semantic_commit_gate_evaluation,
+      prior_review_decisions: source.prior_review_decisions,
+      prior_state_transition_receipts:
+        source.prior_state_transition_receipts,
+      evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+      receipt: source.transition_receipt,
+      prior_packet: source.prior_packet,
+      later_packet: source.later_packet,
+    });
+  }, "whitespace-disguised no-op full chain must not throw");
+  assert.ok(composed);
+  assert.equal(composed.status, "blocked", format(composed));
+  assert.ok(
+    composed.errors.some(
+      (issue) => issue.code === "transition_receipt_relation_invalid",
+    ),
+    format(composed),
+  );
+  assert.ok(
+    composed.errors.some(
+      (issue) => issue.code === "transition_not_eligible",
     ),
     format(composed),
   );

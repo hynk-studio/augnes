@@ -110,6 +110,7 @@ const proofTrustClasses = new Set<string>(
   STATE_TRANSITION_RECEIPT_OBSERVATION_TRUST_CLASSES_V01,
 );
 const gateStatuses = new Set(["authorized", "denied", "unknown"]);
+const currentStatePresences = new Set(["absent", "present", "unknown"]);
 const effectOperations = new Set<string>(
   STATE_TRANSITION_RECEIPT_OPERATIONS_V01,
 );
@@ -490,7 +491,7 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
     accumulator,
   );
   const gate = input.semantic_commit_gate_evaluation;
-  if (gate.status !== "authorized") {
+  if (protocolStringValueV01(gate.status) !== "authorized") {
     addRelationError(accumulator, "gate_status_mismatch", "$.semantic_commit_gate.status", "Applied receipt requires the exact authorized gate.", true);
   }
   exactRef(receipt.semantic_commit_gate.evaluation_ref, gate.evaluation_ref, "gate_evaluation_ref_mismatch", "$.semantic_commit_gate.evaluation_ref", accumulator);
@@ -1651,7 +1652,12 @@ function validateGateEvaluation(
   requireString(gate, "decision_id", "$.semantic_commit_gate_evaluation", accumulator);
   validateSha256(gate.decision_fingerprint, "$.semantic_commit_gate_evaluation.decision_fingerprint", "gate_decision_fingerprint_malformed", accumulator);
   requireString(gate, "intent_id", "$.semantic_commit_gate_evaluation", accumulator);
-  requireString(gate, "transition_kind", "$.semantic_commit_gate_evaluation", accumulator);
+  const transitionKind = requireString(
+    gate,
+    "transition_kind",
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
   const targetRefs = requireNonEmptyRefArray(gate.target_refs, "$.semantic_commit_gate_evaluation.target_refs", "gate_target_required", accumulator);
   validateExternalRefStructureV01(gate.decision_actor_ref, "$.semantic_commit_gate_evaluation.decision_actor_ref", issueSink(accumulator));
   const authorizationRefs = requireNonEmptyRefArray(gate.authorization_basis_refs, "$.semantic_commit_gate_evaluation.authorization_basis_refs", "gate_authorization_basis_required", accumulator);
@@ -1713,6 +1719,8 @@ function validateGateEvaluation(
   }
   return {
     ...(gate as unknown as StateTransitionSemanticCommitGateEvaluationV01),
+    status: (status ?? gate.status) as StateTransitionSemanticCommitGateEvaluationV01["status"],
+    transition_kind: (transitionKind ?? gate.transition_kind) as StateTransitionSemanticCommitGateEvaluationV01["transition_kind"],
     authorized_effects: authorizedEffects,
   };
 }
@@ -2007,8 +2015,11 @@ function validateCurrentStateObservations(
     if (!observation) return;
     rejectUnknownNestedKeys(observation, allowedCurrentStateObservationKeys, path, accumulator);
     validateExternalRefStructureV01(observation.target_ref, `${path}.target_ref`, issueSink(accumulator));
-    const targetCanonical = canonicalExternalRef(observation.target_ref);
-    const targetIdentity = externalRefIdentity(observation.target_ref);
+    const targetRef = isProtocolRecordV01(observation.target_ref)
+      ? normalizeEligibilityExternalRef(observation.target_ref)
+      : null;
+    const targetCanonical = canonicalExternalRef(targetRef);
+    const targetIdentity = externalRefIdentity(targetRef);
     if (targetCanonical) {
       if (seenCanonical.has(targetCanonical)) {
         addError(accumulator, "duplicate_current_state_target", `${path}.target_ref`, "Each target requires one current-state observation.", true);
@@ -2071,9 +2082,58 @@ function validateCurrentStateObservations(
     if (observedAt !== null && evaluatedAt !== null && observedAt > evaluatedAt) {
       addError(accumulator, "timestamp_order_invalid", `${path}.observed_at`, "Current-state observation cannot postdate eligibility evaluation.", true);
     }
-    requireNonEmptyRefArray(observation.source_refs, `${path}.source_refs`, "current_state_source_ref_required", accumulator);
+    const sourceRefs = requireNonEmptyRefArray(
+      observation.source_refs,
+      `${path}.source_refs`,
+      "current_state_source_ref_required",
+      accumulator,
+    );
     validateDuplicateExternalRefsPrimitiveV01(observation, issueSink(accumulator));
-    valid.push(observation as unknown as StateTransitionCurrentStateObservationV01);
+    const normalizedObservedAt = protocolStringValueV01(
+      observation.observed_at,
+    );
+    const normalizedObservationRef = isProtocolRecordV01(
+      observation.observation_ref,
+    )
+      ? normalizeEligibilityExternalRef(observation.observation_ref)
+      : null;
+    const normalizedStateRef = isProtocolRecordV01(observation.state_ref)
+      ? normalizeEligibilityExternalRef(observation.state_ref)
+      : null;
+    const normalizedStateFingerprint = protocolStringValueV01(
+      observation.state_fingerprint,
+    );
+    if (
+      targetRef &&
+      presence &&
+      currentStatePresences.has(presence) &&
+      normalizedObservedAt &&
+      normalizedObservationRef &&
+      sourceRefs.length > 0 &&
+      sourceRefs.every(isProtocolRecordV01) &&
+      ((presence === "present" &&
+        normalizedStateRef &&
+        normalizedStateFingerprint) ||
+        ((presence === "absent" || presence === "unknown") &&
+          observation.state_ref === null &&
+          observation.state_fingerprint === null))
+    ) {
+      valid.push({
+        target_ref: targetRef,
+        presence:
+          presence as StateTransitionCurrentStateObservationV01["presence"],
+        state_ref: presence === "present" ? normalizedStateRef : null,
+        state_fingerprint:
+          presence === "present" ? normalizedStateFingerprint : null,
+        observed_at: normalizedObservedAt,
+        observation_ref: normalizedObservationRef,
+        source_refs: uniqueProtocolValuesV01(
+          sourceRefs.map((ref) =>
+            normalizeEligibilityExternalRef(ref),
+          ),
+        ).sort(compareExternalRefsV01),
+      });
+    }
   });
   const missingTargets = [...expectedByCanonical.keys()].filter(
     (key) => !seenCanonical.has(key),
@@ -2197,7 +2257,7 @@ function normalizeCurrentStateObservationsForHash(
   return values
     .map((item) => ({
       target_ref: safeNormalizeRef(item?.target_ref),
-      presence: item?.presence ?? null,
+      presence: protocolStringValueV01(item?.presence),
       state_ref: item?.state_ref ? safeNormalizeRef(item.state_ref) : null,
       state_fingerprint: protocolStringValueV01(item?.state_fingerprint),
       observed_at: protocolStringValueV01(item?.observed_at),
@@ -2281,13 +2341,13 @@ function normalizeGateForHash(
 ) {
   if (!gate || typeof gate !== "object") return gate ?? null;
   return {
-    status: gate.status,
+    status: protocolStringValueV01(gate.status),
     workspace_id: protocolStringValueV01(gate.workspace_id),
     project_id: protocolStringValueV01(gate.project_id),
     decision_id: protocolStringValueV01(gate.decision_id),
     decision_fingerprint: protocolStringValueV01(gate.decision_fingerprint),
     intent_id: protocolStringValueV01(gate.intent_id),
-    transition_kind: gate.transition_kind,
+    transition_kind: protocolStringValueV01(gate.transition_kind),
     target_refs: Array.isArray(gate.target_refs)
       ? gate.target_refs.map(safeNormalizeRef).sort(compareProtocolCanonicalV01)
       : [],
@@ -2303,7 +2363,7 @@ function normalizeGateForHash(
       ? gate.authorized_effects
           .map((effect) => ({
             target_ref: safeNormalizeRef(effect?.target_ref),
-            operation: effect?.operation ?? null,
+            operation: protocolStringValueV01(effect?.operation),
             expected_after_state: effect?.expected_after_state
               ? normalizeAuthorizedAfterStateForHash(
                   effect.expected_after_state,
@@ -2350,7 +2410,7 @@ function normalizeAuthorizedAfterStateForHash(value: unknown): unknown {
 function safeNormalizeRef(value: unknown): unknown {
   if (!isProtocolRecordV01(value)) return value ?? null;
   try {
-    return normalizeExternalRefPrimitiveV01(value as unknown as ExternalRefV01);
+    return normalizeEligibilityExternalRef(value);
   } catch {
     return value;
   }
@@ -2432,8 +2492,25 @@ function validateProofRef(
 function normalizeRefs(refs: ExternalRefV01[]): ExternalRefV01[] {
   if (!Array.isArray(refs)) return [];
   return uniqueProtocolValuesV01(
-    refs.map(normalizeExternalRefPrimitiveV01),
+    refs.map((ref) =>
+      normalizeEligibilityExternalRef(
+        ref as unknown as ProtocolJsonRecordV01,
+      ),
+    ),
   ).sort(compareExternalRefsV01);
+}
+
+function normalizeEligibilityExternalRef(
+  value: ProtocolJsonRecordV01,
+): ExternalRefV01 {
+  const normalized = normalizeExternalRefPrimitiveV01(
+    value as unknown as ExternalRefV01,
+  );
+  return {
+    ...normalized,
+    trust_class: (protocolStringValueV01(value.trust_class) ??
+      normalized.trust_class) as ExternalRefV01["trust_class"],
+  };
 }
 
 function canonicalExternalRef(value: unknown): string {

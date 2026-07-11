@@ -45,10 +45,12 @@ import {
   validateStateTransitionReceiptV01,
 } from "@/lib/vnext/state-transition-receipt";
 import type {
+  StateTransitionCurrentStateObservationV01,
   StateTransitionEligibilityEvaluationInputV01,
   StateTransitionEligibilityResultV01,
   StateTransitionReceiptBuilderInputV01,
   StateTransitionReceiptV01,
+  StateTransitionSemanticCommitGateEvaluationV01,
 } from "@/types/vnext/state-transition-receipt";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -105,6 +107,7 @@ export interface StateTransitionReceiptConformanceSummaryV01 {
   writer_allocated_state_ref_rule_checked: true;
   replay_conflict_semantics_checked: true;
   semantic_content_change_required_checked: true;
+  validated_helper_input_normalization_checked: true;
   malformed_receipt_relation_fail_closed_checked: true;
   resigned_receipt_relation_mismatch_rejected: true;
   required_openai_specific_core_fields: 0;
@@ -397,6 +400,11 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     "replace",
   );
   assertExpectedSemanticContentChange(acceptPresentEligibility);
+  const normalizedEligibilityPositiveCount =
+    assertNormalizedEligibilityInputCases(
+      eligibilityInput,
+      acceptPresentInput,
+    );
 
   const supersedeInput = createAppliedLineageEligibilityInput("supersede");
   const supersedeEligibility =
@@ -440,6 +448,11 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     assertSemanticNoOpEligibilityCases(acceptPresentInput, supersedeInput);
   const appliedLineageNegativeFixtureCount =
     assertAppliedLineageNegativeCases();
+  const normalizedLineageNegativeFixtureCount =
+    assertWhitespacePresencePreservesAppliedLineage(
+      supersedeInput,
+      retractInput,
+    );
 
   for (const invalidCase of invalidStateTransitionEligibilityInputFixtureCases) {
     const invalidEligibility =
@@ -691,12 +704,14 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
       invalidStateTransitionReceiptFixtureCases.length +
       2 +
       semanticNoOpReceiptNegativeCount,
-    eligibility_positive_fixture_count: 6,
+    eligibility_positive_fixture_count:
+      6 + normalizedEligibilityPositiveCount,
     eligibility_negative_fixture_count:
       invalidStateTransitionEligibilityInputFixtureCases.length +
       3 +
       semanticNoOpEligibilityNegativeCount +
-      appliedLineageNegativeFixtureCount,
+      appliedLineageNegativeFixtureCount +
+      normalizedLineageNegativeFixtureCount,
     receipt_relation_negative_fixture_count:
       receiptRelationCases.length +
       1 +
@@ -736,6 +751,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     writer_allocated_state_ref_rule_checked: true,
     replay_conflict_semantics_checked: true,
     semantic_content_change_required_checked: true,
+    validated_helper_input_normalization_checked: true,
     malformed_receipt_relation_fail_closed_checked: true,
     resigned_receipt_relation_mismatch_rejected: true,
     required_openai_specific_core_fields: 0,
@@ -795,10 +811,10 @@ function assertSemanticNoOpEligibilityCases(
     ["supersede", supersedeSource],
   ] as const;
   for (const [name, source] of cases) {
-    const input = clone(source);
-    const observation = input.current_state_observations[0];
+    const canonicalInput = clone(source);
+    const observation = canonicalInput.current_state_observations[0];
     const authorized =
-      input.semantic_commit_gate_evaluation.authorized_effects[0];
+      canonicalInput.semantic_commit_gate_evaluation.authorized_effects[0];
     if (
       !observation ||
       observation.presence !== "present" ||
@@ -810,11 +826,135 @@ function assertSemanticNoOpEligibilityCases(
     }
     authorized.expected_after_state.state_fingerprint =
       observation.state_fingerprint;
-    const result = evaluateReviewDecisionStateTransitionEligibilityV01(input);
-    assert.equal(result.status, "ineligible", `${name}: ${format(result)}`);
+    const canonicalResult =
+      evaluateReviewDecisionStateTransitionEligibilityV01(canonicalInput);
+    assert.equal(
+      canonicalResult.status,
+      "ineligible",
+      `${name}: ${format(canonicalResult)}`,
+    );
+    assert.ok(
+      canonicalResult.errors.some(
+        (issue) => issue.code === "state_content_change_required",
+      ),
+      `${name}: ${format(canonicalResult)}`,
+    );
+    const whitespaceInput = clone(canonicalInput);
+    const whitespaceObservation =
+      whitespaceInput.current_state_observations[0]!;
+    whitespaceObservation.state_fingerprint =
+      ` ${whitespaceObservation.state_fingerprint} `;
+    let whitespaceResult: StateTransitionEligibilityResultV01 | undefined;
+    assert.doesNotThrow(() => {
+      whitespaceResult =
+        evaluateReviewDecisionStateTransitionEligibilityV01(
+          whitespaceInput,
+        );
+    }, `${name} whitespace no-op must not throw`);
+    assert.ok(whitespaceResult);
+    assert.equal(
+      whitespaceResult.status,
+      canonicalResult.status,
+      `${name}: ${format(whitespaceResult)}`,
+    );
+    assert.equal(
+      whitespaceResult.precondition_fingerprint,
+      canonicalResult.precondition_fingerprint,
+      `${name}: whitespace and canonical no-op inputs must hash identically`,
+    );
+    assert.ok(
+      whitespaceResult.errors.some(
+        (issue) => issue.code === "state_content_change_required",
+      ),
+      `${name}: ${format(whitespaceResult)}`,
+    );
+  }
+  return cases.length * 2;
+}
+
+function assertNormalizedEligibilityInputCases(
+  absentSource: StateTransitionEligibilityEvaluationInputV01,
+  presentSource: StateTransitionEligibilityEvaluationInputV01,
+): number {
+  const cases: Array<{
+    name: string;
+    source: StateTransitionEligibilityEvaluationInputV01;
+    mutate(input: StateTransitionEligibilityEvaluationInputV01): void;
+  }> = [
+    {
+      name: "whitespace_absent_presence",
+      source: absentSource,
+      mutate(input) {
+        input.current_state_observations[0]!.presence =
+          " absent " as StateTransitionCurrentStateObservationV01["presence"];
+      },
+    },
+    {
+      name: "whitespace_present_presence",
+      source: presentSource,
+      mutate(input) {
+        input.current_state_observations[0]!.presence =
+          " present " as StateTransitionCurrentStateObservationV01["presence"];
+      },
+    },
+    {
+      name: "whitespace_gate_status_and_transition_kind",
+      source: absentSource,
+      mutate(input) {
+        input.semantic_commit_gate_evaluation.status =
+          " authorized " as StateTransitionSemanticCommitGateEvaluationV01["status"];
+        input.semantic_commit_gate_evaluation.transition_kind =
+          " semantic_candidate_apply " as StateTransitionSemanticCommitGateEvaluationV01["transition_kind"];
+      },
+    },
+  ];
+  for (const testCase of cases) {
+    const canonical = evaluateReviewDecisionStateTransitionEligibilityV01(
+      clone(testCase.source),
+    );
+    const input = clone(testCase.source);
+    testCase.mutate(input);
+    let normalized: StateTransitionEligibilityResultV01 | undefined;
+    assert.doesNotThrow(() => {
+      normalized = evaluateReviewDecisionStateTransitionEligibilityV01(input);
+    }, testCase.name);
+    assert.ok(normalized, testCase.name);
+    assert.equal(normalized.status, "eligible", format(normalized));
+    assert.deepEqual(
+      normalized,
+      canonical,
+      `${testCase.name} must be semantically identical to canonical input`,
+    );
+  }
+  return cases.length;
+}
+
+function assertWhitespacePresencePreservesAppliedLineage(
+  supersedeSource: StateTransitionEligibilityEvaluationInputV01,
+  retractSource: StateTransitionEligibilityEvaluationInputV01,
+): number {
+  const cases = [
+    ["supersede", supersedeSource],
+    ["retract", retractSource],
+  ] as const;
+  for (const [name, source] of cases) {
+    const input = clone(source);
+    const observation = input.current_state_observations[0];
+    if (!observation || observation.presence !== "present") {
+      throw new Error(`${name} lineage case requires present state.`);
+    }
+    observation.presence =
+      " present " as StateTransitionCurrentStateObservationV01["presence"];
+    observation.state_fingerprint = `sha256:${"6".repeat(64)}`;
+    let result: StateTransitionEligibilityResultV01 | undefined;
+    assert.doesNotThrow(() => {
+      result = evaluateReviewDecisionStateTransitionEligibilityV01(input);
+    }, `${name} whitespace presence must not skip lineage validation`);
+    assert.ok(result);
+    assert.equal(result.status, "ineligible", format(result));
     assert.ok(
       result.errors.some(
-        (issue) => issue.code === "state_content_change_required",
+        (issue) => issue.code === "prior_applied_state_not_current",
       ),
       `${name}: ${format(result)}`,
     );
