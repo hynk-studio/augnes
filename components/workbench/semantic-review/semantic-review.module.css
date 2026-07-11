@@ -492,6 +492,34 @@
   margin: 2px 0 0;
 }
 
+.handoffFallback,
+.handoffPreview {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 7px 0 0;
+  padding: 11px;
+  border: 1px solid rgba(31, 41, 55, 0.16);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #27364b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.handoffFallback {
+  min-height: 220px;
+  resize: vertical;
+}
+
+.handoffPreview {
+  max-height: 420px;
+}
+
 @media (max-width: 900px) {
   .header,
   .detailGrid,

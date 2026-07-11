@@ -1058,6 +1058,26 @@ export function readVNextSemanticTargetHeadV01(
   return row ? normalizeTargetHead(row) : null;
 }
 
+export function listVNextSemanticTargetHeadsV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; limit: number },
+): VNextSemanticTargetHeadV01[] {
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 513) {
+    throw new Error("semantic_target_head_list_limit_invalid");
+  }
+  const rows = db.prepare(
+    `SELECT * FROM vnext_semantic_target_heads
+     WHERE workspace_id = ? AND project_id = ?
+     ORDER BY revision DESC, updated_at DESC, target_key
+     LIMIT ?`,
+  ).all(
+    normalizeRequiredText(input.workspace_id, "workspace_id"),
+    normalizeRequiredText(input.project_id, "project_id"),
+    input.limit,
+  ) as TargetHeadRowV01[];
+  return rows.map(normalizeTargetHead);
+}
+
 export function insertVNextSemanticTargetHeadV01(
   db: Database.Database,
   head: VNextSemanticTargetHeadV01,

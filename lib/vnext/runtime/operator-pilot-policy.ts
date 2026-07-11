@@ -1,12 +1,18 @@
 import type Database from "better-sqlite3";
 
 import {
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   deriveVNextSemanticTargetKeyV01,
+  readVNextCoreRecordV01,
   readVNextSemanticStateEntryV01,
   readVNextSemanticTargetHeadV01,
+  rebuildVNextPersistedSemanticStateV01,
+  type VNextSemanticStateProjectionEntryV01,
+  type VNextSemanticTargetHeadV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-decision";
+import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import type { EpisodeDeltaProposalDeltaCandidateV01, EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -157,10 +163,21 @@ function readTargetState(
       source_transition_receipt_fingerprint: null,
     };
   }
+  const durableLineageCoherent = head
+    ? hasCoherentDurableTargetLineage(
+        db,
+        config,
+        targetRef,
+        targetKey,
+        head,
+        projection,
+      )
+    : false;
   if (
     !projection &&
     head?.presence === "absent" &&
-    head.current_state_fingerprint === null
+    head.current_state_fingerprint === null &&
+    durableLineageCoherent
   ) {
     return {
       target_ref: targetRef,
@@ -182,7 +199,8 @@ function readTargetState(
     projection.source_transition_receipt_id ===
       head.source_transition_receipt_id &&
     projection.source_transition_receipt_fingerprint ===
-      head.source_transition_receipt_fingerprint
+      head.source_transition_receipt_fingerprint &&
+    durableLineageCoherent
   ) {
     return {
       target_ref: targetRef,
@@ -211,6 +229,96 @@ function readTargetState(
       projection?.source_transition_receipt_fingerprint ??
       null,
   };
+}
+
+function hasCoherentDurableTargetLineage(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  targetRef: ExternalRefV01,
+  targetKey: string,
+  head: VNextSemanticTargetHeadV01,
+  projection: VNextSemanticStateProjectionEntryV01 | null,
+): boolean {
+  try {
+    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      transition_receipt_id: head.source_transition_receipt_id,
+      transition_receipt_fingerprint:
+        head.source_transition_receipt_fingerprint,
+    });
+    const effect = transition.receipt.effects.find(
+      (item) =>
+        deriveVNextSemanticTargetKeyV01(item.target_ref) === targetKey,
+    );
+    const intended = transition.gate_record.intended_effects.find(
+      (item) => item.target_key === targetKey,
+    );
+    if (
+      !effect ||
+      !intended ||
+      head.revision !== intended.expected_revision ||
+      head.updated_at !== transition.receipt.recorded_at ||
+      head.presence !== effect.after_state.presence ||
+      head.current_state_fingerprint !== effect.after_state.state_fingerprint ||
+      canonicalizeProtocolValueV01(effect.target_ref) !==
+        canonicalizeProtocolValueV01(targetRef)
+    ) {
+      return false;
+    }
+    if (head.presence === "absent") {
+      return projection === null && effect.after_state.state_ref === null;
+    }
+    if (
+      !projection ||
+      effect.after_state.state_ref === null ||
+      projection.updated_at !== head.updated_at ||
+      canonicalizeProtocolValueV01(projection.target_ref) !==
+        canonicalizeProtocolValueV01(targetRef) ||
+      canonicalizeProtocolValueV01(projection.state_ref) !==
+        canonicalizeProtocolValueV01(effect.after_state.state_ref)
+    ) {
+      return false;
+    }
+    const stateRecord = readVNextCoreRecordV01(db, {
+      record_kind: "semantic_state",
+      record_id: projection.state_ref.external_id,
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+    });
+    if (!stateRecord) return false;
+    const state = rebuildVNextPersistedSemanticStateV01(stateRecord.payload);
+    assertVNextCoreRecordMatchesProtocolPayloadBindingV01(stateRecord, {
+      workspace_id: state.workspace_id,
+      project_id: state.project_id,
+      fingerprint: state.integrity.fingerprint,
+    });
+    return (
+      stateRecord.record_id === state.semantic_state_record_id &&
+      stateRecord.created_at === state.created_at &&
+      stateRecord.idempotency_key === null &&
+      state.workspace_id === config.workspace_id &&
+      state.project_id === config.project_id &&
+      state.target_key === targetKey &&
+      canonicalizeProtocolValueV01(state.target_ref) ===
+        canonicalizeProtocolValueV01(targetRef) &&
+      canonicalizeProtocolValueV01(state.state_ref) ===
+        canonicalizeProtocolValueV01(projection.state_ref) &&
+      state.state_content_fingerprint === projection.state_fingerprint &&
+      state.bounded_state_summary === projection.bounded_state_summary &&
+      state.source_proposal_id === projection.source_proposal_id &&
+      state.source_proposal_fingerprint ===
+        projection.source_proposal_fingerprint &&
+      state.source_candidate_id === projection.source_candidate_id &&
+      state.source_candidate_fingerprint ===
+        projection.source_candidate_fingerprint &&
+      state.source_decision_id === transition.decision.decision_id &&
+      state.source_decision_fingerprint ===
+        transition.decision.integrity.fingerprint
+    );
+  } catch {
+    return false;
+  }
 }
 
 function aggregateCurrentStateStatus(
