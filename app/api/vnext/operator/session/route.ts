@@ -49,13 +49,13 @@ export function createVNextLocalOperatorSessionHandlersV01(
   async function getSession(request: Request): Promise<NextResponse> {
     let db: Database.Database | null = null;
     try {
-      const config = readVNextLocalOperatorPilotConfigV01(
-        options.environment ?? process.env,
-      );
+      const environment = options.environment ?? process.env;
+      assertPilotEnabled(environment);
       const requestUrl = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: false,
       });
       assertNoCredentialQuery(requestUrl);
+      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       db = openDatabase(config);
       const authentication = authenticateVNextLocalOperatorSessionV01(db, {
@@ -82,13 +82,13 @@ export function createVNextLocalOperatorSessionHandlersV01(
   async function postSession(request: Request): Promise<NextResponse> {
     let db: Database.Database | null = null;
     try {
-      const config = readVNextLocalOperatorPilotConfigV01(
-        options.environment ?? process.env,
-      );
+      const environment = options.environment ?? process.env;
+      assertPilotEnabled(environment);
       const requestUrl = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: true,
       });
       assertNoCredentialQuery(requestUrl);
+      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       const action = body.action;
       if (action === "bootstrap") {
@@ -167,6 +167,15 @@ const handlers = createVNextLocalOperatorSessionHandlersV01();
 
 export const GET = handlers.GET;
 export const POST = handlers.POST;
+
+function assertPilotEnabled(environment: NodeJS.ProcessEnv): void {
+  if (environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== "1") {
+    throw new VNextLocalOperatorSessionErrorV01(
+      "operator_pilot_disabled",
+      404,
+    );
+  }
+}
 
 function assertNoCredentialQuery(url: URL): void {
   if ([...url.searchParams.keys()].length > 0) {

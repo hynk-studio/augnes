@@ -238,16 +238,18 @@ export function openVNextLocalOperatorDatabaseV01(
   if (!existsSync(config.database_path)) {
     throw sessionError("operator_pilot_db_missing", 503);
   }
+  let db: Database.Database | null = null;
   try {
     if (!statSync(config.database_path).isFile()) {
       throw sessionError("operator_pilot_db_path_invalid", 503);
     }
-    const db = new Database(config.database_path, { fileMustExist: true });
+    db = new Database(config.database_path, { fileMustExist: true });
     db.pragma("foreign_keys = ON");
     db.pragma("busy_timeout = 5000");
     assertVNextLocalOperatorSessionSchemaV01(db);
     return db;
   } catch (error) {
+    db?.close();
     if (error instanceof VNextLocalOperatorSessionErrorV01) throw error;
     throw sessionError("operator_pilot_db_missing", 503);
   }
