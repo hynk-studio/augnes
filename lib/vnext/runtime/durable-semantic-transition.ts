@@ -752,6 +752,7 @@ export function commitVNextSemanticTransitionV01(
     const projection: VNextSemanticStateProjectionEntryV01 = {
       workspace_id: proposal.workspace_id,
       project_id: proposal.project_id,
+      presence: "present",
       target_key: targetKey,
       target_ref: targetRef,
       state_ref: expectedState.state_ref,

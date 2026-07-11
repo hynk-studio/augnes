@@ -94,6 +94,7 @@ export interface VNextPersistedSemanticStateVersionV01 {
 export interface VNextSemanticStateProjectionEntryV01 {
   workspace_id: string;
   project_id: string;
+  presence: "present";
   target_key: string;
   target_ref: ExternalRefV01;
   state_ref: ExternalRefV01;
@@ -153,6 +154,7 @@ export const VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01 = `
   CREATE TABLE IF NOT EXISTS vnext_semantic_state_entries (
     workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
     project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+    presence TEXT NOT NULL CHECK (presence = 'present'),
     target_key TEXT NOT NULL CHECK (
       length(target_key) = 71 AND substr(target_key, 1, 7) = 'sha256:'
     ),
@@ -203,6 +205,7 @@ interface CoreRecordRowV01 {
 interface ProjectionRowV01 {
   workspace_id: string;
   project_id: string;
+  presence: string;
   target_key: string;
   target_ref_json: string;
   state_ref_json: string;
@@ -513,13 +516,13 @@ export function insertVNextSemanticStateEntryV01(
   const normalized = normalizeProjection(entry);
   const result = db.prepare(
     `INSERT INTO vnext_semantic_state_entries (
-      workspace_id, project_id, target_key, target_ref_json, state_ref_json,
+      workspace_id, project_id, presence, target_key, target_ref_json, state_ref_json,
       current_state_fingerprint, bounded_state_summary,
       source_proposal_id, source_proposal_fingerprint,
       source_candidate_id, source_candidate_fingerprint,
       source_transition_receipt_id, source_transition_receipt_fingerprint,
       revision, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(...projectionValues(normalized));
   if (result.changes !== 1) throw new Error("semantic_state_insert_failed");
 }
@@ -688,6 +691,7 @@ function normalizeProjection(
   return {
     workspace_id: normalizeRequiredText(input.workspace_id, "workspace_id"),
     project_id: normalizeRequiredText(input.project_id, "project_id"),
+    presence: normalizePresence(input.presence),
     target_key: normalizeSha256(input.target_key, "target_key"),
     target_ref: normalizeExternalRefPrimitiveV01(input.target_ref),
     state_ref: normalizeExternalRefPrimitiveV01(input.state_ref),
@@ -708,6 +712,7 @@ function projectionValues(entry: VNextSemanticStateProjectionEntryV01): unknown[
   return [
     entry.workspace_id,
     entry.project_id,
+    entry.presence,
     entry.target_key,
     canonicalizeProtocolValueV01(entry.target_ref),
     canonicalizeProtocolValueV01(entry.state_ref),
@@ -736,6 +741,7 @@ function parseProjection(row: ProjectionRowV01): VNextSemanticStateProjectionEnt
   return normalizeProjection({
     workspace_id: row.workspace_id,
     project_id: row.project_id,
+    presence: normalizePresence(row.presence),
     target_key: row.target_key,
     target_ref: targetRef,
     state_ref: stateRef,
@@ -756,6 +762,13 @@ function normalizeRequiredText(value: unknown, field: string): string {
   const normalized = normalizeProtocolTextV01(value);
   if (!normalized) throw new Error(`${field}_required`);
   return normalized;
+}
+
+function normalizePresence(value: unknown): "present" {
+  if (normalizeProtocolTextV01(value) !== "present") {
+    throw new Error("semantic_state_presence_invalid");
+  }
+  return "present";
 }
 
 function normalizeSha256(value: unknown, field: string): string {

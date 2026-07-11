@@ -4,6 +4,7 @@ import {
   type ConsolidationStatus,
 } from "@/lib/runtime/candidate-scoring";
 import proposalScoringSchema from "@/lib/db/proposal-scoring-schema.json";
+import { ensureVNextDurableSemanticStoreSchemaV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -251,6 +252,7 @@ export function openDatabase() {
   migrateAutohuntDailyLauncherRunTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
+  ensureVNextDurableSemanticStoreSchemaV01(db);
   return db;
 }
 
