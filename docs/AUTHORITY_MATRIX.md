@@ -156,6 +156,14 @@ candidate/review records before any committed perspective state. None of these
 lanes creates durable approval, proof/evidence, work closure, publication,
 merge, or Augnes state commit/reject authority by itself.
 
+This generic durable research-candidate permission explicitly excludes Personal
+Perspective, identity or personality candidates, cross-project personal
+continuity, and Personal Vault data. Until a dedicated Personal Vault
+architecture decision and explicit user opt-in exist, real personal material
+must remain ephemeral; synthetic Lab fixtures may remain replayable artifacts
+under Lab Charter retention and non-authority rules. A Work Brief or Core
+Handoff alone cannot bypass this restriction.
+
 `loopness_hint` is a bounded log_only diagnostic object; it is the only bounded
 log_only diagnostic object in `research_diagnostics`.
 `sidecar_e_t` is a structured placeholder object.

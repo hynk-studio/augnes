@@ -56,6 +56,10 @@ repo implementation and verification worker. Preserve the authority boundaries.
     compatibility, migration, legacy retirement, or milestone work.
   - `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` for completion
     claims, dogfood, metrics, conformance, or test strategy.
+  - `docs/vnext/research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md`
+    when work touches Personal Perspective, Personal Vault, Perspective Gap
+    Management, structured multi-perspective review, or Perspective Arena.
+    This is conditional R&D context, not part of the universal minimum set.
   - Existing Codex session, bootstrap, and result documents only when actually
     using or modifying the current compatibility workflow.
 - Inspect `git status` before editing and keep changes scoped to the task.

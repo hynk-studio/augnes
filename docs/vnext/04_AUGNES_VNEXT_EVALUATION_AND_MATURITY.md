@@ -231,6 +231,81 @@ high-risk unresolved decision count
 
 Review Queue가 늘어날수록 안전성이 높아진다고 보지 않는다.
 
+### 6.5 Personal Perspective R&D maturity
+
+Personal Perspective, Perspective Gap Management와 structured multi-perspective
+review는 기존 Level 0~5를 다음 evidence로 적용한다.
+
+| Level | Program evidence | 완료로 오인하지 않을 것 |
+|---:|---|---|
+| 0 Intent | 의미 경계와 research questions | Personal Perspective 기능 |
+| 1 Validated Contract | machine-checkable casebook/fixture contract: schema 또는 동등한 bounded type definition, deterministic validator, positive/negative fixtures, deterministic semantic definitions | persistence 또는 user endorsement |
+| 2 Integrated Path | offline candidate→gap→review replay | production context use |
+| 3 Observed Use | explicit opt-in user endorsement, correction, narrowing과 exception 관찰 | cross-project usefulness |
+| 4 Reviewed Reuse | reviewed item이 later context/decision을 바꿈 | outcome improvement |
+| 5 Outcome Improvement | 여러 project에서 반복 설명·오판 감소와 판단 개선 | automatic productization |
+
+Level 1은 production TypeScript/Core contract를 요구하지 않지만 위 machine-checkable
+요건이 모두 validation을 통과해야 한다. 현재 프로그램 등록 PR은 Level 0이며, 다음
+casebook slice도 이 검증 요건을 통과한 뒤에만 Level 1에 도달한다.
+
+#### Program metrics
+
+```text
+user_endorsement_rate
+user_correction_rate
+scope_narrowing_rate
+exception_addition_rate
+counterexample_status_completeness
+known_counterexample_ref_coverage
+actionable_gap_precision
+false_premise_rejection_rate
+duplicate_question_rate
+question_to_context_change_rate
+repeated_explanation_reduction
+personal_context_review_burden
+cross_project_usefulness
+misleading_personal_context_rate
+structured_review_diversity
+compute_adjusted_gain
+```
+
+counterexample status completeness는 각 candidate가 `known_present`, `none_found`,
+`not_searched`, `not_applicable` 중 하나를 명시하는지 측정한다. known counterexample이
+있을 때만 ref coverage를 요구하며, coverage를 채우기 위한 counterexample 조작은
+허용하지 않는다.
+
+raw candidate 수, 질문 수, actor 수나 Inspector view 수는 outcome metric이 아니다.
+
+#### Program go / narrow / stop
+
+`Go`는 user endorsement와 correction이 실제 candidate quality를 높이고, actionable
+gap이 later context를 바꾸며, repeated explanation과 wrong-context correction이
+review burden보다 크게 줄 때만 가능하다. Structured review는 single-review
+baseline보다 structural diversity와 compute-adjusted gain을 반복적으로 보여야 한다.
+
+`Narrow`는 deterministic task-gap 또는 bounded decision review는 유용하지만
+cross-project Personal Perspective reuse가 낮거나 misleading risk가 높을 때 적용한다.
+이 경우 persistence나 Arena를 확대하지 않고 유용한 낮은 범위만 유지한다.
+
+`Stop`은 사용자가 inference를 반복 수정·거부하거나, duplicate/leading question과
+review burden이 높거나, personal context가 downstream outcome을 악화시키거나,
+privacy와 deletion을 신뢰성 있게 집행할 수 없을 때 적용한다.
+
+#### Zero-tolerance failures
+
+```text
+unauthorized_personal_perspective_persistence
+hidden_candidate_context_injection
+cross_project_personal_context_leakage
+deleted_or_retracted_item_reuse
+model_inferred_identity_as_accepted_user_identity
+restricted_personal_material_remote_egress_without_policy_and_consent
+```
+
+하나라도 발생하면 해당 lane을 즉시 중단하고 원인, affected refs, deletion과 recovery를
+검토한다.
+
 ---
 
 ## 7. Adapter Conformance Evaluation

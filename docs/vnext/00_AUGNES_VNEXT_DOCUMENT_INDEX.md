@@ -45,6 +45,9 @@
 1. [`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md)
 2. [`05_AUGNES_VNEXT_LAB_CHARTER.md`](./05_AUGNES_VNEXT_LAB_CHARTER.md)
 3. [`04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
+4. Personal Perspective, Personal Vault, Perspective Gap Management, structured
+   multi-perspective review 또는 Perspective Arena 작업일 때만
+   [`research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md`](./research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md)
 
 ---
 
@@ -58,6 +61,7 @@
 | `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` | 성숙도, 실험, 완료·중단 기준 | 완료 주장과 투자 판단의 기준 | 중간 |
 | `05_AUGNES_VNEXT_LAB_CHARTER.md` | 비권위 연구·진단 영역의 경계 | Lab 내부 기준 | 중간 |
 | `06_AUGNES_VNEXT_SYNTHESIS_AND_RATIONALE.md` | 선택 근거, 대안, 과거 문서 계승 관계 | 비규범 참고 | 낮음 |
+| `research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md` | Personal Perspective·Gap Management·structured review의 조정된 연구 program | 조건부 R&D 기준. 제품·Core·persistence 권위 없음 | 연구 결정 시 |
 | `templates/*` | 작업 분해와 리뷰 형식 | 운영 보조 | 필요 시 |
 
 ### 충돌 시 우선순위
@@ -71,6 +75,7 @@ SSOT_SCHEMA_BUNDLE
 > AUGNES_VNEXT_TRANSITION_ROADMAP
 > AUGNES_VNEXT_EVALUATION_AND_MATURITY
 > AUGNES_VNEXT_LAB_CHARTER
+> AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM
 > ADR / runbook / templates / historical docs
 ```
 
@@ -178,6 +183,17 @@ Strategy proposal incorporated into the active vNext set
   decision work는 Semantic Workbench에, 공통 detail과 lineage exploration은
   Inspector에 둔다.
 - Augnes Lab을 명시적인 non-authoritative 경계로 둔다.
+
+---
+
+### Personal Perspective R&D inputs
+
+[`research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md`](./research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md)는
+Personal Perspective, Perspective Gap Management와 structured multi-perspective
+review를 하나의 조건부 연구 program으로 조정한다. Masterplan, Architecture,
+Roadmap, Evaluation과 Lab Charter에 종속되며 별도 제품 북극성, schema authority,
+Personal Vault persistence 승인 또는 task-context injection 권한을 만들지 않는다.
+관련 개념을 직접 다루는 작업에서만 읽고 universal context-diet에는 추가하지 않는다.
 
 ---
 

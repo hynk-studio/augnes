@@ -24,7 +24,8 @@ What next-loop signal was produced?
 
 ## 4. Architecture Fit
 
-- [ ] Classified as Native / Adapter / Core / Projection / Lab
+- [ ] Classified as Native Host / Adapter / Core / Product Surface / Projection / Inspector / Lab
+- [ ] Conditional R&D authority was consulted when the scope touches Personal Perspective, Personal Vault, Perspective Gap Management, structured multi-perspective review, or Perspective Arena
 - [ ] Core meaning is provider-neutral
 - [ ] Native host UX is not unnecessarily duplicated
 - [ ] Existing concept was reused or intentionally retired

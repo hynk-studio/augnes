@@ -993,17 +993,61 @@ Perspective
 reviewed project memory
 ```
 
-### 12.2 Personal Vault
+### 12.2 Perspective scope distinctions
 
-사용자 선호나 개인 continuity가 필요하면 별도 opt-in 경계로 둔다.
+```text
+Project Perspective
+= one project's accepted claims, goals, tensions and reviewed interpretation
 
-- local encryption
-- per-project sharing decision
-- item-level deletion과 expiry
-- project Evidence 자동 승격 금지
-- affect·preference 추론의 automatic durable write 금지
+Personal Perspective
+= opt-in workspace-level self-and-world continuity candidate
 
-### 12.3 Lab Diagnostics
+Current Working Perspective
+= current project/task-start projection
+
+Task context selection
+= bounded material selected for one task
+```
+
+Personal Perspective는 identity, personality, values, world models, aspiration,
+decision principles와 persistent tensions를 포함할 수 있지만 Project Perspective나
+Core project truth가 아니다. Current Working Perspective는 Personal Perspective의
+별칭이 아니고, lower-scope project/task choice는 higher-scope personal identity를
+자동 수정하지 않는다.
+
+### 12.3 Personal Vault candidate
+
+Personal continuity가 필요하면 별도 opt-in Personal Vault 경계로 둔다.
+
+- local encryption과 explicit retention
+- selective per-project sharing decision
+- item-level revision, retraction, deletion과 expiry
+- source, counterexample와 decision lineage
+- project Evidence 또는 accepted state 자동 승격 금지
+- identity, affect, personality와 preference 추론의 automatic durable write 금지
+
+workspace-level continuity를 `project:user`, `project:personal`, `project:global` 같은
+fake project로 표현하지 않는다. 이 문서는 Personal Vault implementation이나
+canonical Personal Perspective persistence를 승인하지 않는다.
+
+### 12.4 Task context selection
+
+Personal Perspective는 모든 task에 자동 관련되지 않는다. accepted item도 task
+relevance, scope, freshness, sharing consent, data classification와 `why_included` 없이
+TaskContextPacket에 들어가지 않는다. contested, model-inferred, retracted 또는 deleted
+personal item을 silently inject하지 않는다. `Context ≠ Truth`를 그대로 적용한다.
+
+### 12.5 Required future architecture decision
+
+Personal Perspective persistence 전에 personal subject/principal identity, ownership,
+workspace-scoped proposal, review, authorization, Decision/Transition, retention,
+deletion, selective project sharing, context inclusion, remote egress, backup/restore,
+cross-project isolation, shared-workspace와 multi-user isolation을 함께 다루는 별도
+architecture decision이 필요하다. 이 목록은 runtime identity contract를 도입하지
+않는다. 현재 PR은 새 protocol type, production TypeScript contract, DB table, API
+route, state-transition path 또는 TaskContextPacket field를 승인하지 않는다.
+
+### 12.6 Lab Diagnostics
 
 SelfModel, DriveState, EES, Sidecar 같은 내부 신호는 Lab 또는 Control/View다. Evidence Registry와 혼합하지 않는다.
 
