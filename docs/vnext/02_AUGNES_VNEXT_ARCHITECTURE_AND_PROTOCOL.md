@@ -695,7 +695,9 @@ ExternalRef provenance나 timestamp만 달라졌다는 이유로 semantic replac
 
 `prepareVNextSemanticCommitPreviewV01`은 persisted proposal/decision relation과 현재 projection을
 읽어 exact target, operation, before/after content fingerprint와 expected revision을 담은
-confirmation digest를 계산하지만 write나 authority grant를 하지 않는다.
+confirmation digest를 계산하지만 write나 authority grant를 하지 않는다. Confirmation digest는
+exact authorized applier identity와 bounded gate TTL도 포함하므로, 향후 authenticated confirmation
+surface가 누구의 apply를 얼마 동안 허용했는지 모호하게 남기지 않는다.
 `recordVNextSemanticCommitAuthorizationV01`은 exact digest, decision actor binding, local
 confirmation observation, expiry와 authorized applier를 요구하고 immutable gate record만
 기록한다. Local Core가 digest 제출을 직접 관찰했다는 사실은 actor ref 뒤의 실제 사람
@@ -710,6 +712,15 @@ all-target atomicity, exact gate outcome과 authorized applier가 모두 맞을 
 version, current projection과 receipt를 함께 기록한다. Exact same intent/result/current state
 replay는 stored receipt를 반환하고, 다른 result나 drifted current state는 conflict다. 어느
 failure injection이나 validation failure도 partial state 또는 applied receipt를 남기지 않는다.
+
+Preview observation, preview, confirmation, gate evaluation, eligibility evaluation, application,
+recording, packet compilation과 local probe observation timestamp는 모두 explicit
+`VNextLocalRuntimeClockV01` dependency에서 생성한다. Local default는 system clock이고 deterministic
+fixture는 injected fixed/manual clock을 사용한다. Caller-supplied historical timestamp로 새 apply를
+backdate할 수 없으며, writer는 immediate transaction 안에서 clock을 다시 읽어 expiry를 검사한다.
+Gate expiry 뒤의 새 apply는 거부하지만 이미 persisted된 exact receipt replay는 새 write가 아니므로
+stored receipt를 그대로 반환한다. 같은 idempotency key의 conflicting result는 expiry와 무관하게
+계속 conflict다. Direct-local refs도 해당 runtime이 실제로 읽은 clock time을 보존한다.
 
 `compileTaskContextPacketFromPersistedSemanticStateV01`은 명시적으로 호출될 때만 exact persisted
 receipt와 project-scoped current projection을 읽어 later packet을 구성한다. Existing

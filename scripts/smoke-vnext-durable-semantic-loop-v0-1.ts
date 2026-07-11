@@ -90,10 +90,14 @@ import {
   buildRunReceiptV01,
   validateRunReceiptV01,
 } from "../lib/vnext/run-receipt";
-import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition-receipt";
+import {
+  buildStateTransitionReceiptV01,
+  validateStateTransitionReceiptV01,
+} from "../lib/vnext/state-transition-receipt";
 import { createSemanticTransitionDecisionInputV01 } from "../fixtures/vnext/protocol/semantic-transition-loop-v0-1";
 import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
+import type { StateTransitionReceiptBuilderInputV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import { vNextDurableSemanticStoreSchemaSqlV01 } from "./db-migrations.mjs";
 
@@ -205,14 +209,10 @@ try {
   );
   assertLegacySnapshotUnchanged(persistedPrefixSnapshot, legacyBaseline);
 
-  const authorizedApplierRef = directLocalRef(
-    "semantic_transition_applier",
-    `local-core-applier:${prefix.project.project_id}`,
-    DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
-    createProtocolSha256V01(
-      `local-core-applier|${prefix.project.workspace_id}|${prefix.project.project_id}`,
-    ),
-  );
+  const authorizedApplierIdentity = {
+    ref_type: "semantic_transition_applier",
+    external_id: `local-core-applier:${prefix.project.project_id}`,
+  };
   const preview = prepareVNextSemanticCommitPreviewV01(db, {
     workspace_id: prefix.project.workspace_id,
     project_id: prefix.project.project_id,
@@ -220,11 +220,28 @@ try {
     proposal_fingerprint: prefix.proposal.integrity.fingerprint,
     decision_id: prefix.decision.decision_id,
     decision_fingerprint: prefix.decision.integrity.fingerprint,
-    current_state_observed_at: DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
-    previewed_at: DURABLE_LOCAL_LOOP_PREVIEWED_AT,
+    authorized_applier_identity: authorizedApplierIdentity,
+    gate_ttl_ms: millisecondsBetween(
+      DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
+      DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+    ),
+    clock: fixedClock(
+      DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
+      DURABLE_LOCAL_LOOP_PREVIEWED_AT,
+    ),
   });
   assert.equal(preview.intended_effects.length, 1);
   assert.equal(preview.intended_effects[0]?.operation, "create");
+  assert.equal(
+    preview.current_state_observations[0]?.observed_at,
+    DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
+    "preview current-state observation time comes from the injected runtime clock",
+  );
+  assert.equal(
+    preview.previewed_at,
+    DURABLE_LOCAL_LOOP_PREVIEWED_AT,
+    "preview time comes from the injected runtime clock",
+  );
   assert.deepEqual(
     readDatabaseSnapshot(db),
     persistedPrefixSnapshot,
@@ -240,22 +257,47 @@ try {
     preview,
     confirmation_digest: confirmationDigest,
     operator_actor_ref: prefix.decision.actor_ref,
-    confirmed_at: DURABLE_LOCAL_LOOP_CONFIRMED_AT,
-    confirmation_observation_ref: directLocalRef(
-      "semantic_commit_confirmation",
-      `confirmation:${prefix.project.project_id}:${confirmationDigest}`,
+    clock: fixedClock(
       DURABLE_LOCAL_LOOP_CONFIRMED_AT,
-      confirmationDigest,
+      DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
+      DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
     ),
-    authorized_applier_ref: authorizedApplierRef,
-    gate_evaluated_at: DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
-    gate_expires_at: DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
-    eligibility_evaluated_at: DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
   });
   assertAcceptedResult(
     authorization,
     ["inserted", "exact_replay"],
     "semantic commit authorization",
+  );
+  assert.equal(
+    authorization.gate_record.confirmed_at,
+    DURABLE_LOCAL_LOOP_CONFIRMED_AT,
+    "confirmation time comes from the injected runtime clock",
+  );
+  assert.equal(
+    authorization.gate_record.confirmation_observation_ref.observed_at,
+    DURABLE_LOCAL_LOOP_CONFIRMED_AT,
+    "confirmation observation ref preserves the runtime confirmation time",
+  );
+  assert.equal(
+    authorization.gate_record.confirmation_observation_ref.source_ref,
+    preview.confirmation_digest,
+    "confirmation observation ref binds the exact operator-confirmed digest",
+  );
+  assert.equal(
+    authorization.gate_record.semantic_commit_gate_evaluation.evaluated_at,
+    DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
+    "gate evaluation time comes from the injected runtime clock",
+  );
+  assert.equal(
+    authorization.gate_record.semantic_commit_gate_evaluation.expires_at,
+    DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+    "gate expiry is derived from the confirmed bounded TTL",
+  );
+  assert.equal(
+    authorization.gate_record.semantic_commit_gate_evaluation.authorized_applier_ref
+      .observed_at,
+    DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
+    "authorized applier ref is created at the runtime gate evaluation time",
   );
 
   const gateRecordId = requireString(
@@ -299,8 +341,10 @@ try {
     decision_fingerprint: prefix.decision.integrity.fingerprint,
     gate_record_id: gateRecordId,
     gate_record_fingerprint: gateRecordFingerprint,
-    applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
-    recorded_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+    clock: fixedClock(
+      DURABLE_LOCAL_LOOP_APPLIED_AT,
+      DURABLE_LOCAL_LOOP_RECORDED_AT,
+    ),
   };
   const committed = commitVNextSemanticTransitionV01(db, commitInput);
   assert.equal(committed.status, "applied", "single-target accept/create applies");
@@ -309,6 +353,31 @@ try {
   assert(committed.projection, "create writes one current-state projection");
 
   const receipt = committed.transition_receipt as StateTransitionReceiptV01;
+  assert.equal(receipt.applied_at, DURABLE_LOCAL_LOOP_APPLIED_AT);
+  assert.equal(receipt.recorded_at, DURABLE_LOCAL_LOOP_RECORDED_AT);
+  assert.deepEqual(
+    receipt.applied_by_ref,
+    authorization.gate_record.semantic_commit_gate_evaluation
+      .authorized_applier_ref,
+    "receipt preserves the exact gate-authorized applier",
+  );
+  for (const effect of receipt.effects) {
+    assert.equal(
+      effect.after_application_observation_ref.observed_at,
+      DURABLE_LOCAL_LOOP_APPLIED_AT,
+      "application observation ref uses the writer clock",
+    );
+    assert.equal(
+      effect.durable_record_ref.observed_at,
+      DURABLE_LOCAL_LOOP_RECORDED_AT,
+      "durable-record ref uses the writer clock",
+    );
+    assert.equal(
+      effect.after_application_observation_ref.source_ref,
+      effect.durable_record_ref.source_ref,
+      "application and durable-record refs bind the same exact applied result",
+    );
+  }
   const receiptValidation = validateStateTransitionReceiptV01(receipt);
   assert.equal(receiptValidation.status, "valid", JSON.stringify(receiptValidation));
   const receiptRelation = validateStateTransitionReceiptAgainstEligibilityV01({
@@ -416,11 +485,16 @@ try {
       prior_packet: prefix.prior_packet,
       transition_receipt_id: receipt.transition_receipt_id,
       transition_receipt_fingerprint: receipt.integrity.fingerprint,
-      generated_at: DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
       expiry_policy: { mode: "reuse_prior" },
+      clock: fixedClock(DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT),
     },
   );
   assert.equal(compiledContext.status, "inserted");
+  assert.equal(
+    compiledContext.later_packet.generated_at,
+    DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+    "compiler packet generated_at comes from the compiler runtime clock",
+  );
   assert.equal(compiledContext.full_chain_relation.status, "valid");
   assertCanonicalCompiledPacket(
     prefix.prior_packet,
@@ -452,8 +526,8 @@ try {
       prior_packet: prefix.prior_packet,
       transition_receipt_id: receipt.transition_receipt_id,
       transition_receipt_fingerprint: receipt.integrity.fingerprint,
-      generated_at: DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
       expiry_policy: { mode: "reuse_prior" },
+      clock: fixedClock(DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT),
     },
   );
   assert.equal(compiledReplay.status, "exact_replay");
@@ -483,6 +557,21 @@ try {
     contextUseProbeInput,
   );
   assert.equal(contextUseProbe.status, "inserted");
+  assert.equal(
+    contextUseProbe.receipt.recorded_at,
+    DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+    "probe receipt recorded_at comes from the probe runtime clock",
+  );
+  assert(
+    contextUseProbe.receipt.observations.every(
+      (observation) =>
+        observation.observed_at ===
+          DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT &&
+        observation.event_at ===
+          DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+    ),
+    "every direct-local probe observation preserves the exact runtime clock time",
+  );
   assert.equal(contextUseProbe.relation.status, "valid");
   assert.equal(
     validateRunReceiptV01(contextUseProbe.receipt).status,
@@ -599,13 +688,13 @@ try {
         ? "preinitialized_temp_canonical"
         : "standalone_phase_a",
     positive_cases:
-      22 +
+      24 +
       writerCoverage.positive_cases +
       contextCompilerCoverage.positive_cases +
       contextUseProbeCoverage.positive_cases +
       fullDurableLocalLoopCoverage.positive_cases,
     negative_cases:
-      10 +
+      11 +
       writerCoverage.negative_cases +
       contextCompilerCoverage.negative_cases +
       contextUseProbeCoverage.negative_cases +
@@ -968,8 +1057,10 @@ function runSemanticGateCoverage(
           decision_fingerprint: forgedGate.decision_fingerprint,
           gate_record_id: forgedGate.gate_record_id,
           gate_record_fingerprint: forgedGate.integrity.fingerprint,
-          applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
-          recorded_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+          clock: fixedClock(
+            DURABLE_LOCAL_LOOP_APPLIED_AT,
+            DURABLE_LOCAL_LOOP_RECORDED_AT,
+          ),
         }),
       /operator_actor_mismatch|semantic_commit_gate_relation_invalid|semantic_commit_precondition_mismatch|transition_not_eligible/,
       "fully re-signed forged gate payload fails closed",
@@ -990,8 +1081,8 @@ function runSemanticGateCoverage(
 
     return {
       status: "pass",
-      positive_cases: 5,
-      negative_cases: 6,
+      positive_cases: 7,
+      negative_cases: 7,
       preview_zero_write_scenarios: [
         "create",
         "replace",
@@ -1026,6 +1117,7 @@ function runSemanticGateCoverage(
       refusal_cases: [
         "operator_actor_mismatch",
         "confirmation_digest_mismatch",
+        "caller_future_preview_timestamp",
         "chronology_mismatch",
         "expired_or_invalid_gate_timing",
         "cross_project_binding",
@@ -1170,6 +1262,11 @@ function runFullWriterCoverage(
     }
 
     runConflictingResultCoverage(openDatabase("conflicting-result"), projectAScenarios.create);
+    runTrustedClockWriterCoverage(
+      openDatabase("trusted-clock-replay"),
+      openDatabase("trusted-clock-expiry"),
+      projectAScenarios.create,
+    );
     runStalePreconditionCoverage(openDatabase("stale-precondition"), projectAScenarios.create);
     runReplayDriftCoverage(openDatabase("replay-drift"), projectAScenarios.create);
     runCrossProjectWriterCoverage(
@@ -1194,8 +1291,8 @@ function runFullWriterCoverage(
     }
     return {
       status: "pass",
-      positive_cases: 20,
-      negative_cases: 20,
+      positive_cases: 21,
+      negative_cases: 22,
       applied_operations: operationResults,
       exact_replay_scenarios: [
         "create",
@@ -1217,6 +1314,8 @@ function runFullWriterCoverage(
         "projection_state_fingerprint_drift",
         "projection_source_receipt_missing",
         "projection_source_receipt_mismatch",
+        "new_application_after_gate_expiry",
+        "caller_backdated_application_timestamp",
         "after_proposal_record_insert",
         "after_decision_record_insert",
         "after_gate_record_insert",
@@ -1228,6 +1327,12 @@ function runFullWriterCoverage(
       ],
       atomic_multi_target_apply: true,
       monotonic_target_head_coverage: targetHeadCoverage,
+      trusted_runtime_clock: {
+        exact_replay_after_expiry: true,
+        new_application_after_expiry_blocked: true,
+        caller_backdating_blocked: true,
+        conflicting_result_after_expiry: true,
+      },
       project_isolation: true,
       receipt_validation: "valid",
       eligibility_relation_validation: "valid",
@@ -1278,7 +1383,7 @@ function writerCommitInput(
     decision_fingerprint: scenario.decision.integrity.fingerprint,
     gate_record_id: authorization.gate_record.gate_record_id,
     gate_record_fingerprint: authorization.gate_record.integrity.fingerprint,
-    ...times,
+    clock: fixedClock(times.applied_at, times.recorded_at),
   };
 }
 
@@ -1322,17 +1427,41 @@ function runConflictingResultCoverage(
     false,
   );
   const input = writerCommitInput(scenario, prepared.authorization);
-  commitVNextSemanticTransitionV01(opened.database, input);
+  const committed = commitVNextSemanticTransitionV01(opened.database, input);
+  const conflictingReceipt = buildConflictingAppliedByReceipt(
+    committed.transition_receipt,
+  );
+  assert.equal(
+    conflictingReceipt.idempotency_key,
+    committed.transition_receipt.idempotency_key,
+  );
+  assert.notEqual(
+    conflictingReceipt.integrity.fingerprint,
+    committed.transition_receipt.integrity.fingerprint,
+  );
+  opened.database.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+  opened.database
+    .prepare(
+      `UPDATE vnext_core_records SET
+        record_id = ?, fingerprint = ?, payload_json = ?, created_at = ?
+       WHERE record_kind = 'state_transition_receipt' AND idempotency_key = ?`,
+    )
+    .run(
+      conflictingReceipt.transition_receipt_id,
+      conflictingReceipt.integrity.fingerprint,
+      canonicalizeProtocolValueV01(conflictingReceipt),
+      conflictingReceipt.recorded_at,
+      conflictingReceipt.idempotency_key,
+    );
   const baseline = readDatabaseSnapshot(opened.database);
   assert.throws(
     () =>
       commitVNextSemanticTransitionV01(opened.database, {
         ...input,
-        applied_at: DURABLE_LOCAL_LOOP_CONFLICT_APPLIED_AT,
-        recorded_at: DURABLE_LOCAL_LOOP_CONFLICT_RECORDED_AT,
+        clock: fixedClock("2026-07-10T15:10:00.000Z"),
       }),
     /conflicting_result/,
-    "same idempotency key with a different applied result is conflicting_result",
+    "same idempotency key with a different applied result stays conflicting_result after expiry",
   );
   assert.deepEqual(
     readDatabaseSnapshot(opened.database),
@@ -1340,6 +1469,66 @@ function runConflictingResultCoverage(
     "conflicting result writes no second state revision or receipt",
   );
   assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function runTrustedClockWriterCoverage(
+  replayOpened: WriterCoverageDatabaseV01,
+  expiryOpened: WriterCoverageDatabaseV01,
+  scenario: DurableLocalSemanticGateScenarioV01,
+): void {
+  const replayPrepared = prepareAndAuthorizeGateScenario(
+    replayOpened.database,
+    scenario,
+    false,
+  );
+  const initial = commitVNextSemanticTransitionV01(
+    replayOpened.database,
+    writerCommitInput(scenario, replayPrepared.authorization),
+  );
+  const replayBaseline = readDatabaseSnapshot(replayOpened.database);
+  const afterExpiryReplay = commitVNextSemanticTransitionV01(
+    replayOpened.database,
+    {
+      ...writerCommitInput(scenario, replayPrepared.authorization),
+      clock: fixedClock("2026-07-10T15:10:00.000Z"),
+    },
+  );
+  assert.equal(afterExpiryReplay.status, "exact_replay");
+  assert.deepEqual(afterExpiryReplay.transition_receipt, initial.transition_receipt);
+  assert.deepEqual(readDatabaseSnapshot(replayOpened.database), replayBaseline);
+
+  const expiryPrepared = prepareAndAuthorizeGateScenario(
+    expiryOpened.database,
+    scenario,
+    false,
+  );
+  const expiryBaseline = readDatabaseSnapshot(expiryOpened.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(expiryOpened.database, {
+        ...writerCommitInput(scenario, expiryPrepared.authorization),
+        clock: fixedClock("2026-07-10T15:10:00.000Z"),
+      }),
+    /semantic_commit_gate_expired/,
+    "runtime clock after gate expiry blocks a new application",
+  );
+  assert.deepEqual(readDatabaseSnapshot(expiryOpened.database), expiryBaseline);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(
+        expiryOpened.database,
+        {
+          ...writerCommitInput(scenario, expiryPrepared.authorization),
+          applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
+          clock: fixedClock("2026-07-10T15:10:00.000Z"),
+        } as unknown as Parameters<
+          typeof commitVNextSemanticTransitionV01
+        >[1],
+      ),
+    /local_runtime_timestamp_input_forbidden/,
+    "caller-supplied historical applied_at cannot backdate a new application",
+  );
+  assert.deepEqual(readDatabaseSnapshot(expiryOpened.database), expiryBaseline);
 }
 
 function runStalePreconditionCoverage(
@@ -1854,8 +2043,7 @@ function runProjectionLedgerCoherenceCoverage(
           proposal_fingerprint: scenarios.replace.proposal.integrity.fingerprint,
           decision_id: scenarios.replace.decision.decision_id,
           decision_fingerprint: scenarios.replace.decision.integrity.fingerprint,
-          current_state_observed_at: times.current_state_observed_at,
-          previewed_at: times.previewed_at,
+          ...previewRuntimeFields(scenarios.replace, times),
         }),
       /semantic_state_projection_record_missing|semantic_target_head_projection_mismatch|semantic_target_head_receipt_missing/,
       `${mode} cannot produce direct-local current-state observation material`,
@@ -1949,8 +2137,10 @@ function runWriterFailureInjectionCoverage(
       proposal_fingerprint: scenarios.create.proposal.integrity.fingerprint,
       decision_id: scenarios.create.decision.decision_id,
       decision_fingerprint: scenarios.create.decision.integrity.fingerprint,
-      current_state_observed_at: DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
-      previewed_at: DURABLE_LOCAL_LOOP_PREVIEWED_AT,
+      ...previewRuntimeFields(
+        scenarios.create,
+        semanticGateScenarioTimes(scenarios.create),
+      ),
     });
     const baseline = readDatabaseSnapshot(opened.database);
     assert.throws(
@@ -2151,11 +2341,16 @@ function runContextCompilerCoverage(
       () =>
         compileTaskContextPacketFromPersistedSemanticStateV01(
           lookup.database,
-          { ...canonicalInput, generated_at: "malformed-timestamp" },
+          {
+            ...canonicalInput,
+            generated_at: "malformed-timestamp",
+          } as unknown as Parameters<
+            typeof compileTaskContextPacketFromPersistedSemanticStateV01
+          >[1],
         ),
       lookupBaseline,
-      /compiled_task_context_packet_invalid/,
-      "packet validation failure",
+      /local_runtime_timestamp_input_forbidden/,
+      "caller-provided compiler timestamp is forbidden",
     );
     assertCompilerRefusalNoWrite(
       lookup,
@@ -2164,7 +2359,7 @@ function runContextCompilerCoverage(
           lookup.database,
           {
             ...canonicalInput,
-            generated_at: "2026-07-10T14:05:30.000Z",
+            clock: fixedClock("2026-07-10T14:05:30.000Z"),
           },
         ),
       lookupBaseline,
@@ -2550,7 +2745,7 @@ function runLocalContextUseProbeCoverage(
       () =>
         runLocalContextUseProbeV01(canonical.database, {
           ...canonicalInput,
-          observed_at: "2026-07-10T14:05:30.000Z",
+          clock: fixedClock("2026-07-10T14:05:30.000Z"),
         }),
       canonicalSnapshot,
       /local_context_observation_before_transition_receipt/,
@@ -2561,11 +2756,25 @@ function runLocalContextUseProbeCoverage(
       () =>
         runLocalContextUseProbeV01(canonical.database, {
           ...canonicalInput,
-          observed_at: "2026-07-10T14:06:30.000Z",
+          clock: fixedClock("2026-07-10T14:06:30.000Z"),
         }),
       canonicalSnapshot,
       /local_context_observation_before_later_packet/,
       "probe observation predates later packet",
+    );
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(
+          canonical.database,
+          {
+            ...canonicalInput,
+            observed_at: "2099-01-01T00:00:00.000Z",
+          } as unknown as Parameters<typeof runLocalContextUseProbeV01>[1],
+        ),
+      canonicalSnapshot,
+      /local_runtime_timestamp_input_forbidden/,
+      "caller-provided probe observation timestamp",
     );
 
     const withoutReceiptLineage = rebuildPacketV01(
@@ -2946,7 +3155,7 @@ function runLocalContextUseProbeCoverage(
     return {
       status: "pass",
       positive_cases: 9,
-      negative_cases: 20,
+      negative_cases: 21,
       exact_packet_and_receipt_bindings: true,
       exact_prior_packet_lineage: true,
       exact_state_record_and_projection_resolution: true,
@@ -2965,6 +3174,7 @@ function runLocalContextUseProbeCoverage(
         "transition_receipt_fingerprint_mismatch",
         "observation_before_transition_receipt",
         "observation_before_later_packet",
+        "caller_observation_timestamp",
         "transition_receipt_lineage_missing",
         "prior_packet_lineage_missing",
         "imported_material_as_direct_observation",
@@ -3523,7 +3733,7 @@ function localContextUseProbeInput(
     later_packet_fingerprint: laterPacket.integrity.fingerprint,
     expected_transition_receipt_id: receipt.transition_receipt_id,
     expected_transition_receipt_fingerprint: receipt.integrity.fingerprint,
-    observed_at: observedAt,
+    clock: fixedClock(observedAt),
   };
 }
 
@@ -3565,6 +3775,43 @@ function rebuildRunReceiptV01(
   return buildRunReceiptV01(builderInput);
 }
 
+function buildConflictingAppliedByReceipt(
+  receipt: StateTransitionReceiptV01,
+): StateTransitionReceiptV01 {
+  const input = clone(receipt) as unknown as StateTransitionReceiptBuilderInputV01 &
+    Record<string, unknown>;
+  const authorityNotes = clone(receipt.authority_summary.notes);
+  delete input.transition_receipt_version;
+  delete input.transition_receipt_id;
+  delete input.idempotency_key;
+  delete input.transition_scope;
+  delete input.receipt_status;
+  delete input.atomicity;
+  delete input.material_boundary;
+  delete input.authority_summary;
+  delete input.integrity;
+  input.effects = input.effects.map((effect) => {
+    const mutable = effect as typeof effect & { effect_id?: string };
+    delete mutable.effect_id;
+    return mutable;
+  });
+  const originalAppliedBy = clone(input.applied_by_ref);
+  input.applied_by_ref = {
+    ...input.applied_by_ref,
+    external_id: `${input.applied_by_ref.external_id}:conflicting-result`,
+  };
+  input.source_refs = input.source_refs.map((ref) =>
+    canonicalizeProtocolValueV01(ref) ===
+    canonicalizeProtocolValueV01(originalAppliedBy)
+      ? clone(input.applied_by_ref)
+      : ref,
+  );
+  input.authority_notes = authorityNotes;
+  const rebuilt = buildStateTransitionReceiptV01(input);
+  assert.equal(validateStateTransitionReceiptV01(rebuilt).status, "valid");
+  return rebuilt;
+}
+
 function compilerInput(
   scenario: DurableLocalSemanticGateScenarioV01,
   priorPacket: TaskContextPacketV01,
@@ -3577,8 +3824,8 @@ function compilerInput(
     prior_packet: priorPacket,
     transition_receipt_id: receipt.transition_receipt_id,
     transition_receipt_fingerprint: receipt.integrity.fingerprint,
-    generated_at: generatedAt,
     expiry_policy: { mode: "reuse_prior" as const },
+    clock: fixedClock(generatedAt),
   };
 }
 
@@ -3730,8 +3977,7 @@ function runPriorReceiptEnvelopeRefusals(
           proposal_fingerprint: scenario.proposal.integrity.fingerprint,
           decision_id: scenario.decision.decision_id,
           decision_fingerprint: scenario.decision.integrity.fingerprint,
-          current_state_observed_at: times.current_state_observed_at,
-          previewed_at: times.previewed_at,
+          ...previewRuntimeFields(scenario, times),
         }),
       /semantic_commit_prior_receipt_identity_mismatch|semantic_target_head_receipt_mismatch/,
       `${operation} lineage rejects a valid receipt payload under a wrong envelope idempotency key`,
@@ -3833,8 +4079,10 @@ function applyCreateScenario(
     gate_record_id: prepared.authorization.gate_record.gate_record_id,
     gate_record_fingerprint:
       prepared.authorization.gate_record.integrity.fingerprint,
-    applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
-    recorded_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+    clock: fixedClock(
+      DURABLE_LOCAL_LOOP_APPLIED_AT,
+      DURABLE_LOCAL_LOOP_RECORDED_AT,
+    ),
   });
   assert.equal(committed.status, "applied", `${scenario.scenario_id} seed applies`);
   return { ...prepared, committed };
@@ -3871,8 +4119,7 @@ function prepareAndAuthorizeGateScenario(
     proposal_fingerprint: scenario.proposal.integrity.fingerprint,
     decision_id: scenario.decision.decision_id,
     decision_fingerprint: scenario.decision.integrity.fingerprint,
-    current_state_observed_at: times.current_state_observed_at,
-    previewed_at: times.previewed_at,
+    ...previewRuntimeFields(scenario, times),
   });
   assert.deepEqual(
     readNamedTablesSnapshot(database, [
@@ -3992,6 +4239,60 @@ function assertAuthorizationRefusals(
   preview: VNextSemanticCommitPreviewV01,
   baseline: ReturnType<typeof readNamedTablesSnapshot>,
 ) {
+  const alternateApplierPreview = prepareVNextSemanticCommitPreviewV01(
+    database,
+    {
+      workspace_id: scenario.proposal.workspace_id,
+      project_id: scenario.proposal.project_id,
+      proposal_id: scenario.proposal.proposal_id,
+      proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+      decision_id: scenario.decision.decision_id,
+      decision_fingerprint: scenario.decision.integrity.fingerprint,
+      authorized_applier_identity: {
+        ...preview.authorized_applier_identity,
+        external_id: `${preview.authorized_applier_identity.external_id}:alternate`,
+      },
+      gate_ttl_ms: preview.gate_ttl_ms,
+      clock: fixedClock(
+        preview.current_state_observations[0]!.observed_at,
+        preview.previewed_at,
+      ),
+    },
+  );
+  assert.notEqual(
+    alternateApplierPreview.confirmation_digest,
+    preview.confirmation_digest,
+    "authorized applier identity is bound into the confirmation digest",
+  );
+  const alternateTtlPreview = prepareVNextSemanticCommitPreviewV01(database, {
+    workspace_id: scenario.proposal.workspace_id,
+    project_id: scenario.proposal.project_id,
+    proposal_id: scenario.proposal.proposal_id,
+    proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+    decision_id: scenario.decision.decision_id,
+    decision_fingerprint: scenario.decision.integrity.fingerprint,
+    authorized_applier_identity: preview.authorized_applier_identity,
+    gate_ttl_ms: preview.gate_ttl_ms - 1,
+    clock: fixedClock(
+      preview.current_state_observations[0]!.observed_at,
+      preview.previewed_at,
+    ),
+  });
+  assert.notEqual(
+    alternateTtlPreview.confirmation_digest,
+    preview.confirmation_digest,
+    "bounded gate TTL is bound into the confirmation digest",
+  );
+  assert.deepEqual(
+    readNamedTablesSnapshot(database, [
+      "vnext_core_records",
+      "vnext_semantic_state_entries",
+      "vnext_semantic_target_heads",
+    ]),
+    baseline,
+    "confirmation authority digest variants remain read-only previews",
+  );
+
   const mismatchedActor = clone(scenario.decision.actor_ref);
   mismatchedActor.external_id = `${mismatchedActor.external_id}:mismatch`;
   assertGateRefusalNoWrite(
@@ -4015,30 +4316,49 @@ function assertAuthorizationRefusals(
       recordVNextSemanticCommitAuthorizationV01(database, {
         ...authorizationInput(scenario, preview),
         confirmation_digest: mismatchedDigest,
-        confirmation_observation_ref: directLocalRef(
-          "semantic_commit_confirmation",
-          `confirmation:${scenario.scenario_id}:digest-mismatch`,
-          DURABLE_LOCAL_LOOP_CONFIRMED_AT,
-          mismatchedDigest,
-        ),
       }),
     baseline,
     /semantic_commit_confirmation_digest_mismatch/,
     "confirmation digest mismatch",
   );
 
-  const earlyConfirmation = "2026-07-10T14:08:30.000Z";
+  const previewValue = Date.parse(preview.previewed_at);
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      prepareVNextSemanticCommitPreviewV01(
+        database,
+        {
+          workspace_id: scenario.proposal.workspace_id,
+          project_id: scenario.proposal.project_id,
+          proposal_id: scenario.proposal.proposal_id,
+          proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+          decision_id: scenario.decision.decision_id,
+          decision_fingerprint: scenario.decision.integrity.fingerprint,
+          ...previewRuntimeFields(
+            scenario,
+            semanticGateScenarioTimes(scenario),
+          ),
+          previewed_at: "2099-01-01T00:00:00.000Z",
+        } as unknown as Parameters<
+          typeof prepareVNextSemanticCommitPreviewV01
+        >[1],
+      ),
+    baseline,
+    /local_runtime_timestamp_input_forbidden/,
+    "caller-provided future preview timestamp",
+  );
+
+  const earlyConfirmation = new Date(previewValue - 1_000).toISOString();
   assertGateRefusalNoWrite(
     database,
     () =>
       recordVNextSemanticCommitAuthorizationV01(database, {
         ...authorizationInput(scenario, preview),
-        confirmed_at: earlyConfirmation,
-        confirmation_observation_ref: directLocalRef(
-          "semantic_commit_confirmation",
-          `confirmation:${scenario.scenario_id}:chronology-mismatch`,
+        clock: fixedClock(
           earlyConfirmation,
-          preview.confirmation_digest,
+          new Date(previewValue + 1_000).toISOString(),
+          new Date(previewValue + 2_000).toISOString(),
         ),
       }),
     baseline,
@@ -4051,11 +4371,37 @@ function assertAuthorizationRefusals(
     () =>
       recordVNextSemanticCommitAuthorizationV01(database, {
         ...authorizationInput(scenario, preview),
-        gate_expires_at: "2026-07-10T14:10:30.000Z",
+        clock: fixedClock(
+          new Date(previewValue + 16 * 60 * 1000).toISOString(),
+          new Date(previewValue + 16 * 60 * 1000 + 1_000).toISOString(),
+          new Date(previewValue + 16 * 60 * 1000 + 2_000).toISOString(),
+        ),
       }),
     baseline,
-    /semantic_commit_chronology_invalid|semantic_commit_gate_expiry_invalid/,
-    "expired or invalid gate timing",
+    /semantic_commit_preview_confirmation_window_expired/,
+    "preview-to-confirmation policy window exceeded",
+  );
+
+  assertGateRefusalNoWrite(
+    database,
+    () =>
+      prepareVNextSemanticCommitPreviewV01(database, {
+        workspace_id: scenario.proposal.workspace_id,
+        project_id: scenario.proposal.project_id,
+        proposal_id: scenario.proposal.proposal_id,
+        proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+        decision_id: scenario.decision.decision_id,
+        decision_fingerprint: scenario.decision.integrity.fingerprint,
+        authorized_applier_identity: preview.authorized_applier_identity,
+        gate_ttl_ms: 60 * 60 * 1000 + 1,
+        clock: fixedClock(
+          preview.current_state_observations[0]!.observed_at,
+          preview.previewed_at,
+        ),
+      }),
+    baseline,
+    /semantic_commit_gate_ttl_invalid/,
+    "maximum gate TTL exceeded",
   );
 
   assertGateRefusalNoWrite(
@@ -4068,9 +4414,10 @@ function assertAuthorizationRefusals(
         proposal_fingerprint: scenario.proposal.integrity.fingerprint,
         decision_id: scenario.decision.decision_id,
         decision_fingerprint: scenario.decision.integrity.fingerprint,
-        current_state_observed_at:
-          semanticGateScenarioTimes(scenario).current_state_observed_at,
-        previewed_at: semanticGateScenarioTimes(scenario).previewed_at,
+        ...previewRuntimeFields(
+          scenario,
+          semanticGateScenarioTimes(scenario),
+        ),
       }),
     baseline,
     /persisted_proposal_missing|persisted_decision_missing/,
@@ -4094,8 +4441,7 @@ function prepareAndAuthorizeGateScenarioAt(
     proposal_fingerprint: scenario.proposal.integrity.fingerprint,
     decision_id: scenario.decision.decision_id,
     decision_fingerprint: scenario.decision.integrity.fingerprint,
-    current_state_observed_at: times.current_state_observed_at,
-    previewed_at: times.previewed_at,
+    ...previewRuntimeFields(scenario, times),
   });
   const authorization = recordVNextSemanticCommitAuthorizationV01(
     database,
@@ -4224,30 +4570,56 @@ function authorizationInput(
   timeOverride?: SemanticGateScenarioTimesV01,
 ) {
   const times = timeOverride ?? semanticGateScenarioTimes(scenario);
-  const applierFingerprint = createProtocolSha256V01(
-    `semantic-gate-applier|${scenario.scenario_id}|${scenario.proposal.project_id}`,
-  );
   return {
     preview,
     confirmation_digest: preview.confirmation_digest,
     operator_actor_ref: scenario.decision.actor_ref,
-    confirmation_observation_ref: directLocalRef(
-      "semantic_commit_confirmation",
-      `confirmation:${scenario.scenario_id}:${preview.confirmation_digest}`,
+    clock: fixedClock(
       times.confirmed_at,
-      preview.confirmation_digest,
-    ),
-    authorized_applier_ref: directLocalRef(
-      "semantic_transition_applier",
-      `local-core-applier:${scenario.scenario_id}:${scenario.proposal.project_id}`,
       times.gate_evaluated_at,
-      applierFingerprint,
+      times.eligibility_evaluated_at,
     ),
-    confirmed_at: times.confirmed_at,
-    gate_evaluated_at: times.gate_evaluated_at,
-    gate_expires_at: times.gate_expires_at,
-    eligibility_evaluated_at: times.eligibility_evaluated_at,
   };
+}
+
+function previewRuntimeFields(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  times: SemanticGateScenarioTimesV01,
+) {
+  return {
+    authorized_applier_identity: {
+      ref_type: "semantic_transition_applier",
+      external_id:
+        `local-core-applier:${scenario.scenario_id}:${scenario.proposal.project_id}`,
+    },
+    gate_ttl_ms: millisecondsBetween(
+      times.gate_evaluated_at,
+      times.gate_expires_at,
+    ),
+    clock: fixedClock(
+      times.current_state_observed_at,
+      times.previewed_at,
+    ),
+  };
+}
+
+function fixedClock(...timestamps: string[]) {
+  assert(timestamps.length > 0, "fixed runtime clock requires a timestamp");
+  let index = 0;
+  return {
+    now() {
+      const value = timestamps[Math.min(index, timestamps.length - 1)]!;
+      if (index < timestamps.length - 1) index += 1;
+      return value;
+    },
+  };
+}
+
+function millisecondsBetween(left: string, right: string): number {
+  const leftValue = Date.parse(left);
+  const rightValue = Date.parse(right);
+  assert(Number.isFinite(leftValue) && Number.isFinite(rightValue));
+  return rightValue - leftValue;
 }
 
 interface SemanticGateScenarioTimesV01 {

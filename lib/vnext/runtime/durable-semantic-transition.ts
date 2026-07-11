@@ -1,6 +1,11 @@
 import type Database from "better-sqlite3";
 
 import {
+  readVNextLocalRuntimeClockNowV01,
+  type VNextLocalRuntimeClockV01,
+} from "@/lib/vnext/runtime/local-runtime-clock";
+
+import {
   VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   buildVNextPersistedSemanticStateV01,
@@ -76,6 +81,13 @@ export const VNEXT_SEMANTIC_COMMIT_GATE_RECORD_VERSION_V01 =
   "vnext_semantic_commit_gate_record.v0.1" as const;
 export const VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01 =
   "augnes.vnext.durable-semantic-transition.v0.1" as const;
+export const VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01 = 60 * 60 * 1000;
+export const VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01 = 15 * 60 * 1000;
+
+export interface VNextLocalRuntimeActorIdentityV01 {
+  ref_type: string;
+  external_id: string;
+}
 
 export const VNEXT_SEMANTIC_TRANSITION_TEST_FAILURE_CHECKPOINTS_V01 = [
   "after_proposal_record_insert",
@@ -129,6 +141,8 @@ export interface VNextSemanticCommitPreviewV01 {
   candidate_fingerprint: string;
   intent_id: string;
   transition_kind: Exclude<ReviewDecisionRequestedTransitionKindV01, "other">;
+  authorized_applier_identity: VNextLocalRuntimeActorIdentityV01;
+  gate_ttl_ms: number;
   previewed_at: string;
   current_state_observations: StateTransitionCurrentStateObservationV01[];
   intended_effects: VNextSemanticCommitPreviewEffectV01[];
@@ -201,20 +215,16 @@ export interface PrepareVNextSemanticCommitPreviewInputV01 {
   proposal_fingerprint: string;
   decision_id: string;
   decision_fingerprint: string;
-  current_state_observed_at: string;
-  previewed_at: string;
+  authorized_applier_identity: VNextLocalRuntimeActorIdentityV01;
+  gate_ttl_ms: number;
+  clock?: VNextLocalRuntimeClockV01;
 }
 
 export interface RecordVNextSemanticCommitAuthorizationInputV01 {
   preview: VNextSemanticCommitPreviewV01;
   confirmation_digest: string;
   operator_actor_ref: ExternalRefV01;
-  confirmation_observation_ref: ExternalRefV01;
-  authorized_applier_ref: ExternalRefV01;
-  confirmed_at: string;
-  gate_evaluated_at: string;
-  gate_expires_at: string;
-  eligibility_evaluated_at: string;
+  clock?: VNextLocalRuntimeClockV01;
   test_options?: VNextSemanticTransitionTestOptionsV01;
 }
 
@@ -227,8 +237,7 @@ export interface CommitVNextSemanticTransitionInputV01 {
   decision_fingerprint: string;
   gate_record_id: string;
   gate_record_fingerprint: string;
-  applied_at: string;
-  recorded_at: string;
+  clock?: VNextLocalRuntimeClockV01;
   test_options?: VNextSemanticTransitionTestOptionsV01;
 }
 
@@ -308,20 +317,70 @@ export function prepareVNextSemanticCommitPreviewV01(
   maybeInput?: PrepareVNextSemanticCommitPreviewInputV01,
 ): VNextSemanticCommitPreviewV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
-  assertTimestamp(input.current_state_observed_at, "current_state_observed_at");
-  assertTimestamp(input.previewed_at, "previewed_at");
+  assertRuntimeInputKeys(
+    input,
+    new Set([
+      "workspace_id",
+      "project_id",
+      "proposal_id",
+      "proposal_fingerprint",
+      "decision_id",
+      "decision_fingerprint",
+      "authorized_applier_identity",
+      "gate_ttl_ms",
+      "clock",
+    ]),
+  );
+  const authorizedApplierIdentity = normalizeLocalRuntimeActorIdentity(
+    input.authorized_applier_identity,
+  );
+  const gateTtlMs = normalizeGateTtlMs(input.gate_ttl_ms);
+  const currentStateObservedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "current_state_observed_at",
+  );
+  const previewedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "previewed_at",
+  );
   assertTimestampOrder(
-    input.current_state_observed_at,
-    input.previewed_at,
+    currentStateObservedAt,
+    previewedAt,
     "semantic_commit_observation_after_preview",
   );
+  return prepareVNextSemanticCommitPreviewAtV01(
+    db,
+    input,
+    currentStateObservedAt,
+    previewedAt,
+    authorizedApplierIdentity,
+    gateTtlMs,
+  );
+}
+
+function prepareVNextSemanticCommitPreviewAtV01(
+  db: Database.Database,
+  input: Pick<
+    PrepareVNextSemanticCommitPreviewInputV01,
+    | "workspace_id"
+    | "project_id"
+    | "proposal_id"
+    | "proposal_fingerprint"
+    | "decision_id"
+    | "decision_fingerprint"
+  >,
+  currentStateObservedAt: string,
+  previewedAt: string,
+  authorizedApplierIdentity: VNextLocalRuntimeActorIdentityV01,
+  gateTtlMs: number,
+): VNextSemanticCommitPreviewV01 {
   const { proposal, decision } = loadReviewMaterial({ db, ...input });
   const transition = resolveTransitionMaterial(proposal, decision);
   const currentState = readCurrentStateSnapshot(
     db,
     proposal,
     transition.target_refs,
-    input.current_state_observed_at,
+    currentStateObservedAt,
   );
   const intendedEffects = derivePreviewEffects({
     proposal,
@@ -330,7 +389,7 @@ export function prepareVNextSemanticCommitPreviewV01(
     observations: currentState.observations,
     projections: currentState.projections,
     heads: currentState.heads,
-    previewed_at: input.previewed_at,
+    previewed_at: previewedAt,
   });
   const lineage = loadAppliedLineageFromStore(
     db,
@@ -352,7 +411,9 @@ export function prepareVNextSemanticCommitPreviewV01(
     ),
     intent_id: decision.requested_transition_intent!.intent_id,
     transition_kind: transition.transition_kind,
-    previewed_at: input.previewed_at,
+    authorized_applier_identity: authorizedApplierIdentity,
+    gate_ttl_ms: gateTtlMs,
+    previewed_at: previewedAt,
     current_state_observations: currentState.observations,
     intended_effects: intendedEffects,
     prior_review_decision_bindings: lineage.prior_review_decisions.map(
@@ -391,24 +452,52 @@ export function recordVNextSemanticCommitAuthorizationV01(
   maybeInput?: RecordVNextSemanticCommitAuthorizationInputV01,
 ): VNextSemanticCommitAuthorizationResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
-  for (const [name, value] of [
-    ["confirmed_at", input.confirmed_at],
-    ["gate_evaluated_at", input.gate_evaluated_at],
-    ["gate_expires_at", input.gate_expires_at],
-    ["eligibility_evaluated_at", input.eligibility_evaluated_at],
-  ] as const) assertTimestamp(value, name);
+  assertRuntimeInputKeys(
+    input,
+    new Set([
+      "preview",
+      "confirmation_digest",
+      "operator_actor_ref",
+      "clock",
+      "test_options",
+    ]),
+  );
+  const confirmedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "confirmed_at",
+  );
+  const gateEvaluatedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "gate_evaluated_at",
+  );
+  const eligibilityEvaluatedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "eligibility_evaluated_at",
+  );
+  const gateTtlMs = normalizeGateTtlMs(input.preview.gate_ttl_ms);
+  const gateExpiresAt = addMillisecondsToTimestamp(
+    gateEvaluatedAt,
+    gateTtlMs,
+    "gate_expires_at",
+  );
   return withImmediateTransaction(db, () => {
-    const exactPreview = prepareVNextSemanticCommitPreviewV01(db, {
-      workspace_id: input.preview.workspace_id,
-      project_id: input.preview.project_id,
-      proposal_id: input.preview.proposal_id,
-      proposal_fingerprint: input.preview.proposal_fingerprint,
-      decision_id: input.preview.decision_id,
-      decision_fingerprint: input.preview.decision_fingerprint,
-      current_state_observed_at:
-        input.preview.current_state_observations[0]!.observed_at,
-      previewed_at: input.preview.previewed_at,
-    });
+    const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
+      db,
+      {
+        workspace_id: input.preview.workspace_id,
+        project_id: input.preview.project_id,
+        proposal_id: input.preview.proposal_id,
+        proposal_fingerprint: input.preview.proposal_fingerprint,
+        decision_id: input.preview.decision_id,
+        decision_fingerprint: input.preview.decision_fingerprint,
+      },
+      input.preview.current_state_observations[0]!.observed_at,
+      input.preview.previewed_at,
+      normalizeLocalRuntimeActorIdentity(
+        input.preview.authorized_applier_identity,
+      ),
+      gateTtlMs,
+    );
     if (
       canonicalizeProtocolValueV01(exactPreview) !==
         canonicalizeProtocolValueV01(input.preview) ||
@@ -418,37 +507,44 @@ export function recordVNextSemanticCommitAuthorizationV01(
       db,
       ...input.preview,
     });
-    assertExactRef(input.operator_actor_ref, decision.actor_ref, "operator_actor_mismatch");
-    assertConfirmationRef(
-      input.confirmation_observation_ref,
-      input.confirmed_at,
-      input.confirmation_digest,
+    assertExactRef(
+      input.operator_actor_ref,
+      decision.actor_ref,
+      "operator_actor_mismatch",
     );
-    assertProviderNeutralRef(input.authorized_applier_ref, "authorized_applier_ref");
+    const confirmationObservationRef = createRuntimeConfirmationRef(
+      exactPreview,
+      confirmedAt,
+    );
+    const authorizedApplierRef = createRuntimeAuthorizedApplierRef(
+      exactPreview,
+      gateEvaluatedAt,
+    );
     assertSemanticCommitChronology({
       observations: exactPreview.current_state_observations,
       previewed_at: exactPreview.previewed_at,
-      confirmed_at: input.confirmed_at,
-      gate_evaluated_at: input.gate_evaluated_at,
-      eligibility_evaluated_at: input.eligibility_evaluated_at,
-      gate_expires_at: input.gate_expires_at,
+      confirmed_at: confirmedAt,
+      gate_evaluated_at: gateEvaluatedAt,
+      eligibility_evaluated_at: eligibilityEvaluatedAt,
+      gate_expires_at: gateExpiresAt,
     });
+    assertPreviewConfirmationAge(exactPreview.previewed_at, confirmedAt);
     const gateRecordId = deriveSemanticCommitGateRecordId({
       workspace_id: proposal.workspace_id,
       project_id: proposal.project_id,
       decision_fingerprint: decision.integrity.fingerprint,
       confirmation_digest: input.confirmation_digest,
-      confirmed_at: input.confirmed_at,
-      authorized_applier_ref: input.authorized_applier_ref,
+      confirmed_at: confirmedAt,
+      authorized_applier_ref: authorizedApplierRef,
     });
     const gate = buildSemanticCommitGateEvaluation({
       preview: exactPreview,
       decision,
-      confirmation_observation_ref: input.confirmation_observation_ref,
-      authorized_applier_ref: input.authorized_applier_ref,
+      confirmation_observation_ref: confirmationObservationRef,
+      authorized_applier_ref: authorizedApplierRef,
       gate_record_id: gateRecordId,
-      evaluated_at: input.gate_evaluated_at,
-      expires_at: input.gate_expires_at,
+      evaluated_at: gateEvaluatedAt,
+      expires_at: gateExpiresAt,
     });
     const lineage = loadAppliedLineageFromStore(
       db,
@@ -461,7 +557,7 @@ export function recordVNextSemanticCommitAuthorizationV01(
       decision,
       exactPreview.current_state_observations,
       gate,
-      input.eligibility_evaluated_at,
+      eligibilityEvaluatedAt,
       lineage,
     );
     const gateEligibility = evaluateReviewDecisionStateTransitionEligibilityV01(
@@ -474,10 +570,10 @@ export function recordVNextSemanticCommitAuthorizationV01(
       gate_record_id: gateRecordId,
       preview: exactPreview,
       operator_actor_ref: input.operator_actor_ref,
-      confirmation_observation_ref: input.confirmation_observation_ref,
-      confirmed_at: input.confirmed_at,
+      confirmation_observation_ref: confirmationObservationRef,
+      confirmed_at: confirmedAt,
       gate,
-      eligibility_evaluated_at: input.eligibility_evaluated_at,
+      eligibility_evaluated_at: eligibilityEvaluatedAt,
       eligibility_precondition_fingerprint: gateEligibility.precondition_fingerprint,
     });
     const write = insertVNextCoreRecordV01(db, {
@@ -488,7 +584,7 @@ export function recordVNextSemanticCommitAuthorizationV01(
       fingerprint: gateRecord.integrity.fingerprint,
       idempotency_key: input.confirmation_digest,
       payload: gateRecord,
-      created_at: input.confirmed_at,
+      created_at: confirmedAt,
     });
     runTestCheckpoint(input.test_options, "after_gate_record_insert");
     return {
@@ -578,8 +674,6 @@ export function loadValidatedVNextSemanticTransitionRelationV01(
       decision_fingerprint: decision.integrity.fingerprint,
       gate_record_id: gateRecordId,
       gate_record_fingerprint: gateEnvelope.fingerprint,
-      applied_at: receipt.applied_at,
-      recorded_at: receipt.recorded_at,
     },
     proposal,
     decision,
@@ -631,18 +725,36 @@ interface BuiltVNextSemanticTransitionV01 {
   state_records: VNextPersistedSemanticStateVersionV01[];
 }
 
+type ResolvedCommitVNextSemanticTransitionInputV01 =
+  CommitVNextSemanticTransitionInputV01 & {
+    applied_at: string;
+    recorded_at: string;
+  };
+
 function commitVNextSemanticTransitionInternalV01(
   db: Database.Database,
   input: CommitVNextSemanticTransitionInputV01,
 ): VNextSemanticTransitionCommitResultV01 {
-  assertTimestamp(input.applied_at, "applied_at");
-  assertTimestamp(input.recorded_at, "recorded_at");
-  assertTimestampOrder(
-    input.applied_at,
-    input.recorded_at,
-    "recorded_before_applied",
+  assertRuntimeInputKeys(
+    input,
+    new Set([
+      "workspace_id",
+      "project_id",
+      "proposal_id",
+      "proposal_fingerprint",
+      "decision_id",
+      "decision_fingerprint",
+      "gate_record_id",
+      "gate_record_fingerprint",
+      "clock",
+      "test_options",
+    ]),
   );
   return withImmediateTransaction(db, () => {
+    const transactionNow = readVNextLocalRuntimeClockNowV01(
+      input.clock,
+      "applied_at",
+    );
     const { proposal, decision } = loadReviewMaterial({ db, ...input });
     const transition = resolveTransitionMaterial(proposal, decision);
     const expectedIdempotency = transitionIdempotencyKey(decision);
@@ -689,14 +801,32 @@ function commitVNextSemanticTransitionInternalV01(
     ) {
       throw new Error("semantic_commit_precondition_mismatch");
     }
+    let appliedAt = transactionNow;
+    let recordedAt: string;
+    if (existingReceiptRecord) {
+      const storedTimes = readStoredReceiptTimesForReplay(existingReceiptRecord);
+      appliedAt = storedTimes.applied_at;
+      recordedAt = storedTimes.recorded_at;
+    } else {
+      assertNewApplicationWithinGate(gate, transactionNow);
+      recordedAt = readVNextLocalRuntimeClockNowV01(
+        input.clock,
+        "recorded_at",
+      );
+      assertTimestampOrder(
+        appliedAt,
+        recordedAt,
+        "recorded_before_applied",
+      );
+    }
     const built = buildAppliedTransitionMaterial({
       proposal,
       decision,
       transition,
       gate,
       eligibility: gateEligibility,
-      applied_at: input.applied_at,
-      recorded_at: input.recorded_at,
+      applied_at: appliedAt,
+      recorded_at: recordedAt,
     });
     if (built.receipt.idempotency_key !== expectedIdempotency) {
       throw new Error("transition_idempotency_mismatch");
@@ -770,7 +900,11 @@ function commitVNextSemanticTransitionInternalV01(
     assertValidReceiptRelation(eligibilityInput, built.receipt);
     const projections = applyTransitionWrites({
       db,
-      input,
+      input: {
+        ...input,
+        applied_at: appliedAt,
+        recorded_at: recordedAt,
+      },
       proposal,
       transition,
       current_projections: liveSnapshot.projections,
@@ -1007,7 +1141,7 @@ function buildAppliedTransitionMaterial(input: {
 
 function applyTransitionWrites(input: {
   db: Database.Database;
-  input: CommitVNextSemanticTransitionInputV01;
+  input: ResolvedCommitVNextSemanticTransitionInputV01;
   proposal: EpisodeDeltaProposalV01;
   transition: ResolvedTransitionMaterialV01;
   current_projections: Array<VNextSemanticStateProjectionEntryV01 | null>;
@@ -1334,6 +1468,42 @@ function validateAndReturnExactReplay(input: {
     eligibility_input: input.eligibility_input,
     eligibility: input.eligibility,
   };
+}
+
+function readStoredReceiptTimesForReplay(
+  record: VNextCoreRecordEnvelopeV01,
+): { applied_at: string; recorded_at: string } {
+  const validation = validateStateTransitionReceiptV01(record.payload);
+  if (validation.status !== "valid") throw new Error("conflicting_result");
+  const receipt = record.payload as StateTransitionReceiptV01;
+  assertTimestamp(receipt.applied_at, "stored_receipt_applied_at");
+  assertTimestamp(receipt.recorded_at, "stored_receipt_recorded_at");
+  return {
+    applied_at: receipt.applied_at,
+    recorded_at: receipt.recorded_at,
+  };
+}
+
+function assertNewApplicationWithinGate(
+  gate: VNextSemanticCommitGateRecordV01,
+  now: string,
+): void {
+  const nowValue = parseStrictIsoTimestampV01(now);
+  const evaluatedAt = parseStrictIsoTimestampV01(
+    gate.semantic_commit_gate_evaluation.evaluated_at,
+  );
+  const expiresAt = parseStrictIsoTimestampV01(
+    gate.semantic_commit_gate_evaluation.expires_at,
+  );
+  if (nowValue === null || evaluatedAt === null || expiresAt === null) {
+    throw new Error("semantic_commit_gate_runtime_time_invalid");
+  }
+  if (nowValue < evaluatedAt) {
+    throw new Error("semantic_commit_application_precedes_gate");
+  }
+  if (nowValue > expiresAt) {
+    throw new Error("semantic_commit_gate_expired");
+  }
 }
 
 function assertValidReceiptRelation(
@@ -2384,6 +2554,12 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
         gate.prior_state_transition_receipt_bindings,
     },
   );
+  const authorizedApplierIdentity = localRuntimeActorIdentityFromRef(
+    gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+  );
+  const gateTtlMs = gateTtlFromEvaluation(
+    gate.semantic_commit_gate_evaluation,
+  );
   const material = {
     preview_version: VNEXT_SEMANTIC_COMMIT_PREVIEW_VERSION_V01,
     workspace_id: proposal.workspace_id,
@@ -2398,6 +2574,8 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
     ),
     intent_id: decision.requested_transition_intent!.intent_id,
     transition_kind: transition.transition_kind,
+    authorized_applier_identity: authorizedApplierIdentity,
+    gate_ttl_ms: gateTtlMs,
     previewed_at: gate.previewed_at,
     current_state_observations: observations,
     intended_effects: intendedEffects,
@@ -2604,18 +2782,40 @@ function loadGateRecord(
     decision,
     gate,
   );
+  const expectedConfirmationRef = createRuntimeConfirmationRef(
+    rebuiltPreview,
+    gate.confirmed_at,
+  );
+  const expectedAuthorizedApplierRef = createRuntimeAuthorizedApplierRef(
+    rebuiltPreview,
+    gate.semantic_commit_gate_evaluation.evaluated_at,
+  );
+  assertExactRef(
+    gate.confirmation_observation_ref,
+    expectedConfirmationRef,
+    "confirmation_observation_ref_mismatch",
+  );
+  assertExactRef(
+    gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+    expectedAuthorizedApplierRef,
+    "authorized_applier_ref_mismatch",
+  );
   if (!options.allow_historical_snapshot) {
-    const livePreview = prepareVNextSemanticCommitPreviewV01(db, {
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      proposal_id: proposal.proposal_id,
-      proposal_fingerprint: proposal.integrity.fingerprint,
-      decision_id: decision.decision_id,
-      decision_fingerprint: decision.integrity.fingerprint,
-      current_state_observed_at:
-        rebuiltPreview.current_state_observations[0]!.observed_at,
-      previewed_at: rebuiltPreview.previewed_at,
-    });
+    const livePreview = prepareVNextSemanticCommitPreviewAtV01(
+      db,
+      {
+        workspace_id: proposal.workspace_id,
+        project_id: proposal.project_id,
+        proposal_id: proposal.proposal_id,
+        proposal_fingerprint: proposal.integrity.fingerprint,
+        decision_id: decision.decision_id,
+        decision_fingerprint: decision.integrity.fingerprint,
+      },
+      rebuiltPreview.current_state_observations[0]!.observed_at,
+      rebuiltPreview.previewed_at,
+      rebuiltPreview.authorized_applier_identity,
+      rebuiltPreview.gate_ttl_ms,
+    );
     if (
       canonicalizeProtocolValueV01(livePreview) !==
       canonicalizeProtocolValueV01(rebuiltPreview)
@@ -2632,21 +2832,20 @@ function loadGateRecord(
     eligibility_evaluated_at: gate.eligibility_evaluated_at,
     gate_expires_at: gate.semantic_commit_gate_evaluation.expires_at,
   });
+  assertPreviewConfirmationAge(rebuiltPreview.previewed_at, gate.confirmed_at);
   const expectedGateId = deriveSemanticCommitGateRecordId({
     workspace_id: proposal.workspace_id,
     project_id: proposal.project_id,
     decision_fingerprint: decision.integrity.fingerprint,
     confirmation_digest: rebuiltPreview.confirmation_digest,
     confirmed_at: gate.confirmed_at,
-    authorized_applier_ref:
-      gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+    authorized_applier_ref: expectedAuthorizedApplierRef,
   });
   const expectedGateEvaluation = buildSemanticCommitGateEvaluation({
     preview: rebuiltPreview,
     decision,
-    confirmation_observation_ref: gate.confirmation_observation_ref,
-    authorized_applier_ref:
-      gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+    confirmation_observation_ref: expectedConfirmationRef,
+    authorized_applier_ref: expectedAuthorizedApplierRef,
     gate_record_id: expectedGateId,
     evaluated_at: gate.semantic_commit_gate_evaluation.evaluated_at,
     expires_at: gate.semantic_commit_gate_evaluation.expires_at,
@@ -2764,9 +2963,150 @@ function assertProviderNeutralRef(ref: ExternalRefV01, field: string): void {
   if (ref.provider != null || ref.host != null) throw new Error(`${field}_provider_specific`);
 }
 
-function assertConfirmationRef(ref: ExternalRefV01, confirmedAt: string, digest: string): void {
+function normalizeLocalRuntimeActorIdentity(
+  value: unknown,
+): VNextLocalRuntimeActorIdentityV01 {
+  const record = requirePlainRecord(
+    value,
+    "authorized_applier_identity_invalid",
+  );
+  if (
+    Object.keys(record).length !== 2 ||
+    Object.keys(record).some(
+      (key) => key !== "ref_type" && key !== "external_id",
+    )
+  ) {
+    throw new Error("authorized_applier_identity_invalid");
+  }
+  return {
+    ref_type: requireText(
+      record.ref_type,
+      "authorized_applier_identity_ref_type_invalid",
+    ),
+    external_id: requireText(
+      record.external_id,
+      "authorized_applier_identity_external_id_invalid",
+    ),
+  };
+}
+
+function localRuntimeActorIdentityFromRef(
+  ref: ExternalRefV01,
+): VNextLocalRuntimeActorIdentityV01 {
+  assertProviderNeutralRef(ref, "authorized_applier_ref");
+  return normalizeLocalRuntimeActorIdentity({
+    ref_type: ref.ref_type,
+    external_id: ref.external_id,
+  });
+}
+
+function normalizeGateTtlMs(value: unknown): number {
+  if (
+    !Number.isSafeInteger(value) ||
+    Number(value) < 1 ||
+    Number(value) > VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01
+  ) {
+    throw new Error("semantic_commit_gate_ttl_invalid");
+  }
+  return Number(value);
+}
+
+function gateTtlFromEvaluation(
+  gate: StateTransitionSemanticCommitGateEvaluationV01,
+): number {
+  const evaluatedAt = parseStrictIsoTimestampV01(gate.evaluated_at);
+  const expiresAt = parseStrictIsoTimestampV01(gate.expires_at);
+  if (evaluatedAt === null || expiresAt === null) {
+    throw new Error("semantic_commit_gate_ttl_invalid");
+  }
+  return normalizeGateTtlMs(expiresAt - evaluatedAt);
+}
+
+function addMillisecondsToTimestamp(
+  value: string,
+  milliseconds: number,
+  field: string,
+): string {
+  const parsed = parseStrictIsoTimestampV01(value);
+  if (parsed === null) throw new Error(`${field}_invalid`);
+  return new Date(parsed + normalizeGateTtlMs(milliseconds)).toISOString();
+}
+
+function createRuntimeConfirmationRef(
+  preview: VNextSemanticCommitPreviewV01,
+  confirmedAt: string,
+): ExternalRefV01 {
+  return localRef(
+    "semantic_commit_confirmation",
+    `confirmation:${preview.project_id}:${preview.confirmation_digest}`,
+    confirmedAt,
+    preview.confirmation_digest,
+  );
+}
+
+function createRuntimeAuthorizedApplierRef(
+  preview: VNextSemanticCommitPreviewV01,
+  evaluatedAt: string,
+): ExternalRefV01 {
+  const identity = normalizeLocalRuntimeActorIdentity(
+    preview.authorized_applier_identity,
+  );
+  const sourceFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      runtime_version: VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01,
+      workspace_id: preview.workspace_id,
+      project_id: preview.project_id,
+      decision_fingerprint: preview.decision_fingerprint,
+      confirmation_digest: preview.confirmation_digest,
+      authorized_applier_identity: identity,
+      gate_ttl_ms: normalizeGateTtlMs(preview.gate_ttl_ms),
+    }),
+  );
+  return localRef(
+    identity.ref_type,
+    identity.external_id,
+    evaluatedAt,
+    sourceFingerprint,
+  );
+}
+
+function assertRuntimeInputKeys(
+  input: object,
+  allowed: ReadonlySet<string>,
+): void {
+  for (const key of Object.keys(input)) {
+    if (allowed.has(key)) continue;
+    if (
+      [
+        "current_state_observed_at",
+        "previewed_at",
+        "confirmed_at",
+        "gate_evaluated_at",
+        "gate_expires_at",
+        "eligibility_evaluated_at",
+        "applied_at",
+        "recorded_at",
+        "generated_at",
+        "observed_at",
+      ].includes(key)
+    ) {
+      throw new Error("local_runtime_timestamp_input_forbidden");
+    }
+    throw new Error(`vnext_local_runtime_input_unknown_field:${key}`);
+  }
+}
+
+function assertConfirmationRef(
+  ref: ExternalRefV01,
+  confirmedAt: string,
+  digest: string,
+): void {
   assertExternalRef(ref, "confirmation_observation_ref");
-  if (ref.trust_class !== "direct_local_observation" || ref.observed_at !== confirmedAt || ref.source_ref !== digest) {
+  if (
+    ref.trust_class !== "direct_local_observation" ||
+    ref.observed_at !== confirmedAt ||
+    ref.source_ref !== digest
+  ) {
     throw new Error("confirmation_observation_ref_mismatch");
   }
 }
@@ -2793,6 +3133,22 @@ function assertTimestampOrder(
   const rightValue = parseStrictIsoTimestampV01(right);
   if (leftValue === null || rightValue === null || leftValue > rightValue) {
     throw new Error(code);
+  }
+}
+
+function assertPreviewConfirmationAge(
+  previewedAt: string,
+  confirmedAt: string,
+): void {
+  const preview = parseStrictIsoTimestampV01(previewedAt);
+  const confirmed = parseStrictIsoTimestampV01(confirmedAt);
+  if (
+    preview === null ||
+    confirmed === null ||
+    confirmed < preview ||
+    confirmed - preview > VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01
+  ) {
+    throw new Error("semantic_commit_preview_confirmation_window_expired");
   }
 }
 

@@ -138,6 +138,13 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   the exact persisted proposal, decision, confirmation digest, authorized
   effects, actor binding, expiry, applier, current state, and prior applied
   lineage pass inside one immediate transaction.
+- The confirmation digest binds the exact authorized applier identity and a
+  bounded gate TTL. Preview, confirmation, gate, commit, compiler, and probe
+  direct-local timestamps come from an explicit local runtime clock; the writer
+  reads current time inside its immediate transaction and cannot accept a
+  caller-supplied historical timestamp to evade expiry. An exact persisted
+  replay after expiry is read-only, while a new or conflicting result remains
+  blocked.
 - Absence after durable history is represented by an absent target head, not by
   projection-row nonexistence alone. That head grants no semantic authority; it
   preserves revision and latest receipt lineage so stale gates and old replays

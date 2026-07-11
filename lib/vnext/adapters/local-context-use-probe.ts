@@ -1,6 +1,11 @@
 import type Database from "better-sqlite3";
 
 import {
+  readVNextLocalRuntimeClockNowV01,
+  type VNextLocalRuntimeClockV01,
+} from "@/lib/vnext/runtime/local-runtime-clock";
+
+import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   deriveVNextSemanticTargetKeyV01,
   insertVNextCoreRecordV01,
@@ -59,7 +64,7 @@ export interface RunLocalContextUseProbeInputV01 {
   later_packet_fingerprint: string;
   expected_transition_receipt_id: string;
   expected_transition_receipt_fingerprint: string;
-  observed_at: string;
+  clock?: VNextLocalRuntimeClockV01;
 }
 
 export interface LocalContextUseResolvedStateBindingV01 {
@@ -129,7 +134,15 @@ export function runLocalContextUseProbeV01(
   }
   db.exec("BEGIN IMMEDIATE");
   try {
-    const result = runLocalContextUseProbeInsideTransactionV01(db, input);
+    assertProbeInputKeys(input);
+    const result = runLocalContextUseProbeInsideTransactionV01(
+      db,
+      input,
+      readVNextLocalRuntimeClockNowV01(
+        input.clock,
+        "local_context_use_observed_at",
+      ),
+    );
     db.exec("COMMIT");
     return result;
   } catch (error) {
@@ -141,10 +154,10 @@ export function runLocalContextUseProbeV01(
 function runLocalContextUseProbeInsideTransactionV01(
   db: Database.Database,
   input: RunLocalContextUseProbeInputV01,
+  observedAt: string,
 ): RunLocalContextUseProbeResultV01 {
   const workspaceId = requiredText(input.workspace_id, "workspace_id");
   const projectId = requiredText(input.project_id, "project_id");
-  const observedAt = strictTimestamp(input.observed_at, "observed_at");
   const prior = loadTaskContextPacket(db, {
     workspace_id: workspaceId,
     project_id: projectId,
@@ -1301,6 +1314,28 @@ function strictTimestamp(value: unknown, field: string): string {
     throw new Error(`${field}_invalid`);
   }
   return normalized;
+}
+
+function assertProbeInputKeys(input: RunLocalContextUseProbeInputV01): void {
+  const allowed = new Set([
+    "workspace_id",
+    "project_id",
+    "prior_packet_id",
+    "prior_packet_fingerprint",
+    "later_packet_id",
+    "later_packet_fingerprint",
+    "expected_transition_receipt_id",
+    "expected_transition_receipt_fingerprint",
+    "clock",
+  ]);
+  for (const key of Object.keys(input)) {
+    if (allowed.has(key)) continue;
+    throw new Error(
+      key === "observed_at"
+        ? "local_runtime_timestamp_input_forbidden"
+        : `local_context_use_probe_input_unknown_field:${key}`,
+    );
+  }
 }
 
 function isResolvedStateRelationMaterialV01(value: unknown): boolean {

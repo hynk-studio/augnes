@@ -1,6 +1,11 @@
 import type Database from "better-sqlite3";
 
 import {
+  readVNextLocalRuntimeClockNowV01,
+  type VNextLocalRuntimeClockV01,
+} from "@/lib/vnext/runtime/local-runtime-clock";
+
+import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   deriveVNextSemanticTargetKeyV01,
   insertVNextCoreRecordV01,
@@ -59,9 +64,14 @@ export interface CompileTaskContextPacketFromPersistedSemanticStateInputV01 {
   prior_packet: TaskContextPacketV01;
   transition_receipt_id: string;
   transition_receipt_fingerprint: string;
-  generated_at: string;
   expiry_policy: VNextTaskContextPacketExpiryPolicyV01;
+  clock?: VNextLocalRuntimeClockV01;
 }
+
+type ResolvedCompileTaskContextPacketInputV01 =
+  CompileTaskContextPacketFromPersistedSemanticStateInputV01 & {
+    generated_at: string;
+  };
 
 export interface CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
   status: VNextCoreRecordWriteResultV01["status"];
@@ -87,7 +97,14 @@ export function compileTaskContextPacketFromPersistedSemanticStateV01(
   }
   db.exec("BEGIN IMMEDIATE");
   try {
-    const result = compileTaskContextPacketInternalV01(db, input);
+    assertCompilerInputKeys(input);
+    const result = compileTaskContextPacketInternalV01(db, {
+      ...input,
+      generated_at: readVNextLocalRuntimeClockNowV01(
+        input.clock,
+        "task_context_packet_generated_at",
+      ),
+    });
     db.exec("COMMIT");
     return result;
   } catch (error) {
@@ -98,7 +115,7 @@ export function compileTaskContextPacketFromPersistedSemanticStateV01(
 
 function compileTaskContextPacketInternalV01(
   db: Database.Database,
-  input: CompileTaskContextPacketFromPersistedSemanticStateInputV01,
+  input: ResolvedCompileTaskContextPacketInputV01,
 ): CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
   validatePriorPacket(input.prior_packet, input.workspace_id, input.project_id);
   const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
@@ -492,7 +509,7 @@ function assertProjectionHeadAndReceipt(
 }
 
 function buildLaterPacket(
-  input: CompileTaskContextPacketFromPersistedSemanticStateInputV01,
+  input: ResolvedCompileTaskContextPacketInputV01,
   transition: ValidatedVNextSemanticTransitionRelationV01,
   presentEffects: ResolvedPresentEffectV01[],
 ): TaskContextPacketV01 {
@@ -659,4 +676,26 @@ function normalizeRefs(refs: ExternalRefV01[]): ExternalRefV01[] {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+}
+
+function assertCompilerInputKeys(
+  input: CompileTaskContextPacketFromPersistedSemanticStateInputV01,
+): void {
+  const allowed = new Set([
+    "workspace_id",
+    "project_id",
+    "prior_packet",
+    "transition_receipt_id",
+    "transition_receipt_fingerprint",
+    "expiry_policy",
+    "clock",
+  ]);
+  for (const key of Object.keys(input)) {
+    if (allowed.has(key)) continue;
+    throw new Error(
+      key === "generated_at"
+        ? "local_runtime_timestamp_input_forbidden"
+        : `persisted_context_compiler_input_unknown_field:${key}`,
+    );
+  }
 }
