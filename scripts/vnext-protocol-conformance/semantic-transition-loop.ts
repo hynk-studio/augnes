@@ -13,6 +13,7 @@ import {
   semanticTransitionLoopProjectBFixture,
   type SemanticTransitionLoopFixtureV01,
 } from "@/fixtures/vnext/protocol/semantic-transition-loop-v0-1";
+import { malformedStateTransitionReceiptRelationCases } from "@/fixtures/vnext/protocol/state-transition-receipt-v0-1";
 import {
   semanticReviewLoopMapperInputFixture,
   semanticReviewLoopTaskContextPacketRefFixture,
@@ -162,6 +163,7 @@ export interface SemanticTransitionLoopConformanceSummaryV01 {
   transition_receipt_lineage_checked: true;
   composed_full_chain_validation_checked: true;
   semantic_no_op_rejected_checked: true;
+  malformed_receipt_full_chain_fail_closed_checked: true;
   two_project_isolation_checked: true;
   repeated_execution_deterministic: true;
   unordered_collection_normalization_checked: true;
@@ -332,6 +334,8 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
   }
   assertComposedFullChainRejectsUnauthorizedReceipt(projectA);
   assertComposedFullChainRejectsSemanticNoOp(acceptReplace);
+  const malformedFullChainNegativeCount =
+    assertMalformedReceiptFullChainCases(projectA);
 
   return {
     suite: "semantic-transition-loop-v0.1",
@@ -340,7 +344,8 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     receipt_relation_negative_fixture_count: receiptRelationCases.length + 2,
     later_packet_relation_negative_fixture_count:
       laterPacketRelationCases.length,
-    full_chain_negative_fixture_count: 2,
+    full_chain_negative_fixture_count:
+      2 + malformedFullChainNegativeCount,
     existing_m3a_anchor_count: 9,
     canonical_transition_receipt_id:
       projectA.transition_receipt.transition_receipt_id,
@@ -365,6 +370,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     transition_receipt_lineage_checked: true,
     composed_full_chain_validation_checked: true,
     semantic_no_op_rejected_checked: true,
+    malformed_receipt_full_chain_fail_closed_checked: true,
     two_project_isolation_checked: true,
     repeated_execution_deterministic: true,
     unordered_collection_normalization_checked: true,
@@ -1285,6 +1291,49 @@ function assertComposedFullChainRejectsSemanticNoOp(
   );
 }
 
+function assertMalformedReceiptFullChainCases(
+  source: SemanticTransitionLoopFixtureV01,
+): number {
+  for (const testCase of malformedStateTransitionReceiptRelationCases) {
+    const receipt = testCase.build(source.transition_receipt);
+    const capture: {
+      value?: ReturnType<typeof validateSemanticTransitionFullChainV01>;
+    } = {};
+    assert.doesNotThrow(() => {
+      capture.value = validateSemanticTransitionFullChainV01({
+        proposal: source.proposal,
+        decision: source.decision,
+        current_state_observations: source.current_state_observations,
+        semantic_commit_gate_evaluation:
+          source.semantic_commit_gate_evaluation,
+        prior_review_decisions: source.prior_review_decisions,
+        prior_state_transition_receipts:
+          source.prior_state_transition_receipts,
+        evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+        receipt,
+        prior_packet: source.prior_packet,
+        later_packet: source.later_packet,
+      });
+    }, testCase.name);
+    const composed = capture.value;
+    assert.ok(composed, testCase.name);
+    assert.equal(composed.status, "blocked", `${testCase.name}: ${format(composed)}`);
+    assert.ok(
+      composed.errors.some(
+        (issue) => issue.code === "transition_receipt_relation_invalid",
+      ),
+      `${testCase.name}: ${format(composed)}`,
+    );
+    assert.ok(
+      composed.errors.some(
+        (issue) => issue.code === testCase.expected_error_code,
+      ),
+      `${testCase.name}: ${format(composed)}`,
+    );
+  }
+  return malformedStateTransitionReceiptRelationCases.length;
+}
+
 function createSupersedeDecisionInput(
   project: SemanticTransitionLoopFixtureV01["project"],
   proposal: EpisodeDeltaProposalV01,
@@ -1720,6 +1769,7 @@ function createReceiptRelationNegativeCases(
     };
     receipt.requested_transition_intent.target_refs = [clone(target)];
     receipt.effects[0]!.target_ref = target;
+    rebindSemanticReceiptApplicationProofs(receipt);
   });
   add(
     "gate_evaluation_ref_mismatch",

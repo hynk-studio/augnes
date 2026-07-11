@@ -444,7 +444,10 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
       receiptValidation.normalized_protocol_version,
     );
   }
-  if (!isProtocolRecordV01(input.receipt)) {
+  if (
+    receiptValidation.status !== "valid" ||
+    !isProtocolRecordV01(input.receipt)
+  ) {
     return buildRelationResult(
       accumulator,
       receiptValidation.normalized_protocol_version,

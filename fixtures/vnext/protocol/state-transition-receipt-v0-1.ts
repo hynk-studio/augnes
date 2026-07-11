@@ -1341,6 +1341,78 @@ export const invalidStateTransitionReceiptFixtureCases: InvalidStateTransitionRe
   authorityMutation("automatic_next_context_claim", "selects_next_context_automatically"),
 ];
 
+export interface MalformedStateTransitionReceiptRelationCaseV01 {
+  name: string;
+  expected_error_code: string;
+  build(receipt: StateTransitionReceiptV01): unknown;
+}
+
+export const malformedStateTransitionReceiptRelationCases: MalformedStateTransitionReceiptRelationCaseV01[] = [
+  {
+    name: "empty_object",
+    expected_error_code: "unsupported_protocol_version",
+    build() {
+      return {};
+    },
+  },
+  {
+    name: "version_only",
+    expected_error_code: "transition_receipt_id_missing",
+    build(receipt) {
+      return {
+        transition_receipt_version: receipt.transition_receipt_version,
+      };
+    },
+  },
+  {
+    name: "missing_source_proposal",
+    expected_error_code: "source_proposal_missing",
+    build(receipt) {
+      const value = clone(receipt) as unknown as Record<string, unknown>;
+      delete value.source_proposal;
+      return value;
+    },
+  },
+  {
+    name: "missing_source_decision",
+    expected_error_code: "source_decision_missing",
+    build(receipt) {
+      const value = clone(receipt) as unknown as Record<string, unknown>;
+      delete value.source_decision;
+      return value;
+    },
+  },
+  {
+    name: "missing_requested_transition_intent",
+    expected_error_code: "requested_transition_intent_missing",
+    build(receipt) {
+      const value = clone(receipt) as unknown as Record<string, unknown>;
+      delete value.requested_transition_intent;
+      return value;
+    },
+  },
+  {
+    name: "effects_null",
+    expected_error_code: "array_malformed",
+    build(receipt) {
+      const value = clone(receipt) as unknown as Record<string, unknown>;
+      value.effects = null;
+      return value;
+    },
+  },
+  {
+    name: "partial_source_proposal_binding",
+    expected_error_code: "proposal_id_missing",
+    build(receipt) {
+      const value = clone(receipt) as unknown as Record<string, unknown>;
+      value.source_proposal = {
+        proposal_version: receipt.source_proposal.proposal_version,
+      };
+      return value;
+    },
+  },
+];
+
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }

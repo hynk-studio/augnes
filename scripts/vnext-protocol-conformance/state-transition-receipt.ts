@@ -6,6 +6,7 @@ import {
   genericStateTransitionReceiptAfterStateRefFixture,
   invalidStateTransitionEligibilityInputFixtureCases,
   invalidStateTransitionReceiptFixtureCases,
+  malformedStateTransitionReceiptRelationCases,
 } from "@/fixtures/vnext/protocol/state-transition-receipt-v0-1";
 import {
   genericCliDirectObservationProposalInputFixture,
@@ -104,6 +105,7 @@ export interface StateTransitionReceiptConformanceSummaryV01 {
   writer_allocated_state_ref_rule_checked: true;
   replay_conflict_semantics_checked: true;
   semantic_content_change_required_checked: true;
+  malformed_receipt_relation_fail_closed_checked: true;
   resigned_receipt_relation_mismatch_rejected: true;
   required_openai_specific_core_fields: 0;
   required_chatgpt_specific_core_fields: 0;
@@ -532,6 +534,8 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     "valid",
     format(validReceiptRelation),
   );
+  const malformedReceiptRelationNegativeCount =
+    assertMalformedReceiptRelationCases(relationReceipt);
 
   const writerAllocatedEligibilityInput = clone(acceptPresentInput);
   const writerAuthorizedEffect =
@@ -693,7 +697,10 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
       3 +
       semanticNoOpEligibilityNegativeCount +
       appliedLineageNegativeFixtureCount,
-    receipt_relation_negative_fixture_count: receiptRelationCases.length + 1,
+    receipt_relation_negative_fixture_count:
+      receiptRelationCases.length +
+      1 +
+      malformedReceiptRelationNegativeCount,
     generic_transition_receipt_id: receipt.transition_receipt_id,
     generic_idempotency_key: receipt.idempotency_key,
     generic_fingerprint: receipt.integrity.fingerprint,
@@ -729,6 +736,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     writer_allocated_state_ref_rule_checked: true,
     replay_conflict_semantics_checked: true,
     semantic_content_change_required_checked: true,
+    malformed_receipt_relation_fail_closed_checked: true,
     resigned_receipt_relation_mismatch_rejected: true,
     required_openai_specific_core_fields: 0,
     required_chatgpt_specific_core_fields: 0,
@@ -1489,6 +1497,50 @@ function createMultiTargetEligibilityInput(): StateTransitionEligibilityEvaluati
   return eligibilityInputForDecision(proposal, decision, "absent");
 }
 
+function assertMalformedReceiptRelationCases(
+  source: StateTransitionReceiptV01,
+): number {
+  for (const testCase of malformedStateTransitionReceiptRelationCases) {
+    const receipt = testCase.build(source);
+    const standalone = validateStateTransitionReceiptV01(receipt);
+    assert.notEqual(
+      standalone.status,
+      "valid",
+      `${testCase.name}: ${format(standalone)}`,
+    );
+    assert.ok(
+      standalone.errors.some(
+        (issue) => issue.code === testCase.expected_error_code,
+      ),
+      `${testCase.name}: ${format(standalone)}`,
+    );
+    const capture: {
+      value?: ReturnType<
+        typeof validateStateTransitionReceiptAgainstEligibilityV01
+      >;
+    } = {};
+    assert.doesNotThrow(() => {
+      capture.value = validateStateTransitionReceiptAgainstEligibilityV01({
+        ...clone(genericStateTransitionEligibilityEvaluationInputFixture),
+        receipt,
+      });
+    }, testCase.name);
+    const relation = capture.value;
+    assert.ok(relation, testCase.name);
+    assert.ok(
+      relation.status === "invalid" || relation.status === "blocked",
+      `${testCase.name}: ${format(relation)}`,
+    );
+    assert.ok(
+      relation.errors.some(
+        (issue) => issue.code === testCase.expected_error_code,
+      ),
+      `${testCase.name}: ${format(relation)}`,
+    );
+  }
+  return malformedStateTransitionReceiptRelationCases.length;
+}
+
 function createReceiptRelationNegativeCases(
   source: StateTransitionReceiptV01,
 ) {
@@ -1516,7 +1568,7 @@ function createReceiptRelationNegativeCases(
       receipt.eligibility_precondition_fingerprint = `sha256:${"0".repeat(64)}`;
     },
   );
-  add("effect_missing", "effect_count_mismatch", (receipt) => {
+  add("effect_missing", "transition_effect_required", (receipt) => {
     receipt.effects = [];
   });
   add(
@@ -1529,6 +1581,7 @@ function createReceiptRelationNegativeCases(
       };
       receipt.requested_transition_intent.target_refs = [clone(outsideRef)];
       receipt.effects[0]!.target_ref = outsideRef;
+      rebindApplicationResultProofs(receipt);
     },
   );
   add("effect_operation_mismatch", "effect_operation_mismatch", (receipt) => {
@@ -1543,8 +1596,9 @@ function createReceiptRelationNegativeCases(
       },
       state_fingerprint: priorFingerprint,
     };
+    rebindApplicationResultProofs(receipt);
   });
-  add("before_state_mismatch", "before_state_mismatch", (receipt) => {
+  add("before_state_mismatch", "operation_snapshot_mismatch", (receipt) => {
     receipt.effects[0]!.before_state = clone(receipt.effects[0]!.after_state);
   });
   add(
@@ -1575,19 +1629,19 @@ function createReceiptRelationNegativeCases(
       external_id: "gate-evaluation:other-authorized-evaluation",
     };
   });
-  add("applied_before_decision", "applied_before_decision", (receipt) => {
+  add("applied_before_decision", "timestamp_order_invalid", (receipt) => {
     receipt.applied_at = "2026-07-10T12:14:00.000Z";
   });
   add(
     "applied_before_gate_evaluation",
-    "applied_before_gate_evaluation",
+    "timestamp_order_invalid",
     (receipt) => {
       receipt.applied_at = "2026-07-10T12:19:00.000Z";
     },
   );
   add(
     "applied_before_current_state_observation",
-    "applied_before_current_state_observation",
+    "timestamp_order_invalid",
     (receipt) => {
       receipt.applied_at = "2026-07-10T12:17:00.000Z";
     },
@@ -1633,6 +1687,7 @@ function createReceiptRelationNegativeCases(
         ...after.state_ref,
         external_id: "semantic-state:unauthorized-identity",
       };
+      rebindApplicationResultProofs(receipt);
       rebindApplicationResultProofs(receipt);
     },
   );
