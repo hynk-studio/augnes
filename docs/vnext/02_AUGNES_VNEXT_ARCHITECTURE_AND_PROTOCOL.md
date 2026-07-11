@@ -667,6 +667,59 @@ path가 아니다.
 - receipt가 represented fact를 담더라도 future transition authority를 부여하지 않는다.
 - external publish와 semantic state apply는 별도 transition이다.
 
+#### M3C durable local commit boundary
+
+M3C의 local Core path는 두 개의 additive SQLite aggregate만 사용한다.
+`vnext_core_records`는 proposal, decision, semantic commit gate, immutable semantic-state
+version, `StateTransitionReceipt`, `TaskContextPacket`, `RunReceipt` payload를 exact
+ID/fingerprint와 project identity로 보존하는 immutable ledger다. 같은 canonical identity와
+exact payload는 replay할 수 있지만, 같은 identity나 idempotency key에 다른 payload 또는
+applied result가 오면 conflict로 닫힌다. `vnext_semantic_state_entries`는
+workspace/project/target별 현재 accepted semantic state만 보존하는 projection이다. Absent
+state는 row로 표현하지 않고 retract는 current row를 제거하며, immutable history는 ledger와
+transition receipt에 남는다. 이 두 aggregate는 legacy state table과 dual-write하지 않는다.
+
+첫 durable state material은 arbitrary JSON이 아니라 review된 candidate에서 deterministic하게
+도출한 bounded accepted-candidate content다. Content fingerprint는 content version, canonical
+target identity, candidate `delta_type`, `proposed_state_summary`를 포함한다. Acceptance,
+observation, recording timestamp, state-ref allocation, application/durable-record provenance와
+compatibility warning은 content fingerprint에서 제외하고 별도 lineage로 보존한다. 따라서
+ExternalRef provenance나 timestamp만 달라졌다는 이유로 semantic replacement를 만들 수 없다.
+
+`prepareVNextSemanticCommitPreviewV01`은 persisted proposal/decision relation과 현재 projection을
+읽어 exact target, operation, before/after content fingerprint와 expected revision을 담은
+confirmation digest를 계산하지만 write나 authority grant를 하지 않는다.
+`recordVNextSemanticCommitAuthorizationV01`은 exact digest, decision actor binding, local
+confirmation observation, expiry와 authorized applier를 요구하고 immutable gate record만
+기록한다. Local Core가 digest 제출을 직접 관찰했다는 사실은 actor ref 뒤의 실제 사람
+identity를 인증했다는 뜻이 아니다.
+
+`commitVNextSemanticTransitionV01`은 explicit store dependency 안에서 immediate transaction을
+열고 proposal, decision, gate, prior applied lineage와 current projection을 다시 읽는다. Caller가
+제공한 current-state observation을 authority로 받지 않고 DB read에서 direct-local observation을
+재구성한 뒤 M3B eligibility를 다시 계산한다. Revision과 content fingerprint의 compare-and-swap,
+all-target atomicity, exact gate outcome과 authorized applier가 모두 맞을 때만 immutable state
+version, current projection과 receipt를 함께 기록한다. Exact same intent/result/current state
+replay는 stored receipt를 반환하고, 다른 result나 drifted current state는 conflict다. 어느
+failure injection이나 validation failure도 partial state 또는 applied receipt를 남기지 않는다.
+
+`compileTaskContextPacketFromPersistedSemanticStateV01`은 명시적으로 호출될 때만 exact persisted
+receipt와 project-scoped current projection을 읽어 later packet을 구성한다. Existing
+`TaskContextPacket` builder와 full proposal → decision → eligibility → receipt → packet relation을
+검증한 다음에만 packet ledger record를 쓴다. Scheduler, background trigger 또는 receipt 존재만으로
+packet을 자동 mutation하는 path는 없다. `runLocalContextUseProbeV01`은 persisted later packet,
+receipt lineage와 current state resolution을 실제 local read로 확인하고 기존 `RunReceiptV01`로
+기록하는 bounded adapter다. Direct-local trust는 probe가 수행한 read에만 적용되며, 이 receipt는
+context usefulness, outcome improvement, approval, Evidence acceptance 또는 work closure를
+증명하지 않는다.
+
+이 local path는 explicit temporary database smoke에서 transaction, reopen, rollback, backup/restore,
+packet compilation과 context resolution을 관찰할 수 있다. Synthetic proposal, decision, actor와
+semantic task가 실제 사용자 authorization이나 product/user database transition으로 승격되지는
+않는다. Context Compiler는 transition gate가 아니고 local probe는 approver가 아니다. 어느
+helper도 legacy writer, proof/Evidence writer, Perspective/memory promotion, publication, provider,
+network 또는 external actuator를 호출하지 않는다.
+
 ---
 
 ### 5.5 AutomationPolicy
@@ -893,6 +946,12 @@ tensions
 external_refs
 ```
 
+M3C local pilot은 위 domain separation을 두 bounded storage shape로 구현한다.
+`vnext_core_records`는 여러 vNext Core record kind의 immutable ledger이고,
+`vnext_semantic_state_entries`는 current accepted semantic-state projection이다. 이는 workflow
+stage마다 table을 하나씩 추가하는 모델이 아니며, projection row가 삭제되더라도 immutable
+semantic-state version과 transition lineage는 ledger에 남는다.
+
 ### 9.4 projections
 
 ```text
@@ -906,6 +965,10 @@ integration_health
 constellation
 continuity_metrics
 ```
+
+`vnext_semantic_state_entries`는 `workspace_id + project_id + target_key`로 격리되고 present
+state만 보유한다. Later `TaskContextPacket`은 이 projection을 명시적으로 읽어 만드는 consumer
+output이며 projection 자체도, packet compiler도 transition authorization source가 아니다.
 
 ### 9.5 table 생성 기준
 

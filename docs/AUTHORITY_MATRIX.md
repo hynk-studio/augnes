@@ -126,6 +126,45 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   but they are not sources of truth and do not add approve, publish, retry,
   proof, mailbox, state, GitHub, Discord, or Codex execution authority.
 
+## vNext M3C Durable Local Boundary
+
+- The user owns the durable semantic decision and the exact confirmation. A
+  synthetic fixture supplying a confirmation digest does not authenticate a
+  person, fabricate user authorization, or approve use against product data.
+- Augnes Core owns the immutable vNext record ledger, the current accepted
+  semantic-state projection, gate validation, compare-and-swap enforcement,
+  and `StateTransitionReceipt` persistence. The local writer may act only after
+  the exact persisted proposal, decision, confirmation digest, authorized
+  effects, actor binding, expiry, applier, current state, and prior applied
+  lineage pass inside one immediate transaction.
+- The M3C confirmation helper records an immutable semantic gate only. It does
+  not apply semantic state, authenticate the human behind a declared actor,
+  accept Evidence, promote Perspective or memory, close work, publish, or grant
+  provider or external-actuation authority.
+- Codex may implement and exercise the writer against an explicit disposable
+  temporary SQLite database for bounded verification. Codex may not invoke it
+  against the default product/user database or translate a smoke result into a
+  real operator decision. The M3C smoke must remove its database and side files
+  and must leave legacy state, proof, Evidence, Perspective, publication, and
+  action-record tables unchanged.
+- Local verification that may evaluate existing app modules, including a Next
+  production build, must set an explicit temporary `AUGNES_DB_PATH`; importing
+  a path that opens the canonical local store is not permission to migrate or
+  inspect the default product/user database during Codex verification.
+- The explicit persisted-state Context Compiler is a consumer of an already
+  valid transition relation, not a transition gate. It runs only when called,
+  validates the complete proposal-to-later-packet chain, and has no scheduler,
+  background trigger, route, or hidden packet mutation authority.
+- The local context-use probe is an observer, not an approver. It may claim
+  `direct_local_observation` only for packet, receipt, and current-state reads it
+  actually performs. Its `RunReceipt` proves bounded local resolution and
+  selection change only; it does not prove helpfulness, Reviewed Reuse, outcome
+  improvement, approval, work closure, or permission for another transition.
+- Product Home, Semantic Workbench, Inspector, ChatGPT Apps, Browser/Chrome,
+  GitHub, and other product surfaces remain non-authoritative clients of this
+  boundary. No M3C path dual-writes legacy authoritative state or grants a
+  surface direct commit/reject authority.
+
 ## Provider-Neutral Execution Lanes
 
 `lib/execution-lanes.ts` records the current provider-neutral lane registry.

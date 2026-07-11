@@ -4,8 +4,11 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readFileSync,
+  realpathSync,
   rmSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { Socket } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -79,6 +82,7 @@ import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition
 import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
+import { vNextDurableSemanticStoreSchemaSqlV01 } from "./db-migrations.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dbPath = requireIsolatedDatabasePath(process.env.AUGNES_DB_PATH);
@@ -345,6 +349,8 @@ try {
     db,
     "state_transition_receipt",
     receipt.transition_receipt_id,
+    receipt.workspace_id,
+    receipt.project_id,
   );
   assert.equal(persistedReceiptRow.fingerprint, receipt.integrity.fingerprint);
   assert.deepEqual(JSON.parse(persistedReceiptRow.payload_json), receipt);
@@ -490,6 +496,13 @@ try {
       durableLocalClosedLoopProjectBFixture,
     ),
   );
+  const fullDurableLocalLoopCoverage = runFullDurableLocalLoopCoverage(
+    dirname(dbPath),
+    gateScenarios,
+    buildDurableLocalSemanticGateScenariosForProjectV01(
+      durableLocalClosedLoopProjectBFixture,
+    ),
+  );
 
   db.pragma("wal_checkpoint(TRUNCATE)");
   db.close();
@@ -509,6 +522,8 @@ try {
         db,
         "state_transition_receipt",
         receipt.transition_receipt_id,
+        receipt.workspace_id,
+        receipt.project_id,
       ).payload_json,
     ),
     receipt,
@@ -520,6 +535,8 @@ try {
         db,
         "task_context_packet",
         compiledContext.later_packet.packet_id,
+        compiledContext.later_packet.workspace_id,
+        compiledContext.later_packet.project_id,
       ).payload_json,
     ),
     compiledContext.later_packet,
@@ -531,6 +548,8 @@ try {
         db,
         "run_receipt",
         contextUseProbe.receipt.receipt_id,
+        contextUseProbe.receipt.workspace_id,
+        contextUseProbe.receipt.project_id,
       ).payload_json,
     ),
     contextUseProbe.receipt,
@@ -551,15 +570,17 @@ try {
         ? "preinitialized_temp_canonical"
         : "standalone_phase_a",
     positive_cases:
-      21 +
+      22 +
       writerCoverage.positive_cases +
       contextCompilerCoverage.positive_cases +
-      contextUseProbeCoverage.positive_cases,
+      contextUseProbeCoverage.positive_cases +
+      fullDurableLocalLoopCoverage.positive_cases,
     negative_cases:
       10 +
       writerCoverage.negative_cases +
       contextCompilerCoverage.negative_cases +
-      contextUseProbeCoverage.negative_cases,
+      contextUseProbeCoverage.negative_cases +
+      fullDurableLocalLoopCoverage.negative_cases,
     fetch_calls: fetchCalls,
     provider_calls: 0,
     network_calls: networkCalls,
@@ -623,6 +644,14 @@ try {
           },
         }),
       ),
+      two_project_pre_transition_db_checksum:
+        fullDurableLocalLoopCoverage.pre_transition_db_checksum,
+      two_project_post_transition_db_checksum:
+        fullDurableLocalLoopCoverage.post_transition_db_checksum,
+      two_project_restored_db_checksum:
+        fullDurableLocalLoopCoverage.restored_db_checksum,
+      two_project_full_durable_local_loop_fingerprint:
+        fullDurableLocalLoopCoverage.full_loop_fingerprint,
       db_checksum_scope: "vnext_core_records_and_vnext_semantic_state_entries",
     },
     rows: reopenedSnapshot.counts,
@@ -636,6 +665,7 @@ try {
     full_writer_coverage: writerCoverage,
     context_compiler_coverage: contextCompilerCoverage,
     local_context_use_probe_coverage: contextUseProbeCoverage,
+    full_durable_local_loop_coverage: fullDurableLocalLoopCoverage,
     later_task_context_packet: {
       packet_id: compiledContext.later_packet.packet_id,
       fingerprint: compiledContext.later_packet.integrity.fingerprint,
@@ -687,6 +717,32 @@ function requireIsolatedDatabasePath(value: string | undefined): string {
   const requestedPath = value.trim();
   assert(isAbsolute(requestedPath), "AUGNES_DB_PATH must be absolute");
   const normalized = resolve(requestedPath);
+  const requestedParent = dirname(normalized);
+  assert(
+    existsSync(requestedParent),
+    "AUGNES_DB_PATH parent must be an existing OS-temporary directory",
+  );
+  const canonicalTempRoot = realpathSync(tmpdir());
+  const canonicalParent = realpathSync(requestedParent);
+  const relativeToTemp = relative(canonicalTempRoot, canonicalParent);
+  assert(
+    relativeToTemp === "" ||
+      (!relativeToTemp.startsWith(`..${sep}`) && relativeToTemp !== ".."),
+    "AUGNES_DB_PATH must remain under the operating system temporary directory",
+  );
+  if (existsSync(normalized)) {
+    const canonicalDatabasePath = realpathSync(normalized);
+    const relativeDatabaseToTemp = relative(
+      canonicalTempRoot,
+      canonicalDatabasePath,
+    );
+    assert(
+      relativeDatabaseToTemp === "" ||
+        (!relativeDatabaseToTemp.startsWith(`..${sep}`) &&
+          relativeDatabaseToTemp !== ".."),
+      "An existing AUGNES_DB_PATH must not resolve outside the operating system temporary directory",
+    );
+  }
   const relativeToRepo = relative(repoRoot, normalized);
   assert(
     relativeToRepo === ".." || relativeToRepo.startsWith(`..${sep}`),
@@ -1936,7 +1992,7 @@ function runContextCompilerCoverage(
     return {
       status: "pass",
       positive_cases: 6,
-      negative_cases: 15,
+      negative_cases: 17,
       operation_packets: operationPackets,
       deterministic_compile_replay: true,
       packet_persisted_after_validation_only: true,
@@ -1945,6 +2001,8 @@ function runContextCompilerCoverage(
         "wrong_receipt_fingerprint",
         "foreign_project_receipt",
         "projection_drift",
+        "projection_revision_drift",
+        "projection_recorded_at_drift",
         "missing_state_after_create",
         "retained_before_after_replace",
         "retained_before_after_supersede",
@@ -2533,6 +2591,485 @@ function runLocalContextUseProbeCoverage(
   }
 }
 
+function runFullDurableLocalLoopCoverage(
+  parentDirectory: string,
+  projectAScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+  projectBScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  const suffix = `${process.pid}`;
+  const mainPath = resolve(parentDirectory, `m3c-full-loop-${suffix}.db`);
+  const preBackupPath = resolve(
+    parentDirectory,
+    `m3c-full-loop-pre-backup-${suffix}.db`,
+  );
+  const preRestoredPath = resolve(
+    parentDirectory,
+    `m3c-full-loop-pre-restored-${suffix}.db`,
+  );
+  const postBackupPath = resolve(
+    parentDirectory,
+    `m3c-full-loop-post-backup-${suffix}.db`,
+  );
+  const postRestoredPath = resolve(
+    parentDirectory,
+    `m3c-full-loop-post-restored-${suffix}.db`,
+  );
+  const databasePaths = [
+    mainPath,
+    preBackupPath,
+    preRestoredPath,
+    postBackupPath,
+    postRestoredPath,
+  ];
+  const ownedPaths = databasePaths.flatMap((path) => [
+    path,
+    `${path}-wal`,
+    `${path}-shm`,
+  ]);
+  for (const path of ownedPaths) {
+    assert.equal(existsSync(path), false, `full loop coverage owns ${path}`);
+  }
+
+  let database: Database.Database | null = null;
+  let preRestored: Database.Database | null = null;
+  let postRestored: Database.Database | null = null;
+  let reopened: Database.Database | null = null;
+  try {
+    const projectA = projectAScenarios.create;
+    const projectB = projectBScenarios.create;
+    assert.equal(
+      projectA.proposal.workspace_id,
+      projectB.proposal.workspace_id,
+      "two-project full loop uses one explicit workspace",
+    );
+    assert.notEqual(
+      projectA.proposal.project_id,
+      projectB.proposal.project_id,
+      "two-project full loop keeps project identities distinct",
+    );
+
+    database = new Database(mainPath);
+    database.pragma("foreign_keys = ON");
+    database.pragma("journal_mode = WAL");
+    ensureVNextDurableSemanticStoreSchemaV01(database);
+    prepareLegacyTables(database);
+    const legacyBaseline = readLegacySnapshot(readDatabaseSnapshot(database));
+
+    const priorPacketA = persistTaskContextPacketRecordV01(
+      database,
+      projectAScenarios.prefix.prior_packet,
+    );
+    const priorPacketB = persistTaskContextPacketRecordV01(
+      database,
+      projectBScenarios.prefix.prior_packet,
+    );
+    assert.equal(priorPacketA.status, "inserted");
+    assert.equal(priorPacketB.status, "inserted");
+    const preparedA = prepareAndAuthorizeGateScenario(database, projectA, false);
+    const preparedB = prepareAndAuthorizeGateScenario(database, projectB, false);
+    const preTransitionSnapshot = readDatabaseSnapshot(database);
+    assertLegacySnapshotUnchanged(preTransitionSnapshot, legacyBaseline);
+
+    database.pragma("wal_checkpoint(TRUNCATE)");
+    copyFileSync(mainPath, preBackupPath);
+    copyFileSync(preBackupPath, preRestoredPath);
+    preRestored = new Database(preRestoredPath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    preRestored.pragma("foreign_keys = ON");
+    assert.deepEqual(
+      readDatabaseSnapshot(preRestored),
+      preTransitionSnapshot,
+      "pre-transition backup/restore reproduces exact rows and hashes",
+    );
+    assert.equal(preRestored.pragma("integrity_check", { simple: true }), "ok");
+    preRestored.close();
+    preRestored = null;
+
+    const committedA = commitVNextSemanticTransitionV01(database, {
+      ...writerCommitInput(projectA, preparedA.authorization),
+    });
+    const committedB = commitVNextSemanticTransitionV01(database, {
+      ...writerCommitInput(projectB, preparedB.authorization),
+    });
+    assert.equal(committedA.status, "applied");
+    assert.equal(committedB.status, "applied");
+    assertWriterReceiptRelation(projectA, committedA);
+    assertWriterReceiptRelation(projectB, committedB);
+
+    const compiledA = compileTaskContextPacketFromPersistedSemanticStateV01(
+      database,
+      compilerInput(
+        projectA,
+        projectAScenarios.prefix.prior_packet,
+        committedA.transition_receipt,
+        DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+      ),
+    );
+    const compiledB = compileTaskContextPacketFromPersistedSemanticStateV01(
+      database,
+      compilerInput(
+        projectB,
+        projectBScenarios.prefix.prior_packet,
+        committedB.transition_receipt,
+        DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+      ),
+    );
+    const probeA = runLocalContextUseProbeV01(
+      database,
+      localContextUseProbeInput(
+        projectAScenarios.prefix.prior_packet,
+        compiledA.later_packet,
+        committedA.transition_receipt,
+        DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+      ),
+    );
+    const probeB = runLocalContextUseProbeV01(
+      database,
+      localContextUseProbeInput(
+        projectBScenarios.prefix.prior_packet,
+        compiledB.later_packet,
+        committedB.transition_receipt,
+        DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+      ),
+    );
+    assert.equal(probeA.status, "inserted");
+    assert.equal(probeB.status, "inserted");
+    assert.equal(probeA.relation.status, "valid");
+    assert.equal(probeB.relation.status, "valid");
+
+    const targetA = projectA.decision.requested_transition_intent!.target_refs[0]!;
+    const targetB = projectB.decision.requested_transition_intent!.target_refs[0]!;
+    assert.equal(
+      canonicalizeProtocolValueV01(targetA),
+      canonicalizeProtocolValueV01(targetB),
+      "the same repository ExternalRef may be used independently by two projects",
+    );
+    assert.equal(
+      deriveVNextSemanticTargetKeyV01(targetA),
+      deriveVNextSemanticTargetKeyV01(targetB),
+    );
+
+    assertPriorLaterSelectionChange(
+      projectAScenarios.prefix.prior_packet,
+      compiledA.later_packet,
+      committedA.projection_entries[0]!,
+      probeA.receipt,
+      "project A",
+    );
+    assertPriorLaterSelectionChange(
+      projectBScenarios.prefix.prior_packet,
+      compiledB.later_packet,
+      committedB.projection_entries[0]!,
+      probeB.receipt,
+      "project B",
+    );
+
+    const bindingsA = fullLoopRecordBindings(
+      projectA,
+      preparedA.authorization,
+      committedA,
+      projectAScenarios.prefix.prior_packet,
+      compiledA.later_packet,
+      probeA.receipt,
+    );
+    const bindingsB = fullLoopRecordBindings(
+      projectB,
+      preparedB.authorization,
+      committedB,
+      projectBScenarios.prefix.prior_packet,
+      compiledB.later_packet,
+      probeB.receipt,
+    );
+    assertProjectScopedFullLoopRecords(
+      database,
+      projectA.proposal.workspace_id,
+      projectA.proposal.project_id,
+      projectB.proposal.project_id,
+      bindingsA,
+      "project A",
+    );
+    assertProjectScopedFullLoopRecords(
+      database,
+      projectB.proposal.workspace_id,
+      projectB.proposal.project_id,
+      projectA.proposal.project_id,
+      bindingsB,
+      "project B",
+    );
+
+    const projectionsA = listVNextSemanticStateEntriesV01(database, {
+      workspace_id: projectA.proposal.workspace_id,
+      project_id: projectA.proposal.project_id,
+    });
+    const projectionsB = listVNextSemanticStateEntriesV01(database, {
+      workspace_id: projectB.proposal.workspace_id,
+      project_id: projectB.proposal.project_id,
+    });
+    assert.equal(projectionsA.length, 1);
+    assert.equal(projectionsB.length, 1);
+    assert.equal(
+      projectionsA[0]!.state_fingerprint,
+      projectionsB[0]!.state_fingerprint,
+      "identical bounded semantic content keeps one content fingerprint across projects",
+    );
+    assert.notEqual(
+      projectionsA[0]!.state_ref.external_id,
+      projectionsB[0]!.state_ref.external_id,
+      "project-scoped semantic-state records remain independently addressable",
+    );
+
+    const postTransitionSnapshot = readDatabaseSnapshot(database);
+    assertLegacySnapshotUnchanged(postTransitionSnapshot, legacyBaseline);
+    database.pragma("wal_checkpoint(TRUNCATE)");
+    copyFileSync(mainPath, postBackupPath);
+    copyFileSync(postBackupPath, postRestoredPath);
+    postRestored = new Database(postRestoredPath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    postRestored.pragma("foreign_keys = ON");
+    const restoredSnapshot = readDatabaseSnapshot(postRestored);
+    assert.deepEqual(
+      restoredSnapshot,
+      postTransitionSnapshot,
+      "post-transition backup/restore reproduces exact records and projection",
+    );
+    assert.deepEqual(
+      listVNextSemanticStateEntriesV01(postRestored, {
+        workspace_id: projectA.proposal.workspace_id,
+        project_id: projectA.proposal.project_id,
+      }),
+      projectionsA,
+    );
+    assert.deepEqual(
+      listVNextSemanticStateEntriesV01(postRestored, {
+        workspace_id: projectB.proposal.workspace_id,
+        project_id: projectB.proposal.project_id,
+      }),
+      projectionsB,
+    );
+    for (const binding of [...bindingsA, ...bindingsB]) {
+      const projectId = bindingsA.includes(binding)
+        ? projectA.proposal.project_id
+        : projectB.proposal.project_id;
+      const record = readVNextCoreRecordV01(postRestored, {
+        record_kind: binding.record_kind,
+        record_id: binding.record_id,
+        workspace_id: projectA.proposal.workspace_id,
+        project_id: projectId,
+      });
+      assert(record, `restored DB retains ${binding.record_kind}:${binding.record_id}`);
+      assert.equal(record.fingerprint, binding.fingerprint);
+    }
+    assert.equal(postRestored.pragma("integrity_check", { simple: true }), "ok");
+    postRestored.close();
+    postRestored = null;
+
+    database.close();
+    database = null;
+    reopened = new Database(mainPath, { readonly: true, fileMustExist: true });
+    reopened.pragma("foreign_keys = ON");
+    assert.deepEqual(
+      readDatabaseSnapshot(reopened),
+      postTransitionSnapshot,
+      "two-project full loop survives close/reopen exactly",
+    );
+    assert.equal(reopened.pragma("integrity_check", { simple: true }), "ok");
+
+    const fullLoopFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        loop_version: "vnext_durable_local_closed_loop.v0.1",
+        workspace_id: projectA.proposal.workspace_id,
+        projects: [
+          {
+            project_id: projectA.proposal.project_id,
+            records: bindingsA,
+            projection: projectionsA,
+          },
+          {
+            project_id: projectB.proposal.project_id,
+            records: bindingsB,
+            projection: projectionsB,
+          },
+        ],
+      }),
+    );
+    return {
+      status: "pass",
+      positive_cases: 14,
+      negative_cases: bindingsA.length + bindingsB.length,
+      workspace_id: projectA.proposal.workspace_id,
+      project_ids: [projectA.proposal.project_id, projectB.proposal.project_id],
+      project_record_binding_count: bindingsA.length + bindingsB.length,
+      same_repository_external_ref_isolated: true,
+      exact_prior_later_selection_change: true,
+      exact_probe_observation: true,
+      project_scoped_lookup_refusals: bindingsA.length + bindingsB.length,
+      pre_transition_backup_restore: true,
+      post_transition_backup_restore: true,
+      close_reopen: true,
+      prior_failure_injection_coverage_preserved: true,
+      legacy_table_deltas: {
+        state_delta_proposals: 0,
+        state_entries: 0,
+        state_transitions: 0,
+      },
+      fetch_calls: fetchCalls,
+      provider_calls: 0,
+      network_calls: networkCalls,
+      product_db_writes: 0,
+      pre_transition_db_checksum: preTransitionSnapshot.logical_checksum,
+      post_transition_db_checksum: postTransitionSnapshot.logical_checksum,
+      restored_db_checksum: restoredSnapshot.logical_checksum,
+      full_loop_fingerprint: fullLoopFingerprint,
+      project_records: {
+        project_a: bindingsA,
+        project_b: bindingsB,
+      },
+      integrity_check: "ok",
+    };
+  } finally {
+    if (database?.open) database.close();
+    if (preRestored?.open) preRestored.close();
+    if (postRestored?.open) postRestored.close();
+    if (reopened?.open) reopened.close();
+    for (const path of ownedPaths) rmSync(path, { force: true });
+    for (const path of ownedPaths) {
+      assert.equal(existsSync(path), false, `full loop coverage removes ${path}`);
+    }
+  }
+}
+
+interface FullLoopRecordBindingV01 {
+  record_kind:
+    | "episode_delta_proposal"
+    | "review_decision"
+    | "semantic_commit_gate"
+    | "semantic_state"
+    | "state_transition_receipt"
+    | "task_context_packet"
+    | "run_receipt";
+  record_id: string;
+  fingerprint: string;
+}
+
+function fullLoopRecordBindings(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  authorization: VNextSemanticCommitAuthorizationResultV01,
+  committed: ReturnType<typeof commitVNextSemanticTransitionV01>,
+  priorPacket: TaskContextPacketV01,
+  laterPacket: TaskContextPacketV01,
+  probeReceipt: ReturnType<typeof runLocalContextUseProbeV01>["receipt"],
+): FullLoopRecordBindingV01[] {
+  const projection = committed.projection_entries[0]!;
+  return [
+    {
+      record_kind: "episode_delta_proposal",
+      record_id: scenario.proposal.proposal_id,
+      fingerprint: scenario.proposal.integrity.fingerprint,
+    },
+    {
+      record_kind: "review_decision",
+      record_id: scenario.decision.decision_id,
+      fingerprint: scenario.decision.integrity.fingerprint,
+    },
+    {
+      record_kind: "semantic_commit_gate",
+      record_id: authorization.gate_record.gate_record_id,
+      fingerprint: authorization.gate_record.integrity.fingerprint,
+    },
+    {
+      record_kind: "semantic_state",
+      record_id: projection.state_ref.external_id,
+      fingerprint: committed.state_records[0]!.integrity.fingerprint,
+    },
+    {
+      record_kind: "state_transition_receipt",
+      record_id: committed.transition_receipt.transition_receipt_id,
+      fingerprint: committed.transition_receipt.integrity.fingerprint,
+    },
+    {
+      record_kind: "task_context_packet",
+      record_id: priorPacket.packet_id,
+      fingerprint: priorPacket.integrity.fingerprint,
+    },
+    {
+      record_kind: "task_context_packet",
+      record_id: laterPacket.packet_id,
+      fingerprint: laterPacket.integrity.fingerprint,
+    },
+    {
+      record_kind: "run_receipt",
+      record_id: probeReceipt.receipt_id,
+      fingerprint: probeReceipt.integrity.fingerprint,
+    },
+  ];
+}
+
+function assertProjectScopedFullLoopRecords(
+  database: Database.Database,
+  workspaceId: string,
+  projectId: string,
+  foreignProjectId: string,
+  bindings: FullLoopRecordBindingV01[],
+  label: string,
+): void {
+  for (const binding of bindings) {
+    const local = readVNextCoreRecordV01(database, {
+      record_kind: binding.record_kind,
+      record_id: binding.record_id,
+      workspace_id: workspaceId,
+      project_id: projectId,
+    });
+    assert(local, `${label} ${binding.record_kind} resolves in its project`);
+    assert.equal(local.fingerprint, binding.fingerprint);
+    assert.equal(
+      readVNextCoreRecordV01(database, {
+        record_kind: binding.record_kind,
+        record_id: binding.record_id,
+        workspace_id: workspaceId,
+        project_id: foreignProjectId,
+      }),
+      null,
+      `${label} ${binding.record_kind} does not leak across projects`,
+    );
+  }
+}
+
+function assertPriorLaterSelectionChange(
+  priorPacket: TaskContextPacketV01,
+  laterPacket: TaskContextPacketV01,
+  projection: ReturnType<typeof commitVNextSemanticTransitionV01>["projection_entries"][number],
+  probeReceipt: ReturnType<typeof runLocalContextUseProbeV01>["receipt"],
+  label: string,
+): void {
+  const priorContainsState = priorPacket.selected_context.some(
+    (entry) =>
+      entry.entry_kind === "accepted_state_ref" &&
+      entry.source_ref === projection.state_fingerprint &&
+      canonicalizeProtocolValueV01(entry.external_ref) ===
+        canonicalizeProtocolValueV01(projection.state_ref),
+  );
+  const laterContainsState = laterPacket.selected_context.some(
+    (entry) =>
+      entry.entry_kind === "accepted_state_ref" &&
+      entry.source_ref === projection.state_fingerprint &&
+      canonicalizeProtocolValueV01(entry.external_ref) ===
+        canonicalizeProtocolValueV01(projection.state_ref),
+  );
+  assert.equal(priorContainsState, false, `${label} Packet A lacks new state`);
+  assert.equal(laterContainsState, true, `${label} Packet B includes new state`);
+  assert(
+    probeReceipt.observations.some(
+      (observation) =>
+        observation.observation_kind === "local_context_selection_change",
+    ),
+    `${label} probe observes the exact persisted selection change`,
+  );
+}
+
 function prepareCreateContextUseProbeChain(
   database: Database.Database,
   scenario: DurableLocalSemanticGateScenarioV01,
@@ -2662,7 +3199,12 @@ function runProjectionCompilerRefusals(
   openDatabase: (label: string) => WriterCoverageDatabaseV01,
   scenario: DurableLocalSemanticGateScenarioV01,
 ) {
-  for (const mode of ["drift", "missing"] as const) {
+  for (const mode of [
+    "drift",
+    "revision_drift",
+    "recorded_at_drift",
+    "missing",
+  ] as const) {
     const opened = openDatabase(`projection-${mode}`);
     const applied = applyCreateScenario(opened.database, scenario);
     const projection = applied.committed.projection_entries[0]!;
@@ -2675,6 +3217,31 @@ function runProjectionCompilerRefusals(
         )
         .run(
           createProtocolSha256V01("compiler-projection-drift"),
+          projection.workspace_id,
+          projection.project_id,
+          projection.target_key,
+        );
+    } else if (mode === "revision_drift") {
+      opened.database
+        .prepare(
+          `UPDATE vnext_semantic_state_entries
+           SET revision = revision + 1
+           WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+        )
+        .run(
+          projection.workspace_id,
+          projection.project_id,
+          projection.target_key,
+        );
+    } else if (mode === "recorded_at_drift") {
+      opened.database
+        .prepare(
+          `UPDATE vnext_semantic_state_entries
+           SET updated_at = ?
+           WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+        )
+        .run(
+          DURABLE_LOCAL_LOOP_APPLIED_AT,
           projection.workspace_id,
           projection.project_id,
           projection.target_key,
@@ -2705,7 +3272,7 @@ function runProjectionCompilerRefusals(
           ),
         ),
       baseline,
-      mode === "drift"
+      mode !== "missing"
         ? /applied_semantic_state_projection_drift/
         : /applied_semantic_state_projection_missing/,
       `semantic-state projection ${mode}`,
@@ -3256,9 +3823,10 @@ function runMigrationCoverage(parentDirectory: string) {
     );
     assert.equal(restored.pragma("integrity_check", { simple: true }), "ok");
 
+    assertVNextSemanticStoreSchemaDriftFree();
     return {
       status: "pass",
-      positive_cases: 7,
+      positive_cases: 8,
       negative_cases: 3,
       fresh_creation: true,
       legacy_only_additive_upgrade: true,
@@ -3269,6 +3837,7 @@ function runMigrationCoverage(parentDirectory: string) {
       invalid_presence_constraints_blocked: 1,
       project_isolation: true,
       backup_restore: true,
+      runtime_migration_canonical_schema_drift_free: true,
       restored_legacy_rows_unchanged: true,
       integrity_check: "ok",
       restored_logical_checksum: upgradedLegacySnapshot.logical_checksum,
@@ -3282,6 +3851,87 @@ function runMigrationCoverage(parentDirectory: string) {
       assert.equal(existsSync(path), false, `migration rehearsal removes ${path}`);
     }
   }
+}
+
+function assertVNextSemanticStoreSchemaDriftFree(): void {
+  const canonicalSchemaSql = readFileSync(
+    resolve(repoRoot, "lib/db/schema.sql"),
+    "utf8",
+  );
+  const signatures: Record<string, unknown> = {};
+  for (const [source, initialize] of [
+    [
+      "runtime",
+      (database: Database.Database) =>
+        ensureVNextDurableSemanticStoreSchemaV01(database),
+    ],
+    [
+      "migration",
+      (database: Database.Database) =>
+        database.exec(vNextDurableSemanticStoreSchemaSqlV01),
+    ],
+    [
+      "canonical",
+      (database: Database.Database) => database.exec(canonicalSchemaSql),
+    ],
+  ] as const) {
+    const database = new Database(":memory:");
+    try {
+      database.pragma("foreign_keys = ON");
+      initialize(database);
+      signatures[source] = vNextSchemaSignature(database);
+    } finally {
+      database.close();
+    }
+  }
+  assert.deepEqual(
+    signatures.runtime,
+    signatures.migration,
+    "runtime and additive migration vNext schema definitions must not drift",
+  );
+  assert.deepEqual(
+    signatures.runtime,
+    signatures.canonical,
+    "runtime and canonical schema.sql vNext definitions must not drift",
+  );
+}
+
+function vNextSchemaSignature(database: Database.Database) {
+  const artifactNames = [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+    "idx_vnext_core_records_project_idempotency",
+    "idx_vnext_core_records_project_kind_created",
+    "idx_vnext_semantic_state_entries_project_updated",
+    "trg_vnext_core_records_immutable_update",
+    "trg_vnext_core_records_immutable_delete",
+  ];
+  const placeholders = artifactNames.map(() => "?").join(", ");
+  return database
+    .prepare(
+      `SELECT type, name, tbl_name, sql
+       FROM sqlite_master
+       WHERE name IN (${placeholders})
+       ORDER BY type, name`,
+    )
+    .all(...artifactNames)
+    .map((row) => {
+      const typed = row as {
+        type: string;
+        name: string;
+        tbl_name: string;
+        sql: string | null;
+      };
+      return {
+        type: typed.type,
+        name: typed.name,
+        table_name: typed.tbl_name,
+        sql: typed.sql
+          ?.replace(/\bIF\s+NOT\s+EXISTS\b/gi, "")
+          .replace(/\s+/g, " ")
+          .trim(),
+      };
+    });
 }
 
 function assertVNextTablesExistAndEmpty(
@@ -3567,12 +4217,15 @@ function requireCoreRecord(
   database: Database.Database,
   recordKind: string,
   recordId: string,
+  workspaceId: string,
+  projectId: string,
 ): { fingerprint: string; payload_json: string } {
   const row = database
     .prepare(
-      `SELECT fingerprint, payload_json FROM vnext_core_records WHERE record_kind = ? AND record_id = ?`,
+      `SELECT fingerprint, payload_json FROM vnext_core_records
+       WHERE record_kind = ? AND record_id = ? AND workspace_id = ? AND project_id = ?`,
     )
-    .get(recordKind, recordId) as
+    .get(recordKind, recordId, workspaceId, projectId) as
     | { fingerprint: string; payload_json: string }
     | undefined;
   assert(row, `missing persisted ${recordKind} record ${recordId}`);

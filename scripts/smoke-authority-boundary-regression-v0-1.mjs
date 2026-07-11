@@ -22,6 +22,8 @@ const exportPolicyDocsPath = "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md";
 const packageScriptName = "smoke:authority-boundary-regression-v0-1";
 const packageScriptValue =
   "node scripts/smoke-authority-boundary-regression-v0-1.mjs";
+const durableSemanticLoopPackageScriptName =
+  "smoke:vnext-durable-semantic-loop-v0-1";
 
 const expectedSliceFiles = [
   docsPath,
@@ -139,7 +141,6 @@ const forbiddenWorkflowPatterns = [
   /\bOPENAI_API_KEY\b/,
   /\bGITHUB_TOKEN\b/,
   /\bsecrets\./,
-  /\bnpm\s+run\s+(?:build|typecheck|smoke)(?!:authority-boundary-regression-v0-1\b)/,
   /\bnpx\s+prisma\s+migrate\b/i,
   /\bnpm\s+run\s+db\b/i,
   /\bdeploy\b/i,
@@ -525,7 +526,29 @@ function assertWorkflowBoundary() {
   assert.ok(workflow.includes("npm ci"), "workflow must install with npm ci");
   assert.ok(
     workflow.includes(`npm run ${packageScriptName}`),
-    "workflow must run only the authority boundary smoke package script",
+    "workflow must retain the authority boundary smoke package script",
+  );
+  assert.ok(
+    workflow.includes(
+      `AUGNES_DB_PATH="$TMP_DIR/vnext-durable-semantic-loop.db" npm run ${durableSemanticLoopPackageScriptName}`,
+    ),
+    "workflow must run the durable semantic loop smoke only against an explicit temporary database",
+  );
+  assert.ok(
+    workflow.includes("name: Run isolated vNext durable semantic loop smoke"),
+    "workflow must keep the durable semantic loop smoke in a separate named step",
+  );
+  assert.ok(
+    workflow.includes('TMP_DIR="$(mktemp -d)"') &&
+      workflow.includes("trap 'rm -rf \"$TMP_DIR\"' EXIT"),
+    "workflow must create and clean up a temporary database directory",
+  );
+  assert.deepEqual(
+    [...workflow.matchAll(/\bnpm\s+run\s+([^\s]+)/g)]
+      .map((match) => match[1])
+      .sort(),
+    [packageScriptName, durableSemanticLoopPackageScriptName].sort(),
+    "workflow must run only the two exact bounded smoke package scripts",
   );
   assert.ok(!workflow.includes("write-all"), "workflow must not request write-all");
   assert.ok(!workflow.includes("contents: write"), "workflow must not request write contents");

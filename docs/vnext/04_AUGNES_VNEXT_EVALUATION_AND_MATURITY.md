@@ -179,6 +179,28 @@ imported_unverified
 
 fixture와 default data를 outcome evidence로 사용하지 않는다.
 
+### 5.5 M3C durable local evidence classification
+
+M3C의 isolated temp-DB smoke는 서로 다른 evidence class를 섞지 않는다.
+
+| 관찰 material | 분류 | 허용되는 주장 | 허용되지 않는 주장 |
+|---|---|---|---|
+| SQLite transaction, exact readback, reopen, CAS, rollback, integrity와 backup/restore | `real_local_observation` | bounded local storage mechanics가 실제 temp DB I/O에서 동작함 | product/user DB transition, user authorization, product use |
+| Persisted later packet compilation과 current-state resolution | `real_local_observation` | explicit compiler와 local read path가 exact fixture lineage를 해석함 | automatic Context Compiler, helpful context, later task usefulness |
+| Local context-use probe의 packet/receipt/state read | `real_local_observation` | exact persisted refs와 selection change를 local store에서 resolve함 | Reviewed Reuse, Evidence acceptance, work closure, outcome improvement |
+| Proposal, decision, operator actor, confirmation과 semantic task | `synthetic_fixture` | deterministic integration·negative case와 authority boundary 검증 | 실제 사람 identity 인증, 실제 operator decision, Level 3 Observed Use |
+
+같은 workspace에서 두 project fixture가 isolation을 통과해도 multi-project product use를
+주장할 수 없다. Temp SQLite I/O가 실제였다는 사실도 semantic input을
+`real_local_observation`으로 승격하지 않는다. 이 capability의 최대 현재 claim은 persisted
+semantic-state aggregate의 Level 1 contract + Level 2 local-store integration, gate/writer,
+explicit later-context compiler와 bounded local observer의 Level 2 integrated path다.
+
+`Reviewed Reuse`는 opted-in real project의 later task가 persisted packet을 실제로 사용하고
+사용자가 그 context의 usefulness나 correction을 review한 뒤에만 주장할 수 있다. `Outcome
+Improvement`는 그 reuse가 wrong-context correction, repeated explanation 또는 later outcome
+metric을 반복적으로 개선한 관찰이 있어야 한다. M3C fixture에는 두 claim 모두 없다.
+
 ---
 
 ## 6. Context and Memory Evaluation
