@@ -12,7 +12,8 @@ import {
 } from "@/fixtures/vnext/protocol/episode-delta-proposal-v0-1";
 import {
   acceptReviewDecisionInputFixture,
-  retractReviewDecisionInputFixture,
+  deferReviewDecisionInputFixture,
+  rejectReviewDecisionInputFixture,
   reviewDecisionMultiCandidateSourceProposal,
   supersedeReviewDecisionInputFixture,
 } from "@/fixtures/vnext/protocol/review-decision-v0-1";
@@ -27,6 +28,8 @@ import {
 import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
+  createReviewDecisionFingerprintV01,
+  deriveReviewDecisionIdV01,
 } from "@/lib/vnext/review-decision";
 import {
   buildStateTransitionReceiptV01,
@@ -57,7 +60,7 @@ const FIXED_GENERIC_IDEMPOTENCY_KEY =
 const FIXED_GENERIC_TRANSITION_RECEIPT_FINGERPRINT =
   "sha256:7609d734ca7090f4af69bbe29c31c1ecf1af2a4544f026265e4dbcf80f5404da";
 const FIXED_CANONICAL_ELIGIBILITY_PRECONDITION_FINGERPRINT =
-  "sha256:7d10fa9ed76e0fb79690565ca1a904d702b94443f4989d978414535b83706202";
+  "sha256:20d498b7ff23198b112c7104ded039c0ba35863bb93862f2346e65459ea428a1";
 
 export interface StateTransitionReceiptConformanceSummaryV01 {
   suite: "state-transition-receipt-v0.1";
@@ -89,6 +92,8 @@ export interface StateTransitionReceiptConformanceSummaryV01 {
   accept_present_replace_checked: true;
   supersede_present_checked: true;
   retract_present_checked: true;
+  exact_prior_applied_lineage_checked: true;
+  same_target_supersede_model_checked: true;
   reject_and_defer_ineligible_checked: true;
   exact_gate_and_current_state_binding_checked: true;
   partial_and_conflicting_target_admission_checked: true;
@@ -387,14 +392,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     "replace",
   );
 
-  const supersedeDecision = buildReviewDecisionV01(
-    clone(supersedeReviewDecisionInputFixture),
-  );
-  const supersedeInput = eligibilityInputForDecision(
-    reviewDecisionMultiCandidateSourceProposal,
-    supersedeDecision,
-    "present",
-  );
+  const supersedeInput = createAppliedLineageEligibilityInput("supersede");
   const supersedeEligibility =
     evaluateReviewDecisionStateTransitionEligibilityV01(supersedeInput);
   assertEligibilityOperation(
@@ -403,17 +401,9 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     "supersede",
   );
 
-  const acceptedDecision = buildReviewDecisionV01(
-    clone(acceptReviewDecisionInputFixture),
-  );
-  const retractDecision = buildReviewDecisionV01(
-    retractReviewDecisionInputFixture(acceptedDecision),
-  );
-  const retractInput = eligibilityInputForDecision(
-    eligibilityInput.proposal,
-    retractDecision,
-    "present",
-  );
+  assert.equal(supersedeEligibility.expected_effects[0]?.lineage_refs.length, 1);
+
+  const retractInput = createAppliedLineageEligibilityInput("retract");
   const retractEligibility =
     evaluateReviewDecisionStateTransitionEligibilityV01(retractInput);
   assertEligibilityOperation(
@@ -421,6 +411,26 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     retractEligibility,
     "retract",
   );
+  assert.equal(retractEligibility.expected_effects[0]?.lineage_refs.length, 1);
+
+  const crossTargetSupersede = eligibilityInputForDecision(
+    reviewDecisionMultiCandidateSourceProposal,
+    buildReviewDecisionV01(clone(supersedeReviewDecisionInputFixture)),
+    "present",
+  );
+  const crossTargetSupersedeEligibility =
+    evaluateReviewDecisionStateTransitionEligibilityV01(
+      crossTargetSupersede,
+    );
+  assert.equal(crossTargetSupersedeEligibility.status, "ineligible");
+  assert.ok(
+    crossTargetSupersedeEligibility.errors.some(
+      (issue) => issue.code === "supersede_target_set_mismatch",
+    ),
+    format(crossTargetSupersedeEligibility),
+  );
+  const appliedLineageNegativeFixtureCount =
+    assertAppliedLineageNegativeCases();
 
   for (const invalidCase of invalidStateTransitionEligibilityInputFixtureCases) {
     const invalidEligibility =
@@ -641,7 +651,9 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     negative_fixture_count: invalidStateTransitionReceiptFixtureCases.length + 2,
     eligibility_positive_fixture_count: 6,
     eligibility_negative_fixture_count:
-      invalidStateTransitionEligibilityInputFixtureCases.length + 2,
+      invalidStateTransitionEligibilityInputFixtureCases.length +
+      3 +
+      appliedLineageNegativeFixtureCount,
     receipt_relation_negative_fixture_count: receiptRelationCases.length + 1,
     generic_transition_receipt_id: receipt.transition_receipt_id,
     generic_idempotency_key: receipt.idempotency_key,
@@ -666,6 +678,8 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     accept_present_replace_checked: true,
     supersede_present_checked: true,
     retract_present_checked: true,
+    exact_prior_applied_lineage_checked: true,
+    same_target_supersede_model_checked: true,
     reject_and_defer_ineligible_checked: true,
     exact_gate_and_current_state_binding_checked: true,
     partial_and_conflicting_target_admission_checked: true,
@@ -786,8 +800,485 @@ function eligibilityInputForDecision(
     decision: clone(decision),
     current_state_observations: currentStateObservations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: [],
+    prior_state_transition_receipts: [],
     evaluated_at: base.evaluated_at,
   };
+}
+
+function createAppliedLineageEligibilityInput(
+  mode: "supersede" | "retract",
+): StateTransitionEligibilityEvaluationInputV01 {
+  const proposal = createSameTargetLineageProposal();
+  const sourceCandidate = proposal.proposed_deltas[0]!;
+  const replacementCandidate = proposal.proposed_deltas[1]!;
+  const priorDecisionInput = decisionInputForProposalCandidate(
+    proposal,
+    sourceCandidate,
+  );
+  const priorDecision = buildReviewDecisionV01(priorDecisionInput);
+  const priorEligibilityInput = eligibilityInputForDecision(
+    proposal,
+    priorDecision,
+    "absent",
+  );
+  const priorEligibility =
+    evaluateReviewDecisionStateTransitionEligibilityV01(
+      priorEligibilityInput,
+    );
+  assert.equal(priorEligibility.status, "eligible", format(priorEligibility));
+  const priorReceipt = buildPriorAppliedReceipt(
+    proposal,
+    priorDecision,
+    priorEligibilityInput,
+    priorEligibility,
+  );
+  const currentInput = decisionInputForProposalCandidate(
+    proposal,
+    sourceCandidate,
+  );
+  const priorBinding = {
+    decision_id: priorDecision.decision_id,
+    decision_fingerprint: priorDecision.integrity.fingerprint,
+  };
+  currentInput.decision = mode;
+  currentInput.decided_at = "2026-07-10T12:30:00.000Z";
+  currentInput.rationale_summary =
+    mode === "supersede"
+      ? "Supersede the exact previously applied source candidate with a same-target replacement candidate."
+      : "Retract the exact previously accepted and applied source candidate.";
+  currentInput.lineage = {
+    prior_decisions: [priorBinding],
+    superseding_candidate:
+      mode === "supersede"
+        ? {
+            candidate_id: replacementCandidate.candidate_id,
+            candidate_fingerprint:
+              createEpisodeDeltaCandidateFingerprintV01(
+                replacementCandidate,
+              ),
+          }
+        : null,
+    retracted_decision: mode === "retract" ? priorBinding : null,
+  };
+  currentInput.requested_transition_intent = {
+    intent_id: `transition-intent:applied-lineage:${mode}`,
+    transition_kind:
+      mode === "supersede"
+        ? "semantic_candidate_supersede"
+        : "semantic_candidate_retract",
+    bounded_summary:
+      "Request a separately gated synthetic lineage transition without applying state.",
+    target_refs: clone(
+      mode === "supersede"
+        ? replacementCandidate.target_refs
+        : sourceCandidate.target_refs,
+    ),
+    intent_only: true,
+    applied: false,
+    state_transition_receipt_ref: null,
+  };
+  const decision = buildReviewDecisionV01(currentInput);
+  const input = eligibilityInputForDecision(proposal, decision, "present");
+  const priorEffects = new Map(
+    priorReceipt.effects.map((effect) => [
+      JSON.stringify(effect.target_ref),
+      effect,
+    ]),
+  );
+  for (const observation of input.current_state_observations) {
+    const priorEffect = priorEffects.get(JSON.stringify(observation.target_ref));
+    if (!priorEffect || priorEffect.after_state.presence !== "present") {
+      throw new Error("Applied lineage fixture requires prior present after-state.");
+    }
+    observation.presence = "present";
+    observation.state_ref = clone(priorEffect.after_state.state_ref);
+    observation.state_fingerprint = priorEffect.after_state.state_fingerprint;
+    observation.observed_at = "2026-07-10T12:32:00.000Z";
+    observation.observation_ref.observed_at = observation.observed_at;
+  }
+  input.semantic_commit_gate_evaluation.evaluated_at =
+    "2026-07-10T12:35:00.000Z";
+  input.semantic_commit_gate_evaluation.evaluation_ref.observed_at =
+    input.semantic_commit_gate_evaluation.evaluated_at;
+  input.evaluated_at = "2026-07-10T12:36:00.000Z";
+  input.prior_review_decisions = [priorDecision];
+  input.prior_state_transition_receipts = [priorReceipt];
+  return input;
+}
+
+function createSameTargetLineageProposal(): EpisodeDeltaProposalV01 {
+  const input = clone(genericCliDirectObservationProposalInputFixture);
+  const source = input.proposed_deltas[0]!;
+  input.bounded_summary =
+    "Two same-target candidates exercise applied supersede and retract lineage without transition authority.";
+  input.proposed_deltas.push({
+    ...clone(source),
+    candidate_id: "delta:protocol-contract-same-target-replacement",
+    title: "Review the same-target replacement contract candidate",
+    proposed_state_summary:
+      "Replace the source candidate with a distinct review-required candidate over the exact same semantic target.",
+    uncertainties: [
+      "The replacement remains synthetic candidate material until separately reviewed.",
+    ],
+  });
+  return buildEpisodeDeltaProposalV01(input);
+}
+
+function decisionInputForProposalCandidate(
+  proposal: EpisodeDeltaProposalV01,
+  candidate: EpisodeDeltaProposalV01["proposed_deltas"][number],
+) {
+  const input = clone(acceptReviewDecisionInputFixture);
+  input.workspace_id = proposal.workspace_id;
+  input.project_id = proposal.project_id;
+  input.source_proposal = {
+    proposal_version: proposal.proposal_version,
+    proposal_id: proposal.proposal_id,
+    proposal_fingerprint: proposal.integrity.fingerprint,
+  };
+  input.candidate = {
+    candidate_id: candidate.candidate_id,
+    candidate_fingerprint:
+      createEpisodeDeltaCandidateFingerprintV01(candidate),
+  };
+  input.decision_basis_material_ids = clone(candidate.basis_material_ids);
+  input.decision_basis_refs = [clone(proposal.run_receipt_refs[0]!)];
+  input.requested_transition_intent!.target_refs = clone(candidate.target_refs);
+  return input;
+}
+
+function buildPriorAppliedReceipt(
+  proposal: EpisodeDeltaProposalV01,
+  decision: ReviewDecisionV01,
+  eligibilityInput: StateTransitionEligibilityEvaluationInputV01,
+  eligibility: StateTransitionEligibilityResultV01,
+): StateTransitionReceiptV01 {
+  const input = clone(genericStateTransitionReceiptInputFixture);
+  const intent = decision.requested_transition_intent!;
+  input.workspace_id = proposal.workspace_id;
+  input.project_id = proposal.project_id;
+  input.source_proposal = {
+    proposal_version: proposal.proposal_version,
+    proposal_id: proposal.proposal_id,
+    proposal_fingerprint: proposal.integrity.fingerprint,
+  };
+  input.source_decision = {
+    decision_version: decision.decision_version,
+    decision_id: decision.decision_id,
+    decision_fingerprint: decision.integrity.fingerprint,
+  };
+  input.source_candidate = clone(decision.candidate);
+  input.requested_transition_intent = {
+    intent_id: intent.intent_id,
+    transition_kind: intent.transition_kind,
+    target_refs: clone(intent.target_refs),
+  };
+  input.applied_by_ref = clone(
+    eligibilityInput.semantic_commit_gate_evaluation.authorized_applier_ref,
+  );
+  input.semantic_commit_gate = {
+    status: "authorized",
+    evaluation_ref: clone(
+      eligibilityInput.semantic_commit_gate_evaluation.evaluation_ref,
+    ),
+    evaluated_at:
+      eligibilityInput.semantic_commit_gate_evaluation.evaluated_at,
+    expires_at: eligibilityInput.semantic_commit_gate_evaluation.expires_at,
+  };
+  input.eligibility_precondition_fingerprint =
+    eligibility.precondition_fingerprint;
+  input.effects = eligibility.expected_effects.map((expected, index) => {
+    if (
+      expected.expected_after_state.presence !== "present" ||
+      expected.expected_after_state.state_ref_rule.mode !== "exact_identity"
+    ) {
+      throw new Error("Prior accept fixture requires exact present outcome.");
+    }
+    const stateFingerprint =
+      expected.expected_after_state.state_fingerprint;
+    return {
+      ...clone(input.effects[0]!),
+      target_ref: clone(expected.target_ref),
+      operation: expected.operation,
+      before_state: clone(expected.before_state),
+      after_state: {
+        presence: "present" as const,
+        state_ref: {
+          ...clone(expected.expected_after_state.state_ref_rule.state_ref),
+          observed_at: input.applied_at,
+          source_ref: stateFingerprint,
+        },
+        state_fingerprint: stateFingerprint,
+      },
+      before_state_observation_ref: clone(
+        expected.before_state_observation_ref,
+      ),
+      after_application_observation_ref: {
+        ...clone(input.effects[0]!.after_application_observation_ref),
+        external_id: `prior-application-observation:${index}`,
+      },
+      durable_record_ref: {
+        ...clone(input.effects[0]!.durable_record_ref),
+        external_id: `prior-durable-record:${index}`,
+      },
+      source_refs: [
+        clone(expected.before_state_observation_ref),
+        ...clone(expected.lineage_refs),
+      ],
+    };
+  });
+  input.source_refs = [
+    clone(eligibilityInput.semantic_commit_gate_evaluation.evaluation_ref),
+    ...input.effects.flatMap((effect) => clone(effect.source_refs)),
+    ...input.effects.map((effect) =>
+      clone(effect.after_application_observation_ref),
+    ),
+    ...input.effects.map((effect) => clone(effect.durable_record_ref)),
+  ];
+  for (const effect of input.effects) {
+    effect.source_refs.push(
+      clone(effect.after_application_observation_ref),
+      clone(effect.durable_record_ref),
+    );
+  }
+  rebindApplicationResultProofs(input);
+  return buildStateTransitionReceiptV01(deepFreeze(input));
+}
+
+function assertAppliedLineageNegativeCases(): number {
+  const base = createAppliedLineageEligibilityInput("retract");
+  const cases: Array<{
+    name: string;
+    expectedStatus: "ineligible" | "blocked";
+    expectedCode: string;
+    input: StateTransitionEligibilityEvaluationInputV01;
+  }> = [];
+  const add = (
+    name: string,
+    expectedStatus: "ineligible" | "blocked",
+    expectedCode: string,
+    mutate: (input: StateTransitionEligibilityEvaluationInputV01) => void,
+  ) => {
+    const input = clone(base);
+    mutate(input);
+    cases.push({ name, expectedStatus, expectedCode, input });
+  };
+
+  add(
+    "fabricated_retracted_decision_binding_resigned",
+    "blocked",
+    "prior_review_decision_binding_mismatch",
+    (input) => {
+      const binding = {
+        decision_id: "review-decision:fabricated-lineage",
+        decision_fingerprint: `sha256:${"9".repeat(64)}`,
+      };
+      input.decision.lineage.prior_decisions = [binding];
+      input.decision.lineage.retracted_decision = binding;
+      resignEligibilityDecision(input);
+    },
+  );
+  add(
+    "prior_review_decision_payload_missing",
+    "ineligible",
+    "prior_review_decision_missing",
+    (input) => {
+      input.prior_review_decisions = [];
+    },
+  );
+  add(
+    "prior_review_decision_fingerprint_mismatch_resigned",
+    "blocked",
+    "prior_review_decision_fingerprint_mismatch",
+    (input) => {
+      const binding = {
+        ...input.decision.lineage.retracted_decision!,
+        decision_fingerprint: `sha256:${"8".repeat(64)}`,
+      };
+      input.decision.lineage.prior_decisions = [binding];
+      input.decision.lineage.retracted_decision = binding;
+      resignEligibilityDecision(input);
+    },
+  );
+  add(
+    "prior_review_decision_cross_project_resigned",
+    "blocked",
+    "prior_review_decision_project_mismatch",
+    (input) => {
+      const prior = input.prior_review_decisions[0]!;
+      prior.project_id = "project:other-lineage";
+      resignReviewDecision(prior);
+      bindEligibilityDecisionToPrior(input, prior);
+      input.prior_state_transition_receipts = [];
+    },
+  );
+  for (const [decisionValue, fixture] of [
+    ["reject", rejectReviewDecisionInputFixture],
+    ["defer", deferReviewDecisionInputFixture],
+  ] as const) {
+    add(
+      `prior_${decisionValue}_decision_not_transitionable`,
+      "ineligible",
+      "prior_review_decision_not_transitionable",
+      (input) => {
+        const proposal = input.proposal;
+        const candidate = proposal.proposed_deltas[0]!;
+        const priorInput = clone(fixture);
+        priorInput.workspace_id = proposal.workspace_id;
+        priorInput.project_id = proposal.project_id;
+        priorInput.source_proposal = {
+          proposal_version: proposal.proposal_version,
+          proposal_id: proposal.proposal_id,
+          proposal_fingerprint: proposal.integrity.fingerprint,
+        };
+        priorInput.candidate = {
+          candidate_id: candidate.candidate_id,
+          candidate_fingerprint:
+            createEpisodeDeltaCandidateFingerprintV01(candidate),
+        };
+        priorInput.decision_basis_material_ids = clone(
+          candidate.basis_material_ids,
+        );
+        priorInput.decision_basis_refs = [
+          clone(proposal.run_receipt_refs[0]!),
+        ];
+        const prior = buildReviewDecisionV01(priorInput);
+        input.prior_review_decisions = [prior];
+        input.prior_state_transition_receipts = [];
+        bindEligibilityDecisionToPrior(input, prior);
+      },
+    );
+  }
+  add(
+    "prior_accept_has_no_applied_receipt",
+    "ineligible",
+    "prior_state_transition_receipt_missing",
+    (input) => {
+      input.prior_state_transition_receipts = [];
+    },
+  );
+  add(
+    "prior_receipt_bound_to_another_decision_resigned",
+    "blocked",
+    "prior_state_transition_receipt_decision_mismatch",
+    (input) => {
+      const receipt = input.prior_state_transition_receipts[0]!;
+      receipt.source_decision.decision_id = "review-decision:other-lineage";
+      receipt.source_decision.decision_fingerprint = `sha256:${"7".repeat(64)}`;
+      resign(receipt);
+    },
+  );
+  add(
+    "prior_receipt_target_mismatch_resigned",
+    "blocked",
+    "prior_state_transition_receipt_target_mismatch",
+    (input) => {
+      const receipt = input.prior_state_transition_receipts[0]!;
+      const target = {
+        ...clone(receipt.effects[0]!.target_ref),
+        external_id: "target:unrelated-applied-lineage",
+      };
+      receipt.requested_transition_intent.target_refs = [clone(target)];
+      receipt.effects[0]!.target_ref = clone(target);
+      rebindApplicationResultProofs(receipt);
+      resign(receipt);
+    },
+  );
+  add(
+    "current_state_differs_from_prior_applied_result",
+    "ineligible",
+    "prior_applied_state_not_current",
+    (input) => {
+      const observation = input.current_state_observations[0]!;
+      if (observation.presence !== "present" || !observation.state_ref) {
+        throw new Error("Current-state drift case requires present state.");
+      }
+      const fingerprint = `sha256:${"6".repeat(64)}`;
+      observation.state_ref.external_id = "semantic-state:later-independent-change";
+      observation.state_ref.source_ref = fingerprint;
+      observation.state_fingerprint = fingerprint;
+    },
+  );
+  add(
+    "fully_resigned_forged_candidate_lineage",
+    "blocked",
+    "prior_review_decision_candidate_mismatch",
+    (input) => {
+      const replacement = input.proposal.proposed_deltas[1]!;
+      const forgedPrior = buildReviewDecisionV01(
+        decisionInputForProposalCandidate(input.proposal, replacement),
+      );
+      input.prior_review_decisions = [forgedPrior];
+      input.prior_state_transition_receipts = [];
+      bindEligibilityDecisionToPrior(input, forgedPrior);
+    },
+  );
+  add(
+    "extra_cross_project_prior_lineage_material",
+    "blocked",
+    "unexpected_prior_lineage_material",
+    (input) => {
+      const foreign = clone(input.prior_review_decisions[0]!);
+      foreign.project_id = "project:foreign-extra-lineage";
+      resignReviewDecision(foreign);
+      input.prior_review_decisions.push(foreign);
+    },
+  );
+  add(
+    "duplicate_prior_review_decision_payload",
+    "blocked",
+    "duplicate_prior_review_decision",
+    (input) => {
+      input.prior_review_decisions.push(
+        clone(input.prior_review_decisions[0]!),
+      );
+    },
+  );
+
+  for (const testCase of cases) {
+    const result = evaluateReviewDecisionStateTransitionEligibilityV01(
+      testCase.input,
+    );
+    assert.equal(
+      result.status,
+      testCase.expectedStatus,
+      `${testCase.name}: ${format(result)}`,
+    );
+    assert.ok(
+      result.errors.some((issue) => issue.code === testCase.expectedCode),
+      `${testCase.name} must report ${testCase.expectedCode}: ${format(result)}`,
+    );
+  }
+  return cases.length;
+}
+
+function bindEligibilityDecisionToPrior(
+  input: StateTransitionEligibilityEvaluationInputV01,
+  prior: ReviewDecisionV01,
+) {
+  const binding = {
+    decision_id: prior.decision_id,
+    decision_fingerprint: prior.integrity.fingerprint,
+  };
+  input.decision.lineage.prior_decisions = [binding];
+  input.decision.lineage.retracted_decision = binding;
+  resignEligibilityDecision(input);
+}
+
+function resignEligibilityDecision(
+  input: StateTransitionEligibilityEvaluationInputV01,
+) {
+  resignReviewDecision(input.decision);
+  input.semantic_commit_gate_evaluation.decision_id =
+    input.decision.decision_id;
+  input.semantic_commit_gate_evaluation.decision_fingerprint =
+    input.decision.integrity.fingerprint;
+}
+
+function resignReviewDecision(decision: ReviewDecisionV01) {
+  decision.decision_id = deriveReviewDecisionIdV01(decision);
+  decision.integrity.fingerprint = createReviewDecisionFingerprintV01(decision);
 }
 
 function createMultiTargetEligibilityInput(): StateTransitionEligibilityEvaluationInputV01 {

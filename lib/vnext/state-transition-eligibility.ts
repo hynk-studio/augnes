@@ -21,7 +21,10 @@ import {
   validateReviewDecisionV01,
 } from "@/lib/vnext/review-decision";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
-import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import {
+  compareStateTransitionReceiptReplayCompatibilityV01,
+  validateStateTransitionReceiptV01,
+} from "@/lib/vnext/state-transition-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -54,6 +57,8 @@ const allowedEvaluationInputKeys = new Set([
   "decision",
   "current_state_observations",
   "semantic_commit_gate_evaluation",
+  "prior_review_decisions",
+  "prior_state_transition_receipts",
   "evaluated_at",
 ]);
 const allowedCurrentStateObservationKeys = new Set([
@@ -122,6 +127,19 @@ export interface StateTransitionReceiptEligibilityRelationInputV01
   receipt: unknown;
 }
 
+export interface StateTransitionFullChainValidationInputV01
+  extends StateTransitionEligibilityEvaluationInputV01 {
+  receipt: unknown;
+  prior_packet: unknown;
+  later_packet: unknown;
+}
+
+interface ResolvedAppliedLineageV01 {
+  prior_decision: ReviewDecisionV01;
+  prior_receipt: StateTransitionReceiptV01;
+  receipt_ref: ExternalRefV01;
+}
+
 export function createStateTransitionEligibilityPreconditionFingerprintV01(
   input: StateTransitionEligibilityEvaluationInputV01,
 ): string {
@@ -161,6 +179,13 @@ export function createStateTransitionEligibilityPreconditionFingerprintV01(
       semantic_commit_gate_evaluation: normalizeGateForHash(
         input.semantic_commit_gate_evaluation,
       ),
+      prior_review_decisions: normalizePriorReviewDecisionsForHash(
+        input.prior_review_decisions,
+      ),
+      prior_state_transition_receipts:
+        normalizePriorStateTransitionReceiptsForHash(
+          input.prior_state_transition_receipts,
+        ),
       evaluated_at: normalizeProtocolTextV01(input.evaluated_at),
     }),
   );
@@ -196,8 +221,20 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
   );
   scanEligibilityMaterial(input.current_state_observations, "$.current_state_observations", accumulator);
   scanEligibilityMaterial(input.semantic_commit_gate_evaluation, "$.semantic_commit_gate_evaluation", accumulator);
+  scanEligibilityMaterial(
+    priorLineageMaterialForScan(input.prior_review_decisions),
+    "$.prior_review_decisions",
+    accumulator,
+  );
+  scanEligibilityMaterial(
+    priorLineageMaterialForScan(input.prior_state_transition_receipts),
+    "$.prior_state_transition_receipts",
+    accumulator,
+  );
   scanAbsoluteLocalPaths(input.current_state_observations, "$.current_state_observations", accumulator);
   scanAbsoluteLocalPaths(input.semantic_commit_gate_evaluation, "$.semantic_commit_gate_evaluation", accumulator);
+  scanAbsoluteLocalPaths(input.prior_review_decisions, "$.prior_review_decisions", accumulator);
+  scanAbsoluteLocalPaths(input.prior_state_transition_receipts, "$.prior_state_transition_receipts", accumulator);
 
   const evaluatedAt = requireTimestamp(
     input.evaluated_at,
@@ -308,6 +345,15 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     );
   }
 
+  const priorDecisions = validatePriorReviewDecisions(
+    input.prior_review_decisions,
+    accumulator,
+  );
+  const priorReceipts = validatePriorStateTransitionReceipts(
+    input.prior_state_transition_receipts,
+    accumulator,
+  );
+
   const gate = validateGateEvaluation(
     input.semantic_commit_gate_evaluation,
     typedProposal,
@@ -322,11 +368,22 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     evaluatedAt,
     accumulator,
   );
+  const appliedLineage = validateAppliedLineage(
+    decisionValue,
+    typedProposal,
+    typedDecision,
+    expectedTargets,
+    observations,
+    priorDecisions,
+    priorReceipts,
+    accumulator,
+  );
   const expectedEffects = deriveExpectedEffects(
     decisionValue,
     expectedTargets,
     observations,
     gate?.authorized_effects ?? [],
+    appliedLineage,
     accumulator,
   );
 
@@ -369,6 +426,9 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
     decision: input.decision,
     current_state_observations: input.current_state_observations,
     semantic_commit_gate_evaluation: input.semantic_commit_gate_evaluation,
+    prior_review_decisions: input.prior_review_decisions,
+    prior_state_transition_receipts:
+      input.prior_state_transition_receipts,
     evaluated_at: input.evaluated_at,
   });
   if (eligibility.status !== "eligible") {
@@ -470,6 +530,26 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
       `${path}.after_state`,
       accumulator,
     );
+    for (const lineageRef of expected.lineage_refs) {
+      if (!containsExactRef(effect.source_refs, lineageRef)) {
+        addRelationError(
+          accumulator,
+          "effect_applied_lineage_ref_missing",
+          `${path}.source_refs`,
+          "Supersede and retract effects must preserve the exact prior applied receipt lineage.",
+          true,
+        );
+      }
+      if (!containsExactRef(receipt.source_refs, lineageRef)) {
+        addRelationError(
+          accumulator,
+          "receipt_applied_lineage_ref_missing",
+          "$.source_refs",
+          "StateTransitionReceipt must preserve the exact prior applied receipt lineage.",
+          true,
+        );
+      }
+    }
   }
 
   const decidedAt = parseStrictIsoTimestampV01(decision.decided_at);
@@ -520,6 +600,14 @@ export function createStateTransitionReceiptLineageRefV01(
   };
 }
 
+/**
+ * Validates packet postconditions for a self-consistent applied receipt.
+ *
+ * This low-level relation does not establish that the receipt preserves an
+ * eligible ReviewDecision or gate-authorized result. Future consumers must use
+ * validateSemanticTransitionFullChainV01 before accepting receipt-derived
+ * context changes.
+ */
 export function validateTaskContextPacketTransitionRelationV01(
   priorPacketInput: unknown,
   receiptInput: unknown,
@@ -843,6 +931,106 @@ export function validateTaskContextPacketTransitionRelationV01(
   return buildPacketRelationResult(accumulator);
 }
 
+/**
+ * Composes the complete non-writing transition acceptance boundary.
+ * Validation does not apply state or mutate either TaskContextPacket.
+ */
+export function validateSemanticTransitionFullChainV01(
+  input: StateTransitionFullChainValidationInputV01,
+): TaskContextPacketTransitionRelationResultV01 {
+  const accumulator = createPacketRelationAccumulator();
+  const proposalValidation = validateEpisodeDeltaProposalV01(input.proposal);
+  if (proposalValidation.status !== "valid") {
+    addPacketRelationError(
+      accumulator,
+      "proposal_invalid",
+      "$.proposal",
+      "Full-chain validation requires a valid EpisodeDeltaProposal.",
+    );
+  }
+  const decisionValidation = validateReviewDecisionV01(input.decision);
+  if (decisionValidation.status !== "valid") {
+    addPacketRelationError(
+      accumulator,
+      "decision_invalid",
+      "$.decision",
+      "Full-chain validation requires a valid ReviewDecision.",
+    );
+  }
+  if (
+    proposalValidation.status === "valid" &&
+    decisionValidation.status === "valid"
+  ) {
+    const relation = validateReviewDecisionAgainstEpisodeDeltaProposalV01(
+      input.decision,
+      input.proposal,
+    );
+    if (relation.status !== "valid") {
+      addPacketRelationError(
+        accumulator,
+        "decision_proposal_relation_invalid",
+        "$.decision",
+        "ReviewDecision must preserve the exact source proposal relation.",
+      );
+    }
+  }
+  const eligibilityInput: StateTransitionEligibilityEvaluationInputV01 = {
+    proposal: input.proposal,
+    decision: input.decision,
+    current_state_observations: input.current_state_observations,
+    semantic_commit_gate_evaluation:
+      input.semantic_commit_gate_evaluation,
+    prior_review_decisions: input.prior_review_decisions,
+    prior_state_transition_receipts:
+      input.prior_state_transition_receipts,
+    evaluated_at: input.evaluated_at,
+  };
+  const eligibility =
+    evaluateReviewDecisionStateTransitionEligibilityV01(eligibilityInput);
+  if (eligibility.status !== "eligible") {
+    addPacketRelationError(
+      accumulator,
+      "transition_not_eligible",
+      "$.eligibility",
+      "Full-chain validation requires eligible transition preconditions.",
+    );
+  }
+  const receiptRelation = validateStateTransitionReceiptAgainstEligibilityV01(
+    input,
+  );
+  if (receiptRelation.status !== "valid") {
+    addPacketRelationError(
+      accumulator,
+      "transition_receipt_relation_invalid",
+      "$.receipt",
+      "StateTransitionReceipt must preserve the exact eligible transition relation.",
+    );
+    for (const issue of receiptRelation.errors) {
+      addPacketRelationError(
+        accumulator,
+        issue.code,
+        issue.path ? `$.receipt${issue.path.slice(1)}` : "$.receipt",
+        issue.message,
+      );
+    }
+  }
+  const packetRelation = validateTaskContextPacketTransitionRelationV01(
+    input.prior_packet,
+    input.receipt,
+    input.later_packet,
+  );
+  for (const issue of packetRelation.errors) {
+    addPacketRelationError(
+      accumulator,
+      issue.code,
+      issue.path,
+      issue.message,
+    );
+  }
+  accumulator.warnings.push(...packetRelation.warnings);
+  return buildPacketRelationResult(accumulator);
+}
+
 function selectedEntryMatchesAppliedState(
   entry: TaskContextPacketSelectedEntryV01,
   stateRef: ExternalRefV01,
@@ -903,6 +1091,534 @@ function buildPacketRelationResult(
     status: accumulator.errors.length === 0 ? "valid" : "blocked",
     errors: accumulator.errors,
     warnings: accumulator.warnings,
+  };
+}
+
+function validatePriorReviewDecisions(
+  value: unknown,
+  accumulator: EligibilityAccumulator,
+): ReviewDecisionV01[] {
+  const values = arrayAt(value, "$.prior_review_decisions", accumulator);
+  if (values.length > 64) {
+    addError(
+      accumulator,
+      "prior_review_decision_collection_bound_exceeded",
+      "$.prior_review_decisions",
+      "At most 64 prior ReviewDecision payloads are supported.",
+      true,
+    );
+  }
+  const seen = new Map<string, string>();
+  const valid: ReviewDecisionV01[] = [];
+  values.slice(0, 64).forEach((item, index) => {
+    const path = `$.prior_review_decisions[${index}]`;
+    const validation = validateReviewDecisionV01(item);
+    if (validation.status !== "valid" || !isProtocolRecordV01(item)) {
+      addError(
+        accumulator,
+        "prior_review_decision_invalid",
+        path,
+        "Applied lineage requires independently valid prior ReviewDecision payloads.",
+        true,
+      );
+      return;
+    }
+    const decision = item as unknown as ReviewDecisionV01;
+    const prior = seen.get(decision.decision_id);
+    if (prior !== undefined) {
+      addError(
+        accumulator,
+        prior === decision.integrity.fingerprint
+          ? "duplicate_prior_review_decision"
+          : "conflicting_prior_review_decision",
+        path,
+        "Prior ReviewDecision identities must be unique and conflict-free.",
+        true,
+      );
+    }
+    seen.set(decision.decision_id, decision.integrity.fingerprint);
+    valid.push(decision);
+  });
+  return valid.sort(compareProtocolCanonicalV01);
+}
+
+function validatePriorStateTransitionReceipts(
+  value: unknown,
+  accumulator: EligibilityAccumulator,
+): StateTransitionReceiptV01[] {
+  const values = arrayAt(
+    value,
+    "$.prior_state_transition_receipts",
+    accumulator,
+  );
+  if (values.length > 64) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_collection_bound_exceeded",
+      "$.prior_state_transition_receipts",
+      "At most 64 prior StateTransitionReceipt payloads are supported.",
+      true,
+    );
+  }
+  const seen = new Map<string, string>();
+  const valid: StateTransitionReceiptV01[] = [];
+  values.slice(0, 64).forEach((item, index) => {
+    const path = `$.prior_state_transition_receipts[${index}]`;
+    const validation = validateStateTransitionReceiptV01(item);
+    if (validation.status !== "valid" || !isProtocolRecordV01(item)) {
+      addError(
+        accumulator,
+        "prior_state_transition_receipt_invalid",
+        path,
+        "Applied lineage requires independently valid prior StateTransitionReceipt payloads.",
+        true,
+      );
+      return;
+    }
+    const receipt = item as unknown as StateTransitionReceiptV01;
+    const prior = seen.get(receipt.transition_receipt_id);
+    if (prior !== undefined) {
+      addError(
+        accumulator,
+        prior === receipt.integrity.fingerprint
+          ? "duplicate_prior_state_transition_receipt"
+          : "conflicting_prior_state_transition_receipt",
+        path,
+        "Prior StateTransitionReceipt identities must be unique and conflict-free.",
+        true,
+      );
+    }
+    seen.set(receipt.transition_receipt_id, receipt.integrity.fingerprint);
+    for (const priorReceipt of valid) {
+      if (priorReceipt.idempotency_key !== receipt.idempotency_key) continue;
+      const replay = compareStateTransitionReceiptReplayCompatibilityV01(
+        priorReceipt,
+        receipt,
+      );
+      if (replay.status === "conflicting_result") {
+        addError(
+          accumulator,
+          "conflicting_prior_transition_result",
+          path,
+          "One prior transition intent cannot preserve conflicting applied results.",
+          true,
+        );
+      }
+    }
+    valid.push(receipt);
+  });
+  return valid.sort(compareProtocolCanonicalV01);
+}
+
+function validateAppliedLineage(
+  decisionValue: string | null,
+  proposal: EpisodeDeltaProposalV01 | null,
+  decision: ReviewDecisionV01 | null,
+  expectedTargets: ExternalRefV01[],
+  observations: StateTransitionCurrentStateObservationV01[],
+  priorDecisions: ReviewDecisionV01[],
+  priorReceipts: StateTransitionReceiptV01[],
+  accumulator: EligibilityAccumulator,
+): ResolvedAppliedLineageV01 | null {
+  if (decisionValue !== "supersede" && decisionValue !== "retract") {
+    if (priorDecisions.length > 0 || priorReceipts.length > 0) {
+      addError(
+        accumulator,
+        "unexpected_prior_lineage_material",
+        priorDecisions.length > 0
+          ? "$.prior_review_decisions"
+          : "$.prior_state_transition_receipts",
+        "Accept, reject, and defer eligibility inputs require empty applied-lineage collections.",
+        true,
+      );
+    }
+    return null;
+  }
+  if (!proposal || !decision) return null;
+  const sourceCandidate = proposal.proposed_deltas.find(
+    (candidate) => candidate.candidate_id === decision.candidate.candidate_id,
+  );
+  if (!sourceCandidate) return null;
+  if (decision.lineage.prior_decisions.length > 1) {
+    addError(
+      accumulator,
+      "prior_decision_lineage_set_mismatch",
+      "$.decision.lineage.prior_decisions",
+      "v0.1 retract and supersede require exactly one declared prior decision binding.",
+      true,
+    );
+  }
+  if (priorDecisions.length > 1 || priorReceipts.length > 1) {
+    addError(
+      accumulator,
+      "unexpected_prior_lineage_material",
+      priorDecisions.length > 1
+        ? "$.prior_review_decisions"
+        : "$.prior_state_transition_receipts",
+      "v0.1 eligibility accepts only the exact one-decision, one-receipt applied lineage set.",
+      true,
+    );
+  }
+
+  if (decisionValue === "supersede") {
+    const supersedingBinding = decision.lineage.superseding_candidate;
+    const supersedingCandidate = supersedingBinding
+      ? proposal.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id === supersedingBinding.candidate_id,
+        )
+      : null;
+    if (
+      !supersedingCandidate ||
+      !canonicalRefSetsEqual(
+        sourceCandidate.target_refs,
+        supersedingCandidate.target_refs,
+      )
+    ) {
+      addError(
+        accumulator,
+        "supersede_target_set_mismatch",
+        "$.decision.lineage.superseding_candidate",
+        "v0.1 supersede requires source and replacement candidates to preserve the exact same canonical target set.",
+      );
+    }
+  }
+
+  const lineageBindings =
+    decisionValue === "retract"
+      ? decision.lineage.retracted_decision
+        ? [decision.lineage.retracted_decision]
+        : []
+      : decision.lineage.prior_decisions;
+  if (lineageBindings.length === 0) {
+    addError(
+      accumulator,
+      "prior_review_decision_binding_missing",
+      "$.decision.lineage.prior_decisions",
+      "Retract and supersede eligibility require an explicit prior decision binding.",
+    );
+    return null;
+  }
+
+  const exactPriorDecisions = priorDecisions.filter((candidate) =>
+    lineageBindings.some(
+      (binding) =>
+        binding.decision_id === candidate.decision_id &&
+        binding.decision_fingerprint === candidate.integrity.fingerprint,
+    ),
+  );
+  if (exactPriorDecisions.length === 0) {
+    if (priorDecisions.length === 0) {
+      addError(
+        accumulator,
+        "prior_review_decision_missing",
+        "$.prior_review_decisions",
+        "The exact prior ReviewDecision payload is required for applied lineage.",
+      );
+    } else {
+      const identityMatch = priorDecisions.some((candidate) =>
+        lineageBindings.some(
+          (binding) => binding.decision_id === candidate.decision_id,
+        ),
+      );
+      addError(
+        accumulator,
+        identityMatch
+          ? "prior_review_decision_fingerprint_mismatch"
+          : "prior_review_decision_binding_mismatch",
+        "$.prior_review_decisions",
+        "Supplied prior ReviewDecision payloads do not preserve the exact declared lineage.",
+        true,
+      );
+    }
+    return null;
+  }
+  const qualifying = exactPriorDecisions.filter(
+    (candidate) =>
+      candidate.candidate.candidate_id === decision.candidate.candidate_id &&
+      candidate.candidate.candidate_fingerprint ===
+        decision.candidate.candidate_fingerprint,
+  );
+  if (qualifying.length !== 1) {
+    addError(
+      accumulator,
+      qualifying.length === 0
+        ? "prior_review_decision_candidate_mismatch"
+        : "prior_review_decision_ambiguous",
+      "$.prior_review_decisions",
+      "Applied lineage must resolve one prior decision for the exact source candidate.",
+      true,
+    );
+    return null;
+  }
+  const priorDecision = qualifying[0]!;
+  if (
+    priorDecision.workspace_id !== proposal.workspace_id ||
+    priorDecision.project_id !== proposal.project_id
+  ) {
+    addError(
+      accumulator,
+      "prior_review_decision_project_mismatch",
+      "$.prior_review_decisions",
+      "Prior ReviewDecision must remain in the exact workspace and project.",
+      true,
+    );
+  }
+  if (
+    priorDecision.source_proposal.proposal_id !== proposal.proposal_id ||
+    priorDecision.source_proposal.proposal_fingerprint !==
+      proposal.integrity.fingerprint
+  ) {
+    addError(
+      accumulator,
+      "prior_review_decision_proposal_mismatch",
+      "$.prior_review_decisions",
+      "v0.1 applied lineage requires the exact same source proposal.",
+      true,
+    );
+  }
+  const priorRelation = validateReviewDecisionAgainstEpisodeDeltaProposalV01(
+    priorDecision,
+    proposal,
+  );
+  if (priorRelation.status !== "valid") {
+    addError(
+      accumulator,
+      "prior_review_decision_relation_invalid",
+      "$.prior_review_decisions",
+      "Prior ReviewDecision must preserve a valid exact relation to the source proposal.",
+      true,
+    );
+  }
+  if (priorDecision.decision !== "accept") {
+    addError(
+      accumulator,
+      "prior_review_decision_not_transitionable",
+      "$.prior_review_decisions",
+      "v0.1 retract and supersede lineage supports only a prior accept decision.",
+    );
+    return null;
+  }
+  const priorIntent = priorDecision.requested_transition_intent;
+  if (
+    !priorIntent ||
+    priorIntent.transition_kind !== "semantic_candidate_apply" ||
+    !canonicalRefSetsEqual(priorIntent.target_refs, expectedTargets)
+  ) {
+    addError(
+      accumulator,
+      "prior_review_decision_target_mismatch",
+      "$.prior_review_decisions",
+      "Prior accept intent must preserve the exact transition target set.",
+      true,
+    );
+  }
+  const priorDecidedAt = parseStrictIsoTimestampV01(priorDecision.decided_at);
+  const currentDecidedAt = parseStrictIsoTimestampV01(decision.decided_at);
+  if (
+    priorDecidedAt !== null &&
+    currentDecidedAt !== null &&
+    priorDecidedAt > currentDecidedAt
+  ) {
+    addError(
+      accumulator,
+      "prior_review_decision_time_mismatch",
+      "$.prior_review_decisions",
+      "Prior ReviewDecision cannot postdate the retract or supersede decision.",
+      true,
+    );
+  }
+
+  const matchingReceipts = priorReceipts.filter(
+    (receipt) =>
+      receipt.source_decision.decision_id === priorDecision.decision_id &&
+      receipt.source_decision.decision_fingerprint ===
+        priorDecision.integrity.fingerprint,
+  );
+  if (matchingReceipts.length === 0) {
+    if (priorReceipts.length === 0) {
+      addError(
+        accumulator,
+        "prior_state_transition_receipt_missing",
+        "$.prior_state_transition_receipts",
+        "Prior accept lineage requires an actual applied StateTransitionReceipt payload.",
+      );
+    } else {
+      addError(
+        accumulator,
+        "prior_state_transition_receipt_decision_mismatch",
+        "$.prior_state_transition_receipts",
+        "Prior receipt must bind the exact prior accept decision.",
+        true,
+      );
+    }
+    return null;
+  }
+  if (matchingReceipts.length !== 1) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_ambiguous",
+      "$.prior_state_transition_receipts",
+      "Applied lineage must resolve exactly one prior receipt.",
+      true,
+    );
+    return null;
+  }
+  const priorReceipt = matchingReceipts[0]!;
+  if (
+    priorReceipt.workspace_id !== proposal.workspace_id ||
+    priorReceipt.project_id !== proposal.project_id
+  ) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_project_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior receipt must remain in the exact workspace and project.",
+      true,
+    );
+  }
+  if (
+    priorReceipt.source_proposal.proposal_id !== proposal.proposal_id ||
+    priorReceipt.source_proposal.proposal_fingerprint !==
+      proposal.integrity.fingerprint
+  ) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_proposal_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior receipt must bind the exact source proposal.",
+      true,
+    );
+  }
+  if (
+    priorReceipt.source_candidate.candidate_id !==
+      decision.candidate.candidate_id ||
+    priorReceipt.source_candidate.candidate_fingerprint !==
+      decision.candidate.candidate_fingerprint
+  ) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_candidate_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior receipt must bind the exact source candidate.",
+      true,
+    );
+  }
+  if (
+    !priorIntent ||
+    priorReceipt.requested_transition_intent.intent_id !==
+      priorIntent.intent_id ||
+    priorReceipt.requested_transition_intent.transition_kind !==
+      priorIntent.transition_kind ||
+    !canonicalRefSetsEqual(
+      priorReceipt.requested_transition_intent.target_refs,
+      expectedTargets,
+    )
+  ) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_target_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior receipt must preserve the exact prior intent and target set.",
+      true,
+    );
+  }
+  if (
+    !canonicalRefSetsEqual(
+      priorReceipt.effects.map((effect) => effect.target_ref),
+      expectedTargets,
+    ) ||
+    priorReceipt.effects.some((effect) => effect.after_state.presence !== "present")
+  ) {
+    addError(
+      accumulator,
+      "prior_state_transition_receipt_effect_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior receipt must provide one present applied after-state for every target.",
+      true,
+    );
+  }
+  const priorAppliedAt = parseStrictIsoTimestampV01(priorReceipt.applied_at);
+  const priorRecordedAt = parseStrictIsoTimestampV01(priorReceipt.recorded_at);
+  if (
+    priorDecidedAt !== null &&
+    priorAppliedAt !== null &&
+    priorAppliedAt < priorDecidedAt
+  ) {
+    addError(
+      accumulator,
+      "prior_receipt_precedes_prior_decision",
+      "$.prior_state_transition_receipts",
+      "Prior receipt cannot predate its source decision.",
+      true,
+    );
+  }
+  if (
+    currentDecidedAt !== null &&
+    priorRecordedAt !== null &&
+    priorRecordedAt > currentDecidedAt
+  ) {
+    addError(
+      accumulator,
+      "prior_receipt_postdates_current_decision",
+      "$.prior_state_transition_receipts",
+      "Retract or supersede decision cannot predate the applied lineage it changes.",
+      true,
+    );
+  }
+
+  const observationsByTarget = new Map(
+    observations.map((observation) => [
+      canonicalExternalRef(observation.target_ref),
+      observation,
+    ]),
+  );
+  for (const effect of priorReceipt.effects) {
+    if (effect.after_state.presence !== "present") continue;
+    const observation = observationsByTarget.get(
+      canonicalExternalRef(effect.target_ref),
+    );
+    if (!observation || observation.presence !== "present" || !observation.state_ref) {
+      continue;
+    }
+    const sameRef =
+      canonicalExternalRef(observation.state_ref) ===
+      canonicalExternalRef(effect.after_state.state_ref);
+    const sameFingerprint =
+      observation.state_fingerprint === effect.after_state.state_fingerprint;
+    if (!sameRef || !sameFingerprint) {
+      const sameIdentity =
+        externalRefIdentity(observation.state_ref) ===
+        externalRefIdentity(effect.after_state.state_ref);
+      addError(
+        accumulator,
+        sameIdentity && !sameRef
+          ? "prior_applied_state_provenance_mismatch"
+          : "prior_applied_state_not_current",
+        "$.current_state_observations",
+        "Current state must exactly equal the prior receipt's applied present after-state.",
+        sameIdentity && !sameRef,
+      );
+    }
+    const observedAt = parseStrictIsoTimestampV01(observation.observed_at);
+    if (
+      observedAt !== null &&
+      priorRecordedAt !== null &&
+      observedAt < priorRecordedAt
+    ) {
+      addError(
+        accumulator,
+        "current_state_precedes_prior_receipt",
+        "$.current_state_observations",
+        "Current-state observation must not predate prior receipt recording.",
+        true,
+      );
+    }
+  }
+  return {
+    prior_decision: priorDecision,
+    prior_receipt: priorReceipt,
+    receipt_ref: createStateTransitionReceiptLineageRefV01(priorReceipt),
   };
 }
 
@@ -1378,6 +2094,7 @@ function deriveExpectedEffects(
   expectedTargets: ExternalRefV01[],
   observations: StateTransitionCurrentStateObservationV01[],
   authorizedEffects: StateTransitionGateAuthorizedEffectV01[],
+  appliedLineage: ResolvedAppliedLineageV01 | null,
   accumulator: EligibilityAccumulator,
 ): StateTransitionEligibilityExpectedEffectV01[] {
   const byTarget = new Map(
@@ -1446,6 +2163,9 @@ function deriveExpectedEffects(
       expected_after_state: normalizeAuthorizedAfterState(
         authorized.expected_after_state,
       ),
+      lineage_refs: appliedLineage
+        ? [normalizeExternalRefPrimitiveV01(appliedLineage.receipt_ref)]
+        : [],
       source_refs: normalizeRefs(observation.source_refs),
     });
   }
@@ -1467,6 +2187,37 @@ function normalizeCurrentStateObservationsForHash(
       source_refs: Array.isArray(item?.source_refs)
         ? item.source_refs.map(safeNormalizeRef).sort(compareProtocolCanonicalV01)
         : [],
+    }))
+    .sort(compareProtocolCanonicalV01);
+}
+
+function normalizePriorReviewDecisionsForHash(
+  values: ReviewDecisionV01[],
+) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((decision) => ({
+      decision_id: protocolStringValueV01(decision?.decision_id),
+      decision_fingerprint: protocolStringValueV01(
+        decision?.integrity?.fingerprint,
+      ),
+    }))
+    .sort(compareProtocolCanonicalV01);
+}
+
+function normalizePriorStateTransitionReceiptsForHash(
+  values: StateTransitionReceiptV01[],
+) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((receipt) => ({
+      transition_receipt_id: protocolStringValueV01(
+        receipt?.transition_receipt_id,
+      ),
+      idempotency_key: protocolStringValueV01(receipt?.idempotency_key),
+      receipt_fingerprint: protocolStringValueV01(
+        receipt?.integrity?.fingerprint,
+      ),
     }))
     .sort(compareProtocolCanonicalV01);
 }
@@ -1618,6 +2369,15 @@ function buildEligibilityResult(
   };
 }
 
+function priorLineageMaterialForScan(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((item) => {
+    if (!isProtocolRecordV01(item)) return item;
+    const { material_boundary: _validatedBoundary, ...material } = item;
+    return material;
+  });
+}
+
 function scanEligibilityMaterial(
   value: unknown,
   path: string,
@@ -1667,6 +2427,26 @@ function canonicalExternalRef(value: unknown): string {
   } catch {
     return canonicalizeProtocolValueV01(value);
   }
+}
+
+function canonicalRefSetsEqual(
+  left: ExternalRefV01[],
+  right: ExternalRefV01[],
+): boolean {
+  const leftSet = new Set(left.map(canonicalExternalRef));
+  const rightSet = new Set(right.map(canonicalExternalRef));
+  return (
+    leftSet.size === rightSet.size &&
+    [...leftSet].every((item) => rightSet.has(item))
+  );
+}
+
+function containsExactRef(
+  values: ExternalRefV01[],
+  expected: ExternalRefV01,
+): boolean {
+  const canonical = canonicalExternalRef(expected);
+  return values.some((value) => canonicalExternalRef(value) === canonical);
 }
 
 function externalRefIdentity(value: unknown): string {

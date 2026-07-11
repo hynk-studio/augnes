@@ -72,6 +72,8 @@ export interface SemanticTransitionLoopFixtureV01 {
   decision: ReviewDecisionV01;
   current_state_observations: StateTransitionCurrentStateObservationV01[];
   semantic_commit_gate_evaluation: StateTransitionSemanticCommitGateEvaluationV01;
+  prior_review_decisions: ReviewDecisionV01[];
+  prior_state_transition_receipts: StateTransitionReceiptV01[];
   eligibility: StateTransitionEligibilityResultV01;
   transition_receipt: StateTransitionReceiptV01;
   later_packet: TaskContextPacketV01;
@@ -122,6 +124,8 @@ export function buildSemanticTransitionLoopFixtureV01(
     decision,
     current_state_observations: currentStateObservations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: [],
+    prior_state_transition_receipts: [],
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
   };
   const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01(
@@ -204,6 +208,8 @@ export function buildSemanticTransitionLoopFixtureV01(
     decision,
     current_state_observations: currentStateObservations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: [],
+    prior_state_transition_receipts: [],
     eligibility,
     transition_receipt: receipt,
     later_packet: laterPacket,
@@ -541,6 +547,7 @@ export function createSemanticTransitionReceiptInputV01(
         proposalRef,
         decisionRef,
         clone(expected.before_state_observation_ref),
+        ...clone(expected.lineage_refs),
         afterObservationRef,
         durableRecordRef,
       ],

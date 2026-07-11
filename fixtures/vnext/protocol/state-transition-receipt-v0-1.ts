@@ -350,6 +350,8 @@ export const genericStateTransitionEligibilityEvaluationInputFixture: StateTrans
     genericStateTransitionCurrentStateObservationsFixture,
   semantic_commit_gate_evaluation:
     genericStateTransitionSemanticCommitGateEvaluationFixture,
+  prior_review_decisions: [],
+  prior_state_transition_receipts: [],
   evaluated_at: STATE_TRANSITION_ELIGIBILITY_FIXTURE_EVALUATED_AT,
 };
 

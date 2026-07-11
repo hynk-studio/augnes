@@ -335,6 +335,7 @@ export interface StateTransitionEligibilityExpectedEffectV01 {
   before_state: StateTransitionReceiptStateSnapshotV01;
   before_state_observation_ref: ExternalRefV01;
   expected_after_state: StateTransitionAuthorizedAfterStateV01;
+  lineage_refs: ExternalRefV01[];
   source_refs: ExternalRefV01[];
 }
 
@@ -374,6 +375,8 @@ export interface StateTransitionEligibilityEvaluationInputV01 {
   decision: ReviewDecisionV01;
   current_state_observations: StateTransitionCurrentStateObservationV01[];
   semantic_commit_gate_evaluation: StateTransitionSemanticCommitGateEvaluationV01;
+  prior_review_decisions: ReviewDecisionV01[];
+  prior_state_transition_receipts: StateTransitionReceiptV01[];
   evaluated_at: string;
 }
 

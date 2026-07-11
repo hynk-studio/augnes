@@ -25,6 +25,7 @@ import {
 import {
   createStateTransitionReceiptLineageRefV01,
   evaluateReviewDecisionStateTransitionEligibilityV01,
+  validateSemanticTransitionFullChainV01,
   validateStateTransitionReceiptAgainstEligibilityV01,
   validateTaskContextPacketTransitionRelationV01,
 } from "@/lib/vnext/state-transition-eligibility";
@@ -90,12 +91,27 @@ const FIXED_M3A_DECISION_FINGERPRINT =
 const FIXED_M3A_CHAIN_FINGERPRINT =
   "sha256:505b78c58fb48f19edccf724349d6a0bd5fdb2b437838530d75f9aee16d2c0cb";
 
+const FIXED_M3B_TRANSITION_RECEIPT_ID =
+  "state-transition-receipt:acd59ed3558b6ad1359c9852";
+const FIXED_M3B_IDEMPOTENCY_KEY =
+  "sha256:7fa7858ac4a1efdac994ed1a6cab2b69bb5aeb52eed9cea637f527c3732de592";
+const FIXED_M3B_TRANSITION_RECEIPT_FINGERPRINT =
+  "sha256:340896da95bfe389a66e358f309ad52bd49cb795af94c356c94c482f34cc8bb6";
+const FIXED_M3B_ELIGIBILITY_PRECONDITION_FINGERPRINT =
+  "sha256:5f4c742388ec3e0cdb100540712eefd20b6519a961d0e8ce5ba3212a5f564e60";
 const FIXED_LATER_PACKET_ID =
-  "task-context-packet:65c68791438f3dfc643aa92";
+  "task-context-packet:7103460cdece20a7e7a15a7";
 const FIXED_LATER_PACKET_FINGERPRINT =
-  "sha256:972e9f0a382d7ba31060e6f27e6d70a8a22e2fbf49f2ebda7b093def9c100beb";
+  "sha256:8bfbb82889b92b51e6c9083753adaf821ced2f49ef688fe2497401cc85c06726";
 const FIXED_M3B_CHAIN_FINGERPRINT =
-  "sha256:b099f344eedc93bb9d8a3f73ed4856b453db80f02ddc217620f426072f949acd";
+  "sha256:ad169c2e4f02ab6565a6eefe706cc0176c85e075e6b6c4cdc30246432e1cf869";
+const LINEAGE_DECIDED_AT = "2026-07-10T13:25:00.000Z";
+const LINEAGE_CURRENT_STATE_OBSERVED_AT = "2026-07-10T13:26:00.000Z";
+const LINEAGE_GATE_EVALUATED_AT = "2026-07-10T13:27:00.000Z";
+const LINEAGE_ELIGIBILITY_EVALUATED_AT = "2026-07-10T13:28:00.000Z";
+const LINEAGE_APPLIED_AT = "2026-07-10T13:29:00.000Z";
+const LINEAGE_RECORDED_AT = "2026-07-10T13:30:00.000Z";
+const LINEAGE_LATER_PACKET_GENERATED_AT = "2026-07-10T13:31:00.000Z";
 
 interface TransitionScenarioV01 {
   run_receipt: RunReceiptV01;
@@ -104,6 +120,8 @@ interface TransitionScenarioV01 {
   prior_packet: TaskContextPacketV01;
   current_state_observations: StateTransitionCurrentStateObservationV01[];
   semantic_commit_gate_evaluation: StateTransitionSemanticCommitGateEvaluationV01;
+  prior_review_decisions: ReviewDecisionV01[];
+  prior_state_transition_receipts: StateTransitionReceiptV01[];
   eligibility: StateTransitionEligibilityResultV01;
   transition_receipt: StateTransitionReceiptV01;
   later_packet: TaskContextPacketV01;
@@ -124,6 +142,7 @@ export interface SemanticTransitionLoopConformanceSummaryV01 {
   positive_fixture_count: number;
   receipt_relation_negative_fixture_count: number;
   later_packet_relation_negative_fixture_count: number;
+  full_chain_negative_fixture_count: number;
   existing_m3a_anchor_count: 9;
   canonical_transition_receipt_id: string;
   canonical_transition_receipt_idempotency_key: string;
@@ -141,6 +160,7 @@ export interface SemanticTransitionLoopConformanceSummaryV01 {
   effect_specific_application_proof_checked: true;
   exact_later_selected_and_excluded_state_checked: true;
   transition_receipt_lineage_checked: true;
+  composed_full_chain_validation_checked: true;
   two_project_isolation_checked: true;
   repeated_execution_deterministic: true;
   unordered_collection_normalization_checked: true;
@@ -198,6 +218,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     "supersede",
   );
   assertScenarioOperation(supersede, "supersede");
+  assertReceiptAppliedLineageSourceRequired(supersede);
 
   const retract = buildIntegratedPresentScenario(projectA, "retract");
   assertScenarioOperation(retract, "retract");
@@ -276,6 +297,9 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
       current_state_observations: multiTarget.current_state_observations,
       semantic_commit_gate_evaluation:
         multiTarget.semantic_commit_gate_evaluation,
+      prior_review_decisions: multiTarget.prior_review_decisions,
+      prior_state_transition_receipts:
+        multiTarget.prior_state_transition_receipts,
       evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
       receipt: crossBoundProofReceipt,
     });
@@ -305,14 +329,16 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
   for (const relationCase of laterPacketRelationCases) {
     assertBlockedCase(relationCase);
   }
+  assertComposedFullChainRejectsUnauthorizedReceipt(projectA);
 
   return {
     suite: "semantic-transition-loop-v0.1",
     status: "passed",
     positive_fixture_count: 7,
-    receipt_relation_negative_fixture_count: receiptRelationCases.length + 1,
+    receipt_relation_negative_fixture_count: receiptRelationCases.length + 2,
     later_packet_relation_negative_fixture_count:
       laterPacketRelationCases.length,
+    full_chain_negative_fixture_count: 1,
     existing_m3a_anchor_count: 9,
     canonical_transition_receipt_id:
       projectA.transition_receipt.transition_receipt_id,
@@ -335,6 +361,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     effect_specific_application_proof_checked: true,
     exact_later_selected_and_excluded_state_checked: true,
     transition_receipt_lineage_checked: true,
+    composed_full_chain_validation_checked: true,
     two_project_isolation_checked: true,
     repeated_execution_deterministic: true,
     unordered_collection_normalization_checked: true,
@@ -393,6 +420,9 @@ function assertCanonicalFullChain(chain: SemanticTransitionLoopFixtureV01) {
     current_state_observations: chain.current_state_observations,
     semantic_commit_gate_evaluation:
       chain.semantic_commit_gate_evaluation,
+    prior_review_decisions: chain.prior_review_decisions,
+    prior_state_transition_receipts:
+      chain.prior_state_transition_receipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
     receipt: chain.transition_receipt,
   });
@@ -403,6 +433,21 @@ function assertCanonicalFullChain(chain: SemanticTransitionLoopFixtureV01) {
     chain.later_packet,
   );
   assert.equal(packetRelation.status, "valid", format(packetRelation));
+  const fullChain = validateSemanticTransitionFullChainV01({
+    proposal: chain.proposal,
+    decision: chain.decision,
+    current_state_observations: chain.current_state_observations,
+    semantic_commit_gate_evaluation:
+      chain.semantic_commit_gate_evaluation,
+    prior_review_decisions: chain.prior_review_decisions,
+    prior_state_transition_receipts:
+      chain.prior_state_transition_receipts,
+    evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+    receipt: chain.transition_receipt,
+    prior_packet: chain.prior_packet,
+    later_packet: chain.later_packet,
+  });
+  assert.equal(fullChain.status, "valid", format(fullChain));
   assert.equal(
     chain.later_packet.authority_summary.grants_semantic_commit_authority,
     false,
@@ -438,6 +483,22 @@ function assertCanonicalFullChain(chain: SemanticTransitionLoopFixtureV01) {
     ).length,
   );
   if (chain.project.fixture_id === semanticTransitionLoopProjectAFixture.fixture_id) {
+    assert.equal(
+      chain.transition_receipt.transition_receipt_id,
+      FIXED_M3B_TRANSITION_RECEIPT_ID,
+    );
+    assert.equal(
+      chain.transition_receipt.idempotency_key,
+      FIXED_M3B_IDEMPOTENCY_KEY,
+    );
+    assert.equal(
+      chain.transition_receipt.integrity.fingerprint,
+      FIXED_M3B_TRANSITION_RECEIPT_FINGERPRINT,
+    );
+    assert.equal(
+      chain.eligibility.precondition_fingerprint,
+      FIXED_M3B_ELIGIBILITY_PRECONDITION_FINGERPRINT,
+    );
     assert.equal(chain.later_packet.packet_id, FIXED_LATER_PACKET_ID);
     assert.equal(
       chain.later_packet.integrity.fingerprint,
@@ -469,11 +530,15 @@ function buildScenario(
     decision,
     observations,
   );
+  const priorReviewDecisions: ReviewDecisionV01[] = [];
+  const priorStateTransitionReceipts: StateTransitionReceiptV01[] = [];
   const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01({
     proposal,
     decision,
     current_state_observations: observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
   });
   assert.equal(eligibility.status, "eligible", format(eligibility));
@@ -490,6 +555,8 @@ function buildScenario(
     decision,
     current_state_observations: observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
     receipt,
   });
@@ -515,6 +582,8 @@ function buildScenario(
     prior_packet: priorPacket,
     current_state_observations: observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
     eligibility,
     transition_receipt: receipt,
     later_packet: laterPacket,
@@ -525,6 +594,9 @@ function buildIntegratedPresentScenario(
   source: SemanticTransitionLoopFixtureV01,
   mode: "accept" | "supersede" | "retract",
 ): TransitionScenarioV01 {
+  if (mode === "supersede" || mode === "retract") {
+    return buildAppliedLineageScenario(source, mode);
+  }
   const provisionalDecision = buildScenarioDecision(
     source.project,
     source.proposal,
@@ -590,6 +662,166 @@ function buildIntegratedPresentScenario(
   return scenario;
 }
 
+function buildAppliedLineageScenario(
+  source: SemanticTransitionLoopFixtureV01,
+  mode: "supersede" | "retract",
+): TransitionScenarioV01 {
+  const proposal =
+    mode === "supersede"
+      ? createSameTargetSupersedeProposal(source.proposal)
+      : source.proposal;
+  const priorDecision = buildReviewDecisionV01(
+    createSemanticTransitionDecisionInputV01(source.project, proposal),
+  );
+  const priorObservations =
+    createSemanticTransitionCurrentStateObservationsV01(
+      source.project,
+      priorDecision,
+      "absent",
+    );
+  const priorGate = createSemanticTransitionGateEvaluationV01(
+    source.project,
+    priorDecision,
+    priorObservations,
+  );
+  const priorEligibility =
+    evaluateReviewDecisionStateTransitionEligibilityV01({
+      proposal,
+      decision: priorDecision,
+      current_state_observations: priorObservations,
+      semantic_commit_gate_evaluation: priorGate,
+      prior_review_decisions: [],
+      prior_state_transition_receipts: [],
+      evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+    });
+  assert.equal(priorEligibility.status, "eligible", format(priorEligibility));
+  const priorReceipt = buildStateTransitionReceiptV01(
+    deepFreeze(
+      createSemanticTransitionReceiptInputV01(
+        source.project,
+        proposal,
+        priorDecision,
+        priorGate,
+        priorEligibility,
+      ),
+    ),
+  );
+  const priorPacket = buildLaterTaskContextPacketFromReceiptFixtureV01(
+    source.prior_packet,
+    priorReceipt,
+  );
+  const decisionInput =
+    mode === "supersede"
+      ? createSupersedeDecisionInput(
+          source.project,
+          proposal,
+          priorDecision,
+        )
+      : createRetractDecisionInput(
+          source.project,
+          proposal,
+          priorDecision,
+        );
+  decisionInput.decided_at = LINEAGE_DECIDED_AT;
+  const decision = buildReviewDecisionV01(decisionInput);
+  const observations = currentObservationsFromPriorReceipt(
+    source,
+    decision,
+    priorReceipt,
+  );
+  const gate = createSemanticTransitionGateEvaluationV01(
+    source.project,
+    decision,
+    observations,
+  );
+  for (const authorizedEffect of gate.authorized_effects) {
+    if (
+      authorizedEffect.expected_after_state.presence === "present" &&
+      authorizedEffect.expected_after_state.state_ref_rule.mode ===
+        "exact_identity"
+    ) {
+      authorizedEffect.expected_after_state.state_ref_rule.state_ref.external_id =
+        `${authorizedEffect.expected_after_state.state_ref_rule.state_ref.external_id}:${mode}`;
+    }
+  }
+  retimeLineageGate(gate);
+  const priorReviewDecisions = [priorDecision];
+  const priorStateTransitionReceipts = [priorReceipt];
+  const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01({
+    proposal,
+    decision,
+    current_state_observations: observations,
+    semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
+    evaluated_at: LINEAGE_ELIGIBILITY_EVALUATED_AT,
+  });
+  assert.equal(eligibility.status, "eligible", format(eligibility));
+  assert.ok(
+    eligibility.expected_effects.every(
+      (effect) => effect.lineage_refs.length === 1,
+    ),
+  );
+  const receiptInput = createSemanticTransitionReceiptInputV01(
+    source.project,
+    proposal,
+    decision,
+    gate,
+    eligibility,
+  );
+  retimeLineageReceiptInput(receiptInput);
+  const receipt = buildStateTransitionReceiptV01(deepFreeze(receiptInput));
+  const receiptRelation = validateStateTransitionReceiptAgainstEligibilityV01({
+    proposal,
+    decision,
+    current_state_observations: observations,
+    semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
+    evaluated_at: LINEAGE_ELIGIBILITY_EVALUATED_AT,
+    receipt,
+  });
+  assert.equal(receiptRelation.status, "valid", format(receiptRelation));
+  const laterPacket = rebuildPacket(
+    buildLaterTaskContextPacketFromReceiptFixtureV01(priorPacket, receipt),
+    (input) => {
+      input.generated_at = LINEAGE_LATER_PACKET_GENERATED_AT;
+    },
+  );
+  const packetRelation = validateTaskContextPacketTransitionRelationV01(
+    priorPacket,
+    receipt,
+    laterPacket,
+  );
+  assert.equal(packetRelation.status, "valid", format(packetRelation));
+  const fullChain = validateSemanticTransitionFullChainV01({
+    proposal,
+    decision,
+    current_state_observations: observations,
+    semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
+    evaluated_at: LINEAGE_ELIGIBILITY_EVALUATED_AT,
+    receipt,
+    prior_packet: priorPacket,
+    later_packet: laterPacket,
+  });
+  assert.equal(fullChain.status, "valid", format(fullChain));
+  return {
+    run_receipt: source.run_receipt,
+    proposal,
+    decision,
+    prior_packet: priorPacket,
+    current_state_observations: observations,
+    semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
+    eligibility,
+    transition_receipt: receipt,
+    later_packet: laterPacket,
+  };
+}
+
 function buildScenarioDecision(
   project: SemanticTransitionLoopFixtureV01["project"],
   proposal: EpisodeDeltaProposalV01,
@@ -618,6 +850,8 @@ function buildScenarioFromMaterial(
   decision: ReviewDecisionV01,
   observations: StateTransitionCurrentStateObservationV01[],
   priorPacket: TaskContextPacketV01,
+  priorReviewDecisions: ReviewDecisionV01[] = [],
+  priorStateTransitionReceipts: StateTransitionReceiptV01[] = [],
 ): TransitionScenarioV01 {
   const decisionValidation = validateReviewDecisionV01(decision);
   assert.equal(decisionValidation.status, "valid", format(decisionValidation));
@@ -634,6 +868,8 @@ function buildScenarioFromMaterial(
     decision,
     current_state_observations: observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
   });
   assert.equal(eligibility.status, "eligible", format(eligibility));
@@ -653,6 +889,8 @@ function buildScenarioFromMaterial(
     decision,
     current_state_observations: observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
     receipt,
   });
@@ -674,6 +912,8 @@ function buildScenarioFromMaterial(
     prior_packet: priorPacket,
     current_state_observations: observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: priorReviewDecisions,
+    prior_state_transition_receipts: priorStateTransitionReceipts,
     eligibility,
     transition_receipt: receipt,
     later_packet: laterPacket,
@@ -753,6 +993,51 @@ function assertScenarioOperation(
   }
 }
 
+function assertReceiptAppliedLineageSourceRequired(
+  scenario: TransitionScenarioV01,
+) {
+  const lineageRef = scenario.eligibility.expected_effects[0]?.lineage_refs[0];
+  if (!lineageRef) {
+    throw new Error("Applied lineage receipt negative requires lineage ref.");
+  }
+  const receipt = clone(scenario.transition_receipt);
+  const lineageCanonical = canonicalizeProtocolValueV01(lineageRef);
+  for (const effect of receipt.effects) {
+    effect.source_refs = effect.source_refs.filter(
+      (ref) => canonicalizeProtocolValueV01(ref) !== lineageCanonical,
+    );
+  }
+  receipt.source_refs = receipt.source_refs.filter(
+    (ref) => canonicalizeProtocolValueV01(ref) !== lineageCanonical,
+  );
+  resignReceipt(receipt);
+  const relation = validateStateTransitionReceiptAgainstEligibilityV01({
+    proposal: scenario.proposal,
+    decision: scenario.decision,
+    current_state_observations: scenario.current_state_observations,
+    semantic_commit_gate_evaluation:
+      scenario.semantic_commit_gate_evaluation,
+    prior_review_decisions: scenario.prior_review_decisions,
+    prior_state_transition_receipts:
+      scenario.prior_state_transition_receipts,
+    evaluated_at: LINEAGE_ELIGIBILITY_EVALUATED_AT,
+    receipt,
+  });
+  assert.equal(relation.status, "blocked", format(relation));
+  assert.ok(
+    relation.errors.some(
+      (issue) => issue.code === "effect_applied_lineage_ref_missing",
+    ),
+    format(relation),
+  );
+  assert.ok(
+    relation.errors.some(
+      (issue) => issue.code === "receipt_applied_lineage_ref_missing",
+    ),
+    format(relation),
+  );
+}
+
 function assertSameIdentityReplacementSnapshot(
   source: TransitionScenarioV01,
   fixture: SemanticTransitionLoopFixtureV01,
@@ -783,6 +1068,9 @@ function assertSameIdentityReplacementSnapshot(
     decision: source.decision,
     current_state_observations: source.current_state_observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: source.prior_review_decisions,
+    prior_state_transition_receipts:
+      source.prior_state_transition_receipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
   });
   assert.equal(eligibility.status, "eligible", format(eligibility));
@@ -818,6 +1106,9 @@ function assertSameIdentityReplacementSnapshot(
     decision: source.decision,
     current_state_observations: source.current_state_observations,
     semantic_commit_gate_evaluation: gate,
+    prior_review_decisions: source.prior_review_decisions,
+    prior_state_transition_receipts:
+      source.prior_state_transition_receipts,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
     receipt,
   });
@@ -851,15 +1142,71 @@ function assertSameIdentityReplacementSnapshot(
   );
 }
 
+function assertComposedFullChainRejectsUnauthorizedReceipt(
+  source: SemanticTransitionLoopFixtureV01,
+) {
+  const receipt = clone(source.transition_receipt);
+  const effect = receipt.effects[0];
+  if (!effect || effect.after_state.presence !== "present") {
+    throw new Error("Composed validation negative requires a present after-state.");
+  }
+  const unauthorizedFingerprint = `sha256:${"5".repeat(64)}`;
+  effect.after_state.state_ref = {
+    ...effect.after_state.state_ref,
+    external_id: "semantic-state:unauthorized-self-consistent-result",
+    source_ref: unauthorizedFingerprint,
+  };
+  effect.after_state.state_fingerprint = unauthorizedFingerprint;
+  rebindSemanticReceiptApplicationProofs(receipt);
+  resignReceipt(receipt);
+  const laterPacket = buildLaterTaskContextPacketFromReceiptFixtureV01(
+    source.prior_packet,
+    receipt,
+  );
+  const lowLevel = validateTaskContextPacketTransitionRelationV01(
+    source.prior_packet,
+    receipt,
+    laterPacket,
+  );
+  assert.equal(lowLevel.status, "valid", format(lowLevel));
+  const composed = validateSemanticTransitionFullChainV01({
+    proposal: source.proposal,
+    decision: source.decision,
+    current_state_observations: source.current_state_observations,
+    semantic_commit_gate_evaluation:
+      source.semantic_commit_gate_evaluation,
+    prior_review_decisions: source.prior_review_decisions,
+    prior_state_transition_receipts:
+      source.prior_state_transition_receipts,
+    evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+    receipt,
+    prior_packet: source.prior_packet,
+    later_packet: laterPacket,
+  });
+  assert.equal(composed.status, "blocked", format(composed));
+  assert.ok(
+    composed.errors.some(
+      (issue) => issue.code === "authorized_after_state_mismatch",
+    ),
+    format(composed),
+  );
+}
+
 function createSupersedeDecisionInput(
   project: SemanticTransitionLoopFixtureV01["project"],
   proposal: EpisodeDeltaProposalV01,
+  acceptedPriorDecision?: ReviewDecisionV01,
 ): ReviewDecisionBuilderInputV01 {
   const input = createSemanticTransitionDecisionInputV01(
     project,
     proposal,
   );
-  const replacement = proposal.proposed_deltas[1];
+  const replacement =
+    proposal.proposed_deltas.find(
+      (candidate) =>
+        candidate.candidate_id ===
+        "delta:semantic-transition-same-target-replacement",
+    ) ?? proposal.proposed_deltas[1];
   if (!replacement) throw new Error("Supersede fixture requires two candidates.");
   input.decision = "supersede";
   input.rationale_summary =
@@ -869,6 +1216,14 @@ function createSupersedeDecisionInput(
     candidate_fingerprint:
       createEpisodeDeltaCandidateFingerprintV01(replacement),
   };
+  if (acceptedPriorDecision) {
+    input.lineage.prior_decisions = [
+      {
+        decision_id: acceptedPriorDecision.decision_id,
+        decision_fingerprint: acceptedPriorDecision.integrity.fingerprint,
+      },
+    ];
+  }
   input.requested_transition_intent = {
     intent_id: `transition-intent:${project.fixture_id}:supersede`,
     transition_kind: "semantic_candidate_supersede",
@@ -916,6 +1271,153 @@ function createRetractDecisionInput(
     state_transition_receipt_ref: null,
   };
   return input;
+}
+
+function createSameTargetSupersedeProposal(
+  source: EpisodeDeltaProposalV01,
+): EpisodeDeltaProposalV01 {
+  const proposal = clone(source);
+  const sourceCandidate = proposal.proposed_deltas[0];
+  if (!sourceCandidate) {
+    throw new Error("Same-target supersede fixture requires a source candidate.");
+  }
+  const replacementCandidate = {
+    ...clone(sourceCandidate),
+    candidate_id: "delta:semantic-transition-same-target-replacement",
+    title: "Review a same-target semantic replacement candidate",
+    proposed_state_summary:
+      "Replace the prior applied candidate over the exact same canonical target without cross-target retirement semantics.",
+    uncertainties: [
+      "Synthetic same-target replacement remains review-required conformance material.",
+    ],
+  };
+  proposal.proposed_deltas.push(replacementCandidate);
+  if (replacementCandidate.current_state.knowledge_status === "unknown") {
+    const sourceMissing = proposal.missing_information.find((item) =>
+      item.related_delta_ids.includes(sourceCandidate.candidate_id),
+    );
+    if (!sourceMissing) {
+      throw new Error("Same-target replacement requires explicit missing-state lineage.");
+    }
+    proposal.missing_information.push({
+      ...clone(sourceMissing),
+      missing_id: "missing:semantic-transition-same-target-replacement",
+      related_delta_ids: [replacementCandidate.candidate_id],
+    });
+  }
+  proposal.proposal_id = deriveEpisodeDeltaProposalIdV01(proposal);
+  proposal.integrity.fingerprint =
+    createEpisodeDeltaProposalFingerprintV01(proposal);
+  const validation = validateEpisodeDeltaProposalV01(proposal);
+  assert.equal(validation.status, "valid", format(validation));
+  return proposal;
+}
+
+function currentObservationsFromPriorReceipt(
+  source: SemanticTransitionLoopFixtureV01,
+  decision: ReviewDecisionV01,
+  priorReceipt: StateTransitionReceiptV01,
+): StateTransitionCurrentStateObservationV01[] {
+  const observations = createSemanticTransitionCurrentStateObservationsV01(
+    source.project,
+    decision,
+    "present",
+  );
+  const effectByTarget = new Map(
+    priorReceipt.effects.map((effect) => [
+      canonicalizeProtocolValueV01(effect.target_ref),
+      effect,
+    ]),
+  );
+  for (const observation of observations) {
+    const effect = effectByTarget.get(
+      canonicalizeProtocolValueV01(observation.target_ref),
+    );
+    if (!effect || effect.after_state.presence !== "present") {
+      throw new Error("Current lineage state requires a prior present after-state.");
+    }
+    const priorObservationRef = clone(observation.observation_ref);
+    const currentObservationRef = {
+      ...priorObservationRef,
+      observed_at: LINEAGE_CURRENT_STATE_OBSERVED_AT,
+    };
+    observation.presence = "present";
+    observation.state_ref = clone(effect.after_state.state_ref);
+    observation.state_fingerprint = effect.after_state.state_fingerprint;
+    observation.observed_at = LINEAGE_CURRENT_STATE_OBSERVED_AT;
+    observation.observation_ref = currentObservationRef;
+    observation.source_refs = replaceExactRef(
+      observation.source_refs,
+      priorObservationRef,
+      currentObservationRef,
+    );
+  }
+  return observations;
+}
+
+function retimeLineageGate(
+  gate: StateTransitionSemanticCommitGateEvaluationV01,
+) {
+  const priorEvaluationRef = clone(gate.evaluation_ref);
+  const priorGateActorRef = clone(gate.gate_actor_ref);
+  gate.evaluated_at = LINEAGE_GATE_EVALUATED_AT;
+  gate.evaluation_ref.observed_at = LINEAGE_GATE_EVALUATED_AT;
+  gate.gate_actor_ref.observed_at = LINEAGE_GATE_EVALUATED_AT;
+  gate.source_refs = replaceExactRef(
+    gate.source_refs,
+    priorEvaluationRef,
+    gate.evaluation_ref,
+  );
+  gate.source_refs = replaceExactRef(
+    gate.source_refs,
+    priorGateActorRef,
+    gate.gate_actor_ref,
+  );
+}
+
+function retimeLineageReceiptInput(
+  input: StateTransitionReceiptBuilderInputV01,
+) {
+  input.applied_at = LINEAGE_APPLIED_AT;
+  input.recorded_at = LINEAGE_RECORDED_AT;
+  for (const effect of input.effects) {
+    if (effect.after_state.presence === "present") {
+      effect.after_state.state_ref.observed_at = LINEAGE_APPLIED_AT;
+    }
+    const priorAfterObservationRef = clone(
+      effect.after_application_observation_ref,
+    );
+    const priorDurableRecordRef = clone(effect.durable_record_ref);
+    effect.after_application_observation_ref.observed_at = LINEAGE_APPLIED_AT;
+    effect.durable_record_ref.observed_at = LINEAGE_RECORDED_AT;
+    const resultFingerprint =
+      createStateTransitionApplicationResultFingerprintV01(
+        effect,
+        LINEAGE_APPLIED_AT,
+      );
+    effect.after_application_observation_ref.source_ref = resultFingerprint;
+    effect.durable_record_ref.source_ref = resultFingerprint;
+    effect.source_refs = replaceExactRef(
+      effect.source_refs,
+      priorAfterObservationRef,
+      effect.after_application_observation_ref,
+    );
+    effect.source_refs = replaceExactRef(
+      effect.source_refs,
+      priorDurableRecordRef,
+      effect.durable_record_ref,
+    );
+    input.source_refs = replaceExactRef(
+      input.source_refs,
+      priorAfterObservationRef,
+      effect.after_application_observation_ref,
+    );
+    input.source_refs = replaceExactRef(
+      input.source_refs,
+      priorDurableRecordRef,
+      effect.durable_record_ref,
+    );
+  }
 }
 
 function createMultiTargetProposal(
@@ -1018,6 +1520,10 @@ function assertUnorderedNormalizationAndImmutability(
     semantic_commit_gate_evaluation: clone(
       multiTarget.semantic_commit_gate_evaluation,
     ),
+    prior_review_decisions: clone(multiTarget.prior_review_decisions),
+    prior_state_transition_receipts: clone(
+      multiTarget.prior_state_transition_receipts,
+    ),
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
   };
   reorderedEligibilityInput.semantic_commit_gate_evaluation.target_refs.reverse();
@@ -1053,6 +1559,9 @@ function createReceiptRelationNegativeCases(
           current_state_observations: source.current_state_observations,
           semantic_commit_gate_evaluation:
             source.semantic_commit_gate_evaluation,
+          prior_review_decisions: source.prior_review_decisions,
+          prior_state_transition_receipts:
+            source.prior_state_transition_receipts,
           evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
           receipt,
         }),
@@ -1464,6 +1973,44 @@ function replaceExactRef(
       ? clone(replacement)
       : ref,
   );
+}
+
+function rebindSemanticReceiptApplicationProofs(
+  receipt: StateTransitionReceiptV01,
+) {
+  for (const effect of receipt.effects) {
+    const priorAfterObservationRef = clone(
+      effect.after_application_observation_ref,
+    );
+    const priorDurableRecordRef = clone(effect.durable_record_ref);
+    const resultFingerprint =
+      createStateTransitionApplicationResultFingerprintV01(
+        effect,
+        receipt.applied_at,
+      );
+    effect.after_application_observation_ref.source_ref = resultFingerprint;
+    effect.durable_record_ref.source_ref = resultFingerprint;
+    effect.source_refs = replaceExactRef(
+      effect.source_refs,
+      priorAfterObservationRef,
+      effect.after_application_observation_ref,
+    );
+    effect.source_refs = replaceExactRef(
+      effect.source_refs,
+      priorDurableRecordRef,
+      effect.durable_record_ref,
+    );
+    receipt.source_refs = replaceExactRef(
+      receipt.source_refs,
+      priorAfterObservationRef,
+      effect.after_application_observation_ref,
+    );
+    receipt.source_refs = replaceExactRef(
+      receipt.source_refs,
+      priorDurableRecordRef,
+      effect.durable_record_ref,
+    );
+  }
 }
 
 function rebuildPacket(
