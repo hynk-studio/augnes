@@ -202,6 +202,9 @@ Native Memory ≠ Reviewed Perspective Memory
 Model Confidence ≠ Claim Confidence
 Model Agreement ≠ Verification
 Lab Diagnostic ≠ Evidence
+Model Inference ≠ User Identity
+Task Choice ≠ Global Identity Update
+Personal Perspective ≠ Project Truth
 ```
 
 이 불변식은 특정 UI나 provider보다 우선한다.
@@ -598,6 +601,21 @@ recovery backup과 restore
 
 모델은 extraction, synthesis, contradiction과 recommendation을 보조한다. Core의 생명유지장치가 아니다.
 
+### 10.3 Personal Perspective long-term research direction
+
+Augnes의 현재 기본 제품은 project-centered provider-neutral temporal substrate다.
+그 위에서 사용자 소유의 opt-in Personal Perspective layer를 장기 연구 방향으로 둔다.
+Personal Perspective는 self-concept, identity, personality, values, world models,
+aspiration, decision principles와 persistent tensions를 fixed model-assigned essence가
+아니라 revisable, source-backed self-understanding으로 다룬다.
+
+이 layer는 cross-project continuity를 개선할 수 있지만 Personal Vault persistence,
+project sharing과 task-context inclusion은 자동이 아니다. model inference는 candidate일
+뿐 user identity가 아니며, Personal Perspective는 Project Core truth나 모든 task의
+기본 context가 아니다. 세부 연구 경계는
+[`research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md`](./research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md)를
+따른다.
+
 ---
 
 ## 11. UX Strategy
@@ -866,6 +884,7 @@ vNext는 다음을 목표로 하지 않는다.
 - raw provider output 기본 보관
 - 자동 memory 생성
 - 자동 Perspective promotion
+- 자동 Personal Perspective persistence 또는 task-context injection
 - 무승인 scheduled external action
 - Augnes의 GitHub merge authority
 - 기존 DB 즉시 폐기

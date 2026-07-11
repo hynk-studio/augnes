@@ -125,7 +125,8 @@ removal prerequisites
 
 #### 완료 조건
 
-- 새 작업이 `Native / Adapter / Core / Projection / Lab` 중 하나로 분류됨
+- 새 작업이 `Native Host / Adapter / Core / Product Surface / Projection /
+  Inspector / Lab` 중 하나로 분류됨
 - current docs가 OpenAI-first와 provider-neutral Core를 동시에 설명함
 - historical docs가 active sequencing authority로 인용되지 않음
 
@@ -404,6 +405,62 @@ result intake
 
 ---
 
+### Workstream K: Personal Perspective and Perspective Gap R&D
+
+#### 목표
+
+Personal Perspective, shared Perspective Gap Management와 structured
+multi-perspective review를 하나의 bounded research program으로 검증한다.
+Personal Perspective는 user-owned self-and-world continuity candidate이며 Project
+Core truth, hidden profile 또는 모든 task의 기본 context가 아니다.
+
+#### Dependency-based stages
+
+1. semantic model and synthetic casebook
+2. deterministic task-gap baseline
+3. Personal Perspective review replay
+4. bounded relevance and context-selection experiment
+5. Personal Vault persistence architecture decision
+6. structured multi-perspective review trials
+7. lineage 또는 evolutionary research only after repeated outcome evidence
+
+#### Sequencing boundary
+
+offline, synthetic, non-authoritative Lab work는 M3와 병렬로 진행할 수 있다. M3의
+실제 closed loop 완성이 현재 mainline priority다. Core integration, durable Personal
+Perspective transition, selective cross-project sharing 또는 task-context injection은
+다음을 선행 조건으로 한다.
+
+```text
+authorized durable transition
+→ later TaskContextPacket selection change
+→ later RunReceipt outcome validation
+```
+
+#### 제한
+
+- Personal Vault persistence, schema, route, UI 또는 TaskContextPacket field 승인 금지
+- fake personal project ID 금지
+- model-inferred identity의 accepted state 승격 금지
+- hidden context injection과 automatic cross-project reuse 금지
+- Arena-specific gap ontology 금지
+- persistent Perspective Actors, fitness, mutation, branching, resource bidding와
+  automatic population selection은 후반 Lab hypothesis로 보류
+
+#### 진행 기준
+
+- Personal Perspective semantic casebook과 negative cases가 replay 가능함
+- deterministic task-gap baseline이 false premise와 duplicate question을 거부함
+- user review가 endorsement, correction, narrowing, exception과 retraction을 표현함
+- supporting example과 counterexample lineage가 함께 보존됨
+- bounded context experiment가 actual downstream outcome을 측정함
+
+세부 program은
+[`research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md`](./research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md)를
+따르며, 이 Workstream 등록은 구현 또는 maturity 상승 주장이 아니다.
+
+---
+
 ## 5. Feature Disposition
 
 | 현재 기능 | vNext 처분 | 비고 |
@@ -514,6 +571,10 @@ M3는 여전히 완료되지 않았다. 실제 observed decision use, durable se
 그 transition에 따른 later `TaskContextPacket` selection 변화, 이후 `RunReceipt`의
 outcome validation이 없기 때문이다. 이 checkpoint는 Project Home, Semantic
 Workbench 또는 Inspector 구현 완료도 의미하지 않는다.
+
+Workstream K의 offline Lab 연구는 이 milestone과 병렬로 진행할 수 있지만 M3를
+대체하거나 완료를 늦추지 않는다. Personal Vault, Personal Perspective context
+injection과 Arena productization은 M3 이후 별도 gate를 요구한다.
 
 ### M4. Surface Specialization and Legacy Consolidation
 
@@ -638,6 +699,7 @@ local-only
 | direct model bypass | privacy/cost gate 우회 | direct-call inventory와 CI guard |
 | UI regrowth | Inspector가 새 Workplane이 됨 | native UX reuse, surface budget |
 | dogfood overfitting | Augnes 자기 프로젝트에서만 성공 | 외부 프로젝트 평가 |
+| personal-context overreach | model inference를 identity로 고정하거나 project 간 누출 | opt-in Vault decision, scope separation, deletion과 leakage tests |
 
 ---
 

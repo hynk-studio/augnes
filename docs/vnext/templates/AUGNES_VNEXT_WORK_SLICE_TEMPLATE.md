@@ -30,10 +30,13 @@ Primary class:
 - Native Host
 - Adapter
 - Core
-- Projection / Inspector
+- Product Surface
+- Projection
+- Inspector
 - Lab
 
 Secondary classes:
+Conditional R&D authority consulted:
 Existing concepts absorbed or retired:
 Why this is not a new standalone surface:
 ```
