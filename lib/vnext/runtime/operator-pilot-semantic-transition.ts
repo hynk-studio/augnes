@@ -9,6 +9,7 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
   canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
   normalizeProtocolTextV01,
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
@@ -35,6 +36,7 @@ import {
 import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
   authenticateVNextLocalOperatorSessionV01,
+  readVNextLocalOperatorSessionHistoryV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
   type VNextLocalOperatorSessionCredentialV01,
@@ -47,9 +49,14 @@ import {
 import {
   readVNextOperatorPilotSemanticReviewV01,
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
+  type VNextOperatorPilotReviewDetailV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import {
+  EXTERNAL_REF_VERSION_V01,
+  type ExternalRefV01,
+} from "@/types/vnext/external-ref";
 
 export const VNEXT_OPERATOR_PILOT_TRANSITION_RUNTIME_VERSION_V01 =
   "vnext_operator_pilot_semantic_transition.v0.1" as const;
@@ -63,6 +70,8 @@ export const VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_PATH_V01 =
 
 const MAX_ID_CHARACTERS = 256;
 const MAX_COOKIE_CHARACTERS = 4096;
+const VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 =
+  "augnes.vnext.local-operator-session.v0.1";
 
 export class VNextOperatorPilotTransitionErrorV01 extends Error {
   readonly code: string;
@@ -151,6 +160,12 @@ export interface VNextOperatorPilotCompileResultV01 {
   session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
 }
 
+export interface VNextOperatorPilotGateProvenanceValidationV01 {
+  status: "valid" | "invalid";
+  session_id: string | null;
+  errors: string[];
+}
+
 export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
   db: Database.Database,
   input: {
@@ -231,17 +246,49 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     });
     const exact = rebuildBoundPreview(db, input.config, binding);
     assertPilotPreview(exact.preview, material.decision);
+    const confirmationBasisRef =
+      createVNextOperatorPilotSemanticConfirmationBasisRefV01({
+        config: input.config,
+        session_id: admission.session.session_id,
+        proposal_id: exact.preview.proposal_id,
+        proposal_fingerprint: exact.preview.proposal_fingerprint,
+        decision_id: exact.preview.decision_id,
+        decision_fingerprint: exact.preview.decision_fingerprint,
+        confirmation_digest: exact.preview.confirmation_digest,
+        authorized_applier_identity:
+          exact.preview.authorized_applier_identity,
+        gate_ttl_ms: exact.preview.gate_ttl_ms,
+        confirmed_at: admission.action_observed_at,
+      });
     const result = recordVNextSemanticCommitAuthorizationInsideTransactionV01(
       db,
       {
         preview: exact.preview,
         confirmation_digest: request.confirmation_digest,
         operator_actor_ref: material.decision.actor_ref,
-        clock: input.clock,
+        operator_confirmation_basis_refs: [confirmationBasisRef],
+        clock: pinFirstClockValue(
+          admission.action_observed_at,
+          input.clock,
+        ),
       },
     );
     if (result.eligibility.status !== "eligible") {
       throw transitionError("operator_pilot_gate_not_eligible", 409);
+    }
+    const gateProvenance =
+      validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+        config: input.config,
+        proposal: material.proposal,
+        decision: material.decision,
+        gate: result.gate_record,
+        required_session_id: admission.session.session_id,
+      });
+    if (gateProvenance.status !== "valid") {
+      throw transitionError(
+        `operator_pilot_gate_confirmation_provenance_invalid:${gateProvenance.errors.join(",")}`,
+        409,
+      );
     }
     db.exec("COMMIT");
     return {
@@ -576,7 +623,7 @@ function requirePilotAcceptCreateMaterial(
   config: VNextLocalOperatorPilotConfigV01,
   binding: ExactDecisionBindingV01,
   options: { require_absent: boolean; required_session_id?: string },
-): { decision: ReviewDecisionV01 } {
+): { decision: ReviewDecisionV01; proposal: VNextOperatorPilotReviewDetailV01["proposal"] } {
   const detail = readVNextOperatorPilotSemanticReviewV01(db, {
     config,
     proposal_id: binding.proposal_id,
@@ -639,7 +686,7 @@ function requirePilotAcceptCreateMaterial(
   ) {
     throw transitionError("operator_pilot_decision_target_mismatch", 409);
   }
-  return { decision };
+  return { decision, proposal: detail.proposal };
 }
 
 function assertPilotPreview(
@@ -659,13 +706,236 @@ function assertPilotPreview(
   }
 }
 
+export function createVNextOperatorPilotSemanticConfirmationBasisRefV01(
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    session_id: string;
+    proposal_id: string;
+    proposal_fingerprint: string;
+    decision_id: string;
+    decision_fingerprint: string;
+    confirmation_digest: string;
+    authorized_applier_identity: {
+      ref_type: string;
+      external_id: string;
+    };
+    gate_ttl_ms: number;
+    confirmed_at: string;
+  },
+): ExternalRefV01 {
+  const sourceRef = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      action: "confirm_semantic_commit",
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      operator_id: input.config.operator_id,
+      session_id: input.session_id,
+      proposal_id: input.proposal_id,
+      proposal_fingerprint: input.proposal_fingerprint,
+      decision_id: input.decision_id,
+      decision_fingerprint: input.decision_fingerprint,
+      confirmation_digest: input.confirmation_digest,
+      authorized_applier_identity: input.authorized_applier_identity,
+      gate_ttl_ms: input.gate_ttl_ms,
+      confirmed_at: input.confirmed_at,
+    }),
+  );
+  return {
+    ref_version: EXTERNAL_REF_VERSION_V01,
+    ref_type: "local_operator_session_action",
+    external_id: input.session_id,
+    trust_class: "direct_local_observation",
+    observed_at: input.confirmed_at,
+    source_ref: sourceRef,
+    compatibility_namespace: VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01,
+  };
+}
+
+export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    proposal: VNextOperatorPilotReviewDetailV01["proposal"];
+    decision: ReviewDecisionV01;
+    gate: VNextSemanticCommitGateRecordV01;
+    required_session_id?: string;
+  },
+): VNextOperatorPilotGateProvenanceValidationV01 {
+  const { config, proposal, decision, gate } = input;
+  const errors: string[] = [];
+  const add = (code: string) => {
+    if (!errors.includes(code)) errors.push(code);
+  };
+  const decisionProvenance =
+    validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+      config,
+      proposal,
+      decision,
+    });
+  if (decisionProvenance.status !== "valid") {
+    add("operator_pilot_gate_decision_provenance_invalid");
+  }
+
+  const basis =
+    gate.operator_confirmation_basis_refs?.length === 1
+      ? gate.operator_confirmation_basis_refs[0]!
+      : null;
+  if (!basis) add("operator_pilot_gate_confirmation_basis_required");
+  if (
+    !basis ||
+    basis.ref_type !== "local_operator_session_action" ||
+    basis.trust_class !== "direct_local_observation" ||
+    basis.compatibility_namespace !== VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 ||
+    basis.observed_at !== gate.confirmed_at ||
+    !basis.source_ref
+  ) {
+    add("operator_pilot_gate_confirmation_basis_invalid");
+  }
+  const sessionId = basis?.external_id ?? null;
+  if (
+    !sessionId ||
+    sessionId !== decisionProvenance.session_id ||
+    (input.required_session_id !== undefined &&
+      sessionId !== input.required_session_id)
+  ) {
+    add("operator_pilot_gate_session_continuity_mismatch");
+  }
+  const session = sessionId
+    ? readVNextLocalOperatorSessionHistoryV01(db, { session_id: sessionId })
+    : null;
+  if (!session) {
+    add("operator_pilot_gate_confirmation_session_missing");
+  } else {
+    if (
+      session.workspace_id !== config.workspace_id ||
+      session.project_id !== config.project_id ||
+      session.operator_id !== config.operator_id
+    ) {
+      add("operator_pilot_gate_confirmation_session_scope_mismatch");
+    }
+    if (!session.bootstrap_consumed_at) {
+      add("operator_pilot_gate_confirmation_session_unconsumed");
+    }
+    const issuedAt = parseStrictIsoTimestampV01(session.issued_at);
+    const expiresAt = parseStrictIsoTimestampV01(session.expires_at);
+    const confirmedAt = parseStrictIsoTimestampV01(gate.confirmed_at);
+    const consumedAt = session.bootstrap_consumed_at
+      ? parseStrictIsoTimestampV01(session.bootstrap_consumed_at)
+      : null;
+    const revokedAt = session.revoked_at
+      ? parseStrictIsoTimestampV01(session.revoked_at)
+      : null;
+    if (
+      issuedAt === null ||
+      expiresAt === null ||
+      confirmedAt === null ||
+      (session.bootstrap_consumed_at !== null && consumedAt === null) ||
+      (session.revoked_at !== null && revokedAt === null)
+    ) {
+      add("operator_pilot_gate_confirmation_session_timestamp_invalid");
+    } else {
+      if (confirmedAt < issuedAt || confirmedAt > expiresAt) {
+        add("operator_pilot_gate_confirmation_outside_session_lifetime");
+      }
+      if (consumedAt !== null && consumedAt > confirmedAt) {
+        add("operator_pilot_gate_confirmation_before_bootstrap_consumption");
+      }
+      if (revokedAt !== null && revokedAt < confirmedAt) {
+        add("operator_pilot_gate_confirmation_after_session_revocation");
+      }
+    }
+  }
+
+  const gateEvaluatedAt = parseStrictIsoTimestampV01(
+    gate.semantic_commit_gate_evaluation?.evaluated_at,
+  );
+  const gateExpiresAt = parseStrictIsoTimestampV01(
+    gate.semantic_commit_gate_evaluation?.expires_at,
+  );
+  if (
+    gateEvaluatedAt === null ||
+    gateExpiresAt === null ||
+    gateExpiresAt - gateEvaluatedAt !== VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01
+  ) {
+    add("operator_pilot_gate_ttl_mismatch");
+  }
+  const expectedApplier = authorizedApplierIdentity(config);
+  const actualApplier =
+    gate.semantic_commit_gate_evaluation?.authorized_applier_ref;
+  if (
+    !actualApplier ||
+    actualApplier.ref_type !== expectedApplier.ref_type ||
+    actualApplier.external_id !== expectedApplier.external_id
+  ) {
+    add("operator_pilot_gate_authorized_applier_mismatch");
+  }
+  if (
+    gate.workspace_id !== config.workspace_id ||
+    gate.project_id !== config.project_id ||
+    gate.proposal_id !== proposal.proposal_id ||
+    gate.proposal_fingerprint !== proposal.integrity.fingerprint ||
+    gate.decision_id !== decision.decision_id ||
+    gate.decision_fingerprint !== decision.integrity.fingerprint ||
+    canonicalizeProtocolValueV01(gate.operator_actor_ref) !==
+      canonicalizeProtocolValueV01(decision.actor_ref)
+  ) {
+    add("operator_pilot_gate_decision_binding_mismatch");
+  }
+  if (basis && sessionId) {
+    const expectedBasis =
+      createVNextOperatorPilotSemanticConfirmationBasisRefV01({
+        config,
+        session_id: sessionId,
+        proposal_id: gate.proposal_id,
+        proposal_fingerprint: gate.proposal_fingerprint,
+        decision_id: gate.decision_id,
+        decision_fingerprint: gate.decision_fingerprint,
+        confirmation_digest: gate.confirmation_digest,
+        authorized_applier_identity: expectedApplier,
+        gate_ttl_ms: VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01,
+        confirmed_at: gate.confirmed_at,
+      });
+    if (
+      canonicalizeProtocolValueV01(basis) !==
+      canonicalizeProtocolValueV01(expectedBasis)
+    ) {
+      add("operator_pilot_gate_confirmation_basis_mismatch");
+    }
+  }
+  const valid = errors.length === 0;
+  return {
+    status: valid ? "valid" : "invalid",
+    session_id: valid ? sessionId : null,
+    errors,
+  };
+}
+
+function pinFirstClockValue(
+  first: string,
+  clock: VNextLocalRuntimeClockV01 | undefined,
+): VNextLocalRuntimeClockV01 {
+  let firstRead = true;
+  return {
+    now: () => {
+      if (firstRead) {
+        firstRead = false;
+        return first;
+      }
+      return readVNextLocalRuntimeClockNowV01(
+        clock,
+        "operator_pilot_confirmation_followup_time",
+      );
+    },
+  };
+}
+
 function assertPilotGateAndDecision(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   request: ReturnType<typeof parseCommitRequest>,
   requiredSessionId: string,
 ): void {
-  requirePilotAcceptCreateMaterial(db, config, request, {
+  const material = requirePilotAcceptCreateMaterial(db, config, request, {
     require_absent: false,
     required_session_id: requiredSessionId,
   });
@@ -717,6 +987,20 @@ function assertPilotGateAndDecision(
   ) {
     throw transitionError("operator_pilot_gate_policy_mismatch", 409);
   }
+  const provenance =
+    validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+      config,
+      proposal: material.proposal,
+      decision: material.decision,
+      gate: gate as VNextSemanticCommitGateRecordV01,
+      required_session_id: requiredSessionId,
+    });
+  if (provenance.status !== "valid") {
+    throw transitionError(
+      `operator_pilot_gate_confirmation_provenance_invalid:${provenance.errors.join(",")}`,
+      409,
+    );
+  }
 }
 
 function requirePilotAppliedCreate(
@@ -738,8 +1022,16 @@ function requirePilotAppliedCreate(
       decision: transition.decision,
     },
   );
+  const gateProvenance =
+    validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+      config,
+      proposal: transition.proposal,
+      decision: transition.decision,
+      gate: transition.gate_record,
+    });
   if (
     provenance.status !== "valid" ||
+    gateProvenance.status !== "valid" ||
     transition.decision.decision !== "accept" ||
     transition.receipt.effects.length !== 1 ||
     transition.receipt.effects[0]?.operation !== "create" ||

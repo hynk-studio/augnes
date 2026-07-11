@@ -42,6 +42,7 @@ import {
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { validateVNextOperatorPilotReviewDecisionProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
+import { validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
 import {
   readVNextLocalRuntimeClockNowV01,
   type VNextLocalRuntimeClockV01,
@@ -504,6 +505,19 @@ function loadTransitionReceipts(db: Database.Database, config: VNextLocalOperato
     ) {
       throw continuityError(
         "operator_pilot_continuity_decision_provenance_invalid",
+        422,
+      );
+    }
+    if (
+      validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+        config,
+        proposal: transition.proposal,
+        decision: transition.decision,
+        gate: transition.gate_record,
+      }).status !== "valid"
+    ) {
+      throw continuityError(
+        "operator_pilot_continuity_gate_provenance_invalid",
         422,
       );
     }

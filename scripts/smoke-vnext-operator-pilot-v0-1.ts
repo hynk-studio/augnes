@@ -36,6 +36,15 @@ import {
 } from "../lib/vnext/review-decision";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "../lib/vnext/protocol-primitives";
+import {
+  recordVNextSemanticCommitAuthorizationInsideTransactionV01,
+  type VNextSemanticCommitGateRecordV01,
+  type VNextSemanticCommitPreviewV01,
+} from "../lib/vnext/runtime/durable-semantic-transition";
+import {
   VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01,
   admitVNextLocalOperatorMutationV01,
   consumeVNextLocalOperatorBootstrapV01,
@@ -57,7 +66,12 @@ import {
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
   type VNextOperatorPilotDecisionRequestV01,
 } from "../lib/vnext/runtime/operator-pilot-review-material";
-import { prepareVNextOperatorPilotSemanticCommitPreviewV01 } from "../lib/vnext/runtime/operator-pilot-semantic-transition";
+import {
+  commitVNextOperatorPilotSemanticTransitionV01,
+  createVNextOperatorPilotSemanticConfirmationBasisRefV01,
+  prepareVNextOperatorPilotSemanticCommitPreviewV01,
+  validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01,
+} from "../lib/vnext/runtime/operator-pilot-semantic-transition";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import {
@@ -74,7 +88,7 @@ const EXPECTED_FULL_LOOP_ANCHORS = {
     "sha256:818489a0641ac2305b12c901e7d4424aa68b61ac063a7f111f849d18c2f74cee",
   gate_id: "semantic-commit-gate:49ef8585dce3f9dd12be3d9f",
   gate_fingerprint:
-    "sha256:75e9f3bbf4c8c6539ca9fbf0ba1f8ba28b5ed770586061e5e60502b52ebf1ad8",
+    "sha256:59ded487e9e0d97fc15850b85c24ea980dba5627772c5424ed09b160ab7ef61e",
   transition_receipt_id: "state-transition-receipt:c101326a90c58360340a2878",
   transition_receipt_idempotency_key:
     "sha256:f74fa3a3488280b5e86f45086438a6279f5b03019466a0694f049558d3368755",
@@ -92,7 +106,7 @@ const EXPECTED_FULL_LOOP_ANCHORS = {
   context_use_review_fingerprint:
     "sha256:1fe21f58686ee1c510121a78e82d44e86d5519c1043bebad3278b4afc167b0a4",
   full_loop_fingerprint:
-    "sha256:0cee7aac1ed7d86bc88cb6dc49ce441309047c001241a86cb812ae5915ca3fb7",
+    "sha256:7f347a7edffe89eff6bab57972a0d222b63e04f356c9de86347d008727006e07",
 } as const;
 const require = createRequire(import.meta.url);
 const tempRoot = mkdtempSync(
@@ -847,6 +861,16 @@ async function assertFullOperatorLoop(input: {
   };
   assert.equal(preview.intended_effects.length, 1);
 
+  assertGenericGateCommitBypassRejected({
+    config,
+    clock: input.clock,
+    secretSource: input.secretSource,
+    jar,
+    proposal: prepared.proposal,
+    decision: decisionBody.decision as ReviewDecisionV01,
+    preview: previewBody.preview as VNextSemanticCommitPreviewV01,
+  });
+
   const rowsBeforeConfirm = coreRecordCount(canonicalDbPath);
   const cookieBeforeConfirm = jar.header();
   const confirmResponse = await transitionHandlers.POST(
@@ -870,13 +894,53 @@ async function assertFullOperatorLoop(input: {
     "successful HTTP confirmation must rotate the cookie nonce",
   );
   assert.equal(coreRecordCount(canonicalDbPath), rowsBeforeConfirm + 1);
-  const gate = confirmBody.gate_record as {
-    gate_record_id: string;
-    confirmation_digest: string;
-    integrity: { fingerprint: string };
-  };
+  const gate = confirmBody.gate_record as VNextSemanticCommitGateRecordV01;
   assert.equal(gate.confirmation_digest, preview.confirmation_digest);
+  assert.equal(gate.operator_confirmation_basis_refs?.length, 1);
+  assertGateProvenanceCoverage({
+    config,
+    proposal: prepared.proposal,
+    decision: decisionBody.decision as ReviewDecisionV01,
+    gate,
+    requiredSessionId:
+      gate.operator_confirmation_basis_refs![0]!.external_id,
+  });
   pass("exact_confirmation_persists_gate_only");
+
+  const confirmReplayPreviewResponse = await transitionHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "GET",
+      jar,
+      query: decisionBinding,
+    }),
+  );
+  const confirmReplayPreviewBody = await publicJson(
+    confirmReplayPreviewResponse,
+  );
+  jar.absorb(confirmReplayPreviewResponse);
+  const confirmReplayResponse = await transitionHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar,
+      body: {
+        action: "confirm",
+        ...decisionBinding,
+        confirmation_digest: (
+          confirmReplayPreviewBody.preview as { confirmation_digest: string }
+        ).confirmation_digest,
+      },
+    }),
+  );
+  const confirmReplayBody = await publicJson(confirmReplayResponse);
+  assert.equal(confirmReplayResponse.status, 200);
+  assert.equal(confirmReplayBody.status, "exact_replay");
+  assert.equal(
+    (confirmReplayBody.gate_record as VNextSemanticCommitGateRecordV01)
+      .integrity.fingerprint,
+    gate.integrity.fingerprint,
+  );
+  jar.absorb(confirmReplayResponse);
+  pass("same_session_confirmation_exact_replay");
 
   input.clock.set("2026-07-11T09:18:00.000Z");
   const commitRequest = {
@@ -1475,6 +1539,16 @@ function assertDecisionProvenanceCoverage(input: {
     withRolledBackCoreRecord(db, operatorBDecision, {
       idempotency_key: null,
       run: () => {
+        const read = readVNextOperatorPilotSemanticReviewV01(db, {
+          config: input.config,
+          proposal_id: input.proposal.proposal_id,
+        });
+        const history = read.decision_history.find(
+          (item) => item.decision.decision_id === operatorBDecision.decision_id,
+        );
+        assert(history);
+        assert.equal(history.pilot_session_bound, false);
+        assert.equal(history.pilot_actionable, false);
         assert.throws(
           () =>
             prepareVNextOperatorPilotSemanticCommitPreviewV01(db, {
@@ -1493,6 +1567,7 @@ function assertDecisionProvenanceCoverage(input: {
         );
       },
     });
+    pass("generic_decision_visible_as_non_actionable_history");
     reject("session_a_actor_b_decision_preview_rejected");
     reject("decision_actor_external_id_scope_mismatch_rejected");
 
@@ -1790,6 +1865,260 @@ function withSessionRowMutation(
   } finally {
     if (db.inTransaction) db.exec("ROLLBACK");
   }
+}
+
+function assertGenericGateCommitBypassRejected(input: {
+  config: VNextLocalOperatorPilotConfigV01;
+  clock: ManualClock;
+  secretSource: VNextLocalOperatorSecretSourceV01;
+  jar: RouteCookieJar;
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  preview: VNextSemanticCommitPreviewV01;
+}): void {
+  const db = openVNextLocalOperatorDatabaseV01(input.config);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const generic =
+      recordVNextSemanticCommitAuthorizationInsideTransactionV01(db, {
+        preview: input.preview,
+        confirmation_digest: input.preview.confirmation_digest,
+        operator_actor_ref: input.decision.actor_ref,
+        clock: input.clock,
+      });
+    assert.equal(
+      generic.gate_record.operator_confirmation_basis_refs,
+      undefined,
+    );
+    const provenance =
+      validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+        config: input.config,
+        proposal: input.proposal,
+        decision: input.decision,
+        gate: generic.gate_record,
+      });
+    assert.equal(provenance.status, "invalid");
+    assert(
+      provenance.errors.includes(
+        "operator_pilot_gate_confirmation_basis_required",
+      ),
+    );
+    const credential = readVNextLocalOperatorCredentialFromRequestV01(
+      routeRequest("/api/vnext/operator/semantic-transition", {
+        method: "GET",
+        jar: input.jar,
+      }),
+    );
+    assert.throws(
+      () =>
+        commitVNextOperatorPilotSemanticTransitionV01(db, {
+          config: input.config,
+          credential,
+          request: {
+            proposal_id: input.preview.proposal_id,
+            proposal_fingerprint: input.preview.proposal_fingerprint,
+            decision_id: input.preview.decision_id,
+            decision_fingerprint: input.preview.decision_fingerprint,
+            gate_record_id: generic.gate_record.gate_record_id,
+            gate_record_fingerprint:
+              generic.gate_record.integrity.fingerprint,
+          },
+          clock: input.clock,
+          secret_source: input.secretSource,
+        }),
+      /operator_pilot_gate_confirmation_provenance_invalid/,
+    );
+  } finally {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    db.close();
+  }
+  reject("generic_m3c_gate_without_m3d_confirmation_basis_rejected");
+  reject("direct_commit_api_bypass_with_generic_gate_rejected");
+}
+
+function assertGateProvenanceCoverage(input: {
+  config: VNextLocalOperatorPilotConfigV01;
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  gate: VNextSemanticCommitGateRecordV01;
+  requiredSessionId: string;
+}): void {
+  const db = openVNextLocalOperatorDatabaseV01(input.config);
+  try {
+    const exact =
+      validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+        config: input.config,
+        proposal: input.proposal,
+        decision: input.decision,
+        gate: input.gate,
+        required_session_id: input.requiredSessionId,
+      });
+    assert.equal(exact.status, "valid");
+    assert.equal(exact.session_id, input.requiredSessionId);
+    pass("exact_session_bound_confirmation_gate_validated");
+    pass("decision_confirmation_commit_same_session_policy_validated");
+
+    const withoutBasis = resignGateForSmoke(input.gate, (gate) => {
+      delete gate.operator_confirmation_basis_refs;
+    });
+    assertInvalidGateProvenance(
+      db,
+      input,
+      withoutBasis,
+      "operator_pilot_gate_confirmation_basis_required",
+    );
+    reject("generic_gate_without_m3d_confirmation_basis_rejected");
+
+    const foreignSession = db.prepare(
+      `SELECT session_id FROM vnext_local_operator_sessions
+       WHERE workspace_id = ? AND project_id = ? AND operator_id <> ?
+       ORDER BY issued_at, session_id LIMIT 1`,
+    ).get(
+      input.config.workspace_id,
+      input.config.project_id,
+      input.config.operator_id,
+    ) as { session_id: string } | undefined;
+    assert(foreignSession);
+    const differentSession = resignGateForSmoke(input.gate, (gate) => {
+      gate.operator_confirmation_basis_refs = [
+        {
+          ...gate.operator_confirmation_basis_refs![0]!,
+          external_id: foreignSession.session_id,
+        },
+      ];
+    });
+    assertInvalidGateProvenance(
+      db,
+      input,
+      differentSession,
+      "operator_pilot_gate_session_continuity_mismatch",
+    );
+    reject("confirmation_session_differs_from_decision_session_rejected");
+    reject("foreign_confirmation_operator_session_rejected");
+
+    const digestMismatch = resignGateForSmoke(input.gate, (gate) => {
+      gate.operator_confirmation_basis_refs = [
+        {
+          ...gate.operator_confirmation_basis_refs![0]!,
+          source_ref: `sha256:${"6".repeat(64)}`,
+        },
+      ];
+    });
+    assertInvalidGateProvenance(
+      db,
+      input,
+      digestMismatch,
+      "operator_pilot_gate_confirmation_basis_mismatch",
+    );
+    reject("confirmation_digest_basis_mismatch_rejected");
+    reject("fully_resigned_forged_confirmation_basis_rejected");
+
+    const applierMismatch = resignGateForSmoke(input.gate, (gate) => {
+      gate.semantic_commit_gate_evaluation.authorized_applier_ref = {
+        ...gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+        external_id: "operator:unauthorized-applier",
+      };
+    });
+    assertInvalidGateProvenance(
+      db,
+      input,
+      applierMismatch,
+      "operator_pilot_gate_authorized_applier_mismatch",
+    );
+    reject("confirmation_authorized_applier_mismatch_rejected");
+
+    const ttlMismatch = resignGateForSmoke(input.gate, (gate) => {
+      gate.semantic_commit_gate_evaluation.expires_at = new Date(
+        Date.parse(gate.semantic_commit_gate_evaluation.expires_at) + 1_000,
+      ).toISOString();
+    });
+    assertInvalidGateProvenance(
+      db,
+      input,
+      ttlMismatch,
+      "operator_pilot_gate_ttl_mismatch",
+    );
+    reject("confirmation_gate_ttl_mismatch_rejected");
+
+    const session = readVNextLocalOperatorSessionHistoryV01(db, {
+      session_id: input.requiredSessionId,
+    });
+    assert(session);
+    const outsideTime = new Date(
+      Date.parse(session.expires_at) + 1_000,
+    ).toISOString();
+    const outsideLifetime = resignGateForSmoke(input.gate, (gate) => {
+      gate.confirmed_at = outsideTime;
+      gate.operator_confirmation_basis_refs = [
+        createVNextOperatorPilotSemanticConfirmationBasisRefV01({
+          config: input.config,
+          session_id: input.requiredSessionId,
+          proposal_id: gate.proposal_id,
+          proposal_fingerprint: gate.proposal_fingerprint,
+          decision_id: gate.decision_id,
+          decision_fingerprint: gate.decision_fingerprint,
+          confirmation_digest: gate.confirmation_digest,
+          authorized_applier_identity: {
+            ref_type:
+              gate.semantic_commit_gate_evaluation.authorized_applier_ref
+                .ref_type,
+            external_id:
+              gate.semantic_commit_gate_evaluation.authorized_applier_ref
+                .external_id,
+          },
+          gate_ttl_ms: 10 * 60 * 1000,
+          confirmed_at: outsideTime,
+        }),
+      ];
+    });
+    assertInvalidGateProvenance(
+      db,
+      input,
+      outsideLifetime,
+      "operator_pilot_gate_confirmation_outside_session_lifetime",
+    );
+    reject("confirmation_timestamp_outside_session_lifetime_rejected");
+  } finally {
+    db.close();
+  }
+}
+
+function assertInvalidGateProvenance(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    proposal: EpisodeDeltaProposalV01;
+    decision: ReviewDecisionV01;
+    requiredSessionId: string;
+  },
+  gate: VNextSemanticCommitGateRecordV01,
+  expectedCode: string,
+): void {
+  const validation =
+    validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
+      config: input.config,
+      proposal: input.proposal,
+      decision: input.decision,
+      gate,
+      required_session_id: input.requiredSessionId,
+    });
+  assert.equal(validation.status, "invalid");
+  assert(validation.errors.includes(expectedCode), validation.errors.join(","));
+}
+
+function resignGateForSmoke(
+  gate: VNextSemanticCommitGateRecordV01,
+  mutate: (gate: VNextSemanticCommitGateRecordV01) => void,
+): VNextSemanticCommitGateRecordV01 {
+  const value = structuredClone(gate);
+  mutate(value);
+  value.integrity.fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      ...value,
+      integrity: { ...value.integrity, fingerprint: undefined },
+    }),
+  );
+  return value;
 }
 
 type OperatorPilotRouteHandlerV01 = (
@@ -2938,6 +3267,10 @@ function assertStaticBrowserSafetyMarkers(): void {
     path.join(directory, "semantic-transition-actions.tsx"),
     "utf8",
   );
+  const proposalDetail = readFileSync(
+    path.join(directory, "proposal-detail.tsx"),
+    "utf8",
+  );
   const laterResult = readFileSync(
     path.join(directory, "later-result-intake-panel.tsx"),
     "utf8",
@@ -2966,7 +3299,18 @@ function assertStaticBrowserSafetyMarkers(): void {
       ),
     );
   }
-  const combined = [session, transition, laterResult, contextReview].join("\n");
+  assert(proposalDetail.includes("classification.pilot_actionable"));
+  assert(
+    proposalDetail.includes("generic history · not pilot actionable"),
+  );
+  pass("api_and_ui_share_session_bound_decision_actionability_policy");
+  const combined = [
+    session,
+    transition,
+    proposalDetail,
+    laterResult,
+    contextReview,
+  ].join("\n");
   for (const forbidden of [
     "localStorage",
     "sessionStorage",
