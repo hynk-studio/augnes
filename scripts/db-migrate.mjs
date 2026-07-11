@@ -37,6 +37,7 @@ import {
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
   migrateVNextDurableSemanticStoreV01,
+  migrateVNextLocalOperatorSessionsV01,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,6 +51,8 @@ try {
   }
   const vNextDurableSemanticStoreResult =
     migrateVNextDurableSemanticStoreV01(db);
+  const vNextLocalOperatorSessionResult =
+    migrateVNextLocalOperatorSessionsV01(db);
 
   db.exec(readFileSync(schemaPath, "utf8"));
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
@@ -122,6 +125,15 @@ try {
     vNextCreatedArtifacts.length === 0
       ? `vNext durable semantic store migration no-op: schema is current at ${dbPath}`
       : `Migrated vNext durable semantic store at ${dbPath}: ${vNextCreatedArtifacts.join(", ")}`,
+  );
+  const vNextLocalOperatorSessionCreatedArtifacts = [
+    ...vNextLocalOperatorSessionResult.created_tables,
+    ...vNextLocalOperatorSessionResult.created_indexes,
+  ];
+  console.log(
+    vNextLocalOperatorSessionCreatedArtifacts.length === 0
+      ? `vNext local operator session migration no-op: schema is current at ${dbPath}`
+      : `Migrated vNext local operator session store at ${dbPath}: ${vNextLocalOperatorSessionCreatedArtifacts.join(", ")}`,
   );
 
   if (!result.table_found) {

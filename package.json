@@ -863,7 +863,8 @@
     "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-state-application-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-application-write-v0-1.mjs",
     "test:vnext-protocol": "tsx --tsconfig tsconfig.json scripts/vnext-protocol-conformance.ts",
-    "smoke:vnext-durable-semantic-loop-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-vnext-durable-semantic-loop-v0-1.ts"
+    "smoke:vnext-durable-semantic-loop-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-vnext-durable-semantic-loop-v0-1.ts",
+    "vnext:operator-pilot": "tsx --tsconfig tsconfig.json scripts/vnext-operator-pilot.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
