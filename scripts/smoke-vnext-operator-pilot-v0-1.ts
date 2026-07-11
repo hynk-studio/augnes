@@ -776,7 +776,7 @@ function assertRouteSecurityHeaders(response: Response): void {
 function assertCookieFlags(setCookie: string): void {
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /SameSite=Strict/);
-  assert.match(setCookie, /Path=\//);
+  assert.match(setCookie, /Path=\/api\/vnext\/operator(?:;|$)/);
   assert.match(setCookie, /Max-Age=\d+/);
   assert.match(setCookie, /Expires=/);
   assert.doesNotMatch(setCookie, /Domain=/i);

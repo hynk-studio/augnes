@@ -15,6 +15,8 @@ import {
 
 export const VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 =
   "augnes_vnext_operator_session_v01" as const;
+export const VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 =
+  "/api/vnext/operator" as const;
 export const VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01 = 16 * 1024;
 export const VNEXT_LOCAL_OPERATOR_BOOTSTRAP_TTL_MS_V01 = 10 * 60 * 1000;
 export const VNEXT_LOCAL_OPERATOR_SESSION_TTL_MS_V01 = 8 * 60 * 60 * 1000;
@@ -171,6 +173,7 @@ export interface VNextLocalOperatorSessionAuthenticationV01 {
 
 export interface VNextLocalOperatorSessionMutationAdmissionV01
   extends VNextLocalOperatorSessionAuthenticationV01 {
+  action_observed_at: string;
   cookie_value: string;
   cookie_expires_at: string;
   cookie_max_age_seconds: number;
@@ -461,6 +464,28 @@ export function admitVNextLocalOperatorMutationV01(
   },
 ): VNextLocalOperatorSessionMutationAdmissionV01 {
   assertVNextLocalOperatorSessionSchemaV01(db);
+  return withImmediateTransaction(db, () =>
+    admitVNextLocalOperatorMutationInsideTransactionV01(db, input),
+  );
+}
+
+/**
+ * Transaction-aware nonce rotation for a larger atomic operator action.
+ * The caller owns commit/rollback; no session mutation survives a later error.
+ */
+export function admitVNextLocalOperatorMutationInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    credential: VNextLocalOperatorSessionCredentialV01;
+    clock?: VNextLocalRuntimeClockV01;
+    secret_source?: VNextLocalOperatorSecretSourceV01;
+  },
+): VNextLocalOperatorSessionMutationAdmissionV01 {
+  assertVNextLocalOperatorSessionSchemaV01(db);
+  if (!db.inTransaction) {
+    throw sessionError("operator_session_conflict", 500);
+  }
   const now = readVNextLocalRuntimeClockNowV01(
     input.clock,
     "operator_action_nonce_rotated_at",
@@ -472,34 +497,32 @@ export function admitVNextLocalOperatorMutationV01(
       32,
     ),
   };
-  const row = withImmediateTransaction(db, () => {
-    const current = requireSession(db, input.credential.session_id);
-    assertSessionCanAuthenticate(
-      current,
-      input.config,
-      input.credential,
-      now,
-    );
-    const currentHash = actionNonceCredentialHash(input.credential);
-    const result = db.prepare(
-      `UPDATE vnext_local_operator_sessions SET
+  const current = requireSession(db, input.credential.session_id);
+  assertSessionCanAuthenticate(
+    current,
+    input.config,
+    input.credential,
+    now,
+  );
+  const currentHash = actionNonceCredentialHash(input.credential);
+  const result = db.prepare(
+    `UPDATE vnext_local_operator_sessions SET
          action_nonce_hash = ?,
          action_nonce_expires_at = expires_at,
          updated_at = ?
        WHERE session_id = ?
          AND action_nonce_hash = ?
          AND revoked_at IS NULL`,
-    ).run(
-      actionNonceCredentialHash(nextCredential),
-      now,
-      input.credential.session_id,
-      currentHash,
-    );
-    if (result.changes !== 1) {
-      throw sessionError("operator_action_nonce_invalid", 409);
-    }
-    return requireSession(db, input.credential.session_id);
-  });
+  ).run(
+    actionNonceCredentialHash(nextCredential),
+    now,
+    input.credential.session_id,
+    currentHash,
+  );
+  if (result.changes !== 1) {
+    throw sessionError("operator_action_nonce_invalid", 409);
+  }
+  const row = requireSession(db, input.credential.session_id);
   return sessionAdmission(row, nextCredential, now);
 }
 
@@ -599,7 +622,7 @@ export function serializeVNextLocalOperatorSessionCookieV01(input: {
   const maxAge = Math.max(0, Math.floor(input.max_age_seconds));
   return [
     `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${input.value}`,
-    "Path=/",
+    `Path=${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01}`,
     "HttpOnly",
     "SameSite=Strict",
     `Expires=${new Date(expires).toUTCString()}`,
@@ -613,7 +636,7 @@ export function serializeVNextLocalOperatorSessionCookieClearV01(input: {
 }): string {
   return [
     `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=`,
-    "Path=/",
+    `Path=${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01}`,
     "HttpOnly",
     "SameSite=Strict",
     "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
@@ -792,6 +815,7 @@ function sessionAdmission(
   return {
     session: publicSession(row, true),
     credential,
+    action_observed_at: now,
     cookie_value: serializeCredential(credential),
     cookie_expires_at: row.expires_at,
     cookie_max_age_seconds: Math.max(1, Math.floor((expires - nowMs) / 1000)),

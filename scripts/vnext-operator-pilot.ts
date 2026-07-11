@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { readFileSync, statSync } from "node:fs";
+import { extname, resolve } from "node:path";
+
 import {
   VNextLocalOperatorSessionErrorV01,
   issueVNextLocalOperatorBootstrapV01,
@@ -8,6 +11,10 @@ import {
   readVNextLocalOperatorPilotConfigV01,
   revokeVNextLocalOperatorSessionByIdV01,
 } from "../lib/vnext/runtime/local-operator-session";
+import {
+  VNextOperatorPilotReviewErrorV01,
+  prepareVNextOperatorPilotReviewMaterialV01,
+} from "../lib/vnext/runtime/operator-pilot-review-material";
 
 const CLI_VERSION = "vnext_operator_pilot_cli.v0.1" as const;
 
@@ -61,6 +68,48 @@ try {
             ].join("\n") + "\n",
           );
         }
+      } else if (options.command === "prepare-review") {
+        const mapperInput = readStructuredMapperInput(options.inputPath!);
+        const result = prepareVNextOperatorPilotReviewMaterialV01(db, {
+          config,
+          mapper_input: mapperInput,
+        });
+        const output = {
+          ok: true,
+          cli_version: CLI_VERSION,
+          status: "review_material_prepared",
+          workspace_id: result.workspace_id,
+          project_id: result.project_id,
+          run_receipt: {
+            receipt_id: result.run_receipt.receipt_id,
+            fingerprint: result.run_receipt.integrity.fingerprint,
+            write_status: result.run_receipt_write_status,
+          },
+          proposal: {
+            proposal_id: result.proposal.proposal_id,
+            fingerprint: result.proposal.integrity.fingerprint,
+            candidate_count: result.proposal.proposed_deltas.length,
+            write_status: result.proposal_write_status,
+          },
+          decision_created: false,
+          transition_created: false,
+          credential_material_included: false,
+          semantic_authority_granted: false,
+        };
+        if (options.json) {
+          process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+        } else {
+          process.stdout.write(
+            [
+              "Prepared bounded vNext semantic review material.",
+              `RunReceipt: ${output.run_receipt.receipt_id} (${output.run_receipt.write_status})`,
+              `EpisodeDeltaProposal: ${output.proposal.proposal_id} (${output.proposal.write_status})`,
+              `Candidates: ${output.proposal.candidate_count}`,
+              "ReviewDecision created: no",
+              "Transition created: no",
+            ].join("\n") + "\n",
+          );
+        }
       } else {
         const session = revokeVNextLocalOperatorSessionByIdV01(db, {
           config,
@@ -90,6 +139,8 @@ try {
   const code =
     error instanceof VNextLocalOperatorSessionErrorV01
       ? error.code
+      : error instanceof VNextOperatorPilotReviewErrorV01
+        ? error.code
       : "operator_pilot_request_invalid";
   process.stderr.write(
     `${JSON.stringify({
@@ -104,9 +155,10 @@ try {
 }
 
 interface CliOptionsV01 {
-  command: "issue-session" | "status" | "revoke";
+  command: "issue-session" | "status" | "revoke" | "prepare-review";
   json: boolean;
   sessionId: string | null;
+  inputPath: string | null;
   help: boolean;
 }
 
@@ -117,17 +169,19 @@ function parseArgs(args: string[]): CliOptionsV01 {
       command: "status",
       json: false,
       sessionId: null,
+      inputPath: null,
       help: true,
     };
   }
   const command = args[0];
-  if (!(["issue-session", "status", "revoke"] as const).includes(
-    command as "issue-session" | "status" | "revoke",
+  if (!(["issue-session", "status", "revoke", "prepare-review"] as const).includes(
+    command as CliOptionsV01["command"],
   )) {
     throw new Error("command_required");
   }
   let json = false;
   let sessionId: string | null = null;
+  let inputPath: string | null = null;
   for (let index = 1; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--json") {
@@ -144,21 +198,34 @@ function parseArgs(args: string[]): CliOptionsV01 {
       index += 1;
       continue;
     }
+    if (arg === "--input") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--") || inputPath !== null) {
+        throw new Error("input_path_required");
+      }
+      inputPath = value;
+      index += 1;
+      continue;
+    }
     throw new Error("unsupported_argument");
   }
-  if (command === "issue-session" && (json || sessionId)) {
+  if (command === "issue-session" && (json || sessionId || inputPath)) {
     throw new Error("issue_session_prints_token_once_in_human_mode_only");
   }
-  if (command === "status" && sessionId) {
+  if (command === "status" && (sessionId || inputPath)) {
     throw new Error("status_does_not_accept_session_id");
   }
-  if (command === "revoke" && !sessionId) {
+  if (command === "revoke" && (!sessionId || inputPath)) {
     throw new Error("revoke_requires_session_id");
+  }
+  if (command === "prepare-review" && (!inputPath || sessionId)) {
+    throw new Error("prepare_review_requires_input");
   }
   return {
     command: command as CliOptionsV01["command"],
     json,
     sessionId,
+    inputPath,
     help: false,
   };
 }
@@ -179,9 +246,27 @@ function printUsage(): void {
       "  npm run vnext:operator-pilot -- issue-session",
       "  npm run vnext:operator-pilot -- status [--json]",
       "  npm run vnext:operator-pilot -- revoke --session-id <id> [--json]",
+      "  npm run vnext:operator-pilot -- prepare-review --input <structured-mapper.json> [--json]",
       "",
       "The bootstrap token is printed once. Status and revoke output never include credential hashes or secrets.",
       "This local possession check is not external or legal identity authentication.",
     ].join("\n") + "\n",
   );
+}
+
+function readStructuredMapperInput(inputPath: string): unknown {
+  const resolved = resolve(inputPath);
+  if (extname(resolved).toLowerCase() !== ".json") {
+    throw new Error("prepare_review_input_must_be_json");
+  }
+  const stat = statSync(resolved);
+  if (!stat.isFile() || stat.size <= 0 || stat.size > 1024 * 1024) {
+    throw new Error("prepare_review_input_file_invalid");
+  }
+  const text = readFileSync(resolved, "utf8");
+  const value = JSON.parse(text) as unknown;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("prepare_review_input_invalid");
+  }
+  return value;
 }
