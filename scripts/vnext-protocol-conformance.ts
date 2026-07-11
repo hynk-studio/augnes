@@ -31,6 +31,7 @@ import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { runCodexResultReportRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-result-report-run-receipt";
 import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
 import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/episode-delta-proposal";
+import { runReviewDecisionConformanceV01 } from "@/scripts/vnext-protocol-conformance/review-decision";
 import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
 
 const legacyAdapterSourcePath =
@@ -42,6 +43,7 @@ const sourcePaths = [
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
   "lib/vnext/episode-delta-proposal.ts",
+  "lib/vnext/review-decision.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/vnext/compat/codex-result-report-source-validator.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
@@ -546,6 +548,7 @@ try {
   const runReceiptSummary = runRunReceiptConformanceV01();
   const episodeDeltaProposalSummary =
     runEpisodeDeltaProposalConformanceV01();
+  const reviewDecisionSummary = runReviewDecisionConformanceV01();
   const codexResultCompatibilitySummary =
     runCodexResultReportRunReceiptConformanceV01();
   const autohuntResultCompatibilitySummary =
@@ -603,6 +606,7 @@ try {
         task_context_packet: taskContextPacketSummary,
         run_receipt: runReceiptSummary,
         episode_delta_proposal: episodeDeltaProposalSummary,
+        review_decision: reviewDecisionSummary,
         codex_result_report_run_receipt_compatibility:
           codexResultCompatibilitySummary,
         autohunt_result_intake_run_receipt_compatibility:
