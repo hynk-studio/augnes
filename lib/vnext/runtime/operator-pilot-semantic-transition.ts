@@ -46,6 +46,7 @@ import {
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import {
   readVNextOperatorPilotSemanticReviewV01,
+  validateVNextOperatorPilotReviewDecisionProvenanceV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -164,6 +165,7 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
   const authentication = authenticateVNextLocalOperatorSessionV01(db, input);
   const material = requirePilotAcceptCreateMaterial(db, input.config, request, {
     require_absent: true,
+    required_session_id: authentication.session.session_id,
   });
   const preview = prepareVNextSemanticCommitPreviewV01(db, {
     workspace_id: input.config.workspace_id,
@@ -216,6 +218,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
   const prevalidated = rebuildBoundPreview(db, input.config, binding);
   requirePilotAcceptCreateMaterial(db, input.config, request, {
     require_absent: true,
+    required_session_id: input.credential.session_id,
   });
   assertPilotPreview(prevalidated.preview, prevalidated.decision);
   if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
@@ -224,6 +227,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
     const material = requirePilotAcceptCreateMaterial(db, input.config, request, {
       require_absent: true,
+      required_session_id: admission.session.session_id,
     });
     const exact = rebuildBoundPreview(db, input.config, binding);
     assertPilotPreview(exact.preview, material.decision);
@@ -267,12 +271,22 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
   assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseCommitRequest(input.request);
   authenticateVNextLocalOperatorSessionV01(db, input);
-  assertPilotGateAndDecision(db, input.config, request);
+  assertPilotGateAndDecision(
+    db,
+    input.config,
+    request,
+    input.credential.session_id,
+  );
   if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
   db.exec("BEGIN IMMEDIATE");
   try {
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
-    assertPilotGateAndDecision(db, input.config, request);
+    assertPilotGateAndDecision(
+      db,
+      input.config,
+      request,
+      admission.session.session_id,
+    );
     const result = commitVNextSemanticTransitionInsideTransactionV01(db, {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
@@ -533,6 +547,7 @@ function rebuildBoundPreview(
 ): { preview: VNextSemanticCommitPreviewV01; decision: ReviewDecisionV01 } {
   const decision = requirePilotAcceptCreateMaterial(db, config, binding, {
     require_absent: true,
+    required_session_id: binding.session_id,
   }).decision;
   const values = [binding.current_state_observed_at, binding.previewed_at];
   let index = 0;
@@ -560,7 +575,7 @@ function requirePilotAcceptCreateMaterial(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   binding: ExactDecisionBindingV01,
-  options: { require_absent: boolean },
+  options: { require_absent: boolean; required_session_id?: string },
 ): { decision: ReviewDecisionV01 } {
   const detail = readVNextOperatorPilotSemanticReviewV01(db, {
     config,
@@ -575,6 +590,22 @@ function requirePilotAcceptCreateMaterial(
       item.integrity.fingerprint === binding.decision_fingerprint,
   );
   if (!decision) throw transitionError("operator_pilot_decision_missing", 404);
+  const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
+    db,
+    { config, proposal: detail.proposal, decision },
+  );
+  if (provenance.status !== "valid") {
+    throw transitionError(
+      `operator_pilot_decision_session_provenance_invalid:${provenance.errors.join(",")}`,
+      409,
+    );
+  }
+  if (
+    options.required_session_id &&
+    provenance.session_id !== options.required_session_id
+  ) {
+    throw transitionError("operator_pilot_decision_session_mismatch", 409);
+  }
   if (
     decision.decision !== "accept" ||
     !decision.requested_transition_intent ||
@@ -632,9 +663,11 @@ function assertPilotGateAndDecision(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   request: ReturnType<typeof parseCommitRequest>,
+  requiredSessionId: string,
 ): void {
   requirePilotAcceptCreateMaterial(db, config, request, {
     require_absent: false,
+    required_session_id: requiredSessionId,
   });
   const record = readVNextCoreRecordV01(db, {
     record_kind: "semantic_commit_gate",
@@ -697,7 +730,16 @@ function requirePilotAppliedCreate(
     transition_receipt_id: request.transition_receipt_id,
     transition_receipt_fingerprint: request.transition_receipt_fingerprint,
   });
+  const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
+    db,
+    {
+      config,
+      proposal: transition.proposal,
+      decision: transition.decision,
+    },
+  );
   if (
+    provenance.status !== "valid" ||
     transition.decision.decision !== "accept" ||
     transition.receipt.effects.length !== 1 ||
     transition.receipt.effects[0]?.operation !== "create" ||

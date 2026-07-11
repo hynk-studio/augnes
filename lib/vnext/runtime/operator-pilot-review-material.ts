@@ -6,6 +6,7 @@ import {
   assertVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
+  readVNextCoreRecordByIdempotencyKeyV01,
   type VNextCoreRecordWriteResultV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
@@ -41,6 +42,7 @@ import type {
 import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
   authenticateVNextLocalOperatorSessionV01,
+  readVNextLocalOperatorSessionHistoryV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import {
   inspectVNextOperatorPilotCandidateAdmissionV01,
@@ -65,6 +67,13 @@ export const VNEXT_OPERATOR_PILOT_DEFAULT_DEFER_REVISIT_MS_V01 =
 export const VNEXT_OPERATOR_PILOT_DEFAULT_DEFER_EXPIRY_MS_V01 =
   7 * 24 * 60 * 60 * 1000;
 export const VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01 = 128;
+export const VNEXT_OPERATOR_PILOT_DECISION_REQUEST_VERSION_V01 =
+  "vnext_operator_pilot_decision_request.v0.1" as const;
+
+const VNEXT_OPERATOR_PILOT_ACTOR_NAMESPACE_V01 =
+  "augnes.vnext.local-operator-pilot.v0.1";
+const VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 =
+  "augnes.vnext.local-operator-session.v0.1";
 
 export class VNextOperatorPilotReviewErrorV01 extends Error {
   readonly code: string;
@@ -122,6 +131,7 @@ export interface VNextOperatorPilotReviewDetailV01
     inferences: EpisodeDeltaProposalV01["inferences"];
   };
   decisions: ReviewDecisionV01[];
+  decision_history: VNextOperatorPilotDecisionHistoryItemV01[];
   transition_receipts: StateTransitionReceiptV01[];
   transition: {
     status: "not_applied" | "applied";
@@ -129,6 +139,20 @@ export interface VNextOperatorPilotReviewDetailV01
     transition_receipt_fingerprint: string | null;
     notes: string[];
   };
+}
+
+export interface VNextOperatorPilotDecisionProvenanceValidationV01 {
+  status: "valid" | "invalid";
+  pilot_session_bound: boolean;
+  pilot_actionable: boolean;
+  session_id: string | null;
+  request_fingerprint: string | null;
+  errors: string[];
+}
+
+export interface VNextOperatorPilotDecisionHistoryItemV01
+  extends VNextOperatorPilotDecisionProvenanceValidationV01 {
+  decision: ReviewDecisionV01;
 }
 
 export interface VNextOperatorPilotDecisionRequestV01 {
@@ -380,6 +404,14 @@ export function readVNextOperatorPilotSemanticReviewV01(
     proposal,
   );
   const decisions = loadProposalDecisions(db, input.config, proposal);
+  const decisionHistory = decisions.map((decision) => ({
+    decision,
+    ...validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+      config: input.config,
+      proposal,
+      decision,
+    }),
+  }));
   const transitionReceipts = loadProposalTransitionReceipts(
     db,
     input.config,
@@ -426,6 +458,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
       inferences: proposal.inferences,
     },
     decisions,
+    decision_history: decisionHistory,
     transition_receipts: transitionReceipts,
     transition: {
       status: transitionReceipts.length > 0 ? "applied" : "not_applied",
@@ -466,9 +499,10 @@ export function recordVNextOperatorPilotReviewDecisionV01(
     request,
   );
   const prevalidatedReplay = findExactSemanticDecisionReplay(
-    prevalidated.detail.decisions,
+    db,
+    input.config,
+    prevalidated.proposal,
     request,
-    input.config.operator_id,
   );
   if (
     !prevalidatedReplay &&
@@ -500,9 +534,10 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       request,
     );
     const replay = findExactSemanticDecisionReplay(
-      material.detail.decisions,
+      db,
+      input.config,
+      material.proposal,
       request,
-      input.config.operator_id,
     );
     if (replay) {
       db.exec("COMMIT");
@@ -525,7 +560,12 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       );
     }
     const decidedAt = nonceAdmission.action_observed_at;
-    const sessionBasisRef = createSessionAuthorizationBasisRef(
+    const decisionRequestFingerprint =
+      createVNextOperatorPilotDecisionRequestFingerprintV01(
+        input.config,
+        request,
+      );
+    const sessionBasisRef = createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
       input.config,
       nonceAdmission.session,
       request,
@@ -604,6 +644,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
           material.proposal.proposal_version,
           VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01,
           VNEXT_OPERATOR_PILOT_POLICY_VERSION_V01,
+          VNEXT_OPERATOR_PILOT_DECISION_REQUEST_VERSION_V01,
         ],
         unmapped_fields: [],
         warnings: [
@@ -633,7 +674,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       workspace_id: decision.workspace_id,
       project_id: decision.project_id,
       fingerprint: decision.integrity.fingerprint,
-      idempotency_key: null,
+      idempotency_key: decisionRequestFingerprint,
       payload: decision,
       created_at: decision.decided_at,
     });
@@ -792,8 +833,7 @@ function loadProposalDecisions(
       if (
         record.record_id !== decision.decision_id ||
         record.fingerprint !== decision.integrity.fingerprint ||
-        record.created_at !== decision.decided_at ||
-        record.idempotency_key !== null
+        record.created_at !== decision.decided_at
       ) {
         throw reviewError(
           "operator_pilot_persisted_decision_envelope_mismatch",
@@ -862,12 +902,24 @@ function loadProposalTransitionReceipts(
       ) {
         throw reviewError("operator_pilot_transition_receipt_invalid", 422);
       }
-      loadValidatedVNextSemanticTransitionRelationV01(db, {
+      const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
         workspace_id: config.workspace_id,
         project_id: config.project_id,
         transition_receipt_id: row.record_id,
         transition_receipt_fingerprint: row.fingerprint,
       });
+      if (
+        validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+          config,
+          proposal: transition.proposal,
+          decision: transition.decision,
+        }).status !== "valid"
+      ) {
+        throw reviewError(
+          "operator_pilot_transition_decision_provenance_invalid",
+          422,
+        );
+      }
       return value;
     });
 }
@@ -933,27 +985,338 @@ function parseDecisionRequest(value: unknown): VNextOperatorPilotDecisionRequest
 }
 
 function findExactSemanticDecisionReplay(
-  decisions: ReviewDecisionV01[],
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  proposal: EpisodeDeltaProposalV01,
   request: VNextOperatorPilotDecisionRequestV01,
-  operatorId: string,
 ): ReviewDecisionV01 | null {
-  return (
-    decisions.find(
-      (decision) =>
-        decision.candidate.candidate_id === request.candidate_id &&
-        decision.candidate.candidate_fingerprint ===
-          request.candidate_fingerprint &&
-        decision.decision === request.decision &&
-        decision.rationale_summary === request.rationale_summary &&
-        decision.actor_ref.external_id === operatorId &&
-        (request.decision !== "defer" ||
-          decision.revisit?.condition_summary ===
-            request.revisit?.condition_summary),
-    ) ?? null
+  const requestFingerprint =
+    createVNextOperatorPilotDecisionRequestFingerprintV01(config, request);
+  const record = readVNextCoreRecordByIdempotencyKeyV01(db, {
+    record_kind: "review_decision",
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+    idempotency_key: requestFingerprint,
+  });
+  if (!record) return null;
+  if (validateReviewDecisionV01(record.payload).status !== "valid") {
+    throw reviewError("operator_pilot_decision_replay_conflict", 409);
+  }
+  const decision = record.payload as ReviewDecisionV01;
+  const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
+    db,
+    { config, proposal, decision },
+  );
+  if (
+    provenance.status !== "valid" ||
+    provenance.request_fingerprint !== requestFingerprint
+  ) {
+    throw reviewError("operator_pilot_decision_replay_conflict", 409);
+  }
+  return decision;
+}
+
+export function createVNextOperatorPilotDecisionRequestFingerprintV01(
+  config: VNextLocalOperatorPilotConfigV01,
+  request: VNextOperatorPilotDecisionRequestV01,
+): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      request_version: VNEXT_OPERATOR_PILOT_DECISION_REQUEST_VERSION_V01,
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      operator_id: config.operator_id,
+      proposal_id: request.proposal_id,
+      proposal_fingerprint: request.proposal_fingerprint,
+      candidate_id: request.candidate_id,
+      candidate_fingerprint: request.candidate_fingerprint,
+      decision: request.decision,
+      rationale_summary: request.rationale_summary,
+      revisit: request.revisit ?? null,
+    }),
   );
 }
 
-function createSessionAuthorizationBasisRef(
+export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    proposal: EpisodeDeltaProposalV01;
+    decision: ReviewDecisionV01;
+  },
+): VNextOperatorPilotDecisionProvenanceValidationV01 {
+  const { config, proposal, decision } = input;
+  const errors: string[] = [];
+  const add = (code: string) => {
+    if (!errors.includes(code)) errors.push(code);
+  };
+
+  if (validateReviewDecisionV01(decision).status !== "valid") {
+    add("operator_pilot_decision_invalid");
+  }
+  if (
+    validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
+      .status !== "valid"
+  ) {
+    add("operator_pilot_decision_relation_invalid");
+  }
+  if (
+    decision.workspace_id !== config.workspace_id ||
+    decision.project_id !== config.project_id ||
+    proposal.workspace_id !== config.workspace_id ||
+    proposal.project_id !== config.project_id
+  ) {
+    add("operator_pilot_decision_scope_mismatch");
+  }
+
+  const basis =
+    decision.authorization_basis_refs.length === 1
+      ? decision.authorization_basis_refs[0]!
+      : null;
+  if (!basis) add("operator_pilot_decision_session_basis_count_invalid");
+  if (
+    !basis ||
+    basis.ref_type !== "local_operator_session_action" ||
+    basis.trust_class !== "direct_local_observation" ||
+    basis.compatibility_namespace !== VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 ||
+    basis.observed_at !== decision.decided_at ||
+    !basis.source_ref
+  ) {
+    add("operator_pilot_decision_session_basis_invalid");
+  }
+
+  const sessionId = basis?.external_id ?? null;
+  const session = sessionId
+    ? readVNextLocalOperatorSessionHistoryV01(db, { session_id: sessionId })
+    : null;
+  if (!session) {
+    add("operator_pilot_decision_session_missing");
+  } else {
+    if (
+      session.workspace_id !== config.workspace_id ||
+      session.project_id !== config.project_id ||
+      session.operator_id !== config.operator_id
+    ) {
+      add("operator_pilot_decision_session_scope_mismatch");
+    }
+    if (!session.bootstrap_consumed_at) {
+      add("operator_pilot_decision_session_bootstrap_unconsumed");
+    }
+    const issuedAt = parseStrictIsoTimestampV01(session.issued_at);
+    const expiresAt = parseStrictIsoTimestampV01(session.expires_at);
+    const decidedAt = parseStrictIsoTimestampV01(decision.decided_at);
+    const consumedAt = session.bootstrap_consumed_at
+      ? parseStrictIsoTimestampV01(session.bootstrap_consumed_at)
+      : null;
+    const revokedAt = session.revoked_at
+      ? parseStrictIsoTimestampV01(session.revoked_at)
+      : null;
+    if (
+      issuedAt === null ||
+      expiresAt === null ||
+      decidedAt === null ||
+      (session.bootstrap_consumed_at !== null && consumedAt === null) ||
+      (session.revoked_at !== null && revokedAt === null)
+    ) {
+      add("operator_pilot_decision_session_timestamp_invalid");
+    } else {
+      if (decidedAt < issuedAt || decidedAt > expiresAt) {
+        add("operator_pilot_decision_outside_session_lifetime");
+      }
+      if (consumedAt !== null && consumedAt > decidedAt) {
+        add("operator_pilot_decision_before_bootstrap_consumption");
+      }
+      if (revokedAt !== null && revokedAt < decidedAt) {
+        add("operator_pilot_decision_after_session_revocation");
+      }
+    }
+  }
+
+  const request = decisionRequestFromPersistedDecision(decision);
+  const requestFingerprint = request
+    ? createVNextOperatorPilotDecisionRequestFingerprintV01(config, request)
+    : null;
+  if (!request) add("operator_pilot_decision_request_identity_invalid");
+
+  if (
+    decision.actor_ref.ref_type !== "local_operator_actor" ||
+    decision.actor_ref.external_id !== config.operator_id ||
+    decision.actor_ref.trust_class !== "user_declaration" ||
+    decision.actor_ref.compatibility_namespace !==
+      VNEXT_OPERATOR_PILOT_ACTOR_NAMESPACE_V01 ||
+    decision.actor_ref.observed_at !== decision.decided_at ||
+    decision.actor_ref.source_ref !== basis?.source_ref
+  ) {
+    add("operator_pilot_decision_actor_binding_invalid");
+  }
+
+  if (basis && request && session) {
+    const expectedBasis = createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
+      config,
+      session,
+      request,
+      decision.decided_at,
+    );
+    if (!exactExternalRef(basis, expectedBasis)) {
+      add("operator_pilot_decision_session_basis_mismatch");
+    }
+    const expectedActor: ExternalRefV01 = {
+      ref_version: EXTERNAL_REF_VERSION_V01,
+      ref_type: "local_operator_actor",
+      external_id: config.operator_id,
+      trust_class: "user_declaration",
+      observed_at: decision.decided_at,
+      source_ref: expectedBasis.source_ref,
+      compatibility_namespace: VNEXT_OPERATOR_PILOT_ACTOR_NAMESPACE_V01,
+    };
+    if (!exactExternalRef(decision.actor_ref, expectedActor)) {
+      add("operator_pilot_decision_actor_provenance_mismatch");
+    }
+  }
+
+  const compatibilitySessionRefs = decision.compatibility.external_refs.filter(
+    (ref) => ref.ref_type === "local_operator_session_action",
+  );
+  if (
+    !basis ||
+    compatibilitySessionRefs.length !== 1 ||
+    !exactExternalRef(compatibilitySessionRefs[0]!, basis)
+  ) {
+    add("operator_pilot_decision_compatibility_session_basis_mismatch");
+  }
+  for (const contract of [
+    proposal.proposal_version,
+    VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01,
+    VNEXT_OPERATOR_PILOT_POLICY_VERSION_V01,
+    VNEXT_OPERATOR_PILOT_DECISION_REQUEST_VERSION_V01,
+  ]) {
+    if (!decision.compatibility.source_contracts.includes(contract)) {
+      add("operator_pilot_decision_source_contract_missing");
+    }
+  }
+
+  const candidate = proposal.proposed_deltas.find(
+    (value) =>
+      value.candidate_id === decision.candidate.candidate_id &&
+      createEpisodeDeltaCandidateFingerprintV01(value) ===
+        decision.candidate.candidate_fingerprint,
+  );
+  if (!candidate) add("operator_pilot_decision_candidate_binding_invalid");
+  if (decision.decision === "accept") {
+    const intent = decision.requested_transition_intent;
+    if (
+      !intent ||
+      intent.transition_kind !== "semantic_candidate_apply" ||
+      intent.target_refs.length !== 1 ||
+      intent.intent_only !== true ||
+      intent.applied !== false ||
+      intent.state_transition_receipt_ref !== null ||
+      !candidate ||
+      candidate.target_refs.length !== 1 ||
+      canonicalizeProtocolValueV01(intent.target_refs) !==
+        canonicalizeProtocolValueV01(candidate.target_refs) ||
+      intent.intent_id !==
+        deriveIntentId(
+          proposal.proposal_id,
+          decision.candidate.candidate_id,
+          config.operator_id,
+          decision.decided_at,
+        )
+    ) {
+      add("operator_pilot_decision_transition_intent_invalid");
+    }
+  } else if (decision.requested_transition_intent !== null) {
+    add("operator_pilot_decision_transition_intent_forbidden");
+  }
+  if (decision.decision === "defer") {
+    if (
+      !decision.revisit ||
+      decision.revisit.revisit_at !==
+        addMilliseconds(
+          decision.decided_at,
+          VNEXT_OPERATOR_PILOT_DEFAULT_DEFER_REVISIT_MS_V01,
+        ) ||
+      decision.revisit.expires_at !==
+        addMilliseconds(
+          decision.decided_at,
+          VNEXT_OPERATOR_PILOT_DEFAULT_DEFER_EXPIRY_MS_V01,
+        ) ||
+      !decision.revisit.condition_summary
+    ) {
+      add("operator_pilot_decision_revisit_invalid");
+    }
+  } else if (decision.revisit !== null) {
+    add("operator_pilot_decision_revisit_forbidden");
+  }
+
+  const record = readVNextCoreRecordV01(db, {
+    record_kind: "review_decision",
+    record_id: decision.decision_id,
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+  });
+  if (!record) {
+    add("operator_pilot_decision_record_missing");
+  } else if (
+    record.record_id !== decision.decision_id ||
+    record.fingerprint !== decision.integrity.fingerprint ||
+    record.created_at !== decision.decided_at ||
+    record.idempotency_key !== requestFingerprint ||
+    canonicalizeProtocolValueV01(record.payload) !==
+      canonicalizeProtocolValueV01(decision)
+  ) {
+    add("operator_pilot_decision_record_provenance_mismatch");
+  }
+
+  const valid = errors.length === 0;
+  return {
+    status: valid ? "valid" : "invalid",
+    pilot_session_bound: valid,
+    pilot_actionable: valid && decision.decision === "accept",
+    session_id: valid ? sessionId : null,
+    request_fingerprint: valid ? requestFingerprint : null,
+    errors,
+  };
+}
+
+function decisionRequestFromPersistedDecision(
+  decision: ReviewDecisionV01,
+): VNextOperatorPilotDecisionRequestV01 | null {
+  if (
+    !(["accept", "reject", "defer"] as const).includes(
+      decision.decision as "accept" | "reject" | "defer",
+    )
+  ) {
+    return null;
+  }
+  if (
+    decision.decision === "defer" &&
+    (!decision.revisit || !decision.revisit.condition_summary)
+  ) {
+    return null;
+  }
+  return {
+    proposal_id: decision.source_proposal.proposal_id,
+    proposal_fingerprint: decision.source_proposal.proposal_fingerprint,
+    candidate_id: decision.candidate.candidate_id,
+    candidate_fingerprint: decision.candidate.candidate_fingerprint,
+    decision: decision.decision as "accept" | "reject" | "defer",
+    rationale_summary: decision.rationale_summary,
+    revisit:
+      decision.decision === "defer"
+        ? { condition_summary: decision.revisit!.condition_summary! }
+        : null,
+  };
+}
+
+function exactExternalRef(left: ExternalRefV01, right: ExternalRefV01): boolean {
+  return (
+    canonicalizeProtocolValueV01(left) ===
+    canonicalizeProtocolValueV01(right)
+  );
+}
+
+export function createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
   config: VNextLocalOperatorPilotConfigV01,
   session: VNextLocalOperatorSessionPublicV01,
   request: VNextOperatorPilotDecisionRequestV01,

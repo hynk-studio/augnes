@@ -284,19 +284,25 @@ export function SemanticReviewProposalDetail({
           <p className={styles.kicker}>ReviewDecision history</p>
           <h2 id="decision-history-title">Explicit decisions for this proposal</h2>
         </div>
-        {read.decisions.length === 0 ? (
+        {read.decision_history.length === 0 ? (
           <p className={styles.empty}>
             No ReviewDecision is persisted for this proposal. A displayed candidate is
             not a decision.
           </p>
         ) : (
           <ol className={styles.decisionList}>
-            {read.decisions.map((decision) => (
+            {read.decision_history.map((classification) => {
+              const decision = classification.decision;
+              return (
               <li key={`${decision.decision_id}:${decision.integrity.fingerprint}`}>
                 <div className={styles.rowBetween}>
                   <strong>{decision.decision}</strong>
                   <span className={styles.badge}>
-                    {decision.requested_transition_intent ? "intent only" : "no transition"}
+                    {classification.pilot_session_bound
+                      ? classification.pilot_actionable
+                        ? "session-bound · pilot actionable"
+                        : "session-bound · history only"
+                      : "generic history · not pilot actionable"}
                   </span>
                 </div>
                 <span className={styles.identifier}>{decision.decision_id}</span>
@@ -312,8 +318,16 @@ export function SemanticReviewProposalDetail({
                     decision.requested_transition_intent?.applied ?? false,
                   )}
                 </span>
+                <span>
+                  Pilot session bound {String(
+                    classification.pilot_session_bound,
+                  )}; pilot actionable {String(
+                    classification.pilot_actionable,
+                  )}
+                </span>
               </li>
-            ))}
+              );
+            })}
           </ol>
         )}
       </section>
@@ -321,7 +335,9 @@ export function SemanticReviewProposalDetail({
       <SemanticTransitionActions
         proposalId={proposal.proposal_id}
         proposalFingerprint={proposal.integrity.fingerprint}
-        decisions={read.decisions}
+        decisions={read.decision_history
+          .filter((item) => item.pilot_actionable)
+          .map((item) => item.decision)}
         persistedReceipts={read.transition_receipts}
         priorPacket={priorPacket}
         onSessionInvalid={onSessionInvalid}

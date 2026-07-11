@@ -460,6 +460,22 @@ export function authenticateVNextLocalOperatorSessionV01(
   };
 }
 
+/**
+ * Reads public historical session metadata without authenticating the caller.
+ * This is only for validating already-recorded local operator action lineage;
+ * it never returns token hashes or grants current session authority.
+ */
+export function readVNextLocalOperatorSessionHistoryV01(
+  db: Database.Database,
+  input: { session_id: string },
+): VNextLocalOperatorSessionPublicV01 | null {
+  assertVNextLocalOperatorSessionSchemaV01(db);
+  const sessionId = requiredCanonicalId(input.session_id);
+  if (!sessionId) return null;
+  const row = selectSession(db, sessionId);
+  return row ? publicSession(row, false) : null;
+}
+
 export function admitVNextLocalOperatorMutationV01(
   db: Database.Database,
   input: {

@@ -28,20 +28,38 @@ import {
   semanticReviewLoopMapperInputFixture,
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
-import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
+import {
+  buildReviewDecisionV01,
+  createEpisodeDeltaCandidateFingerprintV01,
+  validateReviewDecisionAgainstEpisodeDeltaProposalV01,
+  validateReviewDecisionV01,
+} from "../lib/vnext/review-decision";
+import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import {
   VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01,
   admitVNextLocalOperatorMutationV01,
+  consumeVNextLocalOperatorBootstrapV01,
   issueVNextLocalOperatorBootstrapV01,
   openVNextLocalOperatorDatabaseV01,
   readVNextLocalOperatorCredentialFromRequestV01,
   readVNextLocalOperatorPilotConfigV01,
+  readVNextLocalOperatorSessionHistoryV01,
+  type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
 import {
+  createVNextOperatorPilotDecisionRequestFingerprintV01,
+  createVNextOperatorPilotReviewDecisionSessionBasisRefV01,
   prepareVNextOperatorPilotReviewMaterialV01,
+  readVNextOperatorPilotSemanticReviewV01,
+  recordVNextOperatorPilotReviewDecisionV01,
+  validateVNextOperatorPilotReviewDecisionProvenanceV01,
+  type VNextOperatorPilotDecisionRequestV01,
 } from "../lib/vnext/runtime/operator-pilot-review-material";
+import { prepareVNextOperatorPilotSemanticCommitPreviewV01 } from "../lib/vnext/runtime/operator-pilot-semantic-transition";
+import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
+import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
@@ -49,32 +67,32 @@ import {
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:57ff3dff71be21facb997524",
+  review_decision_id: "review-decision:d194b2f25e1a3ced03307c3e",
   review_decision_fingerprint:
-    "sha256:dde7827bc532b0092cce5c2193714fbc7a93ad00c3a8d724a8f62184131b6928",
+    "sha256:42064d204b9ac3375caa2d48f46034dad95407503d520f9f7d21b7c616301db6",
   confirmation_digest:
-    "sha256:c519ac7aa06fe67b89f934baef5af489be5aa6f247d2e73dda03ede233bad28f",
-  gate_id: "semantic-commit-gate:be20d6bdcc35a29d6f99d54c",
+    "sha256:818489a0641ac2305b12c901e7d4424aa68b61ac063a7f111f849d18c2f74cee",
+  gate_id: "semantic-commit-gate:49ef8585dce3f9dd12be3d9f",
   gate_fingerprint:
-    "sha256:1a69fbf222efa83e860bbddcf3ca1be7f47a1560778ec0352cbd1e2feb5e6aa8",
-  transition_receipt_id: "state-transition-receipt:88a34bd8c8909dd8ccbd64fa",
+    "sha256:75e9f3bbf4c8c6539ca9fbf0ba1f8ba28b5ed770586061e5e60502b52ebf1ad8",
+  transition_receipt_id: "state-transition-receipt:c101326a90c58360340a2878",
   transition_receipt_idempotency_key:
-    "sha256:cc2ed13b534e353553b7062423d693ca69843896fd7c0fb464bd653a81cc4f22",
+    "sha256:f74fa3a3488280b5e86f45086438a6279f5b03019466a0694f049558d3368755",
   transition_receipt_fingerprint:
-    "sha256:8a88582f1f9030b1a9cbe62fc6a9ebeb2b8f597b1c34e25aa123cb7669810163",
-  later_packet_id: "task-context-packet:85d4c141106685205c225fc",
+    "sha256:43d1ad8482060c3c01e444e91d3dfaa5938ca3146186527623f099aaada80b2a",
+  later_packet_id: "task-context-packet:ecefd056a7958dfad3fd279",
   later_packet_fingerprint:
-    "sha256:a566964ea90413bacbdc771ebefb22edc3eb39e3ca46b5c5fb570118db0e878c",
-  later_run_receipt_id: "run-receipt:74dcae1588b9f3a7cb4717b5",
+    "sha256:bdec0a1d516dba769209e626a55c7e357d231a6bb5a921dfd5fb4331339ebcc9",
+  later_run_receipt_id: "run-receipt:bae0fbd7032c7f6cd2ca7ab7",
   later_run_receipt_idempotency_key:
-    "sha256:8faa7e20bb94329992d6bd114d7cdd26c9d1ff53992a2b54b24a6e1357c33026",
+    "sha256:b36799d23957b92750212c886cd834662fb31e02fd79f01a4782edd8a75dffdf",
   later_run_receipt_fingerprint:
-    "sha256:b20b9392943d934a504a51b15d29ccf0870db2a73bb838289957b6b2757ab37f",
-  context_use_review_id: "context-use-review:6e915117ff08360844862f05",
+    "sha256:03e2477195157ae77431055f04dfd8d5b6f8adea410232fcb3520a3380ba09fa",
+  context_use_review_id: "context-use-review:ac756957a1627ae79390d39e",
   context_use_review_fingerprint:
-    "sha256:c59fe44016d0a49f7cad5efee4d7493ec2d7134983d94d7a25c4a673dd84ed5a",
+    "sha256:1fe21f58686ee1c510121a78e82d44e86d5519c1043bebad3278b4afc167b0a4",
   full_loop_fingerprint:
-    "sha256:cb8d644bf93175e2ec4eb6d031c67108911c27eea06465cc7ccf6738485bc88e",
+    "sha256:0cee7aac1ed7d86bc88cb6dc49ce441309047c001241a86cb812ae5915ca3fb7",
 } as const;
 const require = createRequire(import.meta.url);
 const tempRoot = mkdtempSync(
@@ -587,7 +605,7 @@ async function assertFullOperatorLoop(input: {
     proposal_fingerprint: prepared.proposal.integrity.fingerprint,
     candidate_id: selected.candidate.candidate_id,
     candidate_fingerprint: selected.candidate_fingerprint,
-    decision: "accept",
+    decision: "accept" as const,
     rationale_summary:
       "Synthetic isolated smoke accepts one absent single-target candidate for explicit preview and confirmation.",
     revisit: null,
@@ -653,6 +671,16 @@ async function assertFullOperatorLoop(input: {
   );
   jar.absorb(replayDecisionResponse);
   pass("review_decision_exact_replay");
+
+  assertDecisionProvenanceCoverage({
+    config,
+    clock: input.clock,
+    secretSource: input.secretSource,
+    jar,
+    proposal: prepared.proposal,
+    decision: decisionBody.decision as ReviewDecisionV01,
+    request: decisionRequest,
+  });
 
   const beforeRefresh = coreRecordCount(canonicalDbPath);
   for (let index = 0; index < 2; index += 1) {
@@ -1253,6 +1281,21 @@ async function assertFullOperatorLoop(input: {
     "operator_session_cookie_missing",
     "full_loop_post_logout_read_rejected",
   );
+  const historicalDb = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    const historical = readVNextOperatorPilotSemanticReviewV01(historicalDb, {
+      config,
+      proposal_id: prepared.proposal.proposal_id,
+    });
+    const classification = historical.decision_history.find(
+      (item) => item.decision.decision_id === decision.decision_id,
+    );
+    assert.equal(classification?.pilot_session_bound, true);
+    assert.equal(classification?.pilot_actionable, true);
+  } finally {
+    historicalDb.close();
+  }
+  pass("historical_decision_remains_session_bound_after_later_revocation");
 
   const anchors = {
     review_decision_id: decision.decision_id,
@@ -1288,6 +1331,464 @@ async function assertFullOperatorLoop(input: {
   };
   } finally {
     await loopback.close();
+  }
+}
+
+function assertDecisionProvenanceCoverage(input: {
+  config: VNextLocalOperatorPilotConfigV01;
+  clock: ManualClock;
+  secretSource: VNextLocalOperatorSecretSourceV01;
+  jar: RouteCookieJar;
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  request: VNextOperatorPilotDecisionRequestV01;
+}): void {
+  const db = openVNextLocalOperatorDatabaseV01(input.config);
+  try {
+    const credential = readVNextLocalOperatorCredentialFromRequestV01(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar: input.jar,
+      }),
+    );
+    const session = readVNextLocalOperatorSessionHistoryV01(db, {
+      session_id: credential.session_id,
+    });
+    assert(session?.bootstrap_consumed_at);
+    const exact = validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+      config: input.config,
+      proposal: input.proposal,
+      decision: input.decision,
+    });
+    assert.equal(exact.status, "valid");
+    assert.equal(exact.pilot_session_bound, true);
+    assert.equal(exact.pilot_actionable, true);
+    assert.equal(exact.session_id, session.session_id);
+    assert.equal(
+      exact.request_fingerprint,
+      createVNextOperatorPilotDecisionRequestFingerprintV01(
+        input.config,
+        input.request,
+      ),
+    );
+    pass("exact_m3d_session_bound_accept_decision_validated");
+
+    for (const decisionValue of ["reject", "defer"] as const) {
+      const request: VNextOperatorPilotDecisionRequestV01 = {
+        ...input.request,
+        decision: decisionValue,
+        rationale_summary: `Synthetic ${decisionValue} provenance validation.`,
+        revisit:
+          decisionValue === "defer"
+            ? { condition_summary: "Revisit after bounded source review." }
+            : null,
+      };
+      const basis =
+        createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
+          input.config,
+          session,
+          request,
+          input.decision.decided_at,
+        );
+      const decision = rebuildDecisionForSmoke(input.decision, {
+        decision: decisionValue,
+        actor_ref: {
+          ...input.decision.actor_ref,
+          observed_at: input.decision.decided_at,
+          source_ref: basis.source_ref,
+        },
+        authorization_basis_refs: [basis],
+        rationale_summary: request.rationale_summary,
+        revisit:
+          decisionValue === "defer"
+            ? {
+                revisit_at: "2026-07-12T09:00:00.000Z",
+                expires_at: "2026-07-18T09:00:00.000Z",
+                condition_summary: request.revisit!.condition_summary,
+              }
+            : null,
+        requested_transition_intent: null,
+        compatibility: {
+          ...input.decision.compatibility,
+          external_refs: [basis],
+        },
+      });
+      withRolledBackCoreRecord(db, decision, {
+        idempotency_key:
+          createVNextOperatorPilotDecisionRequestFingerprintV01(
+            input.config,
+            request,
+          ),
+        run: () => {
+          const validation =
+            validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+              config: input.config,
+              proposal: input.proposal,
+              decision,
+            });
+          assert.equal(validation.status, "valid");
+          assert.equal(validation.pilot_session_bound, true);
+          assert.equal(validation.pilot_actionable, false);
+        },
+      });
+      pass(`exact_m3d_session_bound_${decisionValue}_decision_validated`);
+    }
+
+    const operatorBConfig = {
+      ...input.config,
+      operator_id: "operator:operator-pilot-smoke-b",
+    };
+    const operatorBIssue = issueVNextLocalOperatorBootstrapV01(db, {
+      config: operatorBConfig,
+      clock: input.clock,
+      secret_source: input.secretSource,
+    });
+    rememberCredentialMaterial(operatorBIssue.bootstrap_token);
+    const operatorBAdmission = consumeVNextLocalOperatorBootstrapV01(db, {
+      config: operatorBConfig,
+      bootstrap_token: operatorBIssue.bootstrap_token,
+      clock: input.clock,
+      secret_source: input.secretSource,
+    });
+    rememberCredentialMaterial(operatorBAdmission.credential.session_secret);
+    rememberCredentialMaterial(operatorBAdmission.credential.action_nonce);
+    const operatorBBasis =
+      createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
+        operatorBConfig,
+        operatorBAdmission.session,
+        input.request,
+        input.decision.decided_at,
+      );
+    const operatorBDecision = rebuildDecisionForSmoke(input.decision, {
+      actor_ref: {
+        ...input.decision.actor_ref,
+        external_id: operatorBConfig.operator_id,
+        source_ref: operatorBBasis.source_ref,
+      },
+      authorization_basis_refs: [operatorBBasis],
+      compatibility: {
+        ...input.decision.compatibility,
+        external_refs: [operatorBBasis],
+      },
+    });
+    assertGenericDecision(input.proposal, operatorBDecision);
+    withRolledBackCoreRecord(db, operatorBDecision, {
+      idempotency_key: null,
+      run: () => {
+        assert.throws(
+          () =>
+            prepareVNextOperatorPilotSemanticCommitPreviewV01(db, {
+              config: input.config,
+              credential,
+              request: {
+                proposal_id: input.proposal.proposal_id,
+                proposal_fingerprint: input.proposal.integrity.fingerprint,
+                decision_id: operatorBDecision.decision_id,
+                decision_fingerprint:
+                  operatorBDecision.integrity.fingerprint,
+              },
+              clock: input.clock,
+            }),
+          /operator_pilot_decision_session_provenance_invalid/,
+        );
+      },
+    });
+    reject("session_a_actor_b_decision_preview_rejected");
+    reject("decision_actor_external_id_scope_mismatch_rejected");
+
+    const genericBasis = {
+      ...input.decision.authorization_basis_refs[0]!,
+      ref_type: "generic_operator_assertion",
+      external_id: "generic-operator-assertion:smoke",
+      trust_class: "user_declaration" as const,
+      source_ref: `sha256:${"4".repeat(64)}`,
+      compatibility_namespace: "augnes.generic-review.v0.1",
+    };
+    const genericActor = {
+      ...input.decision.actor_ref,
+      source_ref: genericBasis.source_ref,
+      compatibility_namespace: "augnes.generic-review.v0.1",
+    };
+    const genericDecision = rebuildDecisionForSmoke(input.decision, {
+      actor_ref: genericActor,
+      authorization_basis_refs: [genericBasis],
+      compatibility: {
+        ...input.decision.compatibility,
+        external_refs: [genericBasis],
+      },
+    });
+    assertGenericDecision(input.proposal, genericDecision);
+    assertInvalidDecisionProvenance(
+      db,
+      input.config,
+      input.proposal,
+      genericDecision,
+      "operator_pilot_decision_session_basis_invalid",
+    );
+    reject("generic_accept_without_session_basis_rejected");
+
+    const modifiedBasis = {
+      ...input.decision.authorization_basis_refs[0]!,
+      source_ref: `sha256:${"5".repeat(64)}`,
+    };
+    const resignedBasisMutation = rebuildDecisionForSmoke(input.decision, {
+      actor_ref: {
+        ...input.decision.actor_ref,
+        source_ref: modifiedBasis.source_ref,
+      },
+      authorization_basis_refs: [modifiedBasis],
+      compatibility: {
+        ...input.decision.compatibility,
+        external_refs: [modifiedBasis],
+      },
+    });
+    assertGenericDecision(input.proposal, resignedBasisMutation);
+    assertInvalidDecisionProvenance(
+      db,
+      input.config,
+      input.proposal,
+      resignedBasisMutation,
+      "operator_pilot_decision_session_basis_mismatch",
+    );
+    reject("resigned_modified_session_basis_source_ref_rejected");
+    reject("forged_m3d_actor_ref_rejected");
+
+    const unconsumedIssue = issueVNextLocalOperatorBootstrapV01(db, {
+      config: input.config,
+      clock: input.clock,
+      secret_source: input.secretSource,
+    });
+    rememberCredentialMaterial(unconsumedIssue.bootstrap_token);
+    const unconsumedBasis =
+      createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
+        input.config,
+        unconsumedIssue.session,
+        input.request,
+        input.decision.decided_at,
+      );
+    const unconsumedDecision = rebuildDecisionForSmoke(input.decision, {
+      actor_ref: {
+        ...input.decision.actor_ref,
+        source_ref: unconsumedBasis.source_ref,
+      },
+      authorization_basis_refs: [unconsumedBasis],
+      compatibility: {
+        ...input.decision.compatibility,
+        external_refs: [unconsumedBasis],
+      },
+    });
+    assertInvalidDecisionProvenance(
+      db,
+      input.config,
+      input.proposal,
+      unconsumedDecision,
+      "operator_pilot_decision_session_bootstrap_unconsumed",
+    );
+    reject("never_consumed_bootstrap_session_decision_rejected");
+
+    withSessionRowMutation(
+      db,
+      session.session_id,
+      "revoked_at = ?",
+      ["2026-07-11T08:59:59.000Z"],
+      () =>
+        assertInvalidDecisionProvenance(
+          db,
+          input.config,
+          input.proposal,
+          input.decision,
+          "operator_pilot_decision_after_session_revocation",
+        ),
+    );
+    reject("session_revoked_before_decision_time_rejected");
+    withSessionRowMutation(
+      db,
+      session.session_id,
+      "operator_id = ?",
+      ["operator:foreign-session"],
+      () =>
+        assertInvalidDecisionProvenance(
+          db,
+          input.config,
+          input.proposal,
+          input.decision,
+          "operator_pilot_decision_session_scope_mismatch",
+        ),
+    );
+    reject("foreign_workspace_project_operator_session_rejected");
+
+    const nullIntent = rebuildDecisionForSmoke(input.decision, {
+      requested_transition_intent: null,
+    });
+    assertGenericDecision(input.proposal, nullIntent);
+    assertInvalidDecisionProvenance(
+      db,
+      input.config,
+      input.proposal,
+      nullIntent,
+      "operator_pilot_decision_transition_intent_invalid",
+    );
+    reject("accept_null_transition_intent_rejected");
+
+    const otherIntent = rebuildDecisionForSmoke(input.decision, {
+      requested_transition_intent: {
+        ...input.decision.requested_transition_intent!,
+        transition_kind: "other",
+      },
+    });
+    assertGenericDecision(input.proposal, otherIntent);
+    assertInvalidDecisionProvenance(
+      db,
+      input.config,
+      input.proposal,
+      otherIntent,
+      "operator_pilot_decision_transition_intent_invalid",
+    );
+    reject("accept_transition_kind_other_rejected");
+
+    const trapRequest: VNextOperatorPilotDecisionRequestV01 = {
+      ...input.request,
+      rationale_summary:
+        "Generic decision must not be captured as an exact M3D replay.",
+    };
+    const trapDecision = rebuildDecisionForSmoke(genericDecision, {
+      rationale_summary: trapRequest.rationale_summary,
+    });
+    assertGenericDecision(input.proposal, trapDecision);
+    withRolledBackCoreRecord(db, trapDecision, {
+      idempotency_key:
+        createVNextOperatorPilotDecisionRequestFingerprintV01(
+          input.config,
+          trapRequest,
+        ),
+      run: () => {
+        assert.throws(
+          () =>
+            recordVNextOperatorPilotReviewDecisionV01(db, {
+              config: input.config,
+              credential,
+              request: trapRequest,
+              clock: input.clock,
+              secret_source: input.secretSource,
+            }),
+          /operator_pilot_decision_replay_conflict/,
+        );
+      },
+    });
+    reject("generic_decision_not_captured_as_exact_m3d_replay");
+  } finally {
+    db.close();
+  }
+}
+
+function rebuildDecisionForSmoke(
+  base: ReviewDecisionV01,
+  overrides: Partial<
+    Pick<
+      ReviewDecisionV01,
+      | "decision"
+      | "actor_ref"
+      | "authorization_basis_refs"
+      | "rationale_summary"
+      | "revisit"
+      | "requested_transition_intent"
+      | "compatibility"
+    >
+  >,
+): ReviewDecisionV01 {
+  return buildReviewDecisionV01({
+    workspace_id: base.workspace_id,
+    project_id: base.project_id,
+    source_proposal: base.source_proposal,
+    candidate: base.candidate,
+    decision: overrides.decision ?? base.decision,
+    actor_ref: overrides.actor_ref ?? base.actor_ref,
+    authorization_basis_refs:
+      overrides.authorization_basis_refs ?? base.authorization_basis_refs,
+    decision_basis_material_ids: base.decision_basis_material_ids,
+    decision_basis_refs: base.decision_basis_refs,
+    rationale_summary: overrides.rationale_summary ?? base.rationale_summary,
+    decided_at: base.decided_at,
+    revisit: Object.hasOwn(overrides, "revisit")
+      ? overrides.revisit ?? null
+      : base.revisit,
+    requested_transition_intent: Object.hasOwn(
+      overrides,
+      "requested_transition_intent",
+    )
+      ? overrides.requested_transition_intent ?? null
+      : base.requested_transition_intent,
+    lineage: base.lineage,
+    compatibility: overrides.compatibility ?? base.compatibility,
+    authority_notes: base.authority_summary.notes,
+  });
+}
+
+function assertGenericDecision(
+  proposal: EpisodeDeltaProposalV01,
+  decision: ReviewDecisionV01,
+): void {
+  assert.equal(validateReviewDecisionV01(decision).status, "valid");
+  assert.equal(
+    validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
+      .status,
+    "valid",
+  );
+}
+
+function assertInvalidDecisionProvenance(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  proposal: EpisodeDeltaProposalV01,
+  decision: ReviewDecisionV01,
+  expectedCode: string,
+): void {
+  const validation = validateVNextOperatorPilotReviewDecisionProvenanceV01(
+    db,
+    { config, proposal, decision },
+  );
+  assert.equal(validation.status, "invalid");
+  assert(validation.errors.includes(expectedCode), validation.errors.join(","));
+}
+
+function withRolledBackCoreRecord(
+  db: Database.Database,
+  decision: ReviewDecisionV01,
+  input: { idempotency_key: string | null; run: () => void },
+): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    insertVNextCoreRecordV01(db, {
+      record_kind: "review_decision",
+      record_id: decision.decision_id,
+      workspace_id: decision.workspace_id,
+      project_id: decision.project_id,
+      fingerprint: decision.integrity.fingerprint,
+      idempotency_key: input.idempotency_key,
+      payload: decision,
+      created_at: decision.decided_at,
+    });
+    input.run();
+  } finally {
+    if (db.inTransaction) db.exec("ROLLBACK");
+  }
+}
+
+function withSessionRowMutation(
+  db: Database.Database,
+  sessionId: string,
+  assignment: string,
+  values: unknown[],
+  run: () => void,
+): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare(
+      `UPDATE vnext_local_operator_sessions SET ${assignment} WHERE session_id = ?`,
+    ).run(...values, sessionId);
+    run();
+  } finally {
+    if (db.inTransaction) db.exec("ROLLBACK");
   }
 }
 

@@ -41,6 +41,7 @@ import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
+import { validateVNextOperatorPilotReviewDecisionProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import {
   readVNextLocalRuntimeClockNowV01,
   type VNextLocalRuntimeClockV01,
@@ -461,7 +462,7 @@ function loadDecisions(
   config: VNextLocalOperatorPilotConfigV01,
   proposalById: Map<string, EpisodeDeltaProposalV01>,
 ) {
-  return loadRecords(db, config, "review_decision").map((record) => {
+  return loadRecords(db, config, "review_decision").flatMap((record) => {
     if (validateReviewDecisionV01(record.payload).status !== "valid") {
       throw continuityError("operator_pilot_continuity_decision_invalid", 422);
     }
@@ -473,8 +474,12 @@ function loadDecisions(
     ) {
       throw continuityError("operator_pilot_continuity_decision_relation_invalid", 422);
     }
-    assertEnvelope(record, decision.workspace_id, decision.project_id, decision.integrity.fingerprint, decision.decision_id, decision.decided_at, null);
-    return decision;
+    assertEnvelope(record, decision.workspace_id, decision.project_id, decision.integrity.fingerprint, decision.decision_id, decision.decided_at, record.idempotency_key);
+    const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
+      db,
+      { config, proposal, decision },
+    );
+    return provenance.pilot_session_bound ? [decision] : [];
   });
 }
 
@@ -484,12 +489,24 @@ function loadTransitionReceipts(db: Database.Database, config: VNextLocalOperato
       throw continuityError("operator_pilot_continuity_receipt_invalid", 422);
     }
     const receipt = record.payload as StateTransitionReceiptV01;
-    loadValidatedVNextSemanticTransitionRelationV01(db, {
+    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
       workspace_id: config.workspace_id,
       project_id: config.project_id,
       transition_receipt_id: receipt.transition_receipt_id,
       transition_receipt_fingerprint: receipt.integrity.fingerprint,
     });
+    if (
+      validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+        config,
+        proposal: transition.proposal,
+        decision: transition.decision,
+      }).status !== "valid"
+    ) {
+      throw continuityError(
+        "operator_pilot_continuity_decision_provenance_invalid",
+        422,
+      );
+    }
     assertEnvelope(record, receipt.workspace_id, receipt.project_id, receipt.integrity.fingerprint, receipt.transition_receipt_id, receipt.recorded_at, receipt.idempotency_key);
     return receipt;
   });
