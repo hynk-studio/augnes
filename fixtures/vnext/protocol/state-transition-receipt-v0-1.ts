@@ -1,10 +1,14 @@
 import {
   acceptReviewDecisionInputFixture,
+  deferReviewDecisionInputFixture,
+  rejectReviewDecisionInputFixture,
   reviewDecisionGenericSourceProposal,
 } from "@/fixtures/vnext/protocol/review-decision-v0-1";
 import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
+  createReviewDecisionFingerprintV01,
+  deriveReviewDecisionIdV01,
 } from "@/lib/vnext/review-decision";
 import {
   EXTERNAL_REF_VERSION_V01,
@@ -12,8 +16,11 @@ import {
   type ExternalRefV01,
 } from "@/types/vnext/external-ref";
 import type {
+  StateTransitionCurrentStateObservationV01,
   StateTransitionReceiptBuilderInputV01,
   StateTransitionReceiptV01,
+  StateTransitionEligibilityEvaluationInputV01,
+  StateTransitionSemanticCommitGateEvaluationV01,
 } from "@/types/vnext/state-transition-receipt";
 
 export const STATE_TRANSITION_RECEIPT_FIXTURE_GATE_EVALUATED_AT =
@@ -235,6 +242,507 @@ export const genericStateTransitionReceiptInputFixture: StateTransitionReceiptBu
     "The fixture represents an applied receipt only inside synthetic protocol conformance.",
   ],
 };
+
+export const STATE_TRANSITION_ELIGIBILITY_FIXTURE_EVALUATED_AT =
+  "2026-07-10T12:21:00.000Z";
+
+const semanticCommitGateActorRef = ref(
+  "semantic_commit_gate_actor",
+  "synthetic-actor:semantic-commit-gate-conformance",
+  "direct_local_observation",
+  {
+    observed_at: STATE_TRANSITION_RECEIPT_FIXTURE_GATE_EVALUATED_AT,
+    source_ref: GATE_EVALUATION_FINGERPRINT,
+  },
+);
+
+export const genericStateTransitionCurrentStateObservationsFixture: StateTransitionCurrentStateObservationV01[] = [
+  {
+    target_ref: clone(targetRef),
+    presence: "absent",
+    state_ref: null,
+    state_fingerprint: null,
+    observed_at: BEFORE_OBSERVED_AT,
+    observation_ref: clone(
+      genericStateTransitionReceiptBeforeObservationRefFixture,
+    ),
+    source_refs: [
+      clone(genericStateTransitionReceiptBeforeObservationRefFixture),
+    ],
+  },
+];
+
+export const genericStateTransitionSemanticCommitGateEvaluationFixture: StateTransitionSemanticCommitGateEvaluationV01 = {
+  status: "authorized",
+  workspace_id: genericStateTransitionReceiptSourceProposalFixture.workspace_id,
+  project_id: genericStateTransitionReceiptSourceProposalFixture.project_id,
+  decision_id: genericStateTransitionReceiptSourceDecisionFixture.decision_id,
+  decision_fingerprint:
+    genericStateTransitionReceiptSourceDecisionFixture.integrity.fingerprint,
+  intent_id:
+    genericStateTransitionReceiptSourceDecisionFixture
+      .requested_transition_intent!.intent_id,
+  transition_kind:
+    genericStateTransitionReceiptSourceDecisionFixture
+      .requested_transition_intent!.transition_kind,
+  target_refs: [clone(targetRef)],
+  decision_actor_ref: clone(
+    genericStateTransitionReceiptSourceDecisionFixture.actor_ref,
+  ),
+  authorization_basis_refs: clone(
+    genericStateTransitionReceiptSourceDecisionFixture
+      .authorization_basis_refs,
+  ),
+  gate_actor_ref: semanticCommitGateActorRef,
+  evaluation_ref: clone(
+    genericStateTransitionReceiptGateEvaluationRefFixture,
+  ),
+  evaluated_at: STATE_TRANSITION_RECEIPT_FIXTURE_GATE_EVALUATED_AT,
+  expires_at: STATE_TRANSITION_RECEIPT_FIXTURE_GATE_EXPIRES_AT,
+  source_refs: [
+    sourceDecisionRef,
+    semanticCommitGateActorRef,
+    genericStateTransitionReceiptGateEvaluationRefFixture,
+  ],
+};
+
+export const genericStateTransitionEligibilityEvaluationInputFixture: StateTransitionEligibilityEvaluationInputV01 = {
+  proposal: genericStateTransitionReceiptSourceProposalFixture,
+  decision: genericStateTransitionReceiptSourceDecisionFixture,
+  current_state_observations:
+    genericStateTransitionCurrentStateObservationsFixture,
+  semantic_commit_gate_evaluation:
+    genericStateTransitionSemanticCommitGateEvaluationFixture,
+  evaluated_at: STATE_TRANSITION_ELIGIBILITY_FIXTURE_EVALUATED_AT,
+};
+
+export interface InvalidStateTransitionEligibilityInputFixtureCaseV01 {
+  name: string;
+  expected_status: "ineligible" | "blocked";
+  expected_error_code: string;
+  mutate(input: StateTransitionEligibilityEvaluationInputV01): unknown;
+}
+
+function eligibilityMutation(
+  name: string,
+  expectedStatus: "ineligible" | "blocked",
+  expectedErrorCode: string,
+  mutate: (
+    input: StateTransitionEligibilityEvaluationInputV01 &
+      Record<string, unknown>,
+  ) => void,
+): InvalidStateTransitionEligibilityInputFixtureCaseV01 {
+  return {
+    name,
+    expected_status: expectedStatus,
+    expected_error_code: expectedErrorCode,
+    mutate(input) {
+      const value = clone(input) as StateTransitionEligibilityEvaluationInputV01 &
+        Record<string, unknown>;
+      mutate(value);
+      return value;
+    },
+  };
+}
+
+const validRejectDecision = buildReviewDecisionV01(
+  clone(rejectReviewDecisionInputFixture),
+);
+const validDeferDecision = buildReviewDecisionV01(
+  clone(deferReviewDecisionInputFixture),
+);
+
+export const invalidStateTransitionEligibilityInputFixtureCases: InvalidStateTransitionEligibilityInputFixtureCaseV01[] = [
+  eligibilityMutation(
+    "invalid_proposal",
+    "blocked",
+    "proposal_invalid",
+    (value) => {
+      value.proposal.workspace_id = "";
+    },
+  ),
+  eligibilityMutation(
+    "invalid_decision",
+    "blocked",
+    "decision_invalid",
+    (value) => {
+      value.decision.integrity.fingerprint = `sha256:${"0".repeat(64)}`;
+    },
+  ),
+  eligibilityMutation(
+    "decision_proposal_relation_mismatch",
+    "blocked",
+    "decision_proposal_relation_invalid",
+    (value) => {
+      value.decision.source_proposal.proposal_id =
+        "episode-delta-proposal:other";
+      value.decision.decision_id = deriveReviewDecisionIdV01(value.decision);
+      value.decision.integrity.fingerprint =
+        createReviewDecisionFingerprintV01(value.decision);
+    },
+  ),
+  eligibilityMutation(
+    "reject_decision",
+    "ineligible",
+    "decision_not_transitionable",
+    (value) => {
+      value.decision = clone(validRejectDecision);
+      value.semantic_commit_gate_evaluation.decision_id =
+        validRejectDecision.decision_id;
+      value.semantic_commit_gate_evaluation.decision_fingerprint =
+        validRejectDecision.integrity.fingerprint;
+      value.semantic_commit_gate_evaluation.decision_actor_ref = clone(
+        validRejectDecision.actor_ref,
+      );
+      value.semantic_commit_gate_evaluation.authorization_basis_refs = clone(
+        validRejectDecision.authorization_basis_refs,
+      );
+    },
+  ),
+  eligibilityMutation(
+    "defer_decision",
+    "ineligible",
+    "decision_not_transitionable",
+    (value) => {
+      value.decision = clone(validDeferDecision);
+      value.semantic_commit_gate_evaluation.decision_id =
+        validDeferDecision.decision_id;
+      value.semantic_commit_gate_evaluation.decision_fingerprint =
+        validDeferDecision.integrity.fingerprint;
+      value.semantic_commit_gate_evaluation.decision_actor_ref = clone(
+        validDeferDecision.actor_ref,
+      );
+      value.semantic_commit_gate_evaluation.authorization_basis_refs = clone(
+        validDeferDecision.authorization_basis_refs,
+      );
+    },
+  ),
+  eligibilityMutation(
+    "missing_requested_transition_intent",
+    "ineligible",
+    "requested_transition_intent_missing",
+    (value) => {
+      const decisionInput = clone(acceptReviewDecisionInputFixture);
+      decisionInput.requested_transition_intent = null;
+      value.decision = buildReviewDecisionV01(decisionInput);
+      value.semantic_commit_gate_evaluation.decision_id =
+        value.decision.decision_id;
+      value.semantic_commit_gate_evaluation.decision_fingerprint =
+        value.decision.integrity.fingerprint;
+    },
+  ),
+  eligibilityMutation(
+    "denied_gate",
+    "ineligible",
+    "semantic_commit_gate_denied",
+    (value) => {
+      value.semantic_commit_gate_evaluation.status = "denied";
+    },
+  ),
+  eligibilityMutation(
+    "unknown_gate",
+    "ineligible",
+    "semantic_commit_gate_unknown",
+    (value) => {
+      value.semantic_commit_gate_evaluation.status = "unknown";
+    },
+  ),
+  eligibilityMutation(
+    "expired_gate",
+    "ineligible",
+    "semantic_commit_gate_expired",
+    (value) => {
+      value.semantic_commit_gate_evaluation.expires_at =
+        "2026-07-10T12:20:30.000Z";
+    },
+  ),
+  eligibilityMutation(
+    "missing_current_state",
+    "ineligible",
+    "current_state_missing",
+    (value) => {
+      value.current_state_observations = [];
+    },
+  ),
+  eligibilityMutation(
+    "unknown_current_state",
+    "ineligible",
+    "current_state_unknown",
+    (value) => {
+      value.current_state_observations[0]!.presence = "unknown";
+    },
+  ),
+  eligibilityMutation(
+    "current_state_target_outside_intent",
+    "blocked",
+    "current_state_target_mismatch",
+    (value) => {
+      value.current_state_observations[0]!.target_ref = ref(
+        "project_semantic_target",
+        "target:outside-transition-intent",
+        "direct_local_observation",
+      );
+    },
+  ),
+  eligibilityMutation(
+    "duplicate_current_state_target",
+    "blocked",
+    "duplicate_current_state_target",
+    (value) => {
+      value.current_state_observations.push(
+        clone(value.current_state_observations[0]!),
+      );
+    },
+  ),
+  eligibilityMutation(
+    "conflicting_current_state_snapshots",
+    "blocked",
+    "conflicting_current_state_snapshot",
+    (value) => {
+      const conflicting = clone(value.current_state_observations[0]!);
+      conflicting.presence = "present";
+      conflicting.state_ref = clone(
+        genericStateTransitionReceiptAfterStateRefFixture,
+      );
+      conflicting.state_fingerprint = STATE_AFTER_FINGERPRINT;
+      value.current_state_observations.push(conflicting);
+    },
+  ),
+  eligibilityMutation(
+    "current_state_absent_with_state_ref",
+    "blocked",
+    "current_state_snapshot_invalid",
+    (value) => {
+      value.current_state_observations[0]!.state_ref = clone(
+        genericStateTransitionReceiptAfterStateRefFixture,
+      );
+    },
+  ),
+  eligibilityMutation(
+    "current_state_present_without_state_ref",
+    "blocked",
+    "current_state_snapshot_invalid",
+    (value) => {
+      value.current_state_observations[0]!.presence = "present";
+      value.current_state_observations[0]!.state_ref = null;
+      value.current_state_observations[0]!.state_fingerprint =
+        STATE_AFTER_FINGERPRINT;
+    },
+  ),
+  eligibilityMutation(
+    "current_state_unknown_with_state_material",
+    "blocked",
+    "current_state_snapshot_invalid",
+    (value) => {
+      value.current_state_observations[0]!.presence = "unknown";
+      value.current_state_observations[0]!.state_ref = clone(
+        genericStateTransitionReceiptAfterStateRefFixture,
+      );
+      value.current_state_observations[0]!.state_fingerprint =
+        STATE_AFTER_FINGERPRINT;
+    },
+  ),
+  eligibilityMutation(
+    "untrusted_current_state_observation",
+    "blocked",
+    "current_state_observation_trust_insufficient",
+    (value) => {
+      value.current_state_observations[0]!.observation_ref.trust_class =
+        "host_attestation";
+    },
+  ),
+  eligibilityMutation(
+    "current_state_observation_trust_upgrade",
+    "blocked",
+    "duplicate_conflicting_external_ref",
+    (value) => {
+      const conflictingSource = clone(
+        value.current_state_observations[0]!.observation_ref,
+      );
+      conflictingSource.trust_class = "host_attestation";
+      value.current_state_observations[0]!.source_refs.push(
+        conflictingSource,
+      );
+    },
+  ),
+  eligibilityMutation(
+    "missing_current_state_observation_ref",
+    "blocked",
+    "external_ref_malformed",
+    (value) => {
+      value.current_state_observations[0]!.observation_ref =
+        null as unknown as ExternalRefV01;
+    },
+  ),
+  eligibilityMutation(
+    "missing_current_state_source_refs",
+    "blocked",
+    "current_state_source_ref_required",
+    (value) => {
+      value.current_state_observations[0]!.source_refs = [];
+    },
+  ),
+  eligibilityMutation(
+    "malformed_current_state_observed_at",
+    "blocked",
+    "timestamp_invalid",
+    (value) => {
+      value.current_state_observations[0]!.observed_at = "not-a-timestamp";
+    },
+  ),
+  eligibilityMutation(
+    "gate_decision_id_mismatch",
+    "blocked",
+    "gate_decision_id_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.decision_id =
+        "review-decision:other";
+    },
+  ),
+  eligibilityMutation(
+    "gate_decision_fingerprint_mismatch",
+    "blocked",
+    "gate_decision_fingerprint_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.decision_fingerprint =
+        `sha256:${"1".repeat(64)}`;
+    },
+  ),
+  eligibilityMutation(
+    "gate_intent_mismatch",
+    "blocked",
+    "gate_intent_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.intent_id =
+        "transition-intent:other";
+    },
+  ),
+  eligibilityMutation(
+    "gate_transition_kind_mismatch",
+    "blocked",
+    "gate_transition_kind_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.transition_kind =
+        "semantic_candidate_retract";
+    },
+  ),
+  eligibilityMutation(
+    "gate_target_mismatch",
+    "blocked",
+    "gate_target_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.target_refs = [
+        ref(
+          "project_semantic_target",
+          "target:other-gate-target",
+          "direct_local_observation",
+        ),
+      ];
+    },
+  ),
+  eligibilityMutation(
+    "gate_decision_actor_mismatch",
+    "blocked",
+    "gate_decision_actor_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.decision_actor_ref = ref(
+        "operator_actor",
+        "synthetic-operator:other",
+        "user_declaration",
+      );
+    },
+  ),
+  eligibilityMutation(
+    "gate_authorization_basis_mismatch",
+    "blocked",
+    "gate_authorization_basis_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.authorization_basis_refs = [
+        ref(
+          "authorization_basis",
+          "synthetic-basis:other",
+          "user_declaration",
+        ),
+      ];
+    },
+  ),
+  eligibilityMutation(
+    "cross_project_gate",
+    "blocked",
+    "gate_project_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.project_id = "project-other";
+    },
+  ),
+  eligibilityMutation(
+    "cross_workspace_gate",
+    "blocked",
+    "gate_workspace_mismatch",
+    (value) => {
+      value.semantic_commit_gate_evaluation.workspace_id = "workspace-other";
+    },
+  ),
+  eligibilityMutation(
+    "untrusted_gate_evaluation_ref",
+    "blocked",
+    "semantic_commit_gate_trust_insufficient",
+    (value) => {
+      value.semantic_commit_gate_evaluation.evaluation_ref.trust_class =
+        "provider_report";
+    },
+  ),
+  eligibilityMutation(
+    "malformed_gate_evaluated_at",
+    "blocked",
+    "timestamp_invalid",
+    (value) => {
+      value.semantic_commit_gate_evaluation.evaluated_at =
+        "not-a-timestamp";
+    },
+  ),
+  eligibilityMutation(
+    "malformed_gate_expires_at",
+    "blocked",
+    "timestamp_invalid",
+    (value) => {
+      value.semantic_commit_gate_evaluation.expires_at = "not-a-timestamp";
+    },
+  ),
+  eligibilityMutation(
+    "malformed_evaluation_time",
+    "blocked",
+    "timestamp_invalid",
+    (value) => {
+      value.evaluated_at = "not-a-timestamp";
+    },
+  ),
+  eligibilityMutation(
+    "gate_evaluated_after_evaluation_time",
+    "blocked",
+    "timestamp_order_invalid",
+    (value) => {
+      value.semantic_commit_gate_evaluation.evaluated_at =
+        "2026-07-10T12:22:00.000Z";
+    },
+  ),
+  eligibilityMutation(
+    "current_state_observed_after_evaluation_time",
+    "blocked",
+    "timestamp_order_invalid",
+    (value) => {
+      value.current_state_observations[0]!.observed_at =
+        "2026-07-10T12:22:00.000Z";
+    },
+  ),
+  eligibilityMutation(
+    "missing_gate_source_refs",
+    "blocked",
+    "semantic_commit_gate_source_ref_required",
+    (value) => {
+      value.semantic_commit_gate_evaluation.source_refs = [];
+    },
+  ),
+];
 
 export interface InvalidStateTransitionReceiptFixtureCaseV01 {
   name: string;

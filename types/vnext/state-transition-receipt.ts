@@ -1,8 +1,12 @@
 import type { ExternalRefV01 } from "./external-ref";
-import { EPISODE_DELTA_PROPOSAL_VERSION_V01 } from "./episode-delta-proposal";
+import {
+  EPISODE_DELTA_PROPOSAL_VERSION_V01,
+  type EpisodeDeltaProposalV01,
+} from "./episode-delta-proposal";
 import {
   REVIEW_DECISION_VERSION_V01,
   type ReviewDecisionRequestedTransitionKindV01,
+  type ReviewDecisionV01,
 } from "./review-decision";
 
 export const STATE_TRANSITION_RECEIPT_VERSION_V01 =
@@ -230,4 +234,90 @@ export interface StateTransitionReceiptValidationResultV01 {
     | null;
   errors: StateTransitionReceiptValidationIssueV01[];
   warnings: StateTransitionReceiptValidationIssueV01[];
+}
+
+export const STATE_TRANSITION_CURRENT_STATE_PRESENCES_V01 = [
+  "absent",
+  "present",
+  "unknown",
+] as const;
+
+export const STATE_TRANSITION_SEMANTIC_COMMIT_GATE_STATUSES_V01 = [
+  "authorized",
+  "denied",
+  "unknown",
+] as const;
+
+export const STATE_TRANSITION_ELIGIBILITY_STATUSES_V01 = [
+  "eligible",
+  "ineligible",
+  "blocked",
+] as const;
+
+export type StateTransitionCurrentStatePresenceV01 =
+  (typeof STATE_TRANSITION_CURRENT_STATE_PRESENCES_V01)[number];
+export type StateTransitionSemanticCommitGateStatusV01 =
+  (typeof STATE_TRANSITION_SEMANTIC_COMMIT_GATE_STATUSES_V01)[number];
+export type StateTransitionEligibilityStatusV01 =
+  (typeof STATE_TRANSITION_ELIGIBILITY_STATUSES_V01)[number];
+
+export interface StateTransitionCurrentStateObservationV01 {
+  target_ref: ExternalRefV01;
+  presence: StateTransitionCurrentStatePresenceV01;
+  state_ref: ExternalRefV01 | null;
+  state_fingerprint: string | null;
+  observed_at: string;
+  observation_ref: ExternalRefV01;
+  source_refs: ExternalRefV01[];
+}
+
+export interface StateTransitionSemanticCommitGateEvaluationV01 {
+  status: StateTransitionSemanticCommitGateStatusV01;
+  workspace_id: string;
+  project_id: string;
+  decision_id: string;
+  decision_fingerprint: string;
+  intent_id: string;
+  transition_kind: ReviewDecisionRequestedTransitionKindV01;
+  target_refs: ExternalRefV01[];
+  decision_actor_ref: ExternalRefV01;
+  authorization_basis_refs: ExternalRefV01[];
+  gate_actor_ref: ExternalRefV01;
+  evaluation_ref: ExternalRefV01;
+  evaluated_at: string;
+  expires_at: string;
+  source_refs: ExternalRefV01[];
+}
+
+export interface StateTransitionEligibilityExpectedEffectV01 {
+  target_ref: ExternalRefV01;
+  operation: StateTransitionReceiptOperationV01;
+  before_state: StateTransitionReceiptStateSnapshotV01;
+  before_state_observation_ref: ExternalRefV01;
+  source_refs: ExternalRefV01[];
+}
+
+export interface StateTransitionEligibilityIssueV01 {
+  severity: "error" | "warning";
+  code: string;
+  path: string | null;
+  message: string;
+}
+
+export interface StateTransitionEligibilityResultV01 {
+  status: StateTransitionEligibilityStatusV01;
+  precondition_fingerprint: string;
+  expected_transition_kind: ReviewDecisionRequestedTransitionKindV01 | null;
+  expected_target_refs: ExternalRefV01[];
+  expected_effects: StateTransitionEligibilityExpectedEffectV01[];
+  errors: StateTransitionEligibilityIssueV01[];
+  warnings: StateTransitionEligibilityIssueV01[];
+}
+
+export interface StateTransitionEligibilityEvaluationInputV01 {
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  current_state_observations: StateTransitionCurrentStateObservationV01[];
+  semantic_commit_gate_evaluation: StateTransitionSemanticCommitGateEvaluationV01;
+  evaluated_at: string;
 }

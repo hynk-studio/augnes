@@ -48,6 +48,7 @@ const sourcePaths = [
   "lib/vnext/episode-delta-proposal.ts",
   "lib/vnext/review-decision.ts",
   "lib/vnext/state-transition-receipt.ts",
+  "lib/vnext/state-transition-eligibility.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/vnext/compat/episode-delta-proposal-from-codex-review.ts",
   "lib/vnext/compat/codex-result-report-source-validator.ts",
