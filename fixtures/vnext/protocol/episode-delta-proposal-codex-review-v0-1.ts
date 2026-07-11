@@ -10,6 +10,8 @@ import { buildExpectedObservedDeltaPreviewV01 } from "@/lib/dogfooding/expected-
 import { buildCodexResultReportIntakePreviewV01 } from "@/lib/intake/codex-result-report-intake-preview";
 import { normalizeCandidateIngressCandidateV01 } from "@/lib/intake/candidate-ingress-normalizer";
 import type { CodexReviewEpisodeDeltaProposalInputV01 } from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
+import type { CandidateIngressNormalizedCandidate } from "@/types/candidate-ingress-normalizer";
+import type { ExpectedObservedDeltaPreview } from "@/types/expected-observed-delta-preview";
 import {
   EXTERNAL_REF_VERSION_V01,
   type ExternalRefV01,
@@ -20,6 +22,19 @@ export const CODEX_REVIEW_PROPOSAL_CREATED_AT =
   "2026-07-10T13:00:00.000Z";
 export const CODEX_REVIEW_EVIDENCE_REF =
   "evidence:codex-review-conformance-source-only";
+
+const sourceBoundCandidateBuckets = [
+  "matched_expectation_candidates",
+  "missing_expectation_candidates",
+  "unexpected_observation_candidates",
+  "skipped_or_unverified_check_candidates",
+  "not_done_candidates",
+  "changed_file_delta_candidates",
+  "requirement_progress_delta_candidates",
+  "non_goal_risk_candidates",
+  "followup_delta_candidates",
+  "context_reuse_signal_candidates",
+] as const;
 
 export const canonicalCodexReviewSourceRecord =
   normalizeCodexResultReportV01(legacyFixture.safe_input_example);
@@ -46,7 +61,7 @@ export const canonicalCodexReviewIntakePreview =
     ],
   });
 
-export const canonicalExpectedObservedDeltaPreview =
+const unboundExpectedObservedDeltaPreview =
   buildExpectedObservedDeltaPreviewV01({
     codex_result_report_intake_preview: canonicalCodexReviewIntakePreview,
     expected_material: {
@@ -80,6 +95,13 @@ export const canonicalExpectedObservedDeltaPreview =
       canonicalCodexReviewSourceRecord.report_fingerprint,
     ],
   });
+
+export const canonicalExpectedObservedDeltaPreview =
+  bindPreviewCandidatesToCodexSourceRecord(
+    unboundExpectedObservedDeltaPreview,
+    canonicalCodexReviewSourceRecord.report_id,
+    canonicalCodexReviewSourceRecord.operator_actor_ref,
+  );
 
 export const codexReviewTaskContextPacketRefFixture: ExternalRefV01 = {
   ref_version: EXTERNAL_REF_VERSION_V01,
@@ -117,6 +139,25 @@ export function codexReviewProposalMapperInputFixture({
     },
     task_context_packet_ref,
   };
+}
+
+export function codexReviewCoordinatedCandidateForgeryInputFixture({
+  operator_ref = canonicalCodexReviewSourceRecord.operator_actor_ref,
+  source_ref = canonicalCodexReviewSourceRecord.report_id,
+}: {
+  operator_ref?: string;
+  source_ref?: string;
+}): CodexReviewEpisodeDeltaProposalInputV01 {
+  const input = clone(codexReviewProposalMapperInputFixture());
+  if (!input.expected_observed_delta_preview.source_refs.includes(source_ref)) {
+    input.expected_observed_delta_preview.source_refs.push(source_ref);
+  }
+  bindPreviewCandidatesToCodexSourceRecord(
+    input.expected_observed_delta_preview,
+    source_ref,
+    operator_ref,
+  );
+  return input;
 }
 
 export function codexReviewDistinctCandidateRelationsInputFixture(): CodexReviewEpisodeDeltaProposalInputV01 {
@@ -205,4 +246,89 @@ export function codexReviewDistinctCandidateRelationsInputFixture(): CodexReview
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function bindPreviewCandidatesToCodexSourceRecord(
+  preview: ExpectedObservedDeltaPreview,
+  sourceRef: string,
+  operatorRef: string,
+): ExpectedObservedDeltaPreview {
+  const observedItems = [
+    ...preview.observed_summary.changed_files,
+    ...preview.observed_summary.passed_or_completed_checks,
+    ...preview.observed_summary.requirement_progress,
+    ...preview.observed_summary.context_reuse_signals,
+  ].sort();
+  for (const bucket of sourceBoundCandidateBuckets) {
+    for (const candidate of preview.delta_candidates[bucket]) {
+      const seed = sourceBoundCandidateSeed(bucket, candidate, observedItems);
+      const normalized = normalizeCandidateIngressCandidateV01({
+        candidate_kind: candidate.candidate_kind,
+        source_kind: "codex_result_report",
+        label: candidate.label,
+        summary: candidate.summary,
+        source_ref: sourceRef,
+        operator_ref: operatorRef,
+        session_ref: candidate.session_ref,
+        project_ref: candidate.project_ref,
+        work_ref: candidate.work_ref,
+        result_ref: canonicalCodexReviewSourceRecord.report_id,
+        pr_ref: candidate.pr_ref,
+        commit_ref: candidate.commit_ref,
+        evidence_refs: candidate.evidence_refs,
+        source_refs: preview.source_refs,
+        confidence: "inferred_heuristic",
+        generated_view: true,
+        seed,
+      });
+      if (!normalized) {
+        throw new Error("Canonical Codex review candidate rebinding failed.");
+      }
+      Object.assign(candidate, normalized);
+    }
+  }
+  return preview;
+}
+
+function sourceBoundCandidateSeed(
+  bucket: (typeof sourceBoundCandidateBuckets)[number],
+  candidate: CandidateIngressNormalizedCandidate,
+  observedItems: string[],
+): string {
+  const signal = candidate.summary.slice(candidate.summary.indexOf(": ") + 2);
+  if (bucket === "matched_expectation_candidates") {
+    const matched = observedItems.find((observed) =>
+      looseSignalMatch(signal, observed),
+    );
+    if (!matched) throw new Error("Matched candidate lacks observed signal.");
+    return `expected:${signal}:${matched}`;
+  }
+  if (bucket === "missing_expectation_candidates") {
+    return `expected:${signal}:missing`;
+  }
+  const prefixes: Record<
+    Exclude<
+      (typeof sourceBoundCandidateBuckets)[number],
+      "matched_expectation_candidates" | "missing_expectation_candidates"
+    >,
+    string
+  > = {
+    unexpected_observation_candidates: "unexpected",
+    skipped_or_unverified_check_candidates: "skipped",
+    not_done_candidates: "not-done",
+    changed_file_delta_candidates: "changed-file",
+    requirement_progress_delta_candidates: "requirement",
+    non_goal_risk_candidates: "risk",
+    followup_delta_candidates: "followup",
+    context_reuse_signal_candidates: "context-reuse",
+  };
+  return `${prefixes[bucket]}:${signal}`;
+}
+
+function looseSignalMatch(left: string, right: string): boolean {
+  const normalize = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const a = normalize(left);
+  const b = normalize(right);
+  return Boolean(a && b && (a.includes(b) || b.includes(a)));
 }

@@ -1096,8 +1096,8 @@ function validateCandidateSourceRelations(
   const requiredEvidenceRefs = sortedUniqueStrings(
     preview.evidence_summary.evidence_refs,
   );
-  const canonicalSourceRef = requiredSourceRefs[0] ?? null;
-  const canonicalOperatorRef = candidates[0]?.candidate.operator_ref ?? null;
+  const canonicalSourceRef = sourceRecord.report_id;
+  const canonicalOperatorRef = sourceRecord.operator_actor_ref;
   const derivations = canonicalCandidateDerivations(preview);
 
   for (const { bucket, candidate, path } of candidates) {
@@ -1110,20 +1110,16 @@ function validateCandidateSourceRelations(
         true,
       );
     }
-    if (
-      !canonicalOperatorRef ||
-      candidate.operator_ref !== canonicalOperatorRef
-    ) {
+    if (candidate.operator_ref !== canonicalOperatorRef) {
       addError(
         accumulator,
         "preview_candidate_operator_ref_mismatch",
         `${path}.operator_ref`,
-        "ExpectedObservedDelta candidates must preserve one consistent preview operator reference.",
+        "ExpectedObservedDelta candidate operator_ref must bind the exact Codex source record operator identity.",
         true,
       );
     }
     if (
-      !canonicalSourceRef ||
       candidate.source_ref !== canonicalSourceRef ||
       !requiredSourceRefs.includes(candidate.source_ref)
     ) {
@@ -1131,7 +1127,7 @@ function validateCandidateSourceRelations(
         accumulator,
         "preview_candidate_source_ref_mismatch",
         `${path}.source_ref`,
-        "ExpectedObservedDelta candidate source_ref must preserve the deterministic primary preview source reference.",
+        "ExpectedObservedDelta candidate source_ref must bind the Codex report identity as its primary source.",
         true,
       );
     }
@@ -1192,8 +1188,8 @@ function validateCandidateSourceRelations(
           source_kind: "codex_result_report",
           label: derivation.label,
           summary: derivation.summary,
-          source_ref: canonicalSourceRef ?? "",
-          operator_ref: canonicalOperatorRef ?? "",
+          source_ref: canonicalSourceRef,
+          operator_ref: canonicalOperatorRef,
           session_ref: candidate.session_ref,
           project_ref: candidate.project_ref,
           work_ref: candidate.work_ref,
@@ -1758,8 +1754,9 @@ function buildMappedProposal(
     );
     const candidateCompatibilityRefs = candidateExternalRefs(
       candidate,
+      candidateFingerprint,
+      previewFingerprint,
       input.expected_observed_delta_preview.as_of,
-      input.source_record.report_fingerprint,
     );
     const derivation = derivations.find(
       (item) =>
@@ -2019,8 +2016,9 @@ function candidateLimitations(
 
 function candidateExternalRefs(
   candidate: CandidateIngressNormalizedCandidate,
+  candidateFingerprint: string,
+  previewFingerprint: string,
   observedAt: string,
-  sourceRecordFingerprint: string,
 ): ExternalRefV01[] {
   const refs: ExternalRefV01[] = [
     externalRef(
@@ -2028,14 +2026,14 @@ function candidateExternalRefs(
       candidate.source_ref,
       "imported_unverified",
       observedAt,
-      sourceRecordFingerprint,
+      candidateFingerprint,
     ),
     externalRef(
       "legacy_candidate_operator_ref",
       candidate.operator_ref,
       "imported_unverified",
       observedAt,
-      sourceRecordFingerprint,
+      candidateFingerprint,
     ),
     ...candidate.source_refs.map((value) =>
       externalRef(
@@ -2043,7 +2041,7 @@ function candidateExternalRefs(
         value,
         "imported_unverified",
         observedAt,
-        sourceRecordFingerprint,
+        previewFingerprint,
       ),
     ),
     ...candidate.evidence_refs.map((value) =>
@@ -2052,19 +2050,19 @@ function candidateExternalRefs(
         value,
         "imported_unverified",
         observedAt,
-        sourceRecordFingerprint,
+        previewFingerprint,
       ),
     ),
   ];
-  const optionalRefs: Array<[string, string | undefined]> = [
-    ["legacy_candidate_session_ref", candidate.session_ref],
-    ["legacy_candidate_project_ref", candidate.project_ref],
-    ["legacy_candidate_work_ref", candidate.work_ref],
-    ["legacy_candidate_result_ref", candidate.result_ref],
-    ["legacy_candidate_pr_ref", candidate.pr_ref],
-    ["legacy_candidate_commit_ref", candidate.commit_ref],
+  const optionalRefs: Array<[string, string | undefined, string]> = [
+    ["legacy_candidate_session_ref", candidate.session_ref, previewFingerprint],
+    ["legacy_candidate_project_ref", candidate.project_ref, previewFingerprint],
+    ["legacy_candidate_work_ref", candidate.work_ref, previewFingerprint],
+    ["legacy_candidate_result_ref", candidate.result_ref, candidateFingerprint],
+    ["legacy_candidate_pr_ref", candidate.pr_ref, candidateFingerprint],
+    ["legacy_candidate_commit_ref", candidate.commit_ref, candidateFingerprint],
   ];
-  for (const [refType, value] of optionalRefs) {
+  for (const [refType, value, sourceRef] of optionalRefs) {
     if (value) {
       refs.push(
         externalRef(
@@ -2072,7 +2070,7 @@ function candidateExternalRefs(
           value,
           "imported_unverified",
           observedAt,
-          sourceRecordFingerprint,
+          sourceRef,
         ),
       );
     }
