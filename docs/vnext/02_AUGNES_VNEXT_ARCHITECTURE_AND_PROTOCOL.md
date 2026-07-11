@@ -667,6 +667,89 @@ path가 아니다.
 - receipt가 represented fact를 담더라도 future transition authority를 부여하지 않는다.
 - external publish와 semantic state apply는 별도 transition이다.
 
+#### M3C durable local commit boundary
+
+M3C의 local Core path는 세 개의 bounded additive SQLite storage shape를 사용한다.
+`vnext_core_records`는 proposal, decision, semantic commit gate, immutable semantic-state
+version, `StateTransitionReceipt`, `TaskContextPacket`, `RunReceipt` payload를 exact
+ID/fingerprint와 project identity로 보존하는 immutable ledger다. 같은 canonical identity와
+exact payload는 replay할 수 있지만, 같은 identity나 idempotency key에 다른 payload 또는
+applied result가 오면 conflict로 닫힌다. `vnext_semantic_state_entries`는
+workspace/project/target별 현재 accepted semantic state만 보존하는 projection이다. Absent
+state는 row로 표현하지 않고 retract는 current row를 제거하며, immutable history는 ledger와
+transition receipt에 남는다.
+`vnext_semantic_target_heads`는 present projection과 분리된 monotonic target generation이다.
+Never-transitioned target만 row 없는 revision 0으로 해석하며, create, replace, supersede,
+retract 모두 revision을 증가시킨다. Retract 뒤에도 absent head와 latest receipt lineage를 남겨
+absence가 과거 generation-zero absence와 다시 같아지는 ABA를 막는다. Present projection은
+head와 exact revision, content fingerprint, source receipt를 일치시켜야 하고 immutable
+semantic-state record와 source receipt가 함께 검증되기 전에는 direct-local current-state
+observation으로 승격되지 않는다. 이 storage shape들은 legacy state table과 dual-write하지 않는다.
+Canonical schema와 additive migration만 이 세 shape를 설치한다. Generic `openDatabase` read/open
+path는 vNext schema를 생성하거나 migration하지 않으며, durable runtime entrypoint는 required
+table/index/trigger가 없으면 `vnext_durable_semantic_store_schema_uninitialized`로 fail closed한다.
+따라서 local writer 사용 전 explicit `db:init`, `db:migrate` 또는 bounded Core storage-init가 필요하다.
+
+첫 durable state material은 arbitrary JSON이 아니라 review된 candidate에서 deterministic하게
+도출한 bounded accepted-candidate content다. Content fingerprint는 content version, canonical
+target identity, candidate `delta_type`, `proposed_state_summary`를 포함한다. Acceptance,
+observation, recording timestamp, state-ref allocation, application/durable-record provenance와
+compatibility warning은 content fingerprint에서 제외하고 별도 lineage로 보존한다. 따라서
+ExternalRef provenance나 timestamp만 달라졌다는 이유로 semantic replacement를 만들 수 없다.
+
+`prepareVNextSemanticCommitPreviewV01`은 persisted proposal/decision relation과 현재 projection을
+읽어 exact target, operation, before/after content fingerprint와 expected revision을 담은
+confirmation digest를 계산하지만 write나 authority grant를 하지 않는다. Confirmation digest는
+exact authorized applier identity와 bounded gate TTL도 포함하므로, 향후 authenticated confirmation
+surface가 누구의 apply를 얼마 동안 허용했는지 모호하게 남기지 않는다.
+`recordVNextSemanticCommitAuthorizationV01`은 exact digest, decision actor binding, local
+confirmation observation, expiry와 authorized applier를 요구하고 immutable gate record만
+기록한다. Local Core가 digest 제출을 직접 관찰했다는 사실은 actor ref 뒤의 실제 사람
+identity를 인증했다는 뜻이 아니다.
+
+`commitVNextSemanticTransitionV01`은 explicit store dependency 안에서 immediate transaction을
+열고 proposal, decision, gate, prior applied lineage와 current projection을 다시 읽는다. Caller가
+제공한 current-state observation을 authority로 받지 않고 DB read에서 direct-local observation을
+재구성한 뒤 M3B eligibility를 다시 계산한다. Monotonic target-head revision, latest receipt
+lineage, present projection revision과 content fingerprint의 compare-and-swap,
+all-target atomicity, exact gate outcome과 authorized applier가 모두 맞을 때만 immutable state
+version, current projection과 receipt를 함께 기록한다. Exact same intent/result/current state
+replay는 stored receipt를 반환하고, 다른 result나 drifted current state는 conflict다. 어느
+failure injection이나 validation failure도 partial state 또는 applied receipt를 남기지 않는다.
+
+Preview observation, preview, confirmation, gate evaluation, eligibility evaluation, application,
+recording, packet compilation과 local probe observation timestamp는 모두 explicit
+`VNextLocalRuntimeClockV01` dependency에서 생성한다. Local default는 system clock이고 deterministic
+fixture는 injected fixed/manual clock을 사용한다. Caller-supplied historical timestamp로 새 apply를
+backdate할 수 없으며, writer는 immediate transaction 안에서 clock을 다시 읽어 expiry를 검사한다.
+Gate expiry 뒤의 새 apply는 거부하지만 이미 persisted된 exact receipt replay는 새 write가 아니므로
+stored receipt를 그대로 반환한다. 같은 idempotency key의 conflicting result는 expiry와 무관하게
+계속 conflict다. Direct-local refs도 해당 runtime이 실제로 읽은 clock time을 보존한다.
+
+`compileTaskContextPacketFromPersistedSemanticStateV01`은 명시적으로 호출될 때만 exact persisted
+receipt와 project-scoped current projection을 읽어 later packet을 구성한다. Existing
+`TaskContextPacket` builder와 full proposal → decision → eligibility → receipt → packet relation을
+검증한 다음에만 packet ledger record를 쓴다. Scheduler, background trigger 또는 receipt 존재만으로
+packet을 자동 mutation하는 path는 없다. `runLocalContextUseProbeV01`은 persisted later packet,
+receipt lineage와 current state resolution을 실제 local read로 확인하고 기존 `RunReceiptV01`로
+기록하는 bounded adapter다. Direct-local trust는 probe가 수행한 read에만 적용되며, 이 receipt는
+context usefulness, outcome improvement, approval, Evidence acceptance 또는 work closure를
+증명하지 않는다.
+
+이 local path는 explicit temporary database smoke에서 transaction, reopen, rollback, backup/restore,
+packet compilation과 context resolution을 관찰할 수 있다. Synthetic proposal, decision, actor와
+semantic task가 실제 사용자 authorization이나 product/user database transition으로 승격되지는
+않는다. Context Compiler는 transition gate가 아니고 local probe는 approver가 아니다. 어느
+helper도 legacy writer, proof/Evidence writer, Perspective/memory promotion, publication, provider,
+network 또는 external actuator를 호출하지 않는다.
+
+Production `npm run build`는 caller environment의 default `data/augnes.db`를 열지 않는다. Build
+wrapper는 OS-temporary database를 explicit initialize하고 `AUGNES_DB_PATH`로 inject한 뒤 Next build를
+실행하며, seeded DB sentinel이 `.next/server` output에 정적으로 포함되지 않았음을 검사한다. Injected
+existing-default guard의 file hash, SQLite schema objects와 row hash 또는 injected absent-default
+guard의 non-creation도 검증하고 temporary DB와 side file을 제거한다. 이는 build-time data access를
+허용하는 authority가 아니라 default product/user DB access를 차단하는 isolation boundary다.
+
 ---
 
 ### 5.5 AutomationPolicy
@@ -893,6 +976,15 @@ tensions
 external_refs
 ```
 
+M3C local pilot은 위 domain separation을 세 bounded storage shape로 구현한다.
+`vnext_core_records`는 여러 vNext Core record kind의 immutable ledger이고,
+`vnext_semantic_state_entries`는 current accepted semantic-state projection이다. 이는 workflow
+stage마다 table을 하나씩 추가하는 모델이 아니며, projection row가 삭제되더라도 immutable
+semantic-state version과 transition lineage는 ledger에 남는다.
+`vnext_semantic_target_heads`는 target가 absent인 동안에도 latest durable transition lineage와
+revision을 보존한다. 이 head는 current accepted-state content가 아니라 stale-gate와 replay
+compatibility를 판정하는 project-scoped monotonic concurrency boundary다.
+
 ### 9.4 projections
 
 ```text
@@ -906,6 +998,12 @@ integration_health
 constellation
 continuity_metrics
 ```
+
+`vnext_semantic_state_entries`는 `workspace_id + project_id + target_key`로 격리되고 present
+state만 보유한다. Later `TaskContextPacket`은 이 projection을 명시적으로 읽어 만드는 consumer
+output이며 projection 자체도, target head도, packet compiler도 transition authorization source가
+아니다. Compiler와 local probe는 projection, immutable state record, target head와 exact source
+receipt lineage가 모두 맞을 때만 local current-state read를 사용한다.
 
 ### 9.5 table 생성 기준
 

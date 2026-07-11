@@ -36,6 +36,7 @@ import {
   migrateAutohuntDailyLauncherRuns,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
+  migrateVNextDurableSemanticStoreV01,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -47,6 +48,8 @@ try {
   if (hasStateDeltaProposalsTable(db)) {
     preSchemaResult = migrateStateDeltaProposalScoring(db);
   }
+  const vNextDurableSemanticStoreResult =
+    migrateVNextDurableSemanticStoreV01(db);
 
   db.exec(readFileSync(schemaPath, "utf8"));
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
@@ -109,6 +112,17 @@ try {
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
+  const vNextCreatedArtifacts = [
+    ...vNextDurableSemanticStoreResult.created_tables,
+    ...vNextDurableSemanticStoreResult.created_indexes,
+    ...vNextDurableSemanticStoreResult.created_triggers,
+  ];
+
+  console.log(
+    vNextCreatedArtifacts.length === 0
+      ? `vNext durable semantic store migration no-op: schema is current at ${dbPath}`
+      : `Migrated vNext durable semantic store at ${dbPath}: ${vNextCreatedArtifacts.join(", ")}`,
+  );
 
   if (!result.table_found) {
     console.log(

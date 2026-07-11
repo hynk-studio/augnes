@@ -4449,3 +4449,157 @@ export function migrateMailboxCoordinationEventTypes(db) {
     rebuilt_coordination_events: true,
   };
 }
+
+export const vNextDurableSemanticStoreSchemaSqlV01 = `
+  CREATE TABLE IF NOT EXISTS vnext_core_records (
+    record_kind TEXT NOT NULL CHECK (record_kind IN (
+      'episode_delta_proposal',
+      'review_decision',
+      'semantic_commit_gate',
+      'semantic_state',
+      'state_transition_receipt',
+      'task_context_packet',
+      'run_receipt'
+    )),
+    record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
+    workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+    project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+    fingerprint TEXT NOT NULL CHECK (
+      length(fingerprint) = 71 AND substr(fingerprint, 1, 7) = 'sha256:'
+    ),
+    idempotency_key TEXT CHECK (
+      idempotency_key IS NULL OR
+      (length(idempotency_key) = 71 AND substr(idempotency_key, 1, 7) = 'sha256:')
+    ),
+    payload_json TEXT NOT NULL CHECK (
+      json_valid(payload_json) AND json_type(payload_json) = 'object'
+    ),
+    created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+    PRIMARY KEY (record_kind, record_id)
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_core_records_project_idempotency
+    ON vnext_core_records(workspace_id, project_id, record_kind, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_vnext_core_records_project_kind_created
+    ON vnext_core_records(workspace_id, project_id, record_kind, created_at, record_id);
+
+  CREATE TRIGGER IF NOT EXISTS trg_vnext_core_records_immutable_update
+    BEFORE UPDATE ON vnext_core_records
+    BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+  CREATE TRIGGER IF NOT EXISTS trg_vnext_core_records_immutable_delete
+    BEFORE DELETE ON vnext_core_records
+    BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+
+  CREATE TABLE IF NOT EXISTS vnext_semantic_state_entries (
+    workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+    project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+    presence TEXT NOT NULL CHECK (presence = 'present'),
+    target_key TEXT NOT NULL CHECK (
+      length(target_key) = 71 AND substr(target_key, 1, 7) = 'sha256:'
+    ),
+    target_ref_json TEXT NOT NULL CHECK (
+      json_valid(target_ref_json) AND json_type(target_ref_json) = 'object'
+    ),
+    state_ref_json TEXT NOT NULL CHECK (
+      json_valid(state_ref_json) AND json_type(state_ref_json) = 'object'
+    ),
+    current_state_fingerprint TEXT NOT NULL CHECK (
+      length(current_state_fingerprint) = 71 AND substr(current_state_fingerprint, 1, 7) = 'sha256:'
+    ),
+    bounded_state_summary TEXT NOT NULL CHECK (
+      length(bounded_state_summary) > 0 AND length(bounded_state_summary) <= 2000
+    ),
+    source_proposal_id TEXT NOT NULL,
+    source_proposal_fingerprint TEXT NOT NULL CHECK (
+      length(source_proposal_fingerprint) = 71 AND substr(source_proposal_fingerprint, 1, 7) = 'sha256:'
+    ),
+    source_candidate_id TEXT NOT NULL,
+    source_candidate_fingerprint TEXT NOT NULL CHECK (
+      length(source_candidate_fingerprint) = 71 AND substr(source_candidate_fingerprint, 1, 7) = 'sha256:'
+    ),
+    source_transition_receipt_id TEXT NOT NULL,
+    source_transition_receipt_fingerprint TEXT NOT NULL CHECK (
+      length(source_transition_receipt_fingerprint) = 71 AND substr(source_transition_receipt_fingerprint, 1, 7) = 'sha256:'
+    ),
+    revision INTEGER NOT NULL CHECK (revision >= 1),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    PRIMARY KEY (workspace_id, project_id, target_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_semantic_state_entries_project_updated
+    ON vnext_semantic_state_entries(workspace_id, project_id, updated_at, target_key);
+
+  CREATE TABLE IF NOT EXISTS vnext_semantic_target_heads (
+    workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+    project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+    target_key TEXT NOT NULL CHECK (
+      length(target_key) = 71 AND substr(target_key, 1, 7) = 'sha256:'
+    ),
+    revision INTEGER NOT NULL CHECK (revision >= 1),
+    presence TEXT NOT NULL CHECK (presence IN ('absent', 'present')),
+    current_state_fingerprint TEXT,
+    source_transition_receipt_id TEXT NOT NULL CHECK (
+      length(trim(source_transition_receipt_id)) > 0
+    ),
+    source_transition_receipt_fingerprint TEXT NOT NULL CHECK (
+      length(source_transition_receipt_fingerprint) = 71 AND
+      substr(source_transition_receipt_fingerprint, 1, 7) = 'sha256:'
+    ),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    CHECK (
+      (presence = 'absent' AND current_state_fingerprint IS NULL) OR
+      (presence = 'present' AND current_state_fingerprint IS NOT NULL AND
+       length(current_state_fingerprint) = 71 AND
+       substr(current_state_fingerprint, 1, 7) = 'sha256:')
+    ),
+    PRIMARY KEY (workspace_id, project_id, target_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_semantic_target_heads_project_updated
+    ON vnext_semantic_target_heads(workspace_id, project_id, updated_at, target_key);
+`;
+
+const vNextDurableSemanticStoreArtifactsV01 = {
+  tables: [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
+  ],
+  indexes: [
+    "idx_vnext_core_records_project_idempotency",
+    "idx_vnext_core_records_project_kind_created",
+    "idx_vnext_semantic_state_entries_project_updated",
+    "idx_vnext_semantic_target_heads_project_updated",
+  ],
+  triggers: [
+    "trg_vnext_core_records_immutable_update",
+    "trg_vnext_core_records_immutable_delete",
+  ],
+};
+
+export function migrateVNextDurableSemanticStoreV01(db) {
+  const before = new Set(
+    db
+      .prepare(
+        `SELECT type || ':' || name AS key
+         FROM sqlite_master
+         WHERE name IN (${Object.values(vNextDurableSemanticStoreArtifactsV01)
+           .flat()
+           .map(() => "?")
+           .join(", ")})`,
+      )
+      .all(...Object.values(vNextDurableSemanticStoreArtifactsV01).flat())
+      .map((row) => row.key),
+  );
+
+  db.exec(vNextDurableSemanticStoreSchemaSqlV01);
+
+  const created = (type, names) =>
+    names.filter((name) => !before.has(`${type}:${name}`));
+  return {
+    created_tables: created("table", vNextDurableSemanticStoreArtifactsV01.tables),
+    created_indexes: created("index", vNextDurableSemanticStoreArtifactsV01.indexes),
+    created_triggers: created("trigger", vNextDurableSemanticStoreArtifactsV01.triggers),
+  };
+}

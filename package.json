@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/build-with-isolated-db.mjs",
     "start": "next start",
     "db:init": "node scripts/db-init.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",
@@ -862,7 +862,8 @@
     "smoke:perspective-unit-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
     "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-state-application-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-application-write-v0-1.mjs",
-    "test:vnext-protocol": "tsx --tsconfig tsconfig.json scripts/vnext-protocol-conformance.ts"
+    "test:vnext-protocol": "tsx --tsconfig tsconfig.json scripts/vnext-protocol-conformance.ts",
+    "smoke:vnext-durable-semantic-loop-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-vnext-durable-semantic-loop-v0-1.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

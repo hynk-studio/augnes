@@ -94,16 +94,20 @@ a positive authority claim.
 
 ## GitHub Actions Workflow Boundary
 
-`.github/workflows/authority-boundary-smoke.yml` runs only:
+`.github/workflows/authority-boundary-smoke.yml` runs exactly two bounded
+checks:
 
 ```bash
 npm run smoke:authority-boundary-regression-v0-1
+AUGNES_DB_PATH="$TMP_DIR/vnext-durable-semantic-loop.db" npm run smoke:vnext-durable-semantic-loop-v0-1
 ```
 
 The workflow has `contents: read`, uses checkout and Node setup, installs with
-`npm ci`, and runs the static smoke. It has no write permissions, no provider
-or API secrets, no deployment, no GitHub mutation command, and no Git write
-command.
+`npm ci`, runs the static smoke, and runs the durable semantic loop only against
+an explicitly created temporary database directory that is removed by a shell
+trap. It has no write permissions, no provider or API secrets, no deployment,
+no GitHub mutation command, and no Git write command. The temporary SQLite
+write is isolated verification, not a product or user database transition.
 
 CI pass is not truth, proof, approval, promotion, merge approval, release
 approval, product-write authority, or durable state. CI failure is diagnostic,

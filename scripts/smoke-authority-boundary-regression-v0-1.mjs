@@ -13,6 +13,8 @@ const fixturePath =
 const smokePath = "scripts/smoke-authority-boundary-regression-v0-1.mjs";
 const workflowPath = ".github/workflows/authority-boundary-smoke.yml";
 const packagePath = "package.json";
+const buildWrapperPath = "scripts/build-with-isolated-db.mjs";
+const databaseModulePath = "lib/db.ts";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const roadmapPath = "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
 const archivedSupersededRoadmapPaths = [];
@@ -22,6 +24,10 @@ const exportPolicyDocsPath = "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md";
 const packageScriptName = "smoke:authority-boundary-regression-v0-1";
 const packageScriptValue =
   "node scripts/smoke-authority-boundary-regression-v0-1.mjs";
+const durableSemanticLoopPackageScriptName =
+  "smoke:vnext-durable-semantic-loop-v0-1";
+const buildPackageScriptName = "build";
+const buildPackageScriptValue = "node scripts/build-with-isolated-db.mjs";
 
 const expectedSliceFiles = [
   docsPath,
@@ -139,7 +145,6 @@ const forbiddenWorkflowPatterns = [
   /\bOPENAI_API_KEY\b/,
   /\bGITHUB_TOKEN\b/,
   /\bsecrets\./,
-  /\bnpm\s+run\s+(?:build|typecheck|smoke)(?!:authority-boundary-regression-v0-1\b)/,
   /\bnpx\s+prisma\s+migrate\b/i,
   /\bnpm\s+run\s+db\b/i,
   /\bdeploy\b/i,
@@ -285,6 +290,8 @@ for (const requiredPath of [
   roadmapPath,
   privacyDocsPath,
   exportPolicyDocsPath,
+  buildWrapperPath,
+  databaseModulePath,
 ]) {
   assert.ok(existsSync(requiredPath), `required path must exist: ${requiredPath}`);
 }
@@ -295,6 +302,8 @@ const fixture = JSON.parse(fixtureText);
 const smokeSource = read(smokePath);
 const workflow = read(workflowPath);
 const packageJson = JSON.parse(read(packagePath));
+const buildWrapperSource = read(buildWrapperPath);
+const databaseModuleSource = read(databaseModulePath);
 const index = read(indexPath);
 const roadmap = read(roadmapPath);
 
@@ -311,6 +320,32 @@ assert.equal(
   packageJson.scripts?.[packageScriptName],
   packageScriptValue,
   "package.json must register the authority boundary regression smoke",
+);
+assert.equal(
+  packageJson.scripts?.[buildPackageScriptName],
+  buildPackageScriptValue,
+  "package.json build must use the isolated-database production build wrapper",
+);
+assert.ok(
+  buildWrapperSource.includes("mkdtempSync") &&
+    buildWrapperSource.includes("AUGNES_DB_PATH: buildDatabasePath") &&
+    buildWrapperSource.includes("AUGNES_BUILD_DEFAULT_DB_GUARD_PATH") &&
+    buildWrapperSource.includes("assertStaticBuildDoesNotContainSentinel") &&
+    buildWrapperSource.includes("assertDefaultDatabaseGuardUnchanged") &&
+    buildWrapperSource.includes("rmSync(temporaryDirectory"),
+  "production build wrapper must inject and clean an isolated database and reject statically baked DB material",
+);
+assert.ok(
+  !databaseModuleSource.includes("ensureVNextDurableSemanticStoreSchemaV01"),
+  "generic database open must not install the vNext durable semantic schema",
+);
+assert.ok(
+  databaseModuleSource.includes("AUGNES_BUILD_ISOLATION") &&
+    databaseModuleSource.includes("AUGNES_BUILD_DEFAULT_DB_GUARD_PATH") &&
+    databaseModuleSource.includes(
+      "process.env.AUGNES_DB_PATH ?? guardedBuildDefaultPath ?? DEFAULT_DB_PATH",
+    ),
+  "build-only injected default path must remain subordinate to the isolated AUGNES_DB_PATH",
 );
 
 for (const pointer of [docsPath, fixturePath, smokePath, workflowPath]) {
@@ -525,7 +560,38 @@ function assertWorkflowBoundary() {
   assert.ok(workflow.includes("npm ci"), "workflow must install with npm ci");
   assert.ok(
     workflow.includes(`npm run ${packageScriptName}`),
-    "workflow must run only the authority boundary smoke package script",
+    "workflow must retain the authority boundary smoke package script",
+  );
+  assert.ok(
+    workflow.includes(
+      `AUGNES_DB_PATH="$TMP_DIR/vnext-durable-semantic-loop.db" npm run ${durableSemanticLoopPackageScriptName}`,
+    ),
+    "workflow must run the durable semantic loop smoke only against an explicit temporary database",
+  );
+  assert.ok(
+    workflow.includes("name: Run isolated vNext durable semantic loop smoke"),
+    "workflow must keep the durable semantic loop smoke in a separate named step",
+  );
+  assert.ok(
+    workflow.includes("name: Build without default database access") &&
+      workflow.includes(`npm run ${buildPackageScriptName}`),
+    "workflow must run the production build through the isolated database wrapper",
+  );
+  assert.ok(
+    workflow.includes('TMP_DIR="$(mktemp -d)"') &&
+      workflow.includes("trap 'rm -rf \"$TMP_DIR\"' EXIT"),
+    "workflow must create and clean up a temporary database directory",
+  );
+  assert.deepEqual(
+    [...workflow.matchAll(/\bnpm\s+run\s+([^\s]+)/g)]
+      .map((match) => match[1])
+      .sort(),
+    [
+      packageScriptName,
+      durableSemanticLoopPackageScriptName,
+      buildPackageScriptName,
+    ].sort(),
+    "workflow must run only the two bounded smokes and the isolated production build",
   );
   assert.ok(!workflow.includes("write-all"), "workflow must not request write-all");
   assert.ok(!workflow.includes("contents: write"), "workflow must not request write contents");

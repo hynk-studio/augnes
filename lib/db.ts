@@ -210,7 +210,13 @@ type ProposalCommitResult = {
 };
 
 export function getDatabasePath() {
-  return process.env.AUGNES_DB_PATH ?? DEFAULT_DB_PATH;
+  const guardedBuildDefaultPath =
+    process.env.AUGNES_BUILD_ISOLATION === "1"
+      ? process.env.AUGNES_BUILD_DEFAULT_DB_GUARD_PATH
+      : undefined;
+  return (
+    process.env.AUGNES_DB_PATH ?? guardedBuildDefaultPath ?? DEFAULT_DB_PATH
+  );
 }
 
 export function openDatabase() {
