@@ -35,6 +35,7 @@ import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-
 import { runReviewDecisionConformanceV01 } from "@/scripts/vnext-protocol-conformance/review-decision";
 import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
 import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-review-loop";
+import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -46,6 +47,7 @@ const sourcePaths = [
   "lib/vnext/run-receipt.ts",
   "lib/vnext/episode-delta-proposal.ts",
   "lib/vnext/review-decision.ts",
+  "lib/vnext/state-transition-receipt.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/vnext/compat/episode-delta-proposal-from-codex-review.ts",
   "lib/vnext/compat/codex-result-report-source-validator.ts",
@@ -552,6 +554,8 @@ try {
   const episodeDeltaProposalSummary =
     runEpisodeDeltaProposalConformanceV01();
   const reviewDecisionSummary = runReviewDecisionConformanceV01();
+  const stateTransitionReceiptSummary =
+    runStateTransitionReceiptConformanceV01();
   const codexReviewEpisodeDeltaProposalSummary =
     runCodexReviewEpisodeDeltaProposalConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
@@ -613,6 +617,7 @@ try {
         run_receipt: runReceiptSummary,
         episode_delta_proposal: episodeDeltaProposalSummary,
         review_decision: reviewDecisionSummary,
+        state_transition_receipt: stateTransitionReceiptSummary,
         codex_review_episode_delta_proposal_compatibility:
           codexReviewEpisodeDeltaProposalSummary,
         semantic_review_loop: semanticReviewLoopSummary,
