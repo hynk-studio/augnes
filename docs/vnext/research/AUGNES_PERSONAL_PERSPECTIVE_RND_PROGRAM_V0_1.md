@@ -144,7 +144,8 @@ Arena Output ≠ Personal Perspective Mutation
 - model inference는 항상 derived candidate이며 accepted identity가 아니다.
 - 행동 관찰은 observation일 수 있지만 그 행동의 personality 의미는 candidate다.
 - 한 task 선택은 global identity를 증명하지 않는다.
-- supporting example과 counterexample을 모두 연결할 수 있어야 한다.
+- candidate마다 supporting source와 counterexample status를 표현하고, 알려진
+  counterexample이 있으면 그 ref를 연결할 수 있어야 한다.
 - contested, stale, inferred 또는 retracted item은 accepted item처럼 표시하지 않는다.
 
 ### 3.2 User control
@@ -232,6 +233,8 @@ contested 또는 model-inferred personal material을 task context에 silently in
 Personal Vault productization 전에 별도 decision record가 다음을 결정해야 한다.
 
 ```text
+personal subject/principal identity
+ownership
 workspace-scoped proposal identity
 review and authorization semantics
 Decision versus Transition boundary
@@ -242,10 +245,11 @@ task-context inclusion and exclusion
 remote egress and consent
 backup, restore and recovery
 cross-project leakage tests
+shared-workspace and multi-user isolation
 ```
 
 이 PR은 canonical persistence contract, DB table, API, state-transition protocol 또는
-TaskContextPacket field를 승인하지 않는다.
+TaskContextPacket field나 runtime identity contract를 승인하지 않는다.
 
 ---
 
@@ -262,7 +266,11 @@ TaskContextPacket field를 승인하지 않는다.
 ### Initial method
 
 - synthetic casebook으로 descriptive/aspirational/tension/exception 사례를 정의
-- source와 counterexample이 없는 candidate를 거부
+- candidate마다 최소 하나의 유효한 source ref를 요구
+- counterexample status는 `known_present`, `none_found`, `not_searched`,
+  `not_applicable` 중 하나를 명시
+- `known_present`이면 counterexample ref를 요구하고, coverage를 위해 counterexample을
+  조작하지 않음
 - candidate review를 recorded replay로 비교
 - 실제 사용자 material은 명시적 opt-in 전까지 사용하지 않음
 - persistence 없이 bounded relevance와 context-selection 효과를 먼저 측정
@@ -406,11 +414,15 @@ actual authorized transition
 | Level | Program evidence | 완료로 오인하지 않을 것 |
 |---:|---|---|
 | 0 Intent | 의미 경계와 research questions | Personal Perspective 존재 |
-| 1 Validated Contract | synthetic casebook, deterministic definitions, negative cases | persistence 또는 user endorsement |
+| 1 Validated Contract | machine-checkable casebook/fixture contract: schema 또는 동등한 bounded type definition, deterministic validator, positive/negative fixtures, deterministic semantic definitions | persistence 또는 user endorsement |
 | 2 Integrated Path | offline replay에서 candidate→gap→review 연결 | production context use |
 | 3 Observed Use | 명시적 opt-in 사용자 review와 correction 관찰 | cross-project usefulness |
 | 4 Reviewed Reuse | 선택된 item이 later context/decision을 바꾸고 user가 검토 | outcome improvement |
 | 5 Outcome Improvement | 여러 project에서 반복 설명·오판 감소와 decision 개선 | automatic productization |
+
+Level 1은 production TypeScript/Core contract를 요구하지 않는다. 현재 PR은 Level 0이며,
+다음 casebook slice도 위 machine-checkable 요건이 모두 validation을 통과한 뒤에만
+Level 1에 도달한다.
 
 구체 metric, zero-tolerance failure와 go/narrow/stop 기준은
 `../04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`가 최종 평가 권위를 가진다.
@@ -436,7 +448,7 @@ actual authorized transition
 
 1. reproducible synthetic와 replay evidence
 2. user endorsement/correction workflow의 usability
-3. counterexample와 scope narrowing 보존
+3. counterexample status, 알려진 ref와 scope narrowing 보존
 4. low misleading-context와 acceptable review burden
 5. explicit architecture decision for persistence and deletion
 6. cross-project isolation와 selective sharing tests
@@ -476,10 +488,15 @@ prompt ensemble보다 반복적으로 높아야 한다.
 범위:
 
 - synthetic 사례만 사용
-- self-concept, aspiration, tension, exception, supporting example과 counterexample 포함
-- false-premise, over-globalization, hidden inference와 deleted/retracted reuse negative case
-- deterministic gap baseline의 expected input/output 의미 정의
-- user review replay protocol과 metric baseline
+- semantic casebook contract와 epistemic/source/scope dimensions 정의
+- schema 또는 동등한 bounded type definition과 deterministic semantic definitions
+- positive/negative fixtures와 deterministic validator
+- user-explicit self-understanding, jointly interpreted candidate, model-inferred
+  candidate, personality 의미가 candidate로 남는 observed behavioral pattern
+- aspiration, persistent tension, scope narrowing과 exception
+- known counterexample, no counterexample found, counterexample search not performed
+- false premise, over-globalization과 deleted/retracted reuse refusal
+- 이후 task-gap baseline과 review-replay slice의 interface expectation 문서화만 허용
 
 비범위:
 
@@ -488,6 +505,8 @@ prompt ensemble보다 반복적으로 높아야 한다.
 - provider/model call
 - Core contract 또는 TaskContextPacket 변경
 - UI와 Arena actor
+- deterministic task-gap baseline 또는 Personal Perspective review replay 구현·완료 주장
 
-이 slice는 Lab Level 1 evidence를 준비할 뿐 Personal Perspective product maturity를
-올렸다고 주장하지 않는다.
+이 slice는 모든 machine-checkable validation 요건을 통과해야만 Level 1 evidence가
+된다. 통과 전에는 Level 0이며 Personal Perspective product maturity, task-gap 또는
+review-replay 완료를 주장하지 않는다.

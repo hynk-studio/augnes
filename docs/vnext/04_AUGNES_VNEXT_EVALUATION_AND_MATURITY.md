@@ -239,11 +239,15 @@ review는 기존 Level 0~5를 다음 evidence로 적용한다.
 | Level | Program evidence | 완료로 오인하지 않을 것 |
 |---:|---|---|
 | 0 Intent | 의미 경계와 research questions | Personal Perspective 기능 |
-| 1 Validated Contract | synthetic casebook, deterministic definitions와 negative cases | persistence 또는 user endorsement |
+| 1 Validated Contract | machine-checkable casebook/fixture contract: schema 또는 동등한 bounded type definition, deterministic validator, positive/negative fixtures, deterministic semantic definitions | persistence 또는 user endorsement |
 | 2 Integrated Path | offline candidate→gap→review replay | production context use |
 | 3 Observed Use | explicit opt-in user endorsement, correction, narrowing과 exception 관찰 | cross-project usefulness |
 | 4 Reviewed Reuse | reviewed item이 later context/decision을 바꿈 | outcome improvement |
 | 5 Outcome Improvement | 여러 project에서 반복 설명·오판 감소와 판단 개선 | automatic productization |
+
+Level 1은 production TypeScript/Core contract를 요구하지 않지만 위 machine-checkable
+요건이 모두 validation을 통과해야 한다. 현재 프로그램 등록 PR은 Level 0이며, 다음
+casebook slice도 이 검증 요건을 통과한 뒤에만 Level 1에 도달한다.
 
 #### Program metrics
 
@@ -252,7 +256,8 @@ user_endorsement_rate
 user_correction_rate
 scope_narrowing_rate
 exception_addition_rate
-counterexample_coverage
+counterexample_status_completeness
+known_counterexample_ref_coverage
 actionable_gap_precision
 false_premise_rejection_rate
 duplicate_question_rate
@@ -264,6 +269,11 @@ misleading_personal_context_rate
 structured_review_diversity
 compute_adjusted_gain
 ```
+
+counterexample status completeness는 각 candidate가 `known_present`, `none_found`,
+`not_searched`, `not_applicable` 중 하나를 명시하는지 측정한다. known counterexample이
+있을 때만 ref coverage를 요구하며, coverage를 채우기 위한 counterexample 조작은
+허용하지 않는다.
 
 raw candidate 수, 질문 수, actor 수나 Inspector view 수는 outcome metric이 아니다.
 
