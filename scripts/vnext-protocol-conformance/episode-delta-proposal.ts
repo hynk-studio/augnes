@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 
 import {
+  attestationInferenceProposalInputFixture,
   conflictingSourceProposalInputFixture,
   genericCliDirectObservationProposalInputFixture,
   hostAttestationOnlyProposalInputFixture,
   invalidEpisodeDeltaProposalFixtureCases,
+  maxBoundedTextProposalInputFixture,
   mixedProvenanceProposalInputFixture,
+  observationInferenceChainProposalInputFixture,
   staleSourceReviewProposalInputFixture,
   unknownAndMissingProposalInputFixture,
 } from "@/fixtures/vnext/protocol/episode-delta-proposal-v0-1";
@@ -35,6 +38,12 @@ const positiveFixtures = [
   ["conflicting_sources_preserved", conflictingSourceProposalInputFixture],
   ["unknown_and_missing_preserved", unknownAndMissingProposalInputFixture],
   ["stale_source_requires_review", staleSourceReviewProposalInputFixture],
+  ["max_bounded_text_2000", maxBoundedTextProposalInputFixture],
+  [
+    "observation_inference_chain",
+    observationInferenceChainProposalInputFixture,
+  ],
+  ["attestation_inference", attestationInferenceProposalInputFixture],
 ] as const;
 
 export interface EpisodeDeltaProposalConformanceSummaryV01 {
@@ -64,6 +73,12 @@ export interface EpisodeDeltaProposalConformanceSummaryV01 {
   builder_input_immutability_checked: true;
   unordered_collection_normalization_checked: true;
   resigned_malformed_proposal_rejected: true;
+  exact_text_bounds_checked: true;
+  plural_collection_text_bounds_checked: true;
+  inference_acyclic_chains_checked: true;
+  inference_cycle_detection_checked: true;
+  resigned_oversized_proposal_rejected: true;
+  resigned_inference_cycle_rejected: true;
 }
 
 export function runEpisodeDeltaProposalConformanceV01(): EpisodeDeltaProposalConformanceSummaryV01 {
@@ -163,6 +178,39 @@ export function runEpisodeDeltaProposalConformanceV01(): EpisodeDeltaProposalCon
   assert.equal(stale.source_status.review_required, true);
   assert.equal(stale.status, "pending_review");
 
+  const maxBoundedText = requiredProposal(
+    proposals,
+    "max_bounded_text_2000",
+  );
+  assert.equal(maxBoundedText.limitations[0]?.length, 2000);
+
+  const observationInferenceChain = requiredProposal(
+    proposals,
+    "observation_inference_chain",
+  );
+  assert.equal(observationInferenceChain.inferences.length, 2);
+  assert.ok(
+    observationInferenceChain.inferences.some((item) =>
+      item.basis_material_ids.includes("material:observation:protocol-file"),
+    ),
+  );
+  assert.ok(
+    observationInferenceChain.inferences.some((item) =>
+      item.basis_material_ids.includes(
+        "material:inference:observation-rooted-a",
+      ),
+    ),
+  );
+
+  const attestationInference = requiredProposal(
+    proposals,
+    "attestation_inference",
+  );
+  assert.equal(attestationInference.inferences.length, 1);
+  assert.deepEqual(attestationInference.inferences[0]?.basis_material_ids, [
+    "material:attestation:host-result",
+  ]);
+
   const repeated = buildEpisodeDeltaProposalV01(
     deepFreeze(clone(genericCliDirectObservationProposalInputFixture)),
   );
@@ -243,6 +291,59 @@ export function runEpisodeDeltaProposalConformanceV01(): EpisodeDeltaProposalCon
     );
   }
 
+  const resignedOversized = clone(generic);
+  resignedOversized.limitations = ["x".repeat(2001)];
+  resignedOversized.proposal_id = deriveEpisodeDeltaProposalIdV01(
+    resignedOversized,
+  );
+  resignedOversized.integrity.fingerprint =
+    createEpisodeDeltaProposalFingerprintV01(resignedOversized);
+  const resignedOversizedValidation = validateEpisodeDeltaProposalV01(
+    resignedOversized,
+  );
+  assert.equal(
+    resignedOversizedValidation.status,
+    "blocked",
+    format(resignedOversizedValidation),
+  );
+  assert.ok(
+    resignedOversizedValidation.errors.some(
+      (issue) => issue.code === "summary_bound_exceeded",
+    ),
+    "Re-signed oversized proposal must remain blocked by semantic bounds.",
+  );
+  assertIntegrityChecksPassed(resignedOversizedValidation);
+
+  const resignedCycle = clone(observationInferenceChain);
+  const cycleFirst = resignedCycle.inferences.find(
+    (item) => item.material_id === "material:inference:observation-rooted-a",
+  );
+  const cycleSecond = resignedCycle.inferences.find(
+    (item) => item.material_id === "material:inference:observation-rooted-b",
+  );
+  assert.ok(cycleFirst);
+  assert.ok(cycleSecond);
+  cycleFirst.basis_material_ids = [cycleSecond.material_id];
+  cycleSecond.basis_material_ids = [cycleFirst.material_id];
+  resignedCycle.proposal_id = deriveEpisodeDeltaProposalIdV01(resignedCycle);
+  resignedCycle.integrity.fingerprint =
+    createEpisodeDeltaProposalFingerprintV01(resignedCycle);
+  const resignedCycleValidation = validateEpisodeDeltaProposalV01(
+    resignedCycle,
+  );
+  assert.equal(
+    resignedCycleValidation.status,
+    "blocked",
+    format(resignedCycleValidation),
+  );
+  assert.ok(
+    resignedCycleValidation.errors.some(
+      (issue) => issue.code === "inference_basis_cycle",
+    ),
+    "Re-signed inference cycle must remain blocked by relation semantics.",
+  );
+  assertIntegrityChecksPassed(resignedCycleValidation);
+
   const requiredOpenAiSpecificFields =
     EPISODE_DELTA_PROPOSAL_REQUIRED_CORE_FIELDS_V01.filter((field) =>
       /openai/i.test(field),
@@ -293,7 +394,28 @@ export function runEpisodeDeltaProposalConformanceV01(): EpisodeDeltaProposalCon
     builder_input_immutability_checked: true,
     unordered_collection_normalization_checked: true,
     resigned_malformed_proposal_rejected: true,
+    exact_text_bounds_checked: true,
+    plural_collection_text_bounds_checked: true,
+    inference_acyclic_chains_checked: true,
+    inference_cycle_detection_checked: true,
+    resigned_oversized_proposal_rejected: true,
+    resigned_inference_cycle_rejected: true,
   };
+}
+
+function assertIntegrityChecksPassed(value: {
+  errors: Array<{ code: string }>;
+}) {
+  for (const integrityCode of [
+    "proposal_identity_mismatch",
+    "fingerprint_mismatch",
+  ]) {
+    assert.equal(
+      value.errors.some((issue) => issue.code === integrityCode),
+      false,
+      `Re-signed semantic rejection must not rely on ${integrityCode}.`,
+    );
+  }
 }
 
 function requiredProposal(

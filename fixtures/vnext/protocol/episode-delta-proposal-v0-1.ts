@@ -10,6 +10,8 @@ export const EPISODE_DELTA_PROPOSAL_FIXTURE_CREATED_AT =
   "2026-07-10T12:00:00.000Z";
 const SOURCE_AT = "2026-07-10T11:50:00.000Z";
 const STALE_SOURCE_AT = "2026-07-01T09:00:00.000Z";
+const MAX_BOUNDED_TEXT = "x".repeat(2000);
+const OVERSIZED_BOUNDED_TEXT = "x".repeat(2001);
 
 function ref(
   ref_type: string,
@@ -478,6 +480,99 @@ export const staleSourceReviewProposalInputFixture = (() => {
   return input;
 })();
 
+export const maxBoundedTextProposalInputFixture = (() => {
+  const input = genericDirectObservationInput();
+  input.bounded_summary =
+    "A text-bearing collection element exactly at the v0.1 limit remains valid.";
+  input.limitations = [MAX_BOUNDED_TEXT];
+  return input;
+})();
+
+export const observationInferenceChainProposalInputFixture = (() => {
+  const input = genericDirectObservationInput();
+  const firstInterpreterRef = ref(
+    "deterministic_rule",
+    "rule:observation-inference-chain-a",
+    "derived_interpretation",
+    { host: "local-rules", observed_at: SOURCE_AT },
+  );
+  const secondInterpreterRef = ref(
+    "deterministic_rule",
+    "rule:observation-inference-chain-b",
+    "derived_interpretation",
+    { host: "local-rules", observed_at: SOURCE_AT },
+  );
+  input.bounded_summary =
+    "A two-step inference chain remains valid when rooted in observation material.";
+  input.inferences = [
+    {
+      material_id: "material:inference:observation-rooted-a",
+      material_kind: "deterministic_semantic_interpretation",
+      bounded_summary:
+        "The observed protocol artifact supports a first bounded interpretation.",
+      inferred_at: SOURCE_AT,
+      interpreter_ref: firstInterpreterRef,
+      trust_class: "derived_interpretation",
+      basis_material_ids: ["material:observation:protocol-file"],
+      source_run_receipt_refs: [genericRunReceiptRef],
+      source_refs: [genericRunReceiptRef],
+      subject_refs: [semanticTargetRef],
+    },
+    {
+      material_id: "material:inference:observation-rooted-b",
+      material_kind: "deterministic_semantic_interpretation",
+      bounded_summary:
+        "The first interpretation supports a second bounded interpretation without a cycle.",
+      inferred_at: SOURCE_AT,
+      interpreter_ref: secondInterpreterRef,
+      trust_class: "derived_interpretation",
+      basis_material_ids: ["material:inference:observation-rooted-a"],
+      source_run_receipt_refs: [genericRunReceiptRef],
+      source_refs: [genericRunReceiptRef],
+      subject_refs: [semanticTargetRef],
+    },
+  ];
+  input.proposed_deltas[0]!.basis_material_ids = [
+    "material:inference:observation-rooted-b",
+  ];
+  input.source_refs.push(firstInterpreterRef, secondInterpreterRef);
+  return input;
+})();
+
+export const attestationInferenceProposalInputFixture = (() => {
+  const input = clone(hostAttestationOnlyProposalInputFixture);
+  const interpreterRef = ref(
+    "deterministic_rule",
+    "rule:attestation-inference-chain",
+    "derived_interpretation",
+    { host: "local-rules", observed_at: SOURCE_AT },
+  );
+  const runReceiptRef = input.run_receipt_refs[0]!;
+  const targetRef = input.proposed_deltas[0]!.target_refs[0]!;
+  input.bounded_summary =
+    "A bounded inference remains valid when rooted in attestation material.";
+  input.inferences = [
+    {
+      material_id: "material:inference:attestation-rooted",
+      material_kind: "deterministic_semantic_interpretation",
+      bounded_summary:
+        "The host attestation supports a derived interpretation without upgrading trust.",
+      inferred_at: SOURCE_AT,
+      interpreter_ref: interpreterRef,
+      trust_class: "derived_interpretation",
+      basis_material_ids: ["material:attestation:host-result"],
+      source_run_receipt_refs: [runReceiptRef],
+      source_refs: [runReceiptRef],
+      subject_refs: [targetRef],
+    },
+  ];
+  input.proposed_deltas[0]!.basis_material_ids = [
+    "material:inference:attestation-rooted",
+  ];
+  input.source_refs.push(interpreterRef);
+  return input;
+})();
+
 export interface InvalidEpisodeDeltaProposalFixtureCaseV01 {
   name: string;
   expected_status: "invalid" | "blocked";
@@ -550,6 +645,15 @@ export const invalidEpisodeDeltaProposalFixtureCases: InvalidEpisodeDeltaProposa
   mutation("secret_shaped_value", "blocked", "secret_shaped_material", (value) => {
     value.limitations = ["OPENAI_API_KEY=sk-proj-fixture-secret"];
   }),
+  mutation("oversized_top_level_limitation", "blocked", "summary_bound_exceeded", (value) => {
+    value.limitations = [OVERSIZED_BOUNDED_TEXT];
+  }),
+  mutation("oversized_delta_uncertainty", "blocked", "summary_bound_exceeded", (value) => {
+    value.proposed_deltas[0]!.uncertainties = [OVERSIZED_BOUNDED_TEXT];
+  }),
+  mutation("oversized_compatibility_warning", "blocked", "summary_bound_exceeded", (value) => {
+    value.compatibility.warnings = [OVERSIZED_BOUNDED_TEXT];
+  }),
   mutation("unknown_root_field", "blocked", "unknown_core_field", (value) => {
     value.extra_metadata = "not in contract";
   }),
@@ -586,6 +690,35 @@ export const invalidEpisodeDeltaProposalFixtureCases: InvalidEpisodeDeltaProposa
   }),
   mutation("missing_relation_source_item", "invalid", "relation_source_item_missing", (value) => {
     value.proposed_deltas[0]!.basis_material_ids.push("material:missing");
+  }),
+  mutation("direct_inference_self_reference", "invalid", "inference_self_relation", (value) => {
+    const inference = clone(observationInferenceChainProposalInputFixture.inferences[0]!);
+    inference.basis_material_ids = [inference.material_id];
+    value.inferences = [inference];
+    value.trust_summary.derived_interpretations = 1;
+  }),
+  mutation("two_node_inference_cycle", "blocked", "inference_basis_cycle", (value) => {
+    const first = clone(observationInferenceChainProposalInputFixture.inferences[0]!);
+    const second = clone(observationInferenceChainProposalInputFixture.inferences[1]!);
+    first.material_id = "material:inference:cycle-a";
+    first.basis_material_ids = ["material:inference:cycle-b"];
+    second.material_id = "material:inference:cycle-b";
+    second.basis_material_ids = ["material:inference:cycle-a"];
+    value.inferences = [first, second];
+    value.trust_summary.derived_interpretations = 2;
+  }),
+  mutation("three_node_inference_cycle", "blocked", "inference_basis_cycle", (value) => {
+    const first = clone(observationInferenceChainProposalInputFixture.inferences[0]!);
+    const second = clone(observationInferenceChainProposalInputFixture.inferences[1]!);
+    const third = clone(observationInferenceChainProposalInputFixture.inferences[0]!);
+    first.material_id = "material:inference:cycle-a";
+    first.basis_material_ids = ["material:inference:cycle-b"];
+    second.material_id = "material:inference:cycle-b";
+    second.basis_material_ids = ["material:inference:cycle-c"];
+    third.material_id = "material:inference:cycle-c";
+    third.basis_material_ids = ["material:inference:cycle-a"];
+    value.inferences = [first, second, third];
+    value.trust_summary.derived_interpretations = 3;
   }),
   mutation("mismatched_deterministic_id", "invalid", "proposal_identity_mismatch", (value) => {
     value.proposal_id = "episode-delta-proposal:wrong";

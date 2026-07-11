@@ -249,6 +249,18 @@ const allowedIntegrityKeys = new Set([
 const forbiddenSemanticFieldPattern =
   /(?:accepted.?evidence|canonical.?state|review.?decision|state.?transition|state.?(?:apply|commit|mutat|write)|work.?(?:clos|complet)|perspective.?(?:apply|mutat)|memory.?(?:promot|mutat)|auto.?apply|next.?context.?(?:select|apply)|provider.?author|github.?author|merge|publish|publication|external.?(?:actuat|side.?effect)|schedule|retry|replay|deploy|execution.?authority|semantic.?commit|approv)/i;
 
+const boundedTextFieldNames = new Set([
+  "bounded_summary",
+  "proposed_state_summary",
+  "title",
+  "basis",
+  "reason",
+  "warnings",
+  "limitations",
+  "uncertainties",
+  "notes",
+]);
+
 export const EPISODE_DELTA_PROPOSAL_REQUIRED_CORE_FIELDS_V01 = [
   "proposal_version",
   "proposal_id",
@@ -1398,6 +1410,7 @@ function validateRelations(
       );
     }
   });
+  validateInferenceDependencyCycles(input.inferences, accumulator);
 
   forEachRecord(input.proposed_deltas, "$.proposed_deltas", (item, path) => {
     validateIdRelations(
@@ -1483,6 +1496,89 @@ function validateRelations(
       accumulator,
     );
   });
+}
+
+function validateInferenceDependencyCycles(
+  value: unknown,
+  accumulator: ValidationAccumulator,
+) {
+  const boundary = createEpisodeDeltaProposalMaterialBoundaryV01();
+  const inferenceRecords = (Array.isArray(value) ? value : [])
+    .slice(0, boundary.max_collection_items)
+    .map((item, index) => ({
+      item: isProtocolRecordV01(item) ? item : null,
+      path: `$.inferences[${index}]`,
+    }))
+    .filter(
+      (
+        entry,
+      ): entry is { item: ProtocolJsonRecordV01; path: string } =>
+        entry.item !== null,
+    );
+  const inferenceIds = new Set(
+    inferenceRecords
+      .map(({ item }) => protocolStringValueV01(item.material_id))
+      .filter((id): id is string => Boolean(id)),
+  );
+  const dependencies = new Map<string, string[]>();
+  const paths = new Map<string, string>();
+  for (const { item, path } of inferenceRecords) {
+    const inferenceId = protocolStringValueV01(item.material_id);
+    if (!inferenceId || dependencies.has(inferenceId)) continue;
+    dependencies.set(
+      inferenceId,
+      [
+        ...new Set(
+          stringValues(item.basis_material_ids)
+            .slice(0, boundary.max_refs_per_collection)
+            .filter(
+              (dependencyId) =>
+                dependencyId !== inferenceId &&
+                inferenceIds.has(dependencyId),
+            ),
+        ),
+      ].sort(),
+    );
+    paths.set(inferenceId, `${path}.basis_material_ids`);
+  }
+
+  const visitState = new Map<string, "visiting" | "visited">();
+  const stack: string[] = [];
+  const reportedCycles = new Set<string>();
+
+  const visit = (inferenceId: string) => {
+    visitState.set(inferenceId, "visiting");
+    stack.push(inferenceId);
+    for (const dependencyId of dependencies.get(inferenceId) ?? []) {
+      const dependencyState = visitState.get(dependencyId);
+      if (dependencyState === "visiting") {
+        const cycleStart = stack.indexOf(dependencyId);
+        const cycleIds = stack.slice(cycleStart);
+        const cycleKey = canonicalizeProtocolValueV01([...cycleIds].sort());
+        if (!reportedCycles.has(cycleKey)) {
+          reportedCycles.add(cycleKey);
+          addError(
+            accumulator,
+            "inference_basis_cycle",
+            paths.get(inferenceId) ?? "$.inferences",
+            `Inference basis cycle detected: ${[
+              ...cycleIds,
+              dependencyId,
+            ].join(" -> ")}.`,
+            true,
+          );
+        }
+      } else if (dependencyState !== "visited") {
+        visit(dependencyId);
+      }
+    }
+    stack.pop();
+    visitState.set(inferenceId, "visited");
+  };
+
+  for (const inferenceId of [...dependencies.keys()].sort()) {
+    if (!visitState.has(inferenceId)) visit(inferenceId);
+  }
 }
 
 function validateTrustSummary(
@@ -1789,9 +1885,7 @@ function collectBoundViolations(value: unknown) {
 }
 
 function isBoundedTextPath(path: string) {
-  return /(?:summary|title|basis|reason|warning|limitation|uncertaint|notes?)(?:\[\d+\])?$/.test(
-    path,
-  );
+  return boundedTextFieldNames.has(lastPathKey(path));
 }
 
 function lastPathKey(path: string) {
