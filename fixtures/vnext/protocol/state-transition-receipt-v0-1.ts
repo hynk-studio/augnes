@@ -1149,7 +1149,7 @@ export const invalidStateTransitionReceiptFixtureCases: InvalidStateTransitionRe
   mutation(
     "replace_before_after_identical",
     "blocked",
-    "state_change_required",
+    "state_content_change_required",
     (value) => {
       value.effects[0]!.operation = "replace";
       value.effects[0]!.before_state = clone(value.effects[0]!.after_state);
@@ -1158,7 +1158,7 @@ export const invalidStateTransitionReceiptFixtureCases: InvalidStateTransitionRe
   mutation(
     "supersede_before_after_identical",
     "blocked",
-    "state_change_required",
+    "state_content_change_required",
     (value) => {
       value.effects[0]!.operation = "supersede";
       value.effects[0]!.before_state = clone(value.effects[0]!.after_state);

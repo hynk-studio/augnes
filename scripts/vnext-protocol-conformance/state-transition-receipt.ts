@@ -103,6 +103,7 @@ export interface StateTransitionReceiptConformanceSummaryV01 {
   applied_by_authorization_checked: true;
   writer_allocated_state_ref_rule_checked: true;
   replay_conflict_semantics_checked: true;
+  semantic_content_change_required_checked: true;
   resigned_receipt_relation_mismatch_rejected: true;
   required_openai_specific_core_fields: 0;
   required_chatgpt_specific_core_fields: 0;
@@ -307,6 +308,8 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
       `${invalidCase.name} must report ${invalidCase.expected_error_code}: ${format(invalidValidation)}`,
     );
   }
+  const semanticNoOpReceiptNegativeCount =
+    assertSemanticNoOpReceiptNegativeCases(receipt);
 
   const resignedMalformed = clone(receipt);
   resignedMalformed.effects[0]!.operation = "replace";
@@ -391,6 +394,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     acceptPresentEligibility,
     "replace",
   );
+  assertExpectedSemanticContentChange(acceptPresentEligibility);
 
   const supersedeInput = createAppliedLineageEligibilityInput("supersede");
   const supersedeEligibility =
@@ -400,6 +404,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     supersedeEligibility,
     "supersede",
   );
+  assertExpectedSemanticContentChange(supersedeEligibility);
 
   assert.equal(supersedeEligibility.expected_effects[0]?.lineage_refs.length, 1);
 
@@ -429,6 +434,8 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     ),
     format(crossTargetSupersedeEligibility),
   );
+  const semanticNoOpEligibilityNegativeCount =
+    assertSemanticNoOpEligibilityCases(acceptPresentInput, supersedeInput);
   const appliedLineageNegativeFixtureCount =
     assertAppliedLineageNegativeCases();
 
@@ -526,9 +533,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     format(validReceiptRelation),
   );
 
-  const writerAllocatedEligibilityInput = clone(
-    genericStateTransitionEligibilityEvaluationInputFixture,
-  );
+  const writerAllocatedEligibilityInput = clone(acceptPresentInput);
   const writerAuthorizedEffect =
     writerAllocatedEligibilityInput.semantic_commit_gate_evaluation
       .authorized_effects[0]!;
@@ -555,6 +560,29 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
   );
   writerAllocatedReceiptInput.eligibility_precondition_fingerprint =
     writerAllocatedEligibility.precondition_fingerprint;
+  const writerExpectedEffect = writerAllocatedEligibility.expected_effects[0];
+  const writerReceiptEffect = writerAllocatedReceiptInput.effects[0];
+  if (!writerExpectedEffect || !writerReceiptEffect) {
+    throw new Error("Writer allocation fixture requires one expected effect.");
+  }
+  const priorBeforeObservationRef = clone(
+    writerReceiptEffect.before_state_observation_ref,
+  );
+  writerReceiptEffect.operation = writerExpectedEffect.operation;
+  writerReceiptEffect.before_state = clone(writerExpectedEffect.before_state);
+  writerReceiptEffect.before_state_observation_ref = clone(
+    writerExpectedEffect.before_state_observation_ref,
+  );
+  writerReceiptEffect.source_refs = replaceExactRef(
+    writerReceiptEffect.source_refs,
+    priorBeforeObservationRef,
+    writerReceiptEffect.before_state_observation_ref,
+  );
+  writerAllocatedReceiptInput.source_refs = replaceExactRef(
+    writerAllocatedReceiptInput.source_refs,
+    priorBeforeObservationRef,
+    writerReceiptEffect.before_state_observation_ref,
+  );
   if (
     writerAllocatedReceiptInput.effects[0]?.after_state.presence !== "present"
   ) {
@@ -571,6 +599,13 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     compatibility_namespace:
       "augnes.state-transition.writer-allocation.v0.1",
   };
+  if (writerReceiptEffect.before_state.presence !== "present") {
+    throw new Error("Writer allocation replacement requires present before-state.");
+  }
+  assert.notEqual(
+    writerReceiptEffect.before_state.state_fingerprint,
+    writerReceiptEffect.after_state.state_fingerprint,
+  );
   rebindApplicationResultProofs(writerAllocatedReceiptInput);
   const writerAllocatedReceipt = buildStateTransitionReceiptV01(
     deepFreeze(writerAllocatedReceiptInput),
@@ -648,11 +683,15 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     suite: "state-transition-receipt-v0.1",
     status: "passed",
     positive_fixture_count: 6,
-    negative_fixture_count: invalidStateTransitionReceiptFixtureCases.length + 2,
+    negative_fixture_count:
+      invalidStateTransitionReceiptFixtureCases.length +
+      2 +
+      semanticNoOpReceiptNegativeCount,
     eligibility_positive_fixture_count: 6,
     eligibility_negative_fixture_count:
       invalidStateTransitionEligibilityInputFixtureCases.length +
       3 +
+      semanticNoOpEligibilityNegativeCount +
       appliedLineageNegativeFixtureCount,
     receipt_relation_negative_fixture_count: receiptRelationCases.length + 1,
     generic_transition_receipt_id: receipt.transition_receipt_id,
@@ -689,6 +728,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     applied_by_authorization_checked: true,
     writer_allocated_state_ref_rule_checked: true,
     replay_conflict_semantics_checked: true,
+    semantic_content_change_required_checked: true,
     resigned_receipt_relation_mismatch_rejected: true,
     required_openai_specific_core_fields: 0,
     required_chatgpt_specific_core_fields: 0,
@@ -712,6 +752,131 @@ function assertEligibilityOperation(
     ),
     `${name}: ${format(result)}`,
   );
+}
+
+function assertExpectedSemanticContentChange(
+  result: StateTransitionEligibilityResultV01,
+) {
+  for (const effect of result.expected_effects) {
+    if (
+      effect.operation !== "replace" &&
+      effect.operation !== "supersede"
+    ) {
+      continue;
+    }
+    assert.equal(effect.before_state.presence, "present");
+    assert.equal(effect.expected_after_state.presence, "present");
+    if (
+      effect.before_state.presence === "present" &&
+      effect.expected_after_state.presence === "present"
+    ) {
+      assert.notEqual(
+        effect.before_state.state_fingerprint,
+        effect.expected_after_state.state_fingerprint,
+      );
+    }
+  }
+}
+
+function assertSemanticNoOpEligibilityCases(
+  replaceSource: StateTransitionEligibilityEvaluationInputV01,
+  supersedeSource: StateTransitionEligibilityEvaluationInputV01,
+): number {
+  const cases = [
+    ["replace", replaceSource],
+    ["supersede", supersedeSource],
+  ] as const;
+  for (const [name, source] of cases) {
+    const input = clone(source);
+    const observation = input.current_state_observations[0];
+    const authorized =
+      input.semantic_commit_gate_evaluation.authorized_effects[0];
+    if (
+      !observation ||
+      observation.presence !== "present" ||
+      !observation.state_fingerprint ||
+      !authorized ||
+      authorized.expected_after_state.presence !== "present"
+    ) {
+      throw new Error(`${name} no-op fixture requires present state material.`);
+    }
+    authorized.expected_after_state.state_fingerprint =
+      observation.state_fingerprint;
+    const result = evaluateReviewDecisionStateTransitionEligibilityV01(input);
+    assert.equal(result.status, "ineligible", `${name}: ${format(result)}`);
+    assert.ok(
+      result.errors.some(
+        (issue) => issue.code === "state_content_change_required",
+      ),
+      `${name}: ${format(result)}`,
+    );
+  }
+  return cases.length;
+}
+
+function assertSemanticNoOpReceiptNegativeCases(
+  source: StateTransitionReceiptV01,
+): number {
+  const cases: Array<{
+    name: string;
+    operation: "replace" | "supersede";
+    mutateAfterRef(ref: ExternalRefV01, receipt: StateTransitionReceiptV01): void;
+  }> = [
+    {
+      name: "replace_equal_fingerprint_different_external_id_resigned",
+      operation: "replace",
+      mutateAfterRef(ref) {
+        ref.external_id = "semantic-state:no-op:different-id";
+      },
+    },
+    {
+      name: "replace_equal_fingerprint_changed_observed_at_resigned",
+      operation: "replace",
+      mutateAfterRef(ref, receipt) {
+        ref.observed_at = receipt.recorded_at;
+      },
+    },
+    {
+      name: "replace_equal_fingerprint_changed_source_ref_resigned",
+      operation: "replace",
+      mutateAfterRef(ref) {
+        ref.source_ref = `sha256:${"c".repeat(64)}`;
+      },
+    },
+    {
+      name: "supersede_equal_fingerprint_different_state_ref_resigned",
+      operation: "supersede",
+      mutateAfterRef(ref) {
+        ref.external_id = "semantic-state:no-op:superseding-ref";
+      },
+    },
+  ];
+  for (const testCase of cases) {
+    const receipt = clone(source);
+    const effect = receipt.effects[0];
+    if (!effect || effect.after_state.presence !== "present") {
+      throw new Error(`${testCase.name} requires present after-state.`);
+    }
+    effect.operation = testCase.operation;
+    effect.before_state = clone(effect.after_state);
+    testCase.mutateAfterRef(effect.after_state.state_ref, receipt);
+    rebindApplicationResultProofs(receipt);
+    resign(receipt);
+    const validation = validateStateTransitionReceiptV01(receipt);
+    assert.equal(
+      validation.status,
+      "blocked",
+      `${testCase.name}: ${format(validation)}`,
+    );
+    assert.ok(
+      validation.errors.some(
+        (issue) => issue.code === "state_content_change_required",
+      ),
+      `${testCase.name}: ${format(validation)}`,
+    );
+    assertIntegrityChecksPassed(validation);
+  }
+  return cases.length;
 }
 
 function eligibilityInputForDecision(
@@ -896,6 +1061,15 @@ function createAppliedLineageEligibilityInput(
     observation.state_fingerprint = priorEffect.after_state.state_fingerprint;
     observation.observed_at = "2026-07-10T12:32:00.000Z";
     observation.observation_ref.observed_at = observation.observed_at;
+  }
+  if (mode === "supersede") {
+    for (const authorized of input.semantic_commit_gate_evaluation
+      .authorized_effects) {
+      if (authorized.expected_after_state.presence === "present") {
+        authorized.expected_after_state.state_fingerprint =
+          `sha256:${"d".repeat(64)}`;
+      }
+    }
   }
   input.semantic_commit_gate_evaluation.evaluated_at =
     "2026-07-10T12:35:00.000Z";

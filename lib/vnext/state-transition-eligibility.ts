@@ -2143,6 +2143,21 @@ function deriveExpectedEffects(
       );
       continue;
     }
+    if (
+      (operation === "replace" || operation === "supersede") &&
+      observation.presence === "present" &&
+      authorized.expected_after_state.presence === "present" &&
+      observation.state_fingerprint ===
+        authorized.expected_after_state.state_fingerprint
+    ) {
+      addError(
+        accumulator,
+        "state_content_change_required",
+        "$.semantic_commit_gate_evaluation.authorized_effects",
+        `${operation} requires an authorized after-state content fingerprint that differs from the observed before-state.`,
+      );
+      continue;
+    }
     const beforeState: StateTransitionReceiptStateSnapshotV01 =
       observation.presence === "absent"
         ? { presence: "absent", state_ref: null, state_fingerprint: null }

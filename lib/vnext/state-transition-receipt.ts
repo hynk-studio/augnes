@@ -968,9 +968,19 @@ function validateOperationSnapshots(
   }
   if (
     (operation === "replace" || operation === "supersede") &&
-    canonicalizeProtocolValueV01(before) === canonicalizeProtocolValueV01(after)
+    before.presence === "present" &&
+    after.presence === "present" &&
+    protocolStringValueV01(before.state_fingerprint) !== null &&
+    protocolStringValueV01(before.state_fingerprint) ===
+      protocolStringValueV01(after.state_fingerprint)
   ) {
-    addError(accumulator, "state_change_required", path, `${operation} requires distinct before and after state snapshots.`, true);
+    addError(
+      accumulator,
+      "state_content_change_required",
+      `${path}.after_state.state_fingerprint`,
+      `${operation} requires a different after-state content fingerprint.`,
+      true,
+    );
   }
 }
 

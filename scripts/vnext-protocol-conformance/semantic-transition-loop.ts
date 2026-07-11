@@ -161,6 +161,7 @@ export interface SemanticTransitionLoopConformanceSummaryV01 {
   exact_later_selected_and_excluded_state_checked: true;
   transition_receipt_lineage_checked: true;
   composed_full_chain_validation_checked: true;
+  semantic_no_op_rejected_checked: true;
   two_project_isolation_checked: true;
   repeated_execution_deterministic: true;
   unordered_collection_normalization_checked: true;
@@ -330,6 +331,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     assertBlockedCase(relationCase);
   }
   assertComposedFullChainRejectsUnauthorizedReceipt(projectA);
+  assertComposedFullChainRejectsSemanticNoOp(acceptReplace);
 
   return {
     suite: "semantic-transition-loop-v0.1",
@@ -338,7 +340,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     receipt_relation_negative_fixture_count: receiptRelationCases.length + 2,
     later_packet_relation_negative_fixture_count:
       laterPacketRelationCases.length,
-    full_chain_negative_fixture_count: 1,
+    full_chain_negative_fixture_count: 2,
     existing_m3a_anchor_count: 9,
     canonical_transition_receipt_id:
       projectA.transition_receipt.transition_receipt_id,
@@ -362,6 +364,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     exact_later_selected_and_excluded_state_checked: true,
     transition_receipt_lineage_checked: true,
     composed_full_chain_validation_checked: true,
+    semantic_no_op_rejected_checked: true,
     two_project_isolation_checked: true,
     repeated_execution_deterministic: true,
     unordered_collection_normalization_checked: true,
@@ -980,6 +983,12 @@ function assertScenarioOperation(
       false,
     );
     if (effect.after_state.presence === "present") {
+      if (operation === "replace" || operation === "supersede") {
+        assert.notEqual(
+          effect.before_state.state_fingerprint,
+          effect.after_state.state_fingerprint,
+        );
+      }
       assert.ok(
         scenario.later_packet.selected_context.some(
           (entry) =>
@@ -1187,6 +1196,90 @@ function assertComposedFullChainRejectsUnauthorizedReceipt(
   assert.ok(
     composed.errors.some(
       (issue) => issue.code === "authorized_after_state_mismatch",
+    ),
+    format(composed),
+  );
+}
+
+function assertComposedFullChainRejectsSemanticNoOp(
+  source: TransitionScenarioV01,
+) {
+  const receipt = clone(source.transition_receipt);
+  const effect = receipt.effects[0];
+  if (
+    !effect ||
+    effect.operation !== "replace" ||
+    effect.before_state.presence !== "present" ||
+    effect.after_state.presence !== "present"
+  ) {
+    throw new Error("Composed no-op negative requires replace snapshots.");
+  }
+  effect.after_state.state_fingerprint =
+    effect.before_state.state_fingerprint;
+  effect.after_state.state_ref = {
+    ...effect.after_state.state_ref,
+    external_id: "semantic-state:no-op:later-packet",
+    source_ref: effect.before_state.state_fingerprint,
+  };
+  rebindSemanticReceiptApplicationProofs(receipt);
+  resignReceipt(receipt);
+  const receiptValidation = validateStateTransitionReceiptV01(receipt);
+  assert.equal(receiptValidation.status, "blocked", format(receiptValidation));
+  assert.ok(
+    receiptValidation.errors.some(
+      (issue) => issue.code === "state_content_change_required",
+    ),
+    format(receiptValidation),
+  );
+  const laterPacket = buildLaterTaskContextPacketFromReceiptFixtureV01(
+    source.prior_packet,
+    receipt,
+  );
+  const laterPacketValidation = validateTaskContextPacketV01(laterPacket, {
+    evaluated_at: laterPacket.generated_at,
+  });
+  assert.equal(
+    laterPacketValidation.status,
+    "valid",
+    format(laterPacketValidation),
+  );
+  const lowLevel = validateTaskContextPacketTransitionRelationV01(
+    source.prior_packet,
+    receipt,
+    laterPacket,
+  );
+  assert.equal(lowLevel.status, "blocked", format(lowLevel));
+  assert.ok(
+    lowLevel.errors.some(
+      (issue) => issue.code === "transition_receipt_invalid",
+    ),
+    format(lowLevel),
+  );
+
+  const composed = validateSemanticTransitionFullChainV01({
+    proposal: source.proposal,
+    decision: source.decision,
+    current_state_observations: source.current_state_observations,
+    semantic_commit_gate_evaluation:
+      source.semantic_commit_gate_evaluation,
+    prior_review_decisions: source.prior_review_decisions,
+    prior_state_transition_receipts:
+      source.prior_state_transition_receipts,
+    evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+    receipt,
+    prior_packet: source.prior_packet,
+    later_packet: laterPacket,
+  });
+  assert.equal(composed.status, "blocked", format(composed));
+  assert.ok(
+    composed.errors.some(
+      (issue) => issue.code === "transition_receipt_relation_invalid",
+    ),
+    format(composed),
+  );
+  assert.ok(
+    composed.errors.some(
+      (issue) => issue.code === "state_content_change_required",
     ),
     format(composed),
   );
