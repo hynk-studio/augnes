@@ -550,26 +550,121 @@ ReviewDecision:
 
 #### StateTransitionReceipt
 
-실제 durable change가 발생하면 별도 receipt를 기록한다.
+`StateTransitionReceiptV01`은 이미 적용되어 durable record로 관찰된 semantic state
+transition을 표현한다. 이 contract의 builder와 validator는 transition을 적용하거나
+DB에 기록하지 않으며, ExternalRef의 authenticity를 스스로 증명하지 않는다.
 
 ```yaml
-StateTransitionReceipt:
-  transition_receipt_id: string
-  decision_ref: string
-  target_ref: string
-  operation: string
-  before_ref: string|null
-  after_ref: string
+StateTransitionReceiptV01:
+  transition_receipt_version: state_transition_receipt.v0.1
+  transition_receipt_id: deterministic string
+  idempotency_key: deterministic sha256
+  workspace_id: string
+  project_id: string
+  source_proposal: { proposal_id, proposal_fingerprint }
+  source_decision: { decision_id, decision_fingerprint }
+  source_candidate: { candidate_id, candidate_fingerprint }
+  requested_transition_intent:
+    { intent_id, transition_kind, target_refs }
+  transition_scope: semantic_state
+  receipt_status: applied
+  atomicity:
+    { mode: all_or_nothing, all_effects_applied: true, partial_application: false }
+  effects:
+    - effect_id: deterministic string
+      target_ref: ExternalRefV01
+      operation: create|replace|supersede|retract
+      before_state: { presence: absent|present, state_ref, state_fingerprint }
+      after_state: { presence: absent|present, state_ref, state_fingerprint }
+      before_state_observation_ref: ExternalRefV01
+      after_application_observation_ref: ExternalRefV01
+      durable_record_ref: ExternalRefV01
+      source_refs: [ExternalRefV01]
   applied_at: timestamp
-  actor_ref: string
-  authority_ref: string
-  source_refs: [string]
+  recorded_at: timestamp
+  applied_by_ref: ExternalRefV01
+  semantic_commit_gate:
+    { status: authorized, evaluation_ref, evaluated_at, expires_at }
+  eligibility_precondition_fingerprint: sha256
+  source_refs: [ExternalRefV01]
+  compatibility: object
+  material_boundary: object
+  authority_summary: object
+  integrity: object
 ```
+
+`absent` snapshot은 `state_ref`와 `state_fingerprint`가 모두 null이고, `present`
+snapshot은 둘 다 명시한다. `create`는 absent → present, `replace`와 `supersede`는
+서로 다른 present → present, `retract`는 present → absent다. before-state observation,
+after-application observation, durable-record와 semantic commit gate evaluation ref는
+`direct_local_observation` 또는 `verified_external_observation`이어야 한다.
+
+Idempotency key는 exact decision fingerprint, requested intent ID와 kind, canonical target
+set, workspace/project identity에 결합한다. eventual after-state 결과는 key에 포함하지
+않으므로 같은 authorized intent의 retry identity는 유지되고, receipt ID와 integrity
+fingerprint는 실제 effect와 after-state 결과를 포함한다.
+
+Pure transition eligibility evaluator는 proposal, decision, exact relation, 모든 target의
+current-state observation, semantic commit gate evaluation을 함께 검증한다. denied,
+unknown, expired gate와 missing/unknown current state는 receipt가 아니라 ineligible 또는
+blocked eligibility result다. relation validator는 eligibility를 다시 계산해 receipt의
+intent, target set, operation, before snapshot, gate ref와 precondition fingerprint를
+검증하지만 receipt를 만들거나 state를 적용하지 않는다.
+
+`retract`와 `supersede`의 v0.1 eligibility는 strict same-target applied-lineage path로
+제한한다. ID/fingerprint reference만으로는 충분하지 않으며, input은 independently
+valid한 complete prior `accept` `ReviewDecisionV01` payload와 그 decision에 exact하게
+결합된 `receipt_status: applied` `StateTransitionReceiptV01` payload를 함께 제공해야 한다.
+현재 decision, prior accept와 prior receipt는 같은 project와 source proposal
+ID/fingerprint를 보존하고, 현재 decision이 대상으로 삼은 source candidate
+ID/fingerprint와 각 target ExternalRef도 일치해야 한다. `supersede`의 superseding
+candidate는 별도 candidate일 수 있지만, v0.1에서는 prior applied target과 exact same
+target set일 때만 eligible하다. 각 current-state observation은 대응 prior receipt effect의
+`presence: present` after-state ref/fingerprint와 exact하게 같아야 한다. missing,
+cross-target, non-applied 또는 honestly drifted lineage는 새 receipt eligibility로
+승격되지 않는다.
+
+Canonical prior decision `{ decision_id, decision_fingerprint }`와 prior receipt
+`{ transition_receipt_id, fingerprint, idempotency_key }` binding은 eligibility
+precondition fingerprint에 포함된다. Resolved prior receipt의 exact lineage ref는 expected
+effect와 새 receipt/effect의 `source_refs`에도 보존되어야 한다. 이 lineage 검증은 prior
+payload나 현재 상태를 조회하거나 transition을 실행하는 authority가 아니다.
+
+Semantic commit gate evaluation은 target과 transition kind만 승인하지 않는다.
+`authorized_applier_ref`와 canonical `authorized_effects`를 함께 명시하고, 각 effect는
+operation과 exact after-state content fingerprint를 승인한다. Present after-state ref는
+관찰 provenance를 미리 꾸미지 않는 exact ExternalRef identity template 또는 provider-free
+writer-allocation rule로 제한한다. Retract는 exact absent after-state만 승인할 수 있다.
+이 outcome material은 eligibility precondition fingerprint와 expected effects에 포함되며,
+receipt relation은 actual after-state와 `applied_by_ref`를 다시 exact하게 검증한다.
+
+각 applied effect의 application-result fingerprint는 canonical target, operation,
+before/after snapshot과 `applied_at`을 결합한다. After-application observation과
+durable-record ref는 모두 이 exact fingerprint를 `source_ref`로 보존해야 한다. Pure replay
+compatibility helper는 같은 idempotency key와 같은 normalized applied result를 exact
+replay로, 같은 key와 다른 result를 conflicting result로 분류하며 retry나 replay를
+실행하지 않는다.
+
+Low-level `validateTaskContextPacketTransitionRelationV01`은 applied receipt와 later
+`TaskContextPacket` 사이의 postcondition-only relation을 검증한다. Exact receipt lineage,
+present after-state selection, retired before-state exclusion과 project isolation은
+검증하지만 transition eligibility를 다시 계산하거나 receipt가 decision과 gate에 따라
+적용되었다고 증명하지 않는다. Composed `validateSemanticTransitionFullChainV01`은 먼저
+proposal, decision, current state, gate와 prior applied lineage에서 eligibility를 다시
+계산하고 receipt를 그 eligibility에 대해 검증한 뒤 packet postcondition을 검증해야 한다.
+어느 validation도 packet을 자동 생성하거나 mutation하는 runtime Context Compiler
+path가 아니다.
 
 #### 불변식
 
 - Decision과 Transition을 한 레코드로 뭉개지 않는다.
 - `accept`가 모든 target에 동일한 write를 의미하지 않는다.
+- failed, denied 또는 planned attempt를 applied receipt로 기록하지 않는다.
+- gate가 승인하지 않은 after-state, result proof 또는 applier를 receipt로 채택하지 않는다.
+- 같은 idempotency key 아래 서로 다른 applied result를 독립 성공으로 취급하지 않는다.
+- retract와 supersede는 ref-only history나 non-applied receipt를 prior state로 채택하지 않는다.
+- low-level packet relation 성공을 authorized full-chain transition proof로 취급하지 않는다.
+- receipt가 represented fact를 담더라도 future transition authority를 부여하지 않는다.
 - external publish와 semantic state apply는 별도 transition이다.
 
 ---
