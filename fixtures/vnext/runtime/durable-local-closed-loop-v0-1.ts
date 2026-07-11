@@ -167,7 +167,15 @@ export interface DurableLocalSemanticGateScenariosV01 {
 }
 
 export function buildDurableLocalSemanticGateScenariosV01(): DurableLocalSemanticGateScenariosV01 {
-  const prefix = buildDurableLocalClosedLoopProjectAFixtureV01();
+  return buildDurableLocalSemanticGateScenariosForProjectV01(
+    durableLocalClosedLoopProjectAFixture,
+  );
+}
+
+export function buildDurableLocalSemanticGateScenariosForProjectV01(
+  project: SemanticReviewLoopProjectFixtureV01,
+): DurableLocalSemanticGateScenariosV01 {
+  const prefix = buildDurableLocalClosedLoopM3APrefixFixtureV01(project);
   const replaceProposal = rebuildProposal(prefix.proposal, (proposal) => {
     const candidate = requireFirstCandidate(proposal);
     candidate.title = "Review a durable same-target replacement";

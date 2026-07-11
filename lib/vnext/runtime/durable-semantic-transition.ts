@@ -2,7 +2,9 @@ import type Database from "better-sqlite3";
 
 import {
   VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   buildVNextPersistedSemanticStateV01,
+  deleteVNextSemanticStateEntryCasV01,
   deriveVNextSemanticTargetKeyV01,
   ensureVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
@@ -10,7 +12,10 @@ import {
   readVNextCoreRecordByIdempotencyKeyV01,
   readVNextCoreRecordV01,
   readVNextSemanticStateEntryV01,
+  rebuildVNextPersistedSemanticStateV01,
+  updateVNextSemanticStateEntryCasV01,
   type VNextCoreRecordWriteResultV01,
+  type VNextCoreRecordEnvelopeV01,
   type VNextPersistedSemanticStateVersionV01,
   type VNextSemanticStateProjectionEntryV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
@@ -35,6 +40,7 @@ import {
 } from "@/lib/vnext/review-decision";
 import {
   buildStateTransitionReceiptV01,
+  compareStateTransitionReceiptReplayCompatibilityV01,
   createStateTransitionApplicationResultFingerprintV01,
   validateStateTransitionReceiptV01,
 } from "@/lib/vnext/state-transition-receipt";
@@ -66,6 +72,26 @@ export const VNEXT_SEMANTIC_COMMIT_GATE_RECORD_VERSION_V01 =
   "vnext_semantic_commit_gate_record.v0.1" as const;
 export const VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01 =
   "augnes.vnext.durable-semantic-transition.v0.1" as const;
+
+export const VNEXT_SEMANTIC_TRANSITION_TEST_FAILURE_CHECKPOINTS_V01 = [
+  "after_proposal_record_insert",
+  "after_decision_record_insert",
+  "after_gate_record_insert",
+  "after_first_state_record_insert",
+  "after_first_projection_write",
+  "before_receipt_insert",
+  "after_receipt_insert_before_commit",
+  "during_second_target",
+] as const;
+
+export type VNextSemanticTransitionTestFailureCheckpointV01 =
+  (typeof VNEXT_SEMANTIC_TRANSITION_TEST_FAILURE_CHECKPOINTS_V01)[number];
+
+export interface VNextSemanticTransitionTestOptionsV01 {
+  on_checkpoint?: (
+    checkpoint: VNextSemanticTransitionTestFailureCheckpointV01,
+  ) => void;
+}
 
 export interface VNextSemanticReviewMaterialPersistenceResultV01 {
   proposal_record: VNextCoreRecordWriteResultV01;
@@ -148,8 +174,8 @@ export interface VNextSemanticCommitAuthorizationResultV01 {
 
 export interface VNextSemanticTransitionCommitResultV01 {
   status: "applied" | "exact_replay";
-  semantic_state: VNextPersistedSemanticStateVersionV01;
-  projection: VNextSemanticStateProjectionEntryV01;
+  semantic_state: VNextPersistedSemanticStateVersionV01 | null;
+  projection: VNextSemanticStateProjectionEntryV01 | null;
   transition_receipt: StateTransitionReceiptV01;
   receipt: StateTransitionReceiptV01;
   state_records: VNextPersistedSemanticStateVersionV01[];
@@ -161,6 +187,7 @@ export interface VNextSemanticTransitionCommitResultV01 {
 export interface PersistVNextSemanticReviewMaterialInputV01 {
   proposal: EpisodeDeltaProposalV01;
   decision: ReviewDecisionV01;
+  test_options?: VNextSemanticTransitionTestOptionsV01;
 }
 
 export interface PrepareVNextSemanticCommitPreviewInputV01 {
@@ -184,6 +211,7 @@ export interface RecordVNextSemanticCommitAuthorizationInputV01 {
   gate_evaluated_at: string;
   gate_expires_at: string;
   eligibility_evaluated_at: string;
+  test_options?: VNextSemanticTransitionTestOptionsV01;
 }
 
 export interface CommitVNextSemanticTransitionInputV01 {
@@ -197,6 +225,7 @@ export interface CommitVNextSemanticTransitionInputV01 {
   gate_record_fingerprint: string;
   applied_at: string;
   recorded_at: string;
+  test_options?: VNextSemanticTransitionTestOptionsV01;
 }
 
 export function persistVNextSemanticReviewMaterialV01(
@@ -215,8 +244,8 @@ export function persistVNextSemanticReviewMaterialV01(
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   assertProposalDecision(input.proposal, input.decision);
   ensureVNextDurableSemanticStoreSchemaV01(db);
-  return withImmediateTransaction(db, () => ({
-    proposal_record: insertVNextCoreRecordV01(db, {
+  return withImmediateTransaction(db, () => {
+    const proposalRecord = insertVNextCoreRecordV01(db, {
       record_kind: "episode_delta_proposal",
       record_id: input.proposal.proposal_id,
       workspace_id: input.proposal.workspace_id,
@@ -225,8 +254,9 @@ export function persistVNextSemanticReviewMaterialV01(
       idempotency_key: null,
       payload: input.proposal,
       created_at: input.proposal.created_at,
-    }),
-    decision_record: insertVNextCoreRecordV01(db, {
+    });
+    runTestCheckpoint(input.test_options, "after_proposal_record_insert");
+    const decisionRecord = insertVNextCoreRecordV01(db, {
       record_kind: "review_decision",
       record_id: input.decision.decision_id,
       workspace_id: input.decision.workspace_id,
@@ -235,8 +265,13 @@ export function persistVNextSemanticReviewMaterialV01(
       idempotency_key: null,
       payload: input.decision,
       created_at: input.decision.decided_at,
-    }),
-  }));
+    });
+    runTestCheckpoint(input.test_options, "after_decision_record_insert");
+    return {
+      proposal_record: proposalRecord,
+      decision_record: decisionRecord,
+    };
+  });
 }
 
 export function prepareVNextSemanticCommitPreviewV01(
@@ -434,6 +469,7 @@ export function recordVNextSemanticCommitAuthorizationV01(
       payload: gateRecord,
       created_at: input.confirmed_at,
     });
+    runTestCheckpoint(input.test_options, "after_gate_record_insert");
     return {
       status: write.status,
       gate_record: gateRecord,
@@ -457,136 +493,139 @@ export function commitVNextSemanticTransitionV01(
   maybeInput?: CommitVNextSemanticTransitionInputV01,
 ): VNextSemanticTransitionCommitResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
+  return commitVNextSemanticTransitionInternalV01(db, input);
+}
+
+interface BuiltVNextSemanticTransitionV01 {
+  receipt: StateTransitionReceiptV01;
+  state_records: VNextPersistedSemanticStateVersionV01[];
+}
+
+function commitVNextSemanticTransitionInternalV01(
+  db: Database.Database,
+  input: CommitVNextSemanticTransitionInputV01,
+): VNextSemanticTransitionCommitResultV01 {
   assertTimestamp(input.applied_at, "applied_at");
   assertTimestamp(input.recorded_at, "recorded_at");
+  assertTimestampOrder(
+    input.applied_at,
+    input.recorded_at,
+    "recorded_before_applied",
+  );
   return withImmediateTransaction(db, () => {
     const { proposal, decision } = loadReviewMaterial({ db, ...input });
+    const transition = resolveTransitionMaterial(proposal, decision);
     const expectedIdempotency = transitionIdempotencyKey(decision);
-    const existingReceiptRecord = readVNextCoreRecordByIdempotencyKeyV01(
+    const existingReceiptRecord = readVNextCoreRecordByIdempotencyKeyV01(db, {
+      record_kind: "state_transition_receipt",
+      workspace_id: proposal.workspace_id,
+      project_id: proposal.project_id,
+      idempotency_key: expectedIdempotency,
+    });
+    const gate = loadGateRecord(db, input, proposal, decision, {
+      // The writer performs the authoritative live projection comparison below
+      // in this same immediate transaction. Gate validation first rebuilds the
+      // immutable authorized snapshot so exact replays remain possible.
+      allow_historical_snapshot: true,
+    });
+    const lineage = loadAppliedLineageFromStore(
       db,
+      proposal,
+      decision,
+      gate.current_state_observations,
       {
-        record_kind: "state_transition_receipt",
-        workspace_id: input.workspace_id,
-        project_id: input.project_id,
-        idempotency_key: expectedIdempotency,
+        prior_review_decision_bindings:
+          gate.prior_review_decision_bindings,
+        prior_state_transition_receipt_bindings:
+          gate.prior_state_transition_receipt_bindings,
       },
     );
-    const gate = loadGateRecord(db, input, proposal, decision, {
-      allow_historical_snapshot: existingReceiptRecord !== null,
-    });
-    if (
-      gate.proposal_id !== proposal.proposal_id ||
-      gate.proposal_fingerprint !== proposal.integrity.fingerprint ||
-      gate.decision_id !== decision.decision_id ||
-      gate.decision_fingerprint !== decision.integrity.fingerprint
-    ) throw new Error("semantic_commit_gate_binding_mismatch");
-    const candidate = phaseAWriterCandidate(proposal, decision);
-    const targetRef = normalizeExternalRefPrimitiveV01(candidate.target_refs[0]!);
-    const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
-    const expectedState = buildVNextPersistedSemanticStateV01({
-      proposal,
-      candidate_id: candidate.candidate_id,
-      target_ref: targetRef,
-      source_decision: {
-        decision_id: decision.decision_id,
-        decision_fingerprint: decision.integrity.fingerprint,
-      },
-      created_at: input.applied_at,
-    });
-    const current = readVNextSemanticStateEntryV01(db, {
-      workspace_id: input.workspace_id,
-      project_id: input.project_id,
-      target_key: targetKey,
-    });
     const gateEligibilityInput = eligibilityInputFor(
       proposal,
       decision,
       gate.current_state_observations,
       gate.semantic_commit_gate_evaluation,
       gate.eligibility_evaluated_at,
+      lineage,
     );
-    const gateEligibility = evaluateReviewDecisionStateTransitionEligibilityV01(
-      gateEligibilityInput,
-    );
+    const gateEligibility =
+      evaluateReviewDecisionStateTransitionEligibilityV01(
+        gateEligibilityInput,
+      );
     if (
       gateEligibility.status !== "eligible" ||
       gateEligibility.precondition_fingerprint !==
         gate.eligibility_precondition_fingerprint
-    ) throw new Error("semantic_commit_precondition_mismatch");
+    ) {
+      throw new Error("semantic_commit_precondition_mismatch");
+    }
+    const built = buildAppliedTransitionMaterial({
+      proposal,
+      decision,
+      transition,
+      gate,
+      eligibility: gateEligibility,
+      applied_at: input.applied_at,
+      recorded_at: input.recorded_at,
+    });
+    if (built.receipt.idempotency_key !== expectedIdempotency) {
+      throw new Error("transition_idempotency_mismatch");
+    }
+    assertValidReceiptRelation(gateEligibilityInput, built.receipt);
 
     if (existingReceiptRecord) {
-      const receipt = existingReceiptRecord.payload as StateTransitionReceiptV01;
-      const receiptValidation = validateStateTransitionReceiptV01(receipt);
-      if (
-        receiptValidation.status !== "valid" ||
-        existingReceiptRecord.fingerprint !== receipt.integrity.fingerprint ||
-        receipt.idempotency_key !== expectedIdempotency ||
-        receipt.semantic_commit_gate.evaluation_ref.external_id !==
-          gate.semantic_commit_gate_evaluation.evaluation_ref.external_id
-      ) throw new Error("conflicting_result");
-      const effect = receipt.effects[0];
-      if (
-        receipt.effects.length !== 1 ||
-        !effect ||
-        effect.after_state.presence !== "present" ||
-        effect.after_state.state_fingerprint !==
-          expectedState.state_content_fingerprint ||
-        !current ||
-        current.revision !== 1 ||
-        current.state_fingerprint !== effect.after_state.state_fingerprint ||
-        canonicalizeProtocolValueV01(current.state_ref) !==
-          canonicalizeProtocolValueV01(effect.after_state.state_ref)
-      ) throw new Error("state_replay_conflict");
-      const relation = validateStateTransitionReceiptAgainstEligibilityV01({
-        ...gateEligibilityInput,
-        receipt,
-      });
-      if (relation.status !== "valid") throw new Error("conflicting_result");
-      const semanticStateRecord = readVNextCoreRecordV01(db, {
-        record_kind: "semantic_state",
-        record_id: current.state_ref.external_id,
-        workspace_id: input.workspace_id,
-        project_id: input.project_id,
-      });
-      if (!semanticStateRecord) throw new Error("state_replay_conflict");
-      return {
-        status: "exact_replay",
-        semantic_state:
-          semanticStateRecord.payload as VNextPersistedSemanticStateVersionV01,
-        projection: current,
-        transition_receipt: receipt,
-        receipt,
-        state_records: [
-          semanticStateRecord.payload as VNextPersistedSemanticStateVersionV01,
-        ],
-        projection_entries: [current],
+      return validateAndReturnExactReplay({
+        db,
+        proposal,
+        transition,
+        gate,
         eligibility_input: gateEligibilityInput,
         eligibility: gateEligibility,
-      };
+        existing_receipt_record: existingReceiptRecord,
+        expected: built,
+      });
     }
-    if (current) throw new Error("semantic_commit_stale_current_state");
-    if (parseStrictIsoTimestampV01(input.applied_at)! > parseStrictIsoTimestampV01(gate.semantic_commit_gate_evaluation.expires_at)!) {
-      throw new Error("semantic_commit_gate_expired");
+
+    const observedAt = gate.current_state_observations[0]?.observed_at;
+    if (!observedAt) {
+      throw new Error("semantic_commit_current_state_observation_missing");
     }
-    const storedBefore = gate.current_state_observations[0]!;
-    const before = createAbsentObservation(
-      proposal.workspace_id,
-      proposal.project_id,
-      targetRef,
-      targetKey,
-      storedBefore.observed_at,
+    const liveSnapshot = readCurrentStateSnapshot(
+      db,
+      proposal,
+      transition.target_refs,
+      observedAt,
     );
     if (
-      canonicalizeProtocolValueV01(before) !==
-      canonicalizeProtocolValueV01(storedBefore)
-    ) throw new Error("semantic_commit_current_state_observation_mismatch");
-    if (before.presence !== "absent") throw new Error("phase_a_create_requires_absent_state");
+      canonicalizeProtocolValueV01(liveSnapshot.observations) !==
+      canonicalizeProtocolValueV01(gate.current_state_observations)
+    ) {
+      throw new Error("semantic_commit_stale_current_state");
+    }
+    assertLiveLineageProjectionBindings(
+      decision,
+      liveSnapshot.projections,
+      gate,
+    );
+    const liveLineage = loadAppliedLineageFromStore(
+      db,
+      proposal,
+      decision,
+      liveSnapshot.observations,
+      {
+        prior_review_decision_bindings:
+          gate.prior_review_decision_bindings,
+        prior_state_transition_receipt_bindings:
+          gate.prior_state_transition_receipt_bindings,
+      },
+    );
     const eligibilityInput = eligibilityInputFor(
       proposal,
       decision,
-      [before],
+      liveSnapshot.observations,
       gate.semantic_commit_gate_evaluation,
       gate.eligibility_evaluated_at,
+      liveLineage,
     );
     const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01(
       eligibilityInput,
@@ -595,183 +634,549 @@ export function commitVNextSemanticTransitionV01(
       eligibility.status !== "eligible" ||
       eligibility.precondition_fingerprint !==
         gate.eligibility_precondition_fingerprint
-    ) throw new Error("semantic_commit_precondition_mismatch");
-    const afterState = {
-      presence: "present" as const,
-      state_ref: expectedState.state_ref,
-      state_fingerprint: expectedState.state_content_fingerprint,
-    };
-    const applicationResult = createStateTransitionApplicationResultFingerprintV01(
-      {
-        target_ref: targetRef,
-        operation: "create",
-        before_state: { presence: "absent", state_ref: null, state_fingerprint: null },
-        after_state: afterState,
-      },
-      input.applied_at,
-    );
-    const afterObservationRef = localRef(
-      "semantic_state_application_observation",
-      `application:${expectedState.semantic_state_record_id}`,
-      input.applied_at,
-      applicationResult,
-    );
-    const durableRecordRef = localRef(
-      "durable_semantic_state_record",
-      expectedState.semantic_state_record_id,
-      input.recorded_at,
-      applicationResult,
-    );
-    const proposalRef = protocolRef(
-      "episode_delta_proposal",
-      proposal.proposal_id,
-      "derived_interpretation",
-      proposal.created_at,
-      proposal.integrity.fingerprint,
-    );
-    const decisionRef = protocolRef(
-      "review_decision",
-      decision.decision_id,
-      "user_declaration",
-      decision.decided_at,
-      decision.integrity.fingerprint,
-    );
-    const receiptInput: StateTransitionReceiptBuilderInputV01 = {
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      source_proposal: {
-        proposal_version: proposal.proposal_version,
-        proposal_id: proposal.proposal_id,
-        proposal_fingerprint: proposal.integrity.fingerprint,
-      },
-      source_decision: {
-        decision_version: decision.decision_version,
-        decision_id: decision.decision_id,
-        decision_fingerprint: decision.integrity.fingerprint,
-      },
-      source_candidate: decision.candidate,
-      requested_transition_intent: {
-        intent_id: decision.requested_transition_intent!.intent_id,
-        transition_kind: decision.requested_transition_intent!.transition_kind,
-        target_refs: decision.requested_transition_intent!.target_refs,
-      },
-      effects: [{
-        target_ref: targetRef,
-        operation: "create",
-        before_state: { presence: "absent", state_ref: null, state_fingerprint: null },
-        after_state: afterState,
-        before_state_observation_ref: before.observation_ref,
-        after_application_observation_ref: afterObservationRef,
-        durable_record_ref: durableRecordRef,
-        source_refs: normalizeRefs([
-          proposalRef,
-          decisionRef,
-          before.observation_ref,
-          gate.semantic_commit_gate_evaluation.evaluation_ref,
-          afterObservationRef,
-          durableRecordRef,
-        ]),
-      }],
-      applied_at: input.applied_at,
-      recorded_at: input.recorded_at,
-      applied_by_ref:
-        gate.semantic_commit_gate_evaluation.authorized_applier_ref,
-      semantic_commit_gate: {
-        status: "authorized",
-        evaluation_ref: gate.semantic_commit_gate_evaluation.evaluation_ref,
-        evaluated_at: gate.semantic_commit_gate_evaluation.evaluated_at,
-        expires_at: gate.semantic_commit_gate_evaluation.expires_at,
-      },
-      eligibility_precondition_fingerprint: eligibility.precondition_fingerprint,
-      source_refs: normalizeRefs([
-        proposalRef,
-        decisionRef,
-        before.observation_ref,
-        gate.semantic_commit_gate_evaluation.evaluation_ref,
-        gate.semantic_commit_gate_evaluation.authorized_applier_ref,
-        afterObservationRef,
-        durableRecordRef,
-      ]),
-      compatibility: {
-        source_contracts: [proposal.proposal_version, decision.decision_version],
-        unmapped_fields: [],
-        warnings: [
-          "Local application observations do not authenticate the human identity behind the synthetic decision actor.",
-        ],
-        external_refs: [],
-      },
-      authority_notes: [
-        "The injected local writer applied this receipt atomically; the receipt builder itself performed no write.",
-      ],
-    };
-    const receipt = buildStateTransitionReceiptV01(receiptInput);
-    if (receipt.idempotency_key !== expectedIdempotency) {
-      throw new Error("transition_idempotency_mismatch");
+    ) {
+      throw new Error("semantic_commit_precondition_mismatch");
     }
-    if (validateStateTransitionReceiptV01(receipt).status !== "valid") {
-      throw new Error("state_transition_receipt_invalid");
-    }
-    const relation = validateStateTransitionReceiptAgainstEligibilityV01({
-      ...eligibilityInput,
-      receipt,
-    });
-    if (relation.status !== "valid") {
-      throw new Error(`state_transition_receipt_relation_invalid:${issueCodes(relation)}`);
-    }
-    insertVNextCoreRecordV01(db, {
-      record_kind: "semantic_state",
-      record_id: expectedState.semantic_state_record_id,
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      fingerprint: expectedState.integrity.fingerprint,
-      idempotency_key: null,
-      payload: expectedState,
-      created_at: input.applied_at,
-    });
-    const projection: VNextSemanticStateProjectionEntryV01 = {
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      presence: "present",
-      target_key: targetKey,
-      target_ref: targetRef,
-      state_ref: expectedState.state_ref,
-      state_fingerprint: expectedState.state_content_fingerprint,
-      bounded_state_summary: expectedState.bounded_state_summary,
-      source_proposal_id: proposal.proposal_id,
-      source_proposal_fingerprint: proposal.integrity.fingerprint,
-      source_candidate_id: candidate.candidate_id,
-      source_candidate_fingerprint:
-        createEpisodeDeltaCandidateFingerprintV01(candidate),
-      source_transition_receipt_id: receipt.transition_receipt_id,
-      source_transition_receipt_fingerprint: receipt.integrity.fingerprint,
-      revision: 1,
-      updated_at: input.recorded_at,
-    };
-    insertVNextSemanticStateEntryV01(db, projection);
-    insertVNextCoreRecordV01(db, {
-      record_kind: "state_transition_receipt",
-      record_id: receipt.transition_receipt_id,
-      workspace_id: receipt.workspace_id,
-      project_id: receipt.project_id,
-      fingerprint: receipt.integrity.fingerprint,
-      idempotency_key: receipt.idempotency_key,
-      payload: receipt,
-      created_at: receipt.recorded_at,
+    assertValidReceiptRelation(eligibilityInput, built.receipt);
+    const projections = applyTransitionWrites({
+      db,
+      input,
+      proposal,
+      transition,
+      current_projections: liveSnapshot.projections,
+      built,
     });
     return {
       status: "applied",
-      semantic_state: expectedState,
-      projection,
-      transition_receipt: receipt,
-      receipt,
-      state_records: [expectedState],
-      projection_entries: [projection],
+      semantic_state: built.state_records[0] ?? null,
+      projection: projections[0] ?? null,
+      transition_receipt: built.receipt,
+      receipt: built.receipt,
+      state_records: built.state_records,
+      projection_entries: projections,
       eligibility_input: eligibilityInput,
       eligibility,
     };
   });
 }
 
+function assertLiveLineageProjectionBindings(
+  decision: ReviewDecisionV01,
+  projections: Array<VNextSemanticStateProjectionEntryV01 | null>,
+  gate: VNextSemanticCommitGateRecordV01,
+): void {
+  if (decision.decision !== "supersede" && decision.decision !== "retract") {
+    return;
+  }
+  if (gate.prior_state_transition_receipt_bindings.length !== 1) {
+    throw new Error("semantic_commit_prior_receipt_binding_invalid");
+  }
+  const binding = gate.prior_state_transition_receipt_bindings[0]!;
+  for (const projection of projections) {
+    if (
+      !projection ||
+      projection.source_transition_receipt_id !== binding.record_id ||
+      projection.source_transition_receipt_fingerprint !== binding.fingerprint
+    ) {
+      throw new Error("semantic_commit_prior_projection_lineage_mismatch");
+    }
+  }
+}
+
+function buildAppliedTransitionMaterial(input: {
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  transition: ResolvedTransitionMaterialV01;
+  gate: VNextSemanticCommitGateRecordV01;
+  eligibility: StateTransitionEligibilityResultV01;
+  applied_at: string;
+  recorded_at: string;
+}): BuiltVNextSemanticTransitionV01 {
+  const expectedByTarget = new Map(
+    input.eligibility.expected_effects.map((effect) => [
+      canonicalizeProtocolValueV01(effect.target_ref),
+      effect,
+    ]),
+  );
+  if (expectedByTarget.size !== input.transition.target_refs.length) {
+    throw new Error("semantic_commit_expected_effect_set_mismatch");
+  }
+  const stateRecords: VNextPersistedSemanticStateVersionV01[] = [];
+  const proposalRef = protocolRef(
+    "episode_delta_proposal",
+    input.proposal.proposal_id,
+    "derived_interpretation",
+    input.proposal.created_at,
+    input.proposal.integrity.fingerprint,
+  );
+  const decisionRef = protocolRef(
+    "review_decision",
+    input.decision.decision_id,
+    "user_declaration",
+    input.decision.decided_at,
+    input.decision.integrity.fingerprint,
+  );
+  const effects: StateTransitionReceiptBuilderInputV01["effects"] = [];
+  for (const targetRef of input.transition.target_refs) {
+    const expected = expectedByTarget.get(
+      canonicalizeProtocolValueV01(targetRef),
+    );
+    if (!expected) throw new Error("semantic_commit_expected_effect_missing");
+    const stateRecord = input.transition.state_material_candidate
+      ? buildVNextPersistedSemanticStateV01({
+          proposal: input.proposal,
+          candidate_id:
+            input.transition.state_material_candidate.candidate_id,
+          target_ref: targetRef,
+          source_decision: {
+            decision_id: input.decision.decision_id,
+            decision_fingerprint: input.decision.integrity.fingerprint,
+          },
+          created_at: input.applied_at,
+        })
+      : null;
+    const afterState = stateRecord
+      ? {
+          presence: "present" as const,
+          state_ref: stateRecord.state_ref,
+          state_fingerprint: stateRecord.state_content_fingerprint,
+        }
+      : {
+          presence: "absent" as const,
+          state_ref: null,
+          state_fingerprint: null,
+        };
+    if (
+      afterState.presence !== expected.expected_after_state.presence ||
+      (afterState.presence === "present" &&
+        expected.expected_after_state.presence === "present" &&
+        afterState.state_fingerprint !==
+          expected.expected_after_state.state_fingerprint)
+    ) {
+      throw new Error("semantic_commit_authorized_after_state_mismatch");
+    }
+    if (stateRecord) stateRecords.push(stateRecord);
+    const applicationResult =
+      createStateTransitionApplicationResultFingerprintV01(
+        {
+          target_ref: targetRef,
+          operation: expected.operation,
+          before_state: expected.before_state,
+          after_state: afterState,
+        },
+        input.applied_at,
+      );
+    const proofIdentity = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        decision_fingerprint: input.decision.integrity.fingerprint,
+        target_ref: targetRef,
+        operation: expected.operation,
+      }),
+    ).slice("sha256:".length, 31);
+    const afterObservationRef = localRef(
+      "semantic_state_application_observation",
+      `semantic-transition-application:${proofIdentity}`,
+      input.applied_at,
+      applicationResult,
+    );
+    const durableRecordRef = localRef(
+      stateRecord
+        ? "durable_semantic_state_record"
+        : "durable_state_transition_receipt_by_idempotency",
+      stateRecord?.semantic_state_record_id ??
+        transitionIdempotencyKey(input.decision),
+      input.recorded_at,
+      applicationResult,
+    );
+    effects.push({
+      target_ref: targetRef,
+      operation: expected.operation,
+      before_state: expected.before_state,
+      after_state: afterState,
+      before_state_observation_ref: expected.before_state_observation_ref,
+      after_application_observation_ref: afterObservationRef,
+      durable_record_ref: durableRecordRef,
+      source_refs: normalizeRefs([
+        proposalRef,
+        decisionRef,
+        expected.before_state_observation_ref,
+        input.gate.semantic_commit_gate_evaluation.evaluation_ref,
+        ...expected.lineage_refs,
+        afterObservationRef,
+        durableRecordRef,
+      ]),
+    });
+  }
+  const receipt = buildStateTransitionReceiptV01({
+    workspace_id: input.proposal.workspace_id,
+    project_id: input.proposal.project_id,
+    source_proposal: {
+      proposal_version: input.proposal.proposal_version,
+      proposal_id: input.proposal.proposal_id,
+      proposal_fingerprint: input.proposal.integrity.fingerprint,
+    },
+    source_decision: {
+      decision_version: input.decision.decision_version,
+      decision_id: input.decision.decision_id,
+      decision_fingerprint: input.decision.integrity.fingerprint,
+    },
+    source_candidate: input.decision.candidate,
+    requested_transition_intent: {
+      intent_id: input.decision.requested_transition_intent!.intent_id,
+      transition_kind:
+        input.decision.requested_transition_intent!.transition_kind,
+      target_refs: input.decision.requested_transition_intent!.target_refs,
+    },
+    effects,
+    applied_at: input.applied_at,
+    recorded_at: input.recorded_at,
+    applied_by_ref:
+      input.gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+    semantic_commit_gate: {
+      status: "authorized",
+      evaluation_ref:
+        input.gate.semantic_commit_gate_evaluation.evaluation_ref,
+      evaluated_at:
+        input.gate.semantic_commit_gate_evaluation.evaluated_at,
+      expires_at: input.gate.semantic_commit_gate_evaluation.expires_at,
+    },
+    eligibility_precondition_fingerprint:
+      input.eligibility.precondition_fingerprint,
+    source_refs: normalizeRefs([
+      proposalRef,
+      decisionRef,
+      input.gate.semantic_commit_gate_evaluation.evaluation_ref,
+      input.gate.semantic_commit_gate_evaluation.authorized_applier_ref,
+      ...input.eligibility.expected_effects.flatMap(
+        (effect) => effect.lineage_refs,
+      ),
+    ]),
+    compatibility: {
+      source_contracts: [
+        input.proposal.proposal_version,
+        input.decision.decision_version,
+      ],
+      unmapped_fields: [],
+      warnings: [
+        "Local application observations do not authenticate the human identity behind the decision actor.",
+      ],
+      external_refs: [],
+    },
+    authority_notes: [
+      "The injected local writer applied this receipt atomically; the receipt builder itself performed no write.",
+    ],
+  });
+  return {
+    receipt,
+    state_records: stateRecords.sort((left, right) =>
+      left.target_key < right.target_key ? -1 : left.target_key > right.target_key ? 1 : 0,
+    ),
+  };
+}
+
+function applyTransitionWrites(input: {
+  db: Database.Database;
+  input: CommitVNextSemanticTransitionInputV01;
+  proposal: EpisodeDeltaProposalV01;
+  transition: ResolvedTransitionMaterialV01;
+  current_projections: Array<VNextSemanticStateProjectionEntryV01 | null>;
+  built: BuiltVNextSemanticTransitionV01;
+}): VNextSemanticStateProjectionEntryV01[] {
+  const stateByTarget = new Map(
+    input.built.state_records.map((state) => [state.target_key, state]),
+  );
+  const effectByTarget = new Map(
+    input.built.receipt.effects.map((effect) => [
+      canonicalizeProtocolValueV01(effect.target_ref),
+      effect,
+    ]),
+  );
+  const resultingProjections: VNextSemanticStateProjectionEntryV01[] = [];
+  let stateInsertCount = 0;
+  let projectionWriteCount = 0;
+  for (const [index, targetRef] of input.transition.target_refs.entries()) {
+    if (index === 1) {
+      runTestCheckpoint(input.input.test_options, "during_second_target");
+    }
+    const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
+    const effect = effectByTarget.get(canonicalizeProtocolValueV01(targetRef));
+    const current = input.current_projections[index] ?? null;
+    if (!effect) throw new Error("semantic_commit_effect_missing");
+    const stateRecord = stateByTarget.get(targetKey) ?? null;
+    if (stateRecord) {
+      insertVNextCoreRecordV01(input.db, {
+        record_kind: "semantic_state",
+        record_id: stateRecord.semantic_state_record_id,
+        workspace_id: stateRecord.workspace_id,
+        project_id: stateRecord.project_id,
+        fingerprint: stateRecord.integrity.fingerprint,
+        idempotency_key: null,
+        payload: stateRecord,
+        created_at: input.input.applied_at,
+      });
+      stateInsertCount += 1;
+      if (stateInsertCount === 1) {
+        runTestCheckpoint(
+          input.input.test_options,
+          "after_first_state_record_insert",
+        );
+      }
+    }
+    if (effect.operation === "retract") {
+      if (!current || effect.before_state.presence !== "present") {
+        throw new Error("semantic_commit_retract_current_state_mismatch");
+      }
+      deleteVNextSemanticStateEntryCasV01(input.db, {
+        workspace_id: input.proposal.workspace_id,
+        project_id: input.proposal.project_id,
+        target_key: targetKey,
+        expected_revision: current.revision,
+        expected_state_fingerprint: current.state_fingerprint,
+      });
+    } else {
+      if (!stateRecord || effect.after_state.presence !== "present") {
+        throw new Error("semantic_commit_present_state_missing");
+      }
+      const candidate = input.transition.state_material_candidate;
+      if (!candidate) throw new Error("semantic_commit_state_candidate_missing");
+      const nextProjection: VNextSemanticStateProjectionEntryV01 = {
+        workspace_id: input.proposal.workspace_id,
+        project_id: input.proposal.project_id,
+        presence: "present",
+        target_key: targetKey,
+        target_ref: normalizeExternalRefPrimitiveV01(targetRef),
+        state_ref: stateRecord.state_ref,
+        state_fingerprint: stateRecord.state_content_fingerprint,
+        bounded_state_summary: stateRecord.bounded_state_summary,
+        source_proposal_id: input.proposal.proposal_id,
+        source_proposal_fingerprint: input.proposal.integrity.fingerprint,
+        source_candidate_id: candidate.candidate_id,
+        source_candidate_fingerprint:
+          createEpisodeDeltaCandidateFingerprintV01(candidate),
+        source_transition_receipt_id:
+          input.built.receipt.transition_receipt_id,
+        source_transition_receipt_fingerprint:
+          input.built.receipt.integrity.fingerprint,
+        revision: current ? current.revision + 1 : 1,
+        updated_at: input.input.recorded_at,
+      };
+      if (effect.operation === "create") {
+        if (current) throw new Error("semantic_commit_create_state_exists");
+        insertVNextSemanticStateEntryV01(input.db, nextProjection);
+      } else {
+        if (!current || effect.before_state.presence !== "present") {
+          throw new Error("semantic_commit_replace_current_state_missing");
+        }
+        updateVNextSemanticStateEntryCasV01(input.db, {
+          expected_revision: current.revision,
+          expected_state_fingerprint: current.state_fingerprint,
+          next: nextProjection,
+        });
+      }
+      resultingProjections.push(nextProjection);
+    }
+    projectionWriteCount += 1;
+    if (projectionWriteCount === 1) {
+      runTestCheckpoint(
+        input.input.test_options,
+        "after_first_projection_write",
+      );
+    }
+  }
+  runTestCheckpoint(input.input.test_options, "before_receipt_insert");
+  insertVNextCoreRecordV01(input.db, {
+    record_kind: "state_transition_receipt",
+    record_id: input.built.receipt.transition_receipt_id,
+    workspace_id: input.built.receipt.workspace_id,
+    project_id: input.built.receipt.project_id,
+    fingerprint: input.built.receipt.integrity.fingerprint,
+    idempotency_key: input.built.receipt.idempotency_key,
+    payload: input.built.receipt,
+    created_at: input.built.receipt.recorded_at,
+  });
+  runTestCheckpoint(
+    input.input.test_options,
+    "after_receipt_insert_before_commit",
+  );
+  return resultingProjections.sort((left, right) =>
+    left.target_key < right.target_key ? -1 : left.target_key > right.target_key ? 1 : 0,
+  );
+}
+
+function validateAndReturnExactReplay(input: {
+  db: Database.Database;
+  proposal: EpisodeDeltaProposalV01;
+  transition: ResolvedTransitionMaterialV01;
+  gate: VNextSemanticCommitGateRecordV01;
+  eligibility_input: StateTransitionEligibilityEvaluationInputV01;
+  eligibility: StateTransitionEligibilityResultV01;
+  existing_receipt_record: VNextCoreRecordEnvelopeV01;
+  expected: BuiltVNextSemanticTransitionV01;
+}): VNextSemanticTransitionCommitResultV01 {
+  const receiptValidation = validateStateTransitionReceiptV01(
+    input.existing_receipt_record.payload,
+  );
+  if (receiptValidation.status !== "valid") {
+    throw new Error("conflicting_result");
+  }
+  const storedReceipt =
+    input.existing_receipt_record.payload as StateTransitionReceiptV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(
+    input.existing_receipt_record,
+    {
+      workspace_id: storedReceipt.workspace_id,
+      project_id: storedReceipt.project_id,
+      fingerprint: storedReceipt.integrity.fingerprint,
+    },
+  );
+  if (
+    input.existing_receipt_record.record_id !==
+      storedReceipt.transition_receipt_id ||
+    input.existing_receipt_record.idempotency_key !==
+      storedReceipt.idempotency_key ||
+    input.existing_receipt_record.created_at !== storedReceipt.recorded_at
+  ) {
+    throw new Error("conflicting_result");
+  }
+  const replay = compareStateTransitionReceiptReplayCompatibilityV01(
+    storedReceipt,
+    input.expected.receipt,
+  );
+  if (
+    replay.status !== "exact_replay" ||
+    canonicalizeProtocolValueV01(storedReceipt) !==
+      canonicalizeProtocolValueV01(input.expected.receipt)
+  ) {
+    throw new Error("conflicting_result");
+  }
+  assertValidReceiptRelation(input.eligibility_input, storedReceipt);
+  const expectedStateByTarget = new Map(
+    input.expected.state_records.map((state) => [state.target_key, state]),
+  );
+  const intendedEffectByTarget = new Map(
+    input.gate.intended_effects.map((effect) => [
+      canonicalizeProtocolValueV01(effect.target_ref),
+      effect,
+    ]),
+  );
+  const states: VNextPersistedSemanticStateVersionV01[] = [];
+  const projections: VNextSemanticStateProjectionEntryV01[] = [];
+  for (const effect of storedReceipt.effects) {
+    const targetKey = deriveVNextSemanticTargetKeyV01(effect.target_ref);
+    const current = readVNextSemanticStateEntryV01(input.db, {
+      workspace_id: input.proposal.workspace_id,
+      project_id: input.proposal.project_id,
+      target_key: targetKey,
+    });
+    if (effect.after_state.presence === "absent") {
+      if (current) throw new Error("state_replay_conflict");
+      continue;
+    }
+    const intended = intendedEffectByTarget.get(
+      canonicalizeProtocolValueV01(effect.target_ref),
+    );
+    const stateCandidate = input.transition.state_material_candidate;
+    if (
+      !current ||
+      !intended ||
+      !stateCandidate ||
+      current.revision !== intended.expected_revision ||
+      current.presence !== "present" ||
+      current.target_key !== targetKey ||
+      current.source_proposal_id !== input.proposal.proposal_id ||
+      current.source_proposal_fingerprint !==
+        input.proposal.integrity.fingerprint ||
+      current.source_candidate_id !== stateCandidate.candidate_id ||
+      current.source_candidate_fingerprint !==
+        createEpisodeDeltaCandidateFingerprintV01(stateCandidate) ||
+      current.source_transition_receipt_id !==
+        storedReceipt.transition_receipt_id ||
+      current.source_transition_receipt_fingerprint !==
+        storedReceipt.integrity.fingerprint ||
+      current.state_fingerprint !== effect.after_state.state_fingerprint ||
+      canonicalizeProtocolValueV01(current.state_ref) !==
+        canonicalizeProtocolValueV01(effect.after_state.state_ref) ||
+      canonicalizeProtocolValueV01(current.target_ref) !==
+        canonicalizeProtocolValueV01(effect.target_ref) ||
+      current.updated_at !== storedReceipt.recorded_at
+    ) {
+      throw new Error("state_replay_conflict");
+    }
+    const expectedState = expectedStateByTarget.get(targetKey);
+    if (
+      !expectedState ||
+      current.bounded_state_summary !== expectedState.bounded_state_summary
+    ) {
+      throw new Error("state_replay_conflict");
+    }
+    let stateRecord: VNextCoreRecordEnvelopeV01 | null = null;
+    let rebuiltState: VNextPersistedSemanticStateVersionV01 | null = null;
+    try {
+      stateRecord = readVNextCoreRecordV01(input.db, {
+        record_kind: "semantic_state",
+        record_id: expectedState.semantic_state_record_id,
+        workspace_id: input.proposal.workspace_id,
+        project_id: input.proposal.project_id,
+      });
+      if (!stateRecord) throw new Error("semantic_state_record_missing");
+      rebuiltState = rebuildVNextPersistedSemanticStateV01(
+        stateRecord.payload,
+      );
+      assertVNextCoreRecordMatchesProtocolPayloadBindingV01(stateRecord, {
+        workspace_id: rebuiltState.workspace_id,
+        project_id: rebuiltState.project_id,
+        fingerprint: rebuiltState.integrity.fingerprint,
+      });
+    } catch {
+      throw new Error("state_replay_conflict");
+    }
+    if (
+      !stateRecord ||
+      !rebuiltState ||
+      stateRecord.record_id !== rebuiltState.semantic_state_record_id ||
+      stateRecord.created_at !== rebuiltState.created_at ||
+      canonicalizeProtocolValueV01(rebuiltState) !==
+        canonicalizeProtocolValueV01(expectedState)
+    ) {
+      throw new Error("state_replay_conflict");
+    }
+    states.push(rebuiltState);
+    projections.push(current);
+  }
+  return {
+    status: "exact_replay",
+    semantic_state: states[0] ?? null,
+    projection: projections[0] ?? null,
+    transition_receipt: storedReceipt,
+    receipt: storedReceipt,
+    state_records: states.sort((left, right) =>
+      left.target_key < right.target_key ? -1 : left.target_key > right.target_key ? 1 : 0,
+    ),
+    projection_entries: projections.sort((left, right) =>
+      left.target_key < right.target_key ? -1 : left.target_key > right.target_key ? 1 : 0,
+    ),
+    eligibility_input: input.eligibility_input,
+    eligibility: input.eligibility,
+  };
+}
+
+function assertValidReceiptRelation(
+  eligibilityInput: StateTransitionEligibilityEvaluationInputV01,
+  receipt: StateTransitionReceiptV01,
+): void {
+  if (validateStateTransitionReceiptV01(receipt).status !== "valid") {
+    throw new Error("state_transition_receipt_invalid");
+  }
+  const relation = validateStateTransitionReceiptAgainstEligibilityV01({
+    ...eligibilityInput,
+    receipt,
+  });
+  if (relation.status !== "valid") {
+    throw new Error(
+      `state_transition_receipt_relation_invalid:${issueCodes(relation)}`,
+    );
+  }
+}
 function assertProposalDecision(
   proposal: EpisodeDeltaProposalV01,
   decision: ReviewDecisionV01,
@@ -815,6 +1220,24 @@ function loadReviewMaterial(input: {
   const proposal = proposalRecord.payload as EpisodeDeltaProposalV01;
   const decision = decisionRecord.payload as ReviewDecisionV01;
   assertProposalDecision(proposal, decision);
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(proposalRecord, {
+    workspace_id: proposal.workspace_id,
+    project_id: proposal.project_id,
+    fingerprint: proposal.integrity.fingerprint,
+  });
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(decisionRecord, {
+    workspace_id: decision.workspace_id,
+    project_id: decision.project_id,
+    fingerprint: decision.integrity.fingerprint,
+  });
+  if (
+    proposalRecord.record_id !== proposal.proposal_id ||
+    decisionRecord.record_id !== decision.decision_id ||
+    proposalRecord.created_at !== proposal.created_at ||
+    decisionRecord.created_at !== decision.decided_at
+  ) {
+    throw new Error("persisted_review_material_identity_mismatch");
+  }
   return { proposal, decision };
 }
 
@@ -882,15 +1305,21 @@ function resolveTransitionMaterial(
     stateMaterialCandidate = null;
   }
   const targetRefs = normalizeRefs(intent.target_refs);
+  const targetKeys = targetRefs.map(deriveVNextSemanticTargetKeyV01);
   if (
     targetRefs.length === 0 ||
     targetRefs.length > 64 ||
+    new Set(targetKeys).size !== targetKeys.length ||
     !canonicalRefSetsEqual(
       targetRefs,
       (stateMaterialCandidate ?? sourceCandidate).target_refs,
     )
   ) {
-    throw new Error("semantic_commit_target_set_mismatch");
+    throw new Error(
+      new Set(targetKeys).size !== targetKeys.length
+        ? "semantic_commit_duplicate_target_key"
+        : "semantic_commit_target_set_mismatch",
+    );
   }
   if (
     decision.decision === "supersede" &&
@@ -1067,6 +1496,20 @@ function loadAppliedLineageFromStore(
     throw new Error("semantic_commit_prior_decision_fingerprint_mismatch");
   }
   assertProposalDecision(proposal, priorDecision);
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(
+    priorDecisionRecord,
+    {
+      workspace_id: priorDecision.workspace_id,
+      project_id: priorDecision.project_id,
+      fingerprint: priorDecision.integrity.fingerprint,
+    },
+  );
+  if (
+    priorDecisionRecord.record_id !== priorDecision.decision_id ||
+    priorDecisionRecord.created_at !== priorDecision.decided_at
+  ) {
+    throw new Error("semantic_commit_prior_decision_identity_mismatch");
+  }
 
   let receiptBinding: VNextSemanticCommitLineageBindingV01 | null = null;
   if (expectedBindings) {
@@ -1118,27 +1561,21 @@ function loadAppliedLineageFromStore(
   ) {
     throw new Error("semantic_commit_prior_receipt_invalid");
   }
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(priorReceiptRecord, {
+    workspace_id: priorReceipt.workspace_id,
+    project_id: priorReceipt.project_id,
+    fingerprint: priorReceipt.integrity.fingerprint,
+  });
+  if (
+    priorReceiptRecord.record_id !== priorReceipt.transition_receipt_id ||
+    priorReceiptRecord.created_at !== priorReceipt.recorded_at
+  ) {
+    throw new Error("semantic_commit_prior_receipt_identity_mismatch");
+  }
   return {
     prior_review_decisions: [priorDecision],
     prior_state_transition_receipts: [priorReceipt],
   };
-}
-
-function phaseAWriterCandidate(
-  proposal: EpisodeDeltaProposalV01,
-  decision: ReviewDecisionV01,
-): EpisodeDeltaProposalDeltaCandidateV01 {
-  if (
-    decision.decision !== "accept" ||
-    decision.requested_transition_intent?.transition_kind !==
-      "semantic_candidate_apply" ||
-    decision.requested_transition_intent.target_refs.length !== 1
-  ) throw new Error("phase_a_accept_create_only");
-  const candidate = proposal.proposed_deltas.find(
-    (item) => item.candidate_id === decision.candidate.candidate_id,
-  );
-  if (!candidate || candidate.target_refs.length !== 1) throw new Error("phase_a_single_target_required");
-  return candidate;
 }
 
 function createAbsentObservation(
@@ -1992,6 +2429,13 @@ function requirePlainRecord(
     throw new Error(code);
   }
   return value as Record<string, unknown>;
+}
+
+function runTestCheckpoint(
+  options: VNextSemanticTransitionTestOptionsV01 | undefined,
+  checkpoint: VNextSemanticTransitionTestFailureCheckpointV01,
+): void {
+  options?.on_checkpoint?.(checkpoint);
 }
 
 function issueCodes(value: { errors: Array<{ code: string }> }): string {

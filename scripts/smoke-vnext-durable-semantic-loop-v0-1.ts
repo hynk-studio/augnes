@@ -27,6 +27,7 @@ import {
   DURABLE_LOCAL_LOOP_PREVIEWED_AT,
   DURABLE_LOCAL_LOOP_RECORDED_AT,
   buildDurableLocalSemanticGateScenariosV01,
+  buildDurableLocalSemanticGateScenariosForProjectV01,
   durableLocalClosedLoopProjectBFixture,
   type DurableLocalSemanticGateScenarioV01,
 } from "../fixtures/vnext/runtime/durable-local-closed-loop-v0-1";
@@ -116,6 +117,10 @@ const legacyStateTables = [
   "state_entries",
   "state_transitions",
 ] as const;
+const DURABLE_LOCAL_LOOP_FOLLOWUP_APPLIED_AT = "2026-07-10T14:13:00.000Z";
+const DURABLE_LOCAL_LOOP_FOLLOWUP_RECORDED_AT = "2026-07-10T14:14:00.000Z";
+const DURABLE_LOCAL_LOOP_CONFLICT_APPLIED_AT = "2026-07-10T14:13:30.000Z";
+const DURABLE_LOCAL_LOOP_CONFLICT_RECORDED_AT = "2026-07-10T14:14:30.000Z";
 
 try {
   db = new Database(dbPath);
@@ -326,6 +331,13 @@ try {
     dirname(dbPath),
     gateScenarios,
   );
+  const writerCoverage = runFullWriterCoverage(
+    dirname(dbPath),
+    gateScenarios,
+    buildDurableLocalSemanticGateScenariosForProjectV01(
+      durableLocalClosedLoopProjectBFixture,
+    ),
+  );
 
   db.pragma("wal_checkpoint(TRUNCATE)");
   db.close();
@@ -352,15 +364,15 @@ try {
   assert.equal(networkCalls, 0, "durable semantic smoke makes zero runtime network calls");
   summary = {
     smoke: "vnext-durable-semantic-loop-v0-1",
-    phase: "M3C-A/B/C isolated storage and semantic commit gate",
+    phase: "M3C-A/B/C isolated storage, semantic commit gate, and full writer",
     status: "pass",
     project_fixture: prefix.project.fixture_id,
     database_mode:
       databaseExistedAtStart && legacyMode === "canonical"
         ? "preinitialized_temp_canonical"
         : "standalone_phase_a",
-    positive_cases: 19,
-    negative_cases: 10,
+    positive_cases: 19 + writerCoverage.positive_cases,
+    negative_cases: 10 + writerCoverage.negative_cases,
     fetch_calls: fetchCalls,
     provider_calls: 0,
     network_calls: networkCalls,
@@ -405,6 +417,7 @@ try {
     integrity_check: "ok",
     migration_coverage: migrationCoverage,
     semantic_gate_coverage: gateCoverage,
+    full_writer_coverage: writerCoverage,
   };
 } finally {
   if (db?.open) db.close();
@@ -706,6 +719,607 @@ function runSemanticGateCoverage(
       assert.equal(existsSync(path), false, `semantic gate coverage removes ${path}`);
     }
   }
+}
+
+function runFullWriterCoverage(
+  parentDirectory: string,
+  projectAScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+  projectBScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  const suffix = `${process.pid}`;
+  const databases = new Map<string, Database.Database>();
+  const ownedPaths = new Set<string>();
+  const databasePath = (label: string) =>
+    resolve(parentDirectory, `m3c-writer-${label}-${suffix}.db`);
+  const openDatabase = (label: string) => {
+    const path = databasePath(label);
+    for (const owned of [path, `${path}-wal`, `${path}-shm`]) {
+      assert.equal(existsSync(owned), false, `full writer coverage owns ${owned}`);
+      ownedPaths.add(owned);
+    }
+    const database = new Database(path);
+    database.pragma("foreign_keys = ON");
+    database.pragma("journal_mode = WAL");
+    ensureVNextDurableSemanticStoreSchemaV01(database);
+    const legacyMode = prepareLegacyTables(database);
+    const legacyBaseline = readLegacySnapshot(readDatabaseSnapshot(database));
+    databases.set(label, database);
+    return { database, path, legacyMode, legacyBaseline };
+  };
+
+  const operationResults: Record<
+    string,
+    { receipt_id: string; receipt_fingerprint: string; operations: string[] }
+  > = {};
+  let reopenedChecksum = "";
+  try {
+    for (const specification of [
+      { label: "create", scenario: projectAScenarios.create, seed: "none" },
+      { label: "replace", scenario: projectAScenarios.replace, seed: "prefix" },
+      {
+        label: "supersede",
+        scenario: projectAScenarios.supersede,
+        seed: "supersede_prior",
+      },
+      { label: "retract", scenario: projectAScenarios.retract, seed: "prefix" },
+      { label: "multi", scenario: projectAScenarios.multi_target, seed: "prefix" },
+    ] as const) {
+      const opened = openDatabase(specification.label);
+      if (specification.seed === "prefix") {
+        applyCreateScenario(opened.database, projectAScenarios.create);
+      } else if (specification.seed === "supersede_prior") {
+        applyCreateScenario(opened.database, {
+          scenario_id: "create",
+          proposal: projectAScenarios.supersede.proposal,
+          decision: projectAScenarios.supersede_prior_accept_decision,
+          expected_operations: ["create"],
+          expected_target_count: 1,
+        });
+      }
+      const prepared = prepareAndAuthorizeGateScenario(
+        opened.database,
+        specification.scenario,
+        false,
+      );
+      const input = writerCommitInput(
+        specification.scenario,
+        prepared.authorization,
+      );
+      const committed = commitVNextSemanticTransitionV01(opened.database, input);
+      assert.equal(committed.status, "applied", `${specification.label} applies`);
+      assertWriterReceiptRelation(specification.scenario, committed);
+      assert.deepEqual(
+        committed.transition_receipt.effects
+          .map((effect) => effect.operation)
+          .sort(),
+        [...specification.scenario.expected_operations].sort(),
+        `${specification.label} receipt records exact operations`,
+      );
+      assert.equal(
+        committed.transition_receipt.effects.length,
+        specification.scenario.expected_target_count,
+        `${specification.label} receipt preserves the exact atomic target set`,
+      );
+      const appliedSnapshot = readDatabaseSnapshot(opened.database);
+      assertLegacySnapshotUnchanged(appliedSnapshot, opened.legacyBaseline);
+      const replay = commitVNextSemanticTransitionV01(opened.database, input);
+      assert.equal(replay.status, "exact_replay", `${specification.label} exact replay`);
+      assert.deepEqual(
+        replay.transition_receipt,
+        committed.transition_receipt,
+        `${specification.label} exact replay returns the stored receipt`,
+      );
+      assert.deepEqual(
+        readDatabaseSnapshot(opened.database),
+        appliedSnapshot,
+        `${specification.label} replay creates no row or revision`,
+      );
+      operationResults[specification.label] = {
+        receipt_id: committed.transition_receipt.transition_receipt_id,
+        receipt_fingerprint: committed.transition_receipt.integrity.fingerprint,
+        operations: committed.transition_receipt.effects.map(
+          (effect) => effect.operation,
+        ),
+      };
+      assert.equal(opened.database.pragma("integrity_check", { simple: true }), "ok");
+
+      if (specification.label === "multi") {
+        opened.database.pragma("wal_checkpoint(TRUNCATE)");
+        opened.database.close();
+        databases.delete(specification.label);
+        const reopened = new Database(opened.path, {
+          readonly: true,
+          fileMustExist: true,
+        });
+        reopened.pragma("foreign_keys = ON");
+        assert.deepEqual(
+          readDatabaseSnapshot(reopened),
+          appliedSnapshot,
+          "multi-target writer rows survive DB close/reopen",
+        );
+        assert.equal(reopened.pragma("integrity_check", { simple: true }), "ok");
+        reopenedChecksum = appliedSnapshot.logical_checksum;
+        reopened.close();
+      }
+    }
+
+    runConflictingResultCoverage(openDatabase("conflicting-result"), projectAScenarios.create);
+    runStalePreconditionCoverage(openDatabase("stale-precondition"), projectAScenarios.create);
+    runReplayDriftCoverage(openDatabase("replay-drift"), projectAScenarios.create);
+    runCrossProjectWriterCoverage(
+      openDatabase("project-isolation"),
+      projectAScenarios.create,
+      projectBScenarios.create,
+    );
+    runDuplicateSemanticTargetCoverage(
+      openDatabase("duplicate-target-source"),
+      openDatabase("duplicate-target-refusal"),
+      projectAScenarios.create,
+    );
+    runWriterFailureInjectionCoverage(openDatabase, projectAScenarios);
+
+    for (const database of databases.values()) {
+      assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+    }
+    return {
+      status: "pass",
+      positive_cases: 14,
+      negative_cases: 13,
+      applied_operations: operationResults,
+      exact_replay_scenarios: [
+        "create",
+        "replace",
+        "supersede",
+        "retract",
+        "multi_target",
+      ],
+      refusal_cases: [
+        "conflicting_result",
+        "stale_current_state",
+        "state_replay_conflict",
+        "cross_project_binding",
+        "duplicate_semantic_target",
+        "after_proposal_record_insert",
+        "after_decision_record_insert",
+        "after_gate_record_insert",
+        "after_first_state_record_insert",
+        "after_first_projection_write",
+        "before_receipt_insert",
+        "after_receipt_insert_before_commit",
+        "during_second_target",
+      ],
+      atomic_multi_target_apply: true,
+      project_isolation: true,
+      receipt_validation: "valid",
+      eligibility_relation_validation: "valid",
+      reopened_logical_checksum: reopenedChecksum,
+      legacy_table_deltas: {
+        state_delta_proposals: 0,
+        state_entries: 0,
+        state_transitions: 0,
+      },
+      fetch_calls: fetchCalls,
+      provider_calls: 0,
+      network_calls: networkCalls,
+      integrity_check: "ok",
+    };
+  } finally {
+    for (const database of databases.values()) {
+      if (database.open) database.close();
+    }
+    for (const path of ownedPaths) rmSync(path, { force: true });
+    for (const path of ownedPaths) {
+      assert.equal(existsSync(path), false, `full writer coverage removes ${path}`);
+    }
+  }
+}
+
+function writerCommitInput(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  authorization: VNextSemanticCommitAuthorizationResultV01,
+  timestamps?: { applied_at: string; recorded_at: string },
+) {
+  const times =
+    timestamps ??
+    (scenario.scenario_id === "create"
+      ? {
+          applied_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
+          recorded_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+        }
+      : {
+          applied_at: DURABLE_LOCAL_LOOP_FOLLOWUP_APPLIED_AT,
+          recorded_at: DURABLE_LOCAL_LOOP_FOLLOWUP_RECORDED_AT,
+        });
+  return {
+    workspace_id: scenario.proposal.workspace_id,
+    project_id: scenario.proposal.project_id,
+    proposal_id: scenario.proposal.proposal_id,
+    proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+    decision_id: scenario.decision.decision_id,
+    decision_fingerprint: scenario.decision.integrity.fingerprint,
+    gate_record_id: authorization.gate_record.gate_record_id,
+    gate_record_fingerprint: authorization.gate_record.integrity.fingerprint,
+    ...times,
+  };
+}
+
+function assertWriterReceiptRelation(
+  scenario: DurableLocalSemanticGateScenarioV01,
+  committed: ReturnType<typeof commitVNextSemanticTransitionV01>,
+) {
+  const standalone = validateStateTransitionReceiptV01(
+    committed.transition_receipt,
+  );
+  assert.equal(
+    standalone.status,
+    "valid",
+    `${scenario.scenario_id} receipt validates: ${JSON.stringify(standalone)}`,
+  );
+  const relation = validateStateTransitionReceiptAgainstEligibilityV01({
+    ...committed.eligibility_input,
+    receipt: committed.transition_receipt,
+  });
+  assert.equal(
+    relation.status,
+    "valid",
+    `${scenario.scenario_id} receipt preserves exact eligibility: ${JSON.stringify(relation)}`,
+  );
+}
+
+interface WriterCoverageDatabaseV01 {
+  database: Database.Database;
+  path: string;
+  legacyMode: "canonical" | "phase_a_sentinel";
+  legacyBaseline: LegacySnapshot;
+}
+
+function runConflictingResultCoverage(
+  opened: WriterCoverageDatabaseV01,
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  const prepared = prepareAndAuthorizeGateScenario(
+    opened.database,
+    scenario,
+    false,
+  );
+  const input = writerCommitInput(scenario, prepared.authorization);
+  commitVNextSemanticTransitionV01(opened.database, input);
+  const baseline = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(opened.database, {
+        ...input,
+        applied_at: DURABLE_LOCAL_LOOP_CONFLICT_APPLIED_AT,
+        recorded_at: DURABLE_LOCAL_LOOP_CONFLICT_RECORDED_AT,
+      }),
+    /conflicting_result/,
+    "same idempotency key with a different applied result is conflicting_result",
+  );
+  assert.deepEqual(
+    readDatabaseSnapshot(opened.database),
+    baseline,
+    "conflicting result writes no second state revision or receipt",
+  );
+  assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function runStalePreconditionCoverage(
+  opened: WriterCoverageDatabaseV01,
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  const prepared = prepareAndAuthorizeGateScenario(
+    opened.database,
+    scenario,
+    false,
+  );
+  const candidate = scenario.proposal.proposed_deltas.find(
+    (item) => item.candidate_id === scenario.decision.candidate.candidate_id,
+  );
+  assert(candidate, "stale precondition fixture resolves the selected candidate");
+  const targetRef = prepared.preview.intended_effects[0]!.target_ref;
+  const concurrentState = buildVNextPersistedSemanticStateV01({
+    proposal: scenario.proposal,
+    candidate_id: candidate.candidate_id,
+    target_ref: targetRef,
+    source_decision: {
+      decision_id: scenario.decision.decision_id,
+      decision_fingerprint: scenario.decision.integrity.fingerprint,
+    },
+    created_at: DURABLE_LOCAL_LOOP_APPLIED_AT,
+  });
+  insertVNextCoreRecordV01(opened.database, {
+    record_kind: "semantic_state",
+    record_id: concurrentState.semantic_state_record_id,
+    workspace_id: concurrentState.workspace_id,
+    project_id: concurrentState.project_id,
+    fingerprint: concurrentState.integrity.fingerprint,
+    idempotency_key: null,
+    payload: concurrentState,
+    created_at: concurrentState.created_at,
+  });
+  insertVNextSemanticStateEntryV01(opened.database, {
+    workspace_id: concurrentState.workspace_id,
+    project_id: concurrentState.project_id,
+    presence: "present",
+    target_key: concurrentState.target_key,
+    target_ref: concurrentState.target_ref,
+    state_ref: concurrentState.state_ref,
+    state_fingerprint: concurrentState.state_content_fingerprint,
+    bounded_state_summary: concurrentState.bounded_state_summary,
+    source_proposal_id: concurrentState.source_proposal_id,
+    source_proposal_fingerprint: concurrentState.source_proposal_fingerprint,
+    source_candidate_id: concurrentState.source_candidate_id,
+    source_candidate_fingerprint: concurrentState.source_candidate_fingerprint,
+    source_transition_receipt_id: "state-transition-receipt:concurrent-fixture",
+    source_transition_receipt_fingerprint: createProtocolSha256V01(
+      "concurrent-fixture-receipt",
+    ),
+    revision: 1,
+    updated_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+  });
+  const baseline = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(
+        opened.database,
+        writerCommitInput(scenario, prepared.authorization),
+      ),
+    /semantic_commit_stale_current_state|semantic_state_cas_conflict/,
+    "state changed after confirmation fails the compare-and-swap boundary",
+  );
+  assert.deepEqual(
+    readDatabaseSnapshot(opened.database),
+    baseline,
+    "stale precondition refusal preserves the concurrently observed state exactly",
+  );
+  assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function runReplayDriftCoverage(
+  opened: WriterCoverageDatabaseV01,
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  const prepared = prepareAndAuthorizeGateScenario(
+    opened.database,
+    scenario,
+    false,
+  );
+  const input = writerCommitInput(scenario, prepared.authorization);
+  const committed = commitVNextSemanticTransitionV01(opened.database, input);
+  const projection = committed.projection_entries[0];
+  assert(projection, "replay drift fixture has a current projection");
+  opened.database
+    .prepare(
+      `UPDATE vnext_semantic_state_entries
+       SET revision = revision + 1, updated_at = ?
+       WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+    )
+    .run(
+      DURABLE_LOCAL_LOOP_CONFLICT_RECORDED_AT,
+      projection.workspace_id,
+      projection.project_id,
+      projection.target_key,
+    );
+  const driftedBaseline = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () => commitVNextSemanticTransitionV01(opened.database, input),
+    /state_replay_conflict/,
+    "stored receipt with drifted current state is state_replay_conflict",
+  );
+  assert.deepEqual(
+    readDatabaseSnapshot(opened.database),
+    driftedBaseline,
+    "state replay conflict creates no new receipt or revision",
+  );
+  assertLegacySnapshotUnchanged(driftedBaseline, opened.legacyBaseline);
+}
+
+function runCrossProjectWriterCoverage(
+  opened: WriterCoverageDatabaseV01,
+  projectA: DurableLocalSemanticGateScenarioV01,
+  projectB: DurableLocalSemanticGateScenarioV01,
+) {
+  const projectAResult = applyCreateScenario(opened.database, projectA);
+  const projectBResult = applyCreateScenario(opened.database, projectB);
+  assertWriterReceiptRelation(projectA, projectAResult.committed);
+  assertWriterReceiptRelation(projectB, projectBResult.committed);
+  const targetA = projectA.decision.requested_transition_intent!.target_refs[0]!;
+  const targetB = projectB.decision.requested_transition_intent!.target_refs[0]!;
+  assert.equal(
+    deriveVNextSemanticTargetKeyV01(targetA),
+    deriveVNextSemanticTargetKeyV01(targetB),
+    "same repository target identity may be used independently by two projects",
+  );
+  assert.equal(
+    listVNextSemanticStateEntriesV01(opened.database, {
+      workspace_id: projectA.proposal.workspace_id,
+      project_id: projectA.proposal.project_id,
+    }).length,
+    1,
+  );
+  assert.equal(
+    listVNextSemanticStateEntriesV01(opened.database, {
+      workspace_id: projectB.proposal.workspace_id,
+      project_id: projectB.proposal.project_id,
+    }).length,
+    1,
+  );
+  assert.equal(
+    readVNextCoreRecordV01(opened.database, {
+      record_kind: "state_transition_receipt",
+      record_id:
+        projectAResult.committed.transition_receipt.transition_receipt_id,
+      workspace_id: projectB.proposal.workspace_id,
+      project_id: projectB.proposal.project_id,
+    }),
+    null,
+    "project A receipt does not resolve through project B scope",
+  );
+  const baseline = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(opened.database, {
+        ...writerCommitInput(projectA, projectAResult.authorization),
+        project_id: projectB.proposal.project_id,
+      }),
+    /persisted_proposal_missing|persisted_decision_missing/,
+    "cross-project commit binding fails closed",
+  );
+  assert.deepEqual(readDatabaseSnapshot(opened.database), baseline);
+  assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function runDuplicateSemanticTargetCoverage(
+  source: WriterCoverageDatabaseV01,
+  refusal: WriterCoverageDatabaseV01,
+  scenario: DurableLocalSemanticGateScenarioV01,
+) {
+  const prepared = prepareAndAuthorizeGateScenario(
+    source.database,
+    scenario,
+    false,
+  );
+  persistVNextSemanticReviewMaterialV01(refusal.database, {
+    proposal: scenario.proposal,
+    decision: scenario.decision,
+  });
+  const forged = clone(prepared.authorization.gate_record);
+  forged.current_state_observations.push(
+    clone(forged.current_state_observations[0]!),
+  );
+  forged.integrity.fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      ...forged,
+      integrity: { ...forged.integrity, fingerprint: undefined },
+    }),
+  );
+  insertVNextCoreRecordV01(refusal.database, {
+    record_kind: "semantic_commit_gate",
+    record_id: forged.gate_record_id,
+    workspace_id: forged.workspace_id,
+    project_id: forged.project_id,
+    fingerprint: forged.integrity.fingerprint,
+    idempotency_key: forged.confirmation_digest,
+    payload: forged,
+    created_at: forged.confirmed_at,
+  });
+  const baseline = readDatabaseSnapshot(refusal.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(refusal.database, {
+        ...writerCommitInput(scenario, prepared.authorization),
+        gate_record_fingerprint: forged.integrity.fingerprint,
+      }),
+    /semantic_commit_gate_duplicate_current_state_target|semantic_commit_gate_relation_invalid/,
+    "duplicate semantic target in persisted gate material fails closed",
+  );
+  assert.deepEqual(readDatabaseSnapshot(refusal.database), baseline);
+  assertLegacySnapshotUnchanged(baseline, refusal.legacyBaseline);
+}
+
+function runWriterFailureInjectionCoverage(
+  openDatabase: (label: string) => WriterCoverageDatabaseV01,
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  for (const checkpoint of [
+    "after_proposal_record_insert",
+    "after_decision_record_insert",
+  ] as const) {
+    const opened = openDatabase(`failure-${checkpoint}`);
+    const baseline = readDatabaseSnapshot(opened.database);
+    assert.throws(
+      () =>
+        persistVNextSemanticReviewMaterialV01(opened.database, {
+          proposal: scenarios.create.proposal,
+          decision: scenarios.create.decision,
+          test_options: injectedFailure(checkpoint),
+        }),
+      new RegExp(`writer_test_failure:${checkpoint}`),
+      `${checkpoint} rolls back proposal and decision persistence`,
+    );
+    assert.deepEqual(readDatabaseSnapshot(opened.database), baseline);
+  }
+
+  {
+    const checkpoint = "after_gate_record_insert" as const;
+    const opened = openDatabase(`failure-${checkpoint}`);
+    persistVNextSemanticReviewMaterialV01(opened.database, {
+      proposal: scenarios.create.proposal,
+      decision: scenarios.create.decision,
+    });
+    const preview = prepareVNextSemanticCommitPreviewV01(opened.database, {
+      workspace_id: scenarios.create.proposal.workspace_id,
+      project_id: scenarios.create.proposal.project_id,
+      proposal_id: scenarios.create.proposal.proposal_id,
+      proposal_fingerprint: scenarios.create.proposal.integrity.fingerprint,
+      decision_id: scenarios.create.decision.decision_id,
+      decision_fingerprint: scenarios.create.decision.integrity.fingerprint,
+      current_state_observed_at: DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
+      previewed_at: DURABLE_LOCAL_LOOP_PREVIEWED_AT,
+    });
+    const baseline = readDatabaseSnapshot(opened.database);
+    assert.throws(
+      () =>
+        recordVNextSemanticCommitAuthorizationV01(opened.database, {
+          ...authorizationInput(scenarios.create, preview),
+          test_options: injectedFailure(checkpoint),
+        }),
+      new RegExp(`writer_test_failure:${checkpoint}`),
+    );
+    assert.deepEqual(
+      readDatabaseSnapshot(opened.database),
+      baseline,
+      "gate failure preserves independently persisted proposal and decision only",
+    );
+  }
+
+  for (const checkpoint of [
+    "after_first_state_record_insert",
+    "after_first_projection_write",
+    "before_receipt_insert",
+    "after_receipt_insert_before_commit",
+    "during_second_target",
+  ] as const) {
+    const opened = openDatabase(`failure-${checkpoint}`);
+    const scenario =
+      checkpoint === "during_second_target"
+        ? scenarios.multi_target
+        : scenarios.create;
+    if (checkpoint === "during_second_target") {
+      applyCreateScenario(opened.database, scenarios.create);
+    }
+    const prepared = prepareAndAuthorizeGateScenario(
+      opened.database,
+      scenario,
+      false,
+    );
+    const baseline = readDatabaseSnapshot(opened.database);
+    assert.throws(
+      () =>
+        commitVNextSemanticTransitionV01(opened.database, {
+          ...writerCommitInput(scenario, prepared.authorization),
+          test_options: injectedFailure(checkpoint),
+        }),
+      new RegExp(`writer_test_failure:${checkpoint}`),
+      `${checkpoint} rolls back every transaction-scoped write`,
+    );
+    assert.deepEqual(
+      readDatabaseSnapshot(opened.database),
+      baseline,
+      `${checkpoint} leaves no partial state or applied receipt`,
+    );
+    assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+  }
+}
+
+function injectedFailure(expected: string) {
+  return {
+    on_checkpoint(checkpoint: string) {
+      if (checkpoint === expected) {
+        throw new Error(`writer_test_failure:${checkpoint}`);
+      }
+    },
+  };
 }
 
 function applyCreateScenario(
