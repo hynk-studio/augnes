@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { buildTaskContextPacketHandoffHrefV01 } from "@/lib/vnext/task-context-packet-handoff";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 
 const PROJECT_CONTINUITY_ROUTE = "/api/vnext/operator/project-continuity";
@@ -108,12 +109,9 @@ export function VNextProjectContinuityCard() {
 
   const { project, continuity } = read.value;
   const packet = continuity.latest_compiled_packet;
-  const handoffHref =
-    packet && /^task-context-packet:[a-f0-9]{24}$/.test(packet.packet_id)
-      ? `/workbench/semantic-review/packet-handoff/${packet.packet_id.replace(":", "~")}?${new URLSearchParams({
-          packet_fingerprint: packet.packet_fingerprint,
-        }).toString()}`
-      : null;
+  const handoffHref = packet
+    ? buildTaskContextPacketHandoffHrefV01(packet)
+    : null;
 
   return (
     <section

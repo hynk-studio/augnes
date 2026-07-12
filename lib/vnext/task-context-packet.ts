@@ -13,6 +13,7 @@ import {
   validateDuplicateExternalRefsPrimitiveV01,
   validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
+import { TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01 } from "@/lib/vnext/task-context-packet-handoff";
 import {
   TASK_CONTEXT_PACKET_CANONICALIZATION_V01,
   TASK_CONTEXT_PACKET_CURRENTNESS_STATUSES_V01,
@@ -381,7 +382,11 @@ export function deriveTaskContextPacketIdV01(
       packet_id: PENDING_PACKET_ID,
     }),
   );
-  return `task-context-packet:${identityHash.slice("sha256:".length, 30)}`;
+  const suffixStart = "sha256:".length;
+  return `task-context-packet:${identityHash.slice(
+    suffixStart,
+    suffixStart + TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+  )}`;
 }
 
 function withoutFingerprintV01(packet: TaskContextPacketV01) {
