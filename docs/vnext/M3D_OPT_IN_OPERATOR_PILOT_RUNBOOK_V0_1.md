@@ -74,6 +74,13 @@ packet use, usefulness, Observed Use, Reviewed Reuse 또는 Outcome Improvement�
 
 ### A.2 Qualification gate before any future autonomous chain
 
+The versioned executable contract is documented in
+`docs/vnext/M3D_AUTONOMOUS_EVIDENCE_RUNNER_V0_1.md` and invoked with
+`npm run vnext:m3d-autonomous-evidence-runner-v0-1`. Start with `--dry-run`,
+then use `--qualify-only` against a new empty absolute run root. Do not invoke
+full mode as implementation-PR verification and do not allocate or execute the
+real Chain 6 before this runner PR is merged and separately reviewed.
+
 다음 autonomous evidence chain ID를 할당하기 전에 runner environment를 product evidence
 execution과 분리하여 검증한다.
 

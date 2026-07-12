@@ -62,6 +62,7 @@
 | `05_AUGNES_VNEXT_LAB_CHARTER.md` | 비권위 연구·진단 영역의 경계 | Lab 내부 기준 | 중간 |
 | `06_AUGNES_VNEXT_SYNTHESIS_AND_RATIONALE.md` | 선택 근거, 대안, 과거 문서 계승 관계 | 비규범 참고 | 낮음 |
 | `research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md` | Personal Perspective·Gap Management·structured review의 조정된 연구 program | 조건부 R&D 기준. 제품·Core·persistence 권위 없음 | 연구 결정 시 |
+| `M3D_AUTONOMOUS_EVIDENCE_RUNNER_V0_1.md` | qualified M3D autonomous mechanical rehearsal의 versioned Lab runner 계약 | M3D qualification과 operator runbook 하위의 비권위 검증 절차 | runner 변경 시 |
 | `templates/*` | 작업 분해와 리뷰 형식 | 운영 보조 | 필요 시 |
 
 ### 충돌 시 우선순위
