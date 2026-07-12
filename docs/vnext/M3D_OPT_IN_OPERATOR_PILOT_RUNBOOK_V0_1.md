@@ -72,6 +72,33 @@ Automated gate는 다음을 확인해야 한다.
 Automated success는 local mechanics의 evidence다. Actual operator decision, product transition,
 packet use, usefulness, Observed Use, Reviewed Reuse 또는 Outcome Improvement가 아니다.
 
+### A.2 Qualification gate before any future autonomous chain
+
+다음 autonomous evidence chain ID를 할당하기 전에 runner environment를 product evidence
+execution과 분리하여 검증한다.
+
+1. canonical checkout과 overlap하지 않는 no-hardlinks disposable execution clone을 만든다.
+2. execution clone의 root dependency를 `npm ci`로 provision한다.
+3. execution clone의 nested app dependency를 `npm --prefix apps/augnes_apps ci`로 provision한다.
+4. execution clone root의 `better-sqlite3`가 그 clone의 `node_modules` 내부 canonical module로
+   resolve되고 exact path load가 가능한지 확인한다. Parent/global module과 `NODE_PATH`는 사용하지 않는다.
+5. execution clone의 tracked/untracked Git status가 exact clean인지 확인한다.
+6. canonical run root 아래 runtime/evidence sibling을 만들되 execution clone과 양방향으로
+   non-overlap인지 확인하고, working DB는 runtime 아래 아직 존재하지 않는 leaf로 지정한다.
+7. `vnext_m3d_evidence_runner_qualification.v0.1` portable mode를 실행한다.
+8. 같은 clean execution clone과 intended environment에서 local-full mode를 실행한다.
+9. execution clone 밖의 evidence root 내부에 exclusive owner-only로 생성된 public-safe
+   qualification receipt를 보존한다.
+10. application commit, qualification version, Node major, platform, architecture, 두 lockfile
+   hash와 local-full browser identity를 독립적으로 확인한다.
+11. 두 mode가 qualified이고 identity가 유지될 때에만 다음 chain ID를 할당하고 product
+   evidence execution을 시작한다.
+
+Unqualified runner environment는 future wrapper에서 `ABORTED / PHASE:
+RUNNER_QUALIFICATION`으로 분류할 수 있다. 이는 product evidence가 아니며, qualification을
+통과한 chain 내부의 safety/product stop인 `HOLD`와 구분한다. Qualification gate는 runner를
+구현하거나 시작하지 않고, DB를 열지 않으며, Chain 6을 할당하거나 실행하지 않는다.
+
 ---
 
 ## B. Post-merge user-owned real local pilot
@@ -345,6 +372,17 @@ unset AUGNES_VNEXT_PILOT_BACKUP
 - 두 HOLD evidence chain과 retained database/report/backup은 서로 분리된 read-only evidence로 보존한다.
   Correction merge 뒤 검증은 clean baseline backup 또는 fresh canonical fixture에서 bootstrap부터 새
   chain으로 다시 시작해야 하며, earlier runs를 하나의 success chain으로 합치지 않는다.
+- 세 번째 rehearsal은 helper agent가 금지된 default-DB read-only checksum을 수행하여 product path를
+  평가하지 못한 historical runner/environment failure다.
+- 네 번째 rehearsal은 root dependency만 설치되고 nested `apps/augnes_apps` dependency boundary와
+  `.bin/tsx`가 없어 product path를 평가하지 못한 historical runner/environment failure다.
+- 다섯 번째 rehearsal은 macOS의 `/tmp`와 `/private/tmp` lexical/canonical identity 차이 때문에
+  false-positive scope rejection이 발생하여 product path를 평가하지 못한 historical
+  runner/environment failure다.
+
+Chains 3~5의 historical failure는 당시 report와 verdict를 다시 쓰지 않는다. 이 failure들은 prompt에
+path exception이나 dependency instruction을 더하는 대신 별도 versioned qualification gate를 두어야
+한다는 근거이며, product behavior evidence 또는 M3 completion evidence가 아니다.
 
 이 correction과 autonomous synthetic operator material은 M3 completion, Reviewed Reuse 또는 Outcome
 Improvement evidence가 아니다.
