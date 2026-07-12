@@ -10,23 +10,30 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  realpathSync,
   readdirSync,
   readlinkSync,
   closeSync,
   readFileSync,
   rmSync,
+  renameSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   M3dAutonomousEvidenceRunnerErrorV01,
   allocateChainV01,
   buildM3dAutonomousEvidencePlanV01,
+  recheckPreAllocationStorageAndReceiptsV01,
+  runBoundedPhaseProtocolCommandV01,
   runM3dAutonomousEvidenceV01,
 } from "./lib/m3d-autonomous-evidence-runner-v0-1.mjs";
+import { writePublicRunnerJsonV01 } from "./lib/m3d-evidence-report-v0-1.mjs";
 
 const temporaryRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-m3d-autonomous-runner-smoke-"),
@@ -49,7 +56,10 @@ try {
   await assertDryRun();
   await assertQualifiedContextCannotBeForged();
   await assertQualificationFailureMatrix();
+  await assertQualifyOnlyCleanupFailure();
+  await assertPreAllocationMutationMatrix();
   await assertPathAndWorkingDatabaseMatrix();
+  assertPublicReportWriterMatrix();
   await assertPostAllocationHoldMatrix();
   await assertSuccessfulSyntheticOrchestration();
   result.status = "passed";
@@ -77,6 +87,28 @@ async function assertDryRun() {
   assert.deepEqual(snapshotTree(fixture.root), before);
   result.dry_run_created_resources = false;
   pass("dry_run_validates_without_resources_or_chain");
+
+  const cli = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(
+        new URL(
+          "./run-vnext-m3d-autonomous-evidence-v0-1.mjs",
+          import.meta.url,
+        ),
+      ),
+      "--dry-run",
+      "--canonical-checkout-root",
+      fixture.canonicalCheckout,
+      "--run-root",
+      path.join(fixture.root, "direct-cli-run"),
+      "--json",
+    ],
+    { encoding: "utf8", timeout: 10_000 },
+  );
+  assert.equal(cli.status, 0);
+  assert.equal(JSON.parse(cli.stdout).verdict, "DRY_RUN_VALID");
+  pass("direct_cli_entrypoint_dry_run_exits_zero");
 }
 
 async function assertQualifiedContextCannotBeForged() {
@@ -121,6 +153,227 @@ async function assertQualificationFailureMatrix() {
   }
   assert.equal(allocatorCalls, 0);
   result.allocator_call_count_on_failures = allocatorCalls;
+}
+
+async function assertQualifyOnlyCleanupFailure() {
+  let allocatorCalls = 0;
+  for (const [name, behavior] of [
+    ["qualify-only-cleanup-failure", { cleanupFailure: true }],
+    ["qualify-only-cleanup-throw", { cleanupThrows: true }],
+  ]) {
+    const fixture = createFixture(name);
+    const outcome = await runM3dAutonomousEvidenceV01(
+      { ...fixture.input, mode: "qualify-only" },
+      createInjectedOperations(
+        fixture,
+        behavior,
+        () => { allocatorCalls += 1; },
+      ),
+    );
+    assert.equal(outcome.verdict, "ABORTED");
+    assert.equal(outcome.phase, "RUNNER_QUALIFICATION");
+    assert.equal(outcome.chain_id, null);
+    assert.deepEqual(outcome.reason_codes, ["runner_cleanup_failed"]);
+  }
+  assert.equal(allocatorCalls, 0);
+  reject("qualify_only_cleanup_failure_aborts_without_allocator");
+
+  const cliFixture = createFixture("qualify-only-cleanup-cli");
+  const cliModule = new URL(
+    "./run-vnext-m3d-autonomous-evidence-v0-1.mjs",
+    import.meta.url,
+  ).href;
+  const child = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import { runM3dAutonomousEvidenceCliV01 } from ${JSON.stringify(cliModule)};
+       const exitCode = await runM3dAutonomousEvidenceCliV01(
+         ${JSON.stringify([
+           "--qualify-only",
+           "--canonical-checkout-root",
+           cliFixture.canonicalCheckout,
+           "--run-root",
+           cliFixture.runRoot,
+           "--json",
+         ])},
+         { executeRunner: async () => ({
+           runner_version: "vnext_m3d_autonomous_evidence_runner.v0.1",
+           mode: "qualify-only",
+           verdict: "ABORTED",
+           phase: "RUNNER_QUALIFICATION",
+           chain_id: null,
+           reason_codes: ["runner_cleanup_failed"]
+         }) }
+       );
+       process.exitCode = exitCode;`,
+    ],
+    { encoding: "utf8", timeout: 10_000 },
+  );
+  assert.equal(child.status, 1);
+  const cliResult = JSON.parse(child.stdout);
+  assert.equal(cliResult.verdict, "ABORTED");
+  assert.equal(cliResult.chain_id, null);
+  assert.deepEqual(cliResult.reason_codes, ["runner_cleanup_failed"]);
+  reject("qualify_only_cleanup_failure_cli_exits_one");
+}
+
+async function assertPreAllocationMutationMatrix() {
+  const scenarios = [
+    ["preallocation_working_db_appeared", (plan) => {
+      writeFileSync(plan.workingDbPath, "late-db", { mode: 0o600 });
+    }],
+    ["preallocation_working_db_symlink", (plan) => {
+      const target = path.join(plan.runtimeRoot, "late-db-target");
+      writeFileSync(target, "target", { mode: 0o600 });
+      symlinkSync(target, plan.workingDbPath);
+    }],
+    ["preallocation_output_appeared", (plan) => {
+      writeFileSync(plan.reportPath, "late-output", { mode: 0o600 });
+    }],
+    ["preallocation_output_parent_identity_changed", (plan) => {
+      const outside = path.join(path.dirname(plan.runRoot), "outside-private");
+      mkdirSync(outside, { recursive: true, mode: 0o700 });
+      symlinkSync(outside, path.dirname(plan.privateBackupPath));
+    }],
+    ["preallocation_receipt_bytes_changed", (plan) => {
+      writeFileSync(plan.portableReceiptPath, "{}\n", { flag: "w" });
+    }],
+    ["preallocation_receipt_mode_changed", (plan) => {
+      chmodSync(plan.localFullReceiptPath, 0o644);
+    }],
+    ["preallocation_receipt_became_symlink", (plan) => {
+      const moved = path.join(plan.evidenceRoot, "portable-moved.json");
+      renameSync(plan.portableReceiptPath, moved);
+      symlinkSync(moved, plan.portableReceiptPath);
+    }],
+    ["preallocation_execution_repo_identity_changed", (plan) => {
+      const moved = path.join(plan.runRoot, "execution-repo-moved");
+      renameSync(plan.executionRepo, moved);
+      symlinkSync(moved, plan.executionRepo);
+    }],
+  ];
+  let allocatorCalls = 0;
+  for (const [name, mutate] of scenarios) {
+    const fixture = createFixture(name);
+    const operations = createInjectedOperations(
+      fixture,
+      { afterQualificationLocked: mutate },
+      () => { allocatorCalls += 1; },
+    );
+    const outcome = await runM3dAutonomousEvidenceV01(
+      fixture.input,
+      operations,
+    );
+    assert.equal(outcome.verdict, "ABORTED", name);
+    assert.equal(outcome.phase, "RUNNER_QUALIFICATION", name);
+    assert.equal(outcome.chain_id, null, name);
+    reject(name);
+  }
+  assert.equal(allocatorCalls, 0);
+}
+
+function assertPublicReportWriterMatrix() {
+  const fixtureRoot = path.join(temporaryRoot, "public-report-writer");
+  const evidenceRoot = path.join(fixtureRoot, "evidence");
+  const safeValue = {
+    report_version: "vnext_m3d_autonomous_evidence_report.v0.1",
+    verdict: "HOLD",
+    reason_codes: ["fixture_only"],
+  };
+
+  const validPath = path.join(evidenceRoot, "valid.json");
+  assert.equal(
+    writePublicRunnerJsonV01({ evidenceRoot, outputPath: validPath, value: safeValue }),
+    realpathSync(validPath),
+  );
+  assert.equal(statSync(validPath).mode & 0o777, 0o600);
+  assert.deepEqual(JSON.parse(readFileSync(validPath, "utf8")), safeValue);
+  pass("public_report_exclusive_owner_only_write");
+
+  const existingPath = path.join(evidenceRoot, "existing.json");
+  writeFileSync(existingPath, "keep", { mode: 0o600 });
+  assert.throws(
+    () => writePublicRunnerJsonV01({ evidenceRoot, outputPath: existingPath, value: safeValue }),
+    (error) => error?.reasonCode === "runner_report_output_exists",
+  );
+  assert.equal(readFileSync(existingPath, "utf8"), "keep");
+  reject("public_report_existing_leaf_rejected_without_overwrite");
+
+  const danglingPath = path.join(evidenceRoot, "dangling.json");
+  symlinkSync(path.join(fixtureRoot, "missing-target"), danglingPath);
+  assert.throws(
+    () => writePublicRunnerJsonV01({ evidenceRoot, outputPath: danglingPath, value: safeValue }),
+    (error) => error?.reasonCode === "runner_report_output_symlink",
+  );
+  assert.equal(lstatSync(danglingPath).isSymbolicLink(), true);
+  reject("public_report_dangling_symlink_leaf_rejected");
+
+  const outside = path.join(fixtureRoot, "outside");
+  mkdirSync(outside, { recursive: true, mode: 0o700 });
+  const escapingParent = path.join(evidenceRoot, "escaping-parent");
+  symlinkSync(outside, escapingParent);
+  assert.throws(
+    () => writePublicRunnerJsonV01({
+      evidenceRoot,
+      outputPath: path.join(escapingParent, "report.json"),
+      value: safeValue,
+    }),
+    (error) => error?.reasonCode === "runner_report_outside_evidence",
+  );
+  assert.equal(existsSync(path.join(outside, "report.json")), false);
+  reject("public_report_escaping_parent_rejected");
+
+  const racedPath = path.join(evidenceRoot, "raced.json");
+  assert.throws(
+    () => writePublicRunnerJsonV01(
+      { evidenceRoot, outputPath: racedPath, value: safeValue },
+      {
+        beforeExclusiveCreate: () => {
+          writeFileSync(racedPath, "raced", { mode: 0o600 });
+        },
+      },
+    ),
+    (error) => error?.reasonCode === "runner_report_output_exists",
+  );
+  assert.equal(readFileSync(racedPath, "utf8"), "raced");
+  reject("public_report_exclusive_create_race_rejected");
+
+  const identityParent = path.join(evidenceRoot, "identity-parent");
+  mkdirSync(identityParent, { recursive: true, mode: 0o700 });
+  const identityPath = path.join(identityParent, "report.json");
+  const movedParent = path.join(evidenceRoot, "identity-parent-moved");
+  assert.throws(
+    () => writePublicRunnerJsonV01(
+      { evidenceRoot, outputPath: identityPath, value: safeValue },
+      {
+        beforeExclusiveCreate: () => {
+          renameSync(identityParent, movedParent);
+          symlinkSync(outside, identityParent);
+        },
+      },
+    ),
+    (error) => error?.reasonCode === "symlink_escape",
+  );
+  assert.equal(existsSync(path.join(outside, "report.json")), false);
+  reject("public_report_parent_identity_change_rejected");
+
+  const partialPath = path.join(evidenceRoot, "partial.json");
+  assert.throws(
+    () => writePublicRunnerJsonV01(
+      { evidenceRoot, outputPath: partialPath, value: safeValue },
+      {
+        writeFile: (descriptor) => {
+          writeFileSync(descriptor, "partial");
+          throw new Error("injected_partial_write_failure");
+        },
+      },
+    ),
+    /injected_partial_write_failure/u,
+  );
+  assert.equal(existsSync(partialPath), false);
+  reject("public_report_partial_write_removed");
 }
 
 async function assertPathAndWorkingDatabaseMatrix() {
@@ -202,6 +455,11 @@ async function assertPostAllocationHoldMatrix() {
       mechanicalFailureReason: "credential_material_detected",
       credentialMarker: "bootstrap_token=fixture-secret-marker-1234567890",
     }],
+    ["real_subprocess_exact_replay_failure", {
+      realSubprocessFailurePhase: "EXACT_REPLAY",
+      mechanicalFailurePhase: "MECHANICAL_REHEARSAL",
+      mechanicalFailureReason: "injected_exact_replay_failure",
+    }],
   ];
   for (const [name, behavior] of scenarios) {
     const fixture = createFixture(name);
@@ -213,8 +471,15 @@ async function assertPostAllocationHoldMatrix() {
     );
     const outcome = await runM3dAutonomousEvidenceV01(fixture.input, operations);
     assert.equal(outcome.verdict, "HOLD");
-    assert.equal(outcome.phase, behavior.mechanicalFailurePhase);
+    assert.equal(
+      outcome.phase,
+      behavior.realSubprocessFailurePhase ?? behavior.mechanicalFailurePhase,
+    );
     assert.equal(allocatorCalls, 1);
+    if (behavior.realSubprocessFailurePhase) {
+      assert.deepEqual(outcome.reason_codes, ["injected_exact_replay_failure"]);
+      assert.notEqual(outcome.phase, "RUNNER_QUALIFICATION");
+    }
     if (behavior.credentialMarker) {
       assert.equal(JSON.stringify(outcome).includes(behavior.credentialMarker), false);
       assert.equal(
@@ -292,20 +557,61 @@ function createInjectedOperations(fixture, behavior, onAllocate) {
       chmodSync(receiptPath, 0o600);
       return { exitCode, stdout: serialized, receiptBytes: fileBytes };
     },
-    recheckQualification: async () => {
+    afterQualificationLocked: async (plan) => {
+      await behavior.afterQualificationLocked?.(plan);
+      return { status: "pass" };
+    },
+    recheckQualification: async (plan, context) => {
       if (behavior.recheckReason) {
         throw new M3dAutonomousEvidenceRunnerErrorV01(
           behavior.recheckReason,
           "Injected qualification identity drift.",
         );
       }
-      return { status: "pass" };
+      return recheckPreAllocationStorageAndReceiptsV01(plan, context);
     },
     allocateChain: async () => {
       onAllocate();
       return { chain_id: "synthetic:opaque-runner-smoke", fixture_only: true };
     },
     mechanicalPhase: async (phase, state) => {
+      if (
+        behavior.realSubprocessFailurePhase &&
+        phase === behavior.mechanicalFailurePhase
+      ) {
+        const protocolPath = path.join(
+          fixture.runRoot,
+          "runtime",
+          "injected-phase-protocol.json",
+        );
+        runBoundedPhaseProtocolCommandV01({
+          command: process.execPath,
+          args: [
+            "--input-type=module",
+            "-e",
+            `import { writeFileSync } from "node:fs";
+             writeFileSync(process.env.PROTOCOL_PATH, JSON.stringify({
+               protocol_version: "vnext_m3d_runner_phase_protocol.v0.1",
+               status: "fail",
+               completed_phases: ["MECHANICAL_REHEARSAL"],
+               failure_phase: "EXACT_REPLAY",
+               reason_code: "injected_exact_replay_failure",
+               fixture_only: true,
+               real_user_authorization_created: false,
+               m3_completion_claimed: false
+             }));
+             process.exit(9);`,
+          ],
+          cwd: fixture.canonicalCheckout,
+          environment: {
+            ...process.env,
+            PROTOCOL_PATH: protocolPath,
+          },
+          protocolPath,
+          timeout: 10_000,
+          fallbackPhase: phase,
+        });
+      }
       if (phase === behavior.mechanicalFailurePhase) {
         if (behavior.credentialMarker) state.injectedCredentialMaterial = behavior.credentialMarker;
         throw new M3dAutonomousEvidenceRunnerErrorV01(
@@ -322,9 +628,12 @@ function createInjectedOperations(fixture, behavior, onAllocate) {
       return { status: "pass", fixture_only: true };
     },
     writeReport: async () => ({ status: "pass" }),
-    cleanup: async () => behavior.cleanupFailure
-      ? { status: "fail", reason_code: "runner_cleanup_failed" }
-      : { status: "pass", database_side_files_removed: true },
+    cleanup: async () => {
+      if (behavior.cleanupThrows) throw new Error("injected_cleanup_throw");
+      return behavior.cleanupFailure
+        ? { status: "fail", reason_code: "runner_cleanup_failed" }
+        : { status: "pass", database_side_files_removed: true };
+    },
   };
 }
 

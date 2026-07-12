@@ -286,6 +286,20 @@ export async function runM3dAutonomousEvidenceV01(input, injected = {}) {
 
     if (plan.mode === "qualify-only") {
       state.cleanup = await cleanupBeforeReturn(state, operations, false);
+      if (state.cleanup.status !== "pass") {
+        return {
+          runner_version: M3D_AUTONOMOUS_EVIDENCE_RUNNER_VERSION_V01,
+          mode: plan.mode,
+          verdict: "ABORTED",
+          phase: "RUNNER_QUALIFICATION",
+          chain_id: null,
+          reason_codes: ["runner_cleanup_failed"],
+          qualification: state.qualification,
+          phases: state.phases,
+          cleanup: state.cleanup,
+          authority_boundary: baseAuthorityBoundary(),
+        };
+      }
       return {
         runner_version: M3D_AUTONOMOUS_EVIDENCE_RUNNER_VERSION_V01,
         mode: plan.mode,
@@ -299,6 +313,7 @@ export async function runM3dAutonomousEvidenceV01(input, injected = {}) {
       };
     }
 
+    await operations.afterQualificationLocked(plan, qualifiedContext, state);
     await operations.recheckQualification(plan, qualifiedContext);
     currentPhase = "ALLOCATE_CHAIN";
     state.chain = await executePhase(state, "ALLOCATE_CHAIN", () =>
@@ -383,6 +398,28 @@ export function qualifyAndLockEnvironmentV01(plan, portableInvocation, localFull
     plan,
     portable,
     localFull,
+    locked_receipts: Object.freeze({
+      portable_base64: boundedBuffer(
+        portableInvocation.stdout,
+        "portable_qualification_stdout_invalid",
+      ).toString("base64"),
+      local_full_base64: boundedBuffer(
+        localFullInvocation.stdout,
+        "local_full_qualification_stdout_invalid",
+      ).toString("base64"),
+      portable_sha256: hashBuffer(
+        boundedBuffer(
+          portableInvocation.stdout,
+          "portable_qualification_stdout_invalid",
+        ),
+      ),
+      local_full_sha256: hashBuffer(
+        boundedBuffer(
+          localFullInvocation.stdout,
+          "local_full_qualification_stdout_invalid",
+        ),
+      ),
+    }),
     locked_identity: Object.freeze({
       qualification_version: portable.qualification_version,
       application_commit: portable.application_commit,
@@ -441,6 +478,37 @@ export function validateQualificationInvocationV01(plan, mode, invocation) {
   return receipt;
 }
 
+function recheckQualificationReceiptV01(plan, mode, lockedBytes) {
+  const receiptPath =
+    mode === "portable"
+      ? plan.portableReceiptPath
+      : plan.localFullReceiptPath;
+  const kind = getLexicalPathEntryKindV01(receiptPath);
+  if (kind !== "file") {
+    throw runnerError(
+      kind === "symlink"
+        ? "qualification_receipt_symlink"
+        : "qualification_receipt_missing",
+      "Qualification receipt stopped being a regular file before allocation.",
+    );
+  }
+  const actualReceiptPath = canonicalizeExistingPathV01(receiptPath);
+  if (
+    actualReceiptPath !== receiptPath ||
+    !strictlyWithin(plan.evidenceRoot, actualReceiptPath)
+  ) {
+    throw runnerError(
+      "qualification_receipt_identity_drift",
+      "Qualification receipt canonical identity changed before allocation.",
+    );
+  }
+  return validateQualificationInvocationV01(plan, mode, {
+    exitCode: 0,
+    stdout: lockedBytes,
+    receiptBytes: readFileSync(receiptPath),
+  });
+}
+
 export async function allocateChainV01(qualifiedContext, allocator) {
   if (!qualifiedContexts.has(qualifiedContext)) {
     throw runnerError("qualified_context_required", "Allocator requires a locked qualified context.");
@@ -484,6 +552,150 @@ export async function recheckLockedQualificationIdentityV01(plan, context) {
   return { status: "pass" };
 }
 
+export function recheckPreAllocationStorageAndReceiptsV01(plan, context) {
+  if (!qualifiedContexts.has(context)) {
+    throw runnerError(
+      "qualified_context_required",
+      "Pre-allocation storage recheck requires a locked context.",
+    );
+  }
+  for (const [label, expected] of [
+    ["run_root", plan.runRoot],
+    ["execution_repository", plan.executionRepo],
+    ["runtime_root", plan.runtimeRoot],
+    ["evidence_root", plan.evidenceRoot],
+  ]) {
+    const actual = canonicalizeExistingPathV01(expected);
+    if (actual !== expected) {
+      throw runnerError(
+        "runner_path_identity_drift",
+        `Pre-allocation ${label} canonical identity changed.`,
+      );
+    }
+  }
+  if (
+    path.dirname(plan.runtimeRoot) !== plan.runRoot ||
+    path.dirname(plan.evidenceRoot) !== plan.runRoot
+  ) {
+    throw runnerError(
+      "runner_layout_not_canonical",
+      "Runtime and evidence are no longer canonical siblings.",
+    );
+  }
+  assertNoOverlap(
+    "execution_repository_checkout_overlap",
+    plan.executionRepo,
+    plan.canonicalCheckout,
+  );
+  assertNoOverlap(
+    "execution_repository_runtime_overlap",
+    plan.executionRepo,
+    plan.runtimeRoot,
+  );
+  assertNoOverlap(
+    "execution_repository_evidence_overlap",
+    plan.executionRepo,
+    plan.evidenceRoot,
+  );
+  assertNoOverlap(
+    "runtime_evidence_overlap",
+    plan.runtimeRoot,
+    plan.evidenceRoot,
+  );
+  const workingDatabaseKind = getLexicalPathEntryKindV01(plan.workingDbPath);
+  if (workingDatabaseKind !== "missing") {
+    throw runnerError(
+      workingDatabaseKind === "symlink"
+        ? "working_db_path_symlink"
+        : "working_db_path_exists",
+      "Working DB stopped being an absent prospective leaf before allocation.",
+    );
+  }
+  const currentWorkingDatabase = canonicalizeProspectivePathV01(
+    plan.workingDbPath,
+  );
+  if (
+    currentWorkingDatabase !== plan.workingDbPath ||
+    !strictlyWithin(plan.runtimeRoot, currentWorkingDatabase)
+  ) {
+    throw runnerError(
+      "working_db_path_identity_drift",
+      "Working DB prospective identity changed before allocation.",
+    );
+  }
+
+  for (const outputPath of [
+    plan.reportPath,
+    plan.manifestPath,
+    plan.privateBackupPath,
+  ]) {
+    const kind = getLexicalPathEntryKindV01(outputPath);
+    if (kind !== "missing") {
+      throw runnerError(
+        kind === "symlink"
+          ? "runner_output_symlink"
+          : "runner_output_exists",
+        "A post-qualification runner output appeared before allocation.",
+      );
+    }
+    const actual = canonicalizeProspectivePathV01(outputPath);
+    if (
+      actual !== outputPath ||
+      !strictlyWithin(plan.evidenceRoot, actual) ||
+      doCanonicalPathsOverlapV01(plan.executionRepo, actual) ||
+      doCanonicalPathsOverlapV01(plan.runtimeRoot, actual) ||
+      doCanonicalPathsOverlapV01(plan.workingDbPath, actual)
+    ) {
+      throw runnerError(
+        "runner_output_identity_drift",
+        "A runner output canonical identity changed before allocation.",
+      );
+    }
+  }
+
+  const portableBytes = Buffer.from(
+    context.locked_receipts.portable_base64,
+    "base64",
+  );
+  const localFullBytes = Buffer.from(
+    context.locked_receipts.local_full_base64,
+    "base64",
+  );
+  const portable = recheckQualificationReceiptV01(
+    plan,
+    "portable",
+    portableBytes,
+  );
+  const localFull = recheckQualificationReceiptV01(
+    plan,
+    "local_full",
+    localFullBytes,
+  );
+  if (
+    hashBuffer(portableBytes) !== context.locked_receipts.portable_sha256 ||
+    hashBuffer(localFullBytes) !== context.locked_receipts.local_full_sha256 ||
+    hashFile(plan.portableReceiptPath) !==
+      context.locked_receipts.portable_sha256 ||
+    hashFile(plan.localFullReceiptPath) !==
+      context.locked_receipts.local_full_sha256
+  ) {
+    throw runnerError(
+      "qualification_receipt_hash_drift",
+      "Qualification receipt hash changed before allocation.",
+    );
+  }
+  if (
+    JSON.stringify(portable) !== JSON.stringify(context.portable) ||
+    JSON.stringify(localFull) !== JSON.stringify(context.localFull)
+  ) {
+    throw runnerError(
+      "qualification_receipt_identity_drift",
+      "Qualification receipt content changed before allocation.",
+    );
+  }
+  return { status: "pass" };
+}
+
 function defaultOperationsV01() {
   return {
     checkpoint: async (plan) => {
@@ -504,7 +716,11 @@ function defaultOperationsV01() {
       return { status: "pass" };
     },
     qualify: async (plan, mode) => invokeQualificationCliV01(plan, mode),
-    recheckQualification: recheckLockedQualificationIdentityV01,
+    afterQualificationLocked: async () => ({ status: "pass" }),
+    recheckQualification: async (plan, context) => {
+      recheckPreAllocationStorageAndReceiptsV01(plan, context);
+      return await recheckLockedQualificationIdentityV01(plan, context);
+    },
     allocateChain: async () => ({ chain_id: `chain:${randomUUID()}`, fixture_only: true }),
     mechanicalPhase: defaultMechanicalPhaseV01,
     writeReport: async () => ({ status: "pass", persistence: "deferred_until_cleanup" }),
@@ -534,39 +750,115 @@ async function defaultMechanicalPhaseV01(phase, state) {
     if (getLexicalPathEntryKindV01(plan.workingDbPath) !== "missing") {
       throw runnerError("working_db_path_exists", "Working DB is no longer fresh.", phase);
     }
-    const result = runCapture(
+    runCapture(
       "npm",
-      ["run", "smoke:vnext-operator-pilot-v0-1"],
+      ["run", "db:reset"],
       plan.executionRepo,
-      600_000,
+      120_000,
       {
-        AUGNES_M3D_RUNNER_RUNTIME_ROOT: plan.runtimeRoot,
-        AUGNES_M3D_RUNNER_WORKING_DB_PATH: plan.workingDbPath,
+        AUGNES_DB_PATH: plan.workingDbPath,
       },
+      phase,
     );
-    const summary = parseTrailingJson(result.stdout, "operator_smoke_output_invalid");
-    state.operatorSmoke = summary;
     return { status: "pass", isolated_database_created: existsSync(plan.workingDbPath) };
   }
-  const summary = state.operatorSmoke;
-  if (!summary) throw runnerError("operator_smoke_missing", "Operator smoke result is missing.", phase);
   if (phase === "MIGRATE") {
-    requireCase(summary, "operator_session_migration_repeat_is_noop", phase);
+    runCapture(
+      "npm",
+      ["run", "db:migrate"],
+      plan.executionRepo,
+      120_000,
+      { AUGNES_DB_PATH: plan.workingDbPath },
+      phase,
+    );
+    runCapture(
+      "npm",
+      ["run", "db:migrate"],
+      plan.executionRepo,
+      120_000,
+      { AUGNES_DB_PATH: plan.workingDbPath },
+      phase,
+    );
     return { status: "pass", repeated_migration: "no_op" };
   }
   if (phase === "BASELINE") {
-    if (summary.authentication_phase_semantic_and_legacy_row_delta !== 0 || summary.full_loop_legacy_row_delta !== 0) {
-      throw runnerError("database_baseline_drift", "Protected database baseline drifted.", phase);
-    }
-    return { status: "pass", protected_row_delta: 0 };
+    state.databaseBaseline = snapshotRunnerDatabaseV01(plan);
+    return {
+      status: "pass",
+      integrity_check: state.databaseBaseline.integrity_check,
+      protected_table_count: state.databaseBaseline.protected_table_count,
+    };
   }
   if (phase === "MECHANICAL_REHEARSAL") {
+    const protocolPath = path.join(
+      plan.runtimeRoot,
+      "operator-phase-protocol-v0-1.json",
+    );
+    const manifestPath = path.join(
+      plan.runtimeRoot,
+      "operator-browser-manifest-v0-1.json",
+    );
+    const result = runBoundedPhaseProtocolCommandV01({
+      command: "npm",
+      args: ["run", "smoke:vnext-operator-pilot-v0-1"],
+      cwd: plan.executionRepo,
+      timeout: 600_000,
+      protocolPath,
+      fallbackPhase: phase,
+      environment: {
+        ...isolatedChildEnvironment(),
+        AUGNES_M3D_RUNNER_RUNTIME_ROOT: plan.runtimeRoot,
+        AUGNES_M3D_RUNNER_WORKING_DB_PATH: plan.workingDbPath,
+        AUGNES_M3D_RUNNER_DB_PREINITIALIZED: "1",
+        AUGNES_M3D_RUNNER_PHASE_PROTOCOL_PATH: protocolPath,
+        AUGNES_M3D_RUNNER_BROWSER_MANIFEST_PATH: manifestPath,
+      },
+    });
+    const summary = parseTrailingJson(
+      result.stdout,
+      "operator_smoke_output_invalid",
+    );
+    if (
+      result.protocol.status !== "pass" ||
+      !result.protocol.completed_phases.includes("MECHANICAL_REHEARSAL")
+    ) {
+      throw runnerError(
+        "mechanical_phase_protocol_invalid",
+        "Operator phase protocol did not complete mechanical rehearsal.",
+        phase,
+      );
+    }
     if (summary.status !== "pass" || summary.full_loop_fixture_only !== true || summary.external_network_calls !== 0) {
       throw runnerError("mechanical_rehearsal_failed", "Isolated operator rehearsal failed.", phase);
     }
+    if (
+      summary.browser_fixture_export?.database_mode !==
+      "runner_managed_exact_working_db"
+    ) {
+      throw runnerError(
+        "runner_browser_manifest_invalid",
+        "Operator rehearsal did not bind the exact runner-managed database.",
+        phase,
+      );
+    }
+    state.operatorSmoke = summary;
+    state.operatorPhaseProtocol = result.protocol;
+    state.browserManifestPath = manifestPath;
     return { status: "pass", fixture_only: true, external_network_calls: 0 };
   }
+  const summary = state.operatorSmoke;
+  if (!summary) throw runnerError("operator_smoke_missing", "Operator smoke result is missing.", phase);
   if (phase === "EXACT_REPLAY") {
+    if (
+      state.operatorPhaseProtocol?.status !== "pass" ||
+      !state.operatorPhaseProtocol.completed_phases.includes("EXACT_REPLAY")
+    ) {
+      throw runnerError(
+        "exact_replay_phase_protocol_invalid",
+        "Operator phase protocol did not complete exact replay.",
+        phase,
+      );
+    }
     for (const caseId of ["semantic_transition_exact_replay", "later_packet_compile_exact_replay", "later_result_exact_replay", "context_use_review_exact_replay"]) {
       requireCase(summary, caseId, phase);
     }
@@ -582,13 +874,30 @@ async function defaultMechanicalPhaseV01(phase, state) {
       ["run", "browser:vnext-task-context-packet-handoff-v0-1"],
       plan.executionRepo,
       600_000,
-      plan.browserExecutable ? { AUGNES_BROWSER_EXECUTABLE_PATH: plan.browserExecutable } : {},
+      {
+        ...(plan.browserExecutable
+          ? { AUGNES_BROWSER_EXECUTABLE_PATH: plan.browserExecutable }
+          : {}),
+        AUGNES_BROWSER_EXISTING_DB_PATH: plan.workingDbPath,
+        AUGNES_BROWSER_EXISTING_MANIFEST_PATH: state.browserManifestPath,
+      },
+      phase,
     );
     const browserSummary = parseTrailingJson(browser.stdout, "browser_rehearsal_output_invalid");
     if (browserSummary.ok !== true || browserSummary.temporary_profile_removed !== true || browserSummary.temporary_fixture_removed !== true) {
       throw runnerError("browser_rehearsal_failed", "Browser rehearsal did not cleanly pass.", phase);
     }
     state.browserSummary = browserSummary;
+    if (
+      browserSummary.fixture_source !== "existing_runner_managed_material" ||
+      browserSummary.runner_managed_database_preserved !== true
+    ) {
+      throw runnerError(
+        "browser_runner_material_mismatch",
+        "Browser rehearsal did not consume the exact runner-managed material.",
+        phase,
+      );
+    }
     return { status: "pass", viewports: [390, 768, 1440], loopback_only: true };
   }
   if (phase === "FINAL_DATABASE_AUDIT") {
@@ -688,7 +997,12 @@ async function executePhase(state, phase, action) {
 }
 
 async function cleanupBeforeReturn(state, operations, afterAllocation) {
-  const outcome = await operations.cleanup(state.plan, state);
+  let outcome;
+  try {
+    outcome = await operations.cleanup(state.plan, state);
+  } catch {
+    outcome = { status: "fail", reason_code: "runner_cleanup_failed" };
+  }
   const normalized = outcome?.status ? outcome : { status: "pass" };
   state.phases.push({ phase: "CLEANUP", status: normalized.status });
   if (afterAllocation && normalized.status !== "pass") return normalized;
@@ -764,7 +1078,14 @@ function loadExecutionDatabaseConstructor(executionRepo) {
   return require("better-sqlite3");
 }
 
-function runCapture(command, args, cwd, timeout = 120_000, extraEnvironment = {}) {
+function runCapture(
+  command,
+  args,
+  cwd,
+  timeout = 120_000,
+  extraEnvironment = {},
+  failurePhase = "RUNNER_QUALIFICATION",
+) {
   const child = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
@@ -774,12 +1095,170 @@ function runCapture(command, args, cwd, timeout = 120_000, extraEnvironment = {}
     stdio: ["ignore", "pipe", "pipe"],
   });
   if (child.error || child.signal || child.status !== 0) {
-    const error = runnerError("runner_command_failed", `Bounded command failed: ${command}.`);
+    const error = runnerError(
+      "runner_command_failed",
+      `Bounded command failed: ${command}.`,
+      failurePhase,
+    );
     error.command = command;
     error.exitCode = child.status;
     throw error;
   }
   return { stdout: child.stdout ?? "", stderr: child.stderr ?? "" };
+}
+
+export function runBoundedPhaseProtocolCommandV01({
+  command,
+  args,
+  cwd,
+  environment,
+  protocolPath,
+  timeout,
+  fallbackPhase,
+}) {
+  const child = spawnSync(command, args, {
+    cwd,
+    encoding: "utf8",
+    timeout,
+    maxBuffer: 4 * 1024 * 1024,
+    env: environment,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let protocol = null;
+  let protocolInvalid = false;
+  if (existsSync(protocolPath)) {
+    try {
+      protocol = parseBoundedJson(
+        boundedBuffer(
+          readFileSync(protocolPath),
+          "runner_phase_protocol_invalid",
+        ),
+        "runner_phase_protocol_invalid",
+      );
+      protocolInvalid = !validRunnerPhaseProtocolV01(protocol);
+    } catch {
+      protocolInvalid = true;
+      protocol = null;
+    }
+  }
+  if (child.error || child.signal || child.status !== 0) {
+    const failurePhase =
+      !protocolInvalid && validOperatorProtocolPhase(protocol?.failure_phase)
+      ? protocol.failure_phase
+      : fallbackPhase;
+    const error = runnerError(
+      !protocolInvalid && protocol?.status === "fail"
+        ? protocol.reason_code
+        : "runner_subprocess_failed",
+      `Bounded subprocess failed: ${command}.`,
+      failurePhase,
+    );
+    error.exitCode = child.status;
+    throw error;
+  }
+  if (
+    protocolInvalid ||
+    !protocol ||
+    protocol.status !== "pass"
+  ) {
+    throw runnerError(
+      "runner_phase_protocol_invalid",
+      "Bounded subprocess returned no valid runner phase protocol.",
+      fallbackPhase,
+    );
+  }
+  return {
+    stdout: child.stdout ?? "",
+    stderr: child.stderr ?? "",
+    protocol,
+  };
+}
+
+function snapshotRunnerDatabaseV01(plan) {
+  const Database = loadExecutionDatabaseConstructor(plan.executionRepo);
+  const database = new Database(plan.workingDbPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const integrity = database.pragma("integrity_check", { simple: true });
+    if (integrity !== "ok") {
+      throw runnerError(
+        "database_baseline_integrity_failed",
+        "Runner database baseline integrity failed.",
+        "BASELINE",
+      );
+    }
+    const protectedTables = database
+      .prepare(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'table'
+           AND name NOT LIKE 'sqlite_%'
+           AND name <> 'vnext_local_operator_sessions'
+         ORDER BY name`,
+      )
+      .all()
+      .map((row) => row.name);
+    const protectedRows = protectedTables.map((tableName) => ({
+      table_name: tableName,
+      rows: database
+        .prepare(`SELECT * FROM ${quoteIdentifierV01(tableName)}`)
+        .all()
+        .map((row) => JSON.stringify(row))
+        .sort(),
+    }));
+    return {
+      integrity_check: "ok",
+      protected_table_count: protectedTables.length,
+      protected_rows_sha256: hashBuffer(
+        Buffer.from(JSON.stringify(protectedRows), "utf8"),
+      ),
+      database_sha256: hashFile(plan.workingDbPath),
+    };
+  } finally {
+    database.close();
+  }
+}
+
+function quoteIdentifierV01(value) {
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function validOperatorProtocolPhase(value) {
+  return value === "MECHANICAL_REHEARSAL" || value === "EXACT_REPLAY";
+}
+
+function validRunnerPhaseProtocolV01(protocol) {
+  if (
+    !protocol ||
+    protocol.protocol_version !==
+      "vnext_m3d_runner_phase_protocol.v0.1" ||
+    (protocol.status !== "pass" && protocol.status !== "fail") ||
+    !Array.isArray(protocol.completed_phases) ||
+    protocol.completed_phases.some(
+      (phase) => !validOperatorProtocolPhase(phase),
+    ) ||
+    new Set(protocol.completed_phases).size !==
+      protocol.completed_phases.length ||
+    protocol.fixture_only !== true ||
+    protocol.real_user_authorization_created !== false ||
+    protocol.m3_completion_claimed !== false
+  ) {
+    return false;
+  }
+  if (protocol.status === "pass") {
+    return (
+      protocol.failure_phase === null &&
+      protocol.reason_code === null &&
+      protocol.completed_phases.includes("MECHANICAL_REHEARSAL") &&
+      protocol.completed_phases.includes("EXACT_REPLAY")
+    );
+  }
+  return (
+    validOperatorProtocolPhase(protocol.failure_phase) &&
+    typeof protocol.reason_code === "string" &&
+    /^[a-z0-9_]{1,80}$/u.test(protocol.reason_code)
+  );
 }
 
 function isolatedChildEnvironment() {
@@ -813,6 +1292,10 @@ function validBrowserIdentity(value) {
 
 function hashFile(filePath) {
   return `sha256:${createHash("sha256").update(readFileSync(filePath)).digest("hex")}`;
+}
+
+function hashBuffer(value) {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
 function strictlyWithin(root, candidate) {

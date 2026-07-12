@@ -1,8 +1,19 @@
-import { chmodSync, mkdirSync, openSync, closeSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  closeSync,
+  constants as fsConstants,
+  mkdirSync,
+  openSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 import {
+  canonicalizeExistingPathV01,
   canonicalizeProspectivePathV01,
+  getLexicalPathEntryKindV01,
   isPathWithinCanonicalRootV01,
   validateAbsolutePathInputV01,
 } from "./m3d-evidence-runner-path-policy-v0-1.mjs";
@@ -60,13 +71,22 @@ export function buildPublicRunnerReportV01(input) {
   return report;
 }
 
-export function writePublicRunnerJsonV01({ evidenceRoot, outputPath, value }) {
+export function writePublicRunnerJsonV01(
+  { evidenceRoot, outputPath, value },
+  dependencies = {},
+) {
+  const writeFile = dependencies.writeFile ?? writeFileSync;
+  const beforeExclusiveCreate =
+    dependencies.beforeExclusiveCreate ?? (() => undefined);
   const lexicalEvidenceRoot = validateAbsolutePathInputV01(evidenceRoot);
   const lexicalOutputPath = validateAbsolutePathInputV01(outputPath);
   const canonicalEvidenceRoot = canonicalizeProspectivePathV01(
     lexicalEvidenceRoot,
   );
-  const canonicalOutputPath = canonicalizeProspectivePathV01(lexicalOutputPath);
+  const canonicalOutputPath = canonicalizeProspectiveLeafWithoutInspectionV01(
+    lexicalOutputPath,
+  );
+  const canonicalOutputParent = path.dirname(canonicalOutputPath);
   if (
     canonicalOutputPath === canonicalEvidenceRoot ||
     !isPathWithinCanonicalRootV01(canonicalEvidenceRoot, canonicalOutputPath)
@@ -76,16 +96,102 @@ export function writePublicRunnerJsonV01({ evidenceRoot, outputPath, value }) {
       "Runner report output must be strictly inside evidence.",
     );
   }
-  assertPublicSafeRunnerMaterialV01(value);
-  mkdirSync(path.dirname(canonicalOutputPath), { recursive: true, mode: 0o700 });
-  const descriptor = openSync(canonicalOutputPath, "wx", 0o600);
-  try {
-    writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  } finally {
-    closeSync(descriptor);
+  const outputEntryKind = getLexicalPathEntryKindV01(lexicalOutputPath);
+  if (outputEntryKind === "symlink") {
+    throw reportError(
+      "runner_report_output_symlink",
+      "Runner report output must not be a symlink.",
+    );
   }
-  chmodSync(canonicalOutputPath, 0o600);
-  return canonicalOutputPath;
+  if (outputEntryKind !== "missing") {
+    throw reportError(
+      "runner_report_output_exists",
+      "Runner report output must not already exist.",
+    );
+  }
+  assertPublicSafeRunnerMaterialV01(value);
+  const serialized = `${JSON.stringify(value, null, 2)}\n`;
+  let descriptor = null;
+  let created = false;
+  try {
+    mkdirSync(canonicalEvidenceRoot, { recursive: true, mode: 0o700 });
+    mkdirSync(canonicalOutputParent, { recursive: true, mode: 0o700 });
+    const actualEvidenceRoot = canonicalizeExistingPathV01(
+      canonicalEvidenceRoot,
+    );
+    const actualOutputParent = canonicalizeExistingPathV01(
+      canonicalOutputParent,
+    );
+    if (
+      actualEvidenceRoot !== canonicalEvidenceRoot ||
+      !isPathWithinCanonicalRootV01(actualEvidenceRoot, actualOutputParent)
+    ) {
+      throw reportError(
+        "symlink_escape",
+        "Runner report parent changed canonical identity.",
+      );
+    }
+    beforeExclusiveCreate({
+      evidenceRoot: actualEvidenceRoot,
+      outputParent: actualOutputParent,
+      outputPath: canonicalOutputPath,
+    });
+    if (
+      canonicalizeExistingPathV01(canonicalEvidenceRoot) !==
+        actualEvidenceRoot ||
+      canonicalizeExistingPathV01(canonicalOutputParent) !==
+        actualOutputParent
+    ) {
+      throw reportError(
+        "symlink_escape",
+        "Runner report parent identity changed before creation.",
+      );
+    }
+    descriptor = openSync(
+      canonicalOutputPath,
+      fsConstants.O_WRONLY |
+        fsConstants.O_CREAT |
+        fsConstants.O_EXCL |
+        (fsConstants.O_NOFOLLOW ?? 0),
+      0o600,
+    );
+    created = true;
+    writeFile(descriptor, serialized, { encoding: "utf8" });
+    closeSync(descriptor);
+    descriptor = null;
+    chmodSync(canonicalOutputPath, 0o600);
+    const actualOutputPath = canonicalizeExistingPathV01(
+      canonicalOutputPath,
+    );
+    if (
+      actualOutputPath !== canonicalOutputPath ||
+      actualOutputPath === actualEvidenceRoot ||
+      !isPathWithinCanonicalRootV01(actualEvidenceRoot, actualOutputPath) ||
+      !statSync(actualOutputPath).isFile()
+    ) {
+      throw reportError(
+        "symlink_escape",
+        "Created runner report failed canonical requalification.",
+      );
+    }
+    return actualOutputPath;
+  } catch (error) {
+    if (descriptor !== null) closeSync(descriptor);
+    if (created) {
+      try {
+        unlinkSync(canonicalOutputPath);
+      } catch {
+        // Preserve the bounded original failure after best-effort cleanup.
+      }
+    }
+    if (error?.code === "EEXIST") {
+      throw reportError(
+        "runner_report_output_exists",
+        "Runner report output appeared before exclusive creation.",
+      );
+    }
+    throw error;
+  }
 }
 
 function visitPublicValue(value, keyPath) {
@@ -114,6 +220,14 @@ function visitPublicValue(value, keyPath) {
       visitPublicValue(entry, [...keyPath, key]);
     }
   }
+}
+
+function canonicalizeProspectiveLeafWithoutInspectionV01(pathValue) {
+  const lexicalPath = validateAbsolutePathInputV01(pathValue);
+  const canonicalParent = canonicalizeProspectivePathV01(
+    path.dirname(lexicalPath),
+  );
+  return path.join(canonicalParent, path.basename(lexicalPath));
 }
 
 function reportError(reasonCode, message) {

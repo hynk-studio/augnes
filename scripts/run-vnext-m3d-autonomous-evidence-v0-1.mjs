@@ -3,27 +3,42 @@
 import {
   runM3dAutonomousEvidenceV01,
 } from "./lib/m3d-autonomous-evidence-runner-v0-1.mjs";
+import { fileURLToPath } from "node:url";
 import { validateAbsolutePathInputV01 } from "./lib/m3d-evidence-runner-path-policy-v0-1.mjs";
 
-try {
-  const options = parseArguments(process.argv.slice(2));
-  const result = await runM3dAutonomousEvidenceV01(options);
-  if (options.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  else process.stdout.write(`${result.runner_version}: ${result.verdict} (${result.phase})\n`);
-  process.exitCode = result.verdict === "ABORTED" || result.verdict === "HOLD" ? 1 : 0;
-} catch (error) {
-  const reasonCode = typeof error?.reasonCode === "string" ? error.reasonCode : "malformed_invocation";
-  process.stdout.write(`${JSON.stringify({
-    runner_version: "vnext_m3d_autonomous_evidence_runner.v0.1",
-    verdict: "ABORTED",
-    phase: "RUNNER_QUALIFICATION",
-    chain_id: null,
-    reason_codes: [reasonCode],
-  }, null, 2)}\n`);
-  process.exitCode = 2;
+export async function runM3dAutonomousEvidenceCliV01(
+  argv,
+  dependencies = {},
+) {
+  const executeRunner =
+    dependencies.executeRunner ?? runM3dAutonomousEvidenceV01;
+  const stdout = dependencies.stdout ?? process.stdout;
+  try {
+    const options = parseM3dAutonomousEvidenceCliArgumentsV01(argv);
+    const result = await executeRunner(options);
+    if (options.json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    else stdout.write(`${result.runner_version}: ${result.verdict} (${result.phase})\n`);
+    return result.verdict === "ABORTED" || result.verdict === "HOLD" ? 1 : 0;
+  } catch (error) {
+    const reasonCode = typeof error?.reasonCode === "string" ? error.reasonCode : "malformed_invocation";
+    stdout.write(`${JSON.stringify({
+      runner_version: "vnext_m3d_autonomous_evidence_runner.v0.1",
+      verdict: "ABORTED",
+      phase: "RUNNER_QUALIFICATION",
+      chain_id: null,
+      reason_codes: [reasonCode],
+    }, null, 2)}\n`);
+    return 2;
+  }
 }
 
-function parseArguments(argv) {
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  process.exitCode = await runM3dAutonomousEvidenceCliV01(
+    process.argv.slice(2),
+  );
+}
+
+export function parseM3dAutonomousEvidenceCliArgumentsV01(argv) {
   const output = { mode: "full", json: false };
   const values = new Map([
     ["--canonical-checkout-root", "canonicalCheckoutRoot"],

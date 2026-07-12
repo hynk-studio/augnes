@@ -44,7 +44,9 @@ npm run vnext:m3d-autonomous-evidence-runner-v0-1 -- \
 independently validates both receipts, and removes the execution/runtime
 resources. It never allocates a chain or starts product rehearsal. Browser
 absence is an explicit unqualified result; portable qualification is not a
-substitute for local-full qualification.
+substitute for local-full qualification. Cleanup failure is also qualification
+failure: the runner returns `ABORTED`, `chain_id: null`, and
+`runner_cleanup_failed`, and the CLI exits `1`.
 
 Without either flag, full mode runs the same qualification pair, locks and
 rechecks its identities, then allocates one opaque chain and begins the isolated
@@ -138,6 +140,13 @@ objects fail closed without alteration. The default product/user DB leaf is
 excluded structurally and is not statted, lstatted, realpathed, hashed, opened,
 queried, or searched.
 
+Immediately before allocation, the runner performs the storage gate again. It
+requires the same canonical run, execution, runtime, and evidence identities;
+the still-missing working-DB leaf; still-missing report, manifest, and backup
+leaves; and the original receipt bytes, SHA-256 values, owner-only modes, and
+evidence containment. Any intervening file, symlink, parent-identity, mode, or
+receipt mutation aborts before the allocator is called.
+
 Runner directories use owner-only intent (`0700`). Qualification receipts,
 public-safe report/manifest, and the private backup use owner-only file intent
 (`0600`). The backup is explicitly private and is not part of the public-safe
@@ -159,9 +168,11 @@ qualification. For portable and local-full it independently checks:
 - exact clean execution repository;
 - local-full browser executable name, SHA-256, and bounded version identity.
 
-Both receipt identities must match. The lock is rechecked immediately before
-allocation, and browser identity is checked again immediately before browser
-spawn.
+Both receipt identities must match. Their exact serialized bytes and hashes are
+locked in memory and re-read from owner-only regular receipt files immediately
+before allocation. Repository, path, lockfile, runtime, and browser identities
+are rechecked at that same boundary, and browser identity is checked again
+immediately before browser spawn.
 
 ## Structural allocation gate
 
@@ -174,11 +185,23 @@ schema, migration, or Chain 6 allocation is added.
 
 ## Mechanical and browser rehearsal
 
-The default full adapter reuses the existing isolated operator-pilot smoke and
-TaskContextPacket handoff browser validation. Runner-managed mode gives the
-operator smoke an explicit fresh DB below runtime while preserving the existing
-standalone smoke behavior. The runner consumes only bounded JSON summaries; it
-does not persist raw command output, bootstrap tokens, cookies, action nonces,
+The default full adapter creates and migrates the runner DB in the named
+`CREATE_WORKING_DATABASE` and `MIGRATE` phases, records the pre-rehearsal
+baseline in `BASELINE`, and then invokes the existing isolated operator-pilot
+smoke with an exclusive machine-readable phase protocol. The protocol records
+whether `MECHANICAL_REHEARSAL` and `EXACT_REPLAY` completed and identifies the
+exact phase of a subprocess failure. A post-allocation subprocess failure is
+therefore a phase-specific `HOLD`; it cannot fall back to
+`RUNNER_QUALIFICATION`.
+
+Runner-managed mode gives the operator smoke the already-created exact DB below
+runtime and asks it to emit a manifest for the packet, transition, later result,
+and context-use-review lineage produced in that DB. Browser rehearsal consumes
+that same DB and manifest without copying or invoking a second operator fixture,
+then checks Project Home, Workbench lineage, packet page/API, and 390/768/1440
+viewports. The existing copied-fixture standalone operator and browser commands
+remain unchanged. The runner consumes only bounded JSON summaries; it does not
+persist raw command output, bootstrap tokens, cookies, action nonces,
 environment dumps, prompts, transcripts, or private DB rows.
 
 The mechanical path remains synthetic fixture material. Loopback-only
@@ -195,9 +218,17 @@ contain no raw private paths or credential-shaped values. The SQLite backup is
 separate private material and is referenced publicly only by basename and
 SHA-256.
 
+Each public JSON file uses an owner-only exclusive no-follow create. Its
+evidence root, parent, and final regular-file identity are canonically
+requalified around creation. Existing or dangling symlink leaves, escaping or
+changed parents, concurrent leaf creation, and partial writes fail closed;
+files partially created by the writer are removed best-effort before the error
+is returned.
+
 Execution clone, runtime DB, WAL/SHM, operator fixtures, browser profile,
 listener, and other bounded runtime resources must be removed. A cleanup
-failure prevents `COMPLETE_AUTONOMOUS_REHEARSAL` and returns `HOLD`.
+failure prevents `COMPLETE_AUTONOMOUS_REHEARSAL`; it returns `HOLD` after
+allocation or `ABORTED` in qualify-only mode.
 
 ## CI boundary
 

@@ -13,6 +13,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -141,6 +142,9 @@ const tempRoot = runnerManagedPaths
 if (runnerManagedPaths) mkdirSync(tempRoot, { recursive: false, mode: 0o700 });
 const canonicalDbPath =
   runnerManagedPaths?.workingDbPath ?? path.join(tempRoot, "operator-pilot.db");
+const runnerPhaseProtocolPath = resolveRunnerPhaseProtocolPath();
+const runnerCompletedPhases: string[] = [];
+let runnerActivePhase = "MECHANICAL_REHEARSAL";
 const migrationDbPath = path.join(tempRoot, "legacy-upgrade.db");
 const recordKindMigrationDbPath = path.join(
   tempRoot,
@@ -363,6 +367,7 @@ try {
 
   const legacyBefore = snapshotLegacyRows(canonicalDbPath);
   clock.set("2026-07-11T09:00:00.000Z");
+  maybeInjectRunnerPhaseFailure("MECHANICAL_REHEARSAL");
   const fullLoop = await assertFullOperatorLoop({
     environment,
     clock,
@@ -371,6 +376,20 @@ try {
   });
   assert.deepEqual(snapshotLegacyRows(canonicalDbPath), legacyBefore);
   pass("full_loop_does_not_mutate_legacy_proof_evidence_or_work_rows");
+  runnerCompletedPhases.push("MECHANICAL_REHEARSAL");
+
+  runnerActivePhase = "EXACT_REPLAY";
+  maybeInjectRunnerPhaseFailure("EXACT_REPLAY");
+  for (const caseId of [
+    "semantic_transition_exact_replay",
+    "later_packet_compile_exact_replay",
+    "later_result_exact_replay",
+    "context_use_review_exact_replay",
+  ]) {
+    assert(positiveCases.includes(caseId), `missing exact replay case: ${caseId}`);
+  }
+  runnerCompletedPhases.push("EXACT_REPLAY");
+  runnerActivePhase = "MECHANICAL_REHEARSAL";
 
   const browserFixtureExport =
     await exportOperatorPilotBrowserFixtureV01(fullLoop);
@@ -440,10 +459,36 @@ finalSummary.positive_cases = positiveCases;
 finalSummary.temp_database_cleanup = runnerManagedPaths
   ? "delegated_to_runner"
   : "pass";
+writeRunnerPhaseProtocol({
+  status: "pass",
+  failure_phase: null,
+  reason_code: null,
+});
 process.stdout.write(`${JSON.stringify(finalSummary, null, 2)}\n`);
 }
 
 void main().catch((error: unknown) => {
+  try {
+    writeRunnerPhaseProtocol({
+      status: "fail",
+      failure_phase:
+        error instanceof RunnerPhaseFailure
+          ? error.runnerPhase
+          : runnerActivePhase,
+      reason_code:
+        error instanceof RunnerPhaseFailure
+          ? error.reasonCode
+          : "operator_pilot_subprocess_failed",
+    });
+  } catch (protocolError: unknown) {
+    const protocolMessage =
+      protocolError instanceof Error
+        ? protocolError.message
+        : "runner_phase_protocol_write_failed";
+    process.stderr.write(
+      `runner_phase_protocol_write_failed:${protocolMessage}\n`,
+    );
+  }
   const message =
     error instanceof Error ? error.message : "operator_pilot_smoke_failed";
   process.stderr.write(`operator_pilot_smoke_failed:${message}\n`);
@@ -453,6 +498,7 @@ void main().catch((error: unknown) => {
 function resolveRunnerManagedPaths(): {
   runtimeRoot: string;
   workingDbPath: string;
+  preinitialized: boolean;
 } | null {
   const runtimeInput = process.env.AUGNES_M3D_RUNNER_RUNTIME_ROOT?.trim();
   const databaseInput = process.env.AUGNES_M3D_RUNNER_WORKING_DB_PATH?.trim();
@@ -462,7 +508,15 @@ function resolveRunnerManagedPaths(): {
   assert(path.isAbsolute(databaseInput), "runner-managed working DB must be absolute");
   const runtimeRoot = realpathSync(runtimeInput);
   const workingDbPath = path.resolve(databaseInput);
-  assert.equal(existsSync(workingDbPath), false, "runner-managed working DB must be absent");
+  const preinitialized =
+    process.env.AUGNES_M3D_RUNNER_DB_PREINITIALIZED === "1";
+  if (preinitialized) {
+    assert.equal(existsSync(workingDbPath), true, "runner-managed working DB must exist");
+    assert.equal(realpathSync(workingDbPath), workingDbPath);
+    assert.equal(statSync(workingDbPath).isFile(), true);
+  } else {
+    assert.equal(existsSync(workingDbPath), false, "runner-managed working DB must be absent");
+  }
   const databaseParent = realpathSync(path.dirname(workingDbPath));
   const databaseRelative = path.relative(runtimeRoot, path.join(databaseParent, path.basename(workingDbPath)));
   assert(
@@ -473,7 +527,82 @@ function resolveRunnerManagedPaths(): {
     "runner-managed working DB must remain strictly inside runtime",
   );
   assert.equal(existsSync(path.join(runtimeRoot, "operator-smoke-fixtures")), false);
-  return { runtimeRoot, workingDbPath };
+  return { runtimeRoot, workingDbPath, preinitialized };
+}
+
+class RunnerPhaseFailure extends Error {
+  constructor(
+    readonly runnerPhase: string,
+    readonly reasonCode: string,
+  ) {
+    super(`Injected runner phase failure: ${runnerPhase}`);
+  }
+}
+
+function resolveRunnerPhaseProtocolPath(): string | null {
+  const requested =
+    process.env.AUGNES_M3D_RUNNER_PHASE_PROTOCOL_PATH?.trim();
+  if (!requested) return null;
+  assert(runnerManagedPaths, "runner phase protocol requires runner-managed paths");
+  assert(path.isAbsolute(requested));
+  const resolved = path.resolve(requested);
+  const relative = path.relative(runnerManagedPaths.runtimeRoot, resolved);
+  assert(
+    relative !== "" &&
+      relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative),
+    "runner phase protocol must remain strictly inside runtime",
+  );
+  assert.equal(existsSync(resolved), false);
+  return resolved;
+}
+
+function maybeInjectRunnerPhaseFailure(phase: string): void {
+  const requested =
+    process.env.AUGNES_M3D_RUNNER_INJECT_FAILURE_PHASE?.trim();
+  if (!requested) return;
+  assert(
+    requested === "MECHANICAL_REHEARSAL" || requested === "EXACT_REPLAY",
+    "unsupported runner phase failure injection",
+  );
+  if (requested === phase) {
+    throw new RunnerPhaseFailure(
+      phase,
+      `injected_${phase.toLowerCase()}_failure`,
+    );
+  }
+}
+
+function writeRunnerPhaseProtocol(input: {
+  status: "pass" | "fail";
+  failure_phase: string | null;
+  reason_code: string | null;
+}): void {
+  if (!runnerPhaseProtocolPath) return;
+  mkdirSync(path.dirname(runnerPhaseProtocolPath), {
+    recursive: true,
+    mode: 0o700,
+  });
+  writeFileSync(
+    runnerPhaseProtocolPath,
+    `${JSON.stringify(
+      {
+        protocol_version: "vnext_m3d_runner_phase_protocol.v0.1",
+        status: input.status,
+        completed_phases: runnerCompletedPhases,
+        failure_phase: input.failure_phase,
+        reason_code: input.reason_code,
+        fixture_only: true,
+        real_user_authorization_created: false,
+        m3_completion_claimed: false,
+      },
+      null,
+      2,
+    )}\n`,
+    { encoding: "utf8", mode: 0o600, flag: "wx" },
+  );
+  chmodSync(runnerPhaseProtocolPath, 0o600);
 }
 
 function initializeCanonicalDatabase(): void {
@@ -4579,10 +4708,88 @@ async function exportOperatorPilotBrowserFixtureV01(input: {
   anchors: Record<string, string>;
   proposal: { proposal_id: string; proposal_fingerprint: string };
   handoffHref: string;
-}): Promise<{ exported: false } | { exported: true; manifest_path: string }> {
+}): Promise<
+  | { exported: false }
+  | {
+      exported: true;
+      manifest_path: string;
+      database_mode: "copied_fixture" | "runner_managed_exact_working_db";
+    }
+> {
+  const runnerManifestPath =
+    process.env.AUGNES_M3D_RUNNER_BROWSER_MANIFEST_PATH?.trim();
   const requestedDirectory =
     process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR?.trim();
-  if (!requestedDirectory) return { exported: false };
+  assert(
+    !(runnerManifestPath && requestedDirectory),
+    "runner manifest and copied browser fixture modes are mutually exclusive",
+  );
+  if (!runnerManifestPath && !requestedDirectory) return { exported: false };
+
+  const manifest = {
+    fixture_version: "vnext_operator_pilot_browser_fixture.v0.1",
+    workspace_id: "workspace:operator-pilot-smoke",
+    project_id: "project:operator-pilot-smoke",
+    operator_id: "operator:operator-pilot-smoke",
+    proposal_id: input.proposal.proposal_id,
+    proposal_fingerprint: input.proposal.proposal_fingerprint,
+    packet_id: input.anchors.later_packet_id,
+    packet_fingerprint: input.anchors.later_packet_fingerprint,
+    transition_receipt_id: input.anchors.transition_receipt_id,
+    transition_receipt_fingerprint:
+      input.anchors.transition_receipt_fingerprint,
+    later_result_receipt_id: input.anchors.later_run_receipt_id,
+    later_result_receipt_fingerprint:
+      input.anchors.later_run_receipt_fingerprint,
+    context_use_review_id: input.anchors.context_use_review_id,
+    context_use_review_fingerprint:
+      input.anchors.context_use_review_fingerprint,
+    handoff_href: input.handoffHref,
+    credential_material_included: false,
+    external_identity_authenticated: false,
+    semantic_authority_granted: false,
+  };
+
+  if (runnerManifestPath) {
+    assert(runnerManagedPaths, "runner browser manifest requires runner-managed paths");
+    assert.equal(path.isAbsolute(runnerManifestPath), true);
+    const manifestPath = path.resolve(runnerManifestPath);
+    const relative = path.relative(
+      runnerManagedPaths.runtimeRoot,
+      manifestPath,
+    );
+    assert(
+      relative !== "" &&
+        relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative),
+      "runner browser manifest must stay strictly inside runtime",
+    );
+    assert.equal(existsSync(manifestPath), false);
+    mkdirSync(path.dirname(manifestPath), { recursive: true, mode: 0o700 });
+    writeFileSync(
+      manifestPath,
+      `${JSON.stringify(
+        {
+          ...manifest,
+          database_file: path.basename(canonicalDbPath),
+          database_binding: "runner_managed_exact_working_db",
+          database_identity: databaseFileIdentityV01(canonicalDbPath),
+        },
+        null,
+        2,
+      )}\n`,
+      { encoding: "utf8", mode: 0o600, flag: "wx" },
+    );
+    chmodSync(manifestPath, 0o600);
+    return {
+      exported: true,
+      manifest_path: manifestPath,
+      database_mode: "runner_managed_exact_working_db",
+    };
+  }
+
+  assert(requestedDirectory);
   assert.equal(path.isAbsolute(requestedDirectory), true);
   const directory = path.resolve(requestedDirectory);
   const relativeToOsTemp = path.relative(path.resolve(tmpdir()), directory);
@@ -4612,35 +4819,38 @@ async function exportOperatorPilotBrowserFixtureV01(input: {
     manifestPath,
     `${JSON.stringify(
       {
-        fixture_version: "vnext_operator_pilot_browser_fixture.v0.1",
-        workspace_id: "workspace:operator-pilot-smoke",
-        project_id: "project:operator-pilot-smoke",
-        operator_id: "operator:operator-pilot-smoke",
-        proposal_id: input.proposal.proposal_id,
-        proposal_fingerprint: input.proposal.proposal_fingerprint,
-        packet_id: input.anchors.later_packet_id,
-        packet_fingerprint: input.anchors.later_packet_fingerprint,
-        transition_receipt_id: input.anchors.transition_receipt_id,
-        transition_receipt_fingerprint:
-          input.anchors.transition_receipt_fingerprint,
-        later_result_receipt_id: input.anchors.later_run_receipt_id,
-        later_result_receipt_fingerprint:
-          input.anchors.later_run_receipt_fingerprint,
-        context_use_review_id: input.anchors.context_use_review_id,
-        context_use_review_fingerprint:
-          input.anchors.context_use_review_fingerprint,
-        handoff_href: input.handoffHref,
+        ...manifest,
         database_file: path.basename(databasePath),
-        credential_material_included: false,
-        external_identity_authenticated: false,
-        semantic_authority_granted: false,
+        database_binding: "copied_fixture",
+        database_identity: databaseFileIdentityV01(databasePath),
       },
       null,
       2,
     )}\n`,
     { encoding: "utf8", mode: 0o600 },
   );
-  return { exported: true, manifest_path: manifestPath };
+  return {
+    exported: true,
+    manifest_path: manifestPath,
+    database_mode: "copied_fixture",
+  };
+}
+
+function databaseFileIdentityV01(databasePath: string): {
+  canonical_path_sha256: string;
+  device: string;
+  inode: string;
+} {
+  const canonicalPath = realpathSync(databasePath);
+  const entry = statSync(canonicalPath);
+  assert.equal(entry.isFile(), true);
+  return {
+    canonical_path_sha256: `sha256:${createHash("sha256")
+      .update(canonicalPath)
+      .digest("hex")}`,
+    device: String(entry.dev),
+    inode: String(entry.ino),
+  };
 }
 
 function assertIntegrity(databasePath: string): void {
