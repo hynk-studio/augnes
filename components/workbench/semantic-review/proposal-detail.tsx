@@ -1,5 +1,6 @@
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 
+import { DurableLineagePanel } from "./durable-lineage-panel";
 import { ReviewDecisionForm } from "./review-decision-form";
 import { SemanticTransitionActions } from "./semantic-transition-actions";
 import type {
@@ -384,6 +385,8 @@ export function SemanticReviewProposalDetail({
           exact gate confirmation, explicit commit, and explicit packet compilation.
         </p>
       </section>
+
+      <DurableLineagePanel lineage={read.durable_lineage} />
     </section>
   );
 }

@@ -29,6 +29,10 @@ const durableSemanticLoopPackageScriptName =
 const operatorPilotPackageScriptName = "smoke:vnext-operator-pilot-v0-1";
 const operatorPilotPackageScriptValue =
   "tsx --tsconfig tsconfig.json scripts/smoke-vnext-operator-pilot-v0-1.ts";
+const operatorPilotBrowserPackageScriptName =
+  "browser:vnext-task-context-packet-handoff-v0-1";
+const operatorPilotBrowserPackageScriptValue =
+  "tsx --tsconfig tsconfig.json scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs";
 const buildPackageScriptName = "build";
 const buildPackageScriptValue = "node scripts/build-with-isolated-db.mjs";
 
@@ -334,6 +338,11 @@ assert.equal(
   operatorPilotPackageScriptValue,
   "package.json must retain the bounded vNext operator pilot smoke",
 );
+assert.equal(
+  packageJson.scripts?.[operatorPilotBrowserPackageScriptName],
+  operatorPilotBrowserPackageScriptValue,
+  "package.json must retain the authenticated handoff and Workbench lineage browser regression",
+);
 assert.ok(
   buildWrapperSource.includes("mkdtempSync") &&
     buildWrapperSource.includes("AUGNES_DB_PATH: buildDatabasePath") &&
@@ -586,6 +595,13 @@ function assertWorkflowBoundary() {
     "workflow must keep the operator pilot smoke in a separate named step",
   );
   assert.ok(
+    workflow.includes(
+      "name: Run authenticated vNext handoff and Workbench lineage browser regression",
+    ) &&
+      workflow.includes(`npm run ${operatorPilotBrowserPackageScriptName}`),
+    "workflow must run the authenticated handoff and Workbench lineage browser regression as a separate named step",
+  );
+  assert.ok(
     workflow.includes("name: Build without default database access") &&
       workflow.includes(`npm run ${buildPackageScriptName}`),
     "workflow must run the production build through the isolated database wrapper",
@@ -603,16 +619,19 @@ function assertWorkflowBoundary() {
       packageScriptName,
       durableSemanticLoopPackageScriptName,
       operatorPilotPackageScriptName,
+      operatorPilotBrowserPackageScriptName,
       buildPackageScriptName,
     ].sort(),
-    "workflow must run only the three bounded smokes and the isolated production build",
+    "workflow must run only the four bounded validations and the isolated production build",
   );
   assert.ok(
     workflow.indexOf(`npm run ${durableSemanticLoopPackageScriptName}`) <
       workflow.indexOf(`npm run ${operatorPilotPackageScriptName}`) &&
       workflow.indexOf(`npm run ${operatorPilotPackageScriptName}`) <
+        workflow.indexOf(`npm run ${operatorPilotBrowserPackageScriptName}`) &&
+      workflow.indexOf(`npm run ${operatorPilotBrowserPackageScriptName}`) <
         workflow.indexOf(`npm run ${buildPackageScriptName}`),
-    "workflow must run M3C, then M3D, then the isolated production build",
+    "workflow must run M3C, then M3D, then the authenticated browser regression, then the isolated production build",
   );
   assert.ok(!workflow.includes("write-all"), "workflow must not request write-all");
   assert.ok(!workflow.includes("contents: write"), "workflow must not request write contents");

@@ -2,6 +2,7 @@ import type {
   VNextOperatorPilotReviewDetailV01,
   VNextOperatorPilotReviewListItemV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
+import type { VNextOperatorPilotProposalDurableLineageV01 } from "@/lib/vnext/runtime/operator-pilot-workbench-lineage";
 import type { VNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
 import type {
   VNextSemanticCommitGateRecordV01,
@@ -24,7 +25,9 @@ export interface SemanticReviewCandidateReadV01 {
 }
 
 export type SemanticReviewProposalDetailV01 =
-  VNextOperatorPilotReviewDetailV01;
+  VNextOperatorPilotReviewDetailV01 & {
+    durable_lineage: VNextOperatorPilotProposalDurableLineageV01;
+  };
 
 export interface SemanticReviewProjectV01 {
   workspace_id: string;

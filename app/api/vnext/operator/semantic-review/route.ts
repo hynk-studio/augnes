@@ -20,6 +20,10 @@ import {
   readVNextOperatorPilotSemanticReviewV01,
   recordVNextOperatorPilotReviewDecisionV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
+import {
+  VNextOperatorPilotWorkbenchLineageErrorV01,
+  readVNextOperatorPilotProposalDurableLineageV01,
+} from "@/lib/vnext/runtime/operator-pilot-workbench-lineage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,6 +72,11 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       });
       const proposalId = requestUrl.searchParams.get("proposal_id");
       if (proposalId) {
+        const proposal = readVNextOperatorPilotSemanticReviewV01(db, {
+          config,
+          proposal_id: proposalId,
+          authenticated_session_id: authentication.session.session_id,
+        });
         return jsonResponse({
           ok: true,
           route_version: ROUTE_VERSION,
@@ -76,11 +85,15 @@ export function createVNextOperatorSemanticReviewHandlersV01(
             workspace_id: config.workspace_id,
             project_id: config.project_id,
           },
-          proposal: readVNextOperatorPilotSemanticReviewV01(db, {
-            config,
-            proposal_id: proposalId,
-            authenticated_session_id: authentication.session.session_id,
-          }),
+          proposal: {
+            ...proposal,
+            durable_lineage:
+              readVNextOperatorPilotProposalDurableLineageV01(db, {
+                config,
+                proposal: proposal.proposal,
+                clock: options.clock,
+              }),
+          },
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
           semantic_authority_granted: false,
@@ -219,6 +232,18 @@ function routeErrorResponse(error: unknown): NextResponse {
     );
   }
   if (error instanceof VNextOperatorPilotReviewErrorV01) {
+    return jsonResponse(
+      {
+        ok: false,
+        route_version: ROUTE_VERSION,
+        status: "error",
+        error_code: error.code,
+        semantic_authority_granted: false,
+      },
+      error.status,
+    );
+  }
+  if (error instanceof VNextOperatorPilotWorkbenchLineageErrorV01) {
     return jsonResponse(
       {
         ok: false,
