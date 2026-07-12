@@ -321,7 +321,10 @@ function validateOptionalPriorPacket(
 
 export function listVNextOperatorPilotSemanticReviewsV01(
   db: Database.Database,
-  input: { config: VNextLocalOperatorPilotConfigV01 },
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    authenticated_session_id: string | null;
+  },
 ): VNextOperatorPilotReviewListItemV01[] {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const rows = db.prepare(
@@ -344,6 +347,7 @@ export function listVNextOperatorPilotSemanticReviewsV01(
     const detail = readVNextOperatorPilotSemanticReviewV01(db, {
       config: input.config,
       proposal_id: row.record_id,
+      authenticated_session_id: input.authenticated_session_id,
     });
     return {
       proposal_id: detail.proposal_id,
@@ -367,6 +371,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
   input: {
     config: VNextLocalOperatorPilotConfigV01;
     proposal_id: string;
+    authenticated_session_id: string | null;
   },
 ): VNextOperatorPilotReviewDetailV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -410,6 +415,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
       config: input.config,
       proposal,
       decision,
+      authenticated_session_id: input.authenticated_session_id,
     }),
   }));
   const transitionReceipts = loadProposalTransitionReceipts(
@@ -497,11 +503,13 @@ export function recordVNextOperatorPilotReviewDecisionV01(
     db,
     input.config,
     request,
+    authentication.session.session_id,
   );
   const prevalidatedReplay = findExactSemanticDecisionReplay(
     db,
     input.config,
     prevalidated.proposal,
+    authentication.session.session_id,
     request,
   );
   if (
@@ -532,11 +540,13 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       db,
       input.config,
       request,
+      nonceAdmission.session.session_id,
     );
     const replay = findExactSemanticDecisionReplay(
       db,
       input.config,
       material.proposal,
+      nonceAdmission.session.session_id,
       request,
     );
     if (replay) {
@@ -563,6 +573,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
     const decisionRequestFingerprint =
       createVNextOperatorPilotDecisionRequestFingerprintV01(
         input.config,
+        nonceAdmission.session.session_id,
         request,
       );
     const sessionBasisRef = createVNextOperatorPilotReviewDecisionSessionBasisRefV01(
@@ -704,10 +715,12 @@ function resolveDecisionRequestMaterial(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   request: VNextOperatorPilotDecisionRequestV01,
+  authenticatedSessionId: string,
 ): ResolvedDecisionRequestMaterialV01 {
   const detail = readVNextOperatorPilotSemanticReviewV01(db, {
     config,
     proposal_id: request.proposal_id,
+    authenticated_session_id: authenticatedSessionId,
   });
   const proposal = detail.proposal;
   if (proposal.integrity.fingerprint !== request.proposal_fingerprint) {
@@ -913,6 +926,7 @@ function loadProposalTransitionReceipts(
           config,
           proposal: transition.proposal,
           decision: transition.decision,
+          authenticated_session_id: null,
         }).status !== "valid"
       ) {
         throw reviewError(
@@ -988,10 +1002,15 @@ function findExactSemanticDecisionReplay(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   proposal: EpisodeDeltaProposalV01,
+  authenticatedSessionId: string,
   request: VNextOperatorPilotDecisionRequestV01,
 ): ReviewDecisionV01 | null {
   const requestFingerprint =
-    createVNextOperatorPilotDecisionRequestFingerprintV01(config, request);
+    createVNextOperatorPilotDecisionRequestFingerprintV01(
+      config,
+      authenticatedSessionId,
+      request,
+    );
   const record = readVNextCoreRecordByIdempotencyKeyV01(db, {
     record_kind: "review_decision",
     workspace_id: config.workspace_id,
@@ -1005,11 +1024,17 @@ function findExactSemanticDecisionReplay(
   const decision = record.payload as ReviewDecisionV01;
   const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
     db,
-    { config, proposal, decision },
+    {
+      config,
+      proposal,
+      decision,
+      authenticated_session_id: authenticatedSessionId,
+    },
   );
   if (
     provenance.status !== "valid" ||
-    provenance.request_fingerprint !== requestFingerprint
+    provenance.request_fingerprint !== requestFingerprint ||
+    provenance.session_id !== authenticatedSessionId
   ) {
     throw reviewError("operator_pilot_decision_replay_conflict", 409);
   }
@@ -1018,6 +1043,7 @@ function findExactSemanticDecisionReplay(
 
 export function createVNextOperatorPilotDecisionRequestFingerprintV01(
   config: VNextLocalOperatorPilotConfigV01,
+  sessionId: string,
   request: VNextOperatorPilotDecisionRequestV01,
 ): string {
   return createProtocolSha256V01(
@@ -1026,6 +1052,7 @@ export function createVNextOperatorPilotDecisionRequestFingerprintV01(
       workspace_id: config.workspace_id,
       project_id: config.project_id,
       operator_id: config.operator_id,
+      session_id: requiredText(sessionId, "session_id"),
       proposal_id: request.proposal_id,
       proposal_fingerprint: request.proposal_fingerprint,
       candidate_id: request.candidate_id,
@@ -1043,6 +1070,7 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
     config: VNextLocalOperatorPilotConfigV01;
     proposal: EpisodeDeltaProposalV01;
     decision: ReviewDecisionV01;
+    authenticated_session_id: string | null;
   },
 ): VNextOperatorPilotDecisionProvenanceValidationV01 {
   const { config, proposal, decision } = input;
@@ -1133,8 +1161,12 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
   }
 
   const request = decisionRequestFromPersistedDecision(decision);
-  const requestFingerprint = request
-    ? createVNextOperatorPilotDecisionRequestFingerprintV01(config, request)
+  const requestFingerprint = request && sessionId
+    ? createVNextOperatorPilotDecisionRequestFingerprintV01(
+        config,
+        sessionId,
+        request,
+      )
     : null;
   if (!request) add("operator_pilot_decision_request_identity_invalid");
 
@@ -1272,7 +1304,10 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
   return {
     status: valid ? "valid" : "invalid",
     pilot_session_bound: valid,
-    pilot_actionable: valid && decision.decision === "accept",
+    pilot_actionable:
+      valid &&
+      decision.decision === "accept" &&
+      sessionId === input.authenticated_session_id,
     session_id: valid ? sessionId : null,
     request_fingerprint: valid ? requestFingerprint : null,
     errors,

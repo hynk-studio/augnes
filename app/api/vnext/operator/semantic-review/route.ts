@@ -61,7 +61,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       db = openDatabase(config);
-      authenticateVNextLocalOperatorSessionV01(db, {
+      const authentication = authenticateVNextLocalOperatorSessionV01(db, {
         config,
         credential,
         clock: options.clock,
@@ -79,6 +79,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           proposal: readVNextOperatorPilotSemanticReviewV01(db, {
             config,
             proposal_id: proposalId,
+            authenticated_session_id: authentication.session.session_id,
           }),
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
@@ -93,7 +94,10 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           workspace_id: config.workspace_id,
           project_id: config.project_id,
         },
-        proposals: listVNextOperatorPilotSemanticReviewsV01(db, { config }),
+        proposals: listVNextOperatorPilotSemanticReviewsV01(db, {
+          config,
+          authenticated_session_id: authentication.session.session_id,
+        }),
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",
         semantic_authority_granted: false,

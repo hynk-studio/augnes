@@ -478,7 +478,12 @@ function loadDecisions(
     assertEnvelope(record, decision.workspace_id, decision.project_id, decision.integrity.fingerprint, decision.decision_id, decision.decided_at, record.idempotency_key);
     const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
       db,
-      { config, proposal, decision },
+      {
+        config,
+        proposal,
+        decision,
+        authenticated_session_id: null,
+      },
     );
     return provenance.pilot_session_bound ? [decision] : [];
   });
@@ -501,6 +506,7 @@ function loadTransitionReceipts(db: Database.Database, config: VNextLocalOperato
         config,
         proposal: transition.proposal,
         decision: transition.decision,
+        authenticated_session_id: null,
       }).status !== "valid"
     ) {
       throw continuityError(

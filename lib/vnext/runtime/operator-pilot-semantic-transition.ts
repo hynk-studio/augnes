@@ -627,6 +627,7 @@ function requirePilotAcceptCreateMaterial(
   const detail = readVNextOperatorPilotSemanticReviewV01(db, {
     config,
     proposal_id: binding.proposal_id,
+    authenticated_session_id: options.required_session_id ?? null,
   });
   if (detail.proposal_fingerprint !== binding.proposal_fingerprint) {
     throw transitionError("operator_pilot_proposal_fingerprint_mismatch", 409);
@@ -639,7 +640,12 @@ function requirePilotAcceptCreateMaterial(
   if (!decision) throw transitionError("operator_pilot_decision_missing", 404);
   const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(
     db,
-    { config, proposal: detail.proposal, decision },
+    {
+      config,
+      proposal: detail.proposal,
+      decision,
+      authenticated_session_id: options.required_session_id ?? null,
+    },
   );
   if (provenance.status !== "valid") {
     throw transitionError(
@@ -771,6 +777,7 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
       config,
       proposal,
       decision,
+      authenticated_session_id: input.required_session_id ?? null,
     });
   if (decisionProvenance.status !== "valid") {
     add("operator_pilot_gate_decision_provenance_invalid");
@@ -1020,6 +1027,7 @@ function requirePilotAppliedCreate(
       config,
       proposal: transition.proposal,
       decision: transition.decision,
+      authenticated_session_id: null,
     },
   );
   const gateProvenance =
