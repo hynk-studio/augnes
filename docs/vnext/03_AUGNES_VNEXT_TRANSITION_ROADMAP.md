@@ -3,7 +3,7 @@
 
 > **문서 지위:** 활성 전환 및 구현 로드맵
 > **버전:** v0.1
-> **기준일:** 2026-07-11 KST
+> **기준일:** 2026-07-13 KST
 > **상위 문서:** `01_AUGNES_VNEXT_MASTERPLAN.md`, `02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`
 > **변경 성격:** repo 상태와 PR 진행에 따라 자주 갱신
 > **중요:** 이 문서는 big-bang rewrite를 승인하지 않는다.
@@ -458,6 +458,26 @@ authorized durable transition
 세부 program은
 [`research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md`](./research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md)를
 따르며, 이 Workstream 등록은 구현 또는 maturity 상승 주장이 아니다.
+
+#### Workstream K Stage 1 checkpoint: Personal Perspective Semantic Casebook v0.1
+
+2026-07-13 기준의 bounded Lab checkpoint는 다음과 같다.
+
+- [`research/PERSONAL_PERSPECTIVE_SEMANTIC_CASEBOOK_V0_1.md`](./research/PERSONAL_PERSPECTIVE_SEMANTIC_CASEBOOK_V0_1.md)는
+  하나의 synthetic-only casebook envelope, deterministic semantic definitions,
+  normalizer, validator와 source/scope/counterexample/status/reuse/privacy/non-authority
+  의미를 문서화한다.
+- `npm run validate:vnext-personal-perspective-semantic-casebook-v0-1`은 25개 required
+  coverage row를 채우는 29개 fictional case, 214개 negative/adversarial fixture,
+  9개 re-signed semantic attack, fixed identity/fingerprint anchor, ordering,
+  immutability와 zero-call purity를 함께 검증한다.
+- invalid fixture가 admitted candidate를 만든 수는 0이다. 이 complete fixture contract는
+  Personal Perspective Semantic Casebook capability만 Level 0 Intent에서 Level 1
+  Validated Contract로 이동시킨다.
+- 이 checkpoint는 deterministic task-gap baseline, candidate→gap→review replay,
+  Personal Perspective review replay, context-selection experiment, persistence,
+  Personal Vault, user endorsement, Reviewed Reuse 또는 Outcome Improvement를 구현하거나
+  Level 2 이상을 주장하지 않는다.
 
 ---
 

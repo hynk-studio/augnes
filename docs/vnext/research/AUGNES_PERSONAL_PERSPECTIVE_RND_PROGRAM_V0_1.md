@@ -3,7 +3,7 @@
 
 > **문서 지위:** active vNext set 하위의 조건부 R&D program
 > **버전:** v0.1
-> **기준일:** 2026-07-11 KST
+> **기준일:** 2026-07-13 KST
 > **상위 권위:** `01_AUGNES_VNEXT_MASTERPLAN.md`, `02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`, `03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`, `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`, `05_AUGNES_VNEXT_LAB_CHARTER.md`
 > **읽기 조건:** Personal Perspective, Personal Vault, Perspective Gap Management, structured multi-perspective review 또는 Perspective Arena 관련 작업
 > **핵심 경계:** 이 문서는 제품 Masterplan, schema, persistence 승인, task-context 주입 권한 또는 구현 완료 주장이 아니다.
@@ -481,32 +481,22 @@ prompt ensemble보다 반복적으로 높아야 한다.
 
 ---
 
-## 13. Immediate Next Bounded Research Slice
+## 13. Stage 1 Checkpoint And Next Separate Slice
 
-다음 권장 slice는 `Personal Perspective Semantic Casebook v0.1`이다.
+[`PERSONAL_PERSPECTIVE_SEMANTIC_CASEBOOK_V0_1.md`](./PERSONAL_PERSPECTIVE_SEMANTIC_CASEBOOK_V0_1.md)는
+Workstream K Stage 1의 bounded synthetic casebook 계약을 구현한다.
+`npm run validate:vnext-personal-perspective-semantic-casebook-v0-1`이 deterministic
+semantic definitions, normalizer, validator, 25개 required coverage row의 29개 fictional
+case, 214개 negative/adversarial fixture, 9개 re-signed semantic attack, fixed
+identity/fingerprint와 authority/privacy/purity boundary를 함께 통과하므로 이 casebook
+capability에 한해 Level 0 Intent에서 Level 1 Validated Contract로 이동한다.
 
-범위:
+이 checkpoint는 persistence, 실제 사용자 profile ingestion, provider/model call, Core
+contract, TaskContextPacket, UI, Arena actor, candidate→gap→review replay, deterministic
+task-gap baseline, Personal Perspective review replay 또는 context-selection experiment를
+구현하지 않는다. user endorsement, Observed Use, Reviewed Reuse와 Outcome Improvement도
+주장하지 않는다.
 
-- synthetic 사례만 사용
-- semantic casebook contract와 epistemic/source/scope dimensions 정의
-- schema 또는 동등한 bounded type definition과 deterministic semantic definitions
-- positive/negative fixtures와 deterministic validator
-- user-explicit self-understanding, jointly interpreted candidate, model-inferred
-  candidate, personality 의미가 candidate로 남는 observed behavioral pattern
-- aspiration, persistent tension, scope narrowing과 exception
-- known counterexample, no counterexample found, counterexample search not performed
-- false premise, over-globalization과 deleted/retracted reuse refusal
-- 이후 task-gap baseline과 review-replay slice의 interface expectation 문서화만 허용
-
-비범위:
-
-- persistence
-- 실제 사용자 profile ingestion
-- provider/model call
-- Core contract 또는 TaskContextPacket 변경
-- UI와 Arena actor
-- deterministic task-gap baseline 또는 Personal Perspective review replay 구현·완료 주장
-
-이 slice는 모든 machine-checkable validation 요건을 통과해야만 Level 1 evidence가
-된다. 통과 전에는 Level 0이며 Personal Perspective product maturity, task-gap 또는
-review-replay 완료를 주장하지 않는다.
+다음 별도 review 후보는 `Deterministic Personal Perspective Task-Gap Baseline v0.1`이다.
+이는 이 casebook PR의 범위나 자동 승인된 작업이 아니며, 본 checkpoint가 review와 merge를
+거친 뒤 별도 work contract와 PR에서만 진행한다.

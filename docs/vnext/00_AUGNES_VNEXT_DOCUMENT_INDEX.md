@@ -2,7 +2,7 @@
 
 > **문서 지위:** 활성 문서 체계의 진입점
 > **버전:** v0.1
-> **기준일:** 2026-07-10 KST
+> **기준일:** 2026-07-13 KST
 > **적용 대상:** `hynk-studio/augnes`의 vNext 개편 및 이후 개발
 > **최상위 상위 규약:** `SSOT_SCHEMA_BUNDLE`, `SSOT_CANONICAL`, `SSOT_LOGGING_POLICY`
 > **활성 제품 북극성:** [`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md)
@@ -62,6 +62,7 @@
 | `05_AUGNES_VNEXT_LAB_CHARTER.md` | 비권위 연구·진단 영역의 경계 | Lab 내부 기준 | 중간 |
 | `06_AUGNES_VNEXT_SYNTHESIS_AND_RATIONALE.md` | 선택 근거, 대안, 과거 문서 계승 관계 | 비규범 참고 | 낮음 |
 | `research/AUGNES_PERSONAL_PERSPECTIVE_RND_PROGRAM_V0_1.md` | Personal Perspective·Gap Management·structured review의 조정된 연구 program | 조건부 R&D 기준. 제품·Core·persistence 권위 없음 | 연구 결정 시 |
+| `research/PERSONAL_PERSPECTIVE_SEMANTIC_CASEBOOK_V0_1.md` | Workstream K Stage 1의 synthetic semantic casebook 계약, fixture와 validator 설명 | Lab 내부 Level 1 검증 계약. 제품·Core·persistence·context 권위 없음 | casebook contract 변경 시 |
 | `M3D_AUTONOMOUS_EVIDENCE_RUNNER_V0_1.md` | qualified M3D autonomous mechanical rehearsal의 versioned Lab runner 계약 | M3D qualification과 operator runbook 하위의 비권위 검증 절차 | runner 변경 시 |
 | `templates/*` | 작업 분해와 리뷰 형식 | 운영 보조 | 필요 시 |
 
