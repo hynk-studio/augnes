@@ -57,8 +57,11 @@ const result = {
   prospective_path_qualified: false,
   sibling_prefix_rejected: false,
   execution_repository_overlap_matrix_rejected: false,
+  execution_repository_storage_overlap_matrix_rejected: false,
   dirty_execution_repository_rejected: false,
   partial_root_dependencies_rejected: false,
+  root_native_dependency_locality_enforced: false,
+  working_database_fresh_leaf_enforced: false,
   qualification_output_scope_enforced: false,
   qualification_output_owner_only: false,
   browser_candidate_order_aligned: false,
@@ -79,6 +82,8 @@ try {
 
   await assertExecutionRepositoryOverlapMatrix(input);
   await assertDependencyAndCleanlinessMatrix(executionRepo, input);
+  await assertRootNativeDependencyLocalityMatrix(executionRepo, input);
+  await assertFreshWorkingDatabaseMatrix(input);
 
   const receipt = await qualifyM3dEvidenceRunnerV01(input);
   assertQualifiedPortableReceipt(receipt, input.workingDbPath);
@@ -249,12 +254,169 @@ async function assertExecutionRepositoryOverlapMatrix(baseInput) {
     }
   }
 
+  const repositoryStorageRoot = path.join(
+    baseInput.repoRoot,
+    "qualification-storage-must-not-exist",
+  );
+  const repositoryContainsStorage = await qualifyM3dEvidenceRunnerV01({
+    ...baseInput,
+    runtimeRoot: path.join(repositoryStorageRoot, "runtime"),
+    evidenceRoot: path.join(repositoryStorageRoot, "evidence"),
+    workingDbPath: path.join(repositoryStorageRoot, "runtime", "rehearsal.db"),
+  });
+  assertReason(
+    repositoryContainsStorage,
+    "execution_repository_runtime_overlap",
+  );
+  assertReason(
+    repositoryContainsStorage,
+    "execution_repository_evidence_overlap",
+  );
+  assertReason(
+    repositoryContainsStorage,
+    "execution_repository_working_db_overlap",
+  );
+  assert.equal(existsSync(repositoryStorageRoot), false);
+
+  const modulesStorageRoot = path.join(
+    baseInput.repoRoot,
+    "node_modules",
+    "qualification-storage-must-not-exist",
+  );
+  const modulesContainStorage = await qualifyM3dEvidenceRunnerV01({
+    ...baseInput,
+    runtimeRoot: path.join(modulesStorageRoot, "runtime"),
+    evidenceRoot: path.join(modulesStorageRoot, "evidence"),
+    workingDbPath: path.join(modulesStorageRoot, "runtime", "rehearsal.db"),
+  });
+  assertReason(
+    modulesContainStorage,
+    "execution_repository_runtime_overlap",
+  );
+  assertReason(
+    modulesContainStorage,
+    "execution_repository_evidence_overlap",
+  );
+  assert.equal(existsSync(modulesStorageRoot), false);
+
+  const repositoryInsideRuntimeRun = path.join(
+    temporaryRoot,
+    "repository-inside-runtime-run",
+  );
+  const repositoryInsideRuntime = path.join(
+    repositoryInsideRuntimeRun,
+    "runtime",
+    "execution-repo",
+  );
+  mkdirSync(path.dirname(repositoryInsideRuntime), {
+    recursive: true,
+    mode: 0o700,
+  });
+  cloneExecutionRepository(repositoryInsideRuntime, { withDependencies: false });
+  const repositoryInsideRuntimeReceipt = await qualifyM3dEvidenceRunnerV01({
+    ...baseInput,
+    repoRoot: repositoryInsideRuntime,
+    runtimeRoot: path.join(repositoryInsideRuntimeRun, "runtime"),
+    evidenceRoot: path.join(repositoryInsideRuntimeRun, "evidence"),
+    workingDbPath: path.join(repositoryInsideRuntimeRun, "runtime", "rehearsal.db"),
+  });
+  assertReason(
+    repositoryInsideRuntimeReceipt,
+    "execution_repository_runtime_overlap",
+  );
+
+  const repositoryInsideEvidenceRun = path.join(
+    temporaryRoot,
+    "repository-inside-evidence-run",
+  );
+  const repositoryInsideEvidence = path.join(
+    repositoryInsideEvidenceRun,
+    "evidence",
+    "execution-repo",
+  );
+  mkdirSync(path.dirname(repositoryInsideEvidence), {
+    recursive: true,
+    mode: 0o700,
+  });
+  cloneExecutionRepository(repositoryInsideEvidence, { withDependencies: false });
+  const repositoryInsideEvidenceReceipt = await qualifyM3dEvidenceRunnerV01({
+    ...baseInput,
+    repoRoot: repositoryInsideEvidence,
+    runtimeRoot: path.join(repositoryInsideEvidenceRun, "runtime"),
+    evidenceRoot: path.join(repositoryInsideEvidenceRun, "evidence"),
+    workingDbPath: path.join(repositoryInsideEvidenceRun, "runtime", "rehearsal.db"),
+  });
+  assertReason(
+    repositoryInsideEvidenceReceipt,
+    "execution_repository_evidence_overlap",
+  );
+
+  const repositoryInsideWorkingDatabaseRun = path.join(
+    temporaryRoot,
+    "repository-inside-working-db-run",
+  );
+  const workingDatabaseDirectory = path.join(
+    repositoryInsideWorkingDatabaseRun,
+    "runtime",
+    "working-database-object",
+  );
+  const repositoryInsideWorkingDatabase = path.join(
+    workingDatabaseDirectory,
+    "execution-repo",
+  );
+  mkdirSync(path.dirname(repositoryInsideWorkingDatabase), {
+    recursive: true,
+    mode: 0o700,
+  });
+  cloneExecutionRepository(repositoryInsideWorkingDatabase, {
+    withDependencies: false,
+  });
+  const repositoryInsideWorkingDatabaseReceipt =
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      repoRoot: repositoryInsideWorkingDatabase,
+      runtimeRoot: path.join(repositoryInsideWorkingDatabaseRun, "runtime"),
+      evidenceRoot: path.join(repositoryInsideWorkingDatabaseRun, "evidence"),
+      workingDbPath: workingDatabaseDirectory,
+    });
+  assertReason(
+    repositoryInsideWorkingDatabaseReceipt,
+    "execution_repository_working_db_overlap",
+  );
+
+  const runtimeEqualsRepositoryReceipt = await qualifyM3dEvidenceRunnerV01({
+    ...baseInput,
+    runtimeRoot: baseInput.repoRoot,
+    evidenceRoot: path.join(path.dirname(baseInput.repoRoot), "equal-runtime-evidence"),
+    workingDbPath: path.join(baseInput.repoRoot, "rehearsal.db"),
+  });
+  assertReason(
+    runtimeEqualsRepositoryReceipt,
+    "execution_repository_runtime_overlap",
+  );
+
+  const evidenceEqualsRepositoryReceipt = await qualifyM3dEvidenceRunnerV01({
+    ...baseInput,
+    runtimeRoot: path.join(path.dirname(baseInput.repoRoot), "equal-evidence-runtime"),
+    evidenceRoot: baseInput.repoRoot,
+    workingDbPath: path.join(
+      path.dirname(baseInput.repoRoot),
+      "equal-evidence-runtime",
+      "rehearsal.db",
+    ),
+  });
+  assertReason(
+    evidenceEqualsRepositoryReceipt,
+    "execution_repository_evidence_overlap",
+  );
+
   const separatedReceipt = await qualifyM3dEvidenceRunnerV01(baseInput);
   assert.equal(
     separatedReceipt.reason_codes.includes("execution_repository_checkout_overlap"),
     false,
   );
   result.execution_repository_overlap_matrix_rejected = true;
+  result.execution_repository_storage_overlap_matrix_rejected = true;
 }
 
 async function assertDependencyAndCleanlinessMatrix(executionRepo, baseInput) {
@@ -328,6 +490,156 @@ async function assertDependencyAndCleanlinessMatrix(executionRepo, baseInput) {
   result.dirty_execution_repository_rejected = true;
 }
 
+async function assertRootNativeDependencyLocalityMatrix(
+  executionRepo,
+  baseInput,
+) {
+  const localDependency = path.join(
+    executionRepo,
+    "node_modules",
+    "better-sqlite3",
+  );
+  const externalModules = path.join(
+    temporaryRoot,
+    "external-node-path",
+    "node_modules",
+  );
+  const externalDependency = path.join(externalModules, "better-sqlite3");
+  mkdirSync(externalModules, { recursive: true, mode: 0o700 });
+  copyRootNativeDependency(externalDependency);
+
+  rmSync(localDependency, { recursive: true, force: true });
+  const nodePathProbe = runQualificationCliWithoutOutput(baseInput, {
+    env: { ...process.env, NODE_PATH: externalModules },
+  });
+  assert.equal(nodePathProbe.status, 1, nodePathProbe.stderr);
+  assertReason(
+    JSON.parse(nodePathProbe.stdout),
+    "root_native_dependency_unavailable",
+  );
+  restoreRootNativeDependency(executionRepo);
+
+  const parentModules = path.join(path.dirname(executionRepo), "node_modules");
+  const parentDependency = path.join(parentModules, "better-sqlite3");
+  mkdirSync(parentModules, { recursive: true, mode: 0o700 });
+  copyRootNativeDependency(parentDependency);
+  rmSync(localDependency, { recursive: true, force: true });
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01(baseInput),
+    "root_native_dependency_unavailable",
+  );
+  rmSync(parentModules, { recursive: true, force: true });
+  restoreRootNativeDependency(executionRepo);
+
+  rmSync(localDependency, { recursive: true, force: true });
+  symlinkSync(externalDependency, localDependency, "dir");
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01(baseInput),
+    "root_native_dependency_unavailable",
+  );
+  rmSync(localDependency, { recursive: true, force: true });
+  restoreRootNativeDependency(executionRepo);
+
+  const localReceipt = await qualifyM3dEvidenceRunnerV01(baseInput);
+  assert.equal(localReceipt.status, "qualified", JSON.stringify(localReceipt));
+  assert.equal(existsSync(baseInput.workingDbPath), false);
+  result.root_native_dependency_locality_enforced = true;
+}
+
+async function assertFreshWorkingDatabaseMatrix(baseInput) {
+  assert.equal(existsSync(baseInput.workingDbPath), false);
+  const missingLeafReceipt = await qualifyM3dEvidenceRunnerV01(baseInput);
+  assert.equal(missingLeafReceipt.status, "qualified");
+  assert.equal(existsSync(baseInput.workingDbPath), false);
+
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: baseInput.runtimeRoot,
+    }),
+    "working_db_path_invalid_type",
+  );
+
+  const existingDirectory = path.join(baseInput.runtimeRoot, "existing-directory");
+  mkdirSync(existingDirectory, { mode: 0o700 });
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: existingDirectory,
+    }),
+    "working_db_path_exists",
+  );
+
+  const existingFile = path.join(baseInput.runtimeRoot, "existing-file.db");
+  writeFileSync(existingFile, "must-not-change\n");
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: existingFile,
+    }),
+    "working_db_path_exists",
+  );
+  assert.equal(readFileSync(existingFile, "utf8"), "must-not-change\n");
+
+  const oldSqliteDatabase = path.join(baseInput.runtimeRoot, "old-sqlite.db");
+  const oldSqliteBytes = Buffer.from("SQLite format 3\0old-database-fixture");
+  writeFileSync(oldSqliteDatabase, oldSqliteBytes);
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: oldSqliteDatabase,
+    }),
+    "working_db_path_exists",
+  );
+  assert.deepEqual(readFileSync(oldSqliteDatabase), oldSqliteBytes);
+
+  const symlinkDatabase = path.join(baseInput.runtimeRoot, "symlink.db");
+  symlinkSync(existingFile, symlinkDatabase);
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: symlinkDatabase,
+    }),
+    "symlink_escape",
+  );
+
+  const danglingDatabase = path.join(baseInput.runtimeRoot, "dangling-fresh.db");
+  symlinkSync(path.join(temporaryRoot, "missing-database-target"), danglingDatabase);
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: danglingDatabase,
+    }),
+    "dangling_symlink",
+  );
+
+  const otherObject = path.join(baseInput.runtimeRoot, "existing-fifo.db");
+  const fifo = spawnSync("mkfifo", [otherObject], {
+    encoding: "utf8",
+    timeout: 5_000,
+  });
+  assert.equal(fifo.status, 0, fifo.stderr);
+  assertReason(
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: otherObject,
+    }),
+    "working_db_path_invalid_type",
+  );
+
+  for (const candidate of [
+    missingLeafReceipt,
+    await qualifyM3dEvidenceRunnerV01({
+      ...baseInput,
+      workingDbPath: existingFile,
+    }),
+  ]) {
+    assert.equal(candidate.database_opened, false);
+    assert.equal(candidate.default_database_inspected, false);
+  }
+  result.working_database_fresh_leaf_enforced = true;
+}
+
 function assertQualificationOutputMatrix(input) {
   const directOutput = path.join(input.evidenceRoot, "receipt.json");
   const direct = runQualificationCli(input, directOutput);
@@ -357,6 +669,27 @@ function assertQualificationOutputMatrix(input) {
     existsSync(path.join(repositoryRoot, ".qualification-output-must-not-exist.json")),
     false,
   );
+  const executionRepositoryOutput = path.join(
+    input.repoRoot,
+    ".qualification-output-must-not-exist.json",
+  );
+  assertCliOutputFailure(
+    input,
+    executionRepositoryOutput,
+    "qualification_output_inside_execution_repository",
+  );
+  assert.equal(existsSync(executionRepositoryOutput), false);
+  const executionModulesOutput = path.join(
+    input.repoRoot,
+    "node_modules",
+    ".qualification-output-must-not-exist.json",
+  );
+  assertCliOutputFailure(
+    input,
+    executionModulesOutput,
+    "qualification_output_inside_execution_repository",
+  );
+  assert.equal(existsSync(executionModulesOutput), false);
   assertCliOutputFailure(
     input,
     input.workingDbPath,
@@ -399,6 +732,7 @@ function assertQualificationOutputMatrix(input) {
       receipt: {},
       serializedReceipt: Symbol("injected-write-failure"),
       outputPath: partialOutput,
+      repoRoot: input.repoRoot,
       runtimeRoot: input.runtimeRoot,
       evidenceRoot: input.evidenceRoot,
       workingDbPath: input.workingDbPath,
@@ -490,6 +824,24 @@ function restoreRootDependencies(executionRepo) {
   );
 }
 
+function copyRootNativeDependency(destination) {
+  cpSync(path.join(repositoryRoot, "node_modules", "better-sqlite3"), destination, {
+    recursive: true,
+    preserveTimestamps: true,
+    verbatimSymlinks: true,
+  });
+}
+
+function restoreRootNativeDependency(executionRepo) {
+  const destination = path.join(
+    executionRepo,
+    "node_modules",
+    "better-sqlite3",
+  );
+  rmSync(destination, { recursive: true, force: true });
+  copyRootNativeDependency(destination);
+}
+
 function buildQualificationInput(executionRepo, qualificationRoot) {
   return {
     mode: "portable",
@@ -526,6 +878,34 @@ function runQualificationCli(input, outputPath) {
   );
 }
 
+function runQualificationCliWithoutOutput(input, options = {}) {
+  return spawnSync(
+    process.execPath,
+    [
+      qualificationCli,
+      "--mode",
+      input.mode,
+      "--repo-root",
+      input.repoRoot,
+      "--runtime-root",
+      input.runtimeRoot,
+      "--evidence-root",
+      input.evidenceRoot,
+      "--working-db-path",
+      input.workingDbPath,
+      "--canonical-checkout-root",
+      input.canonicalCheckoutRoot,
+      "--json",
+    ],
+    {
+      encoding: "utf8",
+      timeout: 20_000,
+      maxBuffer: 256 * 1024,
+      ...options,
+    },
+  );
+}
+
 function assertCliOutputFailure(input, outputPath, reasonCode) {
   const completed = runQualificationCli(input, outputPath);
   assert.equal(completed.status, 2, completed.stderr);
@@ -552,6 +932,9 @@ function assertQualifiedPortableReceipt(receipt, workingDbPath) {
 
 function assertReason(receipt, reasonCode) {
   assert.equal(receipt.status, "unqualified");
+  assert.equal(receipt.semantic_execution_started, false);
+  assert.equal(receipt.database_opened, false);
+  assert.equal(receipt.default_database_inspected, false);
   assert.equal(
     receipt.reason_codes.includes(reasonCode),
     true,

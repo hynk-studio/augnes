@@ -38,9 +38,16 @@ The gate requires the root and nested `package.json`, `package-lock.json`, and
 symlinked. Root `.bin/tsx`, `.bin/tsc`, and `.bin/next`, plus nested `.bin/tsx`
 and `.bin/tsc`, must resolve to executable regular files inside their own
 dependency trees and complete bounded direct version probes. A bounded Node
-load probe must also resolve the root `better-sqlite3` native dependency. The
-gate does not use `npm install`, `npx`, a global executable, or dependency
-material borrowed by symlink from another checkout.
+load probe resolves `better-sqlite3` from a `createRequire` boundary anchored at
+the execution repository's root `package.json`. The canonical resolved module
+must be a regular file inside that repository's root `node_modules`, and the
+probe loads that exact resolved path. The probe child receives no `NODE_PATH`
+or `NODE_OPTIONS`; a parent/global dependency, external override, or local
+package symlink that resolves outside the repository fails with
+`root_native_dependency_unavailable`. Loading the module does not construct a
+database or open a database path. The gate does not use `npm install`, `npx`, a
+global executable, or dependency material borrowed by symlink from another
+checkout.
 
 The execution repository must be a clean Git checkout. Exact
 `git status --porcelain --untracked-files=all` output must be empty, so tracked
@@ -93,12 +100,17 @@ lexical run root
 
 Runtime and evidence roots must be separate. Both must be outside and
 non-overlapping with the canonical product checkout. The prospective working
-database must be inside the canonical runtime root and outside the checkout.
-The execution repository is also an execution root: it must be a disposable
-clone that is separate from the canonical checkout. Equality, execution repo
-inside checkout, and checkout inside execution repo all fail with
-`execution_repository_checkout_overlap`, including lexical aliases that resolve
-to one canonical identity.
+database must be strictly inside the canonical runtime root and outside the
+checkout. The execution repository is also an execution root: it must be a
+disposable clone that is separate from the canonical checkout, runtime,
+evidence, and working-database path in both containment directions. This also
+forbids storage below ignored paths such as the execution repository's
+`node_modules`. Repository overlap fails with the stable
+`execution_repository_checkout_overlap`,
+`execution_repository_runtime_overlap`,
+`execution_repository_evidence_overlap`, or
+`execution_repository_working_db_overlap` reason. Lexical aliases that resolve
+to one canonical identity do not bypass these checks.
 
 ## Symlink policy
 
@@ -107,9 +119,14 @@ dangling leaf or intermediate symlink fails with `dangling_symlink`; it is not
 treated as an ordinary missing prospective segment. An existing alias may
 resolve only when its canonical target remains safely contained. A symlink
 below an allowed root that targets outside fails with `symlink_escape`, and a
-working-DB leaf may not already be any symlink. A caller must requalify after
-creating a prospective path so that a newly introduced symlink cannot silently
-change its identity.
+working-DB leaf may not already be any symlink. The working DB must be a missing
+prospective leaf when qualification runs. Equality with runtime, an existing
+directory, regular file, old SQLite file, symlink, dangling symlink, or other
+filesystem object fails closed with `working_db_path_exists`,
+`working_db_path_invalid_type`, `symlink_escape`, or `dangling_symlink` as
+applicable. Existing DB-shaped bytes are neither opened nor inspected. A caller
+must requalify after creating a prospective path so that a newly introduced
+symlink cannot silently change its identity.
 
 The qualifier creates only a bounded path-policy fixture below the supplied
 runtime root. That fixture checks prospective identity and symlink escape, and
@@ -215,9 +232,11 @@ Use `--mode local_full` for the bounded executable probe. An explicit
 environment override. `--output <absolute path>` exclusively creates a new
 owner-only (`0600`) public receipt strictly below the canonical evidence root.
 It refuses existing files, symlink or dangling-symlink leaves, parents that
-escape evidence, runtime/checkout locations, and the working-DB path. Nested
-evidence directories may be created with owner-only intent. The created file is
-canonicalized again and removed if final containment or write validation fails.
+escape evidence, runtime/checkout locations, the working-DB path, and every
+location overlapping the execution repository. The last case reports
+`qualification_output_inside_execution_repository`. Nested evidence directories
+may be created with owner-only intent. The created file is canonicalized again
+and removed if final containment or write validation fails.
 
 Exit behavior is stable:
 
@@ -289,6 +308,8 @@ and it does not open a database.
 
 The CI command uses the clean checked-out workspace as its execution repository
 and an explicit synthetic canonical-checkout fixture under the temporary root.
-The permanent smoke independently proves equality and both parent/child overlap
-forms fail closed. This CI self-test is not a Chain 6 qualification receipt and
-does not weaken the disposable execution-repository rule.
+The permanent smoke independently proves checkout equality, parent/child
+overlap, execution-repository storage overlap (including `node_modules`), fresh
+working-DB leaf enforcement, repo-local native dependency resolution, and
+receipt-output isolation. This CI self-test is not a Chain 6 qualification
+receipt and does not weaken the disposable execution-repository rule.

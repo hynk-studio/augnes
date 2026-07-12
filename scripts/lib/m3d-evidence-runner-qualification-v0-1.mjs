@@ -314,12 +314,14 @@ export function writeQualificationReceiptV01({
   receipt,
   serializedReceipt,
   outputPath,
+  repoRoot,
   runtimeRoot,
   evidenceRoot,
   workingDbPath,
   canonicalCheckoutRoot,
 }) {
   const lexicalOutputPath = validateAbsolutePathInputV01(outputPath);
+  const canonicalRepository = canonicalizeExistingPathV01(repoRoot);
   const canonicalCheckout = canonicalizeExistingPathV01(canonicalCheckoutRoot);
   const canonicalRuntime = canonicalizeProspectivePathV01(runtimeRoot);
   const canonicalEvidence = canonicalizeProspectivePathV01(evidenceRoot);
@@ -339,6 +341,12 @@ export function writeQualificationReceiptV01({
     throw qualificationError(
       "qualification_output_conflicts_with_working_db",
       "Qualification output conflicts with the working database path.",
+    );
+  }
+  if (doCanonicalPathsOverlapV01(canonicalRepository, canonicalOutputPath)) {
+    throw qualificationError(
+      "qualification_output_inside_execution_repository",
+      "Qualification output must remain outside the execution repository.",
     );
   }
 
@@ -484,7 +492,7 @@ function runPathQualification(input, checks) {
   let canonicalCheckoutRoot;
   let runtimeRoot;
   let evidenceRoot;
-  let workingDatabasePath;
+  let structuralWorkingDatabase;
   try {
     repositoryRoot = canonicalizeExistingPathV01(input.repoRoot);
     canonicalCheckoutRoot = canonicalizeExistingPathV01(
@@ -492,24 +500,8 @@ function runPathQualification(input, checks) {
     );
     runtimeRoot = canonicalizeProspectivePathV01(input.runtimeRoot);
     evidenceRoot = canonicalizeProspectivePathV01(input.evidenceRoot);
-    const structuralWorkingDatabase =
+    structuralWorkingDatabase =
       canonicalizeProspectiveLeafWithoutInspectionV01(input.workingDbPath);
-    if (
-      !isPathWithinCanonicalRootV01(runtimeRoot, structuralWorkingDatabase) ||
-      doCanonicalPathsOverlapV01(
-        canonicalCheckoutRoot,
-        structuralWorkingDatabase,
-      )
-    ) {
-      throw qualificationError(
-        "working_db_path_invalid",
-        "Working database path violates structural isolation.",
-      );
-    }
-    assertWorkingDatabaseLeafIsNotSymlinkV01(input.workingDbPath);
-    workingDatabasePath = canonicalizeProspectivePathV01(
-      input.workingDbPath,
-    );
   } catch (error) {
     throw qualificationError(
       publicReasonCode(error, "path_input_invalid"),
@@ -542,6 +534,34 @@ function runPathQualification(input, checks) {
     executionRepositoryIsolated
       ? "Execution repository and canonical checkout are structurally separate."
       : "Execution repository overlaps the canonical checkout.",
+  );
+
+  const executionRepositoryRuntimeIsolated = !doCanonicalPathsOverlapV01(
+    repositoryRoot,
+    runtimeRoot,
+  );
+  addCheck(
+    checks,
+    "execution_repository_runtime_isolation",
+    executionRepositoryRuntimeIsolated,
+    "execution_repository_runtime_overlap",
+    executionRepositoryRuntimeIsolated
+      ? "Runtime is structurally separate from the execution repository."
+      : "Runtime overlaps the execution repository.",
+  );
+
+  const executionRepositoryEvidenceIsolated = !doCanonicalPathsOverlapV01(
+    repositoryRoot,
+    evidenceRoot,
+  );
+  addCheck(
+    checks,
+    "execution_repository_evidence_isolation",
+    executionRepositoryEvidenceIsolated,
+    "execution_repository_evidence_overlap",
+    executionRepositoryEvidenceIsolated
+      ? "Evidence storage is structurally separate from the execution repository."
+      : "Evidence storage overlaps the execution repository.",
   );
 
   const checkoutIsolated =
@@ -580,26 +600,57 @@ function runPathQualification(input, checks) {
       : "Runtime and evidence roots are not siblings below one canonical run root.",
   );
 
-  const workingDatabaseScope = classifyPathScopeV01({
-    rootPath: runtimeRoot,
-    candidatePath: workingDatabasePath,
-    rootKind: "prospective",
-    candidateKind: "prospective",
-  });
-  const workingDatabaseValid =
-    workingDatabaseScope.status === "pass" &&
+  const workingDatabaseStructurallyValid =
+    isPathStrictlyWithinCanonicalRootV01(
+      runtimeRoot,
+      structuralWorkingDatabase,
+    ) &&
     !doCanonicalPathsOverlapV01(
       canonicalCheckoutRoot,
-      workingDatabaseScope.canonical_candidate,
+      structuralWorkingDatabase,
     );
   addCheck(
     checks,
     "working_database_scope",
-    workingDatabaseValid,
+    workingDatabaseStructurallyValid,
     "working_db_path_invalid",
-    workingDatabaseValid
+    workingDatabaseStructurallyValid
       ? "The prospective working database is inside runtime and outside the canonical checkout."
       : "The prospective working database violates structural isolation.",
+  );
+
+  const executionRepositoryWorkingDatabaseIsolated =
+    !doCanonicalPathsOverlapV01(repositoryRoot, structuralWorkingDatabase);
+  addCheck(
+    checks,
+    "execution_repository_working_database_isolation",
+    executionRepositoryWorkingDatabaseIsolated,
+    "execution_repository_working_db_overlap",
+    executionRepositoryWorkingDatabaseIsolated
+      ? "The working database is structurally separate from the execution repository."
+      : "The working database overlaps the execution repository.",
+  );
+
+  let workingDatabaseFresh = false;
+  let workingDatabaseFreshReason = "working_db_path_invalid";
+  if (structuralWorkingDatabase === runtimeRoot) {
+    workingDatabaseFreshReason = "working_db_path_invalid_type";
+  } else if (
+    workingDatabaseStructurallyValid &&
+    executionRepositoryWorkingDatabaseIsolated
+  ) {
+    const freshLeaf = classifyWorkingDatabaseFreshLeafV01(input.workingDbPath);
+    workingDatabaseFresh = freshLeaf.qualified;
+    workingDatabaseFreshReason = freshLeaf.reasonCode;
+  }
+  addCheck(
+    checks,
+    "working_database_fresh_leaf",
+    workingDatabaseFresh,
+    workingDatabaseFreshReason,
+    workingDatabaseFresh
+      ? "The working database is a missing prospective leaf."
+      : "The working database must be a missing prospective leaf.",
   );
 
   let fixtureQualified = false;
@@ -608,9 +659,13 @@ function runPathQualification(input, checks) {
     if (
       !checkoutIsolated ||
       !executionRepositoryIsolated ||
+      !executionRepositoryRuntimeIsolated ||
+      !executionRepositoryEvidenceIsolated ||
       !rootsIsolated ||
       !rootDerivationQualified ||
-      !workingDatabaseValid
+      !workingDatabaseStructurallyValid ||
+      !executionRepositoryWorkingDatabaseIsolated ||
+      !workingDatabaseFresh
     ) {
       throw qualificationError(
         "path_scope_escape",
@@ -675,10 +730,14 @@ function runPathQualification(input, checks) {
   const qualified = [
     repositoryValid,
     executionRepositoryIsolated,
+    executionRepositoryRuntimeIsolated,
+    executionRepositoryEvidenceIsolated,
     checkoutIsolated,
     rootsIsolated,
     rootDerivationQualified,
-    workingDatabaseValid,
+    workingDatabaseStructurallyValid,
+    executionRepositoryWorkingDatabaseIsolated,
+    workingDatabaseFresh,
     fixtureQualified,
   ].every(Boolean);
   return {
@@ -787,8 +846,8 @@ function runDependencyQualification(repoRootInput, checks) {
     rootNativeDependencyAvailable,
     "root_native_dependency_unavailable",
     rootNativeDependencyAvailable
-      ? "Root better-sqlite3 native dependency is loadable."
-      : "Root better-sqlite3 native dependency is unavailable.",
+      ? "The exact repo-local better-sqlite3 module is loadable."
+      : "A repo-local better-sqlite3 module is unavailable.",
   );
   addCheck(
     checks,
@@ -873,18 +932,54 @@ function probeDependencyExecutable(modulesRoot, executablePath) {
 }
 
 function probeRootNativeDependency(repositoryRoot) {
-  const result = spawnSync(
-    process.execPath,
-    ["-e", "require('better-sqlite3')"],
-    {
+  try {
+    const rootModules = canonicalizeExistingPathV01(
+      path.join(repositoryRoot, "node_modules"),
+    );
+    if (!isPathWithinCanonicalRootV01(repositoryRoot, rootModules)) return false;
+    const probeOptions = {
       cwd: repositoryRoot,
+      env: isolatedNodeProbeEnvironmentV01(),
       encoding: "utf8",
       timeout: PROBE_TIMEOUT_MS,
       maxBuffer: MAX_PROBE_OUTPUT_BYTES,
       stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
-  return !result.error && result.status === 0 && !result.signal;
+    };
+    const resolution = spawnSync(
+      process.execPath,
+      [
+        "-e",
+        [
+          'const { createRequire } = require("node:module");',
+          'const path = require("node:path");',
+          'const rootRequire = createRequire(path.join(process.argv[1], "package.json"));',
+          'process.stdout.write(rootRequire.resolve("better-sqlite3"));',
+        ].join(""),
+        repositoryRoot,
+      ],
+      probeOptions,
+    );
+    if (resolution.error || resolution.status !== 0 || resolution.signal) {
+      return false;
+    }
+    const resolvedModule = resolution.stdout?.trim();
+    if (!resolvedModule || !path.isAbsolute(resolvedModule)) return false;
+    const canonicalResolvedModule = canonicalizeExistingPathV01(resolvedModule);
+    if (
+      !isPathWithinCanonicalRootV01(rootModules, canonicalResolvedModule) ||
+      !statSync(canonicalResolvedModule).isFile()
+    ) {
+      return false;
+    }
+    const load = spawnSync(
+      process.execPath,
+      ["-e", "require(process.argv[1])", canonicalResolvedModule],
+      probeOptions,
+    );
+    return !load.error && load.status === 0 && !load.signal;
+  } catch {
+    return false;
+  }
 }
 
 function isExecutionRepositoryClean(repositoryRoot) {
@@ -934,21 +1029,40 @@ function connectionIsRefused(port) {
   });
 }
 
-function assertWorkingDatabaseLeafIsNotSymlinkV01(workingDbPath) {
+function classifyWorkingDatabaseFreshLeafV01(workingDbPath) {
   const lexicalWorkingDatabase = validateAbsolutePathInputV01(workingDbPath);
-  if (getLexicalPathEntryKindV01(lexicalWorkingDatabase) !== "symlink") return;
+  const entryKind = getLexicalPathEntryKindV01(lexicalWorkingDatabase);
+  if (entryKind === "missing") {
+    return { qualified: true, reasonCode: null };
+  }
+  if (entryKind === "file" || entryKind === "directory") {
+    return { qualified: false, reasonCode: "working_db_path_exists" };
+  }
+  if (entryKind !== "symlink") {
+    return { qualified: false, reasonCode: "working_db_path_invalid_type" };
+  }
   try {
     realpathSync.native(lexicalWorkingDatabase);
   } catch {
-    throw qualificationError(
-      "dangling_symlink",
-      "Working database path is a dangling symlink.",
-    );
+    return { qualified: false, reasonCode: "dangling_symlink" };
   }
-  throw qualificationError(
-    "symlink_escape",
-    "Working database path must not already be a symlink.",
-  );
+  return { qualified: false, reasonCode: "symlink_escape" };
+}
+
+function isolatedNodeProbeEnvironmentV01() {
+  const environment = {};
+  for (const key of [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+  ]) {
+    if (typeof process.env[key] === "string") environment[key] = process.env[key];
+  }
+  return environment;
 }
 
 function canonicalizeProspectiveLeafWithoutInspectionV01(pathValue) {

@@ -16,6 +16,7 @@ try {
       receipt,
       serializedReceipt: serialized,
       outputPath: options.output,
+      repoRoot: options.repoRoot,
       runtimeRoot: options.runtimeRoot,
       evidenceRoot: options.evidenceRoot,
       workingDbPath: options.workingDbPath,
