@@ -37,6 +37,20 @@ jobs:
       - name: Run qualification regression smoke
         run: npm run smoke:vnext-m3d-evidence-runner-qualification-v0-1
 
+      - name: Run autonomous runner orchestration smoke
+        run: npm run smoke:vnext-m3d-autonomous-evidence-runner-v0-1
+
+      - name: Validate autonomous runner dry-run
+        shell: bash
+        run: |
+          DRY_PARENT="$(mktemp -d)"
+          trap 'rm -rf "$DRY_PARENT"' EXIT
+          npm run vnext:m3d-autonomous-evidence-runner-v0-1 -- \
+            --dry-run \
+            --canonical-checkout-root "$GITHUB_WORKSPACE" \
+            --run-root "$DRY_PARENT/run" \
+            --json
+
       - name: Run portable qualification
         shell: bash
         run: |

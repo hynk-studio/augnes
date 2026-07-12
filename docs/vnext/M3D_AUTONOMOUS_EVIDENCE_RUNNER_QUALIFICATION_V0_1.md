@@ -264,9 +264,11 @@ A receipt is invalid after any change to:
 - either package-lock hash;
 - selected browser executable identity or browser version in local-full mode.
 
-A future Chain 6 consumer must run both modes in the intended environment and
-recheck these identities immediately before execution. That consumer and the
-autonomous runner are not implemented here.
+The versioned autonomous runner documented in
+`M3D_AUTONOMOUS_EVIDENCE_RUNNER_V0_1.md` is the consumer of this contract. It
+runs both modes in the intended disposable environment and rechecks these
+identities immediately before allocation. Qualification remains independently
+usable and does not itself start the runner or allocate a chain.
 
 ## Failure classification
 

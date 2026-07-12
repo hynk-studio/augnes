@@ -11,6 +11,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -133,10 +134,13 @@ const EXPECTED_FULL_LOOP_ANCHORS = {
     "sha256:7f347a7edffe89eff6bab57972a0d222b63e04f356c9de86347d008727006e07",
 } as const;
 const require = createRequire(import.meta.url);
-const tempRoot = mkdtempSync(
-  path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
-);
-const canonicalDbPath = path.join(tempRoot, "operator-pilot.db");
+const runnerManagedPaths = resolveRunnerManagedPaths();
+const tempRoot = runnerManagedPaths
+  ? path.join(runnerManagedPaths.runtimeRoot, "operator-smoke-fixtures")
+  : mkdtempSync(path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"));
+if (runnerManagedPaths) mkdirSync(tempRoot, { recursive: false, mode: 0o700 });
+const canonicalDbPath =
+  runnerManagedPaths?.workingDbPath ?? path.join(tempRoot, "operator-pilot.db");
 const migrationDbPath = path.join(tempRoot, "legacy-upgrade.db");
 const recordKindMigrationDbPath = path.join(
   tempRoot,
@@ -415,7 +419,9 @@ try {
     foreign_project_core_record_count: 0,
     review_did_not_mutate_semantic_state: true,
     packet_compilation_was_explicit: true,
-    temp_database_cleanup: "pending_finally",
+    temp_database_cleanup: runnerManagedPaths
+      ? "delegated_to_runner"
+      : "pending_finally",
   };
 } finally {
   networkGuard?.restore();
@@ -423,11 +429,17 @@ try {
 }
 
 assert.equal(existsSync(tempRoot), false);
-pass("temporary_database_and_side_files_removed");
+pass(
+  runnerManagedPaths
+    ? "temporary_smoke_fixtures_removed"
+    : "temporary_database_and_side_files_removed",
+);
 assert(finalSummary);
 finalSummary.positive_case_count = positiveCases.length;
 finalSummary.positive_cases = positiveCases;
-finalSummary.temp_database_cleanup = "pass";
+finalSummary.temp_database_cleanup = runnerManagedPaths
+  ? "delegated_to_runner"
+  : "pass";
 process.stdout.write(`${JSON.stringify(finalSummary, null, 2)}\n`);
 }
 
@@ -437,6 +449,32 @@ void main().catch((error: unknown) => {
   process.stderr.write(`operator_pilot_smoke_failed:${message}\n`);
   process.exitCode = 1;
 });
+
+function resolveRunnerManagedPaths(): {
+  runtimeRoot: string;
+  workingDbPath: string;
+} | null {
+  const runtimeInput = process.env.AUGNES_M3D_RUNNER_RUNTIME_ROOT?.trim();
+  const databaseInput = process.env.AUGNES_M3D_RUNNER_WORKING_DB_PATH?.trim();
+  if (!runtimeInput && !databaseInput) return null;
+  assert(runtimeInput && databaseInput, "runner-managed runtime and DB paths must be supplied together");
+  assert(path.isAbsolute(runtimeInput), "runner-managed runtime root must be absolute");
+  assert(path.isAbsolute(databaseInput), "runner-managed working DB must be absolute");
+  const runtimeRoot = realpathSync(runtimeInput);
+  const workingDbPath = path.resolve(databaseInput);
+  assert.equal(existsSync(workingDbPath), false, "runner-managed working DB must be absent");
+  const databaseParent = realpathSync(path.dirname(workingDbPath));
+  const databaseRelative = path.relative(runtimeRoot, path.join(databaseParent, path.basename(workingDbPath)));
+  assert(
+    databaseRelative !== "" &&
+      databaseRelative !== ".." &&
+      !databaseRelative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(databaseRelative),
+    "runner-managed working DB must remain strictly inside runtime",
+  );
+  assert.equal(existsSync(path.join(runtimeRoot, "operator-smoke-fixtures")), false);
+  return { runtimeRoot, workingDbPath };
+}
 
 function initializeCanonicalDatabase(): void {
   const db = new Database(canonicalDbPath);
