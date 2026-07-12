@@ -330,6 +330,27 @@ unset AUGNES_VNEXT_PILOT_BACKUP
 
 ---
 
+## Autonomous rehearsal evidence history
+
+- 첫 번째 autonomous rehearsal은 canonical 23-character `TaskContextPacket`이 24-character
+  suffix를 요구하던 handoff route에 도달하지 못해 HOLD로 종료했다. PR #1064가 이 route-length
+  mismatch를 수정했다.
+- Post-#1064 두 번째 autonomous rehearsal은 packet handoff, later-result `RunReceipt`,
+  `ContextUseReview` persistence까지 완료했지만, persisted packet/result/review가 proposal-detail
+  Semantic Workbench lineage에 projection되지 않아 별도 HOLD로 종료했다. Project Home과 packet
+  handoff surface에는 같은 persisted material이 보였으므로 writer 또는 persistence failure가 아니었다.
+- 후속 correction은 proposal-specific durable lineage를 bounded identity, relation, status와 timestamp
+  summary로만 보여 주는 read-only projection이다. Protocol, schema, migration, writer, transition 또는
+  review contract를 변경하거나 semantic authority를 부여하지 않는다.
+- 두 HOLD evidence chain과 retained database/report/backup은 서로 분리된 read-only evidence로 보존한다.
+  Correction merge 뒤 검증은 clean baseline backup 또는 fresh canonical fixture에서 bootstrap부터 새
+  chain으로 다시 시작해야 하며, earlier runs를 하나의 success chain으로 합치지 않는다.
+
+이 correction과 autonomous synthetic operator material은 M3 completion, Reviewed Reuse 또는 Outcome
+Improvement evidence가 아니다.
+
+---
+
 ## Completion interpretation
 
 Automated section만 통과하면 M3D code path가 준비된 것이다. User-owned section을 실제 opted-in local

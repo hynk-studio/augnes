@@ -73,12 +73,22 @@ const result = {
   validation_version: VALIDATION_VERSION,
   fixture_source: "actual_vnext_operator_pilot_compile_result",
   app_repo: appRepo,
+  proposal_id: null,
+  proposal_fingerprint: null,
   packet_id: null,
   packet_fingerprint: null,
   handoff_href: null,
   document_status: null,
   handoff_api_status: null,
   project_home_exact_href: false,
+  proposal_list_document_status: null,
+  proposal_detail_document_status: null,
+  workbench_lineage_status: null,
+  workbench_exact_persisted_lineage: false,
+  workbench_exact_handoff_href: false,
+  workbench_refresh_read_only: false,
+  viewport_results: [],
+  viewport_warnings: [],
   refresh_read_only: false,
   malformed_slug_statuses: {},
   missing_fingerprint_private_material_rendered: null,
@@ -208,10 +218,26 @@ async function main() {
   assert.equal(fixtureSummary.default_database_accessed, false);
   assert.equal(fixtureSummary.external_network_calls, 0);
   assert.equal(fixtureSummary.browser_fixture_export?.exported, true);
+  assert.deepEqual(fixtureSummary.full_loop_proposal, {
+    proposal_id: manifest.proposal_id,
+    proposal_fingerprint: manifest.proposal_fingerprint,
+  });
   assert.equal(fixtureSummary.full_loop_anchors?.later_packet_id, manifest.packet_id);
   assert.equal(
     fixtureSummary.full_loop_anchors?.later_packet_fingerprint,
     manifest.packet_fingerprint,
+  );
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.transition_receipt_id,
+    manifest.transition_receipt_id,
+  );
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.later_run_receipt_id,
+    manifest.later_result_receipt_id,
+  );
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.context_use_review_id,
+    manifest.context_use_review_id,
   );
   result.default_database_accessed = fixtureSummary.default_database_accessed;
 
@@ -229,6 +255,8 @@ async function main() {
   );
   record("actual_compile_result_uses_shared_canonical_handoff_href");
 
+  result.proposal_id = manifest.proposal_id;
+  result.proposal_fingerprint = manifest.proposal_fingerprint;
   result.packet_id = manifest.packet_id;
   result.packet_fingerprint = manifest.packet_fingerprint;
   result.handoff_href = handoffHref;
@@ -317,9 +345,122 @@ async function main() {
     }
   });
 
+  let proposalHref = null;
+  await runPhase("proposal_list", async () => {
+    const responseStart = responses.length;
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-list="v0.1"]') !== null`,
+      "Semantic Workbench proposal list",
+    );
+    result.proposal_list_document_status = documentStatusSince(
+      responseStart,
+      "/workbench/semantic-review",
+    );
+    assert.equal(result.proposal_list_document_status, 200);
+    proposalHref = await evaluateString(`(() => {
+      const card = Array.from(document.querySelectorAll('[data-vnext-proposal-id]')).find(
+        (candidate) => candidate.getAttribute('data-vnext-proposal-id') === ${JSON.stringify(manifest.proposal_id)}
+      );
+      return card?.querySelector('a[href]')?.getAttribute('href') ?? '';
+    })()`);
+    assert.match(proposalHref, /^\/workbench\/semantic-review\//);
+    record("actual_proposal_detail_href_followed_from_workbench_dom");
+  });
+
+  let workbenchHandoffHref = null;
+  let proposalPathname = null;
+  await runPhase("proposal_durable_lineage", async () => {
+    proposalPathname = new URL(proposalHref, appOrigin).pathname;
+    const responseStart = responses.length;
+    await navigate(`${appOrigin}${proposalHref}`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-durable-lineage="v0.1"][data-vnext-lineage-status="reviewed"]') !== null`,
+      "reviewed Workbench durable lineage",
+    );
+    result.proposal_detail_document_status = documentStatusSince(
+      responseStart,
+      proposalPathname,
+    );
+    assert.equal(result.proposal_detail_document_status, 200);
+    const lineageState = await evaluateJson(`(() => {
+      const panel = document.querySelector('[data-vnext-durable-lineage="v0.1"]');
+      const text = panel?.textContent ?? '';
+      const exactLink = Array.from(panel?.querySelectorAll('a[href]') ?? []).find(
+        (candidate) => candidate.textContent?.trim() === 'Open exact packet handoff'
+      );
+      return {
+        status: panel?.getAttribute('data-vnext-lineage-status') ?? '',
+        packet_id: panel?.getAttribute('data-vnext-lineage-packet-id') ?? '',
+        later_result_id: panel?.getAttribute('data-vnext-lineage-later-result-id') ?? '',
+        context_review_id: panel?.getAttribute('data-vnext-lineage-context-review-id') ?? '',
+        exact_handoff_href: exactLink?.getAttribute('href') ?? '',
+        proposal_present: (document.body?.innerText ?? '').includes(${JSON.stringify(manifest.proposal_id)}) && (document.body?.innerText ?? '').includes(${JSON.stringify(manifest.proposal_fingerprint)}),
+        transition_present: text.includes(${JSON.stringify(manifest.transition_receipt_id)}) && text.includes(${JSON.stringify(manifest.transition_receipt_fingerprint)}),
+        packet_present: text.includes(${JSON.stringify(manifest.packet_id)}) && text.includes(${JSON.stringify(manifest.packet_fingerprint)}),
+        result_present: text.includes(${JSON.stringify(manifest.later_result_receipt_id)}) && text.includes(${JSON.stringify(manifest.later_result_receipt_fingerprint)}),
+        review_present: text.includes(${JSON.stringify(manifest.context_use_review_id)}) && text.includes(${JSON.stringify(manifest.context_use_review_fingerprint)}),
+        credential_names_present: /bootstrap_token_hash|session_token_hash|action_nonce_hash/.test(document.documentElement.innerHTML)
+      };
+    })()`);
+    assert.deepEqual(lineageState, {
+      status: "reviewed",
+      packet_id: manifest.packet_id,
+      later_result_id: manifest.later_result_receipt_id,
+      context_review_id: manifest.context_use_review_id,
+      exact_handoff_href: handoffHref,
+      proposal_present: true,
+      transition_present: true,
+      packet_present: true,
+      result_present: true,
+      review_present: true,
+      credential_names_present: false,
+    });
+    workbenchHandoffHref = lineageState.exact_handoff_href;
+    result.workbench_lineage_status = lineageState.status;
+    result.workbench_exact_persisted_lineage = true;
+    result.workbench_exact_handoff_href = true;
+    record("workbench_renders_exact_persisted_m3d_durable_lineage");
+  });
+
+  database = new Database(databasePath, { readonly: true, fileMustExist: true });
+  await validateProposalViewports();
+  const beforeWorkbenchRefresh = databaseSnapshot(database);
+  const workbenchRequestStart = requests.length;
+  const workbenchResponseStart = responses.length;
+  await runPhase("proposal_read_only_refresh", async () => {
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForHostCondition(
+      () =>
+        responses
+          .slice(workbenchResponseStart)
+          .some(
+            (entry) =>
+              entry.path === proposalPathname &&
+              entry.type === "Document" &&
+              entry.status === 200,
+          ),
+      "refreshed proposal document response",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-durable-lineage="v0.1"][data-vnext-lineage-status="reviewed"]') !== null`,
+      "refreshed Workbench durable lineage",
+    );
+  });
+  assert.deepEqual(databaseSnapshot(database), beforeWorkbenchRefresh);
+  assert.equal(
+    requests
+      .slice(workbenchRequestStart)
+      .some((request) => request.method === "POST"),
+    false,
+  );
+  result.workbench_refresh_read_only = true;
+  record("workbench_lineage_refresh_is_get_only_and_database_stable");
+
   await runPhase("canonical_handoff_navigation", async () => {
     const responseStart = responses.length;
-    await navigate(`${appOrigin}${handoffHref}`);
+    assert.equal(workbenchHandoffHref, handoffHref);
+    await navigate(`${appOrigin}${workbenchHandoffHref}`);
     await waitForHostCondition(
       () =>
         responses
@@ -364,7 +505,6 @@ async function main() {
     record("canonical_generated_packet_renders_through_page_and_api");
   });
 
-  database = new Database(databasePath, { readonly: true, fileMustExist: true });
   const beforeRefresh = databaseSnapshot(database);
   const requestStart = requests.length;
   const responseStart = responses.length;
@@ -569,6 +709,50 @@ async function setBootstrapInput(token) {
     return true;
   })()`);
   assert.equal(changed, true);
+}
+
+async function validateProposalViewports() {
+  for (const width of [390, 768, 1440]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await delay(100);
+    const metrics = await evaluateJson(`(() => {
+      const panel = document.querySelector('[data-vnext-durable-lineage="v0.1"]');
+      const rect = panel?.getBoundingClientRect();
+      return {
+        width: window.innerWidth,
+        document_scroll_width: document.documentElement.scrollWidth,
+        document_client_width: document.documentElement.clientWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        panel_scroll_width: panel?.scrollWidth ?? -1,
+        panel_client_width: panel?.clientWidth ?? -1,
+        panel_horizontal_overflow:
+          (panel?.scrollWidth ?? 0) > (panel?.clientWidth ?? 0) + 1,
+        panel_inside_viewport:
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
+        credential_names_present:
+          /bootstrap_token_hash|session_token_hash|action_nonce_hash/.test(document.documentElement.innerHTML)
+      };
+    })()`);
+    assert.equal(metrics.width, width);
+    assert.equal(metrics.panel_horizontal_overflow, false);
+    assert.equal(metrics.panel_inside_viewport, true);
+    assert.equal(metrics.credential_names_present, false);
+    result.viewport_results.push(metrics);
+    if (metrics.document_horizontal_overflow) {
+      result.viewport_warnings.push({
+        width,
+        warning:
+          "Known proposal-detail document overflow remains outside the durable-lineage panel; the new panel itself has no horizontal overflow.",
+      });
+    }
+  }
+  record("workbench_lineage_panel_fits_390_768_and_1440_viewports");
 }
 
 async function validateMalformedSlugs(canonicalSlug, packetId) {
@@ -854,19 +1038,30 @@ function databaseSnapshot(db) {
     )
     .all()
     .map((row) => row.name);
-  const counts = Object.fromEntries(
-    tables.map((table) => [
-      table,
-      db.prepare(`SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)}`).get()
-        .count,
-    ]),
+  const rows = Object.fromEntries(
+    tables.map((table) => {
+      const serialized = db
+        .prepare(`SELECT * FROM ${quoteIdentifier(table)}`)
+        .all()
+        .map((row) => JSON.stringify(row))
+        .sort();
+      return [
+        table,
+        {
+          count: serialized.length,
+          row_hash: createHash("sha256")
+            .update(JSON.stringify(serialized))
+            .digest("hex"),
+        },
+      ];
+    }),
   );
-  const canonical = JSON.stringify(counts);
+  const canonical = JSON.stringify(rows);
   return {
     data_version: db.pragma("data_version", { simple: true }),
     integrity_check: db.pragma("integrity_check", { simple: true }),
-    table_count_hash: createHash("sha256").update(canonical).digest("hex"),
-    counts,
+    table_row_hash: createHash("sha256").update(canonical).digest("hex"),
+    rows,
   };
 }
 
