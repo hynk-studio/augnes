@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import net from "node:net";
-import { tmpdir } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
 
 import {
@@ -1070,15 +1070,41 @@ function quoteIdentifier(value) {
 }
 
 async function assertLoopbackListener(port) {
-  const completed = await runCapture(
-    "lsof",
-    ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"],
-    { cwd: appRepo, env: minimalProcessEnvironment(), timeoutMs: 10_000 },
-  );
-  assert.equal(completed.code, 0);
-  assert.match(completed.stdout, new RegExp(`127\\.0\\.0\\.1:${port}\\s+\\(LISTEN\\)`));
-  assert.doesNotMatch(completed.stdout, new RegExp(`\\*:${port}\\s+\\(LISTEN\\)`));
+  assert(serverProcess);
+  assert.equal(serverProcess.spawnargs.includes("127.0.0.1"), true);
+  assert.equal(serverProcess.spawnargs.includes("0.0.0.0"), false);
+  assert.equal(await canConnectToListener("127.0.0.1", port), true);
+  const nonLoopbackAddresses = Object.values(networkInterfaces())
+    .flatMap((entries) => entries ?? [])
+    .filter(
+      (entry) =>
+        entry.family === "IPv4" &&
+        !entry.internal &&
+        entry.address !== "127.0.0.1",
+    )
+    .map((entry) => entry.address);
+  for (const address of nonLoopbackAddresses) {
+    assert.equal(
+      await canConnectToListener(address, port),
+      false,
+      `Next runtime unexpectedly accepted a non-loopback connection at ${address}:${port}`,
+    );
+  }
   record("next_runtime_listener_is_loopback_only");
+}
+
+async function canConnectToListener(host, port) {
+  return await new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    const finish = (connected) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(connected);
+    };
+    socket.setTimeout(1_000, () => finish(false));
+    socket.once("connect", () => finish(true));
+    socket.once("error", () => finish(false));
+  });
 }
 
 async function waitForHttp(url, timeoutMs) {
