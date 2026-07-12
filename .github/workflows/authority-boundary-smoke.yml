@@ -27,6 +27,9 @@ jobs:
       - name: Run authority boundary smoke
         run: npm run smoke:authority-boundary-regression-v0-1
 
+      - name: Validate Personal Perspective semantic casebook v0.1
+        run: npm run validate:vnext-personal-perspective-semantic-casebook-v0-1
+
       - name: Run isolated vNext durable semantic loop smoke
         shell: bash
         run: |

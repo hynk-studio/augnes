@@ -24,6 +24,10 @@ const exportPolicyDocsPath = "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md";
 const packageScriptName = "smoke:authority-boundary-regression-v0-1";
 const packageScriptValue =
   "node scripts/smoke-authority-boundary-regression-v0-1.mjs";
+const personalPerspectiveCasebookPackageScriptName =
+  "validate:vnext-personal-perspective-semantic-casebook-v0-1";
+const personalPerspectiveCasebookPackageScriptValue =
+  "tsx --tsconfig tsconfig.json scripts/validate-vnext-personal-perspective-semantic-casebook-v0-1.ts";
 const durableSemanticLoopPackageScriptName =
   "smoke:vnext-durable-semantic-loop-v0-1";
 const operatorPilotPackageScriptName = "smoke:vnext-operator-pilot-v0-1";
@@ -329,6 +333,11 @@ assert.equal(
   "package.json must register the authority boundary regression smoke",
 );
 assert.equal(
+  packageJson.scripts?.[personalPerspectiveCasebookPackageScriptName],
+  personalPerspectiveCasebookPackageScriptValue,
+  "package.json must register the exact bounded Personal Perspective semantic casebook validator",
+);
+assert.equal(
   packageJson.scripts?.[buildPackageScriptName],
   buildPackageScriptValue,
   "package.json build must use the isolated-database production build wrapper",
@@ -581,6 +590,15 @@ function assertWorkflowBoundary() {
   );
   assert.ok(
     workflow.includes(
+      "name: Validate Personal Perspective semantic casebook v0.1",
+    ) &&
+      workflow.includes(
+        `npm run ${personalPerspectiveCasebookPackageScriptName}`,
+      ),
+    "workflow must run the exact bounded Personal Perspective semantic casebook validator in a separate named step",
+  );
+  assert.ok(
+    workflow.includes(
       `AUGNES_DB_PATH="$TMP_DIR/vnext-durable-semantic-loop.db" npm run ${durableSemanticLoopPackageScriptName}`,
     ),
     "workflow must run the durable semantic loop smoke only against an explicit temporary database",
@@ -617,21 +635,24 @@ function assertWorkflowBoundary() {
       .sort(),
     [
       packageScriptName,
+      personalPerspectiveCasebookPackageScriptName,
       durableSemanticLoopPackageScriptName,
       operatorPilotPackageScriptName,
       operatorPilotBrowserPackageScriptName,
       buildPackageScriptName,
     ].sort(),
-    "workflow must run only the four bounded validations and the isolated production build",
+    "workflow must run only the five bounded validations and the isolated production build",
   );
   assert.ok(
-    workflow.indexOf(`npm run ${durableSemanticLoopPackageScriptName}`) <
+    workflow.indexOf(`npm run ${personalPerspectiveCasebookPackageScriptName}`) <
+      workflow.indexOf(`npm run ${durableSemanticLoopPackageScriptName}`) &&
+      workflow.indexOf(`npm run ${durableSemanticLoopPackageScriptName}`) <
       workflow.indexOf(`npm run ${operatorPilotPackageScriptName}`) &&
       workflow.indexOf(`npm run ${operatorPilotPackageScriptName}`) <
         workflow.indexOf(`npm run ${operatorPilotBrowserPackageScriptName}`) &&
       workflow.indexOf(`npm run ${operatorPilotBrowserPackageScriptName}`) <
         workflow.indexOf(`npm run ${buildPackageScriptName}`),
-    "workflow must run M3C, then M3D, then the authenticated browser regression, then the isolated production build",
+    "workflow must run the Lab casebook validator, M3C, M3D, the authenticated browser regression, then the isolated production build",
   );
   assert.ok(!workflow.includes("write-all"), "workflow must not request write-all");
   assert.ok(!workflow.includes("contents: write"), "workflow must not request write contents");
