@@ -3833,7 +3833,8 @@ CREATE TABLE IF NOT EXISTS vnext_core_records (
     'semantic_state',
     'state_transition_receipt',
     'task_context_packet',
-    'run_receipt'
+    'run_receipt',
+    'context_use_review'
   )),
   record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
   workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
@@ -3932,3 +3933,53 @@ CREATE TABLE IF NOT EXISTS vnext_semantic_target_heads (
 
 CREATE INDEX IF NOT EXISTS idx_vnext_semantic_target_heads_project_updated
   ON vnext_semantic_target_heads(workspace_id, project_id, updated_at, target_key);
+
+CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
+  session_id TEXT PRIMARY KEY CHECK (
+    length(trim(session_id)) > 0 AND length(session_id) <= 256
+  ),
+  workspace_id TEXT NOT NULL CHECK (
+    length(trim(workspace_id)) > 0 AND length(workspace_id) <= 256
+  ),
+  project_id TEXT NOT NULL CHECK (
+    length(trim(project_id)) > 0 AND length(project_id) <= 256
+  ),
+  operator_id TEXT NOT NULL CHECK (
+    length(trim(operator_id)) > 0 AND length(operator_id) <= 256
+  ),
+  bootstrap_token_hash TEXT NOT NULL UNIQUE CHECK (
+    length(bootstrap_token_hash) = 71 AND
+    substr(bootstrap_token_hash, 1, 7) = 'sha256:'
+  ),
+  session_token_hash TEXT UNIQUE CHECK (
+    session_token_hash IS NULL OR
+    (length(session_token_hash) = 71 AND
+     substr(session_token_hash, 1, 7) = 'sha256:')
+  ),
+  issued_at TEXT NOT NULL CHECK (length(trim(issued_at)) > 0),
+  expires_at TEXT NOT NULL CHECK (length(trim(expires_at)) > 0),
+  bootstrap_consumed_at TEXT,
+  revoked_at TEXT,
+  action_nonce_hash TEXT UNIQUE CHECK (
+    action_nonce_hash IS NULL OR
+    (length(action_nonce_hash) = 71 AND
+     substr(action_nonce_hash, 1, 7) = 'sha256:')
+  ),
+  action_nonce_expires_at TEXT,
+  updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  CHECK (
+    (bootstrap_consumed_at IS NULL AND
+     session_token_hash IS NULL AND
+     action_nonce_hash IS NULL AND
+     action_nonce_expires_at IS NULL) OR
+    (bootstrap_consumed_at IS NOT NULL AND
+     session_token_hash IS NOT NULL AND
+     action_nonce_hash IS NOT NULL AND
+     action_nonce_expires_at IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_scope_expiry
+  ON vnext_local_operator_sessions(
+    workspace_id, project_id, operator_id, revoked_at, expires_at, session_id
+  );

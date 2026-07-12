@@ -202,6 +202,38 @@ explicit later-context compiler와 bounded local observer의 Level 2 integrated 
 Improvement`는 그 reuse가 wrong-context correction, repeated explanation 또는 later outcome
 metric을 반복적으로 개선한 관찰이 있어야 한다. M3C fixture에는 두 claim 모두 없다.
 
+### 5.6 M3D operator pilot evidence classification
+
+M3D는 operator-loop mechanics와 semantic meaning을 같은 evidence class로 합치지 않는다.
+
+| 관찰 material | 분류 | 허용되는 주장 | 허용되지 않는 주장 |
+|---|---|---|---|
+| Temp-DB bootstrap/session exchange, hash-only credential storage, cookie, expiry/revocation와 nonce CAS | `real_local_observation` | disabled/loopback/same-origin possession boundary와 concurrent nonce refusal이 isolated runtime에서 동작함 | legal/external identity, actual operator authorization, remote security certification |
+| Temp-DB proposal read, decision/preview/confirmation/gate/commit/compile route mechanics와 rollback | `real_local_observation` | bounded product/Core path가 step separation, policy와 transaction boundary를 지킴 | product/user transition, real decision, Level 3 Observed Use |
+| Project Home projection, packet handoff copy/download와 authenticated Workbench rendering | `real_local_observation` | private project-scoped read model과 bounded handoff mechanics가 local fixture를 정확히 표시함 | handoff consumption, broad Home/Workbench completion, Inspector replacement |
+| Structured later-result normalization, persisted RunReceipt와 exact packet/transition relation check | `real_local_observation` for local read/validation only | intake가 exact refs를 읽고 imported/attested claims를 trust-upgrade하지 않음 | Codex work claims의 independent verification, packet actual use, helpfulness |
+| `ContextUseReview` build, relation validation, immutable insert, exact replay와 conflicting review refusal | `real_local_observation` for mechanics | exact packet/receipt/reviewer bindings과 non-mutation authority boundary가 동작함 | actual usefulness, automatic correction/retract, Evidence, Reviewed Reuse |
+| Proposal meaning, `ReviewDecision`, configured operator actor, confirmation, later task와 helpful/stale assessment | `synthetic_fixture` in automated verification | deterministic positive/negative integration과 project isolation | real user choice, real project semantics, Level 3 or Level 4 |
+
+`ContextUseReviewV01` contract와 fixture는 Level 1 Validated Contract다. Authenticated local persistence,
+Workbench review route, Project Home status projection과 exact replay/conflict handling은 Level 2 Integrated
+Path다. Automated fixture에 `assessment: helpful`이 있어도 actual usefulness나 Outcome Improvement가 아니다.
+
+Post-merge user-owned pilot에서 exact enrolled project의 real decision, gate, transition, later packet,
+later-task result와 explicit review가 모두 기록되고 검토될 때에만 Level 3 Observed Use 또는 Level 4
+Reviewed Reuse 후보 evidence를 평가할 수 있다. 그때도 다음을 구분한다.
+
+- packet referenced ≠ packet payload actually used
+- selected-state refs cited ≠ context helpful
+- one helpful review ≠ repeated outcome improvement
+- negative review ≠ automatic state retraction or correction proposal
+- possession-authenticated session ≠ externally authenticated identity
+
+M3D automated smoke는 default product/user DB를 열지 않고 legacy state, proof/Evidence, Perspective/memory,
+work closure와 publication row를 변경하지 않아야 한다. Local ephemeral HTTP server 외 external network,
+provider/model, GitHub 또는 actuator call은 0이어야 하며 temp DB, server, cookie jar와 credential fixture를
+모두 제거해야 한다. 이 isolation evidence는 manual real-pilot runbook을 실행했다는 뜻이 아니다.
+
 ---
 
 ## 6. Context and Memory Evaluation

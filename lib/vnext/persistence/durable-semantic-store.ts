@@ -34,6 +34,7 @@ export const VNEXT_CORE_RECORD_KINDS_V01 = [
   "state_transition_receipt",
   "task_context_packet",
   "run_receipt",
+  "context_use_review",
 ] as const;
 
 export type VNextCoreRecordKindV01 =
@@ -165,7 +166,8 @@ export const VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01 = `
       'semantic_state',
       'state_transition_receipt',
       'task_context_packet',
-      'run_receipt'
+      'run_receipt',
+      'context_use_review'
     )),
     record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
     workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
@@ -308,10 +310,109 @@ interface TargetHeadRowV01 {
   updated_at: string;
 }
 
+const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01 =
+  "vnext_core_records_upgrade_v0_1" as const;
+
+function upgradeVNextCoreRecordKindConstraintV01(
+  db: Database.Database,
+): void {
+  const table = db
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
+    )
+    .get() as { sql: string | null } | undefined;
+  if (!table || table.sql?.includes("'context_use_review'")) return;
+  if (db.inTransaction) {
+    throw new Error("vnext_core_record_kind_upgrade_nested_transaction_forbidden");
+  }
+  const orphan = db
+    .prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    )
+    .get(VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01);
+  if (orphan) {
+    throw new Error("vnext_core_record_kind_upgrade_orphan_table");
+  }
+  const before = db
+    .prepare("SELECT COUNT(*) AS count FROM vnext_core_records")
+    .get() as { count: number };
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec(`
+      CREATE TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01} (
+        record_kind TEXT NOT NULL CHECK (record_kind IN (
+          'episode_delta_proposal',
+          'review_decision',
+          'semantic_commit_gate',
+          'semantic_state',
+          'state_transition_receipt',
+          'task_context_packet',
+          'run_receipt',
+          'context_use_review'
+        )),
+        record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
+        workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+        project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+        fingerprint TEXT NOT NULL CHECK (
+          length(fingerprint) = 71 AND substr(fingerprint, 1, 7) = 'sha256:'
+        ),
+        idempotency_key TEXT CHECK (
+          idempotency_key IS NULL OR
+          (length(idempotency_key) = 71 AND substr(idempotency_key, 1, 7) = 'sha256:')
+        ),
+        payload_json TEXT NOT NULL CHECK (
+          json_valid(payload_json) AND json_type(payload_json) = 'object'
+        ),
+        created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+        PRIMARY KEY (record_kind, record_id)
+      );
+
+      INSERT INTO ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01} (
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      )
+      SELECT
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      FROM vnext_core_records;
+    `);
+    const copied = db
+      .prepare(`SELECT COUNT(*) AS count FROM ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01}`)
+      .get() as { count: number };
+    if (copied.count !== before.count) {
+      throw new Error("vnext_core_record_kind_upgrade_copy_count_mismatch");
+    }
+    db.exec(`
+      DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_update;
+      DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_delete;
+      DROP TABLE vnext_core_records;
+      ALTER TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01}
+        RENAME TO vnext_core_records;
+
+      CREATE UNIQUE INDEX idx_vnext_core_records_project_idempotency
+        ON vnext_core_records(workspace_id, project_id, record_kind, idempotency_key)
+        WHERE idempotency_key IS NOT NULL;
+      CREATE INDEX idx_vnext_core_records_project_kind_created
+        ON vnext_core_records(workspace_id, project_id, record_kind, created_at, record_id);
+      CREATE TRIGGER trg_vnext_core_records_immutable_update
+        BEFORE UPDATE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+      CREATE TRIGGER trg_vnext_core_records_immutable_delete
+        BEFORE DELETE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+    `);
+    db.exec("COMMIT");
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export function ensureVNextDurableSemanticStoreSchemaV01(
   db: Database.Database,
 ): void {
   db.pragma("foreign_keys = ON");
+  upgradeVNextCoreRecordKindConstraintV01(db);
   db.exec(VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01);
 }
 
@@ -338,6 +439,16 @@ export function assertVNextDurableSemanticStoreSchemaV01(
   if (missing.length > 0) {
     throw new Error(
       `vnext_durable_semantic_store_schema_uninitialized:${missing.join(",")}`,
+    );
+  }
+  const coreRecordTable = db
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
+    )
+    .get() as { sql: string | null } | undefined;
+  if (!coreRecordTable?.sql?.includes("'context_use_review'")) {
+    throw new Error(
+      "vnext_durable_semantic_store_schema_uninitialized:table:vnext_core_records:context_use_review",
     );
   }
 }
@@ -1056,6 +1167,26 @@ export function readVNextSemanticTargetHeadV01(
       normalizeSha256(input.target_key, "target_key"),
     ) as TargetHeadRowV01 | undefined;
   return row ? normalizeTargetHead(row) : null;
+}
+
+export function listVNextSemanticTargetHeadsV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; limit: number },
+): VNextSemanticTargetHeadV01[] {
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 513) {
+    throw new Error("semantic_target_head_list_limit_invalid");
+  }
+  const rows = db.prepare(
+    `SELECT * FROM vnext_semantic_target_heads
+     WHERE workspace_id = ? AND project_id = ?
+     ORDER BY revision DESC, updated_at DESC, target_key
+     LIMIT ?`,
+  ).all(
+    normalizeRequiredText(input.workspace_id, "workspace_id"),
+    normalizeRequiredText(input.project_id, "project_id"),
+    input.limit,
+  ) as TargetHeadRowV01[];
+  return rows.map(normalizeTargetHead);
 }
 
 export function insertVNextSemanticTargetHeadV01(

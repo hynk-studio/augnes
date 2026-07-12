@@ -3,6 +3,7 @@ import { CurrentPerspectiveCard } from "@/components/human-surface/current-persp
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { RecentDeltasPreview } from "@/components/human-surface/recent-deltas-preview";
 import { SurfaceLinkGrid } from "@/components/human-surface/surface-link-grid";
+import { VNextProjectContinuityCard } from "@/components/human-surface/vnext-project-continuity-card";
 import { readAutohuntDailyLauncherRuns } from "@/lib/autonomy/read-autohunt-daily-launcher-runs";
 import { readAutohuntResultIntakes } from "@/lib/autonomy/read-autohunt-result-intakes";
 import { buildAutohuntWorkTargetModeOptions } from "@/lib/autonomy/autohunt-work-target-mode-options";
@@ -58,6 +59,7 @@ export async function HumanSurfaceHome() {
           />
           <div className="human-surface-right-rail">
             <CurrentPerspectiveCard read={currentPerspectiveRead} />
+            <VNextProjectContinuityCard />
             <GuideBriefMiniPanel guideBrief={guideBrief} variant="home" />
             <RecentDeltasPreview perspective={perspective} />
             <SurfaceLinkGrid />

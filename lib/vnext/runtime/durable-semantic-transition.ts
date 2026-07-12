@@ -169,6 +169,7 @@ export interface VNextSemanticCommitGateRecordV01 {
   confirmed_at: string;
   operator_actor_ref: ExternalRefV01;
   confirmation_observation_ref: ExternalRefV01;
+  operator_confirmation_basis_refs?: ExternalRefV01[];
   current_state_observations: StateTransitionCurrentStateObservationV01[];
   intended_effects: VNextSemanticCommitPreviewEffectV01[];
   prior_review_decision_bindings: VNextSemanticCommitLineageBindingV01[];
@@ -224,6 +225,7 @@ export interface RecordVNextSemanticCommitAuthorizationInputV01 {
   preview: VNextSemanticCommitPreviewV01;
   confirmation_digest: string;
   operator_actor_ref: ExternalRefV01;
+  operator_confirmation_basis_refs?: ExternalRefV01[];
   clock?: VNextLocalRuntimeClockV01;
   test_options?: VNextSemanticTransitionTestOptionsV01;
 }
@@ -454,12 +456,31 @@ export function recordVNextSemanticCommitAuthorizationV01(
 ): VNextSemanticCommitAuthorizationResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   assertVNextDurableSemanticStoreSchemaV01(db);
+  return withImmediateTransaction(db, () =>
+    recordVNextSemanticCommitAuthorizationInsideTransactionV01(db, input),
+  );
+}
+
+/**
+ * Transaction-aware authorization entry point for an authenticated operator
+ * action whose nonce rotation must commit or roll back with the gate record.
+ * The caller owns the surrounding immediate transaction.
+ */
+export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
+  db: Database.Database,
+  input: RecordVNextSemanticCommitAuthorizationInputV01,
+): VNextSemanticCommitAuthorizationResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("semantic_commit_authorization_transaction_required");
+  }
   assertRuntimeInputKeys(
     input,
     new Set([
       "preview",
       "confirmation_digest",
       "operator_actor_ref",
+      "operator_confirmation_basis_refs",
       "clock",
       "test_options",
     ]),
@@ -482,8 +503,7 @@ export function recordVNextSemanticCommitAuthorizationV01(
     gateTtlMs,
     "gate_expires_at",
   );
-  return withImmediateTransaction(db, () => {
-    const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
+  const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
       db,
       {
         workspace_id: input.preview.workspace_id,
@@ -573,6 +593,8 @@ export function recordVNextSemanticCommitAuthorizationV01(
       preview: exactPreview,
       operator_actor_ref: input.operator_actor_ref,
       confirmation_observation_ref: confirmationObservationRef,
+      operator_confirmation_basis_refs:
+        input.operator_confirmation_basis_refs,
       confirmed_at: confirmedAt,
       gate,
       eligibility_evaluated_at: eligibilityEvaluatedAt,
@@ -589,13 +611,12 @@ export function recordVNextSemanticCommitAuthorizationV01(
       created_at: confirmedAt,
     });
     runTestCheckpoint(input.test_options, "after_gate_record_insert");
-    return {
-      status: write.status,
-      gate_record: gateRecord,
-      eligibility_input: gateEligibilityInput,
-      eligibility: gateEligibility,
-    };
-  });
+  return {
+    status: write.status,
+    gate_record: gateRecord,
+    eligibility_input: gateEligibilityInput,
+    eligibility: gateEligibility,
+  };
 }
 
 export function commitVNextSemanticTransitionV01(
@@ -613,6 +634,23 @@ export function commitVNextSemanticTransitionV01(
 ): VNextSemanticTransitionCommitResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   assertVNextDurableSemanticStoreSchemaV01(db);
+  return withImmediateTransaction(db, () =>
+    commitVNextSemanticTransitionInsideTransactionV01(db, input),
+  );
+}
+
+/**
+ * Transaction-aware writer entry point for an authenticated operator action.
+ * The caller owns the surrounding immediate transaction.
+ */
+export function commitVNextSemanticTransitionInsideTransactionV01(
+  db: Database.Database,
+  input: CommitVNextSemanticTransitionInputV01,
+): VNextSemanticTransitionCommitResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("semantic_transition_commit_transaction_required");
+  }
   return commitVNextSemanticTransitionInternalV01(db, input);
 }
 
@@ -754,7 +792,7 @@ function commitVNextSemanticTransitionInternalV01(
       "test_options",
     ]),
   );
-  return withImmediateTransaction(db, () => {
+  return (() => {
     const transactionNow = readVNextLocalRuntimeClockNowV01(
       input.clock,
       "applied_at",
@@ -926,7 +964,7 @@ function commitVNextSemanticTransitionInternalV01(
       eligibility_input: eligibilityInput,
       eligibility,
     };
-  });
+  })();
 }
 
 function assertLiveLineageProjectionBindings(
@@ -2380,6 +2418,7 @@ function buildGateRecord(input: {
   preview: VNextSemanticCommitPreviewV01;
   operator_actor_ref: ExternalRefV01;
   confirmation_observation_ref: ExternalRefV01;
+  operator_confirmation_basis_refs?: ExternalRefV01[];
   confirmed_at: string;
   gate: StateTransitionSemanticCommitGateEvaluationV01;
   eligibility_evaluated_at: string;
@@ -2401,6 +2440,13 @@ function buildGateRecord(input: {
     confirmed_at: input.confirmed_at,
     operator_actor_ref: normalizeExternalRefPrimitiveV01(input.operator_actor_ref),
     confirmation_observation_ref: normalizeExternalRefPrimitiveV01(input.confirmation_observation_ref),
+    ...(input.operator_confirmation_basis_refs === undefined
+      ? {}
+      : {
+          operator_confirmation_basis_refs: normalizeRefs(
+            input.operator_confirmation_basis_refs,
+          ),
+        }),
     current_state_observations: input.preview.current_state_observations,
     intended_effects: input.preview.intended_effects,
     prior_review_decision_bindings:
@@ -2663,7 +2709,7 @@ function reconstructTargetHeadFromStoredObservation(
   };
 }
 
-const gateRecordKeys = new Set([
+const gateRecordRequiredKeys = new Set([
   "gate_record_version",
   "gate_record_id",
   "workspace_id",
@@ -2688,12 +2734,19 @@ const gateRecordKeys = new Set([
   "eligibility_precondition_fingerprint",
   "integrity",
 ]);
+const gateRecordOptionalKeys = new Set([
+  "operator_confirmation_basis_refs",
+]);
+const gateRecordKeys = new Set([
+  ...gateRecordRequiredKeys,
+  ...gateRecordOptionalKeys,
+]);
 
 function parseGateRecordPayload(value: unknown): VNextSemanticCommitGateRecordV01 {
   const gate = requirePlainRecord(value, "semantic_commit_gate_payload_invalid");
   if (
     Object.keys(gate).some((key) => !gateRecordKeys.has(key)) ||
-    Object.keys(gate).length !== gateRecordKeys.size
+    [...gateRecordRequiredKeys].some((key) => !Object.hasOwn(gate, key))
   ) {
     throw new Error("semantic_commit_gate_payload_unknown_or_missing_field");
   }
@@ -2714,6 +2767,34 @@ function parseGateRecordPayload(value: unknown): VNextSemanticCommitGateRecordV0
     "eligibility_precondition_fingerprint",
   ] as const) {
     requireText(gate[key], `semantic_commit_gate_${key}_invalid`);
+  }
+  if (Object.hasOwn(gate, "operator_confirmation_basis_refs")) {
+    if (
+      !Array.isArray(gate.operator_confirmation_basis_refs) ||
+      gate.operator_confirmation_basis_refs.length === 0 ||
+      gate.operator_confirmation_basis_refs.length > 64
+    ) {
+      throw new Error(
+        "semantic_commit_gate_operator_confirmation_basis_refs_invalid",
+      );
+    }
+    for (const ref of gate.operator_confirmation_basis_refs) {
+      assertExternalRef(
+        ref as ExternalRefV01,
+        "operator_confirmation_basis_ref",
+      );
+    }
+    const normalized = normalizeRefs(
+      gate.operator_confirmation_basis_refs as ExternalRefV01[],
+    );
+    if (
+      canonicalizeProtocolValueV01(normalized) !==
+      canonicalizeProtocolValueV01(gate.operator_confirmation_basis_refs)
+    ) {
+      throw new Error(
+        "semantic_commit_gate_operator_confirmation_basis_refs_not_normalized",
+      );
+    }
   }
   if (gate.gate_record_version !== VNEXT_SEMANTIC_COMMIT_GATE_RECORD_VERSION_V01) {
     throw new Error("semantic_commit_gate_version_invalid");
@@ -2887,6 +2968,8 @@ function loadGateRecord(
     preview: rebuiltPreview,
     operator_actor_ref: decision.actor_ref,
     confirmation_observation_ref: gate.confirmation_observation_ref,
+    operator_confirmation_basis_refs:
+      gate.operator_confirmation_basis_refs,
     confirmed_at: gate.confirmed_at,
     gate: expectedGateEvaluation,
     eligibility_evaluated_at: gate.eligibility_evaluated_at,
