@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from "node:fs";
-
 import {
   M3D_EVIDENCE_RUNNER_QUALIFICATION_VERSION_V01,
   qualifyM3dEvidenceRunnerV01,
+  writeQualificationReceiptV01,
 } from "./lib/m3d-evidence-runner-qualification-v0-1.mjs";
 import { validateAbsolutePathInputV01 } from "./lib/m3d-evidence-runner-path-policy-v0-1.mjs";
 
@@ -13,8 +12,15 @@ try {
   const receipt = await qualifyM3dEvidenceRunnerV01(options);
   const serialized = `${JSON.stringify(receipt, null, 2)}\n`;
   if (options.output) {
-    const outputPath = validateAbsolutePathInputV01(options.output);
-    writeFileSync(outputPath, serialized, { encoding: "utf8", mode: 0o600 });
+    writeQualificationReceiptV01({
+      receipt,
+      serializedReceipt: serialized,
+      outputPath: options.output,
+      runtimeRoot: options.runtimeRoot,
+      evidenceRoot: options.evidenceRoot,
+      workingDbPath: options.workingDbPath,
+      canonicalCheckoutRoot: options.canonicalCheckoutRoot,
+    });
   }
   if (options.json) {
     process.stdout.write(serialized);

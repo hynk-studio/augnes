@@ -35,11 +35,18 @@ npm --prefix apps/augnes_apps ci
 
 The gate requires the root and nested `package.json`, `package-lock.json`, and
 `node_modules` entries. Root and nested `node_modules` directories must not be
-symlinked. The nested `.bin/tsx` and `.bin/tsc` entries must resolve to
-executable regular files inside the nested dependency tree and must complete a
-bounded direct `--version` probe. The gate does not use `npm install`, `npx`, a
-global executable, or dependency material borrowed by symlink from another
-checkout.
+symlinked. Root `.bin/tsx`, `.bin/tsc`, and `.bin/next`, plus nested `.bin/tsx`
+and `.bin/tsc`, must resolve to executable regular files inside their own
+dependency trees and complete bounded direct version probes. A bounded Node
+load probe must also resolve the root `better-sqlite3` native dependency. The
+gate does not use `npm install`, `npx`, a global executable, or dependency
+material borrowed by symlink from another checkout.
+
+The execution repository must be a clean Git checkout. Exact
+`git status --porcelain --untracked-files=all` output must be empty, so tracked
+modifications and untracked application files both invalidate qualification.
+The recorded application commit therefore describes the exact qualified source
+material rather than only the repository's current `HEAD` pointer.
 
 The receipt records SHA-256 identities for both lockfiles. It never reads or
 reports `.npmrc`, tokens, registry credentials, or an environment dump.
@@ -87,14 +94,22 @@ lexical run root
 Runtime and evidence roots must be separate. Both must be outside and
 non-overlapping with the canonical product checkout. The prospective working
 database must be inside the canonical runtime root and outside the checkout.
+The execution repository is also an execution root: it must be a disposable
+clone that is separate from the canonical checkout. Equality, execution repo
+inside checkout, and checkout inside execution repo all fail with
+`execution_repository_checkout_overlap`, including lexical aliases that resolve
+to one canonical identity.
 
 ## Symlink policy
 
-Existing symlinks are resolved before containment. A symlink below an allowed
-root that targets a location outside that root is rejected. The same rule
-applies when the nearest existing ancestor of a prospective child is a
-symlink. A caller must requalify after creating a prospective path so that a
-newly introduced symlink cannot silently change its identity.
+Existing symlinks are inspected with `lstat` semantics before resolution. A
+dangling leaf or intermediate symlink fails with `dangling_symlink`; it is not
+treated as an ordinary missing prospective segment. An existing alias may
+resolve only when its canonical target remains safely contained. A symlink
+below an allowed root that targets outside fails with `symlink_escape`, and a
+working-DB leaf may not already be any symlink. A caller must requalify after
+creating a prospective path so that a newly introduced symlink cannot silently
+change its identity.
 
 The qualifier creates only a bounded path-policy fixture below the supplied
 runtime root. That fixture checks prospective identity and symlink escape, and
@@ -174,24 +189,35 @@ Both modes require explicit repository, runtime, evidence, working-database,
 and canonical-checkout roots. Storage never defaults into the repository.
 
 ```bash
+CANONICAL_CHECKOUT="$PWD"
 QUAL_ROOT="$(mktemp -d)"
 trap 'rm -rf "$QUAL_ROOT"' EXIT
 CANONICAL_QUAL_ROOT="$(cd "$QUAL_ROOT" && pwd -P)"
+git clone --local --no-hardlinks \
+  "$CANONICAL_CHECKOUT" \
+  "$CANONICAL_QUAL_ROOT/execution-repo"
+npm --prefix "$CANONICAL_QUAL_ROOT/execution-repo" ci
+npm --prefix "$CANONICAL_QUAL_ROOT/execution-repo/apps/augnes_apps" ci
 
-npm run qualify:vnext-m3d-evidence-runner-v0-1 -- \
+node "$CANONICAL_QUAL_ROOT/execution-repo/scripts/qualify-vnext-m3d-evidence-runner-v0-1.mjs" \
   --mode portable \
-  --repo-root "$PWD" \
+  --repo-root "$CANONICAL_QUAL_ROOT/execution-repo" \
   --runtime-root "$CANONICAL_QUAL_ROOT/runtime" \
   --evidence-root "$CANONICAL_QUAL_ROOT/evidence" \
   --working-db-path "$CANONICAL_QUAL_ROOT/runtime/rehearsal.db" \
-  --canonical-checkout-root "$PWD" \
+  --canonical-checkout-root "$CANONICAL_CHECKOUT" \
+  --output "$CANONICAL_QUAL_ROOT/evidence/qualification.json" \
   --json
 ```
 
 Use `--mode local_full` for the bounded executable probe. An explicit
 `--browser-executable <absolute path>` has the same first-candidate role as the
-environment override. `--output <absolute path>` writes the same public-safe
-JSON receipt with mode `0600`; the output directory must already exist.
+environment override. `--output <absolute path>` exclusively creates a new
+owner-only (`0600`) public receipt strictly below the canonical evidence root.
+It refuses existing files, symlink or dangling-symlink leaves, parents that
+escape evidence, runtime/checkout locations, and the working-DB path. Nested
+evidence directories may be created with owner-only intent. The created file is
+canonicalized again and removed if final containment or write validation fails.
 
 Exit behavior is stable:
 
@@ -260,3 +286,9 @@ and pushes to `main` with `contents: read`. A Node 22 matrix covers
 the permanent smoke, and runs portable qualification under a canonical
 temporary root. It does not start Augnes, a browser, CDP, or an evidence chain,
 and it does not open a database.
+
+The CI command uses the clean checked-out workspace as its execution repository
+and an explicit synthetic canonical-checkout fixture under the temporary root.
+The permanent smoke independently proves equality and both parent/child overlap
+forms fail closed. This CI self-test is not a Chain 6 qualification receipt and
+does not weaken the disposable execution-repository rule.

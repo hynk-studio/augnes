@@ -43,11 +43,13 @@ jobs:
           QUAL_ROOT="$(mktemp -d)"
           trap 'rm -rf "$QUAL_ROOT"' EXIT
           CANONICAL_QUAL_ROOT="$(cd "$QUAL_ROOT" && pwd -P)"
+          mkdir "$CANONICAL_QUAL_ROOT/canonical-checkout-fixture"
           npm run qualify:vnext-m3d-evidence-runner-v0-1 -- \
             --mode portable \
             --repo-root "$GITHUB_WORKSPACE" \
             --runtime-root "$CANONICAL_QUAL_ROOT/runtime" \
             --evidence-root "$CANONICAL_QUAL_ROOT/evidence" \
             --working-db-path "$CANONICAL_QUAL_ROOT/runtime/rehearsal.db" \
-            --canonical-checkout-root "$GITHUB_WORKSPACE" \
+            --canonical-checkout-root "$CANONICAL_QUAL_ROOT/canonical-checkout-fixture" \
+            --output "$CANONICAL_QUAL_ROOT/evidence/qualification.json" \
             --json

@@ -2,16 +2,21 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   accessSync,
+  chmodSync,
+  closeSync,
   constants as fsConstants,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   realpathSync,
   rmSync,
   statSync,
   symlinkSync,
+  unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -21,6 +26,7 @@ import {
   canonicalizeProspectivePathV01,
   classifyPathScopeV01,
   doCanonicalPathsOverlapV01,
+  getLexicalPathEntryKindV01,
   isPathWithinCanonicalRootV01,
   validateAbsolutePathInputV01,
 } from "./m3d-evidence-runner-path-policy-v0-1.mjs";
@@ -234,8 +240,10 @@ export function qualifyBrowserExecutableV01({
   explicitPath,
   environment = process.env,
 }) {
-  const override = explicitPath || environment.AUGNES_BROWSER_EXECUTABLE_PATH;
-  const candidates = [override, ...CHROME_EXECUTABLE_CANDIDATES].filter(Boolean);
+  const candidates = listChromeExecutableCandidatesV01({
+    explicitPath,
+    environment,
+  });
   const executablePath = candidates.find((candidate) => {
     try {
       validateAbsolutePathInputV01(candidate);
@@ -294,6 +302,148 @@ export function qualifyBrowserExecutableV01({
   };
 }
 
+export function listChromeExecutableCandidatesV01({
+  explicitPath,
+  environment = process.env,
+} = {}) {
+  const override = explicitPath || environment.AUGNES_BROWSER_EXECUTABLE_PATH;
+  return [override, ...CHROME_EXECUTABLE_CANDIDATES].filter(Boolean);
+}
+
+export function writeQualificationReceiptV01({
+  receipt,
+  serializedReceipt,
+  outputPath,
+  runtimeRoot,
+  evidenceRoot,
+  workingDbPath,
+  canonicalCheckoutRoot,
+}) {
+  const lexicalOutputPath = validateAbsolutePathInputV01(outputPath);
+  const canonicalCheckout = canonicalizeExistingPathV01(canonicalCheckoutRoot);
+  const canonicalRuntime = canonicalizeProspectivePathV01(runtimeRoot);
+  const canonicalEvidence = canonicalizeProspectivePathV01(evidenceRoot);
+  const canonicalOutputPath = canonicalizeProspectiveLeafWithoutInspectionV01(
+    lexicalOutputPath,
+  );
+  const canonicalOutputParent = path.dirname(canonicalOutputPath);
+  const canonicalWorkingDatabase =
+    canonicalizeProspectiveLeafWithoutInspectionV01(workingDbPath);
+
+  if (
+    doCanonicalPathsOverlapV01(
+      canonicalWorkingDatabase,
+      canonicalOutputPath,
+    )
+  ) {
+    throw qualificationError(
+      "qualification_output_conflicts_with_working_db",
+      "Qualification output conflicts with the working database path.",
+    );
+  }
+
+  if (
+    !isPathStrictlyWithinCanonicalRootV01(
+      canonicalEvidence,
+      canonicalOutputPath,
+    )
+  ) {
+    throw qualificationError(
+      "qualification_output_outside_evidence",
+      "Qualification output must be strictly inside the evidence root.",
+    );
+  }
+  if (doCanonicalPathsOverlapV01(canonicalRuntime, canonicalOutputPath)) {
+    throw qualificationError(
+      "qualification_output_outside_evidence",
+      "Qualification output must remain outside runtime.",
+    );
+  }
+  if (doCanonicalPathsOverlapV01(canonicalCheckout, canonicalOutputPath)) {
+    throw qualificationError(
+      "qualification_output_outside_evidence",
+      "Qualification output must remain outside the canonical checkout.",
+    );
+  }
+  const outputEntryKind = getLexicalPathEntryKindV01(lexicalOutputPath);
+  if (outputEntryKind === "symlink") {
+    throw qualificationError(
+      "qualification_output_symlink",
+      "Qualification output must not be a symlink.",
+    );
+  }
+  if (outputEntryKind !== "missing") {
+    throw qualificationError(
+      "qualification_output_exists",
+      "Qualification output must not already exist.",
+    );
+  }
+
+  let descriptor = null;
+  let created = false;
+  try {
+    mkdirSync(canonicalEvidence, { recursive: true, mode: 0o700 });
+    mkdirSync(canonicalOutputParent, { recursive: true, mode: 0o700 });
+    const actualEvidence = canonicalizeExistingPathV01(canonicalEvidence);
+    const actualOutputParent = canonicalizeExistingPathV01(
+      canonicalOutputParent,
+    );
+    if (
+      actualEvidence !== canonicalEvidence ||
+      !isPathWithinCanonicalRootV01(actualEvidence, actualOutputParent)
+    ) {
+      throw qualificationError(
+        "symlink_escape",
+        "Qualification output parent changed canonical identity.",
+      );
+    }
+    descriptor = openSync(
+      canonicalOutputPath,
+      fsConstants.O_WRONLY |
+        fsConstants.O_CREAT |
+        fsConstants.O_EXCL |
+        (fsConstants.O_NOFOLLOW ?? 0),
+      0o600,
+    );
+    created = true;
+    writeFileSync(descriptor, serializedReceipt, { encoding: "utf8" });
+    closeSync(descriptor);
+    descriptor = null;
+    chmodSync(canonicalOutputPath, 0o600);
+    const actualOutput = canonicalizeExistingPathV01(canonicalOutputPath);
+    if (
+      actualOutput !== canonicalOutputPath ||
+      !isPathStrictlyWithinCanonicalRootV01(actualEvidence, actualOutput) ||
+      !statSync(actualOutput).isFile()
+    ) {
+      throw qualificationError(
+        "symlink_escape",
+        "Created qualification output failed canonical requalification.",
+      );
+    }
+    return {
+      receipt,
+      canonical_output_path: actualOutput,
+    };
+  } catch (error) {
+    if (descriptor !== null) closeSync(descriptor);
+    if (created) {
+      try {
+        unlinkSync(canonicalOutputPath);
+      } catch {
+        // Preserve the original bounded failure after best-effort cleanup.
+      }
+    }
+    if (error?.code === "EEXIST") {
+      throw qualificationError(
+        "qualification_output_exists",
+        "Qualification output appeared before exclusive creation.",
+      );
+    }
+    throw error;
+  }
+}
+
 export async function qualifyLoopbackV01() {
   const server = net.createServer((socket) => socket.destroy());
   let port = null;
@@ -312,7 +462,9 @@ export async function qualifyLoopbackV01() {
       throw new Error("unexpected_loopback_address");
     }
     port = address.port;
-    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
     const refused = await connectionIsRefused(port);
     if (!refused) throw new Error("closed_listener_accepted_connection");
     return { qualified: true };
@@ -321,6 +473,10 @@ export async function qualifyLoopbackV01() {
       await new Promise((resolve) => server.close(() => resolve()));
     }
   }
+}
+
+export function isLoopbackReleaseRefusalV01(error) {
+  return error?.code === "ECONNREFUSED";
 }
 
 function runPathQualification(input, checks) {
@@ -336,6 +492,21 @@ function runPathQualification(input, checks) {
     );
     runtimeRoot = canonicalizeProspectivePathV01(input.runtimeRoot);
     evidenceRoot = canonicalizeProspectivePathV01(input.evidenceRoot);
+    const structuralWorkingDatabase =
+      canonicalizeProspectiveLeafWithoutInspectionV01(input.workingDbPath);
+    if (
+      !isPathWithinCanonicalRootV01(runtimeRoot, structuralWorkingDatabase) ||
+      doCanonicalPathsOverlapV01(
+        canonicalCheckoutRoot,
+        structuralWorkingDatabase,
+      )
+    ) {
+      throw qualificationError(
+        "working_db_path_invalid",
+        "Working database path violates structural isolation.",
+      );
+    }
+    assertWorkingDatabaseLeafIsNotSymlinkV01(input.workingDbPath);
     workingDatabasePath = canonicalizeProspectivePathV01(
       input.workingDbPath,
     );
@@ -357,6 +528,20 @@ function runPathQualification(input, checks) {
     repositoryValid
       ? "Repository root is canonical and contains the expected repository markers."
       : "Repository root is missing expected repository markers.",
+  );
+
+  const executionRepositoryIsolated = !doCanonicalPathsOverlapV01(
+    repositoryRoot,
+    canonicalCheckoutRoot,
+  );
+  addCheck(
+    checks,
+    "execution_repository_checkout_isolation",
+    executionRepositoryIsolated,
+    "execution_repository_checkout_overlap",
+    executionRepositoryIsolated
+      ? "Execution repository and canonical checkout are structurally separate."
+      : "Execution repository overlaps the canonical checkout.",
   );
 
   const checkoutIsolated =
@@ -422,6 +607,7 @@ function runPathQualification(input, checks) {
   try {
     if (
       !checkoutIsolated ||
+      !executionRepositoryIsolated ||
       !rootsIsolated ||
       !rootDerivationQualified ||
       !workingDatabaseValid
@@ -465,7 +651,7 @@ function runPathQualification(input, checks) {
     });
     if (
       escapeResult.status !== "fail" ||
-      escapeResult.reason_code !== "path_scope_escape"
+      escapeResult.reason_code !== "symlink_escape"
     ) {
       throw qualificationError(
         "symlink_escape",
@@ -488,6 +674,7 @@ function runPathQualification(input, checks) {
 
   const qualified = [
     repositoryValid,
+    executionRepositoryIsolated,
     checkoutIsolated,
     rootsIsolated,
     rootDerivationQualified,
@@ -513,6 +700,9 @@ function runDependencyQualification(repoRootInput, checks) {
   const nestedPackage = path.join(nestedRoot, "package.json");
   const nestedLock = path.join(nestedRoot, "package-lock.json");
   const nestedModules = path.join(nestedRoot, "node_modules");
+  const rootTsx = path.join(rootModules, ".bin", "tsx");
+  const rootTsc = path.join(rootModules, ".bin", "tsc");
+  const rootNext = path.join(rootModules, ".bin", "next");
   const nestedTsx = path.join(nestedModules, ".bin", "tsx");
   const nestedTsc = path.join(nestedModules, ".bin", "tsc");
 
@@ -558,36 +748,82 @@ function runDependencyQualification(repoRootInput, checks) {
       : "Nested app dependency boundary is incomplete or symlinked.",
   );
 
-  const tsxProbe = probeNestedExecutable(nestedModules, nestedTsx);
-  const tscProbe = probeNestedExecutable(nestedModules, nestedTsc);
+  const rootTsxProbe = probeDependencyExecutable(rootModules, rootTsx);
+  const rootTscProbe = probeDependencyExecutable(rootModules, rootTsc);
+  const rootNextProbe = probeDependencyExecutable(rootModules, rootNext);
+  const rootNativeDependencyAvailable = probeRootNativeDependency(repositoryRoot);
+  const nestedTsxProbe = probeDependencyExecutable(nestedModules, nestedTsx);
+  const nestedTscProbe = probeDependencyExecutable(nestedModules, nestedTsc);
+  addCheck(
+    checks,
+    "root_tsx",
+    rootTsxProbe,
+    "root_tsx_missing",
+    rootTsxProbe
+      ? "Root tsx is executable and completed a bounded version probe."
+      : "Root tsx is missing, outside root node_modules, or failed its probe.",
+  );
+  addCheck(
+    checks,
+    "root_tsc",
+    rootTscProbe,
+    "root_tsc_missing",
+    rootTscProbe
+      ? "Root tsc is executable and completed a bounded version probe."
+      : "Root tsc is missing, outside root node_modules, or failed its probe.",
+  );
+  addCheck(
+    checks,
+    "root_next",
+    rootNextProbe,
+    "root_next_missing",
+    rootNextProbe
+      ? "Root Next executable completed a bounded version probe."
+      : "Root Next executable is missing or failed its probe.",
+  );
+  addCheck(
+    checks,
+    "root_native_dependency",
+    rootNativeDependencyAvailable,
+    "root_native_dependency_unavailable",
+    rootNativeDependencyAvailable
+      ? "Root better-sqlite3 native dependency is loadable."
+      : "Root better-sqlite3 native dependency is unavailable.",
+  );
   addCheck(
     checks,
     "nested_tsx",
-    tsxProbe,
+    nestedTsxProbe,
     "nested_tsx_missing",
-    tsxProbe
+    nestedTsxProbe
       ? "Nested tsx is executable and completed a bounded version probe."
       : "Nested tsx is missing, outside nested node_modules, or failed its probe.",
   );
   addCheck(
     checks,
     "nested_tsc",
-    tscProbe,
+    nestedTscProbe,
     "nested_tsc_missing",
-    tscProbe
+    nestedTscProbe
       ? "Nested tsc is executable and completed a bounded version probe."
       : "Nested tsc is missing, outside nested node_modules, or failed its probe.",
   );
 
   const applicationCommit = readApplicationCommit(repositoryRoot);
+  const executionRepositoryClean = isExecutionRepositoryClean(repositoryRoot);
   const qualified = [
     rootLockPresent,
     nestedLockPresent,
     rootDependenciesPresent,
     nestedDependenciesPresent,
-    tsxProbe,
-    tscProbe,
+    rootTsxProbe,
+    rootTscProbe,
+    rootNextProbe,
+    rootNativeDependencyAvailable,
+    nestedTsxProbe,
+    nestedTscProbe,
     applicationCommit !== null,
+    executionRepositoryClean,
   ].every(Boolean);
   addCheck(
     checks,
@@ -598,6 +834,15 @@ function runDependencyQualification(repoRootInput, checks) {
       ? "Application commit was resolved from the repository."
       : "Application commit could not be resolved.",
   );
+  addCheck(
+    checks,
+    "execution_repository_clean",
+    executionRepositoryClean,
+    "execution_repository_dirty",
+    executionRepositoryClean
+      ? "Execution repository exactly matches its recorded HEAD."
+      : "Execution repository has tracked or untracked changes.",
+  );
   return {
     qualified,
     applicationCommit,
@@ -606,10 +851,10 @@ function runDependencyQualification(repoRootInput, checks) {
   };
 }
 
-function probeNestedExecutable(nestedModules, executablePath) {
+function probeDependencyExecutable(modulesRoot, executablePath) {
   try {
     accessSync(executablePath, fsConstants.X_OK);
-    const canonicalModules = canonicalizeExistingPathV01(nestedModules);
+    const canonicalModules = canonicalizeExistingPathV01(modulesRoot);
     const canonicalExecutable = canonicalizeExistingPathV01(executablePath);
     if (!isPathWithinCanonicalRootV01(canonicalModules, canonicalExecutable)) {
       return false;
@@ -625,6 +870,35 @@ function probeNestedExecutable(nestedModules, executablePath) {
   } catch {
     return false;
   }
+}
+
+function probeRootNativeDependency(repositoryRoot) {
+  const result = spawnSync(
+    process.execPath,
+    ["-e", "require('better-sqlite3')"],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      timeout: PROBE_TIMEOUT_MS,
+      maxBuffer: MAX_PROBE_OUTPUT_BYTES,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  return !result.error && result.status === 0 && !result.signal;
+}
+
+function isExecutionRepositoryClean(repositoryRoot) {
+  const result = spawnSync(
+    "git",
+    ["-C", repositoryRoot, "status", "--porcelain", "--untracked-files=all"],
+    {
+      encoding: "utf8",
+      timeout: PROBE_TIMEOUT_MS,
+      maxBuffer: MAX_PROBE_OUTPUT_BYTES,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  return !result.error && result.status === 0 && result.stdout === "";
 }
 
 function readApplicationCommit(repositoryRoot) {
@@ -652,12 +926,41 @@ function connectionIsRefused(port) {
       socket.destroy();
       resolve(false);
     });
-    socket.once("error", () => {
+    socket.once("error", (error) => {
       clearTimeout(timeout);
       socket.destroy();
-      resolve(true);
+      resolve(isLoopbackReleaseRefusalV01(error));
     });
   });
+}
+
+function assertWorkingDatabaseLeafIsNotSymlinkV01(workingDbPath) {
+  const lexicalWorkingDatabase = validateAbsolutePathInputV01(workingDbPath);
+  if (getLexicalPathEntryKindV01(lexicalWorkingDatabase) !== "symlink") return;
+  try {
+    realpathSync.native(lexicalWorkingDatabase);
+  } catch {
+    throw qualificationError(
+      "dangling_symlink",
+      "Working database path is a dangling symlink.",
+    );
+  }
+  throw qualificationError(
+    "symlink_escape",
+    "Working database path must not already be a symlink.",
+  );
+}
+
+function canonicalizeProspectiveLeafWithoutInspectionV01(pathValue) {
+  const lexicalPath = validateAbsolutePathInputV01(pathValue);
+  const canonicalParent = canonicalizeProspectivePathV01(
+    path.dirname(lexicalPath),
+  );
+  return path.join(canonicalParent, path.basename(lexicalPath));
+}
+
+function isPathStrictlyWithinCanonicalRootV01(root, candidate) {
+  return root !== candidate && isPathWithinCanonicalRootV01(root, candidate);
 }
 
 function addCheck(checks, checkId, passed, reasonCode, publicSummary) {
