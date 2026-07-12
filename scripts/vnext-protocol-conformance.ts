@@ -26,6 +26,13 @@ import {
   validateExternalRefV01,
   validateTaskContextPacketV01,
 } from "@/lib/vnext/task-context-packet";
+import {
+  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+  buildTaskContextPacketHandoffHrefV01,
+  decodeTaskContextPacketHandoffSlugV01,
+  encodeTaskContextPacketHandoffSlugV01,
+  isTaskContextPacketIdV01,
+} from "@/lib/vnext/task-context-packet-handoff";
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { runCodexResultReportRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-result-report-run-receipt";
@@ -42,8 +49,11 @@ import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protoco
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
 const coreSourcePath = "lib/vnext/task-context-packet.ts";
+const taskContextHandoffSourcePath =
+  "lib/vnext/task-context-packet-handoff.ts";
 const sourcePaths = [
   coreSourcePath,
+  taskContextHandoffSourcePath,
   legacyAdapterSourcePath,
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
@@ -353,6 +363,57 @@ try {
     "sha256:6d7012c869acf8e53bdb02d951f21a5ac9f4f99705ebd6a71f8c655511ad544f",
     "shared primitive extraction must preserve the fixed TaskContextPacket fingerprint",
   );
+  assert.equal(isTaskContextPacketIdV01(genericPacket.packet_id), true);
+  assert.equal(
+    genericPacket.packet_id.slice("task-context-packet:".length).length,
+    TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+  );
+  const canonicalPacketSlug = encodeTaskContextPacketHandoffSlugV01(
+    genericPacket.packet_id,
+  );
+  assert(canonicalPacketSlug);
+  assert.equal(
+    decodeTaskContextPacketHandoffSlugV01(canonicalPacketSlug),
+    genericPacket.packet_id,
+  );
+  assert.equal(
+    buildTaskContextPacketHandoffHrefV01({
+      packet_id: genericPacket.packet_id,
+      packet_fingerprint: genericPacket.integrity.fingerprint,
+    }),
+    `/workbench/semantic-review/packet-handoff/${canonicalPacketSlug}?packet_fingerprint=${encodeURIComponent(
+      genericPacket.integrity.fingerprint,
+    )}`,
+  );
+  for (const malformedPacketId of [
+    `task-context-packet:${"a".repeat(22)}`,
+    `task-context-packet:${"a".repeat(24)}`,
+    `task-context-packet:${"a".repeat(25)}`,
+    `task-context-packet:${"A".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
+    `wrong-prefix:${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
+  ]) {
+    assert.equal(isTaskContextPacketIdV01(malformedPacketId), false);
+    assert.equal(encodeTaskContextPacketHandoffSlugV01(malformedPacketId), null);
+  }
+  for (const malformedPacketSlug of [
+    genericPacket.packet_id,
+    `task-context-packet~${"a".repeat(22)}`,
+    `task-context-packet~${"a".repeat(24)}`,
+    `task-context-packet~${"a".repeat(25)}`,
+    `task-context-packet~${"A".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
+    `wrong-prefix~${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
+    `task-context-packet~~${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
+    `task-context-packet~${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}-extra`,
+  ]) {
+    assert.equal(decodeTaskContextPacketHandoffSlugV01(malformedPacketSlug), null);
+  }
+  assert.equal(
+    buildTaskContextPacketHandoffHrefV01({
+      packet_id: genericPacket.packet_id,
+      packet_fingerprint: `sha256:${"A".repeat(64)}`,
+    }),
+    null,
+  );
 
   const sourceAxisCases = [
     { coverage: "complete", currentness: "fresh" },
@@ -590,6 +651,10 @@ try {
     deterministic_packet_and_fingerprint: true,
     fixed_regression_packet_id: genericPacket.packet_id,
     fixed_regression_fingerprint: genericPacket.integrity.fingerprint,
+    canonical_packet_id_suffix_length:
+      TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+    canonical_packet_handoff_identity_checked: true,
+    malformed_packet_handoff_id_and_slug_cases_checked: 13,
     independent_fingerprint_scope_checked: true,
     cross_provider_external_ref_identity_checked: true,
     mixed_offset_currentness_checked: true,

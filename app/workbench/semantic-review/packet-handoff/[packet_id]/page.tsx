@@ -1,4 +1,5 @@
 import { PacketHandoffSurface } from "@/components/workbench/semantic-review/packet-handoff-surface";
+import { decodeTaskContextPacketHandoffSlugV01 } from "@/lib/vnext/task-context-packet-handoff";
 import { notFound } from "next/navigation";
 
 export const runtime = "nodejs";
@@ -22,10 +23,8 @@ export default async function PacketHandoffPage({
     params,
     searchParams,
   ]);
-  if (!/^task-context-packet~[a-f0-9]{24}$/.test(packetSlug)) {
-    notFound();
-  }
-  const packetId = packetSlug.replace("~", ":");
+  const packetId = decodeTaskContextPacketHandoffSlugV01(packetSlug);
+  if (!packetId) notFound();
   const packetFingerprint =
     typeof query.packet_fingerprint === "string"
       ? query.packet_fingerprint

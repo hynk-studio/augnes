@@ -865,7 +865,8 @@
     "test:vnext-protocol": "tsx --tsconfig tsconfig.json scripts/vnext-protocol-conformance.ts",
     "smoke:vnext-durable-semantic-loop-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-vnext-durable-semantic-loop-v0-1.ts",
     "vnext:operator-pilot": "tsx --tsconfig tsconfig.json scripts/vnext-operator-pilot.ts",
-    "smoke:vnext-operator-pilot-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-vnext-operator-pilot-v0-1.ts"
+    "smoke:vnext-operator-pilot-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-vnext-operator-pilot-v0-1.ts",
+    "browser:vnext-task-context-packet-handoff-v0-1": "tsx --tsconfig tsconfig.json scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

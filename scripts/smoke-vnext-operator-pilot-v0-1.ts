@@ -5,11 +5,14 @@ import { createHash } from "node:crypto";
 import { createServer, request as requestHttp } from "node:http";
 import { createRequire } from "node:module";
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -39,6 +42,13 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
+import {
+  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+  buildTaskContextPacketHandoffHrefV01,
+  decodeTaskContextPacketHandoffSlugV01,
+  encodeTaskContextPacketHandoffSlugV01,
+  isTaskContextPacketIdV01,
+} from "../lib/vnext/task-context-packet-handoff";
 import {
   recordVNextSemanticCommitAuthorizationInsideTransactionV01,
   type VNextSemanticCommitGateRecordV01,
@@ -345,6 +355,9 @@ try {
   assert.deepEqual(snapshotLegacyRows(canonicalDbPath), legacyBefore);
   pass("full_loop_does_not_mutate_legacy_proof_evidence_or_work_rows");
 
+  const browserFixtureExport =
+    await exportOperatorPilotBrowserFixtureV01(fullLoop);
+
   assertM3DBackupRestore(canonicalDbPath);
 
   assertNoPlaintextCredentialPersistence(canonicalDbPath);
@@ -380,6 +393,8 @@ try {
     real_operator_decision_created: false,
     full_loop_fixture_only: true,
     full_loop_anchors: fullLoop.anchors,
+    generated_packet_handoff_href: fullLoop.handoffHref,
+    browser_fixture_export: browserFixtureExport,
     loopback_http_request_count: fullLoop.loopbackHttpRequestCount,
     backup_restore: "exact_m3d_records_and_integrity_preserved",
     enrolled_project_core_record_count: fullLoop.coreRecordCount,
@@ -460,6 +475,7 @@ async function assertFullOperatorLoop(input: {
   sessionHandlers: ReturnType<typeof createVNextLocalOperatorSessionHandlersV01>;
 }): Promise<{
   anchors: Record<string, string>;
+  handoffHref: string;
   coreRecordCount: number;
   loopbackHttpRequestCount: number;
 }> {
@@ -1070,6 +1086,31 @@ async function assertFullOperatorLoop(input: {
     (entry) => entry.entry_kind === "accepted_state_ref",
   );
   assert(accepted?.external_ref && accepted.source_ref);
+  assert.equal(isTaskContextPacketIdV01(laterPacket.packet_id), true);
+  assert.equal(
+    laterPacket.packet_id.slice("task-context-packet:".length).length,
+    TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+  );
+  const laterPacketSlug = encodeTaskContextPacketHandoffSlugV01(
+    laterPacket.packet_id,
+  );
+  assert(laterPacketSlug);
+  assert.equal(
+    decodeTaskContextPacketHandoffSlugV01(laterPacketSlug),
+    laterPacket.packet_id,
+  );
+  const laterPacketHandoffHref = buildTaskContextPacketHandoffHrefV01({
+    packet_id: laterPacket.packet_id,
+    packet_fingerprint: laterPacket.integrity.fingerprint,
+  });
+  assert.equal(
+    laterPacketHandoffHref,
+    `/workbench/semantic-review/packet-handoff/${laterPacketSlug}?packet_fingerprint=${encodeURIComponent(
+      laterPacket.integrity.fingerprint,
+    )}`,
+  );
+  pass("compiled_packet_uses_canonical_handoff_identity");
+  pass("compiled_packet_generates_exact_project_home_handoff_href");
   pass("later_packet_compilation_is_explicit");
 
   input.clock.set("2026-07-11T09:21:00.000Z");
@@ -1101,6 +1142,21 @@ async function assertFullOperatorLoop(input: {
   assert.equal(handoffBody.handoff_is_execution, false);
   assertPublicResponseHasNoCredentials(handoffBody);
   pass("bounded_packet_handoff_read");
+  await expectRouteError(
+    await handoffHandler(
+      routeRequest("/api/vnext/operator/packet-handoff", {
+        method: "GET",
+        jar,
+        query: {
+          packet_id: laterPacket.packet_id,
+          packet_fingerprint: `sha256:${"f".repeat(64)}`,
+        },
+      }),
+    ),
+    409,
+    "operator_pilot_packet_fingerprint_mismatch",
+    "packet_handoff_wrong_fingerprint_rejected",
+  );
 
   const resultReport = {
     input_version: "codex_result_report_input.v0.1",
@@ -1296,10 +1352,18 @@ async function assertFullOperatorLoop(input: {
   assert.equal(continuityResponse.status, 200);
   assert.equal(continuityBody.status, "project_continuity");
   const continuity = continuityBody.continuity as {
-    latest_compiled_packet: { packet_id: string } | null;
+    latest_compiled_packet: {
+      packet_id: string;
+      packet_fingerprint: string;
+    } | null;
     latest_context_use_review_status: { review_id: string } | null;
   };
   assert.equal(continuity.latest_compiled_packet?.packet_id, laterPacket.packet_id);
+  assert.equal(
+    continuity.latest_compiled_packet &&
+      buildTaskContextPacketHandoffHrefV01(continuity.latest_compiled_packet),
+    laterPacketHandoffHref,
+  );
   assert.equal(
     continuity.latest_context_use_review_status?.review_id,
     contextReview.review_id,
@@ -1314,6 +1378,10 @@ async function assertFullOperatorLoop(input: {
     environment: foreignEnvironment,
     clock: input.clock,
   });
+  const foreignHandoffHandler = createVNextOperatorPacketHandoffHandlerV01({
+    environment: foreignEnvironment,
+    clock: input.clock,
+  });
   await expectRouteError(
     await foreignReviewHandlers.GET(
       routeRequest("/api/vnext/operator/semantic-review", {
@@ -1325,6 +1393,21 @@ async function assertFullOperatorLoop(input: {
     403,
     "operator_session_scope_mismatch",
     "foreign_project_full_loop_route_rejected",
+  );
+  await expectRouteError(
+    await foreignHandoffHandler(
+      routeRequest("/api/vnext/operator/packet-handoff", {
+        method: "GET",
+        jar,
+        query: {
+          packet_id: laterPacket.packet_id,
+          packet_fingerprint: laterPacket.integrity.fingerprint,
+        },
+      }),
+    ),
+    403,
+    "operator_session_scope_mismatch",
+    "foreign_project_packet_handoff_rejected",
   );
   assert.equal(
     countProjectRows(
@@ -1406,6 +1489,7 @@ async function assertFullOperatorLoop(input: {
   assertOperatorLoopbackRouteCoverage(loopback.requests);
   return {
     anchors: anchoredLoop,
+    handoffHref: laterPacketHandoffHref!,
     coreRecordCount: coreRecordCount(canonicalDbPath),
     loopbackHttpRequestCount: loopback.requests.length,
   };
@@ -3619,6 +3703,27 @@ function assertStaticBrowserSafetyMarkers(): void {
     path.join(directory, "context-use-review-panel.tsx"),
     "utf8",
   );
+  const packetPage = readFileSync(
+    path.join(
+      process.cwd(),
+      "app",
+      "workbench",
+      "semantic-review",
+      "packet-handoff",
+      "[packet_id]",
+      "page.tsx",
+    ),
+    "utf8",
+  );
+  const continuityCard = readFileSync(
+    path.join(
+      process.cwd(),
+      "components",
+      "human-surface",
+      "vnext-project-continuity-card.tsx",
+    ),
+    "utf8",
+  );
   for (const marker of [
     "event.preventDefault();",
     'setBootstrapToken("");',
@@ -3644,6 +3749,21 @@ function assertStaticBrowserSafetyMarkers(): void {
     proposalDetail.includes("generic history · not pilot actionable"),
   );
   pass("api_and_ui_share_session_bound_decision_actionability_policy");
+  assert(
+    packetPage.includes("decodeTaskContextPacketHandoffSlugV01(packetSlug)"),
+  );
+  assert(
+    continuityCard.includes("buildTaskContextPacketHandoffHrefV01(packet)"),
+  );
+  assert.equal(
+    packetPage.includes("task-context-packet~[a-f0-9]{24}"),
+    false,
+  );
+  assert.equal(
+    continuityCard.includes("task-context-packet:[a-f0-9]{24}"),
+    false,
+  );
+  pass("page_and_project_home_share_canonical_packet_handoff_identity");
   const combined = [
     session,
     transition,
@@ -3661,6 +3781,65 @@ function assertStaticBrowserSafetyMarkers(): void {
     "action_nonce_hash",
   ]) assert.equal(combined.includes(forbidden), false);
   pass("static_refresh_resubmit_and_credential_safety_markers_present");
+}
+
+async function exportOperatorPilotBrowserFixtureV01(input: {
+  anchors: Record<string, string>;
+  handoffHref: string;
+}): Promise<{ exported: false } | { exported: true; manifest_path: string }> {
+  const requestedDirectory =
+    process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR?.trim();
+  if (!requestedDirectory) return { exported: false };
+  assert.equal(path.isAbsolute(requestedDirectory), true);
+  const directory = path.resolve(requestedDirectory);
+  const relativeToOsTemp = path.relative(path.resolve(tmpdir()), directory);
+  assert(
+    relativeToOsTemp.length > 0 &&
+      !relativeToOsTemp.startsWith(`..${path.sep}`) &&
+      relativeToOsTemp !== ".." &&
+      !path.isAbsolute(relativeToOsTemp),
+    "browser fixture export must stay inside the OS temporary directory",
+  );
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const databasePath = path.join(directory, "operator-pilot.db");
+  const manifestPath = path.join(directory, "operator-pilot-browser-fixture.json");
+  assert.equal(existsSync(databasePath), false);
+  assert.equal(existsSync(manifestPath), false);
+  const source = new Database(canonicalDbPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    await source.backup(databasePath);
+  } finally {
+    source.close();
+  }
+  chmodSync(databasePath, 0o600);
+  writeFileSync(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        fixture_version: "vnext_operator_pilot_browser_fixture.v0.1",
+        workspace_id: "workspace:operator-pilot-smoke",
+        project_id: "project:operator-pilot-smoke",
+        operator_id: "operator:operator-pilot-smoke",
+        packet_id: input.anchors.later_packet_id,
+        packet_fingerprint: input.anchors.later_packet_fingerprint,
+        transition_receipt_id: input.anchors.transition_receipt_id,
+        transition_receipt_fingerprint:
+          input.anchors.transition_receipt_fingerprint,
+        handoff_href: input.handoffHref,
+        database_file: path.basename(databasePath),
+        credential_material_included: false,
+        external_identity_authenticated: false,
+        semantic_authority_granted: false,
+      },
+      null,
+      2,
+    )}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+  return { exported: true, manifest_path: manifestPath };
 }
 
 function assertIntegrity(databasePath: string): void {
