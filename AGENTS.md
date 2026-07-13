@@ -11,9 +11,9 @@ Advance this flow:
 ```text
 Start Augnes
 → select a project
-→ start a task
+→ start or accept a task
 → compile project context
-→ run the native host / Codex
+→ run the native host / Codex interactively or through bounded automation
 → return a structured result
 → review the result
 → approve any durable semantic change
@@ -34,8 +34,12 @@ Older plans, handoff documents, dogfood reports, closeout records, and runbooks 
 
 - Prefer a working vertical slice over planning, preview, boundary, or smoke-only work.
 - Each PR should move the active product path forward or remove verified obsolete residue.
-- Do not add a new planning-only document, workflow-stage table, passive panel, manual copy/paste flow, custom scheduler, or feature-specific package smoke command by default.
-- Reuse native host task, terminal, browser, diff, PR, and worktree UX instead of rebuilding them in Augnes.
+- Treat the minimal Automation Spine as a cross-cutting core capability across R2–R8: policy evaluation, bounded grants, run lifecycle, timeout/cancel/stop conditions, receipts, reconciliation, and user-visible pause/retry state.
+- Do not defer automation architecture until after the manual path. Interactive and policy-triggered runs should converge on the same Core contracts and receipts.
+- Defer only advanced automation: generic scheduler replication, broad hunt heuristics, unrestricted retry, self-modification, automatic semantic commit, and automation-specific product sprawl.
+- Personal Perspective may advance as a bounded parallel lane when it reuses existing candidate, review, scoped state, context-selection, receipt, and feedback contracts. Do not create a separate Personal Perspective substrate or make it a blocker for the mainline path.
+- Do not add a new planning-only document, workflow-stage table, passive panel, manual copy/paste flow, native execution replica, or feature-specific package smoke command by default.
+- Reuse native host task, terminal, browser, diff, PR, worktree, and scheduler UX instead of rebuilding them in Augnes.
 - Keep provider-neutral Core semantics; provider-specific behavior belongs in adapters.
 - Preserve current user data, migration history, recovery paths, and working runtime behavior unless the task explicitly replaces them.
 - When replacing compatibility behavior, remove the old path in the same PR after the replacement is tested.
@@ -45,6 +49,7 @@ Older plans, handoff documents, dogfood reports, closeout records, and runbooks 
 - Never merge a PR or enable auto-merge.
 - Never fabricate tests, evidence, IDs, host observations, state changes, or PR URLs.
 - Durable semantic changes and irreversible external actions require explicit user authority.
+- Bounded automation may select work, start hosts, run tests, ingest results, and create proposals within an approved policy/grant; it must not silently expand its own authority.
 - Keep model/provider egress bounded and explicit.
 - Preserve project isolation, idempotency, replay refusal, credential safety, migration safety, backup, and restore behavior.
 - Do not turn internal nonce, fingerprint, TTL, DB path, checksum, or process-management details into normal user tasks.
@@ -58,9 +63,10 @@ For ordinary PRs:
 - run `npm run build` when routes, runtime composition, or packaging are affected
 - use disposable databases for destructive or migration tests
 - use automated browser/CDP checks for affected user flows when practical
+- cover both interactive and policy-triggered paths when changing shared run lifecycle behavior
 - report exact commands, results, and concrete skipped reasons
 
-Long manual operator pilots, real-project usefulness evaluation, and extended qualification are Alpha/RC activities, not default merge gates for R2–R8.
+Long manual operator pilots, broad real-project usefulness evaluation, and extended qualification are Alpha/RC activities, not default merge gates for R2–R8. Bounded automation and Personal Perspective paths still require focused behavior tests as they are implemented.
 
 ## Pull requests
 
