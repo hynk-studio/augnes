@@ -29,7 +29,8 @@ The roadmap is provider-neutral at the Core and uses OpenAI/Codex as the default
 7. Interactive and policy-triggered runs use the same Core contracts, lifecycle, receipts, and review path.
 8. Build the minimal Automation Spine during R2–R8; defer only advanced autonomy and product sprawl.
 9. Personal Perspective may progress as a bounded parallel lane when it reuses the existing Core loop and does not block mainline feature completion.
-10. Delete obsolete residue after reference audit. Git history is the archive.
+10. Preserve the semantic separation between Evidence, Claim, accepted state, reviewed memory, Perspective, projection, ReviewDecision, and transition. `TaskContextPacket` is selected working context, not project truth; automation may create runs and proposals but does not collapse semantic layers or gain semantic authority.
+11. Delete obsolete residue after reference audit. Git history is the archive.
 
 ## Immediate freeze
 
@@ -93,6 +94,7 @@ Completion:
 - M3D manual pilot is not a normal R2–R8 merge gate
 - long manual qualification is moved to Alpha/RC
 - normal user effort is treated as a product constraint
+- Core semantic layers remain distinct in the active implementation roadmap
 
 ### R2 — Zero-config Runtime Spine
 
@@ -208,6 +210,14 @@ RunReceipt
 → changed later TaskContextPacket
 ```
 
+Semantic preservation:
+
+- Evidence remains source-linked support, not accepted project state
+- Claims remain revisable and distinguishable from state
+- accepted state, reviewed memory, and Perspective retain separate lifecycles
+- projections and `TaskContextPacket` remain derived views, not authority
+- `ReviewDecision` and durable transition remain distinct
+
 Automation contribution:
 
 - one real bounded policy-triggered work loop
@@ -226,6 +236,7 @@ Completion:
 - one bounded Autohunt path starts, observes, returns, and stops through the shared Core loop
 - decision and transition remain distinct
 - project isolation, idempotency, replay refusal, stale-state refusal, and lineage are preserved
+- semantic layers remain source-linked and are not collapsed into a single generic state record
 - usefulness is not yet a merge gate
 
 ### R7 — Semantic Workbench and Inspector Consolidation
@@ -244,7 +255,7 @@ Completion:
 - Project Home, Workbench, and Inspector have distinct roles
 - automation state is understandable without exposing internal IDs or protocol mechanics
 
-### R8 — Packaging, Update, Backup, Restore, Recovery, and Run Reconciliation
+### R8 — Packaging, Update, Portable Export, Backup, Restore, Recovery, and Run Reconciliation
 
 Scope:
 
@@ -253,14 +264,37 @@ Scope:
 - transactional migration
 - integrity checks
 - restore and crash recovery
+- provider-neutral portable project export
+- explicit separation between portable export and full-fidelity recovery backup
+- project-scoped export validation and redaction
 - public-safe diagnostics
 - restart-time reconciliation for active, completed, failed, cancelled, and orphaned runs
 - exact replay handling for returned receipts
 
+Portable export:
+
+```text
+redacted
+provider-neutral
+movable or shareable
+reconstructable continuity and lineage
+```
+
+Recovery backup:
+
+```text
+full-fidelity
+local-only
+restore-oriented
+not a portable sharing format
+```
+
 Completion:
 
-- ordinary users do not run migration, checksum, restore, or run-repair shell commands
+- ordinary users do not run migration, checksum, restore, export-repair, or run-repair shell commands
 - failed upgrades preserve recoverable data
+- portable export and recovery backup have separate contracts and validation
+- project export does not leak data from another project
 - restart does not duplicate or silently lose an automated run
 
 ## Alpha and post-Alpha validation
@@ -277,7 +311,7 @@ The user should perform product work, not a long operator runbook.
 
 ### Release candidate
 
-Validate real provider/host round trips, bounded automation, pause/cancel/reconciliation, backup/restore, secret handling, durable transitions, and recovery using a bounded qualification flow.
+Validate real provider/host round trips, bounded automation, pause/cancel/reconciliation, portable export, backup/restore, secret handling, durable transitions, and recovery using a bounded qualification flow.
 
 ### Post-Alpha usefulness
 
@@ -307,6 +341,8 @@ Classify repository paths using `docs/REPOSITORY_REDUCTION_SCOPE.md`.
 
 - preserve or absorb Autohunt primitives that map to policy, grants, runs, receipts, stop conditions, and reconciliation
 - preserve or absorb Personal Perspective primitives that reuse review, scoped state, context selection, lineage, and feedback
+- preserve semantic-layer contracts and source/decision lineage used by Evidence, Claim, accepted state, reviewed memory, Perspective, projection, ReviewDecision, and transition
+- preserve portable-export foundations separately from recovery-backup foundations
 - delete separate preview-only, scheduler-replica, duplicated-contract, historical docs, reports, and one-off verification scaffolding after reference audit
 - absorb high-value behavior into canonical test suites
 - remove live compatibility only with a tested replacement
@@ -319,6 +355,7 @@ Every PR should answer:
 
 - what step of the active flow now works better
 - what interactive, automated, or Personal Perspective path it affects
+- what semantic layer it reads or changes and whether authority is preserved
 - what user effort was removed or what real invariant was preserved
 - what focused tests ran
 - what compatibility was removed or remains
