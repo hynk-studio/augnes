@@ -230,6 +230,7 @@ async function validateRouteFailClosedBeforeDatabaseOpen(): Promise<void> {
 function validateDurableTimingIntegration(): void {
   const defaults = readVNextOperatorPilotReviewWindowConfigV01({});
   const extended = explicitConfig("7200000", "3600000");
+  const maximum = explicitConfig("7200000", "7200000");
   const changedGate = explicitConfig("7200000", "3600001");
   const changedPreview = explicitConfig("7200001", "3600000");
 
@@ -294,12 +295,13 @@ function validateDurableTimingIntegration(): void {
     pass("confirmation_digest_changes_with_preview_age");
 
     const beforePreviewCount = coreCount(db);
-    preparePreview(
+    const maximumPreview = preparePreview(
       db,
       fixture,
-      extended,
+      maximum,
       "2026-07-10T13:16:00.000Z",
     );
+    assert.equal(maximumPreview.gate_ttl_ms, 7_200_000);
     assert.equal(coreCount(db), beforePreviewCount);
     pass("preview_writes_zero_database_rows");
   });
@@ -420,14 +422,14 @@ function validateDurableTimingIntegration(): void {
     const preview = preparePreview(
       db,
       fixture,
-      extended,
+      maximum,
       "2026-07-10T13:16:00.000Z",
     );
     const gate = recordGate(
       db,
       fixture,
       preview,
-      extended,
+      maximum,
       "2026-07-10T14:00:00.000Z",
     );
     assert.throws(
@@ -441,8 +443,8 @@ function validateDurableTimingIntegration(): void {
           decision_fingerprint: fixture.decision.integrity.fingerprint,
           gate_record_id: gate.gate_record_id,
           gate_record_fingerprint: gate.integrity.fingerprint,
-          preview_max_age_ms: extended.preview_max_age_ms,
-          clock: sequenceClock(["2026-07-10T15:00:00.001Z"]),
+          preview_max_age_ms: maximum.preview_max_age_ms,
+          clock: sequenceClock(["2026-07-10T16:00:00.001Z"]),
         }),
       /semantic_commit_gate_expired/,
     );

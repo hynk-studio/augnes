@@ -85,7 +85,9 @@ export const VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01 =
   "semantic_commit_confirmation_context" as const;
 export const VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01 =
   "augnes.vnext.semantic-commit-confirmation-context.v0.1" as const;
-export const VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01 = 2 * 60 * 60 * 1000;
+export const VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01 = 60 * 60 * 1000;
+export const VNEXT_SEMANTIC_COMMIT_GATE_MAX_CONFIGURABLE_TTL_MS_V01 =
+  2 * 60 * 60 * 1000;
 export const VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01 = 15 * 60 * 1000;
 export const VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_CONFIGURABLE_AGE_MS_V01 =
   8 * 60 * 60 * 1000;
@@ -375,11 +377,14 @@ export function prepareVNextSemanticCommitPreviewV01(
   const authorizedApplierIdentity = normalizeLocalRuntimeActorIdentity(
     input.authorized_applier_identity,
   );
-  const gateTtlMs = normalizeGateTtlMs(input.gate_ttl_ms);
   const confirmationContextFingerprint =
     normalizeOptionalConfirmationContextFingerprint(
       input.confirmation_context_fingerprint,
     );
+  const gateTtlMs = normalizeGateTtlMs(
+    input.gate_ttl_ms,
+    gateTtlMaximumForConfirmationContext(confirmationContextFingerprint),
+  );
   const currentStateObservedAt = readVNextLocalRuntimeClockNowV01(
     input.clock,
     "current_state_observed_at",
@@ -544,11 +549,17 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
     input.clock,
     "eligibility_evaluated_at",
   );
-  const gateTtlMs = normalizeGateTtlMs(input.preview.gate_ttl_ms);
   const confirmationContextFingerprint =
     normalizeOptionalConfirmationContextFingerprint(
       input.confirmation_context_fingerprint,
     );
+  const gateTtlMaximum = gateTtlMaximumForConfirmationContext(
+    confirmationContextFingerprint,
+  );
+  const gateTtlMs = normalizeGateTtlMs(
+    input.preview.gate_ttl_ms,
+    gateTtlMaximum,
+  );
   const previewMaxAgeMs = normalizePreviewMaxAgeMs(
     input.preview_max_age_ms,
   );
@@ -560,6 +571,7 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
     gateEvaluatedAt,
     gateTtlMs,
     "gate_expires_at",
+    gateTtlMaximum,
   );
   const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
       db,
@@ -2676,8 +2688,13 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
   const authorizedApplierIdentity = localRuntimeActorIdentityFromRef(
     gate.semantic_commit_gate_evaluation.authorized_applier_ref,
   );
+  const confirmationContextFingerprint =
+    confirmationContextFingerprintFromBasis(
+      gate.operator_confirmation_basis_refs,
+    );
   const gateTtlMs = gateTtlFromEvaluation(
     gate.semantic_commit_gate_evaluation,
+    gateTtlMaximumForConfirmationContext(confirmationContextFingerprint),
   );
   const material = {
     preview_version: VNEXT_SEMANTIC_COMMIT_PREVIEW_VERSION_V01,
@@ -2710,10 +2727,6 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
         fingerprint: item.integrity.fingerprint,
       })),
   };
-  const confirmationContextFingerprint =
-    confirmationContextFingerprintFromBasis(
-      gate.operator_confirmation_basis_refs,
-    );
   return {
     ...material,
     confirmation_digest: createSemanticCommitConfirmationDigest(
@@ -3188,15 +3201,29 @@ function localRuntimeActorIdentityFromRef(
   });
 }
 
-function normalizeGateTtlMs(value: unknown): number {
+function normalizeGateTtlMs(
+  value: unknown,
+  maximum: number = VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
+): number {
   if (
+    !Number.isSafeInteger(maximum) ||
+    maximum < VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01 ||
+    maximum > VNEXT_SEMANTIC_COMMIT_GATE_MAX_CONFIGURABLE_TTL_MS_V01 ||
     !Number.isSafeInteger(value) ||
     Number(value) < 1 ||
-    Number(value) > VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01
+    Number(value) > maximum
   ) {
     throw new Error("semantic_commit_gate_ttl_invalid");
   }
   return Number(value);
+}
+
+function gateTtlMaximumForConfirmationContext(
+  confirmationContextFingerprint: string | undefined,
+): number {
+  return confirmationContextFingerprint === undefined
+    ? VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01
+    : VNEXT_SEMANTIC_COMMIT_GATE_MAX_CONFIGURABLE_TTL_MS_V01;
 }
 
 function normalizePreviewMaxAgeMs(value: unknown): number {
@@ -3271,23 +3298,27 @@ function assertConfirmationContextBasis(
 
 function gateTtlFromEvaluation(
   gate: StateTransitionSemanticCommitGateEvaluationV01,
+  maximum: number = VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
 ): number {
   const evaluatedAt = parseStrictIsoTimestampV01(gate.evaluated_at);
   const expiresAt = parseStrictIsoTimestampV01(gate.expires_at);
   if (evaluatedAt === null || expiresAt === null) {
     throw new Error("semantic_commit_gate_ttl_invalid");
   }
-  return normalizeGateTtlMs(expiresAt - evaluatedAt);
+  return normalizeGateTtlMs(expiresAt - evaluatedAt, maximum);
 }
 
 function addMillisecondsToTimestamp(
   value: string,
   milliseconds: number,
   field: string,
+  maximum: number = VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
 ): string {
   const parsed = parseStrictIsoTimestampV01(value);
   if (parsed === null) throw new Error(`${field}_invalid`);
-  return new Date(parsed + normalizeGateTtlMs(milliseconds)).toISOString();
+  return new Date(
+    parsed + normalizeGateTtlMs(milliseconds, maximum),
+  ).toISOString();
 }
 
 function createRuntimeConfirmationRef(
@@ -3317,7 +3348,10 @@ function createRuntimeAuthorizedApplierRef(
       decision_fingerprint: preview.decision_fingerprint,
       confirmation_digest: preview.confirmation_digest,
       authorized_applier_identity: identity,
-      gate_ttl_ms: normalizeGateTtlMs(preview.gate_ttl_ms),
+      gate_ttl_ms: normalizeGateTtlMs(
+        preview.gate_ttl_ms,
+        VNEXT_SEMANTIC_COMMIT_GATE_MAX_CONFIGURABLE_TTL_MS_V01,
+      ),
     }),
   );
   return localRef(
