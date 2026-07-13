@@ -69,7 +69,12 @@ export interface SemanticTransitionPreviewRouteResponseV01 {
     accept_create_only: true;
     current_state_required: "absent";
     authorized_applier_derived_by_server: true;
+    review_window_config_version: "vnext_operator_pilot_review_window_config.v0.1";
+    preview_max_age_ms: number;
+    preview_source: "default" | "explicit_environment";
     gate_ttl_ms: number;
+    gate_source: "default" | "explicit_environment";
+    preview_binding_expires_at: string;
   };
   preview_is_write: false;
 }

@@ -124,6 +124,8 @@ export AUGNES_VNEXT_PILOT_BACKUP="<ABSOLUTE_BACKUP_PATH>"
 export AUGNES_VNEXT_OPERATOR_WORKSPACE_ID="<WORKSPACE_ID>"
 export AUGNES_VNEXT_OPERATOR_PROJECT_ID="<PROJECT_ID>"
 export AUGNES_VNEXT_OPERATOR_ID="<OPAQUE_LOCAL_OPERATOR_ID>"
+export AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS=7200000
+export AUGNES_VNEXT_OPERATOR_GATE_TTL_MS=3600000
 ```
 
 확인한다.
@@ -131,6 +133,8 @@ export AUGNES_VNEXT_OPERATOR_ID="<OPAQUE_LOCAL_OPERATOR_ID>"
 - `AUGNES_DB_PATH`는 absolute local file path다.
 - Default path를 우연히 선택하지 않았다.
 - Workspace/project/operator scope가 이번 pilot 하나와 exact하게 맞다.
+- Asynchronous human review를 위해 선택한 preview/gate 값이 각각 2시간/1시간이며
+  `docs/vnext/VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_V0_1.md`의 bound를 만족한다.
 - 대상 candidate는 one target이고 current semantic state가 absent다.
 - Replace, supersede, retract와 multi-target pilot이 아니다.
 
@@ -207,6 +211,8 @@ Bootstrap token은 한 번만 표시된다. Token을 local loopback POST form에
 거부되고 HttpOnly SameSite=Strict session cookie가 발급되는지 확인한다.
 
 Local runtime은 같은 explicit environment로 loopback에만 실행한다.
+Review-window 변수도 반드시 이 local runtime이 상속하는 environment에 있어야 한다. Runtime 시작 뒤
+값을 바꾸면 기존 preview binding 또는 gate가 새 configuration과 일치하지 않아 fail closed한다.
 
 ```bash
 npm run dev -- --hostname 127.0.0.1

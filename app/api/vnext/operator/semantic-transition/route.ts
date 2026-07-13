@@ -24,7 +24,10 @@ import {
   serializeVNextOperatorPilotPreviewBindingCookieClearV01,
   serializeVNextOperatorPilotPreviewBindingCookieV01,
 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
-import { VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01 } from "@/lib/vnext/runtime/durable-semantic-transition";
+import {
+  VNextOperatorPilotReviewWindowConfigErrorV01,
+  readVNextOperatorPilotReviewWindowConfigV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-window-config-v0-1";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,18 +66,18 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
       });
       const binding = parsePreviewQuery(requestUrl);
       const config = readVNextLocalOperatorPilotConfigV01(environment);
+      const reviewWindowConfig =
+        readVNextOperatorPilotReviewWindowConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       db = openDatabase(config);
       const result = prepareVNextOperatorPilotSemanticCommitPreviewV01(db, {
         config,
         credential,
         request: binding,
+        review_window_config: reviewWindowConfig,
         clock: options.clock,
       });
-      const expiresAt = new Date(
-        Date.parse(result.preview.previewed_at) +
-          VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01,
-      ).toISOString();
+      const expiresAt = result.pilot_policy.preview_binding_expires_at;
       return jsonResponse(
         {
           ok: true,
@@ -92,6 +95,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           serializeVNextOperatorPilotPreviewBindingCookieV01({
             value: result.preview_binding_cookie,
             expires_at: expiresAt,
+            max_age_ms: result.pilot_policy.preview_max_age_ms,
             secure: requestUrl.protocol === "https:",
           }),
         ],
@@ -118,6 +122,8 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
         );
       }
       const config = readVNextLocalOperatorPilotConfigV01(environment);
+      const reviewWindowConfig =
+        readVNextOperatorPilotReviewWindowConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       const parsed = parseActionBody(
         await readBoundedVNextLocalOperatorBodyV01(request),
@@ -130,6 +136,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           preview_binding_cookie:
             readVNextOperatorPilotPreviewBindingCookieFromRequestV01(request),
           request: parsed.payload,
+          review_window_config: reviewWindowConfig,
           clock: options.clock,
           secret_source: options.secret_source,
         });
@@ -155,6 +162,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           config,
           credential,
           request: parsed.payload,
+          review_window_config: reviewWindowConfig,
           clock: options.clock,
           secret_source: options.secret_source,
         });
@@ -306,6 +314,18 @@ function routeErrorResponse(error: unknown): NextResponse {
     );
   }
   if (error instanceof VNextOperatorPilotTransitionErrorV01) {
+    return jsonResponse(
+      {
+        ok: false,
+        route_version: ROUTE_VERSION,
+        status: "error",
+        error_code: error.code,
+        semantic_authority_granted: false,
+      },
+      error.status,
+    );
+  }
+  if (error instanceof VNextOperatorPilotReviewWindowConfigErrorV01) {
     return jsonResponse(
       {
         ok: false,

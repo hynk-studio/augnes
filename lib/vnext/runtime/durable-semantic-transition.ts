@@ -4,6 +4,15 @@ import {
   readVNextLocalRuntimeClockNowV01,
   type VNextLocalRuntimeClockV01,
 } from "@/lib/vnext/runtime/local-runtime-clock";
+import {
+  VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+  VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01,
+  createVNextOperatorPilotReviewWindowConfigFingerprintV01,
+  isExplicitVNextOperatorPilotReviewWindowConfigV01,
+  resolveVNextOperatorPilotReviewWindowCapabilityV01,
+  type VNextOperatorPilotReviewWindowCapabilityV01,
+  type VNextOperatorPilotReviewWindowCapabilityResolutionV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-window-config-v0-1";
 
 import {
   VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
@@ -81,8 +90,15 @@ export const VNEXT_SEMANTIC_COMMIT_GATE_RECORD_VERSION_V01 =
   "vnext_semantic_commit_gate_record.v0.1" as const;
 export const VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01 =
   "augnes.vnext.durable-semantic-transition.v0.1" as const;
+export const VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01 =
+  "semantic_commit_confirmation_context" as const;
+export const VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01 =
+  "augnes.vnext.semantic-commit-confirmation-context.v0.1" as const;
 export const VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01 = 60 * 60 * 1000;
 export const VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01 = 15 * 60 * 1000;
+
+const VNEXT_OPERATOR_PILOT_CONFIRMATION_CONTEXT_VERSION_V01 =
+  "vnext_operator_pilot_review_window_confirmation_context.v0.1" as const;
 
 export interface VNextLocalRuntimeActorIdentityV01 {
   ref_type: string;
@@ -221,6 +237,11 @@ export interface PrepareVNextSemanticCommitPreviewInputV01 {
   clock?: VNextLocalRuntimeClockV01;
 }
 
+export interface PrepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityInputV01
+  extends Omit<PrepareVNextSemanticCommitPreviewInputV01, "gate_ttl_ms"> {
+  review_window_capability: VNextOperatorPilotReviewWindowCapabilityV01;
+}
+
 export interface RecordVNextSemanticCommitAuthorizationInputV01 {
   preview: VNextSemanticCommitPreviewV01;
   confirmation_digest: string;
@@ -228,6 +249,11 @@ export interface RecordVNextSemanticCommitAuthorizationInputV01 {
   operator_confirmation_basis_refs?: ExternalRefV01[];
   clock?: VNextLocalRuntimeClockV01;
   test_options?: VNextSemanticTransitionTestOptionsV01;
+}
+
+export interface RecordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInputV01
+  extends RecordVNextSemanticCommitAuthorizationInputV01 {
+  review_window_capability: VNextOperatorPilotReviewWindowCapabilityV01;
 }
 
 export interface CommitVNextSemanticTransitionInputV01 {
@@ -241,6 +267,11 @@ export interface CommitVNextSemanticTransitionInputV01 {
   gate_record_fingerprint: string;
   clock?: VNextLocalRuntimeClockV01;
   test_options?: VNextSemanticTransitionTestOptionsV01;
+}
+
+export interface CommitVNextSemanticTransitionWithOperatorPilotCapabilityInputV01
+  extends CommitVNextSemanticTransitionInputV01 {
+  review_window_capability: VNextOperatorPilotReviewWindowCapabilityV01;
 }
 
 export interface LoadValidatedVNextSemanticTransitionInputV01 {
@@ -358,6 +389,79 @@ export function prepareVNextSemanticCommitPreviewV01(
     previewedAt,
     authorizedApplierIdentity,
     gateTtlMs,
+    undefined,
+  );
+}
+
+export function prepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityV01(
+  db: Database.Database,
+  input: PrepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityInputV01,
+): VNextSemanticCommitPreviewV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  assertRuntimeInputKeys(
+    input,
+    new Set([
+      "workspace_id",
+      "project_id",
+      "proposal_id",
+      "proposal_fingerprint",
+      "decision_id",
+      "decision_fingerprint",
+      "authorized_applier_identity",
+      "review_window_capability",
+      "clock",
+    ]),
+  );
+  const capability = resolveOperatorPilotCapabilityForBinding(
+    input.review_window_capability,
+    input,
+  );
+  const authorizedApplierIdentity = normalizeLocalRuntimeActorIdentity(
+    input.authorized_applier_identity,
+  );
+  const currentStateObservedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "current_state_observed_at",
+  );
+  const previewedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "previewed_at",
+  );
+  assertTimestampOrder(
+    currentStateObservedAt,
+    previewedAt,
+    "semantic_commit_observation_after_preview",
+  );
+  const confirmationContextFingerprint =
+    operatorPilotConfirmationContextFingerprint(capability, {
+      ...input,
+      previewed_at: previewedAt,
+    });
+  return prepareVNextSemanticCommitPreviewAtV01(
+    db,
+    input,
+    currentStateObservedAt,
+    previewedAt,
+    authorizedApplierIdentity,
+    normalizeGateTtlMs(
+      capability.config.gate_ttl_ms,
+      VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+    ),
+    confirmationContextFingerprint,
+  );
+}
+
+export function assertVNextSemanticCommitGateMatchesOperatorPilotCapabilityV01(
+  gate: VNextSemanticCommitGateRecordV01,
+  capability: VNextOperatorPilotReviewWindowCapabilityV01,
+): void {
+  const resolved = resolveOperatorPilotCapabilityForBinding(capability, gate);
+  resolveGateTimingValidation(
+    gate,
+    { kind: "operator_pilot", capability: resolved },
+    confirmationContextFingerprintFromBasis(
+      gate.operator_confirmation_basis_refs,
+    ),
   );
 }
 
@@ -376,6 +480,7 @@ function prepareVNextSemanticCommitPreviewAtV01(
   previewedAt: string,
   authorizedApplierIdentity: VNextLocalRuntimeActorIdentityV01,
   gateTtlMs: number,
+  confirmationContextFingerprint?: string,
 ): VNextSemanticCommitPreviewV01 {
   const { proposal, decision } = loadReviewMaterial({ db, ...input });
   const transition = resolveTransitionMaterial(proposal, decision);
@@ -433,8 +538,9 @@ function prepareVNextSemanticCommitPreviewAtV01(
   };
   return {
     ...material,
-    confirmation_digest: createProtocolSha256V01(
-      canonicalizeProtocolValueV01(material),
+    confirmation_digest: createSemanticCommitConfirmationDigest(
+      material,
+      confirmationContextFingerprint,
     ),
     eligibility_input: null,
     eligibility: null,
@@ -485,6 +591,76 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
       "test_options",
     ]),
   );
+  assertOperatorReviewWindowContextAbsent(
+    input.operator_confirmation_basis_refs,
+  );
+  return recordVNextSemanticCommitAuthorizationInternalV01(db, input, {
+    gate_ttl_maximum_ms: VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
+    preview_max_age_ms: VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01,
+    confirmation_context_fingerprint: undefined,
+    confirmation_context_ref: () => null,
+  });
+}
+
+export function recordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInsideTransactionV01(
+  db: Database.Database,
+  input: RecordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInputV01,
+): VNextSemanticCommitAuthorizationResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("semantic_commit_authorization_transaction_required");
+  }
+  assertRuntimeInputKeys(
+    input,
+    new Set([
+      "preview",
+      "confirmation_digest",
+      "operator_actor_ref",
+      "operator_confirmation_basis_refs",
+      "review_window_capability",
+      "clock",
+      "test_options",
+    ]),
+  );
+  assertOperatorReviewWindowContextAbsent(
+    input.operator_confirmation_basis_refs,
+  );
+  const capability = resolveOperatorPilotCapabilityForBinding(
+    input.review_window_capability,
+    input.preview,
+  );
+  const confirmationContextFingerprint =
+    operatorPilotConfirmationContextFingerprint(capability, input.preview);
+  const { review_window_capability: _capability, ...authorizationInput } = input;
+  return recordVNextSemanticCommitAuthorizationInternalV01(
+    db,
+    authorizationInput,
+    {
+      gate_ttl_maximum_ms: VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+      preview_max_age_ms: capability.config.preview_max_age_ms,
+      confirmation_context_fingerprint: confirmationContextFingerprint,
+      confirmation_context_ref: (confirmedAt) =>
+        confirmationContextFingerprint === undefined
+          ? null
+          : createOperatorPilotConfirmationContextRef(
+              capability,
+              input.preview,
+              confirmedAt,
+            ),
+    },
+  );
+}
+
+function recordVNextSemanticCommitAuthorizationInternalV01(
+  db: Database.Database,
+  input: RecordVNextSemanticCommitAuthorizationInputV01,
+  timing: {
+    gate_ttl_maximum_ms: number;
+    preview_max_age_ms: number;
+    confirmation_context_fingerprint: string | undefined;
+    confirmation_context_ref: (confirmed_at: string) => ExternalRefV01 | null;
+  },
+): VNextSemanticCommitAuthorizationResultV01 {
   const confirmedAt = readVNextLocalRuntimeClockNowV01(
     input.clock,
     "confirmed_at",
@@ -497,12 +673,17 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
     input.clock,
     "eligibility_evaluated_at",
   );
-  const gateTtlMs = normalizeGateTtlMs(input.preview.gate_ttl_ms);
+  const gateTtlMs = normalizeGateTtlMs(
+    input.preview.gate_ttl_ms,
+    timing.gate_ttl_maximum_ms,
+  );
   const gateExpiresAt = addMillisecondsToTimestamp(
     gateEvaluatedAt,
     gateTtlMs,
     "gate_expires_at",
+    timing.gate_ttl_maximum_ms,
   );
+  const confirmationContextRef = timing.confirmation_context_ref(confirmedAt);
   const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
       db,
       {
@@ -519,6 +700,7 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
         input.preview.authorized_applier_identity,
       ),
       gateTtlMs,
+      timing.confirmation_context_fingerprint,
     );
     if (
       canonicalizeProtocolValueV01(exactPreview) !==
@@ -550,7 +732,11 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
       eligibility_evaluated_at: eligibilityEvaluatedAt,
       gate_expires_at: gateExpiresAt,
     });
-    assertPreviewConfirmationAge(exactPreview.previewed_at, confirmedAt);
+    assertPreviewConfirmationAge(
+      exactPreview.previewed_at,
+      confirmedAt,
+      timing.preview_max_age_ms,
+    );
     const gateRecordId = deriveSemanticCommitGateRecordId({
       workspace_id: proposal.workspace_id,
       project_id: proposal.project_id,
@@ -588,13 +774,17 @@ export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
     if (gateEligibility.status !== "eligible") {
       throw new Error(`semantic_transition_not_eligible:${issueCodes(gateEligibility)}`);
     }
+    const confirmationBasisRefs = [
+      ...(input.operator_confirmation_basis_refs ?? []),
+      ...(confirmationContextRef ? [confirmationContextRef] : []),
+    ];
     const gateRecord = buildGateRecord({
       gate_record_id: gateRecordId,
       preview: exactPreview,
       operator_actor_ref: input.operator_actor_ref,
       confirmation_observation_ref: confirmationObservationRef,
       operator_confirmation_basis_refs:
-        input.operator_confirmation_basis_refs,
+        confirmationBasisRefs.length > 0 ? confirmationBasisRefs : undefined,
       confirmed_at: confirmedAt,
       gate,
       eligibility_evaluated_at: eligibilityEvaluatedAt,
@@ -651,7 +841,30 @@ export function commitVNextSemanticTransitionInsideTransactionV01(
   if (!db.inTransaction) {
     throw new Error("semantic_transition_commit_transaction_required");
   }
-  return commitVNextSemanticTransitionInternalV01(db, input);
+  assertCommitInputKeys(input, false);
+  return commitVNextSemanticTransitionInternalV01(db, input, {
+    kind: "generic",
+  });
+}
+
+export function commitVNextSemanticTransitionWithOperatorPilotCapabilityInsideTransactionV01(
+  db: Database.Database,
+  input: CommitVNextSemanticTransitionWithOperatorPilotCapabilityInputV01,
+): VNextSemanticTransitionCommitResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("semantic_transition_commit_transaction_required");
+  }
+  assertCommitInputKeys(input, true);
+  const capability = resolveOperatorPilotCapabilityForBinding(
+    input.review_window_capability,
+    input,
+  );
+  const { review_window_capability: _capability, ...commitInput } = input;
+  return commitVNextSemanticTransitionInternalV01(db, commitInput, {
+    kind: "operator_pilot",
+    capability,
+  });
 }
 
 export function loadValidatedVNextSemanticTransitionRelationV01(
@@ -719,7 +932,10 @@ export function loadValidatedVNextSemanticTransitionRelationV01(
     },
     proposal,
     decision,
-    { allow_historical_snapshot: true },
+    {
+      allow_historical_snapshot: true,
+      validation: { kind: "historical_replay" },
+    },
   );
   const lineage = loadAppliedLineageFromStore(
     db,
@@ -776,22 +992,13 @@ type ResolvedCommitVNextSemanticTransitionInputV01 =
 function commitVNextSemanticTransitionInternalV01(
   db: Database.Database,
   input: CommitVNextSemanticTransitionInputV01,
+  validation:
+    | { kind: "generic" }
+    | {
+        kind: "operator_pilot";
+        capability: VNextOperatorPilotReviewWindowCapabilityResolutionV01;
+      },
 ): VNextSemanticTransitionCommitResultV01 {
-  assertRuntimeInputKeys(
-    input,
-    new Set([
-      "workspace_id",
-      "project_id",
-      "proposal_id",
-      "proposal_fingerprint",
-      "decision_id",
-      "decision_fingerprint",
-      "gate_record_id",
-      "gate_record_fingerprint",
-      "clock",
-      "test_options",
-    ]),
-  );
   return (() => {
     const transactionNow = readVNextLocalRuntimeClockNowV01(
       input.clock,
@@ -811,6 +1018,10 @@ function commitVNextSemanticTransitionInternalV01(
       // in this same immediate transaction. Gate validation first rebuilds the
       // immutable authorized snapshot so exact replays remain possible.
       allow_historical_snapshot: true,
+      validation:
+        existingReceiptRecord !== undefined && existingReceiptRecord !== null
+          ? { kind: "historical_replay" }
+          : validation,
     });
     const lineage = loadAppliedLineageFromStore(
       db,
@@ -2607,8 +2818,13 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
   const authorizedApplierIdentity = localRuntimeActorIdentityFromRef(
     gate.semantic_commit_gate_evaluation.authorized_applier_ref,
   );
+  const confirmationContextFingerprint =
+    confirmationContextFingerprintFromBasis(
+      gate.operator_confirmation_basis_refs,
+    );
   const gateTtlMs = gateTtlFromEvaluation(
     gate.semantic_commit_gate_evaluation,
+    VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
   );
   const material = {
     preview_version: VNEXT_SEMANTIC_COMMIT_PREVIEW_VERSION_V01,
@@ -2643,8 +2859,9 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
   };
   return {
     ...material,
-    confirmation_digest: createProtocolSha256V01(
-      canonicalizeProtocolValueV01(material),
+    confirmation_digest: createSemanticCommitConfirmationDigest(
+      material,
+      confirmationContextFingerprint,
     ),
     eligibility_input: null,
     eligibility: null,
@@ -2830,7 +3047,16 @@ function loadGateRecord(
   input: CommitVNextSemanticTransitionInputV01,
   proposal: EpisodeDeltaProposalV01,
   decision: ReviewDecisionV01,
-  options: { allow_historical_snapshot: boolean },
+  options: {
+    allow_historical_snapshot: boolean;
+    validation:
+      | { kind: "generic" }
+      | { kind: "historical_replay" }
+      | {
+          kind: "operator_pilot";
+          capability: VNextOperatorPilotReviewWindowCapabilityResolutionV01;
+        };
+  },
 ): VNextSemanticCommitGateRecordV01 {
   const record = readVNextCoreRecordV01(db, {
     record_kind: "semantic_commit_gate",
@@ -2867,6 +3093,15 @@ function loadGateRecord(
     decision,
     gate,
   );
+  const confirmationContextFingerprint =
+    confirmationContextFingerprintFromBasis(
+      gate.operator_confirmation_basis_refs,
+    );
+  const timingValidation = resolveGateTimingValidation(
+    gate,
+    options.validation,
+    confirmationContextFingerprint,
+  );
   const expectedConfirmationRef = createRuntimeConfirmationRef(
     rebuiltPreview,
     gate.confirmed_at,
@@ -2900,6 +3135,7 @@ function loadGateRecord(
       rebuiltPreview.previewed_at,
       rebuiltPreview.authorized_applier_identity,
       rebuiltPreview.gate_ttl_ms,
+      confirmationContextFingerprint,
     );
     if (
       canonicalizeProtocolValueV01(livePreview) !==
@@ -2917,7 +3153,11 @@ function loadGateRecord(
     eligibility_evaluated_at: gate.eligibility_evaluated_at,
     gate_expires_at: gate.semantic_commit_gate_evaluation.expires_at,
   });
-  assertPreviewConfirmationAge(rebuiltPreview.previewed_at, gate.confirmed_at);
+  assertPreviewConfirmationAge(
+    rebuiltPreview.previewed_at,
+    gate.confirmed_at,
+    timingValidation.preview_max_age_ms,
+  );
   const expectedGateId = deriveSemanticCommitGateRecordId({
     workspace_id: proposal.workspace_id,
     project_id: proposal.project_id,
@@ -3033,8 +3273,23 @@ function protocolRef(
   };
 }
 
-function localRef(refType: string, externalId: string, observedAt: string, sourceRef: string): ExternalRefV01 {
-  return protocolRef(refType, externalId, "direct_local_observation", observedAt, sourceRef);
+function localRef(
+  refType: string,
+  externalId: string,
+  observedAt: string,
+  sourceRef: string,
+  compatibilityNamespace: string = VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01,
+): ExternalRefV01 {
+  return {
+    ...protocolRef(
+      refType,
+      externalId,
+      "direct_local_observation",
+      observedAt,
+      sourceRef,
+    ),
+    compatibility_namespace: compatibilityNamespace,
+  };
 }
 
 function normalizeRefs(refs: ExternalRefV01[]): ExternalRefV01[] {
@@ -3087,36 +3342,280 @@ function localRuntimeActorIdentityFromRef(
   });
 }
 
-function normalizeGateTtlMs(value: unknown): number {
+function normalizeGateTtlMs(
+  value: unknown,
+  maximum: number = VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
+): number {
   if (
+    !Number.isSafeInteger(maximum) ||
+    maximum < VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01 ||
+    maximum > VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01 ||
     !Number.isSafeInteger(value) ||
     Number(value) < 1 ||
-    Number(value) > VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01
+    Number(value) > maximum
   ) {
     throw new Error("semantic_commit_gate_ttl_invalid");
   }
   return Number(value);
 }
 
+function normalizePreviewMaxAgeMs(value: unknown, maximum: number): number {
+  if (
+    !Number.isSafeInteger(maximum) ||
+    maximum < VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01 ||
+    maximum > VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01 ||
+    !Number.isSafeInteger(value) ||
+    Number(value) < 1 ||
+    Number(value) > maximum
+  ) {
+    throw new Error("semantic_commit_preview_max_age_invalid");
+  }
+  return Number(value);
+}
+
+function resolveOperatorPilotCapabilityForBinding(
+  capability: VNextOperatorPilotReviewWindowCapabilityV01,
+  binding: { workspace_id: string; project_id: string },
+): VNextOperatorPilotReviewWindowCapabilityResolutionV01 {
+  return resolveVNextOperatorPilotReviewWindowCapabilityV01(capability, {
+    workspace_id: binding.workspace_id,
+    project_id: binding.project_id,
+  });
+}
+
+function operatorPilotConfirmationContextFingerprint(
+  capability: VNextOperatorPilotReviewWindowCapabilityResolutionV01,
+  binding: {
+    workspace_id: string;
+    project_id: string;
+    proposal_id: string;
+    proposal_fingerprint: string;
+    decision_id: string;
+    decision_fingerprint: string;
+    previewed_at: string;
+  },
+): string | undefined {
+  if (!isExplicitVNextOperatorPilotReviewWindowConfigV01(capability.config)) {
+    return undefined;
+  }
+  if (
+    capability.workspace_id !== binding.workspace_id ||
+    capability.project_id !== binding.project_id ||
+    parseStrictIsoTimestampV01(binding.previewed_at) === null
+  ) {
+    throw new Error("semantic_commit_operator_pilot_capability_mismatch");
+  }
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      confirmation_context_version:
+        VNEXT_OPERATOR_PILOT_CONFIRMATION_CONTEXT_VERSION_V01,
+      review_window_config_fingerprint:
+        createVNextOperatorPilotReviewWindowConfigFingerprintV01(
+          capability.config,
+        ),
+      workspace_id: binding.workspace_id,
+      project_id: binding.project_id,
+      proposal_id: binding.proposal_id,
+      proposal_fingerprint: binding.proposal_fingerprint,
+      decision_id: binding.decision_id,
+      decision_fingerprint: binding.decision_fingerprint,
+      previewed_at: binding.previewed_at,
+    }),
+  );
+}
+
+function createOperatorPilotConfirmationContextRef(
+  capability: VNextOperatorPilotReviewWindowCapabilityResolutionV01,
+  preview: {
+    workspace_id: string;
+    project_id: string;
+    proposal_id: string;
+    proposal_fingerprint: string;
+    decision_id: string;
+    decision_fingerprint: string;
+    previewed_at: string;
+  },
+  confirmedAt: string,
+): ExternalRefV01 {
+  const contextFingerprint = operatorPilotConfirmationContextFingerprint(
+    capability,
+    preview,
+  );
+  if (
+    contextFingerprint === undefined ||
+    parseStrictIsoTimestampV01(confirmedAt) === null
+  ) {
+    throw new Error("semantic_commit_confirmation_context_invalid");
+  }
+  return localRef(
+    VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01,
+    capability.config.config_version,
+    confirmedAt,
+    contextFingerprint,
+    VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01,
+  );
+}
+
+function assertOperatorReviewWindowContextAbsent(
+  refs: ExternalRefV01[] | undefined,
+): void {
+  if (
+    (refs ?? []).some(
+      (ref) =>
+        ref.ref_type ===
+          VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01 ||
+        ref.compatibility_namespace ===
+          VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01,
+    )
+  ) {
+    throw new Error("semantic_commit_operator_review_window_context_forbidden");
+  }
+}
+
+function resolveGateTimingValidation(
+  gate: VNextSemanticCommitGateRecordV01,
+  validation:
+    | { kind: "generic" }
+    | { kind: "historical_replay" }
+    | {
+        kind: "operator_pilot";
+        capability: VNextOperatorPilotReviewWindowCapabilityResolutionV01;
+      },
+  storedContextFingerprint: string | undefined,
+): { preview_max_age_ms: number } {
+  if (validation.kind === "historical_replay") {
+    gateTtlFromEvaluation(
+      gate.semantic_commit_gate_evaluation,
+      VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+    );
+    return {
+      preview_max_age_ms: normalizePreviewMaxAgeMs(
+        VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01,
+        VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01,
+      ),
+    };
+  }
+  if (validation.kind === "generic") {
+    assertOperatorReviewWindowContextAbsent(
+      gate.operator_confirmation_basis_refs,
+    );
+    if (storedContextFingerprint !== undefined) {
+      throw new Error("semantic_commit_operator_review_window_context_forbidden");
+    }
+    gateTtlFromEvaluation(
+      gate.semantic_commit_gate_evaluation,
+      VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
+    );
+    return {
+      preview_max_age_ms: VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01,
+    };
+  }
+  const capability = validation.capability;
+  const expectedFingerprint = operatorPilotConfirmationContextFingerprint(
+    capability,
+    gate,
+  );
+  const expectedRef =
+    expectedFingerprint === undefined
+      ? null
+      : createOperatorPilotConfirmationContextRef(
+          capability,
+          gate,
+          gate.confirmed_at,
+        );
+  const contextRefs = (gate.operator_confirmation_basis_refs ?? []).filter(
+    (ref) =>
+      ref.ref_type === VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01 ||
+      ref.compatibility_namespace ===
+        VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01,
+  );
+  const actualRef = contextRefs.length === 1 ? contextRefs[0]! : null;
+  if (
+    contextRefs.length !== (expectedRef === null ? 0 : 1) ||
+    storedContextFingerprint !== expectedFingerprint ||
+    (actualRef === null) !== (expectedRef === null) ||
+    (actualRef !== null &&
+      expectedRef !== null &&
+      canonicalizeProtocolValueV01(actualRef) !==
+        canonicalizeProtocolValueV01(expectedRef)) ||
+    gateTtlFromEvaluation(
+      gate.semantic_commit_gate_evaluation,
+      VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+    ) !== capability.config.gate_ttl_ms
+  ) {
+    throw new Error("semantic_commit_operator_pilot_capability_mismatch");
+  }
+  return { preview_max_age_ms: capability.config.preview_max_age_ms };
+}
+
+function normalizeOptionalConfirmationContextFingerprint(
+  value: unknown,
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !/^sha256:[a-f0-9]{64}$/.test(value)) {
+    throw new Error("semantic_commit_confirmation_context_invalid");
+  }
+  return value;
+}
+
+function createSemanticCommitConfirmationDigest(
+  material: object,
+  confirmationContextFingerprint?: string,
+): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01(
+      confirmationContextFingerprint === undefined
+        ? material
+        : {
+            ...material,
+            confirmation_context_fingerprint:
+              confirmationContextFingerprint,
+          },
+    ),
+  );
+}
+
+function confirmationContextFingerprintFromBasis(
+  refs: ExternalRefV01[] | undefined,
+): string | undefined {
+  const matches = (refs ?? []).filter(
+    (ref) =>
+      ref.ref_type ===
+        VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01 &&
+      ref.compatibility_namespace ===
+        VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01,
+  );
+  if (matches.length > 1) {
+    throw new Error("semantic_commit_confirmation_context_ambiguous");
+  }
+  return normalizeOptionalConfirmationContextFingerprint(
+    matches[0]?.source_ref,
+  );
+}
+
 function gateTtlFromEvaluation(
   gate: StateTransitionSemanticCommitGateEvaluationV01,
+  maximum: number = VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
 ): number {
   const evaluatedAt = parseStrictIsoTimestampV01(gate.evaluated_at);
   const expiresAt = parseStrictIsoTimestampV01(gate.expires_at);
   if (evaluatedAt === null || expiresAt === null) {
     throw new Error("semantic_commit_gate_ttl_invalid");
   }
-  return normalizeGateTtlMs(expiresAt - evaluatedAt);
+  return normalizeGateTtlMs(expiresAt - evaluatedAt, maximum);
 }
 
 function addMillisecondsToTimestamp(
   value: string,
   milliseconds: number,
   field: string,
+  maximum: number = VNEXT_SEMANTIC_COMMIT_GATE_MAX_TTL_MS_V01,
 ): string {
   const parsed = parseStrictIsoTimestampV01(value);
   if (parsed === null) throw new Error(`${field}_invalid`);
-  return new Date(parsed + normalizeGateTtlMs(milliseconds)).toISOString();
+  return new Date(
+    parsed + normalizeGateTtlMs(milliseconds, maximum),
+  ).toISOString();
 }
 
 function createRuntimeConfirmationRef(
@@ -3146,7 +3645,10 @@ function createRuntimeAuthorizedApplierRef(
       decision_fingerprint: preview.decision_fingerprint,
       confirmation_digest: preview.confirmation_digest,
       authorized_applier_identity: identity,
-      gate_ttl_ms: normalizeGateTtlMs(preview.gate_ttl_ms),
+      gate_ttl_ms: normalizeGateTtlMs(
+        preview.gate_ttl_ms,
+        VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+      ),
     }),
   );
   return localRef(
@@ -3154,6 +3656,30 @@ function createRuntimeAuthorizedApplierRef(
     identity.external_id,
     evaluatedAt,
     sourceFingerprint,
+  );
+}
+
+function assertCommitInputKeys(
+  input:
+    | CommitVNextSemanticTransitionInputV01
+    | CommitVNextSemanticTransitionWithOperatorPilotCapabilityInputV01,
+  operatorPilot: boolean,
+): void {
+  assertRuntimeInputKeys(
+    input,
+    new Set([
+      "workspace_id",
+      "project_id",
+      "proposal_id",
+      "proposal_fingerprint",
+      "decision_id",
+      "decision_fingerprint",
+      "gate_record_id",
+      "gate_record_fingerprint",
+      ...(operatorPilot ? ["review_window_capability"] : []),
+      "clock",
+      "test_options",
+    ]),
   );
 }
 
@@ -3226,6 +3752,7 @@ function assertTimestampOrder(
 function assertPreviewConfirmationAge(
   previewedAt: string,
   confirmedAt: string,
+  previewMaxAgeMs: number,
 ): void {
   const preview = parseStrictIsoTimestampV01(previewedAt);
   const confirmed = parseStrictIsoTimestampV01(confirmedAt);
@@ -3233,7 +3760,11 @@ function assertPreviewConfirmationAge(
     preview === null ||
     confirmed === null ||
     confirmed < preview ||
-    confirmed - preview > VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01
+    confirmed - preview >
+      normalizePreviewMaxAgeMs(
+        previewMaxAgeMs,
+        VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01,
+      )
   ) {
     throw new Error("semantic_commit_preview_confirmation_window_expired");
   }
