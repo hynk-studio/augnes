@@ -4,7 +4,7 @@
 
 Separate development correctness from post-Alpha usefulness validation.
 
-During R2–R8, Augnes is judged by whether the product flow is implemented, operable, and mechanically safe. After feature completion, Augnes is judged by whether it is genuinely more useful than coordinating ChatGPT or Codex directly.
+During R2–R8, Augnes is judged by whether the interactive flow, bounded automation path, and any active Personal Perspective slice are implemented, operable, and mechanically safe. After feature completion, Augnes is judged by whether it is genuinely more useful than coordinating ChatGPT or Codex directly.
 
 ## Development maturity
 
@@ -14,7 +14,7 @@ During R2–R8, Augnes is judged by whether the product flow is implemented, ope
 | 1 | Tested component | implementation with focused behavior tests |
 | 2 | Integrated path | real producer and consumer connected |
 | 3 | Operable flow | user-facing path works without internal operator procedures |
-| 4 | Feature-complete flow | R2–R8 golden path works end to end |
+| 4 | Feature-complete flow | interactive and bounded automated R2–R8 golden paths work end to end |
 | 5 | Useful product | repeated real use shows measurable benefit |
 
 A document, type, fixture, panel, table, preview, smoke, or PR does not advance maturity by itself.
@@ -27,22 +27,26 @@ Normal development PRs require only the checks appropriate to the changed path:
 - focused unit or integration tests
 - disposable-database migration, writer, readback, and recovery tests when persistence changes
 - automated browser/CDP coverage when user flows change
+- shared lifecycle tests when interactive and policy-triggered runs are affected
 - no unauthorized durable write
+- no automation authority expansion beyond policy/grant
 - no cross-project leakage or conflicting replay
 - no unbounded provider egress or credential leakage
 
 The following are not ordinary merge gates during R2–R8:
 
 - long manual operator runbooks
-- real-project dogfood
+- broad real-project dogfood
 - usefulness scores
 - every-platform visual review
 - long-running evidence-chain qualification
 - multiple-provider or multiple-host proof
+- proof that advanced Autohunt heuristics are useful
+- proof that Personal Perspective improves every task
 
 ## Operability criteria
 
-Feature completion requires the normal path to avoid making the user act as a database, process, security, or integration operator.
+Feature completion requires the normal path to avoid making the user act as a database, process, security, scheduler, or integration operator.
 
 Target budgets:
 
@@ -53,18 +57,50 @@ Target budgets:
 - TaskContextPacket or result copy/paste: 0
 - internal ID, nonce, fingerprint, TTL, or checksum handling: 0
 - ordinary durable semantic change approval: one meaningful user decision
+- ordinary automation control: visible enable/pause/cancel, not internal policy editing
 
 A feature is not operable when its safety depends on the user correctly performing an internal protocol.
 
+## Automation maturity
+
+Bounded automation is part of feature completion, not a post-Alpha experiment.
+
+Minimum R2–R8 evidence:
+
+- policy-triggered and interactive work share the same project scope and Core contracts
+- a bounded grant controls budget, capability, timeout, retry eligibility, and stop conditions
+- run start, completion, failure, cancellation, and orphan reconciliation are observable
+- returned work produces a `RunReceipt`
+- automated work can create reviewable proposals but cannot silently commit semantic state
+- restart and exact replay do not duplicate or lose a run
+
+Advanced hunt quality, self-prioritization, long-horizon autonomy, and scheduler optimization remain post-feature-completion evaluation topics.
+
+## Personal Perspective maturity
+
+Personal Perspective may progress in parallel without becoming a prerequisite for unrelated R2–R8 work.
+
+A bounded slice is integrated when:
+
+- the user can create, review, revise, remove, and scope the material
+- project inclusion is explicit
+- context selection records `why_included`
+- it uses the same `TaskContextPacket`, `RunReceipt`, lineage, and feedback paths as other context
+- hidden or automatic cross-project injection is absent
+
+Its usefulness can be evaluated as soon as the slice is operable, but lack of outcome evidence does not block unrelated mainline PRs.
+
 ## Alpha verification
 
-Run after R2–R8 are feature-complete.
+Run after the core R2–R8 flow is feature-complete.
 
 Purpose:
 
 - find critical workflow breaks missed by automation
-- confirm that a user can complete one real task without learning internal architecture
+- confirm that a user can complete one real interactive task without learning internal architecture
+- confirm that one bounded automated task starts, returns, stops, and reaches review coherently
 - verify that setup, task execution, result return, semantic approval, and later reuse form one coherent flow
+- try one Personal Perspective-assisted task when that bounded lane is ready
 
 This should be a short product-use session, not a forensic operator qualification.
 
@@ -73,6 +109,7 @@ This should be a short product-use session, not a forensic operator qualificatio
 Add bounded real-world checks for:
 
 - provider and Codex/native-host round trips
+- automation pause, cancel, budget, stop, and reconciliation
 - migration, backup, restore, and failed-upgrade recovery
 - secret and private-data handling
 - durable semantic transition correctness
@@ -84,7 +121,7 @@ Manual qualification is justified here when automation cannot establish the fina
 
 The core hypothesis is:
 
-> Reviewed temporal context, evidence lineage, and explicit decisions reduce repeated explanation, wrong-context correction, and time to the first correct action.
+> Reviewed temporal context, evidence lineage, explicit decisions, and bounded automation reduce repeated explanation, wrong-context correction, coordination burden, and time to the first correct action.
 
 Primary metrics:
 
@@ -116,6 +153,23 @@ Primary metrics:
 - recovery actions requiring internal knowledge
 - user-visible failure recovery time
 
+### Automation
+
+- user interventions per completed automated run
+- pause/cancel success
+- duplicate or orphan run count
+- policy/budget violation count
+- reviewable-result return rate
+- useful work completed without semantic-authority overreach
+
+### Personal Perspective
+
+- scoped inclusion rate
+- helpful versus misleading context feedback
+- removal or correction rate
+- cross-project leakage count
+- whether the user prefers it enabled for representative tasks
+
 ### Comparative value
 
 Compare representative tasks against direct ChatGPT or Codex use:
@@ -130,12 +184,12 @@ Compare representative tasks against direct ChatGPT or Codex use:
 
 Do not claim usefulness from one fixture, one synthetic run, one self-evaluation, or the existence of a feedback record.
 
-Usefulness requires repeated real tasks and user review. Product development should not be blocked waiting for that evidence before the complete product flow exists.
+Usefulness requires repeated real tasks and user review. Product development should not be blocked waiting for that evidence before the complete product flow and minimal Automation Spine exist.
 
 ## Go, narrow, or stop
 
 After post-Alpha evaluation:
 
 - **Go** when Augnes reduces effort or errors without excessive review burden.
-- **Narrow** when only a subset such as continuity, semantic review, or cross-host lineage provides value.
+- **Narrow** when only a subset such as continuity, bounded automation, semantic review, Personal Perspective, or cross-host lineage provides value.
 - **Stop or redesign** when Augnes remains harder to use than direct host use without a compensating measurable benefit.
