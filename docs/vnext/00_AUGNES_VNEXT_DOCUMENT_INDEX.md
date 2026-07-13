@@ -21,39 +21,50 @@ The vNext commitments that remain active are:
 - native hosts execute; Augnes preserves meaning, lineage, reviewed decisions, and durable state
 - project identity and isolation
 - `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, and `ReviewDecision`
+- a bounded Automation Spine using policy, grants, runs, receipts, stop conditions, and user control
 - minimal Model Gateway and OpenAI reference adapter
-- Codex/native-host context and receipt round trip
+- Codex/native-host context and receipt round trip for interactive and unattended runs
 - `RunReceipt → Delta → Decision → later context` closed loop
 - Project Home, Semantic Workbench, and shared Inspector
-- migration, backup, restore, update, and recovery
+- a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
+- migration, backup, restore, update, recovery, and automated-run reconciliation
 
 ## Active implementation order
 
 ```text
 R1 Development Authority and Operability Reset
-R2 Zero-config Runtime Spine
-R3 Project Onboarding and Project Home
-R4 Minimal Model Gateway
-R5 Codex Host Round Trip
-R6 Core Closed Loop
-R7 Semantic Workbench and Inspector Consolidation
-R8 Packaging, Update, Backup, Restore, and Recovery
-Alpha: short real-user verification
+R2 Zero-config Runtime Spine + automation lifecycle primitives
+R3 Project Onboarding and Project Home + project automation state
+R4 Minimal Model Gateway + budget/timeout/cancellation
+R5 Codex Host Round Trip + unattended run mode
+R6 Core Closed Loop + first bounded Autohunt
+R6-P Parallel bounded Personal Perspective slice
+R7 Semantic Workbench and Inspector + automation control/readback
+R8 Packaging, Update, Backup, Restore, Recovery, and run reconciliation
+Alpha: short interactive, automated, and available perspective-assisted verification
 Post-Alpha: usefulness and product-fit validation
 ```
 
-## Deferred work
+## Active versus deferred scope
 
-The following are not mainline prerequisites for R2–R8:
+Active during R2–R8:
+
+- minimal Automation Spine integrated into the shared Core path
+- bounded policy-triggered execution
+- capability grants, budgets, stop conditions, pause/cancel, receipts, and reconciliation
+- Personal Perspective work that reuses existing candidate, review, scoped state, context-selection, receipt, and feedback contracts
+
+Deferred until the core product and minimal Automation Spine are feature-complete:
 
 - Generic CLI second adapter
-- AutomationPolicy / Autohunt expansion
-- Personal Perspective / Perspective Arena productization
+- advanced Autohunt heuristics and work-discovery optimization
+- generic scheduler implementation inside Augnes
+- unrestricted retry, self-modification, authority expansion, and automatic semantic commit
+- broad Personal Vault and Perspective Arena productization
+- hidden or automatic cross-project Personal Perspective injection
 - advanced multi-provider routing
-- autonomous evidence-runner expansion
+- autonomous evidence-chain expansion
 - long-form qualification infrastructure
-
-They may be reconsidered after the core product is feature-complete.
 
 ## Historical documents
 
@@ -65,9 +76,10 @@ Git history is the archive. New work should not preserve obsolete process residu
 
 A PR should either:
 
-- move the active product flow forward,
+- move the active interactive or bounded automated product flow forward,
+- advance the bounded Personal Perspective lane without blocking the mainline flow,
 - improve operability or reliability,
 - preserve a real data/authority safety invariant, or
 - remove verified obsolete residue.
 
-New planning-only documents, passive workflow-stage panels, manual copy/paste flows, and feature-specific package smoke commands are not default work.
+New planning-only documents, passive workflow-stage panels, manual copy/paste flows, duplicated automation/perspective subsystems, and feature-specific package smoke commands are not default work.
