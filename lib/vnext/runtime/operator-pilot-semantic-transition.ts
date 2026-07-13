@@ -19,12 +19,11 @@ import {
   validateSemanticTransitionFullChainV01,
 } from "@/lib/vnext/state-transition-eligibility";
 import {
-  VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01,
-  commitVNextSemanticTransitionInsideTransactionV01,
-  createVNextSemanticCommitConfirmationContextRefV01,
+  assertVNextSemanticCommitGateMatchesOperatorPilotCapabilityV01,
+  commitVNextSemanticTransitionWithOperatorPilotCapabilityInsideTransactionV01,
   loadValidatedVNextSemanticTransitionRelationV01,
-  prepareVNextSemanticCommitPreviewV01,
-  recordVNextSemanticCommitAuthorizationInsideTransactionV01,
+  prepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityV01,
+  recordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInsideTransactionV01,
   type VNextSemanticCommitGateRecordV01,
   type VNextSemanticCommitPreviewV01,
   type VNextSemanticTransitionCommitResultV01,
@@ -37,8 +36,9 @@ import {
   VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01,
   VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MIN_MS_V01,
   VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01,
-  createVNextOperatorPilotReviewWindowConfigFingerprintV01,
-  isExplicitVNextOperatorPilotReviewWindowConfigV01,
+  assertVNextOperatorPilotReviewWindowConfigV01,
+  createVNextOperatorPilotReviewWindowCapabilityV01,
+  type VNextOperatorPilotReviewWindowCapabilityV01,
   type VNextOperatorPilotReviewWindowConfigV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-window-config-v0-1";
 import {
@@ -156,7 +156,7 @@ export interface VNextOperatorPilotAuthorizationResultV01 {
   gate_record: VNextSemanticCommitGateRecordV01;
   eligibility_status: "eligible";
   eligibility: ReturnType<
-    typeof recordVNextSemanticCommitAuthorizationInsideTransactionV01
+    typeof recordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInsideTransactionV01
   >["eligibility"];
   state_applied: false;
   session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
@@ -190,31 +190,18 @@ export function assertVNextOperatorPilotGateReviewWindowConfigV01(
   gate: VNextSemanticCommitGateRecordV01,
   config: VNextOperatorPilotReviewWindowConfigV01,
 ): void {
-  const exactConfig = reviewWindowConfigOrDefault(config);
-  const evaluatedAt = parseStrictIsoTimestampV01(
-    gate.semantic_commit_gate_evaluation.evaluated_at,
-  );
-  const expiresAt = parseStrictIsoTimestampV01(
-    gate.semantic_commit_gate_evaluation.expires_at,
-  );
-  const expectedContext = createReviewWindowConfirmationBasisRef(
-    exactConfig,
-    gate.confirmed_at,
-  );
-  const contexts = (gate.operator_confirmation_basis_refs ?? []).filter(
-    (ref) => ref.ref_type === "semantic_commit_confirmation_context",
-  );
-  const actualContext = contexts.length === 1 ? contexts[0]! : null;
-  if (
-    evaluatedAt === null ||
-    expiresAt === null ||
-    expiresAt - evaluatedAt !== exactConfig.gate_ttl_ms ||
-    (actualContext === null) !== (expectedContext === null) ||
-    (actualContext !== null &&
-      expectedContext !== null &&
-      canonicalizeProtocolValueV01(actualContext) !==
-        canonicalizeProtocolValueV01(expectedContext))
-  ) {
+  try {
+    const exactConfig = reviewWindowConfigOrDefault(config);
+    const capability = createVNextOperatorPilotReviewWindowCapabilityV01({
+      config: exactConfig,
+      workspace_id: gate.workspace_id,
+      project_id: gate.project_id,
+    });
+    assertVNextSemanticCommitGateMatchesOperatorPilotCapabilityV01(
+      gate,
+      capability,
+    );
+  } catch {
     throw transitionError("operator_pilot_review_window_config_mismatch", 409);
   }
 }
@@ -234,19 +221,22 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
   const reviewWindowConfig = reviewWindowConfigOrDefault(
     input.review_window_config,
   );
+  const reviewWindowCapability = reviewWindowCapabilityFor(
+    input.config,
+    reviewWindowConfig,
+  );
   const authentication = authenticateVNextLocalOperatorSessionV01(db, input);
   const material = requirePilotAcceptCreateMaterial(db, input.config, request, {
     require_absent: true,
     required_session_id: authentication.session.session_id,
   });
-  const preview = prepareVNextSemanticCommitPreviewV01(db, {
+  const preview =
+    prepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityV01(db, {
     workspace_id: input.config.workspace_id,
     project_id: input.config.project_id,
     ...request,
     authorized_applier_identity: authorizedApplierIdentity(input.config),
-    gate_ttl_ms: reviewWindowConfig.gate_ttl_ms,
-    confirmation_context_fingerprint:
-      confirmationContextFingerprint(reviewWindowConfig),
+    review_window_capability: reviewWindowCapability,
     clock: input.clock,
   });
   assertPilotPreview(preview, material.decision, reviewWindowConfig);
@@ -296,6 +286,10 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
   const reviewWindowConfig = reviewWindowConfigOrDefault(
     input.review_window_config,
   );
+  const reviewWindowCapability = reviewWindowCapabilityFor(
+    input.config,
+    reviewWindowConfig,
+  );
   authenticateVNextLocalOperatorSessionV01(db, input);
   const binding = readPreviewBinding(
     input.preview_binding_cookie,
@@ -308,7 +302,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     db,
     input.config,
     binding,
-    reviewWindowConfig,
+    reviewWindowCapability,
   );
   requirePilotAcceptCreateMaterial(db, input.config, request, {
     require_absent: true,
@@ -331,7 +325,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
       db,
       input.config,
       binding,
-      reviewWindowConfig,
+      reviewWindowCapability,
     );
     assertPilotPreview(exact.preview, material.decision, reviewWindowConfig);
     const confirmationBasisRef =
@@ -348,29 +342,21 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
         gate_ttl_ms: exact.preview.gate_ttl_ms,
         confirmed_at: admission.action_observed_at,
       });
-    const reviewWindowBasisRef = createReviewWindowConfirmationBasisRef(
-      reviewWindowConfig,
-      admission.action_observed_at,
-    );
-    const result = recordVNextSemanticCommitAuthorizationInsideTransactionV01(
-      db,
-      {
+    const result =
+      recordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInsideTransactionV01(
+        db,
+        {
         preview: exact.preview,
         confirmation_digest: request.confirmation_digest,
         operator_actor_ref: material.decision.actor_ref,
-        operator_confirmation_basis_refs: [
-          confirmationBasisRef,
-          ...(reviewWindowBasisRef ? [reviewWindowBasisRef] : []),
-        ],
-        confirmation_context_fingerprint:
-          confirmationContextFingerprint(reviewWindowConfig),
-        preview_max_age_ms: reviewWindowConfig.preview_max_age_ms,
+        operator_confirmation_basis_refs: [confirmationBasisRef],
+        review_window_capability: reviewWindowCapability,
         clock: pinFirstClockValue(
           admission.action_observed_at,
           input.clock,
         ),
-      },
-    );
+        },
+      );
     if (result.eligibility.status !== "eligible") {
       throw transitionError("operator_pilot_gate_not_eligible", 409);
     }
@@ -420,6 +406,10 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
   const reviewWindowConfig = reviewWindowConfigOrDefault(
     input.review_window_config,
   );
+  const reviewWindowCapability = reviewWindowCapabilityFor(
+    input.config,
+    reviewWindowConfig,
+  );
   authenticateVNextLocalOperatorSessionV01(db, input);
   assertPilotGateAndDecision(
     db,
@@ -439,18 +429,22 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
       admission.session.session_id,
       reviewWindowConfig,
     );
-    const result = commitVNextSemanticTransitionInsideTransactionV01(db, {
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
-      proposal_id: request.proposal_id,
-      proposal_fingerprint: request.proposal_fingerprint,
-      decision_id: request.decision_id,
-      decision_fingerprint: request.decision_fingerprint,
-      gate_record_id: request.gate_record_id,
-      gate_record_fingerprint: request.gate_record_fingerprint,
-      preview_max_age_ms: reviewWindowConfig.preview_max_age_ms,
-      clock: input.clock,
-    });
+    const result =
+      commitVNextSemanticTransitionWithOperatorPilotCapabilityInsideTransactionV01(
+        db,
+        {
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+          proposal_id: request.proposal_id,
+          proposal_fingerprint: request.proposal_fingerprint,
+          decision_id: request.decision_id,
+          decision_fingerprint: request.decision_fingerprint,
+          gate_record_id: request.gate_record_id,
+          gate_record_fingerprint: request.gate_record_fingerprint,
+          review_window_capability: reviewWindowCapability,
+          clock: input.clock,
+        },
+      );
     if (result.eligibility.status !== "eligible") {
       throw transitionError("operator_pilot_transition_not_eligible", 409);
     }
@@ -711,7 +705,7 @@ function rebuildBoundPreview(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   binding: PreviewBindingPayloadV01,
-  reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
+  reviewWindowCapability: VNextOperatorPilotReviewWindowCapabilityV01,
 ): { preview: VNextSemanticCommitPreviewV01; decision: ReviewDecisionV01 } {
   const decision = requirePilotAcceptCreateMaterial(db, config, binding, {
     require_absent: true,
@@ -722,7 +716,8 @@ function rebuildBoundPreview(
   const clock: VNextLocalRuntimeClockV01 = {
     now: () => values[Math.min(index++, values.length - 1)]!,
   };
-  const preview = prepareVNextSemanticCommitPreviewV01(db, {
+  const preview =
+    prepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityV01(db, {
     workspace_id: config.workspace_id,
     project_id: config.project_id,
     proposal_id: binding.proposal_id,
@@ -730,9 +725,7 @@ function rebuildBoundPreview(
     decision_id: binding.decision_id,
     decision_fingerprint: binding.decision_fingerprint,
     authorized_applier_identity: authorizedApplierIdentity(config),
-    gate_ttl_ms: reviewWindowConfig.gate_ttl_ms,
-    confirmation_context_fingerprint:
-      confirmationContextFingerprint(reviewWindowConfig),
+    review_window_capability: reviewWindowCapability,
     clock,
   });
   if (preview.confirmation_digest !== binding.confirmation_digest) {
@@ -1048,12 +1041,22 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
       add("operator_pilot_gate_confirmation_basis_mismatch");
     }
   }
-  validateReviewWindowConfirmationBasis(
-    bases,
-    gate.confirmed_at,
-    input.review_window_config,
-    add,
-  );
+  if (input.review_window_config === undefined) {
+    validateHistoricalReviewWindowConfirmationBasis(
+      bases,
+      gate.confirmed_at,
+      add,
+    );
+  } else {
+    try {
+      assertVNextSemanticCommitGateMatchesOperatorPilotCapabilityV01(
+        gate,
+        reviewWindowCapabilityFor(config, input.review_window_config),
+      );
+    } catch {
+      add("operator_pilot_review_window_confirmation_basis_mismatch");
+    }
+  }
   const valid = errors.length === 0;
   return {
     status: valid ? "valid" : "invalid",
@@ -1087,6 +1090,16 @@ function reviewWindowConfigOrDefault(
   if (value === undefined) {
     return VNEXT_OPERATOR_PILOT_DEFAULT_REVIEW_WINDOW_CONFIG_V01;
   }
+  try {
+    return assertVNextOperatorPilotReviewWindowConfigV01(value);
+  } catch {
+    throw transitionError("operator_pilot_review_window_config_invalid", 503);
+  }
+}
+
+function assertSerializedReviewWindowConfig(
+  value: unknown,
+): VNextOperatorPilotReviewWindowConfigV01 {
   const keys = [
     "config_version",
     "preview_max_age_ms",
@@ -1094,63 +1107,50 @@ function reviewWindowConfigOrDefault(
     "preview_source",
     "gate_source",
   ] as const;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw transitionError("operator_pilot_preview_binding_invalid", 409);
+  }
+  const config = value as Record<string, unknown>;
   if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.keys(value).length !== keys.length ||
-    Object.keys(value).some(
+    Object.keys(config).length !== keys.length ||
+    Object.keys(config).some(
       (key) => !keys.includes(key as (typeof keys)[number]),
     ) ||
-    value.config_version !==
+    config.config_version !==
       VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01 ||
-    !Number.isSafeInteger(value.preview_max_age_ms) ||
-    value.preview_max_age_ms <
+    !Number.isSafeInteger(config.preview_max_age_ms) ||
+    Number(config.preview_max_age_ms) <
       VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MIN_MS_V01 ||
-    value.preview_max_age_ms >
+    Number(config.preview_max_age_ms) >
       VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01 ||
-    !Number.isSafeInteger(value.gate_ttl_ms) ||
-    value.gate_ttl_ms < VNEXT_OPERATOR_PILOT_GATE_TTL_MIN_MS_V01 ||
-    value.gate_ttl_ms > VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01 ||
-    value.gate_ttl_ms > value.preview_max_age_ms ||
-    !(["default", "explicit_environment"] as const).includes(
-      value.preview_source,
-    ) ||
-    !(["default", "explicit_environment"] as const).includes(
-      value.gate_source,
-    )
+    !Number.isSafeInteger(config.gate_ttl_ms) ||
+    Number(config.gate_ttl_ms) < VNEXT_OPERATOR_PILOT_GATE_TTL_MIN_MS_V01 ||
+    Number(config.gate_ttl_ms) > VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01 ||
+    Number(config.gate_ttl_ms) > Number(config.preview_max_age_ms) ||
+    !(config.preview_source === "default" ||
+      config.preview_source === "explicit_environment") ||
+    !(config.gate_source === "default" ||
+      config.gate_source === "explicit_environment")
   ) {
-    throw transitionError("operator_pilot_review_window_config_invalid", 503);
+    throw transitionError("operator_pilot_preview_binding_invalid", 409);
   }
-  return value;
+  return config as unknown as VNextOperatorPilotReviewWindowConfigV01;
 }
 
-function confirmationContextFingerprint(
+function reviewWindowCapabilityFor(
+  pilotConfig: VNextLocalOperatorPilotConfigV01,
   config: VNextOperatorPilotReviewWindowConfigV01,
-): string | undefined {
-  return isExplicitVNextOperatorPilotReviewWindowConfigV01(config)
-    ? createVNextOperatorPilotReviewWindowConfigFingerprintV01(config)
-    : undefined;
+): VNextOperatorPilotReviewWindowCapabilityV01 {
+  return createVNextOperatorPilotReviewWindowCapabilityV01({
+    config: reviewWindowConfigOrDefault(config),
+    workspace_id: pilotConfig.workspace_id,
+    project_id: pilotConfig.project_id,
+  });
 }
 
-function createReviewWindowConfirmationBasisRef(
-  config: VNextOperatorPilotReviewWindowConfigV01,
-  confirmedAt: string,
-): ExternalRefV01 | null {
-  const fingerprint = confirmationContextFingerprint(config);
-  return fingerprint
-    ? createVNextSemanticCommitConfirmationContextRefV01({
-        context_id: config.config_version,
-        context_fingerprint: fingerprint,
-        observed_at: confirmedAt,
-      })
-    : null;
-}
-
-function validateReviewWindowConfirmationBasis(
+function validateHistoricalReviewWindowConfirmationBasis(
   refs: ExternalRefV01[],
   confirmedAt: string,
-  config: VNextOperatorPilotReviewWindowConfigV01 | undefined,
   add: (code: string) => void,
 ): void {
   const contexts = refs.filter(
@@ -1169,22 +1169,11 @@ function validateReviewWindowConfirmationBasis(
       actual.trust_class !== "direct_local_observation" ||
       actual.observed_at !== confirmedAt ||
       actual.compatibility_namespace !==
-        VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01 ||
+        "augnes.vnext.semantic-commit-confirmation-context.v0.1" ||
       !actual.source_ref ||
       !/^sha256:[a-f0-9]{64}$/.test(actual.source_ref))
   ) {
     add("operator_pilot_review_window_confirmation_basis_invalid");
-  }
-  if (config === undefined) return;
-  const expected = createReviewWindowConfirmationBasisRef(config, confirmedAt);
-  if (
-    (actual === null) !== (expected === null) ||
-    (actual !== null &&
-      expected !== null &&
-      canonicalizeProtocolValueV01(actual) !==
-        canonicalizeProtocolValueV01(expected))
-  ) {
-    add("operator_pilot_review_window_confirmation_basis_mismatch");
   }
 }
 
@@ -1596,7 +1585,7 @@ function parsePreviewBindingPayload(value: unknown): PreviewBindingPayloadV01 {
   ) {
     throw transitionError("operator_pilot_preview_binding_invalid", 409);
   }
-  reviewWindowConfigOrDefault(payload.review_window_config);
+  assertSerializedReviewWindowConfig(payload.review_window_config);
   return payload;
 }
 

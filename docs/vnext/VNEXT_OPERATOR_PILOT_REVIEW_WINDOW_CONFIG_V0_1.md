@@ -36,13 +36,24 @@ The server derives both values. Browser requests cannot submit timing,
 timestamps, expiry, state observations, intended effects, or the authorized
 applier.
 
+Validated configuration is converted server-side into a workspace/project-
+scoped opaque runtime capability. The capability has no enumerable or
+serializable authority material and is accepted only by the explicit
+operator-pilot preview, confirmation, and commit entry points. A plain object,
+copied fields, serialized value, fingerprint, or manually constructed
+confirmation-context ref cannot reproduce it. The generic durable-transition
+entry points retain the legacy 15-minute preview age and one-hour maximum gate
+TTL and reject timing or confirmation-context fields as unknown input.
+
 - The effective preview maximum age binds the preview cookie lifetime, binding
   validation, stale-preview rejection, and confirmation admission.
 - The effective gate TTL binds the preview, confirmation digest, gate
   evaluation, `expires_at`, and commit-time expiry enforcement.
 - Explicit timing configuration contributes a deterministic confirmation
-  context fingerprint. A preview cannot be confirmed, or a gate committed,
-  under a different effective configuration.
+  context fingerprint bound to the validated values, value sources, exact
+  workspace/project, proposal, decision, and preview timestamp. A preview
+  cannot be confirmed, or a gate committed, under a different effective
+  configuration or scope.
 - With both variables omitted, the legacy preview and gate identities remain
   unchanged.
 

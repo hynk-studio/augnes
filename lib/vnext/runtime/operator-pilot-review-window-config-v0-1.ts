@@ -33,6 +33,23 @@ export interface VNextOperatorPilotReviewWindowConfigV01 {
   readonly gate_source: VNextOperatorPilotReviewWindowConfigSourceV01;
 }
 
+declare const operatorPilotReviewWindowCapabilityTypeBrand: unique symbol;
+export type VNextOperatorPilotReviewWindowCapabilityV01 = object & {
+  readonly [operatorPilotReviewWindowCapabilityTypeBrand]: true;
+};
+
+export interface VNextOperatorPilotReviewWindowCapabilityResolutionV01 {
+  readonly config: VNextOperatorPilotReviewWindowConfigV01;
+  readonly workspace_id: string;
+  readonly project_id: string;
+}
+
+const validatedConfigs = new WeakSet<object>();
+const capabilityRecords = new WeakMap<
+  object,
+  VNextOperatorPilotReviewWindowCapabilityResolutionV01
+>();
+
 export class VNextOperatorPilotReviewWindowConfigErrorV01 extends Error {
   readonly code: string;
   readonly status = 503;
@@ -45,7 +62,7 @@ export class VNextOperatorPilotReviewWindowConfigErrorV01 extends Error {
 }
 
 export const VNEXT_OPERATOR_PILOT_DEFAULT_REVIEW_WINDOW_CONFIG_V01 =
-  Object.freeze<VNextOperatorPilotReviewWindowConfigV01>({
+  createValidatedConfig({
     config_version: VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01,
     preview_max_age_ms:
       VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_DEFAULT_MS_V01,
@@ -78,7 +95,7 @@ export function readVNextOperatorPilotReviewWindowConfigV01(
       "operator_pilot_review_window_relation_invalid",
     );
   }
-  return Object.freeze({
+  return createValidatedConfig({
     config_version: VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01,
     preview_max_age_ms: preview.value,
     gate_ttl_ms: gate.value,
@@ -87,9 +104,68 @@ export function readVNextOperatorPilotReviewWindowConfigV01(
   });
 }
 
+export function assertVNextOperatorPilotReviewWindowConfigV01(
+  value: unknown,
+): VNextOperatorPilotReviewWindowConfigV01 {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    !validatedConfigs.has(value)
+  ) {
+    throw new VNextOperatorPilotReviewWindowConfigErrorV01(
+      "operator_pilot_review_window_config_untrusted",
+    );
+  }
+  return value as VNextOperatorPilotReviewWindowConfigV01;
+}
+
+export function createVNextOperatorPilotReviewWindowCapabilityV01(input: {
+  config: VNextOperatorPilotReviewWindowConfigV01;
+  workspace_id: string;
+  project_id: string;
+}): VNextOperatorPilotReviewWindowCapabilityV01 {
+  const config = assertVNextOperatorPilotReviewWindowConfigV01(input.config);
+  const workspaceId = requireScopeText(input.workspace_id);
+  const projectId = requireScopeText(input.project_id);
+  const capability = Object.freeze(Object.create(null)) as object;
+  capabilityRecords.set(
+    capability,
+    Object.freeze({
+      config,
+      workspace_id: workspaceId,
+      project_id: projectId,
+    }),
+  );
+  return capability as VNextOperatorPilotReviewWindowCapabilityV01;
+}
+
+export function resolveVNextOperatorPilotReviewWindowCapabilityV01(
+  value: unknown,
+  expected: { workspace_id: string; project_id: string },
+): VNextOperatorPilotReviewWindowCapabilityResolutionV01 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new VNextOperatorPilotReviewWindowConfigErrorV01(
+      "operator_pilot_review_window_capability_invalid",
+    );
+  }
+  const record = capabilityRecords.get(value);
+  if (
+    !record ||
+    record.workspace_id !== requireScopeText(expected.workspace_id) ||
+    record.project_id !== requireScopeText(expected.project_id)
+  ) {
+    throw new VNextOperatorPilotReviewWindowConfigErrorV01(
+      "operator_pilot_review_window_capability_invalid",
+    );
+  }
+  return record;
+}
+
 export function isExplicitVNextOperatorPilotReviewWindowConfigV01(
   config: VNextOperatorPilotReviewWindowConfigV01,
 ): boolean {
+  assertVNextOperatorPilotReviewWindowConfigV01(config);
   return (
     config.preview_source === "explicit_environment" ||
     config.gate_source === "explicit_environment"
@@ -99,6 +175,7 @@ export function isExplicitVNextOperatorPilotReviewWindowConfigV01(
 export function createVNextOperatorPilotReviewWindowConfigFingerprintV01(
   config: VNextOperatorPilotReviewWindowConfigV01,
 ): string {
+  assertVNextOperatorPilotReviewWindowConfigV01(config);
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       config_version: config.config_version,
@@ -108,6 +185,28 @@ export function createVNextOperatorPilotReviewWindowConfigFingerprintV01(
       gate_source: config.gate_source,
     }),
   );
+}
+
+function createValidatedConfig(
+  value: VNextOperatorPilotReviewWindowConfigV01,
+): VNextOperatorPilotReviewWindowConfigV01 {
+  const config = Object.freeze({ ...value });
+  validatedConfigs.add(config);
+  return config;
+}
+
+function requireScopeText(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length < 1 ||
+    value.length > 256 ||
+    value.trim() !== value
+  ) {
+    throw new VNextOperatorPilotReviewWindowConfigErrorV01(
+      "operator_pilot_review_window_capability_scope_invalid",
+    );
+  }
+  return value;
 }
 
 function readBoundedEnvironmentInteger(input: {
