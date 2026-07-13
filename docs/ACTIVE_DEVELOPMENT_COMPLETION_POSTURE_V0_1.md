@@ -1,39 +1,59 @@
-# Active Development Completion Posture v0.1
+# Active Development Completion Posture v0.2
 
-## Purpose
+## Decision
 
-Augnes development should default to functional goal completion, measurable
-capability improvement, performance improvement, and behavior-focused tests.
+Augnes development is operability-first and flow-first.
 
-Planning-only, approval-gate-only, smoke-only, and boundary-only PRs are not the
-default. Use them only when an explicit operator task asks for that narrow
-artifact and there is no useful implementation or behavior test to complete in
-the same slice.
+The product should become easier to start and use than manually coordinating ChatGPT, Codex, databases, ports, tokens, and handoff text. Internal complexity belongs in the product and its automated tests, not in routine user procedures.
 
-## Active Defaults
+## Active defaults
 
-- Prefer working routes, helpers, types, UI, stores, and operator-visible
-  workflows over planning artifacts.
-- Prefer measurable performance, reliability, and workflow improvements over
-  preserving historical process notes.
-- Prefer real unit, integration, smoke, and browser tests that exercise behavior
-  over tests that only assert forbidden capabilities.
-- Use docs and smokes to support implementation, not replace it.
-- Treat older read-only, preview-only, no-run, approval-gate, and planning
-  documents as historical context only. They must not be used as current PR
-  sequencing authority.
-- Keep current docs short and tied to implemented behavior, live contracts,
-  current routes/helpers/types/UI, or real regression tests.
-- Delete obsolete planning residue instead of preserving it for possible future
-  reference.
+- Complete the end-to-end product flow before optimizing usefulness or adding advanced lanes.
+- Prefer working vertical slices over planning-only, approval-gate-only, preview-only, smoke-only, or boundary-only PRs.
+- Treat behavior, reliability, and user effort reduction as progress. Do not count document, panel, table, contract, or metric existence as progress by itself.
+- Use focused unit/integration tests, disposable-database tests, and automated browser/CDP tests during R2–R8.
+- Keep long manual operator pilots, real-project dogfood, and usefulness measurement out of ordinary PR merge gates.
+- Preserve only real safety invariants: data integrity, explicit irreversible authority, project isolation, replay refusal, credential safety, bounded provider egress, backup, and restore.
+- Keep current documentation short and tied to implemented behavior or the active R1–R8 roadmap.
+- Delete obsolete planning residue, reports, and one-off verification scaffolding after reference audit.
+
+## User-effort rule
+
+A required user step is justified only when it is a meaningful project decision or an unavoidable external authorization.
+
+The product should automate:
+
+- DB creation, backup, migration, integrity checking, and recovery
+- process and port management
+- internal IDs, nonces, fingerprints, TTLs, and receipts
+- TaskContextPacket delivery and result return
+- routine test and qualification mechanics
+
+The user should retain:
+
+- project and task choice
+- acceptance or rejection of semantic changes
+- approval of irreversible external actions
+- post-Alpha usefulness judgment
+
+## Merge gates
+
+During R2–R8, the normal merge gate is:
+
+- build and type correctness for the changed path
+- focused behavior tests
+- disposable-database safety where persistence changes
+- automated browser coverage where the user flow changes
+- no new unauthorized durable write or unbounded external egress
+
+Alpha/RC gates may add short real-user flows, real provider/host round trips, backup/restore rehearsal, and usefulness evaluation.
 
 ## Reporting
 
-Final reports should begin with:
+Reports begin with:
 
-1. What now works.
-2. What workflow or capability improved.
-3. What tests passed.
+1. what now works or what verified residue was removed
+2. how user effort or product flow improved
+3. tests actually run
 
-Only after that should reports mention deleted residue, retained historical
-compatibility notes, skipped checks, or remaining limitations.
+Then report remaining blockers and compatibility debt.
