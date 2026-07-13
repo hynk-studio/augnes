@@ -1,0 +1,213 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "accepted_state": false,
+  "authority": {
+    "facts": [
+      {
+        "label": "review_only",
+        "value": "true"
+      },
+      {
+        "label": "accepted_state",
+        "value": "false"
+      },
+      {
+        "label": "candidate_count",
+        "value": "0"
+      },
+      {
+        "label": "decision_authority",
+        "value": "none"
+      },
+      {
+        "label": "prepare_helper_executed",
+        "value": "operational_provenance_only"
+      },
+      {
+        "label": "validate_helper_executed",
+        "value": "false"
+      }
+    ],
+    "flags": {
+      "accepted_state_created": false,
+      "proof_evidence_readiness_created": false,
+      "review_decision_created": false,
+      "provider_model_calls": false,
+      "codex_sdk_calls": false,
+      "github_api_calls": false,
+      "db_writes": false,
+      "clipboard_automation": false,
+      "live_codex_capture": false,
+      "runtime_fixture_mutation": false,
+      "core_decision": false,
+      "network_calls": false,
+      "prepare_helper_executed": true,
+      "surface_export_created": false,
+      "validate_helper_executed": false
+    },
+    "tags": [
+      "review_only",
+      "no_accepted_state",
+      "no_validate_helper",
+      "no_codex_call",
+      "no_review_decision"
+    ]
+  },
+  "caveat_label": "Manual Codex return has not been captured.",
+  "evidence": {
+    "source_pr_refs": [
+      "pr:hynk-studio/augnes#508"
+    ],
+    "source_input_hash": "293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+    "manifest_work_id": "AG-codex-former-local-adapter-manifest-to-source-input",
+    "manifest_scope": "project:augnes",
+    "candidate_count": 0,
+    "metadata_match": "not_run",
+    "optional_path_presence": {
+      "existing_helper_metadata_path": false,
+      "returned_envelope_path": false,
+      "validation_summary_path": false
+    },
+    "prepare_execution": {
+      "execution_result": "success",
+      "helper_command_argv_hash": "8bf47c6725c3e30a06c352c061ce9b6d8d730754d446376f371c7a584679354a",
+      "helper_out_dir": "/tmp/augnes-codex-former-local-adapter-prepare-execution",
+      "helper_output_hashes": {
+        "former_input_packet_hash": null,
+        "helper_metadata_hash": "2a13e0127991061e1b82d6e243558be41b4762f3f8e5a5a073e20919fe68816c",
+        "manual_copy_packet_hash": null,
+        "prompt_hash": "d0b3aa85b0851059306fa0cab383527f03d3ac89db38233cf73b9b3d7a3b870c",
+        "return_envelope_template_hash": "ed314934dc470c96a77eb487980fd4dde013fd45f609a121999dbbf3fd0cf989"
+      },
+      "helper_output_refs": {
+        "former_input_packet_ref": "codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami",
+        "manual_copy_packet_ref": "manual-codex-former-copy:v0.1:1d44vfz"
+      },
+      "helper_output_sizes": {
+        "former_input_packet_size_bytes": null,
+        "helper_metadata_size_bytes": 12271,
+        "manual_copy_packet_size_bytes": null,
+        "prompt_size_bytes": 11197,
+        "return_envelope_template_size_bytes": 788
+      },
+      "operational_provenance_only": true,
+      "output_discovery_status": "complete",
+      "prepare_execution_summary_hash": "e5206191273134cbcc8d72a2b740cb6d0cd27e151cfa17040afc7159725ea61b",
+      "prepare_execution_summary_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json",
+      "prepare_helper_executed": true,
+      "validate_helper_executed": false
+    },
+    "source_prompt_hash": "not_run"
+  },
+  "handoff": {
+    "available": false,
+    "detail": "Session Panel status inspection is available as a local snapshot; Constellation Preview and returned-candidate validation are unavailable.",
+    "href": null,
+    "label": "Not ready"
+  },
+  "next_safe_action_label": "Use the generated prompt/manual copy packet in a separate user-started Codex session, then return exactly one candidate envelope.",
+  "primary_status_label": "Prepared, waiting for Codex return",
+  "privacy": {
+    "bounded_summaries_only": true,
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true
+  },
+  "review_only": true,
+  "scenario_id": "prepared-waiting-for-codex-return",
+  "snapshot_kind": "session_panel",
+  "snapshot_version": "codex_former_local_adapter_session_panel_snapshot.v0.1",
+  "source": {
+    "manifest_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-manifest-valid.json",
+    "manifest_hash": "3eb081ae5e7b6aff3722f58ed22c6336c8eb166e89d86135f5525a7af782ba60",
+    "source_input_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-source-input.json",
+    "source_input_hash": "293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+    "preflight_status": "passed",
+    "preflight_summary_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-source-input-preflight-summary.json"
+  },
+  "timeline": [
+    {
+      "status": "complete",
+      "description": "Bounded source input is complete and hash-checked.",
+      "id": "source-input",
+      "label": "Bounded source input"
+    },
+    {
+      "status": "complete",
+      "description": "Local source-input preflight passed.",
+      "id": "source-input-preflight",
+      "label": "Source input preflight"
+    },
+    {
+      "status": "complete",
+      "description": "Prepare execution completed and helper outputs were discovered.",
+      "id": "prepare-execution",
+      "label": "Prepare execution"
+    },
+    {
+      "status": "ready",
+      "description": "Generated prompt/manual copy packet is available for a separate user-started Codex session.",
+      "id": "manual-copy-packet",
+      "label": "Manual copy packet / prompt"
+    },
+    {
+      "status": "waiting",
+      "description": "Waiting for the operator to use the generated prompt in a separate Codex session.",
+      "id": "codex-session",
+      "label": "Separate Codex session"
+    },
+    {
+      "status": "waiting",
+      "description": "No returned candidate envelope has been captured.",
+      "id": "returned-candidate",
+      "label": "Returned candidate"
+    },
+    {
+      "status": "not_started",
+      "description": "Validate helper has not run.",
+      "id": "validation",
+      "label": "Validation"
+    },
+    {
+      "status": "not_started",
+      "description": "No review candidate is available before validation.",
+      "id": "review-candidate",
+      "label": "Review candidate"
+    },
+    {
+      "status": "not_started",
+      "description": "No Constellation handoff is available.",
+      "id": "constellation-handoff",
+      "label": "Constellation handoff"
+    }
+  ],
+  "warnings": {
+    "warning_count": 3,
+    "blocked_reason_count": 0,
+    "groups": [
+      {
+        "count": 2,
+        "examples": [
+          "Return exactly one candidate envelope before validation.",
+          "Validation remains not_started."
+        ],
+        "id": "waiting-codex-return",
+        "label": "Waiting for Codex return",
+        "tone": "neutral"
+      },
+      {
+        "count": 1,
+        "examples": [
+          "prepare_helper_executed is not accepted state, validation, readiness, or review decision."
+        ],
+        "id": "operational-provenance-only",
+        "label": "Operational provenance only",
+        "tone": "warning"
+      }
+    ],
+    "missing_prerequisites": [
+      "Manual Codex return has not been captured.",
+      "Validation has not run.",
+      "Prepare helper execution is operational provenance only."
+    ]
+  }
+}

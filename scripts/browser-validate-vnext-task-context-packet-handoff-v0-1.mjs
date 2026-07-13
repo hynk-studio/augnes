@@ -626,8 +626,8 @@ async function main() {
 
 async function exportActualCompiledPacketFixture() {
   const completed = await runCapture(
-    "npm",
-    ["run", "smoke:vnext-operator-pilot-v0-1"],
+    process.execPath,
+    ["--import", "tsx", "scripts/smoke-vnext-operator-pilot-v0-1.ts"],
     {
       cwd: process.cwd(),
       env: {

@@ -1,0 +1,152 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "accepted_state": false,
+  "authority": {
+    "facts": [
+      {
+        "label": "review_only",
+        "value": "true"
+      },
+      {
+        "label": "accepted_state",
+        "value": "false"
+      },
+      {
+        "label": "candidate_count",
+        "value": "0"
+      },
+      {
+        "label": "decision_authority",
+        "value": "none"
+      }
+    ],
+    "flags": {
+      "accepted_state_created": false,
+      "proof_evidence_readiness_created": false,
+      "review_decision_created": false,
+      "provider_model_calls": false,
+      "codex_sdk_calls": false,
+      "github_api_calls": false,
+      "db_writes": false,
+      "clipboard_automation": false,
+      "live_codex_capture": false,
+      "runtime_fixture_mutation": false,
+      "core_decision": false
+    },
+    "tags": [
+      "review_only",
+      "advisory_only",
+      "no_accepted_state",
+      "no_db_write",
+      "no_provider_call",
+      "no_codex_sdk_call",
+      "no_github_mutation",
+      "no_core_decision"
+    ]
+  },
+  "caveat_label": "Source input and preflight are not ready.",
+  "evidence": {
+    "source_pr_refs": [
+      "pr:hynk-studio/augnes#508"
+    ],
+    "source_input_hash": "not_ready",
+    "manifest_work_id": "AG-codex-former-local-adapter-manifest-to-source-input",
+    "manifest_scope": "project:augnes",
+    "candidate_count": 0,
+    "metadata_match": "not_run",
+    "optional_path_presence": {
+      "existing_helper_metadata_path": false,
+      "returned_envelope_path": false,
+      "validation_summary_path": false
+    },
+    "source_prompt_hash": "not_run"
+  },
+  "handoff": {
+    "available": false,
+    "detail": "No Constellation Preview handoff is available before source input preflight and validation.",
+    "href": null,
+    "label": "Not ready"
+  },
+  "next_safe_action_label": "Run manifest-to-source-input adapter and preflight source input.",
+  "primary_status_label": "Not prepared",
+  "privacy": {
+    "bounded_summaries_only": true,
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true
+  },
+  "review_only": true,
+  "scenario_id": "not-prepared",
+  "snapshot_kind": "session_panel",
+  "snapshot_version": "codex_former_local_adapter_session_panel_snapshot.v0.1",
+  "source": {
+    "manifest_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-manifest-valid.json",
+    "manifest_hash": "3eb081ae5e7b6aff3722f58ed22c6336c8eb166e89d86135f5525a7af782ba60",
+    "source_input_path": null,
+    "source_input_hash": null,
+    "preflight_status": null,
+    "preflight_summary_path": null
+  },
+  "timeline": [
+    {
+      "status": "not_started",
+      "description": "No source input is available.",
+      "id": "source-input",
+      "label": "Bounded source input"
+    },
+    {
+      "status": "not_started",
+      "description": "Preflight has not passed.",
+      "id": "source-input-preflight",
+      "label": "Source input preflight"
+    },
+    {
+      "status": "not_started",
+      "description": "Prepare helper has not run.",
+      "id": "prepare-packet",
+      "label": "Prepare packet"
+    },
+    {
+      "status": "not_started",
+      "description": "No user-started session handoff.",
+      "id": "codex-session",
+      "label": "Separate Codex session"
+    },
+    {
+      "status": "not_started",
+      "description": "No candidate envelope returned.",
+      "id": "returned-candidate",
+      "label": "Returned candidate"
+    },
+    {
+      "status": "not_started",
+      "description": "Validation has not run.",
+      "id": "validation",
+      "label": "Validation"
+    },
+    {
+      "status": "not_started",
+      "description": "No graph handoff.",
+      "id": "constellation-handoff",
+      "label": "Constellation handoff"
+    }
+  ],
+  "warnings": {
+    "warning_count": 2,
+    "blocked_reason_count": 0,
+    "groups": [
+      {
+        "count": 2,
+        "examples": [
+          "Generate source input and run local preflight."
+        ],
+        "id": "pending-source-input",
+        "label": "Pending prerequisites",
+        "tone": "warning"
+      }
+    ],
+    "missing_prerequisites": [
+      "Source input is unavailable.",
+      "Source input preflight has not passed."
+    ]
+  }
+}

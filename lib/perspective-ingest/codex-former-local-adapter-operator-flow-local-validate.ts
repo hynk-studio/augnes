@@ -22,39 +22,39 @@ const maxReturnedEnvelopeLength = 20000;
 const inMemoryReturnedEnvelopePath =
   "local-operator-flow:returned-envelope-textarea";
 const fixtureTextReaders: Record<string, () => string> = {
-  "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json":
+  "fixtures/codex-former/2026-06-12-codex-former-local-adapter-source-input-pass.json":
     () =>
       readFileSync(
         resolve(
           process.cwd(),
-          "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json",
+          "fixtures/codex-former/2026-06-12-codex-former-local-adapter-source-input-pass.json",
         ),
         "utf8",
       ),
-  "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json":
+  "fixtures/codex-former/2026-06-11-codex-former-local-adapter-source-input.json":
     () =>
       readFileSync(
         resolve(
           process.cwd(),
-          "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+          "fixtures/codex-former/2026-06-11-codex-former-local-adapter-source-input.json",
         ),
         "utf8",
       ),
-  "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json":
+  "fixtures/codex-former/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json":
     () =>
       readFileSync(
         resolve(
           process.cwd(),
-          "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json",
+          "fixtures/codex-former/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json",
         ),
         "utf8",
       ),
-  "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json":
+  "fixtures/codex-former/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json":
     () =>
       readFileSync(
         resolve(
           process.cwd(),
-          "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json",
+          "fixtures/codex-former/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json",
         ),
         "utf8",
       ),

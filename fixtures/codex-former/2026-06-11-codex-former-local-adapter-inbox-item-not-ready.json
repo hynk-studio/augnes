@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "warning_count": 2,
+  "authority_flags": {
+    "accepted_state_created": false,
+    "proof_evidence_readiness_created": false,
+    "review_decision_created": false,
+    "provider_model_calls": false,
+    "codex_sdk_calls": false,
+    "github_api_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "live_codex_capture": false,
+    "runtime_fixture_mutation": false,
+    "core_decision": false
+  },
+  "accepted_state": false,
+  "authority_facts": [
+    {
+      "label": "review_only",
+      "value": "true"
+    },
+    {
+      "label": "accepted_state",
+      "value": "false"
+    },
+    {
+      "label": "candidate_count",
+      "value": "0"
+    },
+    {
+      "label": "decision_authority",
+      "value": "none"
+    }
+  ],
+  "authority_tags": [
+    "review_only",
+    "advisory_only",
+    "no_accepted_state",
+    "no_db_write",
+    "no_provider_call",
+    "no_codex_sdk_call",
+    "no_github_mutation",
+    "no_core_decision"
+  ],
+  "badges": [
+    "not_ready",
+    "review_only"
+  ],
+  "blocked_reason_count": 0,
+  "blocked_reason_summary": {
+    "examples": [],
+    "label": "No blocked reasons"
+  },
+  "candidate_count": 0,
+  "caveat": "Source input and preflight are not ready.",
+  "item_id": "capture-review:local-adapter:AG-codex-former-local-adapter-manifest-to-source-input:not-ready",
+  "metadata_match": "not_run",
+  "next_safe_action": "Run manifest-to-source-input adapter and preflight source input.",
+  "primary_status": "Not ready",
+  "privacy": {
+    "bounded_summaries_only": true,
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true
+  },
+  "review_only": true,
+  "reviewability": "not_ready",
+  "safe_links": {
+    "constellation_preview": {
+      "available": false,
+      "detail": "No Constellation Preview handoff is available for not_ready or waiting adapter snapshots.",
+      "href": null,
+      "label": "Not ready"
+    },
+    "session_panel": {
+      "available": false,
+      "detail": "Session Panel snapshot is available as local JSON.",
+      "href": null,
+      "label": "Session Panel local snapshot"
+    }
+  },
+  "snapshot_kind": "capture_review_inbox_item",
+  "snapshot_version": "codex_former_local_adapter_inbox_item_snapshot.v0.1",
+  "source": {
+    "manifest_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-manifest-valid.json",
+    "manifest_hash": "3eb081ae5e7b6aff3722f58ed22c6336c8eb166e89d86135f5525a7af782ba60",
+    "source_input_path": null,
+    "source_input_hash": null,
+    "preflight_status": null,
+    "preflight_summary_path": null
+  },
+  "source_session_label": "Local Codex adapter manifest-to-source-input implementation",
+  "title": "Pending preparation",
+  "warning_summary": {
+    "examples": [
+      "Generate source input and run local preflight."
+    ],
+    "label": "Pending prerequisites"
+  }
+}

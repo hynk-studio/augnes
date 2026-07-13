@@ -4,8 +4,8 @@ import {
   type CodexFormerSessionPanelScenario,
 } from "@/lib/perspective-ingest/codex-former-session-perspective-panel-fixture-surface";
 import type { CodexFormerPreviewData } from "@/lib/perspective-ingest/codex-former-constellation-preview-fixture-surface";
-import blockedPreviewData from "@/reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json";
-import passWithFollowUpPreviewData from "@/reports/fixtures/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
+import blockedPreviewData from "@/fixtures/codex-former/2026-06-10-codex-former-constellation-preview-data-blocked.json";
+import passWithFollowUpPreviewData from "@/fixtures/codex-former/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
 
 export default function CodexFormerSessionPerspectivePanelFixturePage() {
   const scenarios: CodexFormerSessionPanelScenario[] =

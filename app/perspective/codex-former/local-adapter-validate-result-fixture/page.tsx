@@ -10,13 +10,13 @@ import type {
   CodexFormerLocalAdapterValidateResultSessionPanelSnapshotV0,
   CodexFormerLocalAdapterValidateResultSnapshotSummaryV0,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-validate-result-snapshots";
-import inboxBlockedFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-blocked.json";
-import inboxPassWithFollowUpFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass-with-follow-up.json";
-import inboxPassFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass.json";
-import sessionBlockedFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-blocked.json";
-import sessionPassWithFollowUpFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass-with-follow-up.json";
-import sessionPassFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass.json";
-import snapshotSummaryFixture from "@/reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-snapshot-summary.json";
+import inboxBlockedFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-blocked.json";
+import inboxPassWithFollowUpFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass-with-follow-up.json";
+import inboxPassFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass.json";
+import sessionBlockedFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-blocked.json";
+import sessionPassWithFollowUpFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass-with-follow-up.json";
+import sessionPassFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass.json";
+import snapshotSummaryFixture from "@/fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-result-snapshot-summary.json";
 
 export default function CodexFormerLocalAdapterValidateResultFixturePage() {
   const input: ValidateResultFixtureSurfaceInput = {

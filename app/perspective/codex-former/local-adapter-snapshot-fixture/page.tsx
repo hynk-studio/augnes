@@ -8,9 +8,9 @@ import type {
   LocalAdapterSessionPanelSurfaceViewModels,
   LocalAdapterSnapshotSurfaceIntegrationReadiness,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-snapshot-surface-integration";
-import inboxViewModelFixture from "@/reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-surface-view-models.json";
-import readinessFixture from "@/reports/fixtures/2026-06-11-codex-former-local-adapter-snapshot-surface-integration-readiness.json";
-import sessionPanelViewModelFixture from "@/reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-surface-view-models.json";
+import inboxViewModelFixture from "@/fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-surface-view-models.json";
+import readinessFixture from "@/fixtures/codex-former/2026-06-11-codex-former-local-adapter-snapshot-surface-integration-readiness.json";
+import sessionPanelViewModelFixture from "@/fixtures/codex-former/2026-06-11-codex-former-local-adapter-session-panel-surface-view-models.json";
 
 export default function CodexFormerLocalAdapterSnapshotFixturePage() {
   const input: LocalAdapterSnapshotFixtureSurfaceInput = {

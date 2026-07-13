@@ -25,13 +25,13 @@ export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY =
   "review-only local-only non-authorizing";
 
 export const operatorFlowSourceInputRefs = [
-  "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json",
-  "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+  "fixtures/codex-former/2026-06-12-codex-former-local-adapter-source-input-pass.json",
+  "fixtures/codex-former/2026-06-11-codex-former-local-adapter-source-input.json",
 ] as const;
 
 export const operatorFlowPrepareExecutionSummaryRefs = [
-  "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json",
-  "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json",
+  "fixtures/codex-former/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json",
+  "fixtures/codex-former/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json",
 ] as const;
 
 export type OperatorFlowReturnedEnvelopeFixtureKey =
