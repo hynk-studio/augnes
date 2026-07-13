@@ -1,277 +1,82 @@
 # Augnes
 
-Augnes is a local-first, operator-led work system for long-context AI-assisted
-project development. It helps a human operator, ChatGPT / MCP clients, Codex
-workers, and local runtime tools coordinate around bounded work without handing
-durable project decisions to a model.
+Augnes is a local-first, operator-led temporal project substrate for AI-assisted work.
+Native hosts such as ChatGPT and Codex execute tasks; Augnes preserves project context,
+lineage, reviewed decisions, and durable state across those tasks.
 
-## Active vNext Development Direction
+## Product direction
 
-The current runtime and compatibility surfaces described below remain usable.
-New product direction, architecture, and work selection are governed by:
-
-- `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`
-- `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`
-- `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`
-- `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`
-- `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
-
-The default deployment profile is ChatGPT Work + Codex + OpenAI API, while
-Augnes Core contracts remain provider-neutral. The existing Blank State and
-Agent Workplane remain usable runtime surfaces and are the predecessors of the
-target Augnes Project Home and Augnes Semantic Workbench. Their useful
-responsibilities are preserved and specialized rather than wholesale-replaced
-by Inspector. Inspector is the shared drill-down and lineage explorer used by
-those target surfaces. Current manual handoff and result-paste paths remain
-compatibility behavior rather than the target integrated flow.
-
-The current product shape is organized around four surfaces:
+Augnes is being completed around one operability-first flow:
 
 ```text
-Blank State
-= human-facing entry surface
-
-Agent Workplane
-= AI/operator-facing work surface
-
-GuideBrief
-= cross-surface guidance and context explanation layer
-
-Provider / Runner / Tool Layer
-= ChatGPT, Codex, OpenAI API, GitHub, runner, MCP/App, and local bridge power sources
+Start Augnes
+→ select a project
+→ start a task
+→ compile project context
+→ run Codex / the native host
+→ return a structured result
+→ review the result
+→ approve any durable semantic change
+→ reuse the changed context in later work
 ```
 
-Legacy Cockpit has been removed as a product surface. Its useful capabilities
-were migrated into Blank State, Agent Workplane, Workplane State Proposal Review,
-and Manual Controls Migration review rows.
+The active product commitments are:
 
-## What Augnes Can Do Today
+- provider-neutral, local-first Core
+- Resume / Verify / Decide
+- project and workspace identity with isolation
+- `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, and `ReviewDecision`
+- minimal Model Gateway with an OpenAI reference adapter
+- adapter-backed Codex round trip
+- Project Home, Semantic Workbench, and shared Inspector
+- migration, backup, restore, update, and recovery
 
-- Present a human-facing Blank State at `/` for continuing work, reviewing
-  pending proposals, choosing Perspective context, preparing Codex handoff, and
-  checking runner DeltaBatch review entry points.
-- Present an AI/operator-facing Agent Workplane at `/workbench` with Current
-  Working Perspective, Delta Projection, Review Queue, State Proposal Review,
-  handoff previews, runner DeltaBatch readback, source refs, trace diagnostics,
-  GuideBrief context, and Workplane metrics.
-- Keep accepted temporal state transitions in a local SQLite ledger behind an
-  explicit user/runtime commit/reject gate.
-- Expose read-first ChatGPT / MCP bridge calls such as `augnes_list_work_items`,
-  `augnes_get_work_brief`, `augnes_get_guide_brief`,
-  `augnes_get_handoff_capsule_preview`, and
-  `augnes_get_codex_launch_card_preview` when the local bridge surface is
-  enabled.
-- Let Codex discover bounded work with `npm run codex:next-work`, use a pasted
-  Core Handoff or runtime Work Brief when available, and report whether it used
-  runtime or repo fallback context.
-- Prepare Codex handoff and result-review drafts without directly executing
-  Codex, creating branches, creating PRs, merging, publishing, or committing
-  state.
-- Compile local observe, plan, and temporal-interpretation previews with
-  deterministic mock fallbacks; optional OpenAI-backed flows can be tested when
-  a local `OPENAI_API_KEY` is supplied.
-- Keep proof, evidence, work traces, handoffs, and result reports separate so
-  reviewers can inspect what happened without confusing review artifacts with
-  approval.
+The active sequence is defined in
+[`docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
 
-## Quick Start
+## What works today
 
-Run the local demo:
+- `/` provides the current human-facing entry surface.
+- `/workbench` provides the current operator/AI work surface.
+- `/workbench/semantic-review` provides the current semantic review path.
+- `/perspective` provides Perspective and lineage views.
+- local SQLite persistence stores durable vNext semantic records and projections.
+- deterministic mock paths allow local development without an OpenAI key.
+- current MCP, handoff-copy, and manual result-paste flows remain compatibility paths until their adapter-backed replacements land.
+
+## Current development start
+
+The repository does not yet provide the target zero-configuration runtime. For current local development:
 
 ```bash
 npm install
-npm run db:reset
 npm run db:migrate
 npm run demo:seed
-env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
+npm run dev
 ```
 
-Then open:
+Open `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+Do not use `db:reset` as a normal start command. It is a destructive developer operation and must only be used against an explicitly disposable database.
 
-Useful local surfaces:
+`OPENAI_API_KEY` is optional. Without it, supported flows use deterministic local fallbacks.
 
-```text
-/            Blank State human entry
-/workbench   Agent Workplane
-/perspective Perspective timeline and review context
-```
+## Development policy
 
-`OPENAI_API_KEY` is optional for the local demo because deterministic mock
-fallbacks are included. To test OpenAI-backed observe, plan, and preview flows,
-set `OPENAI_API_KEY` in your local environment. Do not commit `.env` or
-`.env.local`.
+- Advance the end-to-end product flow before adding new framework or process layers.
+- Use focused unit, integration, disposable-database, and browser tests during development.
+- Do not make long manual operator pilots a normal PR merge gate.
+- Move real-user usefulness validation to Alpha, after R2–R8 are feature-complete.
+- Keep irreversible external actions and durable semantic changes under explicit user control.
+- Do not add new planning-only documents, passive workflow-stage panels, manual copy UI, or feature-specific smoke commands by default.
 
-## Three Ways To Use Augnes
+## Active documents
 
-### 1. Human/operator local path
+- [`docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md) — product identity and north star
+- [`docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md) — Core and protocol meaning
+- [`docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md) — active implementation order
+- [`docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) — development and post-Alpha evaluation
+- [`docs/REPOSITORY_REDUCTION_SCOPE.md`](docs/REPOSITORY_REDUCTION_SCOPE.md) — repository retention and deletion policy
+- [`AGENTS.md`](AGENTS.md) — Codex implementation rules
 
-Run the local runtime, open Blank State, choose what to continue or review, and
-use Agent Workplane for work context, source refs, proposals, handoff previews,
-runner readback, and GuideBrief context. Durable decisions remain explicit and
-operator-led.
-
-### 2. ChatGPT / MCP path
-
-Start the local runtime first. For the read-only Work Loop surface used by
-ChatGPT Developer Mode, start the bridge in a second terminal:
-
-```bash
-npm --prefix apps/augnes_apps install
-AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_APP_TOOL_SURFACE=work_loop_readonly AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
-```
-
-Connect ChatGPT Developer Mode, MCP Inspector, or another MCP-compatible client
-to:
-
-```text
-http://localhost:8787/mcp
-```
-
-In `work_loop_readonly` mode, useful calls are:
-
-- `augnes_list_work_items` with args `{ "scope": "project:augnes" }`
-- `augnes_get_work_brief` with args
-  `{ "scope": "project:augnes", "workId": "AG-RESEARCH-CAPABILITY-LANES-001" }`
-
-The broader bridge-gated App/MCP surface also includes read-only previews for
-GuideBrief, Handoff Capsule, Codex Launch Card, Autonomy Contract, runner
-preflight, evidence packs, and session traces. These tools are review and
-planning surfaces, not execution or state authority.
-
-### 3. Codex worker path
-
-If a Core Handoff, Handoff Capsule, or Codex Launch Card is pasted into a Codex
-task, use that handoff as the primary work contract.
-
-If a runtime Work Brief is available and `CODEX_WORK_ID` is set, use:
-
-```bash
-npm run codex:read-brief
-```
-
-If no handoff is pasted, start with:
-
-```bash
-npm run codex:next-work -- --scope project:augnes
-```
-
-For the current research capability preparation item:
-
-```bash
-npm run codex:next-work -- --scope project:augnes --prefer-research
-npm run codex:next-work -- --scope project:augnes --work-id AG-RESEARCH-CAPABILITY-LANES-001
-```
-
-For historical dogfood evidence only:
-
-```bash
-npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001
-```
-
-Codex should report whether discovery came from `runtime_work_brief`,
-`repo_seed_fallback`, `docs_fallback`, or `blocked`. Use
-`docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` for the final report, then
-return it to the human for manual paste through `codexResultText` or
-`codexResultPaste`.
-
-## Current Architecture Summary
-
-The current read-model path is:
-
-```text
-Source records
-  -> Augnes Delta Projection
-  -> Current Working Perspective
-  -> Workplane Context
-  -> Blank State / Agent Workplane / State Proposal Review / GuideBrief
-```
-
-Most current surfaces are read-only or preview-only. They can show source refs,
-fallback reasons, staleness, gaps, authority boundaries, handoff drafts, Codex
-Launch Card previews, and review candidates. They do not directly apply memory,
-apply Perspective, auto-apply deltas, execute Codex, tick runners, call GitHub,
-merge PRs, publish, retry, replay, or deploy.
-
-## Research And Perspective Development Direction
-
-Research Accumulation is moving from preview vocabulary toward product-facing
-research capability lanes for Perspective development. The current repo-backed
-preparation item is `AG-RESEARCH-CAPABILITY-LANES-001`, which points to:
-
-- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
-
-The next R&D focus is a review-first path for manually supplied
-source/reference/notes material: clear provenance, candidate/review records,
-retrieval non-authority rules, and human-reviewed perspective promotion. The
-historical dogfood item `AG-DOGFOOD-RESEARCH-001` remains available for explicit
-work-id lookup and points to:
-
-- `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
-- `docs/AUGNES_RESEARCH_WORK_USER_HAPPY_PATH_OBSERVATION_V0_1.md`
-- `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
-
-## Result Return Path
-
-Codex result return is manual and preview-first:
-
-1. Codex completes the bounded repo task.
-2. Codex writes a field-first result report using
-   `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`.
-3. The human pastes that report into `codexResultText` or
-   `codexResultPaste`.
-4. Augnes previews the returned report for review.
-
-Codex should not claim a PR URL, host observation, proof/evidence row, event row,
-state decision, work close, provider call, or runtime behavior unless it actually
-happened.
-
-## Screenshots
-
-The screenshots in `screenshots/` are historical OpenAI Dev Challenge and
-Cockpit-era proof captures. They remain useful as evidence of earlier local
-runtime, MCP, Perspective, and Codex flows, but they are not the current product
-information architecture. Current front-door structure is Blank State + Agent
-Workplane + GuideBrief.
-
-More screenshots and supporting proof captures are listed in
-`screenshots/README.md`.
-
-## Unsupported / Not Yet Supported
-
-- Augnes is local-first, not a hosted production service.
-- External publishing, merging, deployment, and irreversible actions remain
-  operator-controlled.
-- Research fetching, retrieval, durable research memory, and perspective
-  promotion are active development lanes, not automatic default behavior.
-- Direct Codex execution, branch creation, PR creation, GitHub review/merge,
-  durable memory apply, Perspective apply, runner execution, and delta auto-apply
-  require future explicitly scoped authority contracts.
-- Proof, evidence, PRs, and pasted Codex reports are review artifacts, not
-  approval authority.
-
-## Security And Boundaries
-
-- No API keys are committed. `.env` and `.env*.local` are ignored.
-- Augnes is local-first and operator-led.
-- Durable state remains behind explicit user/runtime gates.
-- ChatGPT / MCP bridge surfaces remain read-first unless separately scoped.
-- Work IDs are trace anchors, not state authority.
-- Action records are execution proof, not approval.
-- PRs are review artifacts, not merge authority.
-
-## Read Next
-
-- `docs/AUGNES_START_HERE_FOR_USERS_AND_AI.md`
-- `docs/AUGNES_CURRENT_STATUS_AND_NEXT_TASKS_V0_1.md`
-- `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
-- `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
-- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
-- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
-- `docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md`
-- `docs/AUTHORITY_MATRIX.md`
-- `AGENTS.md`
-- `docs/00_INDEX_LATEST.md`
+Historical plans, dogfood reports, closeout records, and compatibility documents are not active sequencing authority.
