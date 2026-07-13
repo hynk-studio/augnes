@@ -19,8 +19,9 @@ import {
   validateSemanticTransitionFullChainV01,
 } from "@/lib/vnext/state-transition-eligibility";
 import {
-  VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01,
+  VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01,
   commitVNextSemanticTransitionInsideTransactionV01,
+  createVNextSemanticCommitConfirmationContextRefV01,
   loadValidatedVNextSemanticTransitionRelationV01,
   prepareVNextSemanticCommitPreviewV01,
   recordVNextSemanticCommitAuthorizationInsideTransactionV01,
@@ -28,6 +29,18 @@ import {
   type VNextSemanticCommitPreviewV01,
   type VNextSemanticTransitionCommitResultV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
+import {
+  VNEXT_OPERATOR_PILOT_DEFAULT_REVIEW_WINDOW_CONFIG_V01,
+  VNEXT_OPERATOR_PILOT_GATE_TTL_DEFAULT_MS_V01,
+  VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01,
+  VNEXT_OPERATOR_PILOT_GATE_TTL_MIN_MS_V01,
+  VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01,
+  VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MIN_MS_V01,
+  VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01,
+  createVNextOperatorPilotReviewWindowConfigFingerprintV01,
+  isExplicitVNextOperatorPilotReviewWindowConfigV01,
+  type VNextOperatorPilotReviewWindowConfigV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-window-config-v0-1";
 import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
   compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01,
@@ -60,7 +73,8 @@ import {
 
 export const VNEXT_OPERATOR_PILOT_TRANSITION_RUNTIME_VERSION_V01 =
   "vnext_operator_pilot_semantic_transition.v0.1" as const;
-export const VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01 = 10 * 60 * 1000;
+export const VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01 =
+  VNEXT_OPERATOR_PILOT_GATE_TTL_DEFAULT_MS_V01;
 export const VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01 =
   8 * 60 * 60 * 1000;
 export const VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01 =
@@ -116,6 +130,7 @@ interface PreviewBindingPayloadV01 extends ExactDecisionBindingV01 {
   current_state_observed_at: string;
   previewed_at: string;
   confirmation_digest: string;
+  review_window_config: VNextOperatorPilotReviewWindowConfigV01;
 }
 
 export interface VNextOperatorPilotPreviewResultV01 {
@@ -126,7 +141,12 @@ export interface VNextOperatorPilotPreviewResultV01 {
     accept_create_only: true;
     current_state_required: "absent";
     authorized_applier_derived_by_server: true;
-    gate_ttl_ms: typeof VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01;
+    review_window_config_version: typeof VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01;
+    preview_max_age_ms: number;
+    preview_source: VNextOperatorPilotReviewWindowConfigV01["preview_source"];
+    gate_ttl_ms: number;
+    gate_source: VNextOperatorPilotReviewWindowConfigV01["gate_source"];
+    preview_binding_expires_at: string;
   };
   preview_is_write: false;
 }
@@ -166,17 +186,54 @@ export interface VNextOperatorPilotGateProvenanceValidationV01 {
   errors: string[];
 }
 
+export function assertVNextOperatorPilotGateReviewWindowConfigV01(
+  gate: VNextSemanticCommitGateRecordV01,
+  config: VNextOperatorPilotReviewWindowConfigV01,
+): void {
+  const exactConfig = reviewWindowConfigOrDefault(config);
+  const evaluatedAt = parseStrictIsoTimestampV01(
+    gate.semantic_commit_gate_evaluation.evaluated_at,
+  );
+  const expiresAt = parseStrictIsoTimestampV01(
+    gate.semantic_commit_gate_evaluation.expires_at,
+  );
+  const expectedContext = createReviewWindowConfirmationBasisRef(
+    exactConfig,
+    gate.confirmed_at,
+  );
+  const contexts = (gate.operator_confirmation_basis_refs ?? []).filter(
+    (ref) => ref.ref_type === "semantic_commit_confirmation_context",
+  );
+  const actualContext = contexts.length === 1 ? contexts[0]! : null;
+  if (
+    evaluatedAt === null ||
+    expiresAt === null ||
+    expiresAt - evaluatedAt !== exactConfig.gate_ttl_ms ||
+    (actualContext === null) !== (expectedContext === null) ||
+    (actualContext !== null &&
+      expectedContext !== null &&
+      canonicalizeProtocolValueV01(actualContext) !==
+        canonicalizeProtocolValueV01(expectedContext))
+  ) {
+    throw transitionError("operator_pilot_review_window_config_mismatch", 409);
+  }
+}
+
 export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
   db: Database.Database,
   input: {
     config: VNextLocalOperatorPilotConfigV01;
     credential: VNextLocalOperatorSessionCredentialV01;
     request: unknown;
+    review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
     clock?: VNextLocalRuntimeClockV01;
   },
 ): VNextOperatorPilotPreviewResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseExactDecisionBinding(input.request);
+  const reviewWindowConfig = reviewWindowConfigOrDefault(
+    input.review_window_config,
+  );
   const authentication = authenticateVNextLocalOperatorSessionV01(db, input);
   const material = requirePilotAcceptCreateMaterial(db, input.config, request, {
     require_absent: true,
@@ -187,14 +244,21 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
     project_id: input.config.project_id,
     ...request,
     authorized_applier_identity: authorizedApplierIdentity(input.config),
-    gate_ttl_ms: VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01,
+    gate_ttl_ms: reviewWindowConfig.gate_ttl_ms,
+    confirmation_context_fingerprint:
+      confirmationContextFingerprint(reviewWindowConfig),
     clock: input.clock,
   });
-  assertPilotPreview(preview, material.decision);
+  assertPilotPreview(preview, material.decision, reviewWindowConfig);
   const binding = createPreviewBinding(
     input.config,
     authentication.credential,
     preview,
+    reviewWindowConfig,
+  );
+  const previewBindingExpiresAt = addReviewWindowMilliseconds(
+    preview.previewed_at,
+    reviewWindowConfig.preview_max_age_ms,
   );
   return {
     preview,
@@ -204,7 +268,12 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
       accept_create_only: true,
       current_state_required: "absent",
       authorized_applier_derived_by_server: true,
-      gate_ttl_ms: VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01,
+      review_window_config_version: reviewWindowConfig.config_version,
+      preview_max_age_ms: reviewWindowConfig.preview_max_age_ms,
+      preview_source: reviewWindowConfig.preview_source,
+      gate_ttl_ms: reviewWindowConfig.gate_ttl_ms,
+      gate_source: reviewWindowConfig.gate_source,
+      preview_binding_expires_at: previewBindingExpiresAt,
     },
     preview_is_write: false,
   };
@@ -217,25 +286,39 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     credential: VNextLocalOperatorSessionCredentialV01;
     preview_binding_cookie: string;
     request: unknown;
+    review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
   },
 ): VNextOperatorPilotAuthorizationResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseConfirmRequest(input.request);
+  const reviewWindowConfig = reviewWindowConfigOrDefault(
+    input.review_window_config,
+  );
   authenticateVNextLocalOperatorSessionV01(db, input);
   const binding = readPreviewBinding(
     input.preview_binding_cookie,
     input.config,
     input.credential,
     request,
+    reviewWindowConfig,
   );
-  const prevalidated = rebuildBoundPreview(db, input.config, binding);
+  const prevalidated = rebuildBoundPreview(
+    db,
+    input.config,
+    binding,
+    reviewWindowConfig,
+  );
   requirePilotAcceptCreateMaterial(db, input.config, request, {
     require_absent: true,
     required_session_id: input.credential.session_id,
   });
-  assertPilotPreview(prevalidated.preview, prevalidated.decision);
+  assertPilotPreview(
+    prevalidated.preview,
+    prevalidated.decision,
+    reviewWindowConfig,
+  );
   if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -244,8 +327,13 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
       require_absent: true,
       required_session_id: admission.session.session_id,
     });
-    const exact = rebuildBoundPreview(db, input.config, binding);
-    assertPilotPreview(exact.preview, material.decision);
+    const exact = rebuildBoundPreview(
+      db,
+      input.config,
+      binding,
+      reviewWindowConfig,
+    );
+    assertPilotPreview(exact.preview, material.decision, reviewWindowConfig);
     const confirmationBasisRef =
       createVNextOperatorPilotSemanticConfirmationBasisRefV01({
         config: input.config,
@@ -260,13 +348,23 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
         gate_ttl_ms: exact.preview.gate_ttl_ms,
         confirmed_at: admission.action_observed_at,
       });
+    const reviewWindowBasisRef = createReviewWindowConfirmationBasisRef(
+      reviewWindowConfig,
+      admission.action_observed_at,
+    );
     const result = recordVNextSemanticCommitAuthorizationInsideTransactionV01(
       db,
       {
         preview: exact.preview,
         confirmation_digest: request.confirmation_digest,
         operator_actor_ref: material.decision.actor_ref,
-        operator_confirmation_basis_refs: [confirmationBasisRef],
+        operator_confirmation_basis_refs: [
+          confirmationBasisRef,
+          ...(reviewWindowBasisRef ? [reviewWindowBasisRef] : []),
+        ],
+        confirmation_context_fingerprint:
+          confirmationContextFingerprint(reviewWindowConfig),
+        preview_max_age_ms: reviewWindowConfig.preview_max_age_ms,
         clock: pinFirstClockValue(
           admission.action_observed_at,
           input.clock,
@@ -283,6 +381,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
         decision: material.decision,
         gate: result.gate_record,
         required_session_id: admission.session.session_id,
+        review_window_config: reviewWindowConfig,
       });
     if (gateProvenance.status !== "valid") {
       throw transitionError(
@@ -311,18 +410,23 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
     config: VNextLocalOperatorPilotConfigV01;
     credential: VNextLocalOperatorSessionCredentialV01;
     request: unknown;
+    review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
   },
 ): VNextOperatorPilotCommitResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseCommitRequest(input.request);
+  const reviewWindowConfig = reviewWindowConfigOrDefault(
+    input.review_window_config,
+  );
   authenticateVNextLocalOperatorSessionV01(db, input);
   assertPilotGateAndDecision(
     db,
     input.config,
     request,
     input.credential.session_id,
+    reviewWindowConfig,
   );
   if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
   db.exec("BEGIN IMMEDIATE");
@@ -333,6 +437,7 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
       input.config,
       request,
       admission.session.session_id,
+      reviewWindowConfig,
     );
     const result = commitVNextSemanticTransitionInsideTransactionV01(db, {
       workspace_id: input.config.workspace_id,
@@ -343,6 +448,7 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
       decision_fingerprint: request.decision_fingerprint,
       gate_record_id: request.gate_record_id,
       gate_record_fingerprint: request.gate_record_fingerprint,
+      preview_max_age_ms: reviewWindowConfig.preview_max_age_ms,
       clock: input.clock,
     });
     if (result.eligibility.status !== "eligible") {
@@ -469,13 +575,22 @@ export function compileVNextOperatorPilotLaterContextV01(
 export function serializeVNextOperatorPilotPreviewBindingCookieV01(input: {
   value: string;
   expires_at: string;
+  max_age_ms?: number;
   secure: boolean;
 }): string {
   if (!input.value || input.value.length > MAX_COOKIE_CHARACTERS) {
     throw transitionError("operator_pilot_preview_binding_invalid", 500);
   }
   const expires = parseStrictIsoTimestampV01(input.expires_at);
-  if (expires === null) {
+  const maxAgeMs =
+    input.max_age_ms ??
+    VNEXT_OPERATOR_PILOT_DEFAULT_REVIEW_WINDOW_CONFIG_V01.preview_max_age_ms;
+  if (
+    expires === null ||
+    !Number.isSafeInteger(maxAgeMs) ||
+    maxAgeMs < VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MIN_MS_V01 ||
+    maxAgeMs > VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01
+  ) {
     throw transitionError("operator_pilot_preview_binding_invalid", 500);
   }
   return [
@@ -484,7 +599,7 @@ export function serializeVNextOperatorPilotPreviewBindingCookieV01(input: {
     "HttpOnly",
     "SameSite=Strict",
     `Expires=${new Date(expires).toUTCString()}`,
-    `Max-Age=${Math.floor(VNEXT_SEMANTIC_COMMIT_PREVIEW_MAX_AGE_MS_V01 / 1000)}`,
+    `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
     input.secure ? "Secure" : null,
   ].filter(Boolean).join("; ");
 }
@@ -525,6 +640,7 @@ function createPreviewBinding(
   config: VNextLocalOperatorPilotConfigV01,
   credential: VNextLocalOperatorSessionCredentialV01,
   preview: VNextSemanticCommitPreviewV01,
+  reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): string {
   const payload: PreviewBindingPayloadV01 = {
     binding_version: VNEXT_OPERATOR_PILOT_TRANSITION_RUNTIME_VERSION_V01,
@@ -539,6 +655,7 @@ function createPreviewBinding(
       preview.current_state_observations[0]!.observed_at,
     previewed_at: preview.previewed_at,
     confirmation_digest: preview.confirmation_digest,
+    review_window_config: reviewWindowConfig,
   };
   const encoded = Buffer.from(canonicalizeProtocolValueV01(payload)).toString(
     "base64url",
@@ -552,6 +669,7 @@ function readPreviewBinding(
   config: VNextLocalOperatorPilotConfigV01,
   credential: VNextLocalOperatorSessionCredentialV01,
   request: ReturnType<typeof parseConfirmRequest>,
+  reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): PreviewBindingPayloadV01 {
   if (!value || value.length > MAX_COOKIE_CHARACTERS) {
     throw transitionError("operator_pilot_preview_binding_invalid", 409);
@@ -580,7 +698,9 @@ function readPreviewBinding(
     payload.proposal_fingerprint !== request.proposal_fingerprint ||
     payload.decision_id !== request.decision_id ||
     payload.decision_fingerprint !== request.decision_fingerprint ||
-    payload.confirmation_digest !== request.confirmation_digest
+    payload.confirmation_digest !== request.confirmation_digest ||
+    canonicalizeProtocolValueV01(payload.review_window_config) !==
+      canonicalizeProtocolValueV01(reviewWindowConfig)
   ) {
     throw transitionError("operator_pilot_preview_binding_mismatch", 409);
   }
@@ -591,6 +711,7 @@ function rebuildBoundPreview(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   binding: PreviewBindingPayloadV01,
+  reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): { preview: VNextSemanticCommitPreviewV01; decision: ReviewDecisionV01 } {
   const decision = requirePilotAcceptCreateMaterial(db, config, binding, {
     require_absent: true,
@@ -609,7 +730,9 @@ function rebuildBoundPreview(
     decision_id: binding.decision_id,
     decision_fingerprint: binding.decision_fingerprint,
     authorized_applier_identity: authorizedApplierIdentity(config),
-    gate_ttl_ms: VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01,
+    gate_ttl_ms: reviewWindowConfig.gate_ttl_ms,
+    confirmation_context_fingerprint:
+      confirmationContextFingerprint(reviewWindowConfig),
     clock,
   });
   if (preview.confirmation_digest !== binding.confirmation_digest) {
@@ -698,6 +821,7 @@ function requirePilotAcceptCreateMaterial(
 function assertPilotPreview(
   preview: VNextSemanticCommitPreviewV01,
   decision: ReviewDecisionV01,
+  reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): void {
   if (
     decision.decision !== "accept" ||
@@ -706,7 +830,7 @@ function assertPilotPreview(
     preview.intended_effects[0]?.operation !== "create" ||
     preview.intended_effects[0]?.before_presence !== "absent" ||
     preview.current_state_observations[0]?.presence !== "absent" ||
-    preview.gate_ttl_ms !== VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01
+    preview.gate_ttl_ms !== reviewWindowConfig.gate_ttl_ms
   ) {
     throw transitionError("operator_pilot_preview_policy_mismatch", 409);
   }
@@ -765,6 +889,7 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
     decision: ReviewDecisionV01;
     gate: VNextSemanticCommitGateRecordV01;
     required_session_id?: string;
+    review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
   },
 ): VNextOperatorPilotGateProvenanceValidationV01 {
   const { config, proposal, decision, gate } = input;
@@ -783,10 +908,11 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
     add("operator_pilot_gate_decision_provenance_invalid");
   }
 
-  const basis =
-    gate.operator_confirmation_basis_refs?.length === 1
-      ? gate.operator_confirmation_basis_refs[0]!
-      : null;
+  const bases = gate.operator_confirmation_basis_refs ?? [];
+  const actionBases = bases.filter(
+    (ref) => ref.ref_type === "local_operator_session_action",
+  );
+  const basis = actionBases.length === 1 ? actionBases[0]! : null;
   if (!basis) add("operator_pilot_gate_confirmation_basis_required");
   if (
     !basis ||
@@ -859,10 +985,23 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
   const gateExpiresAt = parseStrictIsoTimestampV01(
     gate.semantic_commit_gate_evaluation?.expires_at,
   );
+  const storedGateTtlMs =
+    gateEvaluatedAt === null || gateExpiresAt === null
+      ? null
+      : gateExpiresAt - gateEvaluatedAt;
   if (
     gateEvaluatedAt === null ||
     gateExpiresAt === null ||
-    gateExpiresAt - gateEvaluatedAt !== VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01
+    storedGateTtlMs === null ||
+    storedGateTtlMs < VNEXT_OPERATOR_PILOT_GATE_TTL_MIN_MS_V01 ||
+    storedGateTtlMs > VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01 ||
+    (input.review_window_config === undefined &&
+      !bases.some(
+        (ref) => ref.ref_type === "semantic_commit_confirmation_context",
+      ) &&
+      storedGateTtlMs !== VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01) ||
+    (input.review_window_config !== undefined &&
+      storedGateTtlMs !== input.review_window_config.gate_ttl_ms)
   ) {
     add("operator_pilot_gate_ttl_mismatch");
   }
@@ -888,7 +1027,7 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
   ) {
     add("operator_pilot_gate_decision_binding_mismatch");
   }
-  if (basis && sessionId) {
+  if (basis && sessionId && storedGateTtlMs !== null) {
     const expectedBasis =
       createVNextOperatorPilotSemanticConfirmationBasisRefV01({
         config,
@@ -899,7 +1038,7 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
         decision_fingerprint: gate.decision_fingerprint,
         confirmation_digest: gate.confirmation_digest,
         authorized_applier_identity: expectedApplier,
-        gate_ttl_ms: VNEXT_OPERATOR_PILOT_GATE_TTL_MS_V01,
+        gate_ttl_ms: storedGateTtlMs,
         confirmed_at: gate.confirmed_at,
       });
     if (
@@ -909,6 +1048,12 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
       add("operator_pilot_gate_confirmation_basis_mismatch");
     }
   }
+  validateReviewWindowConfirmationBasis(
+    bases,
+    gate.confirmed_at,
+    input.review_window_config,
+    add,
+  );
   const valid = errors.length === 0;
   return {
     status: valid ? "valid" : "invalid",
@@ -936,11 +1081,127 @@ function pinFirstClockValue(
   };
 }
 
+function reviewWindowConfigOrDefault(
+  value: VNextOperatorPilotReviewWindowConfigV01 | undefined,
+): VNextOperatorPilotReviewWindowConfigV01 {
+  if (value === undefined) {
+    return VNEXT_OPERATOR_PILOT_DEFAULT_REVIEW_WINDOW_CONFIG_V01;
+  }
+  const keys = [
+    "config_version",
+    "preview_max_age_ms",
+    "gate_ttl_ms",
+    "preview_source",
+    "gate_source",
+  ] as const;
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).length !== keys.length ||
+    Object.keys(value).some(
+      (key) => !keys.includes(key as (typeof keys)[number]),
+    ) ||
+    value.config_version !==
+      VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01 ||
+    !Number.isSafeInteger(value.preview_max_age_ms) ||
+    value.preview_max_age_ms <
+      VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MIN_MS_V01 ||
+    value.preview_max_age_ms >
+      VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_MAX_MS_V01 ||
+    !Number.isSafeInteger(value.gate_ttl_ms) ||
+    value.gate_ttl_ms < VNEXT_OPERATOR_PILOT_GATE_TTL_MIN_MS_V01 ||
+    value.gate_ttl_ms > VNEXT_OPERATOR_PILOT_GATE_TTL_MAX_MS_V01 ||
+    value.gate_ttl_ms > value.preview_max_age_ms ||
+    !(["default", "explicit_environment"] as const).includes(
+      value.preview_source,
+    ) ||
+    !(["default", "explicit_environment"] as const).includes(
+      value.gate_source,
+    )
+  ) {
+    throw transitionError("operator_pilot_review_window_config_invalid", 503);
+  }
+  return value;
+}
+
+function confirmationContextFingerprint(
+  config: VNextOperatorPilotReviewWindowConfigV01,
+): string | undefined {
+  return isExplicitVNextOperatorPilotReviewWindowConfigV01(config)
+    ? createVNextOperatorPilotReviewWindowConfigFingerprintV01(config)
+    : undefined;
+}
+
+function createReviewWindowConfirmationBasisRef(
+  config: VNextOperatorPilotReviewWindowConfigV01,
+  confirmedAt: string,
+): ExternalRefV01 | null {
+  const fingerprint = confirmationContextFingerprint(config);
+  return fingerprint
+    ? createVNextSemanticCommitConfirmationContextRefV01({
+        context_id: config.config_version,
+        context_fingerprint: fingerprint,
+        observed_at: confirmedAt,
+      })
+    : null;
+}
+
+function validateReviewWindowConfirmationBasis(
+  refs: ExternalRefV01[],
+  confirmedAt: string,
+  config: VNextOperatorPilotReviewWindowConfigV01 | undefined,
+  add: (code: string) => void,
+): void {
+  const contexts = refs.filter(
+    (ref) => ref.ref_type === "semantic_commit_confirmation_context",
+  );
+  if (contexts.length > 1) {
+    add("operator_pilot_review_window_confirmation_basis_ambiguous");
+    return;
+  }
+  const actual = contexts[0] ?? null;
+  if (
+    actual &&
+    (actual.ref_version !== EXTERNAL_REF_VERSION_V01 ||
+      actual.external_id !==
+        VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01 ||
+      actual.trust_class !== "direct_local_observation" ||
+      actual.observed_at !== confirmedAt ||
+      actual.compatibility_namespace !==
+        VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_NAMESPACE_V01 ||
+      !actual.source_ref ||
+      !/^sha256:[a-f0-9]{64}$/.test(actual.source_ref))
+  ) {
+    add("operator_pilot_review_window_confirmation_basis_invalid");
+  }
+  if (config === undefined) return;
+  const expected = createReviewWindowConfirmationBasisRef(config, confirmedAt);
+  if (
+    (actual === null) !== (expected === null) ||
+    (actual !== null &&
+      expected !== null &&
+      canonicalizeProtocolValueV01(actual) !==
+        canonicalizeProtocolValueV01(expected))
+  ) {
+    add("operator_pilot_review_window_confirmation_basis_mismatch");
+  }
+}
+
+function addReviewWindowMilliseconds(value: string, milliseconds: number): string {
+  const parsed = parseStrictIsoTimestampV01(value);
+  if (parsed === null || !Number.isSafeInteger(milliseconds)) {
+    throw transitionError("operator_pilot_review_window_config_invalid", 503);
+  }
+  return new Date(parsed + milliseconds).toISOString();
+}
+
 function assertPilotGateAndDecision(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   request: ReturnType<typeof parseCommitRequest>,
   requiredSessionId: string,
+  reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): void {
   const material = requirePilotAcceptCreateMaterial(db, config, request, {
     require_absent: false,
@@ -994,6 +1255,10 @@ function assertPilotGateAndDecision(
   ) {
     throw transitionError("operator_pilot_gate_policy_mismatch", 409);
   }
+  assertVNextOperatorPilotGateReviewWindowConfigV01(
+    gate as VNextSemanticCommitGateRecordV01,
+    reviewWindowConfig,
+  );
   const provenance =
     validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(db, {
       config,
@@ -1001,6 +1266,7 @@ function assertPilotGateAndDecision(
       decision: material.decision,
       gate: gate as VNextSemanticCommitGateRecordV01,
       required_session_id: requiredSessionId,
+      review_window_config: reviewWindowConfig,
     });
   if (provenance.status !== "valid") {
     throw transitionError(
@@ -1308,6 +1574,7 @@ function parsePreviewBindingPayload(value: unknown): PreviewBindingPayloadV01 {
     "current_state_observed_at",
     "previewed_at",
     "confirmation_digest",
+    "review_window_config",
   ] as const;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw transitionError("operator_pilot_preview_binding_invalid", 409);
@@ -1329,6 +1596,7 @@ function parsePreviewBindingPayload(value: unknown): PreviewBindingPayloadV01 {
   ) {
     throw transitionError("operator_pilot_preview_binding_invalid", 409);
   }
+  reviewWindowConfigOrDefault(payload.review_window_config);
   return payload;
 }
 

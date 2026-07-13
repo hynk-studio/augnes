@@ -155,7 +155,19 @@ export function SemanticTransitionActions({
         body.pilot_policy.accept_create_only !== true ||
         body.pilot_policy.current_state_required !== "absent" ||
         body.pilot_policy.authorized_applier_derived_by_server !== true ||
+        body.pilot_policy.review_window_config_version !==
+          "vnext_operator_pilot_review_window_config.v0.1" ||
+        !Number.isSafeInteger(body.pilot_policy.preview_max_age_ms) ||
+        !(["default", "explicit_environment"] as const).includes(
+          body.pilot_policy.preview_source,
+        ) ||
+        !(["default", "explicit_environment"] as const).includes(
+          body.pilot_policy.gate_source,
+        ) ||
         body.pilot_policy.gate_ttl_ms !== body.preview.gate_ttl_ms ||
+        Date.parse(body.pilot_policy.preview_binding_expires_at) !==
+          Date.parse(body.preview.previewed_at) +
+            body.pilot_policy.preview_max_age_ms ||
         !isSha256Fingerprint(body.preview.confirmation_digest)
       ) {
         setErrorCode("semantic_transition_preview_response_invalid");
@@ -530,7 +542,22 @@ export function SemanticTransitionActions({
                   label="Authorized applier"
                   value={`${preview.authorized_applier_identity.ref_type}:${preview.authorized_applier_identity.external_id}`}
                 />
+                <DataPoint
+                  label="Preview validity"
+                  value={`${previewResponse?.pilot_policy.preview_max_age_ms ?? 0} ms (${previewResponse?.pilot_policy.preview_source ?? "unknown"})`}
+                />
+                <DataPoint
+                  label="Preview binding expires"
+                  value={
+                    previewResponse?.pilot_policy.preview_binding_expires_at ??
+                    "unknown"
+                  }
+                />
                 <DataPoint label="Gate TTL" value={`${preview.gate_ttl_ms} ms`} />
+                <DataPoint
+                  label="Gate TTL source"
+                  value={previewResponse?.pilot_policy.gate_source ?? "unknown"}
+                />
               </dl>
               <ExactValue label="Confirmation digest" value={preview.confirmation_digest} />
               <EffectList effects={preview.intended_effects} />
