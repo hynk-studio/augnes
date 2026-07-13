@@ -2,274 +2,144 @@
 
 ## Decision
 
-Augnes development is now organized around one operability-first product path:
+Augnes development is organized around one operability-first product path:
 
 ```text
 Start Augnes
 → select a project
-→ start a task
+→ start or accept a task
 → compile project context
-→ run the native host / Codex
+→ run the native host / Codex interactively or through bounded automation
 → return a structured result
 → review the result
 → approve any durable semantic change
 → reuse the changed context in later work
 ```
 
-Repository content is retained only when it satisfies at least one of these conditions:
+Git history is the archive. Active repository content is retained only when it satisfies at least one of these conditions:
 
-1. It is used by the current production runtime.
-2. It is required by the active feature-completion sequence below.
-3. It preserves existing user data, migration, backup, restore, or recovery.
-4. It enforces a real safety invariant: no unauthorized durable write, no unbounded external egress, no cross-project leakage, no replay/duplicate transition, or no credential leakage.
-5. It is part of a small canonical unit, integration, authority, operability, or end-to-end test suite.
+1. It is used by the current product runtime.
+2. It is required by the active R1–R8 roadmap or the bounded Personal Perspective parallel lane.
+3. It preserves existing user data, migration, backup, restore, portable export, or recovery.
+4. It enforces a real safety invariant: no unauthorized durable write, no unbounded external egress, no cross-project leakage, no replay or duplicate transition, or no credential leakage.
+5. It belongs to a small canonical unit, integration, authority, operability, or end-to-end test suite.
 6. It is required for build, packaging, licensing, or CI.
 
-Git history is the archive. Completed planning residue, one-off evidence output, and obsolete verification scaffolding should not remain in the active tree solely for historical preservation.
+A filename containing `preview`, `smoke`, `dogfood`, `handoff`, `autohunt`, or `perspective` is not enough to keep or delete it. Production imports, route consumers, package or CI references, data dependencies, safety enforcement, and active-roadmap destinations decide classification.
 
-## Active feature-completion sequence
-
-The following vNext commitments remain active and must not be removed during reduction:
-
-- provider-neutral, local-first temporal project substrate
-- Resume / Verify / Decide
-- native hosts execute; Augnes preserves meaning, lineage, and durable project state
-- project and workspace identity with project isolation
-- `TaskContextPacket`
-- `RunReceipt`
-- `EpisodeDeltaProposal`
-- `ReviewDecision`
-- semantic transition receipts and replay protection
-- minimal Model Gateway and OpenAI adapter
-- OpenAI / Codex host round trip
-- `RunReceipt → Delta → Decision → later context` closed loop
-- Project Home
-- Semantic Workbench
-- shared Inspector
-- migration, backup, restore, update, and recovery
-
-The active implementation order is:
-
-```text
-R1 Development Authority and Operability Reset
-R2 Zero-config Runtime Spine
-R3 Project Onboarding and Project Home
-R4 Minimal Model Gateway
-R5 Codex Host Round Trip
-R6 Core Closed Loop
-R7 Semantic Workbench and Inspector Consolidation
-R8 Packaging, Update, Backup, Restore, and Recovery
-Alpha: short real-user flow verification
-Post-Alpha: usefulness and product-fit validation
-```
-
-The following remain deferred until the core product is feature-complete:
-
-- Generic CLI second adapter
-- AutomationPolicy / Autohunt expansion
-- Personal Perspective / Perspective Arena productization
-- advanced multi-provider routing
-- autonomous evidence-runner expansion
-- long-form qualification infrastructure
-
-## Classification rules
+## Classification
 
 Every retained or removed path must be classified as one of:
 
 - `KEEP_RUNTIME`: imported or invoked by the current product runtime
-- `KEEP_PLAN`: directly required by R1–R8
-- `KEEP_DATA`: migration, backup, restore, recovery, or existing-data compatibility
+- `KEEP_PLAN`: directly required by R1–R8 or the bounded Personal Perspective lane
+- `KEEP_DATA`: migration, backup, restore, portable export, recovery, or existing-data compatibility
 - `KEEP_SAFETY`: enforces a real runtime invariant
-- `ABSORB`: valuable behavior that should move into a canonical document or test suite before the original path is removed
-- `DELETE_NOW`: no live runtime, R1–R8, data, safety, build, or canonical-test role
-- `DELETE_WITH_REPLACEMENT`: current compatibility path that is removed in the same PR as its replacement
+- `ABSORB`: valuable behavior that must move into a canonical document or test before the original path is removed
+- `DELETE_NOW`: no live runtime, roadmap, data, safety, build, or canonical-test role
+- `DELETE_WITH_REPLACEMENT`: current compatibility path removed in the same PR as its tested replacement
 
-Names such as `preview`, `smoke`, `dogfood`, or `handoff` are not sufficient evidence by themselves. Production imports, route consumers, package/CI references, database dependencies, and active-roadmap destinations decide classification.
+## Protected product commitments
 
-## High-confidence keep scope
+Reduction must not remove or collapse:
 
-### Current runtime entry points
+- provider-neutral, local-first temporal project substrate
+- Resume / Verify / Decide
+- project and workspace identity with project isolation
+- Evidence, Claim, accepted state, reviewed memory, Perspective, projection, ReviewDecision, and transition as distinct source-linked semantic layers
+- `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, `ReviewDecision`, and `StateTransitionReceipt`
+- semantic transition receipts, idempotency, and replay protection
+- minimal Model Gateway and OpenAI reference adapter
+- Codex or native-host context and receipt round trip
+- shared Automation Spine: policy, bounded grants, runs, receipts, budgets, stop conditions, reconciliation, and user control
+- first bounded Autohunt path using the shared Core loop
+- Project Home, Semantic Workbench, and shared Inspector
+- bounded Personal Perspective work that reuses existing candidate, review, scoped-state, context-selection, lineage, receipt, and feedback contracts
+- migration, backup, restore, provider-neutral portable export, update, and recovery
 
-- `app/page.tsx`
-- `app/workbench/page.tsx`
-- `app/workbench/semantic-review/page.tsx`
-- `app/workbench/semantic-review/[proposal_id]/page.tsx`
-- `app/perspective/page.tsx`
+`TaskContextPacket` is selected working context, not project truth. Automation may create tasks, runs, receipts, and proposals, but does not gain semantic authority or collapse Evidence, Claim, state, memory, Perspective, decision, and transition into one generic record.
 
-Additional routes remain `KEEP_RUNTIME` until import and navigation audits prove they have no live consumer.
-
-### Durable vNext core and data safety
-
-- `lib/vnext/persistence/durable-semantic-store.ts`
-- `lib/db/schema.sql`
-- `scripts/db-migrations.mjs`
-- current migration ledger and migration scripts
-- project isolation, replay, idempotency, immutable-ledger, and semantic-target-head enforcement
-- current protocol types and validators used by the durable loop
-
-The `vnext_core_records`, `vnext_semantic_state_entries`, and `vnext_semantic_target_heads` paths are not deletion candidates. They are existing durable product foundations for R6 and must retain migration compatibility.
-
-### Model egress safety and Model Gateway foundation
-
-PR #1069 is open and overlaps directly with R4. Until that PR is resolved, the following paths are protected from reduction and must be reviewed as one unit:
-
-- `lib/model-egress/openai-outbound-payload-boundary-v0-1.ts`
-- `lib/observe/delta-compiler.ts`
-- `lib/planner/planner.ts`
-- `lib/temporal-interpretation/openai.ts`
-- `lib/temporal-interpretation/preview.ts`
-- its focused boundary regression test
-
-Reduction work must not create conflicting edits to those paths while #1069 remains open.
-
-### Product-direction documents to preserve, then shorten
-
-- `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`
-- `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`
-- `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`
-- `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
-
-Their core product commitments remain active. Historical PR-by-PR checkpoint narration, repeated non-claims, and manual qualification sequencing should be removed or compressed during R1.
-
-## High-confidence absorb or delete scope
-
-The following classifications are sufficiently clear to drive the first cleanup PR after R1. Deletion still requires a final reference scan on the cleanup branch.
-
-### `ABSORB`: canonical guidance replacement
-
-- `README.md`
-- `AGENTS.md`
-- `docs/AUGNES_START_HERE_FOR_USERS_AND_AI.md`
-- `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`
-- `docs/00_INDEX_LATEST.md`
-- `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`
-
-Action:
-
-- replace duplicated setup, authority, and sequencing guidance with concise active product, architecture, roadmap, development, and testing guidance
-- remove the normal-path `db:reset` instruction
-- stop presenting manual MCP setup, handoff copy, and result paste as the target experience
-- reduce Codex startup requirements and document-reading requirements
-- remove historical pointer ledgers from active guidance
-
-### `DELETE_NOW`: committed execution reports
-
-Subject to a final check that no build or runtime imports these paths:
-
-- `reports/**`
-- `reports/browser/**`
-- committed screenshot-validation reports
-- dogfood execution reports
-- closeout result reports
-- generated evidence output committed as source documentation
-
-Future run evidence belongs in PR bodies or GitHub Actions artifacts.
-
-### `DELETE_NOW`: document-only and historical smoke families
-
-These package/script families are removal candidates when they only inspect documentation, historical panels, completed migrations, or previous PR closeout state:
-
-- `smoke:cockpit-*` for removed Cockpit behavior or historical layout
-- `smoke:*design*`
-- `smoke:*plan*`
-- `smoke:*preparation*`
-- `smoke:*closeout*`
-- `smoke:*dogfood-observation*`
-- `smoke:*status-roadmap*`
-- `smoke:*validation-docs*`
-- `smoke:*screenshot-validation*`
-- one-off package aliases beginning with `design:`, `plan:`, `review:`, `report:`, `envelope:`, `stopline:`, or `harness:` when they have no production or canonical-test consumer
-
-Examples already identified as high-confidence candidates:
-
-- `scripts/smoke-temporal-v02-status-roadmap.mjs`
-- `scripts/smoke-temporal-persistence-design.mjs`
-- `scripts/smoke-temporal-review-artifact-schema-design.mjs`
-- `scripts/smoke-temporal-review-artifact-v01-closeout.mjs`
-- `scripts/smoke-github-token-management-v01-closeout.mjs`
-- `scripts/smoke-cockpit-post-removal-cleanup-v0-1.mjs`
-- `scripts/smoke-readonly-api-route-planning-boundary.mjs`
-- `scripts/smoke-temporal-openai-validation-docs.mjs`
-- `scripts/smoke-temporal-cockpit-screenshot-validation.mjs`
-
-These names are examples, not permission for pattern-only deletion. The cleanup PR must remove the package entry and source file together and prove that CI and runtime no longer reference them.
-
-### `ABSORB`: high-value tests into canonical suites
-
-The following behavior must survive even if one-off command names are removed:
-
-- migration idempotency and existing-data preservation
-- backup and restore
-- immutable durable records
-- unauthorized durable-write refusal
-- project isolation
-- exact replay and conflicting replay refusal
-- stale-state and duplicate-transition refusal
-- model-egress refusal before transport
-- current runtime startup and child-process cleanup
-- one automated golden-path integration
-
-Candidate current tests to retain or absorb include:
-
-- `scripts/smoke-vnext-durable-semantic-loop-v0-1.ts`
-- current operator-pilot tests only to the extent they validate reusable durable-loop, isolation, replay, and browser behavior
-- temporal hardening tests that exercise real behavior rather than documentation wording
-- #1069 model-egress boundary regression
-
-Target canonical commands:
+## Active implementation destinations
 
 ```text
-npm run typecheck
-npm run build
-npm test
-npm run test:integration
-npm run test:authority
-npm run test:operability
-npm run test:e2e
+R1 Development Authority and Operability Reset
+R2 Zero-config Runtime Spine + automation lifecycle primitives
+R3 Project Onboarding and Project Home + project automation state
+R4 Minimal Model Gateway + budget, timeout, and cancellation
+R5 Codex Host Round Trip + unattended run mode
+R6 Core Closed Loop + first bounded Autohunt
+R6-P bounded Personal Perspective parallel slice
+R7 Semantic Workbench and Inspector + automation control and review
+R8 Packaging, portable export, update, backup, restore, recovery, and run reconciliation
+Alpha and RC verification
+Post-Alpha usefulness evaluation
 ```
 
-Exact command implementation belongs to the cleanup PR after the existing CI call graph is audited.
+## Keep or absorb
 
-## Delete only with replacement
+The cleanup manifest must preserve or absorb:
 
-The following are not immediate deletion targets because they may still be the only working compatibility path. They are removed with their replacement PR.
+- current app routes and their production component imports
+- durable vNext store, semantic projections, target heads, and migration ledger
+- project isolation, immutable ledger, idempotency, stale-state refusal, and conflicting replay refusal
+- model egress boundaries and later Model Gateway foundations
+- Autohunt and autonomy primitives that map to policy, grants, runs, receipts, budgets, stop conditions, pause or cancel, and reconciliation
+- Personal Perspective primitives that map to reviewed candidates, scoped state, context selection, source lineage, `TaskContextPacket`, `RunReceipt`, and context-use feedback
+- portable-export foundations separately from full-fidelity recovery-backup foundations
+- behavior tests for migration safety, backup and restore, export isolation, durable writes, project isolation, replay refusal, egress refusal, startup, process cleanup, host round trip, and one automated golden path
 
-### R5: Codex host round trip
+Open PR #1069 owns its model-egress paths until resolved. A reduction PR must not create conflicting edits to that scope.
 
-Remove together with a working adapter-backed `TaskContextPacket → Codex → RunReceipt` path:
+## Delete now after reference audit
 
-- manual Core Handoff / Handoff Capsule copy workflow
-- Codex Launch Card copy workflow
-- `codexResultText`
-- `codexResultPaste`
-- manual result report template
-- result-paste normalizer
-- manual result-ingestion UI and compatibility tests
+The following are deletion candidates when they have no runtime, roadmap, data, safety, build, CI, or canonical-test consumer:
 
-Until R5, they should be visibly classified as legacy compatibility and must not receive new feature work.
+- committed execution, browser, dogfood, screenshot-validation, and closeout reports
+- historical planning, readiness, observation, snapshot, and PR-by-PR checkpoint documents
+- scripts that only assert document wording, removed-panel existence, historical layout, completed closeout state, or disabled/no-op design scaffolding
+- one-off `design:`, `plan:`, `review:`, `report:`, `envelope:`, `stopline:`, or `harness:` aliases with no active consumer
+- feature-specific smoke commands whose useful behavior has been absorbed into canonical suites
+- preview-only scheduler replicas, duplicated automation contracts, or separate Personal Perspective subsystems that duplicate the shared Core
 
-### R3 and R7: product-surface consolidation
+Names or patterns alone do not authorize deletion. The cleanup PR must remove the package entry and source together and prove that no runtime or CI reference remains.
 
-Remove only after destination behavior exists:
+## Delete with replacement
 
-- Blank State cards that duplicate Project Home
+Current compatibility remains until a tested replacement exists.
+
+### R5 host integration
+
+Remove with a working `TaskContextPacket → host → RunReceipt` path:
+
+- manual handoff and launch-card copy flows
+- `codexResultText` and `codexResultPaste`
+- manual result templates, normalizers, ingestion UI, and compatibility tests
+
+### R3 and R7 surface consolidation
+
+Remove after destination behavior exists:
+
+- Blank State cards duplicated by Project Home
 - passive workflow-stage Workplane panels
-- repeated boundary-copy cards
-- duplicate lineage and diagnostics surfaces
+- repeated boundary cards
+- duplicate diagnostics and lineage surfaces
 - manual-controls migration rows
 - preview-of-preview panels
 
-Current runtime import is evidence to keep temporarily, not evidence of permanent product value.
+### Automation and Personal Perspective
 
-### Deferred lanes
+Do not delete shared roadmap foundations. Delete only duplicated or advanced subsystems after replacement or an explicit later product decision:
 
-Autohunt, autonomy preview, Personal Perspective, research candidate, and second-adapter paths require separate classification. They are frozen from expansion. A later reduction pass may remove them if they have no current runtime value and no accepted post-Alpha destination.
+- Augnes-owned generic scheduler replica
+- advanced hunt heuristics not used by the bounded loop
+- unrestricted retry, self-modification, automatic authority expansion, and automatic semantic commit
+- hidden personal profiles, automatic cross-project injection, and broad Perspective Arena or Personal Vault subsystems
 
 ## M3D disposition
 
-M3D real-user pilot and autonomous evidence infrastructure are no longer ordinary PR merge gates or prerequisites for R2–R8.
+M3D real-user pilot and autonomous evidence infrastructure are not ordinary R2–R8 merge gates.
 
-Retain or absorb only the reusable invariants:
+Retain or absorb reusable invariants:
 
 - durable transition correctness
 - project isolation
@@ -277,18 +147,11 @@ Retain or absorb only the reusable invariants:
 - backup and restore
 - browser mechanics needed by the active golden path
 
-The following are candidates for deletion or deferment after reference audit:
+Long-form operator runbooks, evidence-chain allocation narration, and dedicated qualification infrastructure not used by active CI are deletion or deferment candidates after reference audit. Short real-user verification belongs at Alpha or release-candidate time.
 
-- long-form operator pilot runbooks
-- autonomous evidence-chain allocation and qualification narration
-- dedicated runner qualification infrastructure that is not called by active CI
-- PR-by-PR M3A/M3B/M3C/M3D historical checkpoint text
+## Required cleanup manifest
 
-A short real-user verification belongs at Alpha or release-candidate time.
-
-## Required audit before the cleanup PR
-
-The cleanup implementation must produce a machine-generated or command-backed manifest with these columns:
+Before deletion, produce a command-backed manifest with:
 
 ```text
 path
@@ -296,43 +159,30 @@ classification
 production_imports
 route_consumers
 package_or_ci_references
-migration_or_data_dependency
-R1_R8_destination
+migration_export_or_data_dependency
+R1_R8_or_parallel_destination
 replacement_pr
 reason
 ```
 
-At minimum, audit:
+Audit at minimum:
 
-- all `app/**` routes
-- all `components/**` production imports
-- all `lib/**` public entry points
-- all `scripts/**`
+- `app/**`
+- `components/**`
+- public `lib/**` entry points
+- `scripts/**`
 - every `package.json` script
 - `.github/workflows/**`
-- all migrations and schema files
-- all active documentation links
+- schema and migrations
+- active documentation links
 - `reports/**`
 
 No runtime code, migration, package command, test, report, or document is deleted solely because of its filename.
 
 ## Pull-request sequence
 
-1. **R1 — Development Authority and Operability Reset**
-   - change active guidance and milestone sequencing only
-   - no runtime, schema, test, or package deletion
+1. R1 aligns active authority and sequencing.
+2. Repository Reduction Cleanup applies the audited manifest, removes historical residue, and creates canonical test entry points while preserving live compatibility.
+3. R2–R8 vertical PRs remove compatibility in the same PR as its tested replacement.
 
-2. **Repository Reduction Cleanup**
-   - apply the audited manifest
-   - delete historical docs/reports and one-off test scaffolding
-   - introduce canonical test entry points
-   - preserve live compatibility paths
-
-3. **R2–R8 vertical PRs**
-   - each replacement PR deletes the compatibility path it supersedes
-
-## Current blockers and overlap
-
-- PR #1069 is open and draft. Do not edit its seven-path security boundary scope in a conflicting cleanup PR.
-- The repository currently exposes a very large `package.json` script surface. Exact removal counts require a local checkout or a complete Git tree/CI audit before implementation.
-- GitHub connector inspection can define and review scope, but local typecheck, build, browser, and disposable-database verification must be performed by Codex or GitHub Actions before deletion PRs are merged.
+Local typecheck, build, browser, disposable-database, export, and recovery verification must run through Codex or GitHub Actions before implementation deletion PRs are merged.
