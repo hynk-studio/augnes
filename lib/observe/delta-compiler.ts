@@ -1,4 +1,9 @@
 import type { StateEntry, StateValue } from "@/lib/db";
+import {
+  buildOpenAIOutboundPayloadV01,
+  OpenAIOutboundPayloadBoundaryErrorV01,
+  type OpenAIResponsesProviderPayloadV01,
+} from "@/lib/model-egress/openai-outbound-payload-boundary-v0-1";
 
 export const TEMPORAL_SCOPES = [
   "current_session",
@@ -62,6 +67,16 @@ const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_MESSAGE_LENGTH = 8_000;
 const STATE_VALUE_TYPES = new Set(["string", "number", "boolean"]);
+
+type ObserveOpenAITransportResultV01 = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
+
+export type ObserveOpenAITransportV01 = (
+  payload: OpenAIResponsesProviderPayloadV01,
+) => Promise<ObserveOpenAITransportResultV01>;
 
 export function validateObserveRequest(body: unknown): ObserveRequest {
   if (!isRecord(body)) {
@@ -292,72 +307,37 @@ function buildMockProposal({
   };
 }
 
-async function compileWithOpenAI({
-  message,
-  scope,
-  currentState,
-}: {
-  message: string;
-  scope: string;
-  currentState: StateEntry[];
-}) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildSystemPrompt(),
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({
-                scope,
-                message,
-                current_state: currentState.map((entry) => ({
-                  state_key: entry.state_key,
-                  value: entry.value,
-                  temporal_scope: entry.temporal_scope,
-                  stability: entry.stability,
-                  change_type: entry.change_type,
-                  valid_from: entry.valid_from,
-                  valid_until: entry.valid_until,
-                })),
-              }),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "temporal_delta_proposals",
-          strict: true,
-          schema: proposalResponseSchema,
-        },
-      },
-    }),
+async function compileWithOpenAI(
+  {
+    message,
+    scope,
+    currentState,
+  }: {
+    message: string;
+    scope: string;
+    currentState: StateEntry[];
+  },
+  transport: ObserveOpenAITransportV01 = sendObserveOpenAIRequest,
+) {
+  const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
+  const boundary = buildOpenAIOutboundPayloadV01({
+    purpose: "observe_delta_compile",
+    model,
+    scope,
+    message,
+    current_state: currentState,
   });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`OpenAI API request failed: ${response.status} ${details}`);
+  if (boundary.status === "blocked") {
+    throw new OpenAIOutboundPayloadBoundaryErrorV01(boundary);
   }
 
-  const payload = (await response.json()) as unknown;
+  const response = await transport(boundary.provider_payload);
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API request failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
   const text = extractOutputText(payload);
 
   if (!text) {
@@ -365,6 +345,30 @@ async function compileWithOpenAI({
   }
 
   return validateCompilerOutput(JSON.parse(text));
+}
+
+export function compileTemporalDeltaProposalsWithOpenAIForTestV01(
+  input: {
+    message: string;
+    scope: string;
+    currentState: StateEntry[];
+  },
+  transport: ObserveOpenAITransportV01,
+) {
+  return compileWithOpenAI(input, transport);
+}
+
+async function sendObserveOpenAIRequest(
+  payload: OpenAIResponsesProviderPayloadV01,
+): Promise<ObserveOpenAITransportResultV01> {
+  return fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 function validateProposal(value: unknown): ValidatedProposal {
@@ -394,22 +398,6 @@ function validateProposal(value: unknown): ValidatedProposal {
   }
 
   return proposal;
-}
-
-function buildSystemPrompt() {
-  return [
-    "You are the Augnes temporal delta compiler.",
-    "The model proposes typed temporal state delta proposals. The runtime owns state.",
-    "Never mark proposals committed, accepted, or rejected.",
-    "Do not output numeric scores, consolidation status, scoring reasons, or score breakdowns.",
-    "Infer only state deltas supported by the message and current committed state.",
-    "Prefer dot-separated state_key names like product.name or security.no_api_keys_in_repo.",
-    "Use null before_value when no committed state exists for the key.",
-    `temporal_scope must be one of: ${TEMPORAL_SCOPES.join(", ")}.`,
-    `stability must be one of: ${STABILITIES.join(", ")}.`,
-    `change_type must be one of: ${CHANGE_TYPES.join(", ")}.`,
-    `operation must be one of: ${OPERATIONS.join(", ")}.`,
-  ].join("\n");
 }
 
 function extractOutputText(payload: unknown) {
@@ -531,56 +519,3 @@ function isValidScope(value: string) {
 function isValidIdentifier(value: string) {
   return /^[A-Za-z0-9:._-]{1,160}$/.test(value);
 }
-
-const proposalValueSchema = {
-  anyOf: [
-    { type: "string" },
-    { type: "number" },
-    { type: "boolean" },
-    { type: "null" },
-  ],
-};
-
-const nullableDateSchema = {
-  anyOf: [{ type: "string" }, { type: "null" }],
-};
-
-const proposalResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    proposals: {
-      type: "array",
-      maxItems: 8,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          state_key: { type: "string" },
-          before_value: proposalValueSchema,
-          after_value: proposalValueSchema,
-          operation: { type: "string", enum: OPERATIONS },
-          temporal_scope: { type: "string", enum: TEMPORAL_SCOPES },
-          valid_from: nullableDateSchema,
-          valid_until: nullableDateSchema,
-          stability: { type: "string", enum: STABILITIES },
-          change_type: { type: "string", enum: CHANGE_TYPES },
-          reason: { type: "string" },
-        },
-        required: [
-          "state_key",
-          "before_value",
-          "after_value",
-          "operation",
-          "temporal_scope",
-          "valid_from",
-          "valid_until",
-          "stability",
-          "change_type",
-          "reason",
-        ],
-      },
-    },
-  },
-  required: ["proposals"],
-};

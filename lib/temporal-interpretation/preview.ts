@@ -1,4 +1,5 @@
 import { buildTemporalPreviewContext } from "@/lib/temporal-interpretation/context";
+import { isOpenAIOutboundPayloadBoundaryErrorV01 } from "@/lib/model-egress/openai-outbound-payload-boundary-v0-1";
 import { validateTemporalPreviewGuardrails } from "@/lib/temporal-interpretation/guardrails";
 import { buildMockTemporalPreview } from "@/lib/temporal-interpretation/mock";
 import { buildOpenAITemporalPreview } from "@/lib/temporal-interpretation/openai";
@@ -59,6 +60,9 @@ export async function buildTemporalInterpretationPreview({
       model = openai.model;
       preview = openai.preview;
     } catch (error) {
+      if (isOpenAIOutboundPayloadBoundaryErrorV01(error)) {
+        throw error;
+      }
       generator = "mock_fallback";
       openaiError =
         error instanceof Error ? error.message : "OpenAI preview failed.";

@@ -1,7 +1,22 @@
+import {
+  buildOpenAIOutboundPayloadV01,
+  OpenAIOutboundPayloadBoundaryErrorV01,
+  type OpenAIResponsesProviderPayloadV01,
+} from "@/lib/model-egress/openai-outbound-payload-boundary-v0-1";
 import { buildStateBrief } from "@/lib/state/brief";
 
 const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_MODEL = "gpt-4.1-mini";
+
+type PlannerOpenAITransportResultV01 = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
+
+export type PlannerOpenAITransportV01 = (
+  payload: OpenAIResponsesProviderPayloadV01,
+) => Promise<PlannerOpenAITransportResultV01>;
 
 type PlanRequest = {
   scope: string;
@@ -111,62 +126,61 @@ function buildMockRecommendations(brief: ReturnType<typeof buildStateBrief>) {
 async function planWithOpenAI(
   message: string,
   brief: ReturnType<typeof buildStateBrief>,
+  transport: PlannerOpenAITransportV01 = sendPlannerOpenAIRequest,
 ) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
+  const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
+  const boundary = buildOpenAIOutboundPayloadV01({
+    purpose: "planner_plan",
+    model,
+    scope: brief.scope,
+    message,
+    state: {
+      active: brief.active_state,
+      future: brief.future_state,
+      completed: brief.completed_state,
+      deprecated: brief.deprecated_state,
     },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: [
-                "You are the Augnes state-grounded planner.",
-                "Recommend next actions from committed temporal state only.",
-                "Pending proposals are suggestions, not committed truth.",
-                "Prefer local tools when they directly satisfy demo readiness.",
-              ].join("\n"),
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({ message, brief }),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "augnes_plan",
-          strict: true,
-          schema: planSchema,
-        },
-      },
-    }),
+    open_tensions: brief.open_tensions,
+    pending_proposals: brief.pending_proposals,
   });
+  if (boundary.status === "blocked") {
+    throw new OpenAIOutboundPayloadBoundaryErrorV01(boundary);
+  }
+
+  const response = await transport(boundary.provider_payload);
 
   if (!response.ok) {
     throw new Error(`OpenAI planner failed: ${response.status}`);
   }
 
-  const payload = (await response.json()) as unknown;
+  const payload = await response.json();
   const text = extractOutputText(payload);
   if (!text) {
     throw new Error("OpenAI planner response did not include output text.");
   }
 
   return validateRecommendations(JSON.parse(text));
+}
+
+export function planWithOpenAIForTestV01(
+  message: string,
+  brief: ReturnType<typeof buildStateBrief>,
+  transport: PlannerOpenAITransportV01,
+) {
+  return planWithOpenAI(message, brief, transport);
+}
+
+async function sendPlannerOpenAIRequest(
+  payload: OpenAIResponsesProviderPayloadV01,
+): Promise<PlannerOpenAITransportResultV01> {
+  return fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 function validateRecommendations(output: unknown) {
@@ -253,48 +267,3 @@ function requirePriority(value: unknown): PlannerRecommendation["priority"] {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-
-const planSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    recommendations: {
-      type: "array",
-      maxItems: 5,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          title: { type: "string" },
-          rationale: { type: "string" },
-          tool_name: {
-            anyOf: [
-              {
-                type: "string",
-                enum: [
-                  "create_readme_checklist",
-                  "create_security_checklist",
-                  "create_demo_script",
-                ],
-              },
-              { type: "null" },
-            ],
-          },
-          priority: { type: "string", enum: ["now", "next", "later"] },
-          grounded_state_keys: {
-            type: "array",
-            items: { type: "string" },
-          },
-        },
-        required: [
-          "title",
-          "rationale",
-          "tool_name",
-          "priority",
-          "grounded_state_keys",
-        ],
-      },
-    },
-  },
-  required: ["recommendations"],
-};

@@ -8,66 +8,67 @@ import {
   type TemporalInterpretationPreview,
   type TemporalPreviewContext,
 } from "@/lib/temporal-interpretation/types";
+import {
+  buildOpenAIOutboundPayloadV01,
+  OpenAIOutboundPayloadBoundaryErrorV01,
+  type OpenAIResponsesProviderPayloadV01,
+} from "@/lib/model-egress/openai-outbound-payload-boundary-v0-1";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
+type TemporalOpenAITransportResultV01 = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
+
+export type TemporalOpenAITransportV01 = (
+  payload: OpenAIResponsesProviderPayloadV01,
+) => Promise<TemporalOpenAITransportResultV01>;
+
 export async function buildOpenAITemporalPreview({
   context,
+  transport = sendTemporalOpenAIRequest,
 }: {
   context: TemporalPreviewContext;
+  transport?: TemporalOpenAITransportV01;
 }): Promise<{ model: string; preview: TemporalInterpretationPreview }> {
   const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildSystemPrompt(),
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({ context }),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "temporal_interpretation_preview",
-          strict: true,
-          schema: temporalPreviewSchema,
-        },
-      },
-    }),
+  const boundary = buildOpenAIOutboundPayloadV01({
+    purpose: "temporal_interpretation",
+    model,
+    context,
   });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`OpenAI temporal preview failed: ${response.status} ${details}`);
+  if (boundary.status === "blocked") {
+    throw new OpenAIOutboundPayloadBoundaryErrorV01(boundary);
   }
 
-  const payload = (await response.json()) as unknown;
+  const response = await transport(boundary.provider_payload);
+
+  if (!response.ok) {
+    throw new Error(`OpenAI temporal preview failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
   const text = extractOutputText(payload);
   if (!text) {
     throw new Error("OpenAI temporal preview response did not include output text.");
   }
 
   return { model, preview: validateTemporalPreview(JSON.parse(text)) };
+}
+
+async function sendTemporalOpenAIRequest(
+  payload: OpenAIResponsesProviderPayloadV01,
+): Promise<TemporalOpenAITransportResultV01> {
+  return fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 export function validateTemporalPreview(
@@ -128,24 +129,6 @@ export function validateTemporalPreview(
       requireStandaloneString(warning, "warning"),
     ),
   };
-}
-
-function buildSystemPrompt() {
-  return [
-    "You are the Augnes Temporal Interpretation Preview generator.",
-    "Generate a PerspectiveSnapshot-like preview, but do not claim full P4 implementation.",
-    "Preserve evidence anchors, summary refs, authority profile, counterexamples, residual tensions, active context admission rationale, suppressed alternatives, hierarchy view, memory lifecycle view, interpretive drivers, axis pressures, safe next step, and non-authority boundary from context.",
-    "When active_context_admission is present in context, preserve its decisions and note. Do not invent evidence refs, hide counterexamples, or turn admission decisions into authority.",
-    "For current_interpretation, lead with the interpretive implication before listing counts: emphasize read-only demo meaning, committed state as evidence, summaries as guidance only, active API-key handling tension if present, and implementation still bounded by review.",
-    "For safe_next_step, keep the wording action-oriented for challenge demo use while preserving read-only, non-authoritative, no durable PerspectiveSnapshot, and no implementation approval boundaries.",
-    "Summary-only refs may appear in summary_refs but must not become evidence_anchors.",
-    "Blocked actions must remain blocked and must not be listed as allowed_now.",
-    "User preferences are context, not factual readiness or implementation approval.",
-    "Suppressed alternatives are plausible deferred paths, not false claims or permanent rejections.",
-    "Interpretive driver axes must use only: factuality, continuity, user_context, boundary, exploration, implementation, stability, revision.",
-    "Axis pressures are qualitative reviewer-visible diagnostics only; use labels high, medium, low, blocked, or needs_review and never numbers.",
-    "The preview is read-only and non-authoritative.",
-  ].join("\n");
 }
 
 function extractOutputText(payload: unknown) {
@@ -475,279 +458,3 @@ function requireAxisPressureLabel(value: unknown) {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-
-const stringArraySchema = {
-  type: "array",
-  items: { type: "string" },
-};
-
-const evidenceAnchorSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    ref: { type: "string" },
-    claim: { type: "string" },
-    source_type: {
-      type: "string",
-      enum: ["committed_state", "action_record", "work_trace", "doc"],
-    },
-  },
-  required: ["ref", "claim", "source_type"],
-};
-
-const refDescriptionSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    ref: { type: "string" },
-    description: { type: "string" },
-  },
-  required: ["ref", "description"],
-};
-
-const activeContextAdmissionRationaleSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    context_ref: { type: "string" },
-    admission_role: {
-      type: "string",
-      enum: ACTIVE_CONTEXT_ADMISSION_ROLES,
-    },
-    why_admitted: { type: "string" },
-    why_not_merely_summary: { type: "string" },
-  },
-  required: [
-    "context_ref",
-    "admission_role",
-    "why_admitted",
-    "why_not_merely_summary",
-  ],
-};
-
-const activeContextAdmissionDecisionSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    candidate_id: { type: "string" },
-    category: {
-      type: "string",
-      enum: ACTIVE_CONTEXT_ADMISSION_CATEGORIES,
-    },
-    reason: { type: "string" },
-    source_authority: { type: "string" },
-    evidence_refs: stringArraySchema,
-    counterexample_refs: stringArraySchema,
-    residual_tension_refs: stringArraySchema,
-  },
-  required: [
-    "candidate_id",
-    "category",
-    "reason",
-    "source_authority",
-    "evidence_refs",
-    "counterexample_refs",
-    "residual_tension_refs",
-  ],
-};
-
-const activeContextAdmissionSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    decisions: {
-      type: "array",
-      items: activeContextAdmissionDecisionSchema,
-    },
-    note: { type: "string" },
-  },
-  required: ["decisions", "note"],
-};
-
-const suppressedAlternativeSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    alternative: { type: "string" },
-    why_deferred: { type: "string" },
-    what_would_change_status: { type: "string" },
-    status: {
-      type: "string",
-      enum: SUPPRESSED_ALTERNATIVE_STATUSES,
-    },
-  },
-  required: [
-    "alternative",
-    "why_deferred",
-    "what_would_change_status",
-    "status",
-  ],
-};
-
-const temporalHierarchyViewSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    raw_observation_level: { type: "string" },
-    work_or_session_level: { type: "string" },
-    project_status_level: { type: "string" },
-    current_interpretive_stance: { type: "string" },
-    hierarchy_caution: { type: "string" },
-  },
-  required: [
-    "raw_observation_level",
-    "work_or_session_level",
-    "project_status_level",
-    "current_interpretive_stance",
-    "hierarchy_caution",
-  ],
-};
-
-const memoryLifecycleViewSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    active_context: stringArraySchema,
-    retrieved_context: stringArraySchema,
-    summary_or_view: stringArraySchema,
-    stale_or_deferred_context: stringArraySchema,
-    lifecycle_caution: { type: "string" },
-  },
-  required: [
-    "active_context",
-    "retrieved_context",
-    "summary_or_view",
-    "stale_or_deferred_context",
-    "lifecycle_caution",
-  ],
-};
-
-const interpretiveDriverSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    axis: {
-      type: "string",
-      enum: TEMPORAL_INTERPRETATION_AXES,
-    },
-    driver: { type: "string" },
-    effect: { type: "string" },
-  },
-  required: ["axis", "driver", "effect"],
-};
-
-const axisPressureSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    axis: {
-      type: "string",
-      enum: TEMPORAL_INTERPRETATION_AXES,
-    },
-    pressure: {
-      type: "string",
-      enum: AXIS_PRESSURE_LABELS,
-    },
-    reason: { type: "string" },
-  },
-  required: ["axis", "pressure", "reason"],
-};
-
-const temporalPreviewSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    current_interpretation: { type: "string" },
-    active_prior_context: { type: "string" },
-    evidence_anchors: {
-      type: "array",
-      items: evidenceAnchorSchema,
-    },
-    summary_refs: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          ref: { type: "string" },
-          summary: { type: "string" },
-        },
-        required: ["ref", "summary"],
-      },
-    },
-    source_authority_profile: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        committed_state_authority: stringArraySchema,
-        summary_only_refs: stringArraySchema,
-        allowed_now: stringArraySchema,
-        blocked_now: stringArraySchema,
-      },
-      required: [
-        "committed_state_authority",
-        "summary_only_refs",
-        "allowed_now",
-        "blocked_now",
-      ],
-    },
-    counterexamples: {
-      type: "array",
-      items: refDescriptionSchema,
-    },
-    residual_tensions: {
-      type: "array",
-      items: refDescriptionSchema,
-    },
-    transition_relation: {
-      type: "string",
-      enum: TRANSITION_RELATIONS,
-    },
-    revision_explanation: { type: "string" },
-    user_context_vs_factuality: { type: "string" },
-    active_context_admission_rationale: {
-      type: "array",
-      items: activeContextAdmissionRationaleSchema,
-    },
-    active_context_admission: activeContextAdmissionSchema,
-    suppressed_alternatives: {
-      type: "array",
-      items: suppressedAlternativeSchema,
-    },
-    temporal_hierarchy_view: temporalHierarchyViewSchema,
-    memory_lifecycle_view: memoryLifecycleViewSchema,
-    interpretive_drivers: {
-      type: "array",
-      items: interpretiveDriverSchema,
-    },
-    axis_pressures: {
-      type: "array",
-      items: axisPressureSchema,
-    },
-    safe_next_step: { type: "string" },
-    non_authority_boundary: { type: "string" },
-    warnings: stringArraySchema,
-  },
-  required: [
-    "current_interpretation",
-    "active_prior_context",
-    "evidence_anchors",
-    "summary_refs",
-    "source_authority_profile",
-    "counterexamples",
-    "residual_tensions",
-    "transition_relation",
-    "revision_explanation",
-    "user_context_vs_factuality",
-    "active_context_admission_rationale",
-    "active_context_admission",
-    "suppressed_alternatives",
-    "temporal_hierarchy_view",
-    "memory_lifecycle_view",
-    "interpretive_drivers",
-    "axis_pressures",
-    "safe_next_step",
-    "non_authority_boundary",
-    "warnings",
-  ],
-};
