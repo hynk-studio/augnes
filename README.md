@@ -11,9 +11,9 @@ Augnes is being completed around one operability-first flow:
 ```text
 Start Augnes
 → select a project
-→ start a task
+→ start or accept a task
 → compile project context
-→ run Codex / the native host
+→ run Codex / the native host interactively or through bounded automation
 → return a structured result
 → review the result
 → approve any durable semantic change
@@ -26,9 +26,11 @@ The active product commitments are:
 - Resume / Verify / Decide
 - project and workspace identity with isolation
 - `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, and `ReviewDecision`
+- a bounded Automation Spine using policy, grants, runs, receipts, stop conditions, and user control
 - minimal Model Gateway with an OpenAI reference adapter
-- adapter-backed Codex round trip
+- adapter-backed Codex round trip for interactive and unattended runs
 - Project Home, Semantic Workbench, and shared Inspector
+- a bounded Personal Perspective lane that reuses the same review, context-selection, and feedback contracts
 - migration, backup, restore, update, and recovery
 
 The active sequence is defined in
@@ -64,11 +66,14 @@ Do not use `db:reset` as a normal start command. It is a destructive developer o
 ## Development policy
 
 - Advance the end-to-end product flow before adding new framework or process layers.
+- Build the minimal Automation Spine across R2–R8 instead of postponing automation until after the manual path is fixed.
+- Defer advanced hunt heuristics, generic scheduler replication, unrestricted retry, self-modification, and automatic semantic commit—not bounded automation itself.
+- Allow Personal Perspective to progress as a parallel bounded lane when it reuses existing Core contracts and does not block the mainline flow.
 - Use focused unit, integration, disposable-database, and browser tests during development.
 - Do not make long manual operator pilots a normal PR merge gate.
-- Move real-user usefulness validation to Alpha, after R2–R8 are feature-complete.
+- Move broad real-user usefulness validation to Alpha, after the core R2–R8 flow is feature-complete.
 - Keep irreversible external actions and durable semantic changes under explicit user control.
-- Do not add new planning-only documents, passive workflow-stage panels, manual copy UI, or feature-specific smoke commands by default.
+- Do not add new planning-only documents, passive workflow-stage panels, manual copy UI, feature-specific smoke commands, or separate automation/perspective subsystems by default.
 
 ## Active documents
 
