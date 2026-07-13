@@ -45,6 +45,7 @@ import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformanc
 import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-review-loop";
 import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-transition-loop";
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
+import { runCodexReviewDurableSummaryPolicyConformanceV01 } from "@/scripts/validate-vnext-codex-review-durable-summary-policy-v0-1";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -64,6 +65,7 @@ const sourcePaths = [
   "lib/vnext/context-use-review.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/vnext/compat/episode-delta-proposal-from-codex-review.ts",
+  "lib/vnext/compat/codex-review-durable-summary-policy-v0-1.ts",
   "lib/vnext/compat/codex-result-report-source-validator.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
@@ -624,6 +626,8 @@ try {
   const contextUseReviewSummary = runContextUseReviewConformanceV01();
   const codexReviewEpisodeDeltaProposalSummary =
     runCodexReviewEpisodeDeltaProposalConformanceV01();
+  const codexReviewDurableSummaryPolicySummary =
+    runCodexReviewDurableSummaryPolicyConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -693,6 +697,8 @@ try {
         context_use_review: contextUseReviewSummary,
         codex_review_episode_delta_proposal_compatibility:
           codexReviewEpisodeDeltaProposalSummary,
+        codex_review_durable_summary_policy:
+          codexReviewDurableSummaryPolicySummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         codex_result_report_run_receipt_compatibility:

@@ -107,32 +107,32 @@ import {
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:d194b2f25e1a3ced03307c3e",
+  review_decision_id: "review-decision:a66d588b0324040966846f22",
   review_decision_fingerprint:
-    "sha256:42064d204b9ac3375caa2d48f46034dad95407503d520f9f7d21b7c616301db6",
+    "sha256:9580ffbda544c05b50a6cca183e69ee7e38ad09559f3b92e79a57e04a44347c9",
   confirmation_digest:
-    "sha256:818489a0641ac2305b12c901e7d4424aa68b61ac063a7f111f849d18c2f74cee",
-  gate_id: "semantic-commit-gate:49ef8585dce3f9dd12be3d9f",
+    "sha256:8a35418ccba40b3070a1d63f239680bbd8ab4184ded64030df6e9f90d1cce8ec",
+  gate_id: "semantic-commit-gate:485f14a97809eac980e23936",
   gate_fingerprint:
-    "sha256:59ded487e9e0d97fc15850b85c24ea980dba5627772c5424ed09b160ab7ef61e",
-  transition_receipt_id: "state-transition-receipt:c101326a90c58360340a2878",
+    "sha256:8e155ac384842bbaa1a39787761933788efd8782713afef1c9382c556ba3916b",
+  transition_receipt_id: "state-transition-receipt:dca53a613f8edd95bf75649d",
   transition_receipt_idempotency_key:
-    "sha256:f74fa3a3488280b5e86f45086438a6279f5b03019466a0694f049558d3368755",
+    "sha256:3dbe47dc7e836af93550cc3f9b14c03fffe3edf68cf89e33156cabe3db216591",
   transition_receipt_fingerprint:
-    "sha256:43d1ad8482060c3c01e444e91d3dfaa5938ca3146186527623f099aaada80b2a",
-  later_packet_id: "task-context-packet:ecefd056a7958dfad3fd279",
+    "sha256:ec24c219e7856a6a14abb5a5dff5752a4318345d41c9a4ca384ecb083b776596",
+  later_packet_id: "task-context-packet:ab39beab9b123e29380a366",
   later_packet_fingerprint:
-    "sha256:bdec0a1d516dba769209e626a55c7e357d231a6bb5a921dfd5fb4331339ebcc9",
-  later_run_receipt_id: "run-receipt:bae0fbd7032c7f6cd2ca7ab7",
+    "sha256:41f5315af5ea98a98cce22c5461a51505758847d6de5135ee662cd5afca646fb",
+  later_run_receipt_id: "run-receipt:a061dee0cbe8945a2bd16ebf",
   later_run_receipt_idempotency_key:
-    "sha256:b36799d23957b92750212c886cd834662fb31e02fd79f01a4782edd8a75dffdf",
+    "sha256:c99ed47fc0ffb47dca41d258dde7b67b8d71a243c9c94f35a9550eb12d39e3d7",
   later_run_receipt_fingerprint:
-    "sha256:03e2477195157ae77431055f04dfd8d5b6f8adea410232fcb3520a3380ba09fa",
-  context_use_review_id: "context-use-review:ac756957a1627ae79390d39e",
+    "sha256:3b519dcdf37fb3d1b1e2e874356f775fb1b09df2f2c0a0b7d4f0c05df4b024aa",
+  context_use_review_id: "context-use-review:5396830c24fdef40e49ee2a9",
   context_use_review_fingerprint:
-    "sha256:1fe21f58686ee1c510121a78e82d44e86d5519c1043bebad3278b4afc167b0a4",
+    "sha256:9f6b7a81a45e048adae1e0f88733bde1638d2282aae86ffbd75a7e01925fd390",
   full_loop_fingerprint:
-    "sha256:7f347a7edffe89eff6bab57972a0d222b63e04f356c9de86347d008727006e07",
+    "sha256:a626d408bbf02b0a0f05181f87dee4d9adc3ec7ccc48eb6bd3d9bef8a7901cf0",
 } as const;
 const require = createRequire(import.meta.url);
 const runnerManagedPaths = resolveRunnerManagedPaths();

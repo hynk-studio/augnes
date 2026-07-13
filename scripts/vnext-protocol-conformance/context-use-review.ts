@@ -19,9 +19,9 @@ import type { ContextUseReviewV01 } from "@/types/vnext/context-use-review";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
 const FIXED_CONTEXT_USE_REVIEW_ID =
-  "context-use-review:c0854b99726bb108b66313eb";
+  "context-use-review:f91c2ff8198b4e3dab259602";
 const FIXED_CONTEXT_USE_REVIEW_FINGERPRINT =
-  "sha256:e31f80b818169e429b55a9e2b95e513ec20e565a00b4009f42ed288ceed686a3";
+  "sha256:813983b6a4382d386f9e67f4766460036a31542879617eecae58bcd941c3a1ad";
 
 export interface ContextUseReviewConformanceSummaryV01 {
   suite: "context-use-review-v0.1";

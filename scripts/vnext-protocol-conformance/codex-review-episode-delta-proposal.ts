@@ -30,9 +30,9 @@ const FIXED_MAPPED_RECEIPT_IDEMPOTENCY_KEY =
 const FIXED_MAPPED_RECEIPT_FINGERPRINT =
   "sha256:4fddb2a3f8c82d6650d18f2bc942ff6efd4973d17e3fde1e3ca2646d8648588f";
 const FIXED_CODEX_PROPOSAL_ID =
-  "episode-delta-proposal:acd41668060c96a1d9315ab0";
+  "episode-delta-proposal:84f7319dfbe4a22a4df46db2";
 const FIXED_CODEX_PROPOSAL_FINGERPRINT =
-  "sha256:d351c7cc46626ea7eabb32893d9fecf7b2d937d28ed5e1867ce422303e2a0288";
+  "sha256:9fbdc93c4ebcbef0e9b845058a60acbcb0a3ebf143c35211011073c89b64bd2d";
 
 export interface CodexReviewEpisodeDeltaProposalConformanceSummaryV01 {
   suite: "codex-review-episode-delta-proposal-compat-v0.1";

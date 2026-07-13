@@ -5,6 +5,10 @@ import {
   normalizeCandidateIngressCandidateV01,
 } from "@/lib/intake/candidate-ingress-normalizer";
 import {
+  CODEX_REVIEW_DURABLE_SUMMARY_POLICY_VERSION_V01,
+  deriveCodexReviewDurableSummaryV01,
+} from "@/lib/vnext/compat/codex-review-durable-summary-policy-v0-1";
+import {
   buildEpisodeDeltaProposalV01,
   validateEpisodeDeltaProposalV01,
   type EpisodeDeltaProposalBuilderInputV01,
@@ -1179,36 +1183,15 @@ function validateCandidateSourceRelations(
       );
     }
 
-    const actual = normalizeCandidateForRelation(candidate);
-    const hasCanonicalDerivation = derivations
-      .filter((derivation) => derivation.bucket === bucket)
-      .some((derivation) => {
-        const expected = normalizeCandidateIngressCandidateV01({
-          candidate_kind: derivation.candidateKind,
-          source_kind: "codex_result_report",
-          label: derivation.label,
-          summary: derivation.summary,
-          source_ref: canonicalSourceRef,
-          operator_ref: canonicalOperatorRef,
-          session_ref: candidate.session_ref,
-          project_ref: candidate.project_ref,
-          work_ref: candidate.work_ref,
-          result_ref: sourceRecord.report_id,
-          pr_ref: candidate.pr_ref,
-          commit_ref: candidate.commit_ref,
-          evidence_refs: requiredEvidenceRefs,
-          source_refs: requiredSourceRefs,
-          confidence: "inferred_heuristic",
-          generated_view: true,
-          seed: derivation.seed,
-        });
-        return (
-          expected !== null &&
-          canonicalizeProtocolValueV01(expected) ===
-            canonicalizeProtocolValueV01(actual)
-        );
-      });
-    if (!hasCanonicalDerivation) {
+    const derivation = resolveCanonicalCandidateDerivation({
+      derivations,
+      bucket,
+      candidate,
+      source_record: sourceRecord,
+      required_evidence_refs: requiredEvidenceRefs,
+      required_source_refs: requiredSourceRefs,
+    });
+    if (!derivation) {
       addError(
         accumulator,
         "preview_candidate_derivation_mismatch",
@@ -1216,8 +1199,62 @@ function validateCandidateSourceRelations(
         "Candidate identity, label, summary, kind, and source context must match a deterministic ExpectedObservedDelta derivation.",
         true,
       );
+      continue;
+    }
+    const durableSummary = deriveCodexReviewDurableSummaryV01({
+      candidate_bucket: bucket,
+      canonical_source_signal: derivation.sourceSignal,
+      candidate_display_summary: candidate.summary,
+    });
+    if (durableSummary.status === "blocked") {
+      addError(
+        accumulator,
+        durableSummary.issue_code,
+        path,
+        "The canonical candidate source cannot be preserved as a bounded durable semantic summary.",
+        true,
+      );
     }
   }
+}
+
+function resolveCanonicalCandidateDerivation(input: {
+  derivations: CanonicalCandidateDerivation[];
+  bucket: SelectableCandidateBucket;
+  candidate: CandidateIngressNormalizedCandidate;
+  source_record: CodexResultReportIngestionRecordV01;
+  required_evidence_refs: string[];
+  required_source_refs: string[];
+}): CanonicalCandidateDerivation | null {
+  const actual = normalizeCandidateForRelation(input.candidate);
+  return input.derivations
+    .filter((derivation) => derivation.bucket === input.bucket)
+    .find((derivation) => {
+      const expected = normalizeCandidateIngressCandidateV01({
+        candidate_kind: derivation.candidateKind,
+        source_kind: "codex_result_report",
+        label: derivation.label,
+        summary: derivation.summary,
+        source_ref: input.source_record.report_id,
+        operator_ref: input.source_record.operator_actor_ref,
+        session_ref: input.candidate.session_ref,
+        project_ref: input.candidate.project_ref,
+        work_ref: input.candidate.work_ref,
+        result_ref: input.source_record.report_id,
+        pr_ref: input.candidate.pr_ref,
+        commit_ref: input.candidate.commit_ref,
+        evidence_refs: input.required_evidence_refs,
+        source_refs: input.required_source_refs,
+        confidence: "inferred_heuristic",
+        generated_view: true,
+        seed: derivation.seed,
+      });
+      return (
+        expected !== null &&
+        canonicalizeProtocolValueV01(expected) ===
+          canonicalizeProtocolValueV01(actual)
+      );
+    }) ?? null;
 }
 
 function canonicalCandidateDerivations(
@@ -1741,6 +1778,12 @@ function buildMappedProposal(
   const derivations = canonicalCandidateDerivations(
     input.expected_observed_delta_preview,
   );
+  const requiredEvidenceRefs = sortedUniqueStrings(
+    input.expected_observed_delta_preview.evidence_summary.evidence_refs,
+  );
+  const requiredSourceRefs = sortedUniqueStrings(
+    input.expected_observed_delta_preview.source_refs,
+  );
   const mappedCandidates = selectableCandidates.map(({ bucket, candidate }) => {
     const candidateFingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01(normalizeCandidateForRelation(candidate)),
@@ -1758,14 +1801,24 @@ function buildMappedProposal(
       previewFingerprint,
       input.expected_observed_delta_preview.as_of,
     );
-    const derivation = derivations.find(
-      (item) =>
-        item.bucket === bucket &&
-        item.label === candidate.label &&
-        item.summary === candidate.summary,
-    );
+    const derivation = resolveCanonicalCandidateDerivation({
+      derivations,
+      bucket,
+      candidate,
+      source_record: input.source_record,
+      required_evidence_refs: requiredEvidenceRefs,
+      required_source_refs: requiredSourceRefs,
+    });
     if (!derivation) {
       throw new Error("Validated candidate lacks canonical derivation.");
+    }
+    const durableSummary = deriveCodexReviewDurableSummaryV01({
+      candidate_bucket: bucket,
+      canonical_source_signal: derivation.sourceSignal,
+      candidate_display_summary: candidate.summary,
+    });
+    if (durableSummary.status !== "preserved") {
+      throw new Error("Validated candidate lacks a preservable durable summary.");
     }
     const matchingReceiptMaterialIds = matchingReceiptAttestationMaterialIds(
       bucket,
@@ -1789,6 +1842,7 @@ function buildMappedProposal(
       candidateFingerprint,
       candidateCompatibilityRefs,
       sourceSignal: derivation.sourceSignal,
+      durableSummary: durableSummary.summary,
       matchingReceiptMaterialIds,
       hasReceiptRelation,
       materialId,
@@ -1826,7 +1880,7 @@ function buildMappedProposal(
       source_material_ids: [],
       source_refs: [previewRef, entry.candidateRef],
     },
-    proposed_state_summary: boundedText(entry.candidate.summary),
+    proposed_state_summary: entry.durableSummary,
     target_refs: [entry.candidateRef],
     basis_material_ids: [entry.materialId],
     source_refs: [
@@ -1915,6 +1969,7 @@ function buildMappedProposal(
         input.source_record.record_version,
         receipt.receipt_version,
         input.expected_observed_delta_preview.preview_version,
+        CODEX_REVIEW_DURABLE_SUMMARY_POLICY_VERSION_V01,
       ],
       unmapped_fields: [
         {
