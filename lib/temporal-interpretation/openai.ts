@@ -8,41 +8,72 @@ import {
   type TemporalInterpretationPreview,
   type TemporalPreviewContext,
 } from "@/lib/temporal-interpretation/types";
+import {
+  type BoundedModelTransport,
+  readModelEgressArray,
+  readModelEgressField,
+  requireModelEgressRecord,
+  requireModelEgressText,
+  serializeModelEgressJson,
+  refuseModelEgress,
+} from "@/lib/model-egress/bounded-model-payload";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
+const TEMPORAL_EGRESS_PURPOSE = "temporal_interpretation" as const;
+
+export const TEMPORAL_MODEL_EGRESS_LIMITS = Object.freeze({
+  stringBytes: 4_096,
+  sourceItemBytes: 4_096,
+  dynamicBytes: 32_768,
+  finalRequestBytes: 65_536,
+});
+
+export type TemporalModelTransport = BoundedModelTransport;
 
 export async function buildOpenAITemporalPreview({
   context,
 }: {
   context: TemporalPreviewContext;
 }): Promise<{ model: string; preview: TemporalInterpretationPreview }> {
+  return buildOpenAITemporalPreviewWithTransport(
+    context,
+    sendTemporalModelRequest,
+  );
+}
+
+export function buildOpenAITemporalPreviewForTest(
+  context: TemporalPreviewContext,
+  transport: TemporalModelTransport,
+) {
+  return buildOpenAITemporalPreviewWithTransport(context, transport);
+}
+
+async function buildOpenAITemporalPreviewWithTransport(
+  context: TemporalPreviewContext,
+  transport: TemporalModelTransport,
+): Promise<{ model: string; preview: TemporalInterpretationPreview }> {
   const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
+  const dynamicText = serializeModelEgressJson(
+    TEMPORAL_EGRESS_PURPOSE,
+    { context: projectTemporalModelContext(context) },
+    TEMPORAL_MODEL_EGRESS_LIMITS.dynamicBytes,
+  );
+  const requestBody = serializeModelEgressJson(
+    TEMPORAL_EGRESS_PURPOSE,
+    {
+      model: requireModelEgressText(
+        TEMPORAL_EGRESS_PURPOSE,
+        model,
+        128,
+      ),
       input: [
         {
           role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildSystemPrompt(),
-            },
-          ],
+          content: [{ type: "input_text", text: buildSystemPrompt() }],
         },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({ context }),
-            },
-          ],
+          content: [{ type: "input_text", text: dynamicText }],
         },
       ],
       text: {
@@ -53,21 +84,271 @@ export async function buildOpenAITemporalPreview({
           schema: temporalPreviewSchema,
         },
       },
-    }),
-  });
+    },
+    TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes,
+  );
+  const response = await transport(requestBody);
 
   if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`OpenAI temporal preview failed: ${response.status} ${details}`);
+    throw new Error(`OpenAI temporal preview failed: ${response.status}`);
   }
 
-  const payload = (await response.json()) as unknown;
+  const payload = await response.json();
   const text = extractOutputText(payload);
   if (!text) {
     throw new Error("OpenAI temporal preview response did not include output text.");
   }
 
   return { model, preview: validateTemporalPreview(JSON.parse(text)) };
+}
+
+async function sendTemporalModelRequest(requestBody: string) {
+  return fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: requestBody,
+  });
+}
+
+function projectTemporalModelContext(value: unknown) {
+  const record = requireModelEgressRecord(TEMPORAL_EGRESS_PURPOSE, value);
+  return {
+    scope: temporalText(record, "scope", 160),
+    as_of: temporalText(record, "as_of", 128),
+    current_interpretation: temporalText(record, "current_interpretation"),
+    active_prior_context: temporalText(record, "active_prior_context"),
+    evidence_anchors: temporalObjectList(record, "evidence_anchors", 8, (item) => ({
+      ref: temporalText(item, "ref", 512),
+      claim: temporalText(item, "claim"),
+      source_type: temporalEnum(item, "source_type", [
+        "committed_state",
+        "action_record",
+        "work_trace",
+        "doc",
+      ] as const),
+    })),
+    summary_refs: temporalObjectList(record, "summary_refs", 2, (item) => ({
+      ref: temporalText(item, "ref", 512),
+      summary: temporalText(item, "summary"),
+    })),
+    source_authority_profile: projectTemporalAuthorityProfile(
+      temporalRecord(record, "source_authority_profile"),
+    ),
+    counterexamples: temporalObjectList(record, "counterexamples", 3, (item) => ({
+      ref: temporalText(item, "ref", 512),
+      description: temporalText(item, "description"),
+    })),
+    residual_tensions: temporalObjectList(record, "residual_tensions", 4, (item) => ({
+      ref: temporalText(item, "ref", 512),
+      description: temporalText(item, "description"),
+    })),
+    user_preferences: temporalTextList(record, "user_preferences", 2),
+    safe_next_step: temporalText(record, "safe_next_step"),
+    non_authority_boundary: temporalText(record, "non_authority_boundary"),
+    active_context_admission_rationale: temporalObjectList(
+      record,
+      "active_context_admission_rationale",
+      4,
+      (item) => ({
+        context_ref: temporalText(item, "context_ref", 512),
+        admission_role: temporalEnum(
+          item,
+          "admission_role",
+          ACTIVE_CONTEXT_ADMISSION_ROLES,
+        ),
+        why_admitted: temporalText(item, "why_admitted"),
+        why_not_merely_summary: temporalText(
+          item,
+          "why_not_merely_summary",
+        ),
+      }),
+    ),
+    active_context_admission: projectTemporalAdmission(
+      temporalRecord(record, "active_context_admission"),
+    ),
+    suppressed_alternatives: temporalObjectList(
+      record,
+      "suppressed_alternatives",
+      3,
+      (item) => ({
+        alternative: temporalText(item, "alternative"),
+        why_deferred: temporalText(item, "why_deferred"),
+        what_would_change_status: temporalText(
+          item,
+          "what_would_change_status",
+        ),
+        status: temporalEnum(
+          item,
+          "status",
+          SUPPRESSED_ALTERNATIVE_STATUSES,
+        ),
+      }),
+    ),
+    temporal_hierarchy_view: projectTemporalHierarchy(
+      temporalRecord(record, "temporal_hierarchy_view"),
+    ),
+    memory_lifecycle_view: projectTemporalMemoryLifecycle(
+      temporalRecord(record, "memory_lifecycle_view"),
+    ),
+    interpretive_drivers: temporalObjectList(
+      record,
+      "interpretive_drivers",
+      4,
+      (item) => ({
+        axis: temporalEnum(item, "axis", TEMPORAL_INTERPRETATION_AXES),
+        driver: temporalText(item, "driver"),
+        effect: temporalText(item, "effect"),
+      }),
+    ),
+    axis_pressures: temporalObjectList(record, "axis_pressures", 4, (item) => ({
+      axis: temporalEnum(item, "axis", TEMPORAL_INTERPRETATION_AXES),
+      pressure: temporalEnum(item, "pressure", AXIS_PRESSURE_LABELS),
+      reason: temporalText(item, "reason"),
+    })),
+  };
+}
+
+function projectTemporalAuthorityProfile(record: Record<string, unknown>) {
+  return {
+    committed_state_authority: temporalTextList(
+      record,
+      "committed_state_authority",
+      8,
+    ),
+    summary_only_refs: temporalTextList(record, "summary_only_refs", 2),
+    allowed_now: temporalTextList(record, "allowed_now", 3),
+    blocked_now: temporalTextList(record, "blocked_now", 4),
+  };
+}
+
+function projectTemporalAdmission(record: Record<string, unknown>) {
+  return {
+    decisions: temporalObjectList(record, "decisions", 10, (item) => ({
+      candidate_id: temporalText(item, "candidate_id", 512),
+      category: temporalEnum(
+        item,
+        "category",
+        ACTIVE_CONTEXT_ADMISSION_CATEGORIES,
+      ),
+      reason: temporalText(item, "reason"),
+      source_authority: temporalText(item, "source_authority", 512),
+      evidence_refs: temporalTextList(item, "evidence_refs", 1),
+      counterexample_refs: temporalTextList(item, "counterexample_refs", 3),
+      residual_tension_refs: temporalTextList(
+        item,
+        "residual_tension_refs",
+        1,
+      ),
+    })),
+    note: temporalText(record, "note"),
+  };
+}
+
+function projectTemporalHierarchy(record: Record<string, unknown>) {
+  return {
+    raw_observation_level: temporalText(record, "raw_observation_level"),
+    work_or_session_level: temporalText(record, "work_or_session_level"),
+    project_status_level: temporalText(record, "project_status_level"),
+    current_interpretive_stance: temporalText(
+      record,
+      "current_interpretive_stance",
+    ),
+    hierarchy_caution: temporalText(record, "hierarchy_caution"),
+  };
+}
+
+function projectTemporalMemoryLifecycle(record: Record<string, unknown>) {
+  return {
+    active_context: temporalTextList(record, "active_context", 5),
+    retrieved_context: temporalTextList(record, "retrieved_context", 3),
+    summary_or_view: temporalTextList(record, "summary_or_view", 2),
+    stale_or_deferred_context: temporalTextList(
+      record,
+      "stale_or_deferred_context",
+      5,
+    ),
+    lifecycle_caution: temporalText(record, "lifecycle_caution"),
+  };
+}
+
+function temporalRecord(record: Record<string, unknown>, key: string) {
+  return requireModelEgressRecord(
+    TEMPORAL_EGRESS_PURPOSE,
+    readModelEgressField(TEMPORAL_EGRESS_PURPOSE, record, key),
+  );
+}
+
+function temporalText(
+  record: Record<string, unknown>,
+  key: string,
+  maximum: number = TEMPORAL_MODEL_EGRESS_LIMITS.stringBytes,
+) {
+  return requireModelEgressText(
+    TEMPORAL_EGRESS_PURPOSE,
+    readModelEgressField(TEMPORAL_EGRESS_PURPOSE, record, key),
+    maximum,
+  );
+}
+
+function temporalTextList(
+  record: Record<string, unknown>,
+  key: string,
+  maximumItems: number,
+) {
+  return readModelEgressArray(
+    TEMPORAL_EGRESS_PURPOSE,
+    readModelEgressField(TEMPORAL_EGRESS_PURPOSE, record, key),
+    maximumItems,
+  ).map((item) =>
+    requireModelEgressText(
+      TEMPORAL_EGRESS_PURPOSE,
+      item,
+      TEMPORAL_MODEL_EGRESS_LIMITS.stringBytes,
+    ),
+  );
+}
+
+function temporalObjectList<T>(
+  record: Record<string, unknown>,
+  key: string,
+  maximumItems: number,
+  project: (item: Record<string, unknown>) => T,
+) {
+  return readModelEgressArray(
+    TEMPORAL_EGRESS_PURPOSE,
+    readModelEgressField(TEMPORAL_EGRESS_PURPOSE, record, key),
+    maximumItems,
+  ).map((item) => {
+    const projected = project(
+      requireModelEgressRecord(TEMPORAL_EGRESS_PURPOSE, item),
+    );
+    serializeModelEgressJson(
+      TEMPORAL_EGRESS_PURPOSE,
+      projected,
+      TEMPORAL_MODEL_EGRESS_LIMITS.sourceItemBytes,
+    );
+    return projected;
+  });
+}
+
+function temporalEnum<T extends readonly string[]>(
+  record: Record<string, unknown>,
+  key: string,
+  allowed: T,
+) {
+  const value = readModelEgressField(TEMPORAL_EGRESS_PURPOSE, record, key);
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    refuseModelEgress(
+      TEMPORAL_EGRESS_PURPOSE,
+      "model_egress_payload_malformed",
+      1,
+      0,
+    );
+  }
+  return value as T[number];
 }
 
 export function validateTemporalPreview(

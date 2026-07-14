@@ -1,7 +1,33 @@
 import { buildStateBrief } from "@/lib/state/brief";
+import {
+  assertModelEgressCollectionCount,
+  type BoundedModelTransport,
+  cloneBoundedModelEgressJson,
+  readModelEgressArray,
+  readModelEgressField,
+  requireModelEgressRecord,
+  requireModelEgressText,
+  serializeModelEgressJson,
+} from "@/lib/model-egress/bounded-model-payload";
 
 const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_MODEL = "gpt-4.1-mini";
+const PLANNER_EGRESS_PURPOSE = "planner_plan" as const;
+
+export const PLANNER_MODEL_EGRESS_LIMITS = Object.freeze({
+  messageBytes: 8_192,
+  stateItems: 64,
+  stateBucketItems: 32,
+  tensionItems: 16,
+  proposalItems: 16,
+  sourceItemBytes: 4_096,
+  dynamicBytes: 65_536,
+  finalRequestBytes: 98_304,
+  structuralDepth: 8,
+  structuralNodes: 2_048,
+});
+
+export type PlannerModelTransport = BoundedModelTransport;
 
 type PlanRequest = {
   scope: string;
@@ -47,8 +73,19 @@ export function validatePlanRequest(body: unknown): PlanRequest {
 
 export async function buildPlan(request: PlanRequest): Promise<PlanResponse> {
   const brief = buildStateBrief(request.scope);
+  return buildPlanFromBrief(
+    request,
+    brief,
+    process.env.OPENAI_API_KEY ? sendPlannerModelRequest : null,
+  );
+}
 
-  if (!process.env.OPENAI_API_KEY) {
+async function buildPlanFromBrief(
+  request: PlanRequest,
+  brief: ReturnType<typeof buildStateBrief>,
+  transport: PlannerModelTransport | null,
+): Promise<PlanResponse> {
+  if (!transport) {
     return {
       scope: request.scope,
       planner: "mock",
@@ -57,14 +94,21 @@ export async function buildPlan(request: PlanRequest): Promise<PlanResponse> {
       agent_instructions: brief.agent_instructions,
     };
   }
-
   return {
     scope: request.scope,
     planner: "openai",
     message: request.message,
-    recommendations: await planWithOpenAI(request.message, brief),
+    recommendations: await planWithOpenAI(request.message, brief, transport),
     agent_instructions: brief.agent_instructions,
   };
+}
+
+export function buildPlanWithBriefForTest(
+  request: PlanRequest,
+  brief: ReturnType<typeof buildStateBrief>,
+  transport: PlannerModelTransport | null,
+) {
+  return buildPlanFromBrief(request, brief, transport);
 }
 
 function buildMockRecommendations(brief: ReturnType<typeof buildStateBrief>) {
@@ -111,15 +155,22 @@ function buildMockRecommendations(brief: ReturnType<typeof buildStateBrief>) {
 async function planWithOpenAI(
   message: string,
   brief: ReturnType<typeof buildStateBrief>,
+  transport: PlannerModelTransport = sendPlannerModelRequest,
 ) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+  const dynamicMaterial = projectPlannerModelMaterial(message, brief);
+  const dynamicText = serializeModelEgressJson(
+    PLANNER_EGRESS_PURPOSE,
+    dynamicMaterial,
+    PLANNER_MODEL_EGRESS_LIMITS.dynamicBytes,
+  );
+  const requestBody = serializeModelEgressJson(
+    PLANNER_EGRESS_PURPOSE,
+    {
+      model: requireModelEgressText(
+        PLANNER_EGRESS_PURPOSE,
+        process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+        128,
+      ),
       input: [
         {
           role: "system",
@@ -137,12 +188,7 @@ async function planWithOpenAI(
         },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({ message, brief }),
-            },
-          ],
+          content: [{ type: "input_text", text: dynamicText }],
         },
       ],
       text: {
@@ -153,20 +199,198 @@ async function planWithOpenAI(
           schema: planSchema,
         },
       },
-    }),
-  });
+    },
+    PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes,
+  );
+  const response = await transport(requestBody);
 
   if (!response.ok) {
     throw new Error(`OpenAI planner failed: ${response.status}`);
   }
 
-  const payload = (await response.json()) as unknown;
+  const payload = await response.json();
   const text = extractOutputText(payload);
   if (!text) {
     throw new Error("OpenAI planner response did not include output text.");
   }
 
   return validateRecommendations(JSON.parse(text));
+}
+
+export function planWithOpenAIForTest(
+  message: string,
+  brief: ReturnType<typeof buildStateBrief>,
+  transport: PlannerModelTransport,
+) {
+  return planWithOpenAI(message, brief, transport);
+}
+
+async function sendPlannerModelRequest(requestBody: string) {
+  return fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: requestBody,
+  });
+}
+
+function projectPlannerModelMaterial(
+  message: unknown,
+  brief: unknown,
+) {
+  const record = requireModelEgressRecord(PLANNER_EGRESS_PURPOSE, brief);
+  const activeState = projectPlannerList(
+    readModelEgressField(PLANNER_EGRESS_PURPOSE, record, "active_state"),
+    PLANNER_MODEL_EGRESS_LIMITS.stateBucketItems,
+    projectPlannerState,
+  );
+  const futureState = projectPlannerList(
+    readModelEgressField(PLANNER_EGRESS_PURPOSE, record, "future_state"),
+    PLANNER_MODEL_EGRESS_LIMITS.stateBucketItems,
+    projectPlannerState,
+  );
+  const completedState = projectPlannerList(
+    readModelEgressField(PLANNER_EGRESS_PURPOSE, record, "completed_state"),
+    PLANNER_MODEL_EGRESS_LIMITS.stateBucketItems,
+    projectPlannerState,
+  );
+  const deprecatedState = projectPlannerList(
+    readModelEgressField(PLANNER_EGRESS_PURPOSE, record, "deprecated_state"),
+    PLANNER_MODEL_EGRESS_LIMITS.stateBucketItems,
+    projectPlannerState,
+  );
+  assertModelEgressCollectionCount(
+    PLANNER_EGRESS_PURPOSE,
+    activeState.length +
+      futureState.length +
+      completedState.length +
+      deprecatedState.length,
+    PLANNER_MODEL_EGRESS_LIMITS.stateItems,
+  );
+
+  return {
+    message: requireModelEgressText(
+      PLANNER_EGRESS_PURPOSE,
+      message,
+      PLANNER_MODEL_EGRESS_LIMITS.messageBytes,
+    ),
+    brief: {
+      scope: requireModelEgressText(
+        PLANNER_EGRESS_PURPOSE,
+        readModelEgressField(PLANNER_EGRESS_PURPOSE, record, "scope"),
+        160,
+      ),
+      active_state: activeState,
+      future_state: futureState,
+      completed_state: completedState,
+      deprecated_state: deprecatedState,
+      open_tensions: projectPlannerList(
+        readModelEgressField(PLANNER_EGRESS_PURPOSE, record, "open_tensions"),
+        PLANNER_MODEL_EGRESS_LIMITS.tensionItems,
+        projectPlannerTension,
+      ),
+      pending_proposals: projectPlannerList(
+        readModelEgressField(
+          PLANNER_EGRESS_PURPOSE,
+          record,
+          "pending_proposals",
+        ),
+        PLANNER_MODEL_EGRESS_LIMITS.proposalItems,
+        projectPlannerProposal,
+      ),
+    },
+  };
+}
+
+function projectPlannerList<T>(
+  value: unknown,
+  maximum: number,
+  project: (item: unknown) => T,
+) {
+  return readModelEgressArray(PLANNER_EGRESS_PURPOSE, value, maximum).map(
+    (item) => {
+      const projected = project(item);
+      serializeModelEgressJson(
+        PLANNER_EGRESS_PURPOSE,
+        projected,
+        PLANNER_MODEL_EGRESS_LIMITS.sourceItemBytes,
+      );
+      return projected;
+    },
+  );
+}
+
+function projectPlannerState(value: unknown) {
+  const record = requireModelEgressRecord(PLANNER_EGRESS_PURPOSE, value);
+  return {
+    state_key: plannerText(record, "state_key", 512),
+    value: plannerJson(record, "value"),
+    temporal_scope: plannerText(record, "temporal_scope", 128),
+    valid_from: plannerNullableText(record, "valid_from", 128),
+    valid_until: plannerNullableText(record, "valid_until", 128),
+    stability: plannerText(record, "stability", 128),
+    change_type: plannerText(record, "change_type", 128),
+  };
+}
+
+function projectPlannerTension(value: unknown) {
+  const record = requireModelEgressRecord(PLANNER_EGRESS_PURPOSE, value);
+  return {
+    state_key: plannerNullableText(record, "state_key", 512),
+    title: plannerText(record, "title", 1_024),
+    description: plannerText(record, "description", 4_096),
+    status: plannerText(record, "status", 128),
+    severity: plannerText(record, "severity", 128),
+  };
+}
+
+function projectPlannerProposal(value: unknown) {
+  const record = requireModelEgressRecord(PLANNER_EGRESS_PURPOSE, value);
+  return {
+    state_key: plannerText(record, "state_key", 512),
+    before_value: plannerJson(record, "before_value"),
+    after_value: plannerJson(record, "after_value"),
+    operation: plannerText(record, "operation", 128),
+    temporal_scope: plannerText(record, "temporal_scope", 128),
+    valid_from: plannerNullableText(record, "valid_from", 128),
+    valid_until: plannerNullableText(record, "valid_until", 128),
+    stability: plannerText(record, "stability", 128),
+    change_type: plannerText(record, "change_type", 128),
+    reason: plannerNullableText(record, "reason", 4_096),
+    status: plannerText(record, "status", 128),
+  };
+}
+
+function plannerText(record: Record<string, unknown>, key: string, maximum: number) {
+  return requireModelEgressText(
+    PLANNER_EGRESS_PURPOSE,
+    readModelEgressField(PLANNER_EGRESS_PURPOSE, record, key),
+    maximum,
+  );
+}
+
+function plannerNullableText(
+  record: Record<string, unknown>,
+  key: string,
+  maximum: number,
+) {
+  const value = readModelEgressField(PLANNER_EGRESS_PURPOSE, record, key);
+  return value === null
+    ? null
+    : requireModelEgressText(PLANNER_EGRESS_PURPOSE, value, maximum);
+}
+
+function plannerJson(record: Record<string, unknown>, key: string) {
+  return cloneBoundedModelEgressJson(
+    PLANNER_EGRESS_PURPOSE,
+    readModelEgressField(PLANNER_EGRESS_PURPOSE, record, key),
+    {
+      maximumDepth: PLANNER_MODEL_EGRESS_LIMITS.structuralDepth,
+      maximumNodes: PLANNER_MODEL_EGRESS_LIMITS.structuralNodes,
+    },
+  );
 }
 
 function validateRecommendations(output: unknown) {

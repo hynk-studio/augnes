@@ -77,6 +77,10 @@ const suites = {
       },
     },
     {
+      label: "bounded model egress before transport",
+      ...rootNode("scripts/test-bounded-model-egress.ts"),
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },

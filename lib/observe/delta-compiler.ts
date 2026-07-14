@@ -1,4 +1,13 @@
 import type { StateEntry, StateValue } from "@/lib/db";
+import {
+  type BoundedModelTransport,
+  refuseModelEgress,
+  readModelEgressArray,
+  readModelEgressField,
+  requireModelEgressRecord,
+  requireModelEgressText,
+  serializeModelEgressJson,
+} from "@/lib/model-egress/bounded-model-payload";
 
 export const TEMPORAL_SCOPES = [
   "current_session",
@@ -62,6 +71,18 @@ const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_MESSAGE_LENGTH = 8_000;
 const STATE_VALUE_TYPES = new Set(["string", "number", "boolean"]);
+const OBSERVE_EGRESS_PURPOSE = "observe_delta_compile" as const;
+
+export const OBSERVE_MODEL_EGRESS_LIMITS = Object.freeze({
+  messageCharacters: MAX_MESSAGE_LENGTH,
+  messageBytes: 32_768,
+  stateItems: 64,
+  sourceItemBytes: 4_096,
+  dynamicBytes: 65_536,
+  finalRequestBytes: 98_304,
+});
+
+export type ObserveModelTransport = BoundedModelTransport;
 
 export function validateObserveRequest(body: unknown): ObserveRequest {
   if (!isRecord(body)) {
@@ -292,53 +313,44 @@ function buildMockProposal({
   };
 }
 
-async function compileWithOpenAI({
-  message,
-  scope,
-  currentState,
-}: {
-  message: string;
-  scope: string;
-  currentState: StateEntry[];
-}) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+async function compileWithOpenAI(
+  {
+    message,
+    scope,
+    currentState,
+  }: {
+    message: string;
+    scope: string;
+    currentState: StateEntry[];
+  },
+  transport: ObserveModelTransport = sendObserveModelRequest,
+) {
+  const dynamicMaterial = projectObserveModelMaterial({
+    message,
+    scope,
+    currentState,
+  });
+  const dynamicText = serializeModelEgressJson(
+    OBSERVE_EGRESS_PURPOSE,
+    dynamicMaterial,
+    OBSERVE_MODEL_EGRESS_LIMITS.dynamicBytes,
+  );
+  const requestBody = serializeModelEgressJson(
+    OBSERVE_EGRESS_PURPOSE,
+    {
+      model: requireModelEgressText(
+        OBSERVE_EGRESS_PURPOSE,
+        process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+        128,
+      ),
       input: [
         {
           role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildSystemPrompt(),
-            },
-          ],
+          content: [{ type: "input_text", text: buildSystemPrompt() }],
         },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({
-                scope,
-                message,
-                current_state: currentState.map((entry) => ({
-                  state_key: entry.state_key,
-                  value: entry.value,
-                  temporal_scope: entry.temporal_scope,
-                  stability: entry.stability,
-                  change_type: entry.change_type,
-                  valid_from: entry.valid_from,
-                  valid_until: entry.valid_until,
-                })),
-              }),
-            },
-          ],
+          content: [{ type: "input_text", text: dynamicText }],
         },
       ],
       text: {
@@ -349,15 +361,16 @@ async function compileWithOpenAI({
           schema: proposalResponseSchema,
         },
       },
-    }),
-  });
+    },
+    OBSERVE_MODEL_EGRESS_LIMITS.finalRequestBytes,
+  );
+  const response = await transport(requestBody);
 
   if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`OpenAI API request failed: ${response.status} ${details}`);
+    throw new Error(`OpenAI observe request failed: ${response.status}`);
   }
 
-  const payload = (await response.json()) as unknown;
+  const payload = await response.json();
   const text = extractOutputText(payload);
 
   if (!text) {
@@ -365,6 +378,153 @@ async function compileWithOpenAI({
   }
 
   return validateCompilerOutput(JSON.parse(text));
+}
+
+export function compileTemporalDeltaProposalsWithOpenAIForTest(
+  input: {
+    message: string;
+    scope: string;
+    currentState: StateEntry[];
+  },
+  transport: ObserveModelTransport,
+) {
+  return compileWithOpenAI(input, transport);
+}
+
+async function sendObserveModelRequest(requestBody: string) {
+  return fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: requestBody,
+  });
+}
+
+function projectObserveModelMaterial({
+  message,
+  scope,
+  currentState,
+}: {
+  message: unknown;
+  scope: unknown;
+  currentState: unknown;
+}) {
+  const projectedMessage = requireModelEgressText(
+    OBSERVE_EGRESS_PURPOSE,
+    message,
+    OBSERVE_MODEL_EGRESS_LIMITS.messageBytes,
+  );
+  if (projectedMessage.length > OBSERVE_MODEL_EGRESS_LIMITS.messageCharacters) {
+    refuseModelEgress(
+      OBSERVE_EGRESS_PURPOSE,
+      "model_egress_payload_oversize",
+      projectedMessage.length,
+      OBSERVE_MODEL_EGRESS_LIMITS.messageCharacters,
+    );
+  }
+  const projectedScope = requireModelEgressText(
+    OBSERVE_EGRESS_PURPOSE,
+    scope,
+    160,
+  );
+  if (!isValidScope(projectedScope)) {
+    refuseModelEgress(
+      OBSERVE_EGRESS_PURPOSE,
+      "model_egress_payload_malformed",
+      1,
+      0,
+    );
+  }
+  const stateItems = readModelEgressArray(
+    OBSERVE_EGRESS_PURPOSE,
+    currentState,
+    OBSERVE_MODEL_EGRESS_LIMITS.stateItems,
+  );
+
+  return {
+    scope: projectedScope,
+    message: projectedMessage,
+    current_state: stateItems.map(projectObserveStateItem),
+  };
+}
+
+function projectObserveStateItem(value: unknown) {
+  const record = requireModelEgressRecord(OBSERVE_EGRESS_PURPOSE, value);
+  const stateValue = readModelEgressField(
+    OBSERVE_EGRESS_PURPOSE,
+    record,
+    "value",
+  );
+  if (
+    stateValue !== null &&
+    (!STATE_VALUE_TYPES.has(typeof stateValue) ||
+      (typeof stateValue === "number" && !Number.isFinite(stateValue)))
+  ) {
+    refuseModelEgress(
+      OBSERVE_EGRESS_PURPOSE,
+      "model_egress_payload_unsupported",
+      1,
+      0,
+    );
+  }
+
+  const projected = {
+    state_key: requireModelEgressText(
+      OBSERVE_EGRESS_PURPOSE,
+      readModelEgressField(OBSERVE_EGRESS_PURPOSE, record, "state_key"),
+      512,
+    ),
+    value: stateValue as string | number | boolean | null,
+    temporal_scope: requireObserveEnum(record, "temporal_scope", TEMPORAL_SCOPES),
+    stability: requireObserveEnum(record, "stability", STABILITIES),
+    change_type: requireObserveEnum(record, "change_type", CHANGE_TYPES),
+    valid_from: requireObserveDate(record, "valid_from"),
+    valid_until: requireObserveDate(record, "valid_until"),
+  };
+  serializeModelEgressJson(
+    OBSERVE_EGRESS_PURPOSE,
+    projected,
+    OBSERVE_MODEL_EGRESS_LIMITS.sourceItemBytes,
+  );
+  return projected;
+}
+
+function requireObserveEnum<T extends readonly string[]>(
+  record: UnknownRecord,
+  key: string,
+  allowed: T,
+) {
+  const value = readModelEgressField(OBSERVE_EGRESS_PURPOSE, record, key);
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    refuseModelEgress(
+      OBSERVE_EGRESS_PURPOSE,
+      "model_egress_payload_malformed",
+      1,
+      0,
+    );
+  }
+  return value as T[number];
+}
+
+function requireObserveDate(record: UnknownRecord, key: string) {
+  const value = readModelEgressField(OBSERVE_EGRESS_PURPOSE, record, key);
+  if (value === null) return null;
+  const text = requireModelEgressText(
+    OBSERVE_EGRESS_PURPOSE,
+    value,
+    128,
+  );
+  if (Number.isNaN(Date.parse(text))) {
+    refuseModelEgress(
+      OBSERVE_EGRESS_PURPOSE,
+      "model_egress_payload_malformed",
+      1,
+      0,
+    );
+  }
+  return text;
 }
 
 function validateProposal(value: unknown): ValidatedProposal {

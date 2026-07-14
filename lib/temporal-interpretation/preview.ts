@@ -1,7 +1,12 @@
 import { buildTemporalPreviewContext } from "@/lib/temporal-interpretation/context";
+import { isModelEgressBoundaryError } from "@/lib/model-egress/bounded-model-payload";
 import { validateTemporalPreviewGuardrails } from "@/lib/temporal-interpretation/guardrails";
 import { buildMockTemporalPreview } from "@/lib/temporal-interpretation/mock";
-import { buildOpenAITemporalPreview } from "@/lib/temporal-interpretation/openai";
+import {
+  buildOpenAITemporalPreview,
+  buildOpenAITemporalPreviewForTest,
+  type TemporalModelTransport,
+} from "@/lib/temporal-interpretation/openai";
 import {
   type PreviewGenerator,
   type TemporalPreviewContext,
@@ -41,6 +46,23 @@ export async function buildTemporalInterpretationPreview({
   scope,
   context: providedContext,
 }: PreviewRequest): Promise<TemporalPreviewResponse> {
+  return buildTemporalInterpretationPreviewInternal({
+    scope,
+    context: providedContext,
+  });
+}
+
+export function buildTemporalInterpretationPreviewForTest(
+  request: PreviewRequest,
+  transport: TemporalModelTransport,
+) {
+  return buildTemporalInterpretationPreviewInternal(request, transport);
+}
+
+async function buildTemporalInterpretationPreviewInternal(
+  { scope, context: providedContext }: PreviewRequest,
+  transport?: TemporalModelTransport,
+): Promise<TemporalPreviewResponse> {
   const context = providedContext ?? buildTemporalPreviewContext(scope);
   const boundaries = [
     "Read-only preview only.",
@@ -52,13 +74,16 @@ export async function buildTemporalInterpretationPreview({
   let openaiError: string | undefined;
   let preview = buildMockTemporalPreview(context);
 
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.OPENAI_API_KEY || transport) {
     try {
-      const openai = await buildOpenAITemporalPreview({ context });
+      const openai = transport
+        ? await buildOpenAITemporalPreviewForTest(context, transport)
+        : await buildOpenAITemporalPreview({ context });
       generator = "openai";
       model = openai.model;
       preview = openai.preview;
     } catch (error) {
+      if (isModelEgressBoundaryError(error)) throw error;
       generator = "mock_fallback";
       openaiError =
         error instanceof Error ? error.message : "OpenAI preview failed.";
