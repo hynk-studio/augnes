@@ -4450,6 +4450,158 @@ export function migrateMailboxCoordinationEventTypes(db) {
   };
 }
 
+export const vNextProjectIdentityRegistrySchemaSqlV01 = `
+  CREATE TABLE IF NOT EXISTS vnext_workspace_identities (
+    workspace_id TEXT PRIMARY KEY CHECK (
+      length(workspace_id) <= 256 AND
+      workspace_id GLOB 'workspace:*' AND
+      length(substr(workspace_id, 11)) > 0
+    ),
+    workspace_identity_version TEXT NOT NULL CHECK (
+      workspace_identity_version = 'workspace_identity.v0.1'
+    ),
+    identity_kind TEXT NOT NULL CHECK (identity_kind = 'canonical'),
+    identity_source TEXT NOT NULL CHECK (identity_source = 'canonical_registry'),
+    workspace_role TEXT NOT NULL UNIQUE CHECK (
+      length(trim(workspace_role)) > 0 AND length(workspace_role) <= 128
+    ),
+    created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0)
+  );
+
+  CREATE TABLE IF NOT EXISTS vnext_project_identities (
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL CHECK (
+      length(project_id) <= 256 AND
+      project_id GLOB 'project:*' AND
+      project_id <> 'project:augnes' AND
+      length(substr(project_id, 9)) > 0
+    ),
+    project_identity_version TEXT NOT NULL CHECK (
+      project_identity_version = 'project_identity.v0.1'
+    ),
+    identity_kind TEXT NOT NULL CHECK (identity_kind = 'canonical'),
+    identity_source TEXT NOT NULL CHECK (identity_source = 'canonical_registry'),
+    display_name TEXT CHECK (
+      display_name IS NULL OR
+      (length(trim(display_name)) > 0 AND length(display_name) <= 240)
+    ),
+    created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+    PRIMARY KEY (workspace_id, project_id),
+    FOREIGN KEY (workspace_id)
+      REFERENCES vnext_workspace_identities(workspace_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_project_identities_workspace_created
+    ON vnext_project_identities(workspace_id, created_at, project_id);
+
+  CREATE TABLE IF NOT EXISTS vnext_project_root_bindings (
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    binding_version TEXT NOT NULL CHECK (
+      binding_version = 'project_local_root_binding.v0.1'
+    ),
+    local_root_ref_version TEXT NOT NULL CHECK (
+      local_root_ref_version = 'local_project_root_ref.v0.1'
+    ),
+    ref_kind TEXT NOT NULL CHECK (ref_kind = 'local_project_root'),
+    path_flavor TEXT NOT NULL CHECK (path_flavor IN ('posix', 'win32')),
+    normalized_root TEXT NOT NULL CHECK (
+      length(normalized_root) > 0 AND
+      length(normalized_root) <= 8192 AND
+      instr(normalized_root, char(0)) = 0
+    ),
+    bound_at TEXT NOT NULL CHECK (length(trim(bound_at)) > 0),
+    PRIMARY KEY (workspace_id, project_id),
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_project_root_bindings_workspace_root
+    ON vnext_project_root_bindings(workspace_id, path_flavor, normalized_root);
+
+  CREATE TABLE IF NOT EXISTS vnext_project_external_ref_bindings (
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    binding_version TEXT NOT NULL CHECK (
+      binding_version = 'project_external_ref_binding.v0.1'
+    ),
+    ref_fingerprint TEXT NOT NULL CHECK (
+      length(ref_fingerprint) = 71 AND substr(ref_fingerprint, 1, 7) = 'sha256:'
+    ),
+    ref_json TEXT NOT NULL CHECK (
+      json_valid(ref_json) AND json_type(ref_json) = 'object'
+    ),
+    created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+    PRIMARY KEY (workspace_id, project_id, ref_fingerprint),
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_project_external_refs_project_created
+    ON vnext_project_external_ref_bindings(
+      workspace_id, project_id, created_at, ref_fingerprint
+    );
+
+  CREATE TRIGGER IF NOT EXISTS trg_vnext_project_external_refs_immutable_update
+    BEFORE UPDATE ON vnext_project_external_ref_bindings
+    BEGIN SELECT RAISE(ABORT, 'vnext_project_external_ref_binding_immutable'); END;
+  CREATE TRIGGER IF NOT EXISTS trg_vnext_project_external_refs_immutable_delete
+    BEFORE DELETE ON vnext_project_external_ref_bindings
+    BEGIN SELECT RAISE(ABORT, 'vnext_project_external_ref_binding_immutable'); END;
+`;
+
+const vNextProjectIdentityRegistryArtifactsV01 = {
+  tables: [
+    "vnext_workspace_identities",
+    "vnext_project_identities",
+    "vnext_project_root_bindings",
+    "vnext_project_external_ref_bindings",
+  ],
+  indexes: [
+    "idx_vnext_project_identities_workspace_created",
+    "idx_vnext_project_root_bindings_workspace_root",
+    "idx_vnext_project_external_refs_project_created",
+  ],
+  triggers: [
+    "trg_vnext_project_external_refs_immutable_update",
+    "trg_vnext_project_external_refs_immutable_delete",
+  ],
+};
+
+export function migrateVNextProjectIdentityRegistryV01(db) {
+  const names = Object.values(vNextProjectIdentityRegistryArtifactsV01).flat();
+  const before = new Set(
+    db
+      .prepare(
+        `SELECT type || ':' || name AS key
+         FROM sqlite_master
+         WHERE name IN (${names.map(() => "?").join(", ")})`,
+      )
+      .all(...names)
+      .map((row) => row.key),
+  );
+  db.exec(vNextProjectIdentityRegistrySchemaSqlV01);
+  const created = (type, artifactNames) =>
+    artifactNames.filter((name) => !before.has(`${type}:${name}`));
+  return {
+    created_tables: created(
+      "table",
+      vNextProjectIdentityRegistryArtifactsV01.tables,
+    ),
+    created_indexes: created(
+      "index",
+      vNextProjectIdentityRegistryArtifactsV01.indexes,
+    ),
+    created_triggers: created(
+      "trigger",
+      vNextProjectIdentityRegistryArtifactsV01.triggers,
+    ),
+  };
+}
+
 export const vNextDurableSemanticStoreSchemaSqlV01 = `
   CREATE TABLE IF NOT EXISTS vnext_core_records (
     record_kind TEXT NOT NULL CHECK (record_kind IN (
