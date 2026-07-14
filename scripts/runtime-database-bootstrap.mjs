@@ -23,6 +23,7 @@ import { applyCanonicalDatabaseMigrations } from "./canonical-database-migration
 
 export const DATABASE_BOOTSTRAP_CONTRACT = "augnes-local-database-bootstrap-v1";
 const SQLITE_SIDE_SUFFIXES = ["-wal", "-shm", "-journal"];
+let canonicalSchemaContractCache = null;
 
 export class PublicDatabaseBootstrapError extends Error {
   constructor(code, cause) {
@@ -88,6 +89,7 @@ export async function prepareRuntimeDatabase({
   const lockPath = `${databasePath}.augnes-bootstrap.lock`;
   let lock = null;
   let recoveryBackupPath = null;
+  let retainBootstrapLock = false;
 
   try {
     ensureDatabaseDirectory({
@@ -149,7 +151,12 @@ export async function prepareRuntimeDatabase({
       throw new PublicDatabaseBootstrapError("database_schema_unsupported");
     }
     dependencies.beforeReplacement?.({ databasePath, stagingPath });
-    replaceMigratedDatabase({ databasePath, stagingPath, operationId });
+    replaceMigratedDatabase({
+      databasePath,
+      stagingPath,
+      operationId,
+      dependencies,
+    });
     const liveVerification = verifyDatabaseFile(databasePath);
 
     return {
@@ -165,12 +172,13 @@ export async function prepareRuntimeDatabase({
       error instanceof PublicDatabaseBootstrapError
         ? error
         : new PublicDatabaseBootstrapError(classifyBootstrapFailure(error), error);
+    retainBootstrapLock = failure.retainBootstrapLock === true;
     failure.recoveryBackupCreated = Boolean(
       recoveryBackupPath && existsSync(recoveryBackupPath),
     );
     throw failure;
   } finally {
-    if (lock) releaseBootstrapLock(lockPath, lock);
+    if (lock && !retainBootstrapLock) releaseBootstrapLock(lockPath, lock);
   }
 }
 
@@ -181,7 +189,6 @@ function classifyExistingDatabase(databasePath) {
   try {
     source = new Database(databasePath, { readonly: true, fileMustExist: true });
     verifyOpenDatabase(source);
-    assertRecognizableDatabase(source);
     serialized = standaloneSerializedDatabase(source.serialize());
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
@@ -194,17 +201,19 @@ function classifyExistingDatabase(databasePath) {
   try {
     clone = new Database(serialized);
     clone.pragma("foreign_keys = ON");
-    const beforeSignature = schemaSignature(clone);
-    const beforeChanges = totalChanges(clone);
+    const sourceSignature = structuralSchemaContractSignature(clone);
     applyCanonicalDatabaseMigrations(clone);
     verifyOpenDatabase(clone);
-    const afterSignature = schemaSignature(clone);
-    const changed =
-      beforeSignature !== afterSignature || totalChanges(clone) !== beforeChanges;
+    const migratedSignature = structuralSchemaContractSignature(clone);
+    const canonicalSignature = canonicalStructuralSchemaContractSignature();
+    if (migratedSignature !== canonicalSignature) {
+      throw new PublicDatabaseBootstrapError("database_schema_unsupported");
+    }
+    const current = sourceSignature === canonicalSignature;
     return {
-      state: changed ? "old" : "current",
-      schemaVersion: changed ? "outdated" : "current",
-      targetSignature: afterSignature,
+      state: current ? "current" : "old",
+      schemaVersion: current ? "current" : "outdated",
+      targetSignature: canonicalSignature,
     };
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
@@ -265,7 +274,7 @@ export function verifyDatabaseFile(databasePath) {
     verifyOpenDatabase(database);
     return {
       schemaVersion: "current",
-      schemaSignature: schemaSignature(database),
+      schemaSignature: structuralSchemaContractSignature(database),
     };
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
@@ -283,30 +292,6 @@ function verifyOpenDatabase(database) {
   const foreignKeyFailures = database.pragma("foreign_key_check");
   if (!Array.isArray(foreignKeyFailures) || foreignKeyFailures.length > 0) {
     throw new PublicDatabaseBootstrapError("database_integrity_failed");
-  }
-}
-
-function assertRecognizableDatabase(database) {
-  const tables = database
-    .prepare(
-      `SELECT name FROM sqlite_schema
-       WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-       ORDER BY name`,
-    )
-    .all()
-    .map((row) => row.name);
-  if (tables.length === 0) return;
-  const recognized = new Set([
-    "agents",
-    "sessions",
-    "messages",
-    "state_entries",
-    "state_delta_proposals",
-    "state_transitions",
-    "vnext_core_records",
-  ]);
-  if (!tables.some((table) => recognized.has(table))) {
-    throw new PublicDatabaseBootstrapError("database_schema_unsupported");
   }
 }
 
@@ -342,7 +327,12 @@ function replaceNewDatabase(stagingPath, databasePath, dependencies) {
   }
 }
 
-function replaceMigratedDatabase({ databasePath, stagingPath, operationId }) {
+function replaceMigratedDatabase({
+  databasePath,
+  stagingPath,
+  operationId,
+  dependencies,
+}) {
   const rollbackPath = `${databasePath}.augnes-rollback-${operationId}`;
   let originalMoved = false;
   let stagingMoved = false;
@@ -352,21 +342,47 @@ function replaceMigratedDatabase({ databasePath, stagingPath, operationId }) {
     for (const suffix of SQLITE_SIDE_SUFFIXES) {
       renameRegularFileIfPresent(`${databasePath}${suffix}`, `${rollbackPath}${suffix}`);
     }
+    dependencies.afterOriginalMoved?.({ databasePath, stagingPath, rollbackPath });
     renameSync(stagingPath, databasePath);
     stagingMoved = true;
     setRestrictiveFileMode(databasePath);
-    verifyDatabaseFile(databasePath);
+    dependencies.afterStagingPublished?.({ databasePath, stagingPath, rollbackPath });
+    if (dependencies.verifyPublishedDatabase) {
+      dependencies.verifyPublishedDatabase(databasePath);
+    } else {
+      verifyDatabaseFile(databasePath);
+    }
   } catch (error) {
-    if (stagingMoved) cleanupDatabaseFamily(databasePath);
+    let recoveryError = null;
+    if (stagingMoved) {
+      try {
+        cleanupDatabaseFamily(databasePath);
+      } catch (cleanupError) {
+        recoveryError = cleanupError;
+      }
+    }
     if (originalMoved) {
       try {
+        dependencies.beforeOriginalRestore?.({
+          databasePath,
+          stagingPath,
+          rollbackPath,
+        });
         renameSync(rollbackPath, databasePath);
         for (const suffix of SQLITE_SIDE_SUFFIXES) {
           renameRegularFileIfPresent(`${rollbackPath}${suffix}`, `${databasePath}${suffix}`);
         }
       } catch (rollbackError) {
-        throw new PublicDatabaseBootstrapError("database_bootstrap_failed", rollbackError);
+        const failure = new PublicDatabaseBootstrapError(
+          "database_rollback_failed",
+          rollbackError,
+        );
+        failure.retainBootstrapLock = true;
+        throw failure;
       }
+    }
+    if (recoveryError) {
+      throw new PublicDatabaseBootstrapError("database_bootstrap_failed", recoveryError);
     }
     throw new PublicDatabaseBootstrapError("database_bootstrap_failed", error);
   }
@@ -503,25 +519,239 @@ function releaseBootstrapLock(lockPath, owner) {
   }
 }
 
-function schemaSignature(database) {
+export function structuralSchemaContractSignature(database) {
   return createHash("sha256")
-    .update(
-      JSON.stringify(
-        database
-          .prepare(
-            `SELECT type, name, tbl_name, sql
-             FROM sqlite_schema
-             WHERE name NOT LIKE 'sqlite_%'
-             ORDER BY type, name, tbl_name`,
-          )
-          .all(),
-      ),
-    )
+    .update(JSON.stringify(buildStructuralSchemaContract(database)))
     .digest("hex");
 }
 
-function totalChanges(database) {
-  return Number(database.prepare("SELECT total_changes() AS value").get().value);
+export function canonicalStructuralSchemaContractSignature() {
+  return canonicalSchemaContract().signature;
+}
+
+export function buildStructuralSchemaContract(database) {
+  const objects = database
+    .prepare(
+      `SELECT type, name, tbl_name, sql
+       FROM sqlite_schema
+       WHERE name NOT LIKE 'sqlite_%'
+       ORDER BY type, name, tbl_name`,
+    )
+    .all();
+  const tableLikeNames = objects
+    .filter((object) => object.type === "table" || object.type === "view")
+    .map((object) => object.name)
+    .sort(compareStrings);
+  const indexMetadata = new Map();
+  for (const tableName of tableLikeNames) {
+    for (const index of database
+      .prepare(
+        `SELECT seq, name, "unique" AS is_unique, origin, partial
+         FROM pragma_index_list(?)
+         ORDER BY name`,
+      )
+      .all(tableName)) {
+      indexMetadata.set(index.name, {
+        unique: Number(index.is_unique),
+        origin: normalizeIdentifier(index.origin),
+        partial: Number(index.partial),
+      });
+    }
+  }
+
+  return {
+    objects: objects.map((object) => ({
+      type: normalizeIdentifier(object.type),
+      name: object.name,
+      table: object.tbl_name,
+      definition: normalizeSqlDefinition(object.sql),
+      columns:
+        object.type === "table" || object.type === "view"
+          ? database
+              .prepare(
+                `SELECT cid, name, type, "notnull" AS is_not_null,
+                        dflt_value, pk, hidden
+                 FROM pragma_table_xinfo(?)
+                 ORDER BY cid`,
+              )
+              .all(object.name)
+              .map((column) => ({
+                position: Number(column.cid),
+                name: column.name,
+                declared_type: normalizeDeclaredType(column.type),
+                not_null: Number(column.is_not_null),
+                default_expression: normalizeSqlDefinition(column.dflt_value),
+                primary_key_position: Number(column.pk),
+                hidden: Number(column.hidden),
+              }))
+          : null,
+      foreign_keys:
+        object.type === "table"
+          ? database
+              .prepare(
+                `SELECT id, seq, "table" AS target_table, "from" AS source_column,
+                        "to" AS target_column, on_update, on_delete, match
+                 FROM pragma_foreign_key_list(?)
+                 ORDER BY id, seq`,
+              )
+              .all(object.name)
+              .map((foreignKey) => ({
+                id: Number(foreignKey.id),
+                sequence: Number(foreignKey.seq),
+                target_table: foreignKey.target_table,
+                source_column: foreignKey.source_column,
+                target_column: foreignKey.target_column,
+                on_update: normalizeIdentifier(foreignKey.on_update),
+                on_delete: normalizeIdentifier(foreignKey.on_delete),
+                match: normalizeIdentifier(foreignKey.match),
+              }))
+          : null,
+      index:
+        object.type === "index"
+          ? {
+              ...(indexMetadata.get(object.name) ?? {
+                unique: null,
+                origin: null,
+                partial: null,
+              }),
+              columns: database
+                .prepare(
+                  `SELECT seqno, cid, name, "desc" AS is_descending,
+                          coll, key
+                   FROM pragma_index_xinfo(?)
+                   ORDER BY seqno`,
+                )
+                .all(object.name)
+                .map((column) => ({
+                  sequence: Number(column.seqno),
+                  column_id: Number(column.cid),
+                  name: column.name,
+                  descending: Number(column.is_descending),
+                  collation: normalizeIdentifier(column.coll),
+                  key: Number(column.key),
+                })),
+            }
+          : null,
+    })),
+  };
+}
+
+function canonicalSchemaContract() {
+  if (canonicalSchemaContractCache) return canonicalSchemaContractCache;
+  const database = new Database(":memory:");
+  try {
+    database.pragma("foreign_keys = ON");
+    applyCanonicalDatabaseMigrations(database);
+    verifyOpenDatabase(database);
+    const contract = buildStructuralSchemaContract(database);
+    canonicalSchemaContractCache = {
+      contract,
+      signature: createHash("sha256")
+        .update(JSON.stringify(contract))
+        .digest("hex"),
+    };
+    return canonicalSchemaContractCache;
+  } finally {
+    database.close();
+  }
+}
+
+function normalizeDeclaredType(value) {
+  if (value === null || value === undefined) return null;
+  return String(value).trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+function normalizeIdentifier(value) {
+  if (value === null || value === undefined) return null;
+  return String(value).toLowerCase();
+}
+
+function normalizeSqlDefinition(value) {
+  if (value === null || value === undefined) return null;
+  const input = String(value);
+  const tokens = [];
+  let index = 0;
+  while (index < input.length) {
+    const character = input[index];
+    if (/\s/.test(character)) {
+      index += 1;
+      continue;
+    }
+    if (character === "-" && input[index + 1] === "-") {
+      index += 2;
+      while (index < input.length && input[index] !== "\n") index += 1;
+      continue;
+    }
+    if (character === "/" && input[index + 1] === "*") {
+      index += 2;
+      while (index < input.length && !(input[index] === "*" && input[index + 1] === "/")) {
+        index += 1;
+      }
+      index += 2;
+      continue;
+    }
+    if (character === "'" || character === '"' || character === "`" || character === "[") {
+      const closing = character === "[" ? "]" : character;
+      let token = character;
+      index += 1;
+      while (index < input.length) {
+        token += input[index];
+        if (input[index] === closing) {
+          if (closing !== "]" && input[index + 1] === closing) {
+            token += input[index + 1];
+            index += 2;
+            continue;
+          }
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      tokens.push(token);
+      continue;
+    }
+    if (/[A-Za-z_]/.test(character)) {
+      let end = index + 1;
+      while (end < input.length && /[A-Za-z0-9_$]/.test(input[end])) end += 1;
+      tokens.push(input.slice(index, end).toLowerCase());
+      index = end;
+      continue;
+    }
+    if (/[0-9]/.test(character)) {
+      let end = index;
+      if (input.slice(index, index + 2).toLowerCase() === "0x") {
+        end += 2;
+        while (end < input.length && /[0-9A-Fa-f]/.test(input[end])) end += 1;
+      } else {
+        while (end < input.length && /[0-9]/.test(input[end])) end += 1;
+        if (input[end] === ".") {
+          end += 1;
+          while (end < input.length && /[0-9]/.test(input[end])) end += 1;
+        }
+        if (input[end]?.toLowerCase() === "e") {
+          end += 1;
+          if (input[end] === "+" || input[end] === "-") end += 1;
+          while (end < input.length && /[0-9]/.test(input[end])) end += 1;
+        }
+      }
+      tokens.push(input.slice(index, end).toLowerCase());
+      index = end;
+      continue;
+    }
+    const twoCharacterOperator = input.slice(index, index + 2);
+    if (["<=", ">=", "!=", "<>", "==", "||", "->", "->>"].includes(twoCharacterOperator)) {
+      tokens.push(twoCharacterOperator);
+      index += 2;
+      continue;
+    }
+    tokens.push(character);
+    index += 1;
+  }
+  return tokens;
+}
+
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function standaloneSerializedDatabase(serialized) {
