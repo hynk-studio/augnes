@@ -61,6 +61,9 @@ For ordinary PRs:
 - run focused tests for the changed behavior
 - run `npm run typecheck` for behavior changes
 - run `npm run build` when routes, runtime composition, or packaging are affected
+- use `npm test`, `npm run test:integration`, `npm run test:authority`,
+  `npm run test:operability`, and `npm run test:e2e` as the canonical public
+  test surface
 - use disposable databases for destructive or migration tests
 - use automated browser/CDP checks for affected user flows when practical
 - cover both interactive and policy-triggered paths when changing shared run lifecycle behavior

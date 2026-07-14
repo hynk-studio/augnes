@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "validation_summary_path": "fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json",
+  "warning_count": 5,
+  "review_decision_created": false,
+  "accepted_state": false,
+  "authority_tags": [
+    "review_only",
+    "no_accepted_state",
+    "no_review_decision",
+    "no_proof_evidence_readiness",
+    "no_persistence",
+    "no_surface_export",
+    "no_runtime_product_state",
+    "no_provider_model_api",
+    "no_codex",
+    "no_github_mutation",
+    "no_core_decision"
+  ],
+  "badges": [
+    "review-only",
+    "PASS with follow-up",
+    "5 warning(s)"
+  ],
+  "blocked_reason_count": 0,
+  "candidate_count": 1,
+  "caveat": "PASS with follow-up is review-only and not acceptance, approval, persistence, product readiness, or Core decision.",
+  "item_id": "local-adapter-validation-pass-with-follow-up",
+  "next_safe_action": "Review warning and follow-up material before any future accepted-state or persistence design; this summary remains review-only.",
+  "pointer_warning_count": 0,
+  "result_state": "PASS with follow-up",
+  "review_candidate_available": true,
+  "review_only": true,
+  "reviewability": "reviewable_with_follow_up",
+  "safe_links": {
+    "read_only_validate_result_ui": {
+      "available": false,
+      "detail": "Future read-only validate result UI is not implemented in this snapshot PR.",
+      "href": null
+    },
+    "runtime_handoff": {
+      "available": false,
+      "detail": "Runtime handoff is unavailable because snapshots are review-only local fixtures.",
+      "href": null
+    },
+    "validation_summary": {
+      "available": true,
+      "hash": "0ce72021f6ef378a4765d74d68d860eeabfc29848f79b6291c31616c05955283",
+      "href": null,
+      "path": "fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json"
+    }
+  },
+  "snapshot_kind": "validate_result_inbox_item",
+  "snapshot_version": "codex_former_local_adapter_validate_result_inbox_item.v0.1",
+  "stage": "validate_result_snapshot",
+  "summary_line": "PASS with follow-up, review-only; candidate_count=1; warnings=5; blocked_reasons=0.",
+  "title": "Validate result: PASS with follow-up",
+  "validation_summary_hash": "0ce72021f6ef378a4765d74d68d860eeabfc29848f79b6291c31616c05955283",
+  "worker_guidance_available": true
+}

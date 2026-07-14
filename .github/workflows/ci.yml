@@ -1,0 +1,52 @@
+name: Canonical CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/augnes_apps/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install nested app dependencies
+        run: npm --prefix apps/augnes_apps ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build with an isolated database
+        run: npm run build
+
+      - name: Unit and protocol tests
+        run: npm test
+
+      - name: Runtime, migration, recovery, and export integration tests
+        run: npm run test:integration
+
+      - name: Authority tests
+        run: npm run test:authority
+
+      - name: Runtime operability tests
+        run: npm run test:operability
+
+      - name: Automated golden-path E2E
+        run: npm run test:e2e

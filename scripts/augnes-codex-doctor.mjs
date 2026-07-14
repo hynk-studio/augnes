@@ -23,8 +23,13 @@ const requiredPackageScripts = [
   "augnes:codex-bootstrap",
   "augnes:doctor",
   "augnes:setup-local-demo",
-  "smoke:augnes-codex-bootstrap",
-  "smoke:augnes-codex-doctor",
+  "typecheck",
+  "build",
+  "test",
+  "test:integration",
+  "test:authority",
+  "test:operability",
+  "test:e2e",
 ];
 
 const startCommands = {

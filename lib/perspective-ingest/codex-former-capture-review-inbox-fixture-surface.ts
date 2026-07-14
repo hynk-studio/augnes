@@ -97,9 +97,9 @@ export type CodexFormerCaptureReviewInboxValidation = {
 };
 
 const PASS_FIXTURE_PATH =
-  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
+  "fixtures/codex-former/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
 const BLOCKED_FIXTURE_PATH =
-  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json";
+  "fixtures/codex-former/2026-06-10-codex-former-constellation-preview-data-blocked.json";
 
 export const CODEX_FORMER_CAPTURE_REVIEW_INBOX_FIXTURE_ROUTE =
   "/perspective/codex-former/capture-review-inbox-fixture";

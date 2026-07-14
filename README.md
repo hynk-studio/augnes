@@ -63,6 +63,20 @@ Do not use `db:reset` as a normal start command. It is a destructive developer o
 
 `OPENAI_API_KEY` is optional. Without it, supported flows use deterministic local fallbacks.
 
+## Canonical verification
+
+The supported public verification surface is:
+
+```bash
+npm run typecheck
+npm run build
+npm test
+npm run test:integration
+npm run test:authority
+npm run test:operability
+npm run test:e2e
+```
+
 ## Development policy
 
 - Advance the end-to-end product flow before adding new framework or process layers.

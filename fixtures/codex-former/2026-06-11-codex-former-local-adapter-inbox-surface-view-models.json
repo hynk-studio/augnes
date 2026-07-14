@@ -1,0 +1,236 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "counts": {
+    "blocked": 0,
+    "not_ready": 1,
+    "prepared": 1,
+    "reviewable": 0,
+    "total": 3,
+    "waiting": 1
+  },
+  "default_filter": "all",
+  "default_selected_item_id": "local-adapter-prepared-waiting-for-codex-return",
+  "filters": [
+    "all",
+    "not_ready",
+    "waiting",
+    "prepared"
+  ],
+  "items": [
+    {
+      "warning_count": 2,
+      "badges": [
+        "not_ready",
+        "review_only"
+      ],
+      "blocked_reason_count": 0,
+      "candidate_count": 0,
+      "caveat": "Source input and preflight are not ready.",
+      "compact_authority_tags": [
+        "review_only",
+        "no_accepted_state",
+        "advisory_only"
+      ],
+      "display_tone": "pending",
+      "evidence_summary": {
+        "rows": [
+          {
+            "label": "Snapshot path",
+            "value": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-item-not-ready.json"
+          },
+          {
+            "label": "Snapshot hash",
+            "value": "09e31ac674acc2717931e7594992115eb3a4be509705e5e8f4e2e4a949b8768b"
+          },
+          {
+            "label": "Candidate count",
+            "value": "0"
+          }
+        ]
+      },
+      "item_id": "capture-review:local-adapter:AG-codex-former-local-adapter-manifest-to-source-input:not-ready",
+      "next_safe_action": "Prepare bounded source input and complete local preflight before review.",
+      "primary_status": "Not ready",
+      "privacy_summary": {
+        "bounded_summaries_only": true,
+        "no_raw_prompt_source_or_packet_content": true,
+        "raw_payloads_included": false,
+        "unsafe_input_material_omitted": true
+      },
+      "reviewability": "not_ready",
+      "safe_links": {
+        "constellation_preview": {
+          "available": false,
+          "detail": "No Constellation Preview handoff is available for not_ready or waiting adapter snapshots.",
+          "href": null,
+          "label": "Not ready"
+        },
+        "session_panel": {
+          "available": false,
+          "detail": "Session Panel snapshot is available as local JSON.",
+          "href": null,
+          "label": "Session Panel local snapshot"
+        }
+      },
+      "snapshot_state": "not_ready",
+      "source_session_label": "Local Codex adapter manifest-to-source-input implementation",
+      "source_snapshot_hash": "09e31ac674acc2717931e7594992115eb3a4be509705e5e8f4e2e4a949b8768b",
+      "source_snapshot_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-item-not-ready.json",
+      "stage": "not_ready",
+      "title": "Pending preparation"
+    },
+    {
+      "warning_count": 1,
+      "badges": [
+        "waiting",
+        "review_only"
+      ],
+      "blocked_reason_count": 0,
+      "candidate_count": 0,
+      "caveat": "Source input preflight passed; returned candidate envelope is missing.",
+      "compact_authority_tags": [
+        "review_only",
+        "no_accepted_state",
+        "advisory_only"
+      ],
+      "display_tone": "waiting",
+      "evidence_summary": {
+        "rows": [
+          {
+            "label": "Snapshot path",
+            "value": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-item-waiting.json"
+          },
+          {
+            "label": "Snapshot hash",
+            "value": "180b7c812b39455f2193cb6827ced5f6c346f4422f375183d890b58c7c3fb61c"
+          },
+          {
+            "label": "Candidate count",
+            "value": "0"
+          }
+        ]
+      },
+      "item_id": "capture-review:local-adapter:AG-codex-former-local-adapter-manifest-to-source-input:waiting",
+      "next_safe_action": "Complete prepare execution before waiting for a returned candidate envelope.",
+      "primary_status": "Waiting for returned candidate",
+      "privacy_summary": {
+        "bounded_summaries_only": true,
+        "no_raw_prompt_source_or_packet_content": true,
+        "raw_payloads_included": false,
+        "unsafe_input_material_omitted": true
+      },
+      "reviewability": "waiting",
+      "safe_links": {
+        "constellation_preview": {
+          "available": false,
+          "detail": "No Constellation Preview handoff is available for not_ready or waiting adapter snapshots.",
+          "href": null,
+          "label": "Not ready"
+        },
+        "session_panel": {
+          "available": false,
+          "detail": "Session Panel snapshot is available as local JSON.",
+          "href": null,
+          "label": "Session Panel local snapshot"
+        }
+      },
+      "snapshot_state": "waiting",
+      "source_session_label": "Local Codex adapter manifest-to-source-input implementation",
+      "source_snapshot_hash": "180b7c812b39455f2193cb6827ced5f6c346f4422f375183d890b58c7c3fb61c",
+      "source_snapshot_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-item-waiting.json",
+      "stage": "waiting",
+      "title": "Waiting for returned candidate"
+    },
+    {
+      "warning_count": 2,
+      "badges": [
+        "prepared",
+        "waiting"
+      ],
+      "blocked_reason_count": 0,
+      "candidate_count": 0,
+      "caveat": "Manual Codex return has not been captured.",
+      "compact_authority_tags": [
+        "review_only",
+        "no_accepted_state",
+        "no_review_decision"
+      ],
+      "display_tone": "prepared_waiting",
+      "evidence_summary": {
+        "rows": [
+          {
+            "label": "Snapshot path",
+            "value": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-item-prepared.json"
+          },
+          {
+            "label": "Snapshot hash",
+            "value": "da25ccff6dde3299c3c18587e5e8ee258550c7ecb5e5e1e53cafbb9ffa20dd42"
+          },
+          {
+            "label": "Candidate count",
+            "value": "0"
+          },
+          {
+            "label": "Prepare summary hash",
+            "value": "e5206191273134cbcc8d72a2b740cb6d0cd27e151cfa17040afc7159725ea61b"
+          },
+          {
+            "label": "Output discovery",
+            "value": "complete"
+          },
+          {
+            "label": "Operational provenance",
+            "value": "prepare_helper_executed true; not authority"
+          }
+        ]
+      },
+      "item_id": "local-adapter-prepared-waiting-for-codex-return",
+      "next_safe_action": "Use generated prompt/manual copy packet in a separate user-started Codex session, then return exactly one candidate envelope.",
+      "primary_status": "Prepared, waiting for Codex return",
+      "privacy_summary": {
+        "bounded_summaries_only": true,
+        "no_raw_prompt_source_or_packet_content": true,
+        "raw_payloads_included": false,
+        "unsafe_input_material_omitted": true
+      },
+      "reviewability": "waiting",
+      "safe_links": {
+        "constellation_preview": {
+          "available": false,
+          "detail": "Constellation Preview is not available before a returned candidate is validated.",
+          "href": null,
+          "label": "Not ready"
+        },
+        "session_panel": {
+          "available": false,
+          "detail": "Session Panel snapshot/status is available as a local snapshot reference only.",
+          "href": null,
+          "label": "Session Panel local snapshot"
+        }
+      },
+      "snapshot_state": "prepared_waiting_for_codex_return",
+      "source_session_label": "Local Codex adapter manifest-to-source-input implementation",
+      "source_snapshot_hash": "da25ccff6dde3299c3c18587e5e8ee258550c7ecb5e5e1e53cafbb9ffa20dd42",
+      "source_snapshot_path": "fixtures/codex-former/2026-06-11-codex-former-local-adapter-inbox-item-prepared.json",
+      "stage": "prepared_waiting_for_codex_return",
+      "title": "Prepared, waiting for Codex return"
+    }
+  ],
+  "selected_item_summary": {
+    "graph_handoff_available": false,
+    "item_id": "local-adapter-prepared-waiting-for-codex-return",
+    "returned_candidate_available": false,
+    "reviewability": "waiting",
+    "summary_lines": [
+      "No returned candidate has been captured.",
+      "Validation has not run.",
+      "No graph handoff is available for the prepared state.",
+      "No review candidate exists."
+    ],
+    "title": "Prepared, waiting for Codex return",
+    "validation_available": false
+  },
+  "source_kind": "local_adapter_snapshot_fixtures",
+  "surface_kind": "capture_review_inbox",
+  "view_model_version": "codex_former_local_adapter_inbox_surface_view_models.v0.1"
+}

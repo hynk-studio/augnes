@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "validation_summary_path": "fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json",
+  "warning_count": 0,
+  "review_decision_created": false,
+  "accepted_state": false,
+  "authority_tags": [
+    "review_only",
+    "no_accepted_state",
+    "no_review_decision",
+    "no_proof_evidence_readiness",
+    "no_persistence",
+    "no_surface_export",
+    "no_runtime_product_state",
+    "no_provider_model_api",
+    "no_codex",
+    "no_github_mutation",
+    "no_core_decision"
+  ],
+  "badges": [
+    "review-only",
+    "PASS"
+  ],
+  "blocked_reason_count": 0,
+  "candidate_count": 1,
+  "caveat": "PASS is review-only and not approval, acceptance, mergeability, product readiness, persistence, or Core decision.",
+  "item_id": "local-adapter-validation-pass",
+  "next_safe_action": "Review the local validation summary; PASS is review-only and is not approval, acceptance, mergeability, product readiness, persistence, surface export, or a Core decision.",
+  "pointer_warning_count": 0,
+  "result_state": "PASS",
+  "review_candidate_available": true,
+  "review_only": true,
+  "reviewability": "reviewable",
+  "safe_links": {
+    "read_only_validate_result_ui": {
+      "available": false,
+      "detail": "Future read-only validate result UI is not implemented in this snapshot PR.",
+      "href": null
+    },
+    "runtime_handoff": {
+      "available": false,
+      "detail": "Runtime handoff is unavailable because snapshots are review-only local fixtures.",
+      "href": null
+    },
+    "validation_summary": {
+      "available": true,
+      "hash": "5a863f7a4d7c373faa7371a63b09da905ae4e948c26991f8efb3c785a91ecd67",
+      "href": null,
+      "path": "fixtures/codex-former/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json"
+    }
+  },
+  "snapshot_kind": "validate_result_inbox_item",
+  "snapshot_version": "codex_former_local_adapter_validate_result_inbox_item.v0.1",
+  "stage": "validate_result_snapshot",
+  "summary_line": "PASS, review-only; candidate_count=1; warnings=0; blocked_reasons=0.",
+  "title": "Validate result: PASS",
+  "validation_summary_hash": "5a863f7a4d7c373faa7371a63b09da905ae4e948c26991f8efb3c785a91ecd67",
+  "worker_guidance_available": true
+}
