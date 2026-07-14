@@ -59,7 +59,10 @@ npm run augnes
 
 The command waits for both processes to become ready and prints the effective
 loopback UI URL. It automatically selects another bounded loopback port when a
-preferred port is occupied. `npm run dev` remains a compatibility alias.
+preferred port is occupied. On restart it automatically reconciles provably
+owned orphan children and interrupted database preparation; unverifiable local
+ownership fails closed without signaling processes or changing data.
+`npm run dev` remains a compatibility alias.
 
 From another terminal, the same command surface reports or stops the verified
 owned instance:

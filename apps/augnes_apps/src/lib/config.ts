@@ -66,6 +66,20 @@ export const config = {
   repoNavigationFile: process.env.AUGNES_REPO_NAVIGATION_FILE,
   enableAgentBridge: process.env.AUGNES_ENABLE_AGENT_BRIDGE === "true",
   runtimeInstanceId: process.env.AUGNES_RUNTIME_INSTANCE_ID,
+  runtimeContract: process.env.AUGNES_RUNTIME_CONTRACT,
+  runtimeSchemaVersion: Number(process.env.AUGNES_RUNTIME_SCHEMA_VERSION ?? "0"),
+  runtimeRepositoryFingerprint:
+    process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT,
+  runtimeGenerationId: process.env.AUGNES_RUNTIME_GENERATION_ID,
+  runtimeGenerationVersion: Number(
+    process.env.AUGNES_RUNTIME_GENERATION_VERSION ?? "0",
+  ),
+  runtimeChildRole: process.env.AUGNES_RUNTIME_CHILD_ROLE,
+  runtimeChildPort: Number(process.env.AUGNES_RUNTIME_CHILD_PORT ?? "0"),
+  runtimeChildRootPid: Number(
+    process.env.AUGNES_RUNTIME_CHILD_ROOT_PID ?? "0",
+  ),
+  runtimeOwnershipToken: process.env.AUGNES_RUNTIME_OWNERSHIP_TOKEN,
   coreMode,
   appProfile,
   appToolSurface,

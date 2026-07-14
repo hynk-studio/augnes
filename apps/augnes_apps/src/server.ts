@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -201,6 +202,35 @@ export function buildHealthPayload() {
       ? { runtime_instance_id: config.runtimeInstanceId }
       : {}),
   };
+}
+
+function buildPrivateOwnershipPayload(suppliedToken: string | undefined) {
+  if (!constantTimeEqual(suppliedToken, config.runtimeOwnershipToken)) {
+    return null;
+  }
+  return {
+    ownership_verified: true,
+    schema_version: config.runtimeSchemaVersion,
+    contract: config.runtimeContract ?? null,
+    generation_version: config.runtimeGenerationVersion,
+    generation_id: config.runtimeGenerationId ?? null,
+    repository_fingerprint: config.runtimeRepositoryFingerprint ?? null,
+    instance_id: config.runtimeInstanceId ?? null,
+    role: config.runtimeChildRole ?? null,
+    child_root_pid: config.runtimeChildRootPid,
+    process_pid: process.pid,
+    loopback_port: config.runtimeChildPort,
+  };
+}
+
+function constantTimeEqual(left: string | undefined, right: string | undefined) {
+  if (!left || !right) return false;
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
 }
 
 function describeCasefile(casefile: Awaited<ReturnType<AugnesCoreAdapter["openCasefile"]>>): string {
@@ -8915,6 +8945,28 @@ export function createHttpServer(
     }
 
     if (req.method === "GET" && url.pathname === "/healthz") {
+      if (url.searchParams.get("ownership") === "1") {
+        const suppliedToken = Array.isArray(
+          req.headers["x-augnes-child-ownership"]
+        )
+          ? req.headers["x-augnes-child-ownership"][0]
+          : req.headers["x-augnes-child-ownership"];
+        const payload = buildPrivateOwnershipPayload(suppliedToken);
+        res
+          .writeHead(payload ? 200 : 403, {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+          })
+          .end(
+            JSON.stringify(
+              payload ?? {
+                ownership_verified: false,
+                reason: "ownership_unverified",
+              }
+            )
+          );
+        return;
+      }
       res.writeHead(200, { "content-type": "application/json" }).end(
         JSON.stringify(buildHealthPayload())
       );

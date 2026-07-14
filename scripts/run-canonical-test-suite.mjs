@@ -98,6 +98,10 @@ const suites = {
       label: "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
     },
+    {
+      label: "runtime crash, orphan, stale-state, and database reconciliation",
+      ...rootNode("scripts/test-runtime-reconciliation.mjs"),
+    },
   ],
   e2e: [
     {
