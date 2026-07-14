@@ -8,6 +8,8 @@ const ROLE_VALUE_KEYS = Object.freeze({
     "NEXT_TELEMETRY_DISABLED",
     "AUGNES_DB_PATH",
     "AUGNES_RUNTIME_INSTANCE_ID",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
     "AUGNES_VNEXT_OPERATOR_PILOT_ENABLED",
     "AUGNES_VNEXT_OPERATOR_WORKSPACE_ID",
     "AUGNES_VNEXT_OPERATOR_PROJECT_ID",
@@ -19,16 +21,23 @@ const ROLE_VALUE_KEYS = Object.freeze({
     "NODE_ENV",
     "PORT",
     "DOTENV_CONFIG_PATH",
+    "AUGNES_CORE_MODE",
     "AUGNES_API_BASE_URL",
     "AUGNES_ENABLE_AGENT_BRIDGE",
     "AUGNES_RUNTIME_INSTANCE_ID",
+    "AUGNES_APP_PROFILE",
+    "AUGNES_APP_TOOL_SURFACE",
+    "AUGNES_APP_DOMAIN",
+    "AUGNES_CONNECT_DOMAIN",
+    "AUGNES_RESOURCE_DOMAIN",
   ]),
 });
 
 /**
  * Build the deliberately small environment inherited by a supervised runtime
  * child. Ambient provider credentials, proxy settings, and unrelated AUGNES_*
- * values are not copied. Role values are authored by the supervisor.
+ * values are not copied. Role values are authored explicitly by the supervisor,
+ * including the UI-only OpenAI values reviewed for runtime compatibility.
  */
 export function buildRuntimeChildEnvironment({
   role,

@@ -116,6 +116,7 @@ export async function runRuntimeSupervisorCli(
 export function resolveRuntimePaths({
   environment = process.env,
   repositoryFingerprint = fingerprint(repositoryRoot),
+  repositoryRootPath = repositoryRoot,
 } = {}) {
   const configured = nonEmptyString(environment.AUGNES_RUNTIME_STATE_DIR);
   let directory;
@@ -152,8 +153,20 @@ export function resolveRuntimePaths({
     }
   }
 
-  if (isInsideOrEqual(repositoryRoot, directory)) {
-    throw new PublicRuntimeError("runtime_state_path_must_be_outside_repository");
+  resolvePhysicalRuntimeStateDestination({
+    candidate: directory,
+    repositoryRoot: repositoryRootPath,
+  });
+  try {
+    const stats = lstatSync(directory);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      throw new PublicRuntimeError("runtime_state_directory_invalid");
+    }
+  } catch (error) {
+    if (error instanceof PublicRuntimeError) throw error;
+    if (error?.code !== "ENOENT") {
+      throw new PublicRuntimeError("runtime_state_directory_invalid");
+    }
   }
 
   return {
@@ -162,6 +175,46 @@ export function resolveRuntimePaths({
     lock: path.join(directory, "owner.lock"),
     token: path.join(directory, "control-token.json"),
     bridgeEnvironment: path.join(directory, "bridge-supervisor.env"),
+  };
+}
+
+export function resolvePhysicalRuntimeStateDestination({
+  candidate,
+  repositoryRoot: repositoryRootPath = repositoryRoot,
+}) {
+  if (!path.isAbsolute(candidate)) {
+    throw new PublicRuntimeError("runtime_state_path_must_be_absolute");
+  }
+
+  const lexicalDestination = path.resolve(candidate);
+  let existingAncestor = lexicalDestination;
+  const missingSegments = [];
+  while (!existsSync(existingAncestor)) {
+    const parent = path.dirname(existingAncestor);
+    if (parent === existingAncestor) {
+      throw new PublicRuntimeError("runtime_state_path_invalid");
+    }
+    missingSegments.unshift(path.basename(existingAncestor));
+    existingAncestor = parent;
+  }
+
+  let physicalRepositoryRoot;
+  let physicalAncestor;
+  try {
+    physicalRepositoryRoot = realpathSync(repositoryRootPath);
+    physicalAncestor = realpathSync(existingAncestor);
+  } catch {
+    throw new PublicRuntimeError("runtime_state_path_invalid");
+  }
+  const physicalDestination = path.resolve(physicalAncestor, ...missingSegments);
+  assertRuntimeStateOutsideRepository(
+    physicalRepositoryRoot,
+    physicalDestination,
+  );
+  return {
+    lexical_destination: lexicalDestination,
+    physical_destination: physicalDestination,
+    physical_repository_root: physicalRepositoryRoot,
   };
 }
 
@@ -392,7 +445,19 @@ async function runStartCommand({
     return 2;
   }
 
-  ensureRuntimeDirectory(paths.directory);
+  try {
+    ensureRuntimeDirectory({ directory: paths.directory });
+  } catch (error) {
+    emitResult({
+      command: "start",
+      result: "failed",
+      state: "unavailable",
+      verified: false,
+      reason: publicErrorCode(error, "runtime_state_directory_invalid"),
+      effective_url: null,
+    });
+    return 2;
+  }
   const instanceId = randomUUID();
   const lockRecord = {
     schema_version: RUNTIME_SCHEMA_VERSION,
@@ -512,6 +577,7 @@ async function runStartCommand({
       isReady: (body) =>
         body?.ok === true &&
         body?.name === "augnes-console" &&
+        body?.mode === "http" &&
         body?.runtime_instance_id === runtime.instanceId,
     });
     runtime.bridgePort = bridge.port;
@@ -625,41 +691,74 @@ async function launchWithPortSelection({
   throw new PublicRuntimeError(`${role}_port_range_exhausted`);
 }
 
+export function buildSupervisorChildValues({
+  role,
+  environment = process.env,
+  paths,
+  instanceId,
+  effectiveUrl = null,
+  port = null,
+}) {
+  if (role === "ui") {
+    return {
+      NODE_ENV: "development",
+      NEXT_TELEMETRY_DISABLED: "1",
+      AUGNES_DB_PATH: nonEmptyString(environment.AUGNES_DB_PATH),
+      AUGNES_RUNTIME_INSTANCE_ID: instanceId,
+      OPENAI_API_KEY: nonEmptyString(environment.OPENAI_API_KEY),
+      OPENAI_MODEL: nonEmptyString(environment.OPENAI_MODEL),
+      AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: nonEmptyString(
+        environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED,
+      ),
+      AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: nonEmptyString(
+        environment.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID,
+      ),
+      AUGNES_VNEXT_OPERATOR_PROJECT_ID: nonEmptyString(
+        environment.AUGNES_VNEXT_OPERATOR_PROJECT_ID,
+      ),
+      AUGNES_VNEXT_OPERATOR_ID: nonEmptyString(
+        environment.AUGNES_VNEXT_OPERATOR_ID,
+      ),
+      AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS: nonEmptyString(
+        environment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS,
+      ),
+      AUGNES_VNEXT_OPERATOR_GATE_TTL_MS: nonEmptyString(
+        environment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS,
+      ),
+    };
+  }
+
+  if (role === "bridge") {
+    return {
+      NODE_ENV: "development",
+      PORT: String(port),
+      DOTENV_CONFIG_PATH: paths.bridgeEnvironment,
+      AUGNES_CORE_MODE: "http",
+      AUGNES_API_BASE_URL: effectiveUrl,
+      AUGNES_ENABLE_AGENT_BRIDGE: "true",
+      AUGNES_RUNTIME_INSTANCE_ID: instanceId,
+      AUGNES_APP_PROFILE: nonEmptyString(environment.AUGNES_APP_PROFILE),
+      AUGNES_APP_TOOL_SURFACE: nonEmptyString(
+        environment.AUGNES_APP_TOOL_SURFACE,
+      ),
+      AUGNES_APP_DOMAIN: nonEmptyString(environment.AUGNES_APP_DOMAIN),
+      AUGNES_CONNECT_DOMAIN: nonEmptyString(environment.AUGNES_CONNECT_DOMAIN),
+      AUGNES_RESOURCE_DOMAIN: nonEmptyString(environment.AUGNES_RESOURCE_DOMAIN),
+    };
+  }
+
+  throw new Error(`unknown supervised child role: ${role}`);
+}
+
 function spawnRuntimeChild({ runtime, role, port }) {
-  const authoredValues =
-    role === "ui"
-      ? {
-          NODE_ENV: "development",
-          NEXT_TELEMETRY_DISABLED: "1",
-          AUGNES_DB_PATH: nonEmptyString(runtime.environment.AUGNES_DB_PATH),
-          AUGNES_RUNTIME_INSTANCE_ID: runtime.instanceId,
-          AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: nonEmptyString(
-            runtime.environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED,
-          ),
-          AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: nonEmptyString(
-            runtime.environment.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID,
-          ),
-          AUGNES_VNEXT_OPERATOR_PROJECT_ID: nonEmptyString(
-            runtime.environment.AUGNES_VNEXT_OPERATOR_PROJECT_ID,
-          ),
-          AUGNES_VNEXT_OPERATOR_ID: nonEmptyString(
-            runtime.environment.AUGNES_VNEXT_OPERATOR_ID,
-          ),
-          AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS: nonEmptyString(
-            runtime.environment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS,
-          ),
-          AUGNES_VNEXT_OPERATOR_GATE_TTL_MS: nonEmptyString(
-            runtime.environment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS,
-          ),
-        }
-      : {
-          NODE_ENV: "development",
-          PORT: String(port),
-          DOTENV_CONFIG_PATH: runtime.paths.bridgeEnvironment,
-          AUGNES_API_BASE_URL: runtime.effectiveUrl,
-          AUGNES_ENABLE_AGENT_BRIDGE: "true",
-          AUGNES_RUNTIME_INSTANCE_ID: runtime.instanceId,
-        };
+  const authoredValues = buildSupervisorChildValues({
+    role,
+    environment: runtime.environment,
+    paths: runtime.paths,
+    instanceId: runtime.instanceId,
+    effectiveUrl: runtime.effectiveUrl,
+    port,
+  });
   const childEnvironment = buildRuntimeChildEnvironment({
     role,
     ambientEnvironment: runtime.environment,
@@ -1074,16 +1173,41 @@ async function waitForVerifiedOwner({ paths, repositoryFingerprint }) {
   return null;
 }
 
-function ensureRuntimeDirectory(directory) {
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const stats = lstatSync(directory);
-  if (!stats.isDirectory() || stats.isSymbolicLink()) {
-    throw new PublicRuntimeError("runtime_state_directory_invalid");
-  }
+export function ensureRuntimeDirectory({
+  directory,
+  repositoryRoot: repositoryRootPath = repositoryRoot,
+}) {
+  const existedBefore = existsSync(directory);
+  let firstCreatedDirectory;
   try {
-    chmodSync(directory, 0o700);
-  } catch {
-    // Windows does not implement POSIX mode semantics.
+    firstCreatedDirectory = mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const stats = lstatSync(directory);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      throw new PublicRuntimeError("runtime_state_directory_invalid");
+    }
+
+    let physicalRepositoryRoot;
+    let physicalDirectory;
+    try {
+      physicalRepositoryRoot = realpathSync(repositoryRootPath);
+      physicalDirectory = realpathSync(directory);
+    } catch {
+      throw new PublicRuntimeError("runtime_state_directory_invalid");
+    }
+    assertRuntimeStateOutsideRepository(physicalRepositoryRoot, physicalDirectory);
+
+    try {
+      chmodSync(directory, 0o700);
+    } catch {
+      // Windows does not implement POSIX mode semantics.
+    }
+    return physicalDirectory;
+  } catch (error) {
+    if (!existedBefore && firstCreatedDirectory) {
+      removeCreatedEmptyDirectoryChain(directory, firstCreatedDirectory);
+    }
+    if (error instanceof PublicRuntimeError) throw error;
+    throw new PublicRuntimeError("runtime_state_directory_invalid");
   }
 }
 
@@ -1306,6 +1430,33 @@ function isInsideOrEqual(root, candidate) {
       !relative.startsWith(`..${path.sep}`) &&
       !path.isAbsolute(relative))
   );
+}
+
+function assertRuntimeStateOutsideRepository(
+  physicalRepositoryRoot,
+  physicalDestination,
+) {
+  if (isInsideOrEqual(physicalRepositoryRoot, physicalDestination)) {
+    throw new PublicRuntimeError(
+      "runtime_state_path_must_be_outside_repository",
+    );
+  }
+}
+
+function removeCreatedEmptyDirectoryChain(directory, firstCreatedDirectory) {
+  const boundary = path.resolve(firstCreatedDirectory);
+  let current = path.resolve(directory);
+  while (isInsideOrEqual(boundary, current)) {
+    try {
+      const stats = lstatSync(current);
+      if (!stats.isDirectory() || stats.isSymbolicLink()) return;
+      rmdirSync(current);
+    } catch {
+      return;
+    }
+    if (current === boundary) return;
+    current = path.dirname(current);
+  }
 }
 
 function fingerprint(value) {
