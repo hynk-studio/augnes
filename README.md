@@ -48,14 +48,12 @@ The active sequence is defined in
 
 ## Current development start
 
-After the current data bootstrap, one canonical command starts and supervises
-both the local UI and MCP bridge:
+One canonical command resolves application-owned local paths, safely creates or
+migrates the database, and supervises both the local UI and MCP bridge:
 
 ```bash
 npm install
 npm --prefix apps/augnes_apps install
-npm run db:migrate
-npm run demo:seed
 npm run augnes
 ```
 
@@ -69,13 +67,19 @@ owned instance:
 ```bash
 npm run augnes -- status
 npm run augnes -- stop
+npm run augnes -- diagnostics
 ```
 
-Platform-owned data paths and safe first-run database bootstrap remain R2
-follow-up work. Until then, the existing database path and migration behavior
-remain compatible.
+`diagnostics` is an explicit, read-only local surface for resolved data,
+configuration, backup, runtime-state, and database paths. Normal start, status,
+stop, and health output omit database and backup paths. An absolute
+`AUGNES_DB_PATH` remains available as an explicit compatibility override; when
+it is absent, Augnes does not adopt `data/augnes.db` from the repository.
 
-Do not use `db:reset` as a normal start command. It is a destructive developer operation and must only be used against an explicitly disposable database.
+`db:migrate` and `demo:seed` remain explicit development commands and are not
+part of normal startup. Do not use `db:reset` as a normal start command. It is a
+destructive developer operation and must only be used with an absolute
+`AUGNES_DB_PATH` that targets an explicitly disposable database.
 
 `OPENAI_API_KEY` is optional. Without it, supported flows use deterministic local fallbacks.
 

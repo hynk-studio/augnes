@@ -1,15 +1,9 @@
 import Database from "better-sqlite3";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  migrateDeliveryExternalArtifacts,
-  migrateSessionBindingColumns,
-  migrateStateDeltaProposalScoring,
-  migrateTemporalPreviewReviewArtifactIdempotency,
-  migrateTemporalPreviewReviewArtifacts,
-  migrateVerificationEvidenceRecords,
-} from "./db-migrations.mjs";
+
+import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -28,18 +22,7 @@ export function openDatabase() {
 }
 
 export function initializeDatabase(db = openDatabase()) {
-  const schemaPath = path.join(rootDir, "lib", "db", "schema.sql");
-  const schema = readFileSync(schemaPath, "utf8");
-  if (hasStateDeltaProposalsTable(db)) {
-    migrateStateDeltaProposalScoring(db);
-  }
-  db.exec(schema);
-  migrateStateDeltaProposalScoring(db);
-  migrateSessionBindingColumns(db);
-  migrateDeliveryExternalArtifacts(db);
-  migrateVerificationEvidenceRecords(db);
-  migrateTemporalPreviewReviewArtifacts(db);
-  migrateTemporalPreviewReviewArtifactIdempotency(db);
+  applyCanonicalDatabaseMigrations(db);
   return db;
 }
 
@@ -60,18 +43,4 @@ export function resetDatabase() {
 
 export function encodeValue(value) {
   return JSON.stringify(value);
-}
-
-function hasStateDeltaProposalsTable(db) {
-  return Boolean(
-    db
-      .prepare(
-        `
-          SELECT name
-          FROM sqlite_master
-          WHERE type = 'table' AND name = 'state_delta_proposals'
-        `,
-      )
-      .get(),
-  );
 }
