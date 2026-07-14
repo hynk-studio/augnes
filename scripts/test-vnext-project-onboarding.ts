@@ -15,6 +15,7 @@ import {
   openRecentProjectV01,
   pickAndInspectLocalProjectV01,
   readProjectDestinationV01,
+  readRootAvailabilityV01,
   rebindLocalProjectRootFromSelectionV01,
   removeProjectFromRecentV01,
   sanitizeRepositoryRemoteV01,
@@ -53,6 +54,8 @@ try {
   assert.deepEqual(linuxCommands, ["zenity"]);
   assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd" })).status, "unavailable");
   assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "production", AUGNES_TEST_FOLDER_PICKER_PATH: folderA } })).status, "unavailable");
+  assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "production", AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" } })).status, "unavailable");
+  assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "test", AUGNES_CANONICAL_TEST_MODE: "1", AUGNES_CANONICAL_TEMP_ROOT: root, AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" } })).status, "cancelled");
   assert.equal((await chooseLocalProjectFolderV01({ platform: "linux", process: { async run() { const error = new Error("cancelled") as Error & { code: number }; error.code = 1; throw error; } } })).status, "cancelled");
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = new Error("timeout") as Error & { code: string }; error.code = "ETIMEDOUT"; throw error; } } }), { status: "error", error_code: "picker_timeout" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = Object.assign(new Error("killed"), { code: null, killed: true, signal: "SIGKILL" }); throw error; } } }), { status: "error", error_code: "picker_timeout" });
@@ -62,6 +65,7 @@ try {
   writeFileSync(regularFile, "fixture");
   await assert.rejects(inspectLocalProjectRootV01(path.join(root, "missing")), /selection_missing/);
   await assert.rejects(inspectLocalProjectRootV01(regularFile), /selection_not_directory/);
+  await assert.rejects(inspectLocalProjectRootV01(folderA, { filesystem: { async access() { throw Object.assign(new Error("denied"), { code: "EACCES" }); } } }), /selection_inaccessible/);
 
   const plain = await inspectLocalProjectRootV01(folderA, { now: () => "2026-07-15T00:00:00.000Z" });
   assert.equal(plain.folder_kind, "plain_folder");
@@ -126,6 +130,24 @@ try {
   assert.equal((await readProjectDestinationV01(db, confirmedB.project.project_id))?.external_refs.length, 1);
   assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.external_refs.length, 1);
 
+  const lifecycleBeforeRemoteConflict = JSON.stringify({
+    recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
+    active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
+  });
+  writeFileSync(path.join(folderB, ".git", "config"), `[remote "origin"]\n  url = https://example.test/changed/repo.git\n`);
+  const changedRemote = await selection(folderB, "2026-07-15T00:02:15.000Z");
+  assert.equal(changedRemote.status, "selected");
+  await assert.rejects(confirmLocalProjectOnboardingV01(db, {
+    selection_token: changedRemote.selection_token,
+    inspection_fingerprint: changedRemote.inspection.inspection_fingerprint,
+  }, { now: () => "2026-07-15T00:02:15.000Z" }), /project_external_ref_conflict/);
+  assert.equal(JSON.stringify({
+    recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
+    active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
+  }), lifecycleBeforeRemoteConflict, "failed confirmation must roll back lifecycle state");
+  assert.equal(JSON.stringify(await readProjectDestinationV01(db, confirmedB.project.project_id)).includes("changed/repo"), false);
+  writeFileSync(path.join(folderB, ".git", "config"), `[remote "origin"]\n  url = https://example.test/shared/repo.git\n`);
+
   const occupiedRecovery = await selection(folderB, "2026-07-15T00:02:30.000Z");
   assert.equal(occupiedRecovery.status, "selected");
   await assert.rejects(rebindLocalProjectRootFromSelectionV01(db, {
@@ -148,6 +170,9 @@ try {
   const remainingA = await readProjectDestinationV01(db, confirmedA.project.project_id);
   assert.equal(remainingA?.root_availability, "missing");
   await assert.rejects(openRecentProjectV01(db, { project_id: confirmedA.project.project_id }), /project_root_unavailable/);
+  writeFileSync(folderA, "not a directory");
+  assert.equal(await readRootAvailabilityV01(folderA), "not_directory");
+  rmSync(folderA);
   const recovery = await selection(folderA2, "2026-07-15T00:04:00.000Z");
   assert.equal(recovery.status, "selected");
   const rebound = await rebindLocalProjectRootFromSelectionV01(db, { project_id: confirmedA.project.project_id, selection_token: recovery.selection_token, inspection_fingerprint: recovery.inspection.inspection_fingerprint }, { now: () => "2026-07-15T00:04:00.000Z" });
@@ -205,7 +230,7 @@ try {
   assert.deepEqual(artifactSql(runtimeSchema), artifactSql(canonicalSchema));
   runtimeSchema.close(); migrationSchema.close(); canonicalSchema.close();
 
-  console.log(JSON.stringify({ status: "pass", picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, origin_guard: true, plain_and_git_inspection: true, git_no_remote_and_worktree_metadata: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credentials_sanitized: true, exact_root_replay: true, same_repository_independence: true, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, network_calls: 0, git_processes: 0 }, null, 2));
+  console.log(JSON.stringify({ status: "pass", picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credentials_sanitized: true, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, network_calls: 0, git_processes: 0 }, null, 2));
 } finally {
   process.env = originalEnvironment;
   rmSync(root, { recursive: true, force: true });

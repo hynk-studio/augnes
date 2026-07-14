@@ -45,6 +45,7 @@ const MAX_PICKER_OUTPUT = 16 * 1024;
 const MAX_GIT_CONFIG_BYTES = 64 * 1024;
 const SELECTION_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_SELECTIONS = 64;
+const SYSTEM_LOCAL_PROJECT_FILESYSTEM = { stat, access };
 
 export class ProjectOnboardingErrorV01 extends Error {
   constructor(readonly code: ProjectOnboardingErrorCodeV01, readonly status = 400) {
@@ -78,8 +79,15 @@ export async function chooseLocalProjectFolderV01(options: {
 } = {}): Promise<{ status: "selected"; absolute_path: string } | Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>> {
   const environment = options.environment ?? process.env;
   const injected = environment.AUGNES_TEST_FOLDER_PICKER_PATH;
-  if (injected && environment.AUGNES_CANONICAL_TEST_MODE === "1" && environment.AUGNES_CANONICAL_TEMP_ROOT) {
-    const root = path.resolve(environment.AUGNES_CANONICAL_TEMP_ROOT);
+  const canonicalTempRoot = environment.AUGNES_CANONICAL_TEMP_ROOT;
+  const canonicalTestRoot = environment.AUGNES_CANONICAL_TEST_MODE === "1" && canonicalTempRoot
+    ? canonicalTempRoot
+    : null;
+  if (canonicalTestRoot && environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME === "cancelled") {
+    return { status: "cancelled" };
+  }
+  if (injected && canonicalTestRoot) {
+    const root = path.resolve(canonicalTestRoot);
     const selected = path.resolve(injected);
     const relative = path.relative(root, selected);
     if (path.isAbsolute(injected) && relative !== ".." && !relative.startsWith(`..${path.sep}`)) {
@@ -126,18 +134,20 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   now?: () => string;
   db?: Database.Database;
   workspace_id?: string;
+  filesystem?: Partial<typeof SYSTEM_LOCAL_PROJECT_FILESYSTEM>;
 } = {}): Promise<LocalProjectInspectionV01> {
   if (!path.isAbsolute(absolutePath)) throw new ProjectOnboardingErrorV01("selection_invalid");
   const localRoot = normalizeLocalProjectRootRefV01(absolutePath, { base_path: path.parse(absolutePath).root });
+  const filesystem = { ...SYSTEM_LOCAL_PROJECT_FILESYSTEM, ...options.filesystem };
   let info;
-  try { info = await stat(localRoot.normalized_path); }
+  try { info = await filesystem.stat(localRoot.normalized_path); }
   catch (error) {
     if (isFsCode(error, "ENOENT")) throw new ProjectOnboardingErrorV01("selection_missing", 404);
     if (isFsCode(error, "EACCES") || isFsCode(error, "EPERM")) throw new ProjectOnboardingErrorV01("selection_inaccessible", 403);
     throw new ProjectOnboardingErrorV01("inspection_failed", 422);
   }
   if (!info.isDirectory()) throw new ProjectOnboardingErrorV01("selection_not_directory", 422);
-  try { await access(localRoot.normalized_path, constants.R_OK | constants.X_OK); }
+  try { await filesystem.access(localRoot.normalized_path, constants.R_OK | constants.X_OK); }
   catch { throw new ProjectOnboardingErrorV01("selection_inaccessible", 403); }
 
   const inspectedAt = (options.now ?? (() => new Date().toISOString()))();

@@ -40,6 +40,8 @@ export const CANONICAL_STEP_ENVIRONMENT_ALLOWLIST = Object.freeze({
     "enables test-only local adapters inside a suite-owned runtime",
   AUGNES_TEST_FOLDER_PICKER_PATH:
     "injects a picker result constrained to the suite-owned temporary root",
+  AUGNES_TEST_FOLDER_PICKER_OUTCOME:
+    "injects a non-path picker outcome inside a suite-owned runtime",
 });
 
 const CANONICAL_STEP_PATH_KEYS = new Set([

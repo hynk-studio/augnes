@@ -904,6 +904,10 @@ export function buildSupervisorChildValues({
         environment.AUGNES_CANONICAL_TEST_MODE === "1"
           ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_PATH)
           : null,
+      AUGNES_TEST_FOLDER_PICKER_OUTCOME:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1"
+          ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME)
+          : null,
     };
   }
 

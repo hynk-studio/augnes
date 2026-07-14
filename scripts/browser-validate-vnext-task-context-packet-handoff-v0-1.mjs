@@ -88,6 +88,7 @@ const result = {
   document_status: null,
   handoff_api_status: null,
   project_home_exact_href: false,
+  folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
   proposal_list_document_status: null,
@@ -288,7 +289,7 @@ async function main() {
   });
   mkdirSync(onboardingFolder, { recursive: true });
 
-  startDevServer(runtimeEnvironment);
+  startDevServer({ ...runtimeEnvironment, AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" });
   await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
   await assertLoopbackListener(appPort);
 
@@ -306,37 +307,35 @@ async function main() {
       "Choose folder action",
     );
     assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
-    const pickerResponse = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/projects', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'choose_folder' })
-      });
-      return { status: response.status, body: await response.json() };
-    })()`);
-    assert.equal(pickerResponse.status, 200);
-    assert.equal(pickerResponse.body.picker.status, "selected");
-    assert.equal(pickerResponse.body.picker.inspection.display_name, "Browser Onboarding Project");
-    assert.equal(pickerResponse.body.picker.inspection.local_root.normalized_path, onboardingFolder);
-    const confirmationResponse = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/projects', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'confirm',
-          selection_token: ${JSON.stringify(pickerResponse.body.picker.selection_token)},
-          inspection_fingerprint: ${JSON.stringify(pickerResponse.body.picker.inspection.inspection_fingerprint)}
-        })
-      });
-      return { status: response.status, body: await response.json() };
-    })()`);
-    assert.equal(confirmationResponse.status, 200);
-    const destination = confirmationResponse.body.result.destination;
-    await navigate(`${appOrigin}${destination}`);
+    await delay(500);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('Folder selection was cancelled. Nothing changed.')`, "cancelled picker status");
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder' && !button.disabled)`), true);
+    result.folder_picker_cancelled_usable = true;
+
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    startDevServer(runtimeEnvironment);
+    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/`);
+    await delay(500);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
+    assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
+    const destination = await evaluateString("location.pathname");
     result.folder_onboarding_destination = destination;
     await navigate(`${appOrigin}${destination}`);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "project refresh identity");
     await navigate(`${appOrigin}/`);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after return");
+    await delay(500);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
+    await navigate(`${appOrigin}/`);
 
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
@@ -353,7 +352,7 @@ async function main() {
     const openResponse = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/projects', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(confirmationResponse.body.result.project.project_id)}, expected_project_id: ${JSON.stringify(confirmationResponse.body.result.project.project_id)} })
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.project.project_id)} })
       });
       return await response.json();
     })()`);
@@ -635,7 +634,11 @@ async function main() {
           /409/i.test(entry.text)) ||
         (entry.phase === "folder_onboarding" &&
           entry.path?.startsWith("/_next/") &&
-          entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING"))
+          entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
+        (entry.phase === "folder_onboarding" &&
+          entry.path?.endsWith("/next/dist/client/dev/hot-reloader/app/web-socket.js") &&
+          entry.text.includes("/_next/webpack-hmr") &&
+          entry.text.includes("ERR_CONNECTION_REFUSED"))
       ),
   );
   const unexpectedFailedRequests = failedRequests.filter(
