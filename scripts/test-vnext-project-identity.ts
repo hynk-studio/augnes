@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 
 import { openDatabase } from "../lib/db";
+import { listWorkItems } from "../lib/work";
 import {
   readLegacyProjectWorkItemsCompatibilityV01,
   resolveLegacyProjectCompatibilityIdentityV01,
@@ -701,64 +702,160 @@ async function assertMigrationAndRuntimeLifecycle() {
 }
 
 function assertLegacyCompatibilityRead() {
-  const databasePath = path.join(temporaryRoot, "legacy-compatibility.db");
-  let database = new Database(databasePath);
-  let beforeRows: Record<string, number>;
-  let legacyWork: unknown;
+  const originalAmbientDatabasePath = process.env.AUGNES_DB_PATH;
+  const databaseAPath = path.join(temporaryRoot, "legacy-compatibility-a.db");
+  const databaseBPath = path.join(temporaryRoot, "legacy-compatibility-b.db");
+  const databaseA = new Database(databaseAPath);
+  const databaseB = new Database(databaseBPath);
   try {
-    database.pragma("foreign_keys = ON");
-    applyCanonicalDatabaseMigrations(database);
-    database
-      .prepare(
-        `INSERT INTO work_items (
-          work_id, scope, title, status, priority, summary, next_action,
-          user_attention_required, related_state_keys, links, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        "AG-LEGACY",
-        LEGACY_AUGNES_PROJECT_SCOPE_V01,
-        "Legacy compatibility sentinel",
-        "planned",
-        "normal",
-        "legacy data",
-        "read only",
-        0,
-        "[]",
-        "{}",
-        "2026-07-14T08:00:00.000Z",
-        "2026-07-14T08:00:00.000Z",
-      );
-    beforeRows = registryRowCounts(database);
-    legacyWork = readLegacyWorkRow(database, "AG-LEGACY");
-    const resolved = resolveLegacyProjectCompatibilityIdentityV01(database, {
+    for (const database of [databaseA, databaseB]) {
+      database.pragma("foreign_keys = ON");
+      applyCanonicalDatabaseMigrations(database);
+    }
+    insertLegacyWorkItem(databaseA, {
+      work_id: "AG-LEGACY-A",
+      title: "Legacy compatibility sentinel A",
+      created_at: "2026-07-14T08:00:00.000Z",
+    });
+    insertLegacyWorkItem(databaseB, {
+      work_id: "AG-LEGACY-B",
+      title: "Legacy compatibility sentinel B",
+      created_at: "2026-07-14T08:01:00.000Z",
+    });
+    const beforeRegistryA = registryRowCounts(databaseA);
+    const beforeRegistryB = registryRowCounts(databaseB);
+    const beforeLegacyA = readLegacyWorkRows(databaseA);
+    const beforeLegacyB = readLegacyWorkRows(databaseB);
+    const emptyRegistryCounts = {
+      workspaces: 0,
+      projects: 0,
+      roots: 0,
+      external_refs: 0,
+    };
+    assert.deepEqual(beforeRegistryA, emptyRegistryCounts);
+    assert.deepEqual(beforeRegistryB, emptyRegistryCounts);
+
+    process.env.AUGNES_DB_PATH = databaseBPath;
+    const resolved = resolveLegacyProjectCompatibilityIdentityV01(databaseA, {
       legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01,
     });
     assert(resolved);
     assert.equal(resolved.identity_kind, "legacy_compatibility");
     assert.equal(resolved.read_only, true);
-    assert.deepEqual(registryRowCounts(database), beforeRows);
+    const compatibilityReadA = readLegacyProjectWorkItemsCompatibilityV01(
+      databaseA,
+      { legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01 },
+    );
+    assert(compatibilityReadA);
+    assert.equal(
+      compatibilityReadA.identity.identity_kind,
+      "legacy_compatibility",
+    );
+    assert.equal(compatibilityReadA.identity.read_only, true);
+    assert.deepEqual(
+      compatibilityReadA.work_items.map((item) => item.work_id),
+      ["AG-LEGACY-A"],
+      "the explicit compatibility read must use database A",
+    );
+    assert.equal(
+      compatibilityReadA.work_items.some(
+        (item) => item.work_id === "AG-LEGACY-B",
+      ),
+      false,
+    );
+    assert.deepEqual(
+      listWorkItems().map((item) => item.work_id),
+      ["AG-LEGACY-B"],
+      "the existing public listWorkItems contract must still use the ambient database",
+    );
+
+    process.env.AUGNES_DB_PATH = databaseAPath;
+    const compatibilityReadB = readLegacyProjectWorkItemsCompatibilityV01(
+      databaseB,
+      { legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01 },
+    );
+    assert.deepEqual(
+      compatibilityReadB?.work_items.map((item) => item.work_id),
+      ["AG-LEGACY-B"],
+      "reversing the ambient path must not redirect an explicit database-B read",
+    );
+
+    delete process.env.AUGNES_DB_PATH;
+    const compatibilityReadAWithoutAmbientPath =
+      readLegacyProjectWorkItemsCompatibilityV01(databaseA, {
+        legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01,
+      });
+    assert.deepEqual(
+      compatibilityReadAWithoutAmbientPath?.work_items.map(
+        (item) => item.work_id,
+      ),
+      ["AG-LEGACY-A"],
+      "clearing the ambient path must not redirect an explicit database-A read",
+    );
+    assert.deepEqual(
+      databaseA.prepare("SELECT 1 AS value").get(),
+      { value: 1 },
+      "the compatibility reader must leave its caller-owned database open",
+    );
+    assert.deepEqual(registryRowCounts(databaseA), beforeRegistryA);
+    assert.deepEqual(registryRowCounts(databaseB), beforeRegistryB);
+    assert.deepEqual(readLegacyWorkRows(databaseA), beforeLegacyA);
+    assert.deepEqual(readLegacyWorkRows(databaseB), beforeLegacyB);
   } finally {
-    database.close();
+    databaseA.close();
+    databaseB.close();
+    if (originalAmbientDatabasePath === undefined) {
+      delete process.env.AUGNES_DB_PATH;
+    } else {
+      process.env.AUGNES_DB_PATH = originalAmbientDatabasePath;
+    }
   }
 
-  process.env.AUGNES_DB_PATH = databasePath;
-  const compatibilityRead = readLegacyProjectWorkItemsCompatibilityV01({
-    legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01,
-  });
-  assert(compatibilityRead);
-  assert.equal(compatibilityRead.identity.identity_kind, "legacy_compatibility");
-  assert.equal(compatibilityRead.identity.read_only, true);
-  assert.deepEqual(
-    compatibilityRead.work_items.map((item) => item.work_id),
-    ["AG-LEGACY"],
-    "the existing public work_items read remains available",
-  );
+  assertCanonicalAndLegacyScopesRemainDistinct();
 
-  database = new Database(databasePath, { fileMustExist: true });
+  return {
+    explicit_read_only_identity: true,
+    representative_work_items_read: true,
+    explicit_database_ownership: true,
+    ambient_database_redirect_blocked: true,
+    existing_list_work_items_contract_preserved: true,
+    compatibility_read_registry_rows_created: 0,
+    legacy_rows_unchanged_by_canonical_writers: true,
+    canonical_and_legacy_scopes_distinct: true,
+    legacy_external_ref_bindings_created: 0,
+  };
+}
+
+function assertCanonicalAndLegacyScopesRemainDistinct() {
+  const databasePath = path.join(
+    temporaryRoot,
+    "legacy-canonical-coexistence.db",
+  );
+  const database = new Database(databasePath);
   try {
     database.pragma("foreign_keys = ON");
-    assert.deepEqual(registryRowCounts(database), beforeRows!);
+    applyCanonicalDatabaseMigrations(database);
+    insertLegacyWorkItem(database, {
+      work_id: "AG-LEGACY",
+      title: "Legacy compatibility sentinel",
+      created_at: "2026-07-14T08:00:00.000Z",
+    });
+    const beforeRows = registryRowCounts(database);
+    const legacyWork = readLegacyWorkRow(database, "AG-LEGACY");
+    const resolved = resolveLegacyProjectCompatibilityIdentityV01(database, {
+      legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01,
+    });
+    assert(resolved);
+    const compatibilityRead = readLegacyProjectWorkItemsCompatibilityV01(
+      database,
+      { legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01 },
+    );
+    assert.deepEqual(
+      compatibilityRead?.work_items.map((item) => item.work_id),
+      ["AG-LEGACY"],
+    );
+    assert.deepEqual(registryRowCounts(database), beforeRows);
+
     const workspace = getOrCreateDefaultWorkspaceIdentityV01(database, {
       create_uuid: () => canonicalUuid(600),
       now: () => "2026-07-14T08:10:00.000Z",
@@ -797,25 +894,9 @@ function assertLegacyCompatibilityRead() {
       ).count,
       0,
     );
-    const countsBeforeSecondRead = registryRowCounts(database);
-    const resolvedAgain = resolveLegacyProjectCompatibilityIdentityV01(
-      database,
-      { legacy_scope: LEGACY_AUGNES_PROJECT_SCOPE_V01 },
-    );
-    assert(resolvedAgain);
-    assert.deepEqual(registryRowCounts(database), countsBeforeSecondRead);
   } finally {
     database.close();
   }
-
-  return {
-    explicit_read_only_identity: true,
-    representative_work_items_read: true,
-    compatibility_read_registry_rows_created: 0,
-    legacy_rows_unchanged_by_canonical_writers: true,
-    canonical_and_legacy_scopes_distinct: true,
-    legacy_external_ref_bindings_created: 0,
-  };
 }
 
 function assertProjectIdentitySchemaParity() {
@@ -921,6 +1002,39 @@ function tableCount(database: Database.Database, table: string): number {
       count: number;
     }
   ).count;
+}
+
+function insertLegacyWorkItem(
+  database: Database.Database,
+  input: { work_id: string; title: string; created_at: string },
+) {
+  database
+    .prepare(
+      `INSERT INTO work_items (
+        work_id, scope, title, status, priority, summary, next_action,
+        user_attention_required, related_state_keys, links, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      input.work_id,
+      LEGACY_AUGNES_PROJECT_SCOPE_V01,
+      input.title,
+      "planned",
+      "normal",
+      "legacy data",
+      "read only",
+      0,
+      "[]",
+      "{}",
+      input.created_at,
+      input.created_at,
+    );
+}
+
+function readLegacyWorkRows(database: Database.Database) {
+  return database
+    .prepare("SELECT * FROM work_items WHERE scope = ? ORDER BY work_id")
+    .all(LEGACY_AUGNES_PROJECT_SCOPE_V01);
 }
 
 function readLegacyWorkRow(database: Database.Database, workId: string) {

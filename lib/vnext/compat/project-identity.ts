@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import { listWorkItems, type WorkItem } from "@/lib/work";
+import { listWorkItemsFromDatabase, type WorkItem } from "@/lib/work";
 import {
   LEGACY_AUGNES_PROJECT_SCOPE_V01,
   LEGACY_PROJECT_COMPATIBILITY_IDENTITY_VERSION_V01,
@@ -44,11 +44,15 @@ export function resolveLegacyProjectCompatibilityIdentityV01(
   return null;
 }
 
-export function readLegacyProjectWorkItemsCompatibilityV01(input: {
-  legacy_scope: typeof LEGACY_AUGNES_PROJECT_SCOPE_V01;
-}): LegacyProjectWorkItemsCompatibilityReadV01 | null {
+export function readLegacyProjectWorkItemsCompatibilityV01(
+  db: Database.Database,
+  input: { legacy_scope: typeof LEGACY_AUGNES_PROJECT_SCOPE_V01 },
+): LegacyProjectWorkItemsCompatibilityReadV01 | null {
   assertLegacyScope(input.legacy_scope);
-  const workItems = listWorkItems(LEGACY_AUGNES_PROJECT_SCOPE_V01);
+  const workItems = listWorkItemsFromDatabase(
+    db,
+    LEGACY_AUGNES_PROJECT_SCOPE_V01,
+  );
   if (workItems.length === 0) return null;
   return {
     identity: createLegacyProjectCompatibilityIdentityV01(),

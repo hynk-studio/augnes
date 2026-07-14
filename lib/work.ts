@@ -165,44 +165,51 @@ export function listWorkItems(scope = DEFAULT_SCOPE): WorkItem[] {
   const db = openDatabase();
 
   try {
-    const rows = db
-      .prepare(
-        `
-          SELECT
-            work_id,
-            scope,
-            title,
-            status,
-            priority,
-            summary,
-            next_action,
-            user_attention_required,
-            related_state_keys,
-            links,
-            created_at,
-            updated_at
-          FROM work_items
-          WHERE scope = ?
-          ORDER BY
-            CASE priority
-              WHEN 'now' THEN 0
-              WHEN 'high' THEN 1
-              WHEN 'next' THEN 2
-              WHEN 'normal' THEN 3
-              WHEN 'later' THEN 4
-              WHEN 'low' THEN 5
-              ELSE 6
-            END,
-            updated_at DESC,
-            work_id ASC
-        `,
-      )
-      .all(scope) as WorkItemRow[];
-
-    return rows.map(parseWorkItemRow);
+    return listWorkItemsFromDatabase(db, scope);
   } finally {
     db.close();
   }
+}
+
+export function listWorkItemsFromDatabase(
+  db: ReturnType<typeof openDatabase>,
+  scope: string,
+): WorkItem[] {
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          work_id,
+          scope,
+          title,
+          status,
+          priority,
+          summary,
+          next_action,
+          user_attention_required,
+          related_state_keys,
+          links,
+          created_at,
+          updated_at
+        FROM work_items
+        WHERE scope = ?
+        ORDER BY
+          CASE priority
+            WHEN 'now' THEN 0
+            WHEN 'high' THEN 1
+            WHEN 'next' THEN 2
+            WHEN 'normal' THEN 3
+            WHEN 'later' THEN 4
+            WHEN 'low' THEN 5
+            ELSE 6
+          END,
+          updated_at DESC,
+          work_id ASC
+      `,
+    )
+    .all(scope) as WorkItemRow[];
+
+  return rows.map(parseWorkItemRow);
 }
 
 export function getWorkItem(workId: string, scope = DEFAULT_SCOPE) {
