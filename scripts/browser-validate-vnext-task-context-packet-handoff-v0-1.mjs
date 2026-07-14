@@ -36,19 +36,12 @@ const tempRoot = mkdtempSync(
 );
 const fixtureDir = path.join(tempRoot, "fixture");
 const chromeProfileDir = path.join(tempRoot, "chrome-profile");
-const appRepo = realpathSync(
-  process.env.AUGNES_BROWSER_APP_REPO?.trim() || process.cwd(),
+const manifestPath = path.join(
+  fixtureDir,
+  "operator-pilot-browser-fixture.json",
 );
-const existingRunnerDatabaseInput =
-  process.env.AUGNES_BROWSER_EXISTING_DB_PATH?.trim() || null;
-const existingRunnerManifestInput =
-  process.env.AUGNES_BROWSER_EXISTING_MANIFEST_PATH?.trim() || null;
-assert.equal(
-  Boolean(existingRunnerDatabaseInput),
-  Boolean(existingRunnerManifestInput),
-  "existing runner DB and manifest must be supplied together",
-);
-const usesExistingRunnerMaterial = Boolean(existingRunnerDatabaseInput);
+const databasePath = path.join(fixtureDir, "operator-pilot.db");
+const appRepo = realpathSync(process.cwd());
 const chromeCandidates = [
   process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -82,9 +75,7 @@ const assertions = [];
 const result = {
   ok: false,
   validation_version: VALIDATION_VERSION,
-  fixture_source: usesExistingRunnerMaterial
-    ? "existing_runner_managed_material"
-    : "actual_vnext_operator_pilot_compile_result",
+  fixture_source: "disposable_operator_pilot_compile_result",
   app_repo: appRepo,
   proposal_id: null,
   proposal_fingerprint: null,
@@ -112,9 +103,11 @@ const result = {
   credential_material_in_server_log: false,
   default_database_accessed: false,
   provider_or_external_network_call: false,
+  temporary_root_removed: false,
   temporary_profile_removed: false,
   temporary_fixture_removed: false,
-  runner_managed_database_preserved: null,
+  temporary_database_removed: false,
+  temporary_manifest_removed: false,
   failure: null,
 };
 
@@ -201,11 +194,11 @@ try {
 } finally {
   bootstrapToken = null;
   await cleanup();
+  result.temporary_root_removed = !existsSync(tempRoot);
   result.temporary_profile_removed = !existsSync(chromeProfileDir);
   result.temporary_fixture_removed = !existsSync(fixtureDir);
-  result.runner_managed_database_preserved = usesExistingRunnerMaterial
-    ? existsSync(existingRunnerDatabaseInput)
-    : null;
+  result.temporary_database_removed = !existsSync(databasePath);
+  result.temporary_manifest_removed = !existsSync(manifestPath);
   process.umask(originalUmask);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
@@ -220,21 +213,7 @@ async function main() {
     "browser artifacts must stay inside the operating-system temp directory",
   );
 
-  const manifestPath = usesExistingRunnerMaterial
-    ? requireExistingRunnerFile(
-        existingRunnerManifestInput,
-        "existing runner manifest",
-      )
-    : path.join(fixtureDir, "operator-pilot-browser-fixture.json");
-  const databasePath = usesExistingRunnerMaterial
-    ? requireExistingRunnerFile(
-        existingRunnerDatabaseInput,
-        "existing runner database",
-      )
-    : path.join(fixtureDir, "operator-pilot.db");
-  const fixtureSummary = usesExistingRunnerMaterial
-    ? null
-    : await exportActualCompiledPacketFixture();
+  const fixtureSummary = await exportActualCompiledPacketFixture();
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.fixture_version, "vnext_operator_pilot_browser_fixture.v0.1");
   assert.equal(manifest.credential_material_included, false);
@@ -244,42 +223,34 @@ async function main() {
     manifest.database_identity,
     databaseFileIdentityV01(databasePath),
   );
-  if (usesExistingRunnerMaterial) {
-    assert.equal(
-      manifest.database_binding,
-      "runner_managed_exact_working_db",
-    );
-    assert.equal(manifest.database_file, path.basename(databasePath));
-    result.default_database_accessed = false;
-    record("existing_runner_database_and_manifest_bound_exactly");
-  } else {
-    assert.equal(fixtureSummary.status, "pass");
-    assert.equal(fixtureSummary.default_database_accessed, false);
-    assert.equal(fixtureSummary.external_network_calls, 0);
-    assert.equal(fixtureSummary.browser_fixture_export?.exported, true);
-    assert.deepEqual(fixtureSummary.full_loop_proposal, {
-      proposal_id: manifest.proposal_id,
-      proposal_fingerprint: manifest.proposal_fingerprint,
-    });
-    assert.equal(fixtureSummary.full_loop_anchors?.later_packet_id, manifest.packet_id);
-    assert.equal(
-      fixtureSummary.full_loop_anchors?.later_packet_fingerprint,
-      manifest.packet_fingerprint,
-    );
-    assert.equal(
-      fixtureSummary.full_loop_anchors?.transition_receipt_id,
-      manifest.transition_receipt_id,
-    );
-    assert.equal(
-      fixtureSummary.full_loop_anchors?.later_run_receipt_id,
-      manifest.later_result_receipt_id,
-    );
-    assert.equal(
-      fixtureSummary.full_loop_anchors?.context_use_review_id,
-      manifest.context_use_review_id,
-    );
-    result.default_database_accessed = fixtureSummary.default_database_accessed;
-  }
+  assert.equal(manifest.database_binding, "copied_fixture");
+  assert.equal(manifest.database_file, path.basename(databasePath));
+  assert.equal(fixtureSummary.status, "pass");
+  assert.equal(fixtureSummary.default_database_accessed, false);
+  assert.equal(fixtureSummary.external_network_calls, 0);
+  assert.equal(fixtureSummary.browser_fixture_export?.exported, true);
+  assert.deepEqual(fixtureSummary.full_loop_proposal, {
+    proposal_id: manifest.proposal_id,
+    proposal_fingerprint: manifest.proposal_fingerprint,
+  });
+  assert.equal(fixtureSummary.full_loop_anchors?.later_packet_id, manifest.packet_id);
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.later_packet_fingerprint,
+    manifest.packet_fingerprint,
+  );
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.transition_receipt_id,
+    manifest.transition_receipt_id,
+  );
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.later_run_receipt_id,
+    manifest.later_result_receipt_id,
+  );
+  assert.equal(
+    fixtureSummary.full_loop_anchors?.context_use_review_id,
+    manifest.context_use_review_id,
+  );
+  result.default_database_accessed = fixtureSummary.default_database_accessed;
 
   const handoffHref = buildTaskContextPacketHandoffHrefV01({
     packet_id: manifest.packet_id,
@@ -645,18 +616,6 @@ async function exportActualCompiledPacketFixture() {
   const jsonStart = completed.stdout.indexOf("{\n");
   assert(jsonStart >= 0, "operator-pilot smoke summary missing");
   return JSON.parse(completed.stdout.slice(jsonStart));
-}
-
-function requireExistingRunnerFile(value, label) {
-  assert.equal(typeof value, "string", `${label} path is required`);
-  assert.equal(path.isAbsolute(value), true, `${label} path must be absolute`);
-  const lexical = path.resolve(value);
-  const entry = lstatSync(lexical);
-  assert.equal(entry.isSymbolicLink(), false, `${label} must not be a symlink`);
-  assert.equal(entry.isFile(), true, `${label} must be a regular file`);
-  const canonical = realpathSync(lexical);
-  assert.equal(canonical, lexical, `${label} canonical identity changed`);
-  return canonical;
 }
 
 function databaseFileIdentityV01(databasePath) {

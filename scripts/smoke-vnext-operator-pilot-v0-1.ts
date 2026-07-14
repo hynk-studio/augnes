@@ -135,16 +135,10 @@ const EXPECTED_FULL_LOOP_ANCHORS = {
     "sha256:a626d408bbf02b0a0f05181f87dee4d9adc3ec7ccc48eb6bd3d9bef8a7901cf0",
 } as const;
 const require = createRequire(import.meta.url);
-const runnerManagedPaths = resolveRunnerManagedPaths();
-const tempRoot = runnerManagedPaths
-  ? path.join(runnerManagedPaths.runtimeRoot, "operator-smoke-fixtures")
-  : mkdtempSync(path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"));
-if (runnerManagedPaths) mkdirSync(tempRoot, { recursive: false, mode: 0o700 });
-const canonicalDbPath =
-  runnerManagedPaths?.workingDbPath ?? path.join(tempRoot, "operator-pilot.db");
-const runnerPhaseProtocolPath = resolveRunnerPhaseProtocolPath();
-const runnerCompletedPhases: string[] = [];
-let runnerActivePhase = "MECHANICAL_REHEARSAL";
+const tempRoot = mkdtempSync(
+  path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
+);
+const canonicalDbPath = path.join(tempRoot, "operator-pilot.db");
 const migrationDbPath = path.join(tempRoot, "legacy-upgrade.db");
 const recordKindMigrationDbPath = path.join(
   tempRoot,
@@ -195,6 +189,13 @@ class DeterministicSecretSource implements VNextLocalOperatorSecretSourceV01 {
 
 async function main(): Promise<void> {
 try {
+  const canonicalTempRoot = realpathSync(tempRoot);
+  const operatingSystemTempRoot = realpathSync(tmpdir());
+  assert(
+    canonicalTempRoot.startsWith(`${operatingSystemTempRoot}${path.sep}`),
+    "operator integration artifacts must stay inside an OS-temporary root",
+  );
+  pass("operator_integration_owns_os_temporary_root");
   initializeCanonicalDatabase();
   validateAdditiveAndRepeatedMigration();
   const protectedBefore = snapshotNonSessionRows(canonicalDbPath);
@@ -367,7 +368,6 @@ try {
 
   const legacyBefore = snapshotLegacyRows(canonicalDbPath);
   clock.set("2026-07-11T09:00:00.000Z");
-  maybeInjectRunnerPhaseFailure("MECHANICAL_REHEARSAL");
   const fullLoop = await assertFullOperatorLoop({
     environment,
     clock,
@@ -376,10 +376,7 @@ try {
   });
   assert.deepEqual(snapshotLegacyRows(canonicalDbPath), legacyBefore);
   pass("full_loop_does_not_mutate_legacy_proof_evidence_or_work_rows");
-  runnerCompletedPhases.push("MECHANICAL_REHEARSAL");
 
-  runnerActivePhase = "EXACT_REPLAY";
-  maybeInjectRunnerPhaseFailure("EXACT_REPLAY");
   for (const caseId of [
     "semantic_transition_exact_replay",
     "later_packet_compile_exact_replay",
@@ -388,13 +385,11 @@ try {
   ]) {
     assert(positiveCases.includes(caseId), `missing exact replay case: ${caseId}`);
   }
-  runnerCompletedPhases.push("EXACT_REPLAY");
-  runnerActivePhase = "MECHANICAL_REHEARSAL";
 
   const browserFixtureExport =
     await exportOperatorPilotBrowserFixtureV01(fullLoop);
 
-  assertM3DBackupRestore(canonicalDbPath);
+  assertBackupRestore(canonicalDbPath);
 
   assertNoPlaintextCredentialPersistence(canonicalDbPath);
   pass("plaintext_credentials_not_persisted");
@@ -433,14 +428,12 @@ try {
     generated_packet_handoff_href: fullLoop.handoffHref,
     browser_fixture_export: browserFixtureExport,
     loopback_http_request_count: fullLoop.loopbackHttpRequestCount,
-    backup_restore: "exact_m3d_records_and_integrity_preserved",
+    backup_restore: "exact_durable_records_and_integrity_preserved",
     enrolled_project_core_record_count: fullLoop.coreRecordCount,
     foreign_project_core_record_count: 0,
     review_did_not_mutate_semantic_state: true,
     packet_compilation_was_explicit: true,
-    temp_database_cleanup: runnerManagedPaths
-      ? "delegated_to_runner"
-      : "pending_finally",
+    temp_database_cleanup: "pending_finally",
   };
 } finally {
   networkGuard?.restore();
@@ -448,164 +441,23 @@ try {
 }
 
 assert.equal(existsSync(tempRoot), false);
-pass(
-  runnerManagedPaths
-    ? "temporary_smoke_fixtures_removed"
-    : "temporary_database_and_side_files_removed",
-);
+pass("temporary_database_and_side_files_removed");
 assert(finalSummary);
 finalSummary.positive_case_count = positiveCases.length;
 finalSummary.positive_cases = positiveCases;
-finalSummary.temp_database_cleanup = runnerManagedPaths
-  ? "delegated_to_runner"
-  : "pass";
-writeRunnerPhaseProtocol({
-  status: "pass",
-  failure_phase: null,
-  reason_code: null,
-});
+finalSummary.temp_database_cleanup = "pass";
 process.stdout.write(`${JSON.stringify(finalSummary, null, 2)}\n`);
 }
 
 void main().catch((error: unknown) => {
-  try {
-    writeRunnerPhaseProtocol({
-      status: "fail",
-      failure_phase:
-        error instanceof RunnerPhaseFailure
-          ? error.runnerPhase
-          : runnerActivePhase,
-      reason_code:
-        error instanceof RunnerPhaseFailure
-          ? error.reasonCode
-          : "operator_pilot_subprocess_failed",
-    });
-  } catch (protocolError: unknown) {
-    const protocolMessage =
-      protocolError instanceof Error
-        ? protocolError.message
-        : "runner_phase_protocol_write_failed";
-    process.stderr.write(
-      `runner_phase_protocol_write_failed:${protocolMessage}\n`,
-    );
-  }
   const message =
     error instanceof Error ? error.message : "operator_pilot_smoke_failed";
   process.stderr.write(`operator_pilot_smoke_failed:${message}\n`);
   process.exitCode = 1;
 });
 
-function resolveRunnerManagedPaths(): {
-  runtimeRoot: string;
-  workingDbPath: string;
-  preinitialized: boolean;
-} | null {
-  const runtimeInput = process.env.AUGNES_M3D_RUNNER_RUNTIME_ROOT?.trim();
-  const databaseInput = process.env.AUGNES_M3D_RUNNER_WORKING_DB_PATH?.trim();
-  if (!runtimeInput && !databaseInput) return null;
-  assert(runtimeInput && databaseInput, "runner-managed runtime and DB paths must be supplied together");
-  assert(path.isAbsolute(runtimeInput), "runner-managed runtime root must be absolute");
-  assert(path.isAbsolute(databaseInput), "runner-managed working DB must be absolute");
-  const runtimeRoot = realpathSync(runtimeInput);
-  const workingDbPath = path.resolve(databaseInput);
-  const preinitialized =
-    process.env.AUGNES_M3D_RUNNER_DB_PREINITIALIZED === "1";
-  if (preinitialized) {
-    assert.equal(existsSync(workingDbPath), true, "runner-managed working DB must exist");
-    assert.equal(realpathSync(workingDbPath), workingDbPath);
-    assert.equal(statSync(workingDbPath).isFile(), true);
-  } else {
-    assert.equal(existsSync(workingDbPath), false, "runner-managed working DB must be absent");
-  }
-  const databaseParent = realpathSync(path.dirname(workingDbPath));
-  const databaseRelative = path.relative(runtimeRoot, path.join(databaseParent, path.basename(workingDbPath)));
-  assert(
-    databaseRelative !== "" &&
-      databaseRelative !== ".." &&
-      !databaseRelative.startsWith(`..${path.sep}`) &&
-      !path.isAbsolute(databaseRelative),
-    "runner-managed working DB must remain strictly inside runtime",
-  );
-  assert.equal(existsSync(path.join(runtimeRoot, "operator-smoke-fixtures")), false);
-  return { runtimeRoot, workingDbPath, preinitialized };
-}
-
-class RunnerPhaseFailure extends Error {
-  constructor(
-    readonly runnerPhase: string,
-    readonly reasonCode: string,
-  ) {
-    super(`Injected runner phase failure: ${runnerPhase}`);
-  }
-}
-
-function resolveRunnerPhaseProtocolPath(): string | null {
-  const requested =
-    process.env.AUGNES_M3D_RUNNER_PHASE_PROTOCOL_PATH?.trim();
-  if (!requested) return null;
-  assert(runnerManagedPaths, "runner phase protocol requires runner-managed paths");
-  assert(path.isAbsolute(requested));
-  const resolved = path.resolve(requested);
-  const relative = path.relative(runnerManagedPaths.runtimeRoot, resolved);
-  assert(
-    relative !== "" &&
-      relative !== ".." &&
-      !relative.startsWith(`..${path.sep}`) &&
-      !path.isAbsolute(relative),
-    "runner phase protocol must remain strictly inside runtime",
-  );
-  assert.equal(existsSync(resolved), false);
-  return resolved;
-}
-
-function maybeInjectRunnerPhaseFailure(phase: string): void {
-  const requested =
-    process.env.AUGNES_M3D_RUNNER_INJECT_FAILURE_PHASE?.trim();
-  if (!requested) return;
-  assert(
-    requested === "MECHANICAL_REHEARSAL" || requested === "EXACT_REPLAY",
-    "unsupported runner phase failure injection",
-  );
-  if (requested === phase) {
-    throw new RunnerPhaseFailure(
-      phase,
-      `injected_${phase.toLowerCase()}_failure`,
-    );
-  }
-}
-
-function writeRunnerPhaseProtocol(input: {
-  status: "pass" | "fail";
-  failure_phase: string | null;
-  reason_code: string | null;
-}): void {
-  if (!runnerPhaseProtocolPath) return;
-  mkdirSync(path.dirname(runnerPhaseProtocolPath), {
-    recursive: true,
-    mode: 0o700,
-  });
-  writeFileSync(
-    runnerPhaseProtocolPath,
-    `${JSON.stringify(
-      {
-        protocol_version: "vnext_m3d_runner_phase_protocol.v0.1",
-        status: input.status,
-        completed_phases: runnerCompletedPhases,
-        failure_phase: input.failure_phase,
-        reason_code: input.reason_code,
-        fixture_only: true,
-        real_user_authorization_created: false,
-        m3_completion_claimed: false,
-      },
-      null,
-      2,
-    )}\n`,
-    { encoding: "utf8", mode: 0o600, flag: "wx" },
-  );
-  chmodSync(runnerPhaseProtocolPath, 0o600);
-}
-
 function initializeCanonicalDatabase(): void {
+  assert.equal(existsSync(canonicalDbPath), false);
   const db = new Database(canonicalDbPath);
   try {
     db.pragma("foreign_keys = ON");
@@ -1502,7 +1354,7 @@ async function assertFullOperatorLoop(input: {
   const contextReview = contextReviewBody.review as ContextUseReviewV01;
   pass("context_use_review_persisted_without_semantic_mutation");
 
-  const beforeLineageReads = snapshotM3DDurableRows(canonicalDbPath);
+  const beforeLineageReads = snapshotDurableRows(canonicalDbPath);
   for (let index = 0; index < 2; index += 1) {
     await assertWorkbenchDurableLineageRoute({
       handlers: reviewHandlers,
@@ -1516,7 +1368,7 @@ async function assertFullOperatorLoop(input: {
       handoff_href: laterPacketHandoffHref!,
     });
   }
-  assert.deepEqual(snapshotM3DDurableRows(canonicalDbPath), beforeLineageReads);
+  assert.deepEqual(snapshotDurableRows(canonicalDbPath), beforeLineageReads);
   pass("workbench_full_durable_lineage_get_and_refresh_write_zero_rows");
 
   await assertWorkbenchLineageFailClosedCoverage({
@@ -2440,7 +2292,7 @@ function assertDecisionProvenanceCoverage(input: {
         input.request,
       ),
     );
-    pass("exact_m3d_session_bound_accept_decision_validated");
+    pass("exact_operator_session_bound_accept_decision_validated");
 
     for (const decisionValue of ["reject", "defer"] as const) {
       const request: VNextOperatorPilotDecisionRequestV01 = {
@@ -2502,7 +2354,7 @@ function assertDecisionProvenanceCoverage(input: {
           assert.equal(validation.pilot_actionable, false);
         },
       });
-      pass(`exact_m3d_session_bound_${decisionValue}_decision_validated`);
+      pass(`exact_operator_session_bound_${decisionValue}_decision_validated`);
     }
 
     const operatorBConfig = {
@@ -2634,7 +2486,7 @@ function assertDecisionProvenanceCoverage(input: {
       "operator_pilot_decision_session_basis_mismatch",
     );
     reject("resigned_modified_session_basis_source_ref_rejected");
-    reject("forged_m3d_actor_ref_rejected");
+    reject("forged_operator_actor_ref_rejected");
 
     const unconsumedIssue = issueVNextLocalOperatorBootstrapV01(db, {
       config: input.config,
@@ -2732,7 +2584,7 @@ function assertDecisionProvenanceCoverage(input: {
     const trapRequest: VNextOperatorPilotDecisionRequestV01 = {
       ...input.request,
       rationale_summary:
-        "Generic decision must not be captured as an exact M3D replay.",
+        "Generic decision must not be captured as an exact canonical replay.",
     };
     const trapDecision = rebuildDecisionForSmoke(genericDecision, {
       rationale_summary: trapRequest.rationale_summary,
@@ -2759,7 +2611,7 @@ function assertDecisionProvenanceCoverage(input: {
         );
       },
     });
-    reject("generic_decision_not_captured_as_exact_m3d_replay");
+    reject("generic_decision_not_captured_as_exact_operator_replay");
   } finally {
     db.close();
   }
@@ -3258,7 +3110,7 @@ function assertGenericGateCommitBypassRejected(input: {
     if (db.inTransaction) db.exec("ROLLBACK");
     db.close();
   }
-  reject("generic_m3c_gate_without_m3d_confirmation_basis_rejected");
+  reject("generic_commit_gate_without_operator_confirmation_basis_rejected");
   reject("direct_commit_api_bypass_with_generic_gate_rejected");
 }
 
@@ -3293,7 +3145,7 @@ function assertGateProvenanceCoverage(input: {
       withoutBasis,
       "operator_pilot_gate_confirmation_basis_required",
     );
-    reject("generic_gate_without_m3d_confirmation_basis_rejected");
+    reject("generic_gate_without_operator_confirmation_basis_rejected");
 
     const foreignSession = db.prepare(
       `SELECT session_id FROM vnext_local_operator_sessions
@@ -4360,9 +4212,9 @@ function snapshotLegacyRows(
   );
 }
 
-function assertM3DBackupRestore(databasePath: string): void {
-  const backupPath = path.join(tempRoot, "operator-pilot-m3d-backup.db");
-  const restoredPath = path.join(tempRoot, "operator-pilot-m3d-restored.db");
+function assertBackupRestore(databasePath: string): void {
+  const backupPath = path.join(tempRoot, "operator-pilot-backup.db");
+  const restoredPath = path.join(tempRoot, "operator-pilot-restored.db");
   const checkpoint = new Database(databasePath, { fileMustExist: true });
   try {
     checkpoint.pragma("wal_checkpoint(TRUNCATE)");
@@ -4373,14 +4225,14 @@ function assertM3DBackupRestore(databasePath: string): void {
     checkpoint.close();
   }
 
-  const before = snapshotM3DDurableRows(databasePath);
+  const before = snapshotDurableRows(databasePath);
   copyFileSync(databasePath, backupPath);
   copyFileSync(backupPath, restoredPath);
-  const restored = snapshotM3DDurableRows(restoredPath);
+  const restored = snapshotDurableRows(restoredPath);
   assert.deepEqual(
     restored,
     before,
-    "backup/restore must preserve exact M3D rows, identities, and schema",
+    "backup/restore must preserve exact durable rows, identities, and schema",
   );
 
   const restoredDb = new Database(restoredPath, {
@@ -4441,16 +4293,16 @@ function assertM3DBackupRestore(databasePath: string): void {
             identity.record_id === recordId &&
             identity.fingerprint === fingerprint,
         ),
-        `restored M3D identity missing: ${recordKind}/${recordId}`,
+        `restored durable identity missing: ${recordKind}/${recordId}`,
       );
     }
   } finally {
     restoredDb.close();
   }
-  pass("m3d_backup_restore_preserves_exact_records_identities_and_integrity");
+  pass("backup_restore_preserves_exact_records_identities_and_integrity");
 }
 
-function snapshotM3DDurableRows(databasePath: string): {
+function snapshotDurableRows(databasePath: string): {
   rows: Record<string, { count: number; row_hash: string }>;
   schema_hash: string;
 } {
@@ -4713,18 +4565,12 @@ async function exportOperatorPilotBrowserFixtureV01(input: {
   | {
       exported: true;
       manifest_path: string;
-      database_mode: "copied_fixture" | "runner_managed_exact_working_db";
+      database_mode: "copied_fixture";
     }
 > {
-  const runnerManifestPath =
-    process.env.AUGNES_M3D_RUNNER_BROWSER_MANIFEST_PATH?.trim();
   const requestedDirectory =
     process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR?.trim();
-  assert(
-    !(runnerManifestPath && requestedDirectory),
-    "runner manifest and copied browser fixture modes are mutually exclusive",
-  );
-  if (!runnerManifestPath && !requestedDirectory) return { exported: false };
+  if (!requestedDirectory) return { exported: false };
 
   const manifest = {
     fixture_version: "vnext_operator_pilot_browser_fixture.v0.1",
@@ -4750,46 +4596,6 @@ async function exportOperatorPilotBrowserFixtureV01(input: {
     semantic_authority_granted: false,
   };
 
-  if (runnerManifestPath) {
-    assert(runnerManagedPaths, "runner browser manifest requires runner-managed paths");
-    assert.equal(path.isAbsolute(runnerManifestPath), true);
-    const manifestPath = path.resolve(runnerManifestPath);
-    const relative = path.relative(
-      runnerManagedPaths.runtimeRoot,
-      manifestPath,
-    );
-    assert(
-      relative !== "" &&
-        relative !== ".." &&
-        !relative.startsWith(`..${path.sep}`) &&
-        !path.isAbsolute(relative),
-      "runner browser manifest must stay strictly inside runtime",
-    );
-    assert.equal(existsSync(manifestPath), false);
-    mkdirSync(path.dirname(manifestPath), { recursive: true, mode: 0o700 });
-    writeFileSync(
-      manifestPath,
-      `${JSON.stringify(
-        {
-          ...manifest,
-          database_file: path.basename(canonicalDbPath),
-          database_binding: "runner_managed_exact_working_db",
-          database_identity: databaseFileIdentityV01(canonicalDbPath),
-        },
-        null,
-        2,
-      )}\n`,
-      { encoding: "utf8", mode: 0o600, flag: "wx" },
-    );
-    chmodSync(manifestPath, 0o600);
-    return {
-      exported: true,
-      manifest_path: manifestPath,
-      database_mode: "runner_managed_exact_working_db",
-    };
-  }
-
-  assert(requestedDirectory);
   assert.equal(path.isAbsolute(requestedDirectory), true);
   const directory = path.resolve(requestedDirectory);
   const relativeToOsTemp = path.relative(path.resolve(tmpdir()), directory);

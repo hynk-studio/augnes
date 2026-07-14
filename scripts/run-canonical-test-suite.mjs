@@ -6,6 +6,11 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import {
+  buildCanonicalChildEnvironment,
+  findForbiddenAmbientKeysForwarded,
+} from "./canonical-test-environment.mjs";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
@@ -65,6 +70,13 @@ const suites = {
   ],
   authority: [
     {
+      label: "canonical child environment isolation",
+      ...rootNode("scripts/test-canonical-environment-isolation.mjs"),
+      env: {
+        AUGNES_CANONICAL_TEMP_ROOT: temporaryRoot,
+      },
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },
@@ -93,22 +105,34 @@ if (!(suiteName in suites)) {
   process.exit(2);
 }
 
-const baseEnvironment = { ...process.env };
-delete baseEnvironment.OPENAI_API_KEY;
-delete baseEnvironment.GITHUB_TOKEN;
-
 const results = [];
+let forbiddenEnvironmentKeysForwarded = 0;
+let canonicalChildrenChecked = 0;
 
 try {
   for (const step of suites[suiteName]) {
     const startedAt = Date.now();
     console.log(`\n[canonical:${suiteName}] ${step.label}`);
+    const childEnvironment = buildCanonicalChildEnvironment({
+      ambientEnvironment: process.env,
+      stepEnvironment: step.env,
+      temporaryRoot,
+    });
+    const forbiddenKeys = findForbiddenAmbientKeysForwarded({
+      ambientEnvironment: process.env,
+      childEnvironment,
+      stepEnvironment: step.env,
+    });
+    forbiddenEnvironmentKeysForwarded += forbiddenKeys.length;
+    canonicalChildrenChecked += 1;
+    if (forbiddenKeys.length > 0) {
+      throw new Error(
+        `forbidden ambient environment keys forwarded: ${forbiddenKeys.join(", ")}`,
+      );
+    }
     const result = spawnSync(step.command, step.args, {
       cwd: step.cwd,
-      env: {
-        ...baseEnvironment,
-        ...step.env,
-      },
+      env: childEnvironment,
       stdio: "inherit",
     });
     const durationMs = Date.now() - startedAt;
@@ -125,8 +149,11 @@ try {
       {
         suite: suiteName,
         status: "pass",
-        live_provider_calls: 0,
-        durable_user_data_accessed: false,
+        environment_isolation_verified:
+          forbiddenEnvironmentKeysForwarded === 0,
+        forbidden_environment_keys_forwarded:
+          forbiddenEnvironmentKeysForwarded,
+        canonical_children_checked: canonicalChildrenChecked,
         results,
       },
       null,
