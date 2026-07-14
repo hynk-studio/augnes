@@ -45,6 +45,13 @@ const suites = {
   ],
   integration: [
     {
+      label: "project identity, persistence, compatibility, and isolation",
+      ...rootNode("scripts/test-vnext-project-identity.ts"),
+      env: {
+        AUGNES_DB_PATH: path.join(temporaryRoot, "project-identity.db"),
+      },
+    },
+    {
       label: "current MCP and adapter runtime integration",
       ...nestedNode("scripts/smoke.ts"),
     },

@@ -38,6 +38,7 @@ import {
   migrateVerificationEvidenceRecords,
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
+  migrateVNextProjectIdentityRegistryV01,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -55,6 +56,8 @@ export function applyCanonicalDatabaseMigrations(db) {
   }
   const vNextDurableSemanticStoreResult = migrateVNextDurableSemanticStoreV01(db);
   const vNextLocalOperatorSessionResult = migrateVNextLocalOperatorSessionsV01(db);
+  const vNextProjectIdentityRegistryResult =
+    migrateVNextProjectIdentityRegistryV01(db);
 
   db.exec(schema);
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
@@ -118,6 +121,7 @@ export function applyCanonicalDatabaseMigrations(db) {
     result: combineMigrationResults(preSchemaResult, postSchemaResult),
     vNextDurableSemanticStoreResult,
     vNextLocalOperatorSessionResult,
+    vNextProjectIdentityRegistryResult,
     mailboxResult,
     sessionBindingResult,
     deliveryArtifactsResult,
