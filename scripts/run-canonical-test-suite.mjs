@@ -91,7 +91,7 @@ const suites = {
   ],
   operability: [
     {
-      label: "startup, occupied port, shutdown, cleanup, and recovery",
+      label: "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
     },
   ],

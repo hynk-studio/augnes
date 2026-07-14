@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import {
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -34,6 +35,7 @@ const originalUmask = process.umask(0o077);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-packet-handoff-browser-v0-1-"),
 );
+const processTempRoot = mkdtempSync(path.join(tmpdir(), "ag-e2e-"));
 const fixtureDir = path.join(tempRoot, "fixture");
 const chromeProfileDir = path.join(tempRoot, "chrome-profile");
 const manifestPath = path.join(
@@ -104,6 +106,7 @@ const result = {
   default_database_accessed: false,
   provider_or_external_network_call: false,
   temporary_root_removed: false,
+  temporary_process_root_removed: false,
   temporary_profile_removed: false,
   temporary_fixture_removed: false,
   temporary_database_removed: false,
@@ -195,6 +198,7 @@ try {
   bootstrapToken = null;
   await cleanup();
   result.temporary_root_removed = !existsSync(tempRoot);
+  result.temporary_process_root_removed = !existsSync(processTempRoot);
   result.temporary_profile_removed = !existsSync(chromeProfileDir);
   result.temporary_fixture_removed = !existsSync(fixtureDir);
   result.temporary_database_removed = !existsSync(databasePath);
@@ -611,7 +615,7 @@ async function exportActualCompiledPacketFixture() {
   assert.equal(
     completed.code,
     0,
-    `operator-pilot fixture export failed with exit ${completed.code}`,
+    `operator-pilot fixture export failed with exit ${completed.code}: ${completed.stderr.trim() || "no public error output"}`,
   );
   const jsonStart = completed.stdout.indexOf("{\n");
   assert(jsonStart >= 0, "operator-pilot smoke summary missing");
@@ -633,9 +637,17 @@ function databaseFileIdentityV01(databasePath) {
 }
 
 function isolatedRuntimeEnvironment({ databasePath, manifest }) {
+  const disposableHome = path.join(tempRoot, "home");
+  mkdirSync(disposableHome, { recursive: true, mode: 0o700 });
   return {
     ...minimalProcessEnvironment(),
+    HOME: disposableHome,
+    USERPROFILE: disposableHome,
+    TMPDIR: processTempRoot,
+    TMP: processTempRoot,
+    TEMP: processTempRoot,
     NEXT_TELEMETRY_DISABLED: "1",
+    AUGNES_RUNTIME_STATE_DIR: path.join(tempRoot, "runtime-state"),
     AUGNES_DB_PATH: databasePath,
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: manifest.workspace_id,
@@ -712,7 +724,11 @@ async function issueBootstrap(environment) {
     ["run", "vnext:operator-pilot", "--", "issue-session"],
     { cwd: appRepo, env: environment, timeoutMs: DEFAULT_TIMEOUT_MS },
   );
-  assert.equal(completed.code, 0, "bootstrap issuance failed");
+  assert.equal(
+    completed.code,
+    0,
+    `bootstrap issuance failed: ${completed.stderr.trim() || "no public error output"}`,
+  );
   const lines = completed.stdout.trimEnd().split("\n");
   const markerIndex = lines.indexOf(
     "Augnes vNext local operator bootstrap token (shown once):",
@@ -1196,32 +1212,55 @@ async function cleanup() {
   }
   if (cdp) await cdp.close().catch(() => undefined);
   cdp = null;
-  await terminateProcess(chromeProcess);
-  await terminateProcess(serverProcess);
+  await terminateProcess(chromeProcess, 2_000);
+  await terminateProcess(serverProcess, 15_000);
   chromeProcess = null;
   serverProcess = null;
   serverLog = "";
-  rmSync(tempRoot, { recursive: true, force: true });
+  await removeTemporaryRoots([tempRoot, processTempRoot]);
 }
 
-async function terminateProcess(child) {
-  if (!child || child.exitCode !== null) return;
+async function terminateProcess(child, gracefulTimeoutMs) {
+  if (!child || childHasExited(child)) return;
   try {
     process.kill(-child.pid, "SIGTERM");
   } catch {
     child.kill("SIGTERM");
   }
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    delay(1_000),
-  ]);
-  if (child.exitCode === null) {
+  await waitForChildExit(child, gracefulTimeoutMs);
+  if (!childHasExited(child)) {
     try {
       process.kill(-child.pid, "SIGKILL");
     } catch {
       child.kill("SIGKILL");
     }
+    await waitForChildExit(child, 2_000);
   }
+}
+
+function childHasExited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+function waitForChildExit(child, timeoutMs) {
+  if (childHasExited(child)) return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timeout);
+      child.off("exit", finish);
+      resolve();
+    };
+    const timeout = setTimeout(finish, timeoutMs);
+    child.once("exit", finish);
+  });
+}
+
+async function removeTemporaryRoots(roots) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    for (const root of roots) rmSync(root, { recursive: true, force: true });
+    await delay(100);
+  }
+  for (const root of roots) rmSync(root, { recursive: true, force: true });
 }
 
 function record(id) {
