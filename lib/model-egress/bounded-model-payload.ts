@@ -349,7 +349,7 @@ export function cloneBoundedModelEgressJson(
         );
       }
       assertModelEgressCollectionCount(purpose, keys.length, maximumNodes);
-      const result: Record<string, ModelEgressJsonValue> = {};
+      const result: Record<string, ModelEgressJsonValue> = Object.create(null);
       for (const key of keys) {
         if (typeof key !== "string") {
           refuseModelEgress(

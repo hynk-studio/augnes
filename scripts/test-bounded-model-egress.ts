@@ -63,6 +63,9 @@ const counters = {
   ordinaryFallbackTransportCalls: 0,
   ordinaryFallbackBodyReads: 0,
   undiciRequests: 0,
+  ownKeyRoundTripPreserved: false,
+  ordinaryObjectPrototypeUnchanged: false,
+  plannerOwnKeyTransportCalls: 0,
 };
 const undiciRequestChannel = channel("undici:request:create");
 const onUndiciRequest = () => {
@@ -87,6 +90,9 @@ async function main() {
     assert.equal(counters.providerErrorBodyReads, 0);
     assert.equal(counters.ordinaryFallbackBodyReads, 0);
     assert.equal(counters.undiciRequests, 0);
+    assert.equal(counters.ownKeyRoundTripPreserved, true);
+    assert.equal(counters.ordinaryObjectPrototypeUnchanged, true);
+    assert.equal(counters.plannerOwnKeyTransportCalls, 1);
 
     const summary = {
       test: "bounded_model_egress",
@@ -101,6 +107,10 @@ async function main() {
         counters.ordinaryFallbackTransportCalls,
       ordinary_fallback_body_reads: counters.ordinaryFallbackBodyReads,
       undici_requests: counters.undiciRequests,
+      own_key_round_trip_preserved: counters.ownKeyRoundTripPreserved,
+      ordinary_object_prototype_unchanged:
+        counters.ordinaryObjectPrototypeUnchanged,
+      planner_own_key_transport_calls: counters.plannerOwnKeyTransportCalls,
       refusal_reasons: MODEL_EGRESS_REFUSAL_REASONS,
     };
     const output = `${JSON.stringify(summary, null, 2)}\n`;
@@ -183,6 +193,40 @@ function runSharedMechanicsCases() {
     () => cloneBoundedModelEgressJson("planner_plan", new Date(0)),
     "model_egress_payload_unsupported",
   );
+
+  const ordinaryObjectPrototype = Object.getPrototypeOf({});
+  assert.equal(({} as Record<string, unknown>).marker, undefined);
+  assert.equal(Object.hasOwn(Object.prototype, "marker"), false);
+  const ownKeySource = JSON.parse(
+    '{"__proto__":{"marker":"preserved"},"constructor":{"value":"kept"},"prototype":"kept","ordinary":true}',
+  ) as Record<string, unknown>;
+  assert.equal(Object.hasOwn(ownKeySource, "__proto__"), true);
+  const ownKeyClone = cloneBoundedModelEgressJson(
+    "planner_plan",
+    ownKeySource,
+  ) as Record<string, unknown>;
+  assert.equal(Object.getPrototypeOf(ownKeyClone), null);
+  for (const key of ["__proto__", "constructor", "prototype", "ordinary"]) {
+    assert.equal(Object.hasOwn(ownKeyClone, key), true);
+  }
+  const clonedProtoValue = ownKeyClone.__proto__ as Record<string, unknown>;
+  assert.equal(clonedProtoValue.marker, "preserved");
+  const ownKeySerialized = JSON.stringify(ownKeyClone);
+  assert.equal(ownKeySerialized.includes('"__proto__"'), true);
+  assert.deepEqual(
+    JSON.parse(ownKeySerialized),
+    JSON.parse(JSON.stringify(ownKeySource)),
+  );
+  assert.equal(
+    JSON.stringify(cloneBoundedModelEgressJson("planner_plan", ownKeySource)),
+    ownKeySerialized,
+  );
+  assert.equal(Object.getPrototypeOf({}), ordinaryObjectPrototype);
+  assert.equal(({} as Record<string, unknown>).marker, undefined);
+  assert.equal(Object.hasOwn(Object.prototype, "marker"), false);
+  counters.ownKeyRoundTripPreserved = true;
+  counters.ordinaryObjectPrototypeUnchanged = true;
+
   for (const unsupported of [
     () => REJECTED_MARKER,
     Symbol("value"),
@@ -313,6 +357,52 @@ async function runPlannerCases() {
     "scope",
   ]);
   assert.equal(captured[0]?.includes(REJECTED_MARKER), false);
+
+  const ownKeyValue = JSON.parse(
+    '{"__proto__":{"marker":"preserved"},"constructor":{"value":"kept"},"prototype":"kept","ordinary":true}',
+  );
+  const ownKeyBrief = {
+    ...makePlannerBrief({
+      active: [makeState(200, ownKeyValue)],
+      tensions: [],
+      proposals: [],
+    }),
+    provider_control: REJECTED_MARKER,
+  } as Parameters<typeof planWithOpenAIForTest>[1];
+  const ownKeyCaptured: string[] = [];
+  const ownKeyBaseTransport = successTransport(
+    plannerProviderOutput(),
+    ownKeyCaptured,
+  );
+  const ownKeyTransport: BoundedModelTransport = async (requestBody) => {
+    counters.plannerOwnKeyTransportCalls += 1;
+    return ownKeyBaseTransport(requestBody);
+  };
+  await planWithOpenAIForTest(
+    "Preserve legal JSON own keys.",
+    ownKeyBrief,
+    ownKeyTransport,
+  );
+  assert.equal(counters.plannerOwnKeyTransportCalls, 1);
+  assert.equal(ownKeyCaptured.length, 1);
+  const ownKeyRequest = parseRequest(ownKeyCaptured[0]);
+  const ownKeyDynamic = parseDynamic(ownKeyRequest);
+  const projectedValue = ownKeyDynamic.brief.active_state[0].value;
+  for (const key of ["__proto__", "constructor", "prototype", "ordinary"]) {
+    assert.equal(Object.hasOwn(projectedValue, key), true);
+  }
+  assert.equal(projectedValue.__proto__.marker, "preserved");
+  assert.equal(Object.hasOwn(ownKeyDynamic.brief, "recent_actions"), false);
+  assert.equal(Object.hasOwn(ownKeyDynamic.brief, "agent_instructions"), false);
+  assert.equal(Object.hasOwn(ownKeyDynamic.brief, "agent_handoff"), false);
+  assert.equal(ownKeyCaptured[0].includes("provider_control"), false);
+  assert.equal(ownKeyCaptured[0].includes(REJECTED_MARKER), false);
+  assert.equal(
+    utf8ByteLength(ownKeyCaptured[0]) <=
+      PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes,
+    true,
+  );
+  assert.equal(({} as Record<string, unknown>).marker, undefined);
 
   await expectBlocked(
     "planner_plan",
