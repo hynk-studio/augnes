@@ -577,7 +577,7 @@ async function runStartCommand({
       isReady: (body) =>
         body?.ok === true &&
         body?.name === "augnes-console" &&
-        body?.mode === "http" &&
+        body?.mode === "mock" &&
         body?.runtime_instance_id === runtime.instanceId,
     });
     runtime.bridgePort = bridge.port;
@@ -733,7 +733,7 @@ export function buildSupervisorChildValues({
       NODE_ENV: "development",
       PORT: String(port),
       DOTENV_CONFIG_PATH: paths.bridgeEnvironment,
-      AUGNES_CORE_MODE: "http",
+      AUGNES_CORE_MODE: "mock",
       AUGNES_API_BASE_URL: effectiveUrl,
       AUGNES_ENABLE_AGENT_BRIDGE: "true",
       AUGNES_RUNTIME_INSTANCE_ID: instanceId,

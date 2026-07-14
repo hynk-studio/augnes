@@ -20,9 +20,12 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
+import { createRequire } from "node:module";
 import net from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
+
+import Database from "better-sqlite3";
 
 import {
   DEFAULT_BRIDGE_PORT,
@@ -40,6 +43,9 @@ import {
 } from "./runtime-child-environment.mjs";
 
 const repoRoot = process.cwd();
+const requireMcpSdk = createRequire(
+  path.join(repoRoot, "apps", "augnes_apps", "package.json"),
+);
 const supervisorScript = path.join(repoRoot, "scripts", "augnes-runtime-supervisor.mjs");
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "augnes-runtime-operability-"));
 const homeRoot = path.join(temporaryRoot, "home");
@@ -47,6 +53,9 @@ const tempRoot = path.join(temporaryRoot, "tmp");
 const logRoot = path.join(temporaryRoot, "logs");
 const databasePath = path.join(temporaryRoot, "data", "runtime.db");
 const repositoryDatabasePath = path.join(repoRoot, "data", "augnes.db");
+const runtimeMarkerScope = "project:runtime-supervisor-mcp-behavior-v0-1";
+const runtimeMarkerStateKey = "runtime_supervisor.mcp_behavior_marker";
+const runtimeMarkerValue = "disposable-root-runtime-marker-v0-1";
 const publicSecretSentinel = "must-not-escape-runtime-parent";
 const publicModelSentinel = "reviewed-model-sentinel-must-not-escape";
 const reviewedBridgeCompatibilityEnvironment = Object.freeze({
@@ -74,6 +83,8 @@ let proxyRequestCount = 0;
 let unrelatedProcess = null;
 let unrelatedIdentityServer = null;
 let proxyServer = null;
+let mcpBehaviorVerified = false;
+let legacyRootRequestCount = 0;
 
 mkdirSync(homeRoot, { recursive: true });
 mkdirSync(tempRoot, { recursive: true });
@@ -109,6 +120,8 @@ try {
   await testRequiredChildFailure();
   await testUnverifiedOwnershipRefusal();
 
+  assert.equal(mcpBehaviorVerified, true, "real public and StateRuntime MCP tools must be verified");
+  assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must remain alive");
   assert.deepEqual(
@@ -145,8 +158,11 @@ try {
     unverified_pid_never_signaled: true,
     environment_isolation_verified: true,
     reviewed_ui_provider_environment_verified: true,
-    bridge_core_mode: "http",
-    bridge_http_adapter_selected: true,
+    bridge_core_mode: "mock",
+    public_mcp_mock_tool_verified: mcpBehaviorVerified,
+    state_runtime_mcp_tool_verified: mcpBehaviorVerified,
+    state_runtime_disposable_marker_verified: mcpBehaviorVerified,
+    legacy_root_requests_observed: legacyRootRequestCount,
     runtime_state_physical_path_verified: true,
     path_fixture_skip_reason: pathFixtureSkipReason,
     provider_credentials_required: false,
@@ -177,7 +193,11 @@ try {
         reviewed_ui_provider_environment_verified:
           summary.reviewed_ui_provider_environment_verified,
         bridge_core_mode: summary.bridge_core_mode,
-        bridge_http_adapter_selected: summary.bridge_http_adapter_selected,
+        public_mcp_mock_tool_verified: summary.public_mcp_mock_tool_verified,
+        state_runtime_mcp_tool_verified: summary.state_runtime_mcp_tool_verified,
+        state_runtime_disposable_marker_verified:
+          summary.state_runtime_disposable_marker_verified,
+        legacy_root_requests_observed: summary.legacy_root_requests_observed,
         runtime_state_physical_path_verified:
           summary.runtime_state_physical_path_verified,
         provider_or_proxy_requests: summary.provider_or_proxy_requests,
@@ -411,7 +431,7 @@ async function testReadyDuplicateStatusAndStop() {
     );
   }
 
-  await assertReadyEndpoints(ready, environment, scenario);
+  await assertReadyEndpoints(ready, environment, scenario, managed);
   await assertLoopbackOnly(ready.ui_port);
   await assertLoopbackOnly(ready.bridge_port);
   const manifest = assertOwnershipFiles(scenario.stateDirectory, ready);
@@ -521,7 +541,7 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
     `http://127.0.0.1:${ready.bridge_port}/healthz`,
   );
   assert.equal(bridgeHealth.statusCode, 200);
-  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.mode, "mock");
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.profile, "chrono_lab");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "poisoned bridge health");
@@ -764,8 +784,8 @@ function scenarioEnvironment(
       ALL_PROXY: proxyUrl,
       NO_PROXY: "poisoned-no-proxy-value",
       AUGNES_UNRELATED_PARENT_VALUE: publicSecretSentinel,
-      AUGNES_CORE_MODE: "mock",
-      AUGNES_USE_MOCK: "true",
+      AUGNES_CORE_MODE: "http",
+      AUGNES_USE_MOCK: "false",
       AUGNES_ENABLE_AGENT_BRIDGE: "false",
       ...blockedBridgeFileEnvironment,
       ...reviewedBridgeCompatibilityEnvironment,
@@ -901,7 +921,7 @@ function assertReadyResult(result) {
   }
 }
 
-async function assertReadyEndpoints(ready, environment, scenario) {
+async function assertReadyEndpoints(ready, environment, scenario, managed) {
   const uiHealth = await fetchJson(`${ready.effective_url}/api/healthz`);
   assert.equal(uiHealth.statusCode, 200);
   assert.equal(uiHealth.body.runtime_instance_id, ready.instance_id);
@@ -917,13 +937,13 @@ async function assertReadyEndpoints(ready, environment, scenario) {
   assert.equal(bridgeHealth.statusCode, 200);
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.ok, true);
-  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.mode, "mock");
   assertPublicSafe(JSON.stringify(uiHealth.body), "UI health response");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "bridge health response");
-  assertHttpAdapterSelection({ environment, ready, scenario });
+  await assertSupervisedMcpAdapterSplit({ environment, ready, scenario, managed });
 }
 
-function assertHttpAdapterSelection({ environment, ready, scenario }) {
+async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, managed }) {
   const values = buildSupervisorChildValues({
     role: "bridge",
     environment,
@@ -937,39 +957,96 @@ function assertHttpAdapterSelection({ environment, ready, scenario }) {
     ambientEnvironment: environment,
     values,
   });
-  const result = spawnSync(
-    process.execPath,
-    [
-      "--import",
-      "tsx",
-      "--input-type=module",
-      "--eval",
-      [
-        'const { createAugnesCoreAdapter } = await import("./src/adapters/index.ts");',
-        'const { config } = await import("./src/lib/config.ts");',
-        "const adapter = createAugnesCoreAdapter();",
-        "process.stdout.write(JSON.stringify({ adapter: adapter.constructor.name, coreMode: config.coreMode, apiBaseUrl: config.apiBaseUrl }));",
-      ].join("\n"),
-    ],
-    {
-      cwd: path.join(repoRoot, "apps", "augnes_apps"),
-      env: childEnvironment,
-      encoding: "utf8",
-      timeout: 15_000,
-    },
+  assert.equal(values.AUGNES_CORE_MODE, "mock");
+  assert.equal(values.AUGNES_API_BASE_URL, ready.effective_url);
+  assert.equal(values.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  assert.equal(values.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
+  assert.equal(childEnvironment.AUGNES_CORE_MODE, "mock");
+  assert.equal(childEnvironment.AUGNES_API_BASE_URL, ready.effective_url);
+  assert.equal(childEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  assert.equal(childEnvironment.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
+  assert.equal(Object.hasOwn(childEnvironment, "OPENAI_API_KEY"), false);
+  assert.equal(Object.hasOwn(childEnvironment, "OPENAI_MODEL"), false);
+
+  const databaseBeforeMcpReads = snapshotDatabaseFamily(databasePath);
+  const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
+  const { StreamableHTTPClientTransport } = requireMcpSdk(
+    "@modelcontextprotocol/sdk/client/streamableHttp.js",
   );
-  assert.equal(
-    result.status,
-    0,
-    `HTTP adapter selection check failed: ${result.stderr || result.stdout}`,
-  );
-  const selection = JSON.parse(result.stdout);
-  assert.deepEqual(selection, {
-    adapter: "HttpAugnesCoreAdapter",
-    coreMode: "http",
-    apiBaseUrl: ready.effective_url,
+  const client = new Client({
+    name: "augnes-runtime-operability",
+    version: "0.1.0",
   });
-  assertPublicSafe(`${result.stdout}\n${result.stderr}`, "HTTP adapter selection output");
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${ready.bridge_port}/mcp`),
+  );
+
+  let publicResult;
+  let runtimeResult;
+  try {
+    await withTimeout(client.connect(transport), 15_000, "MCP client connect");
+    const tools = await withTimeout(client.listTools(), 15_000, "MCP tool listing");
+    const toolNames = tools.tools.map((tool) => tool.name);
+    assert.equal(toolNames.includes("get_working_view"), true);
+    assert.equal(toolNames.includes("augnes_get_state_brief"), true);
+
+    publicResult = await withTimeout(
+      client.callTool({
+        name: "get_working_view",
+        arguments: { scope: runtimeMarkerScope },
+      }),
+      15_000,
+      "public MCP tool call",
+    );
+    assert.notEqual(publicResult.isError, true);
+    assert.equal(Object.hasOwn(publicResult.structuredContent ?? {}, "error"), false);
+    assert.deepEqual(publicResult.structuredContent?.workingView?.claimIds, [
+      "claim-augnes-app-01",
+    ]);
+    assert.equal(
+      publicResult.structuredContent?.workingView?.summary,
+      "Shipping Augnes as an Evidence & Continuity Console inside ChatGPT. Current emphasis: read-only tools, strong rationale surface, boundary packet review, continuity visibility.",
+    );
+
+    runtimeResult = await withTimeout(
+      client.callTool({
+        name: "augnes_get_state_brief",
+        arguments: { scope: runtimeMarkerScope },
+      }),
+      15_000,
+      "state runtime MCP tool call",
+    );
+    assert.notEqual(runtimeResult.isError, true);
+    assert.equal(Object.hasOwn(runtimeResult.structuredContent ?? {}, "error"), false);
+    const stateBrief = runtimeResult.structuredContent?.brief;
+    assert.equal(stateBrief?.scope, runtimeMarkerScope);
+    assert.equal(Array.isArray(stateBrief?.active_state), true);
+    const markerEntry = stateBrief.active_state.find(
+      (entry) => entry?.state_key === runtimeMarkerStateKey,
+    );
+    assert.equal(markerEntry?.value, runtimeMarkerValue);
+  } finally {
+    await withTimeout(client.close(), 10_000, "MCP client close");
+  }
+
+  const mcpPublicOutput = JSON.stringify({ publicResult, runtimeResult });
+  assertPublicSafe(mcpPublicOutput, "real MCP tool results");
+  assert.equal(mcpPublicOutput.includes(runtimeMarkerValue), true);
+  assert.deepEqual(
+    snapshotDatabaseFamily(databasePath),
+    databaseBeforeMcpReads,
+    "read-only MCP tool calls must not mutate the disposable DB or side files",
+  );
+
+  const legacyRoutePattern = /\b(?:GET|POST)\s+\/(?:search|working-view|casefile|strategy|boundary-packet|continuity-report|repo\/navigate|governance-audit)(?:[?\s]|$)/g;
+  const legacyRequests = managed.output().match(legacyRoutePattern) ?? [];
+  legacyRootRequestCount += legacyRequests.length;
+  assert.deepEqual(
+    legacyRequests,
+    [],
+    "legacy public MCP tools must not target proposed dev-read API paths on the root runtime",
+  );
+  mcpBehaviorVerified = true;
 }
 
 function assertOwnershipFiles(stateDirectory, ready) {
@@ -1047,8 +1124,8 @@ function assertRuntimeEnvironmentIsolation() {
     ALL_PROXY: "http://127.0.0.1:9",
     NO_PROXY: "poisoned",
     AUGNES_UNRELATED_PARENT_VALUE: publicSecretSentinel,
-    AUGNES_CORE_MODE: "mock",
-    AUGNES_USE_MOCK: "true",
+    AUGNES_CORE_MODE: "file",
+    AUGNES_USE_MOCK: "false",
     AUGNES_ENABLE_AGENT_BRIDGE: "false",
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "false",
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: "reviewed-workspace",
@@ -1109,7 +1186,7 @@ function assertRuntimeEnvironmentIsolation() {
     environment: ambientEnvironment,
     ...sharedArguments,
   });
-  assert.equal(bridgeValues.AUGNES_CORE_MODE, "http");
+  assert.equal(bridgeValues.AUGNES_CORE_MODE, "mock");
   assert.equal(bridgeValues.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeValues.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   for (const [key, value] of Object.entries(reviewedBridgeCompatibilityEnvironment)) {
@@ -1120,7 +1197,7 @@ function assertRuntimeEnvironmentIsolation() {
     ambientEnvironment,
     values: bridgeValues,
   });
-  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "http");
+  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "mock");
   assert.equal(bridgeEnvironment.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_API_KEY"), false);
@@ -1274,6 +1351,30 @@ function initializeDisposableDatabase(targetPath) {
     0,
     `disposable database initialization failed: ${result.stderr || result.stdout}`,
   );
+  const database = new Database(targetPath);
+  try {
+    database
+      .prepare(
+        `INSERT INTO state_entries (
+          id, scope, state_key, value, temporal_scope, stability, change_type,
+          source_agent_id, source_session_id, source_transition_id,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)`,
+      )
+      .run(
+        "runtime-supervisor-mcp-behavior-marker",
+        runtimeMarkerScope,
+        runtimeMarkerStateKey,
+        JSON.stringify(runtimeMarkerValue),
+        "current",
+        "temporary",
+        "runtime_operability_fixture",
+        "2000-01-01T00:00:00.000Z",
+        "2000-01-01T00:00:00.000Z",
+      );
+  } finally {
+    database.close();
+  }
 }
 
 function snapshotDatabaseFamily(basePath) {
@@ -1539,4 +1640,21 @@ function removeScenarioLogs(scenario) {
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function withTimeout(promise, timeoutMs, label) {
+  let timeout;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
