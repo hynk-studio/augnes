@@ -1,5 +1,11 @@
-import { AugnesPublicHomeSurface } from "@/components/augnes-public-home-surface";
+import { ProjectOnboardingHome } from "@/components/project-onboarding-home";
+import { openDatabase } from "@/lib/db";
+import { listRecentProjectsV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 
-export default function Home() {
-  return <AugnesPublicHomeSurface />;
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const db = openDatabase();
+  try { return <ProjectOnboardingHome initialRecent={await listRecentProjectsV01(db)} />; }
+  finally { db.close(); }
 }

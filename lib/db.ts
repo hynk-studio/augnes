@@ -7,6 +7,7 @@ import proposalScoringSchema from "@/lib/db/proposal-scoring-schema.json";
 import {
   ensureVNextProjectIdentityRegistrySchemaV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
+import { ensureVNextProjectLifecycleSchemaV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -261,6 +262,7 @@ export function openDatabase() {
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
   ensureVNextProjectIdentityRegistrySchemaV01(db);
+  ensureVNextProjectLifecycleSchemaV01(db);
   return db;
 }
 

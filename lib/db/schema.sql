@@ -4035,6 +4035,35 @@ CREATE TRIGGER IF NOT EXISTS trg_vnext_project_external_refs_immutable_delete
   BEFORE DELETE ON vnext_project_external_ref_bindings
   BEGIN SELECT RAISE(ABORT, 'vnext_project_external_ref_binding_immutable'); END;
 
+CREATE TABLE IF NOT EXISTS vnext_recent_projects (
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  recent_project_entry_version TEXT NOT NULL CHECK (
+    recent_project_entry_version = 'recent_project_entry.v0.1'
+  ),
+  created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+  last_opened_at TEXT NOT NULL CHECK (length(trim(last_opened_at)) > 0),
+  PRIMARY KEY (workspace_id, project_id),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_vnext_recent_projects_workspace_opened
+  ON vnext_recent_projects(workspace_id, last_opened_at DESC, project_id);
+
+CREATE TABLE IF NOT EXISTS vnext_active_project_selections (
+  workspace_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  active_project_selection_version TEXT NOT NULL CHECK (
+    active_project_selection_version = 'active_project_selection.v0.1'
+  ),
+  selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
+  selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
   session_id TEXT PRIMARY KEY CHECK (
     length(trim(session_id)) > 0 AND length(session_id) <= 256

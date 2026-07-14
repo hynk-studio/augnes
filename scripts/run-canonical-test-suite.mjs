@@ -45,6 +45,10 @@ const suites = {
   ],
   integration: [
     {
+      label: "folder onboarding, recent projects, active selection, and recovery",
+      ...rootNode("scripts/test-vnext-project-onboarding.ts"),
+    },
+    {
       label: "project identity, persistence, compatibility, and isolation",
       ...rootNode("scripts/test-vnext-project-identity.ts"),
       env: {
