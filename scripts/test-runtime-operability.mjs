@@ -221,7 +221,12 @@ try {
       unrelatedProcess.kill("SIGKILL");
     });
   }
-  rmSync(temporaryRoot, { recursive: true, force: true });
+  rmSync(temporaryRoot, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 100,
+  });
 }
 
 async function testRuntimeStatePathSafety() {
@@ -681,7 +686,7 @@ async function testUnverifiedOwnershipRefusal() {
   const status = await runCli(["status"], environment, scenario, "unverified-status");
   assert.equal(status.code, 2, status.output);
   const statusResult = lastJsonResult(status.stdout);
-  assert.equal(statusResult.state, "unavailable");
+  assert.equal(statusResult.state, "reconciliation_required");
   assert.equal(statusResult.verified, false);
   assert.equal("supervisor_pid" in statusResult, false, "unverified PID must not be echoed");
   assertPublicSafe(status.output, "unverified status output");
@@ -691,7 +696,7 @@ async function testUnverifiedOwnershipRefusal() {
   assert.equal(stop.code, 2, stop.output);
   const stopResult = lastJsonResult(stop.stdout);
   assert.equal(stopResult.result, "refused");
-  assert.equal(stopResult.reason, "ownership_unverified");
+  assert.equal(stopResult.reason, "runtime_ownership_unverifiable");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "stop must not signal unrelated PID");
   assert.equal(await canConnect(controlPort), true, "unrelated control listener must remain alive");
 
@@ -1076,7 +1081,18 @@ function assertOwnershipFiles(stateDirectory, ready) {
   assert.equal(manifest.control_host, "127.0.0.1");
   assert(Number.isInteger(manifest.control_port));
   assert.equal(manifest.effective_url, ready.effective_url);
-  assert.deepEqual(manifest.children, ready.children);
+  assert.deepEqual(
+    manifest.children.map(({ ownership_port: _ownershipPort, ...child }) => child),
+    ready.children,
+  );
+  for (const child of manifest.children) {
+    assert(Number.isInteger(child.ownership_port) && child.ownership_port > 0);
+    assert.equal(
+      ready.children.some((publicChild) => "ownership_port" in publicChild),
+      false,
+      "private ownership listener ports must stay out of normal output",
+    );
+  }
   assert.equal("token" in manifest, false, "public ownership manifest must exclude control token");
   assert.equal("database_path" in manifest, false, "manifest must exclude database path");
   return manifest;
