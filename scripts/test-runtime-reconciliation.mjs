@@ -43,7 +43,10 @@ import {
   prepareRuntimeDatabase,
   verifyDatabaseFile,
 } from "./runtime-database-bootstrap.mjs";
-import { classifyRuntimeState } from "./runtime-reconciliation.mjs";
+import {
+  acquireRuntimeReconciliationLease,
+  classifyRuntimeState,
+} from "./runtime-reconciliation.mjs";
 
 const repositoryRoot = realpathSync(process.cwd());
 const repositoryFingerprint = createHash("sha256")
@@ -64,6 +67,8 @@ const observedOwnershipPorts = new Set();
 
 if (process.argv[2] === "--bootstrap-crash-helper") {
   await runBootstrapCrashHelper(process.argv[3]);
+} else if (process.argv[2] === "--reconciliation-lease-helper") {
+  await runReconciliationLeaseHelper();
 } else {
   await runReconciliationSuite();
 }
@@ -87,6 +92,19 @@ async function runReconciliationSuite() {
       response.writeHead(502).end("reconciliation proxy sentinel");
     });
     const proxyPort = await listen(proxyServer);
+
+    await testReconciliationLeaseOwnerCrash({
+      temporaryRoot,
+      proxyPort,
+      managed,
+      selectedPorts,
+    });
+    await testDatabaseJournalOwnerCrash({
+      temporaryRoot,
+      proxyPort,
+      managed,
+      selectedPorts,
+    });
 
     if (process.platform === "win32") {
       windowsHardCrashSkipReason =
@@ -159,6 +177,10 @@ async function runReconciliationSuite() {
       forged_pid_refused: true,
       conflicting_generation_refused: true,
       concurrent_start_single_runtime: process.platform !== "win32",
+      crashed_reconciliation_lease_reclaimed: true,
+      reconciliation_lease_reused_pid_rejected: true,
+      crashed_database_owner_reconciled: true,
+      database_journal_reused_pid_rejected: true,
       database_staging_ready_recovered: true,
       database_move_intent_recovered: true,
       database_original_moved_recovered: true,
@@ -197,6 +219,174 @@ async function runReconciliationSuite() {
       retryDelay: 100,
     });
   }
+}
+
+async function testReconciliationLeaseOwnerCrash({
+  temporaryRoot,
+  proxyPort,
+  managed,
+  selectedPorts,
+}) {
+  const scenario = await createRuntimeScenario(
+    temporaryRoot,
+    "reconciliation-lease-owner-crash",
+    proxyPort,
+  );
+  const helper = spawn(
+    process.execPath,
+    [testScript, "--reconciliation-lease-helper"],
+    {
+      cwd: repositoryRoot,
+      env: scenario.environment,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  const observed = { child: helper, stdout: "", stderr: "", events: [] };
+  collectJsonEvents(observed);
+  helper.stderr.setEncoding("utf8");
+  helper.stderr.on("data", (chunk) => {
+    observed.stderr += chunk;
+  });
+  await waitForHelperEvent(
+    observed,
+    (event) => event.kind === "reconciliation_lease_acquired",
+    10_000,
+  );
+  const lease = JSON.parse(readFileSync(scenario.paths.reconciliationLease, "utf8"));
+  observedOwnershipPorts.add(lease.owner_probe_port);
+  const active = await classifyRuntimeState({
+    paths: scenario.paths,
+    repositoryFingerprint,
+  });
+  assert.equal(active.state, "reconciliation_in_progress");
+  const activeStatus = await runCli(["status"], scenario.environment);
+  assert.equal(activeStatus.code, 2, activeStatus.output);
+  assert.equal(
+    lastJson(activeStatus.stdout).reason,
+    "runtime_reconciliation_in_progress",
+  );
+  assert.equal(activeStatus.output.includes(lease.owner_probe_token), false);
+  assert.equal(observed.stdout.includes(lease.owner_probe_token), false);
+
+  writeRestrictedJson(
+    scenario.paths.reconciliationLease,
+    { ...lease, owner_probe_port: await freePort() },
+    true,
+  );
+  const ambiguous = await classifyRuntimeState({
+    paths: scenario.paths,
+    repositoryFingerprint,
+  });
+  assert.equal(ambiguous.state, "ownership_unverifiable");
+  assert.equal(isProcessAlive(helper.pid), true);
+  writeRestrictedJson(scenario.paths.reconciliationLease, lease, true);
+
+  process.kill(helper.pid, process.platform === "win32" ? "SIGTERM" : "SIGKILL");
+  await waitForExit(helper, 10_000);
+  await waitForClosedPort(lease.owner_probe_port, 5_000);
+  const stale = await classifyRuntimeState({
+    paths: scenario.paths,
+    repositoryFingerprint,
+  });
+  assert.equal(stale.state, "stale_reconciliation_lease");
+  assert.equal(stale.recoverable, true);
+
+  const unrelated = spawn(
+    process.execPath,
+    ["--eval", "setInterval(() => {}, 1000)"],
+    { stdio: "ignore" },
+  );
+  writeRestrictedJson(
+    scenario.paths.reconciliationLease,
+    { ...lease, owner_pid: unrelated.pid },
+    true,
+  );
+  const reused = await classifyRuntimeState({
+    paths: scenario.paths,
+    repositoryFingerprint,
+  });
+  assert.equal(reused.state, "stale_reconciliation_lease");
+  const runtime = await startSupervisor(scenario, managed);
+  selectedPorts.push(portSummary(scenario.name, runtime.ready));
+  assert.equal(isProcessAlive(unrelated.pid), true);
+  assert.equal(runtime.output().includes(lease.owner_probe_token), false);
+  await stopSupervisor(scenario, runtime, managed);
+  assertRuntimeStateClean(scenario.paths);
+  unrelated.kill("SIGTERM");
+  await waitForExit(unrelated, 5_000).catch(() => unrelated.kill("SIGKILL"));
+}
+
+async function testDatabaseJournalOwnerCrash({
+  temporaryRoot,
+  proxyPort,
+  managed,
+  selectedPorts,
+}) {
+  const scenario = await createRuntimeScenario(
+    temporaryRoot,
+    "database-journal-owner-crash",
+    proxyPort,
+  );
+  const marker = "agent:database-owner-crash-marker";
+  createOldDatabase(scenario.databasePath, marker);
+  const helper = spawnBootstrapHelper(scenario, { holdDuringBackup: true });
+  await waitForHelperEvent(
+    helper,
+    (event) => event.kind === "backup_owner_waiting",
+    20_000,
+  );
+  const lockPath = bootstrapJournalPath(scenario.databasePath);
+  const journal = JSON.parse(readFileSync(lockPath, "utf8"));
+  observedOwnershipPorts.add(journal.owner_probe_port);
+  const active = await inspectDatabaseReconciliation({
+    databasePath: scenario.databasePath,
+    backupDirectory: scenario.localPaths.backup_directory,
+    repositoryFingerprint,
+  });
+  assert.equal(active.state, "reconciliation_in_progress");
+  assert.equal(helper.stdout.includes(journal.owner_probe_token), false);
+
+  writeRestrictedJson(lockPath, { ...journal, owner_probe_port: await freePort() }, true);
+  const ambiguous = await inspectDatabaseReconciliation({
+    databasePath: scenario.databasePath,
+    backupDirectory: scenario.localPaths.backup_directory,
+    repositoryFingerprint,
+  });
+  assert.equal(ambiguous.state, "recovery_required");
+  assert.equal(isProcessAlive(helper.child.pid), true);
+  writeRestrictedJson(lockPath, journal, true);
+
+  process.kill(
+    helper.child.pid,
+    process.platform === "win32" ? "SIGTERM" : "SIGKILL",
+  );
+  await waitForExit(helper.child, 10_000);
+  await waitForClosedPort(journal.owner_probe_port, 5_000);
+
+  const unrelated = spawn(
+    process.execPath,
+    ["--eval", "setInterval(() => {}, 1000)"],
+    { stdio: "ignore" },
+  );
+  writeRestrictedJson(lockPath, { ...journal, supervisor_pid: unrelated.pid }, true);
+  const reused = await inspectDatabaseReconciliation({
+    databasePath: scenario.databasePath,
+    backupDirectory: scenario.localPaths.backup_directory,
+    repositoryFingerprint,
+  });
+  assert.equal(reused.state, "recoverable");
+  const runtime = await startSupervisor(scenario, managed);
+  selectedPorts.push(portSummary(scenario.name, runtime.ready));
+  assert.equal(isProcessAlive(unrelated.pid), true);
+  assert.equal(runtime.output().includes(journal.owner_probe_token), false);
+  assertMarker(scenario.databasePath, marker);
+  verifyDatabaseFile(scenario.databasePath);
+  await stopSupervisor(scenario, runtime, managed);
+  assert.equal(existsSync(lockPath), false);
+  assert.equal(listOperationResidue(path.dirname(scenario.databasePath)).length, 0);
+  assertRuntimeStateClean(scenario.paths);
+  unrelated.kill("SIGTERM");
+  await waitForExit(unrelated, 5_000).catch(() => unrelated.kill("SIGKILL"));
 }
 
 async function testReadyCrashConcurrentRestart({
@@ -518,7 +708,7 @@ async function testDatabaseCrashPhases({
     createOldDatabase(scenario.databasePath, marker);
     const helper = await crashBootstrapAtPhase(scenario, phase);
     assert.equal(helper.phase, phase);
-    const inspected = inspectDatabaseReconciliation({
+    const inspected = await inspectDatabaseReconciliation({
       databasePath: scenario.databasePath,
       backupDirectory: scenario.localPaths.backup_directory,
       repositoryFingerprint,
@@ -526,7 +716,7 @@ async function testDatabaseCrashPhases({
     assert.equal(inspected.state, "recoverable");
     assert.equal(inspected.phase, phase);
     if (phase === "original_moved") {
-      const foreignCheckout = inspectDatabaseReconciliation({
+      const foreignCheckout = await inspectDatabaseReconciliation({
         databasePath: scenario.databasePath,
         backupDirectory: scenario.localPaths.backup_directory,
         repositoryFingerprint: "f".repeat(64),
@@ -622,7 +812,7 @@ async function testRestoreFailureAndLegacyJournal({
   );
   assert.equal(failure.code, "database_rollback_failed");
   await waitForExit(helper.child, 10_000);
-  const inspected = inspectDatabaseReconciliation({
+  const inspected = await inspectDatabaseReconciliation({
     databasePath: restoreScenario.databasePath,
     backupDirectory: restoreScenario.localPaths.backup_directory,
     repositoryFingerprint,
@@ -687,7 +877,16 @@ async function runBootstrapCrashHelper(encodedConfiguration) {
       instanceId: configuration.instanceId,
       runtimeOwnershipGeneration: configuration.generationId,
       databaseOverrideActive: true,
-      dependencies: configuration.failureMode === "restore"
+      dependencies: configuration.holdDuringBackup
+        ? {
+            async backupDatabase() {
+              process.stdout.write(
+                `${JSON.stringify({ kind: "backup_owner_waiting" })}\n`,
+              );
+              await new Promise(() => {});
+            },
+          }
+        : configuration.failureMode === "restore"
         ? {
             afterStagingPublished() {
               throw new Error("test publication failure");
@@ -717,6 +916,20 @@ async function runBootstrapCrashHelper(encodedConfiguration) {
   } finally {
     walReader?.close();
   }
+}
+
+async function runReconciliationLeaseHelper() {
+  const paths = resolveRuntimePaths({
+    environment: process.env,
+    repositoryFingerprint,
+    repositoryRootPath: repositoryRoot,
+  });
+  mkdirSync(paths.directory, { recursive: true, mode: 0o700 });
+  await acquireRuntimeReconciliationLease({ paths, repositoryFingerprint });
+  process.stdout.write(
+    `${JSON.stringify({ kind: "reconciliation_lease_acquired" })}\n`,
+  );
+  await new Promise(() => {});
 }
 
 async function crashBootstrapAtPhase(
@@ -1081,10 +1294,18 @@ async function occupyPortRange(size) {
 }
 
 async function freePort() {
-  const server = net.createServer();
-  const port = await listen(server);
-  await closeServer(server);
-  return port;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const server = net.createServer();
+    const candidate = 20_000 + Math.floor(Math.random() * 35_000);
+    try {
+      await listen(server, candidate);
+      await closeServer(server);
+      return candidate;
+    } catch {
+      await closeServer(server);
+    }
+  }
+  throw new Error("unable to select a bounded disposable port");
 }
 
 function listen(server, port = 0) {
@@ -1116,6 +1337,15 @@ async function canConnect(port) {
     socket.once("connect", () => done(true));
     socket.once("error", () => done(false));
   });
+}
+
+async function waitForClosedPort(port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await canConnect(port))) return;
+    await delay(50);
+  }
+  assert.equal(await canConnect(port), false, `owned port ${port} did not close`);
 }
 
 function signalProcessTree(pid, signal) {

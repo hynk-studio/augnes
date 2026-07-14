@@ -21,9 +21,14 @@ import Database from "better-sqlite3";
 
 import { ensureApplicationDirectory } from "./augnes-local-paths.mjs";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import {
+  classifyPrivateProcessOwnership,
+  startPrivateProcessOwnershipProbe,
+  validPrivateProcessOwnershipFields,
+} from "./local-process-ownership.mjs";
 
 export const DATABASE_BOOTSTRAP_CONTRACT = "augnes-local-database-bootstrap-v1";
-export const DATABASE_BOOTSTRAP_JOURNAL_SCHEMA_VERSION = 2;
+export const DATABASE_BOOTSTRAP_JOURNAL_SCHEMA_VERSION = 3;
 const SQLITE_SIDE_SUFFIXES = ["-wal", "-shm", "-journal"];
 const DATABASE_JOURNAL_PHASES = new Set([
   "acquired",
@@ -80,7 +85,7 @@ export async function inspectRuntimeDatabase({ databasePath } = {}) {
   };
 }
 
-export function inspectDatabaseReconciliation({
+export async function inspectDatabaseReconciliation({
   databasePath,
   backupDirectory,
   repositoryFingerprint,
@@ -109,8 +114,15 @@ export function inspectDatabaseReconciliation({
       reason: validation.reason,
     });
   }
-  if (isProcessAlive(result.value.supervisor_pid)) {
+  const ownership = await classifyBootstrapJournalOwner(result.value);
+  if (ownership === "verified_live") {
     return publicDatabaseReconciliation("reconciliation_in_progress", {
+      reason: "database_reconciliation_required",
+      phase: result.value.phase,
+    });
+  }
+  if (ownership !== "stale") {
+    return publicDatabaseReconciliation("recovery_required", {
       reason: "database_reconciliation_required",
       phase: result.value.phase,
     });
@@ -123,7 +135,7 @@ export function inspectDatabaseReconciliation({
   });
 }
 
-export function reconcileInterruptedDatabaseBootstrap({
+export async function reconcileInterruptedDatabaseBootstrap({
   databasePath,
   backupDirectory,
   repositoryFingerprint,
@@ -159,7 +171,7 @@ export function reconcileInterruptedDatabaseBootstrap({
   if (!validation.valid) {
     throw new PublicDatabaseBootstrapError(validation.reason);
   }
-  if (isProcessAlive(journal.supervisor_pid)) {
+  if ((await classifyBootstrapJournalOwner(journal)) !== "stale") {
     throw new PublicDatabaseBootstrapError("database_reconciliation_required");
   }
 
@@ -219,7 +231,9 @@ export async function prepareRuntimeDatabase({
   const stagingPath = `${databasePath}.augnes-stage-${operationId}`;
   const rollbackPath = `${databasePath}.augnes-rollback-${operationId}`;
   const lockPath = `${databasePath}.augnes-bootstrap.lock`;
+  const ownershipNonce = randomBytes(24).toString("hex");
   let lock = null;
+  let ownerProbe = null;
   let recoveryBackupPath = null;
   let retainBootstrapLock = false;
 
@@ -230,6 +244,15 @@ export async function prepareRuntimeDatabase({
       databaseOverrideActive,
     });
     assertDatabaseFileSafe(databasePath);
+    ownerProbe = await startPrivateProcessOwnershipProbe({
+      contract: DATABASE_BOOTSTRAP_CONTRACT,
+      schemaVersion: DATABASE_BOOTSTRAP_JOURNAL_SCHEMA_VERSION,
+      repositoryFingerprint:
+        repositoryFingerprint ??
+        createHash("sha256").update(repositoryRoot).digest("hex"),
+      ownershipId: operationId,
+      ownershipNonce,
+    });
     lock = acquireBootstrapLock({
       lockPath,
       databasePath,
@@ -239,6 +262,8 @@ export async function prepareRuntimeDatabase({
       runtimeInstanceId: instanceId,
       runtimeOwnershipGeneration,
       operationId,
+      ownershipNonce,
+      ownerProof: ownerProbe,
       stagingPath,
       rollbackPath,
       sourceWasMissing: !existsSync(databasePath),
@@ -360,6 +385,7 @@ export async function prepareRuntimeDatabase({
     throw failure;
   } finally {
     if (lock && !retainBootstrapLock) releaseBootstrapLock(lockPath, lock);
+    await ownerProbe?.close();
   }
 }
 
@@ -697,6 +723,8 @@ function acquireBootstrapLock({
   runtimeInstanceId,
   runtimeOwnershipGeneration,
   operationId,
+  ownershipNonce,
+  ownerProof,
   stagingPath,
   rollbackPath,
   sourceWasMissing,
@@ -710,8 +738,12 @@ function acquireBootstrapLock({
     runtime_ownership_generation:
       runtimeOwnershipGeneration ?? `bootstrap-${operationId}`,
     supervisor_pid: process.pid,
+    owner_process_identity: ownerProof.ownerProcessIdentity,
+    owner_probe_port: ownerProof.probePort,
+    owner_probe_token: ownerProof.probeToken,
+    owner_probe_binding: ownerProof.ownershipBinding,
     operation_id: operationId,
-    ownership_nonce: randomBytes(24).toString("hex"),
+    ownership_nonce: ownershipNonce,
     database_identity_hash: databaseIdentityHash(databasePath),
     phase: "acquired",
     stage_basename: path.basename(stagingPath),
@@ -926,6 +958,12 @@ function validateBootstrapJournal({
     journal.runtime_ownership_generation.length === 0 ||
     !Number.isInteger(journal.supervisor_pid) ||
     journal.supervisor_pid <= 0 ||
+    !validPrivateProcessOwnershipFields({
+      ownerProcessIdentity: journal.owner_process_identity,
+      probePort: journal.owner_probe_port,
+      probeToken: journal.owner_probe_token,
+      ownershipBinding: journal.owner_probe_binding,
+    }) ||
     typeof journal.ownership_nonce !== "string" ||
     journal.ownership_nonce.length < 32 ||
     !validOperationId(journal.operation_id)
@@ -1366,14 +1404,18 @@ function publicDatabaseReconciliation(state, extra = {}) {
   };
 }
 
-function isProcessAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error?.code === "EPERM";
-  }
+function classifyBootstrapJournalOwner(journal) {
+  return classifyPrivateProcessOwnership({
+    contract: journal.contract,
+    schemaVersion: journal.schema_version,
+    repositoryFingerprint: journal.repository_fingerprint,
+    ownershipId: journal.operation_id,
+    ownerPid: journal.supervisor_pid,
+    ownerProcessIdentity: journal.owner_process_identity,
+    probePort: journal.owner_probe_port,
+    probeToken: journal.owner_probe_token,
+    ownershipBinding: journal.owner_probe_binding,
+  });
 }
 
 export function structuralSchemaContractSignature(database) {

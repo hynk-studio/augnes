@@ -15,12 +15,18 @@ import {
 import { request as httpRequest } from "node:http";
 import path from "node:path";
 
+import {
+  classifyPrivateProcessOwnership,
+  startPrivateProcessOwnershipProbe,
+  validPrivateProcessOwnershipFields,
+} from "./local-process-ownership.mjs";
+
 export const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
 export const RUNTIME_SCHEMA_VERSION = 2;
 export const RUNTIME_GENERATION_VERSION = 1;
 export const RUNTIME_RECONCILIATION_CONTRACT =
   "augnes-local-runtime-reconciliation-v1";
-export const RUNTIME_RECONCILIATION_SCHEMA_VERSION = 1;
+export const RUNTIME_RECONCILIATION_SCHEMA_VERSION = 2;
 
 const LOOPBACK_HOST = "127.0.0.1";
 const REQUEST_TIMEOUT_MS = 1_500;
@@ -55,8 +61,21 @@ export async function classifyRuntimeState({
       lease.state === "valid" &&
       isReconciliationLease(lease.value, repositoryFingerprint)
     ) {
-      return classification("reconciliation_in_progress", {
-        reason: "runtime_reconciliation_in_progress",
+      const ownership = await classifyReconciliationLeaseOwner(lease.value);
+      if (ownership === "verified_live") {
+        return classification("reconciliation_in_progress", {
+          reason: "runtime_reconciliation_in_progress",
+          recoverable: false,
+        });
+      }
+      if (ownership === "stale") {
+        return classification("stale_reconciliation_lease", {
+          recoverable: true,
+          staleLease: lease.value,
+        });
+      }
+      return classification("ownership_unverifiable", {
+        reason: "runtime_ownership_unverifiable",
         recoverable: false,
       });
     }
@@ -236,17 +255,38 @@ export function publicRuntimeClassification(value) {
   };
 }
 
-export function acquireRuntimeReconciliationLease({
+export async function acquireRuntimeReconciliationLease({
   paths,
   repositoryFingerprint,
 }) {
+  const reconciliationId = randomUUID();
+  const nonce = randomBytes(32).toString("hex");
+  let ownerProbe;
+  try {
+    ownerProbe = await startPrivateProcessOwnershipProbe({
+      contract: RUNTIME_RECONCILIATION_CONTRACT,
+      schemaVersion: RUNTIME_RECONCILIATION_SCHEMA_VERSION,
+      repositoryFingerprint,
+      ownershipId: reconciliationId,
+      ownershipNonce: nonce,
+    });
+  } catch (error) {
+    throw new PublicRuntimeReconciliationError(
+      "runtime_reconciliation_failed",
+      error,
+    );
+  }
   const record = {
     schema_version: RUNTIME_RECONCILIATION_SCHEMA_VERSION,
     contract: RUNTIME_RECONCILIATION_CONTRACT,
     repository_fingerprint: repositoryFingerprint,
-    reconciliation_id: randomUUID(),
+    reconciliation_id: reconciliationId,
     owner_pid: process.pid,
-    nonce: randomBytes(32).toString("hex"),
+    owner_process_identity: ownerProbe.ownerProcessIdentity,
+    owner_probe_port: ownerProbe.probePort,
+    owner_probe_token: ownerProbe.probeToken,
+    owner_probe_binding: ownerProbe.ownershipBinding,
+    nonce,
     acquired_at: new Date().toISOString(),
   };
   let descriptor = null;
@@ -258,9 +298,14 @@ export function acquireRuntimeReconciliationLease({
     descriptor = null;
     setRestrictiveMode(paths.reconciliationLease);
     fsyncDirectoryBestEffort(path.dirname(paths.reconciliationLease));
+    Object.defineProperty(record, "ownerProbe", {
+      value: ownerProbe,
+      enumerable: false,
+    });
     return record;
   } catch (error) {
     if (descriptor !== null) closeSync(descriptor);
+    await ownerProbe.close();
     if (error?.code === "EEXIST") {
       throw new PublicRuntimeReconciliationError(
         "runtime_reconciliation_in_progress",
@@ -270,17 +315,51 @@ export function acquireRuntimeReconciliationLease({
   }
 }
 
-export function releaseRuntimeReconciliationLease({ paths, lease }) {
+export async function releaseRuntimeReconciliationLease({ paths, lease }) {
+  try {
+    const current = readRegularJson(paths.reconciliationLease);
+    if (
+      current.state === "valid" &&
+      current.value.contract === lease.contract &&
+      current.value.reconciliation_id === lease.reconciliation_id &&
+      current.value.owner_probe_binding === lease.owner_probe_binding &&
+      constantTimeEqual(current.value.nonce, lease.nonce)
+    ) {
+      removeRegularFile(paths.reconciliationLease);
+      removeDirectoryIfEmpty(paths.directory);
+    }
+  } finally {
+    await lease.ownerProbe?.close();
+  }
+}
+
+export async function reclaimStaleRuntimeReconciliationLease({
+  paths,
+  repositoryFingerprint,
+  classified,
+}) {
+  if (
+    classified?.state !== "stale_reconciliation_lease" ||
+    !classified.staleLease
+  ) {
+    throw new PublicRuntimeReconciliationError("runtime_ownership_unverifiable");
+  }
   const current = readRegularJson(paths.reconciliationLease);
   if (
-    current.state === "valid" &&
-    current.value.contract === lease.contract &&
-    current.value.reconciliation_id === lease.reconciliation_id &&
-    constantTimeEqual(current.value.nonce, lease.nonce)
+    current.state !== "valid" ||
+    !isReconciliationLease(current.value, repositoryFingerprint) ||
+    current.value.reconciliation_id !== classified.staleLease.reconciliation_id ||
+    current.value.owner_probe_binding !==
+      classified.staleLease.owner_probe_binding ||
+    !constantTimeEqual(current.value.nonce, classified.staleLease.nonce)
   ) {
-    removeRegularFile(paths.reconciliationLease);
-    removeDirectoryIfEmpty(paths.directory);
+    throw new PublicRuntimeReconciliationError("runtime_generation_conflict");
   }
+  if ((await classifyReconciliationLeaseOwner(current.value)) !== "stale") {
+    throw new PublicRuntimeReconciliationError("runtime_ownership_unverifiable");
+  }
+  removeRegularFile(paths.reconciliationLease);
+  fsyncDirectoryBestEffort(path.dirname(paths.reconciliationLease));
 }
 
 export async function stopVerifiedOrphanChildren(classified) {
@@ -493,6 +572,7 @@ function leaseOwnedBy(leaseResult, ownedLease) {
     ownedLease &&
     leaseResult.state === "valid" &&
     leaseResult.value.reconciliation_id === ownedLease.reconciliation_id &&
+    leaseResult.value.owner_probe_binding === ownedLease.owner_probe_binding &&
     constantTimeEqual(leaseResult.value.nonce, ownedLease.nonce)
   );
 }
@@ -506,9 +586,29 @@ function isReconciliationLease(value, repositoryFingerprint) {
     nonEmpty(value.reconciliation_id) &&
     Number.isInteger(value.owner_pid) &&
     value.owner_pid > 0 &&
+    validPrivateProcessOwnershipFields({
+      ownerProcessIdentity: value.owner_process_identity,
+      probePort: value.owner_probe_port,
+      probeToken: value.owner_probe_token,
+      ownershipBinding: value.owner_probe_binding,
+    }) &&
     typeof value.nonce === "string" &&
     value.nonce.length >= 32
   );
+}
+
+function classifyReconciliationLeaseOwner(value) {
+  return classifyPrivateProcessOwnership({
+    contract: value.contract,
+    schemaVersion: value.schema_version,
+    repositoryFingerprint: value.repository_fingerprint,
+    ownershipId: value.reconciliation_id,
+    ownerPid: value.owner_pid,
+    ownerProcessIdentity: value.owner_process_identity,
+    probePort: value.owner_probe_port,
+    probeToken: value.owner_probe_token,
+    ownershipBinding: value.owner_probe_binding,
+  });
 }
 
 async function probeSupervisor(manifest) {

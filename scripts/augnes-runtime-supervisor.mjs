@@ -47,6 +47,7 @@ import {
   cleanupRuntimeOwnershipBundle,
   createRuntimeGeneration,
   publicRuntimeClassification,
+  reclaimStaleRuntimeReconciliationLease,
   releaseRuntimeReconciliationLease,
   stopVerifiedOrphanChildren,
   withRuntimeReconciliationPath,
@@ -219,7 +220,7 @@ export async function readVerifiedRuntimeStatus({
 
 async function runDiagnosticsCommand({ paths, repositoryFingerprint }) {
   const runtime = await classifyRuntimeState({ paths, repositoryFingerprint });
-  const databaseReconciliation = inspectDatabaseReconciliation({
+  const databaseReconciliation = await inspectDatabaseReconciliation({
     databasePath: paths.local.database_path,
     backupDirectory: paths.local.backup_directory,
     repositoryFingerprint,
@@ -270,7 +271,7 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
     emitResult(publicStatusResult("status", "observed", status.identity));
     return 0;
   }
-  const databaseReconciliation = inspectDatabaseReconciliation({
+  const databaseReconciliation = await inspectDatabaseReconciliation({
     databasePath: paths.local.database_path,
     backupDirectory: paths.local.backup_directory,
     repositoryFingerprint,
@@ -335,7 +336,7 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
 async function runStopCommand({ paths, repositoryFingerprint }) {
   const status = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
   if (!status.verified) {
-    const databaseReconciliation = inspectDatabaseReconciliation({
+    const databaseReconciliation = await inspectDatabaseReconciliation({
       databasePath: paths.local.database_path,
       backupDirectory: paths.local.backup_directory,
       repositoryFingerprint,
@@ -499,7 +500,7 @@ async function runStartCommand({
     databaseStateReconciled: false,
     recoveryBackupPreserved: false,
   };
-  const databaseReconciliation = inspectDatabaseReconciliation({
+  const databaseReconciliation = await inspectDatabaseReconciliation({
     databasePath: paths.local.database_path,
     backupDirectory: paths.local.backup_directory,
     repositoryFingerprint,
@@ -1355,12 +1356,13 @@ async function waitForVerifiedOwner({ paths, repositoryFingerprint }) {
 async function reconcileRuntimeOwnership({
   paths,
   repositoryFingerprint,
-  databaseReconciliation = inspectDatabaseReconciliation({
+  databaseReconciliation = null,
+}) {
+  databaseReconciliation ??= await inspectDatabaseReconciliation({
     databasePath: paths.local.database_path,
     backupDirectory: paths.local.backup_directory,
     repositoryFingerprint,
-  }),
-}) {
+  });
   let classified = await classifyRuntimeState({ paths, repositoryFingerprint });
   if (classified.state === "verified_live") {
     return {
@@ -1405,6 +1407,14 @@ async function reconcileRuntimeOwnership({
       };
     }
   }
+  if (classified.state === "stale_reconciliation_lease") {
+    await reclaimStaleRuntimeReconciliationLease({
+      paths,
+      repositoryFingerprint,
+      classified,
+    });
+    classified = await classifyRuntimeState({ paths, repositoryFingerprint });
+  }
   if (classified.state !== "clean" && !classified.recoverable) {
     throw new PublicRuntimeReconciliationError(
       classified.reason ?? "runtime_ownership_unverifiable",
@@ -1413,7 +1423,10 @@ async function reconcileRuntimeOwnership({
 
   let lease;
   try {
-    lease = acquireRuntimeReconciliationLease({ paths, repositoryFingerprint });
+    lease = await acquireRuntimeReconciliationLease({
+      paths,
+      repositoryFingerprint,
+    });
   } catch (error) {
     if (error?.code !== "runtime_reconciliation_in_progress") throw error;
     const afterWait = await waitForRuntimeReconciliation({
@@ -1433,7 +1446,7 @@ async function reconcileRuntimeOwnership({
         },
       };
     }
-    const databaseAfterWait = inspectDatabaseReconciliation({
+    const databaseAfterWait = await inspectDatabaseReconciliation({
       databasePath: paths.local.database_path,
       backupDirectory: paths.local.backup_directory,
       repositoryFingerprint,
@@ -1485,7 +1498,7 @@ async function reconcileRuntimeOwnership({
       cleanupRuntimeOwnershipBundle({ paths, classified: owned });
       runtimeStateReconciled = true;
     }
-    const currentDatabaseReconciliation = inspectDatabaseReconciliation({
+    const currentDatabaseReconciliation = await inspectDatabaseReconciliation({
       databasePath: paths.local.database_path,
       backupDirectory: paths.local.backup_directory,
       repositoryFingerprint,
@@ -1495,7 +1508,7 @@ async function reconcileRuntimeOwnership({
       recoveryBackupPreserved: false,
     };
     if (currentDatabaseReconciliation.state === "recoverable") {
-      databaseResult = reconcileInterruptedDatabaseBootstrap({
+      databaseResult = await reconcileInterruptedDatabaseBootstrap({
         databasePath: paths.local.database_path,
         backupDirectory: paths.local.backup_directory,
         repositoryFingerprint,
@@ -1515,7 +1528,7 @@ async function reconcileRuntimeOwnership({
       recoveryBackupPreserved: databaseResult.recoveryBackupPreserved,
     };
   } finally {
-    releaseRuntimeReconciliationLease({ paths, lease });
+    await releaseRuntimeReconciliationLease({ paths, lease });
   }
 }
 
