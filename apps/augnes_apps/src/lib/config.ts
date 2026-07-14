@@ -65,6 +65,7 @@ export const config = {
   governanceAuditFile: process.env.AUGNES_GOVERNANCE_AUDIT_FILE,
   repoNavigationFile: process.env.AUGNES_REPO_NAVIGATION_FILE,
   enableAgentBridge: process.env.AUGNES_ENABLE_AGENT_BRIDGE === "true",
+  runtimeInstanceId: process.env.AUGNES_RUNTIME_INSTANCE_ID,
   coreMode,
   appProfile,
   appToolSurface,

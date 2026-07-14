@@ -48,16 +48,32 @@ The active sequence is defined in
 
 ## Current development start
 
-The repository does not yet provide the target zero-configuration runtime. For current local development:
+After the current data bootstrap, one canonical command starts and supervises
+both the local UI and MCP bridge:
 
 ```bash
 npm install
+npm --prefix apps/augnes_apps install
 npm run db:migrate
 npm run demo:seed
-npm run dev
+npm run augnes
 ```
 
-Open `http://localhost:3000`.
+The command waits for both processes to become ready and prints the effective
+loopback UI URL. It automatically selects another bounded loopback port when a
+preferred port is occupied. `npm run dev` remains a compatibility alias.
+
+From another terminal, the same command surface reports or stops the verified
+owned instance:
+
+```bash
+npm run augnes -- status
+npm run augnes -- stop
+```
+
+Platform-owned data paths and safe first-run database bootstrap remain R2
+follow-up work. Until then, the existing database path and migration behavior
+remain compatible.
 
 Do not use `db:reset` as a normal start command. It is a destructive developer operation and must only be used against an explicitly disposable database.
 

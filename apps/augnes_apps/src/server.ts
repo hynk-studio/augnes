@@ -197,6 +197,9 @@ export function buildHealthPayload() {
     mode: config.coreMode,
     readOnly: true,
     profile: config.appProfile,
+    ...(config.runtimeInstanceId
+      ? { runtime_instance_id: config.runtimeInstanceId }
+      : {}),
   };
 }
 
@@ -8954,7 +8957,12 @@ function isDirectExecution(): boolean {
 
 if (isDirectExecution()) {
   const httpServer = createHttpServer();
-  httpServer.listen(config.port, () => {
-    console.log(`Augnes MCP server listening on http://localhost:${config.port}${config.mcpPath}`);
-  });
+  httpServer.listen(
+    { host: "127.0.0.1", port: config.port, exclusive: true },
+    () => {
+      console.log(
+        `Augnes MCP server listening on http://127.0.0.1:${config.port}${config.mcpPath}`,
+      );
+    },
+  );
 }
