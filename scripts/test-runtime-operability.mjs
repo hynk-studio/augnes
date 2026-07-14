@@ -7,12 +7,15 @@ import {
   appendFileSync,
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -26,6 +29,10 @@ import {
   DEFAULT_UI_PORT,
   RUNTIME_CONTRACT,
   RUNTIME_SCHEMA_VERSION,
+  buildSupervisorChildValues,
+  ensureRuntimeDirectory,
+  resolvePhysicalRuntimeStateDestination,
+  resolveRuntimePaths,
 } from "./augnes-runtime-supervisor.mjs";
 import {
   buildRuntimeChildEnvironment,
@@ -41,9 +48,28 @@ const logRoot = path.join(temporaryRoot, "logs");
 const databasePath = path.join(temporaryRoot, "data", "runtime.db");
 const repositoryDatabasePath = path.join(repoRoot, "data", "augnes.db");
 const publicSecretSentinel = "must-not-escape-runtime-parent";
+const publicModelSentinel = "reviewed-model-sentinel-must-not-escape";
+const reviewedBridgeCompatibilityEnvironment = Object.freeze({
+  AUGNES_APP_PROFILE: "chrono_lab",
+  AUGNES_APP_TOOL_SURFACE: "work_loop_readonly",
+  AUGNES_APP_DOMAIN: "https://app.runtime-compat.example",
+  AUGNES_CONNECT_DOMAIN: "https://connect.runtime-compat.example",
+  AUGNES_RESOURCE_DOMAIN: "https://resources.runtime-compat.example",
+});
+const blockedBridgeFileEnvironment = Object.freeze({
+  AUGNES_WORKING_VIEW_FILE: path.join(temporaryRoot, "working-view.json"),
+  AUGNES_CASEFILE_FILE: path.join(temporaryRoot, "casefile.json"),
+  AUGNES_EVIDENCE_INDEX_FILE: path.join(temporaryRoot, "evidence-index.json"),
+  AUGNES_CONTINUITY_REPORT_FILE: path.join(temporaryRoot, "continuity.json"),
+  AUGNES_BOUNDARY_PACKET_FILE: path.join(temporaryRoot, "boundary.json"),
+  AUGNES_STRATEGY_RATIONALE_FILE: path.join(temporaryRoot, "strategy.json"),
+  AUGNES_GOVERNANCE_AUDIT_FILE: path.join(temporaryRoot, "audit.json"),
+  AUGNES_REPO_NAVIGATION_FILE: path.join(temporaryRoot, "repo-navigation.json"),
+});
 const trackedSupervisors = new Set();
 const selectedPorts = [];
 const observedOwnedPids = new Set();
+let pathFixtureSkipReason = null;
 let proxyRequestCount = 0;
 let unrelatedProcess = null;
 let unrelatedIdentityServer = null;
@@ -61,6 +87,7 @@ const ownedProcessCountBefore = observedOwnedPids.size;
 try {
   initializeDisposableDatabase(databasePath);
   assertRuntimeEnvironmentIsolation();
+  await testRuntimeStatePathSafety();
 
   proxyServer = createHttpServer((_request, response) => {
     proxyRequestCount += 1;
@@ -117,6 +144,11 @@ try {
     required_child_failure_observed: true,
     unverified_pid_never_signaled: true,
     environment_isolation_verified: true,
+    reviewed_ui_provider_environment_verified: true,
+    bridge_core_mode: "http",
+    bridge_http_adapter_selected: true,
+    runtime_state_physical_path_verified: true,
+    path_fixture_skip_reason: pathFixtureSkipReason,
     provider_credentials_required: false,
     provider_or_proxy_requests: proxyRequestCount,
     repository_database_unchanged: true,
@@ -128,6 +160,34 @@ try {
     runtime_state_files_after: 0,
     disposable_database_preserved: true,
   };
+  summary.normalized_public_result_sha256 = createHash("sha256")
+    .update(
+      JSON.stringify({
+        test: summary.test,
+        status: summary.status,
+        canonical_commands: summary.canonical_commands,
+        real_processes: summary.real_processes,
+        loopback_only: summary.loopback_only,
+        ready_state_verified: summary.ready_state_verified,
+        duplicate_launch_reused: summary.duplicate_launch_reused,
+        graceful_stop: summary.graceful_stop,
+        parent_signal_cleanup: summary.parent_signal_cleanup,
+        required_child_failure_observed: summary.required_child_failure_observed,
+        unverified_pid_never_signaled: summary.unverified_pid_never_signaled,
+        reviewed_ui_provider_environment_verified:
+          summary.reviewed_ui_provider_environment_verified,
+        bridge_core_mode: summary.bridge_core_mode,
+        bridge_http_adapter_selected: summary.bridge_http_adapter_selected,
+        runtime_state_physical_path_verified:
+          summary.runtime_state_physical_path_verified,
+        provider_or_proxy_requests: summary.provider_or_proxy_requests,
+        repository_database_unchanged: summary.repository_database_unchanged,
+        owned_process_count_after: summary.owned_process_count_after,
+        owned_ports_after: summary.owned_ports_after,
+        runtime_state_files_after: summary.runtime_state_files_after,
+      }),
+    )
+    .digest("hex");
   console.log(JSON.stringify(summary, null, 2));
 } finally {
   for (const managed of trackedSupervisors) {
@@ -142,6 +202,170 @@ try {
     });
   }
   rmSync(temporaryRoot, { recursive: true, force: true });
+}
+
+async function testRuntimeStatePathSafety() {
+  const fixtureRoot = path.join(temporaryRoot, "runtime-path-safety");
+  const fakeRepositoryRoot = path.join(fixtureRoot, "fake-repository");
+  const outsideRoot = path.join(fixtureRoot, "outside");
+  mkdirSync(fakeRepositoryRoot, { recursive: true });
+  mkdirSync(outsideRoot, { recursive: true });
+  writeFileSync(path.join(fakeRepositoryRoot, "repository-sentinel"), "unchanged\n");
+  const fakeRepositoryBefore = listRelativeEntriesRecursively(fakeRepositoryRoot);
+
+  const normalOutside = path.join(outsideRoot, "normal", "runtime-state");
+  const normalResolution = resolvePhysicalRuntimeStateDestination({
+    candidate: normalOutside,
+    repositoryRoot: fakeRepositoryRoot,
+  });
+  assert.equal(
+    normalResolution.physical_destination,
+    path.join(realpathSync(outsideRoot), "normal", "runtime-state"),
+  );
+  assert.equal(
+    ensureRuntimeDirectory({
+      directory: normalOutside,
+      repositoryRoot: fakeRepositoryRoot,
+    }),
+    realpathSync(normalOutside),
+  );
+
+  const directInside = path.join(fakeRepositoryRoot, "direct-inside");
+  assertRuntimePathError(
+    () =>
+      resolvePhysicalRuntimeStateDestination({
+        candidate: directInside,
+        repositoryRoot: fakeRepositoryRoot,
+      }),
+    "runtime_state_path_must_be_outside_repository",
+    [directInside, fakeRepositoryRoot, publicSecretSentinel],
+  );
+  assert.equal(existsSync(directInside), false);
+
+  const outsideLink = path.join(fixtureRoot, "outside-link");
+  if (!createDirectoryLink(outsideRoot, outsideLink)) {
+    assert.deepEqual(
+      listRelativeEntriesRecursively(fakeRepositoryRoot),
+      fakeRepositoryBefore,
+    );
+    return;
+  }
+
+  const acceptedViaLink = path.join(outsideLink, "linked", "runtime-state");
+  const linkedResolution = resolvePhysicalRuntimeStateDestination({
+    candidate: acceptedViaLink,
+    repositoryRoot: fakeRepositoryRoot,
+  });
+  assert.equal(
+    linkedResolution.physical_destination,
+    path.join(realpathSync(outsideRoot), "linked", "runtime-state"),
+  );
+  ensureRuntimeDirectory({
+    directory: acceptedViaLink,
+    repositoryRoot: fakeRepositoryRoot,
+  });
+  assert.equal(
+    realpathSync(acceptedViaLink),
+    path.join(realpathSync(outsideRoot), "linked", "runtime-state"),
+  );
+
+  const nestedMissing = path.join(outsideLink, "missing-one", "missing-two", "runtime");
+  const nestedResolution = resolvePhysicalRuntimeStateDestination({
+    candidate: nestedMissing,
+    repositoryRoot: fakeRepositoryRoot,
+  });
+  assert.equal(
+    nestedResolution.physical_destination,
+    path.join(realpathSync(outsideRoot), "missing-one", "missing-two", "runtime"),
+  );
+
+  const repositoryLink = path.join(fixtureRoot, "repository-link");
+  assert.equal(createDirectoryLink(fakeRepositoryRoot, repositoryLink), true);
+  const redirectedInside = path.join(repositoryLink, "redirected", "runtime-state");
+  assertRuntimePathError(
+    () =>
+      resolvePhysicalRuntimeStateDestination({
+        candidate: redirectedInside,
+        repositoryRoot: fakeRepositoryRoot,
+      }),
+    "runtime_state_path_must_be_outside_repository",
+    [redirectedInside, fakeRepositoryRoot, publicSecretSentinel],
+  );
+  assert.equal(
+    existsSync(path.join(fakeRepositoryRoot, "redirected")),
+    false,
+    "a symlinked parent into the repository must be refused before mkdir",
+  );
+
+  const symlinkTarget = path.join(outsideRoot, "existing-runtime-target");
+  const runtimeDirectoryLink = path.join(fixtureRoot, "runtime-directory-link");
+  mkdirSync(symlinkTarget, { recursive: true });
+  assert.equal(createDirectoryLink(symlinkTarget, runtimeDirectoryLink), true);
+  assertRuntimePathError(
+    () =>
+      resolveRuntimePaths({
+        environment: { AUGNES_RUNTIME_STATE_DIR: runtimeDirectoryLink },
+        repositoryRootPath: fakeRepositoryRoot,
+        repositoryFingerprint: "path-safety-fixture",
+      }),
+    "runtime_state_directory_invalid",
+    [runtimeDirectoryLink, fakeRepositoryRoot, publicSecretSentinel],
+  );
+  assert.equal(lstatSync(runtimeDirectoryLink).isSymbolicLink(), true);
+
+  const checkoutLink = path.join(fixtureRoot, "actual-checkout-link");
+  assert.equal(createDirectoryLink(repoRoot, checkoutLink), true);
+  const repositorySideName = `.augnes-runtime-path-safety-${path.basename(temporaryRoot)}`;
+  const repositorySideDirectory = path.join(repoRoot, repositorySideName);
+  assert.equal(existsSync(repositorySideDirectory), false);
+  const publicScenario = {
+    name: "runtime-path-public-error",
+    root: fixtureRoot,
+    stateDirectory: path.join(checkoutLink, repositorySideName),
+    logRoot: path.join(logRoot, "runtime-path-public-error"),
+  };
+  mkdirSync(publicScenario.logRoot, { recursive: true });
+  const publicEnvironment = scenarioEnvironment(publicScenario, {
+    uiPort: DEFAULT_UI_PORT,
+    bridgePort: DEFAULT_BRIDGE_PORT,
+    providerMode: "absent",
+  });
+  const publicResult = await runCli(
+    ["status"],
+    publicEnvironment,
+    publicScenario,
+    "symlinked-repository-refusal",
+  );
+  assert.equal(publicResult.code, 2, publicResult.output);
+  assert.deepEqual(lastJsonResult(publicResult.stdout), {
+    schema_version: RUNTIME_SCHEMA_VERSION,
+    contract: RUNTIME_CONTRACT,
+    command: "status",
+    result: "failed",
+    state: "unavailable",
+    reason: "runtime_state_path_must_be_outside_repository",
+  });
+  for (const forbidden of [
+    publicScenario.stateDirectory,
+    repoRoot,
+    publicSecretSentinel,
+    publicModelSentinel,
+    "control-token.json",
+    "bridge-supervisor.env",
+  ]) {
+    assert.equal(
+      publicResult.output.includes(forbidden),
+      false,
+      "public runtime-path refusal must expose only the stable reason",
+    );
+  }
+  assert.equal(existsSync(repositorySideDirectory), false);
+  assert.deepEqual(
+    listRelativeEntriesRecursively(fakeRepositoryRoot),
+    fakeRepositoryBefore,
+    "path safety checks must leave the fake repository unchanged",
+  );
+  removeScenarioLogs(publicScenario);
 }
 
 async function testReadyDuplicateStatusAndStop() {
@@ -187,7 +411,7 @@ async function testReadyDuplicateStatusAndStop() {
     );
   }
 
-  await assertReadyEndpoints(ready);
+  await assertReadyEndpoints(ready, environment, scenario);
   await assertLoopbackOnly(ready.ui_port);
   await assertLoopbackOnly(ready.bridge_port);
   const manifest = assertOwnershipFiles(scenario.stateDirectory, ready);
@@ -293,7 +517,17 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
   assert.notEqual(ready.bridge_port, bridgeBlocker.port);
   selectedPorts.push({ scenario: scenario.name, ui: ready.ui_port, bridge: ready.bridge_port });
   rememberOwnedPids(ready);
+  const bridgeHealth = await fetchJson(
+    `http://127.0.0.1:${ready.bridge_port}/healthz`,
+  );
+  assert.equal(bridgeHealth.statusCode, 200);
+  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
+  assert.equal(bridgeHealth.body.profile, "chrono_lab");
+  assertPublicSafe(JSON.stringify(bridgeHealth.body), "poisoned bridge health");
+  assertOwnershipFiles(scenario.stateDirectory, ready);
   assertPublicSafe(managed.output(), "poisoned start output");
+  assertProcessCommandLinesPublicSafe(processTreePids(ready));
   assert.equal(proxyRequestCount, 0, "poisoned proxy variables must not reach runtime children");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must stay alive");
 
@@ -305,14 +539,17 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
   for (const pid of processTree) observedOwnedPids.add(pid);
   const stop = await runCli(["stop"], environment, scenario, "poisoned-stop");
   assert.equal(stop.code, 0, stop.output);
+  assertPublicSafe(stop.output, "poisoned stop output");
   const supervisorExit = await waitForExit(managed.child, 20_000);
   assert.equal(supervisorExit.code, 0, managed.output());
+  assertPublicSafe(managed.output(), "poisoned lifecycle output");
   trackedSupervisors.delete(managed);
   await assertStoppedScenario(scenario, ready, processTree);
   assert.equal(proxyRequestCount, 0, "restart must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "restart/stop must not signal unrelated PID");
   assert.equal(await canConnect(uiBlocker.port), true, "poisoned UI blocker must survive");
   assert.equal(await canConnect(bridgeBlocker.port), true, "poisoned bridge blocker must survive");
+  assertDirectoryPublicSafe(scenario.logRoot, "poisoned lifecycle logs");
   if (uiBlocker.server) await closeServer(uiBlocker.server);
   if (bridgeBlocker.server) await closeServer(bridgeBlocker.server);
   removeScenarioLogs(scenario);
@@ -485,6 +722,27 @@ function scenarioEnvironment(
     "https_proxy",
     "all_proxy",
     "no_proxy",
+    "ANTHROPIC_API_KEY",
+    "AZURE_OPENAI_API_KEY",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "GOOGLE_API_KEY",
+    "AUGNES_CORE_MODE",
+    "AUGNES_USE_MOCK",
+    "AUGNES_ENABLE_AGENT_BRIDGE",
+    "AUGNES_APP_PROFILE",
+    "AUGNES_APP_TOOL_SURFACE",
+    "AUGNES_APP_DOMAIN",
+    "AUGNES_CONNECT_DOMAIN",
+    "AUGNES_RESOURCE_DOMAIN",
+    "AUGNES_WORKING_VIEW_FILE",
+    "AUGNES_CASEFILE_FILE",
+    "AUGNES_EVIDENCE_INDEX_FILE",
+    "AUGNES_CONTINUITY_REPORT_FILE",
+    "AUGNES_BOUNDARY_PACKET_FILE",
+    "AUGNES_STRATEGY_RATIONALE_FILE",
+    "AUGNES_GOVERNANCE_AUDIT_FILE",
+    "AUGNES_REPO_NAVIGATION_FILE",
   ]) {
     delete environment[key];
   }
@@ -493,14 +751,24 @@ function scenarioEnvironment(
     const proxyUrl = `http://127.0.0.1:${proxyPort}`;
     Object.assign(environment, {
       OPENAI_API_KEY: publicSecretSentinel,
-      OPENAI_MODEL: "sentinel-model-must-not-forward",
+      OPENAI_MODEL: publicModelSentinel,
       GITHUB_TOKEN: publicSecretSentinel,
       GH_TOKEN: publicSecretSentinel,
+      ANTHROPIC_API_KEY: publicSecretSentinel,
+      AZURE_OPENAI_API_KEY: publicSecretSentinel,
+      AWS_ACCESS_KEY_ID: publicSecretSentinel,
+      AWS_SECRET_ACCESS_KEY: publicSecretSentinel,
+      GOOGLE_API_KEY: publicSecretSentinel,
       HTTP_PROXY: proxyUrl,
       HTTPS_PROXY: proxyUrl,
       ALL_PROXY: proxyUrl,
       NO_PROXY: "poisoned-no-proxy-value",
       AUGNES_UNRELATED_PARENT_VALUE: publicSecretSentinel,
+      AUGNES_CORE_MODE: "mock",
+      AUGNES_USE_MOCK: "true",
+      AUGNES_ENABLE_AGENT_BRIDGE: "false",
+      ...blockedBridgeFileEnvironment,
+      ...reviewedBridgeCompatibilityEnvironment,
     });
   }
 
@@ -633,7 +901,7 @@ function assertReadyResult(result) {
   }
 }
 
-async function assertReadyEndpoints(ready) {
+async function assertReadyEndpoints(ready, environment, scenario) {
   const uiHealth = await fetchJson(`${ready.effective_url}/api/healthz`);
   assert.equal(uiHealth.statusCode, 200);
   assert.equal(uiHealth.body.runtime_instance_id, ready.instance_id);
@@ -649,6 +917,59 @@ async function assertReadyEndpoints(ready) {
   assert.equal(bridgeHealth.statusCode, 200);
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.ok, true);
+  assert.equal(bridgeHealth.body.mode, "http");
+  assertPublicSafe(JSON.stringify(uiHealth.body), "UI health response");
+  assertPublicSafe(JSON.stringify(bridgeHealth.body), "bridge health response");
+  assertHttpAdapterSelection({ environment, ready, scenario });
+}
+
+function assertHttpAdapterSelection({ environment, ready, scenario }) {
+  const values = buildSupervisorChildValues({
+    role: "bridge",
+    environment,
+    paths: { bridgeEnvironment: path.join(scenario.stateDirectory, "bridge-supervisor.env") },
+    instanceId: ready.instance_id,
+    effectiveUrl: ready.effective_url,
+    port: ready.bridge_port,
+  });
+  const childEnvironment = buildRuntimeChildEnvironment({
+    role: "bridge",
+    ambientEnvironment: environment,
+    values,
+  });
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      "--input-type=module",
+      "--eval",
+      [
+        'const { createAugnesCoreAdapter } = await import("./src/adapters/index.ts");',
+        'const { config } = await import("./src/lib/config.ts");',
+        "const adapter = createAugnesCoreAdapter();",
+        "process.stdout.write(JSON.stringify({ adapter: adapter.constructor.name, coreMode: config.coreMode, apiBaseUrl: config.apiBaseUrl }));",
+      ].join("\n"),
+    ],
+    {
+      cwd: path.join(repoRoot, "apps", "augnes_apps"),
+      env: childEnvironment,
+      encoding: "utf8",
+      timeout: 15_000,
+    },
+  );
+  assert.equal(
+    result.status,
+    0,
+    `HTTP adapter selection check failed: ${result.stderr || result.stdout}`,
+  );
+  const selection = JSON.parse(result.stdout);
+  assert.deepEqual(selection, {
+    adapter: "HttpAugnesCoreAdapter",
+    coreMode: "http",
+    apiBaseUrl: ready.effective_url,
+  });
+  assertPublicSafe(`${result.stdout}\n${result.stderr}`, "HTTP adapter selection output");
 }
 
 function assertOwnershipFiles(stateDirectory, ready) {
@@ -662,8 +983,14 @@ function assertOwnershipFiles(stateDirectory, ready) {
   const directoryMode = statSync(stateDirectory).mode & 0o777;
   if (process.platform !== "win32") assert.equal(directoryMode, 0o700);
   for (const name of expected) {
-    const mode = statSync(path.join(stateDirectory, name)).mode & 0o777;
+    const filePath = path.join(stateDirectory, name);
+    const mode = statSync(filePath).mode & 0o777;
     if (process.platform !== "win32") assert.equal(mode, 0o600, `${name} must be mode 0600`);
+    const contents = readFileSync(filePath, "utf8");
+    assertPublicSafe(contents, `${name} contents`);
+    if (name === "bridge-supervisor.env") {
+      assert.equal(contents, "", "the bridge dotenv isolation file must remain empty");
+    }
   }
   const manifest = JSON.parse(readFileSync(path.join(stateDirectory, "runtime.json"), "utf8"));
   assert.equal(manifest.instance_id, ready.instance_id);
@@ -699,41 +1026,121 @@ function assertNoRuntimeStateFiles(stateDirectory) {
 }
 
 function assertRuntimeEnvironmentIsolation() {
+  const bridgeEnvironmentPath = path.join(temporaryRoot, "environment-isolation.env");
+  writeFileSync(bridgeEnvironmentPath, "", { mode: 0o600 });
   const ambientEnvironment = {
     ...process.env,
     HOME: homeRoot,
     TMPDIR: tempRoot,
+    AUGNES_DB_PATH: databasePath,
     OPENAI_API_KEY: publicSecretSentinel,
+    OPENAI_MODEL: publicModelSentinel,
     GITHUB_TOKEN: publicSecretSentinel,
+    GH_TOKEN: publicSecretSentinel,
+    ANTHROPIC_API_KEY: publicSecretSentinel,
+    AZURE_OPENAI_API_KEY: publicSecretSentinel,
+    AWS_ACCESS_KEY_ID: publicSecretSentinel,
+    AWS_SECRET_ACCESS_KEY: publicSecretSentinel,
+    GOOGLE_API_KEY: publicSecretSentinel,
     HTTP_PROXY: "http://127.0.0.1:9",
     HTTPS_PROXY: "http://127.0.0.1:9",
     ALL_PROXY: "http://127.0.0.1:9",
     NO_PROXY: "poisoned",
     AUGNES_UNRELATED_PARENT_VALUE: publicSecretSentinel,
+    AUGNES_CORE_MODE: "mock",
+    AUGNES_USE_MOCK: "true",
+    AUGNES_ENABLE_AGENT_BRIDGE: "false",
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "false",
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: "reviewed-workspace",
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: "reviewed-project",
+    AUGNES_VNEXT_OPERATOR_ID: "reviewed-operator",
+    AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS: "45000",
+    AUGNES_VNEXT_OPERATOR_GATE_TTL_MS: "60000",
+    ...blockedBridgeFileEnvironment,
+    ...reviewedBridgeCompatibilityEnvironment,
   };
-  const uiValues = {
-    NODE_ENV: "development",
-    NEXT_TELEMETRY_DISABLED: "1",
-    AUGNES_DB_PATH: databasePath,
-    AUGNES_RUNTIME_INSTANCE_ID: "environment-isolation-instance",
+  const sharedArguments = {
+    paths: { bridgeEnvironment: bridgeEnvironmentPath },
+    instanceId: "environment-isolation-instance",
+    effectiveUrl: "http://127.0.0.1:3000",
+    port: 8787,
   };
-  const bridgeValues = {
-    NODE_ENV: "development",
-    PORT: "8787",
-    DOTENV_CONFIG_PATH: path.join(temporaryRoot, "empty.env"),
-    AUGNES_API_BASE_URL: "http://127.0.0.1:3000",
-    AUGNES_ENABLE_AGENT_BRIDGE: "true",
-    AUGNES_RUNTIME_INSTANCE_ID: "environment-isolation-instance",
-  };
-  for (const [role, values] of [
-    ["ui", uiValues],
-    ["bridge", bridgeValues],
+
+  const absentProviderEnvironment = { ...ambientEnvironment };
+  delete absentProviderEnvironment.OPENAI_API_KEY;
+  delete absentProviderEnvironment.OPENAI_MODEL;
+  const absentUiValues = buildSupervisorChildValues({
+    role: "ui",
+    environment: absentProviderEnvironment,
+    ...sharedArguments,
+  });
+  const absentUiEnvironment = buildRuntimeChildEnvironment({
+    role: "ui",
+    ambientEnvironment: absentProviderEnvironment,
+    values: absentUiValues,
+  });
+  assert.equal(Object.hasOwn(absentUiEnvironment, "OPENAI_API_KEY"), false);
+  assert.equal(Object.hasOwn(absentUiEnvironment, "OPENAI_MODEL"), false);
+
+  const uiValues = buildSupervisorChildValues({
+    role: "ui",
+    environment: ambientEnvironment,
+    ...sharedArguments,
+  });
+  assert.equal(uiValues.OPENAI_API_KEY, publicSecretSentinel);
+  assert.equal(uiValues.OPENAI_MODEL, publicModelSentinel);
+  assert.equal(uiValues.AUGNES_DB_PATH, databasePath);
+  const uiEnvironment = buildRuntimeChildEnvironment({
+    role: "ui",
+    ambientEnvironment,
+    values: uiValues,
+  });
+  assert.equal(uiEnvironment.OPENAI_API_KEY, publicSecretSentinel);
+  assert.equal(uiEnvironment.OPENAI_MODEL, publicModelSentinel);
+  assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED, "false");
+  assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID, "reviewed-workspace");
+  assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PROJECT_ID, "reviewed-project");
+  assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_ID, "reviewed-operator");
+  assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS, "45000");
+  assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS, "60000");
+
+  const bridgeValues = buildSupervisorChildValues({
+    role: "bridge",
+    environment: ambientEnvironment,
+    ...sharedArguments,
+  });
+  assert.equal(bridgeValues.AUGNES_CORE_MODE, "http");
+  assert.equal(bridgeValues.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
+  assert.equal(bridgeValues.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  for (const [key, value] of Object.entries(reviewedBridgeCompatibilityEnvironment)) {
+    assert.equal(bridgeValues[key], value);
+  }
+  const bridgeEnvironment = buildRuntimeChildEnvironment({
+    role: "bridge",
+    ambientEnvironment,
+    values: bridgeValues,
+  });
+  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "http");
+  assert.equal(bridgeEnvironment.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
+  assert.equal(bridgeEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_API_KEY"), false);
+  assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_MODEL"), false);
+  for (const uiOnlyKey of [
+    "AUGNES_DB_PATH",
+    "AUGNES_VNEXT_OPERATOR_PILOT_ENABLED",
+    "AUGNES_VNEXT_OPERATOR_WORKSPACE_ID",
+    "AUGNES_VNEXT_OPERATOR_PROJECT_ID",
+    "AUGNES_VNEXT_OPERATOR_ID",
+    "AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS",
+    "AUGNES_VNEXT_OPERATOR_GATE_TTL_MS",
   ]) {
-    const childEnvironment = buildRuntimeChildEnvironment({
-      role,
-      ambientEnvironment,
-      values,
-    });
+    assert.equal(Object.hasOwn(bridgeEnvironment, uiOnlyKey), false);
+  }
+
+  for (const [role, values, childEnvironment] of [
+    ["ui", uiValues, uiEnvironment],
+    ["bridge", bridgeValues, bridgeEnvironment],
+  ]) {
     assert.deepEqual(
       findForbiddenRuntimeChildEnvironmentKeys({
         role,
@@ -743,13 +1150,20 @@ function assertRuntimeEnvironmentIsolation() {
       [],
     );
     for (const forbidden of [
-      "OPENAI_API_KEY",
       "GITHUB_TOKEN",
+      "GH_TOKEN",
+      "ANTHROPIC_API_KEY",
+      "AZURE_OPENAI_API_KEY",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "GOOGLE_API_KEY",
       "HTTP_PROXY",
       "HTTPS_PROXY",
       "ALL_PROXY",
       "NO_PROXY",
       "AUGNES_UNRELATED_PARENT_VALUE",
+      "AUGNES_USE_MOCK",
+      ...Object.keys(blockedBridgeFileEnvironment),
     ]) {
       assert.equal(
         Object.hasOwn(childEnvironment, forbidden),
@@ -758,12 +1172,57 @@ function assertRuntimeEnvironmentIsolation() {
       );
     }
   }
+
+  for (const key of [
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "AUGNES_CORE_MODE",
+    "AUGNES_API_BASE_URL",
+    "AUGNES_ENABLE_AGENT_BRIDGE",
+    "AUGNES_APP_PROFILE",
+    "AUGNES_APP_TOOL_SURFACE",
+    "AUGNES_APP_DOMAIN",
+    "AUGNES_CONNECT_DOMAIN",
+    "AUGNES_RESOURCE_DOMAIN",
+  ]) {
+    assert.equal(
+      Object.hasOwn(roleEnvironment(key.startsWith("OPENAI") ? "bridge" : "ui"), key),
+      false,
+      `${key} must remain limited to its reviewed child role`,
+    );
+  }
+
+  function roleEnvironment(role) {
+    return role === "ui" ? uiEnvironment : bridgeEnvironment;
+  }
 }
 
 function assertPublicSafe(value, label) {
   assert.equal(value.includes(publicSecretSentinel), false, `${label} exposed secret sentinel`);
-  assert.doesNotMatch(value, /OPENAI_API_KEY|GITHUB_TOKEN|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY/);
+  assert.equal(value.includes(publicModelSentinel), false, `${label} exposed model sentinel`);
+  assert.doesNotMatch(
+    value,
+    /OPENAI_API_KEY|OPENAI_MODEL|GITHUB_TOKEN|GH_TOKEN|ANTHROPIC_API_KEY|AZURE_OPENAI_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|GOOGLE_API_KEY|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY/,
+  );
   assert.doesNotMatch(value, /control-token\.json|AUGNES_DB_PATH/);
+}
+
+function assertProcessCommandLinesPublicSafe(pids) {
+  if (process.platform === "win32") return;
+  const result = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const owned = new Set(pids);
+  const commandLines = result.stdout
+    .split(/\r?\n/)
+    .filter((line) => owned.has(Number(line.trim().split(/\s+/, 1)[0])))
+    .join("\n");
+  assertPublicSafe(commandLines, "owned child command lines");
+}
+
+function assertDirectoryPublicSafe(directory, label) {
+  for (const filePath of listFilesRecursively(directory)) {
+    assertPublicSafe(readFileSync(filePath, "utf8"), `${label}: ${path.basename(filePath)}`);
+  }
 }
 
 function rememberOwnedPids(ready) {
@@ -1018,6 +1477,60 @@ function listFilesRecursively(root) {
     }
   }
   return results.sort();
+}
+
+function listRelativeEntriesRecursively(root, relativeRoot = "") {
+  if (!existsSync(root)) return [];
+  const results = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const relativePath = path.join(relativeRoot, entry.name);
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      results.push(`directory:${relativePath}`);
+      results.push(...listRelativeEntriesRecursively(fullPath, relativePath));
+    } else if (entry.isSymbolicLink()) {
+      results.push(`symlink:${relativePath}`);
+    } else {
+      results.push(`file:${relativePath}`);
+    }
+  }
+  return results.sort();
+}
+
+function createDirectoryLink(target, linkPath) {
+  try {
+    symlinkSync(target, linkPath, process.platform === "win32" ? "junction" : "dir");
+    return true;
+  } catch (error) {
+    if (
+      process.platform === "win32" &&
+      ["EPERM", "EACCES", "UNKNOWN"].includes(error?.code)
+    ) {
+      pathFixtureSkipReason = `directory_junction_unavailable_${error?.code ?? "unknown"}`;
+      return false;
+    }
+    throw error;
+  }
+}
+
+function assertRuntimePathError(callback, expectedCode, forbiddenValues) {
+  let caught;
+  try {
+    callback();
+  } catch (error) {
+    caught = error;
+  }
+  assert(caught, `expected runtime path error ${expectedCode}`);
+  assert.equal(caught.code, expectedCode);
+  assert.equal(caught.message, expectedCode);
+  const publicFailure = JSON.stringify({ reason: caught.code });
+  for (const forbidden of forbiddenValues) {
+    assert.equal(
+      publicFailure.includes(forbidden),
+      false,
+      "runtime path error must not expose internal path or credential material",
+    );
+  }
 }
 
 function removeScenarioLogs(scenario) {
