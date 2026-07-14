@@ -32,12 +32,31 @@ import {
   resolvePhysicalLocalDestination,
 } from "./augnes-local-paths.mjs";
 import {
+  inspectDatabaseReconciliation,
   inspectRuntimeDatabase,
   prepareRuntimeDatabase,
+  reconcileInterruptedDatabaseBootstrap,
 } from "./runtime-database-bootstrap.mjs";
+import {
+  RUNTIME_CONTRACT,
+  RUNTIME_GENERATION_VERSION,
+  RUNTIME_SCHEMA_VERSION,
+  PublicRuntimeReconciliationError,
+  acquireRuntimeReconciliationLease,
+  classifyRuntimeState,
+  cleanupRuntimeOwnershipBundle,
+  createRuntimeGeneration,
+  publicRuntimeClassification,
+  releaseRuntimeReconciliationLease,
+  stopVerifiedOrphanChildren,
+  withRuntimeReconciliationPath,
+} from "./runtime-reconciliation.mjs";
 
-export const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
-export const RUNTIME_SCHEMA_VERSION = 1;
+export {
+  RUNTIME_CONTRACT,
+  RUNTIME_GENERATION_VERSION,
+  RUNTIME_SCHEMA_VERSION,
+};
 export const LOOPBACK_HOST = "127.0.0.1";
 export const DEFAULT_UI_PORT = 3000;
 export const DEFAULT_BRIDGE_PORT = 8787;
@@ -47,6 +66,7 @@ const STARTUP_TIMEOUT_MS = 90_000;
 const OWNERSHIP_REQUEST_TIMEOUT_MS = 1_500;
 const GRACEFUL_CHILD_STOP_MS = 8_000;
 const FORCED_CHILD_STOP_MS = 4_000;
+const EXITED_CHILD_DRAIN_MS = 1_000;
 const STOP_COMMAND_TIMEOUT_MS = 20_000;
 const OWNERSHIP_RACE_WAIT_MS = 3_000;
 const MAX_CONTROL_RESPONSE_BYTES = 64 * 1024;
@@ -56,6 +76,11 @@ export const repositoryRoot = realpathSync(path.resolve(scriptDirectory, ".."));
 const nextBin = path.join(repositoryRoot, "node_modules", "next", "dist", "bin", "next");
 const bridgeRoot = path.join(repositoryRoot, "apps", "augnes_apps");
 const bridgeServer = path.join(bridgeRoot, "src", "server.ts");
+const runtimeChildLauncher = path.join(
+  repositoryRoot,
+  "scripts",
+  "runtime-child-launcher.mjs",
+);
 
 class PublicRuntimeError extends Error {
   constructor(code, message = code) {
@@ -108,7 +133,7 @@ export async function runRuntimeSupervisorCli(
   }
 
   if (options.command === "diagnostics") {
-    return runDiagnosticsCommand({ paths });
+    return runDiagnosticsCommand({ paths, repositoryFingerprint });
   }
   if (options.command === "status") {
     return runStatusCommand({ paths, repositoryFingerprint });
@@ -137,14 +162,14 @@ export function resolveRuntimePaths({
   });
   const directory = localPaths.runtime_directory;
 
-  return {
+  return withRuntimeReconciliationPath({
     directory,
     manifest: path.join(directory, "runtime.json"),
     lock: path.join(directory, "owner.lock"),
     token: path.join(directory, "control-token.json"),
     bridgeEnvironment: path.join(directory, "bridge-supervisor.env"),
     local: localPaths,
-  };
+  });
 }
 
 export function resolvePhysicalRuntimeStateDestination({
@@ -165,70 +190,40 @@ export function resolvePhysicalRuntimeStateDestination({
 export async function readVerifiedRuntimeStatus({
   paths,
   repositoryFingerprint = fingerprint(repositoryRoot),
+  ownedLease = null,
 }) {
-  const manifestResult = readManifest(paths.manifest);
-  if (manifestResult.state === "missing") {
-    return { verified: false, reason: "not_running", manifest_present: false };
-  }
-  if (manifestResult.state !== "valid") {
+  const classified = await classifyRuntimeState({
+    paths,
+    repositoryFingerprint,
+    ownedLease,
+  });
+  if (classified.state === "verified_live") {
     return {
-      verified: false,
-      reason: "ownership_unverified",
+      verified: true,
       manifest_present: true,
+      manifest: classified.manifest,
+      identity: classified.identity,
+      classification: classified,
     };
   }
-
-  const manifest = manifestResult.value;
-  if (manifest.repository_fingerprint !== repositoryFingerprint) {
-    return {
-      verified: false,
-      reason: "ownership_unverified",
-      manifest_present: true,
-    };
-  }
-  if (!isProcessAlive(manifest.supervisor_pid)) {
-    return {
-      verified: false,
-      reason: "ownership_unverified",
-      manifest_present: true,
-    };
-  }
-
-  let response;
-  try {
-    response = await requestControlJson({
-      port: manifest.control_port,
-      path: "/v1/identity",
-      method: "GET",
-    });
-  } catch {
-    return {
-      verified: false,
-      reason: "ownership_unverified",
-      manifest_present: true,
-    };
-  }
-
-  if (
-    response.statusCode !== 200 ||
-    !isVerifiedIdentity(response.body, manifest, repositoryFingerprint)
-  ) {
-    return {
-      verified: false,
-      reason: "ownership_unverified",
-      manifest_present: true,
-    };
-  }
-
   return {
-    verified: true,
-    manifest_present: true,
-    manifest,
-    identity: response.body,
+    verified: false,
+    reason:
+      classified.state === "clean"
+        ? "not_running"
+        : classified.reason ?? "runtime_ownership_unverifiable",
+    manifest_present: classified.state !== "clean",
+    classification: classified,
   };
 }
 
-async function runDiagnosticsCommand({ paths }) {
+async function runDiagnosticsCommand({ paths, repositoryFingerprint }) {
+  const runtime = await classifyRuntimeState({ paths, repositoryFingerprint });
+  const databaseReconciliation = inspectDatabaseReconciliation({
+    databasePath: paths.local.database_path,
+    backupDirectory: paths.local.backup_directory,
+    repositoryFingerprint,
+  });
   let database;
   try {
     database = await inspectRuntimeDatabase({
@@ -263,6 +258,8 @@ async function runDiagnosticsCommand({ paths }) {
       override_active: paths.local.database_override_active,
       reason: database.reason ?? null,
     },
+    runtime_reconciliation: publicRuntimeClassification(runtime),
+    database_reconciliation: databaseReconciliation,
   });
   return database.database_state === "unavailable" ? 1 : 0;
 }
@@ -273,7 +270,15 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
     emitResult(publicStatusResult("status", "observed", status.identity));
     return 0;
   }
-  if (!status.manifest_present) {
+  const databaseReconciliation = inspectDatabaseReconciliation({
+    databasePath: paths.local.database_path,
+    backupDirectory: paths.local.backup_directory,
+    repositoryFingerprint,
+  });
+  if (
+    status.classification?.state === "clean" &&
+    databaseReconciliation.state === "clean"
+  ) {
     emitResult({
       command: "status",
       result: "observed",
@@ -290,12 +295,27 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
     return 0;
   }
 
+  const runtimeState = status.classification?.state;
+  const observedState =
+    runtimeState === "owned_orphan_children"
+      ? "orphaned"
+      : status.classification?.recoverable ||
+          databaseReconciliation.state === "recoverable"
+        ? "stale"
+        : "reconciliation_required";
   emitResult({
     command: "status",
-    result: "refused",
-    state: "unavailable",
+    result:
+      status.classification?.recoverable ||
+      databaseReconciliation.state === "recoverable"
+        ? "observed"
+        : "refused",
+    state: observedState,
     verified: false,
-    reason: status.reason,
+    reason:
+      status.classification?.state === "clean"
+        ? databaseReconciliation.reason
+        : status.reason,
     effective_url: null,
     ui_port: null,
     bridge_port: null,
@@ -303,14 +323,27 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
     database_state: null,
     database_schema_version: null,
     recovery_backup_created: false,
+    reconciliation: publicRuntimeClassification(status.classification),
+    database_reconciliation: databaseReconciliation,
   });
-  return 2;
+  return status.classification?.recoverable ||
+    databaseReconciliation.state === "recoverable"
+    ? 0
+    : 2;
 }
 
 async function runStopCommand({ paths, repositoryFingerprint }) {
   const status = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
   if (!status.verified) {
-    if (!status.manifest_present) {
+    const databaseReconciliation = inspectDatabaseReconciliation({
+      databasePath: paths.local.database_path,
+      backupDirectory: paths.local.backup_directory,
+      repositoryFingerprint,
+    });
+    if (
+      status.classification?.state === "clean" &&
+      databaseReconciliation.state === "clean"
+    ) {
       emitResult({
         command: "stop",
         result: "already_stopped",
@@ -320,18 +353,46 @@ async function runStopCommand({ paths, repositoryFingerprint }) {
       });
       return 0;
     }
-    emitResult({
-      command: "stop",
-      result: "refused",
-      state: "unavailable",
-      verified: false,
-      reason: "ownership_unverified",
-      effective_url: null,
-    });
-    return 2;
+    try {
+      ensureRuntimeDirectory({ directory: paths.directory });
+      const reconciled = await reconcileRuntimeOwnership({
+        paths,
+        repositoryFingerprint,
+        databaseReconciliation,
+      });
+      if (reconciled.existing?.verified) {
+        return runStopCommand({ paths, repositoryFingerprint });
+      }
+      emitResult({
+        command: "stop",
+        result: "reconciled",
+        state: "stopped",
+        verified: true,
+        effective_url: null,
+        reconciliation_performed: reconciled.performed,
+        orphan_children_stopped: reconciled.orphanChildrenStopped,
+        database_state_reconciled: reconciled.databaseStateReconciled,
+        recovery_backup_preserved: reconciled.recoveryBackupPreserved,
+      });
+      return 0;
+    } catch (error) {
+      emitResult({
+        command: "stop",
+        result: "refused",
+        state: "reconciliation_required",
+        verified: false,
+        reason: publicErrorCode(error, "runtime_reconciliation_failed"),
+        effective_url: null,
+      });
+      return 2;
+    }
   }
 
-  const tokenRecord = readOwnedToken(paths.token, status.identity.instance_id);
+  const tokenRecord = readOwnedToken(
+    paths.token,
+    status.identity.instance_id,
+    status.identity.generation_id,
+  );
   if (!tokenRecord) {
     emitResult({
       command: "stop",
@@ -412,27 +473,70 @@ async function runStartCommand({
   repositoryFingerprint,
   dependencies = {},
 }) {
+  try {
+    ensureRuntimeDirectory({ directory: paths.directory });
+  } catch (error) {
+    emitResult({
+      command: "start",
+      result: "failed",
+      state: "unavailable",
+      verified: false,
+      reason: publicErrorCode(error, "runtime_state_directory_invalid"),
+      effective_url: null,
+    });
+    return 2;
+  }
+
   const existing = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
   if (existing.verified) {
     emitResult(publicStatusResult("start", "existing", existing.identity));
     return existing.identity.lifecycle_state === "failed" ? 2 : 0;
   }
 
-  if (hasOwnershipSideFiles(paths)) {
-    const racedOwner = await waitForVerifiedOwner({ paths, repositoryFingerprint });
-    if (racedOwner?.verified) {
-      emitResult(publicStatusResult("start", "existing", racedOwner.identity));
-      return racedOwner.identity.lifecycle_state === "failed" ? 2 : 0;
+  let reconciliationResult = {
+    performed: false,
+    orphanChildrenStopped: 0,
+    databaseStateReconciled: false,
+    recoveryBackupPreserved: false,
+  };
+  const databaseReconciliation = inspectDatabaseReconciliation({
+    databasePath: paths.local.database_path,
+    backupDirectory: paths.local.backup_directory,
+    repositoryFingerprint,
+  });
+  if (
+    existing.classification?.state !== "clean" ||
+    databaseReconciliation.state !== "clean"
+  ) {
+    try {
+      reconciliationResult = await reconcileRuntimeOwnership({
+        paths,
+        repositoryFingerprint,
+        databaseReconciliation,
+      });
+    } catch (error) {
+      emitResult({
+        command: "start",
+        result: "refused",
+        state: "reconciliation_required",
+        verified: false,
+        reason: publicErrorCode(error, "runtime_reconciliation_failed"),
+        effective_url: null,
+      });
+      return 2;
     }
-    emitResult({
-      command: "start",
-      result: "refused",
-      state: "unavailable",
-      verified: false,
-      reason: "ownership_unverified",
-      effective_url: null,
-    });
-    return 2;
+    if (reconciliationResult.existing?.verified) {
+      emitResult(
+        publicStatusResult(
+          "start",
+          "existing",
+          reconciliationResult.existing.identity,
+        ),
+      );
+      return reconciliationResult.existing.identity.lifecycle_state === "failed"
+        ? 2
+        : 0;
+    }
   }
 
   try {
@@ -448,12 +552,19 @@ async function runStartCommand({
     });
     return 2;
   }
+
   const instanceId = randomUUID();
+  const generation = createRuntimeGeneration();
+  const startedAt = new Date().toISOString();
   const lockRecord = {
     schema_version: RUNTIME_SCHEMA_VERSION,
     contract: RUNTIME_CONTRACT,
+    generation_version: RUNTIME_GENERATION_VERSION,
+    generation_id: generation.generationId,
     instance_id: instanceId,
+    repository_fingerprint: repositoryFingerprint,
     supervisor_pid: process.pid,
+    started_at: startedAt,
   };
   try {
     createExclusiveJson(paths.lock, lockRecord);
@@ -469,7 +580,7 @@ async function runStartCommand({
         result: "refused",
         state: "unavailable",
         verified: false,
-        reason: "ownership_unverified",
+        reason: "runtime_ownership_unverifiable",
         effective_url: null,
       });
       return 2;
@@ -485,12 +596,13 @@ async function runStartCommand({
     return 1;
   }
 
-  const startedAt = new Date().toISOString();
   const runtime = {
     paths,
     environment,
     uiNextArguments: options.uiNextArguments,
     repositoryFingerprint,
+    generationId: generation.generationId,
+    childOwnershipToken: generation.childOwnershipToken,
     instanceId,
     supervisorPid: process.pid,
     controlPort: null,
@@ -516,6 +628,10 @@ async function runStartCommand({
     signalHandlers: [],
     resolveShutdown: null,
     shutdownPromise: null,
+    reconciliationPerformed: reconciliationResult.performed,
+    orphanChildrenStopped: reconciliationResult.orphanChildrenStopped,
+    databaseStateReconciled: reconciliationResult.databaseStateReconciled,
+    recoveryBackupPreserved: reconciliationResult.recoveryBackupPreserved,
   };
   runtime.shutdownPromise = new Promise((resolve) => {
     runtime.resolveShutdown = resolve;
@@ -529,8 +645,12 @@ async function runStartCommand({
     atomicWriteJson(paths.token, {
       schema_version: RUNTIME_SCHEMA_VERSION,
       contract: RUNTIME_CONTRACT,
+      generation_version: RUNTIME_GENERATION_VERSION,
+      generation_id: runtime.generationId,
       instance_id: instanceId,
+      repository_fingerprint: runtime.repositoryFingerprint,
       token: runtime.controlToken,
+      child_ownership_token: runtime.childOwnershipToken,
     });
     atomicWriteText(paths.bridgeEnvironment, "");
     writeRuntimeManifest(runtime);
@@ -549,6 +669,10 @@ async function runStartCommand({
       database_state: runtime.databaseState,
       database_schema_version: runtime.databaseSchemaVersion,
       recovery_backup_created: runtime.recoveryBackupCreated,
+      reconciliation_performed: runtime.reconciliationPerformed,
+      orphan_children_stopped: runtime.orphanChildrenStopped,
+      database_state_reconciled: runtime.databaseStateReconciled,
+      recovery_backup_preserved: runtime.recoveryBackupPreserved,
     });
 
     try {
@@ -560,6 +684,8 @@ async function runStartCommand({
         repositoryRoot,
         instanceId: runtime.instanceId,
         databaseOverrideActive: paths.local.database_override_active,
+        repositoryFingerprint: runtime.repositoryFingerprint,
+        runtimeOwnershipGeneration: runtime.generationId,
       });
       runtime.databaseState = databaseResult.databaseState;
       runtime.databaseSchemaVersion = databaseResult.schemaVersion;
@@ -723,16 +849,30 @@ export function buildSupervisorChildValues({
   environment = process.env,
   paths,
   instanceId,
+  repositoryFingerprint = null,
+  generationId = null,
+  childOwnershipToken = null,
   effectiveUrl = null,
   port = null,
   databasePath = nonEmptyString(environment.AUGNES_DB_PATH),
 }) {
+  const ownershipValues = {
+    AUGNES_RUNTIME_INSTANCE_ID: instanceId,
+    AUGNES_RUNTIME_CONTRACT: RUNTIME_CONTRACT,
+    AUGNES_RUNTIME_SCHEMA_VERSION: String(RUNTIME_SCHEMA_VERSION),
+    AUGNES_RUNTIME_REPOSITORY_FINGERPRINT: repositoryFingerprint,
+    AUGNES_RUNTIME_GENERATION_ID: generationId,
+    AUGNES_RUNTIME_GENERATION_VERSION: String(RUNTIME_GENERATION_VERSION),
+    AUGNES_RUNTIME_CHILD_ROLE: role,
+    AUGNES_RUNTIME_CHILD_PORT: port === null ? null : String(port),
+    AUGNES_RUNTIME_OWNERSHIP_TOKEN: childOwnershipToken,
+  };
   if (role === "ui") {
     return {
       NODE_ENV: "development",
       NEXT_TELEMETRY_DISABLED: "1",
       AUGNES_DB_PATH: databasePath,
-      AUGNES_RUNTIME_INSTANCE_ID: instanceId,
+      ...ownershipValues,
       OPENAI_API_KEY: nonEmptyString(environment.OPENAI_API_KEY),
       OPENAI_MODEL: nonEmptyString(environment.OPENAI_MODEL),
       AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: nonEmptyString(
@@ -764,7 +904,7 @@ export function buildSupervisorChildValues({
       AUGNES_CORE_MODE: "mock",
       AUGNES_API_BASE_URL: effectiveUrl,
       AUGNES_ENABLE_AGENT_BRIDGE: "true",
-      AUGNES_RUNTIME_INSTANCE_ID: instanceId,
+      ...ownershipValues,
       AUGNES_APP_PROFILE: nonEmptyString(environment.AUGNES_APP_PROFILE),
       AUGNES_APP_TOOL_SURFACE: nonEmptyString(
         environment.AUGNES_APP_TOOL_SURFACE,
@@ -784,6 +924,9 @@ function spawnRuntimeChild({ runtime, role, port }) {
     environment: runtime.environment,
     paths: runtime.paths,
     instanceId: runtime.instanceId,
+    repositoryFingerprint: runtime.repositoryFingerprint,
+    generationId: runtime.generationId,
+    childOwnershipToken: runtime.childOwnershipToken,
     effectiveUrl: runtime.effectiveUrl,
     port,
     databasePath: runtime.databasePath,
@@ -793,7 +936,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
     ambientEnvironment: runtime.environment,
     values: authoredValues,
   });
-  const args =
+  const childArguments =
     role === "ui"
       ? [
           nextBin,
@@ -805,11 +948,12 @@ function spawnRuntimeChild({ runtime, role, port }) {
           String(port),
         ]
       : ["--import", "tsx", bridgeServer];
+  const args = [runtimeChildLauncher, ...childArguments];
   const child = spawn(process.execPath, args, {
     cwd: role === "ui" ? repositoryRoot : bridgeRoot,
     env: childEnvironment,
     detached: process.platform !== "win32",
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
     windowsHide: true,
   });
   const record = {
@@ -823,7 +967,20 @@ function spawnRuntimeChild({ runtime, role, port }) {
     exit: null,
     spawnError: null,
     outputTail: "",
+    ownershipPort: null,
   };
+
+  child.on("message", (message) => {
+    if (
+      message?.type !== "augnes-runtime-child-ownership-ready" ||
+      message.pid !== record.pid ||
+      !isPort(message.port)
+    ) {
+      return;
+    }
+    record.ownershipPort = message.port;
+    if (runtime.manifestCreated) writeRuntimeManifestBestEffort(runtime);
+  });
 
   for (const stream of [child.stdout, child.stderr]) {
     stream.setEncoding("utf8");
@@ -979,11 +1136,11 @@ async function cleanupOwnedRuntime(runtime) {
     await closeServer(runtime.controlServer);
   }
 
-  if (ownsLock(runtime.paths.lock, runtime.instanceId)) {
-    removeOwnedJson(runtime.paths.manifest, runtime.instanceId);
-    removeOwnedJson(runtime.paths.token, runtime.instanceId);
+  if (ownsLock(runtime.paths.lock, runtime)) {
+    removeOwnedGenerationJson(runtime.paths.manifest, runtime);
+    removeOwnedGenerationJson(runtime.paths.token, runtime);
     removeRegularFile(runtime.paths.bridgeEnvironment);
-    removeOwnedJson(runtime.paths.lock, runtime.instanceId);
+    removeOwnedGenerationJson(runtime.paths.lock, runtime);
     removeDirectoryIfEmpty(runtime.paths.directory);
   }
 
@@ -996,6 +1153,12 @@ async function stopOwnedChild(record) {
   if (!record.pid) return;
   record.expectedExit = true;
   if (!isOwnedProcessTreeAlive(record)) return;
+  if (
+    record.exit &&
+    (await waitForProcessTreeExit(record, EXITED_CHILD_DRAIN_MS))
+  ) {
+    return;
+  }
 
   signalOwnedProcessTree(record, "SIGTERM");
   if (await waitForProcessTreeExit(record, GRACEFUL_CHILD_STOP_MS)) return;
@@ -1062,12 +1225,14 @@ function buildManifest(runtime) {
   return {
     schema_version: RUNTIME_SCHEMA_VERSION,
     contract: RUNTIME_CONTRACT,
+    generation_version: RUNTIME_GENERATION_VERSION,
+    generation_id: runtime.generationId,
     instance_id: runtime.instanceId,
     repository_fingerprint: runtime.repositoryFingerprint,
     supervisor_pid: runtime.supervisorPid,
     control_host: LOOPBACK_HOST,
     control_port: runtime.controlPort,
-    children: publicChildren(runtime),
+    children: manifestChildren(runtime),
     effective_url: runtime.effectiveUrl,
     ui_port: runtime.uiPort,
     bridge_port: runtime.bridgePort,
@@ -1085,6 +1250,8 @@ function buildControlIdentity(runtime) {
   return {
     schema_version: RUNTIME_SCHEMA_VERSION,
     contract: RUNTIME_CONTRACT,
+    generation_version: RUNTIME_GENERATION_VERSION,
+    generation_id: runtime.generationId,
     instance_id: runtime.instanceId,
     repository_fingerprint: runtime.repositoryFingerprint,
     supervisor_pid: runtime.supervisorPid,
@@ -1114,6 +1281,19 @@ function publicChildren(runtime) {
     .sort((left, right) => left.role.localeCompare(right.role));
 }
 
+function manifestChildren(runtime) {
+  return [...runtime.children.values()]
+    .filter((record) => Number.isInteger(record.pid) && record.pid > 0)
+    .map((record) => ({
+      role: record.role,
+      pid: record.pid,
+      port: record.port,
+      ownership_port: record.ownershipPort,
+      state: record.state,
+    }))
+    .sort((left, right) => left.role.localeCompare(right.role));
+}
+
 function publicStatusResult(command, result, identity) {
   return {
     command,
@@ -1135,59 +1315,14 @@ function publicStatusResult(command, result, identity) {
   };
 }
 
-function readManifest(manifestPath) {
-  const value = readJsonRegularFile(manifestPath);
-  if (value === null) return { state: "missing" };
-  if (!isManifest(value)) return { state: "invalid" };
-  return { state: "valid", value };
-}
-
-function isManifest(value) {
-  return (
-    isObject(value) &&
-    value.schema_version === RUNTIME_SCHEMA_VERSION &&
-    value.contract === RUNTIME_CONTRACT &&
-    typeof value.instance_id === "string" &&
-    value.instance_id.length > 0 &&
-    typeof value.repository_fingerprint === "string" &&
-    Number.isInteger(value.supervisor_pid) &&
-    value.supervisor_pid > 0 &&
-    value.control_host === LOOPBACK_HOST &&
-    isPort(value.control_port) &&
-    (value.database_state === undefined || isDatabaseState(value.database_state)) &&
-    (value.database_schema_version === undefined ||
-      value.database_schema_version === null ||
-      typeof value.database_schema_version === "string") &&
-    (value.recovery_backup_created === undefined ||
-      typeof value.recovery_backup_created === "boolean") &&
-    isLifecycleState(value.lifecycle_state)
-  );
-}
-
-function isVerifiedIdentity(identity, manifest, repositoryFingerprint) {
-  return (
-    isObject(identity) &&
-    identity.schema_version === RUNTIME_SCHEMA_VERSION &&
-    identity.contract === RUNTIME_CONTRACT &&
-    identity.instance_id === manifest.instance_id &&
-    identity.repository_fingerprint === repositoryFingerprint &&
-    identity.supervisor_pid === manifest.supervisor_pid &&
-    isLifecycleState(identity.lifecycle_state) &&
-    identity.ui_port === manifest.ui_port &&
-    identity.bridge_port === manifest.bridge_port &&
-    identity.database_state === manifest.database_state &&
-    identity.database_schema_version === manifest.database_schema_version &&
-    identity.recovery_backup_created === manifest.recovery_backup_created
-  );
-}
-
-function readOwnedToken(tokenPath, instanceId) {
+function readOwnedToken(tokenPath, instanceId, generationId = null) {
   const value = readJsonRegularFile(tokenPath);
   if (
     !isObject(value) ||
     value.schema_version !== RUNTIME_SCHEMA_VERSION ||
     value.contract !== RUNTIME_CONTRACT ||
     value.instance_id !== instanceId ||
+    (generationId !== null && value.generation_id !== generationId) ||
     typeof value.token !== "string" ||
     value.token.length < 32
   ) {
@@ -1207,12 +1342,6 @@ function readJsonRegularFile(filePath) {
   }
 }
 
-function hasOwnershipSideFiles(paths) {
-  return [paths.manifest, paths.lock, paths.token, paths.bridgeEnvironment].some(
-    (filePath) => existsSync(filePath),
-  );
-}
-
 async function waitForVerifiedOwner({ paths, repositoryFingerprint }) {
   const deadline = Date.now() + OWNERSHIP_RACE_WAIT_MS;
   while (Date.now() < deadline) {
@@ -1221,6 +1350,193 @@ async function waitForVerifiedOwner({ paths, repositoryFingerprint }) {
     await delay(75);
   }
   return null;
+}
+
+async function reconcileRuntimeOwnership({
+  paths,
+  repositoryFingerprint,
+  databaseReconciliation = inspectDatabaseReconciliation({
+    databasePath: paths.local.database_path,
+    backupDirectory: paths.local.backup_directory,
+    repositoryFingerprint,
+  }),
+}) {
+  let classified = await classifyRuntimeState({ paths, repositoryFingerprint });
+  if (classified.state === "verified_live") {
+    return {
+      performed: false,
+      orphanChildrenStopped: 0,
+      databaseStateReconciled: false,
+      recoveryBackupPreserved: false,
+      existing: {
+        verified: true,
+        manifest: classified.manifest,
+        identity: classified.identity,
+      },
+    };
+  }
+  if (
+    classified.state === "clean" &&
+    databaseReconciliation.state === "clean"
+  ) {
+    return {
+      performed: false,
+      orphanChildrenStopped: 0,
+      databaseStateReconciled: false,
+      recoveryBackupPreserved: false,
+    };
+  }
+  if (classified.state === "reconciliation_in_progress") {
+    classified = await waitForRuntimeReconciliation({
+      paths,
+      repositoryFingerprint,
+    });
+    if (classified.state === "verified_live") {
+      return {
+        performed: false,
+        orphanChildrenStopped: 0,
+        databaseStateReconciled: false,
+        recoveryBackupPreserved: false,
+        existing: {
+          verified: true,
+          manifest: classified.manifest,
+          identity: classified.identity,
+        },
+      };
+    }
+  }
+  if (classified.state !== "clean" && !classified.recoverable) {
+    throw new PublicRuntimeReconciliationError(
+      classified.reason ?? "runtime_ownership_unverifiable",
+    );
+  }
+
+  let lease;
+  try {
+    lease = acquireRuntimeReconciliationLease({ paths, repositoryFingerprint });
+  } catch (error) {
+    if (error?.code !== "runtime_reconciliation_in_progress") throw error;
+    const afterWait = await waitForRuntimeReconciliation({
+      paths,
+      repositoryFingerprint,
+    });
+    if (afterWait.state === "verified_live") {
+      return {
+        performed: false,
+        orphanChildrenStopped: 0,
+        databaseStateReconciled: false,
+        recoveryBackupPreserved: false,
+        existing: {
+          verified: true,
+          manifest: afterWait.manifest,
+          identity: afterWait.identity,
+        },
+      };
+    }
+    const databaseAfterWait = inspectDatabaseReconciliation({
+      databasePath: paths.local.database_path,
+      backupDirectory: paths.local.backup_directory,
+      repositoryFingerprint,
+    });
+    if (
+      afterWait.state === "clean" &&
+      databaseAfterWait.state === "clean"
+    ) {
+      return {
+        performed: false,
+        orphanChildrenStopped: 0,
+        databaseStateReconciled: false,
+        recoveryBackupPreserved: false,
+      };
+    }
+    throw new PublicRuntimeReconciliationError(
+      afterWait.reason ?? "runtime_reconciliation_in_progress",
+    );
+  }
+
+  try {
+    const owned = await classifyRuntimeState({
+      paths,
+      repositoryFingerprint,
+      ownedLease: lease,
+    });
+    if (owned.state === "verified_live") {
+      return {
+        performed: false,
+        orphanChildrenStopped: 0,
+        databaseStateReconciled: false,
+        recoveryBackupPreserved: false,
+        existing: {
+          verified: true,
+          manifest: owned.manifest,
+          identity: owned.identity,
+        },
+      };
+    }
+    if (owned.state !== "clean" && !owned.recoverable) {
+      throw new PublicRuntimeReconciliationError(
+        owned.reason ?? "runtime_ownership_unverifiable",
+      );
+    }
+    let orphanChildrenStopped = 0;
+    let runtimeStateReconciled = false;
+    if (owned.state !== "clean") {
+      orphanChildrenStopped = await stopVerifiedOrphanChildren(owned);
+      cleanupRuntimeOwnershipBundle({ paths, classified: owned });
+      runtimeStateReconciled = true;
+    }
+    const currentDatabaseReconciliation = inspectDatabaseReconciliation({
+      databasePath: paths.local.database_path,
+      backupDirectory: paths.local.backup_directory,
+      repositoryFingerprint,
+    });
+    let databaseResult = {
+      databaseStateReconciled: false,
+      recoveryBackupPreserved: false,
+    };
+    if (currentDatabaseReconciliation.state === "recoverable") {
+      databaseResult = reconcileInterruptedDatabaseBootstrap({
+        databasePath: paths.local.database_path,
+        backupDirectory: paths.local.backup_directory,
+        repositoryFingerprint,
+        reconciliationLeaseOwned: true,
+      });
+    } else if (currentDatabaseReconciliation.state !== "clean") {
+      throw new PublicRuntimeError(
+        currentDatabaseReconciliation.reason ??
+          "database_reconciliation_required",
+      );
+    }
+    return {
+      performed:
+        runtimeStateReconciled || databaseResult.databaseStateReconciled,
+      orphanChildrenStopped,
+      databaseStateReconciled: databaseResult.databaseStateReconciled,
+      recoveryBackupPreserved: databaseResult.recoveryBackupPreserved,
+    };
+  } finally {
+    releaseRuntimeReconciliationLease({ paths, lease });
+  }
+}
+
+async function waitForRuntimeReconciliation({ paths, repositoryFingerprint }) {
+  const deadline = Date.now() + OWNERSHIP_RACE_WAIT_MS;
+  let classified;
+  while (Date.now() < deadline) {
+    classified = await classifyRuntimeState({ paths, repositoryFingerprint });
+    if (
+      classified.state === "verified_live" ||
+      classified.state === "clean"
+    ) {
+      return classified;
+    }
+    if (classified.state !== "reconciliation_in_progress") return classified;
+    await delay(75);
+  }
+  return (
+    classified ??
+    (await classifyRuntimeState({ paths, repositoryFingerprint }))
+  );
 }
 
 export function ensureRuntimeDirectory({
@@ -1248,6 +1564,7 @@ function createExclusiveJson(filePath, value) {
   } catch {
     // Windows does not implement POSIX mode semantics.
   }
+  fsyncDirectoryBestEffort(path.dirname(filePath));
 }
 
 function atomicWriteJson(filePath, value) {
@@ -1269,20 +1586,39 @@ function atomicWriteText(filePath, value) {
     } catch {
       // Windows does not implement POSIX mode semantics.
     }
+    fsyncDirectoryBestEffort(path.dirname(filePath));
   } finally {
     if (descriptor !== null) closeSync(descriptor);
     if (existsSync(temporaryPath)) removeRegularFile(temporaryPath);
   }
 }
 
-function ownsLock(lockPath, instanceId) {
+function ownsLock(lockPath, runtime) {
   const value = readJsonRegularFile(lockPath);
-  return isObject(value) && value.instance_id === instanceId;
+  return (
+    isObject(value) &&
+    value.schema_version === RUNTIME_SCHEMA_VERSION &&
+    value.contract === RUNTIME_CONTRACT &&
+    value.generation_version === RUNTIME_GENERATION_VERSION &&
+    value.generation_id === runtime.generationId &&
+    value.instance_id === runtime.instanceId &&
+    value.repository_fingerprint === runtime.repositoryFingerprint
+  );
 }
 
-function removeOwnedJson(filePath, instanceId) {
+function removeOwnedGenerationJson(filePath, runtime) {
   const value = readJsonRegularFile(filePath);
-  if (isObject(value) && value.instance_id === instanceId) removeRegularFile(filePath);
+  if (
+    isObject(value) &&
+    value.schema_version === RUNTIME_SCHEMA_VERSION &&
+    value.contract === RUNTIME_CONTRACT &&
+    value.generation_version === RUNTIME_GENERATION_VERSION &&
+    value.generation_id === runtime.generationId &&
+    value.instance_id === runtime.instanceId &&
+    value.repository_fingerprint === runtime.repositoryFingerprint
+  ) {
+    removeRegularFile(filePath);
+  }
 }
 
 function removeRegularFile(filePath) {
@@ -1299,6 +1635,18 @@ function removeDirectoryIfEmpty(directory) {
     rmdirSync(directory);
   } catch (error) {
     if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes(error?.code)) throw error;
+  }
+}
+
+function fsyncDirectoryBestEffort(directory) {
+  let descriptor = null;
+  try {
+    descriptor = openSync(directory, "r");
+    fsyncSync(descriptor);
+  } catch {
+    // Directory fsync is unavailable on some supported platforms.
+  } finally {
+    if (descriptor !== null) closeSync(descriptor);
   }
 }
 
@@ -1455,14 +1803,6 @@ function isProcessAlive(pid) {
 
 function isPort(value) {
   return Number.isInteger(value) && value >= 1 && value <= 65_535;
-}
-
-function isLifecycleState(value) {
-  return ["starting", "ready", "stopping", "failed"].includes(value);
-}
-
-function isDatabaseState(value) {
-  return ["preparing", "created", "current", "migrated", "failed"].includes(value);
 }
 
 function isPortCollisionOutput(output) {
