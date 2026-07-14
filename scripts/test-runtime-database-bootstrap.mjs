@@ -33,9 +33,11 @@ import {
 } from "./augnes-runtime-supervisor.mjs";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import {
+  canonicalStructuralSchemaContractSignature,
   PublicDatabaseBootstrapError,
   inspectRuntimeDatabase,
   prepareRuntimeDatabase,
+  structuralSchemaContractSignature,
   verifyDatabaseFile,
 } from "./runtime-database-bootstrap.mjs";
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
@@ -68,7 +70,10 @@ try {
   await testRealFirstAndCurrentStarts();
   await testRealOldSchemaStart();
   await testFailurePreservation();
+  await testDatabaseRecognitionContract();
+  await testRealReplacementRollback();
   await testSupervisorMigrationFailure();
+  await testSupervisorSchemaAndReplacementFailures();
 
   assert.deepEqual(
     snapshotDatabaseFamily(repositoryDatabasePath),
@@ -92,6 +97,13 @@ try {
     current_database_state: "current",
     old_database_state: "migrated",
     recovery_backup_verified: true,
+    canonical_schema_contract_verified: true,
+    unrelated_schema_rejection_verified: true,
+    forward_schema_rejection_verified: true,
+    post_move_rollback_verified: true,
+    post_publish_rollback_verified: true,
+    active_wal_rollback_verified: process.platform !== "win32",
+    rollback_restoration_failure_preserved: true,
     migration_failure_original_preserved: true,
     no_reset_or_seed: true,
     diagnostics_read_only: true,
@@ -831,6 +843,375 @@ async function testFailurePreservation() {
   assertNoDatabaseOperationResidue(concurrentRoot);
 }
 
+async function testDatabaseRecognitionContract() {
+  const unrelatedCases = [
+    {
+      name: "agents-only",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE agents (id INTEGER PRIMARY KEY, queue TEXT);" +
+            "INSERT INTO agents VALUES (7, 'unrelated-agent-row');",
+        ),
+    },
+    {
+      name: "sessions-only",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE sessions (id INTEGER PRIMARY KEY, cookie TEXT);" +
+            "INSERT INTO sessions VALUES (8, 'unrelated-session-row');",
+        ),
+    },
+    {
+      name: "messages-only",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE messages (id INTEGER PRIMARY KEY, payload BLOB);" +
+            "INSERT INTO messages VALUES (9, x'0102');",
+        ),
+    },
+    {
+      name: "overlapping-three-tables",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE agents (agent_no INTEGER PRIMARY KEY, queue TEXT);" +
+            "CREATE TABLE sessions (session_no INTEGER PRIMARY KEY, cookie TEXT);" +
+            "CREATE TABLE messages (message_no INTEGER PRIMARY KEY, payload TEXT);" +
+            "INSERT INTO agents VALUES (1, 'unrelated-overlap-row');",
+        ),
+    },
+    {
+      name: "generic-crud-overlap",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE agents (id INTEGER PRIMARY KEY, username TEXT UNIQUE);" +
+            "CREATE TABLE sessions (id INTEGER PRIMARY KEY, agent_id INTEGER REFERENCES agents(id));" +
+            "CREATE TABLE messages (id INTEGER PRIMARY KEY, session_id INTEGER REFERENCES sessions(id), body TEXT);" +
+            "CREATE INDEX messages_by_session ON messages(session_id);" +
+            "INSERT INTO agents VALUES (1, 'generic-crud-row');",
+        ),
+    },
+    {
+      name: "recognizable-name-with-schema-objects",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE state_entries (key TEXT PRIMARY KEY, value TEXT);" +
+            "CREATE INDEX state_entries_by_value ON state_entries(value);" +
+            "CREATE TRIGGER state_entries_touch AFTER INSERT ON state_entries BEGIN SELECT 1; END;" +
+            "INSERT INTO state_entries VALUES ('unrelated-key', 'unrelated-trigger-row');",
+        ),
+    },
+  ];
+  for (const fixture of unrelatedCases) {
+    await assertUnsupportedSchemaFixture({
+      group: "unrelated",
+      name: fixture.name,
+      setup: fixture.setup,
+    });
+  }
+
+  const forwardCases = [
+    {
+      name: "unknown-table",
+      setup: (database) =>
+        database.exec(
+          "CREATE TABLE future_augnes_records (id TEXT PRIMARY KEY, value TEXT);" +
+            "INSERT INTO future_augnes_records VALUES ('future-row', 'forward-table-row');",
+        ),
+    },
+    {
+      name: "unknown-column",
+      setup: (database) => database.exec("ALTER TABLE agents ADD COLUMN future_value TEXT"),
+    },
+    {
+      name: "unknown-index",
+      setup: (database) =>
+        database.exec("CREATE INDEX future_agents_name_index ON agents(name)"),
+    },
+    {
+      name: "unknown-trigger",
+      setup: (database) =>
+        database.exec(
+          "CREATE TRIGGER future_agents_insert AFTER INSERT ON agents BEGIN SELECT 1; END",
+        ),
+    },
+    {
+      name: "altered-known-index",
+      setup: (database) =>
+        database.exec(
+          "DROP INDEX idx_sessions_scope_surface_time;" +
+            "CREATE INDEX idx_sessions_scope_surface_time ON sessions(scope)",
+        ),
+    },
+  ];
+  for (const fixture of forwardCases) {
+    await assertUnsupportedSchemaFixture({
+      group: "forward",
+      name: fixture.name,
+      currentFirst: true,
+      setup: fixture.setup,
+      diagnostics: true,
+    });
+  }
+
+  const positiveRoot = path.join(temporaryRoot, "schema-contract-positive");
+  const currentPath = path.join(positiveRoot, "current.db");
+  mkdirSync(positiveRoot, { recursive: true });
+  createCanonicalDatabaseFixture(currentPath);
+  assert.equal(readStructuralSignature(currentPath), canonicalStructuralSchemaContractSignature());
+  assert.equal(
+    (await inspectRuntimeDatabase({ databasePath: currentPath })).database_state,
+    "current",
+  );
+
+  const oldPath = path.join(positiveRoot, "old.db");
+  createOldDatabaseFixture(oldPath, `${oldMarkerId}:schema-contract`);
+  assert.equal((await inspectRuntimeDatabase({ databasePath: oldPath })).database_state, "old");
+  const migrated = await prepareRuntimeDatabase({
+    databasePath: oldPath,
+    backupDirectory: path.join(positiveRoot, "backups"),
+    repositoryRoot,
+    instanceId: "schema-contract-positive",
+  });
+  assert.equal(migrated.databaseState, "migrated");
+  assert.equal(readStructuralSignature(oldPath), canonicalStructuralSchemaContractSignature());
+
+  const emptyPath = path.join(positiveRoot, "empty.db");
+  new Database(emptyPath).close();
+  assert.equal((await inspectRuntimeDatabase({ databasePath: emptyPath })).database_state, "old");
+  const emptyPrepared = await prepareRuntimeDatabase({
+    databasePath: emptyPath,
+    backupDirectory: path.join(positiveRoot, "empty-backups"),
+    repositoryRoot,
+    instanceId: "schema-contract-empty",
+  });
+  assert.equal(emptyPrepared.databaseState, "migrated");
+  assert.equal(readStructuralSignature(emptyPath), canonicalStructuralSchemaContractSignature());
+  assertNoDatabaseOperationResidue(positiveRoot);
+}
+
+async function assertUnsupportedSchemaFixture({
+  group,
+  name,
+  setup,
+  currentFirst = false,
+  diagnostics = false,
+}) {
+  const root = path.join(temporaryRoot, `schema-${group}-${name}`);
+  const databasePath = path.join(root, "data", "fixture.db");
+  const backupDirectory = path.join(root, "backups");
+  mkdirSync(path.dirname(databasePath), { recursive: true });
+  const database = new Database(databasePath);
+  try {
+    if (currentFirst) applyCanonicalDatabaseMigrations(database);
+    setup(database);
+  } finally {
+    database.close();
+  }
+  const before = snapshotDatabaseFamily(databasePath);
+  assert.equal(
+    (await inspectRuntimeDatabase({ databasePath })).database_state,
+    "unsupported",
+  );
+  if (diagnostics) {
+    const environment = disposableSupervisorEnvironment(root, {
+      providerMode: "poisoned",
+      includePorts: false,
+    });
+    environment.AUGNES_DB_PATH = databasePath;
+    const result = runSupervisorCliSync(["diagnostics"], environment);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(lastJsonLine(result.stdout).database.state, "unsupported");
+    assert.deepEqual(snapshotDatabaseFamily(databasePath), before);
+  }
+  let backupAttempted = false;
+  await assert.rejects(
+    prepareRuntimeDatabase({
+      databasePath,
+      backupDirectory,
+      repositoryRoot,
+      instanceId: `unsupported-${group}-${name}`,
+      databaseOverrideActive: true,
+      dependencies: {
+        backupDatabase: async () => {
+          backupAttempted = true;
+          throw new Error("unsupported input must not reach backup");
+        },
+      },
+    }),
+    (error) => error?.code === "database_schema_unsupported",
+  );
+  assert.equal(backupAttempted, false);
+  assert.equal(existsSync(backupDirectory), false);
+  assert.deepEqual(snapshotDatabaseFamily(databasePath), before);
+  verifyDatabaseFile(databasePath);
+  assertNoDatabaseOperationResidue(root);
+}
+
+async function testRealReplacementRollback() {
+  await assertRealReplacementRollback({
+    name: "after-original-moved",
+    hookName: "afterOriginalMoved",
+    observe: ({ databasePath, rollbackPath }) => {
+      assert.equal(existsSync(databasePath), false);
+      assert.equal(existsSync(rollbackPath), true);
+    },
+  });
+  await assertRealReplacementRollback({
+    name: "after-staging-published",
+    hookName: "afterStagingPublished",
+    observe: ({ databasePath, rollbackPath }) => {
+      assert.equal(existsSync(databasePath), true);
+      assert.equal(existsSync(rollbackPath), true);
+      assert.equal(readStructuralSignature(databasePath), canonicalStructuralSchemaContractSignature());
+    },
+  });
+
+  if (process.platform !== "win32") {
+    const root = path.join(temporaryRoot, "rollback-active-wal");
+    const databasePath = path.join(root, "data", "augnes.db");
+    const backupDirectory = path.join(root, "backups");
+    const marker = `${oldMarkerId}:rollback-wal`;
+    const walReader = createOldDatabaseFixture(databasePath, marker, { wal: true });
+    assert.equal(existsSync(`${databasePath}-wal`), true);
+    try {
+      await assert.rejects(
+        prepareRuntimeDatabase({
+          databasePath,
+          backupDirectory,
+          repositoryRoot,
+          instanceId: "rollback-active-wal",
+          dependencies: {
+            afterStagingPublished: () => {
+              throw new Error("fixture active WAL post-publish failure");
+            },
+          },
+        }),
+        (error) => error?.code === "database_bootstrap_failed",
+      );
+      assert.deepEqual(readDurableMarker(databasePath, marker), {
+        id: marker,
+        name: "database bootstrap marker",
+      });
+      verifyDatabaseFile(databasePath);
+      const backupPath = onlyRecoveryBackup(backupDirectory);
+      verifyDatabaseFile(backupPath);
+      assert.deepEqual(readDurableMarker(backupPath, marker), {
+        id: marker,
+        name: "database bootstrap marker",
+      });
+    } finally {
+      if (walReader.inTransaction) walReader.exec("ROLLBACK");
+      walReader.close();
+    }
+    const walRetry = await prepareRuntimeDatabase({
+      databasePath,
+      backupDirectory,
+      repositoryRoot,
+      instanceId: "rollback-active-wal-retry",
+    });
+    assert.equal(walRetry.databaseState, "migrated");
+    assert.deepEqual(readDurableMarker(databasePath, marker), {
+      id: marker,
+      name: "database bootstrap marker",
+    });
+    assertNoSqliteSideFiles(databasePath);
+    assertNoDatabaseOperationResidue(root);
+  }
+
+  const retainedRoot = path.join(temporaryRoot, "rollback-restoration-failure");
+  const retainedPath = path.join(retainedRoot, "data", "augnes.db");
+  const retainedBackups = path.join(retainedRoot, "backups");
+  const retainedMarker = `${oldMarkerId}:retained-rollback`;
+  createOldDatabaseFixture(retainedPath, retainedMarker);
+  let failure;
+  try {
+    await prepareRuntimeDatabase({
+      databasePath: retainedPath,
+      backupDirectory: retainedBackups,
+      repositoryRoot,
+      instanceId: "rollback-restoration-failure",
+      dependencies: {
+        afterStagingPublished: () => {
+          throw new Error("fixture post-publish failure before restore failure");
+        },
+        beforeOriginalRestore: () => {
+          throw new Error("fixture restore failure");
+        },
+      },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  assert.equal(failure?.code, "database_rollback_failed");
+  assert.equal(failure?.message, "database_rollback_failed");
+  assert.equal(existsSync(retainedPath), false);
+  const retainedRollback = listFilesRecursively(retainedRoot).find((entry) =>
+    entry.includes(".augnes-rollback-"),
+  );
+  assert.ok(retainedRollback, "recoverable original rollback material must be retained");
+  assert.deepEqual(readDurableMarker(retainedRollback, retainedMarker), {
+    id: retainedMarker,
+    name: "database bootstrap marker",
+  });
+  verifyDatabaseFile(onlyRecoveryBackup(retainedBackups));
+  assert.equal(existsSync(`${retainedPath}.augnes-bootstrap.lock`), true);
+  assert.equal(listFilesRecursively(retainedRoot).some((entry) => entry.includes(".augnes-stage-")), false);
+  assert.equal(JSON.stringify(failure).includes(retainedPath), false);
+}
+
+async function assertRealReplacementRollback({ name, hookName, observe }) {
+  const root = path.join(temporaryRoot, `rollback-${name}`);
+  const databasePath = path.join(root, "data", "augnes.db");
+  const backupDirectory = path.join(root, "backups");
+  const marker = `${oldMarkerId}:${name}`;
+  createOldDatabaseFixture(databasePath, marker);
+  const originalBefore = snapshotDatabaseFamily(databasePath);
+  let hookEntered = false;
+  await assert.rejects(
+    prepareRuntimeDatabase({
+      databasePath,
+      backupDirectory,
+      repositoryRoot,
+      instanceId: `rollback-${name}`,
+      dependencies: {
+        [hookName]: (state) => {
+          hookEntered = true;
+          observe(state);
+          throw new Error(`fixture ${name} failure`);
+        },
+      },
+    }),
+    (error) => error?.code === "database_bootstrap_failed",
+  );
+  assert.equal(hookEntered, true);
+  assert.deepEqual(snapshotDatabaseFamily(databasePath), originalBefore);
+  assert.deepEqual(readDurableMarker(databasePath, marker), {
+    id: marker,
+    name: "database bootstrap marker",
+  });
+  const backupPath = onlyRecoveryBackup(backupDirectory);
+  verifyDatabaseFile(backupPath);
+  assert.deepEqual(readDurableMarker(backupPath, marker), {
+    id: marker,
+    name: "database bootstrap marker",
+  });
+  assertNoDatabaseOperationResidue(root);
+
+  const retry = await prepareRuntimeDatabase({
+    databasePath,
+    backupDirectory,
+    repositoryRoot,
+    instanceId: `rollback-${name}-retry`,
+  });
+  assert.equal(retry.databaseState, "migrated");
+  assert.equal(readStructuralSignature(databasePath), canonicalStructuralSchemaContractSignature());
+  assert.deepEqual(readDurableMarker(databasePath, marker), {
+    id: marker,
+    name: "database bootstrap marker",
+  });
+  assertNoDatabaseOperationResidue(root);
+}
+
 async function testSupervisorMigrationFailure() {
   const root = path.join(temporaryRoot, "supervisor-migration-failure");
   mkdirSync(root, { recursive: true });
@@ -894,6 +1275,157 @@ async function testSupervisorMigrationFailure() {
   assert.equal(publicOutput.includes("fixture supervisor migration failure"), false);
   assert.equal(publicOutput.includes(oldMarkerId), false);
   assertPublicSafe(publicOutput, "supervisor database failure output");
+}
+
+async function testSupervisorSchemaAndReplacementFailures() {
+  await assertSupervisorBootstrapFailure({
+    name: "unsupported-overlapping-schema",
+    expectedReason: "database_schema_unsupported",
+    expectedBackupCount: 0,
+    marker: "supervisor-unrelated-row-sentinel",
+    setup: (databasePath) => {
+      const database = new Database(databasePath);
+      try {
+        database.exec(
+          "CREATE TABLE agents (agent_no INTEGER PRIMARY KEY, queue TEXT);" +
+            "CREATE TABLE sessions (session_no INTEGER PRIMARY KEY, cookie TEXT);" +
+            "CREATE TABLE messages (message_no INTEGER PRIMARY KEY, payload TEXT);" +
+            "INSERT INTO agents VALUES (1, 'supervisor-unrelated-row-sentinel');",
+        );
+      } finally {
+        database.close();
+      }
+    },
+    dependencies: {},
+  });
+  await assertSupervisorBootstrapFailure({
+    name: "unsupported-forward-schema",
+    expectedReason: "database_schema_unsupported",
+    expectedBackupCount: 0,
+    marker: "future_augnes_records",
+    setup: (databasePath) => {
+      createCanonicalDatabaseFixture(databasePath);
+      const database = new Database(databasePath, { fileMustExist: true });
+      try {
+        database.exec(
+          "CREATE TABLE future_augnes_records (id TEXT PRIMARY KEY, value TEXT);" +
+            "INSERT INTO future_augnes_records VALUES ('future', 'supervisor-forward-row');",
+        );
+      } finally {
+        database.close();
+      }
+    },
+    dependencies: {},
+  });
+  await assertSupervisorBootstrapFailure({
+    name: "rollback-after-original-moved",
+    expectedReason: "database_bootstrap_failed",
+    expectedBackupCount: 1,
+    marker: `${oldMarkerId}:supervisor-after-move`,
+    setup: (databasePath, marker) => createOldDatabaseFixture(databasePath, marker),
+    dependencies: {
+      afterOriginalMoved: ({ databasePath, rollbackPath }) => {
+        assert.equal(existsSync(databasePath), false);
+        assert.equal(existsSync(rollbackPath), true);
+        throw new Error("supervisor fixture post-move failure");
+      },
+    },
+  });
+  await assertSupervisorBootstrapFailure({
+    name: "rollback-after-staging-published",
+    expectedReason: "database_bootstrap_failed",
+    expectedBackupCount: 1,
+    marker: `${oldMarkerId}:supervisor-after-publish`,
+    setup: (databasePath, marker) => createOldDatabaseFixture(databasePath, marker),
+    dependencies: {
+      afterStagingPublished: ({ databasePath, rollbackPath }) => {
+        assert.equal(existsSync(databasePath), true);
+        assert.equal(existsSync(rollbackPath), true);
+        assert.equal(
+          readStructuralSignature(databasePath),
+          canonicalStructuralSchemaContractSignature(),
+        );
+        throw new Error("supervisor fixture post-publish failure");
+      },
+    },
+  });
+}
+
+async function assertSupervisorBootstrapFailure({
+  name,
+  expectedReason,
+  expectedBackupCount,
+  marker,
+  setup,
+  dependencies,
+}) {
+  const root = path.join(temporaryRoot, `supervisor-${name}`);
+  mkdirSync(root, { recursive: true });
+  const ports = await findPreferredPorts();
+  const proxy = await createProxySentinel();
+  try {
+    const environment = disposableSupervisorEnvironment(root, {
+      ports,
+      providerMode: "poisoned",
+      proxyPort: proxy.port,
+    });
+    const explicitDatabasePath = path.join(root, "explicit", "review-fixture.db");
+    mkdirSync(path.dirname(explicitDatabasePath), { recursive: true });
+    environment.AUGNES_DB_PATH = explicitDatabasePath;
+    const paths = resolveAugnesLocalPaths({ environment, repositoryRoot });
+    setup(paths.database_path, marker);
+    const originalBefore = snapshotDatabaseFamily(paths.database_path);
+    const childProcessesBefore = listRuntimeChildProcesses();
+    const output = [];
+    const originalConsoleLog = console.log;
+    console.log = (...values) => output.push(values.join(" "));
+    let exitCode;
+    try {
+      exitCode = await runRuntimeSupervisorCli(["start"], environment, {
+        prepareRuntimeDatabase: (options) =>
+          prepareRuntimeDatabase({ ...options, dependencies }),
+      });
+    } finally {
+      console.log = originalConsoleLog;
+    }
+    assert.equal(exitCode, 1);
+    const events = output.map(parseJsonLine).filter(Boolean);
+    const failure = events.find((event) => event.result === "failed");
+    assert.equal(failure.reason, expectedReason);
+    assert.equal(failure.database_state, "failed");
+    assert.equal(failure.recovery_backup_created, expectedBackupCount > 0);
+    assert.equal(events.some((event) => (event.children ?? []).length > 0), false);
+    assert.deepEqual(listRuntimeChildProcesses(), childProcessesBefore);
+    assert.equal(await canConnect(ports.ui), false);
+    assert.equal(await canConnect(ports.bridge), false);
+    assert.deepEqual(snapshotDatabaseFamily(paths.database_path), originalBefore);
+    verifyDatabaseFile(paths.database_path);
+    const backups = existsSync(paths.backup_directory)
+      ? listRegularFiles(paths.backup_directory).filter((entry) => entry.endsWith(".db"))
+      : [];
+    assert.equal(backups.length, expectedBackupCount);
+    for (const backup of backups) verifyDatabaseFile(path.join(paths.backup_directory, backup));
+    assertRuntimeStateClean(paths.runtime_directory);
+    assertNoDatabaseOperationResidue(root);
+    const publicOutput = output.join("\n");
+    for (const forbidden of [
+      paths.database_path,
+      paths.backup_directory,
+      marker,
+      "agents",
+      "sessions",
+      "messages",
+      "future_augnes_records",
+      "supervisor fixture",
+    ]) {
+      assert.equal(publicOutput.includes(forbidden), false);
+    }
+    assertPublicSafe(publicOutput, `supervisor ${name} output`);
+    assert.equal(proxy.requests, 0);
+    providerOrExternalRequests += proxy.requests;
+  } finally {
+    await proxy.close();
+  }
 }
 
 async function assertInjectedFailure({
@@ -1222,6 +1754,32 @@ function createOldDatabaseFixture(databasePath, markerId, { wal = false } = {}) 
     database.close();
   }
   return walReader;
+}
+
+function createCanonicalDatabaseFixture(databasePath) {
+  mkdirSync(path.dirname(databasePath), { recursive: true, mode: 0o700 });
+  const database = new Database(databasePath);
+  try {
+    database.pragma("foreign_keys = ON");
+    applyCanonicalDatabaseMigrations(database);
+  } finally {
+    database.close();
+  }
+}
+
+function readStructuralSignature(databasePath) {
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    return structuralSchemaContractSignature(database);
+  } finally {
+    database.close();
+  }
+}
+
+function onlyRecoveryBackup(backupDirectory) {
+  const backups = listRegularFiles(backupDirectory).filter((entry) => entry.endsWith(".db"));
+  assert.equal(backups.length, 1, "exactly one recovery backup must exist");
+  return path.join(backupDirectory, backups[0]);
 }
 
 function insertDurableMarker(databasePath, markerId) {
