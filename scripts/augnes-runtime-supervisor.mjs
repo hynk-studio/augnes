@@ -13,7 +13,6 @@ import {
   existsSync,
   fsyncSync,
   lstatSync,
-  mkdirSync,
   openSync,
   readFileSync,
   realpathSync,
@@ -23,11 +22,19 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer as createHttpServer, request as httpRequest } from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
+import {
+  ensureApplicationDirectory,
+  resolveAugnesLocalPaths,
+  resolvePhysicalLocalDestination,
+} from "./augnes-local-paths.mjs";
+import {
+  inspectRuntimeDatabase,
+  prepareRuntimeDatabase,
+} from "./runtime-database-bootstrap.mjs";
 
 export const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
 export const RUNTIME_SCHEMA_VERSION = 1;
@@ -68,6 +75,7 @@ class ShutdownDuringStartupError extends Error {
 export async function runRuntimeSupervisorCli(
   argv = process.argv.slice(2),
   environment = process.env,
+  dependencies = {},
 ) {
   let options;
   try {
@@ -99,6 +107,9 @@ export async function runRuntimeSupervisorCli(
     return 2;
   }
 
+  if (options.command === "diagnostics") {
+    return runDiagnosticsCommand({ paths });
+  }
   if (options.command === "status") {
     return runStatusCommand({ paths, repositoryFingerprint });
   }
@@ -110,6 +121,7 @@ export async function runRuntimeSupervisorCli(
     options,
     paths,
     repositoryFingerprint,
+    dependencies,
   });
 }
 
@@ -118,56 +130,12 @@ export function resolveRuntimePaths({
   repositoryFingerprint = fingerprint(repositoryRoot),
   repositoryRootPath = repositoryRoot,
 } = {}) {
-  const configured = nonEmptyString(environment.AUGNES_RUNTIME_STATE_DIR);
-  let directory;
-
-  if (configured) {
-    if (!path.isAbsolute(configured)) {
-      throw new PublicRuntimeError("runtime_state_path_must_be_absolute");
-    }
-    directory = path.resolve(configured);
-  } else {
-    const home = resolveHomeDirectory(environment);
-    const checkoutDirectory = `checkout-${repositoryFingerprint.slice(0, 16)}`;
-    if (process.platform === "darwin") {
-      directory = path.join(
-        home,
-        "Library",
-        "Application Support",
-        "Augnes",
-        "runtime",
-        checkoutDirectory,
-      );
-    } else if (process.platform === "win32") {
-      const localAppData = nonEmptyString(environment.LOCALAPPDATA) ?? home;
-      directory = path.join(localAppData, "Augnes", "runtime", checkoutDirectory);
-    } else {
-      const xdgRuntime = nonEmptyString(environment.XDG_RUNTIME_DIR);
-      const xdgState = nonEmptyString(environment.XDG_STATE_HOME);
-      const root = xdgRuntime
-        ? path.resolve(xdgRuntime)
-        : xdgState
-          ? path.join(path.resolve(xdgState), "augnes", "runtime")
-          : path.join(home, ".local", "state", "augnes", "runtime");
-      directory = path.join(root, checkoutDirectory);
-    }
-  }
-
-  resolvePhysicalRuntimeStateDestination({
-    candidate: directory,
+  const localPaths = resolveAugnesLocalPaths({
+    environment,
     repositoryRoot: repositoryRootPath,
+    repositoryFingerprint,
   });
-  try {
-    const stats = lstatSync(directory);
-    if (!stats.isDirectory() || stats.isSymbolicLink()) {
-      throw new PublicRuntimeError("runtime_state_directory_invalid");
-    }
-  } catch (error) {
-    if (error instanceof PublicRuntimeError) throw error;
-    if (error?.code !== "ENOENT") {
-      throw new PublicRuntimeError("runtime_state_directory_invalid");
-    }
-  }
+  const directory = localPaths.runtime_directory;
 
   return {
     directory,
@@ -175,6 +143,7 @@ export function resolveRuntimePaths({
     lock: path.join(directory, "owner.lock"),
     token: path.join(directory, "control-token.json"),
     bridgeEnvironment: path.join(directory, "bridge-supervisor.env"),
+    local: localPaths,
   };
 }
 
@@ -185,37 +154,12 @@ export function resolvePhysicalRuntimeStateDestination({
   if (!path.isAbsolute(candidate)) {
     throw new PublicRuntimeError("runtime_state_path_must_be_absolute");
   }
-
-  const lexicalDestination = path.resolve(candidate);
-  let existingAncestor = lexicalDestination;
-  const missingSegments = [];
-  while (!existsSync(existingAncestor)) {
-    const parent = path.dirname(existingAncestor);
-    if (parent === existingAncestor) {
-      throw new PublicRuntimeError("runtime_state_path_invalid");
-    }
-    missingSegments.unshift(path.basename(existingAncestor));
-    existingAncestor = parent;
-  }
-
-  let physicalRepositoryRoot;
-  let physicalAncestor;
-  try {
-    physicalRepositoryRoot = realpathSync(repositoryRootPath);
-    physicalAncestor = realpathSync(existingAncestor);
-  } catch {
-    throw new PublicRuntimeError("runtime_state_path_invalid");
-  }
-  const physicalDestination = path.resolve(physicalAncestor, ...missingSegments);
-  assertRuntimeStateOutsideRepository(
-    physicalRepositoryRoot,
-    physicalDestination,
-  );
-  return {
-    lexical_destination: lexicalDestination,
-    physical_destination: physicalDestination,
-    physical_repository_root: physicalRepositoryRoot,
-  };
+  return resolvePhysicalLocalDestination({
+    candidate,
+    repositoryRoot: repositoryRootPath,
+    insideRepositoryCode: "runtime_state_path_must_be_outside_repository",
+    invalidCode: "runtime_state_path_invalid",
+  });
 }
 
 export async function readVerifiedRuntimeStatus({
@@ -284,6 +228,45 @@ export async function readVerifiedRuntimeStatus({
   };
 }
 
+async function runDiagnosticsCommand({ paths }) {
+  let database;
+  try {
+    database = await inspectRuntimeDatabase({
+      databasePath: paths.local.database_path,
+    });
+  } catch (error) {
+    database = {
+      database_state: "unavailable",
+      schema_classification: "unavailable",
+      schema_version: null,
+      reason: publicErrorCode(error, "database_open_failed"),
+    };
+  }
+  emitResult({
+    command: "diagnostics",
+    result: "observed",
+    state: "diagnostics",
+    path_layout_version: paths.local.layout_version,
+    checkout_scope: paths.local.checkout_scope,
+    paths: {
+      data_directory: paths.local.data_directory,
+      config_directory: paths.local.config_directory,
+      backup_directory: paths.local.backup_directory,
+      runtime_directory: paths.local.runtime_directory,
+      database_path: paths.local.database_path,
+    },
+    database: {
+      exists: existsSync(paths.local.database_path),
+      state: database.database_state,
+      schema_classification: database.schema_classification,
+      schema_version: database.schema_version,
+      override_active: paths.local.database_override_active,
+      reason: database.reason ?? null,
+    },
+  });
+  return database.database_state === "unavailable" ? 1 : 0;
+}
+
 async function runStatusCommand({ paths, repositoryFingerprint }) {
   const status = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
   if (status.verified) {
@@ -300,6 +283,9 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
       ui_port: null,
       bridge_port: null,
       children: [],
+      database_state: null,
+      database_schema_version: null,
+      recovery_backup_created: false,
     });
     return 0;
   }
@@ -314,6 +300,9 @@ async function runStatusCommand({ paths, repositoryFingerprint }) {
     ui_port: null,
     bridge_port: null,
     children: [],
+    database_state: null,
+    database_schema_version: null,
+    recovery_backup_created: false,
   });
   return 2;
 }
@@ -421,6 +410,7 @@ async function runStartCommand({
   options,
   paths,
   repositoryFingerprint,
+  dependencies = {},
 }) {
   const existing = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
   if (existing.verified) {
@@ -512,6 +502,10 @@ async function runStartCommand({
     effectiveUrl: null,
     uiPort: null,
     bridgePort: null,
+    databasePath: paths.local.database_path,
+    databaseState: "preparing",
+    databaseSchemaVersion: null,
+    recoveryBackupCreated: false,
     failure: null,
     children: new Map(),
     startupFailure: null,
@@ -552,7 +546,31 @@ async function runStartCommand({
       ui_port: null,
       bridge_port: null,
       children: [],
+      database_state: runtime.databaseState,
+      database_schema_version: runtime.databaseSchemaVersion,
+      recovery_backup_created: runtime.recoveryBackupCreated,
     });
+
+    try {
+      const databaseResult = await (
+        dependencies.prepareRuntimeDatabase ?? prepareRuntimeDatabase
+      )({
+        databasePath: runtime.databasePath,
+        backupDirectory: paths.local.backup_directory,
+        repositoryRoot,
+        instanceId: runtime.instanceId,
+        databaseOverrideActive: paths.local.database_override_active,
+      });
+      runtime.databaseState = databaseResult.databaseState;
+      runtime.databaseSchemaVersion = databaseResult.schemaVersion;
+      runtime.recoveryBackupCreated = databaseResult.recoveryBackupCreated;
+      writeRuntimeManifest(runtime);
+    } catch (error) {
+      runtime.databaseState = "failed";
+      runtime.recoveryBackupCreated = error?.recoveryBackupCreated === true;
+      writeRuntimeManifest(runtime);
+      throw error;
+    }
 
     const ui = await launchWithPortSelection({
       runtime,
@@ -617,6 +635,9 @@ async function runStartCommand({
       verified: true,
       reason: "owned_cleanup_failed",
       effective_url: null,
+      database_state: runtime.databaseState,
+      database_schema_version: runtime.databaseSchemaVersion,
+      recovery_backup_created: runtime.recoveryBackupCreated,
     });
     return 1;
   }
@@ -631,6 +652,9 @@ async function runStartCommand({
       failed_role: runtime.failure?.role ?? null,
       exit_code: runtime.exitCode,
       effective_url: null,
+      database_state: runtime.databaseState,
+      database_schema_version: runtime.databaseSchemaVersion,
+      recovery_backup_created: runtime.recoveryBackupCreated,
     });
     return runtime.exitCode;
   }
@@ -642,6 +666,9 @@ async function runStartCommand({
     verified: true,
     reason: runtime.shutdownReason ?? "normal_exit",
     effective_url: null,
+    database_state: runtime.databaseState,
+    database_schema_version: runtime.databaseSchemaVersion,
+    recovery_backup_created: runtime.recoveryBackupCreated,
   });
   return 0;
 }
@@ -698,12 +725,13 @@ export function buildSupervisorChildValues({
   instanceId,
   effectiveUrl = null,
   port = null,
+  databasePath = nonEmptyString(environment.AUGNES_DB_PATH),
 }) {
   if (role === "ui") {
     return {
       NODE_ENV: "development",
       NEXT_TELEMETRY_DISABLED: "1",
-      AUGNES_DB_PATH: nonEmptyString(environment.AUGNES_DB_PATH),
+      AUGNES_DB_PATH: databasePath,
       AUGNES_RUNTIME_INSTANCE_ID: instanceId,
       OPENAI_API_KEY: nonEmptyString(environment.OPENAI_API_KEY),
       OPENAI_MODEL: nonEmptyString(environment.OPENAI_MODEL),
@@ -758,6 +786,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
     instanceId: runtime.instanceId,
     effectiveUrl: runtime.effectiveUrl,
     port,
+    databasePath: runtime.databasePath,
   });
   const childEnvironment = buildRuntimeChildEnvironment({
     role,
@@ -864,6 +893,9 @@ async function failRuntime(runtime, failure) {
     child_exit_code: runtime.failure.exit_code,
     child_signal: runtime.failure.signal,
     effective_url: runtime.effectiveUrl,
+    database_state: runtime.databaseState,
+    database_schema_version: runtime.databaseSchemaVersion,
+    recovery_backup_created: runtime.recoveryBackupCreated,
   });
   runtime.shutdownRequested = true;
   runtime.shutdownReason = runtime.failure.code;
@@ -1039,6 +1071,9 @@ function buildManifest(runtime) {
     effective_url: runtime.effectiveUrl,
     ui_port: runtime.uiPort,
     bridge_port: runtime.bridgePort,
+    database_state: runtime.databaseState,
+    database_schema_version: runtime.databaseSchemaVersion,
+    recovery_backup_created: runtime.recoveryBackupCreated,
     lifecycle_state: runtime.lifecycleState,
     started_at: runtime.startedAt,
     last_transition_at: runtime.lastTransitionAt,
@@ -1057,6 +1092,9 @@ function buildControlIdentity(runtime) {
     effective_url: runtime.effectiveUrl,
     ui_port: runtime.uiPort,
     bridge_port: runtime.bridgePort,
+    database_state: runtime.databaseState,
+    database_schema_version: runtime.databaseSchemaVersion,
+    recovery_backup_created: runtime.recoveryBackupCreated,
     children: publicChildren(runtime),
     started_at: runtime.startedAt,
     last_transition_at: runtime.lastTransitionAt,
@@ -1087,6 +1125,9 @@ function publicStatusResult(command, result, identity) {
     effective_url: identity.effective_url,
     ui_port: identity.ui_port,
     bridge_port: identity.bridge_port,
+    database_state: identity.database_state ?? null,
+    database_schema_version: identity.database_schema_version ?? null,
+    recovery_backup_created: identity.recovery_backup_created === true,
     children: Array.isArray(identity.children) ? identity.children : [],
     started_at: identity.started_at,
     last_transition_at: identity.last_transition_at,
@@ -1113,6 +1154,12 @@ function isManifest(value) {
     value.supervisor_pid > 0 &&
     value.control_host === LOOPBACK_HOST &&
     isPort(value.control_port) &&
+    (value.database_state === undefined || isDatabaseState(value.database_state)) &&
+    (value.database_schema_version === undefined ||
+      value.database_schema_version === null ||
+      typeof value.database_schema_version === "string") &&
+    (value.recovery_backup_created === undefined ||
+      typeof value.recovery_backup_created === "boolean") &&
     isLifecycleState(value.lifecycle_state)
   );
 }
@@ -1127,7 +1174,10 @@ function isVerifiedIdentity(identity, manifest, repositoryFingerprint) {
     identity.supervisor_pid === manifest.supervisor_pid &&
     isLifecycleState(identity.lifecycle_state) &&
     identity.ui_port === manifest.ui_port &&
-    identity.bridge_port === manifest.bridge_port
+    identity.bridge_port === manifest.bridge_port &&
+    identity.database_state === manifest.database_state &&
+    identity.database_schema_version === manifest.database_schema_version &&
+    identity.recovery_backup_created === manifest.recovery_backup_created
   );
 }
 
@@ -1177,38 +1227,12 @@ export function ensureRuntimeDirectory({
   directory,
   repositoryRoot: repositoryRootPath = repositoryRoot,
 }) {
-  const existedBefore = existsSync(directory);
-  let firstCreatedDirectory;
-  try {
-    firstCreatedDirectory = mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const stats = lstatSync(directory);
-    if (!stats.isDirectory() || stats.isSymbolicLink()) {
-      throw new PublicRuntimeError("runtime_state_directory_invalid");
-    }
-
-    let physicalRepositoryRoot;
-    let physicalDirectory;
-    try {
-      physicalRepositoryRoot = realpathSync(repositoryRootPath);
-      physicalDirectory = realpathSync(directory);
-    } catch {
-      throw new PublicRuntimeError("runtime_state_directory_invalid");
-    }
-    assertRuntimeStateOutsideRepository(physicalRepositoryRoot, physicalDirectory);
-
-    try {
-      chmodSync(directory, 0o700);
-    } catch {
-      // Windows does not implement POSIX mode semantics.
-    }
-    return physicalDirectory;
-  } catch (error) {
-    if (!existedBefore && firstCreatedDirectory) {
-      removeCreatedEmptyDirectoryChain(directory, firstCreatedDirectory);
-    }
-    if (error instanceof PublicRuntimeError) throw error;
-    throw new PublicRuntimeError("runtime_state_directory_invalid");
-  }
+  return ensureApplicationDirectory({
+    directory,
+    repositoryRoot: repositoryRootPath,
+    insideRepositoryCode: "runtime_state_path_must_be_outside_repository",
+    invalidCode: "runtime_state_directory_invalid",
+  });
 }
 
 function createExclusiveJson(filePath, value) {
@@ -1357,8 +1381,9 @@ function respondJson(response, statusCode, value) {
 function parseCli(argv, environment) {
   const args = [...argv];
   let command = "start";
-  if (["start", "status", "stop"].includes(args[0])) command = args.shift();
-  else if (args[0] && !args[0].startsWith("-")) {
+  if (["start", "status", "stop", "diagnostics"].includes(args[0])) {
+    command = args.shift();
+  } else if (args[0] && !args[0].startsWith("-")) {
     throw new PublicRuntimeError("unknown_subcommand");
   }
 
@@ -1414,51 +1439,6 @@ function parsePreferredPort(value, fallback, errorCode) {
   return port;
 }
 
-function resolveHomeDirectory(environment) {
-  const configured =
-    nonEmptyString(environment.HOME) ?? nonEmptyString(environment.USERPROFILE);
-  const home = configured ? path.resolve(configured) : os.homedir();
-  if (!path.isAbsolute(home)) throw new PublicRuntimeError("home_path_invalid");
-  return home;
-}
-
-function isInsideOrEqual(root, candidate) {
-  const relative = path.relative(path.resolve(root), path.resolve(candidate));
-  return (
-    relative === "" ||
-    (relative !== ".." &&
-      !relative.startsWith(`..${path.sep}`) &&
-      !path.isAbsolute(relative))
-  );
-}
-
-function assertRuntimeStateOutsideRepository(
-  physicalRepositoryRoot,
-  physicalDestination,
-) {
-  if (isInsideOrEqual(physicalRepositoryRoot, physicalDestination)) {
-    throw new PublicRuntimeError(
-      "runtime_state_path_must_be_outside_repository",
-    );
-  }
-}
-
-function removeCreatedEmptyDirectoryChain(directory, firstCreatedDirectory) {
-  const boundary = path.resolve(firstCreatedDirectory);
-  let current = path.resolve(directory);
-  while (isInsideOrEqual(boundary, current)) {
-    try {
-      const stats = lstatSync(current);
-      if (!stats.isDirectory() || stats.isSymbolicLink()) return;
-      rmdirSync(current);
-    } catch {
-      return;
-    }
-    if (current === boundary) return;
-    current = path.dirname(current);
-  }
-}
-
 function fingerprint(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -1479,6 +1459,10 @@ function isPort(value) {
 
 function isLifecycleState(value) {
   return ["starting", "ready", "stopping", "failed"].includes(value);
+}
+
+function isDatabaseState(value) {
+  return ["preparing", "created", "current", "migrated", "failed"].includes(value);
 }
 
 function isPortCollisionOutput(output) {

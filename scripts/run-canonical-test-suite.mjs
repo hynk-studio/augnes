@@ -91,6 +91,10 @@ const suites = {
   ],
   operability: [
     {
+      label: "platform local paths, first-run database, migration, and recovery",
+      ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
+    },
+    {
       label: "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
     },
