@@ -530,6 +530,39 @@ export function readVNextCoreRecordByIdempotencyKeyV01(
   );
 }
 
+export function listVNextCoreRecordsV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    record_kinds: readonly VNextCoreRecordKindV01[];
+    limit: number;
+  },
+): VNextCoreRecordEnvelopeV01[] {
+  const recordKinds = [...new Set(input.record_kinds)];
+  if (recordKinds.length < 1 || recordKinds.length > VNEXT_CORE_RECORD_KINDS_V01.length) {
+    throw new Error("vnext_core_record_list_kinds_invalid");
+  }
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 256) {
+    throw new Error("vnext_core_record_list_limit_invalid");
+  }
+  const rows = db
+    .prepare(
+      `SELECT * FROM vnext_core_records
+       WHERE workspace_id = ? AND project_id = ?
+         AND record_kind IN (${recordKinds.map(() => "?").join(", ")})
+       ORDER BY created_at DESC, record_kind ASC, record_id ASC
+       LIMIT ?`,
+    )
+    .all(
+      normalizeRequiredText(input.workspace_id, "workspace_id"),
+      normalizeRequiredText(input.project_id, "project_id"),
+      ...recordKinds,
+      input.limit,
+    ) as CoreRecordRowV01[];
+  return rows.map(parseCoreRecord);
+}
+
 export function countVNextCoreRecordsV01(
   db: Database.Database,
   input?: {
@@ -1065,6 +1098,44 @@ export function listVNextSemanticStateEntriesV01(
       normalizeRequiredText(input.project_id, "project_id"),
     ) as ProjectionRowV01[];
   return rows.map(parseProjection);
+}
+
+export function listRecentVNextSemanticStateEntriesV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; limit: number },
+): VNextSemanticStateProjectionEntryV01[] {
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 256) {
+    throw new Error("semantic_state_entry_list_limit_invalid");
+  }
+  const rows = db
+    .prepare(
+      `SELECT * FROM vnext_semantic_state_entries
+       WHERE workspace_id = ? AND project_id = ?
+       ORDER BY updated_at DESC, target_key ASC
+       LIMIT ?`,
+    )
+    .all(
+      normalizeRequiredText(input.workspace_id, "workspace_id"),
+      normalizeRequiredText(input.project_id, "project_id"),
+      input.limit,
+    ) as ProjectionRowV01[];
+  return rows.map(parseProjection);
+}
+
+export function countVNextSemanticStateEntriesV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): number {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM vnext_semantic_state_entries
+       WHERE workspace_id = ? AND project_id = ?`,
+    )
+    .get(
+      normalizeRequiredText(input.workspace_id, "workspace_id"),
+      normalizeRequiredText(input.project_id, "project_id"),
+    ) as { count: number };
+  return row.count;
 }
 
 export function insertVNextSemanticStateEntryV01(

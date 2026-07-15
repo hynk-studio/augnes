@@ -45,6 +45,10 @@ const suites = {
   ],
   integration: [
     {
+      label: "Minimum Project Home projection, lineage, isolation, and read-only routing",
+      ...rootNode("scripts/test-vnext-project-home.ts"),
+    },
+    {
       label: "folder onboarding, recent projects, active selection, and recovery",
       ...rootNode("scripts/test-vnext-project-onboarding.ts"),
     },

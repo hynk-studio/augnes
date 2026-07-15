@@ -1,11 +1,17 @@
-import { ProjectOnboardingHome } from "@/components/project-onboarding-home";
+import { redirect } from "next/navigation";
+
 import { openDatabase } from "@/lib/db";
-import { listRecentProjectsV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
+import { readProjectHomeEntryDestinationV01 } from "@/lib/vnext/project-home/project-home-projection";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const db = openDatabase();
-  try { return <ProjectOnboardingHome initialRecent={await listRecentProjectsV01(db)} />; }
-  finally { db.close(); }
+  let destination: string;
+  try {
+    destination = readProjectHomeEntryDestinationV01(db);
+  } finally {
+    db.close();
+  }
+  redirect(destination);
 }

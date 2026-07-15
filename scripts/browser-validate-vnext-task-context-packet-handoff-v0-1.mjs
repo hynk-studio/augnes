@@ -22,6 +22,13 @@ import {
   buildTaskContextPacketHandoffHrefV01,
   decodeTaskContextPacketHandoffSlugV01,
 } from "../lib/vnext/task-context-packet-handoff.ts";
+import {
+  TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
+  TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+  genericCliBuilderInputFixture,
+} from "../fixtures/vnext/protocol/task-context-packet-v0-1.ts";
+import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store.ts";
+import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet.ts";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -44,6 +51,7 @@ const manifestPath = path.join(
 );
 const databasePath = path.join(fixtureDir, "operator-pilot.db");
 const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
+const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
 const appRepo = realpathSync(process.cwd());
 const chromeCandidates = [
   process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
@@ -92,6 +100,17 @@ const result = {
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
   folder_onboarding_stale_active_conflict: false,
+  minimum_project_home_empty_state: false,
+  minimum_project_home_expired_context_withheld: false,
+  minimum_project_home_refresh_read_only: false,
+  minimum_project_home_restart_root_resolution: false,
+  minimum_project_home_non_active_deep_link_read_only: false,
+  minimum_project_home_explicit_activation: false,
+  minimum_project_home_project_isolation: false,
+  minimum_project_home_narrow_viewport_no_overflow: false,
+  minimum_project_home_unknown_project_status: null,
+  minimum_project_home_unknown_project_safe_not_found: false,
+  overview_compatibility_reachable: false,
   proposal_list_document_status: null,
   proposal_detail_document_status: null,
   workbench_lineage_status: null,
@@ -289,6 +308,7 @@ async function main() {
     manifest,
   });
   mkdirSync(onboardingFolder, { recursive: true });
+  mkdirSync(onboardingFolderB, { recursive: true });
 
   startDevServer({ ...runtimeEnvironment, AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" });
   await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
@@ -303,6 +323,7 @@ async function main() {
 
   await runPhase("folder_onboarding", async () => {
     await navigate(`${appOrigin}/`);
+    await waitForCondition(`location.pathname === '/projects'`, "no-active-project root resolution");
     await waitForCondition(
       `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder')`,
       "Choose folder action",
@@ -326,23 +347,84 @@ async function main() {
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
     const destination = await evaluateString("location.pathname");
     result.folder_onboarding_destination = destination;
-    await navigate(`${appOrigin}${destination}`);
-    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "project refresh identity");
+    await waitForCondition(`document.querySelector('[data-project-home="v0.1"]') !== null`, "Minimum Project Home destination");
+    const emptyProjectHome = await evaluateJson(`(() => ({
+      name: document.body.textContent.includes('Browser Onboarding Project'),
+      root: document.body.textContent.includes(${JSON.stringify(onboardingFolder)}),
+      accepted_empty: document.body.textContent.includes('No approved project state has been committed for this project.'),
+      perspective_empty: document.body.textContent.includes('No canonical project-scoped Perspective or selected working projection exists yet.'),
+      attention_empty: document.body.textContent.includes('No project-scoped decisions currently need attention.'),
+      activity_empty: document.body.textContent.includes('No meaningful project activity has been recorded yet.'),
+      automation_not_configured: document.body.textContent.includes('Automation has not been configured for this project.'),
+      capability_count: document.querySelectorAll('.project-home-capabilities > li').length,
+      next_move_count: document.querySelectorAll('.project-home-next-moves > li').length,
+      active: document.querySelector('[data-project-home-active="true"]') !== null,
+      operator_proposal_leaked: document.body.textContent.includes(${JSON.stringify(manifest.proposal_id)}),
+      operator_packet_leaked: document.body.textContent.includes(${JSON.stringify(manifest.packet_id)})
+    }))()`);
+    assert.deepEqual(emptyProjectHome, {
+      name: true,
+      root: true,
+      accepted_empty: true,
+      perspective_empty: true,
+      attention_empty: true,
+      activity_empty: true,
+      automation_not_configured: true,
+      capability_count: 5,
+      next_move_count: 1,
+      active: true,
+      operator_proposal_leaked: false,
+      operator_packet_leaked: false,
+    });
+    result.minimum_project_home_empty_state = true;
+    result.minimum_project_home_project_isolation = true;
+
+    const expiredContextMarker = "BROWSER EXPIRED SELECTED WORKING CONTEXT";
+    seedExpiredProjectHomePacket({
+      projectId: decodeURIComponent(destination.split("/").at(-1)),
+      marker: expiredContextMarker,
+    });
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"]') !== null && document.body.textContent.includes('The latest selected working context has expired.')`,
+      "expired selected working context unavailable state",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `!document.body.textContent.includes(${JSON.stringify(expiredContextMarker)}) && !document.body.textContent.includes('perspective:browser-expired-context')`,
+      ),
+      true,
+    );
+    result.minimum_project_home_expired_context_withheld = true;
+
+    const projectHomeDatabase = new Database(databasePath, { readonly: true, fileMustExist: true });
+    const beforeProjectHomeRefresh = databaseSnapshot(projectHomeDatabase);
+    const refreshRequestStart = requests.length;
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(`document.querySelector('[data-project-home="v0.1"]') !== null`, "refreshed Minimum Project Home");
+    assert.deepEqual(databaseSnapshot(projectHomeDatabase), beforeProjectHomeRefresh);
+    assert.equal(requests.slice(refreshRequestStart).some((request) => request.method === "POST"), false);
+    projectHomeDatabase.close();
+    result.minimum_project_home_refresh_read_only = true;
+
     await navigate(`${appOrigin}/`);
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "active project root resolution");
+    await navigate(`${appOrigin}/projects`);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after return");
     await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
-    await navigate(`${appOrigin}/`);
+    await navigate(`${appOrigin}/projects`);
 
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
     startDevServer(runtimeEnvironment);
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
-    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after restart");
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "active Project Home after restart");
+    result.minimum_project_home_restart_root_resolution = true;
     const recentAfterRestart = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/projects');
       return await response.json();
@@ -368,9 +450,81 @@ async function main() {
     assert.equal(staleOpenResponse.body.error_code, "active_selection_conflict");
     result.folder_onboarding_stale_active_conflict = true;
     await navigate(`${appOrigin}${destination}`);
-    await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "same destination after restart");
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "same destination after restart");
     result.folder_onboarding_restart_reopen = true;
+
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    startDevServer({
+      ...runtimeEnvironment,
+      AUGNES_TEST_FOLDER_PICKER_PATH: onboardingFolderB,
+    });
+    await waitForHttp(`${appOrigin}/projects`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/projects`);
+    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "second-project onboarding surface");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('Browser Second Project') && document.body.textContent.includes('Plain folder')`, "second-project inspection");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.body.textContent.includes('Browser Second Project')`, "second active Project Home");
+    const secondDestination = await evaluateString("location.pathname");
+    assert.notEqual(secondDestination, destination);
+    const activeBeforeDeepLink = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    const activeSecond = activeBeforeDeepLink.recent_projects.find((entry) => entry.is_active);
+    assert.equal(activeSecond?.project.display_name, "Browser Second Project");
+
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="false"]') !== null`, "non-active first-project deep link");
+    assert.equal(await evaluateBoolean(`document.body.textContent.includes('This is not the active project')`), true);
+    const activeAfterDeepLink = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
+    result.minimum_project_home_non_active_deep_link_read_only = true;
+    await validateProjectHomeViewports();
+    result.minimum_project_home_narrow_viewport_no_overflow = true;
+    await delay(750);
+    const activationResponseStart = responses.length;
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Make active'); button?.click(); return Boolean(button); })()`), true);
+    await waitForHostCondition(
+      () => responses.slice(activationResponseStart).some(
+        (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+      ),
+      "explicit first-project activation response",
+    );
+    const activationResponse = responses.slice(activationResponseStart).find(
+      (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+    );
+    assert.equal(activationResponse?.status, 200);
+    await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.body.textContent.includes('Browser Onboarding Project')`, "explicit first-project activation");
+    result.minimum_project_home_explicit_activation = true;
+    const unknownResponseStart = responses.length;
+    await navigate(`${appOrigin}/projects/project%3Aunknown-project-home`);
+    await waitForHostCondition(
+      () => responses.slice(unknownResponseStart).some(
+        (entry) => entry.path === "/projects/project%3Aunknown-project-home" && entry.type === "Document",
+      ),
+      "unknown Project Home response",
+    );
+    result.minimum_project_home_unknown_project_status = documentStatusSince(
+      unknownResponseStart,
+      "/projects/project%3Aunknown-project-home",
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('This page could not be found') && document.querySelector('[data-project-home="v0.1"]') === null`,
+      "unknown Project Home safe not-found state",
+    );
+    result.minimum_project_home_unknown_project_safe_not_found = true;
+    const activeAfterUnknown = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    assert.equal(activeAfterUnknown.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Onboarding Project");
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
+    record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
   });
 
   await runPhase("locked_workbench", async () => {
@@ -426,6 +580,7 @@ async function main() {
       `document.querySelector('[data-vnext-project-continuity="loaded"]') !== null`,
       "loaded Project Home continuity",
     );
+    result.overview_compatibility_reachable = true;
     const exactHref = await evaluateString(`(() => {
       const link = Array.from(document.querySelectorAll('a[href]')).find(
         (candidate) => candidate.textContent?.trim() === 'Open exact packet handoff'
@@ -896,6 +1051,41 @@ async function validateProposalViewports() {
   record("workbench_lineage_panel_fits_390_768_and_1440_viewports");
 }
 
+async function validateProjectHomeViewports() {
+  for (const width of [390, 768, 1440]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await delay(100);
+    const metrics = await evaluateJson(`(() => {
+      const home = document.querySelector('[data-project-home="v0.1"]');
+      const rect = home?.getBoundingClientRect();
+      return {
+        surface: 'minimum_project_home',
+        width: window.innerWidth,
+        document_scroll_width: document.documentElement.scrollWidth,
+        document_client_width: document.documentElement.clientWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        home_scroll_width: home?.scrollWidth ?? -1,
+        home_client_width: home?.clientWidth ?? -1,
+        home_horizontal_overflow:
+          (home?.scrollWidth ?? 0) > (home?.clientWidth ?? 0) + 1,
+        home_inside_viewport:
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+      };
+    })()`);
+    assert.equal(metrics.width, width);
+    assert.equal(metrics.document_horizontal_overflow, false);
+    assert.equal(metrics.home_horizontal_overflow, false);
+    assert.equal(metrics.home_inside_viewport, true);
+    result.viewport_results.push(metrics);
+  }
+}
+
 async function validateMalformedSlugs(canonicalSlug, packetId) {
   const suffix = packetId.slice("task-context-packet:".length);
   const malformed = {
@@ -1170,6 +1360,60 @@ function documentStatusSince(startIndex, pathname) {
       .find((entry) => entry.path === pathname && entry.type === "Document")
       ?.status ?? null
   );
+}
+
+function seedExpiredProjectHomePacket({ projectId, marker }) {
+  const writableDatabase = new Database(databasePath);
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const project = writableDatabase
+      .prepare(
+        "SELECT workspace_id, project_id FROM vnext_project_identities WHERE project_id = ?",
+      )
+      .get(projectId);
+    assert(project, "Browser Project Home fixture project must exist.");
+    const input = structuredClone(genericCliBuilderInputFixture);
+    const currentness = structuredClone(input.source_status.currentness);
+    input.workspace_id = project.workspace_id;
+    input.project_id = project.project_id;
+    input.generated_at = TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+    input.expires_at = TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT;
+    input.current_projection = {
+      projection_kind: "current_working_perspective",
+      projection_only: true,
+      canonical_state: false,
+      perspective_ref: "perspective:browser-expired-context",
+      bounded_summary: marker,
+      as_of: TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+      items: [
+        {
+          item_kind: "frame",
+          summary: marker,
+          source_refs: ["source:browser-expired-context"],
+          external_refs: [],
+          currentness,
+        },
+      ],
+      source_refs: ["source:browser-expired-context"],
+      external_refs: [],
+      currentness,
+      warnings: [],
+    };
+    input.gaps = [];
+    const packet = buildTaskContextPacketV01(input);
+    insertVNextCoreRecordV01(writableDatabase, {
+      record_kind: "task_context_packet",
+      record_id: packet.packet_id,
+      workspace_id: packet.workspace_id,
+      project_id: packet.project_id,
+      fingerprint: packet.integrity.fingerprint,
+      idempotency_key: null,
+      payload: packet,
+      created_at: packet.generated_at,
+    });
+  } finally {
+    writableDatabase.close();
+  }
 }
 
 function databaseSnapshot(db) {

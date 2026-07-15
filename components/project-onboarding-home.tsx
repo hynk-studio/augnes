@@ -107,7 +107,7 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
         <div className="project-actions"><button type="button" onClick={confirm} disabled={busy}>Confirm project</button><button type="button" className="secondary" onClick={() => setPicker(null)} disabled={busy}>Cancel</button></div>
       </div>}
     </section>
-    <section className="project-selector-card" aria-labelledby="recent-projects-title"><h2 id="recent-projects-title">Recent projects</h2>
+    <section id="recent-projects" className="project-selector-card" aria-labelledby="recent-projects-title"><h2 id="recent-projects-title">Recent projects</h2>
       {recent.length === 0 ? <p>No recent projects yet. Choose a folder to begin.</p> : <ul className="recent-project-list">{recent.map((entry) => <li key={entry.project.project_id}>
         <div><strong>{entry.project.display_name ?? "Unnamed project"}</strong>{entry.is_active && <span className="active-project-badge">Active</span>}<p>{entry.local_root.normalized_path}</p><p className={`root-status root-status--${entry.root_availability}`}>{entry.root_availability === "available" ? "Folder available" : `Folder ${entry.root_availability.replace("_", " ")}`}</p></div>
         <div className="project-actions">{entry.root_availability === "available" ? <button type="button" onClick={() => open(entry)} disabled={busy}>{entry.is_active ? "Open" : "Switch and open"}</button> : <button type="button" onClick={() => locate(entry)} disabled={busy}>Locate folder</button>}<button type="button" className="secondary" onClick={() => remove(entry)} disabled={busy}>Remove from recent</button></div>
