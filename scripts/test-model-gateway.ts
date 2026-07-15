@@ -16,23 +16,38 @@ import Database from "better-sqlite3";
 import { openDatabase, type StateEntry } from "../lib/db";
 import { buildMockProposals } from "../lib/observe/delta-compiler";
 import { createObservePostHandlerV01 } from "../lib/observe/observe-route-handler";
+import { buildMockRecommendations } from "../lib/planner/planner";
+import { createPlannerPostHandlerV01 } from "../lib/planner/planner-route-handler";
+import { buildStateBrief } from "../lib/state/brief";
+import { buildTemporalPreviewContext } from "../lib/temporal-interpretation/context";
+import { buildMockTemporalPreview } from "../lib/temporal-interpretation/mock";
+import { createTemporalPreviewPostHandlerV01 } from "../lib/temporal-interpretation/preview-route-handler";
+import type { TemporalPreviewContext } from "../lib/temporal-interpretation/types";
 import {
   invokeObserveModelGatewayV01,
+  invokePlannerModelGatewayV01,
+  invokeTemporalModelGatewayV01,
   type ObserveModelGatewayDependenciesV01,
+  type PlannerModelGatewayDependenciesV01,
+  type TemporalModelGatewayDependenciesV01,
 } from "../lib/vnext/model-gateway/model-gateway";
 import {
   MODEL_INVOCATION_ENVELOPE_VERSION_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+  PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   isModelGatewayInvocationErrorV01,
+  type ModelAdapterSessionV01,
+  type ModelAdapterV01,
   type ModelGatewayExecutionModeV01,
-  type ObserveModelAdapterSessionV01,
-  type ObserveModelAdapterV01,
   type ObserveModelInvocationEnvelopeV01,
+  type PlannerModelInvocationEnvelopeV01,
+  type TemporalModelInvocationEnvelopeV01,
 } from "../lib/vnext/model-gateway/contracts";
 import {
-  createOpenAIResponsesObserveAdapterV01,
-  type OpenAIResponsesObserveTransportV01,
-} from "../lib/vnext/model-gateway/openai-responses-observe-adapter";
+  createOpenAIResponsesAdapterV01,
+  type OpenAIResponsesTransportV01,
+} from "../lib/vnext/model-gateway/openai/responses-adapter";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
@@ -85,8 +100,8 @@ async function main() {
       hostile_body_reads: 0,
     };
 
-    const capturedLiveRequests: Parameters<OpenAIResponsesObserveTransportV01>[0][] = [];
-    const liveAdapter = createOpenAIResponsesObserveAdapterV01({
+    const capturedLiveRequests: Parameters<OpenAIResponsesTransportV01>[0][] = [];
+    const liveAdapter = createOpenAIResponsesAdapterV01({
       environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL, OPENAI_MODEL: "test-model" },
       transport: async (request) => {
         metrics.live_transport_calls += 1;
@@ -130,7 +145,7 @@ async function main() {
     assert.equal(JSON.stringify(livePayload).includes(CREDENTIAL_SENTINEL), false);
     assertNoPrivateMaterial(live.model_invocation_receipt);
 
-    const noCredentialAdapter = createOpenAIResponsesObserveAdapterV01({
+    const noCredentialAdapter = createOpenAIResponsesAdapterV01({
       environment: {},
       transport: async () => {
         metrics.zero_model_transport_calls += 1;
@@ -267,7 +282,7 @@ async function main() {
     const boundedFailure = await captureGatewayFailure(
       envelope(fixture, { currentState: [deepState] }),
       gatewayDependencies(
-        createOpenAIResponsesObserveAdapterV01({
+        createOpenAIResponsesAdapterV01({
           environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
           transport: async () => {
             metrics.blocked_transport_calls += 1;
@@ -294,7 +309,7 @@ async function main() {
         },
       },
       gatewayDependencies(
-        createOpenAIResponsesObserveAdapterV01({
+        createOpenAIResponsesAdapterV01({
           environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
           transport: async () => {
             metrics.blocked_transport_calls += 1;
@@ -370,11 +385,13 @@ async function main() {
     let prepareCancellationInvokes = 0;
     let prepareCancellationTransports = 0;
     const prepareCancellationStarted = deferred<void>();
-    const prepareCancellationSession = deferred<ObserveModelAdapterSessionV01 | null>();
-    const deferredCancellationAdapter: ObserveModelAdapterV01 = {
-      implementation_id: "test.prepare_cancellation",
-      implementation_version: "test_prepare_cancellation.v0.1",
-      async prepare(signal) {
+    const prepareCancellationSession = deferred<ModelAdapterSessionV01 | null>();
+    const deferredCancellationAdapter: ModelAdapterV01 = {
+      describe: () => ({
+        implementation_id: "test.prepare_cancellation",
+        implementation_version: "test_prepare_cancellation.v0.1",
+      }),
+      async prepare(_purpose, signal) {
         assert.equal(signal.aborted, false);
         prepareCancellationStarted.resolve(undefined);
         return prepareCancellationSession.promise;
@@ -415,11 +432,13 @@ async function main() {
     let prepareTimeoutInvokes = 0;
     let prepareTimeoutTransports = 0;
     const prepareTimeoutStarted = deferred<void>();
-    const prepareTimeoutSession = deferred<ObserveModelAdapterSessionV01 | null>();
-    const deferredTimeoutAdapter: ObserveModelAdapterV01 = {
-      implementation_id: "test.prepare_timeout",
-      implementation_version: "test_prepare_timeout.v0.1",
-      async prepare(signal) {
+    const prepareTimeoutSession = deferred<ModelAdapterSessionV01 | null>();
+    const deferredTimeoutAdapter: ModelAdapterV01 = {
+      describe: () => ({
+        implementation_id: "test.prepare_timeout",
+        implementation_version: "test_prepare_timeout.v0.1",
+      }),
+      async prepare(_purpose, signal) {
         assert.equal(signal.aborted, false);
         prepareTimeoutStarted.resolve(undefined);
         return prepareTimeoutSession.promise;
@@ -539,7 +558,7 @@ async function main() {
     assert.equal(deterministicTimeoutObservedAbort, true);
     deterministicTimeoutOutput.resolve([]);
 
-    const timeoutAdapter = createOpenAIResponsesObserveAdapterV01({
+    const timeoutAdapter = createOpenAIResponsesAdapterV01({
       environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
       transport: (request) => {
         metrics.timeout_transport_calls += 1;
@@ -558,7 +577,7 @@ async function main() {
     const started = new Promise<void>((resolve) => {
       transportStarted = resolve;
     });
-    const cancellationAdapter = createOpenAIResponsesObserveAdapterV01({
+    const cancellationAdapter = createOpenAIResponsesAdapterV01({
       environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
       transport: (request) => {
         metrics.cancellation_transport_calls += 1;
@@ -662,7 +681,7 @@ async function main() {
     };
     let hostileResponse: Response;
     try {
-      const hostileAdapter = createOpenAIResponsesObserveAdapterV01({
+      const hostileAdapter = createOpenAIResponsesAdapterV01({
         environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
         transport: async () => ({
           ok: false,
@@ -696,6 +715,8 @@ async function main() {
     const databaseAfterHostile = openDatabase();
     assert.deepEqual(rowCounts(databaseAfterHostile), beforeHostile);
     databaseAfterHostile.close();
+
+    const remainingCallerMetrics = await runRemainingCallerCases(fixture);
 
     const db = openDatabase();
     const projectBSelection = selectActiveProjectV01(db, {
@@ -775,16 +796,26 @@ async function main() {
         {
           test: "model_gateway",
           status: "pass",
-          production_entry_path: "POST /api/observe",
+          production_entry_paths: [
+            "POST /api/observe",
+            "POST /api/plan",
+            "POST /api/temporal-interpretation/preview",
+          ],
           live_transport_calls: metrics.live_transport_calls,
           deterministic_transport_calls: metrics.zero_model_transport_calls,
           blocked_transport_calls: metrics.blocked_transport_calls,
           timeout_transport_calls: metrics.timeout_transport_calls,
           cancellation_transport_calls: metrics.cancellation_transport_calls,
           hostile_provider_body_reads: metrics.hostile_body_reads,
+          planner_live_transport_calls:
+            remainingCallerMetrics.planner_live_transport_calls,
+          temporal_live_transport_calls:
+            remainingCallerMetrics.temporal_live_transport_calls,
+          remaining_caller_blocked_transports:
+            remainingCallerMetrics.blocked_transport_calls,
           undici_requests: undiciRequests,
           canonical_projects_checked: 2,
-          observe_bypass_guard: "pass",
+          direct_model_transport_guard: "pass",
         },
         null,
         2,
@@ -796,6 +827,878 @@ async function main() {
     else process.env.AUGNES_DB_PATH = originalDatabasePath;
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+async function runRemainingCallerCases(fixture: Fixture) {
+  const metrics = {
+    planner_live_transport_calls: 0,
+    temporal_live_transport_calls: 0,
+    deterministic_transport_calls: 0,
+    blocked_transport_calls: 0,
+    planner_hostile_body_reads: 0,
+    temporal_hostile_body_reads: 0,
+  };
+  const plannerRequests: Parameters<OpenAIResponsesTransportV01>[0][] = [];
+  const plannerAdapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "planner-test-model",
+    },
+    transport: async (request) => {
+      metrics.planner_live_transport_calls += 1;
+      plannerRequests.push(request);
+      return providerJsonSuccess(plannerProviderOutput(), {
+        input_tokens: 44,
+        output_tokens: 12,
+        total_tokens: 56,
+      });
+    },
+  });
+  const plannerHandler = createPlannerPostHandlerV01({
+    gateway_dependencies: { adapter: plannerAdapter },
+    create_uuid: () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  });
+  const plannerResponse = await plannerHandler(
+    plannerRequest(fixture, {
+      message: "Plan a bounded next step.",
+      execution_mode: "live",
+    }),
+  );
+  assert.equal(plannerResponse.status, 200);
+  const plannerLive = await plannerResponse.json();
+  assert.equal(metrics.planner_live_transport_calls, 1);
+  assert.equal(plannerLive.planner, "openai");
+  assert.equal(plannerLive.workspace_id, fixture.workspaceId);
+  assert.equal(plannerLive.project_id, fixture.projectAId);
+  assert.equal(plannerLive.recommendations[0]?.priority, "next");
+  assert.equal(
+    plannerLive.model_invocation_receipt.purpose,
+    PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  );
+  assert.equal(plannerLive.model_invocation_receipt.project_id, fixture.projectAId);
+  assert.deepEqual(plannerLive.model_invocation_receipt.usage, {
+    basis: "provider_report",
+    input_tokens: 44,
+    output_tokens: 12,
+    total_tokens: 56,
+  });
+  assertReceiptHasNoPurposeContent(
+    plannerLive.model_invocation_receipt,
+    "Plan a bounded next step.",
+  );
+  const plannerProviderRequest = JSON.parse(plannerRequests[0]!.body);
+  const plannerDynamic = JSON.parse(
+    plannerProviderRequest.input[1].content[0].text,
+  );
+  assert.equal(plannerDynamic.project_id, fixture.projectAId);
+  assert.equal(plannerDynamic.brief.scope, fixture.projectAId);
+  assert.equal(Object.hasOwn(plannerDynamic, "workspace_id"), false);
+
+  const noCredentialAdapter = createOpenAIResponsesAdapterV01({
+    environment: {},
+    transport: async () => {
+      metrics.deterministic_transport_calls += 1;
+      return providerJsonSuccess(plannerProviderOutput());
+    },
+  });
+  const plannerNoCredential = await createPlannerPostHandlerV01({
+    gateway_dependencies: { adapter: noCredentialAdapter },
+  })(
+    plannerRequest(fixture, {
+      message: "Plan without credentials.",
+      execution_mode: "live",
+    }),
+  );
+  assert.equal(plannerNoCredential.status, 200);
+  const plannerNoCredentialBody = await plannerNoCredential.json();
+  assert.equal(plannerNoCredentialBody.planner, "mock");
+  assert.equal(
+    plannerNoCredentialBody.model_invocation_receipt.selection_reason,
+    "provider_unavailable",
+  );
+  assert.equal(plannerNoCredentialBody.model_invocation_receipt.egress_attempted, false);
+
+  const plannerDeterministic = await createPlannerPostHandlerV01({
+    gateway_dependencies: { adapter: plannerAdapter },
+  })(
+    plannerRequest(fixture, {
+      message: "Plan deterministically.",
+      execution_mode: "deterministic",
+    }),
+  );
+  assert.equal(plannerDeterministic.status, 200);
+  const plannerDeterministicBody = await plannerDeterministic.json();
+  assert.equal(plannerDeterministicBody.planner, "mock");
+  assert.equal(
+    plannerDeterministicBody.model_invocation_receipt.selection_reason,
+    "explicit_deterministic",
+  );
+  assert.equal(metrics.planner_live_transport_calls, 1);
+  assert.equal(metrics.deterministic_transport_calls, 0);
+
+  const plannerMissingIdentity = await plannerHandler(
+    jsonRequest("http://localhost/api/plan", {
+      message: HOSTILE_SENTINEL,
+      execution_mode: "live",
+    }),
+  );
+  assert.equal(plannerMissingIdentity.status, 400);
+  assert.equal((await plannerMissingIdentity.text()).includes(HOSTILE_SENTINEL), false);
+
+  for (const body of [
+    plannerRequestBody(fixture, { project_id: UNKNOWN_PROJECT_ID }),
+    plannerRequestBody(fixture, { workspace_id: UNKNOWN_WORKSPACE_ID }),
+    plannerRequestBody(fixture, {
+      expected_active_selection_revision: fixture.activeRevision + 1,
+    }),
+    plannerRequestBody(fixture, {
+      project_id: fixture.projectBId,
+      expected_active_project_id: fixture.projectBId,
+      project_root: fixture.projectBRoot,
+    }),
+  ]) {
+    const callsBeforeRefusal: number = metrics.planner_live_transport_calls;
+    const response = await plannerHandler(jsonRequest("http://localhost/api/plan", body));
+    assert.equal(response.status, 409);
+    assert.equal(metrics.planner_live_transport_calls, callsBeforeRefusal);
+    assert.equal((await response.text()).includes(HOSTILE_SENTINEL), false);
+  }
+
+  const plannerBrief = buildStateBrief(fixture.projectAId);
+  const plannerDependencies = plannerGatewayDependencies(plannerAdapter);
+  const briefMismatch = await captureAnyGatewayFailure(() =>
+    invokePlannerModelGatewayV01(
+      plannerEnvelope(fixture, {
+        brief: { ...plannerBrief, scope: fixture.projectBId },
+      }),
+      plannerDependencies,
+    ),
+  );
+  assert.equal(briefMismatch.code, "model_gateway_invalid_envelope");
+  assert.equal(metrics.planner_live_transport_calls, 1);
+
+  const plannerBudgetFailure = await captureAnyGatewayFailure(() =>
+    invokePlannerModelGatewayV01(
+      plannerEnvelope(fixture, {
+        budget: {
+          max_input_bytes: 1,
+          max_output_tokens: 1,
+          max_provider_calls: 1,
+        },
+      }),
+      plannerDependencies,
+    ),
+  );
+  assert.equal(plannerBudgetFailure.code, "model_gateway_egress_refused");
+  assert.equal(metrics.planner_live_transport_calls, 1);
+
+  const plannerPreCancelledController = new AbortController();
+  plannerPreCancelledController.abort();
+  const plannerPreCancelled = await captureAnyGatewayFailure(() =>
+    invokePlannerModelGatewayV01(
+      plannerEnvelope(fixture, { signal: plannerPreCancelledController.signal }),
+      plannerDependencies,
+    ),
+  );
+  assert.equal(plannerPreCancelled.code, "model_gateway_cancelled");
+  assert.equal(plannerPreCancelled.receipt?.egress_attempted, false);
+
+  const prepareStarted = deferred<void>();
+  const prepareSession = deferred<ModelAdapterSessionV01 | null>();
+  let plannerPreparedInvokes = 0;
+  const prepareAdapter: ModelAdapterV01 = {
+    describe: () => ({
+      implementation_id: "test.planner_prepare",
+      implementation_version: "test_planner_prepare.v0.1",
+    }),
+    async prepare(_purpose, signal) {
+      assert.equal(signal.aborted, false);
+      prepareStarted.resolve(undefined);
+      return prepareSession.promise;
+    },
+  };
+  const prepareController = new AbortController();
+  const plannerPrepareResult = invokePlannerModelGatewayV01(
+    plannerEnvelope(fixture, { signal: prepareController.signal }),
+    plannerGatewayDependencies(prepareAdapter),
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await prepareStarted.promise;
+  prepareController.abort();
+  const plannerPrepareFailure = await plannerPrepareResult;
+  assert.equal(isModelGatewayInvocationErrorV01(plannerPrepareFailure), true);
+  if (!isModelGatewayInvocationErrorV01(plannerPrepareFailure)) {
+    throw new Error("expected planner prepare cancellation");
+  }
+  assert.equal(plannerPrepareFailure.code, "model_gateway_cancelled");
+  assert.equal(plannerPrepareFailure.receipt?.egress_attempted, false);
+  prepareSession.resolve(
+    unreachablePurposeSession(PLANNER_MODEL_GATEWAY_PURPOSE_V01, () => {
+      plannerPreparedInvokes += 1;
+    }),
+  );
+  await Promise.resolve();
+  assert.equal(plannerPreparedInvokes, 0);
+
+  const plannerPrepareTimeoutStarted = deferred<void>();
+  const plannerPrepareTimeoutSession = deferred<ModelAdapterSessionV01 | null>();
+  let plannerTimeoutPreparedInvokes = 0;
+  const plannerPrepareTimeoutAdapter: ModelAdapterV01 = {
+    describe: () => ({
+      implementation_id: "test.planner_prepare_timeout",
+      implementation_version: "test_planner_prepare_timeout.v0.1",
+    }),
+    async prepare() {
+      plannerPrepareTimeoutStarted.resolve(undefined);
+      return plannerPrepareTimeoutSession.promise;
+    },
+  };
+  const plannerPrepareTimeoutResult = invokePlannerModelGatewayV01(
+    plannerEnvelope(fixture, { timeoutMs: 10 }),
+    plannerGatewayDependencies(plannerPrepareTimeoutAdapter),
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await plannerPrepareTimeoutStarted.promise;
+  const plannerPrepareTimeoutFailure = await plannerPrepareTimeoutResult;
+  assert.equal(isModelGatewayInvocationErrorV01(plannerPrepareTimeoutFailure), true);
+  if (!isModelGatewayInvocationErrorV01(plannerPrepareTimeoutFailure)) {
+    throw new Error("expected planner prepare timeout");
+  }
+  assert.equal(plannerPrepareTimeoutFailure.code, "model_gateway_timeout");
+  assert.equal(plannerPrepareTimeoutFailure.receipt?.egress_attempted, false);
+  plannerPrepareTimeoutSession.resolve(
+    unreachablePurposeSession(PLANNER_MODEL_GATEWAY_PURPOSE_V01, () => {
+      plannerTimeoutPreparedInvokes += 1;
+    }),
+  );
+  await Promise.resolve();
+  assert.equal(plannerTimeoutPreparedInvokes, 0);
+
+  let plannerTransportStarted!: () => void;
+  const plannerTransportReady = new Promise<void>((resolve) => {
+    plannerTransportStarted = resolve;
+  });
+  const plannerTransportAdapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
+    transport(request) {
+      plannerTransportStarted();
+      return rejectWhenAborted(request.signal);
+    },
+  });
+  const plannerTransportController = new AbortController();
+  const plannerTransportResult = invokePlannerModelGatewayV01(
+    plannerEnvelope(fixture, { signal: plannerTransportController.signal }),
+    plannerGatewayDependencies(plannerTransportAdapter),
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await plannerTransportReady;
+  plannerTransportController.abort();
+  const plannerTransportFailure = await plannerTransportResult;
+  assert.equal(isModelGatewayInvocationErrorV01(plannerTransportFailure), true);
+  if (!isModelGatewayInvocationErrorV01(plannerTransportFailure)) {
+    throw new Error("expected planner transport cancellation");
+  }
+  assert.equal(plannerTransportFailure.code, "model_gateway_cancelled");
+  assert.equal(plannerTransportFailure.receipt?.egress_attempted, true);
+
+  const plannerTransportTimeout = await captureAnyGatewayFailure(() =>
+    invokePlannerModelGatewayV01(
+      plannerEnvelope(fixture, { timeoutMs: 10 }),
+      plannerGatewayDependencies(
+        createOpenAIResponsesAdapterV01({
+          environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
+          transport: (request) => rejectWhenAborted(request.signal),
+        }),
+      ),
+    ),
+  );
+  assert.equal(plannerTransportTimeout.code, "model_gateway_timeout");
+  assert.equal(plannerTransportTimeout.receipt?.egress_attempted, true);
+
+  const plannerHostileAdapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
+    transport: async () => ({
+      ok: false,
+      status: 429,
+      async json() {
+        metrics.planner_hostile_body_reads += 1;
+        return { body: HOSTILE_SENTINEL, credential: CREDENTIAL_SENTINEL };
+      },
+    }),
+  });
+  const plannerHostile = await createPlannerPostHandlerV01({
+    gateway_dependencies: { adapter: plannerHostileAdapter },
+  })(
+    plannerRequest(fixture, {
+      message: `Hostile Planner input ${HOSTILE_SENTINEL}`,
+      execution_mode: "live",
+    }),
+  );
+  assert.equal(plannerHostile.status, 502);
+  const plannerHostileText = await plannerHostile.text();
+  assert.equal(metrics.planner_hostile_body_reads, 0);
+  assert.equal(plannerHostileText.includes(HOSTILE_SENTINEL), false);
+  assert.equal(plannerHostileText.includes(CREDENTIAL_SENTINEL), false);
+
+  const context = buildTemporalPreviewContext(fixture.projectAId);
+  const temporalRequests: Parameters<OpenAIResponsesTransportV01>[0][] = [];
+  const temporalAdapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "temporal-test-model",
+    },
+    transport: async (request) => {
+      metrics.temporal_live_transport_calls += 1;
+      temporalRequests.push(request);
+      return providerJsonSuccess(buildMockTemporalPreview(context), {
+        input_tokens: 72,
+        output_tokens: 28,
+        total_tokens: 100,
+      });
+    },
+  });
+  const temporalHandler = createTemporalPreviewPostHandlerV01({
+    gateway_dependencies: { adapter: temporalAdapter },
+  });
+  const temporalLiveResponse = await temporalHandler(
+    temporalRequest(fixture, context, "live"),
+  );
+  assert.equal(temporalLiveResponse.status, 200);
+  const temporalLive = await temporalLiveResponse.json();
+  assert.equal(metrics.temporal_live_transport_calls, 1);
+  assert.equal(temporalLive.generator, "openai");
+  assert.equal(temporalLive.model, "temporal-test-model");
+  assert.equal(temporalLive.project_id, fixture.projectAId);
+  assert.equal(
+    temporalLive.model_invocation_receipt.purpose,
+    TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+  );
+  assert.equal(temporalLive.model_invocation_receipt.receipt_is_semantic_authority, false);
+  assert.equal(temporalLive.preview.non_authority_boundary.length > 0, true);
+  assertReceiptHasNoPurposeContent(
+    temporalLive.model_invocation_receipt,
+    context.current_interpretation,
+  );
+  const temporalProviderRequest = JSON.parse(temporalRequests[0]!.body);
+  const temporalDynamic = JSON.parse(
+    temporalProviderRequest.input[1].content[0].text,
+  );
+  assert.equal(temporalDynamic.project_id, fixture.projectAId);
+  assert.equal(temporalDynamic.context.scope, fixture.projectAId);
+
+  const temporalNoCredential = await createTemporalPreviewPostHandlerV01({
+    gateway_dependencies: { adapter: noCredentialAdapter },
+  })(temporalRequest(fixture, context, "live"));
+  assert.equal(temporalNoCredential.status, 200);
+  const temporalNoCredentialBody = await temporalNoCredential.json();
+  assert.equal(temporalNoCredentialBody.generator, "mock");
+  assert.equal(
+    temporalNoCredentialBody.model_invocation_receipt.selection_reason,
+    "provider_unavailable",
+  );
+  assert.equal(temporalNoCredentialBody.model_invocation_receipt.egress_attempted, false);
+
+  const temporalDeterministic = await temporalHandler(
+    temporalRequest(fixture, context, "deterministic"),
+  );
+  assert.equal(temporalDeterministic.status, 200);
+  const temporalDeterministicBody = await temporalDeterministic.json();
+  assert.equal(temporalDeterministicBody.generator, "mock");
+  assert.equal(
+    temporalDeterministicBody.model_invocation_receipt.selection_reason,
+    "explicit_deterministic",
+  );
+  assert.equal(metrics.temporal_live_transport_calls, 1);
+
+  const temporalDependencies = temporalGatewayDependencies(temporalAdapter);
+  const temporalPrepareStarted = deferred<void>();
+  const temporalPrepareSession = deferred<ModelAdapterSessionV01 | null>();
+  let temporalPreparedInvokes = 0;
+  const temporalPrepareAdapter: ModelAdapterV01 = {
+    describe: () => ({
+      implementation_id: "test.temporal_prepare",
+      implementation_version: "test_temporal_prepare.v0.1",
+    }),
+    async prepare() {
+      temporalPrepareStarted.resolve(undefined);
+      return temporalPrepareSession.promise;
+    },
+  };
+  const temporalPrepareController = new AbortController();
+  const temporalPrepareResult = invokeTemporalModelGatewayV01(
+    temporalEnvelope(fixture, { signal: temporalPrepareController.signal }),
+    temporalGatewayDependencies(temporalPrepareAdapter),
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await temporalPrepareStarted.promise;
+  temporalPrepareController.abort();
+  const temporalPrepareFailure = await temporalPrepareResult;
+  assert.equal(isModelGatewayInvocationErrorV01(temporalPrepareFailure), true);
+  if (!isModelGatewayInvocationErrorV01(temporalPrepareFailure)) {
+    throw new Error("expected temporal prepare cancellation");
+  }
+  assert.equal(temporalPrepareFailure.code, "model_gateway_cancelled");
+  assert.equal(temporalPrepareFailure.receipt?.egress_attempted, false);
+  temporalPrepareSession.resolve(
+    unreachablePurposeSession(TEMPORAL_MODEL_GATEWAY_PURPOSE_V01, () => {
+      temporalPreparedInvokes += 1;
+    }),
+  );
+  await Promise.resolve();
+  assert.equal(temporalPreparedInvokes, 0);
+
+  const mismatchContext = { ...context, scope: fixture.projectBId };
+  const temporalScopeMismatch = await captureAnyGatewayFailure(() =>
+    invokeTemporalModelGatewayV01(
+      temporalEnvelope(fixture, { context: mismatchContext }),
+      temporalDependencies,
+    ),
+  );
+  assert.equal(temporalScopeMismatch.code, "model_gateway_invalid_envelope");
+  assert.equal(metrics.temporal_live_transport_calls, 1);
+
+  const foreignContext = structuredClone(context);
+  foreignContext.summary_refs = [
+    {
+      ref: `summary:${fixture.projectBId}`,
+      summary: "Foreign project material must not cross the boundary.",
+    },
+  ];
+  const temporalForeignFailure = await captureAnyGatewayFailure(() =>
+    invokeTemporalModelGatewayV01(
+      temporalEnvelope(fixture, { context: foreignContext }),
+      temporalDependencies,
+    ),
+  );
+  assert.equal(temporalForeignFailure.code, "model_gateway_egress_refused");
+  assert.equal(metrics.temporal_live_transport_calls, 1);
+
+  const injectedContext = {
+    ...context,
+    system_prompt: HOSTILE_SENTINEL,
+  } as unknown as TemporalPreviewContext;
+  const temporalInjectionFailure = await captureAnyGatewayFailure(() =>
+    invokeTemporalModelGatewayV01(
+      temporalEnvelope(fixture, { context: injectedContext }),
+      temporalDependencies,
+    ),
+  );
+  assert.equal(temporalInjectionFailure.code, "model_gateway_invalid_envelope");
+  assert.equal(JSON.stringify(temporalInjectionFailure).includes(HOSTILE_SENTINEL), false);
+
+  const accessorContext = structuredClone(context) as unknown as Record<string, unknown>;
+  Object.defineProperty(accessorContext, "current_interpretation", {
+    enumerable: true,
+    get() {
+      return HOSTILE_SENTINEL;
+    },
+  });
+  const cyclicValue: Record<string, unknown> = {};
+  cyclicValue.self = cyclicValue;
+  const adversarialTemporalContexts: unknown[] = [
+    accessorContext,
+    { ...context, current_interpretation: cyclicValue },
+    { ...context, current_interpretation: new Date(0) },
+    { ...context, current_interpretation: `OPENAI_API_KEY=${HOSTILE_SENTINEL}` },
+    { ...context, role: "system" },
+    { ...context, model: "unapproved-model" },
+    { ...context, endpoint: "https://example.invalid/model" },
+    (() => {
+      const { safe_next_step: _removed, ...incomplete } = context;
+      return incomplete;
+    })(),
+  ];
+  for (const adversarialContext of adversarialTemporalContexts) {
+    const failure = await captureAnyGatewayFailure(() =>
+      invokeTemporalModelGatewayV01(
+        temporalEnvelope(fixture, {
+          context: adversarialContext as TemporalPreviewContext,
+        }),
+        temporalDependencies,
+      ),
+    );
+    assert.equal(failure.code, "model_gateway_invalid_envelope");
+    assert.equal(JSON.stringify(failure).includes(HOSTILE_SENTINEL), false);
+    assert.equal(metrics.temporal_live_transport_calls, 1);
+  }
+  const oversizedTemporalFailure = await captureAnyGatewayFailure(() =>
+    invokeTemporalModelGatewayV01(
+      temporalEnvelope(fixture, {
+        context: { ...context, current_interpretation: "x".repeat(4_097) },
+      }),
+      temporalDependencies,
+    ),
+  );
+  assert.equal(oversizedTemporalFailure.code, "model_gateway_egress_refused");
+  assert.equal(metrics.temporal_live_transport_calls, 1);
+
+  const temporalDeterministicController = new AbortController();
+  const temporalDeterministicStarted = deferred<void>();
+  const temporalDeterministicOutput = deferred<
+    ReturnType<typeof buildMockTemporalPreview>
+  >();
+  const temporalDeterministicResult = invokeTemporalModelGatewayV01(
+    temporalEnvelope(fixture, {
+      mode: "deterministic",
+      signal: temporalDeterministicController.signal,
+    }),
+    {
+      adapter: temporalAdapter,
+      deterministic_execute(_input, lifecycle) {
+        assert.equal(lifecycle.signal.aborted, false);
+        temporalDeterministicStarted.resolve(undefined);
+        return temporalDeterministicOutput.promise;
+      },
+    },
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await temporalDeterministicStarted.promise;
+  temporalDeterministicController.abort();
+  const temporalDeterministicFailure = await temporalDeterministicResult;
+  assert.equal(isModelGatewayInvocationErrorV01(temporalDeterministicFailure), true);
+  if (!isModelGatewayInvocationErrorV01(temporalDeterministicFailure)) {
+    throw new Error("expected temporal deterministic cancellation");
+  }
+  assert.equal(temporalDeterministicFailure.code, "model_gateway_cancelled");
+  assert.equal(temporalDeterministicFailure.receipt?.egress_attempted, false);
+  temporalDeterministicOutput.resolve(buildMockTemporalPreview(context));
+
+  const temporalTimeoutStarted = deferred<void>();
+  const temporalTimeoutOutput = deferred<ReturnType<typeof buildMockTemporalPreview>>();
+  const temporalTimeout = await captureAnyGatewayFailure(async () => {
+    const invocation = invokeTemporalModelGatewayV01(
+      temporalEnvelope(fixture, { mode: "deterministic", timeoutMs: 10 }),
+      {
+        adapter: temporalAdapter,
+        deterministic_execute(_input, lifecycle) {
+          assert.equal(lifecycle.signal.aborted, false);
+          temporalTimeoutStarted.resolve(undefined);
+          return temporalTimeoutOutput.promise;
+        },
+      },
+    );
+    await temporalTimeoutStarted.promise;
+    return invocation;
+  });
+  assert.equal(temporalTimeout.code, "model_gateway_timeout");
+  assert.equal(temporalTimeout.receipt?.egress_attempted, false);
+  temporalTimeoutOutput.resolve(buildMockTemporalPreview(context));
+
+  let temporalTransportStarted!: () => void;
+  const temporalTransportReady = new Promise<void>((resolve) => {
+    temporalTransportStarted = resolve;
+  });
+  const temporalCancellationAdapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
+    transport: (request) => {
+      temporalTransportStarted();
+      return rejectWhenAborted(request.signal);
+    },
+  });
+  const temporalCancellationController = new AbortController();
+  const temporalCancellationResult = invokeTemporalModelGatewayV01(
+    temporalEnvelope(fixture, { signal: temporalCancellationController.signal }),
+    temporalGatewayDependencies(temporalCancellationAdapter),
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await temporalTransportReady;
+  temporalCancellationController.abort();
+  const temporalCancellationFailure = await temporalCancellationResult;
+  assert.equal(isModelGatewayInvocationErrorV01(temporalCancellationFailure), true);
+  if (!isModelGatewayInvocationErrorV01(temporalCancellationFailure)) {
+    throw new Error("expected temporal transport cancellation");
+  }
+  assert.equal(temporalCancellationFailure.code, "model_gateway_cancelled");
+  assert.equal(temporalCancellationFailure.receipt?.egress_attempted, true);
+
+  const databaseBeforeHostile = openDatabase();
+  const hostileCounts = rowCounts(databaseBeforeHostile);
+  databaseBeforeHostile.close();
+  const temporalHostileAdapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
+    transport: async () => ({
+      ok: false,
+      status: 503,
+      async json() {
+        metrics.temporal_hostile_body_reads += 1;
+        return { body: HOSTILE_SENTINEL, credential: CREDENTIAL_SENTINEL };
+      },
+    }),
+  });
+  const temporalHostileResponse = await createTemporalPreviewPostHandlerV01({
+    gateway_dependencies: { adapter: temporalHostileAdapter },
+  })(
+    temporalRequest(fixture, context, "live"),
+  );
+  assert.equal(temporalHostileResponse.status, 200);
+  const temporalHostile = await temporalHostileResponse.json();
+  assert.equal(temporalHostile.generator, "mock_fallback");
+  assert.equal(
+    temporalHostile.model_invocation_receipt.selection_reason,
+    "provider_failure_fallback",
+  );
+  assert.equal(temporalHostile.model_invocation_receipt.egress_attempted, true);
+  assert.equal(temporalHostile.model_invocation_receipt.budget.provider_calls_used, 1);
+  assert.equal(metrics.temporal_hostile_body_reads, 0);
+  assert.equal(JSON.stringify(temporalHostile).includes(HOSTILE_SENTINEL), false);
+  assert.equal(JSON.stringify(temporalHostile).includes(CREDENTIAL_SENTINEL), false);
+  const databaseAfterHostile = openDatabase();
+  assert.deepEqual(rowCounts(databaseAfterHostile), hostileCounts);
+  databaseAfterHostile.close();
+
+  assert.equal(metrics.deterministic_transport_calls, 0);
+  assert.equal(metrics.blocked_transport_calls, 0);
+  return metrics;
+}
+
+function plannerGatewayDependencies(
+  adapter: ModelAdapterV01,
+): PlannerModelGatewayDependenciesV01 {
+  return {
+    adapter,
+    deterministic_execute(input) {
+      return buildMockRecommendations(input.brief);
+    },
+  };
+}
+
+function temporalGatewayDependencies(
+  adapter: ModelAdapterV01,
+): TemporalModelGatewayDependenciesV01 {
+  return {
+    adapter,
+    deterministic_execute(input) {
+      return buildMockTemporalPreview(input.context);
+    },
+  };
+}
+
+function plannerEnvelope(
+  fixture: Fixture,
+  options: {
+    brief?: ReturnType<typeof buildStateBrief>;
+    mode?: ModelGatewayExecutionModeV01;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    budget?: PlannerModelInvocationEnvelopeV01["budget"];
+  } = {},
+): PlannerModelInvocationEnvelopeV01 {
+  const mode = options.mode ?? "live";
+  return {
+    envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+    invocation_id: "model-invocation:planner-test",
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    data_classification: "private",
+    provenance_refs: [
+      "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    ],
+    privacy: {
+      provider_egress: mode === "live" ? "allow" : "deny",
+      retention_class: "none",
+    },
+    budget:
+      options.budget ??
+      ({
+        max_input_bytes: 98_304,
+        max_output_tokens: 2_048,
+        max_provider_calls: mode === "live" ? 1 : 0,
+      } as PlannerModelInvocationEnvelopeV01["budget"]),
+    timeout_ms: options.timeoutMs ?? 1_000,
+    cancellation: { signal: options.signal ?? new AbortController().signal },
+    execution_mode: mode,
+    policy: {
+      invocation_origin: "interactive",
+      expected_active_project_id: fixture.projectAId,
+      expected_active_selection_revision: fixture.activeRevision,
+    },
+    project_root: {
+      path_flavor: fixture.projectARoot.path_flavor,
+      normalized_path: fixture.projectARoot.normalized_path,
+    },
+    input: {
+      input_kind: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+      message: "Plan the canonical project.",
+      brief: options.brief ?? buildStateBrief(fixture.projectAId),
+    },
+  };
+}
+
+function temporalEnvelope(
+  fixture: Fixture,
+  options: {
+    context?: TemporalPreviewContext;
+    mode?: ModelGatewayExecutionModeV01;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+  } = {},
+): TemporalModelInvocationEnvelopeV01 {
+  const mode = options.mode ?? "live";
+  return {
+    envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+    invocation_id: "model-invocation:temporal-test",
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    purpose: TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+    data_classification: "private",
+    provenance_refs: [
+      "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    ],
+    privacy: {
+      provider_egress: mode === "live" ? "allow" : "deny",
+      retention_class: "none",
+    },
+    budget: {
+      max_input_bytes: 65_536,
+      max_output_tokens: 4_096,
+      max_provider_calls: mode === "live" ? 1 : 0,
+    },
+    timeout_ms: options.timeoutMs ?? 1_000,
+    cancellation: { signal: options.signal ?? new AbortController().signal },
+    execution_mode: mode,
+    policy: {
+      invocation_origin: "interactive",
+      expected_active_project_id: fixture.projectAId,
+      expected_active_selection_revision: fixture.activeRevision,
+    },
+    project_root: {
+      path_flavor: fixture.projectARoot.path_flavor,
+      normalized_path: fixture.projectARoot.normalized_path,
+    },
+    input: {
+      input_kind: TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+      context: options.context ?? buildTemporalPreviewContext(fixture.projectAId),
+    },
+  };
+}
+
+function plannerRequest(
+  fixture: Fixture,
+  input: { message: string; execution_mode: ModelGatewayExecutionModeV01 },
+) {
+  return jsonRequest(
+    "http://localhost/api/plan",
+    plannerRequestBody(fixture, input),
+  );
+}
+
+function plannerRequestBody(
+  fixture: Fixture,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    expected_active_project_id: fixture.projectAId,
+    expected_active_selection_revision: fixture.activeRevision,
+    project_root: fixture.projectARoot,
+    message: "Plan the canonical project.",
+    execution_mode: "live",
+    ...overrides,
+  };
+}
+
+function temporalRequest(
+  fixture: Fixture,
+  context: TemporalPreviewContext,
+  executionMode: ModelGatewayExecutionModeV01,
+) {
+  return jsonRequest("http://localhost/api/temporal-interpretation/preview", {
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    expected_active_project_id: fixture.projectAId,
+    expected_active_selection_revision: fixture.activeRevision,
+    project_root: fixture.projectARoot,
+    context,
+    execution_mode: executionMode,
+  });
+}
+
+function jsonRequest(url: string, body: unknown) {
+  return new Request(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function captureAnyGatewayFailure(invoke: () => Promise<unknown>) {
+  try {
+    await invoke();
+  } catch (error) {
+    assert.equal(isModelGatewayInvocationErrorV01(error), true);
+    if (isModelGatewayInvocationErrorV01(error)) return error;
+  }
+  throw new Error("expected model gateway failure");
+}
+
+function providerJsonSuccess(
+  output: unknown,
+  usage?: { input_tokens: number; output_tokens: number; total_tokens: number },
+) {
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        status: "completed",
+        output_text: JSON.stringify(output),
+        ...(usage ? { usage } : {}),
+      };
+    },
+  };
+}
+
+function plannerProviderOutput() {
+  return {
+    recommendations: [
+      {
+        title: "Review the canonical project result",
+        rationale: "The fake provider result remains bounded and reviewable.",
+        tool_name: null,
+        priority: "next",
+        grounded_state_keys: ["product.name"],
+      },
+    ],
+  };
+}
+
+function unreachablePurposeSession(
+  purpose:
+    | typeof PLANNER_MODEL_GATEWAY_PURPOSE_V01
+    | typeof TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+  onInvoke: () => void,
+): ModelAdapterSessionV01 {
+  return {
+    implementation_id: "test.unreachable_purpose_session",
+    implementation_version: "test_unreachable_purpose_session.v0.1",
+    purpose,
+    async invoke() {
+      onInvoke();
+      throw new Error("unreachable adapter session invoked");
+    },
+  };
+}
+
+function assertReceiptHasNoPurposeContent(receipt: unknown, content: string) {
+  const serialized = JSON.stringify(receipt);
+  assert.equal(serialized.includes(content), false);
+  assert.equal(serialized.includes(CREDENTIAL_SENTINEL), false);
+  assert.equal(serialized.includes(projectARoot), false);
+  assert.equal(serialized.includes(projectBRoot), false);
 }
 
 function initializeDatabase() {
@@ -949,7 +1852,7 @@ function envelope(
 }
 
 function gatewayDependencies(
-  adapter: ReturnType<typeof createOpenAIResponsesObserveAdapterV01>,
+  adapter: ReturnType<typeof createOpenAIResponsesAdapterV01>,
 ): ObserveModelGatewayDependenciesV01 {
   return {
     adapter,
@@ -974,7 +1877,7 @@ async function captureGatewayFailure(
 
 async function assertScopeRefusal(
   invocation: unknown,
-  adapter: ReturnType<typeof createOpenAIResponsesObserveAdapterV01>,
+  adapter: ReturnType<typeof createOpenAIResponsesAdapterV01>,
   metrics: { live_transport_calls: number },
 ) {
   const calls = metrics.live_transport_calls;
@@ -1028,7 +1931,7 @@ function providerSuccess() {
   };
 }
 
-function rejectWhenAborted(signal: AbortSignal): ReturnType<OpenAIResponsesObserveTransportV01> {
+function rejectWhenAborted(signal: AbortSignal): ReturnType<OpenAIResponsesTransportV01> {
   return new Promise((_, reject) => {
     if (signal.aborted) {
       reject(new Error(HOSTILE_SENTINEL));
@@ -1052,10 +1955,11 @@ function deferred<T>() {
 
 function unreachableSession(
   onInvoke: () => void,
-): ObserveModelAdapterSessionV01 {
+): ModelAdapterSessionV01 {
   return {
     implementation_id: "test.unreachable_session",
     implementation_version: "test_unreachable_session.v0.1",
+    purpose: OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
     async invoke() {
       onInvoke();
       throw new Error("unreachable adapter session invoked");
@@ -1117,6 +2021,25 @@ function assertObserveBypassGuard() {
   }
   assert.equal(observeSource.includes("invokeObserveModelGatewayV01"), true);
 
+  for (const relativeFile of [
+    "lib/planner/planner.ts",
+    "lib/temporal-interpretation/preview.ts",
+  ]) {
+    const source = readFileSync(path.join(process.cwd(), relativeFile), "utf8");
+    for (const forbidden of [
+      "api.openai.com",
+      "Authorization",
+      "OPENAI_API_KEY",
+      "OPENAI_MODEL",
+      "fetch(",
+      "json_schema",
+      "output_text",
+      ".json()",
+    ]) {
+      assert.equal(source.includes(forbidden), false, `${relativeFile}:${forbidden}`);
+    }
+  }
+
   const directTransportOwners = listTypeScriptFiles(path.join(process.cwd(), "lib"))
     .filter((file) =>
       readFileSync(file, "utf8").includes("https://api.openai.com/v1/responses"),
@@ -1124,9 +2047,19 @@ function assertObserveBypassGuard() {
     .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
     .sort();
   assert.deepEqual(directTransportOwners, [
-    "lib/planner/planner.ts",
-    "lib/temporal-interpretation/openai.ts",
-    "lib/vnext/model-gateway/openai-responses-observe-adapter.ts",
+    "lib/vnext/model-gateway/openai/responses-adapter.ts",
+  ]);
+
+  const providerCredentialReaders = listTypeScriptFiles(path.join(process.cwd(), "lib"))
+    .filter((file) =>
+      /(?:process\.env|environment)\.OPENAI_(?:API_KEY|MODEL)/.test(
+        readFileSync(file, "utf8"),
+      ),
+    )
+    .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
+    .sort();
+  assert.deepEqual(providerCredentialReaders, [
+    "lib/vnext/model-gateway/openai/responses-adapter.ts",
   ]);
 }
 

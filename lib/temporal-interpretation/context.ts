@@ -13,10 +13,8 @@ import {
   type TemporalHierarchyView,
 } from "@/lib/temporal-interpretation/types";
 
-const DEFAULT_SCOPE = "project:augnes";
-
 export function buildTemporalPreviewContext(
-  scope = DEFAULT_SCOPE,
+  scope: string,
 ): TemporalPreviewContext {
   const brief = buildStateBrief(scope);
   const asOf = new Date().toISOString();

@@ -214,7 +214,15 @@ async function planDoesNotMutate(openDatabase) {
   const { buildPlan } = await import("../lib/planner/planner.ts");
   const before = readAuthoritySnapshot(openDatabase);
   const plan = await buildPlan({
-    scope: SCOPE,
+    workspace_id: WORKSPACE_ID,
+    project_id: SCOPE,
+    expected_active_project_id: SCOPE,
+    expected_active_selection_revision: ACTIVE_SELECTION_REVISION,
+    project_root: {
+      path_flavor: process.platform === "win32" ? "win32" : "posix",
+      normalized_path: tempDir,
+    },
+    execution_mode: "deterministic",
     message: "What should happen next?",
   });
   const after = readAuthoritySnapshot(openDatabase);
@@ -236,7 +244,17 @@ async function temporalPreviewIsReadOnly(openDatabase) {
     "../lib/temporal-review-artifact-capture.ts"
   );
   const before = readAuthoritySnapshot(openDatabase);
-  const preview = await buildTemporalInterpretationPreview({ scope: SCOPE });
+  const preview = await buildTemporalInterpretationPreview({
+    workspace_id: WORKSPACE_ID,
+    project_id: SCOPE,
+    expected_active_project_id: SCOPE,
+    expected_active_selection_revision: ACTIVE_SELECTION_REVISION,
+    project_root: {
+      path_flavor: process.platform === "win32" ? "win32" : "posix",
+      normalized_path: tempDir,
+    },
+    execution_mode: "deterministic",
+  });
   const artifactInput = buildTemporalPreviewReviewArtifactInputFromPreview(preview, {
     source_surface: "local_runtime",
     source_ref: "authority-invariant-smoke",

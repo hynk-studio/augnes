@@ -50,7 +50,7 @@ import {
   type StateRuntimeEvidencePackInput,
   type StateRuntimeHandoffCapsulePreviewInput,
   type StateRuntimeLimit,
-  type StateRuntimeMessageInput,
+  type StateRuntimePlanInput,
   type StateRuntimeObserveInput,
   type StateRuntimeProposal,
   type StateRuntimeScope,
@@ -399,11 +399,25 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
     });
   }
 
-  async plan(input: StateRuntimeMessageInput): Promise<PlanResult> {
+  async plan(input: StateRuntimePlanInput): Promise<PlanResult> {
     return this.requestJson(endpointContract.plan.method, endpointContract.plan.path, PlanResultSchema, "plan", {
       body: {
-        scope: parseScope(input.scope),
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        expected_active_project_id: input.expectedActiveProjectId,
+        expected_active_selection_revision: input.expectedActiveSelectionRevision,
         message: input.message,
+        ...(input.projectRoot
+          ? {
+              project_root: {
+                path_flavor: input.projectRoot.pathFlavor,
+                normalized_path: input.projectRoot.normalizedPath,
+              },
+            }
+          : {}),
+        ...(input.executionMode
+          ? { execution_mode: input.executionMode }
+          : {}),
       },
     });
   }
