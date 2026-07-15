@@ -65,6 +65,8 @@ const UNKNOWN_PROJECT_ID = "project:44444444-4444-4444-8444-444444444444";
 const UNKNOWN_WORKSPACE_ID = "workspace:55555555-5555-4555-8555-555555555555";
 const HOSTILE_SENTINEL = "gateway-hostile-material-7dcf9c";
 const CREDENTIAL_SENTINEL = "gateway-test-credential-must-not-escape";
+const TARGETED_LIFECYCLE_TIMEOUT_MS = 500;
+const TEST_STAGE_OBSERVATION_TIMEOUT_MS = 2_000;
 const root = mkdtempSync(path.join(tmpdir(), "augnes-model-gateway-"));
 const databasePath = path.join(root, "gateway.db");
 const projectARoot = path.join(root, "alpha", "same-name-repository");
@@ -348,7 +350,10 @@ async function main() {
       () => null,
       (error: unknown) => error,
     );
-    await scopeCancellationStarted.promise;
+    await waitForTestStage(
+      scopeCancellationStarted.promise,
+      "Observe scope cancellation",
+    );
     scopeCancellationController.abort();
     const scopeCancellationFailure = await scopeCancellationResult;
     assert.equal(isModelGatewayInvocationErrorV01(scopeCancellationFailure), true);
@@ -364,8 +369,8 @@ async function main() {
 
     const scopeTimeoutStarted = deferred<void>();
     const scopeTimeoutAvailability = deferred<"available">();
-    const scopeTimeoutFailure = await captureGatewayFailure(
-      envelope(fixture, { timeoutMs: 10 }),
+    const scopeTimeoutResult = captureGatewayFailure(
+      envelope(fixture, { timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS }),
       {
         ...gatewayDependencies(liveAdapter),
         read_root_availability() {
@@ -374,7 +379,8 @@ async function main() {
         },
       },
     );
-    await scopeTimeoutStarted.promise;
+    await waitForTestStage(scopeTimeoutStarted.promise, "Observe scope timeout");
+    const scopeTimeoutFailure = await scopeTimeoutResult;
     assert.equal(scopeTimeoutFailure.code, "model_gateway_timeout");
     assert.equal(scopeTimeoutFailure.receipt?.outcome, "timeout");
     assert.equal(scopeTimeoutFailure.receipt?.egress_attempted, false);
@@ -405,7 +411,10 @@ async function main() {
       () => null,
       (error: unknown) => error,
     );
-    await prepareCancellationStarted.promise;
+    await waitForTestStage(
+      prepareCancellationStarted.promise,
+      "Observe adapter preparation cancellation",
+    );
     prepareCancellationController.abort();
     const prepareCancellationFailure = await prepareCancellationResult;
     assert.equal(isModelGatewayInvocationErrorV01(prepareCancellationFailure), true);
@@ -445,13 +454,16 @@ async function main() {
       },
     };
     const prepareTimeoutResult = invokeObserveModelGatewayV01(
-      envelope(fixture, { timeoutMs: 10 }),
+      envelope(fixture, { timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS }),
       gatewayDependencies(deferredTimeoutAdapter),
     ).then(
       () => null,
       (error: unknown) => error,
     );
-    await prepareTimeoutStarted.promise;
+    await waitForTestStage(
+      prepareTimeoutStarted.promise,
+      "Observe adapter preparation timeout",
+    );
     const prepareTimeoutFailure = await prepareTimeoutResult;
     assert.equal(isModelGatewayInvocationErrorV01(prepareTimeoutFailure), true);
     if (!isModelGatewayInvocationErrorV01(prepareTimeoutFailure)) {
@@ -500,7 +512,10 @@ async function main() {
       () => null,
       (error: unknown) => error,
     );
-    await deterministicCancellationStarted.promise;
+    await waitForTestStage(
+      deterministicCancellationStarted.promise,
+      "Observe deterministic cancellation",
+    );
     deterministicCancellationController.abort();
     const deterministicCancellationFailure =
       await deterministicCancellationResult;
@@ -533,8 +548,11 @@ async function main() {
       ReturnType<typeof buildMockProposals>
     >();
     let deterministicTimeoutObservedAbort = false;
-    const deterministicTimeoutFailure = await captureGatewayFailure(
-      envelope(fixture, { mode: "deterministic", timeoutMs: 10 }),
+    const deterministicTimeoutResult = captureGatewayFailure(
+      envelope(fixture, {
+        mode: "deterministic",
+        timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS,
+      }),
       {
         adapter: liveAdapter,
         deterministic_execute(_input, lifecycle) {
@@ -550,7 +568,11 @@ async function main() {
         },
       },
     );
-    await deterministicTimeoutStarted.promise;
+    await waitForTestStage(
+      deterministicTimeoutStarted.promise,
+      "Observe deterministic timeout",
+    );
+    const deterministicTimeoutFailure = await deterministicTimeoutResult;
     assert.equal(deterministicTimeoutFailure.code, "model_gateway_timeout");
     assert.equal(deterministicTimeoutFailure.receipt?.outcome, "timeout");
     assert.equal(deterministicTimeoutFailure.receipt?.egress_attempted, false);
@@ -558,17 +580,24 @@ async function main() {
     assert.equal(deterministicTimeoutObservedAbort, true);
     deterministicTimeoutOutput.resolve([]);
 
+    const timeoutTransportStarted = deferred<void>();
     const timeoutAdapter = createOpenAIResponsesAdapterV01({
       environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
       transport: (request) => {
         metrics.timeout_transport_calls += 1;
+        timeoutTransportStarted.resolve(undefined);
         return rejectWhenAborted(request.signal);
       },
     });
-    const timeoutFailure = await captureGatewayFailure(
-      envelope(fixture, { timeoutMs: 10 }),
+    const timeoutResult = captureGatewayFailure(
+      envelope(fixture, { timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS }),
       gatewayDependencies(timeoutAdapter),
     );
+    await waitForTestStage(
+      timeoutTransportStarted.promise,
+      "Observe provider transport timeout",
+    );
+    const timeoutFailure = await timeoutResult;
     assert.equal(timeoutFailure.code, "model_gateway_timeout");
     assert.equal(timeoutFailure.receipt?.outcome, "timeout");
     assert.equal(metrics.timeout_transport_calls, 1);
@@ -593,7 +622,7 @@ async function main() {
       () => null,
       (error: unknown) => error,
     );
-    await started;
+    await waitForTestStage(started, "Observe provider transport cancellation");
     externalCancellation.abort();
     const cancellationFailure = await cancellationResult;
     assert.equal(isModelGatewayInvocationErrorV01(cancellationFailure), true);
@@ -1025,7 +1054,10 @@ async function runRemainingCallerCases(fixture: Fixture) {
     () => null,
     (error: unknown) => error,
   );
-  await prepareStarted.promise;
+  await waitForTestStage(
+    prepareStarted.promise,
+    "Planner adapter preparation cancellation",
+  );
   prepareController.abort();
   const plannerPrepareFailure = await plannerPrepareResult;
   assert.equal(isModelGatewayInvocationErrorV01(plannerPrepareFailure), true);
@@ -1056,13 +1088,16 @@ async function runRemainingCallerCases(fixture: Fixture) {
     },
   };
   const plannerPrepareTimeoutResult = invokePlannerModelGatewayV01(
-    plannerEnvelope(fixture, { timeoutMs: 10 }),
+    plannerEnvelope(fixture, { timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS }),
     plannerGatewayDependencies(plannerPrepareTimeoutAdapter),
   ).then(
     () => null,
     (error: unknown) => error,
   );
-  await plannerPrepareTimeoutStarted.promise;
+  await waitForTestStage(
+    plannerPrepareTimeoutStarted.promise,
+    "Planner adapter preparation timeout",
+  );
   const plannerPrepareTimeoutFailure = await plannerPrepareTimeoutResult;
   assert.equal(isModelGatewayInvocationErrorV01(plannerPrepareTimeoutFailure), true);
   if (!isModelGatewayInvocationErrorV01(plannerPrepareTimeoutFailure)) {
@@ -1097,7 +1132,10 @@ async function runRemainingCallerCases(fixture: Fixture) {
     () => null,
     (error: unknown) => error,
   );
-  await plannerTransportReady;
+  await waitForTestStage(
+    plannerTransportReady,
+    "Planner provider transport cancellation",
+  );
   plannerTransportController.abort();
   const plannerTransportFailure = await plannerTransportResult;
   assert.equal(isModelGatewayInvocationErrorV01(plannerTransportFailure), true);
@@ -1107,17 +1145,28 @@ async function runRemainingCallerCases(fixture: Fixture) {
   assert.equal(plannerTransportFailure.code, "model_gateway_cancelled");
   assert.equal(plannerTransportFailure.receipt?.egress_attempted, true);
 
-  const plannerTransportTimeout = await captureAnyGatewayFailure(() =>
+  const plannerTimeoutTransportStarted = deferred<void>();
+  const plannerTransportTimeoutResult = captureAnyGatewayFailure(() =>
     invokePlannerModelGatewayV01(
-      plannerEnvelope(fixture, { timeoutMs: 10 }),
+      plannerEnvelope(fixture, {
+        timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS,
+      }),
       plannerGatewayDependencies(
         createOpenAIResponsesAdapterV01({
           environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
-          transport: (request) => rejectWhenAborted(request.signal),
+          transport: (request) => {
+            plannerTimeoutTransportStarted.resolve(undefined);
+            return rejectWhenAborted(request.signal);
+          },
         }),
       ),
     ),
   );
+  await waitForTestStage(
+    plannerTimeoutTransportStarted.promise,
+    "Planner provider transport timeout",
+  );
+  const plannerTransportTimeout = await plannerTransportTimeoutResult;
   assert.equal(plannerTransportTimeout.code, "model_gateway_timeout");
   assert.equal(plannerTransportTimeout.receipt?.egress_attempted, true);
 
@@ -1238,7 +1287,10 @@ async function runRemainingCallerCases(fixture: Fixture) {
     () => null,
     (error: unknown) => error,
   );
-  await temporalPrepareStarted.promise;
+  await waitForTestStage(
+    temporalPrepareStarted.promise,
+    "Temporal adapter preparation cancellation",
+  );
   temporalPrepareController.abort();
   const temporalPrepareFailure = await temporalPrepareResult;
   assert.equal(isModelGatewayInvocationErrorV01(temporalPrepareFailure), true);
@@ -1362,7 +1414,10 @@ async function runRemainingCallerCases(fixture: Fixture) {
     () => null,
     (error: unknown) => error,
   );
-  await temporalDeterministicStarted.promise;
+  await waitForTestStage(
+    temporalDeterministicStarted.promise,
+    "Temporal deterministic cancellation",
+  );
   temporalDeterministicController.abort();
   const temporalDeterministicFailure = await temporalDeterministicResult;
   assert.equal(isModelGatewayInvocationErrorV01(temporalDeterministicFailure), true);
@@ -1375,9 +1430,12 @@ async function runRemainingCallerCases(fixture: Fixture) {
 
   const temporalTimeoutStarted = deferred<void>();
   const temporalTimeoutOutput = deferred<ReturnType<typeof buildMockTemporalPreview>>();
-  const temporalTimeout = await captureAnyGatewayFailure(async () => {
-    const invocation = invokeTemporalModelGatewayV01(
-      temporalEnvelope(fixture, { mode: "deterministic", timeoutMs: 10 }),
+  const temporalTimeoutResult = captureAnyGatewayFailure(() =>
+    invokeTemporalModelGatewayV01(
+      temporalEnvelope(fixture, {
+        mode: "deterministic",
+        timeoutMs: TARGETED_LIFECYCLE_TIMEOUT_MS,
+      }),
       {
         adapter: temporalAdapter,
         deterministic_execute(_input, lifecycle) {
@@ -1386,10 +1444,13 @@ async function runRemainingCallerCases(fixture: Fixture) {
           return temporalTimeoutOutput.promise;
         },
       },
-    );
-    await temporalTimeoutStarted.promise;
-    return invocation;
-  });
+    ),
+  );
+  await waitForTestStage(
+    temporalTimeoutStarted.promise,
+    "Temporal deterministic timeout",
+  );
+  const temporalTimeout = await temporalTimeoutResult;
   assert.equal(temporalTimeout.code, "model_gateway_timeout");
   assert.equal(temporalTimeout.receipt?.egress_attempted, false);
   temporalTimeoutOutput.resolve(buildMockTemporalPreview(context));
@@ -1413,7 +1474,10 @@ async function runRemainingCallerCases(fixture: Fixture) {
     () => null,
     (error: unknown) => error,
   );
-  await temporalTransportReady;
+  await waitForTestStage(
+    temporalTransportReady,
+    "Temporal provider transport cancellation",
+  );
   temporalCancellationController.abort();
   const temporalCancellationFailure = await temporalCancellationResult;
   assert.equal(isModelGatewayInvocationErrorV01(temporalCancellationFailure), true);
@@ -1951,6 +2015,23 @@ function deferred<T>() {
     resolve = resolvePromise;
   });
   return { promise, resolve };
+}
+
+async function waitForTestStage(stage: Promise<void>, label: string) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    await Promise.race([
+      stage,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`${label} did not reach the intended stage.`)),
+          TEST_STAGE_OBSERVATION_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function unreachableSession(
