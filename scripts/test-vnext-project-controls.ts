@@ -30,6 +30,7 @@ import {
 import { openDatabase } from "../lib/db";
 import { mapCodexSemanticReviewToEpisodeDeltaProposalV01 } from "../lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
+  PersonalPerspectiveContextSelectionErrorV01,
   buildConservativeProjectAutomationPolicyV01,
   evaluateProjectAutomationAdmissionV01,
   selectPersonalPerspectiveContextV01,
@@ -81,6 +82,7 @@ const root = mkdtempSync(path.join(tmpdir(), "augnes-project-controls-"));
 const dbPath = path.join(root, "controls.db");
 const projectARoot = path.join(root, "Project A");
 const projectBRoot = path.join(root, "Project B");
+const projectCRoot = path.join(root, "Project C");
 const recoveredARoot = path.join(root, "Project A recovered");
 const sharedRepository = "https://example.test/shared/project-controls.git";
 const originalEnvironment = { ...process.env };
@@ -120,11 +122,31 @@ function tableCount(database: Database.Database, table: string): number {
   );
 }
 
+function coreRecordKindCount(
+  database: Database.Database,
+  recordKind: string,
+): number {
+  return Number(
+    (
+      database
+        .prepare(
+          "SELECT COUNT(*) AS count FROM vnext_core_records WHERE record_kind = ?",
+        )
+        .get(recordKind) as { count: number }
+    ).count,
+  );
+}
+
 function mutationSideEffectCounts(database: Database.Database) {
   return {
     core_records: tableCount(database, "vnext_core_records"),
+    task_context_packets: coreRecordKindCount(
+      database,
+      "task_context_packet",
+    ),
     semantic_state: tableCount(database, "vnext_semantic_state_entries"),
     grants: tableCount(database, "autonomy_delegation_grants"),
+    runs: tableCount(database, "autonomy_runs"),
     automation_controls: tableCount(
       database,
       "vnext_project_automation_controls",
@@ -134,6 +156,49 @@ function mutationSideEffectCounts(database: Database.Database) {
       "vnext_project_personal_perspective_scopes",
     ),
   };
+}
+
+function projectRowCounts(
+  database: Database.Database,
+  workspaceId: string,
+  projectId: string,
+) {
+  const scopedCount = (table: string) =>
+    Number(
+      (
+        database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM ${table}
+             WHERE workspace_id = ? AND project_id = ?`,
+          )
+          .get(workspaceId, projectId) as { count: number }
+      ).count,
+    );
+  return {
+    core_records: scopedCount("vnext_core_records"),
+    semantic_state: scopedCount("vnext_semantic_state_entries"),
+    automation_controls: scopedCount("vnext_project_automation_controls"),
+    perspective_scopes: scopedCount(
+      "vnext_project_personal_perspective_scopes",
+    ),
+  };
+}
+
+function storedTaskContextPacketPayloads(
+  database: Database.Database,
+  workspaceId: string,
+  projectId: string,
+): string[] {
+  return (
+    database
+      .prepare(
+        `SELECT payload_json FROM vnext_core_records
+         WHERE workspace_id = ? AND project_id = ?
+           AND record_kind = 'task_context_packet'
+         ORDER BY record_id`,
+      )
+      .all(workspaceId, projectId) as { payload_json: string }[]
+  ).map((row) => row.payload_json);
 }
 
 function registerProject(
@@ -224,12 +289,20 @@ function makeCandidate(
   suffix: string,
   overrides: Partial<PersonalPerspectiveContextCandidateV01> = {},
 ): PersonalPerspectiveContextCandidateV01 {
-  const ref = {
+  const externalRef = {
     ref_version: "external_ref.v0.1" as const,
     ref_type: "reviewed_memory",
-    external_id: `memory:${suffix}`,
+    external_id: `candidate-external-id:${suffix}`,
     observed_at: "2026-07-09T22:00:00.000Z",
     trust_class: "direct_local_observation" as const,
+  };
+  const currentnessRef = {
+    ...externalRef,
+    external_id: `candidate-currentness-source-ref:${suffix}`,
+  };
+  const compatibilityRef = {
+    ...externalRef,
+    external_id: `candidate-compatibility-source-ref:${suffix}`,
   };
   return {
     candidate_scope: {
@@ -240,23 +313,88 @@ function makeCandidate(
     review_status: "reviewed",
     trust_policy_status: "eligible",
     entry: {
-      entry_id: `personal-perspective:${suffix}`,
+      entry_id: `candidate-entry-id:${suffix}`,
       entry_kind: "memory_ref",
-      source_ref: `memory-source:${suffix}`,
-      external_ref: ref,
-      why_included: "Eligible reviewed Personal Perspective fixture.",
+      source_ref: `candidate-source-ref:${suffix}`,
+      external_ref: externalRef,
+      why_included: `candidate-why-included:${suffix}`,
       currentness: {
         status: "fresh",
         as_of: "2026-07-09T22:00:00.000Z",
-        basis: "Reviewed local fixture.",
-        source_ref: ref,
+        basis: `candidate-currentness-basis:${suffix}`,
+        source_ref: currentnessRef,
       },
       trust_class: "direct_local_observation",
-      compatibility_source_ref: ref,
-      bounded_summary: `Private fixture ${suffix}`,
+      compatibility_source_ref: compatibilityRef,
+      bounded_summary: `candidate-bounded-summary:${suffix}`,
     },
     ...overrides,
   };
+}
+
+function candidateMarkers(
+  candidate: PersonalPerspectiveContextCandidateV01,
+): string[] {
+  return [
+    candidate.entry.entry_id,
+    candidate.entry.source_ref,
+    candidate.entry.external_ref?.external_id,
+    candidate.entry.currentness.basis,
+    candidate.entry.currentness.source_ref?.external_id,
+    candidate.entry.compatibility_source_ref?.external_id,
+    candidate.entry.bounded_summary,
+  ].filter((value): value is string => typeof value === "string");
+}
+
+function assertNoCandidateMaterial(
+  value: unknown,
+  candidates: readonly PersonalPerspectiveContextCandidateV01[],
+): void {
+  const serialized =
+    typeof value === "string" ? value : JSON.stringify(value);
+  for (const candidate of candidates) {
+    for (const marker of candidateMarkers(candidate)) {
+      assert.equal(
+        serialized.includes(marker),
+        false,
+        `candidate marker must not escape the scope gate: ${marker}`,
+      );
+    }
+  }
+}
+
+function expectCandidateScopeRejection(
+  operation: () => unknown,
+  candidates: readonly PersonalPerspectiveContextCandidateV01[],
+): void {
+  const capturedLogs: string[] = [];
+  const originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error,
+  };
+  console.log = (...args: unknown[]) => capturedLogs.push(args.join(" "));
+  console.warn = (...args: unknown[]) => capturedLogs.push(args.join(" "));
+  console.error = (...args: unknown[]) => capturedLogs.push(args.join(" "));
+  let caught: unknown = null;
+  try {
+    operation();
+  } catch (error) {
+    caught = error;
+  } finally {
+    console.log = originalConsole.log;
+    console.warn = originalConsole.warn;
+    console.error = originalConsole.error;
+  }
+  assert(caught instanceof PersonalPerspectiveContextSelectionErrorV01);
+  assert.equal(
+    caught.code,
+    "personal_perspective_candidate_scope_invalid",
+  );
+  assert.equal(caught.message, "personal_perspective_candidate_scope_invalid");
+  assert.deepEqual(capturedLogs, []);
+  assertNoCandidateMaterial(caught.message, candidates);
+  assertNoCandidateMaterial(capturedLogs, candidates);
 }
 
 function rebuildPriorPacketWithPersonalPerspective(
@@ -285,32 +423,22 @@ function rebuildPriorPacketWithPersonalPerspective(
   });
 }
 
-function compileIncludedPersonalPerspective(
+function preparePersonalPerspectiveCompilerFixture(
   database: Database.Database,
   workspaceId: string,
   projectId: string,
-  candidate: PersonalPerspectiveContextCandidateV01,
+  fixtureId: string,
+  priorSelected: PersonalPerspectiveContextCandidateV01["entry"][] = [],
 ) {
-  const scope = readPersonalPerspectiveEffectiveScopeV01(database, {
-    workspace_id: workspaceId,
-    project_id: projectId,
-  });
-  const gated = selectPersonalPerspectiveContextV01({
-    workspace_id: workspaceId,
-    project_id: projectId,
-    scope,
-    candidates: [candidate],
-  });
-  assert.equal(gated.eligible_selected_count, 1);
   const project: SemanticReviewLoopProjectFixtureV01 = {
-    fixture_id: "canonical-project-controls-a",
+    fixture_id: fixtureId,
     workspace_id: workspaceId,
     project_id: projectId,
-    run_id: "run:project-controls-context",
+    run_id: `run:${fixtureId}`,
   };
   const priorPacket = rebuildPriorPacketWithPersonalPerspective(
     buildSemanticReviewLoopTaskContextPacketFixture(project),
-    gated.selected_context,
+    priorSelected,
   );
   const mapped = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
     semanticReviewLoopMapperInputFixture(project, priorPacket),
@@ -368,39 +496,26 @@ function compileIncludedPersonalPerspective(
     ),
   });
   assert.equal(transition.status, "applied");
-  const compiled = compileTaskContextPacketFromPersistedSemanticStateV01(
-    database,
-    {
-      workspace_id: workspaceId,
-      project_id: projectId,
-      prior_packet: priorPacket,
-      transition_receipt_id: transition.receipt.transition_receipt_id,
-      transition_receipt_fingerprint: transition.receipt.integrity.fingerprint,
-      expiry_policy: { mode: "reuse_prior" },
-      personal_perspective_candidates: [candidate],
-      clock: fixedClock(DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT),
-    },
-  );
-  assert.equal(compiled.full_chain_relation.status, "valid");
-  assert.equal(compiled.personal_perspective_selection.eligible_selected_count, 1);
-  assert.equal(
-    compiled.later_packet.selected_context.filter(
-      (entry) =>
-        entry.compatibility_source_ref?.ref_type ===
-        "project_personal_perspective_scope",
-    ).length,
-    1,
-  );
-  assert(
-    compiled.later_packet.compatibility.source_refs.some(
-      (ref) => ref.ref_type === "project_personal_perspective_scope",
-    ),
-  );
-  assert.equal(
-    JSON.stringify(compiled.later_packet).includes("policy_json"),
-    false,
-  );
-  return compiled;
+  return {
+    workspace_id: workspaceId,
+    project_id: projectId,
+    prior_packet: priorPacket,
+    transition_receipt_id: transition.receipt.transition_receipt_id,
+    transition_receipt_fingerprint: transition.receipt.integrity.fingerprint,
+  };
+}
+
+function compilePersonalPerspectiveFixture(
+  database: Database.Database,
+  fixture: ReturnType<typeof preparePersonalPerspectiveCompilerFixture>,
+  candidates: readonly PersonalPerspectiveContextCandidateV01[],
+) {
+  return compileTaskContextPacketFromPersistedSemanticStateV01(database, {
+    ...fixture,
+    expiry_policy: { mode: "reuse_prior" },
+    personal_perspective_candidates: candidates,
+    clock: fixedClock(DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT),
+  });
 }
 
 function routeRequest(body: Record<string, unknown>, options: {
@@ -474,6 +589,7 @@ async function main() {
   try {
     mkdirSync(projectARoot);
     mkdirSync(projectBRoot);
+    mkdirSync(projectCRoot);
     mkdirSync(recoveredARoot);
     migrationParity();
     db = openDatabase();
@@ -495,6 +611,13 @@ async function main() {
       projectBRoot,
       "Project B",
       "00000000-0000-4000-8000-000000000003",
+    );
+    const projectC = registerProject(
+      db,
+      workspace.workspace_id,
+      projectCRoot,
+      "Project C",
+      "00000000-0000-4000-8000-000000000004",
     );
     touchRecentProjectV01(db, {
       workspace_id: workspace.workspace_id,
@@ -542,6 +665,197 @@ async function main() {
     assert.equal(defaultHome.personal_perspective.status, "not_configured");
     assert.deepEqual(mutationSideEffectCounts(db), rowsBeforeReads);
 
+    const candidateA = makeCandidate(
+      workspace.workspace_id,
+      projectA.project.project_id,
+      "project-a",
+    );
+    const hiddenCandidateA = makeCandidate(
+      workspace.workspace_id,
+      projectA.project.project_id,
+      "project-a-hidden-second",
+    );
+    const candidateB = makeCandidate(
+      workspace.workspace_id,
+      projectB.project.project_id,
+      "project-b-secret",
+    );
+    const candidateC = makeCandidate(
+      workspace.workspace_id,
+      projectC.project.project_id,
+      "project-c-excluded-secret",
+    );
+    const hiddenCandidateC = makeCandidate(
+      workspace.workspace_id,
+      projectC.project.project_id,
+      "project-c-hidden-second",
+    );
+    const projectAugnes = makeCandidate(
+      workspace.workspace_id,
+      projectA.project.project_id,
+      "project-augnes-secret",
+      {
+        candidate_scope: {
+          scope_kind: "canonical_project",
+          workspace_id: workspace.workspace_id,
+          project_id: "project:augnes",
+        },
+      },
+    );
+    const globalLegacy = makeCandidate(
+      workspace.workspace_id,
+      projectA.project.project_id,
+      "legacy-global-secret",
+      { candidate_scope: { scope_kind: "legacy_global" } },
+    );
+    const unscoped = makeCandidate(
+      workspace.workspace_id,
+      projectA.project.project_id,
+      "unscoped-secret",
+      { candidate_scope: { scope_kind: "unscoped" } },
+    );
+
+    const notConfiguredRowsBefore = mutationSideEffectCounts(db);
+    const notConfiguredSelection = selectPersonalPerspectiveContextV01({
+      workspace_id: workspace.workspace_id,
+      project_id: projectA.project.project_id,
+      scope: perspectiveDefault,
+      candidates: [candidateA, hiddenCandidateA],
+    });
+    assert.equal(notConfiguredSelection.selected_context.length, 0);
+    assert.equal(notConfiguredSelection.excluded_context.length, 0);
+    assert.equal(notConfiguredSelection.eligible_selected_count, 0);
+    assert.equal(notConfiguredSelection.excluded_count, 0);
+    assertNoCandidateMaterial(notConfiguredSelection, [
+      candidateA,
+      hiddenCandidateA,
+    ]);
+    assert.deepEqual(mutationSideEffectCounts(db), notConfiguredRowsBefore);
+
+    const notConfiguredCompilerFixture =
+      preparePersonalPerspectiveCompilerFixture(
+        db,
+        workspace.workspace_id,
+        projectB.project.project_id,
+        "canonical-project-controls-not-configured",
+      );
+    const beforeNotConfiguredCompile = mutationSideEffectCounts(db);
+    const notConfiguredCompiled = compilePersonalPerspectiveFixture(
+      db,
+      notConfiguredCompilerFixture,
+      [candidateB],
+    );
+    assert.equal(
+      notConfiguredCompiled.personal_perspective_selection.scope_status,
+      "not_configured",
+    );
+    assert.equal(
+      notConfiguredCompiled.personal_perspective_selection.excluded_count,
+      0,
+    );
+    assertNoCandidateMaterial(
+      notConfiguredCompiled.personal_perspective_selection,
+      [candidateB],
+    );
+    assertNoCandidateMaterial(notConfiguredCompiled.later_packet, [candidateB]);
+    const afterNotConfiguredCompile = mutationSideEffectCounts(db);
+    assert.equal(
+      afterNotConfiguredCompile.task_context_packets,
+      beforeNotConfiguredCompile.task_context_packets + 1,
+    );
+    assert.equal(
+      afterNotConfiguredCompile.semantic_state,
+      beforeNotConfiguredCompile.semantic_state,
+    );
+    assert.equal(afterNotConfiguredCompile.grants, beforeNotConfiguredCompile.grants);
+    assert.equal(afterNotConfiguredCompile.runs, beforeNotConfiguredCompile.runs);
+
+    active = selectActiveProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: projectC.project.project_id,
+      expected_project_id: projectA.project.project_id,
+      expected_revision: active.selection_revision,
+      now: "2026-07-09T20:14:00.000Z",
+    });
+    const beforeProjectCExclude = mutationSideEffectCounts(db);
+    const excludedProjectC = mutateProjectControlV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: projectC.project.project_id,
+        action: "exclude_personal_perspective",
+        expected_active_project_id: projectC.project.project_id,
+        expected_active_selection_revision: active.selection_revision,
+        expected_control_revision: null,
+      },
+      { now: () => "2026-07-09T20:15:00.000Z" },
+    ).personal_perspective!;
+    assert.equal(excludedProjectC.status, "excluded");
+    assert.equal(
+      mutationSideEffectCounts(db).task_context_packets,
+      beforeProjectCExclude.task_context_packets,
+    );
+    const excludedProjectCSelection = selectPersonalPerspectiveContextV01({
+      workspace_id: workspace.workspace_id,
+      project_id: projectC.project.project_id,
+      scope: excludedProjectC,
+      candidates: [candidateC, hiddenCandidateC],
+    });
+    assert.equal(excludedProjectCSelection.selected_context.length, 0);
+    assert.equal(excludedProjectCSelection.excluded_context.length, 0);
+    assert.equal(excludedProjectCSelection.eligible_selected_count, 0);
+    assert.equal(excludedProjectCSelection.excluded_count, 0);
+    assertNoCandidateMaterial(excludedProjectCSelection, [
+      candidateC,
+      hiddenCandidateC,
+    ]);
+    const excludedCompilerFixture = preparePersonalPerspectiveCompilerFixture(
+      db,
+      workspace.workspace_id,
+      projectC.project.project_id,
+      "canonical-project-controls-excluded",
+    );
+    const beforeExcludedCompile = mutationSideEffectCounts(db);
+    const excludedCompiled = compilePersonalPerspectiveFixture(
+      db,
+      excludedCompilerFixture,
+      [candidateC, hiddenCandidateC],
+    );
+    assert.equal(
+      excludedCompiled.personal_perspective_selection.scope_status,
+      "excluded",
+    );
+    assert.equal(
+      excludedCompiled.personal_perspective_selection.excluded_count,
+      0,
+    );
+    assertNoCandidateMaterial(
+      excludedCompiled.personal_perspective_selection,
+      [candidateC, hiddenCandidateC],
+    );
+    assertNoCandidateMaterial(excludedCompiled.later_packet, [
+      candidateC,
+      hiddenCandidateC,
+    ]);
+    const afterExcludedCompile = mutationSideEffectCounts(db);
+    assert.equal(
+      afterExcludedCompile.task_context_packets,
+      beforeExcludedCompile.task_context_packets + 1,
+    );
+    assert.equal(
+      afterExcludedCompile.semantic_state,
+      beforeExcludedCompile.semantic_state,
+    );
+    assert.equal(afterExcludedCompile.grants, beforeExcludedCompile.grants);
+    assert.equal(afterExcludedCompile.runs, beforeExcludedCompile.runs);
+    active = selectActiveProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: projectA.project.project_id,
+      expected_project_id: projectC.project.project_id,
+      expected_revision: active.selection_revision,
+      now: "2026-07-09T20:16:00.000Z",
+    });
+
     const beforePerspectiveMutation = mutationSideEffectCounts(db);
     const include = mutateProjectControlV01(
       db,
@@ -563,71 +877,167 @@ async function main() {
       beforePerspectiveMutation.core_records,
     );
     assert.equal(
+      afterPerspectiveMutation.task_context_packets,
+      beforePerspectiveMutation.task_context_packets,
+    );
+    assert.equal(
       afterPerspectiveMutation.semantic_state,
       beforePerspectiveMutation.semantic_state,
     );
     assert.equal(afterPerspectiveMutation.grants, beforePerspectiveMutation.grants);
+    assert.equal(afterPerspectiveMutation.runs, beforePerspectiveMutation.runs);
 
-    const candidateA = makeCandidate(
-      workspace.workspace_id,
-      projectA.project.project_id,
-      "project-a",
-    );
-    const candidateB = makeCandidate(
-      workspace.workspace_id,
-      projectB.project.project_id,
-      "project-b-secret",
-    );
     const unreviewed = makeCandidate(
       workspace.workspace_id,
       projectA.project.project_id,
       "unreviewed",
       { review_status: "unreviewed" },
     );
-    const stale = makeCandidate(
+    const staleBase = makeCandidate(
       workspace.workspace_id,
       projectA.project.project_id,
       "stale",
-      {
-        entry: {
-          ...candidateA.entry,
-          entry_id: "personal-perspective:stale",
-          currentness: {
-            ...candidateA.entry.currentness,
-            status: "stale",
-          },
+    );
+    const stale = {
+      ...staleBase,
+      entry: {
+        ...staleBase.entry,
+        currentness: {
+          ...staleBase.entry.currentness,
+          status: "stale" as const,
         },
       },
-    );
+    };
     const untrusted = makeCandidate(
       workspace.workspace_id,
       projectA.project.project_id,
       "untrusted",
       { trust_policy_status: "ineligible" },
     );
-    const globalLegacy = makeCandidate(
+    const wrongKindBase = makeCandidate(
       workspace.workspace_id,
       projectA.project.project_id,
-      "legacy-global",
-      { candidate_scope: { scope_kind: "legacy_global" } },
+      "wrong-kind",
     );
+    const wrongKind = {
+      ...wrongKindBase,
+      entry: {
+        ...wrongKindBase.entry,
+        entry_kind: "evidence_ref" as const,
+      },
+    };
+    const eligibleGate = selectPersonalPerspectiveContextV01({
+      workspace_id: workspace.workspace_id,
+      project_id: projectA.project.project_id,
+      scope: include.personal_perspective!,
+      candidates: [candidateA],
+    });
     const gate = selectPersonalPerspectiveContextV01({
       workspace_id: workspace.workspace_id,
       project_id: projectA.project.project_id,
       scope: include.personal_perspective!,
       candidates: [
         candidateA,
-        candidateB,
         unreviewed,
         stale,
         untrusted,
-        globalLegacy,
+        wrongKind,
       ],
     });
+    assert.equal(eligibleGate.selected_context.length, 1);
+    assert.equal(eligibleGate.excluded_context.length, 0);
     assert.equal(gate.selected_context.length, 1);
-    assert.equal(gate.excluded_context.length, 5);
+    assert.equal(gate.excluded_context.length, 4);
     assert(gate.selected_context[0]?.why_included.includes("project explicitly permits"));
     assert(gate.excluded_context.every((entry) => entry.why_excluded.length > 0));
+    const boundedSameProjectExclusions = JSON.stringify(gate.excluded_context);
+    for (const ineligibleCandidate of [unreviewed, stale, untrusted, wrongKind]) {
+      assert.equal(
+        boundedSameProjectExclusions.includes(
+          ineligibleCandidate.entry.bounded_summary ?? "",
+        ),
+        false,
+      );
+      assert.equal(
+        boundedSameProjectExclusions.includes(
+          ineligibleCandidate.entry.why_included,
+        ),
+        false,
+      );
+    }
+
+    const contaminatedCandidates = [
+      candidateB,
+      projectAugnes,
+      globalLegacy,
+      unscoped,
+    ];
+    for (const contaminated of contaminatedCandidates) {
+      expectCandidateScopeRejection(
+        () =>
+          selectPersonalPerspectiveContextV01({
+            workspace_id: workspace.workspace_id,
+            project_id: projectA.project.project_id,
+            scope: include.personal_perspective!,
+            candidates: [candidateA, contaminated],
+          }),
+        [candidateA, contaminated],
+      );
+    }
+
+    const includedCompilerFixture = preparePersonalPerspectiveCompilerFixture(
+      db,
+      workspace.workspace_id,
+      projectA.project.project_id,
+      "canonical-project-controls-included",
+      eligibleGate.selected_context,
+    );
+    const includedPriorSnapshot = JSON.stringify(
+      includedCompilerFixture.prior_packet,
+    );
+    const projectBBeforeRejectedCompilers = projectRowCounts(
+      db,
+      workspace.workspace_id,
+      projectB.project.project_id,
+    );
+    for (const contaminated of contaminatedCandidates) {
+      const beforeRejectedCompile = mutationSideEffectCounts(db);
+      const packetRowsBefore = storedTaskContextPacketPayloads(
+        db,
+        workspace.workspace_id,
+        projectA.project.project_id,
+      );
+      expectCandidateScopeRejection(
+        () =>
+          compilePersonalPerspectiveFixture(db!, includedCompilerFixture, [
+            candidateA,
+            contaminated,
+          ]),
+        [candidateA, contaminated],
+      );
+      assert.deepEqual(mutationSideEffectCounts(db), beforeRejectedCompile);
+      assert.deepEqual(
+        storedTaskContextPacketPayloads(
+          db,
+          workspace.workspace_id,
+          projectA.project.project_id,
+        ),
+        packetRowsBefore,
+      );
+      assert.equal(
+        JSON.stringify(includedCompilerFixture.prior_packet),
+        includedPriorSnapshot,
+      );
+      assert.deepEqual(
+        projectRowCounts(
+          db,
+          workspace.workspace_id,
+          projectB.project.project_id,
+        ),
+        projectBBeforeRejectedCompilers,
+      );
+    }
+
     const budgetCandidates = Array.from({ length: 6 }, (_, index) =>
       makeCandidate(
         workspace.workspace_id,
@@ -680,16 +1090,48 @@ async function main() {
       ).length,
       5,
     );
-    const compiled = compileIncludedPersonalPerspective(
+    const compiled = compilePersonalPerspectiveFixture(
       db,
-      workspace.workspace_id,
-      projectA.project.project_id,
-      candidateA,
+      includedCompilerFixture,
+      [candidateA],
+    );
+    assert.equal(compiled.full_chain_relation.status, "valid");
+    assert.equal(
+      compiled.personal_perspective_selection.eligible_selected_count,
+      1,
+    );
+    assert.equal(compiled.personal_perspective_selection.excluded_count, 0);
+    assert.equal(
+      compiled.later_packet.selected_context.filter(
+        (entry) =>
+          entry.compatibility_source_ref?.ref_type ===
+          "project_personal_perspective_scope",
+      ).length,
+      1,
+    );
+    assert(
+      compiled.later_packet.compatibility.source_refs.some(
+        (ref) => ref.ref_type === "project_personal_perspective_scope",
+      ),
     );
     assert.equal(
-      JSON.stringify(compiled.later_packet).includes("project-b-secret"),
-      false,
+      JSON.stringify(compiled.later_packet).includes(candidateA.entry.entry_id),
+      true,
     );
+    assertNoCandidateMaterial(
+      compiled.personal_perspective_selection,
+      contaminatedCandidates,
+    );
+    assertNoCandidateMaterial(compiled.later_packet, contaminatedCandidates);
+    assertNoCandidateMaterial(
+      storedTaskContextPacketPayloads(
+        db,
+        workspace.workspace_id,
+        projectA.project.project_id,
+      ),
+      contaminatedCandidates,
+    );
+    assert.equal(JSON.stringify(compiled.later_packet).includes("policy_json"), false);
 
     const beforeAutomationMutation = mutationSideEffectCounts(db);
     const routeEnable = await routeMutation({
@@ -834,6 +1276,7 @@ async function main() {
     );
 
     const perspectiveRevision = include.personal_perspective!.scope_revision!;
+    const beforeExcludeMutation = mutationSideEffectCounts(db);
     let perspective = mutateProjectControlV01(
       db,
       {
@@ -847,6 +1290,10 @@ async function main() {
       { now: () => "2026-07-16T00:04:00.000Z" },
     ).personal_perspective!;
     assert.equal(perspective.status, "excluded");
+    assert.equal(
+      mutationSideEffectCounts(db).task_context_packets,
+      beforeExcludeMutation.task_context_packets,
+    );
     const excludedGate = selectPersonalPerspectiveContextV01({
       workspace_id: workspace.workspace_id,
       project_id: projectA.project.project_id,
@@ -854,7 +1301,11 @@ async function main() {
       candidates: [candidateA],
     });
     assert.equal(excludedGate.selected_context.length, 0);
-    assert.equal(excludedGate.excluded_context.length, 1);
+    assert.equal(excludedGate.excluded_context.length, 0);
+    assert.equal(excludedGate.eligible_selected_count, 0);
+    assert.equal(excludedGate.excluded_count, 0);
+    assertNoCandidateMaterial(excludedGate, [candidateA]);
+    const beforeReincludeMutation = mutationSideEffectCounts(db);
     perspective = mutateProjectControlV01(
       db,
       {
@@ -869,6 +1320,10 @@ async function main() {
     ).personal_perspective!;
     assert.equal(perspective.status, "included");
     assert.equal(perspective.scope_revision, 3);
+    assert.equal(
+      mutationSideEffectCounts(db).task_context_packets,
+      beforeReincludeMutation.task_context_packets,
+    );
 
     active = selectActiveProjectV01(db, {
       workspace_id: workspace.workspace_id,
@@ -1160,16 +1615,26 @@ async function main() {
             beforeRestart.automation.policy_summary.profile,
           admission_enabled_without_grant: "grant_required",
           compiler_personal_perspective_selected: 1,
+          not_configured_candidate_markers: 0,
+          excluded_candidate_markers: 0,
+          contaminated_candidate_scope_rejections:
+            contaminatedCandidates.length * 2,
+          compiler_rejection_partial_packet_rows: 0,
           cross_project_selected_context: 0,
+          cross_project_markers_in_selection: 0,
+          cross_project_markers_in_packet: 0,
           same_repository_project_independence: true,
           active_project_conflicts: true,
           stale_control_conflicts: true,
           restart_persistence: true,
           root_recovery_preserved_controls: true,
           read_only_row_changes: 0,
-          control_rows_created: 4,
+          control_rows_created:
+            tableCount(db, "vnext_project_automation_controls") +
+            tableCount(db, "vnext_project_personal_perspective_scopes"),
           grants_created_by_control_mutation: 0,
           runs_created_by_control_mutation: 0,
+          task_context_packets_created_by_control_mutation: 0,
           semantic_rows_created_by_control_mutation: 0,
           network_calls: 0,
           model_calls: 0,

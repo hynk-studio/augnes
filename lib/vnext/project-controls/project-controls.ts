@@ -27,6 +27,18 @@ import type {
 export const PROJECT_CONTROLS_CONTEXT_LINEAGE_NAMESPACE_V01 =
   "project_controls.v0.1" as const;
 
+export type PersonalPerspectiveContextSelectionErrorCodeV01 =
+  | "personal_perspective_scope_binding_mismatch"
+  | "personal_perspective_scope_invalid"
+  | "personal_perspective_candidate_scope_invalid";
+
+export class PersonalPerspectiveContextSelectionErrorV01 extends Error {
+  constructor(readonly code: PersonalPerspectiveContextSelectionErrorCodeV01) {
+    super(code);
+    this.name = "PersonalPerspectiveContextSelectionErrorV01";
+  }
+}
+
 export function buildConservativeProjectAutomationPolicyV01(input: {
   workspace_id: string;
   project_id: string;
@@ -213,20 +225,32 @@ export function selectPersonalPerspectiveContextV01(input: {
     input.scope.workspace_id !== input.workspace_id ||
     input.scope.project_id !== input.project_id
   ) {
-    throw new Error("personal_perspective_scope_binding_mismatch");
+    throw new PersonalPerspectiveContextSelectionErrorV01(
+      "personal_perspective_scope_binding_mismatch",
+    );
   }
   const scopeLineageRef = createPersonalPerspectiveScopeLineageRefV01(
     input.scope,
   );
+  if (input.scope.status !== "included") {
+    return emptyPersonalPerspectiveContextSelection(input, scopeLineageRef);
+  }
+  if (
+    !input.scope.configured ||
+    !input.scope.effectively_included ||
+    input.scope.scope_revision === null
+  ) {
+    throw new PersonalPerspectiveContextSelectionErrorV01(
+      "personal_perspective_scope_invalid",
+    );
+  }
+  assertPersonalPerspectiveCandidateScopesV01(input);
   const selected: TaskContextPacketSelectedEntryV01[] = [];
   const excluded: TaskContextPacketExcludedEntryV01[] = [];
   const uniqueCandidates = uniquePersonalPerspectiveCandidates(input.candidates);
 
   for (const candidate of uniqueCandidates) {
-    const exclusionReason = personalPerspectiveExclusionReason(
-      input,
-      candidate,
-    );
+    const exclusionReason = personalPerspectiveExclusionReason(candidate);
     if (exclusionReason) {
       excluded.push(excludedEntry(candidate.entry, exclusionReason));
       continue;
@@ -252,6 +276,48 @@ export function selectPersonalPerspectiveContextV01(input: {
     eligible_selected_count: selected.length,
     excluded_count: excluded.length,
   };
+}
+
+function emptyPersonalPerspectiveContextSelection(
+  input: {
+    workspace_id: string;
+    project_id: string;
+    scope: PersonalPerspectiveEffectiveScopeV01;
+  },
+  scopeLineageRef: ExternalRefV01 | null,
+): PersonalPerspectiveContextSelectionV01 {
+  return {
+    context_selection_version:
+      PERSONAL_PERSPECTIVE_CONTEXT_SELECTION_VERSION_V01,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    scope_status: input.scope.status,
+    scope_revision: input.scope.scope_revision,
+    scope_lineage_ref: scopeLineageRef,
+    selected_context: [],
+    excluded_context: [],
+    eligible_selected_count: 0,
+    excluded_count: 0,
+  };
+}
+
+function assertPersonalPerspectiveCandidateScopesV01(input: {
+  workspace_id: string;
+  project_id: string;
+  candidates: readonly PersonalPerspectiveContextCandidateV01[];
+}): void {
+  for (const candidate of input.candidates) {
+    if (
+      candidate.candidate_scope.scope_kind !== "canonical_project" ||
+      candidate.candidate_scope.project_id === "project:augnes" ||
+      candidate.candidate_scope.workspace_id !== input.workspace_id ||
+      candidate.candidate_scope.project_id !== input.project_id
+    ) {
+      throw new PersonalPerspectiveContextSelectionErrorV01(
+        "personal_perspective_candidate_scope_invalid",
+      );
+    }
+  }
 }
 
 export function isPersonalPerspectiveSelectedEntryV01(
@@ -330,29 +396,8 @@ function admissionResult(
 }
 
 function personalPerspectiveExclusionReason(
-  input: {
-    workspace_id: string;
-    project_id: string;
-    scope: PersonalPerspectiveEffectiveScopeV01;
-  },
   candidate: PersonalPerspectiveContextCandidateV01,
 ): string | null {
-  if (input.scope.status === "not_configured") {
-    return "Excluded because Personal Perspective is not configured for this project.";
-  }
-  if (input.scope.status === "excluded") {
-    return "Excluded because Personal Perspective is explicitly excluded for this project.";
-  }
-  if (candidate.candidate_scope.scope_kind !== "canonical_project") {
-    return "Excluded because global, unscoped, or legacy Personal Perspective material is not eligible for implicit project reuse.";
-  }
-  if (
-    candidate.candidate_scope.project_id === "project:augnes" ||
-    candidate.candidate_scope.workspace_id !== input.workspace_id ||
-    candidate.candidate_scope.project_id !== input.project_id
-  ) {
-    return "Excluded because the Personal Perspective material belongs to another project scope.";
-  }
   if (candidate.review_status !== "reviewed") {
     return "Excluded because the Personal Perspective material is not reviewed and eligible.";
   }

@@ -153,6 +153,14 @@ function compileTaskContextPacketInternalV01(
   input: ResolvedCompileTaskContextPacketInputV01,
 ): CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
   validatePriorPacket(input.prior_packet, input.workspace_id, input.project_id);
+  const personalPerspectiveScopeResolution =
+    readCompilerPersonalPerspectiveScope(db, input);
+  const personalPerspectiveSelection = selectPersonalPerspectiveContextV01({
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    scope: personalPerspectiveScopeResolution.scope,
+    candidates: input.personal_perspective_candidates ?? [],
+  });
   const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
     workspace_id: input.workspace_id,
     project_id: input.project_id,
@@ -168,17 +176,6 @@ function compileTaskContextPacketInternalV01(
     transition,
     currentStateEntries,
   );
-  const personalPerspectiveScopeResolution =
-    readCompilerPersonalPerspectiveScope(
-    db,
-    input,
-  );
-  const personalPerspectiveSelection = selectPersonalPerspectiveContextV01({
-    workspace_id: input.workspace_id,
-    project_id: input.project_id,
-    scope: personalPerspectiveScopeResolution.scope,
-    candidates: input.personal_perspective_candidates ?? [],
-  });
   validateUnrelatedPersistedStateSelections(
     db,
     transition,
