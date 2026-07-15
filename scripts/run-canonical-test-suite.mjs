@@ -114,7 +114,7 @@ const suites = {
       ...rootNode("scripts/test-bounded-model-egress.ts"),
     },
     {
-      label: "project-scoped Model Gateway and Observe transport authority",
+      label: "project-scoped Model Gateway and all production model transport authority",
       ...rootNode("scripts/test-model-gateway.ts"),
     },
     {

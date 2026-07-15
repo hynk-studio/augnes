@@ -22,6 +22,7 @@ import {
   CodexLaunchCardPreviewToolInputSchema,
   GuideBriefToolInputSchema,
   HandoffCapsulePreviewToolInputSchema,
+  ModelInvocationReceiptSchema,
   ProjectConstellationPreviewToolInputSchema,
   SessionTraceToolInputSchema,
   StateRuntimeActionResultKindSchema,
@@ -155,6 +156,34 @@ function safeOrigin(rawUrl: string): string | undefined {
 
 function sanitizePayload<T>(value: T): T {
   return sanitizeValue(value);
+}
+
+function sanitizeModelGatewayBridgeResult<
+  T extends {
+    workspace_id: string;
+    project_id: string;
+    model_invocation_receipt: unknown;
+  },
+>(
+  result: T,
+  purpose: "observe_delta_compile" | "planner_plan",
+): T {
+  const receipt = ModelInvocationReceiptSchema.parse(
+    result.model_invocation_receipt,
+  );
+  if (
+    receipt.purpose !== purpose ||
+    receipt.workspace_id !== result.workspace_id ||
+    receipt.project_id !== result.project_id
+  ) {
+    throw new Error("Model invocation receipt scope is invalid.");
+  }
+  return {
+    ...sanitizePayload(result),
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    model_invocation_receipt: receipt,
+  };
 }
 
 function buildToolError(tool: string, error: unknown, panel?: string) {
@@ -8495,7 +8524,13 @@ export function createMcpAppServer(
             projectRoot,
             executionMode,
           });
-          const structuredContent = sanitizePayload({ profile: config.appProfile, observe });
+          const structuredContent = {
+            profile: config.appProfile,
+            observe: sanitizeModelGatewayBridgeResult(
+              observe,
+              "observe_delta_compile",
+            ),
+          };
           return {
             structuredContent,
             content: narrative(
@@ -8514,21 +8549,54 @@ export function createMcpAppServer(
       "augnes_plan",
       {
         title: "Plan from Augnes state",
-        description: "Ask the Augnes runtime planner for state-grounded recommendations without committing state changes.",
+        description: "Ask the canonically project-scoped Augnes runtime planner for state-grounded recommendations and a privacy-safe invocation receipt without committing state changes.",
         inputSchema: {
-          scope: z.string().min(1).optional(),
+          workspaceId: z
+            .string()
+            .regex(/^workspace:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+          projectId: z
+            .string()
+            .regex(/^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+          expectedActiveProjectId: z
+            .string()
+            .regex(/^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+          expectedActiveSelectionRevision: z.number().int().positive(),
           message: z.string().min(1),
+          projectRoot: z
+            .object({
+              pathFlavor: z.enum(["posix", "win32"]),
+              normalizedPath: z.string().min(1),
+            })
+            .optional(),
+          executionMode: z.enum(["live", "deterministic"]).optional(),
         },
         annotations: bridgeReadAnnotations,
         _meta: modelOnlyToolMeta,
       },
-      async ({ scope, message }) => {
-        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
-
+      async ({
+        workspaceId,
+        projectId,
+        expectedActiveProjectId,
+        expectedActiveSelectionRevision,
+        message,
+        projectRoot,
+        executionMode,
+      }) => {
         try {
-          const plan = await stateRuntimeAdapter.plan({ scope: resolvedScope, message });
+          const plan = await stateRuntimeAdapter.plan({
+            workspaceId,
+            projectId,
+            expectedActiveProjectId,
+            expectedActiveSelectionRevision,
+            message,
+            projectRoot,
+            executionMode,
+          });
           const firstTitle = plan.recommendations[0]?.title;
-          const structuredContent = sanitizePayload({ profile: config.appProfile, plan });
+          const structuredContent = {
+            profile: config.appProfile,
+            plan: sanitizeModelGatewayBridgeResult(plan, "planner_plan"),
+          };
           return {
             structuredContent,
             content: narrative(

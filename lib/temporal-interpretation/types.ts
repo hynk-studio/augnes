@@ -207,6 +207,8 @@ export type TemporalPreviewGuardrailResult = {
 
 export type TemporalPreviewResponse = {
   runtime: "augnes";
+  workspace_id: string;
+  project_id: string;
   scope: string;
   as_of: string;
   generator: PreviewGenerator;
@@ -214,5 +216,6 @@ export type TemporalPreviewResponse = {
   preview: TemporalInterpretationPreview;
   guardrails: TemporalPreviewGuardrailResult;
   openai_error?: string;
+  model_invocation_receipt: import("@/lib/vnext/model-gateway/contracts").ModelInvocationReceiptV01;
   boundaries: string[];
 };

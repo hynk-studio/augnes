@@ -10,6 +10,7 @@ export const MODEL_EGRESS_REFUSAL_REASONS = [
   "model_egress_payload_oversize",
   "model_egress_payload_malformed",
   "model_egress_payload_unsupported",
+  "model_egress_payload_unsafe",
 ] as const;
 
 export type ModelEgressRefusalReason =
@@ -108,6 +109,31 @@ export function assertModelEgressTextBytes(
       "model_egress_payload_oversize",
       measured,
       maximum,
+    );
+  }
+  return value;
+}
+
+const UNSAFE_MODEL_EGRESS_TEXT_PATTERNS = [
+  /\b(?:OPENAI_API_KEY|ANTHROPIC_API_KEY|AZURE_OPENAI_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY|GITHUB_TOKEN|GH_TOKEN|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY)\s*[:=]\s*\S+/i,
+  /\b(?:sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,})\b/i,
+  /\bAuthorization\s*:\s*Bearer\s+\S+/i,
+  /-----BEGIN (?:OPENSSH |RSA |EC )?PRIVATE KEY-----/i,
+  /\b(?:cookie|session|password|secret|api[_ -]?key)\s*[:=]\s*\S{4,}/i,
+  /(?:file:\/\/|\/Users\/|\/home\/|[A-Za-z]:\\Users\\)/i,
+  /https?:\/\/(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|\[?::1\]?)(?::\d+)?(?:\/|\b)/i,
+] as const;
+
+export function assertModelEgressTextIsSafe(
+  purpose: ModelEgressPurpose,
+  value: string,
+) {
+  if (UNSAFE_MODEL_EGRESS_TEXT_PATTERNS.some((pattern) => pattern.test(value))) {
+    refuseModelEgress(
+      purpose,
+      "model_egress_payload_unsafe",
+      1,
+      0,
     );
   }
   return value;

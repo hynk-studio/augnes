@@ -3,6 +3,7 @@ import { channel } from "node:diagnostics_channel";
 
 import {
   assertModelEgressCollectionCount,
+  assertModelEgressTextIsSafe,
   assertModelEgressTextBytes,
   type BoundedModelTransport,
   cloneBoundedModelEgressJson,
@@ -12,23 +13,18 @@ import {
   utf8ByteLength,
 } from "../lib/model-egress/bounded-model-payload";
 import {
-  createOpenAIResponsesObserveAdapterV01,
-  OBSERVE_MODEL_EGRESS_LIMITS,
-} from "../lib/vnext/model-gateway/openai-responses-observe-adapter";
+  OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+  PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+  type PlannerStateBriefV01,
+} from "../lib/vnext/model-gateway/contracts";
 import {
-  buildPlanWithBriefForTest,
-  planWithOpenAIForTest,
-  PLANNER_MODEL_EGRESS_LIMITS,
-} from "../lib/planner/planner";
+  createOpenAIResponsesAdapterV01,
+} from "../lib/vnext/model-gateway/openai/responses-adapter";
+import { OBSERVE_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/observe-codec";
+import { PLANNER_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/planner-codec";
+import { TEMPORAL_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/temporal-codec";
 import { buildMockTemporalPreview } from "../lib/temporal-interpretation/mock";
-import {
-  buildOpenAITemporalPreviewForTest,
-  TEMPORAL_MODEL_EGRESS_LIMITS,
-} from "../lib/temporal-interpretation/openai";
-import {
-  buildTemporalInterpretationPreview,
-  buildTemporalInterpretationPreviewForTest,
-} from "../lib/temporal-interpretation/preview";
 import type { TemporalPreviewContext } from "../lib/temporal-interpretation/types";
 
 const REJECTED_MARKER = "rejected-material-must-not-escape-8f37";
@@ -193,6 +189,15 @@ function runSharedMechanicsCases() {
     () => cloneBoundedModelEgressJson("planner_plan", new Date(0)),
     "model_egress_payload_unsupported",
   );
+  expectBoundarySync(
+    "temporal_interpretation",
+    () =>
+      assertModelEgressTextIsSafe(
+        "temporal_interpretation",
+        `OPENAI_API_KEY=${REJECTED_MARKER}`,
+      ),
+    "model_egress_payload_unsafe",
+  );
 
   const ordinaryObjectPrototype = Object.getPrototypeOf({});
   assert.equal(({} as Record<string, unknown>).marker, undefined);
@@ -339,7 +344,7 @@ async function runPlannerCases() {
   assert.equal(recommendations[0]?.priority, "next");
   const request = parseRequest(captured[0]);
   const dynamic = parseDynamic(request);
-  assert.deepEqual(Object.keys(dynamic).sort(), ["brief", "message"]);
+  assert.deepEqual(Object.keys(dynamic).sort(), ["brief", "message", "project_id"]);
   assert.deepEqual(Object.keys(dynamic.brief).sort(), [
     "active_state",
     "completed_state",
@@ -361,7 +366,7 @@ async function runPlannerCases() {
       proposals: [],
     }),
     provider_control: REJECTED_MARKER,
-  } as Parameters<typeof planWithOpenAIForTest>[1];
+  } as PlannerStateBriefV01;
   const ownKeyCaptured: string[] = [];
   const ownKeyBaseTransport = successTransport(
     plannerProviderOutput(),
@@ -471,13 +476,6 @@ async function runPlannerCases() {
     "model_egress_payload_malformed",
   );
 
-  const mock = await buildPlanWithBriefForTest(
-    { scope: "project:augnes", message: "Plan locally." },
-    makePlannerBrief(),
-    null,
-  );
-  assert.equal(mock.planner, "mock");
-  assert.equal(mock.agent_instructions[0], "fixture instruction");
 }
 
 async function runTemporalCases() {
@@ -501,7 +499,7 @@ async function runTemporalCases() {
   assert.equal(output.preview.non_authority_boundary.length > 0, true);
   const request = parseRequest(captured[0]);
   const dynamic = parseDynamic(request);
-  assert.deepEqual(Object.keys(dynamic), ["context"]);
+  assert.deepEqual(Object.keys(dynamic).sort(), ["context", "project_id"]);
   assert.equal(dynamic.context.evidence_anchors.length, 8);
   assert.equal(request.model, "gpt-4.1-mini");
   assert.deepEqual(
@@ -524,40 +522,6 @@ async function runTemporalCases() {
     "model_egress_payload_malformed",
   );
 
-  const fallbackTransport: BoundedModelTransport = async () => {
-    counters.ordinaryFallbackTransportCalls += 1;
-    return {
-      ok: false,
-      status: 503,
-      async json() {
-        counters.ordinaryFallbackBodyReads += 1;
-        return { marker: REJECTED_MARKER };
-      },
-    };
-  };
-  const fallback = await buildTemporalInterpretationPreviewForTest(
-    { scope: context.scope, context },
-    fallbackTransport,
-  );
-  assert.equal(fallback.generator, "mock_fallback");
-  assert.match(fallback.openai_error ?? "", /503/);
-  assert.equal(JSON.stringify(fallback).includes(REJECTED_MARKER), false);
-
-  await expectBlocked(
-    "temporal_interpretation",
-    (transport) =>
-      buildTemporalInterpretationPreviewForTest(
-        { scope: overBound.scope, context: overBound },
-        transport,
-      ),
-    "model_egress_payload_oversize",
-  );
-
-  const mock = await buildTemporalInterpretationPreview({
-    scope: context.scope,
-    context,
-  });
-  assert.equal(mock.generator, "mock");
 }
 
 async function runProviderErrorCases() {
@@ -577,6 +541,81 @@ async function runProviderErrorCases() {
   await expectProviderError((transport) =>
     buildOpenAITemporalPreviewForTest(makeTemporalContext(), transport),
   );
+}
+
+async function planWithOpenAIForTest(
+  message: string,
+  brief: PlannerStateBriefV01,
+  transport: BoundedModelTransport,
+) {
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: "test-only-placeholder" },
+    transport: async (request) => transport(request.body),
+  });
+  const session = await adapter.prepare(
+    PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
+  assert.ok(session);
+  const result = await session.invoke(
+    {
+      canonical_project_id: OBSERVE_PROJECT_ID,
+      input_kind: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+      message,
+      brief,
+    },
+    adapterLifecycle(PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes, 2_048),
+  );
+  assert.equal(result.purpose, PLANNER_MODEL_GATEWAY_PURPOSE_V01);
+  if (result.purpose !== PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+    throw new Error("unexpected purpose");
+  }
+  return result.recommendations;
+}
+
+async function buildOpenAITemporalPreviewForTest(
+  context: TemporalPreviewContext,
+  transport: BoundedModelTransport,
+) {
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: "test-only-placeholder" },
+    transport: async (request) => transport(request.body),
+  });
+  const session = await adapter.prepare(
+    TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
+  assert.ok(session);
+  const result = await session.invoke(
+    {
+      canonical_project_id: OBSERVE_PROJECT_ID,
+      input_kind: TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+      context,
+    },
+    adapterLifecycle(TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes, 4_096),
+  );
+  assert.equal(result.purpose, TEMPORAL_MODEL_GATEWAY_PURPOSE_V01);
+  if (result.purpose !== TEMPORAL_MODEL_GATEWAY_PURPOSE_V01) {
+    throw new Error("unexpected purpose");
+  }
+  return {
+    model: result.model_identifier,
+    preview: result.preview,
+  };
+}
+
+function adapterLifecycle(maxInputBytes: number, maxOutputTokens: number) {
+  return {
+    signal: new AbortController().signal,
+    budget: {
+      max_input_bytes: maxInputBytes,
+      max_output_tokens: maxOutputTokens,
+      max_provider_calls: 1 as const,
+    },
+    retention_class: "none" as const,
+    mark_egress_attempted() {},
+    report_input_bytes() {},
+  };
 }
 
 function successTransport(output: unknown, captured: string[] = []): BoundedModelTransport {
@@ -669,7 +708,14 @@ async function expectProviderError(
 function parseRequest(value: string | undefined): any {
   assert.equal(typeof value, "string");
   const request = JSON.parse(value!);
-  assert.deepEqual(Object.keys(request).sort(), ["input", "model", "text"]);
+  assert.deepEqual(Object.keys(request).sort(), [
+    "input",
+    "max_output_tokens",
+    "model",
+    "store",
+    "text",
+  ]);
+  assert.equal(request.store, false);
   return request;
 }
 
@@ -691,15 +737,19 @@ async function invokeObserveAdapterForTest(
   input: { message: string; projectId: string; currentState: never[] },
   transport: BoundedModelTransport,
 ) {
-  const adapter = createOpenAIResponsesObserveAdapterV01({
+  const adapter = createOpenAIResponsesAdapterV01({
     environment: { OPENAI_API_KEY: "test-only-placeholder" },
     transport: async (request) => transport(request.body),
   });
-  const session = await adapter.prepare(new AbortController().signal);
+  const session = await adapter.prepare(
+    OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
   assert.ok(session);
   const result = await session.invoke(
     {
       canonical_project_id: input.projectId,
+      input_kind: OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
       message: input.message,
       current_state: input.currentState,
     },
@@ -715,6 +765,10 @@ async function invokeObserveAdapterForTest(
       report_input_bytes() {},
     },
   );
+  assert.equal(result.purpose, OBSERVE_MODEL_GATEWAY_PURPOSE_V01);
+  if (result.purpose !== OBSERVE_MODEL_GATEWAY_PURPOSE_V01) {
+    throw new Error("unexpected purpose");
+  }
   return result.proposals;
 }
 
@@ -744,7 +798,7 @@ function makeState(index: number, value: unknown = "active") {
 function makeTension(index: number) {
   return {
     id: `tension:${index}`,
-    scope: "project:augnes",
+    scope: OBSERVE_PROJECT_ID,
     state_key: `state.item_${index}`,
     title: "Review boundary",
     description: "A bounded tension remains open.",
@@ -760,7 +814,7 @@ function makeTension(index: number) {
 function makeProposal(index: number) {
   return {
     id: `proposal:${index}`,
-    scope: "project:augnes",
+    scope: OBSERVE_PROJECT_ID,
     state_key: `proposal.item_${index}`,
     before_value: null,
     after_value: { status: "review" },
@@ -808,7 +862,7 @@ function makePlannerBrief({
 } = {}) {
   return {
     runtime: "augnes",
-    scope: "project:augnes",
+    scope: OBSERVE_PROJECT_ID,
     as_of: "2026-01-01T00:00:00.000Z",
     generated_at: "2026-01-01T00:00:00.000Z",
     active_state: active,
@@ -821,12 +875,12 @@ function makePlannerBrief({
     recent_action_visibility: { marker: REJECTED_MARKER },
     agent_instructions: ["fixture instruction"],
     agent_handoff: { marker: REJECTED_MARKER },
-  } as unknown as Parameters<typeof planWithOpenAIForTest>[1];
+  } as unknown as PlannerStateBriefV01;
 }
 
 function makeTemporalContext({ evidenceCount = 0 } = {}): TemporalPreviewContext {
   return {
-    scope: "project:augnes",
+    scope: OBSERVE_PROJECT_ID,
     as_of: "2026-01-01T00:00:00.000Z",
     current_interpretation: "Bounded read-only interpretation.",
     active_prior_context: "No prior context is required.",

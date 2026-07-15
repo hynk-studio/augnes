@@ -53,6 +53,11 @@ const databasePath = path.join(fixtureDir, "operator-pilot.db");
 const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
 const appRepo = realpathSync(process.cwd());
+const runtimeSupervisor = path.join(
+  appRepo,
+  "scripts",
+  "augnes-runtime-supervisor.mjs",
+);
 const chromeCandidates = [
   process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -1173,11 +1178,10 @@ function minimalProcessEnvironment() {
 
 function startDevServer(environment) {
   serverProcess = spawn(
-    "npm",
+    process.execPath,
     [
-      "run",
-      "dev",
-      "--",
+      runtimeSupervisor,
+      "start",
       "--webpack",
       "--hostname",
       "127.0.0.1",

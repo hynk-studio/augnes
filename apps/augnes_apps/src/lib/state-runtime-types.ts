@@ -172,7 +172,11 @@ export const ModelInvocationReceiptSchema = z
     invocation_id: ModelGatewaySafeIdentifierSchema,
     workspace_id: CanonicalWorkspaceIdSchema,
     project_id: CanonicalProjectIdSchema,
-    purpose: z.literal("observe_delta_compile"),
+    purpose: z.enum([
+      "observe_delta_compile",
+      "planner_plan",
+      "temporal_interpretation",
+    ]),
     implementation_id: ModelGatewaySafeIdentifierSchema,
     implementation_version: ModelGatewaySafeIdentifierSchema,
     requested_mode: z.enum(["live", "deterministic"]),
@@ -181,6 +185,7 @@ export const ModelInvocationReceiptSchema = z
       "requested_live",
       "explicit_deterministic",
       "provider_unavailable",
+      "provider_failure_fallback",
     ]),
     started_at: z.string().datetime({ offset: true }),
     finished_at: z.string().datetime({ offset: true }),
@@ -189,6 +194,7 @@ export const ModelInvocationReceiptSchema = z
     outcome: z.enum([
       "live_success",
       "deterministic_success",
+      "deterministic_fallback_success",
       "deterministic_failure",
       "refused",
       "provider_failure",
@@ -236,13 +242,18 @@ export const ObserveResultSchema = z
   })
   .passthrough();
 
-export const PlanResultSchema = z.object({
-  scope: z.string(),
-  planner: z.enum(["openai", "mock"]),
-  message: z.string(),
-  recommendations: z.array(PlannerRecommendationSchema),
-  agent_instructions: z.array(z.string()),
-});
+export const PlanResultSchema = z
+  .object({
+    workspace_id: CanonicalWorkspaceIdSchema,
+    project_id: CanonicalProjectIdSchema,
+    scope: CanonicalProjectIdSchema,
+    planner: z.enum(["openai", "mock"]),
+    message: z.string(),
+    recommendations: z.array(PlannerRecommendationSchema),
+    agent_instructions: z.array(z.string()),
+    model_invocation_receipt: ModelInvocationReceiptSchema,
+  })
+  .strict();
 
 export const ActionRecordResultSchema = z.record(z.unknown());
 
@@ -1345,9 +1356,17 @@ export type MailboxSummaryResult = z.infer<typeof MailboxSummaryResultSchema>;
 export type PublicationSummaryResult = z.infer<typeof PublicationSummaryResultSchema>;
 export type ControlPacket = z.infer<typeof ControlPacketSchema>;
 
-export interface StateRuntimeMessageInput {
-  scope: StateRuntimeScope;
+export interface StateRuntimePlanInput {
+  workspaceId: string;
+  projectId: string;
+  expectedActiveProjectId: string;
+  expectedActiveSelectionRevision: number;
   message: string;
+  projectRoot?: {
+    pathFlavor: "posix" | "win32";
+    normalizedPath: string;
+  };
+  executionMode?: "live" | "deterministic";
 }
 export interface StateRuntimeObserveInput {
   workspaceId: string;
@@ -1464,7 +1483,7 @@ export interface StateRuntimeBridgeAdapter {
     input: StateRuntimeVerificationEvidenceRecordsInput
   ): Promise<VerificationEvidenceRecordsResult>;
   observe(input: StateRuntimeObserveInput): Promise<ObserveResult>;
-  plan(input: StateRuntimeMessageInput): Promise<PlanResult>;
+  plan(input: StateRuntimePlanInput): Promise<PlanResult>;
   recordActionResult(input: StateRuntimeActionResultInput): Promise<ActionRecordResult>;
   listPendingProposals(scope: StateRuntimeScope): Promise<StateRuntimeProposal[]>;
   listWorkItems(scope: StateRuntimeScope): Promise<WorkItem[]>;

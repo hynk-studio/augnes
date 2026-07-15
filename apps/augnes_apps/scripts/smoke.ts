@@ -150,7 +150,14 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             executionMode: 'deterministic',
             message: 'Record the current bridge smoke context.',
           },
-          augnes_plan: { message: 'What should happen next?' },
+          augnes_plan: {
+            workspaceId: 'workspace:11111111-1111-4111-8111-111111111111',
+            projectId: 'project:22222222-2222-4222-8222-222222222222',
+            expectedActiveProjectId: 'project:22222222-2222-4222-8222-222222222222',
+            expectedActiveSelectionRevision: 1,
+            executionMode: 'deterministic',
+            message: 'What should happen next?',
+          },
           augnes_record_action_result: {
             sourceAgentId: 'codex-smoke',
             actionName: 'smoke_legacy_check',
@@ -472,6 +479,35 @@ async function main() {
     canonicalSuccessReceipt,
     "complete real-shaped Gateway receipts should pass the Apps contract"
   );
+  for (const [purpose, implementationId, implementationVersion] of [
+    [
+      "observe_delta_compile",
+      "openai_responses.observe",
+      "openai_responses_observe_adapter.v0.1",
+    ],
+    [
+      "planner_plan",
+      "openai_responses.planner",
+      "openai_responses_planner_adapter.v0.1",
+    ],
+    [
+      "temporal_interpretation",
+      "openai_responses.temporal",
+      "openai_responses_temporal_adapter.v0.1",
+    ],
+  ] as const) {
+    const purposeReceipt = {
+      ...canonicalSuccessReceipt,
+      purpose,
+      implementation_id: implementationId,
+      implementation_version: implementationVersion,
+    };
+    assert.deepEqual(
+      ModelInvocationReceiptSchema.parse(purposeReceipt),
+      purposeReceipt,
+      `${purpose} should use the one strict common Apps receipt contract`
+    );
+  }
   for (const [name, invalidReceipt] of [
     ["unknown raw_prompt", { ...canonicalSuccessReceipt, raw_prompt: "private" }],
     ["invalid outcome", { ...canonicalSuccessReceipt, outcome: "unknown" }],
@@ -503,6 +539,86 @@ async function main() {
     mockObserveResult.model_invocation_receipt,
     "mock Observe should emit a complete canonical receipt"
   );
+  const mockPlanResult = await new MockStateRuntimeBridgeAdapter().plan({
+    workspaceId: canonicalSuccessReceipt.workspace_id,
+    projectId: canonicalSuccessReceipt.project_id,
+    expectedActiveProjectId: canonicalSuccessReceipt.project_id,
+    expectedActiveSelectionRevision: 1,
+    message: "Validate the complete Planner mock receipt fixture.",
+    executionMode: "deterministic",
+  });
+  assert.deepEqual(
+    ModelInvocationReceiptSchema.parse(mockPlanResult.model_invocation_receipt),
+    mockPlanResult.model_invocation_receipt,
+    "mock Planner should emit a complete canonical receipt"
+  );
+  const gatewayBridgeServer = createMcpAppServer(
+    new MockAugnesCoreAdapter(),
+    new MockStateRuntimeBridgeAdapter(),
+    { enableAgentBridge: true }
+  );
+  try {
+    const gatewayBridgeTools = (
+      gatewayBridgeServer as unknown as {
+        _registeredTools: {
+          augnes_observe: {
+            handler(input: Record<string, unknown>): Promise<{
+              structuredContent?: unknown;
+            }>;
+          };
+          augnes_plan: {
+            handler(input: Record<string, unknown>): Promise<{
+              structuredContent?: unknown;
+            }>;
+          };
+        };
+      }
+    )._registeredTools;
+    const bridgeObserveResult = await gatewayBridgeTools.augnes_observe.handler({
+      workspaceId: canonicalSuccessReceipt.workspace_id,
+      projectId: canonicalSuccessReceipt.project_id,
+      expectedActiveProjectId: canonicalSuccessReceipt.project_id,
+      expectedActiveSelectionRevision: 1,
+      message: "Validate the Observe bridge receipt boundary.",
+      executionMode: "deterministic",
+    });
+    const structuredObserve = (
+      bridgeObserveResult.structuredContent as {
+        observe?: { model_invocation_receipt?: unknown };
+      }
+    ).observe;
+    assert.ok(structuredObserve, "Observe bridge should return its runtime result");
+    assert.deepEqual(
+      ModelInvocationReceiptSchema.parse(
+        structuredObserve.model_invocation_receipt
+      ),
+      structuredObserve.model_invocation_receipt,
+      "Observe bridge should preserve the strict canonical receipt"
+    );
+    const bridgePlanResult = await gatewayBridgeTools.augnes_plan.handler({
+      workspaceId: canonicalSuccessReceipt.workspace_id,
+      projectId: canonicalSuccessReceipt.project_id,
+      expectedActiveProjectId: canonicalSuccessReceipt.project_id,
+      expectedActiveSelectionRevision: 1,
+      message: "Validate the Planner bridge receipt boundary.",
+      executionMode: "deterministic",
+    });
+    const structuredPlan = (
+      bridgePlanResult.structuredContent as {
+        plan?: { model_invocation_receipt?: unknown };
+      }
+    ).plan;
+    assert.ok(structuredPlan, "Planner bridge should return its runtime result");
+    assert.deepEqual(
+      ModelInvocationReceiptSchema.parse(
+        structuredPlan.model_invocation_receipt
+      ),
+      structuredPlan.model_invocation_receipt,
+      "Planner bridge should preserve the strict canonical receipt"
+    );
+  } finally {
+    gatewayBridgeServer.close();
+  }
 
   assert.equal(typeof config.useMock, "boolean", "config.useMock should load");
   assert.equal(typeof config.apiBaseUrl, "string", "config.apiBaseUrl should load");
