@@ -18,11 +18,13 @@ import {
   type ProtocolJsonRecordV01,
 } from "@/lib/vnext/protocol-primitives";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
+import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   RUN_RECEIPT_ATTESTATION_TRUST_CLASSES_V01,
   RUN_RECEIPT_CANONICALIZATION_V01,
   RUN_RECEIPT_EXECUTION_STATUSES_V01,
   RUN_RECEIPT_OBSERVATION_TRUST_CLASSES_V01,
+  RUN_RECEIPT_MODEL_INVOCATION_ENTRY_VERSION_V02,
   RUN_RECEIPT_STATUS_BASES_V01,
   RUN_RECEIPT_VERIFICATION_STATUSES_V01,
   RUN_RECEIPT_VERSION_V01,
@@ -32,7 +34,8 @@ import {
   type RunReceiptCheckResultV01,
   type RunReceiptCommandSummaryV01,
   type RunReceiptIssueV01,
-  type RunReceiptModelInvocationSummaryV01,
+  type RunReceiptModelInvocationEntryV02,
+  type RunReceiptModelInvocationV01,
   type RunReceiptObservationV01,
   type RunReceiptSkippedCheckV01,
   type RunReceiptTrustSummaryV01,
@@ -204,6 +207,15 @@ const allowedModelInvocationKeys = new Set([
   "raw_prompt_persisted",
   "raw_response_persisted",
   "hidden_reasoning_persisted",
+  "source_refs",
+]);
+const allowedModelInvocationEntryV02Keys = new Set([
+  "entry_version",
+  "invocation_ref",
+  "work_ref",
+  "run_ref",
+  "invocation_receipt",
+  "retry_count",
   "source_refs",
 ]);
 const allowedPrivacyEgressKeys = new Set([
@@ -569,6 +581,17 @@ export function validateRunReceiptV01(
 ): RunReceiptValidationResultV01 {
   const accumulator = createAccumulator();
   const sink = issueSink(accumulator);
+  const allowedCanonicalIdentityPaths = new Set(["$.run_id"]);
+  if (isProtocolRecordV01(input) && Array.isArray(input.model_invocations)) {
+    input.model_invocations.forEach((_item, index) => {
+      allowedCanonicalIdentityPaths.add(
+        `$.model_invocations[${index}].invocation_receipt.run_id`,
+      );
+      allowedCanonicalIdentityPaths.add(
+        `$.model_invocations[${index}].invocation_receipt.invocation_id`,
+      );
+    });
+  }
   scanForbiddenProtocolMaterialV01(
     input,
     "$",
@@ -577,7 +600,7 @@ export function validateRunReceiptV01(
       secret_material_message: "Secret-shaped material is forbidden in RunReceipt.",
       provider_specific_field_message:
         "Provider-native identifiers must remain ExternalRef values; run_id is the explicit Augnes identity.",
-      allowed_canonical_identity_paths: new Set(["$.run_id"]),
+      allowed_canonical_identity_paths: allowedCanonicalIdentityPaths,
       allowed_false_invariant_fields: new Set([
         "secret_material_persisted",
       ]),
@@ -954,27 +977,44 @@ function normalizeChangedArtifacts(
 }
 
 function normalizeModelInvocations(
-  values: RunReceiptModelInvocationSummaryV01[],
-): RunReceiptModelInvocationSummaryV01[] {
+  values: RunReceiptModelInvocationV01[],
+): RunReceiptModelInvocationV01[] {
   return uniqueProtocolValuesV01(
-    values.map((item) => ({
-      invocation_ref: normalizeExternalRefPrimitiveV01(item.invocation_ref),
-      provider_ref: normalizeNullableRef(item.provider_ref),
-      model_ref: normalizeNullableRef(item.model_ref),
-      started_at: normalizeProtocolNullableTextV01(item.started_at),
-      finished_at: normalizeProtocolNullableTextV01(item.finished_at),
-      input_units: item.input_units,
-      output_units: item.output_units,
-      latency_ms: item.latency_ms,
-      retry_count: item.retry_count,
-      status: item.status,
-      retention_class: normalizeProtocolNullableTextV01(item.retention_class),
-      egress_status: item.egress_status,
-      raw_prompt_persisted: false as const,
-      raw_response_persisted: false as const,
-      hidden_reasoning_persisted: false as const,
-      source_refs: normalizeRefs(item.source_refs),
-    })),
+    values.map((item) => {
+      if ("entry_version" in item) {
+        return {
+          entry_version: RUN_RECEIPT_MODEL_INVOCATION_ENTRY_VERSION_V02,
+          invocation_ref: normalizeExternalRefPrimitiveV01(
+            item.invocation_ref,
+          ),
+          work_ref: normalizeExternalRefPrimitiveV01(item.work_ref),
+          run_ref: normalizeExternalRefPrimitiveV01(item.run_ref),
+          invocation_receipt: validateModelInvocationReceiptV02(
+            item.invocation_receipt,
+          ),
+          retry_count: 0 as const,
+          source_refs: normalizeRefs(item.source_refs),
+        } satisfies RunReceiptModelInvocationEntryV02;
+      }
+      return {
+        invocation_ref: normalizeExternalRefPrimitiveV01(item.invocation_ref),
+        provider_ref: normalizeNullableRef(item.provider_ref),
+        model_ref: normalizeNullableRef(item.model_ref),
+        started_at: normalizeProtocolNullableTextV01(item.started_at),
+        finished_at: normalizeProtocolNullableTextV01(item.finished_at),
+        input_units: item.input_units,
+        output_units: item.output_units,
+        latency_ms: item.latency_ms,
+        retry_count: item.retry_count,
+        status: item.status,
+        retention_class: normalizeProtocolNullableTextV01(item.retention_class),
+        egress_status: item.egress_status,
+        raw_prompt_persisted: false as const,
+        raw_response_persisted: false as const,
+        hidden_reasoning_persisted: false as const,
+        source_refs: normalizeRefs(item.source_refs),
+      };
+    }),
   ).sort(compareProtocolCanonicalV01);
 }
 
@@ -1644,10 +1684,32 @@ function validateModelInvocations(
   accumulator: ValidationAccumulator,
 ) {
   const invocations = arrayAt(input.model_invocations, "$.model_invocations", accumulator);
+  const seenInvocationIds = new Set<string>();
   for (const [index, value] of invocations.entries()) {
     const path = `$.model_invocations[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
+    if (Object.hasOwn(item, "entry_version")) {
+      const invocationId = validateModelInvocationEntryV02(
+        item,
+        input,
+        recordedAt,
+        path,
+        accumulator,
+      );
+      if (invocationId) {
+        if (seenInvocationIds.has(invocationId)) {
+          addError(
+            accumulator,
+            "model_invocation_duplicate",
+            `${path}.invocation_ref.external_id`,
+            "RunReceipt cannot contain the same model invocation more than once.",
+          );
+        }
+        seenInvocationIds.add(invocationId);
+      }
+      continue;
+    }
     rejectUnknownNestedKeysV01(
       item,
       allowedModelInvocationKeys,
@@ -1724,6 +1786,107 @@ function validateModelInvocations(
     }
     if (recordedAt !== null && finished !== null && finished > recordedAt) addWarning(accumulator, "remote_clock_skew_possible", `${path}.finished_at`, "Invocation finish time is later than recorded_at; remote clock skew may exist.");
   }
+}
+
+function validateModelInvocationEntryV02(
+  item: ProtocolJsonRecordV01,
+  root: ProtocolJsonRecordV01,
+  recordedAt: number | null,
+  path: string,
+  accumulator: ValidationAccumulator,
+): string | null {
+  rejectUnknownNestedKeysV01(
+    item,
+    allowedModelInvocationEntryV02Keys,
+    path,
+    accumulator,
+  );
+  if (item.entry_version !== RUN_RECEIPT_MODEL_INVOCATION_ENTRY_VERSION_V02) {
+    addError(
+      accumulator,
+      "model_invocation_entry_version_invalid",
+      `${path}.entry_version`,
+      "Model invocation entry uses an unsupported version.",
+    );
+  }
+  validateExternalRefStructureV01(
+    item.invocation_ref,
+    `${path}.invocation_ref`,
+    issueSink(accumulator),
+  );
+  validateExternalRefStructureV01(
+    item.work_ref,
+    `${path}.work_ref`,
+    issueSink(accumulator),
+  );
+  validateExternalRefStructureV01(
+    item.run_ref,
+    `${path}.run_ref`,
+    issueSink(accumulator),
+  );
+  validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
+  if (item.retry_count !== 0) {
+    addError(
+      accumulator,
+      "model_invocation_retry_forbidden",
+      `${path}.retry_count`,
+      "R4 model invocation entries require retry_count 0.",
+    );
+  }
+
+  let receipt;
+  try {
+    receipt = validateModelInvocationReceiptV02(item.invocation_receipt);
+  } catch {
+    addError(
+      accumulator,
+      "model_invocation_receipt_invalid",
+      `${path}.invocation_receipt`,
+      "Embedded ModelInvocationReceipt is invalid.",
+      true,
+    );
+    return null;
+  }
+  const invocationRef = isProtocolRecordV01(item.invocation_ref)
+    ? item.invocation_ref
+    : null;
+  const workRef = isProtocolRecordV01(item.work_ref) ? item.work_ref : null;
+  const runRef = isProtocolRecordV01(item.run_ref) ? item.run_ref : null;
+  const outerWorkRef = isProtocolRecordV01(root.work_ref)
+    ? root.work_ref
+    : null;
+  if (
+    receipt.invocation_origin !== "policy_triggered" ||
+    receipt.workspace_id !== protocolStringValueV01(root.workspace_id) ||
+    receipt.project_id !== protocolStringValueV01(root.project_id) ||
+    receipt.run_id !== protocolStringValueV01(root.run_id) ||
+    receipt.work_id === null ||
+    invocationRef?.ref_type !== "model_invocation" ||
+    invocationRef.external_id !== receipt.invocation_id ||
+    workRef?.ref_type !== "work" ||
+    workRef.external_id !== receipt.work_id ||
+    runRef?.ref_type !== "automation_run" ||
+    runRef.external_id !== receipt.run_id ||
+    outerWorkRef?.external_id !== receipt.work_id
+  ) {
+    addError(
+      accumulator,
+      "model_invocation_run_binding_mismatch",
+      path,
+      "Model invocation entry must bind the exact canonical workspace, project, work, and run.",
+      true,
+    );
+  }
+  const finished = parseStrictIsoTimestampV01(receipt.finished_at);
+  if (recordedAt !== null && finished !== null && finished > recordedAt) {
+    addWarning(
+      accumulator,
+      "remote_clock_skew_possible",
+      `${path}.invocation_receipt.finished_at`,
+      "Invocation finish time is later than recorded_at; clock skew may exist.",
+    );
+  }
+  return receipt.invocation_id;
 }
 
 function validatePrivacyEgress(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {

@@ -5,12 +5,20 @@ import type {
   TemporalInterpretationPreview,
   TemporalPreviewContext,
 } from "@/lib/temporal-interpretation/types";
+import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type {
+  ModelInvocationReceiptUsageV02,
+  ModelInvocationReceiptV02,
+} from "@/types/vnext/model-invocation-receipt";
+export {
+  MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
+  MODEL_INVOCATION_RECEIPT_VERSION_V02,
+} from "@/types/vnext/model-invocation-receipt";
+export type { ModelInvocationReceiptV02 } from "@/types/vnext/model-invocation-receipt";
 
 export const MODEL_GATEWAY_VERSION_V01 = "model_gateway.v0.1" as const;
 export const MODEL_INVOCATION_ENVELOPE_VERSION_V01 =
   "model_invocation_envelope.v0.1" as const;
-export const MODEL_INVOCATION_RECEIPT_VERSION_V01 =
-  "model_invocation_receipt.v0.1" as const;
 
 export const OBSERVE_MODEL_GATEWAY_PURPOSE_V01 =
   "observe_delta_compile" as const;
@@ -60,6 +68,10 @@ export type ModelGatewayPolicyInputV01 =
   | {
       invocation_origin: "policy_triggered";
       automation_control_revision: number;
+      work_id: string;
+      run_id: string;
+      grant_id: string;
+      grant_fingerprint: string;
     };
 
 export interface ModelGatewayBudgetV01 {
@@ -128,66 +140,17 @@ export type ModelInvocationEnvelopeV01 =
   | PlannerModelInvocationEnvelopeV01
   | TemporalModelInvocationEnvelopeV01;
 
-export interface ModelGatewayNormalizedUsageV01 {
-  basis: "provider_report";
-  input_tokens: number;
-  output_tokens: number;
-  total_tokens: number;
-}
-
-export interface ModelInvocationReceiptV01 {
-  receipt_version: typeof MODEL_INVOCATION_RECEIPT_VERSION_V01;
-  gateway_version: typeof MODEL_GATEWAY_VERSION_V01;
-  invocation_id: string;
+export interface ModelGatewayPolicyAuthorizationV01 {
   workspace_id: string;
   project_id: string;
-  purpose: ModelGatewayPurposeV01;
-  implementation_id: string;
-  implementation_version: string;
-  requested_mode: ModelGatewayExecutionModeV01;
-  execution_mode: ModelGatewayExecutionModeV01;
-  selection_reason:
-    | "requested_live"
-    | "explicit_deterministic"
-    | "provider_unavailable"
-    | "provider_failure_fallback";
-  started_at: string;
-  finished_at: string;
-  latency_ms: number;
-  status: "completed" | "blocked" | "failed" | "cancelled";
-  outcome:
-    | "live_success"
-    | "deterministic_success"
-    | "deterministic_fallback_success"
-    | "deterministic_failure"
-    | "refused"
-    | "provider_failure"
-    | "timeout"
-    | "cancelled";
-  egress_attempted: boolean;
-  egress_status: "occurred" | "did_not_occur" | "blocked";
-  usage: ModelGatewayNormalizedUsageV01 | null;
-  budget: {
-    decision: "within_budget" | "not_used" | "refused";
-    input_bytes_limit: number;
-    input_bytes_used: number | null;
-    output_tokens_limit: number;
-    provider_call_limit: 0 | 1;
-    provider_calls_used: 0 | 1;
-  };
-  failure_code: ModelGatewayFailureCodeV01 | null;
-  data_classification: ModelGatewayDataClassificationV01;
-  retention_class: "none";
-  privacy_decision:
-    | "provider_egress_approved"
-    | "provider_egress_not_used"
-    | "provider_egress_blocked";
-  provenance_refs: string[];
-  raw_prompt_persisted: false;
-  raw_response_persisted: false;
-  hidden_reasoning_persisted: false;
-  receipt_is_semantic_authority: false;
+  work_id: string;
+  run_id: string;
+  automation_control_revision: number;
+  grant_lineage_ref: ExternalRefV01;
+  automation_control_lineage_ref: ExternalRefV01;
 }
+
+export type ModelGatewayNormalizedUsageV01 = ModelInvocationReceiptUsageV02;
 
 export type PlannerRecommendationV01 = {
   title: string;
@@ -200,20 +163,20 @@ export type PlannerRecommendationV01 = {
 export interface ObserveModelGatewayResultV01 {
   compiler: "openai" | "mock";
   proposals: ValidatedProposal[];
-  model_invocation_receipt: ModelInvocationReceiptV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
 }
 
 export interface PlannerModelGatewayResultV01 {
   planner: "openai" | "mock";
   recommendations: PlannerRecommendationV01[];
-  model_invocation_receipt: ModelInvocationReceiptV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
 }
 
 export interface TemporalModelGatewayResultV01 {
   generator: "openai" | "mock" | "mock_fallback";
   model: string | null;
   preview: TemporalInterpretationPreview;
-  model_invocation_receipt: ModelInvocationReceiptV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
 }
 
 export type ModelAdapterInputV01 =
@@ -254,6 +217,8 @@ export interface ModelAdapterImplementationV01 {
 
 export interface ModelAdapterSessionV01 extends ModelAdapterImplementationV01 {
   purpose: ModelGatewayPurposeV01;
+  provider_ref: ExternalRefV01;
+  model_ref: ExternalRefV01;
   invoke(
     input: ModelAdapterInputV01,
     lifecycle: ModelAdapterLifecycleV01,
@@ -283,7 +248,7 @@ export class ModelGatewayAdapterFailureV01 extends Error {
 export class ModelGatewayInvocationErrorV01 extends Error {
   constructor(
     readonly code: ModelGatewayFailureCodeV01,
-    readonly receipt: ModelInvocationReceiptV01 | null = null,
+    readonly receipt: ModelInvocationReceiptV02 | null = null,
   ) {
     super("Model gateway invocation failed.");
     this.name = "ModelGatewayInvocationErrorV01";
@@ -293,5 +258,23 @@ export class ModelGatewayInvocationErrorV01 extends Error {
 export function isModelGatewayInvocationErrorV01(
   value: unknown,
 ): value is ModelGatewayInvocationErrorV01 {
-  return value instanceof ModelGatewayInvocationErrorV01;
+  if (value instanceof ModelGatewayInvocationErrorV01) return true;
+  if (
+    !(value instanceof Error) ||
+    value.name !== "ModelGatewayInvocationErrorV01" ||
+    !("code" in value) ||
+    !("receipt" in value) ||
+    !MODEL_GATEWAY_FAILURE_CODES_V01.includes(
+      value.code as ModelGatewayFailureCodeV01,
+    )
+  ) {
+    return false;
+  }
+  return (
+    value.receipt === null ||
+    (typeof value.receipt === "object" &&
+      value.receipt !== null &&
+      "receipt_version" in value.receipt &&
+      value.receipt.receipt_version === "model_invocation_receipt.v0.2")
+  );
 }

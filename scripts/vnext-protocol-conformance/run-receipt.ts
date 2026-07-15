@@ -142,9 +142,13 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
   assert.ok(
     host.model_invocations.every(
       (item) =>
-        item.raw_prompt_persisted === false &&
-        item.raw_response_persisted === false &&
-        item.hidden_reasoning_persisted === false,
+        "entry_version" in item
+          ? item.invocation_receipt.raw_prompt_persisted === false &&
+            item.invocation_receipt.raw_response_persisted === false &&
+            item.invocation_receipt.hidden_reasoning_persisted === false
+          : item.raw_prompt_persisted === false &&
+            item.raw_response_persisted === false &&
+            item.hidden_reasoning_persisted === false,
     ),
   );
   assertProviderValuesOnlyInExternalRefs(host);

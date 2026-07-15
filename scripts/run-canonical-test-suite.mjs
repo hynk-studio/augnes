@@ -53,6 +53,11 @@ const suites = {
       ...rootNode("scripts/test-vnext-project-controls.ts"),
     },
     {
+      label: "policy-triggered Planner grant, Model Gateway, and RunReceipt lifecycle",
+      ...rootNode("scripts/test-policy-triggered-model-run.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "Minimum Project Home projection, lineage, isolation, and read-only routing",
       ...rootNode("scripts/test-vnext-project-home.ts"),
     },

@@ -1596,14 +1596,27 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
       compiler: "mock",
       proposals: [{ ...proposal, scope: input.projectId }],
       model_invocation_receipt: {
-        receipt_version: "model_invocation_receipt.v0.1",
+        receipt_version: "model_invocation_receipt.v0.2",
         gateway_version: "model_gateway.v0.1",
         invocation_id: "model-invocation:smoke",
         workspace_id: input.workspaceId,
         project_id: input.projectId,
+        work_id: null,
+        run_id: null,
         purpose: "observe_delta_compile",
-        implementation_id: "deterministic.observe",
-        implementation_version: "deterministic_observe.v0.1",
+        invocation_origin: "interactive",
+        attempted_implementation_id:
+          input.executionMode === "deterministic"
+            ? null
+            : "openai_responses.observe",
+        attempted_implementation_version:
+          input.executionMode === "deterministic"
+            ? null
+            : "openai_responses_observe_adapter.v0.1",
+        attempted_provider_ref: null,
+        attempted_model_ref: null,
+        final_implementation_id: "deterministic.observe",
+        final_implementation_version: "deterministic_observe.v0.1",
         requested_mode: input.executionMode ?? "live",
         execution_mode: "deterministic",
         selection_reason:
@@ -1617,21 +1630,37 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         outcome: "deterministic_success",
         egress_attempted: false,
         egress_status: "did_not_occur",
+        egress_policy_version: "model_gateway_egress_policy.v0.1",
         usage: null,
+        cost: {
+          basis: "unavailable",
+          amount: null,
+          currency: null,
+          source: "no_pricing_authority",
+        },
         budget: {
           decision: "not_used",
           input_bytes_limit: 98_304,
           input_bytes_used: null,
           output_tokens_limit: 2_048,
+          output_tokens_used: null,
           provider_call_limit:
             input.executionMode === "deterministic" ? 0 : 1,
           provider_calls_used: 0,
+          timeout_limit_ms: 30_000,
+          timeout_disposition: "completed_within_deadline",
         },
+        cancellation_disposition: "not_cancelled",
         failure_code: null,
         data_classification: "private",
         retention_class: "none",
         privacy_decision: "provider_egress_not_used",
         provenance_refs: ["sha256:0000000000000000000000000000000000000000000000000000000000000000"],
+        grant_lineage_ref: null,
+        automation_control_lineage_ref: null,
+        fallback_used: false,
+        coverage_class: "enforced",
+        trust_class: "direct_local_observation",
         raw_prompt_persisted: false,
         raw_response_persisted: false,
         hidden_reasoning_persisted: false,
@@ -1658,14 +1687,27 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
       ],
       agent_instructions: ["Do not commit or reject proposals from the MCP bridge."],
       model_invocation_receipt: {
-        receipt_version: "model_invocation_receipt.v0.1",
+        receipt_version: "model_invocation_receipt.v0.2",
         gateway_version: "model_gateway.v0.1",
         invocation_id: "model-invocation:planner-smoke",
         workspace_id: input.workspaceId,
         project_id: input.projectId,
+        work_id: null,
+        run_id: null,
         purpose: "planner_plan",
-        implementation_id: "deterministic.planner",
-        implementation_version: "deterministic_planner.v0.1",
+        invocation_origin: "interactive",
+        attempted_implementation_id:
+          input.executionMode === "deterministic"
+            ? null
+            : "openai_responses.planner",
+        attempted_implementation_version:
+          input.executionMode === "deterministic"
+            ? null
+            : "openai_responses_planner_adapter.v0.1",
+        attempted_provider_ref: null,
+        attempted_model_ref: null,
+        final_implementation_id: "deterministic.planner",
+        final_implementation_version: "deterministic_planner.v0.1",
         requested_mode: input.executionMode ?? "live",
         execution_mode: "deterministic",
         selection_reason:
@@ -1679,16 +1721,27 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         outcome: "deterministic_success",
         egress_attempted: false,
         egress_status: "did_not_occur",
+        egress_policy_version: "model_gateway_egress_policy.v0.1",
         usage: null,
+        cost: {
+          basis: "unavailable",
+          amount: null,
+          currency: null,
+          source: "no_pricing_authority",
+        },
         budget: {
           decision: "not_used",
           input_bytes_limit: 98_304,
           input_bytes_used: null,
           output_tokens_limit: 2_048,
+          output_tokens_used: null,
           provider_call_limit:
             input.executionMode === "deterministic" ? 0 : 1,
           provider_calls_used: 0,
+          timeout_limit_ms: 30_000,
+          timeout_disposition: "completed_within_deadline",
         },
+        cancellation_disposition: "not_cancelled",
         failure_code: null,
         data_classification: "private",
         retention_class: "none",
@@ -1696,6 +1749,11 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         provenance_refs: [
           "sha256:1111111111111111111111111111111111111111111111111111111111111111",
         ],
+        grant_lineage_ref: null,
+        automation_control_lineage_ref: null,
+        fallback_used: false,
+        coverage_class: "enforced",
+        trust_class: "direct_local_observation",
         raw_prompt_persisted: false,
         raw_response_persisted: false,
         hidden_reasoning_persisted: false,

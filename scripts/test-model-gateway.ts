@@ -40,6 +40,7 @@ import {
   type ModelAdapterSessionV01,
   type ModelAdapterV01,
   type ModelGatewayExecutionModeV01,
+  type ModelGatewayPolicyAuthorizationV01,
   type ObserveModelInvocationEnvelopeV01,
   type PlannerModelInvocationEnvelopeV01,
   type TemporalModelInvocationEnvelopeV01,
@@ -48,6 +49,7 @@ import {
   createOpenAIResponsesAdapterV01,
   type OpenAIResponsesTransportV01,
 } from "../lib/vnext/model-gateway/openai/responses-adapter";
+import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../lib/vnext/model-gateway/run-receipt-projection";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
@@ -134,6 +136,8 @@ async function main() {
     assert.equal(live.model_invocation_receipt.egress_attempted, true);
     assert.deepEqual(live.model_invocation_receipt.usage, {
       basis: "provider_report",
+      quality: "reported",
+      source: "provider_response",
       input_tokens: 80,
       output_tokens: 24,
       total_tokens: 104,
@@ -266,11 +270,39 @@ async function main() {
         policy: {
           invocation_origin: "policy_triggered",
           automation_control_revision: 1,
+          work_id: "work:test-policy-refusal",
+          run_id: "run:test-policy-refusal",
+          grant_id: "grant:test-policy-refusal",
+          grant_fingerprint:
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         },
       },
       gatewayDependencies(liveAdapter),
     );
     assert.equal(policyFailure.code, "model_gateway_policy_refused");
+    assert.equal(metrics.live_transport_calls, 1);
+    const hostilePolicyFailure = await captureGatewayFailure(
+      {
+        ...envelope(fixture, { mode: "deterministic" }),
+        policy: {
+          invocation_origin: "policy_triggered",
+          automation_control_revision: 1,
+          work_id: "work:test-hostile-policy-refusal",
+          run_id: "run:test-hostile-policy-refusal",
+          grant_id: "grant:test-hostile-policy-refusal",
+          grant_fingerprint:
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        },
+      },
+      {
+        ...gatewayDependencies(liveAdapter),
+        authorize_policy_invocation() {
+          throw new Error(HOSTILE_SENTINEL);
+        },
+      },
+    );
+    assert.equal(hostilePolicyFailure.code, "model_gateway_policy_refused");
+    assert.equal(JSON.stringify(hostilePolicyFailure).includes(HOSTILE_SENTINEL), false);
     assert.equal(metrics.live_transport_calls, 1);
 
     const deepState = stateEntry(fixture.projectAId, {
@@ -907,6 +939,8 @@ async function runRemainingCallerCases(fixture: Fixture) {
   assert.equal(plannerLive.model_invocation_receipt.project_id, fixture.projectAId);
   assert.deepEqual(plannerLive.model_invocation_receipt.usage, {
     basis: "provider_report",
+    quality: "reported",
+    source: "provider_response",
     input_tokens: 44,
     output_tokens: 12,
     total_tokens: 56,
@@ -1522,6 +1556,91 @@ async function runRemainingCallerCases(fixture: Fixture) {
   assert.deepEqual(rowCounts(databaseAfterHostile), hostileCounts);
   databaseAfterHostile.close();
 
+  const observePolicy = policyAuthorizationFixture(fixture, "observe");
+  const policyObserve = await invokeObserveModelGatewayV01(
+    {
+      ...envelope(fixture, { mode: "deterministic" }),
+      policy: observePolicy.policy,
+    },
+    {
+      ...gatewayDependencies(temporalAdapter),
+      authorize_policy_invocation: () => observePolicy.authorization,
+    },
+  );
+  assert.equal(policyObserve.model_invocation_receipt.invocation_origin, "policy_triggered");
+  assert.equal(policyObserve.model_invocation_receipt.egress_attempted, false);
+
+  const plannerPolicy = policyAuthorizationFixture(fixture, "planner");
+  const policyPlanner = await invokePlannerModelGatewayV01(
+    {
+      ...plannerEnvelope(fixture, { mode: "deterministic" }),
+      policy: plannerPolicy.policy,
+    },
+    {
+      ...plannerGatewayDependencies(temporalAdapter),
+      authorize_policy_invocation: () => plannerPolicy.authorization,
+    },
+  );
+  assert.equal(policyPlanner.model_invocation_receipt.invocation_origin, "policy_triggered");
+  assert.equal(policyPlanner.model_invocation_receipt.egress_attempted, false);
+
+  let policyFallbackTransportCalls = 0;
+  let policyFallbackBodyReads = 0;
+  const policyFallbackAdapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "temporal-fallback-test-model",
+    },
+    transport: async () => {
+      policyFallbackTransportCalls += 1;
+      return {
+        ok: false,
+        status: 503,
+        async json() {
+          policyFallbackBodyReads += 1;
+          return { body: HOSTILE_SENTINEL };
+        },
+      };
+    },
+  });
+  const temporalPolicy = policyAuthorizationFixture(fixture, "temporal");
+  const policyTemporalFallback = await invokeTemporalModelGatewayV01(
+    {
+      ...temporalEnvelope(fixture),
+      policy: temporalPolicy.policy,
+    },
+    {
+      ...temporalGatewayDependencies(policyFallbackAdapter),
+      authorize_policy_invocation: () => temporalPolicy.authorization,
+    },
+  );
+  const fallbackReceipt = policyTemporalFallback.model_invocation_receipt;
+  assert.equal(policyFallbackTransportCalls, 1);
+  assert.equal(policyFallbackBodyReads, 0);
+  assert.equal(fallbackReceipt.invocation_origin, "policy_triggered");
+  assert.equal(fallbackReceipt.selection_reason, "provider_failure_fallback");
+  assert.equal(fallbackReceipt.outcome, "deterministic_fallback_success");
+  assert.equal(fallbackReceipt.fallback_used, true);
+  assert.equal(fallbackReceipt.attempted_provider_ref?.external_id, "openai");
+  assert.equal(
+    fallbackReceipt.attempted_model_ref?.external_id,
+    "temporal-fallback-test-model",
+  );
+  assert.equal(fallbackReceipt.final_implementation_id, "deterministic.temporal");
+  assert.equal(fallbackReceipt.budget.provider_calls_used, 1);
+  assert.equal(fallbackReceipt.egress_status, "occurred");
+  assert.equal(fallbackReceipt.failure_code, "model_gateway_provider_rejected");
+  const fallbackEntry = projectModelInvocationReceiptToRunReceiptEntryV02({
+    receipt: fallbackReceipt,
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    work_id: temporalPolicy.policy.work_id,
+    run_id: temporalPolicy.policy.run_id,
+  });
+  assert.equal(fallbackEntry.invocation_receipt.fallback_used, true);
+  assert.equal(fallbackEntry.invocation_receipt.budget.provider_calls_used, 1);
+  assert.equal(JSON.stringify(fallbackEntry).includes(HOSTILE_SENTINEL), false);
+
   assert.equal(metrics.deterministic_transport_calls, 0);
   assert.equal(metrics.blocked_transport_calls, 0);
   return metrics;
@@ -1547,6 +1666,48 @@ function temporalGatewayDependencies(
       return buildMockTemporalPreview(input.context);
     },
   };
+}
+
+function policyAuthorizationFixture(
+  fixture: Fixture,
+  label: "observe" | "planner" | "temporal",
+) {
+  const revision = 1;
+  const workId = `work:gateway-policy-${label}`;
+  const runId = `run:gateway-policy-${label}`;
+  const grantId = `grant:gateway-policy-${label}`;
+  const grantFingerprint =
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+  const policy = {
+    invocation_origin: "policy_triggered" as const,
+    automation_control_revision: revision,
+    work_id: workId,
+    run_id: runId,
+    grant_id: grantId,
+    grant_fingerprint: grantFingerprint,
+  };
+  const authorization: ModelGatewayPolicyAuthorizationV01 = {
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    work_id: workId,
+    run_id: runId,
+    automation_control_revision: revision,
+    grant_lineage_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "model_invocation_capability_grant",
+      external_id: grantId,
+      source_ref: grantFingerprint,
+      trust_class: "direct_local_observation",
+    },
+    automation_control_lineage_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "project_automation_control",
+      external_id: `${fixture.projectAId}:automation-control:${revision}`,
+      source_ref: `control-revision:${revision}`,
+      trust_class: "direct_local_observation",
+    },
+  };
+  return { policy, authorization };
 }
 
 function plannerEnvelope(
@@ -1750,6 +1911,8 @@ function unreachablePurposeSession(
     implementation_id: "test.unreachable_purpose_session",
     implementation_version: "test_unreachable_purpose_session.v0.1",
     purpose,
+    provider_ref: testProviderRef(),
+    model_ref: testModelRef(),
     async invoke() {
       onInvoke();
       throw new Error("unreachable adapter session invoked");
@@ -2041,10 +2204,32 @@ function unreachableSession(
     implementation_id: "test.unreachable_session",
     implementation_version: "test_unreachable_session.v0.1",
     purpose: OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: testProviderRef(),
+    model_ref: testModelRef(),
     async invoke() {
       onInvoke();
       throw new Error("unreachable adapter session invoked");
     },
+  };
+}
+
+function testProviderRef() {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "model_provider",
+    external_id: "test-provider",
+    provider: "test-provider",
+    trust_class: "direct_local_observation" as const,
+  };
+}
+
+function testModelRef() {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "provider_model",
+    external_id: "test-model",
+    provider: "test-provider",
+    trust_class: "direct_local_observation" as const,
   };
 }
 
