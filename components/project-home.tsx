@@ -2,6 +2,7 @@ import {
   ProjectDestinationActions,
   ProjectHomeRefreshAction,
 } from "@/components/project-destination-actions";
+import { ProjectControls } from "@/components/project-controls";
 import type {
   ProjectHomeLineageAnchorV01,
   ProjectHomeProjectionV01,
@@ -187,20 +188,55 @@ export function ProjectHome({
         )}
       </section>
 
-      <section className="project-home-readiness" aria-labelledby="readiness-title">
+      <section id="project-controls" className="project-home-readiness" aria-labelledby="readiness-title">
         <div className="project-home-readiness-heading">
           <div>
             <p className="project-home-kicker">Operational readiness</p>
-            <h2 id="readiness-title">Automation and optional capabilities</h2>
+            <h2 id="readiness-title">Project controls and optional capabilities</h2>
           </div>
           <StatusBadge tone="neutral">Local-only status</StatusBadge>
         </div>
         <div className="project-home-readiness-grid">
           <article>
             <h3>Automation</h3>
-            <StatusBadge tone="neutral">Not configured</StatusBadge>
+            <StatusBadge tone={controlTone(projection.automation.status)}>
+              {humanize(projection.automation.status)}
+            </StatusBadge>
             <p>{projection.automation.state.message}</p>
-            <small>Project automation controls and policy management remain planned for PR D.</small>
+            <p className="project-home-meta">
+              Control layer {projection.automation.policy_control_eligible ? "eligible" : "blocked"}
+              {` · Admission ${humanize(projection.automation.admission_status)}`}
+            </p>
+            <h4>{projection.automation.policy_summary.title}</h4>
+            <ul className="project-home-policy-list">
+              {projection.automation.policy_summary.boundaries.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
+            <small>
+              Pause blocks new automated work. It does not stop or rewrite an existing external process.
+              {projection.automation.updated_at
+                ? ` Last updated ${formatTimestamp(projection.automation.updated_at)}.`
+                : " No project-specific choice has been saved."}
+            </small>
+            <ProjectControls projection={projection} kind="automation" />
+          </article>
+          <article>
+            <h3>Personal Perspective</h3>
+            <StatusBadge tone={controlTone(projection.personal_perspective.status)}>
+              {humanize(projection.personal_perspective.status)}
+            </StatusBadge>
+            <p>{projection.personal_perspective.explanation}</p>
+            <p className="project-home-meta">
+              Eligible selected material {projection.personal_perspective.eligible_selected_count}
+            </p>
+            <small>
+              This setting grants project-scoped selection permission only. It never creates or displays personal content.
+              {projection.personal_perspective.updated_at
+                ? ` Last updated ${formatTimestamp(projection.personal_perspective.updated_at)}.`
+                : " Nothing is included until you choose explicitly."}
+            </small>
+            <ProjectControls projection={projection} kind="personal_perspective" />
           </article>
           <article>
             <h3>Capabilities</h3>
@@ -317,6 +353,16 @@ function sectionTone(value: ProjectHomeSectionStateV01["status"]) {
 function capabilityTone(value: ProjectHomeProjectionV01["capabilities"]["items"][number]["status"]) {
   if (value === "available") return "good" as const;
   if (value === "action_required" || value === "misconfigured") return "attention" as const;
+  return "neutral" as const;
+}
+
+function controlTone(
+  value:
+    | ProjectHomeProjectionV01["automation"]["status"]
+    | ProjectHomeProjectionV01["personal_perspective"]["status"],
+) {
+  if (value === "enabled" || value === "included") return "good" as const;
+  if (value === "paused" || value === "excluded") return "attention" as const;
   return "neutral" as const;
 }
 

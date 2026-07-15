@@ -20,6 +20,14 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
+  readPersonalPerspectiveEffectiveScopeV01,
+  readProjectAutomationEffectiveStatusV01,
+} from "@/lib/vnext/persistence/project-control-store";
+import {
+  evaluateProjectAutomationAdmissionV01,
+  isPersonalPerspectiveSelectedEntryV01,
+} from "@/lib/vnext/project-controls/project-controls";
+import {
   canonicalizeProtocolValueV01,
   compareProtocolCodeUnitsV01,
   parseStrictIsoTimestampV01,
@@ -159,15 +167,65 @@ export async function readProjectHomeProjectionV01(
     is_active: activeSelection?.project_id === input.project_id,
     active_selection: activeSelection,
   } satisfies ProjectHomeProjectionV01["project_summary"];
+  const effectiveAutomation = readProjectAutomationEffectiveStatusV01(
+    db,
+    input,
+  );
+  const automationAdmission = evaluateProjectAutomationAdmissionV01({
+    ...input,
+    control: effectiveAutomation,
+    candidate: input,
+    grant_readiness: { ...input, status: "required" },
+    active_run_readiness: {
+      ...input,
+      active_automated_run_count: 0,
+    },
+  });
   const automation = {
     state: sectionState(
-      "not_configured",
-      "Automation has not been configured for this project.",
+      effectiveAutomation.status === "not_configured"
+        ? "not_configured"
+        : effectiveAutomation.status === "enabled"
+          ? "available"
+          : "action_required",
+      automationAdmission.reason,
     ),
-    status: "not_configured" as const,
-    policy_summary: null,
+    status: effectiveAutomation.status,
+    control_revision: effectiveAutomation.control_revision,
+    updated_at: effectiveAutomation.updated_at,
+    policy_summary: effectiveAutomation.policy_summary,
+    policy_control_eligible:
+      effectiveAutomation.policy_triggered_work_allowed_at_control_layer,
+    admission_status: automationAdmission.status,
+    admission_reason: automationAdmission.reason,
     current_run_summary: null,
-  };
+  } satisfies ProjectHomeProjectionV01["automation"];
+  const effectivePersonalPerspective =
+    readPersonalPerspectiveEffectiveScopeV01(db, input);
+  const personalPerspective = {
+    state: sectionState(
+      effectivePersonalPerspective.status === "not_configured"
+        ? "not_configured"
+        : effectivePersonalPerspective.status === "included"
+          ? "available"
+          : "action_required",
+      effectivePersonalPerspective.explanation,
+    ),
+    status: effectivePersonalPerspective.status,
+    scope_revision: effectivePersonalPerspective.scope_revision,
+    updated_at: effectivePersonalPerspective.updated_at,
+    effectively_included: effectivePersonalPerspective.effectively_included,
+    effective_context_behavior:
+      effectivePersonalPerspective.effective_context_behavior,
+    explanation: effectivePersonalPerspective.explanation,
+    eligible_selected_count: readPersonalPerspectiveSelectedCount(
+      db,
+      input,
+      evaluation.timestamp,
+      effectivePersonalPerspective.effectively_included,
+      effectivePersonalPerspective.scope_revision,
+    ),
+  } satisfies ProjectHomeProjectionV01["personal_perspective"];
 
   return {
     project_home_projection_version: PROJECT_HOME_PROJECTION_VERSION_V01,
@@ -180,6 +238,7 @@ export async function readProjectHomeProjectionV01(
     attention,
     recent_activity: recentActivity,
     automation,
+    personal_perspective: personalPerspective,
     capabilities,
     next_moves: buildNextMoves({
       project_id: input.project_id,
@@ -187,6 +246,8 @@ export async function readProjectHomeProjectionV01(
       is_active: projectSummary.is_active,
       accepted_state: acceptedState,
       attention,
+      automation_status: automation.status,
+      personal_perspective_status: personalPerspective.status,
     }),
     limits: {
       accepted_state_items: ACCEPTED_STATE_LIMIT,
@@ -697,6 +758,8 @@ function buildNextMoves(input: {
   is_active: boolean;
   accepted_state: ProjectHomeAcceptedStateSummaryV01;
   attention: ProjectHomePendingAttentionV01;
+  automation_status: ProjectHomeProjectionV01["automation"]["status"];
+  personal_perspective_status: ProjectHomeProjectionV01["personal_perspective"]["status"];
 }): ProjectHomeNextMoveV01[] {
   const moves: ProjectHomeNextMoveV01[] = [];
   if (input.root_availability !== "available") {
@@ -726,6 +789,36 @@ function buildNextMoves(input: {
       caused_by: ["active_project:mismatch"],
     });
   }
+  if (input.is_active && input.automation_status === "not_configured") {
+    moves.push({
+      move_id: "configure_automation",
+      label: "Configure project automation",
+      reason: "Choose whether this project may reach bounded policy-triggered admission checks.",
+      href: "#project-controls",
+      caused_by: ["automation:not_configured"],
+    });
+  }
+  if (input.is_active && input.automation_status === "paused") {
+    moves.push({
+      move_id: "review_paused_automation",
+      label: "Review paused automation",
+      reason: "New policy-triggered work remains blocked until you explicitly resume or disable it.",
+      href: "#project-controls",
+      caused_by: ["automation:paused"],
+    });
+  }
+  if (
+    input.is_active &&
+    input.personal_perspective_status === "not_configured"
+  ) {
+    moves.push({
+      move_id: "choose_personal_perspective_scope",
+      label: "Choose Personal Perspective scope",
+      reason: "Nothing personal is included until you make an explicit project choice.",
+      href: "#project-controls",
+      caused_by: ["personal_perspective:not_configured"],
+    });
+  }
   if (input.accepted_state.total_count > 0) {
     moves.push({
       move_id: "review_current_state",
@@ -745,6 +838,31 @@ function buildNextMoves(input: {
     });
   }
   return moves.slice(0, NEXT_MOVE_LIMIT);
+}
+
+function readPersonalPerspectiveSelectedCount(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  evaluationTimestamp: string,
+  effectivelyIncluded: boolean,
+  scopeRevision: number | null,
+): number {
+  if (!effectivelyIncluded || scopeRevision === null) return 0;
+  const record = listVNextCoreRecordsV01(db, {
+    ...input,
+    record_kinds: ["task_context_packet"],
+    limit: 1,
+  })[0];
+  if (!record) return 0;
+  const packetResult = validatedPacket(record, input, evaluationTimestamp);
+  if (packetResult.status === "expired") return 0;
+  const expectedExternalId =
+    `${input.project_id}:personal-perspective-scope:${scopeRevision}`;
+  return packetResult.packet.selected_context.filter(
+    (entry) =>
+      isPersonalPerspectiveSelectedEntryV01(entry) &&
+      entry.compatibility_source_ref?.external_id === expectedExternalId,
+  ).length;
 }
 
 function validatedProposal(

@@ -37,6 +37,11 @@ import {
   validateTaskContextPacketV01,
 } from "@/lib/vnext/task-context-packet";
 import {
+  isPersonalPerspectiveSelectedEntryV01,
+  selectPersonalPerspectiveContextV01,
+} from "@/lib/vnext/project-controls/project-controls";
+import { readPersonalPerspectiveEffectiveScopeV01 } from "@/lib/vnext/persistence/project-control-store";
+import {
   loadValidatedVNextSemanticTransitionRelationV01,
   type ValidatedVNextSemanticTransitionRelationV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
@@ -51,6 +56,13 @@ import type {
   TaskContextPacketSelectedEntryV01,
   TaskContextPacketV01,
 } from "@/types/vnext/task-context-packet";
+import {
+  PERSONAL_PERSPECTIVE_CONTEXT_SELECTION_VERSION_V01,
+  PERSONAL_PERSPECTIVE_EFFECTIVE_SCOPE_VERSION_V01,
+  type PersonalPerspectiveContextCandidateV01,
+  type PersonalPerspectiveContextSelectionV01,
+  type PersonalPerspectiveEffectiveScopeV01,
+} from "@/types/vnext/project-controls";
 
 export const VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 =
   "vnext_persisted_semantic_context_compiler.v0.1" as const;
@@ -66,6 +78,7 @@ export interface CompileTaskContextPacketFromPersistedSemanticStateInputV01 {
   transition_receipt_id: string;
   transition_receipt_fingerprint: string;
   expiry_policy: VNextTaskContextPacketExpiryPolicyV01;
+  personal_perspective_candidates?: readonly PersonalPerspectiveContextCandidateV01[];
   clock?: VNextLocalRuntimeClockV01;
 }
 
@@ -81,6 +94,7 @@ export interface CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
   full_chain_input: StateTransitionFullChainValidationInputV01;
   full_chain_relation: TaskContextPacketTransitionRelationResultV01;
   current_state_entries: VNextSemanticStateProjectionEntryV01[];
+  personal_perspective_selection: PersonalPerspectiveContextSelectionV01;
 }
 
 interface ResolvedPresentEffectV01 {
@@ -139,6 +153,14 @@ function compileTaskContextPacketInternalV01(
   input: ResolvedCompileTaskContextPacketInputV01,
 ): CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
   validatePriorPacket(input.prior_packet, input.workspace_id, input.project_id);
+  const personalPerspectiveScopeResolution =
+    readCompilerPersonalPerspectiveScope(db, input);
+  const personalPerspectiveSelection = selectPersonalPerspectiveContextV01({
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    scope: personalPerspectiveScopeResolution.scope,
+    candidates: input.personal_perspective_candidates ?? [],
+  });
   const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
     workspace_id: input.workspace_id,
     project_id: input.project_id,
@@ -164,6 +186,8 @@ function compileTaskContextPacketInternalV01(
     input,
     transition,
     resolvedPresentEffects,
+    personalPerspectiveSelection,
+    personalPerspectiveScopeResolution.canonical_project_scope,
   );
   const packetValidation = validateTaskContextPacketV01(laterPacket, {
     evaluated_at: input.generated_at,
@@ -219,6 +243,7 @@ function compileTaskContextPacketInternalV01(
     full_chain_input: fullChainInput,
     full_chain_relation: fullChainRelation,
     current_state_entries: currentStateEntries,
+    personal_perspective_selection: personalPerspectiveSelection,
   };
 }
 
@@ -533,6 +558,8 @@ function buildLaterPacket(
   input: ResolvedCompileTaskContextPacketInputV01,
   transition: ValidatedVNextSemanticTransitionRelationV01,
   presentEffects: ResolvedPresentEffectV01[],
+  personalPerspectiveSelection: PersonalPerspectiveContextSelectionV01,
+  canonicalPersonalPerspectiveScope: boolean,
 ): TaskContextPacketV01 {
   const receiptRef = createStateTransitionReceiptLineageRefV01(
     transition.receipt,
@@ -551,7 +578,10 @@ function buildLaterPacket(
     ),
   );
   const unrelatedSelected = input.prior_packet.selected_context.filter(
-    (entry) => !beforeSnapshots.has(selectedEntrySnapshotKey(entry)),
+    (entry) =>
+      !beforeSnapshots.has(selectedEntrySnapshotKey(entry)) &&
+      (!canonicalPersonalPerspectiveScope ||
+        !isPersonalPerspectiveSelectedEntryV01(entry)),
   );
   const selectedContext: TaskContextPacketSelectedEntryV01[] = [
     ...unrelatedSelected,
@@ -574,6 +604,9 @@ function buildLaterPacket(
       compatibility_source_ref: receiptRef,
       bounded_summary: projection.bounded_state_summary,
     })),
+    ...(canonicalPersonalPerspectiveScope
+      ? personalPerspectiveSelection.selected_context
+      : []),
   ];
   const retractExclusions: TaskContextPacketExcludedEntryV01[] =
     transition.receipt.effects.flatMap((effect, index) =>
@@ -613,6 +646,9 @@ function buildLaterPacket(
     excluded_context: [
       ...input.prior_packet.excluded_context,
       ...retractExclusions,
+      ...(canonicalPersonalPerspectiveScope
+        ? personalPerspectiveSelection.excluded_context
+        : []),
     ],
     tensions: input.prior_packet.tensions,
     risks: input.prior_packet.risks,
@@ -628,15 +664,29 @@ function buildLaterPacket(
         input.prior_packet.packet_version,
         transition.receipt.transition_receipt_version,
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+        ...(canonicalPersonalPerspectiveScope
+          ? [PERSONAL_PERSPECTIVE_CONTEXT_SELECTION_VERSION_V01]
+          : []),
       ]),
       source_refs: normalizeRefs([
         ...input.prior_packet.compatibility.source_refs,
         priorPacketRef,
         receiptRef,
+        ...(canonicalPersonalPerspectiveScope &&
+        personalPerspectiveSelection.scope_lineage_ref
+          ? [personalPerspectiveSelection.scope_lineage_ref]
+          : []),
       ]),
       warnings: uniqueStrings([
         ...input.prior_packet.compatibility.warnings,
         "Later context was compiled by an explicit local call; receipt presence alone does not trigger packet mutation.",
+        ...(canonicalPersonalPerspectiveScope
+          ? [
+              personalPerspectiveSelection.scope_status === "included"
+                ? "Personal Perspective candidates passed through the explicit project scope, review, currentness, trust, and context-budget boundary."
+                : "Personal Perspective remained excluded by the project's fail-closed scope setting.",
+            ]
+          : []),
       ]),
     },
     authority_notes: [
@@ -709,6 +759,7 @@ function assertCompilerInputKeys(
     "transition_receipt_id",
     "transition_receipt_fingerprint",
     "expiry_policy",
+    "personal_perspective_candidates",
     "clock",
   ]);
   for (const key of Object.keys(input)) {
@@ -719,4 +770,50 @@ function assertCompilerInputKeys(
         : `persisted_context_compiler_input_unknown_field:${key}`,
     );
   }
+}
+
+function readCompilerPersonalPerspectiveScope(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): {
+  scope: PersonalPerspectiveEffectiveScopeV01;
+  canonical_project_scope: boolean;
+} {
+  const controlTable = db
+    .prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_project_personal_perspective_scopes'",
+    )
+    .get();
+  const canonicalProject = controlTable
+    ? db
+        .prepare(
+          `SELECT 1 FROM vnext_project_identities
+           WHERE workspace_id = ? AND project_id = ?`,
+        )
+        .get(input.workspace_id, input.project_id)
+    : null;
+  if (canonicalProject) {
+    return {
+      scope: readPersonalPerspectiveEffectiveScopeV01(db, input),
+      canonical_project_scope: true,
+    };
+  }
+  return {
+    canonical_project_scope: false,
+    scope: {
+      effective_scope_version:
+        PERSONAL_PERSPECTIVE_EFFECTIVE_SCOPE_VERSION_V01,
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      status: "not_configured",
+      configured: false,
+      effectively_included: false,
+      scope_revision: null,
+      created_at: null,
+      updated_at: null,
+      effective_context_behavior: "excluded_fail_closed",
+      explanation:
+        "No project-specific choice has been made. Personal Perspective is excluded by default.",
+    },
+  };
 }

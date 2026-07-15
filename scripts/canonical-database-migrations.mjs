@@ -40,6 +40,7 @@ import {
   migrateVNextLocalOperatorSessionsV01,
   migrateVNextProjectIdentityRegistryV01,
   migrateVNextProjectLifecycleV01,
+  migrateVNextProjectControlsV01,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,6 +61,7 @@ export function applyCanonicalDatabaseMigrations(db) {
   const vNextProjectIdentityRegistryResult =
     migrateVNextProjectIdentityRegistryV01(db);
   const vNextProjectLifecycleResult = migrateVNextProjectLifecycleV01(db);
+  const vNextProjectControlResult = migrateVNextProjectControlsV01(db);
 
   db.exec(schema);
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
@@ -125,6 +127,7 @@ export function applyCanonicalDatabaseMigrations(db) {
     vNextLocalOperatorSessionResult,
     vNextProjectIdentityRegistryResult,
     vNextProjectLifecycleResult,
+    vNextProjectControlResult,
     mailboxResult,
     sessionBindingResult,
     deliveryArtifactsResult,
