@@ -105,6 +105,11 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label: "canonical CI workflow and lifecycle guardrails",
+      ...rootNode("scripts/test-canonical-ci-contract.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded model egress before transport",
       ...rootNode("scripts/test-bounded-model-egress.ts"),
     },
