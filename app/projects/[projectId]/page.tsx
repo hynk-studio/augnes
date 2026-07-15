@@ -1,20 +1,57 @@
 import { notFound } from "next/navigation";
-import { ProjectDestinationActions } from "@/components/project-destination-actions";
+
+import { ProjectHome } from "@/components/project-home";
 import { openDatabase } from "@/lib/db";
-import { readProjectDestinationV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
+import { ProjectIdentityRegistryErrorV01, readDefaultWorkspaceIdentityV01 } from "@/lib/vnext/persistence/project-identity-registry";
+import {
+  ProjectHomeProjectionErrorV01,
+  readProjectHomeProjectionV01,
+} from "@/lib/vnext/project-home/project-home-projection";
+import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
+export default async function ProjectPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
   const routeParams = await params;
   let projectId: string;
-  try { projectId = decodeURIComponent(routeParams.projectId); }
-  catch { notFound(); }
-  const db = openDatabase();
   try {
-    const value = await readProjectDestinationV01(db, projectId);
-    if (!value) notFound();
-    const active = value.active_selection?.project_id === value.project.project_id;
-    return <main className="project-selector-shell"><header><p className="project-selector-eyebrow">Augnes · Project</p><h1>{value.project.display_name ?? "Unnamed project"}</h1><p>{value.root_binding.local_root.normalized_path}</p></header><section className="project-selector-card"><h2>Project connection</h2><dl><div><dt>Root status</dt><dd>{value.root_availability}</dd></div><div><dt>Project type</dt><dd>{value.external_refs.length ? "Repository-backed local project" : "Local folder"}</dd></div><div><dt>Selection</dt><dd>{active ? "Active project" : "Not currently active"}</dd></div></dl>{!active && <ProjectDestinationActions projectId={value.project.project_id} expectedProjectId={value.active_selection?.project_id ?? null} expectedRevision={value.active_selection?.selection_revision ?? null} />}<p>This project is ready. Project Home summaries arrive in PR C; no legacy or unscoped data is shown here.</p></section><p><a href="/">Back to project selection</a></p></main>;
-  } finally { db.close(); }
+    projectId = decodeURIComponent(routeParams.projectId);
+  } catch {
+    notFound();
+  }
+
+  const db = openDatabase();
+  let projection: ProjectHomeProjectionV01 | null = null;
+  try {
+    const workspace = readDefaultWorkspaceIdentityV01(db);
+    if (workspace) {
+      projection = await readProjectHomeProjectionV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: projectId,
+      });
+    }
+  } catch (error) {
+    if (!isProjectNotFoundError(error)) throw error;
+  } finally {
+    db.close();
+  }
+
+  if (!projection) notFound();
+  return <ProjectHome projection={projection} />;
+}
+
+function isProjectNotFoundError(error: unknown): boolean {
+  if (error instanceof ProjectHomeProjectionErrorV01) return true;
+  return (
+    error instanceof ProjectIdentityRegistryErrorV01 &&
+    [
+      "workspace_identity_invalid",
+      "project_identity_invalid",
+      "project_identity_scope_mismatch",
+    ].includes(error.code)
+  );
 }

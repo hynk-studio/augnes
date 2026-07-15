@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function ProjectDestinationActions({ projectId, expectedProjectId, expectedRevision }: { projectId: string; expectedProjectId: string | null; expectedRevision: number | null }) {
@@ -11,4 +12,9 @@ export function ProjectDestinationActions({ projectId, expectedProjectId, expect
     else setMessage(result.error_code === "active_selection_conflict" ? "The active project changed. Refresh and try again." : "This project could not be made active.");
   }
   return <><button type="button" onClick={activate}>Make active</button>{message && <p role="status">{message}</p>}</>;
+}
+
+export function ProjectHomeRefreshAction() {
+  const router = useRouter();
+  return <button type="button" className="secondary" onClick={() => router.refresh()}>Refresh</button>;
 }
