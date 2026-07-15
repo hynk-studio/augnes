@@ -36,11 +36,19 @@ export const CANONICAL_STEP_ENVIRONMENT_ALLOWLIST = Object.freeze({
     "exposes the suite-owned temporary root to the environment-isolation regression",
   AUGNES_DB_PATH:
     "binds a database-writing test to a suite-owned disposable database",
+  AUGNES_CANONICAL_TEST_MODE:
+    "enables test-only local adapters inside a suite-owned runtime",
+  AUGNES_TEST_FOLDER_PICKER_PATH:
+    "injects a picker result constrained to the suite-owned temporary root",
+  AUGNES_TEST_FOLDER_PICKER_OUTCOME:
+    "injects a non-path picker outcome inside a suite-owned runtime",
 });
 
-const CANONICAL_STEP_PATH_KEYS = new Set(
-  Object.keys(CANONICAL_STEP_ENVIRONMENT_ALLOWLIST),
-);
+const CANONICAL_STEP_PATH_KEYS = new Set([
+  "AUGNES_CANONICAL_TEMP_ROOT",
+  "AUGNES_DB_PATH",
+  "AUGNES_TEST_FOLDER_PICKER_PATH",
+]);
 
 export function buildCanonicalChildEnvironment({
   ambientEnvironment = process.env,

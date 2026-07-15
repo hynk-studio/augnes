@@ -43,6 +43,7 @@ const manifestPath = path.join(
   "operator-pilot-browser-fixture.json",
 );
 const databasePath = path.join(fixtureDir, "operator-pilot.db");
+const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const appRepo = realpathSync(process.cwd());
 const chromeCandidates = [
   process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
@@ -87,6 +88,10 @@ const result = {
   document_status: null,
   handoff_api_status: null,
   project_home_exact_href: false,
+  folder_picker_cancelled_usable: false,
+  folder_onboarding_destination: null,
+  folder_onboarding_restart_reopen: false,
+  folder_onboarding_stale_active_conflict: false,
   proposal_list_document_status: null,
   proposal_detail_document_status: null,
   workbench_lineage_status: null,
@@ -283,8 +288,9 @@ async function main() {
     databasePath,
     manifest,
   });
+  mkdirSync(onboardingFolder, { recursive: true });
 
-  startDevServer(runtimeEnvironment);
+  startDevServer({ ...runtimeEnvironment, AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" });
   await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
   await assertLoopbackListener(appPort);
 
@@ -294,6 +300,78 @@ async function main() {
   cdp = await openCdpPage();
   attachCdpObservers();
   await enableCdpDomains();
+
+  await runPhase("folder_onboarding", async () => {
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder')`,
+      "Choose folder action",
+    );
+    assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('Folder selection was cancelled. Nothing changed.')`, "cancelled picker status");
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder' && !button.disabled)`), true);
+    result.folder_picker_cancelled_usable = true;
+
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    startDevServer(runtimeEnvironment);
+    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated project onboarding surface");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
+    assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
+    const destination = await evaluateString("location.pathname");
+    result.folder_onboarding_destination = destination;
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "project refresh identity");
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after return");
+    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
+    await navigate(`${appOrigin}/`);
+
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    startDevServer(runtimeEnvironment);
+    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after restart");
+    const recentAfterRestart = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    const reopened = recentAfterRestart.recent_projects.find((entry) => entry.project.display_name === 'Browser Onboarding Project');
+    assert(reopened);
+    const openResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
+      });
+      return await response.json();
+    })()`);
+    assert.equal(openResponse.result.destination, destination);
+    const staleOpenResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(staleOpenResponse.status, 409);
+    assert.equal(staleOpenResponse.body.error_code, "active_selection_conflict");
+    result.folder_onboarding_stale_active_conflict = true;
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "same destination after restart");
+    result.folder_onboarding_restart_reopen = true;
+    record("folder_onboarding_confirmation_refresh_restart_and_reopen");
+  });
 
   await runPhase("locked_workbench", async () => {
     const responseStart = responses.length;
@@ -343,7 +421,7 @@ async function main() {
   bootstrapToken = null;
 
   await runPhase("project_home", async () => {
-    await navigate(`${appOrigin}/`);
+    await navigate(`${appOrigin}/overview`);
     await waitForCondition(
       `document.querySelector('[data-vnext-project-continuity="loaded"]') !== null`,
       "loaded Project Home continuity",
@@ -563,11 +641,26 @@ async function main() {
           /401/i.test(entry.text)) ||
         (entry.phase === "wrong_fingerprint" &&
           entry.path === "/api/vnext/operator/packet-handoff" &&
-          /409/i.test(entry.text))
+          /409/i.test(entry.text)) ||
+        (entry.phase === "folder_onboarding" &&
+          entry.path === "/api/vnext/projects" &&
+          /409/i.test(entry.text)) ||
+        (entry.phase === "folder_onboarding" &&
+          entry.path?.startsWith("/_next/") &&
+          entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
+        (entry.phase === "folder_onboarding" &&
+          entry.path?.endsWith("/next/dist/client/dev/hot-reloader/app/web-socket.js") &&
+          entry.text.includes("/_next/webpack-hmr") &&
+          entry.text.includes("ERR_CONNECTION_REFUSED"))
       ),
   );
   const unexpectedFailedRequests = failedRequests.filter(
-    (entry) => entry.error_text !== "net::ERR_ABORTED",
+    (entry) =>
+      entry.error_text !== "net::ERR_ABORTED" &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        entry.error_text === "net::ERR_INCOMPLETE_CHUNKED_ENCODING"
+      ),
   );
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedConsoleErrors, []);
@@ -587,6 +680,10 @@ async function main() {
       !(
         request.phase === "synthetic_session_bootstrap" &&
         request.path === "/api/vnext/operator/session"
+      ) &&
+      !(
+        request.phase === "folder_onboarding" &&
+        request.path === "/api/vnext/projects"
       ),
   );
   assert.deepEqual(postBootstrapMutations, []);
@@ -649,6 +746,9 @@ function isolatedRuntimeEnvironment({ databasePath, manifest }) {
     NEXT_TELEMETRY_DISABLED: "1",
     AUGNES_RUNTIME_STATE_DIR: path.join(tempRoot, "runtime-state"),
     AUGNES_DB_PATH: databasePath,
+    AUGNES_CANONICAL_TEST_MODE: "1",
+    AUGNES_CANONICAL_TEMP_ROOT: tempRoot,
+    AUGNES_TEST_FOLDER_PICKER_PATH: onboardingFolder,
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: manifest.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: manifest.project_id,

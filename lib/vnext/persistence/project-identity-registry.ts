@@ -40,7 +40,8 @@ export type ProjectIdentityRegistryErrorCodeV01 =
   | "project_identity_scope_mismatch"
   | "local_project_root_invalid"
   | "project_external_ref_invalid"
-  | "project_external_ref_conflict";
+  | "project_external_ref_conflict"
+  | "project_root_rebind_conflict";
 
 export class ProjectIdentityRegistryErrorV01 extends Error {
   readonly code: ProjectIdentityRegistryErrorCodeV01;
@@ -330,6 +331,14 @@ export function getOrCreateDefaultWorkspaceIdentityV01(
   });
 }
 
+export function readDefaultWorkspaceIdentityV01(
+  db: Database.Database,
+): WorkspaceIdentityV01 | null {
+  assertVNextProjectIdentityRegistrySchemaV01(db);
+  const row = selectWorkspaceByRole(db, DEFAULT_LOCAL_WORKSPACE_ROLE_V01);
+  return row ? parseWorkspace(row) : null;
+}
+
 export function getOrCreateCanonicalProjectForLocalRootV01(
   db: Database.Database,
   input: {
@@ -432,6 +441,41 @@ export function findCanonicalProjectByLocalRootV01(
   const localRoot = normalizeStoredLocalRoot(input.local_root);
   const rows = selectRegistrationByRoot(db, workspaceId, localRoot);
   return rows ? parseRegistration(rows.project, rows.root) : null;
+}
+
+export function rebindCanonicalProjectLocalRootV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    local_root: LocalProjectRootRefV01;
+  },
+  dependencies: Pick<ProjectIdentityRegistryDependenciesV01, "now"> = {},
+): ProjectLocalRootBindingV01 {
+  assertVNextProjectIdentityRegistrySchemaV01(db);
+  const workspaceId = normalizeWorkspaceId(input.workspace_id);
+  const projectId = normalizeProjectId(input.project_id);
+  const localRoot = normalizeStoredLocalRoot(input.local_root);
+  return runImmediateTransaction(db, () => {
+    if (!selectProjectByScope(db, workspaceId, projectId)) {
+      fail("project_identity_scope_mismatch", "project_id");
+    }
+    const occupied = selectRegistrationByRoot(db, workspaceId, localRoot);
+    if (occupied && occupied.project.project_id !== projectId) {
+      fail("project_root_rebind_conflict", "local_root");
+    }
+    const boundAt = createTimestamp(dependencies);
+    try {
+      db.prepare(`UPDATE vnext_project_root_bindings SET
+        path_flavor = ?, normalized_root = ?, bound_at = ?
+        WHERE workspace_id = ? AND project_id = ?`)
+        .run(localRoot.path_flavor, localRoot.normalized_path, boundAt, workspaceId, projectId);
+    } catch (error) {
+      if (isSqliteConstraint(error)) fail("project_root_rebind_conflict", "local_root");
+      throw error;
+    }
+    return readCanonicalProjectWithRootV01(db, { workspace_id: workspaceId, project_id: projectId })!.root_binding;
+  });
 }
 
 export function attachProjectExternalRefV01(

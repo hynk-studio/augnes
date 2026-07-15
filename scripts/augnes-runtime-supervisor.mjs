@@ -894,6 +894,20 @@ export function buildSupervisorChildValues({
       AUGNES_VNEXT_OPERATOR_GATE_TTL_MS: nonEmptyString(
         environment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS,
       ),
+      AUGNES_CANONICAL_TEST_MODE:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" ? "1" : null,
+      AUGNES_CANONICAL_TEMP_ROOT:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1"
+          ? nonEmptyString(environment.AUGNES_CANONICAL_TEMP_ROOT)
+          : null,
+      AUGNES_TEST_FOLDER_PICKER_PATH:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1"
+          ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_PATH)
+          : null,
+      AUGNES_TEST_FOLDER_PICKER_OUTCOME:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1"
+          ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME)
+          : null,
     };
   }
 
