@@ -19,7 +19,11 @@ import {
   readDefaultWorkspaceIdentityV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
-import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import {
+  canonicalizeProtocolValueV01,
+  compareProtocolCodeUnitsV01,
+  parseStrictIsoTimestampV01,
+} from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import { validateReviewDecisionAgainstEpisodeDeltaProposalV01, validateReviewDecisionV01 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
@@ -103,6 +107,20 @@ export async function readProjectHomeProjectionV01(
   input: { workspace_id: string; project_id: string },
   dependencies: ProjectHomeProjectionDependenciesV01 = {},
 ): Promise<ProjectHomeProjectionV01> {
+  const evaluationTimestamp = (
+    dependencies.now ?? (() => new Date().toISOString())
+  )();
+  const evaluationMilliseconds = parseStrictIsoTimestampV01(
+    evaluationTimestamp,
+  );
+  if (evaluationMilliseconds === null) {
+    throw new Error("project_home_evaluation_timestamp_invalid");
+  }
+  const evaluation = {
+    timestamp: evaluationTimestamp,
+    milliseconds: evaluationMilliseconds,
+  };
+
   const registration = readCanonicalProjectWithRootV01(db, input);
   if (!registration) throw new ProjectHomeProjectionErrorV01("project_not_found");
   if (registration.project.workspace_id !== input.workspace_id) {
@@ -119,11 +137,11 @@ export async function readProjectHomeProjectionV01(
     acceptedStateError,
   );
   const workingProjection = readSectionSafely(
-    () => readWorkingProjection(db, input),
+    () => readWorkingProjection(db, input, evaluation.timestamp),
     workingProjectionError,
   );
   const attention = readSectionSafely(
-    () => readPendingAttention(db, input),
+    () => readPendingAttention(db, input, evaluation),
     attentionError,
   );
   const recentActivity = readSectionSafely(
@@ -155,7 +173,7 @@ export async function readProjectHomeProjectionV01(
     project_home_projection_version: PROJECT_HOME_PROJECTION_VERSION_V01,
     workspace_id: input.workspace_id,
     project_id: input.project_id,
-    generated_at: (dependencies.now ?? (() => new Date().toISOString()))(),
+    generated_at: evaluation.timestamp,
     project_summary: projectSummary,
     accepted_state: acceptedState,
     working_projection: workingProjection,
@@ -314,6 +332,7 @@ function readAcceptedStateItem(
 function readWorkingProjection(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
+  evaluationTimestamp: string,
 ): ProjectHomeWorkingProjectionSummaryV01 {
   const record = listVNextCoreRecordsV01(db, {
     ...input,
@@ -321,7 +340,9 @@ function readWorkingProjection(
     limit: 1,
   })[0];
   if (!record) return emptyWorkingProjection();
-  const packet = validatedPacket(record, input);
+  const packetResult = validatedPacket(record, input, evaluationTimestamp);
+  if (packetResult.status === "expired") return expiredWorkingProjection();
+  const packet = packetResult.packet;
   if (!packet.current_projection) return emptyWorkingProjection();
   return {
     state: sectionState(
@@ -350,6 +371,7 @@ function readWorkingProjection(
 function readPendingAttention(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
+  evaluation: { timestamp: string; milliseconds: number },
 ): ProjectHomePendingAttentionV01 {
   const proposalRecords = listVNextCoreRecordsV01(db, {
     ...input,
@@ -368,35 +390,54 @@ function readPendingAttention(
     throw new Error("project_home_decision_scan_bound_exceeded");
   }
   const decisions = decisionRecords.map((record) => validatedDecision(record, input));
-  const pending = proposalRecords
+  validateDecisionLineageForProjection(decisions);
+  const evaluated = proposalRecords
     .map((record) => validatedProposal(record, input))
     .filter((proposal) => proposal.status === "pending_review")
     .map((proposal) => {
-      const decided = new Set(
-        decisions
-          .filter((decision) => decision.source_proposal.proposal_id === proposal.proposal_id)
-          .map((decision) => {
-            if (
-              validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
-                .status !== "valid"
-            ) {
-              throw new Error("project_home_decision_relation_invalid");
-            }
-            return decision.candidate.candidate_id;
-          }),
+      const proposalDecisions = decisions.filter(
+        (decision) =>
+          decision.source_proposal.proposal_id === proposal.proposal_id,
       );
-      const pendingCandidateCount = proposal.proposed_deltas.filter(
-        (candidate) => !decided.has(candidate.candidate_id),
-      ).length;
-      return { proposal, pendingCandidateCount };
-    })
-    .filter((item) => item.pendingCandidateCount > 0);
-  const items = pending.slice(0, ATTENTION_LIMIT).map(({ proposal, pendingCandidateCount }) => ({
+      for (const decision of proposalDecisions) {
+        if (
+          validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
+            .status !== "valid"
+        ) {
+          throw new Error("project_home_decision_relation_invalid");
+        }
+      }
+      const candidateStates = proposal.proposed_deltas.map((candidate) =>
+        resolveCandidateAttention(
+          proposalDecisions.filter(
+            (decision) => decision.candidate.candidate_id === candidate.candidate_id,
+          ),
+          evaluation,
+        ),
+      );
+      const requiringAttention = candidateStates.filter(
+        (candidate) => candidate.state === "requires_attention",
+      );
+      return {
+        proposal,
+        pendingCandidateCount: requiringAttention.length,
+        deferredCandidateCount: candidateStates.filter(
+          (candidate) => candidate.state === "deferred",
+        ).length,
+        attentionReason: summarizeAttentionReasons(requiringAttention),
+      };
+    });
+  const pending = evaluated.filter((item) => item.pendingCandidateCount > 0);
+  const deferredCandidateCount = evaluated.reduce(
+    (total, item) => total + item.deferredCandidateCount,
+    0,
+  );
+  const items = pending.slice(0, ATTENTION_LIMIT).map(({ proposal, pendingCandidateCount, attentionReason }) => ({
     proposal_id: proposal.proposal_id,
     summary: safeSummary(proposal.bounded_summary),
     created_at: proposal.created_at,
     pending_candidate_count: pendingCandidateCount,
-    reason: `${pendingCandidateCount} ${pendingCandidateCount === 1 ? "decision" : "decisions"} still ${pendingCandidateCount === 1 ? "requires" : "require"} review.`,
+    reason: attentionReason,
     lineage: [
       lineage(
         "episode_delta_proposal",
@@ -408,14 +449,163 @@ function readPendingAttention(
   }));
   return {
     state: sectionState(
-      pending.length ? "action_required" : "empty",
       pending.length
-        ? `${pending.length} proposal ${pending.length === 1 ? "needs" : "need"} a decision.`
-        : "No project-scoped decisions currently need attention.",
+        ? "action_required"
+        : deferredCandidateCount > 0
+          ? "available"
+          : "empty",
+      pending.length
+        ? `${pending.length} proposal ${pending.length === 1 ? "needs" : "need"} a decision.${deferredCandidateCount > 0 ? ` ${deferredCandidateCount} ${deferredCandidateCount === 1 ? "candidate remains" : "candidates remain"} deferred.` : ""}`
+        : deferredCandidateCount > 0
+          ? `No immediate decisions need attention. ${deferredCandidateCount} ${deferredCandidateCount === 1 ? "candidate remains" : "candidates remain"} deferred under recorded revisit semantics.`
+          : "No project-scoped decisions currently need attention.",
     ),
     total_count: pending.length,
     items,
   };
+}
+
+type CandidateAttentionResolutionV01 = {
+  state: "requires_attention" | "deferred" | "terminal";
+  reason:
+    | "undecided"
+    | "revisit_due"
+    | "expiry_due"
+    | "retracted"
+    | "deferred"
+    | "terminal";
+};
+
+function resolveCandidateAttention(
+  decisions: ReviewDecisionV01[],
+  evaluation: { timestamp: string; milliseconds: number },
+): CandidateAttentionResolutionV01 {
+  if (decisions.length === 0) {
+    return { state: "requires_attention", reason: "undecided" };
+  }
+  const effective = [...decisions].sort(compareEffectiveDecisions)[0]!;
+  if (["accept", "reject", "supersede"].includes(effective.decision)) {
+    return { state: "terminal", reason: "terminal" };
+  }
+  if (effective.decision === "retract") {
+    return { state: "requires_attention", reason: "retracted" };
+  }
+  if (effective.decision !== "defer" || !effective.revisit) {
+    throw new Error("project_home_effective_decision_invalid");
+  }
+  const revisitAt = optionalStrictTimestamp(
+    effective.revisit.revisit_at,
+    "project_home_defer_revisit_timestamp_invalid",
+  );
+  const expiresAt = optionalStrictTimestamp(
+    effective.revisit.expires_at,
+    "project_home_defer_expiry_timestamp_invalid",
+  );
+  if (expiresAt !== null && evaluation.milliseconds >= expiresAt) {
+    return { state: "requires_attention", reason: "expiry_due" };
+  }
+  if (revisitAt !== null && evaluation.milliseconds >= revisitAt) {
+    return { state: "requires_attention", reason: "revisit_due" };
+  }
+  return { state: "deferred", reason: "deferred" };
+}
+
+function compareEffectiveDecisions(
+  left: ReviewDecisionV01,
+  right: ReviewDecisionV01,
+): number {
+  const leftReferencesRight = decisionReferences(left, right);
+  const rightReferencesLeft = decisionReferences(right, left);
+  if (leftReferencesRight !== rightReferencesLeft) {
+    return leftReferencesRight ? -1 : 1;
+  }
+  const timeDifference =
+    requireStrictTimestamp(right.decided_at, "project_home_decision_timestamp_invalid") -
+    requireStrictTimestamp(left.decided_at, "project_home_decision_timestamp_invalid");
+  return timeDifference || compareProtocolCodeUnitsV01(right.decision_id, left.decision_id);
+}
+
+function validateDecisionLineageForProjection(
+  decisions: ReviewDecisionV01[],
+): void {
+  const byId = new Map(decisions.map((decision) => [decision.decision_id, decision]));
+  for (const decision of decisions) {
+    const decidedAt = requireStrictTimestamp(
+      decision.decided_at,
+      "project_home_decision_timestamp_invalid",
+    );
+    for (const binding of decision.lineage.prior_decisions) {
+      const prior = byId.get(binding.decision_id);
+      if (
+        !prior ||
+        prior.integrity.fingerprint !== binding.decision_fingerprint ||
+        prior.source_proposal.proposal_id !== decision.source_proposal.proposal_id ||
+        prior.candidate.candidate_id !== decision.candidate.candidate_id ||
+        requireStrictTimestamp(
+          prior.decided_at,
+          "project_home_prior_decision_timestamp_invalid",
+        ) > decidedAt
+      ) {
+        throw new Error("project_home_decision_lineage_invalid");
+      }
+    }
+  }
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (decision: ReviewDecisionV01) => {
+    if (visiting.has(decision.decision_id)) {
+      throw new Error("project_home_decision_lineage_cycle");
+    }
+    if (visited.has(decision.decision_id)) return;
+    visiting.add(decision.decision_id);
+    for (const binding of decision.lineage.prior_decisions) {
+      visit(byId.get(binding.decision_id)!);
+    }
+    visiting.delete(decision.decision_id);
+    visited.add(decision.decision_id);
+  };
+  decisions.forEach(visit);
+}
+
+function decisionReferences(
+  decision: ReviewDecisionV01,
+  possiblePrior: ReviewDecisionV01,
+): boolean {
+  return decision.lineage.prior_decisions.some(
+    (binding) =>
+      binding.decision_id === possiblePrior.decision_id &&
+      binding.decision_fingerprint === possiblePrior.integrity.fingerprint,
+  );
+}
+
+function summarizeAttentionReasons(
+  candidates: CandidateAttentionResolutionV01[],
+): string {
+  const reasons = new Set(candidates.map((candidate) => candidate.reason));
+  if (reasons.has("expiry_due") && reasons.has("revisit_due")) {
+    return "Deferred review times or expiries have arrived.";
+  }
+  if (reasons.has("expiry_due")) {
+    return "A deferred review expiry has arrived.";
+  }
+  if (reasons.has("revisit_due")) {
+    return "A deferred review time has arrived.";
+  }
+  if (reasons.has("retracted")) {
+    return "A prior decision was retracted and requires review.";
+  }
+  const count = candidates.length;
+  return `${count} ${count === 1 ? "decision still requires" : "decisions still require"} review.`;
+}
+
+function optionalStrictTimestamp(value: string | null, errorCode: string): number | null {
+  return value === null ? null : requireStrictTimestamp(value, errorCode);
+}
+
+function requireStrictTimestamp(value: string, errorCode: string): number {
+  const parsed = parseStrictIsoTimestampV01(value);
+  if (parsed === null) throw new Error(errorCode);
+  return parsed;
 }
 
 function readRecentActivity(
@@ -609,13 +799,20 @@ function validatedRunReceipt(
 function validatedPacket(
   record: VNextCoreRecordEnvelopeV01,
   input: { workspace_id: string; project_id: string },
-): TaskContextPacketV01 {
-  if (
-    record.record_kind !== "task_context_packet" ||
-    validateTaskContextPacketV01(record.payload, {
-      evaluated_at: record.created_at,
-    }).status !== "valid"
-  ) {
+  evaluationTimestamp: string,
+):
+  | { status: "available"; packet: TaskContextPacketV01 }
+  | { status: "expired" } {
+  if (record.record_kind !== "task_context_packet") {
+    throw new Error("project_home_task_context_packet_invalid");
+  }
+  const validation = validateTaskContextPacketV01(record.payload, {
+    evaluated_at: evaluationTimestamp,
+  });
+  const expiredOnly =
+    validation.errors.length === 1 &&
+    validation.errors[0]?.code === "packet_expired";
+  if (validation.status !== "valid" && !expiredOnly) {
     throw new Error("project_home_task_context_packet_invalid");
   }
   const packet = record.payload as TaskContextPacketV01;
@@ -623,7 +820,7 @@ function validatedPacket(
   if (record.record_id !== packet.packet_id || record.created_at !== packet.generated_at) {
     throw new Error("project_home_task_context_packet_envelope_mismatch");
   }
-  return packet;
+  return expiredOnly ? { status: "expired" } : { status: "available", packet };
 }
 
 function assertRecordBinding(
@@ -643,6 +840,22 @@ function emptyWorkingProjection(): ProjectHomeWorkingProjectionSummaryV01 {
     state: sectionState(
       "empty",
       "No canonical project-scoped Perspective or selected working projection exists yet.",
+    ),
+    projection_kind: null,
+    summary: null,
+    generated_at: null,
+    source_currentness: null,
+    source_perspective_ref: null,
+    source_revision: null,
+    lineage: [],
+  };
+}
+
+function expiredWorkingProjection(): ProjectHomeWorkingProjectionSummaryV01 {
+  return {
+    state: sectionState(
+      "unavailable",
+      "The latest selected working context has expired.",
     ),
     projection_kind: null,
     summary: null,

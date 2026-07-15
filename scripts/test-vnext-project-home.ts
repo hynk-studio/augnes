@@ -28,6 +28,7 @@ import {
 } from "../fixtures/vnext/runtime/durable-local-closed-loop-v0-1";
 import { createSemanticTransitionDecisionInputV01 } from "../fixtures/vnext/protocol/semantic-transition-loop-v0-1";
 import {
+  TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
   genericCliBuilderInputFixture,
 } from "../fixtures/vnext/protocol/task-context-packet-v0-1";
@@ -90,10 +91,12 @@ const dbPath = path.join(root, "project-home.db");
 const emptyRoot = path.join(root, "Empty local project");
 const projectARoot = path.join(root, "Project A");
 const projectBRoot = path.join(root, "Project B");
+const temporalReviewRoot = path.join(root, "Temporal Review Project");
 const recoveredProjectARoot = path.join(root, "Project A recovered");
 const sharedRemote = "https://example.test/shared/project-home.git";
 const fixedGeneratedAt = "2026-07-15T09:00:00.000Z";
-const perspectiveMarker = "PROJECT A SELECTED WORKING CONTEXT — NOT ACCEPTED STATE";
+const expiringPerspectiveMarker = "PROJECT A EXPIRING WORKING CONTEXT — NOT ACCEPTED STATE";
+const noExpiryPerspectiveMarker = "PROJECT B NO-EXPIRY WORKING CONTEXT — NOT ACCEPTED STATE";
 const acceptedMarker = "PROJECT A ACCEPTED STATE MARKER";
 const projectBMarker = "PROJECT B PENDING MARKER";
 const legacyMarker = "LEGACY PROJECT AUGNES MARKER";
@@ -214,14 +217,26 @@ function rebuildProposal(
 function buildDecision(
   project: SemanticReviewLoopProjectFixtureV01,
   proposal: EpisodeDeltaProposalV01,
-  decision: "accept" | "reject",
+  decision: "accept" | "reject" | "defer",
+  options: {
+    decided_at?: string;
+    revisit?: {
+      revisit_at: string | null;
+      expires_at: string | null;
+      condition_summary: string | null;
+    };
+  } = {},
 ) {
   const input = createSemanticTransitionDecisionInputV01(project, proposal);
-  if (decision === "reject") {
-    input.decision = "reject";
-    input.rationale_summary = "The bounded synthetic proposal is rejected in the Project Home test.";
+  input.decision = decision;
+  if (options.decided_at) input.decided_at = options.decided_at;
+  if (decision === "reject" || decision === "defer") {
+    input.rationale_summary = decision === "reject"
+      ? "The bounded synthetic proposal is rejected in the Project Home test."
+      : "The bounded synthetic proposal remains deferred under explicit revisit semantics.";
     input.requested_transition_intent = null;
   }
+  input.revisit = decision === "defer" ? options.revisit ?? null : null;
   const result = buildReviewDecisionV01(input);
   assert.equal(validateReviewDecisionV01(result).status, "valid");
   assert.equal(
@@ -302,23 +317,29 @@ function insertTaskContextPacket(
   database: Database.Database,
   workspaceId: string,
   projectId: string,
+  inputOptions: {
+    marker: string;
+    perspective_ref: string;
+    expires_at: string | null;
+  },
 ) {
   const input = clone(genericCliBuilderInputFixture) as TaskContextPacketBuilderInputV01;
   const currentness = clone(input.source_status.currentness);
   input.workspace_id = workspaceId;
   input.project_id = projectId;
   input.generated_at = TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+  input.expires_at = inputOptions.expires_at;
   input.current_projection = {
     projection_kind: "current_working_perspective",
     projection_only: true,
     canonical_state: false,
-    perspective_ref: "perspective:project-home-a",
-    bounded_summary: perspectiveMarker,
+    perspective_ref: inputOptions.perspective_ref,
+    bounded_summary: inputOptions.marker,
     as_of: TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
     items: [
       {
         item_kind: "frame",
-        summary: perspectiveMarker,
+        summary: inputOptions.marker,
         source_refs: ["source:project-home-a"],
         external_refs: [],
         currentness,
@@ -426,6 +447,7 @@ async function main() {
     mkdirSync(emptyRoot);
     mkdirSync(projectARoot);
     mkdirSync(projectBRoot);
+    mkdirSync(temporalReviewRoot);
     mkdirSync(recoveredProjectARoot);
     for (const projectRoot of [projectARoot, projectBRoot]) {
       mkdirSync(path.join(projectRoot, ".git"));
@@ -489,6 +511,10 @@ async function main() {
     assert.equal(JSON.stringify(malformedOptionalSection).includes("must not render"), false);
 
     const confirmedA = await onboard(projectARoot, "2026-07-15T09:02:00.000Z");
+    const confirmedTemporal = await onboard(
+      temporalReviewRoot,
+      "2026-07-15T09:02:30.000Z",
+    );
     const confirmedB = await onboard(projectBRoot, "2026-07-15T09:03:00.000Z");
     assert.notEqual(confirmedA.project.project_id, confirmedB.project.project_id);
     const refsA = listProjectExternalRefsV01(db, {
@@ -512,8 +538,86 @@ async function main() {
       workspace.workspace_id,
       "b",
     );
+    const temporalProject = projectFixture(
+      confirmedTemporal.project.project_id,
+      workspace.workspace_id,
+      "temporal",
+    );
 
-    insertTaskContextPacket(db, workspace.workspace_id, confirmedA.project.project_id);
+    insertTaskContextPacket(
+      db,
+      workspace.workspace_id,
+      confirmedA.project.project_id,
+      {
+        marker: expiringPerspectiveMarker,
+        perspective_ref: "perspective:project-home-expiring",
+        expires_at: TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
+      },
+    );
+    insertTaskContextPacket(
+      db,
+      workspace.workspace_id,
+      confirmedB.project.project_id,
+      {
+        marker: noExpiryPerspectiveMarker,
+        perspective_ref: "perspective:project-home-no-expiry",
+        expires_at: null,
+      },
+    );
+    const beforePacketTemporalReads = databaseSnapshot(db);
+    let evaluationClockCalls = 0;
+    const beforePacketExpiry = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedA.project.project_id,
+    }, {
+      now: () => {
+        evaluationClockCalls += 1;
+        return "2026-07-10T23:59:59.999Z";
+      },
+    });
+    assert.equal(evaluationClockCalls, 1, "Project Home captures its clock once");
+    assert.equal(beforePacketExpiry.generated_at, "2026-07-10T23:59:59.999Z");
+    assert.equal(beforePacketExpiry.working_projection.state.status, "available");
+    assert.equal(beforePacketExpiry.working_projection.summary, expiringPerspectiveMarker);
+    assert.equal(
+      beforePacketExpiry.working_projection.source_perspective_ref,
+      "perspective:project-home-expiring",
+    );
+    const atPacketExpiry = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedA.project.project_id,
+    }, { now: () => TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT });
+    assert.equal(atPacketExpiry.working_projection.state.status, "unavailable");
+    assert.equal(atPacketExpiry.working_projection.summary, null);
+    assert.equal(atPacketExpiry.working_projection.source_perspective_ref, null);
+    assert.equal(JSON.stringify(atPacketExpiry).includes(expiringPerspectiveMarker), false);
+    const afterPacketExpiry = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedA.project.project_id,
+    }, { now: () => fixedGeneratedAt });
+    assert.equal(afterPacketExpiry.working_projection.state.status, "unavailable");
+    assert.equal(afterPacketExpiry.working_projection.state.message, "The latest selected working context has expired.");
+    assert.equal(JSON.stringify(afterPacketExpiry).includes(expiringPerspectiveMarker), false);
+    assert.equal(JSON.stringify(afterPacketExpiry).includes("perspective:project-home-expiring"), false);
+    const noExpiryHome = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedB.project.project_id,
+    }, { now: () => fixedGeneratedAt });
+    assert.equal(noExpiryHome.working_projection.state.status, "available");
+    assert.equal(noExpiryHome.working_projection.summary, noExpiryPerspectiveMarker);
+    assert.equal(noExpiryHome.working_projection.source_perspective_ref, "perspective:project-home-no-expiry");
+    await assert.rejects(
+      readProjectHomeProjectionV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: confirmedA.project.project_id,
+      }, { now: () => "not-a-strict-timestamp" }),
+      /project_home_evaluation_timestamp_invalid/,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      beforePacketTemporalReads,
+      "packet temporal reads create or update no rows",
+    );
     const runReceipt = insertRunReceipt(db, projectA);
     const pendingA = rebuildProposal(projectA, "PROJECT A PENDING MARKER 0", "pending-a-0");
     insertPendingProposal(db, pendingA);
@@ -534,7 +638,192 @@ async function main() {
         ),
       );
     }
+    const revisitProposal = rebuildProposal(
+      temporalProject,
+      "TEMPORAL REVIEW REVISIT MARKER",
+      "temporal-revisit",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: revisitProposal,
+      decision: buildDecision(temporalProject, revisitProposal, "defer", {
+        decided_at: "2026-07-14T08:00:00.000Z",
+        revisit: {
+          revisit_at: "2026-07-16T08:00:00.000Z",
+          expires_at: null,
+          condition_summary: null,
+        },
+      }),
+    });
+    const expiryProposal = rebuildProposal(
+      temporalProject,
+      "TEMPORAL REVIEW EXPIRY MARKER",
+      "temporal-expiry",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: expiryProposal,
+      decision: buildDecision(temporalProject, expiryProposal, "defer", {
+        decided_at: "2026-07-14T08:01:00.000Z",
+        revisit: {
+          revisit_at: null,
+          expires_at: "2026-07-17T08:00:00.000Z",
+          condition_summary: null,
+        },
+      }),
+    });
+    const conditionProposal = rebuildProposal(
+      temporalProject,
+      "TEMPORAL REVIEW CONDITION MARKER",
+      "temporal-condition",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: conditionProposal,
+      decision: buildDecision(temporalProject, conditionProposal, "defer", {
+        decided_at: "2026-07-14T08:02:00.000Z",
+        revisit: {
+          revisit_at: null,
+          expires_at: null,
+          condition_summary: "Revisit only after a canonical condition result exists.",
+        },
+      }),
+    });
+    const newerTerminalProposal = rebuildProposal(
+      temporalProject,
+      "TEMPORAL NEWER TERMINAL MARKER",
+      "temporal-newer-terminal",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: newerTerminalProposal,
+      decision: buildDecision(temporalProject, newerTerminalProposal, "defer", {
+        decided_at: "2026-07-12T08:00:00.000Z",
+        revisit: {
+          revisit_at: "2026-07-15T08:00:00.000Z",
+          expires_at: null,
+          condition_summary: null,
+        },
+      }),
+    });
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: newerTerminalProposal,
+      decision: buildDecision(temporalProject, newerTerminalProposal, "reject", {
+        decided_at: "2026-07-13T08:00:00.000Z",
+      }),
+    });
+    const newerDeferProposal = rebuildProposal(
+      temporalProject,
+      "TEMPORAL NEWER DEFER MARKER",
+      "temporal-newer-defer",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: newerDeferProposal,
+      decision: buildDecision(temporalProject, newerDeferProposal, "reject", {
+        decided_at: "2026-07-12T08:00:00.000Z",
+      }),
+    });
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: newerDeferProposal,
+      decision: buildDecision(temporalProject, newerDeferProposal, "defer", {
+        decided_at: "2026-07-14T08:03:00.000Z",
+        revisit: {
+          revisit_at: "2026-07-20T08:00:00.000Z",
+          expires_at: null,
+          condition_summary: null,
+        },
+      }),
+    });
+    const legacySemanticProject = projectFixture(
+      LEGACY_AUGNES_PROJECT_SCOPE_V01,
+      workspace.workspace_id,
+      "legacy-decision",
+    );
+    const legacyProposal = rebuildProposal(
+      legacySemanticProject,
+      "LEGACY PROJECT AUGNES DECISION MARKER",
+      "legacy-decision",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: legacyProposal,
+      decision: buildDecision(legacySemanticProject, legacyProposal, "defer", {
+        decided_at: "2026-07-14T08:04:00.000Z",
+        revisit: {
+          revisit_at: "2026-07-15T08:00:00.000Z",
+          expires_at: null,
+          condition_summary: null,
+        },
+      }),
+    });
     insertLegacyWorkItem(db);
+
+    const beforeTemporalAttentionReads = databaseSnapshot(db);
+    const beforeRevisit = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedTemporal.project.project_id,
+    }, { now: () => fixedGeneratedAt });
+    assert.equal(beforeRevisit.attention.state.status, "available");
+    assert.equal(beforeRevisit.attention.total_count, 0);
+    assert(beforeRevisit.attention.state.message.includes("4 candidates remain deferred"));
+    assert.equal(beforeRevisit.next_moves.some((move) => move.move_id === "review_attention"), false);
+
+    const atRevisit = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedTemporal.project.project_id,
+    }, { now: () => "2026-07-16T08:00:00.000Z" });
+    assert.equal(atRevisit.attention.total_count, 1);
+    assert.equal(atRevisit.attention.items[0]?.proposal_id, revisitProposal.proposal_id);
+    assert.equal(atRevisit.attention.items[0]?.reason, "A deferred review time has arrived.");
+    assert(atRevisit.next_moves.some((move) => move.move_id === "review_attention"));
+
+    const afterRevisit = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedTemporal.project.project_id,
+    }, { now: () => "2026-07-16T08:00:00.001Z" });
+    assert.equal(afterRevisit.attention.items.some((item) => item.proposal_id === revisitProposal.proposal_id), true);
+
+    const atExpiry = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedTemporal.project.project_id,
+    }, { now: () => "2026-07-17T08:00:00.000Z" });
+    assert.equal(atExpiry.attention.total_count, 2);
+    assert.equal(
+      atExpiry.attention.items.find((item) => item.proposal_id === expiryProposal.proposal_id)?.reason,
+      "A deferred review expiry has arrived.",
+    );
+    assert.equal(atExpiry.attention.items.some((item) => item.proposal_id === conditionProposal.proposal_id), false);
+    assert.equal(atExpiry.attention.items.some((item) => item.proposal_id === newerTerminalProposal.proposal_id), false);
+    assert.equal(atExpiry.attention.items.some((item) => item.proposal_id === newerDeferProposal.proposal_id), false);
+    assert.equal(JSON.stringify(atExpiry).includes("LEGACY PROJECT AUGNES DECISION MARKER"), false);
+
+    const atNewerDeferRevisit = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedTemporal.project.project_id,
+    }, { now: () => "2026-07-20T08:00:00.000Z" });
+    assert.equal(
+      atNewerDeferRevisit.attention.items.some(
+        (item) => item.proposal_id === newerDeferProposal.proposal_id,
+      ),
+      true,
+    );
+    assert.equal(
+      atNewerDeferRevisit.attention.items.some(
+        (item) => item.proposal_id === newerTerminalProposal.proposal_id,
+      ),
+      false,
+    );
+    assert.equal(
+      atNewerDeferRevisit.attention.items.some(
+        (item) => item.proposal_id === conditionProposal.proposal_id,
+      ),
+      false,
+    );
+    const repeatedTemporalRead = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedTemporal.project.project_id,
+    }, { now: () => "2026-07-20T08:00:00.000Z" });
+    assert.deepEqual(repeatedTemporalRead, atNewerDeferRevisit);
+    assert.deepEqual(
+      databaseSnapshot(db),
+      beforeTemporalAttentionReads,
+      "defer and effective-decision temporal reads create or update no rows",
+    );
 
     const beforeAccepted = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
@@ -542,8 +831,9 @@ async function main() {
     }, { now: () => fixedGeneratedAt });
     assert.equal(beforeAccepted.accepted_state.state.status, "empty");
     assert.equal(beforeAccepted.accepted_state.total_count, 0);
-    assert.equal(beforeAccepted.working_projection.summary, perspectiveMarker);
-    assert.equal(JSON.stringify(beforeAccepted.accepted_state).includes(perspectiveMarker), false);
+    assert.equal(beforeAccepted.working_projection.state.status, "unavailable");
+    assert.equal(beforeAccepted.working_projection.summary, null);
+    assert.equal(JSON.stringify(beforeAccepted).includes(expiringPerspectiveMarker), false);
     assert.equal(beforeAccepted.attention.total_count, 6);
     assert.equal(beforeAccepted.attention.items.length, 5, "pending attention is bounded");
     assert.equal(beforeAccepted.attention.items.some((item) => item.summary.includes("REJECTED")), false);
@@ -567,9 +857,10 @@ async function main() {
       afterAccepted.accepted_state.items[0]?.lineage.map((item) => item.role),
       ["source_proposal", "decision", "durable_transition", "accepted_state"],
     );
-    assert.equal(afterAccepted.working_projection.summary, perspectiveMarker);
-    assert.equal(afterAccepted.working_projection.projection_kind, "selected_working_context");
-    assert.equal(afterAccepted.working_projection.source_perspective_ref, "perspective:project-home-a");
+    assert.equal(afterAccepted.working_projection.state.status, "unavailable");
+    assert.equal(afterAccepted.working_projection.summary, null);
+    assert.equal(afterAccepted.working_projection.projection_kind, null);
+    assert.equal(afterAccepted.working_projection.source_perspective_ref, null);
     assert.equal(afterAccepted.working_projection.source_revision, null);
     assert.equal(afterAccepted.project_summary.repository?.display, sharedRemote);
     assert.equal(
@@ -586,11 +877,13 @@ async function main() {
       project_id: confirmedB.project.project_id,
     }, { now: () => fixedGeneratedAt });
     assert.equal(projectBHome.accepted_state.state.status, "empty");
-    assert.equal(projectBHome.working_projection.state.status, "empty");
+    assert.equal(projectBHome.working_projection.state.status, "available");
+    assert.equal(projectBHome.working_projection.summary, noExpiryPerspectiveMarker);
     assert.equal(projectBHome.attention.total_count, 1);
     assert.equal(projectBHome.attention.items[0]?.summary, projectBMarker);
     assert.equal(JSON.stringify(projectBHome).includes(acceptedMarker), false);
-    assert.equal(JSON.stringify(projectBHome).includes(perspectiveMarker), false);
+    assert.equal(JSON.stringify(projectBHome).includes(expiringPerspectiveMarker), false);
+    assert.equal(JSON.stringify(afterAccepted).includes(noExpiryPerspectiveMarker), false);
     assert.equal(JSON.stringify(afterAccepted).includes(projectBMarker), false);
     assert.equal(JSON.stringify(afterAccepted).includes(legacyMarker), false);
 
@@ -698,7 +991,8 @@ async function main() {
     assert.deepEqual(firstDeterministic, secondDeterministic);
     const serializedProjection = JSON.stringify(firstDeterministic);
     assert(serializedProjection.includes(acceptedMarker));
-    assert(serializedProjection.includes(perspectiveMarker));
+    assert.equal(serializedProjection.includes(expiringPerspectiveMarker), false);
+    assert.equal(serializedProjection.includes(noExpiryPerspectiveMarker), false);
     assert.equal(serializedProjection.includes(projectBMarker), false);
     assert.equal(serializedProjection.includes(legacyMarker), false);
     assert.equal(serializedProjection.includes(secretMarker), false);
@@ -770,6 +1064,16 @@ async function main() {
       proposal_not_promoted_to_accepted_state: true,
       task_context_packet_not_project_truth: true,
       selected_working_context_distinguished: true,
+      project_home_clock_calls_per_read: 1,
+      expired_packet_withheld: true,
+      exact_packet_expiry_withheld: true,
+      unexpired_packet_available: true,
+      no_expiry_packet_available: true,
+      defer_before_revisit_attention_count: 0,
+      defer_at_revisit_attention_count: 1,
+      defer_at_expiry_attention_count: 2,
+      condition_only_defer_remains_deferred: true,
+      multiple_decisions_resolved_deterministically: true,
       pending_attention_filtered_and_bounded: true,
       meaningful_activity_filtered_and_bounded: true,
       automation_not_configured: true,

@@ -22,6 +22,13 @@ import {
   buildTaskContextPacketHandoffHrefV01,
   decodeTaskContextPacketHandoffSlugV01,
 } from "../lib/vnext/task-context-packet-handoff.ts";
+import {
+  TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
+  TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+  genericCliBuilderInputFixture,
+} from "../fixtures/vnext/protocol/task-context-packet-v0-1.ts";
+import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store.ts";
+import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet.ts";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -94,6 +101,7 @@ const result = {
   folder_onboarding_restart_reopen: false,
   folder_onboarding_stale_active_conflict: false,
   minimum_project_home_empty_state: false,
+  minimum_project_home_expired_context_withheld: false,
   minimum_project_home_refresh_read_only: false,
   minimum_project_home_restart_root_resolution: false,
   minimum_project_home_non_active_deep_link_read_only: false,
@@ -370,6 +378,24 @@ async function main() {
     });
     result.minimum_project_home_empty_state = true;
     result.minimum_project_home_project_isolation = true;
+
+    const expiredContextMarker = "BROWSER EXPIRED SELECTED WORKING CONTEXT";
+    seedExpiredProjectHomePacket({
+      projectId: decodeURIComponent(destination.split("/").at(-1)),
+      marker: expiredContextMarker,
+    });
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"]') !== null && document.body.textContent.includes('The latest selected working context has expired.')`,
+      "expired selected working context unavailable state",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `!document.body.textContent.includes(${JSON.stringify(expiredContextMarker)}) && !document.body.textContent.includes('perspective:browser-expired-context')`,
+      ),
+      true,
+    );
+    result.minimum_project_home_expired_context_withheld = true;
 
     const projectHomeDatabase = new Database(databasePath, { readonly: true, fileMustExist: true });
     const beforeProjectHomeRefresh = databaseSnapshot(projectHomeDatabase);
@@ -1334,6 +1360,60 @@ function documentStatusSince(startIndex, pathname) {
       .find((entry) => entry.path === pathname && entry.type === "Document")
       ?.status ?? null
   );
+}
+
+function seedExpiredProjectHomePacket({ projectId, marker }) {
+  const writableDatabase = new Database(databasePath);
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const project = writableDatabase
+      .prepare(
+        "SELECT workspace_id, project_id FROM vnext_project_identities WHERE project_id = ?",
+      )
+      .get(projectId);
+    assert(project, "Browser Project Home fixture project must exist.");
+    const input = structuredClone(genericCliBuilderInputFixture);
+    const currentness = structuredClone(input.source_status.currentness);
+    input.workspace_id = project.workspace_id;
+    input.project_id = project.project_id;
+    input.generated_at = TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+    input.expires_at = TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT;
+    input.current_projection = {
+      projection_kind: "current_working_perspective",
+      projection_only: true,
+      canonical_state: false,
+      perspective_ref: "perspective:browser-expired-context",
+      bounded_summary: marker,
+      as_of: TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+      items: [
+        {
+          item_kind: "frame",
+          summary: marker,
+          source_refs: ["source:browser-expired-context"],
+          external_refs: [],
+          currentness,
+        },
+      ],
+      source_refs: ["source:browser-expired-context"],
+      external_refs: [],
+      currentness,
+      warnings: [],
+    };
+    input.gaps = [];
+    const packet = buildTaskContextPacketV01(input);
+    insertVNextCoreRecordV01(writableDatabase, {
+      record_kind: "task_context_packet",
+      record_id: packet.packet_id,
+      workspace_id: packet.workspace_id,
+      project_id: packet.project_id,
+      fingerprint: packet.integrity.fingerprint,
+      idempotency_key: null,
+      payload: packet,
+      created_at: packet.generated_at,
+    });
+  } finally {
+    writableDatabase.close();
+  }
 }
 
 function databaseSnapshot(db) {
