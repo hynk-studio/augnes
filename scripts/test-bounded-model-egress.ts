@@ -695,7 +695,7 @@ async function invokeObserveAdapterForTest(
     environment: { OPENAI_API_KEY: "test-only-placeholder" },
     transport: async (request) => transport(request.body),
   });
-  const session = await adapter.prepare();
+  const session = await adapter.prepare(new AbortController().signal);
   assert.ok(session);
   const result = await session.invoke(
     {

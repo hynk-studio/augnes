@@ -50,6 +50,7 @@ export interface ObserveModelGatewayDependenciesV01 {
   adapter?: ObserveModelAdapterV01;
   deterministic_execute: (
     input: ObserveModelInvocationEnvelopeV01["input"],
+    lifecycle: { signal: AbortSignal },
   ) => ValidatedProposal[] | Promise<ValidatedProposal[]>;
   read_root_availability?: typeof readRootAvailabilityV01;
   now?: () => Date;
@@ -62,190 +63,124 @@ export async function invokeObserveModelGatewayV01(
   const envelope = validateObserveModelInvocationEnvelopeV01(input);
   const now = dependencies.now ?? (() => new Date());
   const started = now();
-  const scope = await resolveCanonicalScope(envelope, dependencies);
-  const base = {
-    envelope,
-    workspace_id: scope.workspace_id,
-    project_id: scope.project_id,
-    started,
-    now,
-  };
-
-  if (envelope.cancellation.signal.aborted) {
-    throw gatewayFailure(
-      "model_gateway_cancelled",
-      buildReceipt({
-        ...base,
-        implementation_id: DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01,
-        implementation_version: DETERMINISTIC_OBSERVE_IMPLEMENTATION_VERSION_V01,
-        execution_mode: "deterministic",
-        selection_reason:
-          envelope.execution_mode === "deterministic"
-            ? "explicit_deterministic"
-            : "requested_live",
-        status: "cancelled",
-        outcome: "cancelled",
-        egress_attempted: false,
-        egress_status: "did_not_occur",
-        usage: null,
-        budget_decision: "not_used",
-        input_bytes_used: null,
-        provider_calls_used: 0,
-        failure_code: "model_gateway_cancelled",
-      }),
-    );
-  }
-
-  if (envelope.execution_mode === "deterministic") {
-    return executeDeterministically(
-      envelope,
-      dependencies,
-      base,
-      "explicit_deterministic",
-    );
-  }
-
   const adapter =
     dependencies.adapter ?? createOpenAIResponsesObserveAdapterV01();
-  let adapterSession: ObserveModelAdapterSessionV01 | null;
-  try {
-    adapterSession = await adapter.prepare();
-  } catch {
-    throw gatewayFailure(
-      "model_gateway_transport_failed",
-      buildReceipt({
-        ...base,
-        implementation_id: adapter.implementation_id,
-        implementation_version: adapter.implementation_version,
-        execution_mode: "live",
-        selection_reason: "requested_live",
-        status: "failed",
-        outcome: "provider_failure",
-        egress_attempted: false,
-        egress_status: "did_not_occur",
-        usage: null,
-        budget_decision: "not_used",
-        input_bytes_used: null,
-        provider_calls_used: 0,
-        failure_code: "model_gateway_transport_failed",
-      }),
-    );
-  }
-  if (!adapterSession) {
-    return executeDeterministically(envelope, dependencies, base, "provider_unavailable");
-  }
-
-  const controller = new AbortController();
-  let timedOut = false;
-  let egressAttempted = false;
-  let inputBytesUsed: number | null = null;
-  const cancel = () => controller.abort(envelope.cancellation.signal.reason);
-  envelope.cancellation.signal.addEventListener("abort", cancel, { once: true });
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, envelope.timeout_ms);
+  const lifecycle = createGatewayInvocationLifecycle(
+    envelope.cancellation.signal,
+    envelope.timeout_ms,
+  );
 
   try {
-    const result = await adapterSession.invoke(
-      {
-        canonical_project_id: scope.project_id,
-        message: envelope.input.message,
-        current_state: envelope.input.current_state,
-      },
-      {
-        signal: controller.signal,
-        budget: envelope.budget,
-        retention_class: envelope.privacy.retention_class,
-        mark_egress_attempted() {
-          if (egressAttempted) {
-            throw gatewayFailure("model_gateway_budget_refused");
-          }
-          egressAttempted = true;
-        },
-        report_input_bytes(bytes) {
-          if (
-            !Number.isSafeInteger(bytes) ||
-            bytes < 0 ||
-            bytes > envelope.budget.max_input_bytes
-          ) {
-            throw gatewayFailure("model_gateway_budget_refused");
-          }
-          inputBytesUsed = bytes;
-        },
-      },
-    );
-    if (
-      result.usage &&
-      result.usage.output_tokens > envelope.budget.max_output_tokens
-    ) {
-      throw gatewayFailure("model_gateway_budget_refused");
-    }
-    return {
-      compiler: "openai",
-      proposals: result.proposals,
-      model_invocation_receipt: buildReceipt({
-        ...base,
-        implementation_id: adapterSession.implementation_id,
-        implementation_version: adapterSession.implementation_version,
-        execution_mode: "live",
-        selection_reason: "requested_live",
-        status: "completed",
-        outcome: "live_success",
-        egress_attempted: egressAttempted,
-        egress_status: egressAttempted ? "occurred" : "did_not_occur",
-        usage: result.usage,
-        budget_decision: "within_budget",
-        input_bytes_used: inputBytesUsed,
-        provider_calls_used: egressAttempted ? 1 : 0,
-        failure_code: null,
-      }),
+    const scope = resolveCanonicalScopeRegistration(envelope, dependencies);
+    const base = {
+      envelope,
+      workspace_id: scope.workspace_id,
+      project_id: scope.project_id,
+      started,
+      now,
     };
-  } catch (error) {
-    const failureCode = normalizeFailureCode({
-      error,
-      timedOut,
-      externallyCancelled: envelope.cancellation.signal.aborted,
-    });
-    const cancelled =
-      failureCode === "model_gateway_cancelled" ||
-      failureCode === "model_gateway_timeout";
-    const blocked =
-      failureCode === "model_gateway_budget_refused" ||
-      failureCode === "model_gateway_egress_refused";
-    throw gatewayFailure(
-      failureCode,
-      buildReceipt({
-        ...base,
-        implementation_id: adapterSession.implementation_id,
-        implementation_version: adapterSession.implementation_version,
-        execution_mode: "live",
-        selection_reason: "requested_live",
-        status: cancelled ? "cancelled" : blocked ? "blocked" : "failed",
-        outcome:
-          failureCode === "model_gateway_timeout"
-            ? "timeout"
-            : failureCode === "model_gateway_cancelled"
-              ? "cancelled"
-              : blocked
-                ? "refused"
-                : "provider_failure",
-        egress_attempted: egressAttempted,
-        egress_status: blocked && !egressAttempted
-          ? "blocked"
-          : egressAttempted
-            ? "occurred"
-            : "did_not_occur",
-        usage: null,
-        budget_decision: blocked ? "refused" : "within_budget",
-        input_bytes_used: inputBytesUsed,
-        provider_calls_used: egressAttempted ? 1 : 0,
-        failure_code: failureCode,
-      }),
+
+    try {
+      lifecycle.throwIfStopped();
+      const rootAvailability = await lifecycle.run(() =>
+        (dependencies.read_root_availability ?? readRootAvailabilityV01)(
+          scope.canonical_root,
+        ),
+      );
+      if (rootAvailability !== "available") {
+        throw gatewayFailure("model_gateway_scope_refused");
+      }
+      lifecycle.throwIfStopped();
+    } catch (error) {
+      if (isGatewayLifecycleStop(error)) {
+        throw lifecycleGatewayFailure(error.code, base, {
+          implementation_id:
+            envelope.execution_mode === "deterministic"
+              ? DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01
+              : adapter.implementation_id,
+          implementation_version:
+            envelope.execution_mode === "deterministic"
+              ? DETERMINISTIC_OBSERVE_IMPLEMENTATION_VERSION_V01
+              : adapter.implementation_version,
+          execution_mode: envelope.execution_mode,
+          selection_reason:
+            envelope.execution_mode === "deterministic"
+              ? "explicit_deterministic"
+              : "requested_live",
+          egress_attempted: false,
+          input_bytes_used: null,
+        });
+      }
+      if (error instanceof ModelGatewayInvocationErrorV01) throw error;
+      throw gatewayFailure("model_gateway_scope_refused");
+    }
+
+    if (envelope.execution_mode === "deterministic") {
+      return await executeDeterministically(
+        envelope,
+        dependencies,
+        base,
+        lifecycle,
+        "explicit_deterministic",
+      );
+    }
+
+    let adapterSession: ObserveModelAdapterSessionV01 | null;
+    try {
+      adapterSession = await lifecycle.run(() =>
+        adapter.prepare(lifecycle.signal),
+      );
+      lifecycle.throwIfStopped();
+    } catch (error) {
+      if (isGatewayLifecycleStop(error)) {
+        throw lifecycleGatewayFailure(error.code, base, {
+          implementation_id: adapter.implementation_id,
+          implementation_version: adapter.implementation_version,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          egress_attempted: false,
+          input_bytes_used: null,
+        });
+      }
+      throw gatewayFailure(
+        "model_gateway_transport_failed",
+        buildReceipt({
+          ...base,
+          implementation_id: adapter.implementation_id,
+          implementation_version: adapter.implementation_version,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          status: "failed",
+          outcome: "provider_failure",
+          egress_attempted: false,
+          egress_status: "did_not_occur",
+          usage: null,
+          budget_decision: "not_used",
+          input_bytes_used: null,
+          provider_calls_used: 0,
+          failure_code: "model_gateway_transport_failed",
+        }),
+      );
+    }
+    if (!adapterSession) {
+      return await executeDeterministically(
+        envelope,
+        dependencies,
+        base,
+        lifecycle,
+        "provider_unavailable",
+      );
+    }
+
+    return await invokeLiveAdapter(
+      envelope,
+      scope.project_id,
+      adapterSession,
+      base,
+      lifecycle,
     );
   } finally {
-    clearTimeout(timeout);
-    envelope.cancellation.signal.removeEventListener("abort", cancel);
+    lifecycle.dispose();
   }
 }
 
@@ -349,7 +284,7 @@ export function validateObserveModelInvocationEnvelopeV01(
   }
 }
 
-async function resolveCanonicalScope(
+function resolveCanonicalScopeRegistration(
   envelope: ObserveModelInvocationEnvelopeV01,
   dependencies: ObserveModelGatewayDependenciesV01,
 ) {
@@ -379,12 +314,6 @@ async function resolveCanonicalScope(
         byRoot.project.project_id !== registration.project.project_id
       ) throw new Error("scope");
     }
-    if (
-      await (dependencies.read_root_availability ?? readRootAvailabilityV01)(
-        canonicalRoot.normalized_path,
-      ) !== "available"
-    ) throw new Error("scope");
-
     if (envelope.policy.invocation_origin === "interactive") {
       const active = readActiveProjectSelectionV01(db, envelope.workspace_id);
       if (
@@ -401,6 +330,7 @@ async function resolveCanonicalScope(
     return {
       workspace_id: registration.project.workspace_id,
       project_id: registration.project.project_id,
+      canonical_root: canonicalRoot.normalized_path,
     };
   } catch (error) {
     if (error instanceof ModelGatewayInvocationErrorV01) throw error;
@@ -414,9 +344,48 @@ async function executeDeterministically(
   envelope: ObserveModelInvocationEnvelopeV01,
   dependencies: ObserveModelGatewayDependenciesV01,
   base: ReceiptBase,
+  lifecycle: GatewayInvocationLifecycle,
   selectionReason: "explicit_deterministic" | "provider_unavailable",
 ): Promise<ObserveModelGatewayResultV01> {
-  const proposals = await dependencies.deterministic_execute(envelope.input);
+  let proposals: ValidatedProposal[];
+  try {
+    proposals = await lifecycle.run(() =>
+      dependencies.deterministic_execute(envelope.input, {
+        signal: lifecycle.signal,
+      }),
+    );
+    lifecycle.throwIfStopped();
+  } catch (error) {
+    if (isGatewayLifecycleStop(error)) {
+      throw lifecycleGatewayFailure(error.code, base, {
+        implementation_id: DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01,
+        implementation_version: DETERMINISTIC_OBSERVE_IMPLEMENTATION_VERSION_V01,
+        execution_mode: "deterministic",
+        selection_reason: selectionReason,
+        egress_attempted: false,
+        input_bytes_used: null,
+      });
+    }
+    throw gatewayFailure(
+      "model_gateway_deterministic_failed",
+      buildReceipt({
+        ...base,
+        implementation_id: DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01,
+        implementation_version: DETERMINISTIC_OBSERVE_IMPLEMENTATION_VERSION_V01,
+        execution_mode: "deterministic",
+        selection_reason: selectionReason,
+        status: "failed",
+        outcome: "deterministic_failure",
+        egress_attempted: false,
+        egress_status: "did_not_occur",
+        usage: null,
+        budget_decision: "not_used",
+        input_bytes_used: null,
+        provider_calls_used: 0,
+        failure_code: "model_gateway_deterministic_failed",
+      }),
+    );
+  }
   return {
     compiler: "mock",
     proposals,
@@ -437,6 +406,236 @@ async function executeDeterministically(
       failure_code: null,
     }),
   };
+}
+
+async function invokeLiveAdapter(
+  envelope: ObserveModelInvocationEnvelopeV01,
+  canonicalProjectId: string,
+  adapterSession: ObserveModelAdapterSessionV01,
+  base: ReceiptBase,
+  lifecycle: GatewayInvocationLifecycle,
+): Promise<ObserveModelGatewayResultV01> {
+  let egressAttempted = false;
+  let inputBytesUsed: number | null = null;
+
+  try {
+    lifecycle.throwIfStopped();
+    const result = await lifecycle.run(() =>
+      adapterSession.invoke(
+        {
+          canonical_project_id: canonicalProjectId,
+          message: envelope.input.message,
+          current_state: envelope.input.current_state,
+        },
+        {
+          signal: lifecycle.signal,
+          budget: envelope.budget,
+          retention_class: envelope.privacy.retention_class,
+          mark_egress_attempted() {
+            lifecycle.throwIfStopped();
+            if (egressAttempted) {
+              throw gatewayFailure("model_gateway_budget_refused");
+            }
+            egressAttempted = true;
+          },
+          report_input_bytes(bytes) {
+            lifecycle.throwIfStopped();
+            if (
+              !Number.isSafeInteger(bytes) ||
+              bytes < 0 ||
+              bytes > envelope.budget.max_input_bytes
+            ) {
+              throw gatewayFailure("model_gateway_budget_refused");
+            }
+            inputBytesUsed = bytes;
+          },
+        },
+      ),
+    );
+    lifecycle.throwIfStopped();
+    if (
+      result.usage &&
+      result.usage.output_tokens > envelope.budget.max_output_tokens
+    ) {
+      throw gatewayFailure("model_gateway_budget_refused");
+    }
+    return {
+      compiler: "openai",
+      proposals: result.proposals,
+      model_invocation_receipt: buildReceipt({
+        ...base,
+        implementation_id: adapterSession.implementation_id,
+        implementation_version: adapterSession.implementation_version,
+        execution_mode: "live",
+        selection_reason: "requested_live",
+        status: "completed",
+        outcome: "live_success",
+        egress_attempted: egressAttempted,
+        egress_status: egressAttempted ? "occurred" : "did_not_occur",
+        usage: result.usage,
+        budget_decision: "within_budget",
+        input_bytes_used: inputBytesUsed,
+        provider_calls_used: egressAttempted ? 1 : 0,
+        failure_code: null,
+      }),
+    };
+  } catch (error) {
+    const failureCode = normalizeFailureCode(error);
+    const cancelled =
+      failureCode === "model_gateway_cancelled" ||
+      failureCode === "model_gateway_timeout";
+    const blocked =
+      failureCode === "model_gateway_budget_refused" ||
+      failureCode === "model_gateway_egress_refused";
+    throw gatewayFailure(
+      failureCode,
+      buildReceipt({
+        ...base,
+        implementation_id: adapterSession.implementation_id,
+        implementation_version: adapterSession.implementation_version,
+        execution_mode: "live",
+        selection_reason: "requested_live",
+        status: cancelled ? "cancelled" : blocked ? "blocked" : "failed",
+        outcome:
+          failureCode === "model_gateway_timeout"
+            ? "timeout"
+            : failureCode === "model_gateway_cancelled"
+              ? "cancelled"
+              : blocked
+                ? "refused"
+                : "provider_failure",
+        egress_attempted: egressAttempted,
+        egress_status:
+          blocked && !egressAttempted
+            ? "blocked"
+            : egressAttempted
+              ? "occurred"
+              : "did_not_occur",
+        usage: null,
+        budget_decision: blocked
+          ? "refused"
+          : egressAttempted
+            ? "within_budget"
+            : "not_used",
+        input_bytes_used: inputBytesUsed,
+        provider_calls_used: egressAttempted ? 1 : 0,
+        failure_code: failureCode,
+      }),
+    );
+  }
+}
+
+type GatewayLifecycleFailureCode =
+  | "model_gateway_cancelled"
+  | "model_gateway_timeout";
+
+interface GatewayInvocationLifecycle {
+  signal: AbortSignal;
+  run<T>(operation: () => T | Promise<T>): Promise<T>;
+  throwIfStopped(): void;
+  dispose(): void;
+}
+
+class GatewayLifecycleStop extends Error {
+  constructor(readonly code: GatewayLifecycleFailureCode) {
+    super("Model gateway invocation stopped.");
+    this.name = "GatewayLifecycleStop";
+  }
+}
+
+function createGatewayInvocationLifecycle(
+  externalSignal: AbortSignal,
+  timeoutMs: number,
+): GatewayInvocationLifecycle {
+  const controller = new AbortController();
+  const deadline = Date.now() + timeoutMs;
+  let stopCode: GatewayLifecycleFailureCode | null = null;
+  let resolveStop!: (code: GatewayLifecycleFailureCode) => void;
+  const stopped = new Promise<GatewayLifecycleFailureCode>((resolve) => {
+    resolveStop = resolve;
+  });
+
+  const stop = (code: GatewayLifecycleFailureCode) => {
+    if (stopCode) return;
+    stopCode = code;
+    controller.abort();
+    resolveStop(code);
+  };
+  const onExternalAbort = () => stop("model_gateway_cancelled");
+
+  externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+  if (externalSignal.aborted) onExternalAbort();
+  const timeout = setTimeout(() => stop("model_gateway_timeout"), timeoutMs);
+
+  const throwIfStopped = () => {
+    if (!stopCode && Date.now() >= deadline) {
+      stop("model_gateway_timeout");
+    }
+    if (stopCode) throw new GatewayLifecycleStop(stopCode);
+  };
+
+  return {
+    signal: controller.signal,
+    async run<T>(operation: () => T | Promise<T>): Promise<T> {
+      throwIfStopped();
+      const operationOutcome = Promise.resolve()
+        .then(operation)
+        .then(
+          (value) => ({ kind: "value" as const, value }),
+          (error: unknown) => ({ kind: "error" as const, error }),
+        );
+      const stopOutcome = stopped.then((code) => ({
+        kind: "stop" as const,
+        code,
+      }));
+      const outcome = await Promise.race([operationOutcome, stopOutcome]);
+      if (outcome.kind === "stop") throw new GatewayLifecycleStop(outcome.code);
+      throwIfStopped();
+      if (outcome.kind === "error") throw outcome.error;
+      return outcome.value;
+    },
+    throwIfStopped,
+    dispose() {
+      clearTimeout(timeout);
+      externalSignal.removeEventListener("abort", onExternalAbort);
+    },
+  };
+}
+
+function lifecycleGatewayFailure(
+  code: GatewayLifecycleFailureCode,
+  base: ReceiptBase,
+  implementation: {
+    implementation_id: string;
+    implementation_version: string;
+    execution_mode: ModelGatewayExecutionModeV01;
+    selection_reason: ModelInvocationReceiptV01["selection_reason"];
+    egress_attempted: boolean;
+    input_bytes_used: number | null;
+  },
+) {
+  return gatewayFailure(
+    code,
+    buildReceipt({
+      ...base,
+      ...implementation,
+      status: "cancelled",
+      outcome: code === "model_gateway_timeout" ? "timeout" : "cancelled",
+      egress_status: implementation.egress_attempted
+        ? "occurred"
+        : "did_not_occur",
+      usage: null,
+      budget_decision: implementation.egress_attempted
+        ? "within_budget"
+        : "not_used",
+      provider_calls_used: implementation.egress_attempted ? 1 : 0,
+      failure_code: code,
+    }),
+  );
+}
+
+function isGatewayLifecycleStop(value: unknown): value is GatewayLifecycleStop {
+  return value instanceof GatewayLifecycleStop;
 }
 
 type ReceiptBase = {
@@ -510,20 +709,15 @@ function buildReceipt(
   };
 }
 
-function normalizeFailureCode(input: {
-  error: unknown;
-  timedOut: boolean;
-  externallyCancelled: boolean;
-}): ModelGatewayFailureCodeV01 {
-  if (input.timedOut) return "model_gateway_timeout";
-  if (input.externallyCancelled) return "model_gateway_cancelled";
-  if (input.error instanceof ModelGatewayInvocationErrorV01) return input.error.code;
-  if (isModelEgressBoundaryError(input.error)) return "model_gateway_egress_refused";
-  if (input.error instanceof ModelGatewayAdapterFailureV01) {
-    if (input.error.code === "adapter_provider_rejected") {
+function normalizeFailureCode(error: unknown): ModelGatewayFailureCodeV01 {
+  if (isGatewayLifecycleStop(error)) return error.code;
+  if (error instanceof ModelGatewayInvocationErrorV01) return error.code;
+  if (isModelEgressBoundaryError(error)) return "model_gateway_egress_refused";
+  if (error instanceof ModelGatewayAdapterFailureV01) {
+    if (error.code === "adapter_provider_rejected") {
       return "model_gateway_provider_rejected";
     }
-    if (input.error.code === "adapter_response_invalid") {
+    if (error.code === "adapter_response_invalid") {
       return "model_gateway_provider_response_invalid";
     }
   }

@@ -17,6 +17,7 @@ export const MODEL_GATEWAY_FAILURE_CODES_V01 = [
   "model_gateway_egress_refused",
   "model_gateway_cancelled",
   "model_gateway_timeout",
+  "model_gateway_deterministic_failed",
   "model_gateway_provider_rejected",
   "model_gateway_provider_response_invalid",
   "model_gateway_transport_failed",
@@ -109,6 +110,7 @@ export interface ModelInvocationReceiptV01 {
   outcome:
     | "live_success"
     | "deterministic_success"
+    | "deterministic_failure"
     | "refused"
     | "provider_failure"
     | "timeout"
@@ -175,7 +177,7 @@ export interface ObserveModelAdapterSessionV01 {
 export interface ObserveModelAdapterV01 {
   implementation_id: string;
   implementation_version: string;
-  prepare(): Promise<ObserveModelAdapterSessionV01 | null>;
+  prepare(signal: AbortSignal): Promise<ObserveModelAdapterSessionV01 | null>;
 }
 
 export type ModelGatewayAdapterFailureCodeV01 =

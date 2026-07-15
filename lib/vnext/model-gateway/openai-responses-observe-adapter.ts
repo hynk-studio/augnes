@@ -69,7 +69,7 @@ export function createOpenAIResponsesObserveAdapterV01(
   return {
     implementation_id: OPENAI_RESPONSES_OBSERVE_ADAPTER_ID_V01,
     implementation_version: OPENAI_RESPONSES_OBSERVE_ADAPTER_VERSION_V01,
-    async prepare() {
+    async prepare(_signal) {
       const apiKey = optionalConfigurationText(environment.OPENAI_API_KEY);
       if (!apiKey) return null;
       const model = optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL;

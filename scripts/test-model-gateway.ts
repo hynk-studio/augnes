@@ -25,6 +25,8 @@ import {
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   isModelGatewayInvocationErrorV01,
   type ModelGatewayExecutionModeV01,
+  type ObserveModelAdapterSessionV01,
+  type ObserveModelAdapterV01,
   type ObserveModelInvocationEnvelopeV01,
 } from "../lib/vnext/model-gateway/contracts";
 import {
@@ -315,6 +317,228 @@ async function main() {
     assert.equal(preCancelledFailure.receipt?.egress_attempted, false);
     assert.equal(metrics.live_transport_calls, 1);
 
+    const scopeCancellationStarted = deferred<void>();
+    const scopeCancellationAvailability = deferred<"available">();
+    const scopeCancellationController = new AbortController();
+    const scopeCancellationResult = invokeObserveModelGatewayV01(
+      envelope(fixture, { signal: scopeCancellationController.signal }),
+      {
+        ...gatewayDependencies(liveAdapter),
+        read_root_availability() {
+          scopeCancellationStarted.resolve(undefined);
+          return scopeCancellationAvailability.promise;
+        },
+      },
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await scopeCancellationStarted.promise;
+    scopeCancellationController.abort();
+    const scopeCancellationFailure = await scopeCancellationResult;
+    assert.equal(isModelGatewayInvocationErrorV01(scopeCancellationFailure), true);
+    if (!isModelGatewayInvocationErrorV01(scopeCancellationFailure)) {
+      throw new Error("expected normalized scope cancellation failure");
+    }
+    assert.equal(scopeCancellationFailure.code, "model_gateway_cancelled");
+    assert.equal(scopeCancellationFailure.receipt?.outcome, "cancelled");
+    assert.equal(scopeCancellationFailure.receipt?.egress_attempted, false);
+    assert.equal(scopeCancellationFailure.receipt?.budget.provider_calls_used, 0);
+    assert.equal(metrics.live_transport_calls, 1);
+    scopeCancellationAvailability.resolve("available");
+
+    const scopeTimeoutStarted = deferred<void>();
+    const scopeTimeoutAvailability = deferred<"available">();
+    const scopeTimeoutFailure = await captureGatewayFailure(
+      envelope(fixture, { timeoutMs: 10 }),
+      {
+        ...gatewayDependencies(liveAdapter),
+        read_root_availability() {
+          scopeTimeoutStarted.resolve(undefined);
+          return scopeTimeoutAvailability.promise;
+        },
+      },
+    );
+    await scopeTimeoutStarted.promise;
+    assert.equal(scopeTimeoutFailure.code, "model_gateway_timeout");
+    assert.equal(scopeTimeoutFailure.receipt?.outcome, "timeout");
+    assert.equal(scopeTimeoutFailure.receipt?.egress_attempted, false);
+    assert.equal(scopeTimeoutFailure.receipt?.budget.provider_calls_used, 0);
+    assert.equal(metrics.live_transport_calls, 1);
+    scopeTimeoutAvailability.resolve("available");
+
+    let prepareCancellationInvokes = 0;
+    let prepareCancellationTransports = 0;
+    const prepareCancellationStarted = deferred<void>();
+    const prepareCancellationSession = deferred<ObserveModelAdapterSessionV01 | null>();
+    const deferredCancellationAdapter: ObserveModelAdapterV01 = {
+      implementation_id: "test.prepare_cancellation",
+      implementation_version: "test_prepare_cancellation.v0.1",
+      async prepare(signal) {
+        assert.equal(signal.aborted, false);
+        prepareCancellationStarted.resolve(undefined);
+        return prepareCancellationSession.promise;
+      },
+    };
+    const prepareCancellationController = new AbortController();
+    const prepareCancellationResult = invokeObserveModelGatewayV01(
+      envelope(fixture, { signal: prepareCancellationController.signal }),
+      gatewayDependencies(deferredCancellationAdapter),
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await prepareCancellationStarted.promise;
+    prepareCancellationController.abort();
+    const prepareCancellationFailure = await prepareCancellationResult;
+    assert.equal(isModelGatewayInvocationErrorV01(prepareCancellationFailure), true);
+    if (!isModelGatewayInvocationErrorV01(prepareCancellationFailure)) {
+      throw new Error("expected normalized prepare cancellation failure");
+    }
+    assert.equal(prepareCancellationFailure.code, "model_gateway_cancelled");
+    assert.equal(prepareCancellationFailure.receipt?.outcome, "cancelled");
+    assert.equal(prepareCancellationFailure.receipt?.egress_attempted, false);
+    assert.equal(
+      prepareCancellationFailure.receipt?.budget.provider_calls_used,
+      0,
+    );
+    prepareCancellationSession.resolve(
+      unreachableSession(() => {
+        prepareCancellationInvokes += 1;
+        prepareCancellationTransports += 1;
+      }),
+    );
+    await Promise.resolve();
+    assert.equal(prepareCancellationInvokes, 0);
+    assert.equal(prepareCancellationTransports, 0);
+
+    let prepareTimeoutInvokes = 0;
+    let prepareTimeoutTransports = 0;
+    const prepareTimeoutStarted = deferred<void>();
+    const prepareTimeoutSession = deferred<ObserveModelAdapterSessionV01 | null>();
+    const deferredTimeoutAdapter: ObserveModelAdapterV01 = {
+      implementation_id: "test.prepare_timeout",
+      implementation_version: "test_prepare_timeout.v0.1",
+      async prepare(signal) {
+        assert.equal(signal.aborted, false);
+        prepareTimeoutStarted.resolve(undefined);
+        return prepareTimeoutSession.promise;
+      },
+    };
+    const prepareTimeoutResult = invokeObserveModelGatewayV01(
+      envelope(fixture, { timeoutMs: 10 }),
+      gatewayDependencies(deferredTimeoutAdapter),
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await prepareTimeoutStarted.promise;
+    const prepareTimeoutFailure = await prepareTimeoutResult;
+    assert.equal(isModelGatewayInvocationErrorV01(prepareTimeoutFailure), true);
+    if (!isModelGatewayInvocationErrorV01(prepareTimeoutFailure)) {
+      throw new Error("expected normalized prepare timeout failure");
+    }
+    assert.equal(prepareTimeoutFailure.code, "model_gateway_timeout");
+    assert.equal(prepareTimeoutFailure.receipt?.outcome, "timeout");
+    assert.equal(prepareTimeoutFailure.receipt?.egress_attempted, false);
+    assert.equal(prepareTimeoutFailure.receipt?.budget.provider_calls_used, 0);
+    prepareTimeoutSession.resolve(
+      unreachableSession(() => {
+        prepareTimeoutInvokes += 1;
+        prepareTimeoutTransports += 1;
+      }),
+    );
+    await Promise.resolve();
+    assert.equal(prepareTimeoutInvokes, 0);
+    assert.equal(prepareTimeoutTransports, 0);
+
+    const deterministicCancellationController = new AbortController();
+    const deterministicCancellationStarted = deferred<void>();
+    const deterministicCancellationOutput = deferred<
+      ReturnType<typeof buildMockProposals>
+    >();
+    let deterministicCancellationObservedAbort = false;
+    const deterministicCancellationResult = invokeObserveModelGatewayV01(
+      envelope(fixture, {
+        mode: "deterministic",
+        signal: deterministicCancellationController.signal,
+      }),
+      {
+        adapter: liveAdapter,
+        deterministic_execute(_input, lifecycle) {
+          lifecycle.signal.addEventListener(
+            "abort",
+            () => {
+              deterministicCancellationObservedAbort = true;
+            },
+            { once: true },
+          );
+          deterministicCancellationStarted.resolve(undefined);
+          return deterministicCancellationOutput.promise;
+        },
+      },
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await deterministicCancellationStarted.promise;
+    deterministicCancellationController.abort();
+    const deterministicCancellationFailure =
+      await deterministicCancellationResult;
+    assert.equal(
+      isModelGatewayInvocationErrorV01(deterministicCancellationFailure),
+      true,
+    );
+    if (!isModelGatewayInvocationErrorV01(deterministicCancellationFailure)) {
+      throw new Error("expected normalized deterministic cancellation failure");
+    }
+    assert.equal(
+      deterministicCancellationFailure.code,
+      "model_gateway_cancelled",
+    );
+    assert.equal(deterministicCancellationFailure.receipt?.outcome, "cancelled");
+    assert.equal(
+      deterministicCancellationFailure.receipt?.selection_reason,
+      "explicit_deterministic",
+    );
+    assert.equal(deterministicCancellationFailure.receipt?.egress_attempted, false);
+    assert.equal(
+      deterministicCancellationFailure.receipt?.budget.provider_calls_used,
+      0,
+    );
+    assert.equal(deterministicCancellationObservedAbort, true);
+    deterministicCancellationOutput.resolve([]);
+
+    const deterministicTimeoutStarted = deferred<void>();
+    const deterministicTimeoutOutput = deferred<
+      ReturnType<typeof buildMockProposals>
+    >();
+    let deterministicTimeoutObservedAbort = false;
+    const deterministicTimeoutFailure = await captureGatewayFailure(
+      envelope(fixture, { mode: "deterministic", timeoutMs: 10 }),
+      {
+        adapter: liveAdapter,
+        deterministic_execute(_input, lifecycle) {
+          lifecycle.signal.addEventListener(
+            "abort",
+            () => {
+              deterministicTimeoutObservedAbort = true;
+            },
+            { once: true },
+          );
+          deterministicTimeoutStarted.resolve(undefined);
+          return deterministicTimeoutOutput.promise;
+        },
+      },
+    );
+    await deterministicTimeoutStarted.promise;
+    assert.equal(deterministicTimeoutFailure.code, "model_gateway_timeout");
+    assert.equal(deterministicTimeoutFailure.receipt?.outcome, "timeout");
+    assert.equal(deterministicTimeoutFailure.receipt?.egress_attempted, false);
+    assert.equal(deterministicTimeoutFailure.receipt?.budget.provider_calls_used, 0);
+    assert.equal(deterministicTimeoutObservedAbort, true);
+    deterministicTimeoutOutput.resolve([]);
+
     const timeoutAdapter = createOpenAIResponsesObserveAdapterV01({
       environment: { OPENAI_API_KEY: CREDENTIAL_SENTINEL },
       transport: (request) => {
@@ -360,6 +584,73 @@ async function main() {
     assert.equal(cancellationFailure.code, "model_gateway_cancelled");
     assert.equal(cancellationFailure.receipt?.outcome, "cancelled");
     assert.equal(metrics.cancellation_transport_calls, 1);
+
+    const deterministicDatabase = openDatabase();
+    const beforeDeterministicHostile = rowCounts(deterministicDatabase);
+    deterministicDatabase.close();
+    const deterministicLogs: string[] = [];
+    const originalDeterministicConsoleError = console.error;
+    console.error = (...values: unknown[]) => {
+      deterministicLogs.push(values.map(String).join(" "));
+    };
+    let deterministicHostileResponse: Response;
+    try {
+      const deterministicHostileDependencies: ObserveModelGatewayDependenciesV01 = {
+        adapter: liveAdapter,
+        deterministic_execute() {
+          throw new Error(HOSTILE_SENTINEL);
+        },
+      };
+      const deterministicHostileFailure = await captureGatewayFailure(
+        envelope(fixture, {
+          mode: "deterministic",
+          message: `Deterministic hostile input ${HOSTILE_SENTINEL}`,
+        }),
+        deterministicHostileDependencies,
+      );
+      assert.equal(
+        deterministicHostileFailure.code,
+        "model_gateway_deterministic_failed",
+      );
+      assert.equal(
+        deterministicHostileFailure.receipt?.outcome,
+        "deterministic_failure",
+      );
+      assert.equal(deterministicHostileFailure.receipt?.egress_attempted, false);
+      assert.equal(
+        deterministicHostileFailure.receipt?.budget.provider_calls_used,
+        0,
+      );
+      assert.equal(
+        JSON.stringify(deterministicHostileFailure).includes(HOSTILE_SENTINEL),
+        false,
+      );
+      deterministicHostileResponse = await createObservePostHandlerV01({
+        gateway_dependencies: deterministicHostileDependencies,
+      })(
+        observeRequest(fixture, {
+          message: `Deterministic hostile route ${HOSTILE_SENTINEL}`,
+          execution_mode: "deterministic",
+        }),
+      );
+    } finally {
+      console.error = originalDeterministicConsoleError;
+    }
+    assert.equal(deterministicHostileResponse!.status, 500);
+    const deterministicHostileBody = await deterministicHostileResponse!.json();
+    assert.equal(
+      JSON.stringify(deterministicHostileBody).includes(HOSTILE_SENTINEL),
+      false,
+    );
+    assert.equal(Object.hasOwn(deterministicHostileBody, "compiler"), false);
+    assert.equal(Object.hasOwn(deterministicHostileBody, "proposals"), false);
+    assert.equal(deterministicLogs.join("\n").includes(HOSTILE_SENTINEL), false);
+    const databaseAfterDeterministicHostile = openDatabase();
+    assert.deepEqual(
+      rowCounts(databaseAfterDeterministicHostile),
+      beforeDeterministicHostile,
+    );
+    databaseAfterDeterministicHostile.close();
 
     const database = openDatabase();
     const beforeHostile = rowCounts(database);
@@ -749,6 +1040,27 @@ function rejectWhenAborted(signal: AbortSignal): ReturnType<OpenAIResponsesObser
       { once: true },
     );
   });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function unreachableSession(
+  onInvoke: () => void,
+): ObserveModelAdapterSessionV01 {
+  return {
+    implementation_id: "test.unreachable_session",
+    implementation_version: "test_unreachable_session.v0.1",
+    async invoke() {
+      onInvoke();
+      throw new Error("unreachable adapter session invoked");
+    },
+  };
 }
 
 function stateEntry(scope: string, value: unknown): StateEntry {

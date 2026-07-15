@@ -40,6 +40,12 @@ export type ObserveRequest = {
   execution_mode: ModelGatewayExecutionModeV01;
 };
 
+export type ObserveCompilerGatewayDependenciesV01 = Omit<
+  ObserveModelGatewayDependenciesV01,
+  "deterministic_execute"
+> &
+  Partial<Pick<ObserveModelGatewayDependenciesV01, "deterministic_execute">>;
+
 type UnknownRecord = Record<string, unknown>;
 
 const MAX_MESSAGE_LENGTH = 8_000;
@@ -138,10 +144,7 @@ export async function compileTemporalDeltaProposals({
   projectRoot?: ObserveRequest["project_root"];
   executionMode?: ModelGatewayExecutionModeV01;
   cancellationSignal: AbortSignal;
-  gatewayDependencies?: Omit<
-    ObserveModelGatewayDependenciesV01,
-    "deterministic_execute"
-  >;
+  gatewayDependencies?: ObserveCompilerGatewayDependenciesV01;
 }) {
   return invokeObserveModelGatewayV01(
     {
@@ -178,9 +181,9 @@ export async function compileTemporalDeltaProposals({
     },
     {
       ...gatewayDependencies,
-      deterministic_execute(input) {
-        return buildMockProposals(input.message, input.current_state);
-      },
+      deterministic_execute:
+        gatewayDependencies.deterministic_execute ??
+        ((input) => buildMockProposals(input.message, input.current_state)),
     },
   );
 }

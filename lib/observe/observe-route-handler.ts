@@ -13,8 +13,8 @@ import {
 import {
   compileTemporalDeltaProposals,
   validateObserveRequest,
+  type ObserveCompilerGatewayDependenciesV01,
 } from "@/lib/observe/delta-compiler";
-import type { ObserveModelGatewayDependenciesV01 } from "@/lib/vnext/model-gateway/model-gateway";
 import { isModelGatewayInvocationErrorV01 } from "@/lib/vnext/model-gateway/contracts";
 
 const COMPILER_AGENT_ID = "agent:temporal-delta-compiler";
@@ -22,10 +22,7 @@ const COMPILER_AGENT_ID = "agent:temporal-delta-compiler";
 export interface ObserveRouteDependenciesV01 {
   create_uuid?: () => string;
   now?: () => Date;
-  gateway_dependencies?: Omit<
-    ObserveModelGatewayDependenciesV01,
-    "deterministic_execute"
-  >;
+  gateway_dependencies?: ObserveCompilerGatewayDependenciesV01;
 }
 
 export function createObservePostHandlerV01(
@@ -156,6 +153,7 @@ function modelGatewayHttpStatus(code: string) {
   if (code === "model_gateway_policy_refused") return 403;
   if (code === "model_gateway_timeout") return 504;
   if (code === "model_gateway_cancelled") return 408;
+  if (code === "model_gateway_deterministic_failed") return 500;
   if (
     code === "model_gateway_invalid_envelope" ||
     code === "model_gateway_budget_refused" ||
