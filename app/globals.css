@@ -220,7 +220,7 @@
 .project-home-current-grid,
 .project-home-readiness-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 20px;
 }
 
@@ -378,6 +378,57 @@
 
 .project-home-readiness-grid h3 {
   margin: 0 0 10px;
+}
+
+.project-home-readiness-grid h4 {
+  margin: 16px 0 7px;
+  font-size: .84rem;
+}
+
+.project-home-policy-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 19px;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.4;
+}
+
+.project-control-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.project-control-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-control-button-row button {
+  min-height: 40px;
+  padding: 8px 13px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.project-control-button-row button:disabled {
+  cursor: wait;
+  opacity: .62;
+}
+
+.project-control-readonly,
+.project-control-message {
+  min-height: 1.25em;
+  margin: 0 !important;
+  font-size: .8rem;
 }
 
 .project-home-readiness-grid small,

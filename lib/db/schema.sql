@@ -4064,6 +4064,46 @@ CREATE TABLE IF NOT EXISTS vnext_active_project_selections (
     ON UPDATE RESTRICT ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS vnext_project_automation_controls (
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  control_version TEXT NOT NULL CHECK (
+    control_version = 'project_automation_control.v0.1'
+  ),
+  enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  paused INTEGER NOT NULL CHECK (paused IN (0, 1)),
+  policy_version TEXT NOT NULL CHECK (
+    policy_version = 'project_automation_policy.v0.1'
+  ),
+  policy_json TEXT NOT NULL CHECK (
+    json_valid(policy_json) AND json_type(policy_json) = 'object'
+  ),
+  revision INTEGER NOT NULL CHECK (revision > 0),
+  created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+  updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  PRIMARY KEY (workspace_id, project_id),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT,
+  CHECK (paused = 0 OR enabled = 1)
+);
+
+CREATE TABLE IF NOT EXISTS vnext_project_personal_perspective_scopes (
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  scope_version TEXT NOT NULL CHECK (
+    scope_version = 'personal_perspective_project_scope.v0.1'
+  ),
+  selection TEXT NOT NULL CHECK (selection IN ('included', 'excluded')),
+  revision INTEGER NOT NULL CHECK (revision > 0),
+  created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+  updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  PRIMARY KEY (workspace_id, project_id),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
   session_id TEXT PRIMARY KEY CHECK (
     length(trim(session_id)) > 0 AND length(session_id) <= 256

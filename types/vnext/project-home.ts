@@ -6,6 +6,12 @@ import type {
   ActiveProjectSelectionV01,
   ProjectRootAvailabilityV01,
 } from "./project-onboarding";
+import type {
+  PersonalPerspectiveProjectScopeStatusV01,
+  ProjectAutomationAdmissionStatusV01,
+  ProjectAutomationPolicySummaryV01,
+  ProjectAutomationStatusV01,
+} from "./project-controls";
 
 export const PROJECT_HOME_PROJECTION_VERSION_V01 =
   "project_home_projection.v0.1" as const;
@@ -115,9 +121,28 @@ export interface ProjectHomeRecentActivityV01 {
 
 export interface ProjectHomeAutomationSummaryV01 {
   state: ProjectHomeSectionStateV01;
-  status: "not_configured";
-  policy_summary: null;
+  status: ProjectAutomationStatusV01;
+  control_revision: number | null;
+  updated_at: string | null;
+  policy_summary: ProjectAutomationPolicySummaryV01;
+  policy_control_eligible: boolean;
+  admission_status: ProjectAutomationAdmissionStatusV01;
+  admission_reason: string;
   current_run_summary: null;
+}
+
+export interface ProjectHomePersonalPerspectiveSummaryV01 {
+  state: ProjectHomeSectionStateV01;
+  status: PersonalPerspectiveProjectScopeStatusV01;
+  scope_revision: number | null;
+  updated_at: string | null;
+  effectively_included: boolean;
+  effective_context_behavior:
+    | "excluded_fail_closed"
+    | "excluded_by_explicit_choice"
+    | "eligible_for_normal_context_selection";
+  explanation: string;
+  eligible_selected_count: number;
 }
 
 export const PROJECT_HOME_CAPABILITIES_V01 = [
@@ -153,6 +178,9 @@ export interface ProjectHomeNextMoveV01 {
     | "recover_root"
     | "review_attention"
     | "make_active"
+    | "configure_automation"
+    | "review_paused_automation"
+    | "choose_personal_perspective_scope"
     | "review_current_state"
     | "return_to_projects";
   label: string;
@@ -172,6 +200,7 @@ export interface ProjectHomeProjectionV01 {
   attention: ProjectHomePendingAttentionV01;
   recent_activity: ProjectHomeRecentActivityV01;
   automation: ProjectHomeAutomationSummaryV01;
+  personal_perspective: ProjectHomePersonalPerspectiveSummaryV01;
   capabilities: ProjectHomeCapabilitiesSummaryV01;
   next_moves: ProjectHomeNextMoveV01[];
   limits: {

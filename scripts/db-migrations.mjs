@@ -4635,6 +4635,55 @@ export function migrateVNextProjectLifecycleV01(db) {
   };
 }
 
+export const vNextProjectControlSchemaSqlV01 = `
+  CREATE TABLE IF NOT EXISTS vnext_project_automation_controls (
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    control_version TEXT NOT NULL CHECK (control_version = 'project_automation_control.v0.1'),
+    enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    paused INTEGER NOT NULL CHECK (paused IN (0, 1)),
+    policy_version TEXT NOT NULL CHECK (policy_version = 'project_automation_policy.v0.1'),
+    policy_json TEXT NOT NULL CHECK (json_valid(policy_json) AND json_type(policy_json) = 'object'),
+    revision INTEGER NOT NULL CHECK (revision > 0),
+    created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    PRIMARY KEY (workspace_id, project_id),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CHECK (paused = 0 OR enabled = 1)
+  );
+  CREATE TABLE IF NOT EXISTS vnext_project_personal_perspective_scopes (
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    scope_version TEXT NOT NULL CHECK (scope_version = 'personal_perspective_project_scope.v0.1'),
+    selection TEXT NOT NULL CHECK (selection IN ('included', 'excluded')),
+    revision INTEGER NOT NULL CHECK (revision > 0),
+    created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    PRIMARY KEY (workspace_id, project_id),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+`;
+
+export function migrateVNextProjectControlsV01(db) {
+  const names = [
+    "vnext_project_automation_controls",
+    "vnext_project_personal_perspective_scopes",
+  ];
+  const before = new Set(
+    db
+      .prepare(
+        `SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (?, ?)`,
+      )
+      .all(...names)
+      .map((row) => row.key),
+  );
+  db.exec(vNextProjectControlSchemaSqlV01);
+  return {
+    created_tables: names.filter((name) => !before.has(`table:${name}`)),
+    created_indexes: [],
+  };
+}
+
 export const vNextDurableSemanticStoreSchemaSqlV01 = `
   CREATE TABLE IF NOT EXISTS vnext_core_records (
     record_kind TEXT NOT NULL CHECK (record_kind IN (

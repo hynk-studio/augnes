@@ -412,6 +412,8 @@ const snapshotTables = [
   "vnext_project_external_ref_bindings",
   "vnext_recent_projects",
   "vnext_active_project_selections",
+  "vnext_project_automation_controls",
+  "vnext_project_personal_perspective_scopes",
   "vnext_core_records",
   "vnext_semantic_state_entries",
   "vnext_semantic_target_heads",
@@ -484,6 +486,9 @@ async function main() {
     assert.equal(emptyHome.attention.state.status, "empty");
     assert.equal(emptyHome.recent_activity.state.status, "empty");
     assert.equal(emptyHome.automation.status, "not_configured");
+    assert.equal(emptyHome.automation.admission_status, "not_configured");
+    assert.equal(emptyHome.personal_perspective.status, "not_configured");
+    assert.equal(emptyHome.personal_perspective.effectively_included, false);
     assert.equal(emptyHome.capabilities.items.length, 5);
     assert(emptyHome.capabilities.items.every((item) => item.status === "unavailable"));
     assert(emptyHome.next_moves.length > 0 && emptyHome.next_moves.length <= 3);
@@ -1077,6 +1082,7 @@ async function main() {
       pending_attention_filtered_and_bounded: true,
       meaningful_activity_filtered_and_bounded: true,
       automation_not_configured: true,
+      personal_perspective_not_configured_and_excluded: true,
       capability_matrix_local_only: true,
       capability_secret_values_exposed: 0,
       next_moves_deterministic_and_bounded: true,

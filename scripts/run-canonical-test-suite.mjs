@@ -45,6 +45,10 @@ const suites = {
   ],
   integration: [
     {
+      label: "project automation, Personal Perspective scope, admission, CAS, and isolation",
+      ...rootNode("scripts/test-vnext-project-controls.ts"),
+    },
+    {
       label: "Minimum Project Home projection, lineage, isolation, and read-only routing",
       ...rootNode("scripts/test-vnext-project-home.ts"),
     },

@@ -110,6 +110,22 @@ const result = {
   minimum_project_home_narrow_viewport_no_overflow: false,
   minimum_project_home_unknown_project_status: null,
   minimum_project_home_unknown_project_safe_not_found: false,
+  project_automation_default_not_configured: false,
+  project_automation_enabled: false,
+  project_automation_paused: false,
+  project_automation_resumed: false,
+  project_automation_policy_summary_visible: false,
+  project_automation_stale_conflict_visible: false,
+  project_automation_restart_persisted: false,
+  personal_perspective_default_excluded: false,
+  personal_perspective_included: false,
+  personal_perspective_project_b_excluded: false,
+  project_controls_two_project_isolation: false,
+  project_controls_restart_persisted: false,
+  control_mutation_grants_created: null,
+  control_mutation_runs_created: null,
+  control_mutation_semantic_rows_created: null,
+  control_mutation_personal_content_created: null,
   overview_compatibility_reachable: false,
   proposal_list_document_status: null,
   proposal_detail_document_status: null,
@@ -355,7 +371,8 @@ async function main() {
       perspective_empty: document.body.textContent.includes('No canonical project-scoped Perspective or selected working projection exists yet.'),
       attention_empty: document.body.textContent.includes('No project-scoped decisions currently need attention.'),
       activity_empty: document.body.textContent.includes('No meaningful project activity has been recorded yet.'),
-      automation_not_configured: document.body.textContent.includes('Automation has not been configured for this project.'),
+      automation_not_configured: document.body.textContent.includes('Project automation is not configured.'),
+      personal_perspective_not_configured: document.body.textContent.includes('No project-specific choice has been made. Personal Perspective is excluded by default.'),
       capability_count: document.querySelectorAll('.project-home-capabilities > li').length,
       next_move_count: document.querySelectorAll('.project-home-next-moves > li').length,
       active: document.querySelector('[data-project-home-active="true"]') !== null,
@@ -370,14 +387,116 @@ async function main() {
       attention_empty: true,
       activity_empty: true,
       automation_not_configured: true,
+      personal_perspective_not_configured: true,
       capability_count: 5,
-      next_move_count: 1,
+      next_move_count: 3,
       active: true,
       operator_proposal_leaked: false,
       operator_packet_leaked: false,
     });
     result.minimum_project_home_empty_state = true;
     result.minimum_project_home_project_isolation = true;
+    result.project_automation_default_not_configured = true;
+    result.personal_perspective_default_excluded = true;
+
+    await waitForCondition(
+      `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      "hydrated project controls",
+    );
+
+    const controlAuthorityBaseline = readControlAuthorityCounts();
+    const enableResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Enable');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(enableResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/project-controls" &&
+            entry.type === "Fetch",
+        ),
+      "project automation enable response",
+    );
+    const enableResponse = responses
+      .slice(enableResponseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/project-controls" &&
+          entry.type === "Fetch",
+      );
+    assert.equal(enableResponse?.status, 200);
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Pause')`,
+      "enabled project automation",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Admission grant required')`,
+      ),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('Bounded project automation') && document.body.textContent.includes('One automated run at a time') && document.body.textContent.includes('No automatic retry') && document.body.textContent.includes('Review required before semantic change') && document.body.textContent.includes('External actions not authorized') && document.body.textContent.includes('No scheduler connected')`,
+      ),
+      true,
+    );
+    result.project_automation_enabled = true;
+    result.project_automation_policy_summary_visible = true;
+
+    const firstProjectId = decodeURIComponent(destination.split("/").at(-1));
+    const enabledSnapshot = readProjectControlState(firstProjectId);
+    assert.equal(enabledSnapshot.automation?.revision, 1);
+    const directPause = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/project-controls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'pause_automation',
+          project_id: ${JSON.stringify(firstProjectId)},
+          expected_active_project_id: ${JSON.stringify(enabledSnapshot.active.project_id)},
+          expected_active_selection_revision: ${JSON.stringify(enabledSnapshot.active.selection_revision)},
+          expected_control_revision: ${JSON.stringify(enabledSnapshot.automation.revision)}
+        })
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(directPause.status, 200);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Pause');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Automation settings changed in another view. Refresh and try again.')`,
+      "visible stale automation conflict",
+    );
+    result.project_automation_stale_conflict_visible = true;
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"]') !== null && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume')`,
+      "paused automation after stale-page refresh",
+    );
+    result.project_automation_paused = true;
+
+    const pausedDatabase = new Database(databasePath, { readonly: true, fileMustExist: true });
+    const pausedRefreshSnapshot = databaseSnapshot(pausedDatabase);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.body.textContent.includes('Project automation is paused for new policy-triggered work.')`,
+      "paused automation refresh persistence",
+    );
+    assert.deepEqual(databaseSnapshot(pausedDatabase), pausedRefreshSnapshot);
+    pausedDatabase.close();
 
     const expiredContextMarker = "BROWSER EXPIRED SELECTED WORKING CONTEXT";
     seedExpiredProjectHomePacket({
@@ -424,7 +543,52 @@ async function main() {
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "active Project Home after restart");
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume')`,
+      ),
+      true,
+    );
+    result.project_automation_restart_persisted = true;
     result.minimum_project_home_restart_root_resolution = true;
+
+    await waitForCondition(
+      `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      "hydrated project controls after restart",
+    );
+
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Resume');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Control layer eligible') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Pause')`,
+      "resumed project automation",
+    );
+    result.project_automation_resumed = true;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Include Personal Perspective');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Exclude Personal Perspective')`,
+      "included Personal Perspective scope",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `!document.body.textContent.includes('Private fixture') && document.body.textContent.includes('Eligible selected material 0')`,
+      ),
+      true,
+    );
+    result.personal_perspective_included = true;
     const recentAfterRestart = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/projects');
       return await response.json();
@@ -468,6 +632,29 @@ async function main() {
     await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.body.textContent.includes('Browser Second Project')`, "second active Project Home");
     const secondDestination = await evaluateString("location.pathname");
     assert.notEqual(secondDestination, destination);
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('Project automation is not configured.') && document.body.textContent.includes('No project-specific choice has been made. Personal Perspective is excluded by default.')`,
+      ),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      "hydrated second-project controls",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const buttons = Array.from(document.querySelectorAll('button')).filter((candidate) => candidate.textContent?.trim() === 'Exclude Personal Perspective');
+        buttons[0]?.click();
+        return buttons.length > 0;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.body.textContent.includes("Personal Perspective is explicitly excluded from this project's context selection.") && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Include Personal Perspective')`,
+      "second-project explicit Personal Perspective exclusion",
+    );
+    result.personal_perspective_project_b_excluded = true;
     const activeBeforeDeepLink = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/projects');
       return await response.json();
@@ -478,6 +665,12 @@ async function main() {
     await navigate(`${appOrigin}${destination}`);
     await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="false"]') !== null`, "non-active first-project deep link");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes('This is not the active project')`), true);
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && document.body.textContent.includes('Make this project active before changing its controls.')`,
+      ),
+      true,
+    );
     const activeAfterDeepLink = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/projects');
       return await response.json();
@@ -501,6 +694,52 @@ async function main() {
     assert.equal(activationResponse?.status, 200);
     await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.body.textContent.includes('Browser Onboarding Project')`, "explicit first-project activation");
     result.minimum_project_home_explicit_activation = true;
+    await waitForCondition(
+      `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      "hydrated first-project controls after activation",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
+      ),
+      true,
+    );
+    const secondProjectId = decodeURIComponent(secondDestination.split("/").at(-1));
+    const firstControlState = readProjectControlState(firstProjectId);
+    const secondControlState = readProjectControlState(secondProjectId);
+    assert.equal(firstControlState.automation?.enabled, 1);
+    assert.equal(firstControlState.automation?.paused, 0);
+    assert.equal(firstControlState.personal_perspective?.selection, "included");
+    assert.equal(secondControlState.automation, null);
+    assert.equal(secondControlState.personal_perspective?.selection, "excluded");
+    result.project_controls_two_project_isolation = true;
+
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    startDevServer({
+      ...runtimeEnvironment,
+      AUGNES_TEST_FOLDER_PICKER_PATH: onboardingFolderB,
+    });
+    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(destination)} && document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
+      "project controls after final restart",
+    );
+    result.project_controls_restart_persisted = true;
+    const controlAuthorityAfter = readControlAuthorityCounts();
+    result.control_mutation_grants_created =
+      controlAuthorityAfter.grants - controlAuthorityBaseline.grants;
+    result.control_mutation_runs_created =
+      controlAuthorityAfter.runs - controlAuthorityBaseline.runs;
+    result.control_mutation_semantic_rows_created =
+      controlAuthorityAfter.semantic_rows - controlAuthorityBaseline.semantic_rows;
+    result.control_mutation_personal_content_created =
+      controlAuthorityAfter.personal_content - controlAuthorityBaseline.personal_content;
+    assert.equal(result.control_mutation_grants_created, 0);
+    assert.equal(result.control_mutation_runs_created, 0);
+    assert.equal(result.control_mutation_semantic_rows_created, 0);
+    assert.equal(result.control_mutation_personal_content_created, 0);
     const unknownResponseStart = responses.length;
     await navigate(`${appOrigin}/projects/project%3Aunknown-project-home`);
     await waitForHostCondition(
@@ -525,6 +764,7 @@ async function main() {
     assert.equal(activeAfterUnknown.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Onboarding Project");
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
     record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
+    record("project_controls_enable_pause_resume_scope_restart_conflict_and_isolation");
   });
 
   await runPhase("locked_workbench", async () => {
@@ -801,6 +1041,9 @@ async function main() {
           entry.path === "/api/vnext/projects" &&
           /409/i.test(entry.text)) ||
         (entry.phase === "folder_onboarding" &&
+          entry.path === "/api/vnext/project-controls" &&
+          /409/i.test(entry.text)) ||
+        (entry.phase === "folder_onboarding" &&
           entry.path?.startsWith("/_next/") &&
           entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
         (entry.phase === "folder_onboarding" &&
@@ -839,6 +1082,10 @@ async function main() {
       !(
         request.phase === "folder_onboarding" &&
         request.path === "/api/vnext/projects"
+      ) &&
+      !(
+        request.phase === "folder_onboarding" &&
+        request.path === "/api/vnext/project-controls"
       ),
   );
   assert.deepEqual(postBootstrapMutations, []);
@@ -1413,6 +1660,73 @@ function seedExpiredProjectHomePacket({ projectId, marker }) {
     });
   } finally {
     writableDatabase.close();
+  }
+}
+
+function readProjectControlState(projectId) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const project = readableDatabase
+      .prepare(
+        "SELECT workspace_id, project_id FROM vnext_project_identities WHERE project_id = ?",
+      )
+      .get(projectId);
+    assert(project, "Browser project-control fixture project must exist.");
+    return {
+      active: readableDatabase
+        .prepare(
+          "SELECT project_id, selection_revision FROM vnext_active_project_selections WHERE workspace_id = ?",
+        )
+        .get(project.workspace_id),
+      automation:
+        readableDatabase
+          .prepare(
+            "SELECT enabled, paused, revision FROM vnext_project_automation_controls WHERE workspace_id = ? AND project_id = ?",
+          )
+          .get(project.workspace_id, project.project_id) ?? null,
+      personal_perspective:
+        readableDatabase
+          .prepare(
+            "SELECT selection, revision FROM vnext_project_personal_perspective_scopes WHERE workspace_id = ? AND project_id = ?",
+          )
+          .get(project.workspace_id, project.project_id) ?? null,
+    };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
+function readControlAuthorityCounts() {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const count = (table, where = "") => {
+      const exists = readableDatabase
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        )
+        .get(table);
+      if (!exists) return 0;
+      return Number(
+        readableDatabase
+          .prepare(`SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)} ${where}`)
+          .get().count,
+      );
+    };
+    return {
+      grants: count("autonomy_delegation_grants"),
+      runs: count("vnext_core_records", "WHERE record_kind = 'run_receipt'") +
+        count("autonomy_runs"),
+      semantic_rows: count("vnext_semantic_state_entries"),
+      personal_content: count("perspective_memory_items"),
+    };
+  } finally {
+    readableDatabase.close();
   }
 }
 
