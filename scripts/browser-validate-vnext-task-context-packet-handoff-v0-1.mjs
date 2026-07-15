@@ -1047,6 +1047,11 @@ async function main() {
           entry.path?.startsWith("/_next/") &&
           entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
         (entry.phase === "folder_onboarding" &&
+          /^\/_next\/static\/webpack\/webpack\.[a-f0-9]+\.hot-update\.js$/.test(
+            entry.path ?? "",
+          ) &&
+          entry.text.includes("ERR_CONNECTION_REFUSED")) ||
+        (entry.phase === "folder_onboarding" &&
           entry.path?.endsWith("/next/dist/client/dev/hot-reloader/app/web-socket.js") &&
           entry.text.includes("/_next/webpack-hmr") &&
           entry.text.includes("ERR_CONNECTION_REFUSED"))
