@@ -120,13 +120,40 @@ export const StateBriefSchema = z
   })
   .passthrough();
 
+export const ModelInvocationReceiptSchema = z
+  .object({
+    receipt_version: z.literal("model_invocation_receipt.v0.1"),
+    gateway_version: z.literal("model_gateway.v0.1"),
+    invocation_id: z.string(),
+    workspace_id: z.string(),
+    project_id: z.string(),
+    purpose: z.literal("observe_delta_compile"),
+    implementation_id: z.string(),
+    implementation_version: z.string(),
+    requested_mode: z.enum(["live", "deterministic"]),
+    execution_mode: z.enum(["live", "deterministic"]),
+    status: z.enum(["completed", "blocked", "failed", "cancelled"]),
+    outcome: z.string(),
+    egress_attempted: z.boolean(),
+    usage: z.record(z.unknown()).nullable(),
+    failure_code: z.string().nullable(),
+    provenance_refs: z.array(z.string()),
+    raw_prompt_persisted: z.literal(false),
+    raw_response_persisted: z.literal(false),
+    hidden_reasoning_persisted: z.literal(false),
+  })
+  .passthrough();
+
 export const ObserveResultSchema = z
   .object({
+    workspace_id: z.string(),
+    project_id: z.string(),
     scope: z.string(),
     session_id: z.string(),
     message_id: z.string(),
     compiler: z.string(),
     proposals: z.array(StateRuntimeProposalSchema),
+    model_invocation_receipt: ModelInvocationReceiptSchema,
   })
   .passthrough();
 
@@ -1243,6 +1270,18 @@ export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
   message: string;
 }
+export interface StateRuntimeObserveInput {
+  workspaceId: string;
+  projectId: string;
+  expectedActiveProjectId: string;
+  expectedActiveSelectionRevision: number;
+  message: string;
+  projectRoot?: {
+    pathFlavor: "posix" | "win32";
+    normalizedPath: string;
+  };
+  executionMode?: "live" | "deterministic";
+}
 
 export interface StateRuntimeEvidencePackInput {
   scope: StateRuntimeScope;
@@ -1345,7 +1384,7 @@ export interface StateRuntimeBridgeAdapter {
   getVerificationEvidenceRecords(
     input: StateRuntimeVerificationEvidenceRecordsInput
   ): Promise<VerificationEvidenceRecordsResult>;
-  observe(input: StateRuntimeMessageInput): Promise<ObserveResult>;
+  observe(input: StateRuntimeObserveInput): Promise<ObserveResult>;
   plan(input: StateRuntimeMessageInput): Promise<PlanResult>;
   recordActionResult(input: StateRuntimeActionResultInput): Promise<ActionRecordResult>;
   listPendingProposals(scope: StateRuntimeScope): Promise<StateRuntimeProposal[]>;

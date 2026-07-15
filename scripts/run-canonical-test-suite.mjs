@@ -100,6 +100,10 @@ const suites = {
       ...rootNode("scripts/test-bounded-model-egress.ts"),
     },
     {
+      label: "project-scoped Model Gateway and Observe transport authority",
+      ...rootNode("scripts/test-model-gateway.ts"),
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },

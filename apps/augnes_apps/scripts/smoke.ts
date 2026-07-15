@@ -141,7 +141,14 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
-          augnes_observe: { message: 'Record the current bridge smoke context.' },
+          augnes_observe: {
+            workspaceId: 'workspace:11111111-1111-4111-8111-111111111111',
+            projectId: 'project:22222222-2222-4222-8222-222222222222',
+            expectedActiveProjectId: 'project:22222222-2222-4222-8222-222222222222',
+            expectedActiveSelectionRevision: 1,
+            executionMode: 'deterministic',
+            message: 'Record the current bridge smoke context.',
+          },
           augnes_plan: { message: 'What should happen next?' },
           augnes_record_action_result: {
             sourceAgentId: 'codex-smoke',

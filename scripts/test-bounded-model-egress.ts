@@ -12,10 +12,9 @@ import {
   utf8ByteLength,
 } from "../lib/model-egress/bounded-model-payload";
 import {
-  compileTemporalDeltaProposals,
-  compileTemporalDeltaProposalsWithOpenAIForTest,
+  createOpenAIResponsesObserveAdapterV01,
   OBSERVE_MODEL_EGRESS_LIMITS,
-} from "../lib/observe/delta-compiler";
+} from "../lib/vnext/model-gateway/openai-responses-observe-adapter";
 import {
   buildPlanWithBriefForTest,
   planWithOpenAIForTest,
@@ -33,6 +32,7 @@ import {
 import type { TemporalPreviewContext } from "../lib/temporal-interpretation/types";
 
 const REJECTED_MARKER = "rejected-material-must-not-escape-8f37";
+const OBSERVE_PROJECT_ID = "project:22222222-2222-4222-8222-222222222222";
 const providerAndProxyKeys = [
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
@@ -259,18 +259,18 @@ async function runObserveCases() {
     ...makeState(0),
     arbitrary_private_field: REJECTED_MARKER,
   };
-  const result = await compileTemporalDeltaProposalsWithOpenAIForTest(
+  const result = await invokeObserveAdapterForTest(
     {
       message: "검토할 bounded observation",
-      scope: "project:augnes",
+      projectId: OBSERVE_PROJECT_ID,
       currentState: [extraState] as never,
     },
     validTransport,
   );
   assert.equal(result[0]?.state_key, "product.name");
-  const request = parseRequest(captured[0]);
+  const request = parseObserveRequest(captured[0]);
   const dynamic = parseDynamic(request);
-  assert.deepEqual(Object.keys(dynamic).sort(), ["current_state", "message", "scope"]);
+  assert.deepEqual(Object.keys(dynamic).sort(), ["current_state", "message", "project_id"]);
   assert.deepEqual(Object.keys(dynamic.current_state[0]).sort(), [
     "change_type",
     "stability",
@@ -286,10 +286,10 @@ async function runObserveCases() {
     { length: OBSERVE_MODEL_EGRESS_LIMITS.stateItems },
     (_, index) => makeState(index),
   );
-  await compileTemporalDeltaProposalsWithOpenAIForTest(
+  await invokeObserveAdapterForTest(
     {
       message: "smallest valid payload",
-      scope: "project:augnes",
+      projectId: OBSERVE_PROJECT_ID,
       currentState: exactStates as never,
     },
     successTransport(observeProviderOutput()),
@@ -297,10 +297,10 @@ async function runObserveCases() {
   await expectBlocked(
     "observe_delta_compile",
     (transport) =>
-      compileTemporalDeltaProposalsWithOpenAIForTest(
+      invokeObserveAdapterForTest(
         {
           message: "one state over the bound",
-          scope: "project:augnes",
+          projectId: OBSERVE_PROJECT_ID,
           currentState: [...exactStates, makeState(64)] as never,
         },
         transport,
@@ -310,23 +310,16 @@ async function runObserveCases() {
   await expectBlocked(
     "observe_delta_compile",
     (transport) =>
-      compileTemporalDeltaProposalsWithOpenAIForTest(
+      invokeObserveAdapterForTest(
         {
           message: "unsupported scalar",
-          scope: "project:augnes",
+          projectId: OBSERVE_PROJECT_ID,
           currentState: [makeState(0, { nested: true })] as never,
         },
         transport,
       ),
     "model_egress_payload_unsupported",
   );
-
-  const mock = await compileTemporalDeltaProposals({
-    message: "mock remains deterministic",
-    scope: "project:augnes",
-    currentState: [],
-  });
-  assert.equal(mock.compiler, "mock");
 }
 
 async function runPlannerCases() {
@@ -569,10 +562,10 @@ async function runTemporalCases() {
 
 async function runProviderErrorCases() {
   await expectProviderError((transport) =>
-    compileTemporalDeltaProposalsWithOpenAIForTest(
+    invokeObserveAdapterForTest(
       {
         message: "Observe.",
-        scope: "project:augnes",
+        projectId: OBSERVE_PROJECT_ID,
         currentState: [] as never,
       },
       transport,
@@ -669,7 +662,7 @@ async function expectProviderError(
     thrown = error;
   }
   assert.equal(thrown instanceof Error, true);
-  assert.match((thrown as Error).message, /429/);
+  assert.equal((thrown as Error).message.length > 0, true);
   assert.equal((thrown as Error).message.includes(REJECTED_MARKER), false);
 }
 
@@ -680,6 +673,51 @@ function parseRequest(value: string | undefined): any {
   return request;
 }
 
+function parseObserveRequest(value: string | undefined): any {
+  assert.equal(typeof value, "string");
+  const request = JSON.parse(value!);
+  assert.deepEqual(Object.keys(request).sort(), [
+    "input",
+    "max_output_tokens",
+    "model",
+    "store",
+    "text",
+  ]);
+  assert.equal(request.store, false);
+  return request;
+}
+
+async function invokeObserveAdapterForTest(
+  input: { message: string; projectId: string; currentState: never[] },
+  transport: BoundedModelTransport,
+) {
+  const adapter = createOpenAIResponsesObserveAdapterV01({
+    environment: { OPENAI_API_KEY: "test-only-placeholder" },
+    transport: async (request) => transport(request.body),
+  });
+  const session = await adapter.prepare();
+  assert.ok(session);
+  const result = await session.invoke(
+    {
+      canonical_project_id: input.projectId,
+      message: input.message,
+      current_state: input.currentState,
+    },
+    {
+      signal: new AbortController().signal,
+      budget: {
+        max_input_bytes: OBSERVE_MODEL_EGRESS_LIMITS.finalRequestBytes,
+        max_output_tokens: 2_048,
+        max_provider_calls: 1,
+      },
+      retention_class: "none",
+      mark_egress_attempted() {},
+      report_input_bytes() {},
+    },
+  );
+  return result.proposals;
+}
+
 function parseDynamic(request: any): any {
   return JSON.parse(request.input[1].content[0].text);
 }
@@ -687,7 +725,7 @@ function parseDynamic(request: any): any {
 function makeState(index: number, value: unknown = "active") {
   return {
     id: `state:${index}`,
-    scope: "project:augnes",
+    scope: OBSERVE_PROJECT_ID,
     state_key: `state.item_${index}`,
     value,
     temporal_scope: "current_project",

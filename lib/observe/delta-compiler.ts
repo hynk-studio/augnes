@@ -1,88 +1,52 @@
 import type { StateEntry, StateValue } from "@/lib/db";
 import {
-  type BoundedModelTransport,
-  refuseModelEgress,
-  readModelEgressArray,
-  readModelEgressField,
-  requireModelEgressRecord,
-  requireModelEgressText,
-  serializeModelEgressJson,
-} from "@/lib/model-egress/bounded-model-payload";
+  CHANGE_TYPES,
+  OPERATIONS,
+  STABILITIES,
+  TEMPORAL_SCOPES,
+  validateCompilerOutput,
+  type ValidatedProposal,
+} from "@/lib/observe/proposal-contract";
+import {
+  invokeObserveModelGatewayV01,
+  type ObserveModelGatewayDependenciesV01,
+} from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+  OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+  type ModelGatewayExecutionModeV01,
+} from "@/lib/vnext/model-gateway/contracts";
 
-export const TEMPORAL_SCOPES = [
-  "current_session",
-  "current_task",
-  "current_project",
-  "until_deadline",
-  "future_phase",
-  "historical_note",
-  "global_preference",
-] as const;
-
-export const STABILITIES = [
-  "temporary",
-  "tentative",
-  "active",
-  "stable",
-  "deprecated",
-  "completed",
-] as const;
-
-export const CHANGE_TYPES = [
-  "new_state",
-  "refinement",
-  "override",
-  "reversal",
-  "completion",
-  "deprecation",
-  "future_intent",
-] as const;
-
-export const OPERATIONS = [
-  "set",
-  "update",
-  "deprecate",
-  "complete",
-  "supersede",
-] as const;
-
-export type ObserveRequest = {
-  scope: string;
-  message: string;
-  session_id?: string;
+export {
+  CHANGE_TYPES,
+  OPERATIONS,
+  STABILITIES,
+  TEMPORAL_SCOPES,
+  validateCompilerOutput,
+  type ValidatedProposal,
 };
 
-export type ValidatedProposal = {
-  state_key: string;
-  before_value: StateValue;
-  after_value: StateValue;
-  operation: (typeof OPERATIONS)[number];
-  temporal_scope: (typeof TEMPORAL_SCOPES)[number];
-  valid_from: string | null;
-  valid_until: string | null;
-  stability: (typeof STABILITIES)[number];
-  change_type: (typeof CHANGE_TYPES)[number];
-  reason: string;
+export type ObserveRequest = {
+  workspace_id: string;
+  project_id: string;
+  expected_active_project_id: string;
+  expected_active_selection_revision: number;
+  message: string;
+  session_id?: string;
+  project_root?: {
+    path_flavor: "posix" | "win32";
+    normalized_path: string;
+  };
+  execution_mode: ModelGatewayExecutionModeV01;
 };
 
 type UnknownRecord = Record<string, unknown>;
 
-const DEFAULT_SCOPE = "project:augnes";
-const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_MESSAGE_LENGTH = 8_000;
-const STATE_VALUE_TYPES = new Set(["string", "number", "boolean"]);
-const OBSERVE_EGRESS_PURPOSE = "observe_delta_compile" as const;
-
-export const OBSERVE_MODEL_EGRESS_LIMITS = Object.freeze({
-  messageCharacters: MAX_MESSAGE_LENGTH,
-  messageBytes: 32_768,
-  stateItems: 64,
-  sourceItemBytes: 4_096,
-  dynamicBytes: 65_536,
-  finalRequestBytes: 98_304,
-});
-
-export type ObserveModelTransport = BoundedModelTransport;
+const CANONICAL_WORKSPACE_PATTERN =
+  /^workspace:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CANONICAL_PROJECT_PATTERN =
+  /^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function validateObserveRequest(body: unknown): ObserveRequest {
   if (!isRecord(body)) {
@@ -93,15 +57,32 @@ export function validateObserveRequest(body: unknown): ObserveRequest {
   if (typeof rawMessage !== "string" || rawMessage.trim().length === 0) {
     throw new Error("message is required.");
   }
-
   const message = rawMessage.trim();
   if (message.length > MAX_MESSAGE_LENGTH) {
     throw new Error(`message must be ${MAX_MESSAGE_LENGTH} characters or fewer.`);
   }
 
-  const scope = body.scope === undefined ? DEFAULT_SCOPE : body.scope;
-  if (typeof scope !== "string" || !isValidScope(scope)) {
-    throw new Error("scope must be a string like project:augnes.");
+  const workspaceId = requireCanonicalId(
+    body.workspace_id,
+    CANONICAL_WORKSPACE_PATTERN,
+    "workspace_id",
+  );
+  const projectId = requireCanonicalId(
+    body.project_id,
+    CANONICAL_PROJECT_PATTERN,
+    "project_id",
+  );
+  const expectedActiveProjectId = requireCanonicalId(
+    body.expected_active_project_id,
+    CANONICAL_PROJECT_PATTERN,
+    "expected_active_project_id",
+  );
+  if (
+    typeof body.expected_active_selection_revision !== "number" ||
+    !Number.isSafeInteger(body.expected_active_selection_revision) ||
+    body.expected_active_selection_revision < 1
+  ) {
+    throw new Error("expected_active_selection_revision is required.");
   }
 
   const sessionId = body.session_id;
@@ -112,68 +93,113 @@ export function validateObserveRequest(body: unknown): ObserveRequest {
     throw new Error("session_id must be a safe identifier string when provided.");
   }
 
+  const executionMode = body.execution_mode ?? "live";
+  if (executionMode !== "live" && executionMode !== "deterministic") {
+    throw new Error("execution_mode is unsupported.");
+  }
+
   return {
-    scope,
+    workspace_id: workspaceId,
+    project_id: projectId,
+    expected_active_project_id: expectedActiveProjectId,
+    expected_active_selection_revision:
+      body.expected_active_selection_revision,
     message,
-    session_id: sessionId,
+    ...(sessionId ? { session_id: sessionId } : {}),
+    ...(body.project_root !== undefined
+      ? { project_root: validateProjectRoot(body.project_root) }
+      : {}),
+    execution_mode: executionMode,
   };
 }
 
 export async function compileTemporalDeltaProposals({
+  invocationId,
+  workspaceId,
+  projectId,
+  expectedActiveProjectId,
+  expectedActiveSelectionRevision,
   message,
-  scope,
   currentState,
+  provenanceRefs,
+  projectRoot,
+  executionMode = "live",
+  cancellationSignal,
+  gatewayDependencies = {},
 }: {
+  invocationId: string;
+  workspaceId: string;
+  projectId: string;
+  expectedActiveProjectId: string;
+  expectedActiveSelectionRevision: number;
   message: string;
-  scope: string;
   currentState: StateEntry[];
+  provenanceRefs: string[];
+  projectRoot?: ObserveRequest["project_root"];
+  executionMode?: ModelGatewayExecutionModeV01;
+  cancellationSignal: AbortSignal;
+  gatewayDependencies?: Omit<
+    ObserveModelGatewayDependenciesV01,
+    "deterministic_execute"
+  >;
 }) {
-  if (!process.env.OPENAI_API_KEY) {
-    return {
-      compiler: "mock" as const,
-      proposals: buildMockProposals(message, currentState),
-    };
-  }
-
-  return {
-    compiler: "openai" as const,
-    proposals: await compileWithOpenAI({ message, scope, currentState }),
-  };
+  return invokeObserveModelGatewayV01(
+    {
+      envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+      invocation_id: invocationId,
+      workspace_id: workspaceId,
+      project_id: projectId,
+      purpose: OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+      data_classification: "private",
+      provenance_refs: provenanceRefs,
+      privacy: {
+        provider_egress: executionMode === "live" ? "allow" : "deny",
+        retention_class: "none",
+      },
+      budget: {
+        max_input_bytes: 98_304,
+        max_output_tokens: 2_048,
+        max_provider_calls: executionMode === "live" ? 1 : 0,
+      },
+      timeout_ms: 30_000,
+      cancellation: { signal: cancellationSignal },
+      execution_mode: executionMode,
+      policy: {
+        invocation_origin: "interactive",
+        expected_active_project_id: expectedActiveProjectId,
+        expected_active_selection_revision: expectedActiveSelectionRevision,
+      },
+      ...(projectRoot ? { project_root: projectRoot } : {}),
+      input: {
+        input_kind: OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+        message,
+        current_state: currentState,
+      },
+    },
+    {
+      ...gatewayDependencies,
+      deterministic_execute(input) {
+        return buildMockProposals(input.message, input.current_state);
+      },
+    },
+  );
 }
 
-export function validateCompilerOutput(output: unknown): ValidatedProposal[] {
-  if (!isRecord(output) || !Array.isArray(output.proposals)) {
-    throw new Error("Compiler output must include a proposals array.");
-  }
-
-  if (output.proposals.length > 8) {
-    throw new Error("Compiler output must include no more than 8 proposals.");
-  }
-
-  return output.proposals.map(validateProposal);
-}
-
-function buildMockProposals(
+export function buildMockProposals(
   message: string,
   currentState: StateEntry[],
 ): ValidatedProposal[] {
   const canonicalProposals = buildCanonicalMockProposals(message, currentState);
-
-  if (canonicalProposals.length > 0) {
-    return canonicalProposals;
-  }
-
-  const stateKey = selectMockStateKey(message);
+  if (canonicalProposals.length > 0) return canonicalProposals;
 
   return [
     buildMockProposal({
-      stateKey,
+      stateKey: selectMockStateKey(message),
       afterValue: message,
       temporalScope: selectMockTemporalScope(message),
       stability: "tentative",
       currentState,
-      reason:
-        "Deterministic mock proposal because OPENAI_API_KEY is not configured.",
+      reason: "Deterministic no-model Observe proposal.",
     }),
   ];
 }
@@ -197,7 +223,6 @@ function buildCanonicalMockProposals(
       }),
     );
   }
-
   if (
     lower.includes("next.js") ||
     lower.includes("sqlite") ||
@@ -214,7 +239,6 @@ function buildCanonicalMockProposals(
       }),
     );
   }
-
   if (
     lower.includes("chatgpt app") ||
     (lower.includes("chatgpt") &&
@@ -232,7 +256,6 @@ function buildCanonicalMockProposals(
       }),
     );
   }
-
   if (lower.includes("readme")) {
     proposals.push(
       buildMockProposal({
@@ -245,7 +268,6 @@ function buildCanonicalMockProposals(
       }),
     );
   }
-
   if (lower.includes("screenshots") || message.includes("스크린샷")) {
     proposals.push(
       buildMockProposal({
@@ -258,7 +280,6 @@ function buildCanonicalMockProposals(
       }),
     );
   }
-
   if (
     lower.includes("api key") ||
     lower.includes("api keys") ||
@@ -276,7 +297,6 @@ function buildCanonicalMockProposals(
       }),
     );
   }
-
   return proposals;
 }
 
@@ -298,7 +318,6 @@ function buildMockProposal({
   changeType?: ValidatedProposal["change_type"];
 }): ValidatedProposal {
   const currentEntry = currentState.find((entry) => entry.state_key === stateKey);
-
   return {
     state_key: stateKey,
     before_value: currentEntry?.value ?? "unknown",
@@ -313,434 +332,52 @@ function buildMockProposal({
   };
 }
 
-async function compileWithOpenAI(
-  {
-    message,
-    scope,
-    currentState,
-  }: {
-    message: string;
-    scope: string;
-    currentState: StateEntry[];
-  },
-  transport: ObserveModelTransport = sendObserveModelRequest,
-) {
-  const dynamicMaterial = projectObserveModelMaterial({
-    message,
-    scope,
-    currentState,
-  });
-  const dynamicText = serializeModelEgressJson(
-    OBSERVE_EGRESS_PURPOSE,
-    dynamicMaterial,
-    OBSERVE_MODEL_EGRESS_LIMITS.dynamicBytes,
-  );
-  const requestBody = serializeModelEgressJson(
-    OBSERVE_EGRESS_PURPOSE,
-    {
-      model: requireModelEgressText(
-        OBSERVE_EGRESS_PURPOSE,
-        process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
-        128,
-      ),
-      input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: buildSystemPrompt() }],
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: dynamicText }],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "temporal_delta_proposals",
-          strict: true,
-          schema: proposalResponseSchema,
-        },
-      },
-    },
-    OBSERVE_MODEL_EGRESS_LIMITS.finalRequestBytes,
-  );
-  const response = await transport(requestBody);
-
-  if (!response.ok) {
-    throw new Error(`OpenAI observe request failed: ${response.status}`);
-  }
-
-  const payload = await response.json();
-  const text = extractOutputText(payload);
-
-  if (!text) {
-    throw new Error("OpenAI response did not include output text.");
-  }
-
-  return validateCompilerOutput(JSON.parse(text));
-}
-
-export function compileTemporalDeltaProposalsWithOpenAIForTest(
-  input: {
-    message: string;
-    scope: string;
-    currentState: StateEntry[];
-  },
-  transport: ObserveModelTransport,
-) {
-  return compileWithOpenAI(input, transport);
-}
-
-async function sendObserveModelRequest(requestBody: string) {
-  return fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: requestBody,
-  });
-}
-
-function projectObserveModelMaterial({
-  message,
-  scope,
-  currentState,
-}: {
-  message: unknown;
-  scope: unknown;
-  currentState: unknown;
-}) {
-  const projectedMessage = requireModelEgressText(
-    OBSERVE_EGRESS_PURPOSE,
-    message,
-    OBSERVE_MODEL_EGRESS_LIMITS.messageBytes,
-  );
-  if (projectedMessage.length > OBSERVE_MODEL_EGRESS_LIMITS.messageCharacters) {
-    refuseModelEgress(
-      OBSERVE_EGRESS_PURPOSE,
-      "model_egress_payload_oversize",
-      projectedMessage.length,
-      OBSERVE_MODEL_EGRESS_LIMITS.messageCharacters,
-    );
-  }
-  const projectedScope = requireModelEgressText(
-    OBSERVE_EGRESS_PURPOSE,
-    scope,
-    160,
-  );
-  if (!isValidScope(projectedScope)) {
-    refuseModelEgress(
-      OBSERVE_EGRESS_PURPOSE,
-      "model_egress_payload_malformed",
-      1,
-      0,
-    );
-  }
-  const stateItems = readModelEgressArray(
-    OBSERVE_EGRESS_PURPOSE,
-    currentState,
-    OBSERVE_MODEL_EGRESS_LIMITS.stateItems,
-  );
-
-  return {
-    scope: projectedScope,
-    message: projectedMessage,
-    current_state: stateItems.map(projectObserveStateItem),
-  };
-}
-
-function projectObserveStateItem(value: unknown) {
-  const record = requireModelEgressRecord(OBSERVE_EGRESS_PURPOSE, value);
-  const stateValue = readModelEgressField(
-    OBSERVE_EGRESS_PURPOSE,
-    record,
-    "value",
-  );
-  if (
-    stateValue !== null &&
-    (!STATE_VALUE_TYPES.has(typeof stateValue) ||
-      (typeof stateValue === "number" && !Number.isFinite(stateValue)))
-  ) {
-    refuseModelEgress(
-      OBSERVE_EGRESS_PURPOSE,
-      "model_egress_payload_unsupported",
-      1,
-      0,
-    );
-  }
-
-  const projected = {
-    state_key: requireModelEgressText(
-      OBSERVE_EGRESS_PURPOSE,
-      readModelEgressField(OBSERVE_EGRESS_PURPOSE, record, "state_key"),
-      512,
-    ),
-    value: stateValue as string | number | boolean | null,
-    temporal_scope: requireObserveEnum(record, "temporal_scope", TEMPORAL_SCOPES),
-    stability: requireObserveEnum(record, "stability", STABILITIES),
-    change_type: requireObserveEnum(record, "change_type", CHANGE_TYPES),
-    valid_from: requireObserveDate(record, "valid_from"),
-    valid_until: requireObserveDate(record, "valid_until"),
-  };
-  serializeModelEgressJson(
-    OBSERVE_EGRESS_PURPOSE,
-    projected,
-    OBSERVE_MODEL_EGRESS_LIMITS.sourceItemBytes,
-  );
-  return projected;
-}
-
-function requireObserveEnum<T extends readonly string[]>(
-  record: UnknownRecord,
-  key: string,
-  allowed: T,
-) {
-  const value = readModelEgressField(OBSERVE_EGRESS_PURPOSE, record, key);
-  if (typeof value !== "string" || !allowed.includes(value)) {
-    refuseModelEgress(
-      OBSERVE_EGRESS_PURPOSE,
-      "model_egress_payload_malformed",
-      1,
-      0,
-    );
-  }
-  return value as T[number];
-}
-
-function requireObserveDate(record: UnknownRecord, key: string) {
-  const value = readModelEgressField(OBSERVE_EGRESS_PURPOSE, record, key);
-  if (value === null) return null;
-  const text = requireModelEgressText(
-    OBSERVE_EGRESS_PURPOSE,
-    value,
-    128,
-  );
-  if (Number.isNaN(Date.parse(text))) {
-    refuseModelEgress(
-      OBSERVE_EGRESS_PURPOSE,
-      "model_egress_payload_malformed",
-      1,
-      0,
-    );
-  }
-  return text;
-}
-
-function validateProposal(value: unknown): ValidatedProposal {
-  if (!isRecord(value)) {
-    throw new Error("Each proposal must be an object.");
-  }
-
-  const proposal = {
-    state_key: requireString(value, "state_key"),
-    before_value: requireStateValue(value, "before_value"),
-    after_value: requireStateValue(value, "after_value"),
-    operation: requireEnum(value, "operation", OPERATIONS),
-    temporal_scope: requireEnum(value, "temporal_scope", TEMPORAL_SCOPES),
-    valid_from: requireNullableIsoDate(value, "valid_from"),
-    valid_until: requireNullableIsoDate(value, "valid_until"),
-    stability: requireEnum(value, "stability", STABILITIES),
-    change_type: requireEnum(value, "change_type", CHANGE_TYPES),
-    reason: requireString(value, "reason"),
-  };
-
-  if (!/^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)+$/.test(proposal.state_key)) {
-    throw new Error(`Invalid state_key: ${proposal.state_key}`);
-  }
-
-  if (proposal.reason.length > 1_000) {
-    throw new Error("reason must be 1000 characters or fewer.");
-  }
-
-  return proposal;
-}
-
-function buildSystemPrompt() {
-  return [
-    "You are the Augnes temporal delta compiler.",
-    "The model proposes typed temporal state delta proposals. The runtime owns state.",
-    "Never mark proposals committed, accepted, or rejected.",
-    "Do not output numeric scores, consolidation status, scoring reasons, or score breakdowns.",
-    "Infer only state deltas supported by the message and current committed state.",
-    "Prefer dot-separated state_key names like product.name or security.no_api_keys_in_repo.",
-    "Use null before_value when no committed state exists for the key.",
-    `temporal_scope must be one of: ${TEMPORAL_SCOPES.join(", ")}.`,
-    `stability must be one of: ${STABILITIES.join(", ")}.`,
-    `change_type must be one of: ${CHANGE_TYPES.join(", ")}.`,
-    `operation must be one of: ${OPERATIONS.join(", ")}.`,
-  ].join("\n");
-}
-
-function extractOutputText(payload: unknown) {
-  if (!isRecord(payload)) {
-    return null;
-  }
-
-  if (typeof payload.output_text === "string") {
-    return payload.output_text;
-  }
-
-  if (!Array.isArray(payload.output)) {
-    return null;
-  }
-
-  for (const output of payload.output) {
-    if (!isRecord(output) || !Array.isArray(output.content)) {
-      continue;
-    }
-
-    for (const content of output.content) {
-      if (isRecord(content) && typeof content.text === "string") {
-        return content.text;
-      }
-    }
-  }
-
-  return null;
-}
-
 function selectMockStateKey(message: string) {
   const lower = message.toLowerCase();
-
   if (lower.includes("api key") || lower.includes("secret")) {
     return "security.no_api_keys_in_repo";
   }
-
-  if (lower.includes("deadline")) {
-    return "timeline.deadline_note";
-  }
-
+  if (lower.includes("deadline")) return "timeline.deadline_note";
   if (lower.includes("stack") || lower.includes("sqlite")) {
     return "implementation.stack";
   }
-
   return "observations.latest_user_message";
 }
 
 function selectMockTemporalScope(message: string) {
   const lower = message.toLowerCase();
-
-  if (lower.includes("later") || lower.includes("future")) {
-    return "future_phase";
-  }
-
-  if (lower.includes("session")) {
-    return "current_session";
-  }
-
+  if (lower.includes("later") || lower.includes("future")) return "future_phase";
+  if (lower.includes("session")) return "current_session";
   return "current_task";
 }
 
-function requireString(record: UnknownRecord, key: string) {
-  const value = record[key];
-
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${key} must be a non-empty string.`);
+function validateProjectRoot(value: unknown): ObserveRequest["project_root"] {
+  if (!isRecord(value)) throw new Error("project_root is invalid.");
+  const pathFlavor = value.path_flavor;
+  const normalizedPath = value.normalized_path;
+  if (
+    (pathFlavor !== "posix" && pathFlavor !== "win32") ||
+    typeof normalizedPath !== "string" ||
+    normalizedPath.length < 1 ||
+    normalizedPath.length > 8_192 ||
+    normalizedPath.includes("\0")
+  ) {
+    throw new Error("project_root is invalid.");
   }
-
-  return value.trim();
+  return { path_flavor: pathFlavor, normalized_path: normalizedPath };
 }
 
-function requireStateValue(record: UnknownRecord, key: string): StateValue {
-  const value = record[key];
-
-  if (value === null || STATE_VALUE_TYPES.has(typeof value)) {
-    return value as StateValue;
+function requireCanonicalId(value: unknown, pattern: RegExp, field: string) {
+  if (typeof value !== "string" || !pattern.test(value)) {
+    throw new Error(`${field} must be a canonical identity.`);
   }
-
-  throw new Error(`${key} must be a JSON string, number, boolean, or null.`);
-}
-
-function requireEnum<T extends readonly string[]>(
-  record: UnknownRecord,
-  key: string,
-  allowed: T,
-) {
-  const value = record[key];
-
-  if (typeof value === "string" && allowed.includes(value)) {
-    return value as T[number];
-  }
-
-  throw new Error(`${key} must be one of: ${allowed.join(", ")}.`);
-}
-
-function requireNullableIsoDate(record: UnknownRecord, key: string) {
-  const value = record[key];
-
-  if (value === null) {
-    return null;
-  }
-
-  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
-    return value;
-  }
-
-  throw new Error(`${key} must be an ISO date string or null.`);
+  return value.toLowerCase();
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isValidScope(value: string) {
-  return /^[a-z][a-z0-9_-]*:[A-Za-z0-9._-]+$/.test(value);
-}
-
 function isValidIdentifier(value: string) {
   return /^[A-Za-z0-9:._-]{1,160}$/.test(value);
 }
-
-const proposalValueSchema = {
-  anyOf: [
-    { type: "string" },
-    { type: "number" },
-    { type: "boolean" },
-    { type: "null" },
-  ],
-};
-
-const nullableDateSchema = {
-  anyOf: [{ type: "string" }, { type: "null" }],
-};
-
-const proposalResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    proposals: {
-      type: "array",
-      maxItems: 8,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          state_key: { type: "string" },
-          before_value: proposalValueSchema,
-          after_value: proposalValueSchema,
-          operation: { type: "string", enum: OPERATIONS },
-          temporal_scope: { type: "string", enum: TEMPORAL_SCOPES },
-          valid_from: nullableDateSchema,
-          valid_until: nullableDateSchema,
-          stability: { type: "string", enum: STABILITIES },
-          change_type: { type: "string", enum: CHANGE_TYPES },
-          reason: { type: "string" },
-        },
-        required: [
-          "state_key",
-          "before_value",
-          "after_value",
-          "operation",
-          "temporal_scope",
-          "valid_from",
-          "valid_until",
-          "stability",
-          "change_type",
-          "reason",
-        ],
-      },
-    },
-  },
-  required: ["proposals"],
-};
