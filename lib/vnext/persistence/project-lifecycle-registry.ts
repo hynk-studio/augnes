@@ -74,14 +74,14 @@ export function readActiveProjectSelectionV01(db: Database.Database, workspaceId
 
 export function selectActiveProjectV01(db: Database.Database, input: {
   workspace_id: string; project_id: string; now: string;
-  expected_project_id?: string | null; expected_revision?: number | null;
+  expected_project_id: string | null; expected_revision: number | null;
 }): ActiveProjectSelectionV01 {
   requireProject(db, input.workspace_id, input.project_id);
   const current = readActiveProjectSelectionV01(db, input.workspace_id);
-  if (Object.hasOwn(input, "expected_project_id") && (current?.project_id ?? null) !== input.expected_project_id) {
+  if ((current?.project_id ?? null) !== input.expected_project_id) {
     throw new ProjectLifecycleErrorV01("active_selection_conflict");
   }
-  if (Object.hasOwn(input, "expected_revision") && (current?.selection_revision ?? null) !== input.expected_revision) {
+  if ((current?.selection_revision ?? null) !== input.expected_revision) {
     throw new ProjectLifecycleErrorV01("active_selection_conflict");
   }
   const revision = (current?.selection_revision ?? 0) + 1;
@@ -94,8 +94,20 @@ export function selectActiveProjectV01(db: Database.Database, input: {
   return readActiveProjectSelectionV01(db, input.workspace_id)!;
 }
 
-export function removeRecentProjectV01(db: Database.Database, input: { workspace_id: string; project_id: string }): boolean {
+export function removeRecentProjectV01(db: Database.Database, input: {
+  workspace_id: string;
+  project_id: string;
+  expected_project_id: string | null;
+  expected_revision: number | null;
+}): boolean {
   return db.transaction(() => {
+    const current = readActiveProjectSelectionV01(db, input.workspace_id);
+    if (
+      (current?.project_id ?? null) !== input.expected_project_id ||
+      (current?.selection_revision ?? null) !== input.expected_revision
+    ) {
+      throw new ProjectLifecycleErrorV01("active_selection_conflict");
+    }
     const removed = db.prepare(`DELETE FROM vnext_recent_projects WHERE workspace_id = ? AND project_id = ?`)
       .run(input.workspace_id, input.project_id).changes === 1;
     db.prepare(`DELETE FROM vnext_active_project_selections WHERE workspace_id = ? AND project_id = ?`)

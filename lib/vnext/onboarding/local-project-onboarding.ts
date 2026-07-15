@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { access, readFile, stat } from "node:fs/promises";
+import { access, open as openFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -46,6 +46,28 @@ const MAX_GIT_CONFIG_BYTES = 64 * 1024;
 const SELECTION_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_SELECTIONS = 64;
 const SYSTEM_LOCAL_PROJECT_FILESYSTEM = { stat, access };
+
+export interface LocalProjectMetadataFileHandleV01 {
+  read(buffer: Buffer, offset: number, length: number, position: number | null): Promise<{ bytesRead: number }>;
+  close(): Promise<void>;
+}
+
+export interface LocalProjectMetadataFileReaderV01 {
+  open(file: string): Promise<LocalProjectMetadataFileHandleV01>;
+}
+
+const SYSTEM_LOCAL_PROJECT_METADATA_READER: LocalProjectMetadataFileReaderV01 = {
+  async open(file) {
+    const handle = await openFile(file, "r");
+    return {
+      async read(buffer, offset, length, position) {
+        const result = await handle.read(buffer, offset, length, position);
+        return { bytesRead: result.bytesRead };
+      },
+      async close() { await handle.close(); },
+    };
+  },
+};
 
 export class ProjectOnboardingErrorV01 extends Error {
   constructor(readonly code: ProjectOnboardingErrorCodeV01, readonly status = 400) {
@@ -135,6 +157,7 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   db?: Database.Database;
   workspace_id?: string;
   filesystem?: Partial<typeof SYSTEM_LOCAL_PROJECT_FILESYSTEM>;
+  metadata_reader?: LocalProjectMetadataFileReaderV01;
 } = {}): Promise<LocalProjectInspectionV01> {
   if (!path.isAbsolute(absolutePath)) throw new ProjectOnboardingErrorV01("selection_invalid");
   const localRoot = normalizeLocalProjectRootRefV01(absolutePath, { base_path: path.parse(absolutePath).root });
@@ -151,7 +174,15 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   catch { throw new ProjectOnboardingErrorV01("selection_inaccessible", 403); }
 
   const inspectedAt = (options.now ?? (() => new Date().toISOString()))();
-  const git = await inspectGitMetadata(localRoot.normalized_path);
+  let git;
+  try {
+    git = await inspectGitMetadata(
+      localRoot.normalized_path,
+      options.metadata_reader ?? SYSTEM_LOCAL_PROJECT_METADATA_READER,
+    );
+  } catch {
+    throw new ProjectOnboardingErrorV01("inspection_failed", 422);
+  }
   const displayName = path.basename(localRoot.normalized_path) || localRoot.normalized_path;
   const fingerprintPayload = JSON.stringify({
     root: localRoot,
@@ -175,7 +206,13 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   };
 }
 
-type SelectionRecord = { absolute_path: string; fingerprint: string; expires_at: number };
+type SelectionRecord = {
+  absolute_path: string;
+  fingerprint: string;
+  expires_at: number;
+  expected_active_project_id: string | null;
+  expected_active_revision: number | null;
+};
 const selections = new Map<string, SelectionRecord>();
 
 export async function pickAndInspectLocalProjectV01(options: Parameters<typeof chooseLocalProjectFolderV01>[0] & {
@@ -183,6 +220,7 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
   now?: () => string;
   now_ms?: () => number;
   create_token?: () => string;
+  metadata_reader?: LocalProjectMetadataFileReaderV01;
 } = {}): Promise<LocalFolderPickerOutcomeV01> {
   const picked = await chooseLocalProjectFolderV01(options);
   if (picked.status !== "selected") return picked;
@@ -191,8 +229,12 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
     const workspace = readDefaultWorkspaceIdentityV01(db);
     const inspection = await inspectLocalProjectRootV01(picked.absolute_path, {
       now: options.now,
+      metadata_reader: options.metadata_reader,
       ...(workspace ? { db, workspace_id: workspace.workspace_id } : {}),
     });
+    const active = workspace
+      ? readActiveProjectSelectionV01(db, workspace.workspace_id)
+      : null;
     const nowMs = (options.now_ms ?? Date.now)();
     for (const [token, record] of selections) {
       if (record.expires_at < nowMs) selections.delete(token);
@@ -201,7 +243,13 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
       selections.delete(selections.keys().next().value as string);
     }
     const token = (options.create_token ?? randomUUID)();
-    selections.set(token, { absolute_path: picked.absolute_path, fingerprint: inspection.inspection_fingerprint, expires_at: nowMs + SELECTION_TTL_MS });
+    selections.set(token, {
+      absolute_path: picked.absolute_path,
+      fingerprint: inspection.inspection_fingerprint,
+      expires_at: nowMs + SELECTION_TTL_MS,
+      expected_active_project_id: active?.project_id ?? null,
+      expected_active_revision: active?.selection_revision ?? null,
+    });
     return { status: "selected", selection_token: token, inspection };
   } finally { db.close(); }
 }
@@ -239,7 +287,13 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
       external_ref: inspection.repository_ref,
     }, { now: () => now });
     touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: registration.project.project_id, now });
-    selectActiveProjectV01(db, { workspace_id: workspace.workspace_id, project_id: registration.project.project_id, now });
+    selectActiveProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: registration.project.project_id,
+      now,
+      expected_project_id: record.expected_active_project_id,
+      expected_revision: record.expected_active_revision,
+    });
     const status: ProjectOnboardingConfirmationV01["status"] =
       registration.status === "inserted" ? "created" : "already_added";
     return {
@@ -265,7 +319,13 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
   return db.transaction(() => {
     rebindCanonicalProjectLocalRootV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, local_root: inspection.local_root }, { now: () => now });
     touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
-    selectActiveProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
+    selectActiveProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: input.project_id,
+      now,
+      expected_project_id: record.expected_active_project_id,
+      expected_revision: record.expected_active_revision,
+    });
     return { status: "rebound" as const, project: project.project, local_root: inspection.local_root, destination: projectDestination(input.project_id) };
   }).immediate();
 }
@@ -285,6 +345,8 @@ export async function listRecentProjectsV01(db: Database.Database): Promise<Rece
       created_at: row.created_at,
       last_opened_at: row.last_opened_at,
       is_active: active?.project_id === row.project_id,
+      active_project_id: active?.project_id ?? null,
+      active_selection_revision: active?.selection_revision ?? null,
     };
   }));
 }
@@ -303,7 +365,7 @@ export async function readRootAvailabilityV01(root: string): Promise<ProjectRoot
 }
 
 export async function openRecentProjectV01(db: Database.Database, input: {
-  project_id: string; expected_project_id?: string | null; expected_revision?: number | null; now?: string;
+  project_id: string; expected_project_id: string | null; expected_revision: number | null; now?: string;
 }) {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
@@ -315,18 +377,30 @@ export async function openRecentProjectV01(db: Database.Database, input: {
   const now = input.now ?? new Date().toISOString();
   return db.transaction(() => {
     touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
-    const selection = selectActiveProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now,
-      ...(Object.hasOwn(input, "expected_project_id") ? { expected_project_id: input.expected_project_id } : {}),
-      ...(Object.hasOwn(input, "expected_revision") ? { expected_revision: input.expected_revision } : {}),
+    const selection = selectActiveProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: input.project_id,
+      now,
+      expected_project_id: input.expected_project_id,
+      expected_revision: input.expected_revision,
     });
     return { project: registration.project, selection, destination: projectDestination(input.project_id) };
   }).immediate();
 }
 
-export function removeProjectFromRecentV01(db: Database.Database, projectId: string) {
+export function removeProjectFromRecentV01(db: Database.Database, input: {
+  project_id: string;
+  expected_project_id: string | null;
+  expected_revision: number | null;
+}) {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) return { removed: false, project_data_preserved: true as const };
-  const removed = removeRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: projectId });
+  const removed = removeRecentProjectV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    expected_project_id: input.expected_project_id,
+    expected_revision: input.expected_revision,
+  });
   return { removed, project_data_preserved: true as const };
 }
 
@@ -350,23 +424,34 @@ function consumeSelection(token: string, nowMs: (() => number) | undefined): Sel
   return record;
 }
 
-async function inspectGitMetadata(root: string): Promise<{ isRepository: boolean; ref: ExternalRefV01 | null; display: string | null }> {
+class GitMetadataTooLargeError extends Error {}
+
+async function inspectGitMetadata(
+  root: string,
+  metadataReader: LocalProjectMetadataFileReaderV01,
+): Promise<{ isRepository: boolean; ref: ExternalRefV01 | null; display: string | null }> {
   let gitPath = path.join(root, ".git");
   let gitInfo;
   try { gitInfo = await stat(gitPath); } catch { return { isRepository: false, ref: null, display: null }; }
   if (gitInfo.isFile()) {
-    const pointer = await readBounded(gitPath);
+    const pointer = await readBounded(gitPath, metadataReader);
     const match = /^gitdir:\s*(.+)\s*$/im.exec(pointer);
     if (!match) return { isRepository: true, ref: null, display: null };
     gitPath = path.resolve(root, match[1]);
   }
   let configPath = path.join(gitPath, "config");
   try {
-    const common = (await readBounded(path.join(gitPath, "commondir"))).trim();
+    const common = (await readBounded(path.join(gitPath, "commondir"), metadataReader)).trim();
     if (common) configPath = path.join(path.resolve(gitPath, common), "config");
-  } catch {}
+  } catch (error) {
+    if (error instanceof GitMetadataTooLargeError) throw error;
+  }
   let config = "";
-  try { config = await readBounded(configPath); } catch { return { isRepository: true, ref: null, display: null }; }
+  try { config = await readBounded(configPath, metadataReader); }
+  catch (error) {
+    if (error instanceof GitMetadataTooLargeError) throw error;
+    return { isRepository: true, ref: null, display: null };
+  }
   const remote = readOriginRemote(config);
   if (!remote) return { isRepository: true, ref: null, display: null };
   const sanitized = sanitizeRemote(remote);
@@ -389,10 +474,21 @@ async function inspectGitMetadata(root: string): Promise<{ isRepository: boolean
   };
 }
 
-async function readBounded(file: string): Promise<string> {
-  const data = await readFile(file);
-  if (data.byteLength > MAX_GIT_CONFIG_BYTES) throw new Error("git_metadata_too_large");
-  return data.toString("utf8");
+async function readBounded(file: string, metadataReader: LocalProjectMetadataFileReaderV01): Promise<string> {
+  const handle = await metadataReader.open(file);
+  const data = Buffer.alloc(MAX_GIT_CONFIG_BYTES + 1);
+  let total = 0;
+  try {
+    while (total < data.byteLength) {
+      const { bytesRead } = await handle.read(data, total, data.byteLength - total, null);
+      if (bytesRead === 0) break;
+      total += bytesRead;
+    }
+    if (total > MAX_GIT_CONFIG_BYTES) throw new GitMetadataTooLargeError();
+    return data.subarray(0, total).toString("utf8");
+  } finally {
+    await handle.close();
+  }
 }
 
 function readOriginRemote(config: string): string | null {
@@ -408,10 +504,14 @@ function sanitizeRemote(value: string): string | null {
   try {
     const url = new URL(trimmed);
     if (!["https:", "http:", "ssh:", "git:"].includes(url.protocol)) return null;
-    url.username = ""; url.password = "";
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
     return url.toString();
   } catch {
-    const scp = /^(?:[^@\s/:]+@)?([^\s/:]+):(.+)$/.exec(trimmed);
+    const canonicalCandidate = trimmed.replace(/[?#].*$/, "");
+    const scp = /^(?:[^@\s/:]+@)?([^\s/:]+):(.+)$/.exec(canonicalCandidate);
     return scp ? `${scp[1]}:${scp[2]}` : null;
   }
 }

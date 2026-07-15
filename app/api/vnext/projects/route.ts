@@ -57,12 +57,16 @@ export async function POST(request: Request) {
     if (body.action === "open") {
       return json({ ok: true, result: await openRecentProjectV01(db, {
         project_id: requiredString(body.project_id),
-        ...(Object.hasOwn(body, "expected_project_id") ? { expected_project_id: optionalNullableString(body.expected_project_id) } : {}),
-        ...(Object.hasOwn(body, "expected_revision") ? { expected_revision: optionalNullableNumber(body.expected_revision) } : {}),
+        expected_project_id: requiredNullableString(body, "expected_project_id"),
+        expected_revision: requiredNullableRevision(body, "expected_revision"),
       }) });
     }
     if (body.action === "remove") {
-      return json({ ok: true, result: removeProjectFromRecentV01(db, requiredString(body.project_id)) });
+      return json({ ok: true, result: removeProjectFromRecentV01(db, {
+        project_id: requiredString(body.project_id),
+        expected_project_id: requiredNullableString(body, "expected_project_id"),
+        expected_revision: requiredNullableRevision(body, "expected_revision"),
+      }) });
     }
     if (body.action === "confirm_rebind") {
       return json({ ok: true, result: await rebindLocalProjectRootFromSelectionV01(db, {
@@ -81,13 +85,44 @@ function requiredString(value: unknown): string {
   return value;
 }
 async function readBoundedBody(request: Request): Promise<Record<string, unknown>> {
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
-    throw new ProjectOnboardingErrorV01("selection_invalid", 413);
+  const declaredLengthValue = request.headers.get("content-length");
+  if (declaredLengthValue !== null) {
+    if (!/^(0|[1-9]\d*)$/.test(declaredLengthValue)) {
+      throw new ProjectOnboardingErrorV01("selection_invalid", 400);
+    }
+    const declaredLength = Number(declaredLengthValue);
+    if (!Number.isSafeInteger(declaredLength)) {
+      throw new ProjectOnboardingErrorV01("selection_invalid", 400);
+    }
+    if (declaredLength > MAX_BODY_BYTES) {
+      throw new ProjectOnboardingErrorV01("selection_invalid", 413);
+    }
   }
-  const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > MAX_BODY_BYTES) {
-    throw new ProjectOnboardingErrorV01("selection_invalid", 413);
+  if (!request.body) throw new ProjectOnboardingErrorV01("selection_invalid", 400);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const remainingWithDetectionByte = MAX_BODY_BYTES + 1 - total;
+      if (value.byteLength >= remainingWithDetectionByte) {
+        total += remainingWithDetectionByte;
+        try { await reader.cancel(); } catch {}
+        throw new ProjectOnboardingErrorV01("selection_invalid", 413);
+      }
+      chunks.push(value);
+      total += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
   }
   try {
     const value = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
@@ -99,14 +134,16 @@ async function readBoundedBody(request: Request): Promise<Record<string, unknown
     throw new ProjectOnboardingErrorV01("selection_invalid", 400);
   }
 }
-function optionalNullableString(value: unknown): string | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null || typeof value === "string") return value;
+function requiredNullableString(record: Record<string, unknown>, key: string): string | null {
+  if (!Object.hasOwn(record, key)) throw new ProjectOnboardingErrorV01("selection_invalid");
+  const value = record[key];
+  if (value === null || (typeof value === "string" && value.length > 0)) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
-function optionalNullableNumber(value: unknown): number | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null || (typeof value === "number" && Number.isInteger(value))) return value;
+function requiredNullableRevision(record: Record<string, unknown>, key: string): number | null {
+  if (!Object.hasOwn(record, key)) throw new ProjectOnboardingErrorV01("selection_invalid");
+  const value = record[key];
+  if (value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0)) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
 function routeError(error: unknown) {

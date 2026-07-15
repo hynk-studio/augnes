@@ -91,6 +91,7 @@ const result = {
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
+  folder_onboarding_stale_active_conflict: false,
   proposal_list_document_status: null,
   proposal_detail_document_status: null,
   workbench_lineage_status: null,
@@ -303,11 +304,10 @@ async function main() {
   await runPhase("folder_onboarding", async () => {
     await navigate(`${appOrigin}/`);
     await waitForCondition(
-      `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder')`,
+      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder')`,
       "Choose folder action",
     );
     assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
-    await delay(500);
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Folder selection was cancelled. Nothing changed.')`, "cancelled picker status");
     assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder' && !button.disabled)`), true);
@@ -318,7 +318,7 @@ async function main() {
     startDevServer(runtimeEnvironment);
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
-    await delay(500);
+    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated project onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
@@ -330,7 +330,7 @@ async function main() {
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "project refresh identity");
     await navigate(`${appOrigin}/`);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after return");
-    await delay(500);
+    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
@@ -352,11 +352,21 @@ async function main() {
     const openResponse = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/projects', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.project.project_id)} })
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
       });
       return await response.json();
     })()`);
     assert.equal(openResponse.result.destination, destination);
+    const staleOpenResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(staleOpenResponse.status, 409);
+    assert.equal(staleOpenResponse.body.error_code, "active_selection_conflict");
+    result.folder_onboarding_stale_active_conflict = true;
     await navigate(`${appOrigin}${destination}`);
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "same destination after restart");
     result.folder_onboarding_restart_reopen = true;
@@ -631,6 +641,9 @@ async function main() {
           /401/i.test(entry.text)) ||
         (entry.phase === "wrong_fingerprint" &&
           entry.path === "/api/vnext/operator/packet-handoff" &&
+          /409/i.test(entry.text)) ||
+        (entry.phase === "folder_onboarding" &&
+          entry.path === "/api/vnext/projects" &&
           /409/i.test(entry.text)) ||
         (entry.phase === "folder_onboarding" &&
           entry.path?.startsWith("/_next/") &&

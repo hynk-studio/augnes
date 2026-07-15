@@ -45,6 +45,8 @@ export interface RecentProjectEntryV01 {
   created_at: string;
   last_opened_at: string;
   is_active: boolean;
+  active_project_id: string | null;
+  active_selection_revision: number | null;
 }
 
 export interface ActiveProjectSelectionV01 {
