@@ -120,13 +120,119 @@ export const StateBriefSchema = z
   })
   .passthrough();
 
+const CanonicalWorkspaceIdSchema = z.string().regex(
+  /^workspace:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+);
+const CanonicalProjectIdSchema = z.string().regex(
+  /^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+);
+const ModelGatewaySafeIdentifierSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9:._-]{1,256}$/);
+const ModelGatewayProvenanceRefSchema = z.string().regex(
+  /^(?:sha256:[0-9a-f]{64}|[a-z][a-z0-9_.-]{0,63}:[A-Za-z0-9:._-]{1,256})$/
+);
+const ModelGatewayFailureCodeSchema = z.enum([
+  "model_gateway_invalid_envelope",
+  "model_gateway_scope_refused",
+  "model_gateway_policy_refused",
+  "model_gateway_budget_refused",
+  "model_gateway_egress_refused",
+  "model_gateway_cancelled",
+  "model_gateway_timeout",
+  "model_gateway_deterministic_failed",
+  "model_gateway_provider_rejected",
+  "model_gateway_provider_response_invalid",
+  "model_gateway_transport_failed",
+]);
+const ModelGatewayUsageSchema = z
+  .object({
+    basis: z.literal("provider_report"),
+    input_tokens: z.number().int().nonnegative(),
+    output_tokens: z.number().int().nonnegative(),
+    total_tokens: z.number().int().nonnegative(),
+  })
+  .strict();
+const ModelGatewayBudgetReceiptSchema = z
+  .object({
+    decision: z.enum(["within_budget", "not_used", "refused"]),
+    input_bytes_limit: z.number().int().positive(),
+    input_bytes_used: z.number().int().nonnegative().nullable(),
+    output_tokens_limit: z.number().int().positive(),
+    provider_call_limit: z.union([z.literal(0), z.literal(1)]),
+    provider_calls_used: z.union([z.literal(0), z.literal(1)]),
+  })
+  .strict();
+
+// Exact v0.1 mirror: the Apps package cannot import the root Next runtime module.
+export const ModelInvocationReceiptSchema = z
+  .object({
+    receipt_version: z.literal("model_invocation_receipt.v0.1"),
+    gateway_version: z.literal("model_gateway.v0.1"),
+    invocation_id: ModelGatewaySafeIdentifierSchema,
+    workspace_id: CanonicalWorkspaceIdSchema,
+    project_id: CanonicalProjectIdSchema,
+    purpose: z.literal("observe_delta_compile"),
+    implementation_id: ModelGatewaySafeIdentifierSchema,
+    implementation_version: ModelGatewaySafeIdentifierSchema,
+    requested_mode: z.enum(["live", "deterministic"]),
+    execution_mode: z.enum(["live", "deterministic"]),
+    selection_reason: z.enum([
+      "requested_live",
+      "explicit_deterministic",
+      "provider_unavailable",
+    ]),
+    started_at: z.string().datetime({ offset: true }),
+    finished_at: z.string().datetime({ offset: true }),
+    latency_ms: z.number().int().nonnegative(),
+    status: z.enum(["completed", "blocked", "failed", "cancelled"]),
+    outcome: z.enum([
+      "live_success",
+      "deterministic_success",
+      "deterministic_failure",
+      "refused",
+      "provider_failure",
+      "timeout",
+      "cancelled",
+    ]),
+    egress_attempted: z.boolean(),
+    egress_status: z.enum(["occurred", "did_not_occur", "blocked"]),
+    usage: ModelGatewayUsageSchema.nullable(),
+    budget: ModelGatewayBudgetReceiptSchema,
+    failure_code: ModelGatewayFailureCodeSchema.nullable(),
+    data_classification: z.enum([
+      "public_safe",
+      "private",
+      "local_only",
+      "secret",
+    ]),
+    retention_class: z.literal("none"),
+    privacy_decision: z.enum([
+      "provider_egress_approved",
+      "provider_egress_not_used",
+      "provider_egress_blocked",
+    ]),
+    provenance_refs: z
+      .array(ModelGatewayProvenanceRefSchema)
+      .min(1)
+      .max(16),
+    raw_prompt_persisted: z.literal(false),
+    raw_response_persisted: z.literal(false),
+    hidden_reasoning_persisted: z.literal(false),
+    receipt_is_semantic_authority: z.literal(false),
+  })
+  .strict();
+
 export const ObserveResultSchema = z
   .object({
+    workspace_id: z.string(),
+    project_id: z.string(),
     scope: z.string(),
     session_id: z.string(),
     message_id: z.string(),
     compiler: z.string(),
     proposals: z.array(StateRuntimeProposalSchema),
+    model_invocation_receipt: ModelInvocationReceiptSchema,
   })
   .passthrough();
 
@@ -1243,6 +1349,18 @@ export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
   message: string;
 }
+export interface StateRuntimeObserveInput {
+  workspaceId: string;
+  projectId: string;
+  expectedActiveProjectId: string;
+  expectedActiveSelectionRevision: number;
+  message: string;
+  projectRoot?: {
+    pathFlavor: "posix" | "win32";
+    normalizedPath: string;
+  };
+  executionMode?: "live" | "deterministic";
+}
 
 export interface StateRuntimeEvidencePackInput {
   scope: StateRuntimeScope;
@@ -1345,7 +1463,7 @@ export interface StateRuntimeBridgeAdapter {
   getVerificationEvidenceRecords(
     input: StateRuntimeVerificationEvidenceRecordsInput
   ): Promise<VerificationEvidenceRecordsResult>;
-  observe(input: StateRuntimeMessageInput): Promise<ObserveResult>;
+  observe(input: StateRuntimeObserveInput): Promise<ObserveResult>;
   plan(input: StateRuntimeMessageInput): Promise<PlanResult>;
   recordActionResult(input: StateRuntimeActionResultInput): Promise<ActionRecordResult>;
   listPendingProposals(scope: StateRuntimeScope): Promise<StateRuntimeProposal[]>;

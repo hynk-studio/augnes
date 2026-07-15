@@ -41,6 +41,13 @@ import {
   buildRuntimeChildEnvironment,
   findForbiddenRuntimeChildEnvironmentKeys,
 } from "./runtime-child-environment.mjs";
+import {
+  cleanupOwnedProcesses,
+  closeTrackedServer,
+  registerOwnedChild,
+  trackServerConnections,
+  waitForOwnedProcessExit,
+} from "./test-harness-process-lifecycle.mjs";
 
 const repoRoot = process.cwd();
 const requireMcpSdk = createRequire(
@@ -75,7 +82,8 @@ const blockedBridgeFileEnvironment = Object.freeze({
   AUGNES_GOVERNANCE_AUDIT_FILE: path.join(temporaryRoot, "audit.json"),
   AUGNES_REPO_NAVIGATION_FILE: path.join(temporaryRoot, "repo-navigation.json"),
 });
-const trackedSupervisors = new Set();
+const ownedProcesses = new Set();
+const auxiliaryProcesses = new Set();
 const selectedPorts = [];
 const observedOwnedPids = new Set();
 let pathFixtureSkipReason = null;
@@ -95,23 +103,33 @@ const repositoryDatabaseBefore = snapshotDatabaseFamily(repositoryDatabasePath);
 const ambientRuntimeProcessesBefore = listSupervisorProcessIds();
 const ownedProcessCountBefore = observedOwnedPids.size;
 
+let suiteError = null;
+let cleanupError = null;
+
 try {
   initializeDisposableDatabase(databasePath);
   assertRuntimeEnvironmentIsolation();
   await testRuntimeStatePathSafety();
 
-  proxyServer = createHttpServer((_request, response) => {
+  proxyServer = trackServerConnections(createHttpServer((_request, response) => {
     proxyRequestCount += 1;
     response.writeHead(502, { "content-type": "text/plain" });
     response.end("runtime test proxy sentinel");
-  });
+  }));
   const proxyPort = await listenHttpServer(proxyServer);
 
   unrelatedProcess = spawn(
     process.execPath,
     ["--eval", "setInterval(() => {}, 1000)"],
-    { stdio: "ignore" },
+    {
+      detached: process.platform !== "win32",
+      stdio: "ignore",
+      windowsHide: true,
+    },
   );
+  registerOwnedChild(auxiliaryProcesses, unrelatedProcess, {
+    label: "unrelated process sentinel",
+  });
   assert(Number.isInteger(unrelatedProcess.pid));
 
   await testReadyDuplicateStatusAndStop();
@@ -209,17 +227,21 @@ try {
     )
     .digest("hex");
   console.log(JSON.stringify(summary, null, 2));
+} catch (error) {
+  suiteError = error;
 } finally {
-  for (const managed of trackedSupervisors) {
-    await terminateManagedProcess(managed);
-  }
-  if (unrelatedIdentityServer) await closeServer(unrelatedIdentityServer);
-  if (proxyServer) await closeServer(proxyServer);
-  if (unrelatedProcess && unrelatedProcess.exitCode === null) {
-    unrelatedProcess.kill("SIGTERM");
-    await waitForExit(unrelatedProcess, 5_000).catch(() => {
-      unrelatedProcess.kill("SIGKILL");
-    });
+  const cleanupErrors = [];
+  for (const action of [
+    () => cleanupOwnedProcesses(ownedProcesses, { termGraceMs: 12_000 }),
+    () => closeServer(unrelatedIdentityServer),
+    () => closeServer(proxyServer),
+    () => cleanupOwnedProcesses(auxiliaryProcesses),
+  ]) {
+    try {
+      await action();
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
   }
   rmSync(temporaryRoot, {
     recursive: true,
@@ -227,7 +249,18 @@ try {
     maxRetries: 5,
     retryDelay: 100,
   });
+  if (cleanupErrors.length > 0) {
+    cleanupError = new Error("runtime operability cleanup failed");
+    cleanupError.code = "runtime_operability_cleanup_failed";
+    cleanupError.causes = cleanupErrors;
+  }
 }
+
+if (suiteError && cleanupError) {
+  throw new AggregateError([suiteError, cleanupError], "runtime operability and cleanup failed");
+}
+if (suiteError) throw suiteError;
+if (cleanupError) throw cleanupError;
 
 async function testRuntimeStatePathSafety() {
   const fixtureRoot = path.join(temporaryRoot, "runtime-path-safety");
@@ -497,9 +530,8 @@ async function testReadyDuplicateStatusAndStop() {
   const stop = await runCli(["stop"], environment, scenario, "stop", "canonical");
   assert.equal(stop.code, 0, stop.output);
   assert.equal(lastJsonResult(stop.stdout).state, "stopped");
-  const supervisorExit = await waitForExit(managed.child, 20_000);
+  const supervisorExit = await waitForManagedExit(managed, 20_000);
   assert.equal(supervisorExit.code, 0, managed.output());
-  trackedSupervisors.delete(managed);
 
   await assertStoppedScenario(scenario, ready, ownedProcessTree);
   assert.equal(await canConnect(uiBlocker.port), true, "unrelated UI listener must survive stop");
@@ -565,10 +597,9 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
   const stop = await runCli(["stop"], environment, scenario, "poisoned-stop");
   assert.equal(stop.code, 0, stop.output);
   assertPublicSafe(stop.output, "poisoned stop output");
-  const supervisorExit = await waitForExit(managed.child, 20_000);
+  const supervisorExit = await waitForManagedExit(managed, 20_000);
   assert.equal(supervisorExit.code, 0, managed.output());
   assertPublicSafe(managed.output(), "poisoned lifecycle output");
-  trackedSupervisors.delete(managed);
   await assertStoppedScenario(scenario, ready, processTree);
   assert.equal(proxyRequestCount, 0, "restart must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "restart/stop must not signal unrelated PID");
@@ -599,9 +630,8 @@ async function testParentSignalCleanup() {
   for (const pid of processTree) observedOwnedPids.add(pid);
 
   managed.child.kill("SIGTERM");
-  const exit = await waitForExit(managed.child, 20_000);
+  const exit = await waitForManagedExit(managed, 20_000);
   assert.equal(exit.code, 0, managed.output());
-  trackedSupervisors.delete(managed);
   await assertStoppedScenario(scenario, ready, processTree);
   assert.match(managed.output(), /signal_sigterm/, "signal cleanup result must be observable");
   removeScenarioLogs(scenario);
@@ -636,9 +666,8 @@ async function testRequiredChildFailure() {
       event.reason === "required_child_exited",
   );
   assert.equal(failed.failed_role, "bridge");
-  const exit = await waitForExit(managed.child, 20_000);
+  const exit = await waitForManagedExit(managed, 20_000);
   assert.notEqual(exit.code, 0, "required child failure must make supervisor nonzero");
-  trackedSupervisors.delete(managed);
   await assertStoppedScenario(scenario, ready, processTree);
   assertPublicSafe(managed.output(), "child failure output");
   removeScenarioLogs(scenario);
@@ -646,7 +675,7 @@ async function testRequiredChildFailure() {
 
 async function testUnverifiedOwnershipRefusal() {
   const scenario = createScenario("unverified-owner");
-  unrelatedIdentityServer = createHttpServer((_request, response) => {
+  unrelatedIdentityServer = trackServerConnections(createHttpServer((_request, response) => {
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
@@ -655,7 +684,7 @@ async function testUnverifiedOwnershipRefusal() {
         state: "ready",
       }),
     );
-  });
+  }));
   const controlPort = await listenHttpServer(unrelatedIdentityServer);
   const environment = scenarioEnvironment(scenario, {
     uiPort: await findPreferredPort(),
@@ -801,9 +830,7 @@ function scenarioEnvironment(
 }
 
 function startManagedSupervisor(environment, scenario, label, surface = "direct") {
-  const managed = spawnManaged(["start"], environment, scenario, label, surface);
-  trackedSupervisors.add(managed);
-  return managed;
+  return spawnManaged(["start"], environment, scenario, label, surface);
 }
 
 function spawnManaged(args, environment, scenario, label, surface = "direct") {
@@ -813,6 +840,7 @@ function spawnManaged(args, environment, scenario, label, surface = "direct") {
   const child = spawn(invocation.command, invocation.args, {
     cwd: repoRoot,
     env: environment,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
@@ -828,6 +856,7 @@ function spawnManaged(args, environment, scenario, label, surface = "direct") {
       return `${this.stdout}\n${this.stderr}`;
     },
   };
+  managed.processRecord = registerOwnedChild(ownedProcesses, child, { label });
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
@@ -850,7 +879,7 @@ function spawnManaged(args, environment, scenario, label, surface = "direct") {
 
 async function runCli(args, environment, scenario, label, surface = "direct") {
   const managed = spawnManaged(args, environment, scenario, label, surface);
-  const exit = await waitForExit(managed.child, 25_000);
+  const exit = await waitForManagedExit(managed, 25_000);
   if (managed.stdoutRemainder.length > 0) {
     const parsed = parseJsonLine(managed.stdoutRemainder);
     if (parsed) managed.events.push(parsed);
@@ -985,12 +1014,23 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${ready.bridge_port}/mcp`),
   );
+  const cancelPendingMcpOperation = () => transport.close();
 
   let publicResult;
   let runtimeResult;
   try {
-    await withTimeout(client.connect(transport), 15_000, "MCP client connect");
-    const tools = await withTimeout(client.listTools(), 15_000, "MCP tool listing");
+    await withTimeout(
+      client.connect(transport),
+      15_000,
+      "MCP client connect",
+      cancelPendingMcpOperation,
+    );
+    const tools = await withTimeout(
+      client.listTools(),
+      15_000,
+      "MCP tool listing",
+      cancelPendingMcpOperation,
+    );
     const toolNames = tools.tools.map((tool) => tool.name);
     assert.equal(toolNames.includes("get_working_view"), true);
     assert.equal(toolNames.includes("augnes_get_state_brief"), true);
@@ -1002,6 +1042,7 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
       }),
       15_000,
       "public MCP tool call",
+      cancelPendingMcpOperation,
     );
     assert.notEqual(publicResult.isError, true);
     assert.equal(Object.hasOwn(publicResult.structuredContent ?? {}, "error"), false);
@@ -1020,6 +1061,7 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
       }),
       15_000,
       "state runtime MCP tool call",
+      cancelPendingMcpOperation,
     );
     assert.notEqual(runtimeResult.isError, true);
     assert.equal(Object.hasOwn(runtimeResult.structuredContent ?? {}, "error"), false);
@@ -1031,7 +1073,12 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
     );
     assert.equal(markerEntry?.value, runtimeMarkerValue);
   } finally {
-    await withTimeout(client.close(), 10_000, "MCP client close");
+    await withTimeout(
+      client.close(),
+      10_000,
+      "MCP client close",
+      cancelPendingMcpOperation,
+    );
   }
 
   const mcpPublicOutput = JSON.stringify({ publicResult, runtimeResult });
@@ -1302,7 +1349,10 @@ function assertPublicSafe(value, label) {
 
 function assertProcessCommandLinesPublicSafe(pids) {
   if (process.platform === "win32") return;
-  const result = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" });
+  const result = spawnSync("ps", ["-axo", "pid=,command="], {
+    encoding: "utf8",
+    timeout: 2_000,
+  });
   assert.equal(result.status, 0, result.stderr);
   const owned = new Set(pids);
   const commandLines = result.stdout
@@ -1328,7 +1378,10 @@ function processTreePids(ready) {
   for (const child of ready.children) {
     pids.add(child.pid);
     if (process.platform !== "win32") {
-      const result = spawnSync("ps", ["-axo", "pid=,pgid="], { encoding: "utf8" });
+      const result = spawnSync("ps", ["-axo", "pid=,pgid="], {
+        encoding: "utf8",
+        timeout: 2_000,
+      });
       if (result.status === 0) {
         for (const line of result.stdout.split(/\r?\n/)) {
           const [pidText, pgidText] = line.trim().split(/\s+/);
@@ -1342,7 +1395,10 @@ function processTreePids(ready) {
 
 function listSupervisorProcessIds() {
   if (process.platform === "win32") return [];
-  const result = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" });
+  const result = spawnSync("ps", ["-axo", "pid=,command="], {
+    encoding: "utf8",
+    timeout: 2_000,
+  });
   if (result.status !== 0) return [];
   return result.stdout
     .split(/\r?\n/)
@@ -1361,6 +1417,7 @@ function initializeDisposableDatabase(targetPath) {
     cwd: repoRoot,
     env: environment,
     encoding: "utf8",
+    timeout: 30_000,
   });
   assert.equal(
     result.status,
@@ -1415,12 +1472,12 @@ function hashFile(filePath) {
 async function createTcpSentinel(preferredPort = 0) {
   let connections = 0;
   const sockets = new Set();
-  const server = net.createServer((socket) => {
+  const server = trackServerConnections(net.createServer((socket) => {
     connections += 1;
     sockets.add(socket);
     socket.once("close", () => sockets.delete(socket));
     socket.end();
-  });
+  }));
   server.testSockets = sockets;
   try {
     const port = await listenTcpServer(server, preferredPort);
@@ -1432,7 +1489,7 @@ async function createTcpSentinel(preferredPort = 0) {
 }
 
 async function findPreferredPort() {
-  const server = net.createServer();
+  const server = trackServerConnections(net.createServer());
   const port = await listenTcpServer(server);
   await closeServer(server);
   return port;
@@ -1528,58 +1585,15 @@ function isProcessAlive(pid) {
   }
 }
 
-function waitForExit(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
-  }
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error(`process ${child.pid} did not exit within ${timeoutMs}ms`));
-    }, timeoutMs);
-    const onExit = (code, signal) => {
-      cleanup();
-      resolve({ code, signal });
-    };
-    const cleanup = () => {
-      clearTimeout(timeout);
-      child.off("exit", onExit);
-    };
-    child.once("exit", onExit);
+function waitForManagedExit(managed, timeoutMs) {
+  return waitForOwnedProcessExit(managed.processRecord, timeoutMs, {
+    termGraceMs: 12_000,
+    killGraceMs: 5_000,
   });
-}
-
-async function terminateManagedProcess(managed) {
-  if (!managed?.child || managed.child.exitCode !== null) return;
-  const ownedIdentity = [...managed.events]
-    .reverse()
-    .find((event) => Number.isInteger(event.supervisor_pid) && event.verified === true);
-  if (ownedIdentity && isProcessAlive(ownedIdentity.supervisor_pid)) {
-    process.kill(ownedIdentity.supervisor_pid, "SIGTERM");
-  } else {
-    managed.child.kill("SIGTERM");
-  }
-  try {
-    await waitForExit(managed.child, 12_000);
-  } catch {
-    if (ownedIdentity && isProcessAlive(ownedIdentity.supervisor_pid)) {
-      process.kill(ownedIdentity.supervisor_pid, "SIGKILL");
-    }
-    if (managed.child.exitCode === null) managed.child.kill("SIGKILL");
-    await waitForExit(managed.child, 5_000).catch(() => {});
-  }
 }
 
 function closeServer(server) {
-  return new Promise((resolve, reject) => {
-    if (!server?.listening) {
-      resolve();
-      return;
-    }
-    for (const socket of server.testSockets ?? []) socket.destroy();
-    server.close((error) => (error ? reject(error) : resolve()));
-    server.closeAllConnections?.();
-  });
+  return closeTrackedServer(server, { timeoutMs: 3_000 });
 }
 
 function listFilesRecursively(root) {
@@ -1658,16 +1672,18 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function withTimeout(promise, timeoutMs, label) {
+async function withTimeout(promise, timeoutMs, label, onTimeout = () => {}) {
   let timeout;
   try {
     return await Promise.race([
       promise,
       new Promise((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
-          timeoutMs,
-        );
+        timeout = setTimeout(() => {
+          Promise.resolve()
+            .then(onTimeout)
+            .catch(() => {});
+          reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
       }),
     ]);
   } finally {

@@ -25,6 +25,7 @@ import type {
   StateRuntimeEvidencePackInput,
   StateRuntimeHandoffCapsulePreviewInput,
   StateRuntimeMessageInput,
+  StateRuntimeObserveInput,
   StateRuntimeProposal,
   StateRuntimeScope,
   StateRuntimeSessionTraceInput,
@@ -1585,13 +1586,57 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
     };
   }
 
-  async observe(input: StateRuntimeMessageInput): Promise<ObserveResult> {
+  async observe(input: StateRuntimeObserveInput): Promise<ObserveResult> {
     return {
-      scope: input.scope,
+      workspace_id: input.workspaceId,
+      project_id: input.projectId,
+      scope: input.projectId,
       session_id: "session-smoke-1",
       message_id: "message-smoke-1",
       compiler: "mock",
-      proposals: [{ ...proposal, scope: input.scope }],
+      proposals: [{ ...proposal, scope: input.projectId }],
+      model_invocation_receipt: {
+        receipt_version: "model_invocation_receipt.v0.1",
+        gateway_version: "model_gateway.v0.1",
+        invocation_id: "model-invocation:smoke",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        purpose: "observe_delta_compile",
+        implementation_id: "deterministic.observe",
+        implementation_version: "deterministic_observe.v0.1",
+        requested_mode: input.executionMode ?? "live",
+        execution_mode: "deterministic",
+        selection_reason:
+          input.executionMode === "deterministic"
+            ? "explicit_deterministic"
+            : "provider_unavailable",
+        started_at: "2026-05-08T00:00:00.000Z",
+        finished_at: "2026-05-08T00:00:00.001Z",
+        latency_ms: 1,
+        status: "completed",
+        outcome: "deterministic_success",
+        egress_attempted: false,
+        egress_status: "did_not_occur",
+        usage: null,
+        budget: {
+          decision: "not_used",
+          input_bytes_limit: 98_304,
+          input_bytes_used: null,
+          output_tokens_limit: 2_048,
+          provider_call_limit:
+            input.executionMode === "deterministic" ? 0 : 1,
+          provider_calls_used: 0,
+        },
+        failure_code: null,
+        data_classification: "private",
+        retention_class: "none",
+        privacy_decision: "provider_egress_not_used",
+        provenance_refs: ["sha256:0000000000000000000000000000000000000000000000000000000000000000"],
+        raw_prompt_persisted: false,
+        raw_response_persisted: false,
+        hidden_reasoning_persisted: false,
+        receipt_is_semantic_authority: false,
+      },
     };
   }
 

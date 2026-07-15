@@ -10,6 +10,7 @@ import { AugnesCoreHttpError, HttpAugnesCoreAdapter } from "../src/adapters/http
 import { MockAugnesCoreAdapter } from "../src/adapters/mock-core.js";
 import { config } from "../src/lib/config.js";
 import { sanitizeValue } from "../src/lib/sanitize.js";
+import { ModelInvocationReceiptSchema } from "../src/lib/state-runtime-types.js";
 import {
   AUGNES_BRIDGE_TOOL_NAMES,
   buildHealthPayload,
@@ -141,7 +142,14 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
-          augnes_observe: { message: 'Record the current bridge smoke context.' },
+          augnes_observe: {
+            workspaceId: 'workspace:11111111-1111-4111-8111-111111111111',
+            projectId: 'project:22222222-2222-4222-8222-222222222222',
+            expectedActiveProjectId: 'project:22222222-2222-4222-8222-222222222222',
+            expectedActiveSelectionRevision: 1,
+            executionMode: 'deterministic',
+            message: 'Record the current bridge smoke context.',
+          },
           augnes_plan: { message: 'What should happen next?' },
           augnes_record_action_result: {
             sourceAgentId: 'codex-smoke',
@@ -413,6 +421,88 @@ async function main() {
     "augnes_list_work_items",
     "augnes_get_work_brief",
   ];
+
+  const canonicalSuccessReceipt = {
+    receipt_version: "model_invocation_receipt.v0.1",
+    gateway_version: "model_gateway.v0.1",
+    invocation_id: "model-invocation:apps-schema-success",
+    workspace_id: "workspace:11111111-1111-4111-8111-111111111111",
+    project_id: "project:22222222-2222-4222-8222-222222222222",
+    purpose: "observe_delta_compile",
+    implementation_id: "openai_responses.observe",
+    implementation_version: "openai_responses_observe_adapter.v0.1",
+    requested_mode: "live",
+    execution_mode: "live",
+    selection_reason: "requested_live",
+    started_at: "2026-07-15T00:00:00.000Z",
+    finished_at: "2026-07-15T00:00:00.010Z",
+    latency_ms: 10,
+    status: "completed",
+    outcome: "live_success",
+    egress_attempted: true,
+    egress_status: "occurred",
+    usage: {
+      basis: "provider_report",
+      input_tokens: 80,
+      output_tokens: 24,
+      total_tokens: 104,
+    },
+    budget: {
+      decision: "within_budget",
+      input_bytes_limit: 98_304,
+      input_bytes_used: 1_024,
+      output_tokens_limit: 2_048,
+      provider_call_limit: 1,
+      provider_calls_used: 1,
+    },
+    failure_code: null,
+    data_classification: "private",
+    retention_class: "none",
+    privacy_decision: "provider_egress_approved",
+    provenance_refs: [
+      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ],
+    raw_prompt_persisted: false,
+    raw_response_persisted: false,
+    hidden_reasoning_persisted: false,
+    receipt_is_semantic_authority: false,
+  };
+  assert.deepEqual(
+    ModelInvocationReceiptSchema.parse(canonicalSuccessReceipt),
+    canonicalSuccessReceipt,
+    "complete real-shaped Gateway receipts should pass the Apps contract"
+  );
+  for (const [name, invalidReceipt] of [
+    ["unknown raw_prompt", { ...canonicalSuccessReceipt, raw_prompt: "private" }],
+    ["invalid outcome", { ...canonicalSuccessReceipt, outcome: "unknown" }],
+    ["arbitrary failure code", { ...canonicalSuccessReceipt, failure_code: "arbitrary" }],
+    ["malformed usage", { ...canonicalSuccessReceipt, usage: { input_tokens: "80" } }],
+    ["incomplete budget", { ...canonicalSuccessReceipt, budget: { decision: "within_budget" } }],
+    [
+      "semantic authority",
+      { ...canonicalSuccessReceipt, receipt_is_semantic_authority: true },
+    ],
+  ] as const) {
+    assert.throws(
+      () => ModelInvocationReceiptSchema.parse(invalidReceipt),
+      `${name} receipt should be rejected`
+    );
+  }
+  const mockObserveResult = await new MockStateRuntimeBridgeAdapter().observe({
+    workspaceId: canonicalSuccessReceipt.workspace_id,
+    projectId: canonicalSuccessReceipt.project_id,
+    expectedActiveProjectId: canonicalSuccessReceipt.project_id,
+    expectedActiveSelectionRevision: 1,
+    message: "Validate the complete mock receipt fixture.",
+    executionMode: "deterministic",
+  });
+  assert.deepEqual(
+    ModelInvocationReceiptSchema.parse(
+      mockObserveResult.model_invocation_receipt
+    ),
+    mockObserveResult.model_invocation_receipt,
+    "mock Observe should emit a complete canonical receipt"
+  );
 
   assert.equal(typeof config.useMock, "boolean", "config.useMock should load");
   assert.equal(typeof config.apiBaseUrl, "string", "config.apiBaseUrl should load");

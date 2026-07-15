@@ -14,7 +14,9 @@ globalThis.fetch = async () => {
   throw new Error("authority invariant smoke must not make live external calls");
 };
 
-const SCOPE = "project:authority-invariants";
+let SCOPE = "project:authority-invariants";
+let WORKSPACE_ID = "";
+let ACTIVE_SELECTION_REVISION = 0;
 const WORK_ID = "AG-AUTHORITY-INVARIANTS";
 
 const AUTHORITY_TABLES = [
@@ -46,6 +48,49 @@ const invariantResults = [];
 try {
   const { resetDatabase, openDatabase } = await import("./db-common.mjs");
   const db = resetDatabase();
+  const {
+    getOrCreateCanonicalProjectForLocalRootV01,
+    getOrCreateDefaultWorkspaceIdentityV01,
+    normalizeLocalProjectRootRefV01,
+  } = await import("../lib/vnext/persistence/project-identity-registry.ts");
+  const {
+    selectActiveProjectV01,
+    touchRecentProjectV01,
+  } = await import("../lib/vnext/persistence/project-lifecycle-registry.ts");
+  const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, {
+    create_uuid: () => "11111111-1111-4111-8111-111111111111",
+    now: () => "2026-07-15T00:00:00.000Z",
+  });
+  const localRoot = normalizeLocalProjectRootRefV01(tempDir, {
+    base_path: path.parse(tempDir).root,
+  });
+  const registration = getOrCreateCanonicalProjectForLocalRootV01(
+    db,
+    {
+      workspace_id: workspace.workspace_id,
+      local_root: localRoot,
+      display_name: "authority-invariants",
+    },
+    {
+      create_uuid: () => "22222222-2222-4222-8222-222222222222",
+      now: () => "2026-07-15T00:00:01.000Z",
+    },
+  );
+  touchRecentProjectV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: registration.project.project_id,
+    now: "2026-07-15T00:00:02.000Z",
+  });
+  const selection = selectActiveProjectV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: registration.project.project_id,
+    expected_project_id: null,
+    expected_revision: null,
+    now: "2026-07-15T00:00:03.000Z",
+  });
+  WORKSPACE_ID = workspace.workspace_id;
+  SCOPE = registration.project.project_id;
+  ACTIVE_SELECTION_REVISION = selection.selection_revision;
   seedWorkItem(db);
   db.close();
 
@@ -109,7 +154,14 @@ async function observeDoesNotCommit(openDatabase) {
   const observeRoute = await import("../app/api/observe/route.ts");
   const response = await observeRoute.POST(
     jsonRequest("http://localhost/api/observe", {
-      scope: SCOPE,
+      workspace_id: WORKSPACE_ID,
+      project_id: SCOPE,
+      expected_active_project_id: SCOPE,
+      expected_active_selection_revision: ACTIVE_SELECTION_REVISION,
+      project_root: {
+        path_flavor: process.platform === "win32" ? "win32" : "posix",
+        normalized_path: tempDir,
+      },
       session_id: "session:authority-observe",
       message: "Augnes authority invariant smoke.",
     }),
@@ -119,6 +171,8 @@ async function observeDoesNotCommit(openDatabase) {
 
   assert.equal(response.status, 201, "observe should create pending proposals");
   assert.equal(body.compiler, "mock", "observe smoke should use mock compiler");
+  assert.equal(body.model_invocation_receipt.project_id, SCOPE);
+  assert.equal(body.model_invocation_receipt.egress_attempted, false);
   assert.equal(body.proposals.length, 1, "observe fixture should create one proposal");
   assert.equal(body.proposals[0].status, "pending", "observe proposal should remain pending");
   assertCountDeltas(before, after, {

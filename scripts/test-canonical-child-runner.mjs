@@ -1,0 +1,237 @@
+#!/usr/bin/env node
+
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import net from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import {
+  canonicalChildFailure,
+  runCanonicalChild,
+} from "./canonical-child-runner.mjs";
+
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const fixture = path.join(
+  repositoryRoot,
+  "scripts",
+  "fixtures",
+  "canonical-child-runner-fixture.mjs",
+);
+const temporaryRoot = mkdtempSync(
+  path.join(tmpdir(), "augnes-canonical-child-runner-"),
+);
+const repositoryDatabasePath = path.join(repositoryRoot, "data", "augnes.db");
+const repositoryDatabaseBefore = snapshotFile(repositoryDatabasePath);
+const privateSentinel = "canonical-runner-private-credential-sentinel";
+const privatePathSentinel = "/private/canonical-runner/path-sentinel";
+const observedPids = new Set();
+const observedPorts = new Set();
+const summaries = [];
+
+try {
+  const success = await runFixture("fast-success", {
+    timeoutMs: 2_000,
+  });
+  assert.equal(success.exit_code, 0);
+  assert.equal(success.signal, null);
+  assert.equal(success.timed_out, false);
+  assert(success.duration_ms >= 0);
+
+  const nonzero = await runFixture("nonzero", { timeoutMs: 2_000 });
+  assert.equal(nonzero.exit_code, 7);
+  assert.equal(nonzero.timed_out, false);
+  const nonzeroFailure = canonicalChildFailure(nonzero, {
+    suite: "runner-regression",
+    timeoutMs: 2_000,
+  });
+  assert.equal(nonzeroFailure.code, "canonical_child_failed");
+  assert.match(nonzeroFailure.message, /suite=runner-regression/);
+  assert.match(nonzeroFailure.message, /label=nonzero/);
+
+  const directState = path.join(temporaryRoot, "direct-signal.txt");
+  const direct = await runFixture("hang", {
+    statePath: directState,
+    timeoutMs: 400,
+  });
+  assert.equal(direct.timed_out, true);
+  assert.equal(readFileSync(directState, "utf8"), "sigterm_received\n");
+  observedPids.add(direct.pid);
+  await assertProcessGone(direct.pid);
+
+  const treeState = path.join(temporaryRoot, "tree.json");
+  const tree = await runFixture("tree", {
+    statePath: treeState,
+    timeoutMs: 1_000,
+  });
+  assert.equal(tree.timed_out, true);
+  assert.equal(existsSync(treeState), true);
+  const treeIdentity = JSON.parse(readFileSync(treeState, "utf8"));
+  observedPids.add(treeIdentity.child_pid);
+  observedPids.add(treeIdentity.grandchild_pid);
+  observedPorts.add(treeIdentity.port);
+  await assertProcessGone(treeIdentity.child_pid);
+  await assertProcessGone(treeIdentity.grandchild_pid);
+  assert.equal(await canConnect(treeIdentity.port), false);
+
+  const resistant = await runFixture("term-resistant", {
+    timeoutMs: 400,
+    termGraceMs: 300,
+    killGraceMs: 2_000,
+  });
+  assert.equal(resistant.timed_out, true);
+  if (process.platform !== "win32") assert.equal(resistant.signal, "SIGKILL");
+  observedPids.add(resistant.pid);
+  await assertProcessGone(resistant.pid);
+
+  const privateOutput = { stdout: "", stderr: "", logs: [] };
+  const privateResult = await runFixture("private-output", {
+    timeoutMs: 400,
+    environment: {
+      PRIVATE_FIXTURE_SENTINEL: privateSentinel,
+      PRIVATE_FIXTURE_PATH: privatePathSentinel,
+    },
+    capture: privateOutput,
+  });
+  assert.equal(privateResult.timed_out, true);
+  assert.equal(privateOutput.stdout.includes(privateSentinel), true);
+  assert.equal(privateOutput.stderr.includes(privatePathSentinel), true);
+  const privateFailure = canonicalChildFailure(privateResult, {
+    suite: "runner-regression",
+    timeoutMs: 400,
+  });
+  const publicDiagnostics = JSON.stringify({
+    message: privateFailure.message,
+    code: privateFailure.code,
+    result: privateFailure.canonicalResult,
+    logs: privateOutput.logs,
+  });
+  assert.equal(publicDiagnostics.includes(privateSentinel), false);
+  assert.equal(publicDiagnostics.includes(privatePathSentinel), false);
+  assert.equal(publicDiagnostics.includes("PRIVATE_FIXTURE"), false);
+
+  assert.deepEqual(snapshotFile(repositoryDatabasePath), repositoryDatabaseBefore);
+  summaries.push(
+    success,
+    nonzero,
+    direct,
+    tree,
+    resistant,
+    privateResult,
+  );
+} finally {
+  rmSync(temporaryRoot, { recursive: true, force: true });
+}
+
+assert.equal(existsSync(temporaryRoot), false);
+for (const pid of observedPids) await assertProcessGone(pid);
+for (const port of observedPorts) assert.equal(await canConnect(port), false);
+assert.deepEqual(snapshotFile(repositoryDatabasePath), repositoryDatabaseBefore);
+
+console.log(
+  JSON.stringify(
+    {
+      test: "canonical-child-runner",
+      status: "pass",
+      fast_success: true,
+      nonzero_failure_normalized: true,
+      hanging_direct_child_terminated: true,
+      hanging_process_tree_terminated: true,
+      sigterm_escalation_verified: true,
+      privacy_safe_diagnostics: true,
+      temporary_root_removed: true,
+      repository_database_unchanged: true,
+      owned_processes_after: 0,
+      owned_ports_after: 0,
+      results: summaries.map(({ pid: _pid, ...result }) => result),
+    },
+    null,
+    2,
+  ),
+);
+
+async function runFixture(
+  mode,
+  {
+    statePath = path.join(temporaryRoot, `${mode}.state`),
+    timeoutMs,
+    termGraceMs = 500,
+    killGraceMs = 2_000,
+    environment = {},
+    capture = { stdout: "", stderr: "", logs: [] },
+  },
+) {
+  let pid = null;
+  const result = await runCanonicalChild({
+    suite: "runner-regression",
+    label: mode,
+    command: process.execPath,
+    args: [fixture, mode, statePath],
+    cwd: repositoryRoot,
+    env: { ...process.env, ...environment },
+    timeoutMs,
+    heartbeatMs: 100,
+    termGraceMs,
+    killGraceMs,
+    stdout: { write: (chunk) => (capture.stdout += chunk.toString()) },
+    stderr: { write: (chunk) => (capture.stderr += chunk.toString()) },
+    log: (line) => capture.logs.push(line),
+    onSpawn: (childPid) => {
+      pid = childPid;
+    },
+  });
+  return { ...result, pid };
+}
+
+async function assertProcessGone(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return;
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    if (!isProcessAlive(pid)) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.equal(isProcessAlive(pid), false, "owned fixture process remained alive");
+}
+
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function canConnect(port) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: "127.0.0.1", port });
+    const finish = (value) => {
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(300, () => finish(false));
+    socket.once("connect", () => finish(true));
+    socket.once("error", () => finish(false));
+  });
+}
+
+function snapshotFile(filePath) {
+  if (!existsSync(filePath)) return null;
+  const stats = statSync(filePath, { bigint: true });
+  return {
+    size: stats.size.toString(),
+    mtime_ns: stats.mtimeNs.toString(),
+    sha256: createHash("sha256").update(readFileSync(filePath)).digest("hex"),
+  };
+}

@@ -8452,24 +8452,54 @@ export function createMcpAppServer(
       "augnes_observe",
       {
         title: "Observe Augnes state message",
-        description: "Send an observation message to the Augnes runtime and return any pending proposals it produces.",
+        description: "Send a canonically project-scoped observation to the Augnes runtime and return pending proposals plus its privacy-safe model invocation receipt.",
         inputSchema: {
-          scope: z.string().min(1).optional(),
+          workspaceId: z
+            .string()
+            .regex(/^workspace:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+          projectId: z
+            .string()
+            .regex(/^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+          expectedActiveProjectId: z
+            .string()
+            .regex(/^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+          expectedActiveSelectionRevision: z.number().int().positive(),
           message: z.string().min(1),
+          projectRoot: z
+            .object({
+              pathFlavor: z.enum(["posix", "win32"]),
+              normalizedPath: z.string().min(1),
+            })
+            .optional(),
+          executionMode: z.enum(["live", "deterministic"]).optional(),
         },
         annotations: bridgeWriteAnnotations,
         _meta: modelOnlyToolMeta,
       },
-      async ({ scope, message }) => {
-        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
-
+      async ({
+        workspaceId,
+        projectId,
+        expectedActiveProjectId,
+        expectedActiveSelectionRevision,
+        message,
+        projectRoot,
+        executionMode,
+      }) => {
         try {
-          const observe = await stateRuntimeAdapter.observe({ scope: resolvedScope, message });
+          const observe = await stateRuntimeAdapter.observe({
+            workspaceId,
+            projectId,
+            expectedActiveProjectId,
+            expectedActiveSelectionRevision,
+            message,
+            projectRoot,
+            executionMode,
+          });
           const structuredContent = sanitizePayload({ profile: config.appProfile, observe });
           return {
             structuredContent,
             content: narrative(
-              `Observed message for ${observe.scope}; produced ${observe.proposals.length} pending proposal(s). No proposals were committed or rejected.`
+              `Observed message for canonical project ${observe.project_id}; produced ${observe.proposals.length} pending proposal(s). No proposals were committed or rejected.`
             ),
             _meta: sanitizePayload({ profile: config.appProfile }),
           };

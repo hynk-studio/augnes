@@ -51,6 +51,7 @@ import {
   type StateRuntimeHandoffCapsulePreviewInput,
   type StateRuntimeLimit,
   type StateRuntimeMessageInput,
+  type StateRuntimeObserveInput,
   type StateRuntimeProposal,
   type StateRuntimeScope,
   type StateRuntimeSessionTraceInput,
@@ -375,11 +376,25 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
     );
   }
 
-  async observe(input: StateRuntimeMessageInput): Promise<ObserveResult> {
+  async observe(input: StateRuntimeObserveInput): Promise<ObserveResult> {
     return this.requestJson(endpointContract.observe.method, endpointContract.observe.path, ObserveResultSchema, "observe", {
       body: {
-        scope: parseScope(input.scope),
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        expected_active_project_id: input.expectedActiveProjectId,
+        expected_active_selection_revision: input.expectedActiveSelectionRevision,
         message: input.message,
+        ...(input.projectRoot
+          ? {
+              project_root: {
+                path_flavor: input.projectRoot.pathFlavor,
+                normalized_path: input.projectRoot.normalizedPath,
+              },
+            }
+          : {}),
+        ...(input.executionMode
+          ? { execution_mode: input.executionMode }
+          : {}),
       },
     });
   }
