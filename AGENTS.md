@@ -69,6 +69,15 @@ For ordinary PRs:
 - cover both interactive and policy-triggered paths when changing shared run lifecycle behavior
 - report exact commands, results, and concrete skipped reasons
 
+### Canonical CI lifecycle
+
+- Canonical tests that start processes, servers, browsers, listeners, or long-lived asynchronous work must use the repository's bounded test-harness lifecycle and declare a measured timeout.
+- A timeout must terminate and await the complete verified owned process tree, close owned listeners, and leave zero owned process, runtime-state, database, port, or temporary-file residue.
+- Do not add unbounded `spawn`, `spawnSync`, child waits, polling loops, or server-close paths to canonical tests. New process-owning fixtures must cover timeout and cleanup behavior automatically.
+- Only a completed successful Canonical CI run for the current pull-request head is merge evidence. Superseded runs must be cancelled automatically or treated as stale.
+- Do not repeatedly rerun a nonterminal CI job. Identify the active canonical child from its label and heartbeat, fix the cause, push a new head, and allow one fresh run.
+- Increase child, step, or job timeouts only from measured successful durations. Never widen a timeout merely to conceal a hang.
+
 Long manual operator pilots, broad real-project usefulness evaluation, and extended qualification are Alpha/RC activities, not default merge gates for R2–R8. Bounded automation and Personal Perspective paths still require focused behavior tests as they are implemented.
 
 ## Pull requests
