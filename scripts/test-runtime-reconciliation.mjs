@@ -47,6 +47,13 @@ import {
   acquireRuntimeReconciliationLease,
   classifyRuntimeState,
 } from "./runtime-reconciliation.mjs";
+import {
+  cleanupOwnedProcesses,
+  closeTrackedServer,
+  registerOwnedChild,
+  trackServerConnections,
+  waitForOwnedProcessExit,
+} from "./test-harness-process-lifecycle.mjs";
 
 const repositoryRoot = realpathSync(process.cwd());
 const repositoryFingerprint = createHash("sha256")
@@ -64,6 +71,8 @@ const testScript = path.join(
 );
 const observedChildRoots = new Set();
 const observedOwnershipPorts = new Set();
+const ownedProcesses = new Set();
+const ownedProcessRecords = new WeakMap();
 
 if (process.argv[2] === "--bootstrap-crash-helper") {
   await runBootstrapCrashHelper(process.argv[3]);
@@ -85,12 +94,14 @@ async function runReconciliationSuite() {
   let activeWalSkipReason = null;
   let windowsHardCrashSkipReason = null;
   let proxyServer = null;
+  let suiteError = null;
+  let cleanupError = null;
 
   try {
-    proxyServer = createHttpServer((_request, response) => {
+    proxyServer = trackServerConnections(createHttpServer((_request, response) => {
       proxyRequests += 1;
       response.writeHead(502).end("reconciliation proxy sentinel");
-    });
+    }));
     const proxyPort = await listen(proxyServer);
 
     await testReconciliationLeaseOwnerCrash({
@@ -206,19 +217,59 @@ async function runReconciliationSuite() {
         .digest("hex"),
     };
     console.log(JSON.stringify(summary, null, 2));
+  } catch (error) {
+    suiteError = error;
   } finally {
-    for (const item of managed) await terminateManaged(item);
-    for (const pid of observedChildRoots) {
-      if (processTreeAlive(pid)) signalProcessTree(pid, "SIGKILL");
+    const cleanupErrors = [];
+    for (const item of managed) {
+      try {
+        await terminateManaged(item);
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
     }
-    if (proxyServer) await closeServer(proxyServer);
+    for (const pid of observedChildRoots) {
+      if (!processTreeAlive(pid)) continue;
+      signalProcessTree(pid, "SIGKILL");
+      try {
+        await waitForProcessTreeExit(pid, 5_000);
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    try {
+      await cleanupOwnedProcesses(ownedProcesses, {
+        termGraceMs: 12_000,
+        killGraceMs: 5_000,
+      });
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    try {
+      if (proxyServer) await closeServer(proxyServer);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
     rmSync(temporaryRoot, {
       recursive: true,
       force: true,
       maxRetries: 5,
       retryDelay: 100,
     });
+    if (cleanupErrors.length > 0) {
+      cleanupError = new Error("runtime reconciliation cleanup failed");
+      cleanupError.code = "runtime_reconciliation_cleanup_failed";
+      cleanupError.causes = cleanupErrors;
+    }
   }
+  if (suiteError && cleanupError) {
+    throw new AggregateError(
+      [suiteError, cleanupError],
+      "runtime reconciliation and cleanup failed",
+    );
+  }
+  if (suiteError) throw suiteError;
+  if (cleanupError) throw cleanupError;
 }
 
 async function testReconciliationLeaseOwnerCrash({
@@ -238,9 +289,12 @@ async function testReconciliationLeaseOwnerCrash({
     {
       cwd: repositoryRoot,
       env: scenario.environment,
+      detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
     },
   );
+  ownChild(helper, "reconciliation lease crash helper");
   const observed = { child: helper, stdout: "", stderr: "", events: [] };
   collectJsonEvents(observed);
   helper.stderr.setEncoding("utf8");
@@ -294,8 +348,13 @@ async function testReconciliationLeaseOwnerCrash({
   const unrelated = spawn(
     process.execPath,
     ["--eval", "setInterval(() => {}, 1000)"],
-    { stdio: "ignore" },
+    {
+      detached: process.platform !== "win32",
+      stdio: "ignore",
+      windowsHide: true,
+    },
   );
+  ownChild(unrelated, "reconciliation lease unrelated sentinel");
   writeRestrictedJson(
     scenario.paths.reconciliationLease,
     { ...lease, owner_pid: unrelated.pid },
@@ -313,7 +372,7 @@ async function testReconciliationLeaseOwnerCrash({
   await stopSupervisor(scenario, runtime, managed);
   assertRuntimeStateClean(scenario.paths);
   unrelated.kill("SIGTERM");
-  await waitForExit(unrelated, 5_000).catch(() => unrelated.kill("SIGKILL"));
+  await waitForExit(unrelated, 5_000);
 }
 
 async function testDatabaseJournalOwnerCrash({
@@ -366,8 +425,13 @@ async function testDatabaseJournalOwnerCrash({
   const unrelated = spawn(
     process.execPath,
     ["--eval", "setInterval(() => {}, 1000)"],
-    { stdio: "ignore" },
+    {
+      detached: process.platform !== "win32",
+      stdio: "ignore",
+      windowsHide: true,
+    },
   );
+  ownChild(unrelated, "database journal unrelated sentinel");
   writeRestrictedJson(lockPath, { ...journal, supervisor_pid: unrelated.pid }, true);
   const reused = await inspectDatabaseReconciliation({
     databasePath: scenario.databasePath,
@@ -386,7 +450,7 @@ async function testDatabaseJournalOwnerCrash({
   assert.equal(listOperationResidue(path.dirname(scenario.databasePath)).length, 0);
   assertRuntimeStateClean(scenario.paths);
   unrelated.kill("SIGTERM");
-  await waitForExit(unrelated, 5_000).catch(() => unrelated.kill("SIGKILL"));
+  await waitForExit(unrelated, 5_000);
 }
 
 async function testReadyCrashConcurrentRestart({
@@ -571,12 +635,17 @@ async function testUnverifiableRuntimeState({ temporaryRoot, proxyPort }) {
   const unrelated = spawn(
     process.execPath,
     ["--eval", "setInterval(() => {}, 1000)"],
-    { stdio: "ignore", detached: process.platform !== "win32" },
+    {
+      stdio: "ignore",
+      detached: process.platform !== "win32",
+      windowsHide: true,
+    },
   );
-  const unrelatedListener = createHttpServer((_request, response) => {
+  ownChild(unrelated, "unverifiable runtime unrelated sentinel");
+  const unrelatedListener = trackServerConnections(createHttpServer((_request, response) => {
     response.writeHead(200, { "content-type": "application/json" });
     response.end(JSON.stringify({ contract: "unrelated-runtime" }));
-  });
+  }));
   const unrelatedPort = await listen(unrelatedListener);
   const generationId = "forged-generation";
   const instanceId = "forged-instance";
@@ -677,9 +746,7 @@ async function testUnverifiableRuntimeState({ temporaryRoot, proxyPort }) {
   assert.equal(symlinked.state, "ownership_unverifiable");
 
   signalProcessTree(unrelated.pid, "SIGTERM");
-  await waitForExit(unrelated, 5_000).catch(() => {
-    signalProcessTree(unrelated.pid, "SIGKILL");
-  });
+  await waitForExit(unrelated, 5_000);
   await closeServer(unrelatedListener);
   rmSync(scenario.root, { recursive: true, force: true });
 }
@@ -967,8 +1034,15 @@ function spawnBootstrapHelper(scenario, options) {
       "--bootstrap-crash-helper",
       Buffer.from(JSON.stringify(configuration)).toString("base64url"),
     ],
-    { cwd: repositoryRoot, env: scenario.environment, stdio: ["ignore", "pipe", "pipe"] },
+    {
+      cwd: repositoryRoot,
+      env: scenario.environment,
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    },
   );
+  ownChild(child, `database bootstrap crash helper ${scenario.name}`);
   const helper = { child, stdout: "", stderr: "", events: [] };
   collectJsonEvents(helper);
   child.stderr.setEncoding("utf8");
@@ -1043,8 +1117,11 @@ function spawnSupervisor(scenario, managed, label = scenario.name) {
   const child = spawn(process.execPath, [supervisorScript, "start"], {
     cwd: repositoryRoot,
     env: scenario.environment,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
+  ownChild(child, `runtime reconciliation supervisor ${label}`);
   const item = { child, label, stdout: "", stderr: "", events: [], ready: null };
   managed.add(item);
   collectJsonEvents(item);
@@ -1239,8 +1316,11 @@ async function runCli(arguments_, environment) {
   const child = spawn(process.execPath, [supervisorScript, ...arguments_], {
     cwd: repositoryRoot,
     env: environment,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
+  ownChild(child, "runtime reconciliation supervisor CLI");
   let stdout = "";
   let stderr = "";
   child.stdout.setEncoding("utf8");
@@ -1276,7 +1356,7 @@ async function occupyPortRange(size) {
     const servers = [];
     try {
       for (let offset = 0; offset < size; offset += 1) {
-        const server = net.createServer();
+        const server = trackServerConnections(net.createServer());
         await listen(server, candidate + offset);
         servers.push(server);
       }
@@ -1295,7 +1375,7 @@ async function occupyPortRange(size) {
 
 async function freePort() {
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const server = net.createServer();
+    const server = trackServerConnections(net.createServer());
     const candidate = 20_000 + Math.floor(Math.random() * 35_000);
     try {
       await listen(server, candidate);
@@ -1319,10 +1399,7 @@ function listen(server, port = 0) {
 }
 
 function closeServer(server) {
-  return new Promise((resolve) => {
-    if (!server.listening) return resolve();
-    server.close(() => resolve());
-  });
+  return closeTrackedServer(server, { timeoutMs: 3_000 });
 }
 
 async function canConnect(port) {
@@ -1383,23 +1460,25 @@ async function waitForProcessTreeExit(pid, timeoutMs) {
   assert.equal(processTreeAlive(pid), false, `process tree ${pid} did not exit`);
 }
 
+function ownChild(child, label) {
+  const record = registerOwnedChild(ownedProcesses, child, { label });
+  ownedProcessRecords.set(child, record);
+  return record;
+}
+
 function waitForExit(child, timeoutMs) {
-  if (child.exitCode !== null) {
-    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
-  }
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("process exit timed out")), timeoutMs);
-    child.once("exit", (code, signal) => {
-      clearTimeout(timeout);
-      resolve({ code, signal });
-    });
+  const record = ownedProcessRecords.get(child);
+  if (!record) throw new Error("unowned reconciliation child wait refused");
+  return waitForOwnedProcessExit(record, timeoutMs, {
+    termGraceMs: 12_000,
+    killGraceMs: 5_000,
   });
 }
 
 async function terminateManaged(item) {
   if (item.child.exitCode !== null) return;
   item.child.kill("SIGTERM");
-  await waitForExit(item.child, 5_000).catch(() => item.child.kill("SIGKILL"));
+  await waitForExit(item.child, 5_000);
 }
 
 function writeRestrictedJson(filePath, value, replace = false) {

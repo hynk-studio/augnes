@@ -3,9 +3,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import {
+  canonicalChildFailure,
+  DEFAULT_CANONICAL_CHILD_TIMEOUT_MS,
+  runCanonicalChild,
+} from "./canonical-child-runner.mjs";
 import {
   buildCanonicalChildEnvironment,
   findForbiddenAmbientKeysForwarded,
@@ -96,6 +100,11 @@ const suites = {
       },
     },
     {
+      label: "bounded canonical child lifecycle and process-tree cleanup",
+      ...rootNode("scripts/test-canonical-child-runner.mjs"),
+      timeoutMs: 60_000,
+    },
+    {
       label: "bounded model egress before transport",
       ...rootNode("scripts/test-bounded-model-egress.ts"),
     },
@@ -116,20 +125,24 @@ const suites = {
     {
       label: "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
+      timeoutMs: 120_000,
     },
     {
       label: "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
+      timeoutMs: 120_000,
     },
     {
       label: "runtime crash, orphan, stale-state, and database reconciliation",
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
+      timeoutMs: 180_000,
     },
   ],
   e2e: [
     {
       label: "TaskContextPacket to Workbench golden path",
       ...rootNode("scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"),
+      timeoutMs: 480_000,
     },
   ],
 };
@@ -146,8 +159,7 @@ let canonicalChildrenChecked = 0;
 
 try {
   for (const step of suites[suiteName]) {
-    const startedAt = Date.now();
-    console.log(`\n[canonical:${suiteName}] ${step.label}`);
+    console.log();
     const childEnvironment = buildCanonicalChildEnvironment({
       ambientEnvironment: process.env,
       stepEnvironment: step.env,
@@ -165,17 +177,25 @@ try {
         `forbidden ambient environment keys forwarded: ${forbiddenKeys.join(", ")}`,
       );
     }
-    const result = spawnSync(step.command, step.args, {
+    const timeoutMs = step.timeoutMs ?? DEFAULT_CANONICAL_CHILD_TIMEOUT_MS;
+    const result = await runCanonicalChild({
+      suite: suiteName,
+      label: step.label,
+      command: step.command,
+      args: step.args,
       cwd: step.cwd,
       env: childEnvironment,
-      stdio: "inherit",
+      timeoutMs,
     });
-    const durationMs = Date.now() - startedAt;
-    const status = result.status ?? 1;
-    results.push({ label: step.label, status, duration_ms: durationMs });
-    if (result.error) throw result.error;
-    if (status !== 0) {
-      throw new Error(`${step.label} exited ${status}`);
+    results.push({
+      label: step.label,
+      status: result.exit_code ?? 1,
+      signal: result.signal,
+      timed_out: result.timed_out,
+      duration_ms: result.duration_ms,
+    });
+    if (result.timed_out || result.spawn_error_code || result.exit_code !== 0) {
+      throw canonicalChildFailure(result, { suite: suiteName, timeoutMs });
     }
   }
 

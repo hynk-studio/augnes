@@ -70,8 +70,10 @@ const FORCED_CHILD_STOP_MS = 4_000;
 const EXITED_CHILD_DRAIN_MS = 1_000;
 const STOP_COMMAND_TIMEOUT_MS = 20_000;
 const OWNERSHIP_RACE_WAIT_MS = 3_000;
+const SERVER_CLOSE_TIMEOUT_MS = 5_000;
 const MAX_CONTROL_RESPONSE_BYTES = 64 * 1024;
 const OUTPUT_TAIL_BYTES = 32 * 1024;
+const ownedServerSockets = new WeakMap();
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = realpathSync(path.resolve(scriptDirectory, ".."));
 const nextBin = path.join(repositoryRoot, "node_modules", "next", "dist", "bin", "next");
@@ -1126,6 +1128,12 @@ async function startControlServer(runtime) {
   });
   server.keepAliveTimeout = 1_000;
   server.headersTimeout = 2_000;
+  const sockets = new Set();
+  ownedServerSockets.set(server, sockets);
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
+  });
 
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -1188,7 +1196,11 @@ function signalOwnedProcessTree(record, signal) {
     if (process.platform === "win32") {
       const args = ["/PID", String(record.pid), "/T"];
       if (signal === "SIGKILL") args.push("/F");
-      spawnSync("taskkill", args, { stdio: "ignore", windowsHide: true });
+      spawnSync("taskkill", args, {
+        stdio: "ignore",
+        timeout: 3_000,
+        windowsHide: true,
+      });
     } else {
       process.kill(-record.pid, signal);
     }
@@ -1734,15 +1746,36 @@ function requestControlJson({
   });
 }
 
-function closeServer(server) {
-  return new Promise((resolve, reject) => {
-    if (!server.listening) {
+async function closeServer(server) {
+  const sockets = ownedServerSockets.get(server) ?? new Set();
+  for (const socket of sockets) socket.destroy();
+  server.closeAllConnections?.();
+  server.closeIdleConnections?.();
+  if (!server.listening) return;
+
+  let settled = false;
+  let closeError = null;
+  const closed = new Promise((resolve) => {
+    server.close((error) => {
+      settled = true;
+      closeError = error ?? null;
       resolve();
-      return;
-    }
-    server.close((error) => (error ? reject(error) : resolve()));
-    server.closeAllConnections?.();
+    });
   });
+  const finished = await Promise.race([
+    closed.then(() => true),
+    delay(SERVER_CLOSE_TIMEOUT_MS).then(() => false),
+  ]);
+  if (!finished) {
+    for (const socket of sockets) socket.destroy();
+    server.closeAllConnections?.();
+    server.closeIdleConnections?.();
+    await Promise.race([closed, delay(250)]);
+  }
+  if (!settled || server.listening) {
+    throw new PublicRuntimeError("control_server_close_timeout");
+  }
+  if (closeError) throw closeError;
 }
 
 function respondJson(response, statusCode, value) {

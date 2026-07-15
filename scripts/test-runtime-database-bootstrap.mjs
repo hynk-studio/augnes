@@ -41,6 +41,13 @@ import {
   verifyDatabaseFile,
 } from "./runtime-database-bootstrap.mjs";
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
+import {
+  cleanupOwnedProcesses,
+  closeTrackedServer,
+  registerOwnedChild,
+  trackServerConnections,
+  waitForOwnedProcessExit,
+} from "./test-harness-process-lifecycle.mjs";
 
 const repositoryRoot = process.cwd();
 const supervisorScript = path.join(repositoryRoot, "scripts", "augnes-runtime-supervisor.mjs");
@@ -54,13 +61,16 @@ const firstStartMarkerScope = "project:database-bootstrap-first-start";
 const firstStartMarkerKey = "database_bootstrap.first_start_marker";
 const firstStartMarkerValue = "disposable-default-database-marker-v0-1";
 const selectedPorts = [];
-const managedSupervisors = new Set();
+const ownedProcesses = new Set();
 let providerOrExternalRequests = 0;
 let pathFixtureSkipReason = null;
 let walFixtureSkipReason = null;
 
 const repositoryDatabaseBefore = snapshotDatabaseFamily(repositoryDatabasePath);
 const repositoryTreeBefore = snapshotRepositoryLocalPathResidue();
+
+let suiteError = null;
+let cleanupError = null;
 
 try {
   testPurePathResolution();
@@ -125,12 +135,28 @@ try {
       .digest("hex"),
   };
   console.log(JSON.stringify(summary, null, 2));
+} catch (error) {
+  suiteError = error;
 } finally {
-  for (const managed of managedSupervisors) {
-    await terminateManagedSupervisor(managed);
+  try {
+    await cleanupOwnedProcesses(ownedProcesses, {
+      termGraceMs: 12_000,
+      killGraceMs: 5_000,
+    });
+  } catch (error) {
+    cleanupError = error;
   }
   rmSync(temporaryRoot, { recursive: true, force: true });
 }
+
+if (suiteError && cleanupError) {
+  throw new AggregateError(
+    [suiteError, cleanupError],
+    "runtime database bootstrap and cleanup failed",
+  );
+}
+if (suiteError) throw suiteError;
+if (cleanupError) throw cleanupError;
 
 function testPurePathResolution() {
   const fingerprint = "a".repeat(64);
@@ -1489,10 +1515,12 @@ async function startSupervisor(environment, label, surface = "direct") {
   const child = spawn(command, args, {
     cwd: repositoryRoot,
     env: environment,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
   const managed = { child, label, stdout: "", stderr: "", ready: null };
-  managedSupervisors.add(managed);
+  managed.processRecord = registerOwnedChild(ownedProcesses, child, { label });
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk) => {
@@ -1519,8 +1547,10 @@ async function stopSupervisor(managed, environment, paths) {
   assert.equal(stop.status, 0, stop.stderr || stop.stdout);
   assert.equal(lastJsonLine(stop.stdout).result, "stopped");
   assertNormalOutputOmitsLocalPaths(stop.stdout, paths);
-  await waitForExit(managed.child, 25_000);
-  managedSupervisors.delete(managed);
+  await waitForOwnedProcessExit(managed.processRecord, 25_000, {
+    termGraceMs: 12_000,
+    killGraceMs: 5_000,
+  });
   for (const child of managed.ready.children) {
     await waitForPidExit(child.pid, 10_000);
   }
@@ -1528,14 +1558,6 @@ async function stopSupervisor(managed, environment, paths) {
   await waitForPortClosed(managed.ready.bridge_port);
   assertRuntimeStateClean(paths.runtime_directory);
   assertNoSqliteSideFiles(paths.database_path);
-}
-
-async function terminateManagedSupervisor(managed) {
-  if (managed.child.exitCode !== null) return;
-  managed.child.kill("SIGTERM");
-  await waitForExit(managed.child, 12_000).catch(() => {
-    managed.child.kill("SIGKILL");
-  });
 }
 
 async function waitForJsonEvent(managed, predicate, timeoutMs) {
@@ -1564,28 +1586,32 @@ function runSupervisorCliSync(args, environment) {
   });
 }
 
-function runSupervisorCli(args, environment) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [supervisorScript, ...args], {
-      cwd: repositoryRoot,
-      env: environment,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.once("error", reject);
-    child.once("exit", (code, signal) => {
-      resolve({ status: code, signal, stdout, stderr });
-    });
+async function runSupervisorCli(args, environment) {
+  const child = spawn(process.execPath, [supervisorScript, ...args], {
+    cwd: repositoryRoot,
+    env: environment,
+    detached: process.platform !== "win32",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
+  const processRecord = registerOwnedChild(ownedProcesses, child, {
+    label: "database bootstrap supervisor CLI",
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  const exit = await waitForOwnedProcessExit(processRecord, 30_000, {
+    termGraceMs: 12_000,
+    killGraceMs: 5_000,
+  });
+  return { status: exit.code, signal: exit.signal, stdout, stderr };
 }
 
 function disposableSupervisorEnvironment(
@@ -1880,6 +1906,7 @@ function assertProcessCommandLinesPublicSafe(ready) {
   for (const pid of [ready.supervisor_pid, ...ready.children.map((child) => child.pid)]) {
     const result = spawnSync("ps", ["-p", String(pid), "-o", "command="], {
       encoding: "utf8",
+      timeout: 2_000,
     });
     if (result.status !== 0) continue;
     assert.equal(result.stdout.includes(credentialSentinel), false);
@@ -1991,7 +2018,7 @@ async function findPreferredPorts() {
 
 async function reserveEphemeralPort() {
   while (true) {
-    const server = net.createServer();
+    const server = trackServerConnections(net.createServer());
     const port = await new Promise((resolve, reject) => {
       server.once("error", reject);
       server.listen({ host: "127.0.0.1", port: 0, exclusive: true }, () => {
@@ -2005,10 +2032,10 @@ async function reserveEphemeralPort() {
 
 async function createProxySentinel() {
   let requests = 0;
-  const server = net.createServer((socket) => {
+  const server = trackServerConnections(net.createServer((socket) => {
     requests += 1;
     socket.destroy();
-  });
+  }));
   const port = await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen({ host: "127.0.0.1", port: 0, exclusive: true }, () => {
@@ -2025,10 +2052,7 @@ async function createProxySentinel() {
 }
 
 function closeNetServer(server) {
-  return new Promise((resolve, reject) => {
-    if (!server.listening) return resolve();
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
+  return closeTrackedServer(server, { timeoutMs: 3_000 });
 }
 
 async function fetchJson(url) {
@@ -2078,28 +2102,12 @@ function isProcessAlive(pid) {
   }
 }
 
-function waitForExit(child, timeoutMs) {
-  if (child.exitCode !== null) return Promise.resolve(child.exitCode);
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error(`process ${child.pid} exit timed out`));
-    }, timeoutMs);
-    const onExit = (code) => {
-      cleanup();
-      resolve(code);
-    };
-    const cleanup = () => {
-      clearTimeout(timeout);
-      child.off("exit", onExit);
-    };
-    child.once("exit", onExit);
-  });
-}
-
 function listRuntimeChildProcesses() {
   if (process.platform === "win32") return [];
-  const result = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" });
+  const result = spawnSync("ps", ["-axo", "pid=,command="], {
+    encoding: "utf8",
+    timeout: 2_000,
+  });
   if (result.status !== 0) return [];
   return result.stdout
     .split(/\r?\n/)
