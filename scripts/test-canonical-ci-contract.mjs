@@ -68,7 +68,7 @@ for (const [pathName, timeout] of [
   const escapedPath = pathName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   assert.match(
     canonicalSuite,
-    new RegExp(`${escapedPath}\\"\\),\\n\\s+timeoutMs: ${timeout}`),
+    new RegExp(`${escapedPath}\"\\),\\n\\s+timeoutMs: ${timeout}`),
     `${pathName} must keep its measured canonical timeout`,
   );
 }
