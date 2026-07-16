@@ -180,7 +180,10 @@ async function handle(message) {
         else if (scenario === "file_approval") requestFileApproval(path.join(root, "src"));
         else if (scenario === "file_approval_unsafe") requestFileApproval("C:\\outside\\file.ts");
         else if (scenario === "permission_approval") requestPermissionApproval(false);
-        else if (scenario === "network_permission_approval") requestPermissionApproval(true);
+        else if (
+          scenario === "network_permission_approval" ||
+          scenario === "network_permission_approval_ignored_interrupt"
+        ) requestPermissionApproval(true);
         else if (scenario === "mismatched_thread_approval") requestCommandApproval({ threadId: "wrong-thread" });
         else if (scenario === "mismatched_turn_approval") requestCommandApproval({ turnId: "wrong-turn" });
         else if (scenario === "unknown_approval_method") requestUnknownApproval();
@@ -202,7 +205,10 @@ async function handle(message) {
     if (message.method === "turn/interrupt") {
       trace("interrupt", { threadId: message.params?.threadId, turnId: message.params?.turnId });
       respond(message.id, {});
-      if (scenario === "ignored_interrupt") return;
+      if (
+        scenario === "ignored_interrupt" ||
+        scenario === "network_permission_approval_ignored_interrupt"
+      ) return;
       const delayMs = scenario === "delayed_cleanup" ? 75 : 0;
       setTimeout(() => completeInterrupted(), delayMs);
       return;
@@ -228,8 +234,16 @@ async function handle(message) {
       emitObservedItems();
       completeSuccess();
     } else if (message.result?.decision === "cancel") {
-      if (scenario === "ignored_interrupt") return;
+      if (
+        scenario === "ignored_interrupt" ||
+        scenario === "network_permission_approval_ignored_interrupt"
+      ) return;
       completeInterrupted();
+    } else if (scenario === "network_permission_approval_ignored_interrupt") {
+      // This scenario models a host that resolves the permission request but
+      // never confirms turn interruption. Core must pause for reconciliation
+      // and admit no terminal receipt, independently of JSONL message order.
+      return;
     } else {
       completeFailure();
     }

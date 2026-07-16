@@ -2773,7 +2773,7 @@ async function assertLiveCodexPolicyApprovalParityOnClonesV01(input: {
       });
       const harness = createFakeLiveCodexHarnessV01({
         config,
-        scenario: "network_permission_approval",
+        scenario: "network_permission_approval_ignored_interrupt",
         now: () => clock.now(),
       });
       const receiptsBefore = countRunReceiptsV01(config);
