@@ -101,6 +101,8 @@ const acceptedMarker = "PROJECT A ACCEPTED STATE MARKER";
 const projectBMarker = "PROJECT B PENDING MARKER";
 const legacyMarker = "LEGACY PROJECT AUGNES MARKER";
 const secretMarker = "project-home-secret-marker";
+const privateModelMarker = "gpt-private-project-home-model";
+const malformedModelMarker = "private/project home model";
 const originalEnvironment = { ...process.env };
 const originalFetch = globalThis.fetch;
 const originalSocketConnect = Socket.prototype.connect;
@@ -111,6 +113,7 @@ let db: Database.Database | null = null;
 
 for (const key of [
   "OPENAI_API_KEY",
+  "OPENAI_MODEL",
   "GITHUB_TOKEN",
   "GH_TOKEN",
   "CODEX_HOME",
@@ -947,10 +950,53 @@ async function main() {
       assert.equal(JSON.stringify(capabilities).includes(secretMarker), false);
     }
 
-    process.env.OPENAI_API_KEY = secretMarker;
-    const tokenDoesNotProveReadiness = await readProjectHomeCapabilityStatusesV01();
+    for (const testCase of [
+      { apiKey: null, model: null, expectedStatus: "unavailable" },
+      { apiKey: secretMarker, model: null, expectedStatus: "available" },
+      {
+        apiKey: null,
+        model: privateModelMarker,
+        expectedStatus: "action_required",
+      },
+      {
+        apiKey: secretMarker,
+        model: privateModelMarker,
+        expectedStatus: "available",
+      },
+      {
+        apiKey: secretMarker,
+        model: malformedModelMarker,
+        expectedStatus: "misconfigured",
+      },
+      { apiKey: "   ", model: "   ", expectedStatus: "unavailable" },
+    ] as const) {
+      if (testCase.apiKey === null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = testCase.apiKey;
+      if (testCase.model === null) delete process.env.OPENAI_MODEL;
+      else process.env.OPENAI_MODEL = testCase.model;
+
+      const capabilities = await readProjectHomeCapabilityStatusesV01();
+      const openAiCapability = capabilities.items.find(
+        (item) => item.capability === "openai",
+      );
+      assert.equal(openAiCapability?.status, testCase.expectedStatus);
+      assert.equal(openAiCapability?.verification, "trusted_local_status");
+      assert.match(
+        openAiCapability?.summary ?? "",
+        /not contacted or verified|deterministic model behavior remains available/i,
+      );
+      assert(
+        capabilities.items
+          .filter((item) => item.capability !== "openai")
+          .every((item) => item.status === "unavailable"),
+      );
+      const serialized = JSON.stringify(capabilities);
+      assert.equal(serialized.includes(secretMarker), false);
+      assert.equal(serialized.includes(privateModelMarker), false);
+      assert.equal(serialized.includes(malformedModelMarker), false);
+    }
     delete process.env.OPENAI_API_KEY;
-    assert(tokenDoesNotProveReadiness.items.every((item) => item.status === "unavailable"));
+    delete process.env.OPENAI_MODEL;
 
     const activeBeforeDeepLink = clone(readActiveProjectSelectionV01(db, workspace.workspace_id));
     const nonActiveA = await readProjectHomeProjectionV01(db, {
@@ -1084,6 +1130,8 @@ async function main() {
       automation_not_configured: true,
       personal_perspective_not_configured_and_excluded: true,
       capability_matrix_local_only: true,
+      default_openai_capability_reader: "local_configuration_only",
+      openai_capability_remote_checks: 0,
       capability_secret_values_exposed: 0,
       next_moves_deterministic_and_bounded: true,
       two_project_same_repository_isolation: true,

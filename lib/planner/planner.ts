@@ -16,8 +16,6 @@ import {
   type PlannerRecommendationV01,
 } from "@/lib/vnext/model-gateway/contracts";
 
-export { PLANNER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/planner-codec";
-
 const CANONICAL_WORKSPACE_PATTERN =
   /^workspace:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CANONICAL_PROJECT_PATTERN =

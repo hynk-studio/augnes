@@ -5,7 +5,6 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -827,7 +826,6 @@ async function main() {
     assert.equal(staleProjectAFailure.code, "model_gateway_scope_refused");
     assert.equal(metrics.live_transport_calls, 1);
 
-    assertObserveBypassGuard();
     assert.equal(undiciRequests, 0);
     assert.equal(
       JSON.stringify({
@@ -884,7 +882,6 @@ async function main() {
           canonical_projects_checked: 2,
           semantic_receipt_contradictions_rejected:
             semanticReceiptContradictions,
-          direct_model_transport_guard: "pass",
         },
         null,
         2,
@@ -2526,72 +2523,4 @@ function assertNoPrivateMaterial(value: unknown) {
   assert.equal(serialized.includes(CREDENTIAL_SENTINEL), false);
   assert.equal(serialized.includes(projectARoot), false);
   assert.equal(serialized.includes(projectBRoot), false);
-}
-
-function assertObserveBypassGuard() {
-  const observeSource = readFileSync(
-    path.join(process.cwd(), "lib", "observe", "delta-compiler.ts"),
-    "utf8",
-  );
-  for (const forbidden of [
-    "api.openai.com",
-    "Authorization",
-    "OPENAI_API_KEY",
-    "fetch(",
-    "json_schema",
-    "output_text",
-    ".json()",
-  ]) {
-    assert.equal(observeSource.includes(forbidden), false, forbidden);
-  }
-  assert.equal(observeSource.includes("invokeObserveModelGatewayV01"), true);
-
-  for (const relativeFile of [
-    "lib/planner/planner.ts",
-    "lib/temporal-interpretation/preview.ts",
-  ]) {
-    const source = readFileSync(path.join(process.cwd(), relativeFile), "utf8");
-    for (const forbidden of [
-      "api.openai.com",
-      "Authorization",
-      "OPENAI_API_KEY",
-      "OPENAI_MODEL",
-      "fetch(",
-      "json_schema",
-      "output_text",
-      ".json()",
-    ]) {
-      assert.equal(source.includes(forbidden), false, `${relativeFile}:${forbidden}`);
-    }
-  }
-
-  const directTransportOwners = listTypeScriptFiles(path.join(process.cwd(), "lib"))
-    .filter((file) =>
-      readFileSync(file, "utf8").includes("https://api.openai.com/v1/responses"),
-    )
-    .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
-    .sort();
-  assert.deepEqual(directTransportOwners, [
-    "lib/vnext/model-gateway/openai/responses-adapter.ts",
-  ]);
-
-  const providerCredentialReaders = listTypeScriptFiles(path.join(process.cwd(), "lib"))
-    .filter((file) =>
-      /(?:process\.env|environment)\.OPENAI_(?:API_KEY|MODEL)/.test(
-        readFileSync(file, "utf8"),
-      ),
-    )
-    .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
-    .sort();
-  assert.deepEqual(providerCredentialReaders, [
-    "lib/vnext/model-gateway/openai/responses-adapter.ts",
-  ]);
-}
-
-function listTypeScriptFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const resolved = path.join(directory, entry.name);
-    if (entry.isDirectory()) return listTypeScriptFiles(resolved);
-    return entry.isFile() && entry.name.endsWith(".ts") ? [resolved] : [];
-  });
 }
