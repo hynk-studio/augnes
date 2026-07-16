@@ -18,14 +18,16 @@ import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-l
 import {
   createOpenAIResponsesAdapterV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
+import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import { OBSERVE_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/observe-codec";
 import { PLANNER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/planner-codec";
 import { TEMPORAL_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/temporal-codec";
 import {
   MODEL_GATEWAY_PURPOSES_V01,
+  MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
   MODEL_GATEWAY_VERSION_V01,
   MODEL_INVOCATION_ENVELOPE_VERSION_V01,
-  MODEL_INVOCATION_RECEIPT_VERSION_V01,
+  MODEL_INVOCATION_RECEIPT_VERSION_V02,
   ModelGatewayAdapterFailureV01,
   ModelGatewayInvocationErrorV01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
@@ -38,9 +40,10 @@ import {
   type ModelGatewayDataClassificationV01,
   type ModelGatewayExecutionModeV01,
   type ModelGatewayFailureCodeV01,
+  type ModelGatewayPolicyAuthorizationV01,
   type ModelGatewayPurposeV01,
   type ModelInvocationEnvelopeV01,
-  type ModelInvocationReceiptV01,
+  type ModelInvocationReceiptV02,
   type ObserveModelGatewayResultV01,
   type ObserveModelInvocationEnvelopeV01,
   type PlannerModelGatewayResultV01,
@@ -99,6 +102,9 @@ interface SharedModelGatewayDependenciesV01 {
   adapter?: ModelAdapterV01;
   read_root_availability?: typeof readRootAvailabilityV01;
   now?: () => Date;
+  authorize_policy_invocation?: (
+    envelope: ModelInvocationEnvelopeV01,
+  ) => ModelGatewayPolicyAuthorizationV01;
 }
 
 export interface ObserveModelGatewayDependenciesV01
@@ -153,7 +159,7 @@ interface InternalModelGatewayDependenciesV01
 type InternalGatewayResultV01 = {
   execution: "live" | "deterministic" | "fallback";
   output: ModelAdapterInvocationResultV01 | DeterministicOutputV01;
-  model_invocation_receipt: ModelInvocationReceiptV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
 };
 
 export async function invokeObserveModelGatewayV01(
@@ -275,6 +281,10 @@ async function invokeModelGatewayV01(
       envelope,
       workspace_id: scope.workspace_id,
       project_id: scope.project_id,
+      adapter_implementation: adapterImplementation,
+      grant_lineage_ref: scope.grant_lineage_ref,
+      automation_control_lineage_ref:
+        scope.automation_control_lineage_ref,
       started,
       now,
     };
@@ -568,13 +578,36 @@ function resolveCanonicalScopeRegistration(
         throw new Error("scope");
       }
     } else {
-      // R3 requires a later capability grant for provider/model automation.
-      throw gatewayFailure("model_gateway_policy_refused");
+      let authorization: ModelGatewayPolicyAuthorizationV01 | undefined;
+      try {
+        authorization = dependencies.authorize_policy_invocation?.(envelope);
+      } catch {
+        throw gatewayFailure("model_gateway_policy_refused");
+      }
+      if (!authorization) {
+        throw gatewayFailure("model_gateway_policy_refused");
+      }
+      validatePolicyAuthorization(envelope, authorization);
+      return {
+        workspace_id: registration.project.workspace_id,
+        project_id: registration.project.project_id,
+        canonical_root: canonicalRoot.normalized_path,
+        grant_lineage_ref: copyPolicyLineageRef(
+          authorization.grant_lineage_ref,
+          "model_invocation_capability_grant",
+        ),
+        automation_control_lineage_ref: copyPolicyLineageRef(
+          authorization.automation_control_lineage_ref,
+          "project_automation_control",
+        ),
+      };
     }
     return {
       workspace_id: registration.project.workspace_id,
       project_id: registration.project.project_id,
       canonical_root: canonicalRoot.normalized_path,
+      grant_lineage_ref: null,
+      automation_control_lineage_ref: null,
     };
   } catch (error) {
     if (error instanceof ModelGatewayInvocationErrorV01) throw error;
@@ -582,6 +615,70 @@ function resolveCanonicalScopeRegistration(
   } finally {
     db.close();
   }
+}
+
+function validatePolicyAuthorization(
+  envelope: ModelInvocationEnvelopeV01,
+  authorization: ModelGatewayPolicyAuthorizationV01,
+): void {
+  if (envelope.policy.invocation_origin !== "policy_triggered") {
+    throw gatewayFailure("model_gateway_policy_refused");
+  }
+  const policy = envelope.policy;
+  if (
+    authorization.workspace_id !== envelope.workspace_id ||
+    authorization.project_id !== envelope.project_id ||
+    authorization.work_id !== policy.work_id ||
+    authorization.run_id !== policy.run_id ||
+    authorization.automation_control_revision !==
+      policy.automation_control_revision
+  ) {
+    throw gatewayFailure("model_gateway_policy_refused");
+  }
+  const grantRef = copyPolicyLineageRef(
+    authorization.grant_lineage_ref,
+    "model_invocation_capability_grant",
+  );
+  const controlRef = copyPolicyLineageRef(
+    authorization.automation_control_lineage_ref,
+    "project_automation_control",
+  );
+  if (
+    grantRef.external_id !== policy.grant_id ||
+    grantRef.source_ref !== policy.grant_fingerprint ||
+    controlRef.external_id !==
+      `${envelope.project_id}:automation-control:${policy.automation_control_revision}` ||
+    controlRef.source_ref !==
+      `control-revision:${policy.automation_control_revision}`
+  ) {
+    throw gatewayFailure("model_gateway_policy_refused");
+  }
+}
+
+function copyPolicyLineageRef(
+  value: ModelGatewayPolicyAuthorizationV01["grant_lineage_ref"],
+  expectedType: "model_invocation_capability_grant" | "project_automation_control",
+) {
+  if (
+    value.ref_version !== "external_ref.v0.1" ||
+    value.ref_type !== expectedType ||
+    !SAFE_IDENTIFIER_PATTERN.test(value.external_id) ||
+    value.trust_class !== "direct_local_observation" ||
+    typeof value.source_ref !== "string" ||
+    !PROVENANCE_REF_PATTERN.test(value.source_ref) ||
+    value.provider != null ||
+    value.host != null ||
+    value.compatibility_namespace != null
+  ) {
+    throw gatewayFailure("model_gateway_policy_refused");
+  }
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: expectedType,
+    external_id: value.external_id,
+    source_ref: value.source_ref,
+    trust_class: "direct_local_observation" as const,
+  };
 }
 
 async function executeDeterministically(
@@ -593,7 +690,7 @@ async function executeDeterministically(
     | "explicit_deterministic"
     | "provider_unavailable"
     | "provider_failure_fallback",
-  priorReceipt: ModelInvocationReceiptV01 | null = null,
+  priorReceipt: ModelInvocationReceiptV02 | null = null,
 ): Promise<InternalGatewayResultV01> {
   const implementation = deterministicImplementation(envelope.purpose);
   const priorEgress = priorReceipt?.egress_attempted === true;
@@ -617,6 +714,8 @@ async function executeDeterministically(
         egress_attempted: priorEgress,
         input_bytes_used: inputBytesUsed,
         provider_calls_used: providerCallsUsed,
+        attempted_provider_ref: priorReceipt?.attempted_provider_ref ?? null,
+        attempted_model_ref: priorReceipt?.attempted_model_ref ?? null,
       });
     }
     throw gatewayFailure(
@@ -624,6 +723,8 @@ async function executeDeterministically(
       buildReceipt({
         ...base,
         ...implementation,
+        attempted_provider_ref: priorReceipt?.attempted_provider_ref ?? null,
+        attempted_model_ref: priorReceipt?.attempted_model_ref ?? null,
         execution_mode: "deterministic",
         selection_reason: selectionReason,
         status: "failed",
@@ -647,6 +748,8 @@ async function executeDeterministically(
     model_invocation_receipt: buildReceipt({
       ...base,
       ...implementation,
+      attempted_provider_ref: priorReceipt?.attempted_provider_ref ?? null,
+      attempted_model_ref: priorReceipt?.attempted_model_ref ?? null,
       execution_mode: "deterministic",
       selection_reason: selectionReason,
       status: "completed",
@@ -725,6 +828,8 @@ async function invokeLiveAdapter(
         ...base,
         implementation_id: adapterSession.implementation_id,
         implementation_version: adapterSession.implementation_version,
+        attempted_provider_ref: adapterSession.provider_ref,
+        attempted_model_ref: adapterSession.model_ref,
         execution_mode: "live",
         selection_reason: "requested_live",
         status: "completed",
@@ -752,9 +857,18 @@ async function invokeLiveAdapter(
         ...base,
         implementation_id: adapterSession.implementation_id,
         implementation_version: adapterSession.implementation_version,
+        attempted_provider_ref: adapterSession.provider_ref,
+        attempted_model_ref: adapterSession.model_ref,
         execution_mode: "live",
         selection_reason: "requested_live",
-        status: cancelled ? "cancelled" : blocked ? "blocked" : "failed",
+        status:
+          failureCode === "model_gateway_timeout"
+            ? "timed_out"
+            : cancelled
+              ? "cancelled"
+              : blocked
+                ? "blocked"
+                : "failed",
         outcome:
           failureCode === "model_gateway_timeout"
             ? "timeout"
@@ -863,10 +977,12 @@ function lifecycleGatewayFailure(
   base: ReceiptBase,
   implementation: ModelAdapterImplementationV01 & {
     execution_mode: ModelGatewayExecutionModeV01;
-    selection_reason: ModelInvocationReceiptV01["selection_reason"];
+    selection_reason: ModelInvocationReceiptV02["selection_reason"];
     egress_attempted: boolean;
     input_bytes_used: number | null;
     provider_calls_used: 0 | 1;
+    attempted_provider_ref?: ModelAdapterSessionV01["provider_ref"] | null;
+    attempted_model_ref?: ModelAdapterSessionV01["model_ref"] | null;
   },
 ) {
   return gatewayFailure(
@@ -874,7 +990,9 @@ function lifecycleGatewayFailure(
     buildReceipt({
       ...base,
       ...implementation,
-      status: "cancelled",
+      attempted_provider_ref: implementation.attempted_provider_ref ?? null,
+      attempted_model_ref: implementation.attempted_model_ref ?? null,
+      status: code === "model_gateway_timeout" ? "timed_out" : "cancelled",
       outcome: code === "model_gateway_timeout" ? "timeout" : "cancelled",
       egress_status: implementation.egress_attempted
         ? "occurred"
@@ -896,6 +1014,11 @@ type ReceiptBase = {
   envelope: ModelInvocationEnvelopeV01;
   workspace_id: string;
   project_id: string;
+  adapter_implementation: ModelAdapterImplementationV01;
+  grant_lineage_ref: ModelGatewayPolicyAuthorizationV01["grant_lineage_ref"] | null;
+  automation_control_lineage_ref:
+    | ModelGatewayPolicyAuthorizationV01["automation_control_lineage_ref"]
+    | null;
   started: Date;
   now: () => Date;
 };
@@ -904,28 +1027,54 @@ function buildReceipt(
   input: ReceiptBase &
     ModelAdapterImplementationV01 & {
       execution_mode: ModelGatewayExecutionModeV01;
-      selection_reason: ModelInvocationReceiptV01["selection_reason"];
-      status: ModelInvocationReceiptV01["status"];
-      outcome: ModelInvocationReceiptV01["outcome"];
+      selection_reason: ModelInvocationReceiptV02["selection_reason"];
+      status: ModelInvocationReceiptV02["status"];
+      outcome: ModelInvocationReceiptV02["outcome"];
       egress_attempted: boolean;
-      egress_status: ModelInvocationReceiptV01["egress_status"];
-      usage: ModelInvocationReceiptV01["usage"];
-      budget_decision: ModelInvocationReceiptV01["budget"]["decision"];
+      egress_status: ModelInvocationReceiptV02["egress_status"];
+      usage: ModelInvocationReceiptV02["usage"];
+      budget_decision: ModelInvocationReceiptV02["budget"]["decision"];
       input_bytes_used: number | null;
       provider_calls_used: 0 | 1;
       failure_code: ModelGatewayFailureCodeV01 | null;
+      attempted_provider_ref?: ModelAdapterSessionV01["provider_ref"] | null;
+      attempted_model_ref?: ModelAdapterSessionV01["model_ref"] | null;
     },
-): ModelInvocationReceiptV01 {
+): ModelInvocationReceiptV02 {
   const finished = input.now();
-  return {
-    receipt_version: MODEL_INVOCATION_RECEIPT_VERSION_V01,
+  const policy = input.envelope.policy;
+  const attemptedImplementation =
+    input.selection_reason === "explicit_deterministic"
+      ? null
+      : input.adapter_implementation;
+  const timeoutDisposition =
+    input.outcome === "timeout"
+      ? "timed_out"
+      : input.outcome === "cancelled"
+        ? "cancelled"
+        : "completed_within_deadline";
+  const receipt: ModelInvocationReceiptV02 = {
+    receipt_version: MODEL_INVOCATION_RECEIPT_VERSION_V02,
     gateway_version: MODEL_GATEWAY_VERSION_V01,
     invocation_id: input.envelope.invocation_id,
     workspace_id: input.workspace_id,
     project_id: input.project_id,
+    work_id: policy.invocation_origin === "policy_triggered" ? policy.work_id : null,
+    run_id: policy.invocation_origin === "policy_triggered" ? policy.run_id : null,
     purpose: input.envelope.purpose,
-    implementation_id: boundedReceiptIdentifier(input.implementation_id),
-    implementation_version: boundedReceiptIdentifier(input.implementation_version),
+    invocation_origin: policy.invocation_origin,
+    attempted_implementation_id: attemptedImplementation
+      ? boundedReceiptIdentifier(attemptedImplementation.implementation_id)
+      : null,
+    attempted_implementation_version: attemptedImplementation
+      ? boundedReceiptIdentifier(attemptedImplementation.implementation_version)
+      : null,
+    attempted_provider_ref: input.attempted_provider_ref ?? null,
+    attempted_model_ref: input.attempted_model_ref ?? null,
+    final_implementation_id: boundedReceiptIdentifier(input.implementation_id),
+    final_implementation_version: boundedReceiptIdentifier(
+      input.implementation_version,
+    ),
     requested_mode: input.envelope.execution_mode,
     execution_mode: input.execution_mode,
     selection_reason: input.selection_reason,
@@ -936,15 +1085,27 @@ function buildReceipt(
     outcome: input.outcome,
     egress_attempted: input.egress_attempted,
     egress_status: input.egress_status,
+    egress_policy_version: MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
     usage: input.usage,
+    cost: {
+      basis: "unavailable",
+      amount: null,
+      currency: null,
+      source: "no_pricing_authority",
+    },
     budget: {
       decision: input.budget_decision,
       input_bytes_limit: input.envelope.budget.max_input_bytes,
       input_bytes_used: input.input_bytes_used,
       output_tokens_limit: input.envelope.budget.max_output_tokens,
+      output_tokens_used: input.usage?.output_tokens ?? null,
       provider_call_limit: input.envelope.budget.max_provider_calls,
       provider_calls_used: input.provider_calls_used,
+      timeout_limit_ms: input.envelope.timeout_ms,
+      timeout_disposition: timeoutDisposition,
     },
+    cancellation_disposition:
+      input.outcome === "cancelled" ? "cancelled" : "not_cancelled",
     failure_code: input.failure_code,
     data_classification: input.envelope.data_classification,
     retention_class: "none",
@@ -955,11 +1116,22 @@ function buildReceipt(
           ? "provider_egress_blocked"
           : "provider_egress_not_used",
     provenance_refs: [...input.envelope.provenance_refs],
+    grant_lineage_ref: input.grant_lineage_ref,
+    automation_control_lineage_ref: input.automation_control_lineage_ref,
+    fallback_used: input.selection_reason === "provider_failure_fallback",
+    coverage_class: "enforced",
+    trust_class:
+      input.selection_reason === "provider_failure_fallback"
+        ? "mixed"
+        : input.outcome === "live_success"
+          ? "provider_report"
+          : "direct_local_observation",
     raw_prompt_persisted: false,
     raw_response_persisted: false,
     hidden_reasoning_persisted: false,
     receipt_is_semantic_authority: false,
   };
+  return validateModelInvocationReceiptV02(receipt);
 }
 
 function normalizeFailureCode(error: unknown): ModelGatewayFailureCodeV01 {
@@ -980,7 +1152,7 @@ function normalizeFailureCode(error: unknown): ModelGatewayFailureCodeV01 {
 function isFallbackEligibleGatewayFailure(
   error: unknown,
 ): error is ModelGatewayInvocationErrorV01 & {
-  receipt: ModelInvocationReceiptV01;
+  receipt: ModelInvocationReceiptV02;
 } {
   return (
     error instanceof ModelGatewayInvocationErrorV01 &&
@@ -1129,7 +1301,14 @@ function validatePolicy(value: unknown): ModelInvocationEnvelopeV01["policy"] {
     };
   }
   if (origin === "policy_triggered") {
-    requireExactKeys(record, ["invocation_origin", "automation_control_revision"]);
+    requireExactKeys(record, [
+      "invocation_origin",
+      "automation_control_revision",
+      "work_id",
+      "run_id",
+      "grant_id",
+      "grant_fingerprint",
+    ]);
     return {
       invocation_origin: "policy_triggered",
       automation_control_revision: requireInteger(
@@ -1137,6 +1316,10 @@ function validatePolicy(value: unknown): ModelInvocationEnvelopeV01["policy"] {
         1,
         Number.MAX_SAFE_INTEGER,
       ),
+      work_id: requireSafeIdentifier(readOwn(record, "work_id")),
+      run_id: requireSafeIdentifier(readOwn(record, "run_id")),
+      grant_id: requireSafeIdentifier(readOwn(record, "grant_id")),
+      grant_fingerprint: requireSha256(readOwn(record, "grant_fingerprint")),
     };
   }
   return invalid();
@@ -1391,6 +1574,13 @@ function requireSafeIdentifier(value: unknown) {
   return value;
 }
 
+function requireSha256(value: unknown) {
+  if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value)) {
+    invalid();
+  }
+  return value;
+}
+
 function requireInteger(value: unknown, minimum: number, maximum: number) {
   if (
     typeof value !== "number" ||
@@ -1416,7 +1606,7 @@ function boundedReceiptIdentifier(value: string) {
 
 function gatewayFailure(
   code: ModelGatewayFailureCodeV01,
-  receipt: ModelInvocationReceiptV01 | null = null,
+  receipt: ModelInvocationReceiptV02 | null = null,
 ) {
   return new ModelGatewayInvocationErrorV01(code, receipt);
 }

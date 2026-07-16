@@ -86,12 +86,28 @@ export function createOpenAIResponsesAdapterV01(
     async prepare(purpose, _signal) {
       const apiKey = optionalConfigurationText(environment.OPENAI_API_KEY);
       if (!apiKey) return null;
-      const model = optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL;
+      const model = requireModelIdentifier(
+        optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL,
+      );
       const implementation = describeOpenAIImplementation(purpose);
 
       return {
         ...implementation,
         purpose,
+        provider_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "model_provider",
+          external_id: "openai",
+          provider: "openai",
+          trust_class: "direct_local_observation",
+        },
+        model_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "provider_model",
+          external_id: model,
+          provider: "openai",
+          trust_class: "direct_local_observation",
+        },
         async invoke(input, lifecycle) {
           if (input.input_kind !== purpose) adapterResponseInvalid();
           const codec = codecFor(input);
@@ -317,6 +333,8 @@ function normalizeUsage(value: unknown): ModelGatewayNormalizedUsageV01 | null {
   if (totalTokens < inputTokens + outputTokens) throw new Error("usage_invalid");
   return {
     basis: "provider_report",
+    quality: "reported",
+    source: "provider_response",
     input_tokens: inputTokens,
     output_tokens: outputTokens,
     total_tokens: totalTokens,
@@ -343,6 +361,13 @@ function optionalConfigurationText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
+}
+
+function requireModelIdentifier(value: string): string {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) {
+    throw new ModelGatewayAdapterFailureV01("adapter_transport_failed");
+  }
+  return value;
 }
 
 function adapterResponseInvalid(): never {

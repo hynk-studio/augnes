@@ -28,6 +28,7 @@ export const AUTONOMY_RUNNER_STEP_ACTIONS = [
   "summarize_current_autonomy_context",
   "recover_preflight_delta_batch",
   "generate_runner_status_delta_batch",
+  "invoke_project_scoped_model_gateway",
 ] as const;
 
 export const AUTONOMY_RUNNER_STEP_STATUSES = [
@@ -50,10 +51,13 @@ export const AUTONOMY_RUNNER_EVENT_TYPES = [
   "run_completed",
   "run_blocked",
   "run_needs_review",
+  "run_failed",
   "tick_skipped",
   "step_started",
   "step_completed",
   "step_blocked",
+  "step_failed",
+  "step_cancelled",
   "delta_batch_recovered",
 ] as const;
 

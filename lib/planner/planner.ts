@@ -8,8 +8,11 @@ import {
 import {
   MODEL_INVOCATION_ENVELOPE_VERSION_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  type ModelGatewayBudgetV01,
   type ModelGatewayExecutionModeV01,
-  type ModelInvocationReceiptV01,
+  type ModelGatewayPolicyInputV01,
+  type ModelInvocationReceiptV02,
+  type PlannerModelInvocationEnvelopeV01,
   type PlannerRecommendationV01,
 } from "@/lib/vnext/model-gateway/contracts";
 
@@ -44,7 +47,7 @@ export type PlanResponse = {
   message: string;
   recommendations: PlannerRecommendation[];
   agent_instructions: string[];
-  model_invocation_receipt: ModelInvocationReceiptV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
 };
 
 export type PlannerGatewayDependenciesV01 = Omit<
@@ -116,29 +119,12 @@ export async function buildPlan(
   const executionMode = request.execution_mode;
   const gatewayDependencies = options.gateway_dependencies ?? {};
   const result = await invokePlannerModelGatewayV01(
-    {
-      envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+    buildPlannerModelInvocationEnvelopeV01({
       invocation_id: `model-invocation:${(options.create_uuid ?? randomUUID)()}`,
       workspace_id: request.workspace_id,
       project_id: request.project_id,
-      purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
-      data_classification: "private",
-      provenance_refs: [
-        `sha256:${createHash("sha256").update(request.message, "utf8").digest("hex")}`,
-      ],
-      privacy: {
-        provider_egress: executionMode === "live" ? "allow" : "deny",
-        retention_class: "none",
-      },
-      budget: {
-        max_input_bytes: 98_304,
-        max_output_tokens: 2_048,
-        max_provider_calls: executionMode === "live" ? 1 : 0,
-      },
-      timeout_ms: 30_000,
-      cancellation: {
-        signal: options.cancellation_signal ?? new AbortController().signal,
-      },
+      message: request.message,
+      brief,
       execution_mode: executionMode,
       policy: {
         invocation_origin: "interactive",
@@ -146,13 +132,16 @@ export async function buildPlan(
         expected_active_selection_revision:
           request.expected_active_selection_revision,
       },
-      ...(request.project_root ? { project_root: request.project_root } : {}),
-      input: {
-        input_kind: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
-        message: request.message,
-        brief,
+      budget: {
+        max_input_bytes: 98_304,
+        max_output_tokens: 2_048,
+        max_provider_calls: executionMode === "live" ? 1 : 0,
       },
-    },
+      timeout_ms: 30_000,
+      cancellation_signal:
+        options.cancellation_signal ?? new AbortController().signal,
+      project_root: request.project_root,
+    }),
     {
       ...gatewayDependencies,
       deterministic_execute:
@@ -170,6 +159,47 @@ export async function buildPlan(
     recommendations: result.recommendations,
     agent_instructions: brief.agent_instructions,
     model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export function buildPlannerModelInvocationEnvelopeV01(input: {
+  invocation_id: string;
+  workspace_id: string;
+  project_id: string;
+  message: string;
+  brief: ReturnType<typeof buildStateBrief>;
+  execution_mode: ModelGatewayExecutionModeV01;
+  policy: ModelGatewayPolicyInputV01;
+  budget: ModelGatewayBudgetV01;
+  timeout_ms: number;
+  cancellation_signal: AbortSignal;
+  project_root?: PlanRequest["project_root"];
+}): PlannerModelInvocationEnvelopeV01 {
+  return {
+    envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+    invocation_id: input.invocation_id,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    data_classification: "private",
+    provenance_refs: [
+      `sha256:${createHash("sha256").update(input.message, "utf8").digest("hex")}`,
+    ],
+    privacy: {
+      provider_egress: input.execution_mode === "live" ? "allow" : "deny",
+      retention_class: "none",
+    },
+    budget: input.budget,
+    timeout_ms: input.timeout_ms,
+    cancellation: { signal: input.cancellation_signal },
+    execution_mode: input.execution_mode,
+    policy: input.policy,
+    ...(input.project_root ? { project_root: input.project_root } : {}),
+    input: {
+      input_kind: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+      message: input.message,
+      brief: input.brief,
+    },
   };
 }
 

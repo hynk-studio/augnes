@@ -216,6 +216,6 @@ export type TemporalPreviewResponse = {
   preview: TemporalInterpretationPreview;
   guardrails: TemporalPreviewGuardrailResult;
   openai_error?: string;
-  model_invocation_receipt: import("@/lib/vnext/model-gateway/contracts").ModelInvocationReceiptV01;
+  model_invocation_receipt: import("@/lib/vnext/model-gateway/contracts").ModelInvocationReceiptV02;
   boundaries: string[];
 };

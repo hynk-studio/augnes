@@ -19,6 +19,7 @@ import {
   buildDefaultRunnerSourceRefs,
   buildDefaultRunnerStepPlans,
   isNonExecutingRunnerStatus,
+  isSafeRunnerStepAction,
   isTerminalRunnerStatus,
   safeRunnerIdSegment,
 } from "./runner-state";
@@ -190,6 +191,14 @@ export function tickAutonomyRun(
     const nextStep = findNextExecutableStep(run.steps);
     if (!nextStep) {
       return finishRunIfAllStepsComplete(run, now, { db });
+    }
+    if (!isSafeRunnerStepAction(nextStep.action_kind)) {
+      return markRunNeedsReview({
+        run,
+        now,
+        reason: "model_gateway_step_requires_explicit_policy_run_service",
+        dbOptions: { db },
+      });
     }
 
     const completedStepCount = run.steps.filter(

@@ -40,6 +40,8 @@ import {
   type ModelAdapterSessionV01,
   type ModelAdapterV01,
   type ModelGatewayExecutionModeV01,
+  type ModelGatewayPolicyAuthorizationV01,
+  type ModelInvocationReceiptV02,
   type ObserveModelInvocationEnvelopeV01,
   type PlannerModelInvocationEnvelopeV01,
   type TemporalModelInvocationEnvelopeV01,
@@ -48,6 +50,8 @@ import {
   createOpenAIResponsesAdapterV01,
   type OpenAIResponsesTransportV01,
 } from "../lib/vnext/model-gateway/openai/responses-adapter";
+import { validateModelInvocationReceiptV02 } from "../lib/vnext/model-gateway/model-invocation-receipt";
+import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../lib/vnext/model-gateway/run-receipt-projection";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
@@ -134,6 +138,8 @@ async function main() {
     assert.equal(live.model_invocation_receipt.egress_attempted, true);
     assert.deepEqual(live.model_invocation_receipt.usage, {
       basis: "provider_report",
+      quality: "reported",
+      source: "provider_response",
       input_tokens: 80,
       output_tokens: 24,
       total_tokens: 104,
@@ -146,6 +152,10 @@ async function main() {
     assert.equal(livePayload.max_output_tokens, 2_048);
     assert.equal(JSON.stringify(livePayload).includes(CREDENTIAL_SENTINEL), false);
     assertNoPrivateMaterial(live.model_invocation_receipt);
+    const semanticReceiptContradictions =
+      assertModelInvocationReceiptSemanticMatrix(
+        live.model_invocation_receipt,
+      );
 
     const noCredentialAdapter = createOpenAIResponsesAdapterV01({
       environment: {},
@@ -266,11 +276,39 @@ async function main() {
         policy: {
           invocation_origin: "policy_triggered",
           automation_control_revision: 1,
+          work_id: "work:test-policy-refusal",
+          run_id: "run:test-policy-refusal",
+          grant_id: "grant:test-policy-refusal",
+          grant_fingerprint:
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         },
       },
       gatewayDependencies(liveAdapter),
     );
     assert.equal(policyFailure.code, "model_gateway_policy_refused");
+    assert.equal(metrics.live_transport_calls, 1);
+    const hostilePolicyFailure = await captureGatewayFailure(
+      {
+        ...envelope(fixture, { mode: "deterministic" }),
+        policy: {
+          invocation_origin: "policy_triggered",
+          automation_control_revision: 1,
+          work_id: "work:test-hostile-policy-refusal",
+          run_id: "run:test-hostile-policy-refusal",
+          grant_id: "grant:test-hostile-policy-refusal",
+          grant_fingerprint:
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        },
+      },
+      {
+        ...gatewayDependencies(liveAdapter),
+        authorize_policy_invocation() {
+          throw new Error(HOSTILE_SENTINEL);
+        },
+      },
+    );
+    assert.equal(hostilePolicyFailure.code, "model_gateway_policy_refused");
+    assert.equal(JSON.stringify(hostilePolicyFailure).includes(HOSTILE_SENTINEL), false);
     assert.equal(metrics.live_transport_calls, 1);
 
     const deepState = stateEntry(fixture.projectAId, {
@@ -844,6 +882,8 @@ async function main() {
             remainingCallerMetrics.blocked_transport_calls,
           undici_requests: undiciRequests,
           canonical_projects_checked: 2,
+          semantic_receipt_contradictions_rejected:
+            semanticReceiptContradictions,
           direct_model_transport_guard: "pass",
         },
         null,
@@ -907,6 +947,8 @@ async function runRemainingCallerCases(fixture: Fixture) {
   assert.equal(plannerLive.model_invocation_receipt.project_id, fixture.projectAId);
   assert.deepEqual(plannerLive.model_invocation_receipt.usage, {
     basis: "provider_report",
+    quality: "reported",
+    source: "provider_response",
     input_tokens: 44,
     output_tokens: 12,
     total_tokens: 56,
@@ -1522,6 +1564,91 @@ async function runRemainingCallerCases(fixture: Fixture) {
   assert.deepEqual(rowCounts(databaseAfterHostile), hostileCounts);
   databaseAfterHostile.close();
 
+  const observePolicy = policyAuthorizationFixture(fixture, "observe");
+  const policyObserve = await invokeObserveModelGatewayV01(
+    {
+      ...envelope(fixture, { mode: "deterministic" }),
+      policy: observePolicy.policy,
+    },
+    {
+      ...gatewayDependencies(temporalAdapter),
+      authorize_policy_invocation: () => observePolicy.authorization,
+    },
+  );
+  assert.equal(policyObserve.model_invocation_receipt.invocation_origin, "policy_triggered");
+  assert.equal(policyObserve.model_invocation_receipt.egress_attempted, false);
+
+  const plannerPolicy = policyAuthorizationFixture(fixture, "planner");
+  const policyPlanner = await invokePlannerModelGatewayV01(
+    {
+      ...plannerEnvelope(fixture, { mode: "deterministic" }),
+      policy: plannerPolicy.policy,
+    },
+    {
+      ...plannerGatewayDependencies(temporalAdapter),
+      authorize_policy_invocation: () => plannerPolicy.authorization,
+    },
+  );
+  assert.equal(policyPlanner.model_invocation_receipt.invocation_origin, "policy_triggered");
+  assert.equal(policyPlanner.model_invocation_receipt.egress_attempted, false);
+
+  let policyFallbackTransportCalls = 0;
+  let policyFallbackBodyReads = 0;
+  const policyFallbackAdapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "temporal-fallback-test-model",
+    },
+    transport: async () => {
+      policyFallbackTransportCalls += 1;
+      return {
+        ok: false,
+        status: 503,
+        async json() {
+          policyFallbackBodyReads += 1;
+          return { body: HOSTILE_SENTINEL };
+        },
+      };
+    },
+  });
+  const temporalPolicy = policyAuthorizationFixture(fixture, "temporal");
+  const policyTemporalFallback = await invokeTemporalModelGatewayV01(
+    {
+      ...temporalEnvelope(fixture),
+      policy: temporalPolicy.policy,
+    },
+    {
+      ...temporalGatewayDependencies(policyFallbackAdapter),
+      authorize_policy_invocation: () => temporalPolicy.authorization,
+    },
+  );
+  const fallbackReceipt = policyTemporalFallback.model_invocation_receipt;
+  assert.equal(policyFallbackTransportCalls, 1);
+  assert.equal(policyFallbackBodyReads, 0);
+  assert.equal(fallbackReceipt.invocation_origin, "policy_triggered");
+  assert.equal(fallbackReceipt.selection_reason, "provider_failure_fallback");
+  assert.equal(fallbackReceipt.outcome, "deterministic_fallback_success");
+  assert.equal(fallbackReceipt.fallback_used, true);
+  assert.equal(fallbackReceipt.attempted_provider_ref?.external_id, "openai");
+  assert.equal(
+    fallbackReceipt.attempted_model_ref?.external_id,
+    "temporal-fallback-test-model",
+  );
+  assert.equal(fallbackReceipt.final_implementation_id, "deterministic.temporal");
+  assert.equal(fallbackReceipt.budget.provider_calls_used, 1);
+  assert.equal(fallbackReceipt.egress_status, "occurred");
+  assert.equal(fallbackReceipt.failure_code, "model_gateway_provider_rejected");
+  const fallbackEntry = projectModelInvocationReceiptToRunReceiptEntryV02({
+    receipt: fallbackReceipt,
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    work_id: temporalPolicy.policy.work_id,
+    run_id: temporalPolicy.policy.run_id,
+  });
+  assert.equal(fallbackEntry.invocation_receipt.fallback_used, true);
+  assert.equal(fallbackEntry.invocation_receipt.budget.provider_calls_used, 1);
+  assert.equal(JSON.stringify(fallbackEntry).includes(HOSTILE_SENTINEL), false);
+
   assert.equal(metrics.deterministic_transport_calls, 0);
   assert.equal(metrics.blocked_transport_calls, 0);
   return metrics;
@@ -1547,6 +1674,48 @@ function temporalGatewayDependencies(
       return buildMockTemporalPreview(input.context);
     },
   };
+}
+
+function policyAuthorizationFixture(
+  fixture: Fixture,
+  label: "observe" | "planner" | "temporal",
+) {
+  const revision = 1;
+  const workId = `work:gateway-policy-${label}`;
+  const runId = `run:gateway-policy-${label}`;
+  const grantId = `grant:gateway-policy-${label}`;
+  const grantFingerprint =
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+  const policy = {
+    invocation_origin: "policy_triggered" as const,
+    automation_control_revision: revision,
+    work_id: workId,
+    run_id: runId,
+    grant_id: grantId,
+    grant_fingerprint: grantFingerprint,
+  };
+  const authorization: ModelGatewayPolicyAuthorizationV01 = {
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    work_id: workId,
+    run_id: runId,
+    automation_control_revision: revision,
+    grant_lineage_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "model_invocation_capability_grant",
+      external_id: grantId,
+      source_ref: grantFingerprint,
+      trust_class: "direct_local_observation",
+    },
+    automation_control_lineage_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "project_automation_control",
+      external_id: `${fixture.projectAId}:automation-control:${revision}`,
+      source_ref: `control-revision:${revision}`,
+      trust_class: "direct_local_observation",
+    },
+  };
+  return { policy, authorization };
 }
 
 function plannerEnvelope(
@@ -1750,6 +1919,8 @@ function unreachablePurposeSession(
     implementation_id: "test.unreachable_purpose_session",
     implementation_version: "test_unreachable_purpose_session.v0.1",
     purpose,
+    provider_ref: testProviderRef(),
+    model_ref: testModelRef(),
     async invoke() {
       onInvoke();
       throw new Error("unreachable adapter session invoked");
@@ -1763,6 +1934,257 @@ function assertReceiptHasNoPurposeContent(receipt: unknown, content: string) {
   assert.equal(serialized.includes(CREDENTIAL_SENTINEL), false);
   assert.equal(serialized.includes(projectARoot), false);
   assert.equal(serialized.includes(projectBRoot), false);
+}
+
+function assertModelInvocationReceiptSemanticMatrix(input: unknown) {
+  const liveSuccess = validateModelInvocationReceiptV02(input);
+  const deterministicSuccess = structuredClone(liveSuccess);
+  Object.assign(deterministicSuccess, {
+    attempted_implementation_id: null,
+    attempted_implementation_version: null,
+    attempted_provider_ref: null,
+    attempted_model_ref: null,
+    final_implementation_id: "deterministic.observe",
+    final_implementation_version: "deterministic_observe.v0.1",
+    requested_mode: "deterministic",
+    execution_mode: "deterministic",
+    selection_reason: "explicit_deterministic",
+    status: "completed",
+    outcome: "deterministic_success",
+    egress_attempted: false,
+    egress_status: "did_not_occur",
+    usage: null,
+    failure_code: null,
+    privacy_decision: "provider_egress_not_used",
+    fallback_used: false,
+    trust_class: "direct_local_observation",
+  });
+  Object.assign(deterministicSuccess.budget, {
+    decision: "not_used",
+    input_bytes_used: null,
+    output_tokens_used: null,
+    provider_call_limit: 0,
+    provider_calls_used: 0,
+    timeout_disposition: "completed_within_deadline",
+  });
+
+  const providerUnavailable = structuredClone(deterministicSuccess);
+  Object.assign(providerUnavailable, {
+    attempted_implementation_id: liveSuccess.attempted_implementation_id,
+    attempted_implementation_version:
+      liveSuccess.attempted_implementation_version,
+    requested_mode: "live",
+    selection_reason: "provider_unavailable",
+  });
+  providerUnavailable.budget.provider_call_limit = 1;
+
+  const fallbackSuccess = structuredClone(liveSuccess);
+  Object.assign(fallbackSuccess, {
+    final_implementation_id: "deterministic.temporal",
+    final_implementation_version: "deterministic_temporal.v0.1",
+    execution_mode: "deterministic",
+    selection_reason: "provider_failure_fallback",
+    outcome: "deterministic_fallback_success",
+    usage: null,
+    failure_code: "model_gateway_provider_rejected",
+    fallback_used: true,
+    trust_class: "mixed",
+  });
+  fallbackSuccess.budget.output_tokens_used = null;
+
+  const blockedRefusal = structuredClone(liveSuccess);
+  Object.assign(blockedRefusal, {
+    status: "blocked",
+    outcome: "refused",
+    egress_attempted: false,
+    egress_status: "blocked",
+    usage: null,
+    failure_code: "model_gateway_budget_refused",
+    privacy_decision: "provider_egress_blocked",
+    trust_class: "direct_local_observation",
+  });
+  Object.assign(blockedRefusal.budget, {
+    decision: "refused",
+    output_tokens_used: null,
+    provider_calls_used: 0,
+  });
+
+  const providerFailure = structuredClone(liveSuccess);
+  Object.assign(providerFailure, {
+    status: "failed",
+    outcome: "provider_failure",
+    usage: null,
+    failure_code: "model_gateway_provider_rejected",
+    trust_class: "direct_local_observation",
+  });
+  providerFailure.budget.output_tokens_used = null;
+
+  const deterministicFailure = structuredClone(deterministicSuccess);
+  Object.assign(deterministicFailure, {
+    status: "failed",
+    outcome: "deterministic_failure",
+    failure_code: "model_gateway_deterministic_failed",
+  });
+
+  const timeout = structuredClone(liveSuccess);
+  Object.assign(timeout, {
+    attempted_provider_ref: null,
+    attempted_model_ref: null,
+    status: "timed_out",
+    outcome: "timeout",
+    egress_attempted: false,
+    egress_status: "did_not_occur",
+    usage: null,
+    failure_code: "model_gateway_timeout",
+    privacy_decision: "provider_egress_not_used",
+    trust_class: "direct_local_observation",
+  });
+  Object.assign(timeout.budget, {
+    decision: "not_used",
+    input_bytes_used: null,
+    output_tokens_used: null,
+    provider_calls_used: 0,
+    timeout_disposition: "timed_out",
+  });
+
+  const cancelled = structuredClone(timeout);
+  Object.assign(cancelled, {
+    status: "cancelled",
+    outcome: "cancelled",
+    failure_code: "model_gateway_cancelled",
+    cancellation_disposition: "cancelled",
+  });
+  cancelled.budget.timeout_disposition = "cancelled";
+
+  const fixtures = {
+    live_success: liveSuccess,
+    deterministic_success: deterministicSuccess,
+    provider_unavailable: providerUnavailable,
+    fallback_success: fallbackSuccess,
+    blocked_refusal: blockedRefusal,
+    provider_failure: providerFailure,
+    deterministic_failure: deterministicFailure,
+    timeout,
+    cancelled,
+  } satisfies Record<string, ModelInvocationReceiptV02>;
+  for (const [name, receipt] of Object.entries(fixtures)) {
+    assert.deepEqual(
+      validateModelInvocationReceiptV02(receipt),
+      receipt,
+      `${name} should be a valid semantic receipt baseline`,
+    );
+  }
+
+  const providerFailureBeforeEgress = structuredClone(providerFailure);
+  Object.assign(providerFailureBeforeEgress, {
+    attempted_provider_ref: null,
+    attempted_model_ref: null,
+    egress_attempted: false,
+    egress_status: "did_not_occur",
+    privacy_decision: "provider_egress_not_used",
+  });
+  Object.assign(providerFailureBeforeEgress.budget, {
+    decision: "not_used",
+    input_bytes_used: null,
+    provider_calls_used: 0,
+  });
+  validateModelInvocationReceiptV02(providerFailureBeforeEgress);
+
+  const refusalAfterEgress = structuredClone(blockedRefusal);
+  Object.assign(refusalAfterEgress, {
+    egress_attempted: true,
+    egress_status: "occurred",
+    privacy_decision: "provider_egress_approved",
+  });
+  refusalAfterEgress.budget.provider_calls_used = 1;
+  validateModelInvocationReceiptV02(refusalAfterEgress);
+
+  const fallbackDeterministicFailure = structuredClone(fallbackSuccess);
+  Object.assign(fallbackDeterministicFailure, {
+    status: "failed",
+    outcome: "deterministic_failure",
+    failure_code: "model_gateway_deterministic_failed",
+  });
+  validateModelInvocationReceiptV02(fallbackDeterministicFailure);
+
+  const liveWithoutUsage = structuredClone(liveSuccess);
+  liveWithoutUsage.usage = null;
+  liveWithoutUsage.budget.output_tokens_used = null;
+  validateModelInvocationReceiptV02(liveWithoutUsage);
+
+  type FixtureName = keyof typeof fixtures;
+  const cases: Array<{
+    name: string;
+    fixture: FixtureName;
+    mutate(receipt: ModelInvocationReceiptV02): void;
+  }> = [
+    { name: "completed provider failure outcome", fixture: "live_success", mutate: (r) => { r.outcome = "provider_failure"; } },
+    { name: "failed live success outcome", fixture: "provider_failure", mutate: (r) => { r.outcome = "live_success"; } },
+    { name: "completed nonfallback failure code", fixture: "live_success", mutate: (r) => { r.failure_code = "model_gateway_transport_failed"; } },
+    { name: "blocked missing failure code", fixture: "blocked_refusal", mutate: (r) => { r.failure_code = null; } },
+    { name: "failed missing failure code", fixture: "provider_failure", mutate: (r) => { r.failure_code = null; } },
+    { name: "timeout missing failure code", fixture: "timeout", mutate: (r) => { r.failure_code = null; } },
+    { name: "cancelled missing failure code", fixture: "cancelled", mutate: (r) => { r.failure_code = null; } },
+    { name: "live success deterministic request", fixture: "live_success", mutate: (r) => { r.requested_mode = "deterministic"; } },
+    { name: "live success deterministic execution", fixture: "live_success", mutate: (r) => { r.execution_mode = "deterministic"; } },
+    { name: "live success provider unavailable selection", fixture: "live_success", mutate: (r) => { r.selection_reason = "provider_unavailable"; } },
+    { name: "live success fallback flag", fixture: "live_success", mutate: (r) => { r.fallback_used = true; } },
+    { name: "live success no attempted implementation", fixture: "live_success", mutate: (r) => { r.attempted_implementation_id = null; } },
+    { name: "live success no provider ref", fixture: "live_success", mutate: (r) => { r.attempted_provider_ref = null; } },
+    { name: "live success no egress attempt", fixture: "live_success", mutate: (r) => { r.egress_attempted = false; } },
+    { name: "live success zero provider calls", fixture: "live_success", mutate: (r) => { r.budget.provider_calls_used = 0; } },
+    { name: "live success local trust", fixture: "live_success", mutate: (r) => { r.trust_class = "direct_local_observation"; } },
+    { name: "explicit deterministic attempted implementation", fixture: "deterministic_success", mutate: (r) => { r.attempted_implementation_id = "openai_responses.adapter"; } },
+    { name: "explicit deterministic provider ref", fixture: "deterministic_success", mutate: (r) => { r.attempted_provider_ref = liveSuccess.attempted_provider_ref; } },
+    { name: "explicit deterministic egress", fixture: "deterministic_success", mutate: (r) => { r.egress_attempted = true; } },
+    { name: "explicit deterministic provider usage", fixture: "deterministic_success", mutate: (r) => { r.usage = structuredClone(liveSuccess.usage); } },
+    { name: "explicit deterministic provider trust", fixture: "deterministic_success", mutate: (r) => { r.trust_class = "provider_report"; } },
+    { name: "provider unavailable deterministic request", fixture: "provider_unavailable", mutate: (r) => { r.requested_mode = "deterministic"; } },
+    { name: "provider unavailable missing adapter", fixture: "provider_unavailable", mutate: (r) => { r.attempted_implementation_id = null; } },
+    { name: "provider unavailable provider ref", fixture: "provider_unavailable", mutate: (r) => { r.attempted_provider_ref = liveSuccess.attempted_provider_ref; } },
+    { name: "provider unavailable occurred egress", fixture: "provider_unavailable", mutate: (r) => { r.egress_status = "occurred"; } },
+    { name: "fallback flag absent", fixture: "fallback_success", mutate: (r) => { r.fallback_used = false; } },
+    { name: "fallback wrong selection", fixture: "fallback_success", mutate: (r) => { r.selection_reason = "requested_live"; } },
+    { name: "fallback deterministic request", fixture: "fallback_success", mutate: (r) => { r.requested_mode = "deterministic"; } },
+    { name: "fallback live execution", fixture: "fallback_success", mutate: (r) => { r.execution_mode = "live"; } },
+    { name: "fallback zero calls", fixture: "fallback_success", mutate: (r) => { r.budget.provider_calls_used = 0; } },
+    { name: "fallback no occurred egress", fixture: "fallback_success", mutate: (r) => { r.egress_status = "did_not_occur"; } },
+    { name: "fallback ineligible failure", fixture: "fallback_success", mutate: (r) => { r.failure_code = "model_gateway_budget_refused"; } },
+    { name: "fallback local trust", fixture: "fallback_success", mutate: (r) => { r.trust_class = "direct_local_observation"; } },
+    { name: "provider failure completed", fixture: "provider_failure", mutate: (r) => { r.status = "completed"; } },
+    { name: "provider failure wrong selection", fixture: "provider_failure", mutate: (r) => { r.selection_reason = "provider_unavailable"; } },
+    { name: "provider failure refusal code", fixture: "provider_failure", mutate: (r) => { r.failure_code = "model_gateway_budget_refused"; } },
+    { name: "provider failure usage", fixture: "provider_failure", mutate: (r) => { r.usage = structuredClone(liveSuccess.usage); } },
+    { name: "deterministic failure completed", fixture: "deterministic_failure", mutate: (r) => { r.status = "completed"; } },
+    { name: "deterministic failure provider code", fixture: "deterministic_failure", mutate: (r) => { r.failure_code = "model_gateway_transport_failed"; } },
+    { name: "refusal failed status", fixture: "blocked_refusal", mutate: (r) => { r.status = "failed"; } },
+    { name: "refusal provider failure code", fixture: "blocked_refusal", mutate: (r) => { r.failure_code = "model_gateway_transport_failed"; } },
+    { name: "refusal nonrefused budget", fixture: "blocked_refusal", mutate: (r) => { r.budget.decision = "not_used"; } },
+    { name: "refusal did not occur egress", fixture: "blocked_refusal", mutate: (r) => { r.egress_status = "did_not_occur"; } },
+    { name: "timeout failed status", fixture: "timeout", mutate: (r) => { r.status = "failed"; } },
+    { name: "timeout transport failure code", fixture: "timeout", mutate: (r) => { r.failure_code = "model_gateway_transport_failed"; } },
+    { name: "timeout completed disposition", fixture: "timeout", mutate: (r) => { r.budget.timeout_disposition = "completed_within_deadline"; } },
+    { name: "timeout cancellation disposition", fixture: "timeout", mutate: (r) => { r.cancellation_disposition = "cancelled"; } },
+    { name: "cancelled failed status", fixture: "cancelled", mutate: (r) => { r.status = "failed"; } },
+    { name: "cancelled timeout failure code", fixture: "cancelled", mutate: (r) => { r.failure_code = "model_gateway_timeout"; } },
+    { name: "cancelled timed out disposition", fixture: "cancelled", mutate: (r) => { r.budget.timeout_disposition = "timed_out"; } },
+    { name: "cancelled not cancelled", fixture: "cancelled", mutate: (r) => { r.cancellation_disposition = "not_cancelled"; } },
+    { name: "occurred egress wrong privacy", fixture: "live_success", mutate: (r) => { r.privacy_decision = "provider_egress_not_used"; } },
+    { name: "blocked egress wrong privacy", fixture: "blocked_refusal", mutate: (r) => { r.privacy_decision = "provider_egress_not_used"; } },
+    { name: "unused egress wrong privacy", fixture: "deterministic_success", mutate: (r) => { r.privacy_decision = "provider_egress_approved"; } },
+    { name: "usage output mismatch", fixture: "live_success", mutate: (r) => { r.budget.output_tokens_used = 1; } },
+    { name: "success refused budget", fixture: "live_success", mutate: (r) => { r.budget.decision = "refused"; } },
+  ];
+
+  for (const testCase of cases) {
+    const contradictory = structuredClone(fixtures[testCase.fixture]);
+    testCase.mutate(contradictory);
+    assert.throws(
+      () => validateModelInvocationReceiptV02(contradictory),
+      `${testCase.name} should be rejected by the root receipt validator`,
+    );
+  }
+  return cases.length;
 }
 
 function initializeDatabase() {
@@ -2041,10 +2463,32 @@ function unreachableSession(
     implementation_id: "test.unreachable_session",
     implementation_version: "test_unreachable_session.v0.1",
     purpose: OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: testProviderRef(),
+    model_ref: testModelRef(),
     async invoke() {
       onInvoke();
       throw new Error("unreachable adapter session invoked");
     },
+  };
+}
+
+function testProviderRef() {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "model_provider",
+    external_id: "test-provider",
+    provider: "test-provider",
+    trust_class: "direct_local_observation" as const,
+  };
+}
+
+function testModelRef() {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "provider_model",
+    external_id: "test-model",
+    provider: "test-provider",
+    trust_class: "direct_local_observation" as const,
   };
 }
 

@@ -1,8 +1,11 @@
 import type { ExternalRefV01 } from "./external-ref";
+import type { ModelInvocationReceiptV02 } from "./model-invocation-receipt";
 
 export const RUN_RECEIPT_VERSION_V01 = "run_receipt.v0.1" as const;
 export const RUN_RECEIPT_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
+export const RUN_RECEIPT_MODEL_INVOCATION_ENTRY_VERSION_V02 =
+  "run_receipt_model_invocation.v0.2" as const;
 
 export const RUN_RECEIPT_EXECUTION_STATUSES_V01 = [
   "completed",
@@ -144,6 +147,20 @@ export interface RunReceiptModelInvocationSummaryV01 {
   source_refs: ExternalRefV01[];
 }
 
+export interface RunReceiptModelInvocationEntryV02 {
+  entry_version: typeof RUN_RECEIPT_MODEL_INVOCATION_ENTRY_VERSION_V02;
+  invocation_ref: ExternalRefV01;
+  work_ref: ExternalRefV01;
+  run_ref: ExternalRefV01;
+  invocation_receipt: ModelInvocationReceiptV02;
+  retry_count: 0;
+  source_refs: ExternalRefV01[];
+}
+
+export type RunReceiptModelInvocationV01 =
+  | RunReceiptModelInvocationSummaryV01
+  | RunReceiptModelInvocationEntryV02;
+
 export interface RunReceiptExecutionEnvironmentV01 {
   environment_kind: "local" | "remote" | "hybrid" | "unknown";
   host_ref: ExternalRefV01 | null;
@@ -273,7 +290,7 @@ export interface RunReceiptV01 {
   verifier_refs: ExternalRefV01[];
   host_ref: ExternalRefV01 | null;
   worker_ref: ExternalRefV01 | null;
-  model_invocations: RunReceiptModelInvocationSummaryV01[];
+  model_invocations: RunReceiptModelInvocationV01[];
   execution_environment: RunReceiptExecutionEnvironmentV01;
   observations: RunReceiptObservationV01[];
   attestations: RunReceiptAttestationV01[];

@@ -162,9 +162,9 @@ export function isNonExecutingRunnerStatus(
 
 export function isSafeRunnerStepAction(
   action: string,
-): action is AutonomyRunnerStepAction {
+): action is (typeof AUTONOMY_RUNNER_SAFE_INTERNAL_ACTIONS)[number] {
   return AUTONOMY_RUNNER_SAFE_INTERNAL_ACTIONS.includes(
-    action as AutonomyRunnerStepAction,
+    action as (typeof AUTONOMY_RUNNER_SAFE_INTERNAL_ACTIONS)[number],
   );
 }
 

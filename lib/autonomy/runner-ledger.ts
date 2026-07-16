@@ -227,7 +227,8 @@ export function insertAutonomyRunLedgerRecord(
   options: AutonomyRunnerLedgerDbOptions = {},
 ): AutonomyRunRecord {
   return withAutonomyRunnerLedgerDb(options, (db) => {
-    db.prepare("BEGIN IMMEDIATE").run();
+    const ownsTransaction = !db.inTransaction;
+    if (ownsTransaction) db.prepare("BEGIN IMMEDIATE").run();
     try {
       db.prepare(
         `INSERT INTO autonomy_runs (
@@ -321,9 +322,9 @@ export function insertAutonomyRunLedgerRecord(
       );
       for (const event of initialEvents) insertEvent.run(serializeEvent(event));
 
-      db.prepare("COMMIT").run();
+      if (ownsTransaction) db.prepare("COMMIT").run();
     } catch (error) {
-      db.prepare("ROLLBACK").run();
+      if (ownsTransaction && db.inTransaction) db.prepare("ROLLBACK").run();
       throw error;
     }
 

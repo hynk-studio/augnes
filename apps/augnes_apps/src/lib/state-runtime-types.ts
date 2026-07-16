@@ -148,9 +148,44 @@ const ModelGatewayFailureCodeSchema = z.enum([
 const ModelGatewayUsageSchema = z
   .object({
     basis: z.literal("provider_report"),
+    quality: z.literal("reported"),
+    source: z.literal("provider_response"),
     input_tokens: z.number().int().nonnegative(),
     output_tokens: z.number().int().nonnegative(),
     total_tokens: z.number().int().nonnegative(),
+  })
+  .strict()
+  .refine(
+    (value) => value.total_tokens >= value.input_tokens + value.output_tokens,
+    "total token usage must cover input and output usage"
+  );
+const ModelGatewayExternalRefSchema = z
+  .object({
+    ref_version: z.literal("external_ref.v0.1"),
+    ref_type: ModelGatewaySafeIdentifierSchema,
+    external_id: ModelGatewaySafeIdentifierSchema,
+    provider: ModelGatewaySafeIdentifierSchema.nullable().optional(),
+    host: ModelGatewaySafeIdentifierSchema.nullable().optional(),
+    observed_at: z.string().datetime({ offset: true }).nullable().optional(),
+    source_ref: ModelGatewayProvenanceRefSchema.nullable().optional(),
+    compatibility_namespace: ModelGatewaySafeIdentifierSchema.nullable().optional(),
+    trust_class: z.enum([
+      "direct_local_observation",
+      "verified_external_observation",
+      "host_attestation",
+      "provider_report",
+      "user_declaration",
+      "imported_unverified",
+      "derived_interpretation",
+    ]),
+  })
+  .strict();
+const ModelGatewayCostSchema = z
+  .object({
+    basis: z.literal("unavailable"),
+    amount: z.null(),
+    currency: z.null(),
+    source: z.literal("no_pricing_authority"),
   })
   .strict();
 const ModelGatewayBudgetReceiptSchema = z
@@ -159,26 +194,49 @@ const ModelGatewayBudgetReceiptSchema = z
     input_bytes_limit: z.number().int().positive(),
     input_bytes_used: z.number().int().nonnegative().nullable(),
     output_tokens_limit: z.number().int().positive(),
+    output_tokens_used: z.number().int().nonnegative().nullable(),
     provider_call_limit: z.union([z.literal(0), z.literal(1)]),
     provider_calls_used: z.union([z.literal(0), z.literal(1)]),
+    timeout_limit_ms: z.number().int().positive(),
+    timeout_disposition: z.enum([
+      "completed_within_deadline",
+      "timed_out",
+      "cancelled",
+    ]),
   })
-  .strict();
+  .strict()
+  .refine(
+    (value) =>
+      value.provider_calls_used <= value.provider_call_limit &&
+      (value.input_bytes_used === null ||
+        value.input_bytes_used <= value.input_bytes_limit) &&
+      (value.output_tokens_used === null ||
+        value.output_tokens_used <= value.output_tokens_limit),
+    "model invocation usage must remain within the receipt budget"
+  );
 
-// Exact v0.1 mirror: the Apps package cannot import the root Next runtime module.
+// Exact v0.2 mirror: the Apps package cannot import the root Next runtime module.
 export const ModelInvocationReceiptSchema = z
   .object({
-    receipt_version: z.literal("model_invocation_receipt.v0.1"),
+    receipt_version: z.literal("model_invocation_receipt.v0.2"),
     gateway_version: z.literal("model_gateway.v0.1"),
     invocation_id: ModelGatewaySafeIdentifierSchema,
     workspace_id: CanonicalWorkspaceIdSchema,
     project_id: CanonicalProjectIdSchema,
+    work_id: ModelGatewaySafeIdentifierSchema.nullable(),
+    run_id: ModelGatewaySafeIdentifierSchema.nullable(),
     purpose: z.enum([
       "observe_delta_compile",
       "planner_plan",
       "temporal_interpretation",
     ]),
-    implementation_id: ModelGatewaySafeIdentifierSchema,
-    implementation_version: ModelGatewaySafeIdentifierSchema,
+    invocation_origin: z.enum(["interactive", "policy_triggered"]),
+    attempted_implementation_id: ModelGatewaySafeIdentifierSchema.nullable(),
+    attempted_implementation_version: ModelGatewaySafeIdentifierSchema.nullable(),
+    attempted_provider_ref: ModelGatewayExternalRefSchema.nullable(),
+    attempted_model_ref: ModelGatewayExternalRefSchema.nullable(),
+    final_implementation_id: ModelGatewaySafeIdentifierSchema,
+    final_implementation_version: ModelGatewaySafeIdentifierSchema,
     requested_mode: z.enum(["live", "deterministic"]),
     execution_mode: z.enum(["live", "deterministic"]),
     selection_reason: z.enum([
@@ -190,7 +248,13 @@ export const ModelInvocationReceiptSchema = z
     started_at: z.string().datetime({ offset: true }),
     finished_at: z.string().datetime({ offset: true }),
     latency_ms: z.number().int().nonnegative(),
-    status: z.enum(["completed", "blocked", "failed", "cancelled"]),
+    status: z.enum([
+      "completed",
+      "blocked",
+      "failed",
+      "cancelled",
+      "timed_out",
+    ]),
     outcome: z.enum([
       "live_success",
       "deterministic_success",
@@ -203,8 +267,11 @@ export const ModelInvocationReceiptSchema = z
     ]),
     egress_attempted: z.boolean(),
     egress_status: z.enum(["occurred", "did_not_occur", "blocked"]),
+    egress_policy_version: z.literal("model_gateway_egress_policy.v0.1"),
     usage: ModelGatewayUsageSchema.nullable(),
+    cost: ModelGatewayCostSchema,
     budget: ModelGatewayBudgetReceiptSchema,
+    cancellation_disposition: z.enum(["not_cancelled", "cancelled"]),
     failure_code: ModelGatewayFailureCodeSchema.nullable(),
     data_classification: z.enum([
       "public_safe",
@@ -222,12 +289,292 @@ export const ModelInvocationReceiptSchema = z
       .array(ModelGatewayProvenanceRefSchema)
       .min(1)
       .max(16),
+    grant_lineage_ref: ModelGatewayExternalRefSchema.nullable(),
+    automation_control_lineage_ref: ModelGatewayExternalRefSchema.nullable(),
+    fallback_used: z.boolean(),
+    coverage_class: z.literal("enforced"),
+    trust_class: z.enum([
+      "direct_local_observation",
+      "provider_report",
+      "mixed",
+    ]),
     raw_prompt_persisted: z.literal(false),
     raw_response_persisted: z.literal(false),
     hidden_reasoning_persisted: z.literal(false),
     receipt_is_semantic_authority: z.literal(false),
   })
-  .strict();
+  .strict()
+  .superRefine((receipt, context) => {
+    const policyTriggered = receipt.invocation_origin === "policy_triggered";
+    const hasPolicyLineage =
+      receipt.work_id !== null &&
+      receipt.run_id !== null &&
+      receipt.grant_lineage_ref !== null &&
+      receipt.automation_control_lineage_ref !== null;
+    const hasAnyPolicyLineage =
+      receipt.work_id !== null ||
+      receipt.run_id !== null ||
+      receipt.grant_lineage_ref !== null ||
+      receipt.automation_control_lineage_ref !== null;
+    const attemptedImplementationComplete =
+      (receipt.attempted_implementation_id === null) ===
+      (receipt.attempted_implementation_version === null);
+    const attemptedProviderComplete =
+      (receipt.attempted_provider_ref === null) ===
+      (receipt.attempted_model_ref === null);
+    const providerRefsConsistent =
+      receipt.attempted_provider_ref === null ||
+      (receipt.attempted_provider_ref.ref_type === "model_provider" &&
+        receipt.attempted_model_ref?.ref_type === "provider_model" &&
+        receipt.attempted_provider_ref.trust_class ===
+          "direct_local_observation" &&
+        receipt.attempted_model_ref.trust_class ===
+          "direct_local_observation" &&
+        receipt.attempted_provider_ref.provider ===
+          receipt.attempted_provider_ref.external_id &&
+        receipt.attempted_model_ref.provider ===
+          receipt.attempted_provider_ref.external_id);
+    const policyLineageConsistent =
+      !policyTriggered ||
+      (receipt.grant_lineage_ref?.ref_type ===
+        "model_invocation_capability_grant" &&
+        receipt.grant_lineage_ref.trust_class ===
+          "direct_local_observation" &&
+        /^sha256:[0-9a-f]{64}$/.test(
+          receipt.grant_lineage_ref.source_ref ?? ""
+        ) &&
+        receipt.automation_control_lineage_ref?.ref_type ===
+          "project_automation_control" &&
+        receipt.automation_control_lineage_ref.trust_class ===
+          "direct_local_observation" &&
+        receipt.automation_control_lineage_ref.external_id.startsWith(
+          `${receipt.project_id}:automation-control:`
+        ) &&
+        /^control-revision:[1-9][0-9]*$/.test(
+          receipt.automation_control_lineage_ref.source_ref ?? ""
+        ) &&
+        receipt.automation_control_lineage_ref.external_id.slice(
+          receipt.automation_control_lineage_ref.external_id.lastIndexOf(":") +
+            1
+        ) ===
+          receipt.automation_control_lineage_ref.source_ref?.slice(
+            "control-revision:".length
+          ));
+    const providerFailureCodes = new Set<string>([
+      "model_gateway_provider_rejected",
+      "model_gateway_provider_response_invalid",
+      "model_gateway_transport_failed",
+    ]);
+    const refusalFailureCodes = new Set<string>([
+      "model_gateway_invalid_envelope",
+      "model_gateway_scope_refused",
+      "model_gateway_policy_refused",
+      "model_gateway_budget_refused",
+      "model_gateway_egress_refused",
+    ]);
+    const providerCallsUsed = receipt.budget.provider_calls_used;
+    const providerRefsPresent = receipt.attempted_provider_ref !== null;
+    const expectedPrivacyDecision =
+      receipt.egress_status === "occurred"
+        ? "provider_egress_approved"
+        : receipt.egress_status === "blocked"
+          ? "provider_egress_blocked"
+          : "provider_egress_not_used";
+    const statusOutcomes: Record<string, readonly string[]> = {
+      completed: [
+        "live_success",
+        "deterministic_success",
+        "deterministic_fallback_success",
+      ],
+      blocked: ["refused"],
+      failed: ["provider_failure", "deterministic_failure"],
+      cancelled: ["cancelled"],
+      timed_out: ["timeout"],
+    };
+    const statusOutcomeConsistent = statusOutcomes[receipt.status].includes(
+      receipt.outcome
+    );
+    const failureConsistent =
+      receipt.status === "completed"
+        ? receipt.outcome === "deterministic_fallback_success"
+          ? providerFailureCodes.has(receipt.failure_code ?? "")
+          : receipt.failure_code === null
+        : receipt.failure_code !== null;
+    const usageConsistent =
+      receipt.usage === null ||
+      (providerCallsUsed === 1 &&
+        receipt.egress_status === "occurred" &&
+        providerRefsPresent &&
+        receipt.outcome === "live_success" &&
+        receipt.trust_class === "provider_report");
+    let selectionConsistent = false;
+    if (receipt.selection_reason === "explicit_deterministic") {
+      selectionConsistent =
+        receipt.requested_mode === "deterministic" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.attempted_implementation_id === null &&
+        !providerRefsPresent &&
+        !receipt.egress_attempted &&
+        providerCallsUsed === 0 &&
+        receipt.egress_status === "did_not_occur" &&
+        receipt.usage === null &&
+        !receipt.fallback_used &&
+        receipt.trust_class === "direct_local_observation";
+    } else if (receipt.selection_reason === "provider_unavailable") {
+      selectionConsistent =
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.attempted_implementation_id !== null &&
+        !providerRefsPresent &&
+        !receipt.egress_attempted &&
+        providerCallsUsed === 0 &&
+        receipt.egress_status === "did_not_occur" &&
+        receipt.usage === null &&
+        !receipt.fallback_used &&
+        receipt.trust_class === "direct_local_observation";
+    } else if (receipt.selection_reason === "requested_live") {
+      selectionConsistent =
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "live" &&
+        receipt.attempted_implementation_id !== null &&
+        !receipt.fallback_used &&
+        receipt.trust_class ===
+          (receipt.outcome === "live_success"
+            ? "provider_report"
+            : "direct_local_observation");
+    } else {
+      selectionConsistent =
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.attempted_implementation_id !== null &&
+        providerRefsPresent &&
+        receipt.final_implementation_id !==
+          receipt.attempted_implementation_id &&
+        receipt.egress_attempted &&
+        providerCallsUsed === 1 &&
+        receipt.egress_status === "occurred" &&
+        receipt.usage === null &&
+        receipt.fallback_used &&
+        receipt.trust_class === "mixed" &&
+        [
+          "deterministic_fallback_success",
+          "deterministic_failure",
+          "timeout",
+          "cancelled",
+        ].includes(receipt.outcome);
+    }
+    let outcomeConsistent = false;
+    if (receipt.outcome === "live_success") {
+      outcomeConsistent =
+        receipt.status === "completed" &&
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "live" &&
+        receipt.selection_reason === "requested_live" &&
+        !receipt.fallback_used &&
+        receipt.attempted_implementation_id !== null &&
+        providerRefsPresent &&
+        receipt.egress_attempted &&
+        receipt.egress_status === "occurred" &&
+        providerCallsUsed === 1 &&
+        receipt.failure_code === null &&
+        receipt.trust_class === "provider_report" &&
+        receipt.budget.decision === "within_budget";
+    } else if (receipt.outcome === "deterministic_success") {
+      outcomeConsistent =
+        receipt.status === "completed" &&
+        receipt.execution_mode === "deterministic" &&
+        ["explicit_deterministic", "provider_unavailable"].includes(
+          receipt.selection_reason
+        ) &&
+        !receipt.fallback_used &&
+        !receipt.egress_attempted &&
+        providerCallsUsed === 0 &&
+        receipt.egress_status === "did_not_occur" &&
+        receipt.usage === null &&
+        receipt.failure_code === null &&
+        receipt.trust_class === "direct_local_observation" &&
+        receipt.budget.decision === "not_used";
+    } else if (receipt.outcome === "deterministic_fallback_success") {
+      outcomeConsistent =
+        receipt.status === "completed" &&
+        receipt.selection_reason === "provider_failure_fallback" &&
+        providerFailureCodes.has(receipt.failure_code ?? "") &&
+        receipt.budget.decision === "within_budget";
+    } else if (receipt.outcome === "provider_failure") {
+      outcomeConsistent =
+        receipt.status === "failed" &&
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "live" &&
+        receipt.selection_reason === "requested_live" &&
+        providerFailureCodes.has(receipt.failure_code ?? "") &&
+        receipt.usage === null &&
+        receipt.trust_class === "direct_local_observation" &&
+        receipt.egress_status ===
+          (providerCallsUsed === 1 ? "occurred" : "did_not_occur") &&
+        receipt.budget.decision ===
+          (providerCallsUsed === 1 ? "within_budget" : "not_used");
+    } else if (receipt.outcome === "deterministic_failure") {
+      outcomeConsistent =
+        receipt.status === "failed" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.failure_code === "model_gateway_deterministic_failed" &&
+        receipt.usage === null;
+    } else if (receipt.outcome === "refused") {
+      outcomeConsistent =
+        receipt.status === "blocked" &&
+        refusalFailureCodes.has(receipt.failure_code ?? "") &&
+        receipt.usage === null &&
+        receipt.budget.decision === "refused" &&
+        receipt.egress_status ===
+          (providerCallsUsed === 1 ? "occurred" : "blocked");
+    } else if (receipt.outcome === "timeout") {
+      outcomeConsistent =
+        receipt.status === "timed_out" &&
+        receipt.failure_code === "model_gateway_timeout" &&
+        receipt.budget.timeout_disposition === "timed_out" &&
+        receipt.cancellation_disposition === "not_cancelled" &&
+        receipt.usage === null &&
+        receipt.budget.decision ===
+          (providerCallsUsed === 1 ? "within_budget" : "not_used");
+    } else {
+      outcomeConsistent =
+        receipt.status === "cancelled" &&
+        receipt.failure_code === "model_gateway_cancelled" &&
+        receipt.budget.timeout_disposition === "cancelled" &&
+        receipt.cancellation_disposition === "cancelled" &&
+        receipt.usage === null &&
+        receipt.budget.decision ===
+          (providerCallsUsed === 1 ? "within_budget" : "not_used");
+    }
+    if (
+      (policyTriggered ? !hasPolicyLineage : hasAnyPolicyLineage) ||
+      !attemptedImplementationComplete ||
+      !attemptedProviderComplete ||
+      !providerRefsConsistent ||
+      !policyLineageConsistent ||
+      receipt.budget.output_tokens_used !==
+        (receipt.usage?.output_tokens ?? null) ||
+      receipt.egress_attempted !== (providerCallsUsed === 1) ||
+      (receipt.egress_status === "occurred") !== (providerCallsUsed === 1) ||
+      (providerCallsUsed === 1 && !providerRefsPresent) ||
+      receipt.privacy_decision !== expectedPrivacyDecision ||
+      (receipt.outcome !== "refused" && receipt.egress_status === "blocked") ||
+      receipt.fallback_used !==
+        (receipt.selection_reason === "provider_failure_fallback") ||
+      !statusOutcomeConsistent ||
+      !failureConsistent ||
+      (receipt.budget.decision === "refused") !==
+        (receipt.outcome === "refused") ||
+      !usageConsistent ||
+      !selectionConsistent ||
+      !outcomeConsistent
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "model invocation receipt fields are internally inconsistent",
+      });
+    }
+  });
 
 export const ObserveResultSchema = z
   .object({

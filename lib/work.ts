@@ -66,6 +66,18 @@ export type WorkItem = {
   updated_at: string;
 };
 
+export type CanonicalWorkItemResolution =
+  | {
+      status: "resolved";
+      canonical_work_id: string;
+      work: WorkItem;
+    }
+  | {
+      status: "missing" | "ambiguous" | "noncanonical";
+      canonical_work_id: string;
+      work: null;
+    };
+
 export type WorkEvent = {
   id: string;
   work_id: string;
@@ -222,6 +234,66 @@ export function getWorkItem(workId: string, scope = DEFAULT_SCOPE) {
   } finally {
     db.close();
   }
+}
+
+export function resolveCanonicalWorkItemFromDatabase(
+  db: ReturnType<typeof openDatabase>,
+  workId: string,
+  scope: string,
+): CanonicalWorkItemResolution {
+  const canonicalWorkId = normalizeWorkId(workId);
+  const canonicalScope = normalizeScope(scope);
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          work_id,
+          scope,
+          title,
+          status,
+          priority,
+          summary,
+          next_action,
+          user_attention_required,
+          related_state_keys,
+          links,
+          created_at,
+          updated_at
+        FROM work_items
+        WHERE scope = ? AND UPPER(TRIM(work_id)) = ?
+        ORDER BY work_id ASC
+        LIMIT 2
+      `,
+    )
+    .all(canonicalScope, canonicalWorkId) as WorkItemRow[];
+
+  if (rows.length === 0) {
+    return {
+      status: "missing",
+      canonical_work_id: canonicalWorkId,
+      work: null,
+    };
+  }
+  if (rows.length > 1) {
+    return {
+      status: "ambiguous",
+      canonical_work_id: canonicalWorkId,
+      work: null,
+    };
+  }
+  const row = rows[0]!;
+  if (row.work_id !== canonicalWorkId || row.scope !== canonicalScope) {
+    return {
+      status: "noncanonical",
+      canonical_work_id: canonicalWorkId,
+      work: null,
+    };
+  }
+  return {
+    status: "resolved",
+    canonical_work_id: canonicalWorkId,
+    work: parseWorkItemRow(row),
+  };
 }
 
 export function listWorkEvents({
