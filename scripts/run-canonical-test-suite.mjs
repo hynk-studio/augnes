@@ -90,9 +90,11 @@ const suites = {
     {
       label: "operator loop migration, backup, restore, and immutable records",
       ...rootNode("scripts/smoke-vnext-operator-pilot-v0-1.ts"),
-      // Measured at 324.55s with the PR B fake App Server lifecycle matrix.
-      // Keep a bounded margin without widening the 240s browser-fixture export.
-      timeoutMs: 390_000,
+      // Current-head local success measured 355.11s; the same CI run measured
+      // comparable integration children at up to 1.87x local duration. Bound
+      // the projected 664s run with a small margin while retaining the 240s
+      // browser-fixture export subprocess bound unchanged.
+      timeoutMs: 720_000,
     },
     {
       label: "portable-export foundations and project scope",
