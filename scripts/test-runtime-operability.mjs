@@ -1175,6 +1175,8 @@ function assertRuntimeEnvironmentIsolation() {
     AUGNES_DB_PATH: databasePath,
     OPENAI_API_KEY: publicSecretSentinel,
     OPENAI_MODEL: publicModelSentinel,
+    CODEX_HOME: path.join(tempRoot, "codex-home"),
+    CODEX_SQLITE_HOME: path.join(tempRoot, "codex-sqlite-home"),
     GITHUB_TOKEN: publicSecretSentinel,
     GH_TOKEN: publicSecretSentinel,
     ANTHROPIC_API_KEY: publicSecretSentinel,
@@ -1209,6 +1211,8 @@ function assertRuntimeEnvironmentIsolation() {
   const absentProviderEnvironment = { ...ambientEnvironment };
   delete absentProviderEnvironment.OPENAI_API_KEY;
   delete absentProviderEnvironment.OPENAI_MODEL;
+  delete absentProviderEnvironment.CODEX_HOME;
+  delete absentProviderEnvironment.CODEX_SQLITE_HOME;
   const absentUiValues = buildSupervisorChildValues({
     role: "ui",
     environment: absentProviderEnvironment,
@@ -1221,6 +1225,8 @@ function assertRuntimeEnvironmentIsolation() {
   });
   assert.equal(Object.hasOwn(absentUiEnvironment, "OPENAI_API_KEY"), false);
   assert.equal(Object.hasOwn(absentUiEnvironment, "OPENAI_MODEL"), false);
+  assert.equal(Object.hasOwn(absentUiEnvironment, "CODEX_HOME"), false);
+  assert.equal(Object.hasOwn(absentUiEnvironment, "CODEX_SQLITE_HOME"), false);
 
   const uiValues = buildSupervisorChildValues({
     role: "ui",
@@ -1229,6 +1235,11 @@ function assertRuntimeEnvironmentIsolation() {
   });
   assert.equal(uiValues.OPENAI_API_KEY, publicSecretSentinel);
   assert.equal(uiValues.OPENAI_MODEL, publicModelSentinel);
+  assert.equal(uiValues.CODEX_HOME, path.join(tempRoot, "codex-home"));
+  assert.equal(
+    uiValues.CODEX_SQLITE_HOME,
+    path.join(tempRoot, "codex-sqlite-home"),
+  );
   assert.equal(uiValues.AUGNES_DB_PATH, databasePath);
   const uiEnvironment = buildRuntimeChildEnvironment({
     role: "ui",
@@ -1237,6 +1248,11 @@ function assertRuntimeEnvironmentIsolation() {
   });
   assert.equal(uiEnvironment.OPENAI_API_KEY, publicSecretSentinel);
   assert.equal(uiEnvironment.OPENAI_MODEL, publicModelSentinel);
+  assert.equal(uiEnvironment.CODEX_HOME, path.join(tempRoot, "codex-home"));
+  assert.equal(
+    uiEnvironment.CODEX_SQLITE_HOME,
+    path.join(tempRoot, "codex-sqlite-home"),
+  );
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED, "false");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID, "reviewed-workspace");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PROJECT_ID, "reviewed-project");
@@ -1265,6 +1281,8 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(bridgeEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_API_KEY"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_MODEL"), false);
+  assert.equal(Object.hasOwn(bridgeEnvironment, "CODEX_HOME"), false);
+  assert.equal(Object.hasOwn(bridgeEnvironment, "CODEX_SQLITE_HOME"), false);
   for (const uiOnlyKey of [
     "AUGNES_DB_PATH",
     "AUGNES_VNEXT_OPERATOR_PILOT_ENABLED",
@@ -1273,6 +1291,8 @@ function assertRuntimeEnvironmentIsolation() {
     "AUGNES_VNEXT_OPERATOR_ID",
     "AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS",
     "AUGNES_VNEXT_OPERATOR_GATE_TTL_MS",
+    "CODEX_HOME",
+    "CODEX_SQLITE_HOME",
   ]) {
     assert.equal(Object.hasOwn(bridgeEnvironment, uiOnlyKey), false);
   }

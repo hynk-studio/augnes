@@ -85,6 +85,7 @@ let lastRequestAt = Date.now();
 let serverLog = "";
 const requests = [];
 const responses = [];
+const requestMethods = new Map();
 const consoleErrors = [];
 const pageErrors = [];
 const failedRequests = [];
@@ -100,6 +101,8 @@ const result = {
   proposal_fingerprint: null,
   packet_id: null,
   packet_fingerprint: null,
+  active_packet_id: null,
+  active_packet_fingerprint: null,
   handoff_href: null,
   document_status: null,
   handoff_api_status: null,
@@ -110,6 +113,11 @@ const result = {
   direct_host_packet_bound: false,
   direct_host_no_copy_paste: false,
   direct_host_status: null,
+  live_codex_status: null,
+  live_codex_waiting_for_approval: false,
+  live_codex_approved_once: false,
+  live_codex_receipt_persisted: false,
+  live_codex_no_internal_id_input: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -315,6 +323,14 @@ async function main() {
     packet_fingerprint: manifest.packet_fingerprint,
   });
   assert.equal(handoffHref, manifest.handoff_href);
+  const activePacketId = manifest.active_packet_id ?? manifest.packet_id;
+  const activePacketFingerprint =
+    manifest.active_packet_fingerprint ?? manifest.packet_fingerprint;
+  const activeHandoffHref = buildTaskContextPacketHandoffHrefV01({
+    packet_id: activePacketId,
+    packet_fingerprint: activePacketFingerprint,
+  });
+  assert.equal(activeHandoffHref, manifest.active_handoff_href ?? handoffHref);
   const parsedHandoffUrl = new URL(handoffHref, "http://127.0.0.1");
   const handoffSlug = parsedHandoffUrl.pathname.split("/").at(-1);
   assert.equal(decodeTaskContextPacketHandoffSlugV01(handoffSlug), manifest.packet_id);
@@ -328,6 +344,8 @@ async function main() {
   result.proposal_fingerprint = manifest.proposal_fingerprint;
   result.packet_id = manifest.packet_id;
   result.packet_fingerprint = manifest.packet_fingerprint;
+  result.active_packet_id = activePacketId;
+  result.active_packet_fingerprint = activePacketFingerprint;
   result.handoff_href = handoffHref;
 
   appPort = await chooseAvailablePort();
@@ -869,27 +887,27 @@ async function main() {
       "active operator Project Home",
     );
     await waitForCondition(
-      `document.querySelector('[data-direct-host-round-trip="v0.1"][data-direct-host-round-trip-hydrated="true"]') !== null`,
+      `document.querySelector('[data-direct-host-round-trip="v0.2"][data-direct-host-round-trip-hydrated="true"]') !== null`,
       "operator Project Home direct-host action",
     );
     result.direct_host_project_home_active = true;
 
     const actionShape = await evaluateJson(`(() => {
-      const action = document.querySelector('[data-direct-host-round-trip="v0.1"]');
+      const action = document.querySelector('[data-direct-host-round-trip="v0.2"]');
       const labels = action
         ? Array.from(action.querySelectorAll('button, a')).map((candidate) => candidate.textContent?.trim() ?? '')
         : [];
       return {
         action_present: Boolean(action),
         form_field_count: action?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
-        button_count: action?.querySelectorAll('button').length ?? -1,
+      start_button_count: action?.querySelectorAll('[data-direct-host-action="deterministic"], [data-live-host-action="start"]').length ?? -1,
         copy_or_paste_action: labels.some((label) => /copy|paste/i.test(label))
       };
     })()`);
     assert.deepEqual(actionShape, {
       action_present: true,
       form_field_count: 0,
-      button_count: 1,
+      start_button_count: 2,
       copy_or_paste_action: false,
     });
     result.direct_host_no_copy_paste = true;
@@ -899,7 +917,7 @@ async function main() {
     const responseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = document.querySelector('[data-direct-host-round-trip="v0.1"] button');
+        const button = document.querySelector('[data-direct-host-action="deterministic"]');
         button?.click();
         return Boolean(button);
       })()`),
@@ -910,7 +928,8 @@ async function main() {
         responses.slice(responseStart).some(
           (entry) =>
             entry.path === "/api/vnext/operator/host-round-trip" &&
-            entry.type === "Fetch",
+            entry.type === "Fetch" &&
+            entry.method === "POST",
         ),
       "direct-host route response",
     );
@@ -919,13 +938,14 @@ async function main() {
       .find(
         (entry) =>
           entry.path === "/api/vnext/operator/host-round-trip" &&
-          entry.type === "Fetch",
+          entry.type === "Fetch" &&
+          entry.method === "POST",
       );
     result.direct_host_status = hostResponse?.status ?? null;
     if (hostResponse?.status !== 201) {
       const visibleState = await evaluateJson(`(() => ({
-        status: document.querySelector('[data-direct-host-round-trip="v0.1"]')?.getAttribute('data-direct-host-round-trip-status') ?? null,
-        text: document.querySelector('[data-direct-host-round-trip="v0.1"]')?.textContent?.trim() ?? ''
+        status: document.querySelector('[data-direct-host-round-trip="v0.2"]')?.getAttribute('data-direct-host-round-trip-status') ?? null,
+        text: document.querySelector('[data-direct-host-round-trip="v0.2"]')?.textContent?.trim() ?? ''
       }))()`);
       assert.equal(
         hostResponse?.status,
@@ -959,10 +979,10 @@ async function main() {
     assert(packet, "The exact persisted TaskContextPacket was not found.");
     assert.equal(receipt.workspace_id, manifest.workspace_id);
     assert.equal(receipt.project_id, manifest.project_id);
-    assert.equal(receipt.task_context_packet_ref?.external_id, manifest.packet_id);
+    assert.equal(receipt.task_context_packet_ref?.external_id, activePacketId);
     assert.equal(
       receipt.task_context_packet_ref?.source_ref,
-      manifest.packet_fingerprint,
+      activePacketFingerprint,
     );
     assert.equal(
       receipt.work_ref?.external_id,
@@ -974,7 +994,7 @@ async function main() {
       receipt.compatibility.external_refs.some(
         (ref) =>
           ref.ref_type === "task_definition" &&
-          ref.external_id === `${manifest.packet_id}:task`,
+          ref.external_id === `${activePacketId}:task`,
       ),
       true,
     );
@@ -1019,6 +1039,125 @@ async function main() {
     result.direct_host_packet_bound = true;
     record("active_project_direct_host_round_trip_persists_exact_packet_receipt");
     record("direct_host_round_trip_has_zero_copy_paste_or_internal_id_input");
+
+    const liveRequestStart = requests.length;
+    const liveResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-live-host-action="start"]');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(liveResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.type === "Fetch" &&
+            entry.status === 202,
+        ),
+      "live Codex start acceptance",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"]') !== null`,
+      "live Codex command approval",
+    );
+    result.live_codex_waiting_for_approval = true;
+    const pendingShape = await evaluateJson(`(() => {
+      const action = document.querySelector('[data-direct-host-round-trip="v0.2"]');
+      const approval = document.querySelector('[data-live-host-approval="pending"]');
+      return {
+        form_field_count: action?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        approval_present: Boolean(approval),
+        approve_once_present: Boolean(document.querySelector('[data-live-host-action="approve-once"]')),
+        raw_protocol_visible: document.body.textContent.includes('jsonrpc') || document.body.textContent.includes('OPENAI_API_KEY')
+      };
+    })()`);
+    assert.deepEqual(pendingShape, {
+      form_field_count: 0,
+      approval_present: true,
+      approve_once_present: true,
+      raw_protocol_visible: false,
+    });
+
+    const approvalResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-live-host-action="approve-once"]');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(approvalResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "live Codex one-shot approval response",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-live-host-status="completed"] [data-live-host-receipt="persisted"]') !== null`,
+      "live Codex terminal receipt after approval",
+    );
+    result.live_codex_status = "completed";
+    result.live_codex_approved_once = true;
+
+    const liveRequests = requests
+      .slice(liveRequestStart)
+      .filter(
+        (entry) =>
+          entry.path === "/api/vnext/operator/host-round-trip" &&
+          entry.method === "POST",
+      );
+    assert.equal(liveRequests.length, 2);
+    assert.deepEqual(JSON.parse(liveRequests[0].post_data), {
+      action: "start_live",
+    });
+    const approvalBody = JSON.parse(liveRequests[1].post_data);
+    assert.deepEqual(Object.keys(approvalBody).sort(), [
+      "action",
+      "approval_ref",
+      "control_revision",
+      "run_ref",
+    ]);
+    assert.equal(approvalBody.action, "approve_once");
+    assert.equal(
+      ["packet_json", "handoff_text", "result_text", "result_paste"].some(
+        (key) => Object.hasOwn(approvalBody, key),
+      ),
+      false,
+    );
+    result.live_codex_no_internal_id_input = true;
+
+    const liveAfter = readDirectHostBrowserState(manifest.project_id);
+    assert.equal(
+      liveAfter.direct_receipt_count,
+      after.direct_receipt_count + 1,
+    );
+    assert.equal(liveAfter.direct_run_count, after.direct_run_count + 1);
+    assert.deepEqual(
+      liveAfter.semantic_authority_counts,
+      after.semantic_authority_counts,
+    );
+    assert(liveAfter.latest_receipt);
+    assert.equal(liveAfter.latest_receipt.result_summary.outcome, "completed");
+    assert.equal(liveAfter.latest_receipt.privacy_egress.egress_status, "occurred");
+    assert.equal(liveAfter.latest_receipt.privacy_egress.raw_prompt_persisted, false);
+    assert.equal(liveAfter.latest_receipt.privacy_egress.raw_transcript_persisted, false);
+    assert.equal(liveAfter.latest_receipt.model_invocations.length, 0);
+    assert.equal(
+      JSON.stringify(liveAfter.latest_receipt).includes(liveAfter.normalized_root),
+      false,
+    );
+    result.live_codex_receipt_persisted = true;
+    record("active_project_live_codex_waits_for_one_shot_approval_and_persists_receipt");
+    record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
   });
 
   await runPhase("project_home", async () => {
@@ -1034,7 +1173,7 @@ async function main() {
       );
       return link?.getAttribute('href') ?? '';
     })()`);
-    result.project_home_exact_href = exactHref === handoffHref;
+    result.project_home_exact_href = exactHref === activeHandoffHref;
     if (result.project_home_exact_href) {
       record("project_home_emits_exact_compiled_packet_handoff_href");
     }
@@ -1675,9 +1814,11 @@ function attachCdpObservers() {
     if (event.method === "Network.requestWillBeSent") {
       const request = event.params?.request ?? {};
       const classification = classifyUrl(String(request.url ?? ""));
+      const method = String(request.method ?? "GET").toUpperCase();
+      requestMethods.set(String(event.params?.requestId ?? ""), method);
       requests.push({
         phase: currentPhase,
-        method: String(request.method ?? "GET").toUpperCase(),
+        method,
         path: classification.path,
         type: String(event.params?.type ?? "unknown"),
         post_data:
@@ -1697,17 +1838,24 @@ function attachCdpObservers() {
         path: classification.path,
         status: Number(response.status ?? 0),
         type: String(event.params?.type ?? "unknown"),
+        method:
+          requestMethods.get(String(event.params?.requestId ?? "")) ?? null,
       });
       lastRequestAt = Date.now();
       return;
     }
     if (event.method === "Network.loadingFailed") {
+      requestMethods.delete(String(event.params?.requestId ?? ""));
       if (String(event.params?.type ?? "") === "WebSocket") return;
       failedRequests.push({
         phase: currentPhase,
         error_text: String(event.params?.errorText ?? "request_failed"),
       });
       lastRequestAt = Date.now();
+      return;
+    }
+    if (event.method === "Network.loadingFinished") {
+      requestMethods.delete(String(event.params?.requestId ?? ""));
       return;
     }
     if (event.method === "Runtime.exceptionThrown") {
@@ -1981,7 +2129,7 @@ function readDirectHostBrowserState(projectId) {
            AND record_id = ?
            AND project_id = ?`,
       )
-      .get(result.packet_id, projectId);
+      .get(result.active_packet_id ?? result.packet_id, projectId);
     const root = readableDatabase
       .prepare(
         `SELECT normalized_root

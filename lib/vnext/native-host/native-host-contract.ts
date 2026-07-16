@@ -39,11 +39,35 @@ const RESULT_KEYS = new Set([
   "capability_coverage",
   "adapter_extension",
 ]);
+const PUBLIC_TEXT_KEYS = new Set([
+  "summary",
+  "public_stop_reason",
+  "reason",
+  "public_reason",
+  "public_risk_summary",
+  "resource_summary",
+  "observed_actions",
+  "notes",
+  "uncertainty",
+  "gaps",
+  "proposed_next_steps",
+]);
 
 export class NativeHostContractErrorV01 extends Error {
   constructor(readonly code: string) {
     super(code);
     this.name = "NativeHostContractErrorV01";
+  }
+}
+
+/**
+ * The adapter settled locally, but the native host's terminal state could not
+ * be proven. Callers must keep the run nonterminal and admit no RunReceipt.
+ */
+export class NativeHostReconciliationRequiredErrorV01 extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "NativeHostReconciliationRequiredErrorV01";
   }
 }
 
@@ -117,6 +141,9 @@ export function assertNativeHostResultV01(
     ),
   };
   walk(normalizedValue, (key, candidate) => {
+    if (typeof candidate === "string" && PUBLIC_TEXT_KEYS.has(key)) {
+      assertNativeHostPublicTextV01(candidate);
+    }
     if (
       typeof candidate === "string" &&
       (candidate === request.root_scope.canonical_root ||
@@ -148,6 +175,31 @@ export function assertNativeHostResultV01(
     fail("native_host_result_byte_bound_exceeded");
   }
   return normalizedValue;
+}
+
+export function assertNativeHostPublicTextV01(value: string): void {
+  const trimmed = value.trim();
+  if (
+    path.posix.isAbsolute(trimmed) ||
+    path.win32.isAbsolute(trimmed) ||
+    /\bfile:\/\//iu.test(value) ||
+    /(?:^|[\s("'`])\/(?!\/)(?:[^/\s"'`]+\/)+[^/\s"'`]+/u.test(value) ||
+    /(?:^|[\s("'`])(?:[a-zA-Z]:[^\s"'`]*|\\\\[^\s"'`]+\\[^\s"'`]+)/u.test(
+      value,
+    )
+  ) {
+    fail("native_host_result_absolute_path_forbidden");
+  }
+  const credential =
+    /(?:^|[^a-zA-Z0-9])(?:[a-zA-Z0-9_]*(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)[a-zA-Z0-9_]*)\s*(?:=|:)\s*([^\s]+)/iu.exec(
+      value,
+    );
+  if (
+    (credential && credential[1] !== "[redacted]") ||
+    /\b(?:sk|sess)-[a-zA-Z0-9_-]{16,}\b/u.test(value)
+  ) {
+    fail("native_host_result_raw_material_forbidden");
+  }
 }
 
 function repositoryRelativePath(value: string): string {

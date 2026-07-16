@@ -42,6 +42,7 @@ import {
 } from "@/lib/vnext/native-host/deterministic-codex-adapter";
 import {
   NativeHostContractErrorV01,
+  NativeHostReconciliationRequiredErrorV01,
   assertNativeHostResultV01,
 } from "@/lib/vnext/native-host/native-host-contract";
 import {
@@ -64,8 +65,10 @@ import {
   type NativeHostAdapterV01,
   type NativeHostAutomationContextV01,
   type NativeHostInvocationV01,
+  type NativeHostLifecycleSinkV01,
   type NativeHostRequestV01,
   type NativeHostResultV01,
+  type NativeHostResumeBindingV01,
   type NativeHostRootScopeV01,
   type NativeHostRunModeV01,
   type NativeHostTerminalOutcomeV01,
@@ -73,6 +76,7 @@ import {
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
   AutonomyRunEventRecord,
+  AutonomyRunRecord,
   AutonomyRunStepRecord,
   AutonomyRunSummary,
   AutonomyRunnerStatus,
@@ -151,6 +155,15 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   timeout_ms?: number;
   stop_settle_timeout_ms?: number;
   cancellation_signal?: AbortSignal;
+  lifecycle_sink?: NativeHostLifecycleSinkV01;
+  lifecycle_mode?: "synchronous" | "managed_live";
+  resume_binding?: NativeHostResumeBindingV01 | null;
+  resume_existing_run?: boolean;
+  live_host_egress_authorized?: boolean;
+  on_invocation_admitted?: (input: {
+    request: NativeHostRequestV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
+  }) => void;
   resolve_packet_selection?: (
     db: Database.Database,
     input: { config: VNextLocalOperatorPilotConfigV01; evaluated_at: string },
@@ -334,7 +347,7 @@ export async function runDirectNativeHostRoundTripV01(
   const timeoutMs = dependencies.timeout_ms ?? DEFAULT_TIMEOUT_MS;
   const stopSettleTimeoutMs =
     dependencies.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 900_000) {
     refuse("direct_host_timeout_invalid");
   }
   if (
@@ -353,6 +366,16 @@ export async function runDirectNativeHostRoundTripV01(
   if (input.mode === "interactive" && input.automation_context) {
     refuse("direct_host_automation_context_forbidden");
   }
+  const managedLive = dependencies.lifecycle_mode === "managed_live";
+  if (managedLive) {
+    assertLiveHostEgressAdmissionV01({
+      mode: input.mode,
+      packet: null,
+      automation_context: input.automation_context ?? null,
+      evaluated_at: null,
+      interactive_authorized: dependencies.live_host_egress_authorized === true,
+    });
+  }
   if (input.operator_mutation) {
     authenticateVNextLocalOperatorSessionV01(db, {
       config: input.config,
@@ -369,6 +392,15 @@ export async function runDirectNativeHostRoundTripV01(
     ...selection,
     evaluated_at: prevalidatedAt,
   });
+  if (managedLive) {
+    assertLiveHostEgressAdmissionV01({
+      mode: input.mode,
+      packet: admitted.packet,
+      automation_context: input.automation_context ?? null,
+      evaluated_at: prevalidatedAt,
+      interactive_authorized: dependencies.live_host_egress_authorized === true,
+    });
+  }
   const identity = buildRunIdentity({
     config: input.config,
     mode: input.mode,
@@ -416,18 +448,39 @@ export async function runDirectNativeHostRoundTripV01(
         session_admission: sessionAdmission,
       });
     }
-    if (readAutonomyRunLedgerRecord(identity.run_id, { db })) {
-      refuse("direct_host_run_conflict", 409);
+    const existingRun = readAutonomyRunLedgerRecord(identity.run_id, { db });
+    if (existingRun) {
+      if (
+        dependencies.resume_existing_run === true &&
+        managedLive &&
+        existingRun.status === "paused" &&
+        existingRun.metadata.packet_id === admitted.packet.packet_id &&
+        existingRun.metadata.packet_fingerprint ===
+          admitted.packet.integrity.fingerprint &&
+        existingRun.metadata.root_fingerprint ===
+          admitted.root_scope.root_fingerprint &&
+        dependencies.resume_binding
+      ) {
+        resumeManagedLiveRunInsideTransactionV01(db, {
+          run: existingRun,
+          observed_at: startedAt,
+        });
+        db.exec("COMMIT");
+      } else {
+        refuse("direct_host_run_conflict", 409);
+      }
+    } else {
+      createRunLedgerRecord(db, {
+        input,
+        admission: admitted,
+        request_id: identity.request_id,
+        run_id: identity.run_id,
+        started_at: startedAt,
+        adapter,
+        lifecycle_mode: dependencies.lifecycle_mode ?? "synchronous",
+      });
+      db.exec("COMMIT");
     }
-    createRunLedgerRecord(db, {
-      input,
-      admission: admitted,
-      request_id: identity.request_id,
-      run_id: identity.run_id,
-      started_at: startedAt,
-      adapter,
-    });
-    db.exec("COMMIT");
   } catch (error) {
     if (db.inTransaction) db.exec("ROLLBACK");
     throw error;
@@ -443,6 +496,11 @@ export async function runDirectNativeHostRoundTripV01(
     idempotency_key: identity.idempotency_key,
     timeout_ms: timeoutMs,
     stop_settle_timeout_ms: stopSettleTimeoutMs,
+    live_host: managedLive,
+  });
+  dependencies.on_invocation_admitted?.({
+    request,
+    session_admission: sessionAdmission,
   });
   let hostResult: NativeHostResultV01;
   try {
@@ -452,11 +510,16 @@ export async function runDirectNativeHostRoundTripV01(
         timeout_ms: timeoutMs,
         stop_settle_timeout_ms: stopSettleTimeoutMs,
         cancellation_signal: dependencies.cancellation_signal,
+        lifecycle_sink: dependencies.lifecycle_sink,
+        resume_binding: dependencies.resume_binding,
         now,
       }),
     );
   } catch (error) {
-    if (error instanceof NativeHostInvocationUnsettledErrorV01) {
+    if (
+      error instanceof NativeHostInvocationUnsettledErrorV01 ||
+      error instanceof NativeHostReconciliationRequiredErrorV01
+    ) {
       markRunStopUnconfirmedV01(db, {
         run_id: identity.run_id,
         admission: admitted,
@@ -464,7 +527,9 @@ export async function runDirectNativeHostRoundTripV01(
         reason: error.code,
       });
       throw new DirectNativeHostRoundTripErrorV01(
-        "direct_host_stop_unconfirmed",
+        error instanceof NativeHostReconciliationRequiredErrorV01
+          ? "direct_host_reconciliation_required"
+          : "direct_host_stop_unconfirmed",
         503,
       );
     }
@@ -488,9 +553,17 @@ export async function runDirectNativeHostRoundTripV01(
     admission: admitted,
   });
   const terminal = lifecycleForOutcome(hostResult.outcome);
+  const terminalStopAbandonsPendingApproval =
+    hostResult.outcome === "cancelled" || hostResult.outcome === "timed_out";
   db.exec("BEGIN IMMEDIATE");
   try {
-    revalidateRunBeforeFinalization(db, identity.run_id, admitted);
+    revalidateRunBeforeFinalization(
+      db,
+      identity.run_id,
+      admitted,
+      false,
+      terminalStopAbandonsPendingApproval,
+    );
     const write = admitStructuredRunReceiptV01(db, receipt);
     if (write.status !== "inserted") {
       refuse("direct_host_run_conflict", 409);
@@ -500,6 +573,9 @@ export async function runDirectNativeHostRoundTripV01(
     if (!current || !step || isTerminalRunnerStatus(current.status)) {
       refuse("direct_host_run_conflict", 409);
     }
+    const pendingApprovalAbandoned =
+      terminalStopAbandonsPendingApproval &&
+      current.metadata.pending_approval != null;
     updateAutonomyRunStepLedgerFields(
       step.step_id,
       {
@@ -532,6 +608,16 @@ export async function runDirectNativeHostRoundTripV01(
           run_receipt_id: receipt.receipt_id,
           run_receipt_fingerprint: receipt.integrity.fingerprint,
           host_outcome: hostResult.outcome,
+          public_reason: hostResult.public_stop_reason,
+          terminal_receipt_persisted: true,
+          reconciliation_required: false,
+          pending_approval: null,
+          pending_approval_abandoned_by_terminal_stop:
+            pendingApprovalAbandoned,
+          control_revision:
+            typeof current.metadata.control_revision === "number"
+              ? current.metadata.control_revision + 1
+              : 1,
           semantic_state_changed: false,
         },
       },
@@ -547,6 +633,7 @@ export async function runDirectNativeHostRoundTripV01(
         payload: {
           outcome: hostResult.outcome,
           run_receipt_id: receipt.receipt_id,
+          pending_approval_abandoned: pendingApprovalAbandoned,
           raw_output_persisted: false,
         },
         created_at: hostResult.finished_at,
@@ -658,11 +745,20 @@ function revalidateRunBeforeFinalization(
   db: Database.Database,
   runId: string,
   admission: PersistedHostPacketAdmissionV01,
+  allowPaused = false,
+  allowPendingApproval = false,
 ): void {
   const run = readAutonomyRunLedgerRecord(runId, { db });
   if (
     !run ||
-    run.status !== "running" ||
+    ![
+      "starting",
+      "running",
+      "waiting_for_approval",
+      "cancelling",
+      ...(allowPaused ? ["paused"] : []),
+    ].includes(run.status) ||
+    (!allowPendingApproval && run.metadata.pending_approval != null) ||
     run.metadata.packet_id !== admission.packet.packet_id ||
     run.metadata.packet_fingerprint !== admission.packet.integrity.fingerprint ||
     run.metadata.root_fingerprint !== admission.root_scope.root_fingerprint
@@ -682,7 +778,13 @@ function markRunStopUnconfirmedV01(
 ): void {
   db.exec("BEGIN IMMEDIATE");
   try {
-    revalidateRunBeforeFinalization(db, input.run_id, input.admission);
+    revalidateRunBeforeFinalization(
+      db,
+      input.run_id,
+      input.admission,
+      true,
+      true,
+    );
     const current = readAutonomyRunLedgerRecord(input.run_id, { db });
     const step = current?.steps[0];
     if (!current || !step || step.status !== "running") {
@@ -750,6 +852,7 @@ function buildNativeHostRequest(input: {
   idempotency_key: string;
   timeout_ms: number;
   stop_settle_timeout_ms: number;
+  live_host: boolean;
 }): NativeHostRequestV01 {
   const packet = input.admission.packet;
   return {
@@ -777,11 +880,16 @@ function buildNativeHostRequest(input: {
     allowed_operation_categories: [
       "read_validated_task_context",
       "return_bounded_structured_result",
+      ...(input.live_host
+        ? [
+            "project_scoped_command_with_approval",
+            "project_scoped_file_change_with_approval",
+          ]
+        : []),
     ],
     forbidden_operation_categories: [
       "filesystem_outside_selected_project_root",
-      "network_egress",
-      "provider_or_model_call",
+      ...(input.live_host ? [] : ["network_egress", "provider_or_model_call"]),
       "external_state_mutation",
       "semantic_commit",
       "raw_output_return",
@@ -791,9 +899,18 @@ function buildNativeHostRequest(input: {
     automation_context: input.automation_context,
     policy: {
       filesystem: "selected_project_root_only",
-      network: "forbidden",
-      commands: "forbidden_in_deterministic_adapter",
-      model: "forbidden_in_deterministic_adapter",
+      network: input.live_host ? "exact_grant_only" : "forbidden",
+      commands: input.live_host
+        ? "approval_required"
+        : "forbidden_in_deterministic_adapter",
+      model: input.live_host
+        ? "native_host_managed"
+        : "forbidden_in_deterministic_adapter",
+      host_egress: input.live_host
+        ? input.mode === "interactive"
+          ? "explicit_interactive_start"
+          : "bounded_capability_grant"
+        : "forbidden",
       max_changed_files: MAX_CHANGED_FILES,
       max_artifacts: MAX_ARTIFACTS,
       max_commands: MAX_COMMANDS,
@@ -830,15 +947,17 @@ function createRunLedgerRecord(
     run_id: string;
     started_at: string;
     adapter: NativeHostAdapterV01;
+    lifecycle_mode: "synchronous" | "managed_live";
   },
 ): void {
   const packet = input.admission.packet;
+  const managedLive = input.lifecycle_mode === "managed_live";
   const run: AutonomyRunSummary = {
     run_id: input.run_id,
     scope: input.input.config.project_id,
     autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
     title: "Project-scoped native-host round trip",
-    status: "running",
+    status: managedLive ? "starting" : "running",
     scheduled_for: null,
     started_at: input.started_at,
     finished_at: null,
@@ -848,19 +967,26 @@ function createRunLedgerRecord(
     source_refs: buildDefaultRunnerSourceRefs({
       runner_refs: [DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01],
     }),
-    authority_boundary: buildDefaultRunnerAuthorityBoundary({
-      notes: [
-        "The deterministic host adapter receives one validated packet and cannot call a provider, GitHub, or external network.",
-        "The resulting receipt is operational history, not approval, proof, accepted Evidence, semantic state, or work closure.",
-      ],
-    }),
+    authority_boundary: {
+      ...buildDefaultRunnerAuthorityBoundary({
+        notes: [
+          managedLive
+            ? "One explicitly started local native host may receive the admitted packet; approvals remain separately bounded."
+            : "The deterministic host adapter receives one validated packet and cannot call a provider, GitHub, or external network.",
+          "The resulting receipt is operational history, not approval, proof, accepted Evidence, semantic state, or work closure.",
+        ],
+      }),
+      can_execute_codex: managedLive,
+    },
     budget_snapshot: buildDefaultRunnerBudgetSnapshot({
       budget_id: `native-host-budget:${input.run_id}`,
       max_iterations: 1,
       max_tool_calls: 0,
       max_codex_tasks: 1,
       notes: [
-        "One deterministic in-process host task is allowed; provider calls and external actions remain zero.",
+        managedLive
+          ? "One local Codex App Server thread and turn are allowed; no automatic retry or GitHub action is granted."
+          : "One deterministic in-process host task is allowed; provider calls and external actions remain zero.",
       ],
     }),
     metadata: {
@@ -883,12 +1009,21 @@ function createRunLedgerRecord(
       capability_version: input.adapter.capability_version,
       policy_ref_id:
         input.input.automation_context?.policy_ref.external_id ?? null,
+      policy_ref: input.input.automation_context?.policy_ref ?? null,
       capability_grant_ref_id:
         input.input.automation_context?.capability_grant_ref.external_id ?? null,
+      capability_grant_ref:
+        input.input.automation_context?.capability_grant_ref ?? null,
+      automation_control_revision:
+        input.input.automation_context?.control_revision ?? null,
       automatic_retry: false,
       semantic_mutation_authorized: false,
       raw_packet_persisted_in_ledger: false,
       absolute_root_persisted_in_ledger: false,
+      lifecycle_mode: input.lifecycle_mode,
+      control_revision: managedLive ? 1 : 0,
+      reconciliation_required: false,
+      terminal_receipt_persisted: false,
     },
   };
   const step: AutonomyRunStepRecord = {
@@ -911,7 +1046,7 @@ function createRunLedgerRecord(
     buildAutonomyRunEventRecord({
       run_id: input.run_id,
       event_type: "run_created",
-      status: "running",
+      status: managedLive ? "queued" : "running",
       message: "Direct native-host run record created after packet admission.",
       payload: {
         workspace_id: input.input.config.workspace_id,
@@ -921,11 +1056,25 @@ function createRunLedgerRecord(
       },
       created_at: input.started_at,
     }),
+    ...(managedLive
+      ? [
+          buildAutonomyRunEventRecord({
+            run_id: input.run_id,
+            event_type: "run_queued",
+            status: "queued",
+            message: "Live native-host run durably queued after packet admission.",
+            payload: { control_revision: 0 },
+            created_at: input.started_at,
+          }),
+        ]
+      : []),
     buildAutonomyRunEventRecord({
       run_id: input.run_id,
-      event_type: "run_started",
-      status: "running",
-      message: "Direct native-host round trip started.",
+      event_type: managedLive ? "run_starting" : "run_started",
+      status: managedLive ? "starting" : "running",
+      message: managedLive
+        ? "The admitted live run is ready for registered invocation ownership."
+        : "Direct native-host round trip started.",
       payload: { mode: input.input.mode, automatic_retry: false },
       created_at: input.started_at,
     }),
@@ -942,12 +1091,111 @@ function createRunLedgerRecord(
   insertAutonomyRunLedgerRecord(run, [step], events, { db });
 }
 
+function resumeManagedLiveRunInsideTransactionV01(
+  db: Database.Database,
+  input: { run: AutonomyRunRecord; observed_at: string },
+): void {
+  const step = input.run.steps[0];
+  if (!step || isTerminalRunnerStatus(input.run.status)) {
+    refuse("direct_host_run_conflict", 409);
+  }
+  const controlRevision =
+    typeof input.run.metadata.control_revision === "number"
+      ? input.run.metadata.control_revision + 1
+      : 1;
+  updateAutonomyRunStepLedgerFields(
+    step.step_id,
+    {
+      status: "running",
+      error_message: null,
+      updated_at: input.observed_at,
+    },
+    { db },
+  );
+  updateAutonomyRunLedgerFields(
+    input.run.run_id,
+    {
+      status: "starting",
+      stop_reason: null,
+      updated_at: input.observed_at,
+      metadata: {
+        ...input.run.metadata,
+        control_revision: controlRevision,
+        reconciliation_required: false,
+        terminal_receipt_persisted: false,
+      },
+    },
+    { db },
+  );
+  appendAutonomyRunLedgerEvent(
+    buildAutonomyRunEventRecord({
+      run_id: input.run.run_id,
+      event_type: "run_resumed",
+      status: "starting",
+      message: "Known live native-host run entered bounded reconnect.",
+      payload: { control_revision: controlRevision, automatic_retry: false },
+      created_at: input.observed_at,
+    }),
+    { db },
+  );
+}
+
+function assertLiveHostEgressAdmissionV01(input: {
+  mode: NativeHostRunModeV01;
+  packet: TaskContextPacketV01 | null;
+  automation_context: NativeHostAutomationContextV01 | null;
+  evaluated_at: string | null;
+  interactive_authorized: boolean;
+}): void {
+  if (input.mode === "interactive") {
+    if (!input.interactive_authorized) {
+      refuse("direct_host_live_egress_permission_required", 403);
+    }
+  } else if (!input.packet) {
+    return;
+  }
+  if (!input.packet) return;
+  if (
+    input.packet.constraints.data_classification === "secret" ||
+    input.packet.constraints.data_classification === "local_only"
+  ) {
+    refuse("direct_host_live_data_classification_refused", 403);
+  }
+  if (input.mode === "policy_triggered") {
+    const grant = input.packet.capability_grant;
+    const automationGrant = input.automation_context?.capability_grant_ref;
+    if (
+      !grant ||
+      !automationGrant ||
+      grant.coverage !== "enforced" ||
+      (grant.grant_external_ref?.external_id !== automationGrant.external_id &&
+        grant.grant_ref !== automationGrant.external_id) ||
+      (grant.expires_at !== null &&
+        input.evaluated_at !== null &&
+        Date.parse(grant.expires_at) <= Date.parse(input.evaluated_at)) ||
+      !grant.allowed_capabilities.some((capability) =>
+        [HOST_CAPABILITY, "codex_native_host"].includes(capability),
+      ) ||
+      grant.forbidden_capabilities.some((capability) =>
+        [HOST_CAPABILITY, "codex_native_host"].includes(capability),
+      ) ||
+      !grant.resource_scope.includes(input.packet.project_id)
+    ) {
+      refuse("direct_host_live_capability_grant_required", 403);
+    }
+  }
+}
+
 function buildDirectHostRunReceipt(input: {
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
   admission: PersistedHostPacketAdmissionV01;
 }): RunReceiptV01 {
   const { request, result, admission } = input;
+  const packetDeliveryInitiated =
+    result.adapter_extension.bounded_metadata.packet_delivery_initiated === true;
+  const liveAppServerResult =
+    result.adapter_extension.adapter_kind === "codex_app_server";
   const reporterRef = localRef(
     "native_host_orchestrator",
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
@@ -978,7 +1226,9 @@ function buildDirectHostRunReceipt(input: {
     ...result.model_invocation_receipt_refs,
   ]);
   const requiredCheckIds = [
-    "deterministic_packet_delivery",
+    liveAppServerResult || packetDeliveryInitiated
+      ? "validated_packet_delivery"
+      : "deterministic_packet_delivery",
     ...admission.packet.constraints.required_checks,
   ];
   const verification = verificationForResult(result, requiredCheckIds);
@@ -993,13 +1243,13 @@ function buildDirectHostRunReceipt(input: {
     finished_at: result.finished_at,
     execution: {
       status: receiptExecutionStatus(result.outcome),
-      basis: "mixed",
+      basis: hostRef ? "mixed" : "observed",
       source_refs: hostRef ? [reporterRef, hostRef] : [reporterRef],
     },
     verification,
     reporter_ref: reporterRef,
     observer_refs: [reporterRef],
-    verifier_refs: result.host_refs,
+    verifier_refs: result.host_refs.length ? result.host_refs : [reporterRef],
     host_ref: hostRef,
     worker_ref: null,
     model_invocations: [],
@@ -1079,19 +1329,19 @@ function buildDirectHostRunReceipt(input: {
     })),
     commands: result.commands.map((command) => ({
       ...command,
-      basis: "attested" as const,
-      source_refs: hostRef ? [hostRef] : [],
+      basis: hostRef ? ("attested" as const) : ("observed" as const),
+      source_refs: hostRef ? [hostRef] : [reporterRef],
       raw_output_included: false as const,
     })),
     checks: result.checks.map((check) => ({
       ...check,
-      basis: "attested" as const,
-      source_refs: hostRef ? [hostRef] : [],
+      basis: hostRef ? ("attested" as const) : ("observed" as const),
+      source_refs: hostRef ? [hostRef] : [reporterRef],
     })),
     skipped_checks: result.skipped_checks.map((check) => ({
       ...check,
-      basis: "attested" as const,
-      source_refs: hostRef ? [hostRef] : [],
+      basis: hostRef ? ("attested" as const) : ("observed" as const),
+      source_refs: hostRef ? [hostRef] : [reporterRef],
     })),
     external_refs: uniqueRefs([
       ...result.host_refs,
@@ -1131,19 +1381,29 @@ function buildDirectHostRunReceipt(input: {
     })),
     privacy_egress: {
       data_classification: admission.packet.constraints.data_classification,
-      egress_status: "did_not_occur",
+      egress_status: packetDeliveryInitiated ? "occurred" : "did_not_occur",
       basis: "observed",
-      destination_refs: [],
-      redaction_status: "not_needed",
-      retention_class: "bounded_structured_receipt_only",
+      destination_refs:
+        packetDeliveryInitiated && hostRef ? [hostRef] : [],
+      redaction_status: packetDeliveryInitiated ? "unknown" : "not_needed",
+      retention_class: packetDeliveryInitiated
+        ? "native_host_managed_or_unknown"
+        : "bounded_structured_receipt_only",
       raw_prompt_persisted: false,
       raw_output_persisted: false,
       raw_transcript_persisted: false,
       secret_material_persisted: false,
       source_refs: [reporterRef],
       notes: [
-        "The packet was delivered in process and was not copied into the ledger or receipt.",
+        packetDeliveryInitiated
+          ? "Packet delivery to the configured native host was directly observed; native-host retention is host-managed or unknown."
+          : "The packet was delivered in process and was not copied into the ledger or receipt.",
         "No prompt, transcript, hidden reasoning, environment dump, provider payload, stdout, stderr, credential, or absolute root path is persisted.",
+        ...(packetDeliveryInitiated
+          ? [
+              "Native-host-internal model activity is outside Augnes-owned R4 Model Gateway invocation coverage.",
+            ]
+          : []),
       ],
     },
     cost_usage: {
@@ -1202,8 +1462,18 @@ function buildDirectHostRunReceipt(input: {
       "Host completion does not establish correctness, acceptance, or durable semantic truth.",
     ],
   });
-  if (validateRunReceiptV01(receipt).status !== "valid") {
-    refuse("direct_host_receipt_invalid", 500, receipt);
+  const validation = validateRunReceiptV01(receipt);
+  if (validation.status !== "valid") {
+    const issue = validation.errors[0]?.code
+      ?.replace(/[^a-z0-9_]/giu, "_")
+      .toLowerCase();
+    refuse(
+      issue
+        ? `direct_host_receipt_invalid_${issue}`
+        : "direct_host_receipt_invalid",
+      500,
+      receipt,
+    );
   }
   return receipt;
 }
@@ -1215,6 +1485,8 @@ async function invokeAdapterBounded(
     timeout_ms: number;
     stop_settle_timeout_ms: number;
     cancellation_signal?: AbortSignal;
+    lifecycle_sink?: NativeHostLifecycleSinkV01;
+    resume_binding?: NativeHostResumeBindingV01 | null;
     now: () => string;
   },
 ): Promise<NativeHostResultV01> {
@@ -1227,6 +1499,8 @@ async function invokeAdapterBounded(
       cancellation_signal: controller.signal,
       timeout_ms: input.timeout_ms,
       stop_settle_timeout_ms: input.stop_settle_timeout_ms,
+      lifecycle_sink: input.lifecycle_sink,
+      resume_binding: input.resume_binding,
     });
   } catch {
     return buildBoundaryTerminalResult({
@@ -1237,12 +1511,20 @@ async function invokeAdapterBounded(
       now: input.now,
     });
   }
+  const observedResultOutcome: {
+    value:
+      | { status: "fulfilled"; result: NativeHostResultV01 }
+      | { status: "rejected"; error: unknown }
+      | null;
+  } = { value: null };
   const resultOutcome = Promise.resolve(invocation.result).then(
     (result) => {
-      return { status: "fulfilled" as const, result };
+      observedResultOutcome.value = { status: "fulfilled", result };
+      return observedResultOutcome.value;
     },
-    () => {
-      return { status: "rejected" as const };
+    (error: unknown) => {
+      observedResultOutcome.value = { status: "rejected", error };
+      return observedResultOutcome.value;
     },
   );
   const settledOutcome = Promise.resolve(invocation.settled).then(
@@ -1320,13 +1602,15 @@ async function invokeAdapterBounded(
       }
       return first.result.status === "fulfilled"
         ? first.result.result
-        : buildBoundaryTerminalResult({
-            request,
-            adapter,
-            outcome: "failed",
-            reason: "native_host_adapter_failed",
-            now: input.now,
-          });
+        : first.result.error instanceof NativeHostReconciliationRequiredErrorV01
+          ? Promise.reject(first.result.error)
+          : buildBoundaryTerminalResult({
+              request,
+              adapter,
+              outcome: "failed",
+              reason: "native_host_adapter_failed",
+              now: input.now,
+            });
     }
     const stopConfirmed = await confirmInvocationStopSettledV01({
       stop_outcome: stopOutcome ?? Promise.resolve(false),
@@ -1337,6 +1621,20 @@ async function invokeAdapterBounded(
       throw new NativeHostInvocationUnsettledErrorV01(
         "native_host_stop_settlement_unconfirmed",
       );
+    }
+    await Promise.resolve();
+    const stoppedResult = observedResultOutcome.value;
+    if (
+      stoppedResult?.status === "fulfilled" &&
+      stoppedResult.result.outcome === "completed"
+    ) {
+      return stoppedResult.result;
+    }
+    if (
+      stoppedResult?.status === "rejected" &&
+      stoppedResult.error instanceof NativeHostReconciliationRequiredErrorV01
+    ) {
+      throw stoppedResult.error;
     }
     return buildBoundaryTerminalResult({
       request,
@@ -1576,7 +1874,8 @@ function lifecycleForOutcome(outcome: NativeHostTerminalOutcomeV01): {
     | "run_completed"
     | "run_blocked"
     | "run_failed"
-    | "run_cancelled";
+    | "run_cancelled"
+    | "run_timed_out";
   step_event_type:
     | "step_completed"
     | "step_blocked"
@@ -1601,12 +1900,21 @@ function lifecycleForOutcome(outcome: NativeHostTerminalOutcomeV01): {
       step_event_type: "step_blocked",
     };
   }
-  if (outcome === "cancelled" || outcome === "timed_out") {
+  if (outcome === "cancelled") {
     return {
       run_status: "cancelled",
       step_status: "cancelled",
-      stop_reason: `native_host_${outcome}`,
+      stop_reason: "native_host_cancelled",
       run_event_type: "run_cancelled",
+      step_event_type: "step_cancelled",
+    };
+  }
+  if (outcome === "timed_out") {
+    return {
+      run_status: "timed_out",
+      step_status: "cancelled",
+      stop_reason: "native_host_timed_out",
+      run_event_type: "run_timed_out",
       step_event_type: "step_cancelled",
     };
   }
