@@ -9,6 +9,10 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import { openDatabase } from "../lib/db";
+import {
+  normalizeWorkId,
+  resolveCanonicalWorkItemFromDatabase,
+} from "../lib/work";
 import { buildPlan } from "../lib/planner/planner";
 import { createAutonomyRun, tickAutonomyRun } from "../lib/autonomy/runner";
 import {
@@ -132,6 +136,10 @@ async function main() {
     ]);
     const deterministicLedger = readLedger(deterministicInput.run_id);
     assert.equal(deterministicLedger?.status, "completed");
+    assert.equal(
+      terminalStepEventType(deterministicInput.run_id),
+      "step_completed",
+    );
     assert.equal(listIncompleteRuns(fixture.projectAId).length, 0);
     assert.deepEqual(authoritativeMutationCounts(), {
       ...beforeDeterministic,
@@ -175,6 +183,7 @@ async function main() {
     assert.equal(live.model_invocation_receipt.cost.basis, "unavailable");
     assert.equal(live.run_receipt.model_invocations.length, 1);
     assert.equal(validateRunReceiptV01(live.run_receipt).status, "valid");
+    assert.equal(terminalStepEventType(liveInput.run_id), "step_completed");
     assertNoPrivateMaterial([
       live.model_invocation_receipt,
       live.run_receipt,
@@ -209,6 +218,8 @@ async function main() {
 
     await refusalMatrix(fixture, grants, adapter, () => fakeTransportCalls);
     await activeRunLimitRefusal(fixture, grants, adapter, () => fakeTransportCalls);
+    const workBindingMetrics = await workBindingRegressions(fixture, grants);
+    const atomicClaimMetrics = await atomicActiveRunClaimRace(fixture, grants);
 
     const beforeReplay = authoritativeMutationCounts();
     await assertPolicyError(
@@ -323,6 +334,12 @@ async function main() {
           refused_provider_calls: 0,
           run_receipts_persisted: authoritativeMutationCounts().run_receipts,
           incomplete_runs: listIncompleteRuns(fixture.projectAId).length,
+          canonical_work_binding_cases: workBindingMetrics.cases,
+          work_refusal_provider_calls: workBindingMetrics.transport_calls,
+          atomic_claim_requests: atomicClaimMetrics.requests,
+          atomic_claim_winners: atomicClaimMetrics.winners,
+          atomic_claim_refusals: atomicClaimMetrics.refusals,
+          atomic_claim_provider_calls: atomicClaimMetrics.transport_calls,
           external_requests: undiciRequests,
           semantic_mutations: 0,
         },
@@ -336,6 +353,319 @@ async function main() {
     else process.env.AUGNES_DB_PATH = priorDatabasePath;
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+async function workBindingRegressions(
+  fixture: Fixture,
+  grants: Map<string, ModelInvocationCapabilityGrantV01>,
+) {
+  let transportCalls = 0;
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: HOSTILE },
+    transport: async () => {
+      transportCalls += 1;
+      return plannerSuccess();
+    },
+  });
+  const canonicalInput = runInput(fixture, {
+    run_id: "run:work-canonicalized",
+    work_id: "work:work-canonicalized",
+    grant_id: "grant:work-canonicalized",
+    execution_mode: "deterministic",
+  });
+  const canonicalWorkId = canonicalInput.work_id;
+  canonicalInput.work_id = canonicalWorkId.toLowerCase();
+  grants.set(
+    canonicalInput.grant_id,
+    grantFor(canonicalInput, {
+      permitted_execution_modes: ["deterministic"],
+      provider_egress_allowed: false,
+      max_provider_calls: 0,
+    }),
+  );
+  const canonicalized = await runPolicyTriggeredPlannerV01(
+    canonicalInput,
+    dependencies(grants, adapter),
+  );
+  assert.equal(transportCalls, 0);
+  assert.equal(canonicalized.work_id, canonicalWorkId);
+  assert.equal(canonicalized.model_invocation_receipt.work_id, canonicalWorkId);
+  assert.equal(canonicalized.run_receipt.work_ref?.external_id, canonicalWorkId);
+  const canonicalModelEntry = canonicalized.run_receipt.model_invocations[0];
+  assert.equal(
+    canonicalModelEntry && "entry_version" in canonicalModelEntry
+      ? canonicalModelEntry.invocation_receipt.work_id
+      : null,
+    canonicalWorkId,
+  );
+
+  const missingInput = runInput(
+    fixture,
+    {
+      run_id: "run:work-missing",
+      work_id: "work:work-missing",
+      grant_id: "grant:work-missing",
+      execution_mode: "live",
+    },
+    { persist_work: false },
+  );
+  grants.set(missingInput.grant_id, grantFor(missingInput));
+  let missingGrantReads = 0;
+  const missing = await assertPolicyError(
+    () =>
+      runPolicyTriggeredPlannerV01(missingInput, {
+        ...dependencies(grants, adapter),
+        grant_authority: {
+          read(grantId) {
+            missingGrantReads += 1;
+            return grants.get(grantId) ?? null;
+          },
+        },
+      }),
+    ["policy_planner_work_refused"],
+  );
+  assert.equal(missingGrantReads, 0);
+  assert.equal(transportCalls, 0);
+  assert.equal(missing.model_invocation_receipt, null);
+  assert.equal(missing.run_receipt, null);
+  assert.equal(readLedger(missingInput.run_id), null);
+  assert.equal(countRunReceiptsForRun(missingInput.run_id), 0);
+
+  const crossProjectInput = runInput(
+    fixture,
+    {
+      run_id: "run:work-cross-project",
+      work_id: "work:work-cross-project",
+      grant_id: "grant:work-cross-project",
+      execution_mode: "live",
+    },
+    { persist_work: false },
+  );
+  seedCanonicalWorkItem(fixture.projectBId, crossProjectInput.work_id);
+  grants.set(crossProjectInput.grant_id, grantFor(crossProjectInput));
+  const crossProject = await assertPolicyError(
+    () =>
+      runPolicyTriggeredPlannerV01(
+        crossProjectInput,
+        dependencies(grants, adapter),
+      ),
+    ["policy_planner_work_refused"],
+  );
+  assert.equal(transportCalls, 0);
+  assert.equal(crossProject.model_invocation_receipt, null);
+  assert.equal(crossProject.run_receipt, null);
+  assert.equal(readLedger(crossProjectInput.run_id), null);
+
+  const noncanonicalInput = runInput(
+    fixture,
+    {
+      run_id: "run:work-noncanonical",
+      work_id: "work:work-noncanonical",
+      grant_id: "grant:work-noncanonical",
+      execution_mode: "live",
+    },
+    { persist_work: false },
+  );
+  insertRawWorkItem(fixture.projectAId, noncanonicalInput.work_id.toLowerCase());
+  noncanonicalInput.work_id = noncanonicalInput.work_id.toLowerCase();
+  grants.set(noncanonicalInput.grant_id, grantFor(noncanonicalInput));
+  await assertPolicyError(
+    () =>
+      runPolicyTriggeredPlannerV01(
+        noncanonicalInput,
+        dependencies(grants, adapter),
+      ),
+    ["policy_planner_work_refused"],
+  );
+  assert.equal(transportCalls, 0);
+  assert.equal(readLedger(noncanonicalInput.run_id), null);
+
+  const ambiguousInput = runInput(
+    fixture,
+    {
+      run_id: "run:work-ambiguous",
+      work_id: "work:work-ambiguous",
+      grant_id: "grant:work-ambiguous",
+      execution_mode: "live",
+    },
+    { persist_work: false },
+  );
+  insertRawWorkItem(fixture.projectAId, ambiguousInput.work_id);
+  insertRawWorkItem(fixture.projectAId, ambiguousInput.work_id.toLowerCase());
+  grants.set(ambiguousInput.grant_id, grantFor(ambiguousInput));
+  await assertPolicyError(
+    () =>
+      runPolicyTriggeredPlannerV01(
+        ambiguousInput,
+        dependencies(grants, adapter),
+      ),
+    ["policy_planner_work_refused"],
+  );
+  assert.equal(transportCalls, 0);
+  assert.equal(readLedger(ambiguousInput.run_id), null);
+  return { cases: 5, transport_calls: transportCalls };
+}
+
+async function atomicActiveRunClaimRace(
+  fixture: Fixture,
+  grants: Map<string, ModelInvocationCapabilityGrantV01>,
+) {
+  const first = runInput(fixture, {
+    run_id: "run:atomic-claim-a",
+    work_id: "work:atomic-claim-a",
+    grant_id: "grant:atomic-claim-a",
+    execution_mode: "live",
+  });
+  const second = runInput(fixture, {
+    run_id: "run:atomic-claim-b",
+    work_id: "work:atomic-claim-b",
+    grant_id: "grant:atomic-claim-b",
+    execution_mode: "live",
+  });
+  grants.set(first.grant_id, grantFor(first));
+  grants.set(second.grant_id, grantFor(second));
+
+  let releaseGrantReads!: () => void;
+  const grantReadBarrier = new Promise<void>((resolve) => {
+    releaseGrantReads = resolve;
+  });
+  let grantReadCount = 0;
+  let observeRace!: () => void;
+  const raceObserved = new Promise<void>((resolve) => {
+    observeRace = resolve;
+  });
+  let releaseTransport!: () => void;
+  const transportBarrier = new Promise<void>((resolve) => {
+    releaseTransport = resolve;
+  });
+  let transportCalls = 0;
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: HOSTILE },
+    async transport() {
+      transportCalls += 1;
+      if (transportCalls > 1) observeRace();
+      await transportBarrier;
+      return plannerSuccess();
+    },
+  });
+  const grantAuthority = {
+    async read(grantId: string) {
+      grantReadCount += 1;
+      if (grantReadCount === 2) releaseGrantReads();
+      await grantReadBarrier;
+      return grants.get(grantId) ?? null;
+    },
+  };
+  const before = authoritativeMutationCounts();
+  const invoke = (input: PolicyTriggeredPlannerRunInputV01, label: string) => {
+    const base = dependencies(grants, adapter);
+    return runPolicyTriggeredPlannerV01(input, {
+      ...base,
+      grant_authority: grantAuthority,
+      open_database() {
+        const database = new Database(databasePath);
+        database.pragma("foreign_keys = ON");
+        return database;
+      },
+      create_uuid: () => `atomic-claim-${label}`,
+    }).then(
+      (value) => ({ status: "fulfilled" as const, value }),
+      (reason: unknown) => {
+        observeRace();
+        return { status: "rejected" as const, reason };
+      },
+    );
+  };
+  const firstPending = invoke(first, "a");
+  const secondPending = invoke(second, "b");
+  let observationTimeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    await Promise.race([
+      raceObserved,
+      new Promise<never>((_, reject) => {
+        observationTimeout = setTimeout(
+          () => reject(new Error("atomic claim race did not settle")),
+          2_000,
+        );
+      }),
+    ]);
+  } finally {
+    if (observationTimeout) clearTimeout(observationTimeout);
+    releaseTransport();
+  }
+  const outcomes = await Promise.all([firstPending, secondPending]);
+  const winners = outcomes.filter(
+    (outcome): outcome is Extract<(typeof outcomes)[number], { status: "fulfilled" }> =>
+      outcome.status === "fulfilled",
+  );
+  const losers = outcomes.filter(
+    (outcome): outcome is Extract<(typeof outcomes)[number], { status: "rejected" }> =>
+      outcome.status === "rejected",
+  );
+  assert.equal(grantReadCount, 2);
+  assert.equal(winners.length, 1);
+  assert.equal(losers.length, 1);
+  assert.equal(transportCalls, 1);
+  const loser = losers[0]!.reason;
+  assert(loser instanceof PolicyTriggeredPlannerRunErrorV01);
+  assert.equal(loser.code, "policy_planner_admission_refused");
+  assert.equal(loser.admission_status, "active_run_limit");
+  assert.equal(loser.model_invocation_receipt, null);
+  assert.equal(loser.run_receipt, null);
+
+  const database = openDatabase();
+  try {
+    const runIds = [first.run_id, second.run_id];
+    const placeholders = runIds.map(() => "?").join(", ");
+    const runCount = Number(
+      (
+        database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_runs WHERE run_id IN (${placeholders})`,
+          )
+          .get(...runIds) as { count: number }
+      ).count,
+    );
+    const stepCount = Number(
+      (
+        database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_run_steps WHERE run_id IN (${placeholders})`,
+          )
+          .get(...runIds) as { count: number }
+      ).count,
+    );
+    const eventCount = Number(
+      (
+        database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_run_events WHERE run_id IN (${placeholders})`,
+          )
+          .get(...runIds) as { count: number }
+      ).count,
+    );
+    assert.equal(runCount, 1);
+    assert.equal(stepCount, 1);
+    assert.equal(eventCount, 5);
+    assert.equal(
+      runIds.reduce((total, runId) => total + countRunReceiptsForRun(runId), 0),
+      1,
+    );
+  } finally {
+    database.close();
+  }
+  const after = authoritativeMutationCounts();
+  assert.equal(after.semantic_state, before.semantic_state);
+  assert.equal(after.proposals, before.proposals);
+  assert.equal(after.approvals, before.approvals);
+  assert.equal(after.run_receipts, before.run_receipts + 1);
+  assert.equal(after.autonomy_runs, before.autonomy_runs + 1);
+  return {
+    requests: 2,
+    winners: winners.length,
+    refusals: losers.length,
+    transport_calls: transportCalls,
+  };
 }
 
 async function refusalMatrix(
@@ -501,6 +831,7 @@ async function admissionRefusalCases(
     project_root: fixture.projectBRoot,
     automation_control_revision: 1,
   };
+  seedCanonicalWorkItem(fixture.projectBId, notConfiguredInput.work_id);
   grants.set(
     notConfiguredInput.grant_id,
     grantFor(notConfiguredInput),
@@ -680,6 +1011,7 @@ async function lifecycleMappingCases(
   );
   assert.equal(rejected.run_receipt?.execution.status, "failed");
   assert.equal(readLedger(rejectedInput.run_id)?.status, "failed");
+  assert.equal(terminalStepEventType(rejectedInput.run_id), "step_failed");
 
   let transportFailureCalls = 0;
   const transportFailureInput = runInput(fixture, {
@@ -795,6 +1127,10 @@ async function lifecycleMappingCases(
     false,
   );
   assert.equal(deterministicFailure.run_receipt?.execution.status, "failed");
+  assert.equal(
+    terminalStepEventType(deterministicFailureInput.run_id),
+    "step_failed",
+  );
   assertNoPrivateMaterial(deterministicFailure);
 
   const deterministicTimeoutInput = runInput(fixture, {
@@ -845,6 +1181,10 @@ async function lifecycleMappingCases(
     0,
   );
   assert.equal(deterministicTimeout.run_receipt?.execution.status, "failed");
+  assert.equal(
+    terminalStepEventType(deterministicTimeoutInput.run_id),
+    "step_failed",
+  );
   assertNoPrivateMaterial(deterministicTimeout);
 
   let deterministicStarted!: () => void;
@@ -909,6 +1249,10 @@ async function lifecycleMappingCases(
   assert.equal(
     deterministicCancelled.run_receipt?.execution.status,
     "cancelled",
+  );
+  assert.equal(
+    terminalStepEventType(deterministicCancellationInput.run_id),
+    "step_cancelled",
   );
   assertNoPrivateMaterial(deterministicCancelled);
 
@@ -1139,6 +1483,7 @@ async function lifecycleMappingCases(
   assert.equal(budgetRefusalTransportCalls, 0);
   assert.equal(budgetRefusal.run_receipt?.execution.status, "blocked");
   assert.equal(readLedger(budgetInput.run_id)?.status, "blocked");
+  assert.equal(terminalStepEventType(budgetInput.run_id), "step_blocked");
 }
 
 function dependencies(
@@ -1199,12 +1544,24 @@ function runInput(
     PolicyTriggeredPlannerRunInputV01,
     "run_id" | "work_id" | "grant_id" | "execution_mode"
   >,
+  options: {
+    persist_work?: boolean;
+    work_project_id?: string;
+  } = {},
 ): PolicyTriggeredPlannerRunInputV01 {
   const live = identity.execution_mode === "live";
+  const workId = normalizeWorkId(identity.work_id);
+  if (options.persist_work !== false) {
+    seedCanonicalWorkItem(
+      options.work_project_id ?? fixture.projectAId,
+      workId,
+    );
+  }
   return {
     workspace_id: fixture.workspaceId,
     project_id: fixture.projectAId,
     ...identity,
+    work_id: workId,
     automation_control_revision: fixture.controlRevision,
     message: "Plan the same canonical advisory next step.",
     invocation_budget: {
@@ -1221,6 +1578,48 @@ function runInput(
     timeout_ms: 30_000,
     project_root: fixture.projectARoot,
   };
+}
+
+function seedCanonicalWorkItem(projectId: string, workId: string) {
+  const canonicalWorkId = normalizeWorkId(workId);
+  insertRawWorkItem(projectId, canonicalWorkId);
+  const database = openDatabase();
+  try {
+    const resolution = resolveCanonicalWorkItemFromDatabase(
+      database,
+      canonicalWorkId,
+      projectId,
+    );
+    assert.equal(resolution.status, "resolved");
+    return canonicalWorkId;
+  } finally {
+    database.close();
+  }
+}
+
+function insertRawWorkItem(projectId: string, workId: string) {
+  const database = openDatabase();
+  try {
+    database
+      .prepare(
+        `INSERT INTO work_items (
+          work_id, scope, title, status, priority, summary, next_action,
+          user_attention_required, related_state_keys, links, created_at, updated_at
+        ) VALUES (?, ?, ?, 'planned', 'normal', ?, ?, 0, '[]', '{}', ?, ?)
+        ON CONFLICT(scope, work_id) DO NOTHING`,
+      )
+      .run(
+        workId,
+        projectId,
+        `Policy model test work ${workId}`,
+        "Canonical project-scoped work fixture for policy model execution.",
+        "Run one bounded advisory Planner step.",
+        "2026-07-15T00:00:00.000Z",
+        "2026-07-15T00:00:00.000Z",
+      );
+  } finally {
+    database.close();
+  }
 }
 
 function setupProjectsAndControl() {
@@ -1356,12 +1755,45 @@ function readLedger(runId: string) {
   return readAutonomyRunLedgerRecord(runId, { dbPath: databasePath });
 }
 
+function terminalStepEventType(runId: string) {
+  const ledger = readLedger(runId);
+  return ledger?.events.findLast(
+    (event) =>
+      event.step_id !== null &&
+      [
+        "step_completed",
+        "step_blocked",
+        "step_failed",
+        "step_cancelled",
+      ].includes(event.event_type),
+  )?.event_type;
+}
+
 function listIncompleteRuns(projectId: string) {
   const database = openDatabase();
   try {
     return listIncompletePolicyTriggeredModelRunsV01(database, {
       project_id: projectId,
     });
+  } finally {
+    database.close();
+  }
+}
+
+function countRunReceiptsForRun(runId: string) {
+  const database = openDatabase();
+  try {
+    return Number(
+      (
+        database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM vnext_core_records
+             WHERE record_kind = 'run_receipt'
+               AND json_extract(payload_json, '$.run_id') = ?`,
+          )
+          .get(runId) as { count: number }
+      ).count,
+    );
   } finally {
     database.close();
   }

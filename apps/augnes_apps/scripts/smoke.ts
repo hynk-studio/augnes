@@ -23,6 +23,7 @@ import {
 } from "../src/server.js";
 import { assertFileModeFixturePaths, readFileModeEnv } from "./load-file-env.js";
 import { MockStateRuntimeBridgeAdapter } from "./mock-state-runtime.js";
+import { assertAppsModelInvocationReceiptSemanticMatrix } from "./model-invocation-receipt-semantic-matrix.js";
 
 function spawnConfigProfile(env: Record<string, string | undefined>) {
   const childEnv = { ...process.env };
@@ -517,6 +518,11 @@ async function main() {
     ModelInvocationReceiptSchema.parse(canonicalSuccessReceipt),
     canonicalSuccessReceipt,
     "complete real-shaped Gateway receipts should pass the Apps contract"
+  );
+  assert.equal(
+    assertAppsModelInvocationReceiptSemanticMatrix(canonicalSuccessReceipt),
+    56,
+    "the strict Apps mirror should reject the complete root contradiction matrix"
   );
   for (const [purpose, implementationId, implementationVersion] of [
     [

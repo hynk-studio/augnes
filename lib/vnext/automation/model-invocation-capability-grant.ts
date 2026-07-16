@@ -6,6 +6,7 @@ import {
   type ModelGatewayPolicyAuthorizationV01,
   type ModelGatewayPurposeV01,
 } from "@/lib/vnext/model-gateway/contracts";
+import { normalizeWorkId } from "@/lib/work";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -98,6 +99,7 @@ export function buildModelInvocationCapabilityGrantV01(
   const withoutFingerprint = {
     grant_version: MODEL_INVOCATION_CAPABILITY_GRANT_VERSION_V01,
     ...input,
+    work_id: normalizeWorkId(input.work_id),
     permitted_purposes: uniqueSorted(input.permitted_purposes),
     permitted_execution_modes: uniqueSorted(input.permitted_execution_modes),
     max_model_invocations: 1 as const,
@@ -129,6 +131,7 @@ export function validateModelInvocationCapabilityGrantV01(
     matches(grant.workspace_id, CANONICAL_WORKSPACE);
     matches(grant.project_id, CANONICAL_PROJECT);
     matches(grant.work_id, SAFE_IDENTIFIER);
+    if (grant.work_id !== normalizeWorkId(String(grant.work_id))) invalid();
     matches(grant.run_id, SAFE_IDENTIFIER);
     positiveInteger(grant.automation_control_revision);
     validateMembers(grant.permitted_purposes, MODEL_GATEWAY_PURPOSES_V01);

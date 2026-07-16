@@ -56,6 +56,8 @@ export const AUTONOMY_RUNNER_EVENT_TYPES = [
   "step_started",
   "step_completed",
   "step_blocked",
+  "step_failed",
+  "step_cancelled",
   "delta_batch_recovered",
 ] as const;
 

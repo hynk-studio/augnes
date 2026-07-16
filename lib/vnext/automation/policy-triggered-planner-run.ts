@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 
 import { openDatabase } from "@/lib/db";
 import {
+  normalizeWorkId,
+  resolveCanonicalWorkItemFromDatabase,
+} from "@/lib/work";
+import {
   buildAutonomyRunEventRecord,
   ensureAutonomyRunnerLedgerSchemaV01,
   insertAutonomyRunLedgerRecord,
@@ -80,6 +84,7 @@ export const POLICY_TRIGGERED_PLANNER_RUN_VERSION_V01 =
 export type PolicyTriggeredPlannerRunErrorCodeV01 =
   | "policy_planner_request_invalid"
   | "policy_planner_scope_refused"
+  | "policy_planner_work_refused"
   | "policy_planner_control_revision_refused"
   | "policy_planner_admission_refused"
   | "policy_planner_grant_refused"
@@ -167,6 +172,7 @@ export async function runPolicyTriggeredPlannerV01(
     if (!registration || !projectRootMatches(input, registration.root_binding.local_root)) {
       refuse("policy_planner_scope_refused");
     }
+    resolvePolicyWorkOrRefuse(database, input);
     const control = readProjectAutomationEffectiveStatusV01(database, input);
     if (
       control.control_revision !== null &&
@@ -182,99 +188,32 @@ export async function runPolicyTriggeredPlannerV01(
       grantMaterial = null;
     }
 
-    let authorization: ReturnType<
-      typeof authorizeModelInvocationCapabilityGrantV01
-    > | null = null;
-    let grantFailure: ModelInvocationGrantErrorV01 | null = null;
-    if (grantMaterial !== null) {
-      try {
-        authorization = authorizeModelInvocationCapabilityGrantV01({
-          grant: grantMaterial,
-          now: admissionAt,
-          workspace_id: input.workspace_id,
-          project_id: input.project_id,
-          work_id: input.work_id,
-          run_id: input.run_id,
-          automation_control_revision: input.automation_control_revision,
-          purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
-          execution_mode: input.execution_mode,
-          data_classification: "private",
-          budget: input.invocation_budget,
-          timeout_ms: input.timeout_ms,
-          run_budget: input.run_budget,
-        });
-      } catch (error) {
-        grantFailure =
-          error instanceof ModelInvocationGrantErrorV01
-            ? error
-            : new ModelInvocationGrantErrorV01(
-                "model_invocation_grant_invalid",
-              );
-      }
-    }
-    const admission = evaluateProjectAutomationAdmissionV01({
-      workspace_id: input.workspace_id,
-      project_id: input.project_id,
+    const preliminaryGrant = evaluateGrantMaterial(
+      input,
+      grantMaterial,
+      admissionAt,
+    );
+    const preliminaryAdmission = evaluatePolicyRunAdmission(
+      input,
       control,
-      candidate: {
-        workspace_id: input.workspace_id,
-        project_id: input.project_id,
-      },
-      grant_readiness: {
-        workspace_id: input.workspace_id,
-        project_id: input.project_id,
-        status:
-          grantMaterial === null
-            ? "required"
-            : grantFailure?.code === "model_invocation_capability_unavailable"
-              ? "capability_unavailable"
-              : grantFailure
-                ? "policy_denied"
-                : "ready",
-      },
-      active_run_readiness: {
-        workspace_id: input.workspace_id,
-        project_id: input.project_id,
-        active_automated_run_count: activeRunCount,
-      },
-    });
-    if (!admission.eligible_for_next_gate) {
-      throw new PolicyTriggeredPlannerRunErrorV01(
-        admission.status === "grant_required" ||
-        admission.status === "capability_unavailable" ||
-        admission.status === "policy_denied"
-          ? "policy_planner_grant_refused"
-          : "policy_planner_admission_refused",
-        admission.status,
-        null,
-        null,
-      );
-    }
-    if (!authorization || grantFailure) {
-      throw new PolicyTriggeredPlannerRunErrorV01(
-        "policy_planner_grant_refused",
-        admission.status,
-        null,
-        null,
-      );
-    }
-    assertRunIdentityAvailable(database, input);
+      grantMaterial,
+      preliminaryGrant.grantFailure,
+      activeRunCount,
+    );
+    assertPolicyRunAdmission(
+      preliminaryAdmission,
+      preliminaryGrant.authorization,
+      preliminaryGrant.grantFailure,
+    );
     const startedAt = strictNow(clock);
-    try {
-      createPolicyRunLedgerRecord(
-        database,
-        input,
-        authorization.grant.lineage_fingerprint,
-        startedAt,
-      );
-    } catch {
-      throw new PolicyTriggeredPlannerRunErrorV01(
-        "policy_planner_run_conflict",
-        admission.status,
-        null,
-        null,
-      );
-    }
+    const claim = claimPolicyPlannerRunSlot(
+      database,
+      input,
+      grantMaterial,
+      startedAt,
+    );
+    const authorization = claim.authorization;
+    const admission = claim.admission;
     runCreated = true;
 
     const brief = (dependencies.build_state_brief ?? buildStateBrief)(
@@ -416,6 +355,205 @@ export function listIncompletePolicyTriggeredModelRunsV01(
     started_at: string | null;
     updated_at: string;
   }>;
+}
+
+function resolvePolicyWorkOrRefuse(
+  database: Database.Database,
+  input: PolicyTriggeredPlannerRunInputV01,
+) {
+  const resolution = resolveCanonicalWorkItemFromDatabase(
+    database,
+    input.work_id,
+    input.project_id,
+  );
+  if (
+    resolution.status !== "resolved" ||
+    resolution.work.work_id !== input.work_id ||
+    resolution.work.scope !== input.project_id
+  ) {
+    refuse("policy_planner_work_refused");
+  }
+  return resolution.work;
+}
+
+function evaluateGrantMaterial(
+  input: PolicyTriggeredPlannerRunInputV01,
+  grantMaterial: unknown | null,
+  now: string,
+): {
+  authorization: ReturnType<
+    typeof authorizeModelInvocationCapabilityGrantV01
+  > | null;
+  grantFailure: ModelInvocationGrantErrorV01 | null;
+} {
+  if (grantMaterial === null) {
+    return { authorization: null, grantFailure: null };
+  }
+  try {
+    return {
+      authorization: authorizeModelInvocationCapabilityGrantV01({
+        grant: grantMaterial,
+        now,
+        workspace_id: input.workspace_id,
+        project_id: input.project_id,
+        work_id: input.work_id,
+        run_id: input.run_id,
+        automation_control_revision: input.automation_control_revision,
+        purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+        execution_mode: input.execution_mode,
+        data_classification: "private",
+        budget: input.invocation_budget,
+        timeout_ms: input.timeout_ms,
+        run_budget: input.run_budget,
+      }),
+      grantFailure: null,
+    };
+  } catch (error) {
+    return {
+      authorization: null,
+      grantFailure:
+        error instanceof ModelInvocationGrantErrorV01
+          ? error
+          : new ModelInvocationGrantErrorV01(
+              "model_invocation_grant_invalid",
+            ),
+    };
+  }
+}
+
+function evaluatePolicyRunAdmission(
+  input: PolicyTriggeredPlannerRunInputV01,
+  control: ReturnType<typeof readProjectAutomationEffectiveStatusV01>,
+  grantMaterial: unknown | null,
+  grantFailure: ModelInvocationGrantErrorV01 | null,
+  activeRunCount: number,
+) {
+  return evaluateProjectAutomationAdmissionV01({
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    control,
+    candidate: {
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+    },
+    grant_readiness: {
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      status:
+        grantMaterial === null
+          ? "required"
+          : grantFailure?.code === "model_invocation_capability_unavailable"
+            ? "capability_unavailable"
+            : grantFailure
+              ? "policy_denied"
+              : "ready",
+    },
+    active_run_readiness: {
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      active_automated_run_count: activeRunCount,
+    },
+  });
+}
+
+function assertPolicyRunAdmission(
+  admission: ReturnType<typeof evaluateProjectAutomationAdmissionV01>,
+  authorization: ReturnType<
+    typeof authorizeModelInvocationCapabilityGrantV01
+  > | null,
+  grantFailure: ModelInvocationGrantErrorV01 | null,
+) {
+  if (!admission.eligible_for_next_gate) {
+    throw new PolicyTriggeredPlannerRunErrorV01(
+      admission.status === "grant_required" ||
+      admission.status === "capability_unavailable" ||
+      admission.status === "policy_denied"
+        ? "policy_planner_grant_refused"
+        : "policy_planner_admission_refused",
+      admission.status,
+      null,
+      null,
+    );
+  }
+  if (!authorization || grantFailure) {
+    throw new PolicyTriggeredPlannerRunErrorV01(
+      "policy_planner_grant_refused",
+      admission.status,
+      null,
+      null,
+    );
+  }
+  return authorization;
+}
+
+function claimPolicyPlannerRunSlot(
+  database: Database.Database,
+  input: PolicyTriggeredPlannerRunInputV01,
+  grantMaterial: unknown | null,
+  startedAt: string,
+) {
+  try {
+    database.exec("BEGIN IMMEDIATE");
+  } catch {
+    throw new PolicyTriggeredPlannerRunErrorV01(
+      "policy_planner_run_conflict",
+      null,
+      null,
+      null,
+    );
+  }
+  try {
+    const registration = readCanonicalProjectWithRootV01(database, input);
+    if (
+      !registration ||
+      !projectRootMatches(input, registration.root_binding.local_root)
+    ) {
+      refuse("policy_planner_scope_refused");
+    }
+    resolvePolicyWorkOrRefuse(database, input);
+    const control = readProjectAutomationEffectiveStatusV01(database, input);
+    if (
+      control.control_revision !== null &&
+      control.control_revision !== input.automation_control_revision
+    ) {
+      refuse("policy_planner_control_revision_refused");
+    }
+    const grant = evaluateGrantMaterial(input, grantMaterial, startedAt);
+    const admission = evaluatePolicyRunAdmission(
+      input,
+      control,
+      grantMaterial,
+      grant.grantFailure,
+      countActivePolicyRuns(database, input.project_id),
+    );
+    const authorization = assertPolicyRunAdmission(
+      admission,
+      grant.authorization,
+      grant.grantFailure,
+    );
+    assertRunIdentityAvailable(database, input);
+    try {
+      createPolicyRunLedgerRecord(
+        database,
+        input,
+        authorization.grant.lineage_fingerprint,
+        startedAt,
+      );
+    } catch (error) {
+      if (error instanceof PolicyTriggeredPlannerRunErrorV01) throw error;
+      throw new PolicyTriggeredPlannerRunErrorV01(
+        "policy_planner_run_conflict",
+        admission.status,
+        null,
+        null,
+      );
+    }
+    database.exec("COMMIT");
+    return { admission, authorization };
+  } catch (error) {
+    if (database.inTransaction) database.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 function createPolicyRunLedgerRecord(
@@ -606,10 +744,7 @@ function finalizePolicyPlannerRun(
       buildAutonomyRunEventRecord({
         run_id: input.input.run_id,
         step_id: step.step_id,
-        event_type:
-          lifecycle.run_status === "completed"
-            ? "step_completed"
-            : "step_blocked",
+        event_type: lifecycle.step_event_type,
         status: lifecycle.step_status,
         message: "Shared Model Gateway step reached a terminal state.",
         payload: {
@@ -829,6 +964,11 @@ function lifecycleForReceipt(receipt: ModelInvocationReceiptV02 | null): {
   receipt_status: RunReceiptV01["execution"]["status"];
   stop_reason: string;
   event_type: "run_completed" | "run_blocked" | "run_cancelled" | "run_failed";
+  step_event_type:
+    | "step_completed"
+    | "step_blocked"
+    | "step_failed"
+    | "step_cancelled";
 } {
   if (receipt?.status === "completed") {
     return {
@@ -839,6 +979,7 @@ function lifecycleForReceipt(receipt: ModelInvocationReceiptV02 | null): {
         ? "model_gateway_completed_with_fallback"
         : "model_gateway_completed",
       event_type: "run_completed",
+      step_event_type: "step_completed",
     };
   }
   if (receipt?.status === "blocked") {
@@ -848,6 +989,7 @@ function lifecycleForReceipt(receipt: ModelInvocationReceiptV02 | null): {
       receipt_status: "blocked",
       stop_reason: receipt.failure_code ?? "model_gateway_refused",
       event_type: "run_blocked",
+      step_event_type: "step_blocked",
     };
   }
   if (receipt?.status === "cancelled") {
@@ -857,6 +999,7 @@ function lifecycleForReceipt(receipt: ModelInvocationReceiptV02 | null): {
       receipt_status: "cancelled",
       stop_reason: "model_gateway_cancelled",
       event_type: "run_cancelled",
+      step_event_type: "step_cancelled",
     };
   }
   return {
@@ -868,6 +1011,7 @@ function lifecycleForReceipt(receipt: ModelInvocationReceiptV02 | null): {
         ? "model_gateway_timeout"
         : receipt?.failure_code ?? "model_gateway_failed",
     event_type: "run_failed",
+    step_event_type: "step_failed",
   };
 }
 
@@ -986,7 +1130,11 @@ function validateRequest(
   ) {
     refuse("policy_planner_request_invalid");
   }
-  return { ...input, message: input.message.trim() };
+  return {
+    ...input,
+    work_id: normalizeWorkId(input.work_id),
+    message: input.message.trim(),
+  };
 }
 
 function safelyValidateRequest(

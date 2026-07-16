@@ -360,40 +360,214 @@ export const ModelInvocationReceiptSchema = z
           receipt.automation_control_lineage_ref.source_ref?.slice(
             "control-revision:".length
           ));
-    const usageOutput = receipt.usage?.output_tokens ?? null;
-    const timeoutConsistent =
-      (receipt.outcome === "timeout") ===
-      (receipt.status === "timed_out" &&
-        receipt.budget.timeout_disposition === "timed_out");
-    const cancellationConsistent =
-      (receipt.outcome === "cancelled") ===
-      (receipt.status === "cancelled" &&
+    const providerFailureCodes = new Set<string>([
+      "model_gateway_provider_rejected",
+      "model_gateway_provider_response_invalid",
+      "model_gateway_transport_failed",
+    ]);
+    const refusalFailureCodes = new Set<string>([
+      "model_gateway_invalid_envelope",
+      "model_gateway_scope_refused",
+      "model_gateway_policy_refused",
+      "model_gateway_budget_refused",
+      "model_gateway_egress_refused",
+    ]);
+    const providerCallsUsed = receipt.budget.provider_calls_used;
+    const providerRefsPresent = receipt.attempted_provider_ref !== null;
+    const expectedPrivacyDecision =
+      receipt.egress_status === "occurred"
+        ? "provider_egress_approved"
+        : receipt.egress_status === "blocked"
+          ? "provider_egress_blocked"
+          : "provider_egress_not_used";
+    const statusOutcomes: Record<string, readonly string[]> = {
+      completed: [
+        "live_success",
+        "deterministic_success",
+        "deterministic_fallback_success",
+      ],
+      blocked: ["refused"],
+      failed: ["provider_failure", "deterministic_failure"],
+      cancelled: ["cancelled"],
+      timed_out: ["timeout"],
+    };
+    const statusOutcomeConsistent = statusOutcomes[receipt.status].includes(
+      receipt.outcome
+    );
+    const failureConsistent =
+      receipt.status === "completed"
+        ? receipt.outcome === "deterministic_fallback_success"
+          ? providerFailureCodes.has(receipt.failure_code ?? "")
+          : receipt.failure_code === null
+        : receipt.failure_code !== null;
+    const usageConsistent =
+      receipt.usage === null ||
+      (providerCallsUsed === 1 &&
+        receipt.egress_status === "occurred" &&
+        providerRefsPresent &&
+        receipt.outcome === "live_success" &&
+        receipt.trust_class === "provider_report");
+    let selectionConsistent = false;
+    if (receipt.selection_reason === "explicit_deterministic") {
+      selectionConsistent =
+        receipt.requested_mode === "deterministic" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.attempted_implementation_id === null &&
+        !providerRefsPresent &&
+        !receipt.egress_attempted &&
+        providerCallsUsed === 0 &&
+        receipt.egress_status === "did_not_occur" &&
+        receipt.usage === null &&
+        !receipt.fallback_used &&
+        receipt.trust_class === "direct_local_observation";
+    } else if (receipt.selection_reason === "provider_unavailable") {
+      selectionConsistent =
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.attempted_implementation_id !== null &&
+        !providerRefsPresent &&
+        !receipt.egress_attempted &&
+        providerCallsUsed === 0 &&
+        receipt.egress_status === "did_not_occur" &&
+        receipt.usage === null &&
+        !receipt.fallback_used &&
+        receipt.trust_class === "direct_local_observation";
+    } else if (receipt.selection_reason === "requested_live") {
+      selectionConsistent =
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "live" &&
+        receipt.attempted_implementation_id !== null &&
+        !receipt.fallback_used &&
+        receipt.trust_class ===
+          (receipt.outcome === "live_success"
+            ? "provider_report"
+            : "direct_local_observation");
+    } else {
+      selectionConsistent =
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.attempted_implementation_id !== null &&
+        providerRefsPresent &&
+        receipt.final_implementation_id !==
+          receipt.attempted_implementation_id &&
+        receipt.egress_attempted &&
+        providerCallsUsed === 1 &&
+        receipt.egress_status === "occurred" &&
+        receipt.usage === null &&
+        receipt.fallback_used &&
+        receipt.trust_class === "mixed" &&
+        [
+          "deterministic_fallback_success",
+          "deterministic_failure",
+          "timeout",
+          "cancelled",
+        ].includes(receipt.outcome);
+    }
+    let outcomeConsistent = false;
+    if (receipt.outcome === "live_success") {
+      outcomeConsistent =
+        receipt.status === "completed" &&
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "live" &&
+        receipt.selection_reason === "requested_live" &&
+        !receipt.fallback_used &&
+        receipt.attempted_implementation_id !== null &&
+        providerRefsPresent &&
+        receipt.egress_attempted &&
+        receipt.egress_status === "occurred" &&
+        providerCallsUsed === 1 &&
+        receipt.failure_code === null &&
+        receipt.trust_class === "provider_report" &&
+        receipt.budget.decision === "within_budget";
+    } else if (receipt.outcome === "deterministic_success") {
+      outcomeConsistent =
+        receipt.status === "completed" &&
+        receipt.execution_mode === "deterministic" &&
+        ["explicit_deterministic", "provider_unavailable"].includes(
+          receipt.selection_reason
+        ) &&
+        !receipt.fallback_used &&
+        !receipt.egress_attempted &&
+        providerCallsUsed === 0 &&
+        receipt.egress_status === "did_not_occur" &&
+        receipt.usage === null &&
+        receipt.failure_code === null &&
+        receipt.trust_class === "direct_local_observation" &&
+        receipt.budget.decision === "not_used";
+    } else if (receipt.outcome === "deterministic_fallback_success") {
+      outcomeConsistent =
+        receipt.status === "completed" &&
+        receipt.selection_reason === "provider_failure_fallback" &&
+        providerFailureCodes.has(receipt.failure_code ?? "") &&
+        receipt.budget.decision === "within_budget";
+    } else if (receipt.outcome === "provider_failure") {
+      outcomeConsistent =
+        receipt.status === "failed" &&
+        receipt.requested_mode === "live" &&
+        receipt.execution_mode === "live" &&
+        receipt.selection_reason === "requested_live" &&
+        providerFailureCodes.has(receipt.failure_code ?? "") &&
+        receipt.usage === null &&
+        receipt.trust_class === "direct_local_observation" &&
+        receipt.egress_status ===
+          (providerCallsUsed === 1 ? "occurred" : "did_not_occur") &&
+        receipt.budget.decision ===
+          (providerCallsUsed === 1 ? "within_budget" : "not_used");
+    } else if (receipt.outcome === "deterministic_failure") {
+      outcomeConsistent =
+        receipt.status === "failed" &&
+        receipt.execution_mode === "deterministic" &&
+        receipt.failure_code === "model_gateway_deterministic_failed" &&
+        receipt.usage === null;
+    } else if (receipt.outcome === "refused") {
+      outcomeConsistent =
+        receipt.status === "blocked" &&
+        refusalFailureCodes.has(receipt.failure_code ?? "") &&
+        receipt.usage === null &&
+        receipt.budget.decision === "refused" &&
+        receipt.egress_status ===
+          (providerCallsUsed === 1 ? "occurred" : "blocked");
+    } else if (receipt.outcome === "timeout") {
+      outcomeConsistent =
+        receipt.status === "timed_out" &&
+        receipt.failure_code === "model_gateway_timeout" &&
+        receipt.budget.timeout_disposition === "timed_out" &&
+        receipt.cancellation_disposition === "not_cancelled" &&
+        receipt.usage === null &&
+        receipt.budget.decision ===
+          (providerCallsUsed === 1 ? "within_budget" : "not_used");
+    } else {
+      outcomeConsistent =
+        receipt.status === "cancelled" &&
+        receipt.failure_code === "model_gateway_cancelled" &&
         receipt.budget.timeout_disposition === "cancelled" &&
-        receipt.cancellation_disposition === "cancelled");
-    const fallbackConsistent =
-      receipt.fallback_used ===
-        (receipt.selection_reason === "provider_failure_fallback") &&
-      (!receipt.fallback_used ||
-        (receipt.execution_mode === "deterministic" &&
-          receipt.egress_attempted &&
-          receipt.failure_code !== null &&
-          receipt.attempted_provider_ref !== null));
-    const liveSuccessHasProvider =
-      receipt.execution_mode !== "live" ||
-      receipt.status !== "completed" ||
-      receipt.attempted_provider_ref !== null;
+        receipt.cancellation_disposition === "cancelled" &&
+        receipt.usage === null &&
+        receipt.budget.decision ===
+          (providerCallsUsed === 1 ? "within_budget" : "not_used");
+    }
     if (
       (policyTriggered ? !hasPolicyLineage : hasAnyPolicyLineage) ||
       !attemptedImplementationComplete ||
       !attemptedProviderComplete ||
       !providerRefsConsistent ||
       !policyLineageConsistent ||
-      receipt.budget.output_tokens_used !== usageOutput ||
-      receipt.egress_attempted !== (receipt.budget.provider_calls_used === 1) ||
-      !timeoutConsistent ||
-      !cancellationConsistent ||
-      !fallbackConsistent ||
-      !liveSuccessHasProvider
+      receipt.budget.output_tokens_used !==
+        (receipt.usage?.output_tokens ?? null) ||
+      receipt.egress_attempted !== (providerCallsUsed === 1) ||
+      (receipt.egress_status === "occurred") !== (providerCallsUsed === 1) ||
+      (providerCallsUsed === 1 && !providerRefsPresent) ||
+      receipt.privacy_decision !== expectedPrivacyDecision ||
+      (receipt.outcome !== "refused" && receipt.egress_status === "blocked") ||
+      receipt.fallback_used !==
+        (receipt.selection_reason === "provider_failure_fallback") ||
+      !statusOutcomeConsistent ||
+      !failureConsistent ||
+      (receipt.budget.decision === "refused") !==
+        (receipt.outcome === "refused") ||
+      !usageConsistent ||
+      !selectionConsistent ||
+      !outcomeConsistent
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
