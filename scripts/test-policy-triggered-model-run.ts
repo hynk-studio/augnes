@@ -392,10 +392,17 @@ async function workBindingRegressions(
   assert.equal(canonicalized.model_invocation_receipt.work_id, canonicalWorkId);
   assert.equal(canonicalized.run_receipt.work_ref?.external_id, canonicalWorkId);
   const canonicalModelEntry = canonicalized.run_receipt.model_invocations[0];
+  assert(canonicalModelEntry && "entry_version" in canonicalModelEntry);
   assert.equal(
-    canonicalModelEntry && "entry_version" in canonicalModelEntry
-      ? canonicalModelEntry.invocation_receipt.work_id
-      : null,
+    canonicalModelEntry.entry_version,
+    "run_receipt_model_invocation.v0.2",
+  );
+  assert.equal(
+    canonicalModelEntry.invocation_receipt.receipt_version,
+    "model_invocation_receipt.v0.2",
+  );
+  assert.equal(
+    canonicalModelEntry.invocation_receipt.work_id,
     canonicalWorkId,
   );
 

@@ -142,6 +142,17 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
     "host-attested pre-Gateway activity remains an explicit v0.1 compatibility summary",
   );
   assert.ok(
+    host.model_invocations.every(
+      (item) => !("invocation_receipt" in item),
+    ),
+    "host-attested compatibility must not fabricate a ModelInvocationReceiptV02",
+  );
+  assert.equal(
+    JSON.stringify(host.model_invocations).includes("model_gateway_version"),
+    false,
+    "host-attested compatibility must not fabricate Gateway version claims",
+  );
+  assert.ok(
     host.compatibility.source_contracts.includes("host_result_fixture.v0.1"),
   );
   assert.ok(
