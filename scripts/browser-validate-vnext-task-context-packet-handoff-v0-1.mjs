@@ -36,6 +36,9 @@ const Database = require("better-sqlite3");
 const VALIDATION_VERSION =
   "vnext_task_context_packet_handoff_browser_validation.v0.1";
 const DEFAULT_TIMEOUT_MS = 45_000;
+// The same operator smoke completed in canonical CI at 203,854 ms. Keep this
+// fixture-only subprocess bounded below the outer 480,000 ms e2e lifecycle.
+const OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS = 240_000;
 const REQUEST_QUIET_MS = 500;
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const originalUmask = process.umask(0o077);
@@ -1325,7 +1328,7 @@ async function exportActualCompiledPacketFixture() {
         ...minimalProcessEnvironment(),
         AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR: fixtureDir,
       },
-      timeoutMs: 180_000,
+      timeoutMs: OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS,
     },
   );
   assert.equal(
