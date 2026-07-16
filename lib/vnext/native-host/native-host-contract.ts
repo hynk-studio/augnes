@@ -5,6 +5,10 @@ import {
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import {
+  canonicalizeRepositoryRelativePathV01,
+  externalRefUsesRepositoryRelativePathV01,
+} from "@/lib/vnext/repository-relative-path";
+import {
   NATIVE_HOST_RESULT_VERSION_V01,
   type NativeHostRequestV01,
   type NativeHostResultV01,
@@ -90,15 +94,29 @@ export function assertNativeHostResultV01(
   ) {
     fail("native_host_result_bound_exceeded");
   }
-  for (const changed of value.changed_files) {
-    assertRepositoryRelativePath(changed.repository_relative_path);
-  }
-  for (const artifact of value.artifacts) {
-    if (path.isAbsolute(artifact.artifact_ref.external_id)) {
-      fail("native_host_result_absolute_path_forbidden");
-    }
-  }
-  walk(value, (key, candidate) => {
+  const normalizedValue: NativeHostResultV01 = {
+    ...value,
+    changed_files: value.changed_files.map((changed) => ({
+      ...changed,
+      repository_relative_path: repositoryRelativePath(
+        changed.repository_relative_path,
+      ),
+    })),
+    artifacts: value.artifacts.map((artifact) =>
+      externalRefUsesRepositoryRelativePathV01(artifact.artifact_ref)
+        ? {
+            ...artifact,
+            artifact_ref: {
+              ...artifact.artifact_ref,
+              external_id: repositoryRelativePath(
+                artifact.artifact_ref.external_id,
+              ),
+            },
+          }
+        : artifact,
+    ),
+  };
+  walk(normalizedValue, (key, candidate) => {
     if (
       typeof candidate === "string" &&
       (candidate === request.root_scope.canonical_root ||
@@ -122,25 +140,20 @@ export function assertNativeHostResultV01(
       fail("native_host_result_raw_material_forbidden");
     }
   });
-  const bytes = Buffer.byteLength(canonicalizeProtocolValueV01(value), "utf8");
+  const bytes = Buffer.byteLength(
+    canonicalizeProtocolValueV01(normalizedValue),
+    "utf8",
+  );
   if (bytes > request.result_return.max_result_bytes) {
     fail("native_host_result_byte_bound_exceeded");
   }
-  return value;
+  return normalizedValue;
 }
 
-function assertRepositoryRelativePath(value: string): void {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > 4096 ||
-    path.isAbsolute(value) ||
-    value.includes("\0")
-  ) {
-    fail("native_host_result_file_scope_invalid");
-  }
-  const normalized = path.posix.normalize(value.replaceAll("\\", "/"));
-  if (normalized === ".." || normalized.startsWith("../")) {
+function repositoryRelativePath(value: string): string {
+  try {
+    return canonicalizeRepositoryRelativePathV01(value);
+  } catch {
     fail("native_host_result_file_scope_invalid");
   }
 }

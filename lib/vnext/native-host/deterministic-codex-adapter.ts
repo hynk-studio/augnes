@@ -23,6 +23,7 @@ export interface DeterministicCodexAdapterObservationV01 {
   request: NativeHostRequestV01;
   cancellation_signal: AbortSignal;
   timeout_ms: number;
+  stop_settle_timeout_ms: number;
 }
 
 export function createDeterministicCodexAdapterV01(
@@ -37,27 +38,43 @@ export function createDeterministicCodexAdapterV01(
   return {
     adapter_version: DETERMINISTIC_CODEX_ADAPTER_VERSION_V01,
     capability_version: DETERMINISTIC_CODEX_CAPABILITY_VERSION_V01,
-    async invoke(
+    invoke(
       request: NativeHostRequestV01,
       control: NativeHostInvocationControlV01,
-    ): Promise<NativeHostResultV01> {
+    ) {
       options.observe?.({
         adapter_version: DETERMINISTIC_CODEX_ADAPTER_VERSION_V01,
         request,
         cancellation_signal: control.cancellation_signal,
         timeout_ms: control.timeout_ms,
+        stop_settle_timeout_ms: control.stop_settle_timeout_ms,
       });
-      const startedAt = now();
-      if (control.cancellation_signal.aborted) {
-        return buildResult(request, startedAt, now(), "cancelled");
-      }
-      if (scenario === "unavailable") {
-        return buildResult(request, startedAt, now(), "unavailable");
-      }
-      if (scenario === "failure") {
-        return buildResult(request, startedAt, now(), "failed");
-      }
-      return buildResult(request, startedAt, now(), "completed");
+      const result = Promise.resolve().then(() => {
+        const startedAt = now();
+        if (control.cancellation_signal.aborted) {
+          return buildResult(request, startedAt, now(), "cancelled");
+        }
+        if (scenario === "unavailable") {
+          return buildResult(request, startedAt, now(), "unavailable");
+        }
+        if (scenario === "failure") {
+          return buildResult(request, startedAt, now(), "failed");
+        }
+        return buildResult(request, startedAt, now(), "completed");
+      });
+      const settled = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      let stopPromise: Promise<void> | null = null;
+      return {
+        result,
+        settled,
+        request_stop(): Promise<void> {
+          stopPromise ??= settled;
+          return stopPromise;
+        },
+      };
     },
   };
 }

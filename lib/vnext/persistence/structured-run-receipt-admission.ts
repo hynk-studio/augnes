@@ -5,6 +5,10 @@ import {
   assertVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import {
+  canonicalizeRepositoryRelativePathV01,
+  externalRefUsesRepositoryRelativePathV01,
+} from "@/lib/vnext/repository-relative-path";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
@@ -37,6 +41,7 @@ export function admitStructuredRunReceiptV01(
       "structured_run_receipt_invalid",
     );
   }
+  assertCanonicalRepositoryRelativeRefsV01(receipt);
   const write = insertVNextCoreRecordV01(db, {
     record_kind: "run_receipt",
     record_id: receipt.receipt_id,
@@ -66,4 +71,35 @@ export function admitStructuredRunReceiptV01(
     status: write.status,
     receipt: write.record.payload as RunReceiptV01,
   };
+}
+
+function assertCanonicalRepositoryRelativeRefsV01(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) assertCanonicalRepositoryRelativeRefsV01(item);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  if (
+    record.ref_version === "external_ref.v0.1" &&
+    typeof record.ref_type === "string" &&
+    typeof record.external_id === "string" &&
+    externalRefUsesRepositoryRelativePathV01({ ref_type: record.ref_type })
+  ) {
+    try {
+      if (
+        canonicalizeRepositoryRelativePathV01(record.external_id) !==
+        record.external_id
+      ) {
+        throw new Error("repository_relative_path_not_canonical");
+      }
+    } catch {
+      throw new StructuredRunReceiptAdmissionErrorV01(
+        "structured_run_receipt_repository_path_invalid",
+      );
+    }
+  }
+  for (const child of Object.values(record)) {
+    assertCanonicalRepositoryRelativeRefsV01(child);
+  }
 }

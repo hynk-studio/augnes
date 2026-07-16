@@ -69,13 +69,17 @@ import {
 import { buildContextUseReviewV01 } from "../lib/vnext/context-use-review";
 import {
   buildRunReceiptV01,
+  createRunReceiptFingerprintV01,
+  deriveRunReceiptIdV01,
   validateRunReceiptV01,
 } from "../lib/vnext/run-receipt";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
+import { assertNativeHostResultV01 } from "../lib/vnext/native-host/native-host-contract";
 import {
   createDeterministicCodexAdapterV01,
   type DeterministicCodexAdapterObservationV01,
 } from "../lib/vnext/native-host/deterministic-codex-adapter";
+import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import {
   DirectNativeHostRoundTripErrorV01,
@@ -124,7 +128,14 @@ import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
-import type { NativeHostAutomationContextV01 } from "../types/vnext/native-host-adapter";
+import type {
+  NativeHostAdapterV01,
+  NativeHostAutomationContextV01,
+  NativeHostInvocationControlV01,
+  NativeHostRequestV01,
+  NativeHostResultV01,
+  NativeHostStopRequestV01,
+} from "../types/vnext/native-host-adapter";
 import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
@@ -1845,14 +1856,22 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   assert.equal(observed.result_return.raw_output_allowed, false);
   assert.equal(observed.policy.network, "forbidden");
   assert.equal(observed.policy.model, "forbidden_in_deterministic_adapter");
+  assert.equal(observed.policy.stop_settle_timeout_ms, 5_000);
+  assert.equal(observations[0]!.stop_settle_timeout_ms, 5_000);
   pass("direct_host_golden_persisted_packet_structured_receipt_round_trip");
   pass("direct_host_exact_packet_work_task_lineage_and_plain_root_binding");
   pass("direct_host_reuses_ledger_and_structured_receipt_replay_authority");
   pass("direct_host_receipt_minimizes_data_and_grants_no_semantic_authority");
 
   assertAutomaticPathBypassesLegacyTextParserV01();
+  assertDirectHostRepositoryRelativePathContractV01(
+    observed,
+    golden.host_result!,
+  );
   await assertInteractiveHostRouteOnCloneV01(input);
   await assertDirectHostTerminalScenariosOnClonesV01(input);
+  await assertDirectHostStopSettlementOnClonesV01(input);
+  await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
   await assertDirectHostPrestartRefusalsOnClonesV01(input);
   await assertDirectHostRootScopesOnClonesV01(input);
 }
@@ -2071,6 +2090,715 @@ async function assertDirectHostTerminalScenariosOnClonesV01(input: {
   }
   pass("deterministic_host_failure_and_unavailable_results_are_truthful_and_durable");
   pass("optional_host_unavailability_preserves_local_project_continuity");
+}
+
+function assertDirectHostRepositoryRelativePathContractV01(
+  request: NativeHostRequestV01,
+  baseResult: NativeHostResultV01,
+): void {
+  const rejectedPaths = [
+    "/tmp/file.ts",
+    String.raw`C:\repo\file.ts`,
+    "C:/repo/file.ts",
+    String.raw`\\server\share\file.ts`,
+    "//server/share/file.ts",
+    String.raw`\rooted\file.ts`,
+    "C:file.ts",
+    "../file.ts",
+    String.raw`..\file.ts`,
+    "src/../../file.ts",
+    "nul\0file.ts",
+  ];
+  for (const rejectedPath of rejectedPaths) {
+    assert.throws(
+      () => canonicalizeRepositoryRelativePathV01(rejectedPath),
+      /repository_relative_path_invalid/,
+      rejectedPath,
+    );
+    assert.throws(
+      () =>
+        assertNativeHostResultV01(request, {
+          ...baseResult,
+          changed_files: [
+            {
+              repository_relative_path: rejectedPath,
+              change_kind: "modified",
+              before_hash: null,
+              after_hash: null,
+            },
+          ],
+        }),
+      /native_host_result_file_scope_invalid/,
+      `changed file: ${rejectedPath}`,
+    );
+    assert.throws(
+      () =>
+        assertNativeHostResultV01(request, {
+          ...baseResult,
+          artifacts: [
+            {
+              artifact_ref: {
+                ref_version: "external_ref.v0.1",
+                ref_type: "repository_relative_artifact",
+                external_id: rejectedPath,
+                trust_class: "host_attestation",
+              },
+              summary: "Rejected repository-relative artifact fixture.",
+            },
+          ],
+        }),
+      /native_host_result_file_scope_invalid/,
+      `path-like artifact: ${rejectedPath}`,
+    );
+  }
+
+  for (const [inputPath, expected] of [
+    ["src/file.ts", "src/file.ts"],
+    ["src/runtime/adapter.ts", "src/runtime/adapter.ts"],
+    ["docs/./guide.md", "docs/guide.md"],
+    ["docs/vnext/../guide.md", "docs/guide.md"],
+  ] as const) {
+    assert.equal(canonicalizeRepositoryRelativePathV01(inputPath), expected);
+  }
+
+  const normalized = assertNativeHostResultV01(request, {
+    ...baseResult,
+    changed_files: [
+      {
+        repository_relative_path: "src/./runtime/adapter.ts",
+        change_kind: "modified",
+        before_hash: null,
+        after_hash: null,
+      },
+    ],
+    artifacts: [
+      {
+        artifact_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "repository_relative_artifact",
+          external_id: "docs/vnext/../guide.md",
+          trust_class: "host_attestation",
+        },
+        summary: "Canonical repository-relative artifact fixture.",
+      },
+    ],
+  });
+  assert.equal(
+    normalized.changed_files[0]?.repository_relative_path,
+    "src/runtime/adapter.ts",
+  );
+  assert.equal(
+    normalized.artifacts[0]?.artifact_ref.external_id,
+    "docs/guide.md",
+  );
+  const opaque = assertNativeHostResultV01(request, {
+    ...baseResult,
+    artifacts: [
+      {
+        artifact_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "host_artifact_id",
+          external_id: String.raw`C:\opaque\provider-id`,
+          trust_class: "host_attestation",
+        },
+        summary: "Opaque provider identifier fixture.",
+      },
+    ],
+  });
+  assert.equal(
+    opaque.artifacts[0]?.artifact_ref.external_id,
+    String.raw`C:\opaque\provider-id`,
+  );
+  pass("direct_host_cross_platform_repository_relative_paths_are_type_specific_and_canonical");
+  reject("direct_host_absolute_rooted_drive_unc_nul_and_escaping_paths_refused");
+}
+
+async function assertDirectHostStopSettlementOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "direct-host-timeout-settlement",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 26_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const controlled = createControlledStopAdapterV01({
+          adapter_version: "deterministic_codex_timeout_settlement.v0.1",
+          observe_receipt_count: () => countRowsByKind(db, "run_receipt"),
+        });
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        let roundTripSettled = false;
+        const roundTrip = runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter: controlled.adapter,
+            now: () => now,
+            timeout_ms: 5,
+            stop_settle_timeout_ms: 1_000,
+          },
+        );
+        void roundTrip.then(
+          () => {
+            roundTripSettled = true;
+          },
+          () => {
+            roundTripSettled = true;
+          },
+        );
+        const invocation = await controlled.invoked.promise;
+        await controlled.cleanup_started.promise;
+        assert.equal(roundTripSettled, false);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+        assert.equal(readHostRunStateV01(db, invocation.request.run_id).status, "running");
+        controlled.release_cleanup.resolve(undefined);
+        const result = await roundTrip;
+        assert.equal(result.host_result?.outcome, "timed_out");
+        assert.equal(result.receipt.execution.status, "cancelled");
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(controlled.state.stop_requests, 1);
+        assert.deepEqual(controlled.state.stop_reasons, ["timeout"]);
+        assert.equal(controlled.state.cleanup_mutations, 1);
+        assert.deepEqual(controlled.state.receipt_counts_during_cleanup, [
+          receiptsBefore,
+        ]);
+        assert.equal(readHostRunStateV01(db, result.run_id).status, "cancelled");
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.equal(controlled.state.cleanup_mutations, 1);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-external-cancellation-settlement",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 27_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const cancellation = instrumentedAbortSignalV01();
+        const controlled = createControlledStopAdapterV01({
+          adapter_version: "deterministic_codex_cancel_settlement.v0.1",
+          observe_receipt_count: () => countRowsByKind(db, "run_receipt"),
+        });
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        const roundTrip = runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter: controlled.adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+            cancellation_signal: cancellation.signal,
+          },
+        );
+        const invocation = await controlled.invoked.promise;
+        cancellation.abort("operator_cancelled");
+        cancellation.abort("duplicate_cancel_is_safe");
+        await controlled.cleanup_started.promise;
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+        assert.equal(readHostRunStateV01(db, invocation.request.run_id).status, "running");
+        controlled.release_cleanup.resolve(undefined);
+        const result = await roundTrip;
+        assert.equal(result.host_result?.outcome, "cancelled");
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(controlled.state.stop_requests, 1);
+        assert.deepEqual(controlled.state.stop_reasons, [
+          "cancellation_requested",
+        ]);
+        assert.equal(cancellation.added, 1);
+        assert.equal(cancellation.removed, 1);
+        assert.deepEqual(controlled.state.receipt_counts_during_cleanup, [
+          receiptsBefore,
+        ]);
+        const replay = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter: controlled.adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+            cancellation_signal: cancellation.signal,
+          },
+        );
+        assert.equal(replay.status, "exact_replay");
+        assert.equal(replay.receipt.receipt_id, result.receipt.receipt_id);
+        assert.equal(controlled.state.invocations, 1);
+        assert.equal(controlled.state.stop_requests, 1);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-invocation-rejection",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 28_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        let stopRequests = 0;
+        const adapter: NativeHostAdapterV01 = {
+          adapter_version: "deterministic_codex_rejection.v0.1",
+          capability_version: "codex_host_round_trip.v0.1",
+          invoke() {
+            return {
+              result: Promise.reject(new Error("private adapter rejection")),
+              settled: Promise.resolve(),
+              request_stop() {
+                stopRequests += 1;
+                return Promise.resolve();
+              },
+            };
+          },
+        };
+        const listenerState = instrumentedAbortSignalV01();
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        const result = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+            cancellation_signal: listenerState.signal,
+          },
+        );
+        assert.equal(result.host_result?.outcome, "failed");
+        assert.equal(
+          result.host_result?.public_stop_reason,
+          "native_host_adapter_failed",
+        );
+        assert.equal(result.receipt.execution.status, "failed");
+        assert.equal(
+          canonicalizeProtocolValueV01(result.receipt).includes(
+            "private adapter rejection",
+          ),
+          false,
+        );
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(stopRequests, 0);
+        assert.equal(listenerState.added, 1);
+        assert.equal(listenerState.removed, 1);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-stop-unconfirmed",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 29_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const invoked = deferredV01<NativeHostRequestV01>();
+        let stopRequests = 0;
+        const neverResult = new Promise<NativeHostResultV01>(() => undefined);
+        const neverSettled = new Promise<void>(() => undefined);
+        const adapter: NativeHostAdapterV01 = {
+          adapter_version: "deterministic_codex_unsettled.v0.1",
+          capability_version: "codex_host_round_trip.v0.1",
+          invoke(request) {
+            invoked.resolve(request);
+            return {
+              result: neverResult,
+              settled: neverSettled,
+              request_stop() {
+                stopRequests += 1;
+                return Promise.resolve();
+              },
+            };
+          },
+        };
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        await assert.rejects(
+          runDirectNativeHostRoundTripV01(
+            db,
+            { config, mode: "interactive" },
+            {
+              adapter,
+              now: () => now,
+              timeout_ms: 5,
+              stop_settle_timeout_ms: 5,
+            },
+          ),
+          /direct_host_stop_unconfirmed/,
+        );
+        const request = await invoked.promise;
+        const run = readHostRunStateV01(db, request.run_id);
+        assert.equal(stopRequests, 1);
+        assert.equal(run.status, "paused");
+        assert.equal(run.finished_at, null);
+        assert.equal(run.stop_reason, "native_host_stop_unconfirmed");
+        assert.equal(run.metadata.reconciliation_required, true);
+        assert.equal(run.metadata.terminal_receipt_persisted, false);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  pass("direct_host_timeout_waits_for_stop_cleanup_before_one_terminal_receipt");
+  pass("direct_host_external_cancellation_is_idempotent_and_settled_before_receipt");
+  pass("direct_host_invocation_rejection_is_bounded_and_cleans_control_resources");
+  pass("direct_host_unconfirmed_stop_stays_nonterminal_without_receipt");
+}
+
+async function assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(
+  input: {
+    environment: NodeJS.ProcessEnv;
+    packet: TaskContextPacketV01;
+  },
+): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "direct-host-repository-relative-paths",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 29_500);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const adapter = createRepositoryPathFixtureAdapterV01(() => now);
+        const result = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          { adapter, now: () => now },
+        );
+        assert.equal(
+          result.host_result?.changed_files[0]?.repository_relative_path,
+          "src/runtime/adapter.ts",
+        );
+        assert.equal(
+          result.host_result?.artifacts[0]?.artifact_ref.external_id,
+          "docs/guide.md",
+        );
+        assert.equal(
+          result.receipt.changed_artifacts[0]?.artifact_ref.external_id,
+          "src/runtime/adapter.ts",
+        );
+        assert.equal(
+          result.receipt.artifact_refs.some(
+            (ref) =>
+              ref.ref_type === "repository_relative_artifact" &&
+              ref.external_id === "docs/guide.md",
+          ),
+          true,
+        );
+        assert.equal(
+          canonicalizeProtocolValueV01(result.receipt).includes("../"),
+          false,
+        );
+
+        const noncanonical = structuredClone(result.receipt);
+        replaceRepositoryRelativeExternalIdV01(
+          noncanonical,
+          "docs/guide.md",
+          "docs/./guide.md",
+        );
+        noncanonical.receipt_id = deriveRunReceiptIdV01(noncanonical);
+        noncanonical.integrity.fingerprint =
+          createRunReceiptFingerprintV01(noncanonical);
+        assert.equal(validateRunReceiptV01(noncanonical).status, "valid");
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        assert.throws(
+          () => admitStructuredRunReceiptV01(db, noncanonical),
+          /structured_run_receipt_repository_path_invalid/,
+        );
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+  pass("direct_host_receipt_persists_only_canonical_repository_relative_paths");
+  reject("structured_receipt_writer_refuses_noncanonical_path_like_refs");
+}
+
+function createControlledStopAdapterV01(input: {
+  adapter_version: string;
+  observe_receipt_count: () => number;
+}): {
+  adapter: NativeHostAdapterV01;
+  invoked: DeferredV01<{
+    request: NativeHostRequestV01;
+    control: NativeHostInvocationControlV01;
+  }>;
+  cleanup_started: DeferredV01<void>;
+  release_cleanup: DeferredV01<void>;
+  state: {
+    invocations: number;
+    stop_requests: number;
+    stop_reasons: NativeHostStopRequestV01["reason"][];
+    cleanup_mutations: number;
+    receipt_counts_during_cleanup: number[];
+  };
+} {
+  const invoked = deferredV01<{
+    request: NativeHostRequestV01;
+    control: NativeHostInvocationControlV01;
+  }>();
+  const cleanupStarted = deferredV01<void>();
+  const releaseCleanup = deferredV01<void>();
+  const result = deferredV01<NativeHostResultV01>();
+  const settled = deferredV01<void>();
+  const state = {
+    invocations: 0,
+    stop_requests: 0,
+    stop_reasons: [] as NativeHostStopRequestV01["reason"][],
+    cleanup_mutations: 0,
+    receipt_counts_during_cleanup: [] as number[],
+  };
+  let stopPromise: Promise<void> | null = null;
+  const adapter: NativeHostAdapterV01 = {
+    adapter_version: input.adapter_version,
+    capability_version: "codex_host_round_trip.v0.1",
+    invoke(request, control) {
+      state.invocations += 1;
+      invoked.resolve({ request, control });
+      return {
+        result: result.promise,
+        settled: settled.promise,
+        request_stop(stopRequest) {
+          if (stopPromise) return stopPromise;
+          state.stop_requests += 1;
+          state.stop_reasons.push(stopRequest.reason);
+          stopPromise = (async () => {
+            assert.equal(control.cancellation_signal.aborted, true);
+            cleanupStarted.resolve(undefined);
+            await releaseCleanup.promise;
+            state.cleanup_mutations += 1;
+            state.receipt_counts_during_cleanup.push(
+              input.observe_receipt_count(),
+            );
+            result.reject(new Error("controlled adapter stopped"));
+            settled.resolve(undefined);
+          })();
+          return stopPromise;
+        },
+      };
+    },
+  };
+  return {
+    adapter,
+    invoked,
+    cleanup_started: cleanupStarted,
+    release_cleanup: releaseCleanup,
+    state,
+  };
+}
+
+interface DeferredV01<T> {
+  promise: Promise<T>;
+  resolve(value: T | PromiseLike<T>): void;
+  reject(reason?: unknown): void;
+}
+
+function deferredV01<T>(): DeferredV01<T> {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function readHostRunStateV01(
+  db: Database.Database,
+  runId: string,
+): {
+  status: string;
+  finished_at: string | null;
+  stop_reason: string | null;
+  metadata: Record<string, unknown>;
+} {
+  const row = db
+    .prepare(
+      `SELECT status, finished_at, stop_reason, metadata_json
+       FROM autonomy_runs WHERE run_id = ?`,
+    )
+    .get(runId) as
+    | {
+        status: string;
+        finished_at: string | null;
+        stop_reason: string | null;
+        metadata_json: string;
+      }
+    | undefined;
+  assert(row);
+  return {
+    status: row.status,
+    finished_at: row.finished_at,
+    stop_reason: row.stop_reason,
+    metadata: JSON.parse(row.metadata_json) as Record<string, unknown>,
+  };
+}
+
+function instrumentedAbortSignalV01(): {
+  signal: AbortSignal;
+  abort(reason?: unknown): void;
+  readonly added: number;
+  readonly removed: number;
+} {
+  let added = 0;
+  let removed = 0;
+  let aborted = false;
+  let abortReason: unknown = undefined;
+  const listeners = new Set<EventListenerOrEventListenerObject>();
+  const signal = {
+    get aborted() {
+      return aborted;
+    },
+    get reason() {
+      return abortReason;
+    },
+    addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+    ) {
+      if (type === "abort" && listener) {
+        added += 1;
+        listeners.add(listener);
+      }
+    },
+    removeEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+    ) {
+      if (type === "abort" && listener) {
+        removed += 1;
+        listeners.delete(listener);
+      }
+    },
+  } as unknown as AbortSignal;
+  return {
+    signal,
+    abort(reason?: unknown) {
+      if (aborted) return;
+      aborted = true;
+      abortReason = reason;
+      const event = new Event("abort");
+      for (const listener of listeners) {
+        if (typeof listener === "function") listener.call(signal, event);
+        else listener.handleEvent(event);
+      }
+    },
+    get added() {
+      return added;
+    },
+    get removed() {
+      return removed;
+    },
+  };
+}
+
+function activeTimeoutResourceCountV01(): number {
+  return (
+    process as unknown as { getActiveResourcesInfo(): string[] }
+  )
+    .getActiveResourcesInfo()
+    .filter((resource) => resource === "Timeout").length;
+}
+
+function createRepositoryPathFixtureAdapterV01(
+  now: () => string,
+): NativeHostAdapterV01 {
+  const adapterVersion = "deterministic_codex_repository_paths.v0.1";
+  const capabilityVersion = "codex_host_round_trip.v0.1";
+  const baseAdapter = createDeterministicCodexAdapterV01({ now });
+  return {
+    adapter_version: adapterVersion,
+    capability_version: capabilityVersion,
+    invoke(request, control) {
+      const base = baseAdapter.invoke(request, control);
+      const result = base.result.then(
+        (hostResult): NativeHostResultV01 => ({
+          ...hostResult,
+          adapter_version: adapterVersion,
+          capability_version: capabilityVersion,
+          changed_files: [
+            {
+              repository_relative_path: "src/./runtime/adapter.ts",
+              change_kind: "modified",
+              before_hash: null,
+              after_hash: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+          artifacts: [
+            {
+              artifact_ref: {
+                ref_version: "external_ref.v0.1",
+                ref_type: "repository_relative_artifact",
+                external_id: "docs/vnext/../guide.md",
+                observed_at: now(),
+                trust_class: "host_attestation",
+              },
+              summary: "Canonicalized path-like artifact fixture.",
+            },
+          ],
+        }),
+      );
+      const resultSettled = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return {
+        result,
+        request_stop(stopRequest) {
+          return base.request_stop(stopRequest);
+        },
+        settled: Promise.all([base.settled, resultSettled]).then(
+          () => undefined,
+        ),
+      };
+    },
+  };
+}
+
+function replaceRepositoryRelativeExternalIdV01(
+  value: unknown,
+  from: string,
+  to: string,
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      replaceRepositoryRelativeExternalIdV01(item, from, to);
+    }
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  if (
+    record.ref_version === "external_ref.v0.1" &&
+    record.ref_type === "repository_relative_artifact" &&
+    record.external_id === from
+  ) {
+    record.external_id = to;
+  }
+  for (const child of Object.values(record)) {
+    replaceRepositoryRelativeExternalIdV01(child, from, to);
+  }
 }
 
 async function assertDirectHostPrestartRefusalsOnClonesV01(input: {

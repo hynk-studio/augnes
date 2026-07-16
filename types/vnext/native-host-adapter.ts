@@ -77,6 +77,7 @@ export interface NativeHostRequestV01 {
     max_commands: number;
     max_checks: number;
     timeout_ms: number;
+    stop_settle_timeout_ms: number;
     stop_conditions: string[];
   };
   result_return: {
@@ -164,6 +165,21 @@ export interface NativeHostResultV01 {
 export interface NativeHostInvocationControlV01 {
   cancellation_signal: AbortSignal;
   timeout_ms: number;
+  stop_settle_timeout_ms: number;
+}
+
+export type NativeHostStopReasonV01 = "timeout" | "cancellation_requested";
+
+export interface NativeHostStopRequestV01 {
+  reason: NativeHostStopReasonV01;
+}
+
+export interface NativeHostInvocationV01 {
+  result: Promise<NativeHostResultV01>;
+  /** Idempotently request that the adapter stop all work owned by this invocation. */
+  request_stop(request: NativeHostStopRequestV01): Promise<void>;
+  /** Resolves only after adapter-owned work, subprocesses, timers, and cleanup stop. */
+  settled: Promise<void>;
 }
 
 export interface NativeHostAdapterV01 {
@@ -172,5 +188,5 @@ export interface NativeHostAdapterV01 {
   invoke(
     request: NativeHostRequestV01,
     control: NativeHostInvocationControlV01,
-  ): Promise<NativeHostResultV01>;
+  ): NativeHostInvocationV01;
 }

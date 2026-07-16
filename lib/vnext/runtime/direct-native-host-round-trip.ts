@@ -63,6 +63,7 @@ import {
   NATIVE_HOST_RESULT_VERSION_V01,
   type NativeHostAdapterV01,
   type NativeHostAutomationContextV01,
+  type NativeHostInvocationV01,
   type NativeHostRequestV01,
   type NativeHostResultV01,
   type NativeHostRootScopeV01,
@@ -91,6 +92,7 @@ const MAX_ARTIFACTS = 128;
 const MAX_COMMANDS = 128;
 const MAX_CHECKS = 128;
 const DEFAULT_TIMEOUT_MS = 5_000;
+const DEFAULT_STOP_SETTLE_TIMEOUT_MS = 5_000;
 
 export class DirectNativeHostRoundTripErrorV01 extends Error {
   readonly run_receipt: RunReceiptV01 | null;
@@ -147,6 +149,7 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   adapter?: NativeHostAdapterV01;
   now?: () => string;
   timeout_ms?: number;
+  stop_settle_timeout_ms?: number;
   cancellation_signal?: AbortSignal;
   resolve_packet_selection?: (
     db: Database.Database,
@@ -329,8 +332,17 @@ export async function runDirectNativeHostRoundTripV01(
   const adapter =
     dependencies.adapter ?? createDeterministicCodexAdapterV01({ now });
   const timeoutMs = dependencies.timeout_ms ?? DEFAULT_TIMEOUT_MS;
+  const stopSettleTimeoutMs =
+    dependencies.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000) {
     refuse("direct_host_timeout_invalid");
+  }
+  if (
+    !Number.isSafeInteger(stopSettleTimeoutMs) ||
+    stopSettleTimeoutMs < 1 ||
+    stopSettleTimeoutMs > 60_000
+  ) {
+    refuse("direct_host_stop_settle_timeout_invalid");
   }
   if (
     input.mode === "policy_triggered" &&
@@ -430,6 +442,7 @@ export async function runDirectNativeHostRoundTripV01(
     run_id: identity.run_id,
     idempotency_key: identity.idempotency_key,
     timeout_ms: timeoutMs,
+    stop_settle_timeout_ms: stopSettleTimeoutMs,
   });
   let hostResult: NativeHostResultV01;
   try {
@@ -437,11 +450,24 @@ export async function runDirectNativeHostRoundTripV01(
       request,
       await invokeAdapterBounded(adapter, request, {
         timeout_ms: timeoutMs,
+        stop_settle_timeout_ms: stopSettleTimeoutMs,
         cancellation_signal: dependencies.cancellation_signal,
         now,
       }),
     );
   } catch (error) {
+    if (error instanceof NativeHostInvocationUnsettledErrorV01) {
+      markRunStopUnconfirmedV01(db, {
+        run_id: identity.run_id,
+        admission: admitted,
+        observed_at: strictTimestamp(now()),
+        reason: error.code,
+      });
+      throw new DirectNativeHostRoundTripErrorV01(
+        "direct_host_stop_unconfirmed",
+        503,
+      );
+    }
     hostResult = assertNativeHostResultV01(
       request,
       buildBoundaryTerminalResult({
@@ -645,6 +671,75 @@ function revalidateRunBeforeFinalization(
   }
 }
 
+function markRunStopUnconfirmedV01(
+  db: Database.Database,
+  input: {
+    run_id: string;
+    admission: PersistedHostPacketAdmissionV01;
+    observed_at: string;
+    reason: string;
+  },
+): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    revalidateRunBeforeFinalization(db, input.run_id, input.admission);
+    const current = readAutonomyRunLedgerRecord(input.run_id, { db });
+    const step = current?.steps[0];
+    if (!current || !step || step.status !== "running") {
+      refuse("direct_host_run_conflict", 409);
+    }
+    updateAutonomyRunStepLedgerFields(
+      step.step_id,
+      {
+        output: {
+          ...step.output,
+          stop_requested: true,
+          stop_settlement_confirmed: false,
+          terminal_receipt_persisted: false,
+        },
+        error_message: null,
+        updated_at: input.observed_at,
+      },
+      { db },
+    );
+    updateAutonomyRunLedgerFields(
+      input.run_id,
+      {
+        status: "paused",
+        updated_at: input.observed_at,
+        stop_reason: "native_host_stop_unconfirmed",
+        metadata: {
+          ...current.metadata,
+          stop_settlement_confirmed: false,
+          terminal_receipt_persisted: false,
+          reconciliation_required: true,
+        },
+      },
+      { db },
+    );
+    appendAutonomyRunLedgerEvent(
+      buildAutonomyRunEventRecord({
+        run_id: input.run_id,
+        event_type: "run_paused",
+        status: "paused",
+        message:
+          "Native-host stop settlement was not confirmed; terminal receipt admission is withheld.",
+        payload: {
+          reason: input.reason,
+          terminal_receipt_persisted: false,
+          reconciliation_required: true,
+        },
+        created_at: input.observed_at,
+      }),
+      { db },
+    );
+    db.exec("COMMIT");
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 function buildNativeHostRequest(input: {
   config: VNextLocalOperatorPilotConfigV01;
   mode: NativeHostRunModeV01;
@@ -654,6 +749,7 @@ function buildNativeHostRequest(input: {
   run_id: string;
   idempotency_key: string;
   timeout_ms: number;
+  stop_settle_timeout_ms: number;
 }): NativeHostRequestV01 {
   const packet = input.admission.packet;
   return {
@@ -703,6 +799,7 @@ function buildNativeHostRequest(input: {
       max_commands: MAX_COMMANDS,
       max_checks: MAX_CHECKS,
       timeout_ms: input.timeout_ms,
+      stop_settle_timeout_ms: input.stop_settle_timeout_ms,
       stop_conditions: [
         "timeout",
         "cancellation_requested",
@@ -1116,70 +1213,170 @@ async function invokeAdapterBounded(
   request: NativeHostRequestV01,
   input: {
     timeout_ms: number;
+    stop_settle_timeout_ms: number;
     cancellation_signal?: AbortSignal;
     now: () => string;
   },
 ): Promise<NativeHostResultV01> {
   const controller = new AbortController();
-  let settled = false;
   let timeout: ReturnType<typeof setTimeout> | null = null;
   let cancelListener: (() => void) | null = null;
-  const terminal = new Promise<NativeHostResultV01>((resolve) => {
-    const finish = (outcome: "cancelled" | "timed_out", reason: string) => {
-      if (settled) return;
-      settled = true;
-      controller.abort(reason);
-      resolve(
-        buildBoundaryTerminalResult({
-          request,
-          adapter,
-          outcome,
-          reason,
-          now: input.now,
-        }),
-      );
-    };
-    timeout = setTimeout(
-      () => finish("timed_out", "native_host_timeout"),
-      input.timeout_ms,
-    );
-    if (input.cancellation_signal) {
-      cancelListener = () => finish("cancelled", "native_host_cancelled");
-      if (input.cancellation_signal.aborted) cancelListener();
-      else
-        input.cancellation_signal.addEventListener("abort", cancelListener, {
-          once: true,
-        });
-    }
-  });
-  const invocation = Promise.resolve(
-    adapter.invoke(request, {
+  let invocation: NativeHostInvocationV01;
+  try {
+    invocation = adapter.invoke(request, {
       cancellation_signal: controller.signal,
       timeout_ms: input.timeout_ms,
-    }),
-  ).then(
+      stop_settle_timeout_ms: input.stop_settle_timeout_ms,
+    });
+  } catch {
+    return buildBoundaryTerminalResult({
+      request,
+      adapter,
+      outcome: "failed",
+      reason: "native_host_adapter_failed",
+      now: input.now,
+    });
+  }
+  const resultOutcome = Promise.resolve(invocation.result).then(
     (result) => {
-      settled = true;
-      return result;
+      return { status: "fulfilled" as const, result };
     },
     () => {
-      settled = true;
-      return buildBoundaryTerminalResult({
-        request,
-        adapter,
-        outcome: "failed",
-        reason: "native_host_adapter_failed",
-        now: input.now,
-      });
+      return { status: "rejected" as const };
     },
   );
+  const settledOutcome = Promise.resolve(invocation.settled).then(
+    () => true,
+    () => false,
+  );
+  const completion = Promise.all([resultOutcome, settledOutcome]).then(
+    ([result, settled]) => ({
+      kind: "completion" as const,
+      result,
+      settled,
+    }),
+  );
+  let controlRequested = false;
+  let stopOutcome: Promise<boolean> | null = null;
+  let resolveControl!: (value: {
+    kind: "control";
+    outcome: "cancelled" | "timed_out";
+    reason: string;
+  }) => void;
+  const control = new Promise<{
+    kind: "control";
+    outcome: "cancelled" | "timed_out";
+    reason: string;
+  }>((resolve) => {
+    resolveControl = resolve;
+  });
+  const requestControl = (
+    outcome: "cancelled" | "timed_out",
+    reason: string,
+  ) => {
+    if (controlRequested) return;
+    controlRequested = true;
+    controller.abort(reason);
+    try {
+      stopOutcome = Promise.resolve(
+        invocation.request_stop({
+          reason: outcome === "timed_out" ? "timeout" : "cancellation_requested",
+        }),
+      ).then(
+        () => true,
+        () => false,
+      );
+    } catch {
+      stopOutcome = Promise.resolve(false);
+    }
+    resolveControl({ kind: "control", outcome, reason });
+  };
+  timeout = setTimeout(
+    () => requestControl("timed_out", "native_host_timeout"),
+    input.timeout_ms,
+  );
+  if (input.cancellation_signal) {
+    cancelListener = () =>
+      requestControl("cancelled", "native_host_cancelled");
+    if (input.cancellation_signal.aborted) cancelListener();
+    else
+      input.cancellation_signal.addEventListener("abort", cancelListener, {
+        once: true,
+      });
+  }
   try {
-    return await Promise.race([invocation, terminal]);
+    const first = await Promise.race([completion, control]);
+    if (first.kind === "completion") {
+      if (!first.settled) {
+        requestControl("cancelled", "native_host_settlement_unconfirmed");
+        await confirmInvocationStopSettledV01({
+          stop_outcome: stopOutcome ?? Promise.resolve(false),
+          settled_outcome: settledOutcome,
+          timeout_ms: input.stop_settle_timeout_ms,
+        });
+        throw new NativeHostInvocationUnsettledErrorV01(
+          "native_host_settlement_unconfirmed",
+        );
+      }
+      return first.result.status === "fulfilled"
+        ? first.result.result
+        : buildBoundaryTerminalResult({
+            request,
+            adapter,
+            outcome: "failed",
+            reason: "native_host_adapter_failed",
+            now: input.now,
+          });
+    }
+    const stopConfirmed = await confirmInvocationStopSettledV01({
+      stop_outcome: stopOutcome ?? Promise.resolve(false),
+      settled_outcome: settledOutcome,
+      timeout_ms: input.stop_settle_timeout_ms,
+    });
+    if (!stopConfirmed) {
+      throw new NativeHostInvocationUnsettledErrorV01(
+        "native_host_stop_settlement_unconfirmed",
+      );
+    }
+    return buildBoundaryTerminalResult({
+      request,
+      adapter,
+      outcome: first.outcome,
+      reason: first.reason,
+      now: input.now,
+    });
   } finally {
     if (timeout) clearTimeout(timeout);
     if (input.cancellation_signal && cancelListener) {
       input.cancellation_signal.removeEventListener("abort", cancelListener);
     }
+  }
+}
+
+class NativeHostInvocationUnsettledErrorV01 extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "NativeHostInvocationUnsettledErrorV01";
+  }
+}
+
+async function confirmInvocationStopSettledV01(input: {
+  stop_outcome: Promise<boolean>;
+  settled_outcome: Promise<boolean>;
+  timeout_ms: number;
+}): Promise<boolean> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  const confirmation = Promise.all([
+    input.stop_outcome,
+    input.settled_outcome,
+  ]).then(([stopCompleted, settled]) => stopCompleted && settled);
+  const expired = new Promise<false>((resolve) => {
+    timeout = setTimeout(() => resolve(false), input.timeout_ms);
+  });
+  try {
+    return await Promise.race([confirmation, expired]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
 
