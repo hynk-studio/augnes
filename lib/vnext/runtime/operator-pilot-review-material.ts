@@ -9,6 +9,7 @@ import {
   readVNextCoreRecordByIdempotencyKeyV01,
   type VNextCoreRecordWriteResultV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { admitStructuredRunReceiptV01 } from "@/lib/vnext/persistence/structured-run-receipt-admission";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -231,16 +232,7 @@ export function prepareVNextOperatorPilotReviewMaterialV01(
           created_at: priorPacket.generated_at,
         })
       : null;
-    const receiptWrite = insertVNextCoreRecordV01(db, {
-      record_kind: "run_receipt",
-      record_id: receipt.receipt_id,
-      workspace_id: receipt.workspace_id,
-      project_id: receipt.project_id,
-      fingerprint: receipt.integrity.fingerprint,
-      idempotency_key: receipt.idempotency_key,
-      payload: receipt,
-      created_at: receipt.recorded_at,
-    });
+    const receiptWrite = admitStructuredRunReceiptV01(db, receipt);
     const proposalWrite = insertVNextCoreRecordV01(db, {
       record_kind: "episode_delta_proposal",
       record_id: proposal.proposal_id,

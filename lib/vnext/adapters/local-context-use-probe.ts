@@ -9,7 +9,6 @@ import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   assertVNextDurableSemanticStoreSchemaV01,
   deriveVNextSemanticTargetKeyV01,
-  insertVNextCoreRecordV01,
   listVNextSemanticStateEntriesV01,
   readVNextCoreRecordV01,
   readVNextSemanticStateEntryV01,
@@ -19,6 +18,7 @@ import {
   type VNextPersistedSemanticStateVersionV01,
   type VNextSemanticStateProjectionEntryV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { admitStructuredRunReceiptV01 } from "@/lib/vnext/persistence/structured-run-receipt-admission";
 import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
@@ -300,28 +300,7 @@ function runLocalContextUseProbeInsideTransactionV01(
         .join(",")}`,
     );
   }
-  const write = insertVNextCoreRecordV01(db, {
-    record_kind: "run_receipt",
-    record_id: receipt.receipt_id,
-    workspace_id: receipt.workspace_id,
-    project_id: receipt.project_id,
-    fingerprint: receipt.integrity.fingerprint,
-    idempotency_key: receipt.idempotency_key,
-    payload: receipt,
-    created_at: receipt.recorded_at,
-  });
-  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(write.record, {
-    workspace_id: receipt.workspace_id,
-    project_id: receipt.project_id,
-    fingerprint: receipt.integrity.fingerprint,
-  });
-  if (
-    write.record.record_id !== receipt.receipt_id ||
-    write.record.idempotency_key !== receipt.idempotency_key ||
-    write.record.created_at !== receipt.recorded_at
-  ) {
-    throw new Error("persisted_local_context_use_receipt_envelope_mismatch");
-  }
+  const write = admitStructuredRunReceiptV01(db, receipt);
   return {
     status: write.status,
     receipt,

@@ -43,9 +43,9 @@ import { invokePlannerModelGatewayV01 } from "@/lib/vnext/model-gateway/model-ga
 import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "@/lib/vnext/model-gateway/run-receipt-projection";
 import { evaluateProjectAutomationAdmissionV01 } from "@/lib/vnext/project-controls/project-controls";
 import {
-  insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { admitStructuredRunReceiptV01 } from "@/lib/vnext/persistence/structured-run-receipt-admission";
 import { readProjectAutomationEffectiveStatusV01 } from "@/lib/vnext/persistence/project-control-store";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
@@ -696,16 +696,7 @@ function finalizePolicyPlannerRun(
   if (!step) refuse("policy_planner_finalization_failed");
   database.exec("BEGIN IMMEDIATE");
   try {
-    insertVNextCoreRecordV01(database, {
-      record_kind: "run_receipt",
-      record_id: runReceipt.receipt_id,
-      workspace_id: runReceipt.workspace_id,
-      project_id: runReceipt.project_id,
-      fingerprint: runReceipt.integrity.fingerprint,
-      idempotency_key: runReceipt.idempotency_key,
-      payload: runReceipt,
-      created_at: runReceipt.recorded_at,
-    });
+    admitStructuredRunReceiptV01(database, runReceipt);
     updateAutonomyRunStepLedgerFields(
       step.step_id,
       {

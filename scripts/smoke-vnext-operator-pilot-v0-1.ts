@@ -22,6 +22,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import { createVNextOperatorContextUseReviewHandlersV01 } from "../app/api/vnext/operator/context-use-review/route";
+import { createVNextOperatorHostRoundTripHandlerV01 } from "../app/api/vnext/operator/host-round-trip/route";
 import { createVNextOperatorLaterResultHandlersV01 } from "../app/api/vnext/operator/later-result/route";
 import { createVNextOperatorPacketHandoffHandlerV01 } from "../app/api/vnext/operator/packet-handoff/route";
 import { createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
@@ -45,6 +46,16 @@ import {
   type VNextCoreRecordEnvelopeV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import {
+  getOrCreateCanonicalProjectForLocalRootV01,
+  getOrCreateDefaultWorkspaceIdentityV01,
+  normalizeLocalProjectRootRefV01,
+  rebindCanonicalProjectLocalRootV01,
+} from "../lib/vnext/persistence/project-identity-registry";
+import {
+  selectActiveProjectV01,
+  touchRecentProjectV01,
+} from "../lib/vnext/persistence/project-lifecycle-registry";
+import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
@@ -56,8 +67,25 @@ import {
   isTaskContextPacketIdV01,
 } from "../lib/vnext/task-context-packet-handoff";
 import { buildContextUseReviewV01 } from "../lib/vnext/context-use-review";
-import { buildRunReceiptV01 } from "../lib/vnext/run-receipt";
+import {
+  buildRunReceiptV01,
+  createRunReceiptFingerprintV01,
+  deriveRunReceiptIdV01,
+  validateRunReceiptV01,
+} from "../lib/vnext/run-receipt";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
+import { assertNativeHostResultV01 } from "../lib/vnext/native-host/native-host-contract";
+import {
+  createDeterministicCodexAdapterV01,
+  type DeterministicCodexAdapterObservationV01,
+} from "../lib/vnext/native-host/deterministic-codex-adapter";
+import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
+import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
+import {
+  DirectNativeHostRoundTripErrorV01,
+  runDirectNativeHostRoundTripV01,
+} from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   recordVNextSemanticCommitAuthorizationInsideTransactionV01,
   type VNextSemanticCommitGateRecordV01,
@@ -100,44 +128,58 @@ import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
+import type {
+  NativeHostAdapterV01,
+  NativeHostAutomationContextV01,
+  NativeHostInvocationControlV01,
+  NativeHostRequestV01,
+  NativeHostResultV01,
+  NativeHostStopRequestV01,
+} from "../types/vnext/native-host-adapter";
 import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
 } from "./db-migrations.mjs";
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
+const OPERATOR_WORKSPACE_UUID = "11111111-1111-4111-8111-111111111111";
+const OPERATOR_PROJECT_UUID = "22222222-2222-4222-8222-222222222222";
+const OPERATOR_WORKSPACE_ID = `workspace:${OPERATOR_WORKSPACE_UUID}`;
+const OPERATOR_PROJECT_ID = `project:${OPERATOR_PROJECT_UUID}`;
+const FOREIGN_PROJECT_ID = "project:33333333-3333-4333-8333-333333333333";
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:a66d588b0324040966846f22",
+  review_decision_id: "review-decision:d3f94aa087cc900764c37822",
   review_decision_fingerprint:
-    "sha256:9580ffbda544c05b50a6cca183e69ee7e38ad09559f3b92e79a57e04a44347c9",
+    "sha256:637b06678caeac187a072ece94e7399feb69206821483e9300087683b2d65405",
   confirmation_digest:
-    "sha256:8a35418ccba40b3070a1d63f239680bbd8ab4184ded64030df6e9f90d1cce8ec",
-  gate_id: "semantic-commit-gate:485f14a97809eac980e23936",
+    "sha256:fd522dc3049ffda1abfeb88b69594b156bfa18c3233b95aca548e6b9c75b5911",
+  gate_id: "semantic-commit-gate:aaf974435805d0dbccc34b55",
   gate_fingerprint:
-    "sha256:8e155ac384842bbaa1a39787761933788efd8782713afef1c9382c556ba3916b",
-  transition_receipt_id: "state-transition-receipt:dca53a613f8edd95bf75649d",
+    "sha256:d3fe906a5b1af1d8b788e4fe1ad396d2c8cc4712b3d97b981f41b3dc74380e3b",
+  transition_receipt_id: "state-transition-receipt:79dff5e4cd5e632615d38b43",
   transition_receipt_idempotency_key:
-    "sha256:3dbe47dc7e836af93550cc3f9b14c03fffe3edf68cf89e33156cabe3db216591",
+    "sha256:478cfa3f02a3cf0879ede688235e9b6cade3841c58acf4030994c4ed97be2a54",
   transition_receipt_fingerprint:
-    "sha256:ec24c219e7856a6a14abb5a5dff5752a4318345d41c9a4ca384ecb083b776596",
-  later_packet_id: "task-context-packet:ab39beab9b123e29380a366",
+    "sha256:0d0e11edce44ccb00f245d11057e6622c59a81a9a967c3d21c09cc04c1a48baa",
+  later_packet_id: "task-context-packet:ba120ba136e2a0c0b061239",
   later_packet_fingerprint:
-    "sha256:41f5315af5ea98a98cce22c5461a51505758847d6de5135ee662cd5afca646fb",
-  later_run_receipt_id: "run-receipt:a061dee0cbe8945a2bd16ebf",
+    "sha256:133f5595e0dee65a25f6cbf6097a860a71a431d38f0e44a6095eef7a658c8455",
+  later_run_receipt_id: "run-receipt:f139113b375dcd12a3f5f6e4",
   later_run_receipt_idempotency_key:
-    "sha256:c99ed47fc0ffb47dca41d258dde7b67b8d71a243c9c94f35a9550eb12d39e3d7",
+    "sha256:d024c19880d7dea138e90b285e603d0dbeb371d54006b2e5963082d67d73d29a",
   later_run_receipt_fingerprint:
-    "sha256:3b519dcdf37fb3d1b1e2e874356f775fb1b09df2f2c0a0b7d4f0c05df4b024aa",
-  context_use_review_id: "context-use-review:5396830c24fdef40e49ee2a9",
+    "sha256:9dea6d9d83d4915a07f0d09d0ccb5c285cfb34c882b7ba8e90a26ece9fc83e40",
+  context_use_review_id: "context-use-review:edef08b84f159d0e4507feb2",
   context_use_review_fingerprint:
-    "sha256:9f6b7a81a45e048adae1e0f88733bde1638d2282aae86ffbd75a7e01925fd390",
+    "sha256:10b8327086796ad1601da999475a8c9ffbeb940c33ea82bb335a38803133ee67",
   full_loop_fingerprint:
-    "sha256:a626d408bbf02b0a0f05181f87dee4d9adc3ec7ccc48eb6bd3d9bef8a7901cf0",
+    "sha256:18bf5235993fd3727a3542edfce97375b1ef190950e61c0e743b3860a26fe96b",
 } as const;
 const require = createRequire(import.meta.url);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
 );
+const operatorProjectRoot = path.join(tempRoot, "operator-project-root");
 const canonicalDbPath = path.join(tempRoot, "operator-pilot.db");
 const migrationDbPath = path.join(tempRoot, "legacy-upgrade.db");
 const recordKindMigrationDbPath = path.join(
@@ -157,16 +199,30 @@ const negativeCases: string[] = [];
 const credentialMaterial = new Set<string>();
 let networkGuard: ReturnType<typeof installZeroNetworkGuard> | null = null;
 let finalSummary: Record<string, unknown> | null = null;
+const browserFixtureTimeOffset = process.env
+  .AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR
+  ? Date.now() -
+    10 * 60 * 1000 -
+    Date.parse("2026-07-11T09:20:00.000Z")
+  : 0;
 
 class ManualClock implements VNextLocalRuntimeClockV01 {
-  constructor(private value: string) {}
+  private value: string;
+
+  constructor(value: string, private readonly offset_ms = 0) {
+    this.value = this.shift(value);
+  }
 
   now(): string {
     return this.value;
   }
 
   set(value: string): void {
-    this.value = value;
+    this.value = this.shift(value);
+  }
+
+  private shift(value: string): string {
+    return new Date(Date.parse(value) + this.offset_ms).toISOString();
   }
 }
 
@@ -197,15 +253,19 @@ try {
   );
   pass("operator_integration_owns_os_temporary_root");
   initializeCanonicalDatabase();
+  initializeCanonicalOperatorProjectScope();
   validateAdditiveAndRepeatedMigration();
   const protectedBefore = snapshotNonSessionRows(canonicalDbPath);
 
   networkGuard = installZeroNetworkGuard();
-  const clock = new ManualClock("2026-07-11T00:00:00.000Z");
+  const clock = new ManualClock(
+    "2026-07-11T00:00:00.000Z",
+    browserFixtureTimeOffset,
+  );
   const secretSource = new DeterministicSecretSource();
   const environment = pilotEnvironment({
-    workspaceId: "workspace:operator-pilot-smoke",
-    projectId: "project:operator-pilot-smoke",
+    workspaceId: OPERATOR_WORKSPACE_ID,
+    projectId: OPERATOR_PROJECT_ID,
     operatorId: "operator:operator-pilot-smoke",
     databasePath: canonicalDbPath,
   });
@@ -389,7 +449,7 @@ try {
   const browserFixtureExport =
     await exportOperatorPilotBrowserFixtureV01(fullLoop);
 
-  assertBackupRestore(canonicalDbPath);
+  assertBackupRestore(canonicalDbPath, fullLoop.anchors);
 
   assertNoPlaintextCredentialPersistence(canonicalDbPath);
   pass("plaintext_credentials_not_persisted");
@@ -471,6 +531,49 @@ function initializeCanonicalDatabase(): void {
     db.close();
   }
   pass("canonical_temp_database_initialized");
+}
+
+function initializeCanonicalOperatorProjectScope(): void {
+  mkdirSync(operatorProjectRoot, { recursive: true, mode: 0o700 });
+  const db = new Database(canonicalDbPath, { fileMustExist: true });
+  try {
+    db.pragma("foreign_keys = ON");
+    const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, {
+      create_uuid: () => OPERATOR_WORKSPACE_UUID,
+      now: () => "2026-07-11T00:00:00.000Z",
+    });
+    assert.equal(workspace.workspace_id, OPERATOR_WORKSPACE_ID);
+    const registration = getOrCreateCanonicalProjectForLocalRootV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        local_root: normalizeLocalProjectRootRefV01(operatorProjectRoot, {
+          base_path: path.parse(operatorProjectRoot).root,
+        }),
+        display_name: "Operator Pilot Project",
+      },
+      {
+        create_uuid: () => OPERATOR_PROJECT_UUID,
+        now: () => "2026-07-11T00:00:00.000Z",
+      },
+    );
+    assert.equal(registration.project.project_id, OPERATOR_PROJECT_ID);
+    touchRecentProjectV01(db, {
+      workspace_id: OPERATOR_WORKSPACE_ID,
+      project_id: OPERATOR_PROJECT_ID,
+      now: "2026-07-11T00:00:00.000Z",
+    });
+    selectActiveProjectV01(db, {
+      workspace_id: OPERATOR_WORKSPACE_ID,
+      project_id: OPERATOR_PROJECT_ID,
+      now: "2026-07-11T00:00:00.000Z",
+      expected_project_id: null,
+      expected_revision: null,
+    });
+  } finally {
+    db.close();
+  }
+  pass("operator_fixture_uses_canonical_active_project_and_bound_root");
 }
 
 function validateAdditiveAndRepeatedMigration(): void {
@@ -1206,12 +1309,22 @@ async function assertFullOperatorLoop(input: {
     "packet_handoff_wrong_fingerprint_rejected",
   );
 
+  await assertDirectHostRoundTripCoverageV01({
+    environment: input.environment,
+    config,
+    clock: input.clock,
+    secret_source: input.secretSource,
+    jar,
+    packet: laterPacket,
+    transition_receipt: receipt,
+  });
+
   const resultReport = {
     input_version: "codex_result_report_input.v0.1",
     scope: "project:augnes",
     report_id: "codex-report:operator-pilot-full-loop-later-task",
     report_kind: "codex_validation_report",
-    reported_at: "2026-07-11T09:21:30.000Z",
+    reported_at: addIsoMillisecondsV01(laterPacket.generated_at, 90_000),
     operator_actor_ref: config.operator_id,
     codex_claimed_summary:
       "Synthetic later task returned bounded candidate-only material after receiving the handoff.",
@@ -1453,7 +1566,7 @@ async function assertFullOperatorLoop(input: {
 
   const foreignEnvironment = {
     ...input.environment,
-    AUGNES_VNEXT_OPERATOR_PROJECT_ID: "project:operator-pilot-smoke-foreign",
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: FOREIGN_PROJECT_ID,
   };
   const foreignReviewHandlers = createVNextOperatorSemanticReviewHandlersV01({
     environment: foreignEnvironment,
@@ -1495,7 +1608,7 @@ async function assertFullOperatorLoop(input: {
       canonicalDbPath,
       "vnext_core_records",
       config.workspace_id,
-      "project:operator-pilot-smoke-foreign",
+      FOREIGN_PROJECT_ID,
     ),
     0,
   );
@@ -1565,8 +1678,12 @@ async function assertFullOperatorLoop(input: {
     ...anchors,
     full_loop_fingerprint: fullLoopFingerprint,
   };
-  assert.deepEqual(anchoredLoop, EXPECTED_FULL_LOOP_ANCHORS);
-  pass("full_loop_fixed_anchors_unchanged");
+  if (process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR) {
+    pass("full_loop_browser_fixture_anchors_are_fresh_and_self_describing");
+  } else {
+    assert.deepEqual(anchoredLoop, EXPECTED_FULL_LOOP_ANCHORS);
+    pass("full_loop_fixed_anchors_unchanged");
+  }
   assertOperatorLoopbackRouteCoverage(loopback.requests);
   return {
     anchors: anchoredLoop,
@@ -1581,6 +1698,1462 @@ async function assertFullOperatorLoop(input: {
   } finally {
     await loopback.close();
   }
+}
+
+async function assertDirectHostRoundTripCoverageV01(input: {
+  environment: NodeJS.ProcessEnv;
+  config: VNextLocalOperatorPilotConfigV01;
+  clock: ManualClock;
+  secret_source: DeterministicSecretSource;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+  transition_receipt: StateTransitionReceiptV01;
+}): Promise<void> {
+  const policyContext = directHostPolicyContextV01(
+    addIsoMillisecondsV01(input.packet.generated_at, 70_000),
+  );
+  const observations: DeterministicCodexAdapterObservationV01[] = [];
+  input.clock.set("2026-07-11T09:21:10.000Z");
+  const adapter = createDeterministicCodexAdapterV01({
+    now: () => input.clock.now(),
+    observe: (observation) => observations.push(observation),
+  });
+  const db = openVNextLocalOperatorDatabaseV01(input.config);
+  let golden;
+  try {
+    const receiptsBefore = countRowsByKind(db, "run_receipt");
+    golden = await runDirectNativeHostRoundTripV01(
+      db,
+      {
+        config: input.config,
+        mode: "policy_triggered",
+        automation_context: policyContext,
+      },
+      { adapter, now: () => input.clock.now() },
+    );
+    assert.equal(golden.status, "inserted");
+    assert.equal(golden.host_result?.outcome, "completed");
+    assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+    assert.equal(validateRunReceiptV01(golden.receipt).status, "valid");
+    assert.equal(golden.receipt.workspace_id, input.config.workspace_id);
+    assert.equal(golden.receipt.project_id, input.config.project_id);
+    assert.equal(
+      golden.receipt.task_context_packet_ref?.external_id,
+      input.packet.packet_id,
+    );
+    assert.equal(
+      golden.receipt.task_context_packet_ref?.source_ref,
+      input.packet.integrity.fingerprint,
+    );
+    assert.equal(
+      golden.receipt.source_refs.some(
+        (ref) =>
+          ref.ref_type === "state_transition_receipt" &&
+          ref.external_id === input.transition_receipt.transition_receipt_id &&
+          ref.source_ref === input.transition_receipt.integrity.fingerprint,
+      ),
+      true,
+    );
+    assert.equal(
+      golden.receipt.source_refs.some(
+        (ref) =>
+          ref.ref_type === "project_root_scope" &&
+          /^sha256:[a-f0-9]{64}$/.test(ref.source_ref ?? ""),
+      ),
+      true,
+    );
+    assert.equal(golden.receipt.model_invocations.length, 0);
+    assert.equal(golden.receipt.privacy_egress.egress_status, "did_not_occur");
+    assert.equal(golden.receipt.privacy_egress.raw_prompt_persisted, false);
+    assert.equal(golden.receipt.privacy_egress.raw_output_persisted, false);
+    assert.equal(golden.receipt.privacy_egress.raw_transcript_persisted, false);
+    assert.equal(golden.receipt.privacy_egress.secret_material_persisted, false);
+    assert.equal(golden.receipt.authority_summary.closes_work, false);
+    assert.equal(golden.receipt.authority_summary.receipt_is_approval, false);
+    assert.equal(golden.receipt.authority_summary.receipt_is_proof, false);
+    assert.equal(
+      golden.receipt.authority_summary.receipt_is_accepted_evidence,
+      false,
+    );
+    assert.equal(
+      golden.receipt.authority_summary.performs_durable_transition,
+      false,
+    );
+    assert.equal(golden.packet_copy_actions, 0);
+    assert.equal(golden.handoff_paste_actions, 0);
+    assert.equal(golden.result_paste_actions, 0);
+    assert.equal(golden.internal_id_entry_actions, 0);
+    const receiptJson = canonicalizeProtocolValueV01(golden.receipt);
+    assert.equal(receiptJson.includes(operatorProjectRoot), false);
+    for (const forbidden of credentialMaterial) {
+      assert.equal(receiptJson.includes(forbidden), false);
+    }
+    const runRow = db
+      .prepare(
+        `SELECT status, metadata_json FROM autonomy_runs WHERE run_id = ?`,
+      )
+      .get(golden.run_id) as { status: string; metadata_json: string };
+    assert.equal(runRow.status, "completed");
+    assert.equal(runRow.metadata_json.includes(operatorProjectRoot), false);
+    assert.equal(runRow.metadata_json.includes(input.packet.task.goal), false);
+    assert.equal(runRow.metadata_json.includes("run_receipt_id"), true);
+
+    const replay = await runDirectNativeHostRoundTripV01(
+      db,
+      {
+        config: input.config,
+        mode: "policy_triggered",
+        automation_context: policyContext,
+      },
+      { adapter, now: () => input.clock.now() },
+    );
+    assert.equal(replay.status, "exact_replay");
+    assert.equal(replay.receipt.receipt_id, golden.receipt.receipt_id);
+    assert.equal(replay.host_result, null);
+    assert.equal(observations.length, 1);
+
+    const sharedReplay = admitStructuredRunReceiptV01(db, golden.receipt);
+    assert.equal(sharedReplay.status, "exact_replay");
+    const conflicting = structuredClone(golden.receipt);
+    conflicting.result_summary.summary =
+      "Conflicting material under a stale receipt fingerprint.";
+    assert.throws(
+      () => admitStructuredRunReceiptV01(db, conflicting),
+      /structured_run_receipt_invalid/,
+    );
+  } finally {
+    db.close();
+  }
+  assert.equal(observations.length, 1);
+  const observed = observations[0]!.request;
+  assert.equal(observed.mode, "policy_triggered");
+  assert.equal(observed.workspace_id, input.config.workspace_id);
+  assert.equal(observed.project_id, input.config.project_id);
+  assert.equal(observed.packet.packet_id, input.packet.packet_id);
+  assert.equal(
+    observed.packet.integrity.fingerprint,
+    input.packet.integrity.fingerprint,
+  );
+  assert.equal(
+    canonicalizeProtocolValueV01(observed.packet),
+    canonicalizeProtocolValueV01(input.packet),
+  );
+  assert.equal(
+    canonicalizeProtocolValueV01(observed.work_ref),
+    canonicalizeProtocolValueV01(input.packet.work_ref),
+  );
+  assert.equal(
+    observed.packet_lineage.source_transition_receipt_ref.external_id,
+    input.transition_receipt.transition_receipt_id,
+  );
+  assert.equal(observed.root_scope.canonical_root, operatorProjectRoot);
+  assert.equal(observed.root_scope.root_kind, "plain_folder");
+  assert.equal(observed.root_scope.repository_ref, null);
+  assert.equal(observed.root_scope.selected_worktree_ref, null);
+  assert.equal(observed.automation_context?.scheduler_started, false);
+  assert.equal(observed.automation_context?.automatic_retry_allowed, false);
+  assert.equal(observed.result_return.legacy_result_text_allowed, false);
+  assert.equal(observed.result_return.raw_output_allowed, false);
+  assert.equal(observed.policy.network, "forbidden");
+  assert.equal(observed.policy.model, "forbidden_in_deterministic_adapter");
+  assert.equal(observed.policy.stop_settle_timeout_ms, 5_000);
+  assert.equal(observations[0]!.stop_settle_timeout_ms, 5_000);
+  pass("direct_host_golden_persisted_packet_structured_receipt_round_trip");
+  pass("direct_host_exact_packet_work_task_lineage_and_plain_root_binding");
+  pass("direct_host_reuses_ledger_and_structured_receipt_replay_authority");
+  pass("direct_host_receipt_minimizes_data_and_grants_no_semantic_authority");
+
+  assertAutomaticPathBypassesLegacyTextParserV01();
+  assertDirectHostRepositoryRelativePathContractV01(
+    observed,
+    golden.host_result!,
+  );
+  await assertInteractiveHostRouteOnCloneV01(input);
+  await assertDirectHostTerminalScenariosOnClonesV01(input);
+  await assertDirectHostStopSettlementOnClonesV01(input);
+  await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
+  await assertDirectHostPrestartRefusalsOnClonesV01(input);
+  await assertDirectHostRootScopesOnClonesV01(input);
+}
+
+function directHostPolicyContextV01(
+  observedAt: string,
+): NativeHostAutomationContextV01 {
+  return {
+    policy_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "automation_policy",
+      external_id: "automation-policy:operator-pilot-direct-host",
+      observed_at: observedAt,
+      source_ref: `sha256:${"a".repeat(64)}`,
+      compatibility_namespace: "automation_policy.v0.1",
+      trust_class: "direct_local_observation",
+    },
+    capability_grant_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "capability_grant",
+      external_id: "capability-grant:operator-pilot-direct-host",
+      observed_at: observedAt,
+      source_ref: `sha256:${"b".repeat(64)}`,
+      compatibility_namespace: "bounded_capability_grant.v0.1",
+      trust_class: "direct_local_observation",
+    },
+    control_revision: null,
+    automatic_retry_allowed: false,
+    scheduler_started: false,
+  };
+}
+
+function addIsoMillisecondsV01(value: string, milliseconds: number): string {
+  return new Date(Date.parse(value) + milliseconds).toISOString();
+}
+
+function assertAutomaticPathBypassesLegacyTextParserV01(): void {
+  const directSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "lib/vnext/runtime/direct-native-host-round-trip.ts",
+    ),
+    "utf8",
+  );
+  const routeSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "app/api/vnext/operator/host-round-trip/route.ts",
+    ),
+    "utf8",
+  );
+  const laterResultSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "lib/vnext/runtime/operator-pilot-later-result-intake.ts",
+    ),
+    "utf8",
+  );
+  for (const forbidden of [
+    "normalizeCodexResultReportV01",
+    "codexResultText",
+    "codexResultPaste",
+    "result_report",
+    "handoff_text",
+    "packet_json",
+  ]) {
+    assert.equal(directSource.includes(forbidden), false);
+    assert.equal(routeSource.includes(forbidden), false);
+  }
+  assert.equal(
+    directSource.includes("admitStructuredRunReceiptV01"),
+    true,
+  );
+  assert.equal(
+    laterResultSource.includes("admitStructuredRunReceiptV01"),
+    true,
+  );
+  pass("automatic_host_path_bypasses_legacy_text_parser_and_shares_receipt_writer");
+}
+
+async function assertInteractiveHostRouteOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  config: VNextLocalOperatorPilotConfigV01;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "direct-host-interactive-route",
+    input.environment,
+    async ({ environment }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 20_000),
+      );
+      const observations: DeterministicCodexAdapterObservationV01[] = [];
+      const adapter = createDeterministicCodexAdapterV01({
+        now: () => clock.now(),
+        observe: (observation) => observations.push(observation),
+      });
+      const handler = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        adapter,
+      });
+      const cloneJar = new RouteCookieJar();
+      cloneJar.setPair(input.jar.header().split("; ")[0]!);
+      await expectRouteError(
+        await handler(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar: cloneJar,
+            body: { packet_json: { forbidden: true } },
+          }),
+        ),
+        400,
+        "direct_host_body_must_be_empty",
+        "direct_host_user_packet_or_result_transport_rejected",
+      );
+      assert.equal(observations.length, 0);
+      const response = await handler(
+        routeRequest("/api/vnext/operator/host-round-trip", {
+          method: "POST",
+          jar: cloneJar,
+          body: {},
+        }),
+      );
+      const body = await publicJson(response);
+      assert.equal(response.status, 201);
+      assert.equal(body.status, "inserted");
+      assert.equal(body.packet_copy_actions, 0);
+      assert.equal(body.handoff_paste_actions, 0);
+      assert.equal(body.result_paste_actions, 0);
+      assert.equal(body.internal_id_entry_actions, 0);
+      assert.equal(body.semantic_state_changed, false);
+      assert.equal(body.work_closed, false);
+      const receipt = body.receipt as RunReceiptV01;
+      assert.equal(validateRunReceiptV01(receipt).status, "valid");
+      assert.equal(
+        receipt.task_context_packet_ref?.external_id,
+        input.packet.packet_id,
+      );
+      assert.equal(observations.length, 1);
+      assert.equal(observations[0]!.request.mode, "interactive");
+      assert.equal(observations[0]!.request.automation_context, null);
+      assert.equal(
+        observations[0]!.request.packet.packet_id,
+        input.packet.packet_id,
+      );
+      assert.equal(
+        observations[0]!.request.root_scope.canonical_root,
+        operatorProjectRoot,
+      );
+      cloneJar.absorb(response);
+      const replay = await handler(
+        routeRequest("/api/vnext/operator/host-round-trip", {
+          method: "POST",
+          jar: cloneJar,
+          body: {},
+        }),
+      );
+      assert.equal(replay.status, 200);
+      assert.equal((await publicJson(replay)).status, "exact_replay");
+      assert.equal(observations.length, 1);
+    },
+  );
+  pass("interactive_and_policy_modes_converge_on_direct_host_orchestrator");
+  pass("direct_host_route_accepts_empty_body_only_and_rotates_session_nonce");
+}
+
+async function assertDirectHostTerminalScenariosOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  config: VNextLocalOperatorPilotConfigV01;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  for (const [scenario, expectedOutcome, expectedStatus] of [
+    ["failure", "failed", "failed"],
+    ["unavailable", "unavailable", "blocked"],
+  ] as const) {
+    await withOperatorDatabaseCloneV01(
+      `direct-host-${scenario}`,
+      input.environment,
+      async ({ config }) => {
+        const clock = new ManualClock(
+          addIsoMillisecondsV01(input.packet.generated_at, 25_000),
+        );
+        const db = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          const result = await runDirectNativeHostRoundTripV01(
+            db,
+            { config, mode: "interactive" },
+            {
+              adapter: createDeterministicCodexAdapterV01({
+                scenario,
+                now: () => clock.now(),
+              }),
+              now: () => clock.now(),
+            },
+          );
+          assert.equal(result.status, "inserted");
+          assert.equal(result.host_result?.outcome, expectedOutcome);
+          assert.equal(result.receipt.execution.status, expectedStatus);
+          assert.equal(result.receipt.authority_summary.closes_work, false);
+          const continuity = projectVNextOperatorPilotContinuityV01(db, {
+            config,
+            clock,
+          });
+          assert.equal(
+            continuity.latest_compiled_packet?.packet_id,
+            input.packet.packet_id,
+          );
+        } finally {
+          db.close();
+        }
+      },
+    );
+  }
+  pass("deterministic_host_failure_and_unavailable_results_are_truthful_and_durable");
+  pass("optional_host_unavailability_preserves_local_project_continuity");
+}
+
+function assertDirectHostRepositoryRelativePathContractV01(
+  request: NativeHostRequestV01,
+  baseResult: NativeHostResultV01,
+): void {
+  const rejectedPaths = [
+    "/tmp/file.ts",
+    String.raw`C:\repo\file.ts`,
+    "C:/repo/file.ts",
+    String.raw`\\server\share\file.ts`,
+    "//server/share/file.ts",
+    String.raw`\rooted\file.ts`,
+    "C:file.ts",
+    "../file.ts",
+    String.raw`..\file.ts`,
+    "src/../../file.ts",
+    "nul\0file.ts",
+  ];
+  for (const rejectedPath of rejectedPaths) {
+    assert.throws(
+      () => canonicalizeRepositoryRelativePathV01(rejectedPath),
+      /repository_relative_path_invalid/,
+      rejectedPath,
+    );
+    assert.throws(
+      () =>
+        assertNativeHostResultV01(request, {
+          ...baseResult,
+          changed_files: [
+            {
+              repository_relative_path: rejectedPath,
+              change_kind: "modified",
+              before_hash: null,
+              after_hash: null,
+            },
+          ],
+        }),
+      /native_host_result_file_scope_invalid/,
+      `changed file: ${rejectedPath}`,
+    );
+    assert.throws(
+      () =>
+        assertNativeHostResultV01(request, {
+          ...baseResult,
+          artifacts: [
+            {
+              artifact_ref: {
+                ref_version: "external_ref.v0.1",
+                ref_type: "repository_relative_artifact",
+                external_id: rejectedPath,
+                trust_class: "host_attestation",
+              },
+              summary: "Rejected repository-relative artifact fixture.",
+            },
+          ],
+        }),
+      /native_host_result_file_scope_invalid/,
+      `path-like artifact: ${rejectedPath}`,
+    );
+  }
+
+  for (const [inputPath, expected] of [
+    ["src/file.ts", "src/file.ts"],
+    ["src/runtime/adapter.ts", "src/runtime/adapter.ts"],
+    ["docs/./guide.md", "docs/guide.md"],
+    ["docs/vnext/../guide.md", "docs/guide.md"],
+  ] as const) {
+    assert.equal(canonicalizeRepositoryRelativePathV01(inputPath), expected);
+  }
+
+  const normalized = assertNativeHostResultV01(request, {
+    ...baseResult,
+    changed_files: [
+      {
+        repository_relative_path: "src/./runtime/adapter.ts",
+        change_kind: "modified",
+        before_hash: null,
+        after_hash: null,
+      },
+    ],
+    artifacts: [
+      {
+        artifact_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "repository_relative_artifact",
+          external_id: "docs/vnext/../guide.md",
+          trust_class: "host_attestation",
+        },
+        summary: "Canonical repository-relative artifact fixture.",
+      },
+    ],
+  });
+  assert.equal(
+    normalized.changed_files[0]?.repository_relative_path,
+    "src/runtime/adapter.ts",
+  );
+  assert.equal(
+    normalized.artifacts[0]?.artifact_ref.external_id,
+    "docs/guide.md",
+  );
+  const opaque = assertNativeHostResultV01(request, {
+    ...baseResult,
+    artifacts: [
+      {
+        artifact_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "host_artifact_id",
+          external_id: String.raw`C:\opaque\provider-id`,
+          trust_class: "host_attestation",
+        },
+        summary: "Opaque provider identifier fixture.",
+      },
+    ],
+  });
+  assert.equal(
+    opaque.artifacts[0]?.artifact_ref.external_id,
+    String.raw`C:\opaque\provider-id`,
+  );
+  pass("direct_host_cross_platform_repository_relative_paths_are_type_specific_and_canonical");
+  reject("direct_host_absolute_rooted_drive_unc_nul_and_escaping_paths_refused");
+}
+
+async function assertDirectHostStopSettlementOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "direct-host-timeout-settlement",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 26_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const controlled = createControlledStopAdapterV01({
+          adapter_version: "deterministic_codex_timeout_settlement.v0.1",
+          observe_receipt_count: () => countRowsByKind(db, "run_receipt"),
+        });
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        let roundTripSettled = false;
+        const roundTrip = runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter: controlled.adapter,
+            now: () => now,
+            timeout_ms: 5,
+            stop_settle_timeout_ms: 1_000,
+          },
+        );
+        void roundTrip.then(
+          () => {
+            roundTripSettled = true;
+          },
+          () => {
+            roundTripSettled = true;
+          },
+        );
+        const invocation = await controlled.invoked.promise;
+        await controlled.cleanup_started.promise;
+        assert.equal(roundTripSettled, false);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+        assert.equal(readHostRunStateV01(db, invocation.request.run_id).status, "running");
+        controlled.release_cleanup.resolve(undefined);
+        const result = await roundTrip;
+        assert.equal(result.host_result?.outcome, "timed_out");
+        assert.equal(result.receipt.execution.status, "cancelled");
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(controlled.state.stop_requests, 1);
+        assert.deepEqual(controlled.state.stop_reasons, ["timeout"]);
+        assert.equal(controlled.state.cleanup_mutations, 1);
+        assert.deepEqual(controlled.state.receipt_counts_during_cleanup, [
+          receiptsBefore,
+        ]);
+        assert.equal(readHostRunStateV01(db, result.run_id).status, "cancelled");
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.equal(controlled.state.cleanup_mutations, 1);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-external-cancellation-settlement",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 27_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const cancellation = instrumentedAbortSignalV01();
+        const controlled = createControlledStopAdapterV01({
+          adapter_version: "deterministic_codex_cancel_settlement.v0.1",
+          observe_receipt_count: () => countRowsByKind(db, "run_receipt"),
+        });
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        const roundTrip = runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter: controlled.adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+            cancellation_signal: cancellation.signal,
+          },
+        );
+        const invocation = await controlled.invoked.promise;
+        cancellation.abort("operator_cancelled");
+        cancellation.abort("duplicate_cancel_is_safe");
+        await controlled.cleanup_started.promise;
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+        assert.equal(readHostRunStateV01(db, invocation.request.run_id).status, "running");
+        controlled.release_cleanup.resolve(undefined);
+        const result = await roundTrip;
+        assert.equal(result.host_result?.outcome, "cancelled");
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(controlled.state.stop_requests, 1);
+        assert.deepEqual(controlled.state.stop_reasons, [
+          "cancellation_requested",
+        ]);
+        assert.equal(cancellation.added, 1);
+        assert.equal(cancellation.removed, 1);
+        assert.deepEqual(controlled.state.receipt_counts_during_cleanup, [
+          receiptsBefore,
+        ]);
+        const replay = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter: controlled.adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+            cancellation_signal: cancellation.signal,
+          },
+        );
+        assert.equal(replay.status, "exact_replay");
+        assert.equal(replay.receipt.receipt_id, result.receipt.receipt_id);
+        assert.equal(controlled.state.invocations, 1);
+        assert.equal(controlled.state.stop_requests, 1);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-invocation-rejection",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 28_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        let stopRequests = 0;
+        const adapter: NativeHostAdapterV01 = {
+          adapter_version: "deterministic_codex_rejection.v0.1",
+          capability_version: "codex_host_round_trip.v0.1",
+          invoke() {
+            return {
+              result: Promise.reject(new Error("private adapter rejection")),
+              settled: Promise.resolve(),
+              request_stop() {
+                stopRequests += 1;
+                return Promise.resolve();
+              },
+            };
+          },
+        };
+        const listenerState = instrumentedAbortSignalV01();
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        const result = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+            cancellation_signal: listenerState.signal,
+          },
+        );
+        assert.equal(result.host_result?.outcome, "failed");
+        assert.equal(
+          result.host_result?.public_stop_reason,
+          "native_host_adapter_failed",
+        );
+        assert.equal(result.receipt.execution.status, "failed");
+        assert.equal(
+          canonicalizeProtocolValueV01(result.receipt).includes(
+            "private adapter rejection",
+          ),
+          false,
+        );
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+        assert.equal(stopRequests, 0);
+        assert.equal(listenerState.added, 1);
+        assert.equal(listenerState.removed, 1);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-stop-unconfirmed",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 29_000);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const invoked = deferredV01<NativeHostRequestV01>();
+        let stopRequests = 0;
+        const neverResult = new Promise<NativeHostResultV01>(() => undefined);
+        const neverSettled = new Promise<void>(() => undefined);
+        const adapter: NativeHostAdapterV01 = {
+          adapter_version: "deterministic_codex_unsettled.v0.1",
+          capability_version: "codex_host_round_trip.v0.1",
+          invoke(request) {
+            invoked.resolve(request);
+            return {
+              result: neverResult,
+              settled: neverSettled,
+              request_stop() {
+                stopRequests += 1;
+                return Promise.resolve();
+              },
+            };
+          },
+        };
+        const activeTimeoutsBefore = activeTimeoutResourceCountV01();
+        await assert.rejects(
+          runDirectNativeHostRoundTripV01(
+            db,
+            { config, mode: "interactive" },
+            {
+              adapter,
+              now: () => now,
+              timeout_ms: 5,
+              stop_settle_timeout_ms: 5,
+            },
+          ),
+          /direct_host_stop_unconfirmed/,
+        );
+        const request = await invoked.promise;
+        const run = readHostRunStateV01(db, request.run_id);
+        assert.equal(stopRequests, 1);
+        assert.equal(run.status, "paused");
+        assert.equal(run.finished_at, null);
+        assert.equal(run.stop_reason, "native_host_stop_unconfirmed");
+        assert.equal(run.metadata.reconciliation_required, true);
+        assert.equal(run.metadata.terminal_receipt_persisted, false);
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+        assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  pass("direct_host_timeout_waits_for_stop_cleanup_before_one_terminal_receipt");
+  pass("direct_host_external_cancellation_is_idempotent_and_settled_before_receipt");
+  pass("direct_host_invocation_rejection_is_bounded_and_cleans_control_resources");
+  pass("direct_host_unconfirmed_stop_stays_nonterminal_without_receipt");
+}
+
+async function assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(
+  input: {
+    environment: NodeJS.ProcessEnv;
+    packet: TaskContextPacketV01;
+  },
+): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "direct-host-repository-relative-paths",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 29_500);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const adapter = createRepositoryPathFixtureAdapterV01(() => now);
+        const result = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          { adapter, now: () => now },
+        );
+        assert.equal(
+          result.host_result?.changed_files[0]?.repository_relative_path,
+          "src/runtime/adapter.ts",
+        );
+        assert.equal(
+          result.host_result?.artifacts[0]?.artifact_ref.external_id,
+          "docs/guide.md",
+        );
+        assert.equal(
+          result.receipt.changed_artifacts[0]?.artifact_ref.external_id,
+          "src/runtime/adapter.ts",
+        );
+        assert.equal(
+          result.receipt.artifact_refs.some(
+            (ref) =>
+              ref.ref_type === "repository_relative_artifact" &&
+              ref.external_id === "docs/guide.md",
+          ),
+          true,
+        );
+        assert.equal(
+          canonicalizeProtocolValueV01(result.receipt).includes("../"),
+          false,
+        );
+
+        const noncanonical = structuredClone(result.receipt);
+        replaceRepositoryRelativeExternalIdV01(
+          noncanonical,
+          "docs/guide.md",
+          "docs/./guide.md",
+        );
+        noncanonical.receipt_id = deriveRunReceiptIdV01(noncanonical);
+        noncanonical.integrity.fingerprint =
+          createRunReceiptFingerprintV01(noncanonical);
+        assert.equal(validateRunReceiptV01(noncanonical).status, "valid");
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        assert.throws(
+          () => admitStructuredRunReceiptV01(db, noncanonical),
+          /structured_run_receipt_repository_path_invalid/,
+        );
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+  pass("direct_host_receipt_persists_only_canonical_repository_relative_paths");
+  reject("structured_receipt_writer_refuses_noncanonical_path_like_refs");
+}
+
+function createControlledStopAdapterV01(input: {
+  adapter_version: string;
+  observe_receipt_count: () => number;
+}): {
+  adapter: NativeHostAdapterV01;
+  invoked: DeferredV01<{
+    request: NativeHostRequestV01;
+    control: NativeHostInvocationControlV01;
+  }>;
+  cleanup_started: DeferredV01<void>;
+  release_cleanup: DeferredV01<void>;
+  state: {
+    invocations: number;
+    stop_requests: number;
+    stop_reasons: NativeHostStopRequestV01["reason"][];
+    cleanup_mutations: number;
+    receipt_counts_during_cleanup: number[];
+  };
+} {
+  const invoked = deferredV01<{
+    request: NativeHostRequestV01;
+    control: NativeHostInvocationControlV01;
+  }>();
+  const cleanupStarted = deferredV01<void>();
+  const releaseCleanup = deferredV01<void>();
+  const result = deferredV01<NativeHostResultV01>();
+  const settled = deferredV01<void>();
+  const state = {
+    invocations: 0,
+    stop_requests: 0,
+    stop_reasons: [] as NativeHostStopRequestV01["reason"][],
+    cleanup_mutations: 0,
+    receipt_counts_during_cleanup: [] as number[],
+  };
+  let stopPromise: Promise<void> | null = null;
+  const adapter: NativeHostAdapterV01 = {
+    adapter_version: input.adapter_version,
+    capability_version: "codex_host_round_trip.v0.1",
+    invoke(request, control) {
+      state.invocations += 1;
+      invoked.resolve({ request, control });
+      return {
+        result: result.promise,
+        settled: settled.promise,
+        request_stop(stopRequest) {
+          if (stopPromise) return stopPromise;
+          state.stop_requests += 1;
+          state.stop_reasons.push(stopRequest.reason);
+          stopPromise = (async () => {
+            assert.equal(control.cancellation_signal.aborted, true);
+            cleanupStarted.resolve(undefined);
+            await releaseCleanup.promise;
+            state.cleanup_mutations += 1;
+            state.receipt_counts_during_cleanup.push(
+              input.observe_receipt_count(),
+            );
+            result.reject(new Error("controlled adapter stopped"));
+            settled.resolve(undefined);
+          })();
+          return stopPromise;
+        },
+      };
+    },
+  };
+  return {
+    adapter,
+    invoked,
+    cleanup_started: cleanupStarted,
+    release_cleanup: releaseCleanup,
+    state,
+  };
+}
+
+interface DeferredV01<T> {
+  promise: Promise<T>;
+  resolve(value: T | PromiseLike<T>): void;
+  reject(reason?: unknown): void;
+}
+
+function deferredV01<T>(): DeferredV01<T> {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function readHostRunStateV01(
+  db: Database.Database,
+  runId: string,
+): {
+  status: string;
+  finished_at: string | null;
+  stop_reason: string | null;
+  metadata: Record<string, unknown>;
+} {
+  const row = db
+    .prepare(
+      `SELECT status, finished_at, stop_reason, metadata_json
+       FROM autonomy_runs WHERE run_id = ?`,
+    )
+    .get(runId) as
+    | {
+        status: string;
+        finished_at: string | null;
+        stop_reason: string | null;
+        metadata_json: string;
+      }
+    | undefined;
+  assert(row);
+  return {
+    status: row.status,
+    finished_at: row.finished_at,
+    stop_reason: row.stop_reason,
+    metadata: JSON.parse(row.metadata_json) as Record<string, unknown>,
+  };
+}
+
+function instrumentedAbortSignalV01(): {
+  signal: AbortSignal;
+  abort(reason?: unknown): void;
+  readonly added: number;
+  readonly removed: number;
+} {
+  let added = 0;
+  let removed = 0;
+  let aborted = false;
+  let abortReason: unknown = undefined;
+  const listeners = new Set<EventListenerOrEventListenerObject>();
+  const signal = {
+    get aborted() {
+      return aborted;
+    },
+    get reason() {
+      return abortReason;
+    },
+    addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+    ) {
+      if (type === "abort" && listener) {
+        added += 1;
+        listeners.add(listener);
+      }
+    },
+    removeEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+    ) {
+      if (type === "abort" && listener) {
+        removed += 1;
+        listeners.delete(listener);
+      }
+    },
+  } as unknown as AbortSignal;
+  return {
+    signal,
+    abort(reason?: unknown) {
+      if (aborted) return;
+      aborted = true;
+      abortReason = reason;
+      const event = new Event("abort");
+      for (const listener of listeners) {
+        if (typeof listener === "function") listener.call(signal, event);
+        else listener.handleEvent(event);
+      }
+    },
+    get added() {
+      return added;
+    },
+    get removed() {
+      return removed;
+    },
+  };
+}
+
+function activeTimeoutResourceCountV01(): number {
+  return (
+    process as unknown as { getActiveResourcesInfo(): string[] }
+  )
+    .getActiveResourcesInfo()
+    .filter((resource) => resource === "Timeout").length;
+}
+
+function createRepositoryPathFixtureAdapterV01(
+  now: () => string,
+): NativeHostAdapterV01 {
+  const adapterVersion = "deterministic_codex_repository_paths.v0.1";
+  const capabilityVersion = "codex_host_round_trip.v0.1";
+  const baseAdapter = createDeterministicCodexAdapterV01({ now });
+  return {
+    adapter_version: adapterVersion,
+    capability_version: capabilityVersion,
+    invoke(request, control) {
+      const base = baseAdapter.invoke(request, control);
+      const result = base.result.then(
+        (hostResult): NativeHostResultV01 => ({
+          ...hostResult,
+          adapter_version: adapterVersion,
+          capability_version: capabilityVersion,
+          changed_files: [
+            {
+              repository_relative_path: "src/./runtime/adapter.ts",
+              change_kind: "modified",
+              before_hash: null,
+              after_hash: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+          artifacts: [
+            {
+              artifact_ref: {
+                ref_version: "external_ref.v0.1",
+                ref_type: "repository_relative_artifact",
+                external_id: "docs/vnext/../guide.md",
+                observed_at: now(),
+                trust_class: "host_attestation",
+              },
+              summary: "Canonicalized path-like artifact fixture.",
+            },
+          ],
+        }),
+      );
+      const resultSettled = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return {
+        result,
+        request_stop(stopRequest) {
+          return base.request_stop(stopRequest);
+        },
+        settled: Promise.all([base.settled, resultSettled]).then(
+          () => undefined,
+        ),
+      };
+    },
+  };
+}
+
+function replaceRepositoryRelativeExternalIdV01(
+  value: unknown,
+  from: string,
+  to: string,
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      replaceRepositoryRelativeExternalIdV01(item, from, to);
+    }
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  if (
+    record.ref_version === "external_ref.v0.1" &&
+    record.ref_type === "repository_relative_artifact" &&
+    record.external_id === from
+  ) {
+    record.external_id = to;
+  }
+  for (const child of Object.values(record)) {
+    replaceRepositoryRelativeExternalIdV01(child, from, to);
+  }
+}
+
+async function assertDirectHostPrestartRefusalsOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  config: VNextLocalOperatorPilotConfigV01;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await expectDirectHostPrestartRefusalV01({
+    label: "missing-packet",
+    environment: input.environment,
+    packet: input.packet,
+    selection: {
+      packet_id: "task-context-packet:000000000000000000000000",
+      packet_fingerprint: `sha256:${"0".repeat(64)}`,
+    },
+    expected_code: /packet_missing/,
+  });
+  await expectDirectHostPrestartRefusalV01({
+    label: "fingerprint-mismatch",
+    environment: input.environment,
+    packet: input.packet,
+    selection: {
+      packet_id: input.packet.packet_id,
+      packet_fingerprint: `sha256:${"f".repeat(64)}`,
+    },
+    expected_code: /fingerprint_mismatch/,
+  });
+  await expectDirectHostPrestartRefusalV01({
+    label: "expired-packet",
+    environment: input.environment,
+    packet: input.packet,
+    now: addIsoMillisecondsV01(input.packet.expires_at!, 1),
+    expected_code: /packet_expired/,
+  });
+  await expectDirectHostPrestartRefusalV01({
+    label: "stale-projection",
+    environment: input.environment,
+    packet: input.packet,
+    setup(db) {
+      const changed = db
+        .prepare(
+          `UPDATE vnext_semantic_target_heads
+           SET revision = revision + 1
+           WHERE workspace_id = ? AND project_id = ?`,
+        )
+        .run(input.config.workspace_id, input.config.project_id).changes;
+      assert(changed > 0);
+    },
+    expected_code: /drift|stale|relation/,
+  });
+  await expectDirectHostPrestartRefusalV01({
+    label: "malformed-packet",
+    environment: input.environment,
+    packet: input.packet,
+    setup(db) {
+      db.prepare(
+        `INSERT INTO vnext_core_records (
+          record_kind, record_id, workspace_id, project_id, fingerprint,
+          idempotency_key, payload_json, created_at
+        ) VALUES ('task_context_packet', ?, ?, ?, ?, NULL, '{}', ?)`,
+      ).run(
+        "task-context-packet:ffffffffffffffffffffffff",
+        input.config.workspace_id,
+        input.config.project_id,
+        `sha256:${"f".repeat(64)}`,
+        addIsoMillisecondsV01(input.packet.generated_at, 31_000),
+      );
+    },
+    expected_code: /packet_invalid/,
+  });
+  await expectDirectHostPrestartRefusalV01({
+    label: "superseded-packet",
+    environment: input.environment,
+    packet: input.packet,
+    selection: {
+      packet_id: input.packet.packet_id,
+      packet_fingerprint: input.packet.integrity.fingerprint,
+    },
+    setup(db) {
+      const superseding = rebuildPacketForLineageTest(input.packet, {
+        generated_at: addIsoMillisecondsV01(
+          input.packet.generated_at,
+          31_000,
+        ),
+        expires_at: addIsoMillisecondsV01(
+          input.packet.generated_at,
+          24 * 60 * 60 * 1000 + 31_000,
+        ),
+      });
+      insertPacketRecord(db, superseding);
+    },
+    expected_code: /packet_superseded/,
+  });
+  await expectDirectHostPrestartRefusalV01({
+    label: "cross-project-packet",
+    environment: input.environment,
+    packet: input.packet,
+    selection: {
+      packet_id: input.packet.packet_id,
+      packet_fingerprint: input.packet.integrity.fingerprint,
+    },
+    setup(db) {
+      const foreignRoot = path.join(tempRoot, "direct-host-foreign-root");
+      mkdirSync(foreignRoot, { recursive: true, mode: 0o700 });
+      const registration = getOrCreateCanonicalProjectForLocalRootV01(
+        db,
+        {
+          workspace_id: input.config.workspace_id,
+          local_root: normalizeLocalProjectRootRefV01(foreignRoot, {
+            base_path: path.parse(foreignRoot).root,
+          }),
+          display_name: "Foreign Direct Host Project",
+        },
+        {
+          create_uuid: () => "33333333-3333-4333-8333-333333333333",
+          now: () => addIsoMillisecondsV01(input.packet.generated_at, 30_000),
+        },
+      );
+      assert.equal(registration.project.project_id, FOREIGN_PROJECT_ID);
+      selectActiveProjectV01(db, {
+        workspace_id: input.config.workspace_id,
+        project_id: FOREIGN_PROJECT_ID,
+        now: addIsoMillisecondsV01(input.packet.generated_at, 30_000),
+        expected_project_id: input.config.project_id,
+        expected_revision: 1,
+      });
+      return { ...input.config, project_id: FOREIGN_PROJECT_ID };
+    },
+    expected_code: /packet_missing|scope_mismatch/,
+  });
+  pass("missing_malformed_stale_superseded_fingerprint_and_cross_project_packets_refuse_prestart");
+}
+
+async function expectDirectHostPrestartRefusalV01(input: {
+  label: string;
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+  selection?: { packet_id: string; packet_fingerprint: string };
+  now?: string;
+  setup?: (
+    db: Database.Database,
+  ) => VNextLocalOperatorPilotConfigV01 | void;
+  expected_code: RegExp;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    `direct-host-prestart-${input.label}`,
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const exactConfig = input.setup?.(db) ?? config;
+        const now =
+          input.now ?? addIsoMillisecondsV01(input.packet.generated_at, 30_000);
+        const beforeRuns = countTableRows(db, "autonomy_runs");
+        const beforeReceipts = countRowsByKind(db, "run_receipt");
+        let invocationCount = 0;
+        const adapter = createDeterministicCodexAdapterV01({
+          now: () => now,
+          observe: () => {
+            invocationCount += 1;
+          },
+        });
+        let observedCode = "";
+        try {
+          await runDirectNativeHostRoundTripV01(
+            db,
+            {
+              config: exactConfig,
+              mode: "policy_triggered",
+              automation_context: directHostPolicyContextV01(now),
+            },
+            {
+              adapter,
+              now: () => now,
+              ...(input.selection
+                ? {
+                    resolve_packet_selection: () => input.selection!,
+                  }
+                : {}),
+            },
+          );
+          assert.fail(`${input.label} unexpectedly invoked the adapter`);
+        } catch (error) {
+          observedCode =
+            error && typeof error === "object" && "code" in error
+              ? String(error.code)
+              : error instanceof Error
+                ? error.message
+                : String(error);
+        }
+        assert.match(observedCode, input.expected_code, input.label);
+        assert.equal(invocationCount, 0, input.label);
+        assert.equal(countTableRows(db, "autonomy_runs"), beforeRuns, input.label);
+        assert.equal(
+          countRowsByKind(db, "run_receipt"),
+          beforeReceipts,
+          input.label,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  reject(`direct_host_prestart_${input.label.replaceAll("-", "_")}`);
+}
+
+async function assertDirectHostRootScopesOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  for (const rootKind of ["git_repository", "git_worktree"] as const) {
+    await withOperatorDatabaseCloneV01(
+      `direct-host-root-${rootKind}`,
+      input.environment,
+      async ({ config }) => {
+        const root = path.join(tempRoot, `direct-host-${rootKind}-root`);
+        mkdirSync(root, { recursive: true, mode: 0o700 });
+        if (rootKind === "git_repository") {
+          mkdirSync(path.join(root, ".git"), {
+            recursive: true,
+            mode: 0o700,
+          });
+          writeFileSync(
+            path.join(root, ".git", "config"),
+            "[core]\n\trepositoryformatversion = 0\n",
+            { mode: 0o600 },
+          );
+        } else {
+          const metadata = path.join(
+            tempRoot,
+            "direct-host-worktree-metadata",
+          );
+          mkdirSync(metadata, { recursive: true, mode: 0o700 });
+          writeFileSync(
+            path.join(metadata, "config"),
+            "[core]\n\trepositoryformatversion = 0\n",
+            { mode: 0o600 },
+          );
+          writeFileSync(path.join(root, ".git"), `gitdir: ${metadata}\n`, {
+            mode: 0o600,
+          });
+        }
+        const db = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          const now = addIsoMillisecondsV01(input.packet.generated_at, 35_000);
+          rebindCanonicalProjectLocalRootV01(
+            db,
+            {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              local_root: normalizeLocalProjectRootRefV01(root, {
+                base_path: path.parse(root).root,
+              }),
+            },
+            { now: () => now },
+          );
+          const observations: DeterministicCodexAdapterObservationV01[] = [];
+          const result = await runDirectNativeHostRoundTripV01(
+            db,
+            { config, mode: "interactive" },
+            {
+              adapter: createDeterministicCodexAdapterV01({
+                now: () => now,
+                observe: (observation) => observations.push(observation),
+              }),
+              now: () => now,
+            },
+          );
+          assert.equal(result.status, "inserted");
+          assert.equal(observations.length, 1);
+          assert.equal(observations[0]!.request.root_scope.root_kind, rootKind);
+          assert.equal(observations[0]!.request.root_scope.canonical_root, root);
+          assert.equal(
+            observations[0]!.request.root_scope.selected_worktree_ref !== null,
+            rootKind === "git_worktree",
+          );
+          assert.equal(
+            canonicalizeProtocolValueV01(result.receipt).includes(root),
+            false,
+          );
+          assert.equal(
+            result.receipt.task_context_packet_ref?.external_id,
+            input.packet.packet_id,
+          );
+        } finally {
+          db.close();
+        }
+      },
+    );
+  }
+  pass("plain_folder_git_repository_and_selected_worktree_scopes_remain_project_bound");
+}
+
+async function withOperatorDatabaseCloneV01<T>(
+  label: string,
+  environment: NodeJS.ProcessEnv,
+  action: (input: {
+    database_path: string;
+    environment: NodeJS.ProcessEnv;
+    config: VNextLocalOperatorPilotConfigV01;
+  }) => Promise<T>,
+): Promise<T> {
+  const databasePath = path.join(
+    tempRoot,
+    `${label.replace(/[^a-z0-9-]/gi, "-")}.db`,
+  );
+  const source = new Database(canonicalDbPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    await source.backup(databasePath);
+  } finally {
+    source.close();
+  }
+  const cloneEnvironment = {
+    ...environment,
+    AUGNES_DB_PATH: databasePath,
+  };
+  const config = readVNextLocalOperatorPilotConfigV01(cloneEnvironment);
+  try {
+    return await action({
+      database_path: databasePath,
+      environment: cloneEnvironment,
+      config,
+    });
+  } finally {
+    for (const candidate of [
+      databasePath,
+      `${databasePath}-wal`,
+      `${databasePath}-shm`,
+      `${databasePath}-journal`,
+    ]) {
+      rmSync(candidate, { force: true });
+    }
+  }
+}
+
+function countRowsByKind(db: Database.Database, recordKind: string): number {
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM vnext_core_records WHERE record_kind = ?`,
+      )
+      .get(recordKind) as { count: number }
+  ).count;
+}
+
+function countTableRows(db: Database.Database, table: string): number {
+  assert.match(table, /^[a-z_]+$/);
+  return (
+    db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as {
+      count: number;
+    }
+  ).count;
 }
 
 type WorkbenchLineageStageV01 =
@@ -1840,7 +3413,10 @@ async function assertWorkbenchLineageFailClosedCoverage(input: {
           transition_receipt_id: input.receipt.transition_receipt_id,
           transition_receipt_fingerprint: input.receipt.integrity.fingerprint,
           expiry_policy: { mode: "explicit", expires_at: null },
-          clock: new ManualClock("2026-07-11T09:20:01.000Z"),
+          clock: new ManualClock(
+            "2026-07-11T09:20:01.000Z",
+            browserFixtureTimeOffset,
+          ),
         },
       );
       assert.notEqual(duplicate.later_packet.packet_id, input.packet.packet_id);
@@ -2051,7 +3627,10 @@ function readLineageForSmoke(
   return readVNextOperatorPilotProposalDurableLineageV01(db, {
     config,
     proposal,
-    clock: new ManualClock("2026-07-11T09:25:00.000Z"),
+    clock: new ManualClock(
+      "2026-07-11T09:25:00.000Z",
+      browserFixtureTimeOffset,
+    ),
   });
 }
 
@@ -2323,8 +3902,14 @@ function assertDecisionProvenanceCoverage(input: {
         revisit:
           decisionValue === "defer"
             ? {
-                revisit_at: "2026-07-12T09:00:00.000Z",
-                expires_at: "2026-07-18T09:00:00.000Z",
+                revisit_at: addIsoMillisecondsV01(
+                  input.decision.decided_at,
+                  24 * 60 * 60 * 1000,
+                ),
+                expires_at: addIsoMillisecondsV01(
+                  input.decision.decided_at,
+                  7 * 24 * 60 * 60 * 1000,
+                ),
                 condition_summary: request.revisit!.condition_summary,
               }
             : null,
@@ -4207,12 +5792,16 @@ function snapshotLegacyRows(
 ): Record<string, { count: number; row_hash: string }> {
   return Object.fromEntries(
     Object.entries(snapshotNonSessionRows(databasePath)).filter(
-      ([table]) => !table.startsWith("vnext_"),
+      ([table]) =>
+        !table.startsWith("vnext_") && !table.startsWith("autonomy_run"),
     ),
   );
 }
 
-function assertBackupRestore(databasePath: string): void {
+function assertBackupRestore(
+  databasePath: string,
+  anchors: Record<string, string>,
+): void {
   const backupPath = path.join(tempRoot, "operator-pilot-backup.db");
   const restoredPath = path.join(tempRoot, "operator-pilot-restored.db");
   const checkpoint = new Database(databasePath, { fileMustExist: true });
@@ -4257,33 +5846,33 @@ function assertBackupRestore(databasePath: string): void {
     for (const [recordKind, recordId, fingerprint] of [
       [
         "review_decision",
-        EXPECTED_FULL_LOOP_ANCHORS.review_decision_id,
-        EXPECTED_FULL_LOOP_ANCHORS.review_decision_fingerprint,
+        anchors.review_decision_id,
+        anchors.review_decision_fingerprint,
       ],
       [
         "semantic_commit_gate",
-        EXPECTED_FULL_LOOP_ANCHORS.gate_id,
-        EXPECTED_FULL_LOOP_ANCHORS.gate_fingerprint,
+        anchors.gate_id,
+        anchors.gate_fingerprint,
       ],
       [
         "state_transition_receipt",
-        EXPECTED_FULL_LOOP_ANCHORS.transition_receipt_id,
-        EXPECTED_FULL_LOOP_ANCHORS.transition_receipt_fingerprint,
+        anchors.transition_receipt_id,
+        anchors.transition_receipt_fingerprint,
       ],
       [
         "task_context_packet",
-        EXPECTED_FULL_LOOP_ANCHORS.later_packet_id,
-        EXPECTED_FULL_LOOP_ANCHORS.later_packet_fingerprint,
+        anchors.later_packet_id,
+        anchors.later_packet_fingerprint,
       ],
       [
         "run_receipt",
-        EXPECTED_FULL_LOOP_ANCHORS.later_run_receipt_id,
-        EXPECTED_FULL_LOOP_ANCHORS.later_run_receipt_fingerprint,
+        anchors.later_run_receipt_id,
+        anchors.later_run_receipt_fingerprint,
       ],
       [
         "context_use_review",
-        EXPECTED_FULL_LOOP_ANCHORS.context_use_review_id,
-        EXPECTED_FULL_LOOP_ANCHORS.context_use_review_fingerprint,
+        anchors.context_use_review_id,
+        anchors.context_use_review_fingerprint,
       ],
     ] as const) {
       assert(
@@ -4574,8 +6163,8 @@ async function exportOperatorPilotBrowserFixtureV01(input: {
 
   const manifest = {
     fixture_version: "vnext_operator_pilot_browser_fixture.v0.1",
-    workspace_id: "workspace:operator-pilot-smoke",
-    project_id: "project:operator-pilot-smoke",
+    workspace_id: OPERATOR_WORKSPACE_ID,
+    project_id: OPERATOR_PROJECT_ID,
     operator_id: "operator:operator-pilot-smoke",
     proposal_id: input.proposal.proposal_id,
     proposal_fingerprint: input.proposal.proposal_fingerprint,
@@ -4619,6 +6208,31 @@ async function exportOperatorPilotBrowserFixtureV01(input: {
     await source.backup(databasePath);
   } finally {
     source.close();
+  }
+  const exportedRoot = path.join(directory, "operator-project-root");
+  mkdirSync(exportedRoot, { recursive: true, mode: 0o700 });
+  const exported = new Database(databasePath, { fileMustExist: true });
+  try {
+    exported.pragma("foreign_keys = ON");
+    rebindCanonicalProjectLocalRootV01(
+      exported,
+      {
+        workspace_id: OPERATOR_WORKSPACE_ID,
+        project_id: OPERATOR_PROJECT_ID,
+        local_root: normalizeLocalProjectRootRefV01(exportedRoot, {
+          base_path: path.parse(exportedRoot).root,
+        }),
+      },
+      { now: () => "2026-07-11T09:26:00.000Z" },
+    );
+    exported
+      .prepare("DELETE FROM vnext_active_project_selections WHERE workspace_id = ?")
+      .run(OPERATOR_WORKSPACE_ID);
+    exported
+      .prepare("DELETE FROM vnext_recent_projects WHERE workspace_id = ?")
+      .run(OPERATOR_WORKSPACE_ID);
+  } finally {
+    exported.close();
   }
   chmodSync(databasePath, 0o600);
   writeFileSync(

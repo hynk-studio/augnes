@@ -200,6 +200,30 @@
   background: #fff8f8;
 }
 
+.project-home-callout--host {
+  border-color: #9ecdc0;
+  background: #f2fbf8;
+}
+
+.direct-host-round-trip {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  max-width: 34rem;
+}
+
+.direct-host-round-trip-result,
+.direct-host-round-trip-error {
+  margin: 0;
+  text-align: right;
+}
+
+.direct-host-round-trip-result p,
+.direct-host-round-trip-result small {
+  display: block;
+  margin: 4px 0 0;
+}
+
 .project-home-callout h2,
 .project-home-section-heading h2,
 .project-home-readiness-heading h2 {

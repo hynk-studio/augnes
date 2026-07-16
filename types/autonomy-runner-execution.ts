@@ -29,6 +29,7 @@ export const AUTONOMY_RUNNER_STEP_ACTIONS = [
   "recover_preflight_delta_batch",
   "generate_runner_status_delta_batch",
   "invoke_project_scoped_model_gateway",
+  "invoke_project_scoped_host_adapter",
 ] as const;
 
 export const AUTONOMY_RUNNER_STEP_STATUSES = [

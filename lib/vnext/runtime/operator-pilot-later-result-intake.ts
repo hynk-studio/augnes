@@ -8,9 +8,9 @@ import {
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   assertVNextDurableSemanticStoreSchemaV01,
-  insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { admitStructuredRunReceiptV01 } from "@/lib/vnext/persistence/structured-run-receipt-admission";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -214,16 +214,7 @@ export function recordVNextOperatorPilotLaterResultV01(
       input.config.operator_id,
       admission.session.session_id,
     );
-    const write = insertVNextCoreRecordV01(db, {
-      record_kind: "run_receipt",
-      record_id: receipt.receipt_id,
-      workspace_id: receipt.workspace_id,
-      project_id: receipt.project_id,
-      fingerprint: receipt.integrity.fingerprint,
-      idempotency_key: receipt.idempotency_key,
-      payload: receipt,
-      created_at: receipt.recorded_at,
-    });
+    const write = admitStructuredRunReceiptV01(db, receipt);
     if (write.status !== "inserted") {
       throw intakeError("operator_pilot_later_result_unexpected_replay", 409);
     }
