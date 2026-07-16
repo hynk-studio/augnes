@@ -3,6 +3,7 @@ import {
   ProjectHomeRefreshAction,
 } from "@/components/project-destination-actions";
 import { ProjectControls } from "@/components/project-controls";
+import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
 import type {
   ProjectHomeLineageAnchorV01,
   ProjectHomeProjectionV01,
@@ -11,8 +12,10 @@ import type {
 
 export function ProjectHome({
   projection,
+  directHostRoundTripAvailable = false,
 }: {
   projection: ProjectHomeProjectionV01;
+  directHostRoundTripAvailable?: boolean;
 }) {
   const summary = projection.project_summary;
   const projectName = summary.project.display_name ?? "Unnamed project";
@@ -75,6 +78,24 @@ export function ProjectHome({
             <p>Project identity and semantic data remain stored. Locate the folder explicitly to rebind this project.</p>
           </div>
           <a href="/projects#recent-projects">Locate folder</a>
+        </section>
+      ) : null}
+
+      {directHostRoundTripAvailable ? (
+        <section
+          className="project-home-callout project-home-callout--host"
+          aria-labelledby="direct-host-round-trip-title"
+        >
+          <div>
+            <p className="project-home-kicker">Selected work · direct return</p>
+            <h2 id="direct-host-round-trip-title">Run the current persisted packet</h2>
+            <p>
+              Resolve the latest project packet and root server-side, run the
+              deterministic Codex-shaped adapter, and persist its structured
+              RunReceipt without copy or paste.
+            </p>
+          </div>
+          <DirectHostRoundTripAction />
         </section>
       ) : null}
 

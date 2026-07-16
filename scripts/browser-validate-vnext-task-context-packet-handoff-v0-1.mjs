@@ -101,6 +101,12 @@ const result = {
   document_status: null,
   handoff_api_status: null,
   project_home_exact_href: false,
+  direct_host_project_home_active: false,
+  direct_host_request_body_empty: false,
+  direct_host_receipt_persisted: false,
+  direct_host_packet_bound: false,
+  direct_host_no_copy_paste: false,
+  direct_host_status: null,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -819,6 +825,199 @@ async function main() {
   });
   bootstrapToken = null;
 
+  await runPhase("direct_host_round_trip", async () => {
+    await navigate(
+      `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"]') !== null`,
+      "operator Project Home",
+    );
+    if (
+      await evaluateBoolean(
+        `document.querySelector('[data-project-home-active="false"]') !== null`,
+      )
+    ) {
+      await delay(750);
+      const activationResponseStart = responses.length;
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === 'Make active'
+          );
+          button?.click();
+          return Boolean(button);
+        })()`),
+        true,
+      );
+      await waitForHostCondition(
+        () =>
+          responses.slice(activationResponseStart).some(
+            (entry) =>
+              entry.path === "/api/vnext/projects" &&
+              entry.type === "Fetch" &&
+              entry.status === 200,
+          ),
+        "operator project activation response",
+      );
+    }
+    await waitForCondition(
+      `document.querySelector('[data-project-home-active="true"]') !== null`,
+      "active operator Project Home",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-direct-host-round-trip="v0.1"][data-direct-host-round-trip-hydrated="true"]') !== null`,
+      "operator Project Home direct-host action",
+    );
+    result.direct_host_project_home_active = true;
+
+    const actionShape = await evaluateJson(`(() => {
+      const action = document.querySelector('[data-direct-host-round-trip="v0.1"]');
+      const labels = action
+        ? Array.from(action.querySelectorAll('button, a')).map((candidate) => candidate.textContent?.trim() ?? '')
+        : [];
+      return {
+        action_present: Boolean(action),
+        form_field_count: action?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        button_count: action?.querySelectorAll('button').length ?? -1,
+        copy_or_paste_action: labels.some((label) => /copy|paste/i.test(label))
+      };
+    })()`);
+    assert.deepEqual(actionShape, {
+      action_present: true,
+      form_field_count: 0,
+      button_count: 1,
+      copy_or_paste_action: false,
+    });
+    result.direct_host_no_copy_paste = true;
+
+    const before = readDirectHostBrowserState(manifest.project_id);
+    const requestStart = requests.length;
+    const responseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-direct-host-round-trip="v0.1"] button');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(responseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.type === "Fetch",
+        ),
+      "direct-host route response",
+    );
+    const hostResponse = responses
+      .slice(responseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/operator/host-round-trip" &&
+          entry.type === "Fetch",
+      );
+    result.direct_host_status = hostResponse?.status ?? null;
+    if (hostResponse?.status !== 201) {
+      const visibleState = await evaluateJson(`(() => ({
+        status: document.querySelector('[data-direct-host-round-trip="v0.1"]')?.getAttribute('data-direct-host-round-trip-status') ?? null,
+        text: document.querySelector('[data-direct-host-round-trip="v0.1"]')?.textContent?.trim() ?? ''
+      }))()`);
+      assert.equal(
+        hostResponse?.status,
+        201,
+        `direct-host route failed: ${JSON.stringify(visibleState)}`,
+      );
+    }
+    await waitForCondition(
+      `document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null && document.body.textContent.includes('RunReceipt persisted')`,
+      "completed direct-host round trip",
+    );
+    const hostRequest = requests
+      .slice(requestStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/operator/host-round-trip" &&
+          entry.method === "POST",
+      );
+    assert(hostRequest, "The Project Home action did not issue the host request.");
+    assert.equal(hostRequest.post_data, "{}");
+    assert.equal(hostResponse?.status, 201);
+    result.direct_host_request_body_empty = true;
+
+    const after = readDirectHostBrowserState(manifest.project_id);
+    assert.equal(after.direct_receipt_count, before.direct_receipt_count + 1);
+    assert.equal(after.direct_run_count, before.direct_run_count + 1);
+    assert.deepEqual(after.semantic_authority_counts, before.semantic_authority_counts);
+    assert(after.latest_receipt, "The direct structured RunReceipt was not persisted.");
+    const receipt = after.latest_receipt;
+    const packet = after.packet;
+    assert(packet, "The exact persisted TaskContextPacket was not found.");
+    assert.equal(receipt.workspace_id, manifest.workspace_id);
+    assert.equal(receipt.project_id, manifest.project_id);
+    assert.equal(receipt.task_context_packet_ref?.external_id, manifest.packet_id);
+    assert.equal(
+      receipt.task_context_packet_ref?.source_ref,
+      manifest.packet_fingerprint,
+    );
+    assert.equal(
+      receipt.work_ref?.external_id,
+      typeof packet.work_ref === "string"
+        ? packet.work_ref
+        : packet.work_ref?.external_id,
+    );
+    assert.equal(
+      receipt.compatibility.external_refs.some(
+        (ref) =>
+          ref.ref_type === "task_definition" &&
+          ref.external_id === `${manifest.packet_id}:task`,
+      ),
+      true,
+    );
+    assert.equal(
+      receipt.source_refs.some(
+        (ref) =>
+          ref.ref_type === "state_transition_receipt" &&
+          ref.external_id === manifest.transition_receipt_id &&
+          ref.source_ref === manifest.transition_receipt_fingerprint,
+      ),
+      true,
+    );
+    assert.equal(
+      receipt.compatibility.external_refs.some(
+        (ref) =>
+          ref.ref_type === "project_root_scope" &&
+          ref.external_id === manifest.project_id &&
+          /^sha256:[a-f0-9]{64}$/.test(ref.source_ref ?? ""),
+      ),
+      true,
+    );
+    assert.equal(
+      receipt.compatibility.source_contracts.includes(
+        "direct_native_host_round_trip.v0.1",
+      ),
+      true,
+    );
+    assert.equal(
+      receipt.execution_environment.runtime_labels.includes("interactive"),
+      true,
+    );
+    assert.equal(receipt.result_summary.outcome, "completed");
+    assert.equal(receipt.privacy_egress.raw_prompt_persisted, false);
+    assert.equal(receipt.privacy_egress.raw_output_persisted, false);
+    assert.equal(receipt.privacy_egress.raw_transcript_persisted, false);
+    assert.equal(receipt.privacy_egress.secret_material_persisted, false);
+    assert.equal(JSON.stringify(receipt).includes(after.normalized_root), false);
+    for (const [key, value] of Object.entries(receipt.authority_summary)) {
+      if (key !== "notes") assert.equal(value, false, key);
+    }
+    result.direct_host_receipt_persisted = true;
+    result.direct_host_packet_bound = true;
+    record("active_project_direct_host_round_trip_persists_exact_packet_receipt");
+    record("direct_host_round_trip_has_zero_copy_paste_or_internal_id_input");
+  });
+
   await runPhase("project_home", async () => {
     await navigate(`${appOrigin}/overview`);
     await waitForCondition(
@@ -1096,6 +1295,14 @@ async function main() {
       !(
         request.phase === "folder_onboarding" &&
         request.path === "/api/vnext/project-controls"
+      ) &&
+      !(
+        request.phase === "direct_host_round_trip" &&
+        request.path === "/api/vnext/projects"
+      ) &&
+      !(
+        request.phase === "direct_host_round_trip" &&
+        request.path === "/api/vnext/operator/host-round-trip"
       ),
   );
   assert.deepEqual(postBootstrapMutations, []);
@@ -1470,6 +1677,8 @@ function attachCdpObservers() {
         method: String(request.method ?? "GET").toUpperCase(),
         path: classification.path,
         type: String(event.params?.type ?? "unknown"),
+        post_data:
+          typeof request.postData === "string" ? request.postData : null,
       });
       if (classification.external) {
         externalRequests.push({ phase: currentPhase, path: classification.path });
@@ -1733,6 +1942,91 @@ function readControlAuthorityCounts() {
         count("autonomy_runs"),
       semantic_rows: count("vnext_semantic_state_entries"),
       personal_content: count("perspective_memory_items"),
+    };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
+function readDirectHostBrowserState(projectId) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const receiptRows = readableDatabase
+      .prepare(
+        `SELECT payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'run_receipt'
+           AND project_id = ?
+         ORDER BY created_at ASC, record_id ASC`,
+      )
+      .all(projectId);
+    const directReceipts = receiptRows
+      .map((row) => JSON.parse(row.payload_json))
+      .filter((receipt) =>
+        receipt.compatibility?.source_contracts?.includes(
+          "direct_native_host_round_trip.v0.1",
+        ),
+      );
+    const packetRow = readableDatabase
+      .prepare(
+        `SELECT payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'task_context_packet'
+           AND record_id = ?
+           AND project_id = ?`,
+      )
+      .get(result.packet_id, projectId);
+    const root = readableDatabase
+      .prepare(
+        `SELECT normalized_root
+         FROM vnext_project_root_bindings
+         WHERE project_id = ?`,
+      )
+      .get(projectId);
+    const coreCount = (recordKind) =>
+      Number(
+        readableDatabase
+          .prepare(
+            `SELECT COUNT(*) AS count
+             FROM vnext_core_records
+             WHERE record_kind = ? AND project_id = ?`,
+          )
+          .get(recordKind, projectId).count,
+      );
+    const semanticStateCount = Number(
+      readableDatabase
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM vnext_semantic_state_entries
+           WHERE project_id = ?`,
+        )
+        .get(projectId).count,
+    );
+    return {
+      direct_receipt_count: directReceipts.length,
+      direct_run_count: Number(
+        readableDatabase
+          .prepare(
+            `SELECT COUNT(*) AS count
+             FROM autonomy_runs
+             WHERE scope = ?
+               AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'`,
+          )
+          .get(projectId).count,
+      ),
+      semantic_authority_counts: {
+        semantic_state: semanticStateCount,
+        proposals: coreCount("episode_delta_proposal"),
+        decisions: coreCount("review_decision"),
+        commit_gates: coreCount("semantic_commit_gate"),
+        transitions: coreCount("state_transition_receipt"),
+      },
+      latest_receipt: directReceipts.at(-1) ?? null,
+      packet: packetRow ? JSON.parse(packetRow.payload_json) : null,
+      normalized_root: String(root?.normalized_root ?? ""),
     };
   } finally {
     readableDatabase.close();

@@ -8,6 +8,7 @@ import {
   readProjectHomeProjectionV01,
 } from "@/lib/vnext/project-home/project-home-projection";
 import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
+import { readVNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,32 @@ export default async function ProjectPage({
   }
 
   if (!projection) notFound();
-  return <ProjectHome projection={projection} />;
+  return (
+    <ProjectHome
+      projection={projection}
+      directHostRoundTripAvailable={directHostRoundTripAvailable(projection)}
+    />
+  );
+}
+
+function directHostRoundTripAvailable(
+  projection: ProjectHomeProjectionV01,
+): boolean {
+  if (
+    !projection.project_summary.is_active ||
+    projection.project_summary.root_availability !== "available"
+  ) {
+    return false;
+  }
+  try {
+    const config = readVNextLocalOperatorPilotConfigV01(process.env);
+    return (
+      config.workspace_id === projection.workspace_id &&
+      config.project_id === projection.project_id
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isProjectNotFoundError(error: unknown): boolean {
