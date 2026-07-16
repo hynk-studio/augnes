@@ -119,6 +119,11 @@ const suites = {
       ...rootNode("scripts/test-bounded-model-egress.ts"),
     },
     {
+      label: "R4 production model boundary and exit invariants",
+      ...rootNode("scripts/test-r4-model-boundary.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "project-scoped Model Gateway and all production model transport authority",
       ...rootNode("scripts/test-model-gateway.ts"),
     },

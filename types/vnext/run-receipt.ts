@@ -128,6 +128,12 @@ export interface RunReceiptChangedArtifactV01 {
   source_refs: ExternalRefV01[];
 }
 
+/**
+ * Read/import compatibility for run_receipt.v0.1 host attestations that
+ * predate the R4 Gateway receipt. New Gateway-backed writers must use
+ * RunReceiptModelInvocationEntryV02; this summary cannot truthfully assert
+ * Gateway policy, budget, project/run lineage, or enforcement details.
+ */
 export interface RunReceiptModelInvocationSummaryV01 {
   invocation_ref: ExternalRefV01;
   provider_ref: ExternalRefV01 | null;

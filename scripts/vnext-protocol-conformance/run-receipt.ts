@@ -136,6 +136,14 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
   const host = requiredReceipt(receipts, "openai_codex_host_attestation");
   assert.equal(host.observations.length, 0);
   assert.ok(host.attestations.length >= 2);
+  assert.equal(host.model_invocations.length, 1);
+  assert.ok(
+    host.model_invocations.every((item) => !("entry_version" in item)),
+    "host-attested pre-Gateway activity remains an explicit v0.1 compatibility summary",
+  );
+  assert.ok(
+    host.compatibility.source_contracts.includes("host_result_fixture.v0.1"),
+  );
   assert.ok(
     host.attestations.every((item) => item.trust_class === "host_attestation"),
   );

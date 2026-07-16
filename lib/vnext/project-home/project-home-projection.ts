@@ -33,6 +33,7 @@ import {
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
 import { validateReviewDecisionAgainstEpisodeDeltaProposalV01, validateReviewDecisionV01 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
@@ -261,7 +262,14 @@ export async function readProjectHomeProjectionV01(
 export async function readProjectHomeCapabilityStatusesV01(
   reader?: ProjectHomeCapabilityStatusReaderV01,
 ): Promise<ProjectHomeCapabilitiesSummaryV01> {
-  const supplied = reader ? await reader() : [];
+  const supplied = reader
+    ? await reader()
+    : [
+        {
+          capability: "openai" as const,
+          ...readDefaultModelGatewayLocalCapabilityV01(),
+        },
+      ];
   const byCapability = new Map<ProjectHomeCapabilityV01, ProjectHomeCapabilityStatusV01>();
   for (const item of supplied) {
     if (!PROJECT_HOME_CAPABILITIES_V01.includes(item.capability)) continue;

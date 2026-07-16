@@ -75,6 +75,58 @@ export interface OpenAIResponsesAdapterDependenciesV01 {
   transport?: OpenAIResponsesTransportV01;
 }
 
+export type OpenAILocalCapabilityStatusV01 =
+  | "available"
+  | "action_required"
+  | "misconfigured"
+  | "unavailable";
+
+export interface OpenAILocalCapabilityDiagnosticV01 {
+  status: OpenAILocalCapabilityStatusV01;
+  summary: string;
+  verification: "trusted_local_status";
+}
+
+/**
+ * Reports only bounded local configuration readiness. It never contacts the
+ * provider and never returns a credential or configured model identifier.
+ */
+export function readOpenAILocalCapabilityDiagnosticV01(
+  environment: Partial<
+    Pick<NodeJS.ProcessEnv, "OPENAI_API_KEY" | "OPENAI_MODEL">
+  > = {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_MODEL: process.env.OPENAI_MODEL,
+  },
+): OpenAILocalCapabilityDiagnosticV01 {
+  const apiKey = optionalConfigurationText(environment.OPENAI_API_KEY);
+  const configuredModel = optionalConfigurationText(environment.OPENAI_MODEL);
+
+  if (configuredModel && !isValidModelIdentifier(configuredModel)) {
+    return {
+      status: "misconfigured",
+      summary:
+        "Local OpenAI model configuration is malformed. Provider access was not contacted or verified.",
+      verification: "trusted_local_status",
+    };
+  }
+  if (!apiKey) {
+    return {
+      status: configuredModel ? "action_required" : "unavailable",
+      summary: configuredModel
+        ? "Local OpenAI model configuration is present, but a credential is required. Provider access was not contacted or verified."
+        : "No local OpenAI credential is configured. Deterministic model behavior remains available.",
+      verification: "trusted_local_status",
+    };
+  }
+  return {
+    status: "available",
+    summary:
+      "Local OpenAI configuration is present and syntactically valid. Provider access was not contacted or verified.",
+    verification: "trusted_local_status",
+  };
+}
+
 export function createOpenAIResponsesAdapterV01(
   dependencies: OpenAIResponsesAdapterDependenciesV01 = {},
 ): ModelAdapterV01 {
@@ -364,10 +416,14 @@ function optionalConfigurationText(value: unknown): string | null {
 }
 
 function requireModelIdentifier(value: string): string {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) {
+  if (!isValidModelIdentifier(value)) {
     throw new ModelGatewayAdapterFailureV01("adapter_transport_failed");
   }
   return value;
+}
+
+function isValidModelIdentifier(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 }
 
 function adapterResponseInvalid(): never {

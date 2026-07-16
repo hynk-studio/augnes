@@ -17,6 +17,7 @@ import {
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   createOpenAIResponsesAdapterV01,
+  readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import { OBSERVE_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/observe-codec";
@@ -66,6 +67,20 @@ export const DETERMINISTIC_TEMPORAL_IMPLEMENTATION_ID_V01 =
   "deterministic.temporal" as const;
 export const DETERMINISTIC_TEMPORAL_IMPLEMENTATION_VERSION_V01 =
   "deterministic_temporal.v0.1" as const;
+
+export interface ModelGatewayLocalCapabilityDiagnosticV01 {
+  status:
+    | "available"
+    | "action_required"
+    | "misconfigured"
+    | "unavailable";
+  summary: string;
+  verification: "trusted_local_status";
+}
+
+export function readDefaultModelGatewayLocalCapabilityV01(): ModelGatewayLocalCapabilityDiagnosticV01 {
+  return readOpenAILocalCapabilityDiagnosticV01();
+}
 
 const MAX_TIMEOUT_MS = 60_000;
 const MAX_PROVENANCE_REFS = 16;
