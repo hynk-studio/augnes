@@ -36,6 +36,10 @@ const Database = require("better-sqlite3");
 const VALIDATION_VERSION =
   "vnext_task_context_packet_handoff_browser_validation.v0.1";
 const DEFAULT_TIMEOUT_MS = 45_000;
+// Current-head CI exposed that a DOM-only wait can expire while refresh churn
+// masks the supervised run's durable state. Observe that lifecycle explicitly,
+// with a bounded allowance below the outer E2E limit, before asserting the UI.
+const LIVE_HOST_APPROVAL_TIMEOUT_MS = 90_000;
 // The same operator smoke completed in canonical CI at 203,854 ms. Keep this
 // fixture-only subprocess bounded below the outer 480,000 ms e2e lifecycle.
 const OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS = 240_000;
@@ -1063,8 +1067,13 @@ async function main() {
             entry.path === "/api/vnext/operator/host-round-trip" &&
             entry.type === "Fetch" &&
             entry.status === 202,
-        ),
+      ),
       "live Codex start acceptance",
+    );
+    await waitForLiveRunStatus(
+      manifest.project_id,
+      "waiting_for_approval",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
     await waitForCondition(
       `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"]') !== null`,
@@ -1170,8 +1179,9 @@ async function main() {
     record("active_project_live_codex_waits_for_one_shot_approval_and_persists_receipt");
     record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
 
+    const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
     await waitForCondition(
-      `document.querySelector('[data-latest-run-result="completed"] [data-review-result-link="true"]') !== null`,
+      `document.querySelector('[data-latest-run-result="completed"] [data-review-result-link="true"]')?.getAttribute('href') === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-current-host-run]') === null`,
       "Project Home latest immutable terminal result",
     );
     assert.equal(
@@ -1180,7 +1190,6 @@ async function main() {
       ),
       true,
     );
-    const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
     const latestResultShape = await evaluateJson(`(() => {
       const result = document.querySelector('[data-latest-run-result="completed"]');
       const link = result?.querySelector('[data-review-result-link="true"]');
@@ -2111,6 +2120,51 @@ async function waitForHostCondition(predicate, label, timeoutMs = DEFAULT_TIMEOU
   throw new Error(`Timed out waiting for ${label}.`);
 }
 
+async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
+  const startedAt = Date.now();
+  let lastStatus = "not_recorded";
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const state = readLatestManagedLiveRunState(projectId);
+      lastStatus = state?.status ?? "not_recorded";
+      if (lastStatus === expectedStatus) return;
+      if (
+        state?.reconciliation_required === true ||
+        [
+          "paused",
+          "blocked",
+          "completed",
+          "failed",
+          "cancelled",
+          "timed_out",
+        ].includes(lastStatus)
+      ) {
+        throw new Error(
+          `Live Codex run reached ${lastStatus} before ${expectedStatus}.`,
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Live Codex run reached ")
+      ) {
+        throw error;
+      }
+      const errorCode =
+        error && typeof error === "object" && "code" in error
+          ? String(error.code)
+          : "";
+      if (!["SQLITE_BUSY", "SQLITE_LOCKED"].includes(errorCode)) {
+        throw new Error("Durable live Codex status could not be read safely.");
+      }
+    }
+    await delay(100);
+  }
+  throw new Error(
+    `Timed out waiting for durable live Codex status ${expectedStatus}; last status ${lastStatus}.`,
+  );
+}
+
 async function waitForRequestQuiet() {
   const startedAt = Date.now();
   while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
@@ -2329,6 +2383,34 @@ function readDirectHostBrowserState(projectId) {
       latest_receipt: directReceipts.at(-1) ?? null,
       packet: packetRow ? JSON.parse(packetRow.payload_json) : null,
       normalized_root: String(root?.normalized_root ?? ""),
+    };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
+function readLatestManagedLiveRunState(projectId) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const row = readableDatabase
+      .prepare(
+        `SELECT status, metadata_json
+         FROM autonomy_runs
+         WHERE scope = ?
+           AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'
+           AND json_extract(metadata_json, '$.lifecycle_mode') = 'managed_live'
+         ORDER BY created_at DESC, run_id DESC
+         LIMIT 1`,
+      )
+      .get(projectId);
+    if (!row) return null;
+    const metadata = JSON.parse(row.metadata_json);
+    return {
+      status: String(row.status),
+      reconciliation_required: metadata.reconciliation_required === true,
     };
   } finally {
     readableDatabase.close();
