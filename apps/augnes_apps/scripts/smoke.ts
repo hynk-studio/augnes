@@ -136,8 +136,6 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_get_state_brief: {},
           augnes_get_project_constellation_preview: {},
           augnes_get_guide_brief: {},
-          augnes_get_handoff_capsule_preview: {},
-          augnes_get_codex_launch_card_preview: {},
           augnes_get_autonomy_contract_preview: {},
           augnes_get_autonomy_runner_preflight: { include_dry_run_plan: true, include_boundary: true },
           augnes_get_evidence_pack: {},
@@ -175,21 +173,6 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             resultKind: 'verification',
             relatedStateKeys: ['current_focus'],
           },
-          augnes_generate_codex_handoff_draft: {
-            workId: 'AG-001',
-            targetAgent: 'codex',
-            createdBy: 'chatgpt',
-          },
-          augnes_review_codex_result_draft: {
-            handoffId: 'handoff:smoke-draft-1',
-            actualFilesChanged: ['src/server.ts'],
-            actualStateKeys: ['current_focus'],
-            actualChecks: ['npm run smoke'],
-            actualExecutionSurfaces: ['local_runtime'],
-            resultStatus: 'completed',
-            resultKind: 'implementation',
-            resultSummary: 'Reviewed Codex smoke result and produced record drafts only.',
-          },
           augnes_get_mailbox_summary: {},
           augnes_get_publication_summary: {},
           augnes_get_publication_decision_card: {},
@@ -201,19 +184,14 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             structuredProfile: result.structuredContent?.profile,
             metaProfile: result._meta?.profile,
             text: result.content?.[0]?.text,
-            agentHandoff: result.structuredContent?.brief?.agent_handoff,
             projectConstellationPreview: result.structuredContent?.project_constellation_preview,
-            copyableHandoffSeed: result.structuredContent?.copyable_handoff_seed,
+            selectedContext: result.structuredContent?.selected_context,
             guideBrief: result.structuredContent?.guideBrief,
             guideBriefSnake: result.structuredContent?.guide_brief,
             guideBriefSummary: result.structuredContent?.guideBriefSummary,
             authorityBoundary: result.structuredContent?.authority_boundary,
             readBoundary: result.structuredContent?.read_boundary,
             routeBoundary: result.structuredContent?.route_boundary,
-            handoffCapsule: result.structuredContent?.handoff_capsule,
-            handoffCapsuleSummary: result.structuredContent?.capsule_summary,
-            codexLaunchCard: result.structuredContent?.codex_launch_card,
-            codexLaunchCardSummary: result.structuredContent?.launch_card_summary,
             autonomyContract: result.structuredContent?.autonomy_contract,
             contractSummary: result.structuredContent?.contract_summary,
             autonomyRunnerPreflight: result.structuredContent?.autonomy_runner_preflight,
@@ -248,8 +226,6 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             inferredContext: result.structuredContent?.inferred_context,
             suggestedContext: result.structuredContent?.suggested_context,
             needsUserJudgment: result.structuredContent?.needs_user_judgment,
-            suggestionsForCodex: result.structuredContent?.suggestions_for_codex,
-            unresolvedUserJudgment: result.structuredContent?.unresolved_user_judgment,
             expectedFiles: result.structuredContent?.expected_files,
             forbiddenFiles: result.structuredContent?.forbidden_files,
             requiredChecks: result.structuredContent?.required_checks,
@@ -258,12 +234,6 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             finalReportRequirements: result.structuredContent?.final_report_requirements,
             actionRecord: result.structuredContent?.actionRecord,
             eventResult: result.structuredContent?.eventResult,
-            handoff: result.structuredContent?.handoff,
-            packetText: result.structuredContent?.packet_text,
-            expectedStateKeys: result.structuredContent?.expected_state_keys,
-            review: result.structuredContent?.review,
-            actionRecordDraft: result.structuredContent?.action_record_draft,
-            workEventDraft: result.structuredContent?.work_event_draft,
             evidencePack: result.structuredContent?.evidence_pack,
             sessionTrace: result.structuredContent?.session_trace,
             verificationEvidenceRecords: result.structuredContent?.verification_evidence_records,
@@ -288,42 +258,6 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           richRecord: richRecordResult.structuredContent?.actionRecord,
           richRecordText: richRecordResult.content?.[0]?.text,
           toolNames: Object.keys(server._registeredTools)
-        }));
-      `,
-    ],
-    {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      env: childEnv,
-    }
-  );
-}
-
-function spawnRecordResultConfigSnapshot(env: Record<string, string | undefined>) {
-  const childEnv = { ...process.env };
-  delete childEnv.CODEX_FILES_CHANGED;
-  delete childEnv.CODEX_RESULT_STATUS;
-  delete childEnv.CODEX_RESULT_KIND;
-
-  for (const [key, value] of Object.entries(env)) {
-    if (value === undefined) delete childEnv[key];
-    else childEnv[key] = value;
-  }
-
-  return spawnSync(
-    process.execPath,
-    [
-      "--import",
-      "tsx",
-      "--input-type=module",
-      "--eval",
-      `
-        const { resolveRecordResultConfig } = await import('./scripts/codex-record-result.ts');
-        const config = resolveRecordResultConfig();
-        console.log(JSON.stringify({
-          filesChanged: config.filesChanged,
-          resultStatus: config.resultStatus,
-          resultKind: config.resultKind
         }));
       `,
     ],
@@ -374,14 +308,15 @@ async function requestHealthz() {
 
 async function assertWidgetResourceSecurity() {
   const widgetHtml = readFileSync(new URL("../public/console-widget.html", import.meta.url), "utf8");
-  assert.match(widgetHtml, /id="profile-chip"/, "widget should keep the visible profile badge");
-  assert.match(widgetHtml, /profile: public/, "widget should render a visible default profile label");
+  assert.match(widgetHtml, /id="title"/, "widget should keep a visible read-only title");
+  assert.match(widgetHtml, /canonical project-scoped/, "widget should explain canonical result admission");
   assert.doesNotMatch(widgetHtml, /\blocalStorage\b/, "widget must not use localStorage");
   assert.doesNotMatch(widgetHtml, /\bsessionStorage\b/, "widget must not use sessionStorage");
   assert.doesNotMatch(widgetHtml, /\beval\s*\(/, "widget must not use eval");
   assert.doesNotMatch(widgetHtml, /\bnew\s+Function\b/, "widget must not use new Function");
   assert.doesNotMatch(widgetHtml, /\bfetch\s*\(/, "widget must not make direct fetch calls");
   assert.doesNotMatch(widgetHtml, /\bXMLHttpRequest\b|\bWebSocket\b|\bEventSource\b/, "widget must not open direct network channels");
+  assert.doesNotMatch(widgetHtml, /navigator\.clipboard|execCommand|<button|<textarea|codexResultText|codexResultPaste/i, "widget must not expose native-host transport actions");
 
   const server = createMcpAppServer(new MockAugnesCoreAdapter(), new MockStateRuntimeBridgeAdapter());
   try {
@@ -749,10 +684,10 @@ async function main() {
     1,
     "augnes_get_project_constellation_preview should return bounded Project Constellation nodes"
   );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_project_constellation_preview.copyableHandoffSeed.preview_text,
-    /Augnes Project Constellation handoff seed/,
-    "augnes_get_project_constellation_preview should return copyable handoff seed text"
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_project_constellation_preview.selectedContext.advisory_only,
+    true,
+    "augnes_get_project_constellation_preview should return structured advisory context without transport text"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.guide_version,
@@ -813,141 +748,6 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
     /Handoff candidates are preview-only/i,
     "augnes_get_guide_brief should state handoff candidates are preview-only"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsule.capsule_version,
-    "handoff_capsule.v0.1",
-    "augnes_get_handoff_capsule_preview should return Handoff Capsule structured content"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsule.authority_boundary.can_call_openai_or_provider,
-    false,
-    "augnes_get_handoff_capsule_preview should preserve OpenAI/provider denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsule.authority_boundary.can_launch_codex,
-    false,
-    "augnes_get_handoff_capsule_preview should preserve Codex launch denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.authorityBoundary.can_send_handoff,
-    false,
-    "augnes_get_handoff_capsule_preview should preserve handoff send denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.readBoundary.github_openai_provider_calls,
-    false,
-    "augnes_get_handoff_capsule_preview should preserve read boundary OpenAI/provider denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.routeBoundary.github_openai_provider_calls,
-    false,
-    "augnes_get_handoff_capsule_preview should preserve route boundary OpenAI/provider denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsuleSummary.observed_count,
-    1,
-    "augnes_get_handoff_capsule_preview should summarize observed context"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.observedContext.length,
-    1,
-    "augnes_get_handoff_capsule_preview should expose observed context separately"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.inferredContext.length,
-    1,
-    "augnes_get_handoff_capsule_preview should expose inferred context separately"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.suggestedContext.length,
-    1,
-    "augnes_get_handoff_capsule_preview should expose suggested context separately"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.needsUserJudgment.length,
-    1,
-    "augnes_get_handoff_capsule_preview should expose needs_user_judgment separately"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.text,
-    /Suggestions are advisory only/i,
-    "augnes_get_handoff_capsule_preview should state suggestions are advisory only"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.text,
-    /no handoff send, no Codex launch or execution/i,
-    "augnes_get_handoff_capsule_preview should deny send and Codex execution"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.codexLaunchCard.card_version,
-    "codex_launch_card.v0.1",
-    "augnes_get_codex_launch_card_preview should return Codex Launch Card structured content"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.codexLaunchCard.authority_boundary.can_call_openai_or_provider,
-    false,
-    "augnes_get_codex_launch_card_preview should preserve OpenAI/provider denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.codexLaunchCard.authority_boundary.can_execute_codex,
-    false,
-    "augnes_get_codex_launch_card_preview should preserve Codex execution denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.authorityBoundary.can_create_branch_or_pr,
-    false,
-    "augnes_get_codex_launch_card_preview should preserve branch/PR creation denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.readBoundary.github_openai_provider_calls,
-    false,
-    "augnes_get_codex_launch_card_preview should preserve read boundary OpenAI/provider denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.routeBoundary.github_openai_provider_calls,
-    false,
-    "augnes_get_codex_launch_card_preview should preserve route boundary OpenAI/provider denial"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.expectedFiles.length,
-    1,
-    "augnes_get_codex_launch_card_preview should expose expected files"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.forbiddenFiles.length,
-    6,
-    "augnes_get_codex_launch_card_preview should expose forbidden files"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.requiredChecks.length,
-    1,
-    "augnes_get_codex_launch_card_preview should expose required checks"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.skippedCheckPolicy.length,
-    1,
-    "augnes_get_codex_launch_card_preview should expose skipped-check policy"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.prBodyRequirements.length,
-    5,
-    "augnes_get_codex_launch_card_preview should expose PR body requirements"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.finalReportRequirements.length,
-    4,
-    "augnes_get_codex_launch_card_preview should expose final report requirements"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.text,
-    /No status may mean executed/i,
-    "augnes_get_codex_launch_card_preview should preserve safe status wording"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.text,
-    /not Codex execution, not branch creation, not PR creation, not a launch action/i,
-    "augnes_get_codex_launch_card_preview should deny Codex execution and branch/PR creation"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.contract_version,
@@ -1235,46 +1035,6 @@ async function main() {
     "augnes_record_work_event should state that it does not commit or reject state"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.handoff.status,
-    "draft",
-    "augnes_generate_codex_handoff_draft should leave generated handoffs in draft status"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.text,
-    /does not execute Codex/i,
-    "augnes_generate_codex_handoff_draft should state that it is not an execution trigger"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.packetText,
-    /Codex Handoff Packet/,
-    "augnes_generate_codex_handoff_draft should return copyable packet_text"
-  );
-  assert.deepEqual(
-    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.expectedStateKeys,
-    ["current_focus"],
-    "augnes_generate_codex_handoff_draft should expose expected_state_keys in structuredContent"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_review_codex_result_draft.review.recommended_result_status,
-    "completed",
-    "augnes_review_codex_result_draft should return a review recommendation"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_review_codex_result_draft.actionRecordDraft.source_agent_id,
-    "agent:codex",
-    "augnes_review_codex_result_draft should return an action record draft"
-  );
-  assert.equal(
-    bridgeSnapshot.profiles.augnes_review_codex_result_draft.workEventDraft.related_action_id,
-    null,
-    "augnes_review_codex_result_draft should not claim recorded action proof"
-  );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_review_codex_result_draft.text,
-    /does not execute Codex, does not record proof, does not commit or reject Augnes state, and does not publish externally/i,
-    "augnes_review_codex_result_draft should state the draft-only authority boundary"
-  );
-  assert.equal(
     bridgeSnapshot.profiles.augnes_get_mailbox_summary.mailboxSummary.summary.pending_handoffs.length,
     1,
     "augnes_get_mailbox_summary should return pending handoff summary items"
@@ -1371,16 +1131,6 @@ async function main() {
     /does not approve, publish, retry, record proof, commit or reject state, execute Codex, mutate GitHub, or post to Discord/i,
     "augnes_get_publication_decision_card should deny approval, publication, proof, state, Codex, GitHub, and Discord authority"
   );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_state_brief.text,
-    /Agent handoff is available for current status, next step, blockers, and Codex handoff\./,
-    "augnes_get_state_brief should advertise the user-facing agent_handoff answer areas without dumping the handoff"
-  );
-  assert.deepEqual(
-    bridgeSnapshot.profiles.augnes_get_state_brief.agentHandoff,
-    (await new MockStateRuntimeBridgeAdapter().getStateBrief("project:augnes")).agent_handoff,
-    "augnes_get_state_brief should preserve structuredContent.brief.agent_handoff when present"
-  );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_evidence_pack.boundaries.read_only,
     true,
@@ -1404,30 +1154,6 @@ async function main() {
   assert.equal(bridgeSnapshot.richRecord.result_status, "blocked", "resultStatus should pass through to runtime result_status");
   assert.equal(bridgeSnapshot.richRecord.result_kind, "verification", "resultKind should pass through to runtime result_kind");
   assert.match(bridgeSnapshot.richRecordText, /0 changed file\(s\)/, "empty filesChanged array should be reflected in bridge response text");
-
-  const defaultRecordConfig = spawnRecordResultConfigSnapshot({});
-  assert.equal(defaultRecordConfig.status, 0, `default record config snapshot should run: ${defaultRecordConfig.stderr}`);
-  assert.deepEqual(
-    JSON.parse(defaultRecordConfig.stdout).filesChanged,
-    ["docs/CODEX_HANDOFF_DEMO.md"],
-    "omitted CODEX_FILES_CHANGED should use the demo handoff default"
-  );
-
-  const emptyFilesRecordConfig = spawnRecordResultConfigSnapshot({ CODEX_FILES_CHANGED: "" });
-  assert.equal(emptyFilesRecordConfig.status, 0, `empty files record config snapshot should run: ${emptyFilesRecordConfig.stderr}`);
-  assert.deepEqual(JSON.parse(emptyFilesRecordConfig.stdout).filesChanged, [], 'CODEX_FILES_CHANGED="" should resolve to an empty file list');
-
-  const csvRecordConfig = spawnRecordResultConfigSnapshot({
-    CODEX_FILES_CHANGED: "README.md, docs/CODEX_HANDOFF_DEMO.md,",
-    CODEX_RESULT_STATUS: "needs_review",
-    CODEX_RESULT_KIND: "verification",
-  });
-  assert.equal(csvRecordConfig.status, 0, `CSV record config snapshot should run: ${csvRecordConfig.stderr}`);
-  assert.deepEqual(JSON.parse(csvRecordConfig.stdout), {
-    filesChanged: ["README.md", "docs/CODEX_HANDOFF_DEMO.md"],
-    resultStatus: "needs_review",
-    resultKind: "verification",
-  });
 
   const fileModeEnv = readFileModeEnv();
   assert.equal(fileModeEnv.values.AUGNES_CORE_MODE, "file", "start:file env should select file mode");

@@ -1,15 +1,12 @@
 import type Database from "better-sqlite3";
 
-import { mapCodexSemanticReviewToEpisodeDeltaProposalV01 } from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   assertVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
   readVNextCoreRecordByIdempotencyKeyV01,
-  type VNextCoreRecordWriteResultV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
-import { admitStructuredRunReceiptV01 } from "@/lib/vnext/persistence/structured-run-receipt-admission";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -23,7 +20,6 @@ import {
   validateReviewDecisionV01,
 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
-import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import {
@@ -59,7 +55,6 @@ import type {
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
-import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
 export const VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01 =
   "vnext_operator_pilot_review_material.v0.1" as const;
@@ -86,20 +81,6 @@ export class VNextOperatorPilotReviewErrorV01 extends Error {
     this.code = code;
     this.status = status;
   }
-}
-
-export interface VNextOperatorPilotPreparedReviewMaterialV01 {
-  material_version: typeof VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01;
-  workspace_id: string;
-  project_id: string;
-  run_receipt: RunReceiptV01;
-  proposal: EpisodeDeltaProposalV01;
-  run_receipt_write_status: VNextCoreRecordWriteResultV01["status"];
-  proposal_write_status: VNextCoreRecordWriteResultV01["status"];
-  prior_packet: TaskContextPacketV01 | null;
-  prior_packet_write_status: VNextCoreRecordWriteResultV01["status"] | null;
-  decision_created: false;
-  transition_created: false;
 }
 
 export interface VNextOperatorPilotReviewListItemV01 {
@@ -176,139 +157,6 @@ export interface VNextOperatorPilotDecisionResultV01 {
     expires_at: string;
     max_age_seconds: number;
   };
-}
-
-/** Maps and atomically persists one already-structured Codex semantic mapper input. */
-export function prepareVNextOperatorPilotReviewMaterialV01(
-  db: Database.Database,
-  input: {
-    config: VNextLocalOperatorPilotConfigV01;
-    mapper_input: unknown;
-    prior_packet?: unknown;
-  },
-): VNextOperatorPilotPreparedReviewMaterialV01 {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const mapping = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
-    input.mapper_input,
-  );
-  if (mapping.status !== "mapped" || !mapping.receipt || !mapping.proposal) {
-    throw reviewError(
-      mapping.status === "blocked"
-        ? "operator_pilot_review_material_blocked"
-        : "operator_pilot_review_material_invalid",
-      422,
-    );
-  }
-  const receipt = mapping.receipt;
-  const proposal = mapping.proposal;
-  assertScope(input.config, receipt.workspace_id, receipt.project_id);
-  assertScope(input.config, proposal.workspace_id, proposal.project_id);
-  if (validateRunReceiptV01(receipt).status !== "valid") {
-    throw reviewError("operator_pilot_run_receipt_invalid", 422);
-  }
-  if (validateEpisodeDeltaProposalV01(proposal).status !== "valid") {
-    throw reviewError("operator_pilot_proposal_invalid", 422);
-  }
-  const priorPacket = validateOptionalPriorPacket(
-    input.prior_packet,
-    input.config,
-    receipt,
-    proposal,
-  );
-  if (db.inTransaction) {
-    throw reviewError("operator_pilot_nested_transaction_forbidden", 409);
-  }
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const priorPacketWrite = priorPacket
-      ? insertVNextCoreRecordV01(db, {
-          record_kind: "task_context_packet",
-          record_id: priorPacket.packet_id,
-          workspace_id: priorPacket.workspace_id,
-          project_id: priorPacket.project_id,
-          fingerprint: priorPacket.integrity.fingerprint,
-          idempotency_key: null,
-          payload: priorPacket,
-          created_at: priorPacket.generated_at,
-        })
-      : null;
-    const receiptWrite = admitStructuredRunReceiptV01(db, receipt);
-    const proposalWrite = insertVNextCoreRecordV01(db, {
-      record_kind: "episode_delta_proposal",
-      record_id: proposal.proposal_id,
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      fingerprint: proposal.integrity.fingerprint,
-      idempotency_key: null,
-      payload: proposal,
-      created_at: proposal.created_at,
-    });
-    db.exec("COMMIT");
-    return {
-      material_version: VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01,
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      run_receipt: receipt,
-      proposal,
-      run_receipt_write_status: receiptWrite.status,
-      proposal_write_status: proposalWrite.status,
-      prior_packet: priorPacket,
-      prior_packet_write_status: priorPacketWrite?.status ?? null,
-      decision_created: false,
-      transition_created: false,
-    };
-  } catch (error) {
-    if (db.inTransaction) db.exec("ROLLBACK");
-    throw error;
-  }
-}
-
-function validateOptionalPriorPacket(
-  value: unknown,
-  config: VNextLocalOperatorPilotConfigV01,
-  receipt: RunReceiptV01,
-  proposal: EpisodeDeltaProposalV01,
-): TaskContextPacketV01 | null {
-  if (value === undefined || value === null) return null;
-  const evaluatedAt =
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    value !== null &&
-    typeof (value as Record<string, unknown>).generated_at === "string"
-      ? String((value as Record<string, unknown>).generated_at)
-      : "";
-  const validation = validateTaskContextPacketV01(value, { evaluated_at: evaluatedAt });
-  if (validation.status !== "valid") {
-    throw reviewError("operator_pilot_prior_packet_invalid", 422);
-  }
-  const packet = value as TaskContextPacketV01;
-  assertScope(config, packet.workspace_id, packet.project_id);
-  if (
-    canonicalizeProtocolValueV01(receipt.task_context_packet_ref) !==
-    canonicalizeProtocolValueV01(proposal.task_context_packet_ref)
-  ) {
-    throw reviewError(
-      "operator_pilot_prior_packet_cross_contract_provenance_mismatch",
-      422,
-    );
-  }
-  for (const [field, ref] of [
-    ["run_receipt", receipt.task_context_packet_ref],
-    ["proposal", proposal.task_context_packet_ref],
-  ] as const) {
-    if (
-      !ref ||
-      ref.ref_type !== "task_context_packet" ||
-      ref.external_id !== packet.packet_id ||
-      ref.source_ref !== packet.integrity.fingerprint
-    ) {
-      throw reviewError(
-        `operator_pilot_prior_packet_${field}_binding_mismatch`,
-        422,
-      );
-    }
-  }
-  return packet;
 }
 
 export function listVNextOperatorPilotSemanticReviewsV01(

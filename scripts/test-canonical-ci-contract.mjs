@@ -24,7 +24,7 @@ const canonicalRunnerContract = readRepositoryFile(
   "scripts/test-canonical-child-runner.mjs",
 );
 const browserE2e = readRepositoryFile(
-  "scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs",
+  "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
 );
 const operatorSmoke = readRepositoryFile(
   "scripts/smoke-vnext-operator-pilot-v0-1.ts",
@@ -321,7 +321,7 @@ for (const [pathName, timeout] of [
   ["scripts/test-runtime-database-bootstrap.mjs", "120_000"],
   ["scripts/test-runtime-operability.mjs", "120_000"],
   ["scripts/test-runtime-reconciliation.mjs", "180_000"],
-  ["scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs", "480_000"],
+  ["scripts/browser-validate-vnext-native-host-result-v0-1.mjs", "480_000"],
 ]) {
   assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);
 }
@@ -366,10 +366,11 @@ for (const fragment of [
 const movedResponsibilities = [
   "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
   "live_codex_public_command_summary_preserves_safe_relative_commands",
-  "automatic_host_path_bypasses_legacy_text_parser_and_shares_receipt_writer",
-  "workbench_durable_lineage_panel_is_read_only_and_explicit",
-  "api_and_ui_share_session_bound_decision_actionability_policy",
-  "page_and_project_home_share_canonical_packet_handoff_identity",
+  "retired_native_host_transport_modules_and_routes_are_absent",
+  "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
+  "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
+  "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
+  "package_and_canonical_graph_have_no_retired_manual_aliases",
   "static_refresh_resubmit_and_credential_safety_markers_present",
 ];
 for (const responsibility of movedResponsibilities) {
@@ -429,7 +430,7 @@ assert.doesNotMatch(
 for (const fragment of [
   `deterministic_production_fixture`,
   `artifact_ownership: "transferred_to_browser_harness"`,
-  `persisted_lineage_status: "reviewed"`,
+  `persisted_lineage_status: "packet_compiled"`,
   `credential_material_included: false`,
   `external_network_calls: externalNetworkCalls`,
   `provider_calls: providerCalls`,

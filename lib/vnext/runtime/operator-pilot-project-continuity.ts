@@ -62,13 +62,9 @@ const VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_NAMESPACE_V01 =
 
 export const VNEXT_OPERATOR_PILOT_CONTINUITY_VERSION_V01 =
   "vnext_operator_pilot_project_continuity.v0.1" as const;
-export const VNEXT_OPERATOR_PILOT_HANDOFF_VERSION_V01 =
-  "vnext_operator_pilot_packet_handoff.v0.1" as const;
 
 const MAX_HISTORY = 128;
 const MAX_STATE_TARGETS = 512;
-const MAX_HANDOFF_JSON_BYTES = 64 * 1024;
-const MAX_HANDOFF_TEXT_CHARACTERS = 32 * 1024;
 
 export class VNextOperatorPilotContinuityErrorV01 extends Error {
   readonly code: string;
@@ -132,54 +128,6 @@ export interface VNextOperatorPilotProjectContinuityV01 {
   } | null;
   projection_is_read_only: true;
   semantic_authority_granted: false;
-}
-
-export interface VNextOperatorPilotPacketHandoffV01 {
-  handoff_version: typeof VNEXT_OPERATOR_PILOT_HANDOFF_VERSION_V01;
-  workspace_id: string;
-  project_id: string;
-  packet: {
-    packet_id: string;
-    packet_fingerprint: string;
-    generated_at: string;
-    expires_at: string | null;
-    currentness: "fresh" | "expired";
-    data_classification: TaskContextPacketV01["constraints"]["data_classification"];
-  };
-  source_transition_receipt: {
-    transition_receipt_id: string;
-    transition_receipt_fingerprint: string;
-  };
-  accepted_state_refs: Array<{
-    entry_id: string;
-    state_ref: NonNullable<TaskContextPacketV01["selected_context"][number]["external_ref"]>;
-    state_fingerprint: string;
-    currentness_status: string;
-    currentness_as_of: string | null;
-  }>;
-  constraints: TaskContextPacketV01["constraints"];
-  return_contract: TaskContextPacketV01["return_contract"];
-  structured_result_instruction: {
-    required: true;
-    packet_id: string;
-    packet_fingerprint: string;
-    instruction: string;
-  };
-  authority_summary: {
-    handoff_is_execution: false;
-    handoff_proves_consumption: false;
-    grants_transition_authority: false;
-    grants_provider_authority: false;
-    grants_external_actuation_authority: false;
-    credential_material_included: false;
-    hidden_prompt_included: false;
-  };
-}
-
-export interface VNextOperatorPilotPacketHandoffResultV01 {
-  handoff: VNextOperatorPilotPacketHandoffV01;
-  bounded_json: string;
-  bounded_text: string;
 }
 
 export interface VNextOperatorPilotPacketLineageInspectionV01 {
@@ -322,83 +270,6 @@ export function projectVNextOperatorPilotContinuityV01(
     projection_is_read_only: true,
     semantic_authority_granted: false,
   };
-}
-
-export function buildVNextOperatorPilotPacketHandoffV01(
-  db: Database.Database,
-  input: {
-    config: VNextLocalOperatorPilotConfigV01;
-    packet_id: string;
-    packet_fingerprint: string;
-    clock?: VNextLocalRuntimeClockV01;
-  },
-): VNextOperatorPilotPacketHandoffResultV01 {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const compiled = inspectVNextOperatorPilotPacketLineageV01(db, input);
-  const packet = compiled.packet;
-  if (!compiled.projection_current) {
-    throw continuityError("operator_pilot_handoff_packet_stale", 409);
-  }
-  const now = readVNextLocalRuntimeClockNowV01(
-    input.clock,
-    "operator_pilot_packet_handoff_observed_at",
-  );
-  const acceptedStateRefs = packet.selected_context
-    .filter((entry) => entry.entry_kind === "accepted_state_ref")
-    .map((entry) => {
-      if (!entry.external_ref || !entry.source_ref) {
-        throw continuityError("operator_pilot_handoff_state_ref_invalid", 422);
-      }
-      return {
-        entry_id: entry.entry_id,
-        state_ref: entry.external_ref,
-        state_fingerprint: entry.source_ref,
-        currentness_status: entry.currentness.status,
-        currentness_as_of: entry.currentness.as_of,
-      };
-    });
-  const handoff: VNextOperatorPilotPacketHandoffV01 = {
-    handoff_version: VNEXT_OPERATOR_PILOT_HANDOFF_VERSION_V01,
-    workspace_id: packet.workspace_id,
-    project_id: packet.project_id,
-    packet: {
-      packet_id: packet.packet_id,
-      packet_fingerprint: packet.integrity.fingerprint,
-      generated_at: packet.generated_at,
-      expires_at: packet.expires_at,
-      currentness: packetCurrentness(packet, now),
-      data_classification: packet.constraints.data_classification,
-    },
-    source_transition_receipt: compiled.source_transition_receipt,
-    accepted_state_refs: acceptedStateRefs,
-    constraints: packet.constraints,
-    return_contract: packet.return_contract,
-    structured_result_instruction: {
-      required: true,
-      packet_id: packet.packet_id,
-      packet_fingerprint: packet.integrity.fingerprint,
-      instruction:
-        "Return a bounded structured Codex result report that references this exact TaskContextPacket ID and fingerprint. Do not return a raw prompt, transcript, hidden reasoning, or credential material.",
-    },
-    authority_summary: {
-      handoff_is_execution: false,
-      handoff_proves_consumption: false,
-      grants_transition_authority: false,
-      grants_provider_authority: false,
-      grants_external_actuation_authority: false,
-      credential_material_included: false,
-      hidden_prompt_included: false,
-    },
-  };
-  const boundedJson = JSON.stringify(handoff, null, 2);
-  if (Buffer.byteLength(boundedJson, "utf8") > MAX_HANDOFF_JSON_BYTES) {
-    throw continuityError("operator_pilot_handoff_json_bound_exceeded", 422);
-  }
-  const boundedText = buildBoundedHandoffText(handoff);
-  if (boundedText.length > MAX_HANDOFF_TEXT_CHARACTERS) {
-    throw continuityError("operator_pilot_handoff_text_bound_exceeded", 422);
-  }
-  return { handoff, bounded_json: boundedJson, bounded_text: boundedText };
 }
 
 export function inspectVNextOperatorPilotPacketLineageV01(
@@ -1094,41 +965,6 @@ function packetCurrentness(packet: TaskContextPacketV01, now: string): "fresh" |
   const expires = packet.expires_at ? parseStrictIsoTimestampV01(packet.expires_at) : null;
   if (observed === null) throw continuityError("operator_pilot_currentness_time_invalid", 500);
   return expires !== null && observed > expires ? "expired" : "fresh";
-}
-
-function buildBoundedHandoffText(handoff: VNextOperatorPilotPacketHandoffV01): string {
-  const lines = [
-    "Augnes vNext bounded TaskContextPacket handoff",
-    `Workspace: ${handoff.workspace_id}`,
-    `Project: ${handoff.project_id}`,
-    `Packet: ${handoff.packet.packet_id}`,
-    `Fingerprint: ${handoff.packet.packet_fingerprint}`,
-    `Source transition receipt: ${handoff.source_transition_receipt.transition_receipt_id}`,
-    `Source transition fingerprint: ${handoff.source_transition_receipt.transition_receipt_fingerprint}`,
-    `Currentness: ${handoff.packet.currentness}`,
-    `Data classification: ${handoff.packet.data_classification}`,
-    "",
-    "Accepted semantic state references:",
-    ...handoff.accepted_state_refs.map(
-      (entry) =>
-        `- ${entry.state_ref.ref_type}:${entry.state_ref.external_id} @ ${entry.state_fingerprint}`,
-    ),
-    "",
-    "Required checks:",
-    ...handoff.constraints.required_checks.map((value) => `- ${value}`),
-    "Forbidden actions:",
-    ...handoff.constraints.forbidden_actions.map((value) => `- ${value}`),
-    "",
-    `Return kind: ${handoff.return_contract.return_kind}`,
-    `Required result fields: ${handoff.return_contract.required_fields.join(", ")}`,
-    `Expected artifacts: ${handoff.return_contract.expected_artifacts.join(", ")}`,
-    `Required result checks: ${handoff.return_contract.required_checks.join(", ")}`,
-    "",
-    handoff.structured_result_instruction.instruction,
-    `Required packet reference: ${handoff.structured_result_instruction.packet_id} / ${handoff.structured_result_instruction.packet_fingerprint}`,
-    "This handoff does not execute work, prove consumption, or grant transition or external-actuation authority.",
-  ];
-  return `${lines.join("\n")}\n`;
 }
 
 function continuityError(code: string, status = 400) {

@@ -98,8 +98,8 @@ MCP/App tools, record proof, record evidence, mutate memory, mutate state,
 apply durable Perspective state, create branches, open PRs, merge, publish,
 approve, retry, replay, deploy, send handoffs, post externally, execute Codex
 SDK calls, add runtime hooks, add API routes, add Web UI, add DB writes, add
-scheduler/autonomy runner behavior, or implement Handoff Capsule or Codex
-Launch Card runtime behavior.
+scheduler/autonomy runner behavior, or restore retired manual Handoff Capsule
+or Codex Launch Card runtime behavior.
 
 Codex may edit repo files and open PRs only when the active user-scoped task
 and repository instructions independently permit that normal operator workflow.
@@ -146,7 +146,7 @@ This skill does not add or authorize:
 - durable Perspective apply
 - scheduler/autonomy runner behavior
 - handoff execution
-- Handoff Capsule runtime
-- Codex Launch Card runtime
+- retired manual Handoff Capsule runtime
+- retired manual Codex Launch Card runtime
 - branch/PR creation behavior from Augnes product code
 - merge, publish, retry, replay, deploy, or external side effects

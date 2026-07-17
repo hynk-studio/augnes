@@ -45,10 +45,11 @@ Phase 6D added the ChatGPT App/MCP read-only GuideBrief tool.
 Phase 6E adds Codex GuideBrief alignment as docs, skill guidance, and static
 smoke only.
 
-Phase 7 Handoff Capsule / Codex Launch Card remains deferred. Future Phase 7
-work may consume GuideBrief only after separate scope defines authority paths
-and keeps Handoff Capsule and Codex Launch Card behavior distinct from this
-alignment document.
+Manual Handoff Capsule / Codex Launch Card transport was retired in R5. The
+automatic Project Home native-host path consumes persisted
+`TaskContextPacket` records and does not use this GuideBrief alignment packet.
+GuideBrief work may be consumed only as separately scoped, read-only task-start
+context.
 
 ## 4. GuideBrief-To-Codex Packet Shape
 

@@ -68,8 +68,6 @@ clear forbidden actions, including:
   boundary
 - remote merge, publish, approval, retry, or replay calls without explicit
   future Core-gated scope
-- legacy `npm run codex:record-completion` unless explicitly allowed by
-  `AUGNES_ALLOW_LEGACY_CODEX_COMPLETION=true`
 - approval/publication/retry/replay commands unless
   `AUGNES_ALLOW_CORE_GATED_ACTUATION=true`
 - direct secret reads such as `cat .env` or `printenv GITHUB_TOKEN`

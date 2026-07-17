@@ -1,14 +1,8 @@
 import {
   HANDOFF_STATUSES,
-  createHandoff,
   listHandoffs,
-  type HandoffInput,
   type HandoffStatus,
 } from "@/lib/handoffs";
-import {
-  assertCanSyncMailboxForHandoffInput,
-  syncMailboxForHandoff,
-} from "@/lib/handoff-mailbox";
 import { normalizeScope } from "@/lib/work";
 import { NextResponse } from "next/server";
 
@@ -31,78 +25,18 @@ export function GET(request: Request) {
         status,
         limit,
       }),
+      boundaries: {
+        historical_read_only: true,
+        handoff_creation: false,
+        native_host_execution: false,
+        receipt_admission: false,
+      },
     });
   } catch (error) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to list handoffs.",
-      },
-      { status: 400 },
-    );
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as Record<string, unknown>;
-    const input: HandoffInput = {
-      handoff_id: readOptionalString(body, "handoff_id") ?? undefined,
-      scope: readOptionalString(body, "scope"),
-      work_id: readOptionalString(body, "work_id"),
-      source_state_brief_ref: readOptionalString(
-        body,
-        "source_state_brief_ref",
-      ),
-      source_work_brief_ref: readOptionalString(body, "source_work_brief_ref"),
-      target_agent: requireString(body, "target_agent"),
-      status: readOptionalBodyStatus(body, "status") ?? "draft",
-      current_committed_state_summary: requireString(
-        body,
-        "current_committed_state_summary",
-      ),
-      task_brief: requireString(body, "task_brief"),
-      expected_files: readStringArray(body, "expected_files"),
-      expected_state_keys: readStringArray(body, "expected_state_keys"),
-      expected_checks: readStringArray(body, "expected_checks"),
-      expected_execution_surfaces: readStringArray(
-        body,
-        "expected_execution_surfaces",
-      ),
-      safety_boundaries: readStringArray(body, "safety_boundaries"),
-      completion_record_fields: readObject(body, "completion_record_fields"),
-      created_by: requireString(body, "created_by"),
-      created_at: readOptionalString(body, "created_at") ?? undefined,
-      supersedes_handoff_id: readOptionalString(body, "supersedes_handoff_id"),
-    };
-
-    assertCanSyncMailboxForHandoffInput({
-      handoffId: input.handoff_id,
-      scope: input.scope,
-      workId: input.work_id,
-      status: input.status ?? "draft",
-    });
-    const handoff = createHandoff(input);
-    const mailboxSync = syncMailboxForHandoff(handoff);
-
-    return NextResponse.json(
-      {
-        scope: handoff.scope,
-        handoff,
-        ...(mailboxSync.mailbox_message
-          ? {
-              mailbox_message: mailboxSync.mailbox_message,
-              mailbox_sync: mailboxSync.action,
-            }
-          : {}),
-      },
-      { status: 201 },
-    );
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to create handoff.",
+          error instanceof Error ? error.message : "Failed to list historical handoffs.",
       },
       { status: 400 },
     );
@@ -119,70 +53,6 @@ function readOptionalStatus(value: string | null) {
   }
 
   throw new Error(`status must be one of: ${HANDOFF_STATUSES.join(", ")}.`);
-}
-
-function readOptionalBodyStatus(record: Record<string, unknown>, key: string) {
-  const value = record[key];
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  if (
-    typeof value === "string" &&
-    HANDOFF_STATUSES.includes(value as HandoffStatus)
-  ) {
-    return value as HandoffStatus;
-  }
-
-  throw new Error(`${key} must be one of: ${HANDOFF_STATUSES.join(", ")}.`);
-}
-
-function requireString(record: Record<string, unknown>, key: string) {
-  const value = record[key];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${key} is required.`);
-  }
-
-  return value.trim();
-}
-
-function readOptionalString(record: Record<string, unknown>, key: string) {
-  const value = record[key];
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  if (typeof value !== "string") {
-    throw new Error(`${key} must be a string.`);
-  }
-
-  return value.trim() || null;
-}
-
-function readStringArray(record: Record<string, unknown>, key: string) {
-  const value = record[key];
-  if (value === undefined || value === null) {
-    return [];
-  }
-
-  if (!Array.isArray(value)) {
-    throw new Error(`${key} must be an array of strings.`);
-  }
-
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function readObject(record: Record<string, unknown>, key: string) {
-  const value = record[key];
-  if (value === undefined || value === null) {
-    return {};
-  }
-
-  if (typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${key} must be an object.`);
-  }
-
-  return value as HandoffInput["completion_record_fields"];
 }
 
 function readOptionalLimit(value: string | null) {

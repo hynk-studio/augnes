@@ -755,20 +755,21 @@ function waitForApprovalResolutionObservation(expectedCount) {
   if (readBarrierCount() >= expectedCount) return Promise.resolve();
   return new Promise((resolve, reject) => {
     let settled = false;
+    let poll = null;
     const finish = (error = null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      watcher.close();
+      if (poll !== null) clearInterval(poll);
       if (error) reject(error);
       else resolve();
     };
     const timeout = setTimeout(() => {
       finish(new Error("approval_resolution_barrier_timeout"));
     }, 10_000);
-    const watcher = watch(path.dirname(approvalResolutionBarrierPath), () => {
+    poll = setInterval(() => {
       if (readBarrierCount() >= expectedCount) finish();
-    });
+    }, 10);
     if (readBarrierCount() >= expectedCount) finish();
   });
 

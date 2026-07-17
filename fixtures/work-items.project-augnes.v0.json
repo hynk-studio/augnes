@@ -133,7 +133,7 @@
       "status": "completed",
       "priority": "normal",
       "summary": "Operator-led dogfood work item for preparing a bounded, preview-only Research / Paper / Knowledge Accumulation scenario pack that exercises the existing ChatGPT-Augnes-Codex handoff loop.",
-      "next_action": "Use Core Codex Handoff to prepare the preview-only research accumulation scenario pack docs/smoke slice, then paste the Codex final report back through codexResultText or codexResultPaste for conservative result review.",
+      "next_action": "Historical preview item completed; use the current automatic native-host packet and structured result path for any new work.",
       "user_attention_required": 0,
       "related_state_keys": [
         "research.accumulation.preview",
@@ -147,8 +147,7 @@
         "expected_files": [
           "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
           "scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
-          "package.json",
-          "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md"
+          "package.json"
         ],
         "expected_checks": [
           "node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
@@ -215,7 +214,6 @@
           "scripts/demo-seed.mjs",
           "scripts/codex-next-work.mjs",
           "scripts/smoke-codex-worker-bootstrap-v0-1.mjs",
-          "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md",
           "package.json"
         ],
         "expected_checks": [

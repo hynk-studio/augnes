@@ -382,17 +382,18 @@ TaskContextPacket:
 - packet은 durable transition을 수행하지 않는다.
 - provider-specific rendering은 adapter가 담당한다.
 
-#### 기존 compatibility inputs
+#### historical compatibility inputs
 
 ```text
-Work Brief
-Core/Full Handoff
-Handoff Capsule
-Codex Launch Card
+Legacy Work Brief / handoff records
 Codex Memory Brief
 Perspective Memory Reuse Packet
 GuideBrief
 ```
+
+These are data-mapping inputs only. They are not packet export/copy surfaces or
+native-host transport paths. The normal R5 path admits the exact persisted
+`TaskContextPacket` server-side.
 
 ---
 
@@ -781,9 +782,9 @@ persisted proposal/source lineage read
 → exact operator confirmation and gate persistence
 → separate durable commit and StateTransitionReceipt review
 → separate later TaskContextPacket compilation
-→ bounded packet handoff
-→ structured later-result intake and RunReceipt
-→ explicit ContextUseReview
+→ persisted packet admission to the shared native-host lifecycle
+→ automatic structured result normalization and canonical RunReceipt
+→ project-scoped Project Home / Workbench / Inspector review
 ```
 
 Decision actor는 configured local operator의 `user_declaration`이고 local session action ref는 별도
@@ -798,17 +799,17 @@ absent state로 제한한다. Replace, supersede, retract와 multi-target behavi
 M3D product pilot route가 허용하지 않는다. Direct route call도 동일 policy를 다시 검사한다.
 
 Project Home은 pending proposal/decision, latest applied transition, current accepted state와 target-head
-revision, latest compiled packet/currentness, later-result receipt와 latest review status를 읽는 bounded
-projection만 제공한다. Commit/reject/gate action은 없다. Packet handoff는 exact packet ID/fingerprint,
-accepted-state refs, constraints와 return contract를 bounded text/JSON으로 제공하며 token, hidden prompt,
-private DB payload 또는 provider call을 포함하지 않는다. Copy/download는 consumption proof가 아니다.
+revision, latest compiled packet/currentness, active native-host run과 latest canonical receipt를 읽는 bounded
+projection을 제공한다. Commit/reject/gate action은 없다. Start action은 exact persisted packet의
+ID/fingerprint, freshness, project binding과 lineage를 server-side로 검증하고 shared lifecycle에 전달한다.
+사용자 packet copy/download 또는 internal ID 입력은 없다.
 
-Later-result intake는 기존 structured Codex result normalizer, source validator와 RunReceipt mapper를
-재사용한다. Caller-reported work는 `imported_unverified` 또는 attestation으로 남고 textual pass, changed
-files, packet reference와 selected-state citation은 independent observation, requirement completion 또는
-helpfulness로 승격되지 않는다. Direct-local observation은 persisted packet, transition과 bounded intake
-validation을 runtime이 실제로 읽은 부분에만 사용한다. Result intake는 proposal, decision, transition,
-Evidence, work closure 또는 next context를 자동 생성하지 않는다.
+Native-host completion은 provider-neutral `NativeHostResult`를 complete receipt normalizer와 canonical
+`RunReceipt` admission 하나로 전달한다. Caller-reported changed files, artifacts, actions, checks, errors와
+uncertainty는 receipt의 trust/coverage classification을 보존하며 independent observation, requirement
+completion 또는 helpfulness로 자동 승격되지 않는다. Completion은 proposal, decision, transition,
+Evidence, work closure 또는 next context를 자동 생성하지 않는다. Historical valid receipts remain
+readable without replaying or reconstructing their former raw prose source.
 
 `ContextUseReviewV01`은 provider-neutral Level 1 contract다. Exact workspace/project, prior/later packet,
 source transition receipt와 later-task `RunReceipt`, local operator reviewer와 separate authentication basis,
@@ -1418,11 +1419,11 @@ Lab Experiment vN
 기존 objects는 다음처럼 mapping할 수 있다.
 
 ```text
-Work Brief / Handoff Capsule
-→ TaskContextPacket compatibility view
+Historical Work Brief / handoff record
+→ TaskContextPacket data-mapping input only
 
-Codex Result Report / Runner DeltaBatch
-→ RunReceipt compatibility input
+Historical canonical RunReceipt
+→ provider-neutral read compatibility only
 
 ExpectedObservedDelta / Reuse Outcome
 → EpisodeDeltaProposal subrecord 또는 feedback event

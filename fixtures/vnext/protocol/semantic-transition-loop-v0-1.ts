@@ -1,11 +1,10 @@
 import {
   buildSemanticReviewLoopTaskContextPacketFixture,
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopMaterialFixture,
   semanticReviewLoopProjectAFixture,
   semanticReviewLoopProjectBFixture,
   type SemanticReviewLoopProjectFixtureV01,
 } from "@/fixtures/vnext/protocol/semantic-review-loop-v0-1";
-import { mapCodexSemanticReviewToEpisodeDeltaProposalV01 } from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -66,8 +65,6 @@ export interface SemanticTransitionLoopFixtureV01 {
   project: SemanticReviewLoopProjectFixtureV01;
   prior_packet: TaskContextPacketV01;
   run_receipt: RunReceiptV01;
-  preview_id: string;
-  preview_fingerprint: string;
   proposal: EpisodeDeltaProposalV01;
   decision: ReviewDecisionV01;
   current_state_observations: StateTransitionCurrentStateObservationV01[];
@@ -89,26 +86,9 @@ export {
 export function buildSemanticTransitionLoopFixtureV01(
   project: SemanticReviewLoopProjectFixtureV01,
 ): SemanticTransitionLoopFixtureV01 {
-  const priorPacket = buildSemanticReviewLoopTaskContextPacketFixture(project);
-  const mappingInput = semanticReviewLoopMapperInputFixture(
-    project,
-    priorPacket,
-  );
-  const mapping = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
-    deepFreeze(clone(mappingInput)),
-  );
-  if (
-    mapping.status !== "mapped" ||
-    !mapping.receipt ||
-    !mapping.proposal ||
-    !mapping.preview_id ||
-    !mapping.preview_fingerprint
-  ) {
-    throw new Error(
-      `Synthetic semantic transition fixture mapping failed: ${JSON.stringify(mapping)}`,
-    );
-  }
-  const proposal = mapping.proposal;
+  const material = buildSemanticReviewLoopMaterialFixture(project);
+  const priorPacket = material.prior_packet;
+  const proposal = material.proposal;
   const decision = buildReviewDecisionV01(
     deepFreeze(createSemanticTransitionDecisionInputV01(project, proposal)),
   );
@@ -158,17 +138,9 @@ export function buildSemanticTransitionLoopFixtureV01(
       packet_id: priorPacket.packet_id,
       fingerprint: priorPacket.integrity.fingerprint,
     },
-    source_record: {
-      report_id: mappingInput.source_record.report_id,
-      fingerprint: mappingInput.source_record.report_fingerprint,
-    },
     run_receipt: {
-      receipt_id: mapping.receipt.receipt_id,
-      fingerprint: mapping.receipt.integrity.fingerprint,
-    },
-    expected_observed_delta_preview: {
-      preview_id: mapping.preview_id,
-      fingerprint: mapping.preview_fingerprint,
+      receipt_id: material.run_receipt.receipt_id,
+      fingerprint: material.run_receipt.integrity.fingerprint,
     },
     episode_delta_proposal: {
       proposal_id: proposal.proposal_id,
@@ -201,9 +173,7 @@ export function buildSemanticTransitionLoopFixtureV01(
   return {
     project,
     prior_packet: priorPacket,
-    run_receipt: mapping.receipt,
-    preview_id: mapping.preview_id,
-    preview_fingerprint: mapping.preview_fingerprint,
+    run_receipt: material.run_receipt,
     proposal,
     decision,
     current_state_observations: currentStateObservations,

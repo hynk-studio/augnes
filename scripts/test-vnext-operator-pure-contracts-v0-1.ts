@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { publicSafeCommandSummaryV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
@@ -70,21 +70,60 @@ for (const command of [
 }
 record("live_codex_public_command_summary_preserves_safe_relative_commands");
 
-const directSource = readFileSync(
-  path.join(process.cwd(), "lib/vnext/runtime/direct-native-host-round-trip.ts"),
-  "utf8",
-);
-const routeSource = readFileSync(
-  path.join(process.cwd(), "app/api/vnext/operator/host-round-trip/route.ts"),
-  "utf8",
-);
-const laterResultSource = readFileSync(
-  path.join(
-    process.cwd(),
-    "lib/vnext/runtime/operator-pilot-later-result-intake.ts",
-  ),
-  "utf8",
-);
+const repositoryRoot = process.cwd();
+const removedPaths = [
+  "app/api/vnext/operator/packet-handoff/route.ts",
+  "app/api/vnext/operator/later-result/route.ts",
+  "app/api/vnext/operator/context-use-review/route.ts",
+  "app/api/intake/codex-result-report/records/route.ts",
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
+  "app/api/handoffs/generate/route.ts",
+  "app/api/handoffs/review/route.ts",
+  "app/api/workplane/handoff-packet-copy-exports/route.ts",
+  "app/workbench/semantic-review/packet-handoff/[packet_id]/page.tsx",
+  "components/codex-result-report-ingestion-panel.tsx",
+  "components/workbench/semantic-review/later-result-intake-panel.tsx",
+  "components/workbench/semantic-review/context-use-review-panel.tsx",
+  "lib/vnext/runtime/operator-pilot-later-result-intake.ts",
+  "lib/vnext/runtime/operator-pilot-context-use-review.ts",
+  "lib/vnext/task-context-packet-handoff.ts",
+  "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
+  "lib/dogfooding/codex-result-report-normalizer.ts",
+  "lib/handoff/handoff-capsule-source.ts",
+  "scripts/vnext-operator-pilot.ts",
+  "scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs",
+] as const;
+for (const relativePath of removedPaths) {
+  assert.equal(exists(relativePath), false, `${relativePath} must be retired`);
+}
+record("retired_native_host_transport_modules_and_routes_are_absent");
+
+const productionSources = readSourceTree([
+  "app",
+  "components",
+  "lib/vnext",
+  "apps/augnes_apps/src",
+  "apps/augnes_apps/public",
+]);
+for (const forbidden of [
+  "codexResultText",
+  "codexResultPaste",
+  "copyable_core_handoff_text",
+  "copyable_full_handoff_text",
+  "augnes_generate_codex_handoff_draft",
+  "augnes_review_codex_result_draft",
+  "augnes_get_handoff_capsule_preview",
+  "augnes_get_codex_launch_card_preview",
+]) {
+  assert.equal(productionSources.includes(forbidden), false, forbidden);
+}
+record("production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols");
+
+const directSource = source("lib/vnext/runtime/direct-native-host-round-trip.ts");
+const routeSource = source("app/api/vnext/operator/host-round-trip/route.ts");
+const normalizerSource = source("lib/vnext/native-host/native-host-result-normalization.ts");
+const writerSource = source("lib/vnext/persistence/structured-run-receipt-admission.ts");
 for (const forbidden of [
   "normalizeCodexResultReportV01",
   "codexResultText",
@@ -96,45 +135,59 @@ for (const forbidden of [
   assert.equal(directSource.includes(forbidden), false);
   assert.equal(routeSource.includes(forbidden), false);
 }
-assert.equal(directSource.includes("admitStructuredRunReceiptV01"), true);
-assert.equal(laterResultSource.includes("admitStructuredRunReceiptV01"), true);
-record("automatic_host_path_bypasses_legacy_text_parser_and_shares_receipt_writer");
+assert.equal(count(directSource, /admitStructuredRunReceiptV01\(/gu), 1);
+assert.equal(count(directSource, /normalizeNativeHostResultResidueV01\(/gu), 2);
+assert.equal(normalizerSource.includes("NativeHostResultV01"), true);
+assert.equal(count(writerSource, /insertVNextCoreRecordV01\(/gu), 1);
+assert.equal(
+  readSourceTree(["lib/vnext/native-host"]).includes("admitStructuredRunReceiptV01"),
+  false,
+);
+record("automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority");
 
-const directory = path.join(
-  process.cwd(),
-  "components/workbench/semantic-review",
+const taskContextSource = source("lib/vnext/task-context-packet.ts");
+const lineageSource = source(
+  "lib/vnext/runtime/operator-pilot-workbench-lineage.ts",
 );
-const session = readFileSync(path.join(directory, "operator-session-panel.tsx"), "utf8");
-const transition = readFileSync(
-  path.join(directory, "semantic-transition-actions.tsx"),
-  "utf8",
+const lineagePanel = source(
+  "components/workbench/semantic-review/durable-lineage-panel.tsx",
 );
-const proposalDetail = readFileSync(path.join(directory, "proposal-detail.tsx"), "utf8");
-const durableLineage = readFileSync(
-  path.join(directory, "durable-lineage-panel.tsx"),
-  "utf8",
+assert.equal(taskContextSource.includes("isTaskContextPacketIdV01"), true);
+assert.equal(taskContextSource.includes("TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01"), true);
+assert.equal(lineageSource.includes("packet_compiled"), true);
+assert.equal(lineageSource.includes("later_result"), false);
+assert.equal(lineageSource.includes("context_use_review"), false);
+assert.equal(lineagePanel.includes("Open exact packet handoff"), false);
+assert.equal(lineagePanel.includes("fetch("), false);
+assert.equal(lineagePanel.includes("<form"), false);
+record("packet_identity_is_absorbed_and_workbench_lineage_is_read_only");
+
+const packageScripts = JSON.stringify({
+  root: JSON.parse(source("package.json")).scripts,
+  nested: JSON.parse(source("apps/augnes_apps/package.json")).scripts,
+});
+for (const retiredCommand of [
+  "vnext:operator-pilot",
+  "codex:record-completion",
+  "codex:bind-session",
+  "codex:handoff-check",
+  "codex:record-result",
+]) {
+  assert.equal(packageScripts.includes(`"${retiredCommand}"`), false);
+}
+const canonicalSuite = source("scripts/run-canonical-test-suite.mjs");
+assert.equal(
+  canonicalSuite.includes("browser-validate-vnext-native-host-result-v0-1.mjs"),
+  true,
 );
-const laterResult = readFileSync(
-  path.join(directory, "later-result-intake-panel.tsx"),
-  "utf8",
+assert.equal(
+  canonicalSuite.includes("browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"),
+  false,
 );
-const contextReview = readFileSync(
-  path.join(directory, "context-use-review-panel.tsx"),
-  "utf8",
-);
-const packetPage = readFileSync(
-  path.join(
-    process.cwd(),
-    "app/workbench/semantic-review/packet-handoff/[packet_id]/page.tsx",
-  ),
-  "utf8",
-);
-const continuityCard = readFileSync(
-  path.join(
-    process.cwd(),
-    "components/human-surface/vnext-project-continuity-card.tsx",
-  ),
-  "utf8",
+record("package_and_canonical_graph_have_no_retired_manual_aliases");
+
+const session = source(
+  "components/workbench/semantic-review/operator-session-panel.tsx",
 );
 for (const marker of [
   "event.preventDefault();",
@@ -144,53 +197,10 @@ for (const marker of [
 ]) {
   assert.equal(session.includes(marker), true);
 }
-assert.equal(laterResult.includes('data-vnext-later-result-native-post="false"'), true);
-assert.equal(
-  contextReview.includes('data-vnext-context-use-review-native-post="false"'),
-  true,
-);
-for (const action of ["preview", "confirm", "commit", "compile"]) {
-  assert.match(
-    transition,
-    new RegExp(
-      `type="button"[\\s\\S]{0,160}data-vnext-transition-action="${action}"`,
-    ),
-  );
-}
-assert.equal(proposalDetail.includes("classification.pilot_actionable"), true);
-assert.equal(proposalDetail.includes("generic history · not pilot actionable"), true);
-for (const marker of [
-  'data-vnext-durable-lineage="v0.1"',
-  "Packet not compiled",
-  "Later result not recorded",
-  "Context use not reviewed",
-  "Helpfulness established",
-]) {
-  assert.equal(durableLineage.includes(marker), true);
-}
-for (const forbidden of ["fetch(", 'method: "POST"', "<button", "<form"]) {
-  assert.equal(durableLineage.includes(forbidden), false);
-}
-record("workbench_durable_lineage_panel_is_read_only_and_explicit");
-record("api_and_ui_share_session_bound_decision_actionability_policy");
-assert.equal(
-  packetPage.includes("decodeTaskContextPacketHandoffSlugV01(packetSlug)"),
-  true,
-);
-assert.equal(
-  continuityCard.includes("buildTaskContextPacketHandoffHrefV01(packet)"),
-  true,
-);
-assert.equal(packetPage.includes("task-context-packet~[a-f0-9]{24}"), false);
-assert.equal(continuityCard.includes("task-context-packet:[a-f0-9]{24}"), false);
-record("page_and_project_home_share_canonical_packet_handoff_identity");
-const combined = [
+const credentialSafeSources = [
   session,
-  transition,
-  proposalDetail,
-  durableLineage,
-  laterResult,
-  contextReview,
+  source("components/workbench/semantic-review/semantic-transition-actions.tsx"),
+  lineagePanel,
 ].join("\n");
 for (const forbidden of [
   "localStorage",
@@ -201,18 +211,58 @@ for (const forbidden of [
   "session_token_hash",
   "action_nonce_hash",
 ]) {
-  assert.equal(combined.includes(forbidden), false);
+  assert.equal(credentialSafeSources.includes(forbidden), false);
 }
 record("static_refresh_resubmit_and_credential_safety_markers_present");
+
+function source(relativePath: string): string {
+  return readFileSync(path.join(repositoryRoot, relativePath), "utf8");
+}
+
+function exists(relativePath: string): boolean {
+  try {
+    readFileSync(path.join(repositoryRoot, relativePath));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function readSourceTree(relativeRoots: string[]): string {
+  const extensions = new Set([".ts", ".tsx", ".js", ".mjs", ".html"]);
+  const files: string[] = [];
+  for (const relativeRoot of relativeRoots) {
+    walk(path.join(repositoryRoot, relativeRoot), files);
+  }
+  return files
+    .filter((file) => extensions.has(path.extname(file)))
+    .sort()
+    .map((file) => readFileSync(file, "utf8"))
+    .join("\n");
+}
+
+function walk(directory: string, files: string[]): void {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) walk(fullPath, files);
+    else if (entry.isFile()) files.push(fullPath);
+  }
+}
+
+function count(value: string, pattern: RegExp): number {
+  return [...value.matchAll(pattern)].length;
+}
 
 assert.equal(new Set(assertions).size, assertions.length);
 assert.deepEqual(assertions, [
   "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
   "live_codex_public_command_summary_preserves_safe_relative_commands",
-  "automatic_host_path_bypasses_legacy_text_parser_and_shares_receipt_writer",
-  "workbench_durable_lineage_panel_is_read_only_and_explicit",
-  "api_and_ui_share_session_bound_decision_actionability_policy",
-  "page_and_project_home_share_canonical_packet_handoff_identity",
+  "retired_native_host_transport_modules_and_routes_are_absent",
+  "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
+  "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
+  "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
+  "package_and_canonical_graph_have_no_retired_manual_aliases",
   "static_refresh_resubmit_and_credential_safety_markers_present",
 ]);
 process.stdout.write(

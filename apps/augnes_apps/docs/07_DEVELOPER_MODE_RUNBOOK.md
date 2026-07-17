@@ -70,26 +70,18 @@ https://<tunnel-host>/mcp
 }
 ```
 
-6. Ask ChatGPT for a state summary and verify it answers from `structuredContent.brief.agent_handoff`, especially:
+6. Ask ChatGPT for a state summary and verify it answers from the read-only
+   `structuredContent.brief` fields without exposing `agent_handoff` or packet
+   transport material.
 
-- `current_status`
-- `next_recommended_action`
-- `blockers_or_tensions`
+7. Use Project Home for native-host execution. The exact persisted
+   `TaskContextPacket` is delivered automatically and the structured result is
+   admitted as one project-scoped `RunReceipt`.
 
-7. Ask ChatGPT to generate a Codex handoff and verify it uses:
-
-- `codex_handoff.task_brief`
-- `codex_handoff.constraints`
-- `codex_handoff.verification_commands`
-- `codex_handoff.action_record_template`
-
-8. After Codex or a human completes the task, call `augnes_record_action_result` with a payload based on the handoff template.
-
-9. Verify the Temporal State Graph action node:
-
-- Refresh `http://localhost:3000`.
-- Confirm the external action is visible in the Runtime Cockpit graph.
-- Or fetch `/api/state/brief` again and confirm `recent_actions` reflects the recorded action.
+8. Do not use Developer Mode, `augnes_record_action_result`, clipboard text, or
+   free-form prose to transport a native-host packet or return a native-host
+   result. `augnes_record_action_result` remains a generic action-trace tool;
+   it is not a `RunReceipt` writer.
 
 ## HTTPS Exposure
 

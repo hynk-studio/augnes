@@ -85,7 +85,7 @@ import type { SelectedSessionDigestIngestRecordReview } from "./selected-session
 import type { SelectedSessionDigestIntakePreview } from "./selected-session-digest-intake-preview";
 import type { WorkEpisodeResidueCandidatePreview } from "./work-episode-residue-candidate-preview";
 import type { AppliedHandoffContextRead } from "@/lib/workplane/read-applied-handoff-context-for-web";
-import type { ExportedHandoffPacketArtifactRead } from "@/lib/workplane/read-exported-handoff-packet-artifact-for-web";
+import type { ExportedHandoffPacketArtifactRead } from "@/types/exported-handoff-packet-artifact-read";
 
 export const WORKBENCH_DOGFOOD_LOOP_SPINE_OVERVIEW_VERSION =
   "workbench_dogfood_loop_spine_overview.v0.1" as const;

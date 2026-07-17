@@ -6,9 +6,6 @@ import {
   uniqueCandidateIngressStringsV01,
 } from "@/lib/intake/candidate-ingress-normalizer";
 import {
-  calculateHandoffPacketExportedArtifactPayloadHashV01,
-} from "@/lib/workplane/handoff-packet-copy-export-preview";
-import {
   HANDOFF_PACKET_COPY_EXPORT_RECORD_REVIEW_VERSION,
 } from "@/types/handoff-packet-copy-export-record-review";
 import {
@@ -654,7 +651,7 @@ function validateExportedArtifact(artifact: HandoffPacketExportedArtifact): stri
   }
   if (
     artifact.payload_hash !==
-    calculateHandoffPacketExportedArtifactPayloadHashV01({
+    calculateHistoricalArtifactPayloadHashV01({
       packet_format: artifact.packet_format,
       markdown_payload: artifact.markdown_payload,
       json_payload: artifact.json_payload,
@@ -687,6 +684,24 @@ function validateExportedArtifact(artifact: HandoffPacketExportedArtifact): stri
     reasons.push("exported_handoff_packet_artifact_authority_boundary_invalid");
   }
   return reasons;
+}
+
+function calculateHistoricalArtifactPayloadHashV01(
+  artifact: Pick<
+    HandoffPacketExportedArtifact,
+    "markdown_payload" | "json_payload" | "capsule_payload" | "packet_format"
+  >,
+): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        packet_format: artifact.packet_format,
+        markdown_payload: artifact.markdown_payload,
+        json_payload: artifact.json_payload,
+        capsule_payload: artifact.capsule_payload,
+      }),
+    )
+    .digest("hex");
 }
 
 function isExportedArtifactLike(value: unknown): value is HandoffPacketExportedArtifact {

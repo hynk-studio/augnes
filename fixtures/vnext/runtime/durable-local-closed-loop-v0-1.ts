@@ -1,6 +1,6 @@
 import {
   buildSemanticReviewLoopTaskContextPacketFixture,
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopMaterialFixture,
   semanticReviewLoopProjectAFixture,
   semanticReviewLoopProjectBFixture,
   type SemanticReviewLoopProjectFixtureV01,
@@ -9,8 +9,6 @@ import {
   SEMANTIC_TRANSITION_DECIDED_AT,
   createSemanticTransitionDecisionInputV01,
 } from "@/fixtures/vnext/protocol/semantic-transition-loop-v0-1";
-import { mapCodexSemanticReviewToEpisodeDeltaProposalV01 } from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
-import type { CodexReviewEpisodeDeltaProposalInputV01 } from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
   createEpisodeDeltaProposalFingerprintV01,
   deriveEpisodeDeltaProposalIdV01,
@@ -74,10 +72,7 @@ export const durableLocalClosedLoopProjectBFixture =
 export interface DurableLocalClosedLoopM3APrefixFixtureV01 {
   project: SemanticReviewLoopProjectFixtureV01;
   prior_packet: TaskContextPacketV01;
-  mapper_input: CodexReviewEpisodeDeltaProposalInputV01;
   run_receipt: RunReceiptV01;
-  preview_id: string;
-  preview_fingerprint: string;
   proposal: EpisodeDeltaProposalV01;
   decision: ReviewDecisionV01;
 }
@@ -85,26 +80,11 @@ export interface DurableLocalClosedLoopM3APrefixFixtureV01 {
 export function buildDurableLocalClosedLoopM3APrefixFixtureV01(
   project: SemanticReviewLoopProjectFixtureV01,
 ): DurableLocalClosedLoopM3APrefixFixtureV01 {
-  const priorPacket = buildSemanticReviewLoopTaskContextPacketFixture(project);
-  const mapperInput = semanticReviewLoopMapperInputFixture(project, priorPacket);
-  const mapping = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
-    deepFreeze(clone(mapperInput)),
-  );
-  if (
-    mapping.status !== "mapped" ||
-    !mapping.receipt ||
-    !mapping.proposal ||
-    !mapping.preview_id ||
-    !mapping.preview_fingerprint
-  ) {
-    throw new Error(
-      `Durable local loop M3A prefix mapping failed: ${JSON.stringify(mapping)}`,
-    );
-  }
+  const material = buildSemanticReviewLoopMaterialFixture(project);
 
   const decision = buildReviewDecisionV01(
     deepFreeze(
-      createSemanticTransitionDecisionInputV01(project, mapping.proposal),
+      createSemanticTransitionDecisionInputV01(project, material.proposal),
     ),
   );
   const decisionValidation = validateReviewDecisionV01(decision);
@@ -116,7 +96,7 @@ export function buildDurableLocalClosedLoopM3APrefixFixtureV01(
   const decisionRelation =
     validateReviewDecisionAgainstEpisodeDeltaProposalV01(
       decision,
-      mapping.proposal,
+      material.proposal,
     );
   if (decisionRelation.status !== "valid") {
     throw new Error(
@@ -126,12 +106,9 @@ export function buildDurableLocalClosedLoopM3APrefixFixtureV01(
 
   return {
     project,
-    prior_packet: priorPacket,
-    mapper_input: mapperInput,
-    run_receipt: mapping.receipt,
-    preview_id: mapping.preview_id,
-    preview_fingerprint: mapping.preview_fingerprint,
-    proposal: mapping.proposal,
+    prior_packet: material.prior_packet,
+    run_receipt: material.run_receipt,
+    proposal: material.proposal,
     decision,
   };
 }

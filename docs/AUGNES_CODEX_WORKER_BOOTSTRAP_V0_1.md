@@ -17,12 +17,12 @@ Use this bootstrap at the start of an Augnes Codex worker session when:
 - the user asks Codex to use Augnes to find the next work item
 - the user gives only a scope such as `project:augnes`
 - the user asks for the current research capability preparation work item
-- a Core Handoff or live Work Brief was not pasted manually
+- a live Work Brief is unavailable and deterministic fallback discovery is needed
 - Codex needs to report honestly whether runtime Work Brief retrieval happened
 
-If the user already pasted a current Core Handoff or Full Context Handoff, use
-that handoff as the primary work contract and use this bootstrap only for
-cross-checking discovery or skipped-runtime reporting.
+When the native-host run starts from Project Home, the persisted
+`TaskContextPacket` is the primary execution context. This bootstrap remains a
+read-only discovery fallback; it does not export or transport that packet.
 
 ## Quick Start
 
@@ -138,8 +138,7 @@ The fallback sources are:
 - `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md` for
   `AG-RESEARCH-CAPABILITY-LANES-001`
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md` for
-  `AG-DOGFOOD-RESEARCH-001`
-- `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` for result return
+  historical `AG-DOGFOOD-RESEARCH-001` discovery context
 
 If runtime is not configured, the helper reports:
 
@@ -176,16 +175,12 @@ Discovery is successful when the helper can identify, without invention:
 - `expected_checks`
 - `stop_conditions`
 - `authority_boundary_summary`
-- `result_report_template`
 - `next_return_path`
 - `codex_worker_next_action`
 
 For `AG-RESEARCH-CAPABILITY-LANES-001`, the expected files and checks come
-from the seeded work item and repo docs. The related result report path is:
-
-```text
-docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md
-```
+from the seeded work item and repo docs. Result return is owned by the
+automatic native-host lifecycle, not a repo template.
 
 ## What Counts As Blocked
 
@@ -212,7 +207,6 @@ The helper output includes these fields:
 - `expected_checks`
 - `stop_conditions`
 - `authority_boundary_summary`
-- `result_report_template`
 - `next_return_path`
 - `codex_worker_next_action`
 
@@ -249,12 +243,9 @@ Codex final reports must include which discovery path was used. If fallback was
 used, the report should state that runtime Work Brief retrieval was skipped or
 failed with the concrete reason.
 
-Use field-first reporting compatible with `codexResultText` and
-`codexResultPaste`. The recommended report template is:
-
-```text
-docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md
-```
+Native-host results return automatically through the structured host contract,
+complete receipt normalizer, canonical `RunReceipt` writer, and project result
+readers. Do not copy a packet or paste a result report into Augnes.
 
 Do not claim live runtime, MCP Inspector, ChatGPT Developer Mode, proof/evidence
 rows, event rows, work-status changes, state commits, GitHub review actions, or
@@ -288,7 +279,7 @@ This bootstrap adds a read-only Codex worker discovery path. It adds:
 - no widening of the `work_loop_readonly` Developer Mode tool surface
 
 Those omissions describe the bootstrap helper itself. They are not blanket
-development prohibitions when a user, Work Brief, Core Handoff, or seeded
+development prohibitions when a user, Work Brief, persisted packet, or seeded
 work item provides a bounded implementation scope.
 
 ## Skipped Checks Policy
@@ -313,11 +304,11 @@ tools, widen `work_loop_readonly`, execute Codex automatically, fetch GitHub
 automatically, submit GitHub reviews, merge, publish, retry, replay, deploy, or
 create PRs. Those omissions describe this bootstrap and the current
 discovery helper; they are not blanket development prohibitions when a user,
-Work Brief, Core Handoff, or seeded work item provides a bounded product scope.
+Work Brief, persisted packet, or seeded work item provides a bounded product scope.
 
 ## Next Recommended Step
 
 Run the bootstrap helper, use a live Work Brief when available, otherwise use
-the reported deterministic fallback honestly. After completing the bounded
-work, return a field-first report through `codexResultText` or
-`codexResultPaste` for Augnes preview review.
+the reported deterministic fallback honestly. Normal native-host work should
+start from Project Home so the exact persisted packet and structured result are
+admitted automatically without manual transport.

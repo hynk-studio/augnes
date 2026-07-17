@@ -9,7 +9,7 @@
 
 import type { AppliedCurrentWorkingPerspectiveRead } from "@/lib/perspective/read-applied-current-working-perspective-for-web";
 import type { AppliedHandoffContextRead } from "@/lib/workplane/read-applied-handoff-context-for-web";
-import type { ExportedHandoffPacketArtifactRead } from "@/lib/workplane/read-exported-handoff-packet-artifact-for-web";
+import type { ExportedHandoffPacketArtifactRead } from "@/types/exported-handoff-packet-artifact-read";
 import type { SentHandoffReadForWeb } from "@/lib/workplane/read-sent-handoff-for-web";
 import type { CurrentWorkingPerspectiveRouteIntegrationRead } from "./current-working-perspective-route-integration-read";
 import type { CurrentWorkingPerspectiveApplyRecordReview } from "./current-working-perspective-apply-record-review";

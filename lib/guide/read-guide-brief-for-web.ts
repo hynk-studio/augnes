@@ -22,7 +22,7 @@ const GUIDE_BRIEF_WEB_NEXT_PHASE_NOTES = [
   "Web Guide display uses a public-safe fallback unless an explicit local read-only request context passes the Phase 6B GuideBrief route guard.",
   "Phase 6D ChatGPT App/MCP Guide tool remains deferred.",
   "Phase 6E Codex Guide alignment remains deferred.",
-  "Phase 7 Handoff Capsule / Codex Launch Card remains deferred.",
+  "Manual Handoff Capsule / Codex Launch Card transport is retired; Project Home owns automatic native-host execution.",
 ] as const;
 
 const GUIDE_BRIEF_SAMPLE = guideBriefSample as unknown as GuideBrief;

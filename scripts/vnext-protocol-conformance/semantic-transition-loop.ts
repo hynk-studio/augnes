@@ -15,10 +15,10 @@ import {
 } from "@/fixtures/vnext/protocol/semantic-transition-loop-v0-1";
 import { malformedStateTransitionReceiptRelationCases } from "@/fixtures/vnext/protocol/state-transition-receipt-v0-1";
 import {
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopProposalFixture,
+  buildSemanticReviewLoopRunReceiptFixture,
   semanticReviewLoopTaskContextPacketRefFixture,
 } from "@/fixtures/vnext/protocol/semantic-review-loop-v0-1";
-import { mapCodexSemanticReviewToEpisodeDeltaProposalV01 } from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -76,36 +76,36 @@ import type {
 } from "@/types/vnext/task-context-packet";
 
 const FIXED_M3A_PACKET_ID =
-  "task-context-packet:48744fbc61de66cccc842ce";
+  "task-context-packet:53f496e3feb55c658bb8a5e";
 const FIXED_M3A_PACKET_FINGERPRINT =
-  "sha256:41c48fa7f65307aa7d5252d915a2d02bd598b5b598b15b572291659b48e4dde6";
-const FIXED_M3A_RECEIPT_ID = "run-receipt:99832d13d879f2dfc11a5fd7";
+  "sha256:80398042586217fc4ac89c738f7f4758ea7629a6a0acc8c2872ee4ef914a4775";
+const FIXED_M3A_RECEIPT_ID = "run-receipt:e0d1e5a9fe5d29f2bbe2e032";
 const FIXED_M3A_RECEIPT_FINGERPRINT =
-  "sha256:e88c7c064ddfc13dcd2745d7cf4b8141a3af573c9445679c1cc9e6b3ce0e13e0";
+  "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59";
 const FIXED_M3A_PROPOSAL_ID =
-  "episode-delta-proposal:99020be7537921e4e30322b9";
+  "episode-delta-proposal:a133e0286aafb0afc93a594d";
 const FIXED_M3A_PROPOSAL_FINGERPRINT =
-  "sha256:2c2cf3565475ba8742fa30468384f7cf1ca367cc9a897665e9e681adfdb41722";
-const FIXED_M3A_DECISION_ID = "review-decision:9e94b4e1388ec4ecce65a297";
+  "sha256:0b0205f4ed9d8d2375b8c9b9776b975ea823722f3c4368ef7c2fdd3f97ab8a20";
+const FIXED_M3A_DECISION_ID = "review-decision:3a5a42913e2b44d5f99cad44";
 const FIXED_M3A_DECISION_FINGERPRINT =
-  "sha256:d1eb8570d045241932d292e28187102a1e8e3fd2fc11559a59ca726215e3bca8";
+  "sha256:87b51329bf19a43024ebd7e0a9f817cefc3685763b15a3677f1494e2a816b5d4";
 const FIXED_M3A_CHAIN_FINGERPRINT =
-  "sha256:519976b1af43b0ef7617855bf637fd85e4caf06ba86f6750e4451c4da8f9f1d9";
+  "sha256:160e48e92527010db75142e6e28a34b2ac46c54cfb42079455a81e1d02d1e141";
 
 const FIXED_M3B_TRANSITION_RECEIPT_ID =
-  "state-transition-receipt:86343267dc4e847d3b39919e";
+  "state-transition-receipt:455c52f944b46e5c431fe9f3";
 const FIXED_M3B_IDEMPOTENCY_KEY =
-  "sha256:f5b580e5a0b022e803eff5727eb8e30d6ff9c363be1e771d286b77de91db5ea1";
+  "sha256:0a5210d3dfb24c4cddf4c53231ad03a2d799b08bbb64eb11778ef74e2f403973";
 const FIXED_M3B_TRANSITION_RECEIPT_FINGERPRINT =
-  "sha256:cdfc472aaf7c7ca0504a3532ca1a9e13fb2501d015ccf62d6706878fe20eaf06";
+  "sha256:108b1f5bf14097a9cfdf8ee947c65314033c432bf175b1f90625956c155f8dde";
 const FIXED_M3B_ELIGIBILITY_PRECONDITION_FINGERPRINT =
-  "sha256:8c318675c6520faa3af9e01a3dca45729f80df0b5cf630af1e6c830a3073038e";
+  "sha256:450100a72a43b00fe1136a3f21e316f1cb4ada608ec8776e0aabe74fbdd19072";
 const FIXED_LATER_PACKET_ID =
-  "task-context-packet:a8fd8df68b213398569213e";
+  "task-context-packet:7c9bc3223d1d0b6880e3eb3";
 const FIXED_LATER_PACKET_FINGERPRINT =
-  "sha256:5ddac613e0a0d092897c7e178ffea798b24b5a2ddf7a6a4025271201d4332e9c";
+  "sha256:c46261a9d99675cc2e44374afeca9406b1dab054df9cef862f973bacc5dda43b";
 const FIXED_M3B_CHAIN_FINGERPRINT =
-  "sha256:505296178859b76366f9ea1a85b3181992ce93e567edd8de098cc7fa969c27b9";
+  "sha256:476b09e067b31e05d7bc1cb755ad6cd44c17b021711dbe8c8ac7f171fd9c0230";
 const LINEAGE_DECIDED_AT = "2026-07-10T13:25:00.000Z";
 const LINEAGE_CURRENT_STATE_OBSERVED_AT = "2026-07-10T13:26:00.000Z";
 const LINEAGE_GATE_EVALUATED_AT = "2026-07-10T13:27:00.000Z";
@@ -629,17 +629,15 @@ function buildIntegratedPresentScenario(
     source.prior_packet,
     provisionalObservations,
   );
-  const mappingInput = semanticReviewLoopMapperInputFixture(
+  const runReceipt = buildSemanticReviewLoopRunReceiptFixture(
     source.project,
     priorPacket,
   );
-  const mapping = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
-    deepFreeze(clone(mappingInput)),
+  const proposal = buildSemanticReviewLoopProposalFixture(
+    source.project,
+    priorPacket,
+    runReceipt,
   );
-  assert.equal(mapping.status, "mapped", JSON.stringify(mapping, null, 2));
-  assert.ok(mapping.receipt);
-  assert.ok(mapping.proposal);
-  const proposal = mapping.proposal;
   const acceptedPriorDecision = buildReviewDecisionV01(
     createSemanticTransitionDecisionInputV01(source.project, proposal),
   );
@@ -664,7 +662,7 @@ function buildIntegratedPresentScenario(
   );
   const scenario = buildScenarioFromMaterial(
     source,
-    mapping.receipt,
+    runReceipt,
     proposal,
     decision,
     observations,

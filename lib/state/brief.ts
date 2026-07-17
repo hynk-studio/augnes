@@ -131,7 +131,7 @@ function buildAgentHandoff({
         "Do not change commit/reject behavior or add lifecycle states.",
         "Do not add auth, OAuth, multi-user, hosted deployment, or ChatGPT App write tools.",
         "Do not commit secrets, .env files, local SQLite files, generated outputs, screenshots, or unrelated files.",
-        "Record Codex closeout proof through codex:record-completion-proof; use codex:record-completion only as documented compatibility behavior.",
+        "Record optional operator closeout proof through codex:record-completion-proof; native-host results return automatically as canonical RunReceipts.",
       ],
       likely_files: [
         "lib/state/brief.ts",

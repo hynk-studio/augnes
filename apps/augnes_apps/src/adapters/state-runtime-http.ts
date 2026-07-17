@@ -3,14 +3,10 @@ import {
   ActionRecordResultSchema,
   AutonomyContractPreviewResultSchema,
   AutonomyRunnerPreflightPreviewResultSchema,
-  CodexLaunchCardPreviewResultSchema,
-  CodexResultReviewDraftSchema,
   ConstellationPreviewResultSchema,
   ControlPacketSchema,
   EvidencePackResultSchema,
-  GeneratedHandoffDraftSchema,
   GuideBriefResultSchema,
-  HandoffCapsulePreviewResultSchema,
   MailboxSummaryResultSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
@@ -27,15 +23,10 @@ import {
   type ActionRecordResult,
   type AutonomyContractPreviewResult,
   type AutonomyRunnerPreflightPreviewResult,
-  type CodexLaunchCardPreviewResult,
-  type CodexResultReviewDraft,
   type ConstellationPreviewResult,
   type ControlPacket,
   type EvidencePackResult,
   type GuideBriefResult,
-  type HandoffCapsulePreviewResult,
-  type GeneratedHandoffDraft,
-  type GenerateHandoffDraftInput,
   type MailboxSummaryResult,
   type ObserveResult,
   type PlanResult,
@@ -46,9 +37,7 @@ import {
   type StateRuntimeAutonomyContractPreviewInput,
   type StateRuntimeAutonomyRunnerPreflightInput,
   type StateRuntimeBridgeAdapter,
-  type StateRuntimeCodexLaunchCardPreviewInput,
   type StateRuntimeEvidencePackInput,
-  type StateRuntimeHandoffCapsulePreviewInput,
   type StateRuntimeLimit,
   type StateRuntimePlanInput,
   type StateRuntimeObserveInput,
@@ -57,7 +46,6 @@ import {
   type StateRuntimeSessionTraceInput,
   type StateRuntimeVerificationEvidenceRecordsInput,
   type StateRuntimeWorkEventInput,
-  type ReviewCodexResultDraftInput,
   type VerificationEvidenceRecordsResult,
   type WorkBrief,
   type WorkEventResult,
@@ -69,10 +57,6 @@ const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER = "constellation-preview-v0.1";
 const GUIDE_BRIEF_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const GUIDE_BRIEF_LOCAL_READ_MARKER = "guide-brief-v0.1";
-const HANDOFF_CAPSULE_LOCAL_READ_HEADER = "x-augnes-local-readonly";
-const HANDOFF_CAPSULE_LOCAL_READ_MARKER = "handoff-capsule-v0.1";
-const CODEX_LAUNCH_CARD_LOCAL_READ_HEADER = "x-augnes-local-readonly";
-const CODEX_LAUNCH_CARD_LOCAL_READ_MARKER = "codex-launch-card-v0.1";
 const AUTONOMY_CONTRACT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const AUTONOMY_CONTRACT_LOCAL_READ_MARKER = "autonomy-contract-v0.1";
 const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
@@ -82,8 +66,6 @@ const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
   constellationPreview: { method: "GET", path: "/api/augnes/read/constellation-preview" },
   guideBrief: { method: "GET", path: "/api/augnes/read/guide-brief" },
-  handoffCapsulePreview: { method: "GET", path: "/api/augnes/read/handoff-capsule" },
-  codexLaunchCardPreview: { method: "GET", path: "/api/augnes/read/codex-launch-card" },
   autonomyContractPreview: { method: "GET", path: "/api/augnes/read/autonomy-contract" },
   autonomyRunnerPreflight: { method: "GET", path: "/api/augnes/read/autonomy-runner-preflight" },
   evidencePack: { method: "GET", path: "/api/evidence-pack" },
@@ -97,8 +79,6 @@ const endpointContract = {
   workItems: { method: "GET", path: "/api/work" },
   workBrief: { method: "GET", path: "/api/work" },
   recordWorkEvent: { method: "POST", path: "/api/work" },
-  generateHandoffDraft: { method: "POST", path: "/api/handoffs/generate" },
-  reviewCodexResultDraft: { method: "POST", path: "/api/handoffs/review" },
   mailboxSummary: { method: "GET", path: "/api/mailbox/summary" },
   publicationSummary: { method: "GET", path: "/api/publications/summary" },
   controlPacket: { method: "GET", path: "/api/control/brief" },
@@ -238,39 +218,6 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
         query: { scope: parseScope(scope) },
         headers: {
           [GUIDE_BRIEF_LOCAL_READ_HEADER]: GUIDE_BRIEF_LOCAL_READ_MARKER,
-        },
-      }
-    );
-  }
-
-  async getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult> {
-    return this.requestJson(
-      endpointContract.handoffCapsulePreview.method,
-      endpointContract.handoffCapsulePreview.path,
-      HandoffCapsulePreviewResultSchema,
-      "handoff capsule preview",
-      {
-        query: {
-          scope: parseScope(input.scope),
-          target: input.target,
-        },
-        headers: {
-          [HANDOFF_CAPSULE_LOCAL_READ_HEADER]: HANDOFF_CAPSULE_LOCAL_READ_MARKER,
-        },
-      }
-    );
-  }
-
-  async getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult> {
-    return this.requestJson(
-      endpointContract.codexLaunchCardPreview.method,
-      endpointContract.codexLaunchCardPreview.path,
-      CodexLaunchCardPreviewResultSchema,
-      "codex launch card preview",
-      {
-        query: { scope: parseScope(input.scope) },
-        headers: {
-          [CODEX_LAUNCH_CARD_LOCAL_READ_HEADER]: CODEX_LAUNCH_CARD_LOCAL_READ_MARKER,
         },
       }
     );
@@ -525,60 +472,6 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       `${endpointContract.recordWorkEvent.path}/${encodeURIComponent(normalizedWorkId)}/events`,
       WorkEventResultSchema,
       "work event",
-      { body }
-    );
-  }
-
-  async generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft> {
-    const normalizedWorkId = input.workId.trim().toUpperCase();
-    if (!normalizedWorkId) {
-      throw new AugnesStateRuntimeHttpError("Augnes work_id is required.");
-    }
-
-    const body: Record<string, unknown> = {
-      scope: parseScope(input.scope),
-      work_id: normalizedWorkId,
-    };
-
-    if (input.targetAgent) body.target_agent = input.targetAgent;
-    if (input.createdBy) body.created_by = input.createdBy;
-
-    return this.requestJson(
-      endpointContract.generateHandoffDraft.method,
-      endpointContract.generateHandoffDraft.path,
-      GeneratedHandoffDraftSchema,
-      "handoff draft",
-      { body }
-    );
-  }
-
-  async reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft> {
-    const handoffId = input.handoffId.trim();
-    if (!handoffId) {
-      throw new AugnesStateRuntimeHttpError("Augnes handoffId is required.");
-    }
-
-    const body: Record<string, unknown> = {
-      scope: parseScope(input.scope),
-      handoff_id: handoffId,
-      result_summary: input.resultSummary,
-      actual_files_changed: input.actualFilesChanged ?? [],
-      actual_state_keys: input.actualStateKeys ?? [],
-      actual_checks: input.actualChecks ?? [],
-      actual_execution_surfaces: input.actualExecutionSurfaces ?? [],
-      blockers_or_failures: input.blockersOrFailures ?? [],
-      skipped_checks: input.skippedChecks ?? [],
-    };
-
-    if (input.resultStatus) body.result_status = input.resultStatus;
-    if (input.resultKind) body.result_kind = input.resultKind;
-    if (input.relatedPr) body.related_pr = input.relatedPr;
-
-    return this.requestJson(
-      endpointContract.reviewCodexResultDraft.method,
-      endpointContract.reviewCodexResultDraft.path,
-      CodexResultReviewDraftSchema,
-      "Codex result review draft",
       { body }
     );
   }

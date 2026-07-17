@@ -1,6 +1,6 @@
 ---
 name: augnes-closeout-proof
-description: Close out Codex work with proof-only completion using existing helpers while avoiding legacy committed marker-state behavior by default.
+description: Close out Codex work with the proof-only completion helper when runtime and work context are available.
 ---
 
 # Augnes Closeout Proof
@@ -31,11 +31,9 @@ the user asks for Augnes proof recording.
 
 1. Confirm verification results and skipped checks.
 2. Confirm runtime and `CODEX_WORK_ID`.
-3. Prefer `npm run codex:record-completion-proof`.
+3. Use `npm run codex:record-completion-proof`.
 4. Use returned action/work event IDs only from helper output.
-5. Treat `npm run codex:record-completion` as legacy compatibility only unless
-   explicitly instructed.
-6. If proof-only closeout cannot run, state the exact skipped reason.
+5. If proof-only closeout cannot run, state the exact skipped reason.
 
 ## Commands
 
@@ -51,12 +49,6 @@ CODEX_RESULT_KIND=documentation \
 CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/___" \
 CODEX_RELATED_STATE_KEYS="coordination.example" \
 npm run codex:record-completion-proof
-```
-
-Legacy compatibility only when explicitly instructed:
-
-```bash
-npm run codex:record-completion
 ```
 
 ## Expected Output
@@ -82,6 +74,6 @@ merge, auto-merge, or durable user/Core decision.
 ## Forbidden Actions
 
 - Creating or implying committed Augnes state.
-- Treating `codex:record-completion` as the default path.
+- Creating a second native-host result or receipt authority.
 - Fabricating action IDs, work event IDs, evidence IDs, PR refs, or state keys.
 - Merging PRs, enabling auto-merge, or claiming merge authority.

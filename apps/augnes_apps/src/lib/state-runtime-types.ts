@@ -1013,21 +1013,6 @@ export const GuideBriefResultSchema = z
   })
   .passthrough();
 
-export const HandoffCapsulePreviewToolInputSchema = z
-  .object({
-    scope: z.string().min(1).optional(),
-    target: z.string().min(1).optional(),
-    compact: z.boolean().optional(),
-  })
-  .strip();
-
-export const CodexLaunchCardPreviewToolInputSchema = z
-  .object({
-    scope: z.string().min(1).optional(),
-    compact: z.boolean().optional(),
-  })
-  .strip();
-
 export const AutonomyContractPreviewToolInputSchema = z
   .object({
     scope: z.string().min(1).optional(),
@@ -1042,112 +1027,6 @@ export const AutonomyRunnerPreflightToolInputSchema = z
     include_boundary: z.boolean().optional(),
   })
   .strip();
-
-export const HandoffPreviewAuthorityBoundarySchema = z
-  .object({
-    can_execute_codex: z.literal(false),
-    can_launch_codex: z.literal(false),
-    can_send_handoff: z.literal(false),
-    can_create_branch_or_pr: z.literal(false),
-    can_call_github: z.literal(false),
-    can_call_openai_or_provider: z.literal(false),
-    can_record_proof: z.literal(false),
-    can_create_evidence: z.literal(false),
-    can_mutate_memory: z.literal(false),
-    can_apply_project_perspective: z.literal(false),
-    can_merge: z.literal(false),
-    can_retry_replay_deploy: z.literal(false),
-    can_create_mcp_tool: z.literal(false),
-    can_create_ui_action: z.literal(false),
-    can_post_external_comment: z.literal(false),
-  })
-  .passthrough();
-
-export const HandoffCapsulePreviewPacketSchema = z
-  .object({
-    runtime: z.literal("augnes"),
-    capsule_version: z.string(),
-    scope: z.string(),
-    title: z.string(),
-    summary: z.string(),
-    target_surface: z.string(),
-    target_actor: z.string(),
-    handoff_intent: z.string(),
-    status: z.string(),
-    observed_context: z.array(z.unknown()),
-    inferred_context: z.array(z.unknown()),
-    suggested_context: z.array(z.unknown()),
-    needs_user_judgment: z.array(z.unknown()),
-    authority_boundary: HandoffPreviewAuthorityBoundarySchema,
-  })
-  .passthrough();
-
-export const CodexLaunchCardPreviewPacketSchema = z
-  .object({
-    runtime: z.literal("augnes"),
-    card_version: z.string(),
-    scope: z.string(),
-    repo: z.string(),
-    base_branch: z.string(),
-    branch_suggestion: z.string(),
-    expected_pr_title: z.string(),
-    task_goal: z.string(),
-    task_summary: z.string(),
-    status: z.string(),
-    observed_context: z.array(z.unknown()),
-    inferred_context: z.array(z.unknown()),
-    suggestions_for_codex: z.array(z.unknown()),
-    unresolved_user_judgment: z.array(z.unknown()),
-    expected_files: z.array(z.string()),
-    forbidden_files: z.array(z.string()),
-    required_checks: z.array(z.string()),
-    skipped_check_policy: z.array(z.string()),
-    pr_body_requirements: z.array(z.string()),
-    final_report_requirements: z.array(z.string()),
-    proof_evidence_boundary: z.array(z.string()),
-    authority_boundary: HandoffPreviewAuthorityBoundarySchema,
-  })
-  .passthrough();
-
-export const HandoffPreviewSourceStatusSchema = z
-  .object({
-    guide_brief: z.string().optional(),
-    capsule: z.string().optional(),
-    launch_card: z.string().optional(),
-    synthetic_operator_supplied_fields: z.array(z.string()).optional(),
-    source_disclosure: z.string().optional(),
-  })
-  .passthrough();
-
-export const HandoffCapsulePreviewResultSchema = z
-  .object({
-    response_version: z.string(),
-    runtime: z.literal("augnes"),
-    scope: z.string(),
-    route_id: z.string(),
-    route_family: z.string(),
-    capsule: HandoffCapsulePreviewPacketSchema,
-    route_authority_boundary: z.array(z.string()),
-    source_status: HandoffPreviewSourceStatusSchema,
-    warnings: z.array(z.unknown()).optional(),
-    gaps: z.array(z.unknown()).optional(),
-  })
-  .passthrough();
-
-export const CodexLaunchCardPreviewResultSchema = z
-  .object({
-    response_version: z.string(),
-    runtime: z.literal("augnes"),
-    scope: z.string(),
-    route_id: z.string(),
-    route_family: z.string(),
-    launch_card: CodexLaunchCardPreviewPacketSchema,
-    route_authority_boundary: z.array(z.string()),
-    source_status: HandoffPreviewSourceStatusSchema,
-    warnings: z.array(z.unknown()).optional(),
-    gaps: z.array(z.unknown()).optional(),
-  })
-  .passthrough();
 
 export const AutonomyPreviewAuthorityBoundarySchema = z
   .object({
@@ -1366,116 +1245,6 @@ export const WorkEventResultSchema = z
   })
   .passthrough();
 
-export const HandoffRecordSchema = z
-  .object({
-    handoff_id: z.string(),
-    scope: z.string(),
-    work_id: z.string().nullable(),
-    source_state_brief_ref: z.string().nullable(),
-    source_work_brief_ref: z.string().nullable(),
-    target_agent: z.string(),
-    status: z.string(),
-    current_committed_state_summary: z.string(),
-    task_brief: z.string(),
-    expected_files: z.array(z.string()),
-    expected_state_keys: z.array(z.string()),
-    expected_checks: z.array(z.string()),
-    expected_execution_surfaces: z.array(z.string()),
-    safety_boundaries: z.array(z.string()),
-    completion_record_fields: z.record(z.unknown()),
-    created_by: z.string(),
-    created_at: z.string(),
-    updated_at: z.string(),
-    supersedes_handoff_id: z.string().nullable(),
-  })
-  .passthrough();
-
-export const GeneratedHandoffDraftSchema = z
-  .object({
-    scope: z.string(),
-    handoff: HandoffRecordSchema,
-    packet_text: z.string(),
-  })
-  .passthrough();
-
-export const AxisReviewSchema = z
-  .object({
-    expected: z.array(z.string()),
-    actual: z.array(z.string()),
-    missing: z.array(z.string()),
-    unexpected: z.array(z.string()),
-    match: z.enum(["yes", "no", "partial"]),
-  })
-  .passthrough();
-
-export const CodexResultReviewSchema = z
-  .object({
-    review_id: z.string(),
-    handoff_id: z.string(),
-    files: AxisReviewSchema,
-    state_keys: AxisReviewSchema,
-    checks: AxisReviewSchema.extend({
-      skipped: z.array(
-        z
-          .object({
-            check: z.string(),
-            reason: z.string(),
-          })
-          .passthrough()
-      ),
-    }).passthrough(),
-    execution_surfaces: AxisReviewSchema,
-    files_match: z.enum(["yes", "no", "partial"]),
-    state_keys_match: z.enum(["yes", "no", "partial"]),
-    checks_match: z.enum(["yes", "no", "partial"]),
-    execution_surfaces_match: z.enum(["yes", "no", "partial"]),
-    mismatch_or_follow_up: z.array(z.string()),
-    recommended_result_status: StateRuntimeActionResultStatusSchema,
-    recommended_result_kind: StateRuntimeActionResultKindSchema,
-    safety_boundary_notes: z.array(z.string()),
-  })
-  .passthrough();
-
-export const ActionRecordDraftSchema = z
-  .object({
-    scope: z.string(),
-    source_agent_id: z.string(),
-    action_name: z.string(),
-    result_summary: z.string(),
-    files_changed: z.array(z.string()),
-    result_status: StateRuntimeActionResultStatusSchema,
-    result_kind: StateRuntimeActionResultKindSchema,
-    work_id: z.string().nullable(),
-    related_state_keys: z.array(z.string()),
-    related_pr: z.string().optional(),
-  })
-  .passthrough();
-
-export const WorkEventDraftSchema = z
-  .object({
-    scope: z.string(),
-    work_id: z.string().nullable(),
-    actor: z.string(),
-    event_type: z.string(),
-    summary: z.string(),
-    result_status: StateRuntimeActionResultStatusSchema,
-    result_kind: StateRuntimeActionResultKindSchema,
-    related_action_id: z.string().nullable(),
-    related_pr: z.string().optional(),
-    related_state_keys: z.array(z.string()),
-  })
-  .passthrough();
-
-export const CodexResultReviewDraftSchema = z
-  .object({
-    scope: z.string(),
-    handoff: HandoffRecordSchema,
-    review: CodexResultReviewSchema,
-    action_record_draft: ActionRecordDraftSchema,
-    work_event_draft: WorkEventDraftSchema,
-  })
-  .passthrough();
-
 export const MailboxSummaryItemSchema = z
   .object({
     message_id: z.string(),
@@ -1691,14 +1460,9 @@ export type VerificationEvidenceRecord = z.infer<typeof VerificationEvidenceReco
 export type VerificationEvidenceRecordsResult = z.infer<typeof VerificationEvidenceRecordsResultSchema>;
 export type ConstellationPreviewResult = z.infer<typeof ConstellationPreviewResultSchema>;
 export type GuideBriefResult = z.infer<typeof GuideBriefResultSchema>;
-export type HandoffCapsulePreviewResult = z.infer<typeof HandoffCapsulePreviewResultSchema>;
-export type CodexLaunchCardPreviewResult = z.infer<typeof CodexLaunchCardPreviewResultSchema>;
 export type AutonomyContractPreviewResult = z.infer<typeof AutonomyContractPreviewResultSchema>;
 export type AutonomyRunnerPreflightPreviewResult = z.infer<typeof AutonomyRunnerPreflightPreviewResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
-export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
-export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
-export type CodexResultReviewDraft = z.infer<typeof CodexResultReviewDraftSchema>;
 export type MailboxSummaryResult = z.infer<typeof MailboxSummaryResultSchema>;
 export type PublicationSummaryResult = z.infer<typeof PublicationSummaryResultSchema>;
 export type ControlPacket = z.infer<typeof ControlPacketSchema>;
@@ -1754,15 +1518,6 @@ export interface StateRuntimeVerificationEvidenceRecordsInput {
   limit?: StateRuntimeLimit;
 }
 
-export interface StateRuntimeHandoffCapsulePreviewInput {
-  scope: StateRuntimeScope;
-  target: string;
-}
-
-export interface StateRuntimeCodexLaunchCardPreviewInput {
-  scope: StateRuntimeScope;
-}
-
 export interface StateRuntimeAutonomyContractPreviewInput {
   scope: StateRuntimeScope;
 }
@@ -1794,34 +1549,10 @@ export interface StateRuntimeWorkEventInput {
   relatedStateKeys?: string[];
 }
 
-export interface GenerateHandoffDraftInput {
-  scope: StateRuntimeScope;
-  workId: string;
-  targetAgent?: string;
-  createdBy?: string;
-}
-
-export interface ReviewCodexResultDraftInput {
-  scope: StateRuntimeScope;
-  handoffId: string;
-  actualFilesChanged?: string[];
-  actualStateKeys?: string[];
-  actualChecks?: string[];
-  actualExecutionSurfaces?: string[];
-  resultStatus?: StateRuntimeActionResultStatus;
-  resultKind?: StateRuntimeActionResultKind;
-  resultSummary: string;
-  relatedPr?: string;
-  blockersOrFailures?: string[];
-  skippedChecks?: Array<string | { check: string; reason: string }>;
-}
-
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
   getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult>;
-  getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult>;
-  getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult>;
   getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult>;
   getAutonomyRunnerPreflight(input: StateRuntimeAutonomyRunnerPreflightInput): Promise<AutonomyRunnerPreflightPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
@@ -1836,8 +1567,6 @@ export interface StateRuntimeBridgeAdapter {
   listWorkItems(scope: StateRuntimeScope): Promise<WorkItem[]>;
   getWorkBrief(scope: StateRuntimeScope, workId: string): Promise<WorkBrief>;
   recordWorkEvent(input: StateRuntimeWorkEventInput): Promise<WorkEventResult>;
-  generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft>;
-  reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft>;
   getMailboxSummary(scope: StateRuntimeScope): Promise<MailboxSummaryResult>;
   getPublicationSummary(scope: StateRuntimeScope): Promise<PublicationSummaryResult>;
   getControlPacket(scope: StateRuntimeScope): Promise<ControlPacket>;

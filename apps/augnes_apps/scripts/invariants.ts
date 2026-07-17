@@ -19,8 +19,6 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
-  "augnes_get_handoff_capsule_preview",
-  "augnes_get_codex_launch_card_preview",
   "augnes_get_autonomy_contract_preview",
   "augnes_get_autonomy_runner_preflight",
   "augnes_get_evidence_pack",
@@ -31,8 +29,6 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_record_action_result",
   "augnes_list_pending_proposals",
   "augnes_record_work_event",
-  "augnes_generate_codex_handoff_draft",
-  "augnes_review_codex_result_draft",
   "augnes_get_mailbox_summary",
   "augnes_get_publication_summary",
   "augnes_get_publication_decision_card",
@@ -126,8 +122,6 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
   for (const name of [
     "augnes_get_project_constellation_preview",
     "augnes_get_guide_brief",
-    "augnes_get_handoff_capsule_preview",
-    "augnes_get_codex_launch_card_preview",
     "augnes_get_autonomy_contract_preview",
     "augnes_get_autonomy_runner_preflight",
   ] as const) {
@@ -142,8 +136,6 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
     "augnes_observe",
     "augnes_record_action_result",
     "augnes_record_work_event",
-    "augnes_generate_codex_handoff_draft",
-    "augnes_review_codex_result_draft",
   ] as const) {
     const tool = tools[name];
     assert.ok(tool, `${name} should be registered`);

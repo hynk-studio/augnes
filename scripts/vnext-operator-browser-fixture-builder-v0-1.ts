@@ -17,19 +17,18 @@ import { isDeepStrictEqual } from "node:util";
 
 import Database from "better-sqlite3";
 
-import { createVNextOperatorContextUseReviewHandlersV01 } from "../app/api/vnext/operator/context-use-review/route";
-import { createVNextOperatorLaterResultHandlersV01 } from "../app/api/vnext/operator/later-result/route";
 import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
 import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
 import {
   buildSemanticReviewLoopTaskContextPacketFixture,
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopProposalFixture,
+  buildSemanticReviewLoopRunReceiptFixture,
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
-import { validateContextUseReviewV01 } from "../lib/vnext/context-use-review";
 import { validateEpisodeDeltaProposalV01 } from "../lib/vnext/episode-delta-proposal";
 import {
+  insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
   type VNextCoreRecordKindV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
@@ -45,10 +44,8 @@ import {
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
-import { validateRunReceiptV01 } from "../lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition-receipt";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
-import { buildTaskContextPacketHandoffHrefV01 } from "../lib/vnext/task-context-packet-handoff";
 import {
   issueVNextLocalOperatorBootstrapV01,
   openVNextLocalOperatorDatabaseV01,
@@ -56,11 +53,9 @@ import {
   type VNextLocalOperatorSecretSourceV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
-import { prepareVNextOperatorPilotReviewMaterialV01 } from "../lib/vnext/runtime/operator-pilot-review-material";
+import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
-import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
-import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import {
@@ -96,11 +91,6 @@ export interface VNextOperatorBrowserFixtureManifestV01 {
   packet_fingerprint: string;
   transition_receipt_id: string;
   transition_receipt_fingerprint: string;
-  later_result_receipt_id: string;
-  later_result_receipt_fingerprint: string;
-  context_use_review_id: string;
-  context_use_review_fingerprint: string;
-  handoff_href: string;
   database_file: typeof DATABASE_FILE;
   database_binding: "deterministic_production_fixture";
   database_identity: DatabaseFileIdentityV01;
@@ -120,11 +110,9 @@ export interface VNextOperatorBrowserFixtureSummaryV01 {
     "review_material",
     "review_decision_route",
     "semantic_transition_route",
-    "later_result_route",
-    "context_use_review_route",
     "project_identity_registry",
   ];
-  persisted_lineage_status: "reviewed";
+  persisted_lineage_status: "packet_compiled";
   external_network_calls: number;
   provider_calls: number;
   network_guard_methods: typeof ZERO_NETWORK_GUARD_METHODS;
@@ -140,7 +128,7 @@ export interface VNextOperatorBrowserFixtureValidationV01 {
   fixture_version: typeof VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01;
   database_file: typeof DATABASE_FILE;
   manifest_file: typeof MANIFEST_FILE;
-  persisted_lineage_status: "reviewed";
+  persisted_lineage_status: "packet_compiled";
   credential_material_included: false;
   private_absolute_path_in_manifest: false;
 }
@@ -275,16 +263,6 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       clock,
       secret_source: secretSource,
     });
-    const resultHandlers = createVNextOperatorLaterResultHandlersV01({
-      environment,
-      clock,
-      secret_source: secretSource,
-    });
-    const contextReviewHandlers = createVNextOperatorContextUseReviewHandlersV01({
-      environment,
-      clock,
-      secret_source: secretSource,
-    });
     const jar = new RouteCookieJarV01();
     const bootstrapToken = issueBootstrap(environment, clock, secretSource);
     const bootstrapResponse = await sessionHandlers.POST(
@@ -309,18 +287,40 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
     const priorPacket = publicSafePacket(
       buildSemanticReviewLoopTaskContextPacketFixture(fixtureProject),
     );
-    const mapperInput = semanticReviewLoopMapperInputFixture(
+    const fixtureReceipt = buildSemanticReviewLoopRunReceiptFixture(
       fixtureProject,
       priorPacket,
     );
-    const config = readVNextLocalOperatorPilotConfigV01(environment);
-    const prepared = withDatabase(config, (db) =>
-      prepareVNextOperatorPilotReviewMaterialV01(db, {
-        config,
-        mapper_input: mapperInput,
-        prior_packet: priorPacket,
-      }),
+    const fixtureProposal = buildSemanticReviewLoopProposalFixture(
+      fixtureProject,
+      priorPacket,
+      fixtureReceipt,
     );
+    const config = readVNextLocalOperatorPilotConfigV01(environment);
+    const prepared = withDatabase(config, (db) => {
+      insertVNextCoreRecordV01(db, {
+        record_kind: "task_context_packet",
+        record_id: priorPacket.packet_id,
+        workspace_id: priorPacket.workspace_id,
+        project_id: priorPacket.project_id,
+        fingerprint: priorPacket.integrity.fingerprint,
+        idempotency_key: null,
+        payload: priorPacket,
+        created_at: priorPacket.generated_at,
+      });
+      admitStructuredRunReceiptV01(db, fixtureReceipt);
+      insertVNextCoreRecordV01(db, {
+        record_kind: "episode_delta_proposal",
+        record_id: fixtureProposal.proposal_id,
+        workspace_id: fixtureProposal.workspace_id,
+        project_id: fixtureProposal.project_id,
+        fingerprint: fixtureProposal.integrity.fingerprint,
+        idempotency_key: null,
+        payload: fixtureProposal,
+        created_at: fixtureProposal.created_at,
+      });
+      return { proposal: fixtureProposal };
+    });
     const detailResponse = await reviewHandlers.GET(
       routeRequest("/api/vnext/operator/semantic-review", {
         method: "GET",
@@ -462,107 +462,7 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
     );
     jar.absorb(compileResponse);
     const laterPacket = compileBody.later_packet as TaskContextPacketV01;
-    const accepted = laterPacket.selected_context.find(
-      (entry) => entry.entry_kind === "accepted_state_ref",
-    );
-    assert(accepted?.external_ref && accepted.source_ref);
-    const handoffHref = buildTaskContextPacketHandoffHrefV01({
-      packet_id: laterPacket.packet_id,
-      packet_fingerprint: laterPacket.integrity.fingerprint,
-    });
-
-    const laterResultRequest = {
-      packet_id: laterPacket.packet_id,
-      packet_fingerprint: laterPacket.integrity.fingerprint,
-      transition_receipt_id: transitionReceipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        transitionReceipt.integrity.fingerprint,
-      run_id: "run:operator-browser-fixture-later-task",
-      result_report: {
-        input_version: "codex_result_report_input.v0.1",
-        scope: "project:augnes",
-        report_id: "codex-report:operator-browser-fixture-later-task",
-        report_kind: "codex_validation_report",
-        reported_at: addMilliseconds(laterPacket.generated_at, 90_000),
-        operator_actor_ref: OPERATOR_ID,
-        codex_claimed_summary:
-          "Synthetic browser fixture returned bounded candidate-only material.",
-        observed_checks: ["npm run typecheck"],
-        changed_files_summary: ["README.md"],
-        source_refs: [
-          laterPacket.packet_id,
-          laterPacket.integrity.fingerprint,
-          transitionReceipt.transition_receipt_id,
-          transitionReceipt.integrity.fingerprint,
-          accepted.entry_id,
-          accepted.external_ref.external_id,
-          accepted.source_ref,
-        ],
-      },
-      packet_consumption: {
-        reported_payload_use: "yes",
-        cited_selected_context_entry_ids: [accepted.entry_id],
-      },
-    };
-    clock.set(schedule.result);
-    const resultResponse = await resultHandlers.POST(
-      routeRequest("/api/vnext/operator/later-result", {
-        method: "POST",
-        jar,
-        body: laterResultRequest,
-      }),
-    );
-    const resultBody = await requireSuccess(
-      resultResponse,
-      201,
-      "fixture_later_result",
-    );
-    jar.absorb(resultResponse);
-    const laterResult = resultBody.receipt as RunReceiptV01;
-
-    const contextReviewRequest = {
-      later_packet_id: laterPacket.packet_id,
-      later_packet_fingerprint: laterPacket.integrity.fingerprint,
-      transition_receipt_id: transitionReceipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        transitionReceipt.integrity.fingerprint,
-      later_task_run_receipt_id: laterResult.receipt_id,
-      later_task_run_receipt_fingerprint: laterResult.integrity.fingerprint,
-      usage: { presented: "yes", actually_used: "yes" },
-      assessment: "helpful",
-      corrections: {
-        correction_count: 1,
-        summaries: [
-          "Clarify one synthetic compatibility note before future reuse.",
-        ],
-      },
-      metrics: {
-        wrong_context_correction_count: 1,
-        repeated_explanation_estimate: 0,
-        missing_critical_context_count: 0,
-        context_refs_used_count: 1,
-      },
-      notes: [
-        "Synthetic isolated browser fixture validates mechanics without claiming usefulness.",
-      ],
-    };
-    clock.set(schedule.review);
-    const contextReviewResponse = await contextReviewHandlers.POST(
-      routeRequest("/api/vnext/operator/context-use-review", {
-        method: "POST",
-        jar,
-        body: contextReviewRequest,
-      }),
-    );
-    const contextReviewBody = await requireSuccess(
-      contextReviewResponse,
-      201,
-      "fixture_context_use_review",
-    );
-    jar.absorb(contextReviewResponse);
-    const contextReview = contextReviewBody.review as ContextUseReviewV01;
-
-    finalizeTransferredDatabase(databasePath, projectRoot, schedule.review);
+    finalizeTransferredDatabase(databasePath, projectRoot, schedule.compile);
     const manifest: VNextOperatorBrowserFixtureManifestV01 = {
       fixture_version: VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01,
       workspace_id: WORKSPACE_ID,
@@ -575,11 +475,6 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       transition_receipt_id: transitionReceipt.transition_receipt_id,
       transition_receipt_fingerprint:
         transitionReceipt.integrity.fingerprint,
-      later_result_receipt_id: laterResult.receipt_id,
-      later_result_receipt_fingerprint: laterResult.integrity.fingerprint,
-      context_use_review_id: contextReview.review_id,
-      context_use_review_fingerprint: contextReview.integrity.fingerprint,
-      handoff_href: handoffHref!,
       database_file: DATABASE_FILE,
       database_binding: "deterministic_production_fixture",
       database_identity: databaseFileIdentity(databasePath),
@@ -595,9 +490,9 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
     chmodSync(databasePath, 0o600);
     const validated = validateVNextOperatorBrowserFixtureV01({
       fixture_directory: directory,
-      observed_at: schedule.review,
+      observed_at: schedule.compile,
     });
-    assert.equal(validated.persisted_lineage_status, "reviewed");
+    assert.equal(validated.persisted_lineage_status, "packet_compiled");
     const ambientDatabaseObservation = observeAmbientDatabase(
       ambientDatabasePath,
       ambientDatabaseBefore,
@@ -622,8 +517,6 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
         "review_material",
         "review_decision_route",
         "semantic_transition_route",
-        "later_result_route",
-        "context_use_review_route",
         "project_identity_registry",
       ],
       external_network_calls: externalNetworkCalls,
@@ -693,18 +586,6 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
       manifest.transition_receipt_id,
       manifest.transition_receipt_fingerprint,
     );
-    const laterResult = requireCoreRecord<RunReceiptV01>(
-      db,
-      "run_receipt",
-      manifest.later_result_receipt_id,
-      manifest.later_result_receipt_fingerprint,
-    );
-    const contextReview = requireCoreRecord<ContextUseReviewV01>(
-      db,
-      "context_use_review",
-      manifest.context_use_review_id,
-      manifest.context_use_review_fingerprint,
-    );
     assert.equal(validateEpisodeDeltaProposalV01(proposal).status, "valid");
     assert.equal(
       validateTaskContextPacketV01(packet, {
@@ -713,23 +594,14 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
       "valid",
     );
     assert.equal(validateStateTransitionReceiptV01(transition).status, "valid");
-    assert.equal(validateRunReceiptV01(laterResult).status, "valid");
-    assert.equal(validateContextUseReviewV01(contextReview).status, "valid");
-    assert.equal(
-      buildTaskContextPacketHandoffHrefV01({
-        packet_id: packet.packet_id,
-        packet_fingerprint: packet.integrity.fingerprint,
-      }),
-      manifest.handoff_href,
-    );
     const lineage = readVNextOperatorPilotProposalDurableLineageV01(db, {
       config,
       proposal,
       clock: {
-        now: () => input.observed_at ?? contextReview.reviewed_at,
+        now: () => input.observed_at ?? packet.generated_at,
       },
     });
-    assert.equal(lineage.overall_status, "reviewed");
+    assert.equal(lineage.overall_status, "packet_compiled");
     assert.equal(lineage.read_only, true);
     assert.equal(lineage.semantic_authority_granted, false);
     const project = readCanonicalProjectWithRootV01(db, {
@@ -766,7 +638,7 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
     fixture_version: VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01,
     database_file: DATABASE_FILE,
     manifest_file: MANIFEST_FILE,
-    persisted_lineage_status: "reviewed",
+    persisted_lineage_status: "packet_compiled",
     credential_material_included: false,
     private_absolute_path_in_manifest: false,
   };
@@ -1056,11 +928,6 @@ function assertManifestShape(
     "packet_fingerprint",
     "transition_receipt_id",
     "transition_receipt_fingerprint",
-    "later_result_receipt_id",
-    "later_result_receipt_fingerprint",
-    "context_use_review_id",
-    "context_use_review_fingerprint",
-    "handoff_href",
   ] as const) {
     assert.equal(
       typeof manifest[field] === "string" && manifest[field].length > 0,

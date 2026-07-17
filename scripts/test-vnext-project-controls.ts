@@ -24,11 +24,11 @@ import {
 } from "../fixtures/vnext/protocol/semantic-transition-loop-v0-1";
 import {
   buildSemanticReviewLoopTaskContextPacketFixture,
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopProposalFixture,
+  buildSemanticReviewLoopRunReceiptFixture,
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import { openDatabase } from "../lib/db";
-import { mapCodexSemanticReviewToEpisodeDeltaProposalV01 } from "../lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
   PersonalPerspectiveContextSelectionErrorV01,
   buildConservativeProjectAutomationPolicyV01,
@@ -440,23 +440,24 @@ function preparePersonalPerspectiveCompilerFixture(
     buildSemanticReviewLoopTaskContextPacketFixture(project),
     priorSelected,
   );
-  const mapped = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
-    semanticReviewLoopMapperInputFixture(project, priorPacket),
+  const runReceipt = buildSemanticReviewLoopRunReceiptFixture(project, priorPacket);
+  const proposal = buildSemanticReviewLoopProposalFixture(
+    project,
+    priorPacket,
+    runReceipt,
   );
-  assert.equal(mapped.status, "mapped");
-  assert(mapped.proposal);
   const decision = buildReviewDecisionV01(
-    createSemanticTransitionDecisionInputV01(project, mapped.proposal),
+    createSemanticTransitionDecisionInputV01(project, proposal),
   );
   persistVNextSemanticReviewMaterialV01(database, {
-    proposal: mapped.proposal,
+    proposal,
     decision,
   });
   const preview = prepareVNextSemanticCommitPreviewV01(database, {
     workspace_id: workspaceId,
     project_id: projectId,
-    proposal_id: mapped.proposal.proposal_id,
-    proposal_fingerprint: mapped.proposal.integrity.fingerprint,
+    proposal_id: proposal.proposal_id,
+    proposal_fingerprint: proposal.integrity.fingerprint,
     decision_id: decision.decision_id,
     decision_fingerprint: decision.integrity.fingerprint,
     authorized_applier_identity: {
@@ -484,8 +485,8 @@ function preparePersonalPerspectiveCompilerFixture(
   const transition = commitVNextSemanticTransitionV01(database, {
     workspace_id: workspaceId,
     project_id: projectId,
-    proposal_id: mapped.proposal.proposal_id,
-    proposal_fingerprint: mapped.proposal.integrity.fingerprint,
+    proposal_id: proposal.proposal_id,
+    proposal_fingerprint: proposal.integrity.fingerprint,
     decision_id: decision.decision_id,
     decision_fingerprint: decision.integrity.fingerprint,
     gate_record_id: authorization.gate_record.gate_record_id,

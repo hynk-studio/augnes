@@ -487,6 +487,6 @@
     "Phase 6C Web Guide UI is deferred.",
     "Phase 6D ChatGPT App/MCP Guide tool is deferred.",
     "Phase 6E Codex Guide alignment is deferred.",
-    "Phase 7 Handoff Capsule / Codex Launch Card can consume GuideBrief only after separate scoped authority paths."
+    "Manual Handoff Capsule / Codex Launch Card transport is retired; Project Home delivers persisted TaskContextPacket context automatically."
   ]
 }
