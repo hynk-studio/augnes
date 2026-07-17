@@ -1111,8 +1111,13 @@ async function main() {
             entry.path === "/api/vnext/operator/host-round-trip" &&
             entry.type === "Fetch" &&
             entry.status === 200,
-        ),
+      ),
       "live Codex one-shot approval response",
+    );
+    await waitForLiveRunStatus(
+      manifest.project_id,
+      "completed",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
     await waitForCondition(
       `document.querySelector('[data-live-host-status="completed"] [data-live-host-receipt="persisted"]') !== null`,

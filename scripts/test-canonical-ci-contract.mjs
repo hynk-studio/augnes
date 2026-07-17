@@ -406,6 +406,16 @@ requireText(
   `fixture_generation_duration_ms`,
   "E2E must report fixture-generation duration separately",
 );
+const liveCompletionBarrier = browserE2e.indexOf(
+  `await waitForLiveRunStatus(\n      manifest.project_id,\n      "completed",`,
+);
+const liveReceiptDomCheck = browserE2e.indexOf(
+  `[data-live-host-status="completed"] [data-live-host-receipt="persisted"]`,
+);
+assert(
+  liveCompletionBarrier >= 0 && liveCompletionBarrier < liveReceiptDomCheck,
+  "E2E must await durable live-host completion before asserting the terminal receipt DOM",
+);
 assert.doesNotMatch(
   browserE2e,
   /smoke-vnext-operator-pilot-v0-1|AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR/u,
@@ -558,6 +568,7 @@ console.log(
       moved_responsibilities_execute_once: movedResponsibilities,
       broad_operator_smoke_rerun_by_e2e: false,
       deterministic_fixture_builder_required: true,
+      live_host_completion_barrier_required: true,
       fixture_network_observations_required: true,
       fixture_ambient_database_sentinel_required: true,
       unobserved_fixture_validation_claims_forbidden: true,
