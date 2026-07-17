@@ -31,7 +31,9 @@ export function ProjectHome({
         <div>
           <p className="project-selector-eyebrow">Augnes · Project Home</p>
           <h1>{projectName}</h1>
-          <p className="project-home-root">{summary.root_binding.local_root.normalized_path}</p>
+          <p className="project-home-root">
+            Root bound locally · {humanize(summary.root_binding.local_root.path_flavor)} path
+          </p>
           <p className="project-home-repository">
             {summary.repository
               ? `Repository ${summary.repository.display}`
@@ -98,6 +100,97 @@ export function ProjectHome({
           <DirectHostRoundTripAction />
         </section>
       ) : null}
+
+      <section
+        className="project-home-panel"
+        aria-labelledby="run-results-title"
+        data-project-run-results="v0.1"
+      >
+        <SectionHeading
+          id="run-results-title"
+          eyebrow="Native-host execution residue"
+          title="Current run and latest result"
+          state={projection.run_results.state}
+        />
+        {projection.run_results.current_run ? (
+          <article
+            className="project-home-summary-block"
+            data-current-host-run={projection.run_results.current_run.status}
+          >
+            <p className="project-home-kicker">Current nonterminal run</p>
+            <strong>{humanize(projection.run_results.current_run.status)}</strong>
+            <p>
+              {projection.run_results.current_run.reconciliation_required
+                ? "Observation is paused; reconciliation is required and no terminal receipt is implied."
+                : "The supervised native-host lifecycle is still active."}
+            </p>
+            <p className="project-home-meta">
+              Mode {humanize(projection.run_results.current_run.mode)} · updated{" "}
+              <time dateTime={projection.run_results.current_run.updated_at}>
+                {formatTimestamp(projection.run_results.current_run.updated_at)}
+              </time>
+            </p>
+          </article>
+        ) : (
+          <p className="project-home-empty">No nonterminal native-host run is active.</p>
+        )}
+        {projection.run_results.latest_result ? (
+          <article
+            className="project-home-summary-block"
+            data-latest-run-result={projection.run_results.latest_result.outcome ?? "unknown"}
+          >
+            <p className="project-home-kicker">Latest immutable terminal result</p>
+            <strong>
+              {humanize(
+                projection.run_results.latest_result.outcome ??
+                  projection.run_results.latest_result.execution_status,
+              )}
+            </strong>
+            <p>{projection.run_results.latest_result.summary}</p>
+            <p className="project-home-meta">
+              Verification {humanize(projection.run_results.latest_result.verification_status)} ·{" "}
+              {projection.run_results.latest_result.changed_file_count} changed files · checks{" "}
+              {projection.run_results.latest_result.check_counts.passed} passed /{" "}
+              {projection.run_results.latest_result.check_counts.failed} failed /{" "}
+              {projection.run_results.latest_result.check_counts.skipped} skipped
+            </p>
+            <p className="project-home-meta">
+              {projection.run_results.latest_result.blocker_count} blockers ·{" "}
+              {projection.run_results.latest_result.gap_count} gaps · trust{" "}
+              {humanize(projection.run_results.latest_result.trust_label)} · finished{" "}
+              <time
+                dateTime={
+                  projection.run_results.latest_result.finished_at ??
+                  projection.run_results.latest_result.recorded_at
+                }
+              >
+                {formatTimestamp(
+                  projection.run_results.latest_result.finished_at ??
+                    projection.run_results.latest_result.recorded_at,
+                )}
+              </time>
+            </p>
+            {active ? (
+              <a
+                href={projection.run_results.latest_result.review_href}
+                data-review-result-link="true"
+              >
+                Review result
+              </a>
+            ) : (
+              <p className="project-home-meta">
+                Make this project active to open its scoped result review.
+              </p>
+            )}
+          </article>
+        ) : (
+          <p className="project-home-empty">
+            {projection.run_results.latest_result_state === "receipt_unavailable"
+              ? "The latest terminal receipt is unavailable; no review link was created."
+              : "No terminal RunReceipt is available yet."}
+          </p>
+        )}
+      </section>
 
       <section id="attention" className="project-home-primary" aria-labelledby="attention-title">
         <SectionHeading

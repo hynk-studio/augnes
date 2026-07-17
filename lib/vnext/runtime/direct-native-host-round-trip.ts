@@ -35,7 +35,10 @@ import {
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import { buildRunReceiptV01, validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
-import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import {
+  validateExternalRefV01,
+  validateTaskContextPacketV01,
+} from "@/lib/vnext/task-context-packet";
 import {
   DETERMINISTIC_CODEX_ADAPTER_VERSION_V01,
   createDeterministicCodexAdapterV01,
@@ -45,6 +48,10 @@ import {
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostResultV01,
 } from "@/lib/vnext/native-host/native-host-contract";
+import {
+  NativeHostResultNormalizationErrorV01,
+  normalizeNativeHostResultResidueV01,
+} from "@/lib/vnext/native-host/native-host-result-normalization";
 import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
   authenticateVNextLocalOperatorSessionV01,
@@ -59,6 +66,12 @@ import {
   projectVNextOperatorPilotContinuityV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
+  NativeHostApprovalResidueErrorV01,
+  readNativeHostApprovalDecisionResidueV01,
+  readNativeHostApprovalRequestResidueV01,
+} from "@/lib/vnext/runtime/native-host-approval-residue";
+import {
+  NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_REQUEST_VERSION_V01,
   NATIVE_HOST_RESULT_RETURN_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
@@ -81,7 +94,12 @@ import type {
   AutonomyRunSummary,
   AutonomyRunnerStatus,
 } from "@/types/autonomy-runner-execution";
-import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type {
+  RunReceiptAttestationV01,
+  RunReceiptHostApprovalV01,
+  RunReceiptObservationV01,
+  RunReceiptV01,
+} from "@/types/vnext/run-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
 export const DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 =
@@ -547,14 +565,51 @@ export async function runDirectNativeHostRoundTripV01(
       }),
     );
   }
-  const receipt = buildDirectHostRunReceipt({
-    request,
-    result: hostResult,
-    admission: admitted,
-  });
+  let synthesizedSkippedCheckIds = new Set<string>();
+  try {
+    const normalized = normalizeNativeHostResultResidueV01({
+      result: hostResult,
+      required_check_ids: requiredCheckIdsForResultV01(
+        hostResult,
+        admitted.packet.constraints.required_checks,
+      ),
+    });
+    hostResult = normalized.result;
+    synthesizedSkippedCheckIds = new Set(
+      normalized.synthesized_skipped_check_ids,
+    );
+  } catch (error) {
+    const rejectedResult = hostResult;
+    hostResult = assertNativeHostResultV01(
+      request,
+      buildBoundaryTerminalResult({
+        request,
+        adapter,
+        outcome: "failed",
+        reason:
+          error instanceof NativeHostResultNormalizationErrorV01
+            ? error.code
+            : "native_host_result_normalization_failed",
+        prior_result: rejectedResult,
+        now,
+      }),
+    );
+    const normalized = normalizeNativeHostResultResidueV01({
+      result: hostResult,
+      required_check_ids: requiredCheckIdsForResultV01(
+        hostResult,
+        admitted.packet.constraints.required_checks,
+      ),
+    });
+    hostResult = normalized.result;
+    synthesizedSkippedCheckIds = new Set(
+      normalized.synthesized_skipped_check_ids,
+    );
+  }
   const terminal = lifecycleForOutcome(hostResult.outcome);
   const terminalStopAbandonsPendingApproval =
     hostResult.outcome === "cancelled" || hostResult.outcome === "timed_out";
+  let receipt!: RunReceiptV01;
   db.exec("BEGIN IMMEDIATE");
   try {
     revalidateRunBeforeFinalization(
@@ -564,13 +619,20 @@ export async function runDirectNativeHostRoundTripV01(
       false,
       terminalStopAbandonsPendingApproval,
     );
-    const write = admitStructuredRunReceiptV01(db, receipt);
-    if (write.status !== "inserted") {
-      refuse("direct_host_run_conflict", 409);
-    }
     const current = readAutonomyRunLedgerRecord(identity.run_id, { db });
     const step = current?.steps[0];
     if (!current || !step || isTerminalRunnerStatus(current.status)) {
+      refuse("direct_host_run_conflict", 409);
+    }
+    receipt = buildDirectHostRunReceipt({
+      request,
+      result: hostResult,
+      admission: admitted,
+      run: current,
+      synthesized_skipped_check_ids: synthesizedSkippedCheckIds,
+    });
+    const write = admitStructuredRunReceiptV01(db, receipt);
+    if (write.status !== "inserted") {
       refuse("direct_host_run_conflict", 409);
     }
     const pendingApprovalAbandoned =
@@ -1024,6 +1086,8 @@ function createRunLedgerRecord(
       control_revision: managedLive ? 1 : 0,
       reconciliation_required: false,
       terminal_receipt_persisted: false,
+      approval_requests: [],
+      approval_decisions: [],
     },
   };
   const step: AutonomyRunStepRecord = {
@@ -1190,12 +1254,15 @@ function buildDirectHostRunReceipt(input: {
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
   admission: PersistedHostPacketAdmissionV01;
+  run: AutonomyRunRecord;
+  synthesized_skipped_check_ids: ReadonlySet<string>;
 }): RunReceiptV01 {
-  const { request, result, admission } = input;
+  const { request, result, admission, run } = input;
   const packetDeliveryInitiated =
     result.adapter_extension.bounded_metadata.packet_delivery_initiated === true;
   const liveAppServerResult =
     result.adapter_extension.adapter_kind === "codex_app_server";
+  const residueBasis = liveAppServerResult ? "attested" : "observed";
   const reporterRef = localRef(
     "native_host_orchestrator",
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
@@ -1210,28 +1277,223 @@ function buildDirectHostRunReceipt(input: {
     null,
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
   );
+  const adapterRef = localRef(
+    "native_host_adapter_version",
+    result.adapter_version,
+    result.finished_at,
+    null,
+    DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
+  );
+  const capabilityRef = localRef(
+    "native_host_capability_version",
+    result.capability_version,
+    result.finished_at,
+    null,
+    DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
+  );
   const hostRef = result.host_refs[0] ?? null;
   const artifactRefs = result.changed_files.map((changed) =>
-    repositoryArtifactRef(changed.repository_relative_path, result.finished_at),
+    repositoryArtifactRef(
+      changed.repository_relative_path,
+      result.finished_at,
+      liveAppServerResult ? "host_attestation" : "direct_local_observation",
+    ),
   );
+  const hostApprovals = hostApprovalResidueForReceiptV01({
+    run,
+    request,
+    admission,
+    reporter_ref: reporterRef,
+    recorded_at: result.finished_at,
+  });
   const sourceRefs = uniqueRefs([
     reporterRef,
     runRef,
+    adapterRef,
+    capabilityRef,
     admission.packet_ref,
     admission.work_ref,
     admission.task_ref,
     admission.source_transition_receipt_ref,
     admission.root_scope.root_scope_ref,
+    admission.root_scope.repository_ref,
+    admission.root_scope.selected_worktree_ref,
+    ...request.packet_lineage.packet_source_refs,
+    ...request.packet_lineage.selected_context_refs,
     ...result.host_refs,
     ...result.model_invocation_receipt_refs,
+    ...hostApprovals.flatMap((approval) => approval.source_refs),
   ]);
-  const requiredCheckIds = [
-    liveAppServerResult || packetDeliveryInitiated
-      ? "validated_packet_delivery"
-      : "deterministic_packet_delivery",
-    ...admission.packet.constraints.required_checks,
+  const requiredCheckIds = requiredCheckIdsForResultV01(
+    result,
+    admission.packet.constraints.required_checks,
+  );
+  const verification = verificationForResult(
+    result,
+    requiredCheckIds,
+    liveAppServerResult,
+    input.synthesized_skipped_check_ids,
+    reporterRef,
+  );
+  const mainObservationId = `observation:host-boundary:${request.request_id}`;
+  const packetObservationId = `observation:packet-binding:${request.request_id}`;
+  const mainAttestationId = `attestation:host-result:${request.request_id}`;
+  const observations: RunReceiptObservationV01[] = [
+    {
+      observation_id: mainObservationId,
+      observation_kind: "structured_host_result_received",
+      summary:
+        "The local orchestration boundary received one bounded versioned structured host result.",
+      event_at: result.finished_at,
+      observed_at: result.finished_at,
+      observer_ref: reporterRef,
+      trust_class: "direct_local_observation",
+      source_refs: [runRef, admission.packet_ref, adapterRef],
+      related_command_ids: liveAppServerResult
+        ? []
+        : result.commands.map((command) => command.command_id),
+      related_check_ids: liveAppServerResult
+        ? []
+        : [
+            ...result.checks.map((check) => check.check_id),
+            ...result.skipped_checks
+              .filter((check) =>
+                input.synthesized_skipped_check_ids.has(check.check_id),
+              )
+              .map((check) => check.check_id),
+          ],
+      related_artifact_refs: liveAppServerResult ? [] : artifactRefs,
+    },
+    {
+      observation_id: packetObservationId,
+      observation_kind: "validated_packet_and_root_binding",
+      summary:
+        "Packet identity, fingerprint, current lineage, active project, and canonical root scope were validated before adapter start.",
+      event_at: result.started_at,
+      observed_at: result.started_at,
+      observer_ref: reporterRef,
+      trust_class: "direct_local_observation",
+      source_refs: uniqueRefs([
+        admission.packet_ref,
+        admission.source_transition_receipt_ref,
+        admission.root_scope.root_scope_ref,
+        ...request.packet_lineage.packet_source_refs,
+        ...request.packet_lineage.selected_context_refs,
+      ]),
+      related_command_ids: [],
+      related_check_ids: result.checks
+        .filter((check) =>
+          ["deterministic_packet_delivery", "validated_packet_delivery"].includes(
+            check.check_id,
+          ),
+        )
+        .map((check) => check.check_id),
+      related_artifact_refs: [],
+    },
+    ...(!liveAppServerResult
+      ? result.artifacts.map(
+          (artifact): RunReceiptObservationV01 => ({
+            observation_id: stableResidueIdV01(
+              "observation:artifact",
+              artifact,
+            ),
+            observation_kind: "native_host_artifact_reported",
+            summary: artifact.summary,
+            event_at: result.finished_at,
+            observed_at: result.finished_at,
+            observer_ref: reporterRef,
+            trust_class: "direct_local_observation",
+            source_refs: [runRef, artifact.artifact_ref],
+            related_command_ids: [],
+            related_check_ids: [],
+            related_artifact_refs: [artifact.artifact_ref],
+          }),
+        )
+      : []),
+    ...(!liveAppServerResult
+      ? result.observed_actions.map(
+          (action): RunReceiptObservationV01 => ({
+            observation_id: stableResidueIdV01("observation:action", action),
+            observation_kind: "native_host_action",
+            summary: action,
+            event_at: result.finished_at,
+            observed_at: result.finished_at,
+            observer_ref: reporterRef,
+            trust_class: "direct_local_observation",
+            source_refs: [runRef, adapterRef],
+            related_command_ids: [],
+            related_check_ids: [],
+            related_artifact_refs: [],
+          }),
+        )
+      : []),
   ];
-  const verification = verificationForResult(result, requiredCheckIds);
+  const attestations: RunReceiptAttestationV01[] = [
+    ...(liveAppServerResult && hostRef
+      ? [
+          {
+            attestation_id: mainAttestationId,
+            attestation_kind: "bounded_native_host_result",
+            summary: result.summary,
+            reported_at: result.finished_at,
+            reporter_ref: hostRef,
+            trust_class: "host_attestation" as const,
+            source_refs: result.host_refs,
+            subject_refs: uniqueRefs([
+              admission.packet_ref,
+              runRef,
+              ...artifactRefs,
+              ...result.artifacts.map((artifact) => artifact.artifact_ref),
+            ]),
+          },
+          ...result.artifacts.map(
+            (artifact): RunReceiptAttestationV01 => ({
+              attestation_id: stableResidueIdV01(
+                "attestation:artifact",
+                artifact,
+              ),
+              attestation_kind: "native_host_artifact_report",
+              summary: artifact.summary,
+              reported_at: result.finished_at,
+              reporter_ref: hostRef,
+              trust_class: "host_attestation",
+              source_refs: uniqueRefs([hostRef, artifact.artifact_ref]),
+              subject_refs: [artifact.artifact_ref],
+            }),
+          ),
+          ...result.observed_actions.map(
+            (action): RunReceiptAttestationV01 => ({
+              attestation_id: stableResidueIdV01(
+                "attestation:action",
+                action,
+              ),
+              attestation_kind: "native_host_action_report",
+              summary: action,
+              reported_at: result.finished_at,
+              reporter_ref: hostRef,
+              trust_class: "host_attestation",
+              source_refs: [hostRef],
+              subject_refs: [runRef],
+            }),
+          ),
+        ]
+      : []),
+    ...result.proposed_next_steps.map(
+      (nextStep): RunReceiptAttestationV01 => ({
+        attestation_id: stableResidueIdV01(
+          "attestation:proposed-next-step",
+          nextStep,
+        ),
+        attestation_kind: "proposed_next_step",
+        summary: nextStep,
+        reported_at: result.finished_at,
+        reporter_ref: liveAppServerResult && hostRef ? hostRef : reporterRef,
+        trust_class: "derived_interpretation",
+        source_refs: liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
+        subject_refs: [runRef],
+      }),
+    ),
+  ];
   const receipt = buildRunReceiptV01({
     workspace_id: request.workspace_id,
     project_id: request.project_id,
@@ -1243,13 +1505,21 @@ function buildDirectHostRunReceipt(input: {
     finished_at: result.finished_at,
     execution: {
       status: receiptExecutionStatus(result.outcome),
-      basis: hostRef ? "mixed" : "observed",
-      source_refs: hostRef ? [reporterRef, hostRef] : [reporterRef],
+      basis: liveAppServerResult && hostRef ? "mixed" : "observed",
+      source_refs:
+        liveAppServerResult && hostRef ? [reporterRef, hostRef] : [reporterRef],
     },
     verification,
     reporter_ref: reporterRef,
     observer_refs: [reporterRef],
-    verifier_refs: result.host_refs.length ? result.host_refs : [reporterRef],
+    verifier_refs:
+      !liveAppServerResult ||
+      input.synthesized_skipped_check_ids.size > 0 ||
+      result.checks.some(
+        (check) => check.check_id === "validated_packet_delivery",
+      )
+        ? [reporterRef]
+        : [],
     host_ref: hostRef,
     worker_ref: null,
     model_invocations: [],
@@ -1265,90 +1535,69 @@ function buildDirectHostRunReceipt(input: {
       ],
       source_refs: [reporterRef, admission.root_scope.root_scope_ref],
     },
-    observations: [
-      {
-        observation_id: `observation:host-boundary:${request.request_id}`,
-        observation_kind: "structured_host_result_received",
-        summary:
-          "The local orchestration boundary received one bounded versioned structured host result.",
-        event_at: result.finished_at,
-        observed_at: result.finished_at,
-        observer_ref: reporterRef,
-        trust_class: "direct_local_observation",
-        source_refs: [runRef, admission.packet_ref],
-        related_command_ids: result.commands.map((command) => command.command_id),
-        related_check_ids: result.checks.map((check) => check.check_id),
-        related_artifact_refs: artifactRefs,
-      },
-      {
-        observation_id: `observation:packet-binding:${request.request_id}`,
-        observation_kind: "validated_packet_and_root_binding",
-        summary:
-          "Packet identity, fingerprint, current lineage, active project, and canonical root scope were validated before adapter start.",
-        event_at: result.started_at,
-        observed_at: result.started_at,
-        observer_ref: reporterRef,
-        trust_class: "direct_local_observation",
-        source_refs: [
-          admission.packet_ref,
-          admission.source_transition_receipt_ref,
-          admission.root_scope.root_scope_ref,
-        ],
-        related_command_ids: [],
-        related_check_ids: result.checks.some(
-          (check) => check.check_id === "deterministic_packet_delivery",
-        )
-          ? ["deterministic_packet_delivery"]
-          : [],
-        related_artifact_refs: [],
-      },
-    ],
-    attestations: result.host_refs.length
-      ? [
-          {
-            attestation_id: `attestation:host-result:${request.request_id}`,
-            attestation_kind: "bounded_native_host_result",
-            summary: result.summary,
-            reported_at: result.finished_at,
-            reporter_ref: result.host_refs[0]!,
-            trust_class: "host_attestation",
-            source_refs: result.host_refs,
-            subject_refs: [admission.packet_ref, runRef],
-          },
-        ]
-      : [],
+    observations,
+    attestations,
     changed_artifacts: result.changed_files.map((changed, index) => ({
       artifact_ref: artifactRefs[index]!,
       change_kind: changed.change_kind,
       before_hash: changed.before_hash,
       after_hash: changed.after_hash,
-      basis: "attested",
-      related_observation_ids: [],
-      related_attestation_ids: [`attestation:host-result:${request.request_id}`],
-      source_refs: hostRef ? [hostRef] : [],
+      basis: residueBasis,
+      related_observation_ids: liveAppServerResult ? [] : [mainObservationId],
+      related_attestation_ids:
+        liveAppServerResult && hostRef ? [mainAttestationId] : [],
+      source_refs:
+        liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
     })),
     commands: result.commands.map((command) => ({
       ...command,
-      basis: hostRef ? ("attested" as const) : ("observed" as const),
-      source_refs: hostRef ? [hostRef] : [reporterRef],
+      basis: residueBasis,
+      source_refs:
+        liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
       raw_output_included: false as const,
     })),
     checks: result.checks.map((check) => ({
       ...check,
-      basis: hostRef ? ("attested" as const) : ("observed" as const),
-      source_refs: hostRef ? [hostRef] : [reporterRef],
+      basis:
+        !liveAppServerResult || check.check_id === "validated_packet_delivery"
+          ? ("observed" as const)
+          : residueBasis,
+      source_refs:
+        liveAppServerResult &&
+        hostRef &&
+        check.check_id !== "validated_packet_delivery"
+          ? [hostRef]
+          : [reporterRef],
     })),
     skipped_checks: result.skipped_checks.map((check) => ({
       ...check,
-      basis: hostRef ? ("attested" as const) : ("observed" as const),
-      source_refs: hostRef ? [hostRef] : [reporterRef],
+      basis: input.synthesized_skipped_check_ids.has(check.check_id)
+        ? ("observed" as const)
+        : residueBasis,
+      source_refs:
+        input.synthesized_skipped_check_ids.has(check.check_id) ||
+        !liveAppServerResult ||
+        !hostRef
+          ? [reporterRef]
+          : [hostRef],
     })),
+    host_approvals: hostApprovals,
     external_refs: uniqueRefs([
       ...result.host_refs,
       ...result.artifacts.map((artifact) => artifact.artifact_ref),
       ...result.model_invocation_receipt_refs,
       admission.root_scope.repository_ref,
       admission.root_scope.selected_worktree_ref,
+      adapterRef,
+      capabilityRef,
+      ...hostApprovals.flatMap((approval) => [
+        approval.approval_ref,
+        approval.host_thread_ref,
+        approval.host_turn_ref,
+        approval.host_item_ref,
+        approval.host_request_ref,
+        ...approval.resource_refs,
+      ]),
     ]),
     result_summary: {
       summary: result.summary,
@@ -1359,26 +1608,48 @@ function buildDirectHostRunReceipt(input: {
         "This operational receipt is not task acceptance, semantic approval, Evidence acceptance, or work closure.",
       ],
     },
-    blockers:
-      result.outcome === "completed"
+    blockers: [
+      ...(result.outcome === "completed"
         ? []
         : [
             {
               code: result.public_stop_reason ?? `native_host_${result.outcome}`,
-              summary: "The native-host adapter returned a non-success terminal outcome.",
+              summary:
+                "The native-host adapter returned a non-success terminal outcome.",
               source_refs: result.host_refs,
             },
-          ],
+          ]),
+      ...result.checks
+        .filter((check) => check.required && check.status === "failed")
+        .map((check) => ({
+          code: `required_check_failed:${check.check_id}`,
+          summary: check.summary,
+          source_refs:
+            liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
+        })),
+    ],
     warnings: result.uncertainty.map((summary, index) => ({
       code: `native_host_uncertainty_${index + 1}`,
       summary,
       source_refs: result.host_refs,
     })),
-    gaps: result.gaps.map((summary, index) => ({
-      code: `native_host_gap_${index + 1}`,
-      summary,
-      source_refs: result.host_refs,
-    })),
+    gaps: [
+      ...result.gaps.map((summary, index) => ({
+        code: `native_host_gap_${index + 1}`,
+        summary,
+        source_refs: result.host_refs,
+      })),
+      ...(result.model_invocation_receipt_refs.length
+        ? [
+            {
+              code: "native_host_model_invocation_receipt_unresolved",
+              summary:
+                "The native host referenced model-invocation residue that is not resolved as an Augnes-owned R4 receipt.",
+              source_refs: result.model_invocation_receipt_refs,
+            },
+          ]
+        : []),
+    ],
     privacy_egress: {
       data_classification: admission.packet.constraints.data_classification,
       egress_status: packetDeliveryInitiated ? "occurred" : "did_not_occur",
@@ -1444,6 +1715,8 @@ function buildDirectHostRunReceipt(input: {
         NATIVE_HOST_REQUEST_VERSION_V01,
         NATIVE_HOST_RESULT_VERSION_V01,
         result.adapter_version,
+        result.capability_version,
+        ...(hostApprovals.length ? ["native_host_approval.v0.1"] : []),
       ],
       unmapped_fields: result.model_invocation_receipt_refs.length
         ? [
@@ -1683,6 +1956,7 @@ function buildBoundaryTerminalResult(input: {
   adapter: NativeHostAdapterV01;
   outcome: Exclude<NativeHostTerminalOutcomeV01, "completed" | "blocked" | "unavailable">;
   reason: string;
+  prior_result?: NativeHostResultV01;
   now: () => string;
 }): NativeHostResultV01 {
   const observedAt = boundedFinishedAt(
@@ -1705,7 +1979,7 @@ function buildBoundaryTerminalResult(input: {
     public_stop_reason: input.reason,
     started_at: observedAt,
     finished_at: observedAt,
-    host_refs: [hostRef],
+    host_refs: uniqueRefs([...(input.prior_result?.host_refs ?? []), hostRef]),
     adapter_version: input.adapter.adapter_version,
     capability_version: input.adapter.capability_version,
     changed_files: [],
@@ -1732,12 +2006,30 @@ function buildBoundaryTerminalResult(input: {
         source_ref: hostRef,
         notes: ["The orchestration boundary observed the terminal control outcome."],
       },
+      ...(input.prior_result?.adapter_extension.bounded_metadata
+        .packet_delivery_initiated === true
+        ? [
+            {
+              capability: "native_host_internal_model_activity",
+              coverage: "unsupported" as const,
+              source_ref: input.prior_result.host_refs[0] ?? hostRef,
+              notes: [
+                "Native-host-internal model activity remains outside Augnes-owned R4 Model Gateway coverage.",
+              ],
+            },
+          ]
+        : []),
     ],
     adapter_extension: {
       extension_version: "native_host_boundary_extension.v0.1",
       adapter_kind: input.adapter.adapter_version,
       bounded_metadata: {
-        live_host_invoked: false,
+        live_host_invoked:
+          input.prior_result?.adapter_extension.bounded_metadata
+            .live_host_invoked === true,
+        packet_delivery_initiated:
+          input.prior_result?.adapter_extension.bounded_metadata
+            .packet_delivery_initiated === true,
         raw_provider_payload_included: false,
       },
     },
@@ -1835,34 +2127,265 @@ function assertReceiptBindsAdmission(
   }
 }
 
+function hostApprovalResidueForReceiptV01(input: {
+  run: AutonomyRunRecord;
+  request: NativeHostRequestV01;
+  admission: PersistedHostPacketAdmissionV01;
+  reporter_ref: ExternalRefV01;
+  recorded_at: string;
+}): RunReceiptHostApprovalV01[] {
+  let requests;
+  let decisions;
+  try {
+    requests = readNativeHostApprovalRequestResidueV01(
+      input.run.metadata.approval_requests,
+    );
+    decisions = readNativeHostApprovalDecisionResidueV01(
+      input.run.metadata.approval_decisions,
+    );
+  } catch (error) {
+    refuse(
+      error instanceof NativeHostApprovalResidueErrorV01
+        ? `direct_host_receipt_${error.code}`
+        : "direct_host_receipt_approval_residue_invalid",
+      409,
+    );
+  }
+  const decisionsByApproval = new Map<
+    string,
+    (typeof decisions)[number]
+  >();
+  for (const decision of decisions) {
+    const prior = decisionsByApproval.get(decision.approval_id);
+    if (
+      prior &&
+      canonicalizeProtocolValueV01(prior) !==
+        canonicalizeProtocolValueV01(decision)
+    ) {
+      refuse("direct_host_receipt_approval_decision_conflict", 409);
+    }
+    decisionsByApproval.set(decision.approval_id, decision);
+  }
+  const runThreadRef = protocolExternalRefMetadataV01(
+    input.run.metadata.host_thread_ref,
+  );
+  const runTurnRef = protocolExternalRefMetadataV01(
+    input.run.metadata.host_turn_ref,
+  );
+  if (requests.length > 0 && (!runThreadRef || !runTurnRef)) {
+    refuse("direct_host_receipt_approval_host_binding_missing", 409);
+  }
+  const recordedAt = parseStrictIsoTimestampV01(input.recorded_at);
+  return requests.map((request) => {
+    const issuedAt = parseStrictIsoTimestampV01(request.issued_at);
+    if (
+      request.workspace_id !== input.request.workspace_id ||
+      request.project_id !== input.request.project_id ||
+      request.run_id !== input.request.run_id ||
+      request.packet_id !== input.admission.packet.packet_id ||
+      request.packet_fingerprint !==
+        input.admission.packet.integrity.fingerprint ||
+      (runThreadRef &&
+        canonicalizeProtocolValueV01(runThreadRef) !==
+          canonicalizeProtocolValueV01(request.host_thread_ref)) ||
+      (runTurnRef &&
+        canonicalizeProtocolValueV01(runTurnRef) !==
+          canonicalizeProtocolValueV01(request.host_turn_ref)) ||
+      issuedAt === null ||
+      recordedAt === null ||
+      issuedAt > recordedAt
+    ) {
+      refuse("direct_host_receipt_approval_binding_conflict", 409);
+    }
+    const decision = decisionsByApproval.get(request.approval_id) ?? null;
+    if (
+      decision &&
+      (decision.idempotency_fingerprint !== request.idempotency_fingerprint ||
+        parseStrictIsoTimestampV01(decision.decided_at) === null ||
+        parseStrictIsoTimestampV01(decision.decided_at)! > recordedAt)
+    ) {
+      refuse("direct_host_receipt_approval_fingerprint_conflict", 409);
+    }
+    const approvalRef = localRef(
+      "native_host_approval",
+      request.approval_id,
+      request.issued_at,
+      request.idempotency_fingerprint,
+      NATIVE_HOST_APPROVAL_VERSION_V01,
+    );
+    const resourceRefs = uniqueRefs([
+      ...request.repository_relative_paths.map((relativePath) =>
+        repositoryArtifactRef(
+          relativePath,
+          request.issued_at,
+          "direct_local_observation",
+        ),
+      ),
+      ...request.network_resources.map((resource) =>
+        localRef(
+          "native_host_network_resource",
+          resource,
+          request.issued_at,
+          createProtocolSha256V01(resource),
+          NATIVE_HOST_APPROVAL_VERSION_V01,
+        ),
+      ),
+      ...(request.repository_relative_paths.length === 0 &&
+      request.network_resources.length === 0
+        ? [input.admission.root_scope.root_scope_ref]
+        : []),
+    ]);
+    const decisionFingerprint = decision
+      ? createProtocolSha256V01(
+          canonicalizeProtocolValueV01({
+            approval_id: decision.approval_id,
+            idempotency_fingerprint: decision.idempotency_fingerprint,
+            decision: decision.decision,
+            decision_source: decision.decision_source,
+            decided_at: decision.decided_at,
+            control_revision: decision.control_revision,
+          }),
+        )
+      : null;
+    return {
+      approval_ref: approvalRef,
+      host_thread_ref: request.host_thread_ref,
+      host_turn_ref: request.host_turn_ref,
+      host_item_ref: request.host_item_ref,
+      host_request_ref: request.host_request_ref,
+      operation_class: request.operation_class,
+      resource_summary: request.resource_summary,
+      resource_refs: resourceRefs,
+      command_fingerprint: request.command_fingerprint,
+      request_fingerprint: request.idempotency_fingerprint,
+      decision: decision?.decision ?? null,
+      decision_source: decision?.decision_source ?? null,
+      decision_fingerprint: decisionFingerprint,
+      issued_at: request.issued_at,
+      decided_at: decision?.decided_at ?? null,
+      expires_at: request.expires_at,
+      coverage:
+        decision?.decision_source === "bounded_capability_grant" ||
+        decision?.decision_source === "run_cancellation"
+          ? "enforced"
+          : "observed",
+      source_refs: uniqueRefs([
+        input.reporter_ref,
+        input.admission.packet_ref,
+        input.admission.root_scope.root_scope_ref,
+        approvalRef,
+        request.host_thread_ref,
+        request.host_turn_ref,
+        request.host_item_ref,
+        request.host_request_ref,
+        ...resourceRefs,
+      ]),
+      semantic_approval_created: false,
+    };
+  });
+}
+
+function protocolExternalRefMetadataV01(value: unknown): ExternalRefV01 | null {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    validateExternalRefV01(value).status !== "valid"
+  ) {
+    return null;
+  }
+  return value as ExternalRefV01;
+}
+
+function requiredCheckIdsForResultV01(
+  result: NativeHostResultV01,
+  packetRequiredCheckIds: string[],
+): string[] {
+  const deliveryCheckId =
+    result.adapter_extension.adapter_kind === "codex_app_server" ||
+    result.adapter_extension.bounded_metadata.packet_delivery_initiated === true
+      ? "validated_packet_delivery"
+      : "deterministic_packet_delivery";
+  return [...new Set([deliveryCheckId, ...packetRequiredCheckIds])].sort();
+}
+
 function verificationForResult(
   result: NativeHostResultV01,
   requiredCheckIds: string[],
+  liveAppServerResult: boolean,
+  synthesizedSkippedCheckIds: ReadonlySet<string>,
+  reporterRef: ExternalRefV01,
 ): RunReceiptV01["verification"] {
-  const attestationSource = result.host_refs[0]
-    ? [result.host_refs[0]]
-    : [];
-  if (result.checks.some((check) => check.status === "failed")) {
-    return {
-      status: "failed",
-      basis: "attested",
-      required_check_ids: requiredCheckIds,
-      source_refs: attestationSource,
-    };
-  }
-  if (result.outcome !== "completed") {
-    return {
-      status: "not_run",
-      basis: result.host_refs.length ? "attested" : "unknown",
-      required_check_ids: requiredCheckIds,
-      source_refs: attestationSource,
-    };
+  const hostRef = result.host_refs[0] ?? null;
+  const hasHostResidue =
+    liveAppServerResult &&
+    Boolean(hostRef) &&
+    (result.checks.some(
+      (check) => check.check_id !== "validated_packet_delivery",
+    ) ||
+      result.skipped_checks.some(
+        (check) => !synthesizedSkippedCheckIds.has(check.check_id),
+      ));
+  const hasObservedResidue =
+    !liveAppServerResult ||
+    synthesizedSkippedCheckIds.size > 0 ||
+    result.checks.some(
+      (check) => check.check_id === "validated_packet_delivery",
+    );
+  const basis =
+    hasHostResidue && hasObservedResidue
+      ? ("mixed" as const)
+      : hasHostResidue
+        ? ("attested" as const)
+        : hasObservedResidue
+          ? ("observed" as const)
+          : ("unknown" as const);
+  const sourceRefs = uniqueRefs([
+    ...(hasObservedResidue ? [reporterRef] : []),
+    ...(hasHostResidue ? [hostRef] : []),
+  ]);
+  const required = new Set(requiredCheckIds);
+  const requiredChecks = result.checks.filter((check) =>
+    required.has(check.check_id),
+  );
+  const requiredSkipped = result.skipped_checks.filter((check) =>
+    required.has(check.check_id),
+  );
+  const anyFailed = result.checks.some((check) => check.status === "failed");
+  const requiredNonpassing = requiredChecks.some(
+    (check) => check.status !== "passed",
+  );
+  const allRequiredPassed = requiredCheckIds.every((checkId) =>
+    requiredChecks.some(
+      (check) => check.check_id === checkId && check.status === "passed",
+    ),
+  );
+  let status: RunReceiptV01["verification"]["status"];
+  if (anyFailed || requiredNonpassing) {
+    status = "failed";
+  } else if (
+    result.checks.length === 0 &&
+    result.skipped_checks.length === 0
+  ) {
+    status = result.outcome === "completed" ? "unknown" : "not_run";
+  } else if (
+    result.outcome === "completed" &&
+    allRequiredPassed &&
+    requiredSkipped.length === 0 &&
+    !result.checks.some((check) =>
+      ["blocked", "unknown"].includes(check.status),
+    ) &&
+    result.skipped_checks.length === 0
+  ) {
+    status = "passed";
+  } else {
+    status = "partial";
   }
   return {
-    status: result.skipped_checks.length ? "partial" : "passed",
-    basis: "attested",
+    status,
+    basis,
     required_check_ids: requiredCheckIds,
-    source_refs: attestationSource,
+    source_refs: sourceRefs,
   };
 }
 
@@ -2004,6 +2527,7 @@ async function resolveRootKind(
 function repositoryArtifactRef(
   relativePath: string,
   observedAt: string,
+  trustClass: ExternalRefV01["trust_class"] = "host_attestation",
 ): ExternalRefV01 {
   return {
     ref_version: "external_ref.v0.1",
@@ -2012,8 +2536,14 @@ function repositoryArtifactRef(
     observed_at: observedAt,
     source_ref: createProtocolSha256V01(relativePath),
     compatibility_namespace: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
-    trust_class: "host_attestation",
+    trust_class: trustClass,
   };
+}
+
+function stableResidueIdV01(kind: string, value: unknown): string {
+  return `${kind}:${createProtocolSha256V01(
+    canonicalizeProtocolValueV01(value),
+  )}`;
 }
 
 function localRef(
@@ -2041,7 +2571,13 @@ function uniqueRefs(
   const seen = new Set<string>();
   return refs.filter((ref): ref is ExternalRefV01 => {
     if (!ref) return false;
-    const key = canonicalizeProtocolValueV01(ref);
+    const key = canonicalizeProtocolValueV01({
+      scope: ref.compatibility_namespace
+        ? `namespace:${ref.compatibility_namespace}`
+        : `provider:${ref.provider ?? ""}|host:${ref.host ?? ""}`,
+      ref_type: ref.ref_type,
+      external_id: ref.external_id,
+    });
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

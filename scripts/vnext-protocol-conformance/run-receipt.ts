@@ -17,6 +17,11 @@ import {
   validateRunReceiptV01,
   type RunReceiptBuilderInputV01,
 } from "@/lib/vnext/run-receipt";
+import {
+  NativeHostResultNormalizationErrorV01,
+  normalizeNativeHostResultResidueV01,
+} from "@/lib/vnext/native-host/native-host-result-normalization";
+import type { NativeHostResultV01 } from "@/types/vnext/native-host-adapter";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
 const positiveFixtures = [
@@ -238,6 +243,274 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
     "finished_at later than recorded_at must warn without rewriting time",
   );
 
+  assert.equal(
+    Object.hasOwn(generic, "host_approvals"),
+    false,
+    "pre-PR-C receipts remain byte- and fingerprint-compatible without the additive field",
+  );
+  const approvalInput = clone(genericCliDirectObservationInputFixture);
+  approvalInput.run_id = "run-host-approval-residue-001";
+  const approvalSource = approvalInput.reporter_ref;
+  const approvalRef = receiptRef("native_host_approval", "native-host-approval:fixture");
+  const threadRef = receiptRef("host_thread", "thread-fixture");
+  const turnRef = receiptRef("host_turn", "turn-fixture");
+  const itemRef = receiptRef("host_item", "item-fixture");
+  const requestRef = receiptRef("host_approval_request", "request-fixture");
+  const approval = {
+    approval_ref: approvalRef,
+    host_thread_ref: threadRef,
+    host_turn_ref: turnRef,
+    host_item_ref: itemRef,
+    host_request_ref: requestRef,
+    operation_class: "command_execution" as const,
+    resource_summary: "Run the bounded repository check.",
+    resource_refs: [receiptRef("repository_relative_artifact", "src/check.ts")],
+    command_fingerprint: `sha256:${"1".repeat(64)}`,
+    request_fingerprint: `sha256:${"2".repeat(64)}`,
+    decision: "approve_once" as const,
+    decision_source: "explicit_local_operator" as const,
+    decision_fingerprint: `sha256:${"3".repeat(64)}`,
+    issued_at: "2026-07-10T02:10:00.000Z",
+    decided_at: "2026-07-10T02:11:00.000Z",
+    expires_at: "2026-07-10T02:20:00.000Z",
+    coverage: "observed" as const,
+    source_refs: [approvalSource, threadRef, turnRef, itemRef, requestRef],
+    semantic_approval_created: false as const,
+  };
+  approvalInput.host_approvals = [approval, clone(approval)];
+  const approvalReceipt = buildRunReceiptV01(deepFreeze(approvalInput));
+  assert.equal(validateRunReceiptV01(approvalReceipt).status, "valid");
+  assert.equal(approvalReceipt.host_approvals?.length, 1);
+  assert.equal(
+    approvalReceipt.host_approvals?.[0]?.semantic_approval_created,
+    false,
+  );
+  const conflictingApprovalInput = clone(approvalInput);
+  conflictingApprovalInput.host_approvals![1]!.decision = "decline";
+  const conflictingApproval = buildRunReceiptV01(
+    deepFreeze(conflictingApprovalInput),
+  );
+  assert.ok(
+    validateRunReceiptV01(conflictingApproval).errors.some(
+      (issue) => issue.code === "host_approval_identity_conflict",
+    ),
+    "conflicting material for one approval identity must fail closed",
+  );
+  for (const [unsafePathIndex, unsafePath] of [
+    "/home/private/result.txt",
+    "C:\\private\\result.txt",
+    "\\\\server\\share\\result.txt",
+    "\\rooted\\result.txt",
+    "file:///home/private/result.txt",
+  ].entries()) {
+    const unsafeApprovalInput = clone(approvalInput);
+    unsafeApprovalInput.run_id = `run-unsafe-approval-${unsafePathIndex}`;
+    unsafeApprovalInput.host_approvals![0]!.resource_summary = unsafePath;
+    unsafeApprovalInput.host_approvals = [unsafeApprovalInput.host_approvals![0]!];
+    const unsafeReceipt = buildRunReceiptV01(
+      deepFreeze(unsafeApprovalInput),
+    );
+    assert.ok(
+      validateRunReceiptV01(unsafeReceipt).errors.some(
+        (issue) => issue.code === "absolute_local_path_forbidden",
+      ),
+      `${unsafePath} must not enter a canonical RunReceipt`,
+    );
+  }
+  const opaqueArtifactInput = clone(genericCliDirectObservationInputFixture);
+  opaqueArtifactInput.run_id = "run-opaque-provider-artifact-001";
+  const opaqueArtifactRef = receiptRef(
+    "provider_artifact",
+    String.raw`C:\opaque\provider-id`,
+  );
+  opaqueArtifactInput.external_refs = [
+    ...opaqueArtifactInput.external_refs,
+    opaqueArtifactRef,
+  ];
+  opaqueArtifactInput.artifact_refs = [
+    ...opaqueArtifactInput.artifact_refs,
+    opaqueArtifactRef,
+  ];
+  const opaqueArtifactReceipt = buildRunReceiptV01(
+    deepFreeze(opaqueArtifactInput),
+  );
+  assert.equal(
+    validateRunReceiptV01(opaqueArtifactReceipt).status,
+    "valid",
+    "opaque ExternalRef IDs must not acquire filesystem-path semantics",
+  );
+
+  const normalizedResidueInput = nativeHostResultFixtureV01();
+  normalizedResidueInput.changed_files = [
+    {
+      repository_relative_path: "docs/./guide.md",
+      change_kind: "modified",
+      before_hash: null,
+      after_hash: `sha256:${"4".repeat(64)}`,
+    },
+    {
+      repository_relative_path: "docs/guide.md",
+      change_kind: "modified",
+      before_hash: null,
+      after_hash: `sha256:${"4".repeat(64)}`,
+    },
+  ];
+  normalizedResidueInput.commands = [
+    ...normalizedResidueInput.commands,
+    clone(normalizedResidueInput.commands[0]!),
+  ];
+  normalizedResidueInput.artifacts = [
+    {
+      artifact_ref: receiptRef(
+        "repository_relative_artifact",
+        "reports/./result.json",
+      ),
+      summary: "Bounded result artifact.",
+    },
+    {
+      artifact_ref: receiptRef(
+        "repository_relative_artifact",
+        "reports/result.json",
+      ),
+      summary: "Bounded result artifact.",
+    },
+  ];
+  normalizedResidueInput.observed_actions = ["z-action", "a-action", "z-action"];
+  const normalizedResidue = normalizeNativeHostResultResidueV01({
+    result: normalizedResidueInput,
+    required_check_ids: ["check:typecheck", "check:missing"],
+  });
+  assert.equal(normalizedResidue.result.changed_files.length, 1);
+  assert.equal(
+    normalizedResidue.result.changed_files[0]?.repository_relative_path,
+    "docs/guide.md",
+  );
+  assert.equal(normalizedResidue.result.commands.length, 1);
+  assert.equal(normalizedResidue.result.artifacts.length, 1);
+  assert.equal(
+    normalizedResidue.result.artifacts[0]?.artifact_ref.external_id,
+    "reports/result.json",
+  );
+  assert.deepEqual(normalizedResidue.result.observed_actions, ["a-action", "z-action"]);
+  assert.deepEqual(normalizedResidue.synthesized_skipped_check_ids, ["check:missing"]);
+  assert.equal(
+    normalizedResidue.result.skipped_checks[0]?.reason.includes("remains unverified"),
+    true,
+  );
+  const reorderedResidue = clone(normalizedResidueInput);
+  reorderedResidue.changed_files.reverse();
+  reorderedResidue.commands.reverse();
+  reorderedResidue.artifacts.reverse();
+  reorderedResidue.observed_actions.reverse();
+  assert.deepEqual(
+    normalizeNativeHostResultResidueV01({
+      result: reorderedResidue,
+      required_check_ids: ["check:missing", "check:typecheck"],
+    }),
+    normalizedResidue,
+    "semantically identical residue must normalize independent of event order",
+  );
+  const conflictingChangedFile = nativeHostResultFixtureV01();
+  conflictingChangedFile.changed_files = [
+    {
+      repository_relative_path: "src/file.ts",
+      change_kind: "added",
+      before_hash: null,
+      after_hash: null,
+    },
+    {
+      repository_relative_path: "src/file.ts",
+      change_kind: "deleted",
+      before_hash: null,
+      after_hash: null,
+    },
+  ];
+  assert.throws(
+    () =>
+      normalizeNativeHostResultResidueV01({
+        result: conflictingChangedFile,
+        required_check_ids: [],
+      }),
+    (error) =>
+      error instanceof NativeHostResultNormalizationErrorV01 &&
+      error.code === "native_host_changed_file_conflict",
+  );
+  const conflictingCommand = nativeHostResultFixtureV01();
+  conflictingCommand.commands.push({
+    ...conflictingCommand.commands[0]!,
+    status: "failed",
+  });
+  assert.throws(
+    () =>
+      normalizeNativeHostResultResidueV01({
+        result: conflictingCommand,
+        required_check_ids: [],
+      }),
+    (error) =>
+      error instanceof NativeHostResultNormalizationErrorV01 &&
+      error.code === "native_host_command_conflict",
+  );
+  const conflictingArtifact = nativeHostResultFixtureV01();
+  conflictingArtifact.artifacts = [
+    {
+      artifact_ref: receiptRef(
+        "repository_relative_artifact",
+        "reports/result.json",
+      ),
+      summary: "First bounded summary.",
+    },
+    {
+      artifact_ref: receiptRef(
+        "repository_relative_artifact",
+        "reports/result.json",
+      ),
+      summary: "Conflicting bounded summary.",
+    },
+  ];
+  assert.throws(
+    () =>
+      normalizeNativeHostResultResidueV01({
+        result: conflictingArtifact,
+        required_check_ids: [],
+      }),
+    (error) =>
+      error instanceof NativeHostResultNormalizationErrorV01 &&
+      error.code === "native_host_artifact_conflict",
+  );
+  const conflictingCheck = nativeHostResultFixtureV01();
+  conflictingCheck.checks.push({
+    ...conflictingCheck.checks[0]!,
+    status: "failed",
+  });
+  assert.throws(
+    () =>
+      normalizeNativeHostResultResidueV01({
+        result: conflictingCheck,
+        required_check_ids: [],
+      }),
+    (error) =>
+      error instanceof NativeHostResultNormalizationErrorV01 &&
+      error.code === "native_host_check_conflict",
+  );
+  const checkSkipConflict = nativeHostResultFixtureV01();
+  checkSkipConflict.skipped_checks = [
+    {
+      check_id: "check:typecheck",
+      required: true,
+      reason: "The check was explicitly skipped by the bounded fixture.",
+    },
+  ];
+  assert.throws(
+    () =>
+      normalizeNativeHostResultResidueV01({
+        result: checkSkipConflict,
+        required_check_ids: ["check:typecheck"],
+      }),
+    (error) =>
+      error instanceof NativeHostResultNormalizationErrorV01 &&
+      error.code === "native_host_check_result_skip_conflict",
+  );
+
   const repeated = buildRunReceiptV01(
     deepFreeze(clone(genericCliDirectObservationInputFixture)),
   );
@@ -316,6 +589,66 @@ function requiredReceipt(
   const receipt = receipts.get(name);
   assert.ok(receipt, `missing receipt fixture ${name}`);
   return receipt;
+}
+
+function receiptRef(ref_type: string, external_id: string) {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type,
+    external_id,
+    observed_at: "2026-07-10T02:11:00.000Z",
+    trust_class: "direct_local_observation" as const,
+  };
+}
+
+function nativeHostResultFixtureV01(): NativeHostResultV01 {
+  const hostRef = receiptRef("native_host_adapter", "fixture-adapter");
+  return {
+    result_version: "native_host_result.v0.1",
+    request_id: "native-host-request:fixture",
+    run_id: "native-host-run:fixture",
+    outcome: "completed",
+    public_stop_reason: null,
+    started_at: "2026-07-10T02:00:00.000Z",
+    finished_at: "2026-07-10T02:01:00.000Z",
+    host_refs: [hostRef],
+    adapter_version: "fixture-adapter.v0.1",
+    capability_version: "fixture-capability.v0.1",
+    changed_files: [],
+    artifacts: [],
+    observed_actions: [],
+    commands: [
+      {
+        command_id: "command:typecheck",
+        summary: "Run the bounded typecheck.",
+        command_fingerprint: `sha256:${"5".repeat(64)}`,
+        started_at: "2026-07-10T02:00:10.000Z",
+        finished_at: "2026-07-10T02:00:20.000Z",
+        exit_code: 0,
+        status: "completed",
+      },
+    ],
+    checks: [
+      {
+        check_id: "check:typecheck",
+        required: true,
+        status: "passed",
+        summary: "The bounded typecheck passed.",
+      },
+    ],
+    skipped_checks: [],
+    model_invocation_receipt_refs: [],
+    summary: "The bounded fixture completed.",
+    uncertainty: [],
+    gaps: [],
+    proposed_next_steps: [],
+    capability_coverage: [],
+    adapter_extension: {
+      extension_version: "fixture-extension.v0.1",
+      adapter_kind: "fixture",
+      bounded_metadata: {},
+    },
+  };
 }
 
 function reorderSemanticallyUnorderedArrays(input: RunReceiptBuilderInputV01) {

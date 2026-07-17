@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const ROUTE = "/api/vnext/operator/host-round-trip";
 const POLL_MS = 750;
@@ -61,6 +62,7 @@ interface LiveProjectionV01 {
 }
 
 export function DirectHostRoundTripAction() {
+  const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
   const [deterministic, setDeterministic] = useState<DeterministicStateV01>({
     status: "idle",
@@ -68,6 +70,7 @@ export function DirectHostRoundTripAction() {
   const [live, setLive] = useState<LiveProjectionV01 | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
   const polling = useRef(false);
+  const refreshedProjection = useRef<string | null>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -88,6 +91,25 @@ export function DirectHostRoundTripAction() {
     const timer = window.setTimeout(() => void readLive(), POLL_MS);
     return () => window.clearTimeout(timer);
   }, [live?.status, live?.control_revision]);
+
+  useEffect(() => {
+    if (!live?.run_ref) return;
+    const projectionKey = [
+      live.run_ref,
+      live.status,
+      live.control_revision,
+      live.receipt?.receipt_ref ?? "nonterminal",
+    ].join(":");
+    if (refreshedProjection.current === projectionKey) return;
+    refreshedProjection.current = projectionKey;
+    router.refresh();
+  }, [
+    live?.control_revision,
+    live?.receipt?.receipt_ref,
+    live?.run_ref,
+    live?.status,
+    router,
+  ]);
 
   async function runDeterministic(): Promise<void> {
     if (deterministic.status === "running") return;
@@ -121,6 +143,7 @@ export function DirectHostRoundTripAction() {
             ? receipt.result_summary.summary
             : "The bounded host round trip returned a durable receipt.",
       });
+      router.refresh();
     } catch {
       setDeterministic({
         status: "error",

@@ -2680,7 +2680,36 @@ function uniqueChangedFilesV01(
     const normalized = canonicalizeRepositoryRelativePathV01(
       value.repository_relative_path,
     );
-    found.set(normalized, { ...value, repository_relative_path: normalized });
+    const candidate = { ...value, repository_relative_path: normalized };
+    const prior = found.get(normalized);
+    if (!prior) {
+      found.set(normalized, candidate);
+      continue;
+    }
+    const changeKind = mergeCompatibleValueV01(
+      prior.change_kind,
+      candidate.change_kind,
+      "unknown",
+      "codex_changed_file_conflict",
+    );
+    const beforeHash = mergeCompatibleValueV01(
+      prior.before_hash,
+      candidate.before_hash,
+      null,
+      "codex_changed_file_conflict",
+    );
+    const afterHash = mergeCompatibleValueV01(
+      prior.after_hash,
+      candidate.after_hash,
+      null,
+      "codex_changed_file_conflict",
+    );
+    found.set(normalized, {
+      repository_relative_path: normalized,
+      change_kind: changeKind,
+      before_hash: beforeHash,
+      after_hash: afterHash,
+    });
   }
   return [...found.values()].sort((left, right) =>
     left.repository_relative_path.localeCompare(right.repository_relative_path),
@@ -2693,17 +2722,74 @@ function mergeCommandsV01(
 ): NativeHostObservedCommandV01[] {
   const values = new Map<string, NativeHostObservedCommandV01>();
   for (const command of [...attested, ...observed]) {
-    values.set(command.command_id, command);
+    const prior = values.get(command.command_id);
+    if (!prior) {
+      values.set(command.command_id, command);
+      continue;
+    }
+    if (
+      prior.summary !== command.summary ||
+      prior.command_fingerprint !== command.command_fingerprint ||
+      prior.status !== command.status
+    ) {
+      throw new CodexProtocolErrorV01("codex_command_item_conflict");
+    }
+    values.set(command.command_id, {
+      ...prior,
+      started_at: mergeCompatibleValueV01(
+        prior.started_at,
+        command.started_at,
+        null,
+        "codex_command_item_conflict",
+      ),
+      finished_at: mergeCompatibleValueV01(
+        prior.finished_at,
+        command.finished_at,
+        null,
+        "codex_command_item_conflict",
+      ),
+      exit_code: mergeCompatibleValueV01(
+        prior.exit_code,
+        command.exit_code,
+        null,
+        "codex_command_item_conflict",
+      ),
+    });
   }
-  return [...values.values()];
+  return [...values.values()].sort((left, right) =>
+    left.command_id.localeCompare(right.command_id),
+  );
 }
 
 function uniqueChecksV01(
   values: NativeHostObservedCheckV01[],
 ): NativeHostObservedCheckV01[] {
   const found = new Map<string, NativeHostObservedCheckV01>();
-  for (const value of values) found.set(value.check_id, value);
-  return [...found.values()];
+  for (const value of values) {
+    const prior = found.get(value.check_id);
+    if (
+      prior &&
+      canonicalizeProtocolValueV01(prior) !==
+        canonicalizeProtocolValueV01(value)
+    ) {
+      throw new CodexProtocolErrorV01("codex_check_result_conflict");
+    }
+    if (!prior) found.set(value.check_id, value);
+  }
+  return [...found.values()].sort((left, right) =>
+    left.check_id.localeCompare(right.check_id),
+  );
+}
+
+function mergeCompatibleValueV01<T>(
+  left: T,
+  right: T,
+  missing: T,
+  conflictCode: string,
+): T {
+  if (left === missing) return right;
+  if (right === missing || left === right) return left;
+  throw new CodexProtocolErrorV01(conflictCode);
 }
 
 function changeKindV01(value: unknown): NativeHostChangedFileV01["change_kind"] {

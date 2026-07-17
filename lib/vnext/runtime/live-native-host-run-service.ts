@@ -40,6 +40,7 @@ import {
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
 import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import { appendNativeHostApprovalRequestResidueV01 } from "@/lib/vnext/runtime/native-host-approval-residue";
 import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
@@ -1291,6 +1292,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       db.exec("BEGIN IMMEDIATE");
       const run = requireBoundRunV01(db, request);
       assertApprovalHostBindingV01(run, approval);
+      const approvalRequests = appendNativeHostApprovalRequestResidueV01(
+        run.metadata.approval_requests,
+        approval,
+      );
       const priorDecision = approvalDecisionsFromMetadataV01(
         run.metadata.approval_decisions,
       ).find((candidate) => candidate.approval_id === approval.approval_id);
@@ -1326,6 +1331,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
                 ),
                 decision,
               ].slice(-MAX_APPROVAL_DECISIONS),
+              approval_requests: approvalRequests,
             },
           },
           { db },
@@ -1384,6 +1390,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
             metadata: {
               ...run.metadata,
               pending_approval: pending,
+              approval_requests: approvalRequests,
               control_revision: revision,
               reconciliation_required: false,
             },

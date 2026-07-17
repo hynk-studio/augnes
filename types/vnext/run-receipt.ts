@@ -128,6 +128,40 @@ export interface RunReceiptChangedArtifactV01 {
   source_refs: ExternalRefV01[];
 }
 
+export interface RunReceiptHostApprovalV01 {
+  approval_ref: ExternalRefV01;
+  host_thread_ref: ExternalRefV01;
+  host_turn_ref: ExternalRefV01;
+  host_item_ref: ExternalRefV01;
+  host_request_ref: ExternalRefV01;
+  operation_class:
+    | "command_execution"
+    | "file_change"
+    | "filesystem_permission"
+    | "network_permission";
+  resource_summary: string;
+  resource_refs: ExternalRefV01[];
+  command_fingerprint: string | null;
+  request_fingerprint: string;
+  decision:
+    | "approve_once"
+    | "decline"
+    | "cancel_run"
+    | null;
+  decision_source:
+    | "explicit_local_operator"
+    | "bounded_capability_grant"
+    | "run_cancellation"
+    | null;
+  decision_fingerprint: string | null;
+  issued_at: string;
+  decided_at: string | null;
+  expires_at: string | null;
+  coverage: "observed" | "enforced";
+  source_refs: ExternalRefV01[];
+  semantic_approval_created: false;
+}
+
 /**
  * Read/import compatibility for run_receipt.v0.1 host attestations that
  * predate the R4 Gateway receipt. New Gateway-backed writers must use
@@ -304,6 +338,12 @@ export interface RunReceiptV01 {
   commands: RunReceiptCommandSummaryV01[];
   checks: RunReceiptCheckResultV01[];
   skipped_checks: RunReceiptSkippedCheckV01[];
+  /**
+   * Optional additive v0.1 residue. Receipts admitted before R5 PR C omit this
+   * field and remain valid; new native-host receipts include a bounded array,
+   * including an empty array when approval collection was observed.
+   */
+  host_approvals?: RunReceiptHostApprovalV01[];
   external_refs: ExternalRefV01[];
   result_summary: RunReceiptResultSummaryV01;
   blockers: RunReceiptIssueV01[];
