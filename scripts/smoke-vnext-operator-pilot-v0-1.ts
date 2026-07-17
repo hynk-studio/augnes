@@ -21,8 +21,12 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import { readAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
 import { createVNextOperatorContextUseReviewHandlersV01 } from "../app/api/vnext/operator/context-use-review/route";
-import { createVNextOperatorHostRoundTripHandlerV01 } from "../app/api/vnext/operator/host-round-trip/route";
+import {
+  createVNextOperatorHostRoundTripHandlerV01,
+  createVNextOperatorHostRoundTripReadHandlerV01,
+} from "../app/api/vnext/operator/host-round-trip/route";
 import { createVNextOperatorLaterResultHandlersV01 } from "../app/api/vnext/operator/later-result/route";
 import { createVNextOperatorPacketHandoffHandlerV01 } from "../app/api/vnext/operator/packet-handoff/route";
 import { createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
@@ -49,6 +53,7 @@ import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
   normalizeLocalProjectRootRefV01,
+  readCanonicalProjectWithRootV01,
   rebindCanonicalProjectLocalRootV01,
 } from "../lib/vnext/persistence/project-identity-registry";
 import {
@@ -79,12 +84,21 @@ import {
   createDeterministicCodexAdapterV01,
   type DeterministicCodexAdapterObservationV01,
 } from "../lib/vnext/native-host/deterministic-codex-adapter";
+import {
+  createCodexAppServerAdapterV01,
+  publicSafeCommandSummaryV01,
+  type CodexAppServerAdapterObservationV01,
+} from "../lib/vnext/native-host/codex-app-server-adapter";
 import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import {
   DirectNativeHostRoundTripErrorV01,
   runDirectNativeHostRoundTripV01,
 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import {
+  LiveNativeHostRunServiceV01,
+  type LiveNativeHostRunProjectionV01,
+} from "../lib/vnext/runtime/live-native-host-run-service";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   recordVNextSemanticCommitAuthorizationInsideTransactionV01,
@@ -512,7 +526,18 @@ process.stdout.write(`${JSON.stringify(finalSummary, null, 2)}\n`);
 void main().catch((error: unknown) => {
   const message =
     error instanceof Error ? error.message : "operator_pilot_smoke_failed";
-  process.stderr.write(`operator_pilot_smoke_failed:${message}\n`);
+  const locations =
+    error instanceof Error
+      ? [
+          ...new Set(
+            [...(error.stack ?? "").matchAll(/([A-Za-z0-9_.-]+\.(?:ts|mjs)):(\d+):(\d+)/gu)]
+              .map((match) => `${match[1]}:${match[2]}:${match[3]}`),
+          ),
+        ].slice(0, 6)
+      : [];
+  process.stderr.write(
+    `operator_pilot_smoke_failed:${message}${locations.length ? `:locations=${locations.join(",")}` : ""}\n`,
+  );
   process.exitCode = 1;
 });
 
@@ -701,9 +726,18 @@ async function assertFullOperatorLoop(input: {
     project_id: config.project_id,
     run_id: "run:operator-pilot-full-loop-source",
   };
-  const priorPacket = buildSemanticReviewLoopTaskContextPacketFixture(
+  const fixturePriorPacket = buildSemanticReviewLoopTaskContextPacketFixture(
     fixtureProject,
   );
+  const priorPacket = process.env
+    .AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR
+    ? rebuildPacketForLineageTest(fixturePriorPacket, {
+        constraints: {
+          ...fixturePriorPacket.constraints,
+          data_classification: "public_safe",
+        },
+      })
+    : fixturePriorPacket;
   const mapperInput = semanticReviewLoopMapperInputFixture(
     fixtureProject,
     priorPacket,
@@ -1868,12 +1902,17 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     observed,
     golden.host_result!,
   );
-  await assertInteractiveHostRouteOnCloneV01(input);
-  await assertDirectHostTerminalScenariosOnClonesV01(input);
-  await assertDirectHostStopSettlementOnClonesV01(input);
-  await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
-  await assertDirectHostPrestartRefusalsOnClonesV01(input);
-  await assertDirectHostRootScopesOnClonesV01(input);
+  if (!process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR) {
+    await assertInteractiveHostRouteOnCloneV01(input);
+    await assertDirectHostTerminalScenariosOnClonesV01(input);
+    await assertDirectHostStopSettlementOnClonesV01(input);
+    await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
+    await assertDirectHostPrestartRefusalsOnClonesV01(input);
+    await assertDirectHostRootScopesOnClonesV01(input);
+    await assertLiveCodexAppServerLifecycleOnClonesV01(input);
+  } else {
+    pass("browser_fixture_export_avoids_duplicate_service_matrix_execution");
+  }
 }
 
 function directHostPolicyContextV01(
@@ -2039,6 +2078,2056 @@ async function assertInteractiveHostRouteOnCloneV01(input: {
   );
   pass("interactive_and_policy_modes_converge_on_direct_host_orchestrator");
   pass("direct_host_route_accepts_empty_body_only_and_rotates_session_nonce");
+}
+
+let liveFixtureSequenceV01 = 0;
+
+async function assertLiveCodexAppServerLifecycleOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  config: VNextLocalOperatorPilotConfigV01;
+  clock: ManualClock;
+  secret_source: DeterministicSecretSource;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+  transition_receipt: StateTransitionReceiptV01;
+}): Promise<void> {
+  const guardedService = new LiveNativeHostRunServiceV01({
+    now: () => input.clock.now(),
+  });
+  await assert.rejects(
+    () =>
+      guardedService.start({
+        config: input.config,
+        mode: "interactive",
+      }),
+    /live_host_operator_authority_required/,
+  );
+  reject("live_codex_interactive_start_without_local_operator_authority_refused");
+  assertPublicSafeCommandSummaryContractV01();
+  await assertLiveCodexSequentialApprovalAccountingOnCloneV01(input);
+  await assertLiveCodexServerRequestConflictCasesOnClonesV01(input);
+  await assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input);
+  await assertLiveCodexGoldenApprovalOnCloneV01(input);
+  try {
+    await assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input);
+  } catch (error) {
+    throw new Error(
+      `live_codex_approval_replay_case:${error instanceof Error ? error.message : "failed"}`,
+    );
+  }
+  try {
+    await assertLiveCodexPolicyApprovalParityOnClonesV01(input);
+  } catch (error) {
+    throw new Error(
+      `live_codex_policy_approval_case:${error instanceof Error ? error.message : "failed"}`,
+    );
+  }
+  await assertLiveCodexCancellationSettlementOnCloneV01(input);
+  await assertLiveCodexTimeoutSettlementOnCloneV01(input);
+  try {
+    await assertLiveCodexRuntimeShutdownAndDescendantCleanupOnCloneV01(input);
+  } catch (error) {
+    throw new Error(
+      `live_codex_process_owner_case:${error instanceof Error ? error.message : "failed"}`,
+    );
+  }
+  await assertLiveCodexDisconnectResumeOnCloneV01(input);
+  await assertLiveCodexFailureMatrixOnClonesV01(input);
+}
+
+function assertPublicSafeCommandSummaryContractV01(): void {
+  const credentialCases = [
+    ["tool --client-secret super-secret-value", "super-secret-value"],
+    ["tool --client-secret=super-secret-value", "super-secret-value"],
+    ["aws --secret-access-key super-secret-value", "super-secret-value"],
+    ["tool --service-account-token=super-secret-value", "super-secret-value"],
+    ["env CLIENT_SECRET=super-secret-value tool", "super-secret-value"],
+    ["set CLIENT_SECRET=super-secret-value", "super-secret-value"],
+    ['$env:CLIENT_SECRET = "super-secret-value"', "super-secret-value"],
+    [
+      'curl -H "X-Api-Key: super-secret-value" https://example.invalid',
+      "super-secret-value",
+    ],
+    [
+      'curl --header "Authorization: Bearer super-secret-value" https://example.invalid',
+      "super-secret-value",
+    ],
+    [
+      'curl --header "Proxy-Authorization: Bearer super-secret-value" https://example.invalid',
+      "super-secret-value",
+    ],
+    ["https://user:password@example.invalid/", "user:password"],
+  ] as const;
+  for (const [command, secret] of credentialCases) {
+    const summary = publicSafeCommandSummaryV01(command);
+    assert.equal(summary.includes(secret), false, command);
+    assert.equal(summary.includes("[redacted]"), true, command);
+    const fingerprint = createProtocolSha256V01(command);
+    assert.equal(fingerprint, createProtocolSha256V01(command));
+    assert.notEqual(
+      fingerprint,
+      createProtocolSha256V01(command.replace(secret, `${secret}-different`)),
+    );
+  }
+
+  for (const [command, privatePath] of [
+    ["/usr/bin/env npm test", "/usr/bin/env"],
+    ["node /home/private/project/script.js", "/home/private/project/script.js"],
+    [String.raw`"C:\Program Files\nodejs\node.exe" script.js`, String.raw`C:\Program Files\nodejs\node.exe`],
+    [String.raw`\\server\share\tool.exe`, String.raw`\\server\share\tool.exe`],
+    [String.raw`\rooted\tool.exe`, String.raw`\rooted\tool.exe`],
+    ["file:///home/private/tool", "file:///home/private/tool"],
+  ] as const) {
+    const summary = publicSafeCommandSummaryV01(command);
+    assert.equal(summary.includes(privatePath), false, command);
+    assert.equal(summary.includes("[absolute-path]"), true, command);
+    assert.match(createProtocolSha256V01(command), /^sha256:[a-f0-9]{64}$/u);
+  }
+
+  for (const command of [
+    "npm test",
+    "git status --short",
+    "node scripts/check.mjs",
+    "npm run check -- src/runtime/adapter.ts",
+  ]) {
+    assert.equal(publicSafeCommandSummaryV01(command), command);
+  }
+  pass("live_codex_public_command_summary_redacts_credentials_and_absolute_paths");
+  pass("live_codex_public_command_summary_preserves_safe_relative_commands");
+}
+
+async function assertLiveCodexSequentialApprovalAccountingOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-sequential-approval-accounting",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 30_100),
+      );
+      const automation = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, automation, {
+        approval_capabilities: [
+          "native_host_approval:command_execution",
+        ],
+        resources: [`command:${createProtocolSha256V01("npm test")}`],
+        expires_at: addIsoMillisecondsV01(clock.now(), 60_000),
+      });
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "sequential_approval_chain",
+        now: () => clock.now(),
+      });
+      const receiptsBefore = countRunReceiptsV01(config);
+      try {
+        const start = await harness.service.start({
+          config,
+          mode: "policy_triggered",
+          automation_context: automation,
+        });
+        assert.equal(start.status, "accepted");
+        const completed = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "completed",
+          10_000,
+          "sequential_approval_completion",
+        );
+        assert(completed.receipt);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        const run = readHostRunStateFromConfigV01(config, completed.run_ref!);
+        const decisions = Array.isArray(run.metadata.approval_decisions)
+          ? run.metadata.approval_decisions
+          : [];
+        assert.equal(decisions.length, 20);
+        assert.equal(
+          decisions.every(
+            (decision) =>
+              decision.decision === "approve_once" &&
+              decision.decision_source === "bounded_capability_grant",
+          ),
+          true,
+        );
+        assert.equal(
+          readFakeTraceV01(harness.trace_path).some(
+            (entry) =>
+              entry.value.error_reason ===
+              "codex_server_request_bound_exceeded",
+          ),
+          false,
+        );
+        assert.equal(
+          harness.observations.filter(
+            (entry) => entry.kind === "approval_requested",
+          ).length,
+          20,
+        );
+        assert.equal(
+          harness.observations.filter(
+            (entry) => entry.kind === "approval_resolved",
+          ).length,
+          20,
+        );
+        assert.equal(
+          Math.max(
+            ...harness.observations.map(
+              (entry) => entry.active_server_request_count,
+            ),
+          ),
+          1,
+        );
+        assert.equal(
+          Math.max(
+            ...harness.observations.map(
+              (entry) => entry.recent_resolved_server_request_count,
+            ),
+          ),
+          16,
+        );
+        const cleared = harness.observations.filter(
+          (entry) => entry.kind === "server_request_state_cleared",
+        );
+        assert.equal(cleared.length, 1);
+        assert.equal(cleared[0]!.active_server_request_count, 0);
+        assert.equal(cleared[0]!.recent_resolved_server_request_count, 0);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_twenty_sequential_approvals_use_one_active_slot");
+  pass("live_codex_resolved_server_request_history_is_hash_only_bounded_and_cleared");
+}
+
+async function assertLiveCodexServerRequestConflictCasesOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  for (const [scenario, reason] of [
+    ["concurrent_approval_overflow", "codex_server_request_bound_exceeded"],
+    ["active_duplicate_request", "codex_server_request_duplicate_active"],
+    ["active_conflicting_request", "codex_server_request_conflict"],
+  ] as const) {
+    await withOperatorDatabaseCloneV01(
+      `live-codex-${scenario}`,
+      input.environment,
+      async ({ config }) => {
+        installPublicSafeLivePacketV01(config, input.packet);
+        const clock = new ManualClock(
+          addIsoMillisecondsV01(input.packet.generated_at, 30_200),
+        );
+        const harness = createFakeLiveCodexHarnessV01({
+          config,
+          scenario,
+          now: () => clock.now(),
+        });
+        const receiptsBefore = countRunReceiptsV01(config);
+        try {
+          await harness.service.start({ config, mode: "interactive" });
+          const projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "paused",
+            10_000,
+            scenario,
+          );
+          assert.equal(projection.public_reason, reason);
+          assert.equal(projection.receipt, null);
+          assert.equal(countRunReceiptsV01(config), receiptsBefore);
+          const cleared = harness.observations.at(-2);
+          assert.equal(cleared?.kind, "server_request_state_cleared");
+          assert.equal(cleared?.active_server_request_count, 0);
+          assert.equal(cleared?.recent_resolved_server_request_count, 0);
+          assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+          assertObservedProcessesStoppedV01(harness.observations, scenario);
+        } finally {
+          await harness.service.shutdown();
+        }
+      },
+    );
+  }
+
+  for (const [scenario, reason] of [
+    ["resolved_duplicate_request", "codex_server_request_duplicate_resolved"],
+    ["resolved_conflicting_request", "codex_server_request_resolved_conflict"],
+  ] as const) {
+    await withOperatorDatabaseCloneV01(
+      `live-codex-${scenario}`,
+      input.environment,
+      async ({ config, environment }) => {
+        installPublicSafeLivePacketV01(config, input.packet);
+        const clock = new ManualClock(
+          addIsoMillisecondsV01(input.packet.generated_at, 30_300),
+        );
+        const harness = createFakeLiveCodexHarnessV01({
+          config,
+          scenario,
+          now: () => clock.now(),
+        });
+        const post = createVNextOperatorHostRoundTripHandlerV01({
+          environment,
+          clock,
+          secret_source: new DeterministicSecretSource(),
+          live_service: harness.service,
+        });
+        const jar = cloneRouteCookieJarV01(input.jar);
+        try {
+          const start = await post(
+            routeRequest("/api/vnext/operator/host-round-trip", {
+              method: "POST",
+              jar,
+              body: { action: "start_live" },
+            }),
+          );
+          jar.absorb(start);
+          const waiting = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "waiting_for_approval",
+          );
+          const approval = waiting.pending_approval!;
+          const decision = await post(
+            routeRequest("/api/vnext/operator/host-round-trip", {
+              method: "POST",
+              jar,
+              body: {
+                action: "approve_once",
+                run_ref: waiting.run_ref,
+                approval_ref: approval.approval_ref,
+                control_revision: approval.control_revision,
+              },
+            }),
+          );
+          assert.equal(decision.status, 200);
+          jar.absorb(decision);
+          const projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "paused",
+            10_000,
+            scenario,
+          );
+          assert.equal(projection.public_reason, reason);
+          assert.equal(projection.receipt, null);
+          assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+          assertObservedProcessesStoppedV01(harness.observations, scenario);
+        } finally {
+          await harness.service.shutdown();
+        }
+      },
+    );
+  }
+  reject("live_codex_nine_concurrent_server_requests_fail_closed_without_receipt");
+  reject("live_codex_active_duplicate_and_conflicting_server_requests_fail_closed");
+  reject("live_codex_resolved_request_id_reuse_is_deterministic_and_fail_closed");
+}
+
+async function assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  const rawCommand = String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`;
+  const forbidden = [
+    rawCommand,
+    "super-secret-value",
+    "header-secret-value",
+    "/usr/bin/env",
+    "/home/private/project/script.js",
+  ];
+  await withOperatorDatabaseCloneV01(
+    "live-codex-public-safe-command-persistence",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 30_400),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "public_safe_command_approval",
+        now: () => clock.now(),
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const get = createVNextOperatorHostRoundTripReadHandlerV01({
+        environment,
+        clock,
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      try {
+        const start = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        jar.absorb(start);
+        let projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "waiting_for_approval",
+        );
+        const approval = projection.pending_approval!;
+        assert.equal(
+          approval.command_summary,
+          "[absolute-path] tool --client-secret [redacted] --header Authorization: Bearer [redacted] node [absolute-path]",
+        );
+        const read = await get(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "GET",
+            jar,
+          }),
+        );
+        const publicProjection = canonicalizeProtocolValueV01(
+          await publicJson(read),
+        );
+        for (const value of forbidden) {
+          assert.equal(publicProjection.includes(value), false, value);
+        }
+        const pendingRun = readHostRunStateFromConfigV01(
+          config,
+          projection.run_ref!,
+        );
+        const durablePendingApproval = pendingRun.metadata.pending_approval as
+          | Record<string, unknown>
+          | null;
+        assert(durablePendingApproval);
+        assert.equal(
+          durablePendingApproval.command_fingerprint,
+          createProtocolSha256V01(rawCommand),
+        );
+        assert.notEqual(
+          durablePendingApproval.command_fingerprint,
+          createProtocolSha256V01(
+            rawCommand.replace("super-secret-value", "different-secret-value"),
+          ),
+        );
+        const pendingDurable = canonicalizeProtocolValueV01(pendingRun);
+        assert.equal(pendingDurable.includes("[redacted]"), true);
+        assert.equal(pendingDurable.includes("[absolute-path]"), true);
+        for (const value of forbidden) {
+          assert.equal(pendingDurable.includes(value), false, value);
+        }
+        assertDatabaseArtifactsOmitTextV01(config.database_path, forbidden);
+
+        const response = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "approve_once",
+              run_ref: projection.run_ref,
+              approval_ref: approval.approval_ref,
+              control_revision: approval.control_revision,
+            },
+          }),
+        );
+        assert.equal(response.status, 200);
+        jar.absorb(response);
+        projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "completed",
+        );
+        const terminalRun = readHostRunStateFromConfigV01(
+          config,
+          projection.run_ref!,
+        );
+        const terminalDurable = canonicalizeProtocolValueV01({
+          run: terminalRun,
+          receipt: projection.receipt,
+          trace: readFakeTraceV01(harness.trace_path),
+        });
+        for (const value of forbidden) {
+          assert.equal(terminalDurable.includes(value), false, value);
+        }
+        assertDatabaseArtifactsOmitTextV01(config.database_path, forbidden);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_command_approval_api_ledger_and_receipt_are_public_safe");
+  pass("live_codex_raw_command_fingerprint_uses_unredacted_ephemeral_material");
+}
+
+async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+  transition_receipt: StateTransitionReceiptV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-golden-approval",
+    input.environment,
+    async ({ config, environment }) => {
+      const livePacket = installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 31_000),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "command_approval",
+        now: () => clock.now(),
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const get = createVNextOperatorHostRoundTripReadHandlerV01({
+        environment,
+        clock,
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      const receiptsBefore = countRowsByKind(db, "run_receipt");
+      db.close();
+      try {
+        const start = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        assert.equal(start.status, 202);
+        jar.absorb(start);
+        const startBody = await publicJson(start);
+        assert.equal(startBody.path_kind, "live_codex_app_server");
+        let projection = projectionFromRouteBodyV01(startBody);
+        assert.equal(projection.packet_copy_actions, 0);
+        assert.equal(projection.handoff_paste_actions, 0);
+        assert.equal(projection.result_paste_actions, 0);
+        assert.equal(projection.internal_id_entry_actions, 0);
+
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "waiting_for_approval",
+          );
+        } catch (error) {
+          const trace = readFakeTraceV01(harness.trace_path).slice(-24);
+          throw new Error(
+            `${error instanceof Error ? error.message : "live_projection_failed"}:observations=${JSON.stringify(harness.observations)}:trace=${JSON.stringify(trace)}`,
+          );
+        }
+        assert(projection.run_ref);
+        assert(projection.pending_approval);
+        assert.equal(
+          projection.pending_approval.operation_class,
+          "command_execution",
+        );
+        assert.equal(
+          projection.capability.cli_version,
+          "codex-cli/fake-0.143.0",
+        );
+        assert.equal(projection.pending_approval.command_summary, "npm test");
+        assert.equal(projection.pending_approval.decision_submitted, false);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        assert.equal(
+          readHostRunStateFromConfigV01(config, projection.run_ref).status,
+          "waiting_for_approval",
+        );
+
+        const activeReplay = await harness.service.start({
+          config,
+          mode: "interactive",
+        });
+        assert.equal(activeReplay.status, "exact_replay");
+        assert.equal(activeReplay.projection.run_ref, projection.run_ref);
+        await assert.rejects(
+          () =>
+            harness.service.start({
+              config,
+              mode: "policy_triggered",
+              automation_context: directHostPolicyContextV01(clock.now()),
+            }),
+          /live_host_start_conflict/,
+        );
+        assert.equal(
+          countTraceMethodV01(readFakeTraceV01(harness.trace_path), "thread/start"),
+          1,
+        );
+
+        const read = await get(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "GET",
+            jar,
+          }),
+        );
+        assert.equal(read.status, 200);
+        assert.equal(
+          projectionFromRouteBodyV01(await publicJson(read)).status,
+          "waiting_for_approval",
+        );
+
+        const approval = projection.pending_approval;
+        const approve = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "approve_once",
+              run_ref: projection.run_ref,
+              approval_ref: approval.approval_ref,
+              control_revision: approval.control_revision,
+            },
+          }),
+        );
+        assert.equal(approve.status, 200);
+        jar.absorb(approve);
+        assert.equal((await publicJson(approve)).decision_created, false);
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "completed",
+          );
+        } catch (error) {
+          throw new Error(
+            `${error instanceof Error ? error.message : "live_completion_failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-32))}`,
+          );
+        }
+        assert(projection.receipt);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        assert.equal(existsSync(harness.cleanup_marker_path), true);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+
+        const run = readHostRunStateFromConfigV01(config, projection.run_ref!);
+        assert.equal(
+          run.events.some(
+            (event) =>
+              event.event_type === "host_event_observed" &&
+              event.payload.event_kind === "thread_status_changed",
+          ),
+          true,
+        );
+        const receiptId = String(run.metadata.run_receipt_id);
+        const receiptDb = openVNextLocalOperatorDatabaseV01(config);
+        const record = readVNextCoreRecordV01(receiptDb, {
+          record_kind: "run_receipt",
+          record_id: receiptId,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        receiptDb.close();
+        assert(record);
+        const receipt = record.payload as RunReceiptV01;
+        assert.equal(validateRunReceiptV01(receipt).status, "valid");
+        assert.equal(receipt.workspace_id, config.workspace_id);
+        assert.equal(receipt.project_id, config.project_id);
+        assert.equal(
+          receipt.task_context_packet_ref?.external_id,
+          livePacket.packet_id,
+        );
+        assert.equal(
+          receipt.task_context_packet_ref?.source_ref,
+          livePacket.integrity.fingerprint,
+        );
+        assert.equal(
+          receipt.source_refs.some(
+            (ref) =>
+              ref.ref_type === "state_transition_receipt" &&
+              ref.external_id ===
+                input.transition_receipt.transition_receipt_id,
+          ),
+          true,
+        );
+        assert.equal(receipt.privacy_egress.egress_status, "occurred");
+        assert.equal(receipt.privacy_egress.raw_prompt_persisted, false);
+        assert.equal(receipt.privacy_egress.raw_output_persisted, false);
+        assert.equal(receipt.privacy_egress.raw_transcript_persisted, false);
+        assert.equal(receipt.privacy_egress.secret_material_persisted, false);
+        assert.equal(receipt.model_invocations.length, 0);
+        assert.equal(
+          receipt.changed_artifacts.some(
+            (artifact) =>
+              artifact.artifact_ref.external_id === "src/live-result.ts",
+          ),
+          true,
+        );
+        const durable = canonicalizeProtocolValueV01({ run, receipt });
+        assert.equal(
+          durable.includes(operatorProjectRoot),
+          false,
+          "live durable material must omit the absolute project root",
+        );
+        assert.equal(
+          durable.includes(input.packet.task.goal),
+          false,
+          "live durable material must omit the rendered packet goal",
+        );
+        assert.equal(
+          durable.includes("raw output must never be persisted"),
+          false,
+          "live durable material must omit raw command output",
+        );
+        assert.equal(
+          durable.includes("raw diff must never be persisted"),
+          false,
+          "live durable material must omit raw diffs",
+        );
+        assert.equal(
+          durable.includes("not-returned-to-augnes@example.invalid"),
+          false,
+          "live durable material must omit account details",
+        );
+        assert.equal(
+          durable.includes("OPENAI_API_KEY"),
+          false,
+          "live durable material must omit credential names and values",
+        );
+
+        const trace = readFakeTraceV01(harness.trace_path);
+        assert.equal(countTraceMethodV01(trace, "initialize"), 1);
+        assert.equal(countTraceMethodV01(trace, "account/read"), 1);
+        assert.equal(countTraceMethodV01(trace, "thread/start"), 1);
+        assert.equal(countTraceMethodV01(trace, "turn/start"), 1);
+        const turnStart = trace.find(
+          (entry) =>
+            entry.kind === "received" && entry.value.method === "turn/start",
+        );
+        assert(turnStart);
+        assert.equal(turnStart.value.cwd, operatorProjectRoot);
+        assert.equal(turnStart.value.approval_policy, "on-request");
+        assert.equal(turnStart.value.sandbox_policy?.type, "workspaceWrite");
+        assert.deepEqual(turnStart.value.sandbox_policy?.writableRoots, [
+          operatorProjectRoot,
+        ]);
+        assert.equal(turnStart.value.sandbox_policy?.networkAccess, false);
+        assert.equal(turnStart.value.output_schema, true);
+        assert(Number(turnStart.value.rendered_input_bytes) > 0);
+        assert.match(
+          String(turnStart.value.rendered_input_sha256),
+          /^sha256:[a-f0-9]{64}$/,
+        );
+        assert.equal(harness.observations.filter((entry) => entry.kind === "spawned").length, 1);
+        assert.equal(harness.observations.filter((entry) => entry.kind === "settled").length, 1);
+        assertObservedProcessesStoppedV01(harness.observations);
+
+        const terminalReplay = await harness.service.start({
+          config,
+          mode: "interactive",
+        });
+        assert.equal(terminalReplay.status, "exact_replay");
+        assert.equal(
+          terminalReplay.projection.receipt?.receipt_ref,
+          projection.receipt.receipt_ref,
+        );
+        assert.equal(
+          harness.observations.filter((entry) => entry.kind === "spawned").length,
+          1,
+        );
+
+        const reboundRoot = path.join(
+          path.dirname(config.database_path),
+          "terminal-replay-rebound-root",
+        );
+        mkdirSync(reboundRoot, { recursive: true, mode: 0o700 });
+        const reboundDb = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          rebindCanonicalProjectLocalRootV01(
+            reboundDb,
+            {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              local_root: normalizeLocalProjectRootRefV01(reboundRoot, {
+                base_path: path.parse(reboundRoot).root,
+              }),
+            },
+            { now: () => clock.now() },
+          );
+        } finally {
+          reboundDb.close();
+        }
+        await assert.rejects(
+          () =>
+            harness.service.start({
+              config,
+              mode: "interactive",
+            }),
+          /live_host_start_conflict/,
+        );
+        assert.equal(
+          harness.observations.filter((entry) => entry.kind === "spawned").length,
+          1,
+        );
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_golden_packet_thread_turn_approval_receipt_round_trip");
+  pass("live_codex_route_uses_zero_copy_paste_or_internal_id_entry");
+  pass("live_codex_packet_egress_and_r4_coverage_are_truthful_and_minimized");
+  pass("live_codex_process_settles_before_one_canonical_receipt");
+  reject("live_codex_terminal_replay_after_root_rebind_fails_closed");
+}
+
+async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-file-approval-replay",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 31_500),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "file_approval",
+        now: () => clock.now(),
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const authorityBefore = (() => {
+        const db = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          return countRowsByKind(db, "review_decision");
+        } finally {
+          db.close();
+        }
+      })();
+      try {
+        const credentialInjection = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "start_live",
+              OPENAI_API_KEY: "forbidden-route-material",
+            },
+          }),
+        );
+        assert.equal(credentialInjection.status, 400);
+        assert.equal(
+          (await publicJson(credentialInjection)).error_code,
+          "live_host_action_body_invalid",
+        );
+
+        const start = await harness.service.start({
+          config,
+          mode: "interactive",
+        });
+        assert.equal(start.status, "accepted");
+        let projection: LiveNativeHostRunProjectionV01;
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "waiting_for_approval",
+          );
+        } catch (error) {
+          throw new Error(
+            `file_approval_request:${error instanceof Error ? error.message : "failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-32))}`,
+          );
+        }
+        assert(projection.pending_approval);
+        assert.equal(projection.pending_approval.operation_class, "file_change");
+        assert.deepEqual(projection.pending_approval.repository_relative_paths, [
+          "src",
+        ]);
+        assert.equal(projection.receipt, null);
+
+        const pending = projection.pending_approval;
+        const stale = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "decline",
+              run_ref: projection.run_ref,
+              approval_ref: pending.approval_ref,
+              control_revision: pending.control_revision + 1,
+            },
+          }),
+        );
+        assert.equal(stale.status, 409);
+
+        const decline = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "decline",
+              run_ref: projection.run_ref,
+              approval_ref: pending.approval_ref,
+              control_revision: pending.control_revision,
+            },
+          }),
+        );
+        assert.equal(decline.status, 200);
+        jar.absorb(decline);
+
+        const exactReplay = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "decline",
+              run_ref: projection.run_ref,
+              approval_ref: pending.approval_ref,
+              control_revision: pending.control_revision,
+            },
+          }),
+        );
+        assert.equal(exactReplay.status, 200);
+        jar.absorb(exactReplay);
+
+        const conflict = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "approve_once",
+              run_ref: projection.run_ref,
+              approval_ref: pending.approval_ref,
+              control_revision: pending.control_revision,
+            },
+          }),
+        );
+        assert.equal(conflict.status, 409);
+        assert.equal(
+          (await publicJson(conflict)).error_code,
+          "live_host_approval_decision_conflict",
+        );
+
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "failed",
+          );
+        } catch (error) {
+          throw new Error(
+            `file_approval_completion:${error instanceof Error ? error.message : "failed"}:observations=${JSON.stringify(harness.observations)}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-32))}`,
+          );
+        }
+        assert(projection.receipt);
+        const run = readHostRunStateFromConfigV01(config, projection.run_ref!);
+        const decisions = Array.isArray(run.metadata.approval_decisions)
+          ? run.metadata.approval_decisions
+          : [];
+        assert.equal(decisions.length, 1);
+        assert.equal(decisions[0]?.decision, "decline");
+        assert.equal(
+          decisions[0]?.decision_source,
+          "explicit_local_operator",
+        );
+        const authorityDb = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          assert.equal(countRowsByKind(authorityDb, "review_decision"), authorityBefore);
+        } finally {
+          authorityDb.close();
+        }
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "live-codex-expired-approval",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 31_750),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "command_approval",
+        now: () => clock.now(),
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      try {
+        const start = await harness.service.start({
+          config,
+          mode: "interactive",
+        });
+        assert.equal(start.status, "accepted");
+        let projection: LiveNativeHostRunProjectionV01;
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "waiting_for_approval",
+          );
+        } catch (error) {
+          throw new Error(
+            `expiring_approval_request:${error instanceof Error ? error.message : "failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-32))}`,
+          );
+        }
+        const pending = projection.pending_approval!;
+        assert(pending.expires_at);
+        clock.set(addIsoMillisecondsV01(pending.expires_at, 1));
+        const expired = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "approve_once",
+              run_ref: projection.run_ref,
+              approval_ref: pending.approval_ref,
+              control_revision: pending.control_revision,
+            },
+          }),
+        );
+        assert.equal(expired.status, 409);
+        assert.equal(
+          (await publicJson(expired)).error_code,
+          "live_host_approval_expired",
+        );
+        assert.equal(harness.service.read(config).status, "waiting_for_approval");
+        await harness.service.shutdown();
+        try {
+          projection = harness.service.read(config);
+          assert.equal(projection.status, "cancelled");
+        } catch (error) {
+          throw new Error(
+            `expired_approval_cancel:${error instanceof Error ? error.message : "failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-32))}`,
+          );
+        }
+        assert(projection.receipt);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_file_approval_is_contained_and_user_decision_replay_is_idempotent");
+  pass("live_codex_explicit_decline_stops_the_same_turn_truthfully");
+  reject("live_codex_stale_expired_mismatched_and_conflicting_approval_decisions_refused");
+  reject("live_codex_routes_reject_provider_credentials_and_arbitrary_launch_material");
+  pass("live_codex_host_approval_creates_no_review_decision_or_semantic_transition");
+}
+
+async function assertLiveCodexPolicyApprovalParityOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-policy-network-grant",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 32_000),
+      );
+      const automation = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, automation, {
+        approval_capabilities: ["native_host_approval:network_permission"],
+        resources: [
+          "https://api.example.invalid",
+          `command:${createProtocolSha256V01("npm test")}`,
+        ],
+        expires_at: addIsoMillisecondsV01(clock.now(), 60_000),
+      });
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "command_network_approval",
+        now: () => clock.now(),
+      });
+      try {
+        const started = await harness.service.start({
+          config,
+          mode: "policy_triggered",
+          automation_context: automation,
+        });
+        assert.equal(started.status, "accepted");
+        const projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "completed",
+        );
+        assert(projection.receipt);
+        assert.equal(projection.mode, "policy_triggered");
+        const run = readHostRunStateFromConfigV01(config, projection.run_ref!);
+        const decisions = run.metadata.approval_decisions as Array<
+          Record<string, unknown>
+        >;
+        assert.equal(decisions.length, 1);
+        assert.equal(decisions[0]?.decision, "approve_once");
+        assert.equal(
+          decisions[0]?.decision_source,
+          "bounded_capability_grant",
+        );
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "live-codex-policy-uncovered-network",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 32_250),
+      );
+      const automation = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, automation, {
+        approval_capabilities: [],
+        resources: [],
+        expires_at: addIsoMillisecondsV01(clock.now(), 60_000),
+      });
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "network_permission_approval_ignored_interrupt",
+        now: () => clock.now(),
+      });
+      const receiptsBefore = countRunReceiptsV01(config);
+      await harness.service.start({
+        config,
+        mode: "policy_triggered",
+        automation_context: automation,
+      });
+      const waiting = await waitForLiveProjectionV01(
+        harness.service,
+        config,
+        (value) => value.status === "waiting_for_approval",
+      );
+      assert.equal(waiting.pending_approval?.operation_class, "network_permission");
+      assert.deepEqual(waiting.pending_approval?.network_resources, []);
+      assert.deepEqual(waiting.pending_approval?.available_decisions, [
+        "decline",
+        "cancel_run",
+      ]);
+      assert.equal(waiting.pending_approval?.decision_submitted, false);
+      assert.equal(countRunReceiptsV01(config), receiptsBefore);
+      await assert.rejects(
+        () =>
+          harness.service.start({
+            config,
+            mode: "policy_triggered",
+            automation_context: {
+              ...automation,
+              control_revision: 1,
+            },
+          }),
+        /live_host_start_conflict/,
+      );
+      await harness.service.shutdown();
+      const stopped = harness.service.read(config);
+      assert.equal(stopped.status, "paused");
+      assert.equal(stopped.reconciliation_required, true);
+      assert.equal(stopped.receipt, null);
+      assert.equal(countRunReceiptsV01(config), receiptsBefore);
+      assert.equal(
+        countTraceMethodV01(
+          readFakeTraceV01(harness.trace_path),
+          "turn/interrupt",
+        ),
+        1,
+      );
+      assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+      assertObservedProcessesStoppedV01(harness.observations);
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "live-codex-policy-expired-grant",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 32_500),
+      );
+      const automation = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, automation, {
+        approval_capabilities: ["native_host_approval:network_permission"],
+        resources: [
+          "https://api.example.invalid",
+          `command:${createProtocolSha256V01("npm test")}`,
+        ],
+        expires_at: addIsoMillisecondsV01(clock.now(), -1),
+      });
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "command_network_approval",
+        now: () => clock.now(),
+      });
+      const receiptsBefore = countRunReceiptsV01(config);
+      try {
+        await assert.rejects(
+          () =>
+            harness.service.start({
+              config,
+              mode: "policy_triggered",
+              automation_context: automation,
+            }),
+          /direct_host_(?:live_capability_grant_required|packet_invalid)/,
+        );
+        assert.equal(harness.observations.length, 0);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_interactive_and_policy_modes_share_lifecycle_and_approval_service");
+  pass("live_codex_exact_current_policy_grant_approves_once_without_fabricating_user_decision");
+  reject("live_codex_uncovered_or_expired_network_grant_never_auto_approves");
+  reject("live_codex_active_replay_with_mode_or_policy_drift_fails_closed");
+}
+
+async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-cancel-settlement",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 32_000),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "delayed_cleanup",
+        now: () => clock.now(),
+        controlled_cleanup: true,
+        stop_settle_timeout_ms: 10_000,
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const receiptsBefore = countRunReceiptsV01(config);
+      try {
+        const start = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        jar.absorb(start);
+        let projection: LiveNativeHostRunProjectionV01;
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "waiting_for_approval",
+            10_000,
+            "cancel_waiting_gate",
+          );
+        } catch (error) {
+          throw new Error(
+            `cancel_waiting_gate:${error instanceof Error ? error.message : "failed"}:observations=${JSON.stringify(harness.observations)}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-32))}`,
+          );
+        }
+        assert(projection.run_ref);
+        const cancellationRequestRevision = projection.control_revision;
+        const conflictingCancellation = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "cancel",
+              run_ref: projection.run_ref,
+              control_revision: cancellationRequestRevision + 100,
+            },
+          }),
+        );
+        assert.equal(conflictingCancellation.status, 409);
+        assert.equal(harness.service.read(config).status, "waiting_for_approval");
+        assert.equal(
+          countTraceMethodV01(
+            readFakeTraceV01(harness.trace_path),
+            "turn/interrupt",
+          ),
+          0,
+        );
+        const cancel = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "cancel",
+              run_ref: projection.run_ref,
+              control_revision: cancellationRequestRevision,
+            },
+          }),
+        );
+        assert.equal(cancel.status, 200);
+        jar.absorb(cancel);
+        await waitForFakeTraceMethodV01(harness.trace_path, "turn/interrupt");
+        projection = harness.service.read(config);
+        assert.equal(projection.status, "cancelling");
+        assert.equal(projection.receipt, null);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        assert.equal(existsSync(harness.cleanup_marker_path), false);
+        writeFileSync(harness.release_path!, "release\n", { mode: 0o600 });
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "cancelled",
+          );
+        } catch (error) {
+          throw new Error(
+            `${error instanceof Error ? error.message : "live_cancel_failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-40))}`,
+          );
+        }
+        assert(projection.receipt);
+        assert.equal(
+          existsSync(harness.cleanup_marker_path),
+          true,
+          `live_cancel_cleanup_marker_missing:${readFakeTraceV01(harness.trace_path).map((entry) => entry.kind).join(",")}`,
+        );
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        assert.equal(countTraceMethodV01(readFakeTraceV01(harness.trace_path), "turn/interrupt"), 1);
+        assertObservedProcessesStoppedV01(harness.observations);
+
+        const replay = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "cancel",
+              run_ref: projection.run_ref!,
+              control_revision: projection.control_revision,
+            },
+          }),
+        );
+        assert.equal(replay.status, 200);
+        jar.absorb(replay);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+      } finally {
+        if (!existsSync(harness.release_path ?? "")) {
+          if (harness.release_path) writeFileSync(harness.release_path, "release\n");
+        }
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_cancel_interrupts_exact_turn_and_waits_for_cleanup_barrier");
+  pass("live_codex_repeated_cancel_is_idempotent_with_one_receipt");
+}
+
+async function assertLiveCodexTimeoutSettlementOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-timeout-settlement",
+    input.environment,
+    async ({ config }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 32_625),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "command_approval",
+        now: () => clock.now(),
+        timeout_ms: 150,
+        stop_settle_timeout_ms: 2_000,
+      });
+      const receiptsBefore = countRunReceiptsV01(config);
+      try {
+        await harness.service.start({ config, mode: "interactive" });
+        const projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) =>
+            value.status === "timed_out" &&
+            value.receipt?.outcome === "timed_out",
+        );
+        assert(projection.receipt);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        assert.equal(
+          countTraceMethodV01(
+            readFakeTraceV01(harness.trace_path),
+            "turn/interrupt",
+          ),
+          1,
+        );
+        assert.equal(existsSync(harness.cleanup_marker_path), true);
+        const run = readHostRunStateFromConfigV01(config, projection.run_ref!);
+        const cancellationDecision = (
+          Array.isArray(run.metadata.approval_decisions)
+            ? (run.metadata.approval_decisions as Array<Record<string, unknown>>)
+            : []
+        ).find(
+          (decision) =>
+            decision.decision === "cancel_run" &&
+            decision.decision_source === "run_cancellation",
+        );
+        const approvalResolutionObserved = run.events.some(
+          (event) =>
+            event.event_type === "host_event_observed" &&
+            event.payload.event_kind === "approval_resolved",
+        );
+        assert.equal(run.metadata.pending_approval, null);
+        assert.equal(
+          Boolean(cancellationDecision) ||
+            approvalResolutionObserved ||
+            run.metadata.pending_approval_abandoned_by_terminal_stop === true,
+          true,
+        );
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_timeout_interrupts_once_and_receipts_only_after_settlement");
+}
+
+async function assertLiveCodexRuntimeShutdownAndDescendantCleanupOnCloneV01(
+  input: {
+    environment: NodeJS.ProcessEnv;
+    packet: TaskContextPacketV01;
+  },
+): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-runtime-shutdown-descendant",
+    input.environment,
+    async ({ config }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 32_750),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "descendant_cleanup",
+        now: () => clock.now(),
+      });
+      const accepted = await harness.service.start({
+        config,
+        mode: "interactive",
+      });
+      assert.equal(accepted.status, "accepted");
+      const waiting = await waitForLiveProjectionV01(
+        harness.service,
+        config,
+        (value) => value.status === "waiting_for_approval",
+      );
+      assert(waiting.run_ref);
+      const spawned = harness.observations.find(
+        (entry) => entry.kind === "spawned",
+      );
+      assert(spawned?.process_id);
+      assert.doesNotThrow(() => process.kill(spawned.process_id!, 0));
+      const descendant = readFakeTraceV01(harness.trace_path).find(
+        (entry) => entry.kind === "descendant_started",
+      )?.value.pid;
+      assert.equal(typeof descendant, "number");
+      assert.doesNotThrow(() => process.kill(Number(descendant), 0));
+
+      await harness.service.shutdown();
+      const projection = harness.service.read(config);
+      assert.equal(projection.status, "cancelled");
+      assert(projection.receipt);
+      assert.equal(existsSync(harness.cleanup_marker_path), true);
+      assertObservedProcessesStoppedV01(harness.observations);
+      assert.throws(
+        () => process.kill(Number(descendant), 0),
+        /ESRCH|EPERM|kill ESRCH/,
+      );
+      assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+    },
+  );
+  pass("live_codex_registered_runtime_owner_stops_full_child_process_tree_on_shutdown");
+  pass("live_codex_route_acceptance_does_not_orphan_owned_app_server_work");
+}
+
+async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-disconnect-resume",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 33_000),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "disconnect_resume",
+        now: () => clock.now(),
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const receiptsBefore = countRunReceiptsV01(config);
+      try {
+        const start = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        jar.absorb(start);
+        let projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "paused",
+        );
+        assert.equal(projection.reconciliation_required, true);
+        assert.equal(projection.receipt, null);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        const unownedCancel = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "cancel",
+              run_ref: projection.run_ref!,
+              control_revision: projection.control_revision,
+            },
+          }),
+        );
+        assert.equal(unownedCancel.status, 409);
+        assert.equal(
+          (await publicJson(unownedCancel)).error_code,
+          "live_host_cancel_owner_unavailable",
+        );
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        const resume = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "resume",
+              run_ref: projection.run_ref!,
+              control_revision: projection.control_revision,
+            },
+          }),
+        );
+        assert.equal(resume.status, 202);
+        jar.absorb(resume);
+        try {
+          projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "completed",
+          );
+        } catch (error) {
+          throw new Error(
+            `${error instanceof Error ? error.message : "live_resume_failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-40))}`,
+          );
+        }
+        assert(projection.receipt);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        const trace = readFakeTraceV01(harness.trace_path);
+        assert.equal(countTraceMethodV01(trace, "initialize"), 2);
+        assert.equal(countTraceMethodV01(trace, "thread/start"), 1);
+        assert.equal(countTraceMethodV01(trace, "turn/start"), 1);
+        assert.equal(countTraceMethodV01(trace, "thread/read"), 1);
+        assert.equal(countTraceMethodV01(trace, "thread/resume"), 1);
+        assertObservedProcessesStoppedV01(harness.observations);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_disconnect_pauses_without_receipt_and_resumes_known_thread");
+  pass("live_codex_resume_creates_no_second_thread_or_turn");
+  reject("live_codex_disconnected_run_cannot_claim_cancel_without_host_owner");
+}
+
+async function assertLiveCodexFailureMatrixOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  const cases = [
+    ["ignored_interrupt", "paused", false],
+    ["unauthenticated", "blocked", true],
+    ["unsupported_app_server", "blocked", true],
+    ["init_failure", "failed", true],
+    ["malformed_json", "failed", true],
+    ["oversized_jsonl", "failed", true],
+    ["invalid_response_envelope", "failed", true],
+    ["conflicting_duplicate_response", "failed", true],
+    ["mismatched_response_id", "failed", true],
+    ["mismatched_thread_approval", "paused", false],
+    ["mismatched_turn_approval", "paused", false],
+    ["file_approval_unsafe", "paused", false],
+    ["unknown_approval_method", "paused", false],
+    ["thread_status_unsupported", "paused", false],
+    ["conflicting_completion", "paused", false],
+    ["crash_before_thread_id", "paused", false],
+    ["crash_after_thread_id", "paused", false],
+    ["structured_result_invalid", "failed", true],
+    ["structured_result_oversized", "failed", true],
+    ["structured_result_unsafe_path", "failed", true],
+    ["structured_result_private_path_text", "failed", true],
+    ["structured_result_credential_text", "failed", true],
+    ["duplicate_event", "completed", true],
+  ] as const;
+
+  for (const [scenario, expectedStatus, expectsReceipt] of cases) {
+    await withOperatorDatabaseCloneV01(
+      `live-codex-${scenario}`,
+      input.environment,
+      async ({ config }) => {
+        installPublicSafeLivePacketV01(config, input.packet);
+        const clock = new ManualClock(
+          addIsoMillisecondsV01(input.packet.generated_at, 34_000),
+        );
+        const harness = createFakeLiveCodexHarnessV01({
+          config,
+          scenario,
+          now: () => clock.now(),
+          timeout_ms: scenario === "ignored_interrupt" ? 2_000 : 5_000,
+          stop_settle_timeout_ms:
+            scenario === "ignored_interrupt" ? 300 : 2_000,
+        });
+        const receiptsBefore = countRunReceiptsV01(config);
+        try {
+          await harness.service.start({ config, mode: "interactive" });
+          let projection: LiveNativeHostRunProjectionV01;
+          try {
+            projection = await waitForLiveProjectionV01(
+              harness.service,
+              config,
+              (value) => value.status === expectedStatus,
+            );
+          } catch (error) {
+            throw new Error(
+              `live_matrix_${scenario}:${error instanceof Error ? error.message : "projection_failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-24))}`,
+            );
+          }
+          assert.equal(Boolean(projection.receipt), expectsReceipt);
+          if (scenario === "unsupported_app_server") {
+            assert.equal(
+              projection.capability.public_reason,
+              "codex_required_method_unavailable",
+            );
+          }
+          if (scenario === "unauthenticated") {
+            assert.equal(
+              projection.capability.public_reason,
+              "codex_not_authenticated",
+            );
+          }
+          if (scenario === "init_failure") {
+            assert.equal(projection.capability.status, "unavailable");
+            assert.equal(
+              projection.capability.public_reason,
+              "codex_initialization_failed",
+            );
+          }
+          assert.equal(
+            countRunReceiptsV01(config),
+            receiptsBefore + (expectsReceipt ? 1 : 0),
+          );
+          const run = readHostRunStateFromConfigV01(config, projection.run_ref!);
+          const durable = canonicalizeProtocolValueV01(run);
+          assert.equal(durable.includes(operatorProjectRoot), false);
+          assert.equal(durable.includes(input.packet.task.goal), false);
+          assert.equal(durable.includes("not-returned-to-augnes@example.invalid"), false);
+          assert.equal(durable.includes("/Users/private/project/file.ts"), false);
+          assert.equal(durable.includes("sk-not-returned-to-augnes"), false);
+          assert.equal(durable.includes("{malformed"), false);
+          await harness.service.shutdown();
+          assert.equal(harness.service.read(config).status, expectedStatus);
+          assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+          assertObservedProcessesStoppedV01(harness.observations, scenario);
+        } finally {
+          await harness.service.shutdown();
+        }
+      },
+    );
+  }
+
+  await withOperatorDatabaseCloneV01(
+    "live-codex-executable-absent",
+    input.environment,
+    async ({ config }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 35_000),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "success",
+        now: () => clock.now(),
+        command: path.join(tempRoot, "definitely-missing-codex"),
+      });
+      try {
+        await harness.service.start({ config, mode: "interactive" });
+        const projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "blocked",
+        );
+        assert.equal(projection.capability.status, "unavailable");
+        assert.equal(
+          projection.capability.public_reason,
+          "codex_executable_absent",
+        );
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_capability_absence_and_auth_failure_are_truthful_and_optional");
+  reject("live_codex_rpc_malformed_oversized_conflicting_and_mismatched_material_refused");
+  reject("live_codex_cross_thread_turn_unknown_approval_and_ambiguous_start_fail_closed");
+  reject("live_codex_invalid_oversized_and_path_unsafe_structured_results_not_persisted_raw");
+  pass("live_codex_unconfirmed_interrupt_pauses_without_terminal_receipt");
+  pass("live_codex_fake_app_server_external_calls_zero_and_processes_settled");
+  pass("live_codex_duplicate_lifecycle_event_is_idempotent");
+}
+
+function createFakeLiveCodexHarnessV01(input: {
+  config: VNextLocalOperatorPilotConfigV01;
+  scenario: string;
+  now: () => string;
+  timeout_ms?: number;
+  stop_settle_timeout_ms?: number;
+  controlled_cleanup?: boolean;
+  command?: string;
+}): {
+  service: LiveNativeHostRunServiceV01;
+  observations: CodexAppServerAdapterObservationV01[];
+  trace_path: string;
+  state_path: string;
+  cleanup_marker_path: string;
+  network_count_path: string;
+  release_path: string | null;
+} {
+  liveFixtureSequenceV01 += 1;
+  const root = path.join(
+    tempRoot,
+    `live-codex-${liveFixtureSequenceV01}-${input.scenario}`,
+  );
+  const home = path.join(root, "home");
+  const runtime = path.join(root, "runtime");
+  mkdirSync(home, { recursive: true });
+  mkdirSync(runtime, { recursive: true });
+  const tracePath = path.join(runtime, "trace.jsonl");
+  const statePath = path.join(runtime, "state.json");
+  const cleanupMarkerPath = path.join(runtime, "cleanup.marker");
+  const networkCountPath = path.join(runtime, "network-count.txt");
+  const approvalResolutionBarrierPath = path.join(
+    runtime,
+    "approval-resolution-count.txt",
+  );
+  const releasePath = input.controlled_cleanup
+    ? path.join(runtime, "release.marker")
+    : null;
+  const observations: CodexAppServerAdapterObservationV01[] = [];
+  const service = new LiveNativeHostRunServiceV01({
+    now: input.now,
+    test_only_allow_unauthenticated_interactive: true,
+    timeout_ms: input.timeout_ms ?? 30_000,
+    stop_settle_timeout_ms: input.stop_settle_timeout_ms ?? 3_000,
+    adapter_factory: () =>
+      createCodexAppServerAdapterV01({
+        now: input.now,
+        observe: (observation) => {
+          observations.push(observation);
+          if (observation.kind === "approval_resolved") {
+            writeFileSync(
+              approvalResolutionBarrierPath,
+              `${
+                observations.filter(
+                  (candidate) => candidate.kind === "approval_resolved",
+                ).length
+              }\n`,
+              { mode: 0o600 },
+            );
+          }
+        },
+        launch: {
+          command: input.command ?? process.execPath,
+          prefix_args: input.command
+            ? []
+            : [
+                path.join(
+                  process.cwd(),
+                  "scripts",
+                  "fixtures",
+                  "fake-codex-app-server.mjs",
+                ),
+              ],
+          environment: {
+            NODE_ENV: "test",
+            HOME: home,
+            TMPDIR: runtime,
+            PATH: process.env.PATH,
+            FAKE_CODEX_SCENARIO: input.scenario,
+            FAKE_CODEX_STATE_PATH: statePath,
+            FAKE_CODEX_TRACE_PATH: tracePath,
+            FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupMarkerPath,
+            FAKE_CODEX_NETWORK_COUNT_PATH: networkCountPath,
+            FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH:
+              approvalResolutionBarrierPath,
+            ...(releasePath ? { FAKE_CODEX_RELEASE_PATH: releasePath } : {}),
+          },
+        },
+      }),
+  });
+  return {
+    service,
+    observations,
+    trace_path: tracePath,
+    state_path: statePath,
+    cleanup_marker_path: cleanupMarkerPath,
+    network_count_path: networkCountPath,
+    release_path: releasePath,
+  };
+}
+
+function installPublicSafeLivePacketV01(
+  config: VNextLocalOperatorPilotConfigV01,
+  source: TaskContextPacketV01,
+): TaskContextPacketV01 {
+  const packet = rebuildPacketForLineageTest(source, {
+    generated_at: addIsoMillisecondsV01(source.generated_at, 1_000),
+    constraints: {
+      ...source.constraints,
+      data_classification: "public_safe",
+    },
+  });
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    insertPacketRecord(db, packet);
+  } finally {
+    db.close();
+  }
+  return packet;
+}
+
+function installPolicySafeLivePacketV01(
+  config: VNextLocalOperatorPilotConfigV01,
+  source: TaskContextPacketV01,
+  automation: NativeHostAutomationContextV01,
+  input: {
+    approval_capabilities: string[];
+    resources: string[];
+    expires_at: string | null;
+  },
+): TaskContextPacketV01 {
+  const identityDb = openVNextLocalOperatorDatabaseV01(config);
+  const rootFingerprint = (() => {
+    try {
+      const registration = readCanonicalProjectWithRootV01(identityDb, config);
+      assert(registration);
+      return createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          local_root: registration.root_binding.local_root,
+          binding_version: registration.root_binding.binding_version,
+          bound_at: registration.root_binding.bound_at,
+        }),
+      );
+    } finally {
+      identityDb.close();
+    }
+  })();
+  const packet = rebuildPacketForLineageTest(source, {
+    generated_at: addIsoMillisecondsV01(source.generated_at, 2_000),
+    constraints: {
+      ...source.constraints,
+      data_classification: "public_safe",
+    },
+    capability_grant: {
+      grant_ref: automation.capability_grant_ref.external_id,
+      grant_external_ref: automation.capability_grant_ref,
+      allowed_capabilities: [
+        "project_scoped_structured_task_round_trip.v0.1",
+        ...input.approval_capabilities,
+      ],
+      forbidden_capabilities: [],
+      resource_scope: [
+        config.project_id,
+        `project_root:${rootFingerprint}`,
+        ...input.resources,
+      ],
+      stop_conditions: ["timeout", "cancellation_requested"],
+      coverage: "enforced",
+      expires_at: input.expires_at,
+    },
+  });
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    insertPacketRecord(db, packet);
+  } finally {
+    db.close();
+  }
+  return packet;
+}
+
+async function waitForLiveProjectionV01(
+  service: LiveNativeHostRunServiceV01,
+  config: VNextLocalOperatorPilotConfigV01,
+  predicate: (projection: LiveNativeHostRunProjectionV01) => boolean,
+  timeoutMs = 10_000,
+  label = "unlabeled",
+): Promise<LiveNativeHostRunProjectionV01> {
+  const deadline = Date.now() + timeoutMs;
+  let projection = service.read(config);
+  const observed: string[] = [];
+  while (!predicate(projection)) {
+    const state = `${projection.status}:${projection.public_reason ?? "none"}:${projection.pending_approval ? "approval" : "no_approval"}`;
+    if (observed.at(-1) !== state) observed.push(state);
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `live_projection_timeout:${label}:${projection.status}:${projection.public_reason ?? "none"}:observed=${observed.join(",")}`,
+      );
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    projection = service.read(config);
+  }
+  return projection;
+}
+
+function projectionFromRouteBodyV01(
+  body: Record<string, unknown>,
+): LiveNativeHostRunProjectionV01 {
+  const value = body.live_run;
+  assert(value && typeof value === "object" && !Array.isArray(value));
+  return value as LiveNativeHostRunProjectionV01;
+}
+
+function cloneRouteCookieJarV01(source: RouteCookieJar): RouteCookieJar {
+  const jar = new RouteCookieJar();
+  const pair = source.header().split("; ")[0];
+  assert(pair);
+  jar.setPair(pair);
+  return jar;
+}
+
+function countRunReceiptsV01(config: VNextLocalOperatorPilotConfigV01): number {
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    return countRowsByKind(db, "run_receipt");
+  } finally {
+    db.close();
+  }
+}
+
+function readHostRunStateFromConfigV01(
+  config: VNextLocalOperatorPilotConfigV01,
+  runId: string,
+) {
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    const run = readAutonomyRunLedgerRecord(runId, { db });
+    assert(run);
+    return run;
+  } finally {
+    db.close();
+  }
+}
+
+interface FakeTraceEntryV01 {
+  kind: string;
+  value: Record<string, any>;
+  at: string;
+}
+
+function readFakeTraceV01(tracePath: string): FakeTraceEntryV01[] {
+  if (!existsSync(tracePath)) return [];
+  return readFileSync(tracePath, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as FakeTraceEntryV01);
+}
+
+function countTraceMethodV01(
+  trace: FakeTraceEntryV01[],
+  method: string,
+): number {
+  return trace.filter(
+    (entry) => entry.kind === "received" && entry.value.method === method,
+  ).length;
+}
+
+async function waitForFakeTraceMethodV01(
+  tracePath: string,
+  method: string,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (countTraceMethodV01(readFakeTraceV01(tracePath), method) === 0) {
+    if (Date.now() >= deadline) throw new Error(`fake_trace_timeout:${method}`);
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+function readNetworkAttemptsV01(pathname: string): number {
+  assert.equal(
+    existsSync(pathname),
+    true,
+    "fake_codex_network_count_missing",
+  );
+  return Number(readFileSync(pathname, "utf8").trim());
+}
+
+function assertObservedProcessesStoppedV01(
+  observations: CodexAppServerAdapterObservationV01[],
+  label = "unlabeled",
+): void {
+  const pids = observations
+    .filter((entry) => entry.kind === "spawned")
+    .map((entry) => entry.process_id)
+    .filter((pid): pid is number => typeof pid === "number");
+  assert(pids.length > 0);
+  for (const pid of pids) {
+    assert.throws(
+      () => process.kill(pid, 0),
+      /ESRCH|EPERM|kill ESRCH/,
+      `owned_process_still_running:${label}`,
+    );
+  }
 }
 
 async function assertDirectHostTerminalScenariosOnClonesV01(input: {
@@ -2265,7 +4354,7 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
         assert.deepEqual(controlled.state.receipt_counts_during_cleanup, [
           receiptsBefore,
         ]);
-        assert.equal(readHostRunStateV01(db, result.run_id).status, "cancelled");
+        assert.equal(readHostRunStateV01(db, result.run_id).status, "timed_out");
         await Promise.resolve();
         await Promise.resolve();
         assert.equal(controlled.state.cleanup_mutations, 1);
@@ -5740,6 +7829,46 @@ function assertNoPlaintextCredentialPersistence(databasePath: string): void {
     const bytes = Buffer.from(credential, "utf8");
     for (const artifact of databaseArtifacts) {
       assert.equal(readFileSync(artifact).includes(bytes), false);
+    }
+  }
+}
+
+function assertDatabaseArtifactsOmitTextV01(
+  databasePath: string,
+  forbiddenValues: readonly string[],
+): void {
+  const db = new Database(databasePath, { readonly: true, fileMustExist: true });
+  let serializedRows = "";
+  try {
+    const tables = (
+      db
+        .prepare(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+           ORDER BY name`,
+        )
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name);
+    serializedRows = JSON.stringify(
+      tables.map((table) => ({
+        table,
+        rows: db.prepare(`SELECT * FROM ${quoteIdentifier(table)}`).all(),
+      })),
+    );
+  } finally {
+    db.close();
+  }
+  const databaseArtifacts = [
+    databasePath,
+    `${databasePath}-wal`,
+    `${databasePath}-shm`,
+    `${databasePath}-journal`,
+  ].filter(existsSync);
+  for (const value of forbiddenValues) {
+    assert.equal(serializedRows.includes(value), false, value);
+    const bytes = Buffer.from(value, "utf8");
+    for (const artifact of databaseArtifacts) {
+      assert.equal(readFileSync(artifact).includes(bytes), false, `${artifact}:${value}`);
     }
   }
 }

@@ -7,13 +7,18 @@ export const AUTONOMY_RUNNER_DELTA_BATCH_VERSION =
   "autonomy_runner_delta_batch.v0.1" as const;
 
 export const AUTONOMY_RUNNER_PUBLIC_STATUSES = [
+  "queued",
+  "starting",
   "planned",
   "running",
+  "waiting_for_approval",
+  "cancelling",
   "paused",
   "blocked",
   "completed",
   "needs_review",
   "cancelled",
+  "timed_out",
 ] as const;
 
 export const AUTONOMY_RUNNER_INTERNAL_STATUSES = [
@@ -44,11 +49,20 @@ export const AUTONOMY_RUNNER_STEP_STATUSES = [
 
 export const AUTONOMY_RUNNER_EVENT_TYPES = [
   "run_created",
+  "run_queued",
+  "run_starting",
   "run_scheduled",
   "run_started",
   "run_paused",
+  "run_waiting_for_approval",
+  "run_cancelling",
+  "run_reconciliation_required",
+  "host_event_observed",
+  "approval_requested",
+  "approval_decided",
   "run_resumed",
   "run_cancelled",
+  "run_timed_out",
   "run_completed",
   "run_blocked",
   "run_needs_review",
@@ -123,7 +137,7 @@ export interface AutonomyRunnerAuthorityBoundary {
   can_recover_delta_batch: true;
   can_call_github: false;
   can_call_openai_or_provider: false;
-  can_execute_codex: false;
+  can_execute_codex: boolean;
   can_create_branch_or_pr: false;
   can_publish_external: false;
   can_merge: false;

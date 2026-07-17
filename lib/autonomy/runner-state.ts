@@ -14,6 +14,7 @@ export const AUTONOMY_RUNNER_TERMINAL_STATUSES = [
   "completed",
   "needs_review",
   "cancelled",
+  "timed_out",
   "failed",
   "stopped",
 ] as const;

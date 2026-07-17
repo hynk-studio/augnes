@@ -878,6 +878,8 @@ export function buildSupervisorChildValues({
       ...ownershipValues,
       OPENAI_API_KEY: nonEmptyString(environment.OPENAI_API_KEY),
       OPENAI_MODEL: nonEmptyString(environment.OPENAI_MODEL),
+      CODEX_HOME: nonEmptyString(environment.CODEX_HOME),
+      CODEX_SQLITE_HOME: nonEmptyString(environment.CODEX_SQLITE_HOME),
       AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: nonEmptyString(
         environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED,
       ),

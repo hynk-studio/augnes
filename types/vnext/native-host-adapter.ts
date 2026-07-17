@@ -7,6 +7,8 @@ export const NATIVE_HOST_RESULT_VERSION_V01 =
   "native_host_result.v0.1" as const;
 export const NATIVE_HOST_RESULT_RETURN_VERSION_V01 =
   "native_host_result_return.v0.1" as const;
+export const NATIVE_HOST_APPROVAL_VERSION_V01 =
+  "native_host_approval.v0.1" as const;
 
 export type NativeHostRunModeV01 = "interactive" | "policy_triggered";
 export type NativeHostRootKindV01 =
@@ -25,6 +27,22 @@ export type NativeHostCoverageClassV01 =
   | "observed"
   | "host_attested"
   | "unsupported";
+export type NativeHostLifecycleStateV01 =
+  | "queued"
+  | "starting"
+  | "running"
+  | "waiting_for_approval"
+  | "cancelling"
+  | "paused";
+export type NativeHostApprovalOperationV01 =
+  | "command_execution"
+  | "file_change"
+  | "filesystem_permission"
+  | "network_permission";
+export type NativeHostApprovalDecisionKindV01 =
+  | "approve_once"
+  | "decline"
+  | "cancel_run";
 
 export interface NativeHostRootScopeV01 {
   canonical_root: string;
@@ -69,9 +87,17 @@ export interface NativeHostRequestV01 {
   automation_context: NativeHostAutomationContextV01 | null;
   policy: {
     filesystem: "selected_project_root_only";
-    network: "forbidden";
-    commands: "forbidden_in_deterministic_adapter";
-    model: "forbidden_in_deterministic_adapter";
+    network: "forbidden" | "exact_grant_only";
+    commands:
+      | "forbidden_in_deterministic_adapter"
+      | "approval_required";
+    model:
+      | "forbidden_in_deterministic_adapter"
+      | "native_host_managed";
+    host_egress:
+      | "forbidden"
+      | "explicit_interactive_start"
+      | "bounded_capability_grant";
     max_changed_files: number;
     max_artifacts: number;
     max_commands: number;
@@ -166,6 +192,83 @@ export interface NativeHostInvocationControlV01 {
   cancellation_signal: AbortSignal;
   timeout_ms: number;
   stop_settle_timeout_ms: number;
+  lifecycle_sink?: NativeHostLifecycleSinkV01;
+  resume_binding?: NativeHostResumeBindingV01 | null;
+}
+
+export interface NativeHostResumeBindingV01 {
+  host_connection_ref: ExternalRefV01 | null;
+  host_thread_ref: ExternalRefV01;
+  host_session_ref: ExternalRefV01 | null;
+  host_turn_ref: ExternalRefV01;
+  control_revision: number;
+}
+
+export interface NativeHostLifecycleEventV01 {
+  event_id: string;
+  run_id: string;
+  state: NativeHostLifecycleStateV01;
+  event_kind:
+    | "process_started"
+    | "capability_confirmed"
+    | "thread_bound"
+    | "thread_status_changed"
+    | "turn_started"
+    | "approval_resolved"
+    | "stop_requested"
+    | "transport_disconnected"
+    | "reconciliation_required";
+  observed_at: string;
+  coverage: NativeHostCoverageClassV01;
+  host_refs: ExternalRefV01[];
+  bounded_metadata: Record<string, string | number | boolean | null>;
+}
+
+export interface NativeHostApprovalRequestV01 {
+  approval_version: typeof NATIVE_HOST_APPROVAL_VERSION_V01;
+  approval_id: string;
+  idempotency_fingerprint: string;
+  workspace_id: string;
+  project_id: string;
+  run_id: string;
+  packet_id: string;
+  packet_fingerprint: string;
+  host_thread_ref: ExternalRefV01;
+  host_turn_ref: ExternalRefV01;
+  host_item_ref: ExternalRefV01;
+  host_request_ref: ExternalRefV01;
+  operation_class: NativeHostApprovalOperationV01;
+  repository_relative_paths: string[];
+  network_resources: string[];
+  command_summary: string | null;
+  command_fingerprint: string | null;
+  resource_summary: string;
+  public_reason: string;
+  public_risk_summary: string;
+  budget_impact: string | null;
+  available_decisions: NativeHostApprovalDecisionKindV01[];
+  issued_at: string;
+  expires_at: string | null;
+  coverage: NativeHostCoverageClassV01;
+}
+
+export interface NativeHostApprovalDecisionV01 {
+  approval_id: string;
+  idempotency_fingerprint: string;
+  decision: NativeHostApprovalDecisionKindV01;
+  decision_source:
+    | "explicit_local_operator"
+    | "bounded_capability_grant"
+    | "run_cancellation";
+  decided_at: string;
+  control_revision: number;
+}
+
+export interface NativeHostLifecycleSinkV01 {
+  report_event(event: NativeHostLifecycleEventV01): Promise<void>;
+  request_approval(
+    request: NativeHostApprovalRequestV01,
+  ): Promise<NativeHostApprovalDecisionV01>;
 }
 
 export type NativeHostStopReasonV01 = "timeout" | "cancellation_requested";
