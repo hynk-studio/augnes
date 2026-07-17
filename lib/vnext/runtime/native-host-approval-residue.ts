@@ -72,9 +72,44 @@ export function appendNativeHostApprovalRequestResidueV01(
     }
     return existing;
   }
-  return [...existing, structuredClone(request)].slice(
-    -MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01,
+  if (existing.length >= MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01) {
+    throw new NativeHostApprovalResidueErrorV01(
+      "native_host_approval_request_residue_bound_exceeded",
+    );
+  }
+  return [...existing, structuredClone(request)];
+}
+
+export function appendNativeHostApprovalDecisionResidueV01(
+  value: unknown,
+  decision: NativeHostApprovalDecisionV01,
+): NativeHostApprovalDecisionV01[] {
+  if (!isApprovalDecisionV01(decision)) {
+    throw new NativeHostApprovalResidueErrorV01(
+      "native_host_approval_decision_residue_invalid",
+    );
+  }
+  const existing = readNativeHostApprovalDecisionResidueV01(value);
+  const prior = existing.find(
+    (entry) => entry.approval_id === decision.approval_id,
   );
+  if (prior) {
+    if (
+      canonicalizeProtocolValueV01(prior) !==
+      canonicalizeProtocolValueV01(decision)
+    ) {
+      throw new NativeHostApprovalResidueErrorV01(
+        "native_host_approval_decision_residue_conflict",
+      );
+    }
+    return existing;
+  }
+  if (existing.length >= MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01) {
+    throw new NativeHostApprovalResidueErrorV01(
+      "native_host_approval_decision_residue_bound_exceeded",
+    );
+  }
+  return [...existing, structuredClone(decision)];
 }
 
 function isApprovalRequestV01(

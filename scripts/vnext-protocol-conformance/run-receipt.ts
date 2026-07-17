@@ -21,7 +21,17 @@ import {
   NativeHostResultNormalizationErrorV01,
   normalizeNativeHostResultResidueV01,
 } from "@/lib/vnext/native-host/native-host-result-normalization";
-import type { NativeHostResultV01 } from "@/types/vnext/native-host-adapter";
+import {
+  appendNativeHostApprovalDecisionResidueV01,
+  appendNativeHostApprovalRequestResidueV01,
+  MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01,
+  NativeHostApprovalResidueErrorV01,
+} from "@/lib/vnext/runtime/native-host-approval-residue";
+import type {
+  NativeHostApprovalDecisionV01,
+  NativeHostApprovalRequestV01,
+  NativeHostResultV01,
+} from "@/types/vnext/native-host-adapter";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
 const positiveFixtures = [
@@ -56,6 +66,7 @@ export interface RunReceiptConformanceSummaryV01 {
   clock_skew_warning_checked: true;
   allowed_scalar_shapes_checked: true;
   resigned_malformed_receipt_rejected: true;
+  approval_residue_bound_fail_closed_checked: true;
 }
 
 export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
@@ -317,6 +328,7 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
       `${unsafePath} must not enter a canonical RunReceipt`,
     );
   }
+  assertNativeHostApprovalResidueBoundV01();
   const opaqueArtifactInput = clone(genericCliDirectObservationInputFixture);
   opaqueArtifactInput.run_id = "run-opaque-provider-artifact-001";
   const opaqueArtifactRef = receiptRef(
@@ -579,6 +591,129 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
     clock_skew_warning_checked: true,
     allowed_scalar_shapes_checked: true,
     resigned_malformed_receipt_rejected: true,
+    approval_residue_bound_fail_closed_checked: true,
+  };
+}
+
+function assertNativeHostApprovalResidueBoundV01(): void {
+  let requests: NativeHostApprovalRequestV01[] = [];
+  let decisions: NativeHostApprovalDecisionV01[] = [];
+  for (let index = 0; index < MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01; index += 1) {
+    const request = nativeHostApprovalRequestFixtureV01(index);
+    const decision = nativeHostApprovalDecisionFixtureV01(index);
+    requests = appendNativeHostApprovalRequestResidueV01(requests, request);
+    decisions = appendNativeHostApprovalDecisionResidueV01(decisions, decision);
+  }
+  assert.equal(requests.length, MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01);
+  assert.equal(decisions.length, MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01);
+  assert.equal(requests[0]?.approval_id, "approval-fixture-0");
+  assert.equal(decisions[0]?.approval_id, "approval-fixture-0");
+  assert.equal(
+    appendNativeHostApprovalRequestResidueV01(requests, requests[0]!).length,
+    MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01,
+    "an exact request replay at the bound must remain idempotent",
+  );
+  assert.equal(
+    appendNativeHostApprovalDecisionResidueV01(decisions, decisions[0]!).length,
+    MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01,
+    "an exact decision replay at the bound must remain idempotent",
+  );
+  assert.throws(
+    () =>
+      appendNativeHostApprovalRequestResidueV01(
+        requests,
+        nativeHostApprovalRequestFixtureV01(
+          MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01,
+        ),
+      ),
+    (error) =>
+      error instanceof NativeHostApprovalResidueErrorV01 &&
+      error.code === "native_host_approval_request_residue_bound_exceeded",
+    "the next distinct request must fail closed instead of dropping history",
+  );
+  assert.throws(
+    () =>
+      appendNativeHostApprovalDecisionResidueV01(
+        decisions,
+        nativeHostApprovalDecisionFixtureV01(
+          MAX_NATIVE_HOST_APPROVAL_RESIDUE_V01,
+        ),
+      ),
+    (error) =>
+      error instanceof NativeHostApprovalResidueErrorV01 &&
+      error.code === "native_host_approval_decision_residue_bound_exceeded",
+    "the next distinct decision must fail closed instead of dropping history",
+  );
+  const conflictingRequest = clone(requests[0]!);
+  conflictingRequest.public_reason = "A conflicting bounded reason.";
+  assert.throws(
+    () => appendNativeHostApprovalRequestResidueV01(requests, conflictingRequest),
+    (error) =>
+      error instanceof NativeHostApprovalResidueErrorV01 &&
+      error.code === "native_host_approval_request_residue_conflict",
+  );
+  const conflictingDecision = clone(decisions[0]!);
+  conflictingDecision.decision = "decline";
+  assert.throws(
+    () =>
+      appendNativeHostApprovalDecisionResidueV01(
+        decisions,
+        conflictingDecision,
+      ),
+    (error) =>
+      error instanceof NativeHostApprovalResidueErrorV01 &&
+      error.code === "native_host_approval_decision_residue_conflict",
+  );
+}
+
+function nativeHostApprovalRequestFixtureV01(
+  index: number,
+): NativeHostApprovalRequestV01 {
+  const fingerprint = `sha256:${index.toString(16).padStart(64, "0")}`;
+  return {
+    approval_version: "native_host_approval.v0.1",
+    approval_id: `approval-fixture-${index}`,
+    idempotency_fingerprint: fingerprint,
+    workspace_id: "workspace-fixture",
+    project_id: "project-fixture",
+    run_id: "run-fixture",
+    packet_id: "tcp-fixture",
+    packet_fingerprint: `sha256:${"a".repeat(64)}`,
+    host_thread_ref: receiptRef("host_thread", "thread-fixture"),
+    host_turn_ref: receiptRef("host_turn", "turn-fixture"),
+    host_item_ref: receiptRef("host_item", `item-fixture-${index}`),
+    host_request_ref: receiptRef(
+      "host_approval_request",
+      `request-fixture-${index}`,
+    ),
+    operation_class: "command_execution",
+    repository_relative_paths: [],
+    network_resources: [],
+    command_summary: "Run the bounded fixture command.",
+    command_fingerprint: fingerprint,
+    resource_summary: "Run the bounded fixture command.",
+    public_reason: "The bounded fixture command requires approval.",
+    public_risk_summary: "The command may modify the selected project.",
+    budget_impact: null,
+    available_decisions: ["approve_once", "decline"],
+    issued_at: "2026-07-10T02:10:00.000Z",
+    expires_at: null,
+    coverage: "observed",
+  };
+}
+
+function nativeHostApprovalDecisionFixtureV01(
+  index: number,
+): NativeHostApprovalDecisionV01 {
+  return {
+    approval_id: `approval-fixture-${index}`,
+    idempotency_fingerprint: `sha256:${index
+      .toString(16)
+      .padStart(64, "0")}`,
+    decision: "approve_once",
+    decision_source: "explicit_local_operator",
+    decided_at: "2026-07-10T02:11:00.000Z",
+    control_revision: index + 1,
   };
 }
 
