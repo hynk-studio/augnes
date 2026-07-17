@@ -3729,20 +3729,38 @@ async function assertLiveCodexTimeoutSettlementOnCloneV01(input: {
         config,
         scenario: "command_approval",
         now: () => clock.now(),
-        timeout_ms: 150,
+        timeout_ms: 30_000,
         stop_settle_timeout_ms: 2_000,
+        controlled_timeout: true,
       });
       const receiptsBefore = countRunReceiptsV01(config);
       try {
         await harness.service.start({ config, mode: "interactive" });
+        await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) =>
+            value.status === "waiting_for_approval" &&
+            value.pending_approval !== null,
+          10_000,
+          "timeout_host_ready",
+        );
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        assert(harness.trigger_timeout);
+        assert.equal(harness.timeout_schedule_active(), true);
+        clock.set(addIsoMillisecondsV01(clock.now(), 30_000));
+        harness.trigger_timeout();
         const projection = await waitForLiveProjectionV01(
           harness.service,
           config,
           (value) =>
             value.status === "timed_out" &&
             value.receipt?.outcome === "timed_out",
+          10_000,
+          "timeout_terminal",
         );
         assert(projection.receipt);
+        assert.equal(harness.timeout_schedule_active(), false);
         assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
         assert.equal(
           countTraceMethodV01(
@@ -4098,6 +4116,7 @@ function createFakeLiveCodexHarnessV01(input: {
   timeout_ms?: number;
   stop_settle_timeout_ms?: number;
   controlled_cleanup?: boolean;
+  controlled_timeout?: boolean;
   command?: string;
 }): {
   service: LiveNativeHostRunServiceV01;
@@ -4107,6 +4126,8 @@ function createFakeLiveCodexHarnessV01(input: {
   cleanup_marker_path: string;
   network_count_path: string;
   release_path: string | null;
+  trigger_timeout: (() => void) | null;
+  timeout_schedule_active: () => boolean;
 } {
   liveFixtureSequenceV01 += 1;
   const root = path.join(
@@ -4128,12 +4149,34 @@ function createFakeLiveCodexHarnessV01(input: {
   const releasePath = input.controlled_cleanup
     ? path.join(runtime, "release.marker")
     : null;
+  let scheduledTimeoutCallback: (() => void) | null = null;
+  let timeoutTriggered = false;
   const observations: CodexAppServerAdapterObservationV01[] = [];
   const service = new LiveNativeHostRunServiceV01({
     now: input.now,
     test_only_allow_unauthenticated_interactive: true,
     timeout_ms: input.timeout_ms ?? 30_000,
     stop_settle_timeout_ms: input.stop_settle_timeout_ms ?? 3_000,
+    ...(input.controlled_timeout
+      ? {
+          schedule_timeout: ({
+            timeout_ms,
+            on_timeout,
+          }: {
+            timeout_ms: number;
+            on_timeout: () => void;
+          }) => {
+            assert.equal(timeout_ms, input.timeout_ms ?? 30_000);
+            assert.equal(scheduledTimeoutCallback, null);
+            scheduledTimeoutCallback = on_timeout;
+            return () => {
+              if (scheduledTimeoutCallback === on_timeout) {
+                scheduledTimeoutCallback = null;
+              }
+            };
+          },
+        }
+      : {}),
     adapter_factory: () =>
       createCodexAppServerAdapterV01({
         now: input.now,
@@ -4188,6 +4231,15 @@ function createFakeLiveCodexHarnessV01(input: {
     cleanup_marker_path: cleanupMarkerPath,
     network_count_path: networkCountPath,
     release_path: releasePath,
+    trigger_timeout: input.controlled_timeout
+      ? () => {
+          assert.equal(timeoutTriggered, false);
+          assert(scheduledTimeoutCallback);
+          timeoutTriggered = true;
+          scheduledTimeoutCallback();
+        }
+      : null,
+    timeout_schedule_active: () => scheduledTimeoutCallback !== null,
   };
 }
 

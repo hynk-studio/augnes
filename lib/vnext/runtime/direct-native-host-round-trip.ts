@@ -172,6 +172,7 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   now?: () => string;
   timeout_ms?: number;
   stop_settle_timeout_ms?: number;
+  schedule_timeout?: NativeHostTimeoutSchedulerV01;
   cancellation_signal?: AbortSignal;
   lifecycle_sink?: NativeHostLifecycleSinkV01;
   lifecycle_mode?: "synchronous" | "managed_live";
@@ -187,6 +188,11 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
     input: { config: VNextLocalOperatorPilotConfigV01; evaluated_at: string },
   ) => { packet_id: string; packet_fingerprint: string };
 }
+
+export type NativeHostTimeoutSchedulerV01 = (input: {
+  timeout_ms: number;
+  on_timeout: () => void;
+}) => () => void;
 
 export async function admitPersistedHostTaskContextPacketV01(
   db: Database.Database,
@@ -527,6 +533,7 @@ export async function runDirectNativeHostRoundTripV01(
       await invokeAdapterBounded(adapter, request, {
         timeout_ms: timeoutMs,
         stop_settle_timeout_ms: stopSettleTimeoutMs,
+        schedule_timeout: dependencies.schedule_timeout,
         cancellation_signal: dependencies.cancellation_signal,
         lifecycle_sink: dependencies.lifecycle_sink,
         resume_binding: dependencies.resume_binding,
@@ -1757,6 +1764,7 @@ async function invokeAdapterBounded(
   input: {
     timeout_ms: number;
     stop_settle_timeout_ms: number;
+    schedule_timeout?: NativeHostTimeoutSchedulerV01;
     cancellation_signal?: AbortSignal;
     lifecycle_sink?: NativeHostLifecycleSinkV01;
     resume_binding?: NativeHostResumeBindingV01 | null;
@@ -1764,7 +1772,7 @@ async function invokeAdapterBounded(
   },
 ): Promise<NativeHostResultV01> {
   const controller = new AbortController();
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+  let cancelTimeout: (() => void) | null = null;
   let cancelListener: (() => void) | null = null;
   let invocation: NativeHostInvocationV01;
   try {
@@ -1846,20 +1854,23 @@ async function invokeAdapterBounded(
     }
     resolveControl({ kind: "control", outcome, reason });
   };
-  timeout = setTimeout(
-    () => requestControl("timed_out", "native_host_timeout"),
-    input.timeout_ms,
-  );
-  if (input.cancellation_signal) {
-    cancelListener = () =>
-      requestControl("cancelled", "native_host_cancelled");
-    if (input.cancellation_signal.aborted) cancelListener();
-    else
-      input.cancellation_signal.addEventListener("abort", cancelListener, {
-        once: true,
-      });
-  }
   try {
+    cancelTimeout = (
+      input.schedule_timeout ?? scheduleNativeHostTimeoutV01
+    )({
+      timeout_ms: input.timeout_ms,
+      on_timeout: () =>
+        requestControl("timed_out", "native_host_timeout"),
+    });
+    if (input.cancellation_signal) {
+      cancelListener = () =>
+        requestControl("cancelled", "native_host_cancelled");
+      if (input.cancellation_signal.aborted) cancelListener();
+      else
+        input.cancellation_signal.addEventListener("abort", cancelListener, {
+          once: true,
+        });
+    }
     const first = await Promise.race([completion, control]);
     if (first.kind === "completion") {
       if (!first.settled) {
@@ -1917,12 +1928,20 @@ async function invokeAdapterBounded(
       now: input.now,
     });
   } finally {
-    if (timeout) clearTimeout(timeout);
+    cancelTimeout?.();
     if (input.cancellation_signal && cancelListener) {
       input.cancellation_signal.removeEventListener("abort", cancelListener);
     }
   }
 }
+
+const scheduleNativeHostTimeoutV01: NativeHostTimeoutSchedulerV01 = ({
+  timeout_ms,
+  on_timeout,
+}) => {
+  const timeout = setTimeout(on_timeout, timeout_ms);
+  return () => clearTimeout(timeout);
+};
 
 class NativeHostInvocationUnsettledErrorV01 extends Error {
   constructor(readonly code: string) {

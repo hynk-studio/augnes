@@ -26,6 +26,7 @@ import {
   admitPersistedHostTaskContextPacketV01,
   DirectNativeHostRoundTripErrorV01,
   runDirectNativeHostRoundTripV01,
+  type NativeHostTimeoutSchedulerV01,
   type PersistedHostPacketAdmissionV01,
 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import {
@@ -142,6 +143,7 @@ export interface LiveNativeHostRunServiceOptionsV01 {
   now?: () => string;
   timeout_ms?: number;
   stop_settle_timeout_ms?: number;
+  schedule_timeout?: NativeHostTimeoutSchedulerV01;
   test_only_allow_unauthenticated_interactive?: boolean;
 }
 
@@ -543,6 +545,7 @@ export class LiveNativeHostRunServiceV01 {
         timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
         stop_settle_timeout_ms:
           this.options.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS,
+        schedule_timeout: this.options.schedule_timeout,
         cancellation_signal: controller.abortController.signal,
         lifecycle_sink: controller,
         lifecycle_mode: "managed_live",
