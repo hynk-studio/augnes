@@ -42,21 +42,46 @@ export const CANONICAL_STEP_ENVIRONMENT_ALLOWLIST = Object.freeze({
     "injects a picker result constrained to the suite-owned temporary root",
   AUGNES_TEST_FOLDER_PICKER_OUTCOME:
     "injects a non-path picker outcome inside a suite-owned runtime",
+  AUGNES_RUNTIME_STATE_DIR:
+    "binds runtime state to a child-owned disposable directory",
 });
 
 const CANONICAL_STEP_PATH_KEYS = new Set([
   "AUGNES_CANONICAL_TEMP_ROOT",
   "AUGNES_DB_PATH",
   "AUGNES_TEST_FOLDER_PICKER_PATH",
+  "AUGNES_RUNTIME_STATE_DIR",
+]);
+
+const CANONICAL_CHILD_OWNED_ENVIRONMENT_KEYS = new Set([
+  "AUGNES_CANONICAL_TEMP_ROOT",
+  "AUGNES_DB_PATH",
+  "AUGNES_RUNTIME_STATE_DIR",
 ]);
 
 export function buildCanonicalChildEnvironment({
   ambientEnvironment = process.env,
   stepEnvironment = {},
   temporaryRoot,
+  resourceRoot = temporaryRoot,
 }) {
   if (typeof temporaryRoot !== "string" || !path.isAbsolute(temporaryRoot)) {
     throw new Error("canonical temporary root must be an absolute path");
+  }
+  if (
+    typeof resourceRoot !== "string" ||
+    !path.isAbsolute(resourceRoot)
+  ) {
+    throw new Error("canonical child resource root must be absolute");
+  }
+  if (
+    !isPathInsideOrEqual(temporaryRoot, resourceRoot) &&
+    path.dirname(path.resolve(resourceRoot)) !==
+      path.dirname(path.resolve(temporaryRoot))
+  ) {
+    throw new Error(
+      "canonical child resource root must be suite-owned OS-temporary state",
+    );
   }
 
   const environment = { NODE_ENV: "test" };
@@ -68,6 +93,17 @@ export function buildCanonicalChildEnvironment({
     copyNonEmptyString(environment, ambientEnvironment, key);
   }
 
+  const homeRoot = path.join(resourceRoot, "home");
+  const processTempRoot = resourceRoot;
+  environment.HOME = homeRoot;
+  environment.USERPROFILE = homeRoot;
+  environment.TMPDIR = processTempRoot;
+  environment.TMP = processTempRoot;
+  environment.TEMP = processTempRoot;
+  environment.AUGNES_CANONICAL_TEMP_ROOT = resourceRoot;
+  environment.AUGNES_DB_PATH = path.join(resourceRoot, "canonical.db");
+  environment.AUGNES_RUNTIME_STATE_DIR = path.join(resourceRoot, "runtime-state");
+
   for (const [key, value] of Object.entries(stepEnvironment)) {
     if (!(key in CANONICAL_STEP_ENVIRONMENT_ALLOWLIST)) {
       throw new Error(`canonical step environment key is not allowlisted: ${key}`);
@@ -77,10 +113,10 @@ export function buildCanonicalChildEnvironment({
     }
     if (
       CANONICAL_STEP_PATH_KEYS.has(key) &&
-      !isPathInsideOrEqual(temporaryRoot, value)
+      !isPathInsideOrEqual(resourceRoot, value)
     ) {
       throw new Error(
-        `canonical step path must remain inside the suite temporary root: ${key}`,
+        `canonical step path must remain inside the child resource root: ${key}`,
       );
     }
     environment[key] = value;
@@ -105,6 +141,7 @@ export function findForbiddenAmbientKeysForwarded({
       (key) =>
         key !== "NODE_ENV" &&
         !allowedAmbientKeys.has(key) &&
+        !CANONICAL_CHILD_OWNED_ENVIRONMENT_KEYS.has(key) &&
         !explicitStepKeys.has(key) &&
         Object.hasOwn(ambientEnvironment, key),
     )

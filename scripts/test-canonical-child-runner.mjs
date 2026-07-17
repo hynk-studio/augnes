@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import {
   canonicalChildFailure,
   runCanonicalChild,
+  runCanonicalChildGroups,
 } from "./canonical-child-runner.mjs";
 
 const repositoryRoot = path.resolve(
@@ -121,6 +122,159 @@ try {
   assert.equal(publicDiagnostics.includes(privatePathSentinel), false);
   assert.equal(publicDiagnostics.includes("PRIVATE_FIXTURE"), false);
 
+  const concurrentTreeState = path.join(temporaryRoot, "concurrent-tree.json");
+  const concurrentLogs = [];
+  let concurrentFailure;
+  try {
+    await runCanonicalChildGroups({
+      suite: "runner-regression",
+      maxConcurrency: 2,
+      groups: [
+        {
+          id: "failure-lane",
+          children: [
+            groupFixture("concurrent-nonzero", "nonzero", 2_000),
+            groupFixture("concurrent-after-failure", "fast-success", 2_000),
+          ],
+        },
+        {
+          id: "timeout-lane",
+          children: [
+            groupFixture(
+              "concurrent-tree-timeout",
+              "tree",
+              1_000,
+              concurrentTreeState,
+            ),
+            groupFixture("concurrent-after-timeout", "fast-success", 2_000),
+          ],
+        },
+      ],
+      log: (line) => concurrentLogs.push(line),
+      runChild: (child) =>
+        runCanonicalChild({
+          ...child,
+          heartbeatMs: 100,
+          termGraceMs: 500,
+          killGraceMs: 2_000,
+          stdout: { write: () => {} },
+          stderr: { write: () => {} },
+          log: (line) => concurrentLogs.push(line),
+        }),
+    });
+  } catch (error) {
+    concurrentFailure = error;
+  }
+  assert.equal(concurrentFailure?.code, "canonical_concurrent_group_failed");
+  assert.deepEqual(
+    concurrentFailure.canonicalResults.map((result) => result.label),
+    [
+      "concurrent-nonzero",
+      "concurrent-after-failure",
+      "concurrent-tree-timeout",
+      "concurrent-after-timeout",
+    ],
+  );
+  assert.equal(
+    concurrentFailure.canonicalIssues.some(
+      (issue) => issue.code === "child_failed",
+    ),
+    true,
+  );
+  assert.equal(
+    concurrentFailure.canonicalIssues.some(
+      (issue) => issue.code === "child_timed_out",
+    ),
+    true,
+  );
+  assert.equal(
+    concurrentLogs.some((line) => line.includes("group_start")),
+    true,
+  );
+  assert.equal(
+    concurrentLogs.some((line) => line.includes("child_active")),
+    true,
+  );
+  assert.equal(
+    concurrentLogs.some((line) => line.includes("group_result")),
+    true,
+  );
+  const concurrentTreeIdentity = JSON.parse(
+    readFileSync(concurrentTreeState, "utf8"),
+  );
+  observedPids.add(concurrentTreeIdentity.child_pid);
+  observedPids.add(concurrentTreeIdentity.grandchild_pid);
+  observedPorts.add(concurrentTreeIdentity.port);
+  await assertProcessGone(concurrentTreeIdentity.child_pid);
+  await assertProcessGone(concurrentTreeIdentity.grandchild_pid);
+  assert.equal(await canConnect(concurrentTreeIdentity.port), false);
+
+  await assert.rejects(
+    () =>
+      runCanonicalChildGroups({
+        suite: "runner-regression",
+        maxConcurrency: 1,
+        groups: [
+          {
+            id: "incomplete-lane",
+            children: [groupFixture("missing-result", "fast-success", 2_000)],
+          },
+        ],
+        runChild: async () => undefined,
+        log: () => {},
+      }),
+    (error) =>
+      error?.code === "canonical_concurrent_group_failed" &&
+      error.canonicalIssues.some(
+        (issue) => issue.code === "child_result_missing",
+      ),
+  );
+  await assert.rejects(
+    () =>
+      runCanonicalChildGroups({
+        suite: "runner-regression",
+        maxConcurrency: 1,
+        groups: [
+          {
+            id: "conflict-lane",
+            children: [groupFixture("expected-label", "fast-success", 2_000)],
+          },
+        ],
+        runChild: async () => ({
+          label: "conflicting-label",
+          exit_code: 0,
+          signal: null,
+          timed_out: false,
+          duration_ms: 1,
+          spawn_error_code: null,
+        }),
+        log: () => {},
+      }),
+    (error) =>
+      error?.code === "canonical_concurrent_group_failed" &&
+      error.canonicalIssues.some(
+        (issue) => issue.code === "child_result_conflicting_label",
+      ),
+  );
+  await assert.rejects(
+    () =>
+      runCanonicalChildGroups({
+        suite: "runner-regression",
+        maxConcurrency: 2,
+        groups: [
+          {
+            id: "duplicate-a",
+            children: [groupFixture("duplicate-child", "fast-success", 2_000)],
+          },
+          {
+            id: "duplicate-b",
+            children: [groupFixture("duplicate-child", "fast-success", 2_000)],
+          },
+        ],
+      }),
+    /canonical concurrent child ownership is invalid/,
+  );
+
   assert.deepEqual(snapshotFile(repositoryDatabasePath), repositoryDatabaseBefore);
   summaries.push(
     success,
@@ -150,6 +304,9 @@ console.log(
       hanging_process_tree_terminated: true,
       sigterm_escalation_verified: true,
       privacy_safe_diagnostics: true,
+      concurrent_groups_bounded_and_deterministic: true,
+      concurrent_failure_timeout_and_cleanup_fail_closed: true,
+      concurrent_incomplete_conflicting_and_duplicate_results_refused: true,
       temporary_root_removed: true,
       repository_database_unchanged: true,
       owned_processes_after: 0,
@@ -192,6 +349,21 @@ async function runFixture(
     },
   });
   return { ...result, pid };
+}
+
+function groupFixture(label, mode, timeoutMs, statePath = path.join(
+  temporaryRoot,
+  `${label}.state`,
+)) {
+  return {
+    suite: "runner-regression",
+    label,
+    command: process.execPath,
+    args: [fixture, mode, statePath],
+    cwd: repositoryRoot,
+    env: process.env,
+    timeoutMs,
+  };
 }
 
 async function assertProcessGone(pid) {

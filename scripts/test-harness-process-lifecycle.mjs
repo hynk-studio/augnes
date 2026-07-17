@@ -75,7 +75,33 @@ export async function terminateOwnedProcessTree(
     killGraceMs = DEFAULT_KILL_GRACE_MS,
   } = {},
 ) {
-  if (!record || record.closed) return { term_sent: false, kill_sent: false };
+  if (!record) return { term_sent: false, kill_sent: false };
+  if (record.closed) {
+    if (
+      process.platform === "win32" ||
+      !Number.isInteger(record.pid) ||
+      record.pid <= 0
+    ) {
+      return { term_sent: false, kill_sent: false };
+    }
+    const remainingGroup = discoverOwnedProcessGroup(record.pid);
+    if (remainingGroup.length === 0) {
+      return { term_sent: false, kill_sent: false };
+    }
+    signalVerifiedOwnedProcesses(remainingGroup, "SIGTERM");
+    if (await waitForVerifiedProcessesExit(remainingGroup, termGraceMs)) {
+      closeChildStreams(record.child);
+      return { term_sent: true, kill_sent: false };
+    }
+    signalVerifiedOwnedProcesses(remainingGroup, "SIGKILL");
+    const groupExited = await waitForVerifiedProcessesExit(
+      remainingGroup,
+      killGraceMs,
+    );
+    closeChildStreams(record.child);
+    if (!groupExited) throw ownedCleanupError();
+    return { term_sent: true, kill_sent: true };
+  }
   if (!Number.isInteger(record.pid) || record.pid <= 0) {
     if (!(await waitForRecordClose(record, killGraceMs))) throw ownedCleanupError();
     return { term_sent: false, kill_sent: false };
@@ -210,6 +236,14 @@ function discoverOwnedProcessTree(rootPid) {
   return [...ownedPids]
     .map((pid) => snapshot.get(pid))
     .filter(Boolean)
+    .sort((left, right) => right.pid - left.pid);
+}
+
+function discoverOwnedProcessGroup(rootPid) {
+  return [...readPosixProcessSnapshot().values()]
+    .filter(
+      (record) => record.pgid === rootPid && !record.state.startsWith("Z"),
+    )
     .sort((left, right) => right.pid - left.pid);
 }
 

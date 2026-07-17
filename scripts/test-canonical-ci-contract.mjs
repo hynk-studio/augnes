@@ -17,6 +17,28 @@ const setupAction = readRepositoryFile(
 const agents = readRepositoryFile("AGENTS.md");
 const canonicalSuite = readRepositoryFile("scripts/run-canonical-test-suite.mjs");
 const canonicalRunner = readRepositoryFile("scripts/canonical-child-runner.mjs");
+const canonicalEnvironment = readRepositoryFile(
+  "scripts/canonical-test-environment.mjs",
+);
+const canonicalRunnerContract = readRepositoryFile(
+  "scripts/test-canonical-child-runner.mjs",
+);
+const browserE2e = readRepositoryFile(
+  "scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs",
+);
+const operatorSmoke = readRepositoryFile(
+  "scripts/smoke-vnext-operator-pilot-v0-1.ts",
+);
+const operatorPureContracts = readRepositoryFile(
+  "scripts/test-vnext-operator-pure-contracts-v0-1.ts",
+);
+const fixtureBuilder = readRepositoryFile(
+  "scripts/vnext-operator-browser-fixture-builder-v0-1.ts",
+);
+const fixtureBuilderContract = readRepositoryFile(
+  "scripts/test-vnext-operator-browser-fixture-v0-1.ts",
+);
+const packageJson = JSON.parse(readRepositoryFile("package.json"));
 const processLifecycle = readRepositoryFile(
   "scripts/test-harness-process-lifecycle.mjs",
 );
@@ -189,6 +211,98 @@ requireText(
 );
 requireText(
   canonicalSuite,
+  `runCanonicalChildGroups,`,
+  "integration concurrency must use the bounded canonical group runner",
+);
+requireText(
+  canonicalSuite,
+  `maxConcurrency: 2`,
+  "integration concurrency must retain its measured two-lane bound",
+);
+for (const groupId of ["operator-process", "supporting-serial"]) {
+  requireText(
+    canonicalSuite,
+    `{ id: "${groupId}", children:`,
+    `integration group ownership is missing: ${groupId}`,
+  );
+}
+const integrationChildren = [
+  "project-controls",
+  "policy-triggered-model-run",
+  "project-home",
+  "project-onboarding",
+  "project-identity",
+  "mcp-adapter-runtime",
+  "cross-session-read",
+  "durable-semantic-loop",
+  "operator-pilot",
+  "portable-export",
+];
+for (const childId of integrationChildren) {
+  assert.equal(
+    countOccurrences(canonicalSuite, `id: "${childId}"`),
+    1,
+    `integration child must have exactly one owner: ${childId}`,
+  );
+}
+for (const requirement of [
+  "pure-deterministic",
+  "database",
+  "migrations",
+  "backup-restore",
+  "filesystem",
+  "git-worktree",
+  "process-owning",
+  "listener-port-owning",
+  "mutable-module-state",
+  "filesystem-fixture-consumer",
+]) {
+  requireText(
+    canonicalSuite,
+    `"${requirement}"`,
+    `integration requirement inventory is missing: ${requirement}`,
+  );
+}
+for (const variable of [
+  "HOME",
+  "USERPROFILE",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "AUGNES_CANONICAL_TEMP_ROOT",
+  "AUGNES_DB_PATH",
+  "AUGNES_RUNTIME_STATE_DIR",
+]) {
+  requireText(
+    canonicalEnvironment,
+    `environment.${variable}`,
+    `canonical child resource isolation is missing: ${variable}`,
+  );
+}
+requireText(
+  canonicalSuite,
+  `new Set(preparedSteps.map((step) => step.resourceRoot)).size`,
+  "canonical children must fail closed on duplicate resource ownership",
+);
+requireText(
+  canonicalSuite,
+  `const temporaryRoot = realpathSync(`,
+  "canonical child resources must use one canonical OS-temporary identity",
+);
+for (const fragment of [
+  `mkdtempSync(`,
+  `ag-c\${String(index + 1).padStart(2, "0")}-`,
+  `ownedResourceRoots.push(resourceRoot)`,
+  `for (const resourceRoot of ownedResourceRoots)`,
+]) {
+  requireText(
+    canonicalSuite,
+    fragment,
+    `short child-owned OS-temporary lifecycle is missing: ${fragment}`,
+  );
+}
+requireText(
+  canonicalSuite,
   `scripts/test-canonical-child-runner.mjs`,
   "bounded child lifecycle regression must remain authoritative",
 );
@@ -198,6 +312,8 @@ requireText(
   "CI contract regression must remain in the authority suite",
 );
 for (const [pathName, timeout] of [
+  ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
+  ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
   ["scripts/test-runtime-database-bootstrap.mjs", "120_000"],
   ["scripts/test-runtime-operability.mjs", "120_000"],
@@ -214,6 +330,14 @@ for (const fragment of [
   `child_start label=`,
   `child_active label=`,
   `child_result label=`,
+  `group_start group=`,
+  `group_result group=`,
+  `canonical concurrent group failed`,
+  `child_result_missing`,
+  `child_result_conflicting_label`,
+  `child_result_duplicate`,
+  `child_result_incomplete`,
+  `outcome.value.code !== 0`,
 ]) {
   requireText(
     canonicalRunner,
@@ -223,8 +347,118 @@ for (const fragment of [
 }
 
 for (const fragment of [
+  `concurrent_groups_bounded_and_deterministic`,
+  `concurrent_failure_timeout_and_cleanup_fail_closed`,
+  `concurrent_incomplete_conflicting_and_duplicate_results_refused`,
+  `concurrent-after-failure`,
+  `concurrent-after-timeout`,
+]) {
+  requireText(
+    canonicalRunnerContract,
+    fragment,
+    `concurrent runner failure-mode regression is missing: ${fragment}`,
+  );
+}
+
+const movedResponsibilities = [
+  "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
+  "live_codex_public_command_summary_preserves_safe_relative_commands",
+  "automatic_host_path_bypasses_legacy_text_parser_and_shares_receipt_writer",
+  "workbench_durable_lineage_panel_is_read_only_and_explicit",
+  "api_and_ui_share_session_bound_decision_actionability_policy",
+  "page_and_project_home_share_canonical_packet_handoff_identity",
+  "static_refresh_resubmit_and_credential_safety_markers_present",
+];
+for (const responsibility of movedResponsibilities) {
+  assert.equal(
+    operatorSmoke.includes(responsibility),
+    false,
+    `moved pure responsibility must not remain in operator smoke: ${responsibility}`,
+  );
+  assert.equal(
+    countOccurrences(
+      operatorPureContracts,
+      `record("${responsibility}")`,
+    ),
+    1,
+    `moved pure responsibility must execute exactly once: ${responsibility}`,
+  );
+}
+assert.equal(
+  countOccurrences(
+    canonicalSuite,
+    `scripts/test-vnext-operator-pure-contracts-v0-1.ts`,
+  ),
+  1,
+  "the pure responsibility contract must run exactly once in the canonical unit surface",
+);
+
+requireText(
+  browserE2e,
+  `scripts/build-vnext-operator-browser-fixture-v0-1.ts`,
+  "E2E must use the deterministic fixture builder",
+);
+requireText(
+  browserE2e,
+  `fixture_generation_duration_ms`,
+  "E2E must report fixture-generation duration separately",
+);
+assert.doesNotMatch(
+  browserE2e,
+  /smoke-vnext-operator-pilot-v0-1|AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR/u,
+  "E2E must not rerun the broad operator smoke to create its fixture",
+);
+assert.doesNotMatch(
+  operatorSmoke,
+  /AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR|browser_fixture_export/u,
+  "operator integration must no longer own the E2E fixture export mode",
+);
+for (const fragment of [
+  `deterministic_production_fixture`,
+  `artifact_ownership: "transferred_to_browser_harness"`,
+  `persisted_lineage_status: "reviewed"`,
+  `credential_material_included: false`,
+  `external_network_calls: 0`,
+  `provider_calls: 0`,
+  `assertDisposableOutputDirectory`,
+  `validateVNextOperatorBrowserFixtureV01`,
+]) {
+  requireText(
+    fixtureBuilder,
+    fragment,
+    `fixture builder contract is missing: ${fragment}`,
+  );
+}
+assert.doesNotMatch(
+  fixtureBuilder,
+  /LiveNativeHostRunServiceV01|createCodexAppServerAdapterV01|openai|anthropic|provider.*transport/iu,
+  "fixture construction must not introduce a live host or provider transport",
+);
+for (const fragment of [
+  `fixture_validation_fails_closed_on_incomplete_manifest`,
+  `fixture_validation_fails_closed_on_conflicting_database_binding`,
+  `fixture_builder_refuses_overwrite_and_preserves_existing_artifacts`,
+  `fixture_contract_removes_database_manifest_root_and_side_files`,
+]) {
+  requireText(
+    fixtureBuilderContract,
+    fragment,
+    `fixture builder regression is missing: ${fragment}`,
+  );
+}
+assert.equal(
+  packageJson.scripts["test:operator-pure-contracts"],
+  "node --import tsx scripts/test-vnext-operator-pure-contracts-v0-1.ts",
+);
+assert.equal(
+  packageJson.scripts["test:operator-browser-fixture"],
+  "node --import tsx scripts/test-vnext-operator-browser-fixture-v0-1.ts",
+);
+
+for (const fragment of [
   `registerOwnedChild`,
   `terminateOwnedProcessTree`,
+  `discoverOwnedProcessGroup`,
   `cleanupOwnedProcesses`,
   `closeTrackedServer`,
   `taskkill`,
@@ -271,6 +505,12 @@ console.log(
       bounded_runner_required: true,
       child_heartbeat_required: true,
       process_tree_cleanup_required: true,
+      integration_concurrency_bound: 2,
+      integration_children_uniquely_owned: integrationChildren,
+      child_resource_isolation_required: true,
+      moved_responsibilities_execute_once: movedResponsibilities,
+      broad_operator_smoke_rerun_by_e2e: false,
+      deterministic_fixture_builder_required: true,
       authority_regressions_required: [
         "canonical-child-runner",
         "canonical-ci-contract",
@@ -357,4 +597,8 @@ function assertCanonicalChildTimeout(source, pathName, timeout) {
 
 function requireText(source, fragment, message) {
   assert.equal(source.includes(fragment), true, message);
+}
+
+function countOccurrences(source, fragment) {
+  return source.split(fragment).length - 1;
 }

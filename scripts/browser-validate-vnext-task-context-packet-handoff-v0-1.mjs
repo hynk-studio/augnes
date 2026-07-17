@@ -40,16 +40,20 @@ const DEFAULT_TIMEOUT_MS = 45_000;
 // masks the supervised run's durable state. Observe that lifecycle explicitly,
 // with a bounded allowance below the outer E2E limit, before asserting the UI.
 const LIVE_HOST_APPROVAL_TIMEOUT_MS = 90_000;
-// The same operator smoke completed in canonical CI at 203,854 ms. Keep this
-// fixture-only subprocess bounded below the outer 480,000 ms e2e lifecycle.
-const OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS = 240_000;
+// The deterministic production-seam fixture builder completed locally in
+// 13,620 ms. Keep its child bound below the outer E2E lifecycle.
+const OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS = 45_000;
 const REQUEST_QUIET_MS = 500;
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const originalUmask = process.umask(0o077);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-packet-handoff-browser-v0-1-"),
 );
-const processTempRoot = mkdtempSync(path.join(tmpdir(), "ag-e2e-"));
+const canonicalOwnedTempRoot =
+  process.env.AUGNES_CANONICAL_TEMP_ROOT?.trim() ?? null;
+const processTempRoot = canonicalOwnedTempRoot
+  ? realpathSync(canonicalOwnedTempRoot)
+  : mkdtempSync(path.join(tmpdir(), "ag-e2e-"));
 const fixtureDir = path.join(tempRoot, "fixture");
 const chromeProfileDir = path.join(tempRoot, "chrome-profile");
 const manifestPath = path.join(
@@ -99,7 +103,8 @@ const assertions = [];
 const result = {
   ok: false,
   validation_version: VALIDATION_VERSION,
-  fixture_source: "disposable_operator_pilot_compile_result",
+  fixture_source: "deterministic_production_seam_builder",
+  fixture_generation_duration_ms: null,
   app_repo: appRepo,
   proposal_id: null,
   proposal_fingerprint: null,
@@ -289,7 +294,9 @@ async function main() {
     "browser artifacts must stay inside the operating-system temp directory",
   );
 
-  const fixtureSummary = await exportActualCompiledPacketFixture();
+  const fixtureStartedAt = Date.now();
+  const fixtureSummary = await buildActualCompiledPacketFixture();
+  result.fixture_generation_duration_ms = Date.now() - fixtureStartedAt;
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.fixture_version, "vnext_operator_pilot_browser_fixture.v0.1");
   assert.equal(manifest.credential_material_included, false);
@@ -299,33 +306,19 @@ async function main() {
     manifest.database_identity,
     databaseFileIdentityV01(databasePath),
   );
-  assert.equal(manifest.database_binding, "copied_fixture");
+  assert.equal(manifest.database_binding, "deterministic_production_fixture");
   assert.equal(manifest.database_file, path.basename(databasePath));
   assert.equal(fixtureSummary.status, "pass");
   assert.equal(fixtureSummary.default_database_accessed, false);
   assert.equal(fixtureSummary.external_network_calls, 0);
-  assert.equal(fixtureSummary.browser_fixture_export?.exported, true);
-  assert.deepEqual(fixtureSummary.full_loop_proposal, {
-    proposal_id: manifest.proposal_id,
-    proposal_fingerprint: manifest.proposal_fingerprint,
-  });
-  assert.equal(fixtureSummary.full_loop_anchors?.later_packet_id, manifest.packet_id);
+  assert.equal(fixtureSummary.provider_calls, 0);
+  assert.equal(fixtureSummary.persisted_lineage_status, "reviewed");
   assert.equal(
-    fixtureSummary.full_loop_anchors?.later_packet_fingerprint,
-    manifest.packet_fingerprint,
+    fixtureSummary.artifact_ownership,
+    "transferred_to_browser_harness",
   );
-  assert.equal(
-    fixtureSummary.full_loop_anchors?.transition_receipt_id,
-    manifest.transition_receipt_id,
-  );
-  assert.equal(
-    fixtureSummary.full_loop_anchors?.later_run_receipt_id,
-    manifest.later_result_receipt_id,
-  );
-  assert.equal(
-    fixtureSummary.full_loop_anchors?.context_use_review_id,
-    manifest.context_use_review_id,
-  );
+  assert.equal(fixtureSummary.credential_material_included, false);
+  assert.equal(fixtureSummary.private_absolute_path_in_manifest, false);
   result.default_database_accessed = fixtureSummary.default_database_accessed;
 
   const handoffHref = buildTaskContextPacketHandoffHrefV01({
@@ -1617,27 +1610,30 @@ async function main() {
   record("browser_network_console_credential_and_integrity_boundaries_hold");
 }
 
-async function exportActualCompiledPacketFixture() {
+async function buildActualCompiledPacketFixture() {
   const completed = await runCapture(
     process.execPath,
-    ["--import", "tsx", "scripts/smoke-vnext-operator-pilot-v0-1.ts"],
+    [
+      "--import",
+      "tsx",
+      "scripts/build-vnext-operator-browser-fixture-v0-1.ts",
+      fixtureDir,
+      new Date().toISOString(),
+    ],
     {
       cwd: process.cwd(),
-      env: {
-        ...minimalProcessEnvironment(),
-        AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR: fixtureDir,
-      },
+      env: minimalProcessEnvironment(),
       timeoutMs: OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS,
     },
   );
   assert.equal(
     completed.code,
     0,
-    `operator-pilot fixture export failed with exit ${completed.code}: ${completed.stderr.trim() || "no public error output"}`,
+    `operator browser fixture builder failed with exit ${completed.code}: ${completed.stderr.trim() || "no public error output"}`,
   );
-  const jsonStart = completed.stdout.indexOf("{\n");
-  assert(jsonStart >= 0, "operator-pilot smoke summary missing");
-  return JSON.parse(completed.stdout.slice(jsonStart));
+  const summaryLine = completed.stdout.trim().split("\n").at(-1);
+  assert(summaryLine, "operator browser fixture summary missing");
+  return JSON.parse(summaryLine);
 }
 
 function databaseFileIdentityV01(databasePath) {
