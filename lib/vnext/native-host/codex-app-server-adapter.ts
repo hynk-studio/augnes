@@ -49,6 +49,7 @@ const MAX_JSONL_BUFFER_BYTES = 512 * 1024;
 const MAX_PENDING_REQUESTS = 32;
 const MAX_RECENT_RESPONSES = 64;
 const MAX_SERVER_REQUESTS = 8;
+const MAX_RECENT_RESOLVED_SERVER_REQUESTS = 16;
 const MAX_PROMPT_BYTES = 512 * 1024;
 const RPC_TIMEOUT_MS = 10_000;
 const APPROVAL_TTL_MS = 5 * 60 * 1_000;
@@ -99,6 +100,8 @@ export interface CodexAppServerAdapterObservationV01 {
     | "thread_resumed"
     | "turn_started"
     | "approval_requested"
+    | "approval_resolved"
+    | "server_request_state_cleared"
     | "interrupt_requested"
     | "settlement_failed"
     | "settled";
@@ -109,6 +112,8 @@ export interface CodexAppServerAdapterObservationV01 {
   timeout_ms: number;
   stop_settle_timeout_ms: number;
   observed_at_ms: number;
+  active_server_request_count: number;
+  recent_resolved_server_request_count: number;
   public_reason?: string;
 }
 
@@ -178,10 +183,13 @@ class CodexAppServerInvocationV01 {
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
   private readonly observedActions: string[] = [];
   private readonly completedMessageFingerprints = new Map<string, string>();
-  private readonly serverRequestFingerprints = new Map<string, string>();
-  private readonly serverRequestApprovals = new Map<
+  private readonly activeServerRequests = new Map<
     string,
-    { approval_id: string; idempotency_fingerprint: string }
+    ActiveCodexServerRequestV01
+  >();
+  private readonly recentResolvedServerRequests = new Map<
+    string,
+    ResolvedCodexServerRequestV01
   >();
 
   constructor(
@@ -641,10 +649,28 @@ class CodexAppServerInvocationV01 {
     }
     if (method === "serverRequest/resolved") {
       const requestId = requestIdStringV01(value.requestId);
-      const approval = requestId
-        ? this.serverRequestApprovals.get(requestId)
-        : null;
-      if (!requestId || !approval) {
+      if (!requestId) {
+        throw this.reconciliationError("codex_server_request_resolution_mismatch");
+      }
+      const resolutionFingerprint = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ method, params: value }),
+      );
+      const resolved = this.recentResolvedServerRequests.get(requestId);
+      if (resolved) {
+        throw this.reconciliationError(
+          resolved.resolution_fingerprint === resolutionFingerprint
+            ? "codex_server_request_resolution_duplicate"
+            : "codex_server_request_resolution_conflict",
+        );
+      }
+      const active = this.activeServerRequests.get(requestId);
+      if (
+        !active ||
+        !active.decision_fingerprint ||
+        active.run_id !== this.request.run_id ||
+        active.thread_id !== this.threadId ||
+        active.turn_id !== this.turnId
+      ) {
         throw this.reconciliationError("codex_server_request_resolution_mismatch");
       }
       await this.reportLifecycle({
@@ -653,10 +679,27 @@ class CodexAppServerInvocationV01 {
         coverage: "observed",
         host_refs: this.currentHostRefs(),
         bounded_metadata: {
-          approval_id: approval.approval_id,
-          approval_fingerprint: approval.idempotency_fingerprint,
+          approval_id: active.approval_id,
+          approval_fingerprint: active.approval_fingerprint,
         },
       });
+      this.activeServerRequests.delete(requestId);
+      this.recentResolvedServerRequests.set(requestId, {
+        request_fingerprint: active.request_fingerprint,
+        resolution_fingerprint: resolutionFingerprint,
+        approval_id: active.approval_id,
+        approval_fingerprint: active.approval_fingerprint,
+        decision_fingerprint: active.decision_fingerprint,
+      });
+      while (
+        this.recentResolvedServerRequests.size >
+        MAX_RECENT_RESOLVED_SERVER_REQUESTS
+      ) {
+        this.recentResolvedServerRequests.delete(
+          this.recentResolvedServerRequests.keys().next().value!,
+        );
+      }
+      this.observe("approval_resolved");
       return;
     }
     if (KNOWN_IGNORED_NOTIFICATIONS.has(method)) return;
@@ -682,22 +725,35 @@ class CodexAppServerInvocationV01 {
     const fingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01({ method, params }),
     );
-    const existing = this.serverRequestFingerprints.get(requestId);
-    if (existing && existing !== fingerprint) {
+    const resolved = this.recentResolvedServerRequests.get(requestId);
+    if (resolved) {
+      throw new CodexProtocolErrorV01(
+        resolved.request_fingerprint === fingerprint
+          ? "codex_server_request_duplicate_resolved"
+          : "codex_server_request_resolved_conflict",
+      );
+    }
+    const existing = this.activeServerRequests.get(requestId);
+    if (existing && existing.request_fingerprint !== fingerprint) {
       throw new CodexProtocolErrorV01("codex_server_request_conflict");
     }
-    if (existing === fingerprint) {
+    if (existing?.request_fingerprint === fingerprint) {
       throw new CodexProtocolErrorV01("codex_server_request_duplicate_active");
     }
-    this.serverRequestFingerprints.set(requestId, fingerprint);
-    if (this.serverRequestFingerprints.size > MAX_SERVER_REQUESTS) {
+    if (this.activeServerRequests.size >= MAX_SERVER_REQUESTS) {
       throw new CodexProtocolErrorV01("codex_server_request_bound_exceeded");
     }
     const approval = this.normalizeApproval(method, requestId, params);
-    this.serverRequestApprovals.set(requestId, {
+    const active: ActiveCodexServerRequestV01 = {
+      request_fingerprint: fingerprint,
       approval_id: approval.approval_id,
-      idempotency_fingerprint: approval.idempotency_fingerprint,
-    });
+      approval_fingerprint: approval.idempotency_fingerprint,
+      decision_fingerprint: null,
+      run_id: this.request.run_id,
+      thread_id: this.threadId!,
+      turn_id: this.turnId!,
+    };
+    this.activeServerRequests.set(requestId, active);
     // A server request can arrive in the same stdout chunk as turn/start's
     // response, before that response continuation has projected the turn into
     // the durable ledger. Admit the already adapter-validated turn binding
@@ -711,6 +767,15 @@ class CodexAppServerInvocationV01 {
     });
     this.observe("approval_requested");
     const decision = await this.awaitApprovalDecision(approval);
+    active.decision_fingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        approval_id: decision.approval_id,
+        idempotency_fingerprint: decision.idempotency_fingerprint,
+        decision: decision.decision,
+        decision_source: decision.decision_source,
+        control_revision: decision.control_revision,
+      }),
+    );
     if (method === "item/permissions/requestApproval") {
       if (
         decision.decision === "approve_once" &&
@@ -776,7 +841,7 @@ class CodexAppServerInvocationV01 {
       const cwd = stringV01(source.cwd);
       if (cwd) paths = relativeScopeForHostPathV01(this.request, cwd);
       const command = stringV01(source.command);
-      commandSummary = command ? publicCommandSummaryV01(command) : null;
+      commandSummary = command ? publicSafeCommandSummaryV01(command) : null;
       commandFingerprint = command
         ? createProtocolSha256V01(command)
         : null;
@@ -947,7 +1012,7 @@ class CodexAppServerInvocationV01 {
       if (cwd) relativeScopeForHostPathV01(this.request, cwd);
       this.observedCommands.push({
         command_id: itemId,
-        summary: publicCommandSummaryV01(command),
+        summary: publicSafeCommandSummaryV01(command),
         command_fingerprint: createProtocolSha256V01(command),
         started_at: millisTimestampV01(envelope.startedAtMs),
         finished_at: millisTimestampV01(envelope.completedAtMs) ?? this.now(),
@@ -1271,13 +1336,21 @@ class CodexAppServerInvocationV01 {
     // Abandon any adapter-owned approval wait before transport teardown so a
     // disconnect cannot leave shutdown waiting forever on a server request.
     this.stopSignal.resolve();
-    if (!this.transport) {
+    try {
+      if (!this.transport) {
+        this.cleanupSettled = true;
+        return;
+      }
+      const settled = await this.transport.shutdown();
+      if (!settled) {
+        throw new CodexProtocolErrorV01("codex_process_tree_unsettled");
+      }
       this.cleanupSettled = true;
-      return;
+    } finally {
+      this.activeServerRequests.clear();
+      this.recentResolvedServerRequests.clear();
+      this.observe("server_request_state_cleared");
     }
-    const settled = await this.transport.shutdown();
-    if (!settled) throw new CodexProtocolErrorV01("codex_process_tree_unsettled");
-    this.cleanupSettled = true;
   }
 
   private assertNotificationBinding(value: Record<string, unknown>): void {
@@ -1361,6 +1434,9 @@ class CodexAppServerInvocationV01 {
       timeout_ms: this.control.timeout_ms,
       stop_settle_timeout_ms: this.control.stop_settle_timeout_ms,
       observed_at_ms: Date.now(),
+      active_server_request_count: this.activeServerRequests.size,
+      recent_resolved_server_request_count:
+        this.recentResolvedServerRequests.size,
       ...(publicReason ? { public_reason: publicReason } : {}),
     });
   }
@@ -1379,7 +1455,10 @@ class CodexStdioJsonRpcTransportV01 {
   private readonly pending = new Map<string, PendingRpcV01>();
   private readonly recentResponses = new Map<string, string>();
   private readonly serverTasks = new Set<Promise<void>>();
-  private activeServerRequestCount = 0;
+  // This is a transport-task guard. The invocation's activeServerRequests map
+  // remains authoritative for the longer approval lifecycle through the
+  // matching serverRequest/resolved notification.
+  private inFlightServerRequestHandlerCount = 0;
   private stdoutBuffer = Buffer.alloc(0);
   private closing = false;
   private shutdownPromise: Promise<boolean> | null = null;
@@ -1563,16 +1642,16 @@ class CodexStdioJsonRpcTransportV01 {
       throw new CodexProtocolErrorV01("codex_rpc_envelope_invalid");
     }
     if (hasId) {
-      if (this.activeServerRequestCount >= MAX_SERVER_REQUESTS) {
+      if (this.inFlightServerRequestHandlerCount >= MAX_SERVER_REQUESTS) {
         throw new CodexProtocolErrorV01("codex_server_request_bound_exceeded");
       }
-      this.activeServerRequestCount += 1;
+      this.inFlightServerRequestHandlerCount += 1;
       const task = handlers
         .onServerRequest(message.id as string | number, method, message.params)
         .then(
-          (result) => this.write({ id: message.id, result }),
+          (result) => this.writeServerResponseSafely({ id: message.id, result }),
           (error) => {
-            this.write({
+            this.writeServerResponseSafely({
               id: message.id,
               error: {
                 code: -32000,
@@ -1583,7 +1662,7 @@ class CodexStdioJsonRpcTransportV01 {
           },
         )
         .finally(() => {
-          this.activeServerRequestCount -= 1;
+          this.inFlightServerRequestHandlerCount -= 1;
           this.serverTasks.delete(task);
         });
       this.serverTasks.add(task);
@@ -1649,6 +1728,15 @@ class CodexStdioJsonRpcTransportV01 {
     }
   }
 
+  private writeServerResponseSafely(value: unknown): void {
+    if (this.closing || this.protocolFailure) return;
+    try {
+      this.write(value);
+    } catch (error) {
+      this.fail(asErrorV01(error));
+    }
+  }
+
   private fail(error: Error): void {
     if (this.protocolFailure) return;
     this.protocolFailure = error;
@@ -1691,6 +1779,10 @@ class CodexStdioJsonRpcTransportV01 {
       this.child.stderr.removeAllListeners();
       this.child.stdin.removeAllListeners();
       this.stdoutBuffer = Buffer.alloc(0);
+      this.pending.clear();
+      this.recentResponses.clear();
+      this.serverTasks.clear();
+      this.inFlightServerRequestHandlerCount = 0;
     }
   }
 
@@ -1708,6 +1800,24 @@ interface PendingRpcV01 {
   method: string;
   deferred: DeferredV01<unknown>;
   timer: ReturnType<typeof setTimeout>;
+}
+
+interface ActiveCodexServerRequestV01 {
+  request_fingerprint: string;
+  approval_id: string;
+  approval_fingerprint: string;
+  decision_fingerprint: string | null;
+  run_id: string;
+  thread_id: string;
+  turn_id: string;
+}
+
+interface ResolvedCodexServerRequestV01 {
+  request_fingerprint: string;
+  resolution_fingerprint: string;
+  approval_id: string;
+  approval_fingerprint: string;
+  decision_fingerprint: string;
 }
 
 interface DeferredV01<T> {
@@ -2297,23 +2407,118 @@ function samePhysicalRootV01(
   }
 }
 
-function publicCommandSummaryV01(value: string): string {
-  const oneLine = value.replace(/[\r\n\t]+/gu, " ").replace(/\s+/gu, " ").trim();
-  const redacted = oneLine
-    .replace(
-      /\b([A-Za-z0-9_]*(?:token|secret|password|api[_-]?key)[A-Za-z0-9_]*)=\S+/giu,
-      "$1=[redacted]",
-    )
-    .replace(
-      /\b((?:authorization|proxy-authorization)\s*:\s*(?:bearer|basic))\s+\S+/giu,
-      "$1 [redacted]",
-    )
-    .replace(
-      /((?:--?)(?:access[_-]?token|refresh[_-]?token|token|secret|password|api[_-]?key)(?:=|\s+))\S+/giu,
-      "$1[redacted]",
-    )
-    .replace(/:\/\/[^@\s/]+@/gu, "://[redacted]@");
-  return publicTextV01(redacted || "Command details unavailable.", 512);
+export function publicSafeCommandSummaryV01(value: string): string {
+  let summary = value
+    .replace(/[\u0000-\u001f\u007f]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  summary = summary.replace(
+    /(^|[\s;])((?:set\s+|\$env:|env\s+)?)([A-Za-z_][A-Za-z0-9_.-]*)(\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s;]+)/giu,
+    (match, boundary: string, prefix: string, key: string) =>
+      isSensitiveCommandNameV01(key)
+        ? `${boundary}${prefix}${key}=[redacted]`
+        : match,
+  );
+  summary = summary.replace(
+    /(^|\s)((?:--?|\/)[A-Za-z][A-Za-z0-9_-]*)(\s*=\s*|\s+)(?:"[^"]*"|'[^']*'|[^\s]+)/giu,
+    (match, boundary: string, option: string, separator: string) =>
+      isSensitiveCommandNameV01(option)
+        ? `${boundary}${option}${separator.trim() === "=" ? "=" : " "}[redacted]`
+        : match,
+  );
+  summary = summary.replace(
+    /(^|\s)(-H|--header)(\s+)(["'])([^"']*)\4/giu,
+    (
+      match,
+      boundary: string,
+      option: string,
+      whitespace: string,
+      _quote: string,
+      header: string,
+    ) => {
+      const parsed = /^\s*([A-Za-z][A-Za-z0-9-]*)\s*:\s*(.*)$/u.exec(header);
+      if (!parsed || !isSensitiveHeaderNameV01(parsed[1]!)) return match;
+      const scheme = /^(bearer|basic)\b/iu.exec(parsed[2] ?? "")?.[1];
+      return `${boundary}${option}${whitespace}${parsed[1]}: ${
+        scheme ? `${scheme} ` : ""
+      }[redacted]`;
+    },
+  );
+  summary = summary.replace(
+    /\b(Authorization|Proxy-Authorization|X-Api-Key|API-Key|X-Auth-Token|Cookie|Set-Cookie)(\s*:\s*)(?:(Bearer|Basic)\s+)?[^\s"'`]+/giu,
+    (_match, name: string, separator: string, scheme?: string) =>
+      `${name}${separator}${scheme ? `${scheme} ` : ""}[redacted]`,
+  );
+  summary = summary.replace(
+    /([A-Za-z][A-Za-z0-9+.-]*:\/\/)([^@\s/"']+)@/gu,
+    "$1[redacted]@",
+  );
+  summary = summary.replace(
+    /([?;&])([A-Za-z][A-Za-z0-9_.-]*)(=)([^&#\s"'`]+)/giu,
+    (match, separator: string, key: string) =>
+      isSensitiveCommandNameV01(key)
+        ? `${separator}${key}=[redacted]`
+        : match,
+  );
+
+  summary = summary.replace(
+    /(["'])([^"']+)\1/gu,
+    (match, _quote: string, candidate: string) =>
+      isAbsoluteCommandPathV01(candidate) ? "[absolute-path]" : match,
+  );
+  summary = summary.replace(
+    /(^|[\s=])([^\s"'`]+)/gu,
+    (match, boundary: string, candidate: string) =>
+      isAbsoluteCommandPathV01(candidate)
+        ? `${boundary}[absolute-path]`
+        : match,
+  );
+
+  summary = summary.replace(/\s+/gu, " ").trim();
+  const bounded =
+    summary.length <= 512
+      ? summary
+      : `${summary.slice(0, 509).trimEnd()}...`;
+  return publicTextV01(bounded || "Command details unavailable.", 512);
+}
+
+function isSensitiveCommandNameV01(value: string): boolean {
+  const compact = value.toLowerCase().replace(/[^a-z0-9]/gu, "");
+  return [
+    "token",
+    "secret",
+    "password",
+    "passphrase",
+    "apikey",
+    "accesskey",
+    "credential",
+    "authorization",
+  ].some((marker) => compact.includes(marker));
+}
+
+function isSensitiveHeaderNameV01(value: string): boolean {
+  return new Set([
+    "authorization",
+    "proxy-authorization",
+    "x-api-key",
+    "api-key",
+    "x-auth-token",
+    "cookie",
+    "set-cookie",
+  ]).has(value.toLowerCase());
+}
+
+function isAbsoluteCommandPathV01(value: string): boolean {
+  const candidate = value.replace(/[),;]+$/gu, "");
+  return (
+    /^file:\/\//iu.test(candidate) ||
+    path.posix.isAbsolute(candidate) ||
+    path.win32.isAbsolute(candidate) ||
+    /^[A-Za-z]:[\\/]/u.test(candidate) ||
+    /^\\\\/u.test(candidate) ||
+    /^\\(?!\\)/u.test(candidate)
+  );
 }
 
 function canonicalNetworkHostV01(value: unknown): string {

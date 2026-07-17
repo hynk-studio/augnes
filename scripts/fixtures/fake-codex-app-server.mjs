@@ -15,15 +15,20 @@ const threadId = process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-00
 const sessionId = process.env.FAKE_CODEX_SESSION_ID ?? "01900000-0000-7000-8000-000000000002";
 const turnId = process.env.FAKE_CODEX_TURN_ID ?? "01900000-0000-7000-8000-000000000003";
 const approvalRequestId = "fake-server-approval-1";
+const sequentialApprovalCount = 20;
 const statePath = process.env.FAKE_CODEX_STATE_PATH ?? null;
 const tracePath = process.env.FAKE_CODEX_TRACE_PATH ?? null;
 const cleanupMarkerPath = process.env.FAKE_CODEX_CLEANUP_MARKER_PATH ?? null;
 const releasePath = process.env.FAKE_CODEX_RELEASE_PATH ?? null;
+const approvalResolutionBarrierPath =
+  process.env.FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH ?? null;
 const networkCountPath = process.env.FAKE_CODEX_NETWORK_COUNT_PATH ?? null;
 let externalNetworkAttempts = 0;
 let initialized = false;
 let turnActive = false;
-let approvalPending = false;
+const pendingApprovalRequestIds = new Set();
+const approvalRequestParams = new Map();
+let sequentialApprovalIndex = 0;
 let completed = false;
 let descendant = null;
 
@@ -174,6 +179,34 @@ async function handle(message) {
         );
         else if (scenario === "disconnect_resume") process.exit(19);
         else if (scenario === "command_approval" || scenario === "delayed_cleanup" || scenario === "ignored_interrupt" || scenario === "descendant_cleanup") requestCommandApproval();
+        else if (scenario === "public_safe_command_approval") requestCommandApproval({
+          command: String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`,
+        });
+        else if (scenario === "sequential_approval_chain") requestSequentialApproval();
+        else if (scenario === "concurrent_approval_overflow") {
+          for (let index = 1; index <= 9; index += 1) {
+            requestCommandApproval(
+              { itemId: `fake-concurrent-command-item-${index}` },
+              `fake-server-concurrent-${index}`,
+            );
+          }
+        }
+        else if (scenario === "active_duplicate_request") {
+          const params = commandApprovalParams();
+          requestCommandApprovalWithParams(approvalRequestId, params);
+          requestCommandApprovalWithParams(approvalRequestId, params);
+        }
+        else if (scenario === "active_conflicting_request") {
+          requestCommandApproval();
+          requestCommandApproval(
+            { command: "npm run conflicting-check" },
+            approvalRequestId,
+          );
+        }
+        else if (
+          scenario === "resolved_duplicate_request" ||
+          scenario === "resolved_conflicting_request"
+        ) requestCommandApproval();
         else if (scenario === "command_network_approval") requestCommandApproval({
           networkApprovalContext: { host: "api.example.invalid", protocol: "https" },
         });
@@ -217,19 +250,51 @@ async function handle(message) {
     return;
   }
 
-  if (Object.hasOwn(message, "id") && approvalPending) {
-    if (String(message.id) !== approvalRequestId) {
-      process.exitCode = 5;
-      lines.close();
-      return;
-    }
-    approvalPending = false;
+  if (
+    Object.hasOwn(message, "id") &&
+    pendingApprovalRequestIds.has(String(message.id))
+  ) {
+    const resolvedRequestId = String(message.id);
+    pendingApprovalRequestIds.delete(resolvedRequestId);
+    const resolvedParams = approvalRequestParams.get(resolvedRequestId);
     const accepted =
       message.result?.decision === "accept" ||
       (message.result?.scope === "turn" &&
         message.result?.permissions &&
         Object.keys(message.result.permissions).length > 0);
-    notify("serverRequest/resolved", { threadId, requestId: approvalRequestId });
+    notify("serverRequest/resolved", { threadId, requestId: resolvedRequestId });
+    if (scenario === "sequential_approval_chain" && accepted) {
+      await waitForApprovalResolutionObservation(sequentialApprovalIndex);
+      if (sequentialApprovalIndex < sequentialApprovalCount) {
+        requestSequentialApproval();
+      } else {
+        emitObservedItems();
+        completeSuccess();
+      }
+      return;
+    }
+    if (
+      scenario === "resolved_duplicate_request" ||
+      scenario === "resolved_conflicting_request"
+    ) {
+      await waitForApprovalResolutionObservation(1);
+      requestCommandApprovalWithParams(
+        resolvedRequestId,
+        scenario === "resolved_conflicting_request"
+          ? {
+              ...resolvedParams,
+              command: "npm run conflicting-after-resolution",
+              commandActions: [
+                {
+                  type: "unknown",
+                  command: "npm run conflicting-after-resolution",
+                },
+              ],
+            }
+          : resolvedParams,
+      );
+      return;
+    }
     if (accepted) {
       emitObservedItems();
       completeSuccess();
@@ -250,27 +315,45 @@ async function handle(message) {
   }
 }
 
-function requestCommandApproval(overrides = {}) {
-  approvalPending = true;
-  serverRequest("item/commandExecution/requestApproval", {
+function requestCommandApproval(overrides = {}, requestId = approvalRequestId) {
+  requestCommandApprovalWithParams(requestId, commandApprovalParams(overrides));
+}
+
+function commandApprovalParams(overrides = {}) {
+  const command = overrides.command ?? "npm test";
+  return {
     threadId: overrides.threadId ?? threadId,
     turnId: overrides.turnId ?? turnId,
-    itemId: "fake-command-item",
+    itemId: overrides.itemId ?? "fake-command-item",
     startedAtMs: Date.now(),
     environmentId: null,
     reason: "Run one bounded verification command.",
-    command: "npm test",
+    command,
     cwd: root,
-    commandActions: [{ type: "unknown", command: "npm test" }],
+    commandActions: [{ type: "unknown", command }],
     ...(overrides.networkApprovalContext
       ? { networkApprovalContext: overrides.networkApprovalContext }
       : {}),
-  });
+  };
+}
+
+function requestCommandApprovalWithParams(requestId, params) {
+  pendingApprovalRequestIds.add(requestId);
+  approvalRequestParams.set(requestId, params);
+  serverRequest(requestId, "item/commandExecution/requestApproval", params);
+}
+
+function requestSequentialApproval() {
+  sequentialApprovalIndex += 1;
+  requestCommandApproval(
+    { itemId: `fake-sequential-command-item-${sequentialApprovalIndex}` },
+    `fake-server-sequential-${sequentialApprovalIndex}`,
+  );
 }
 
 function requestUnknownApproval() {
-  approvalPending = true;
-  serverRequest("item/unknown/requestApproval", {
+  pendingApprovalRequestIds.add(approvalRequestId);
+  serverRequest(approvalRequestId, "item/unknown/requestApproval", {
     threadId,
     turnId,
     itemId: "fake-unknown-item",
@@ -278,8 +361,8 @@ function requestUnknownApproval() {
 }
 
 function requestFileApproval(grantRoot = root) {
-  approvalPending = true;
-  serverRequest("item/fileChange/requestApproval", {
+  pendingApprovalRequestIds.add(approvalRequestId);
+  serverRequest(approvalRequestId, "item/fileChange/requestApproval", {
     threadId,
     turnId,
     itemId: "fake-file-item",
@@ -290,8 +373,8 @@ function requestFileApproval(grantRoot = root) {
 }
 
 function requestPermissionApproval(network) {
-  approvalPending = true;
-  serverRequest("item/permissions/requestApproval", {
+  pendingApprovalRequestIds.add(approvalRequestId);
+  serverRequest(approvalRequestId, "item/permissions/requestApproval", {
     threadId,
     turnId,
     itemId: network ? "fake-network-item" : "fake-permission-item",
@@ -384,7 +467,7 @@ function completeInterrupted() {
   if (completed) return;
   completed = true;
   turnActive = false;
-  approvalPending = false;
+  pendingApprovalRequestIds.clear();
   persistState({ threadId, sessionId, turnId, status: "interrupted" });
   notify("turn/completed", { threadId, turn: turn("interrupted", []) });
 }
@@ -569,8 +652,8 @@ function notify(method, params) {
   send({ method, params });
 }
 
-function serverRequest(method, params) {
-  send({ id: approvalRequestId, method, params });
+function serverRequest(id, method, params) {
+  send({ id, method, params });
 }
 
 function send(message) {
@@ -663,6 +746,37 @@ function waitForRelease() {
     // registration so a fast controller release cannot be missed.
     if (existsSync(releasePath)) finish();
   });
+}
+
+function waitForApprovalResolutionObservation(expectedCount) {
+  if (!approvalResolutionBarrierPath) {
+    return Promise.reject(new Error("approval_resolution_barrier_missing"));
+  }
+  if (readBarrierCount() >= expectedCount) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      watcher.close();
+      if (error) reject(error);
+      else resolve();
+    };
+    const timeout = setTimeout(() => {
+      finish(new Error("approval_resolution_barrier_timeout"));
+    }, 10_000);
+    const watcher = watch(path.dirname(approvalResolutionBarrierPath), () => {
+      if (readBarrierCount() >= expectedCount) finish();
+    });
+    if (readBarrierCount() >= expectedCount) finish();
+  });
+
+  function readBarrierCount() {
+    if (!existsSync(approvalResolutionBarrierPath)) return 0;
+    const value = Number(readFileSync(approvalResolutionBarrierPath, "utf8").trim());
+    return Number.isSafeInteger(value) ? value : 0;
+  }
 }
 
 function installZeroNetworkGuard() {

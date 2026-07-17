@@ -86,6 +86,7 @@ import {
 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import {
   createCodexAppServerAdapterV01,
+  publicSafeCommandSummaryV01,
   type CodexAppServerAdapterObservationV01,
 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
@@ -2102,6 +2103,10 @@ async function assertLiveCodexAppServerLifecycleOnClonesV01(input: {
     /live_host_operator_authority_required/,
   );
   reject("live_codex_interactive_start_without_local_operator_authority_refused");
+  assertPublicSafeCommandSummaryContractV01();
+  await assertLiveCodexSequentialApprovalAccountingOnCloneV01(input);
+  await assertLiveCodexServerRequestConflictCasesOnClonesV01(input);
+  await assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input);
   await assertLiveCodexGoldenApprovalOnCloneV01(input);
   try {
     await assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input);
@@ -2128,6 +2133,436 @@ async function assertLiveCodexAppServerLifecycleOnClonesV01(input: {
   }
   await assertLiveCodexDisconnectResumeOnCloneV01(input);
   await assertLiveCodexFailureMatrixOnClonesV01(input);
+}
+
+function assertPublicSafeCommandSummaryContractV01(): void {
+  const credentialCases = [
+    ["tool --client-secret super-secret-value", "super-secret-value"],
+    ["tool --client-secret=super-secret-value", "super-secret-value"],
+    ["aws --secret-access-key super-secret-value", "super-secret-value"],
+    ["tool --service-account-token=super-secret-value", "super-secret-value"],
+    ["env CLIENT_SECRET=super-secret-value tool", "super-secret-value"],
+    ["set CLIENT_SECRET=super-secret-value", "super-secret-value"],
+    ['$env:CLIENT_SECRET = "super-secret-value"', "super-secret-value"],
+    [
+      'curl -H "X-Api-Key: super-secret-value" https://example.invalid',
+      "super-secret-value",
+    ],
+    [
+      'curl --header "Authorization: Bearer super-secret-value" https://example.invalid',
+      "super-secret-value",
+    ],
+    [
+      'curl --header "Proxy-Authorization: Bearer super-secret-value" https://example.invalid',
+      "super-secret-value",
+    ],
+    ["https://user:password@example.invalid/", "user:password"],
+  ] as const;
+  for (const [command, secret] of credentialCases) {
+    const summary = publicSafeCommandSummaryV01(command);
+    assert.equal(summary.includes(secret), false, command);
+    assert.equal(summary.includes("[redacted]"), true, command);
+    const fingerprint = createProtocolSha256V01(command);
+    assert.equal(fingerprint, createProtocolSha256V01(command));
+    assert.notEqual(
+      fingerprint,
+      createProtocolSha256V01(command.replace(secret, `${secret}-different`)),
+    );
+  }
+
+  for (const [command, privatePath] of [
+    ["/usr/bin/env npm test", "/usr/bin/env"],
+    ["node /home/private/project/script.js", "/home/private/project/script.js"],
+    [String.raw`"C:\Program Files\nodejs\node.exe" script.js`, String.raw`C:\Program Files\nodejs\node.exe`],
+    [String.raw`\\server\share\tool.exe`, String.raw`\\server\share\tool.exe`],
+    [String.raw`\rooted\tool.exe`, String.raw`\rooted\tool.exe`],
+    ["file:///home/private/tool", "file:///home/private/tool"],
+  ] as const) {
+    const summary = publicSafeCommandSummaryV01(command);
+    assert.equal(summary.includes(privatePath), false, command);
+    assert.equal(summary.includes("[absolute-path]"), true, command);
+    assert.match(createProtocolSha256V01(command), /^sha256:[a-f0-9]{64}$/u);
+  }
+
+  for (const command of [
+    "npm test",
+    "git status --short",
+    "node scripts/check.mjs",
+    "npm run check -- src/runtime/adapter.ts",
+  ]) {
+    assert.equal(publicSafeCommandSummaryV01(command), command);
+  }
+  pass("live_codex_public_command_summary_redacts_credentials_and_absolute_paths");
+  pass("live_codex_public_command_summary_preserves_safe_relative_commands");
+}
+
+async function assertLiveCodexSequentialApprovalAccountingOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-sequential-approval-accounting",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 30_100),
+      );
+      const automation = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, automation, {
+        approval_capabilities: [
+          "native_host_approval:command_execution",
+        ],
+        resources: [`command:${createProtocolSha256V01("npm test")}`],
+        expires_at: addIsoMillisecondsV01(clock.now(), 60_000),
+      });
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "sequential_approval_chain",
+        now: () => clock.now(),
+      });
+      const receiptsBefore = countRunReceiptsV01(config);
+      try {
+        const start = await harness.service.start({
+          config,
+          mode: "policy_triggered",
+          automation_context: automation,
+        });
+        assert.equal(start.status, "accepted");
+        const completed = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "completed",
+          10_000,
+          "sequential_approval_completion",
+        );
+        assert(completed.receipt);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        const run = readHostRunStateFromConfigV01(config, completed.run_ref!);
+        const decisions = Array.isArray(run.metadata.approval_decisions)
+          ? run.metadata.approval_decisions
+          : [];
+        assert.equal(decisions.length, 20);
+        assert.equal(
+          decisions.every(
+            (decision) =>
+              decision.decision === "approve_once" &&
+              decision.decision_source === "bounded_capability_grant",
+          ),
+          true,
+        );
+        assert.equal(
+          readFakeTraceV01(harness.trace_path).some(
+            (entry) =>
+              entry.value.error_reason ===
+              "codex_server_request_bound_exceeded",
+          ),
+          false,
+        );
+        assert.equal(
+          harness.observations.filter(
+            (entry) => entry.kind === "approval_requested",
+          ).length,
+          20,
+        );
+        assert.equal(
+          harness.observations.filter(
+            (entry) => entry.kind === "approval_resolved",
+          ).length,
+          20,
+        );
+        assert.equal(
+          Math.max(
+            ...harness.observations.map(
+              (entry) => entry.active_server_request_count,
+            ),
+          ),
+          1,
+        );
+        assert.equal(
+          Math.max(
+            ...harness.observations.map(
+              (entry) => entry.recent_resolved_server_request_count,
+            ),
+          ),
+          16,
+        );
+        const cleared = harness.observations.filter(
+          (entry) => entry.kind === "server_request_state_cleared",
+        );
+        assert.equal(cleared.length, 1);
+        assert.equal(cleared[0]!.active_server_request_count, 0);
+        assert.equal(cleared[0]!.recent_resolved_server_request_count, 0);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_twenty_sequential_approvals_use_one_active_slot");
+  pass("live_codex_resolved_server_request_history_is_hash_only_bounded_and_cleared");
+}
+
+async function assertLiveCodexServerRequestConflictCasesOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  for (const [scenario, reason] of [
+    ["concurrent_approval_overflow", "codex_server_request_bound_exceeded"],
+    ["active_duplicate_request", "codex_server_request_duplicate_active"],
+    ["active_conflicting_request", "codex_server_request_conflict"],
+  ] as const) {
+    await withOperatorDatabaseCloneV01(
+      `live-codex-${scenario}`,
+      input.environment,
+      async ({ config }) => {
+        installPublicSafeLivePacketV01(config, input.packet);
+        const clock = new ManualClock(
+          addIsoMillisecondsV01(input.packet.generated_at, 30_200),
+        );
+        const harness = createFakeLiveCodexHarnessV01({
+          config,
+          scenario,
+          now: () => clock.now(),
+        });
+        const receiptsBefore = countRunReceiptsV01(config);
+        try {
+          await harness.service.start({ config, mode: "interactive" });
+          const projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "paused",
+            10_000,
+            scenario,
+          );
+          assert.equal(projection.public_reason, reason);
+          assert.equal(projection.receipt, null);
+          assert.equal(countRunReceiptsV01(config), receiptsBefore);
+          const cleared = harness.observations.at(-2);
+          assert.equal(cleared?.kind, "server_request_state_cleared");
+          assert.equal(cleared?.active_server_request_count, 0);
+          assert.equal(cleared?.recent_resolved_server_request_count, 0);
+          assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+          assertObservedProcessesStoppedV01(harness.observations, scenario);
+        } finally {
+          await harness.service.shutdown();
+        }
+      },
+    );
+  }
+
+  for (const [scenario, reason] of [
+    ["resolved_duplicate_request", "codex_server_request_duplicate_resolved"],
+    ["resolved_conflicting_request", "codex_server_request_resolved_conflict"],
+  ] as const) {
+    await withOperatorDatabaseCloneV01(
+      `live-codex-${scenario}`,
+      input.environment,
+      async ({ config, environment }) => {
+        installPublicSafeLivePacketV01(config, input.packet);
+        const clock = new ManualClock(
+          addIsoMillisecondsV01(input.packet.generated_at, 30_300),
+        );
+        const harness = createFakeLiveCodexHarnessV01({
+          config,
+          scenario,
+          now: () => clock.now(),
+        });
+        const post = createVNextOperatorHostRoundTripHandlerV01({
+          environment,
+          clock,
+          secret_source: new DeterministicSecretSource(),
+          live_service: harness.service,
+        });
+        const jar = cloneRouteCookieJarV01(input.jar);
+        try {
+          const start = await post(
+            routeRequest("/api/vnext/operator/host-round-trip", {
+              method: "POST",
+              jar,
+              body: { action: "start_live" },
+            }),
+          );
+          jar.absorb(start);
+          const waiting = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "waiting_for_approval",
+          );
+          const approval = waiting.pending_approval!;
+          const decision = await post(
+            routeRequest("/api/vnext/operator/host-round-trip", {
+              method: "POST",
+              jar,
+              body: {
+                action: "approve_once",
+                run_ref: waiting.run_ref,
+                approval_ref: approval.approval_ref,
+                control_revision: approval.control_revision,
+              },
+            }),
+          );
+          assert.equal(decision.status, 200);
+          jar.absorb(decision);
+          const projection = await waitForLiveProjectionV01(
+            harness.service,
+            config,
+            (value) => value.status === "paused",
+            10_000,
+            scenario,
+          );
+          assert.equal(projection.public_reason, reason);
+          assert.equal(projection.receipt, null);
+          assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+          assertObservedProcessesStoppedV01(harness.observations, scenario);
+        } finally {
+          await harness.service.shutdown();
+        }
+      },
+    );
+  }
+  reject("live_codex_nine_concurrent_server_requests_fail_closed_without_receipt");
+  reject("live_codex_active_duplicate_and_conflicting_server_requests_fail_closed");
+  reject("live_codex_resolved_request_id_reuse_is_deterministic_and_fail_closed");
+}
+
+async function assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  const rawCommand = String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`;
+  const forbidden = [
+    rawCommand,
+    "super-secret-value",
+    "header-secret-value",
+    "/usr/bin/env",
+    "/home/private/project/script.js",
+  ];
+  await withOperatorDatabaseCloneV01(
+    "live-codex-public-safe-command-persistence",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 30_400),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "public_safe_command_approval",
+        now: () => clock.now(),
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const get = createVNextOperatorHostRoundTripReadHandlerV01({
+        environment,
+        clock,
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      try {
+        const start = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        jar.absorb(start);
+        let projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "waiting_for_approval",
+        );
+        const approval = projection.pending_approval!;
+        assert.equal(
+          approval.command_summary,
+          "[absolute-path] tool --client-secret [redacted] --header Authorization: Bearer [redacted] node [absolute-path]",
+        );
+        const read = await get(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "GET",
+            jar,
+          }),
+        );
+        const publicProjection = canonicalizeProtocolValueV01(
+          await publicJson(read),
+        );
+        for (const value of forbidden) {
+          assert.equal(publicProjection.includes(value), false, value);
+        }
+        const pendingRun = readHostRunStateFromConfigV01(
+          config,
+          projection.run_ref!,
+        );
+        const durablePendingApproval = pendingRun.metadata.pending_approval as
+          | Record<string, unknown>
+          | null;
+        assert(durablePendingApproval);
+        assert.equal(
+          durablePendingApproval.command_fingerprint,
+          createProtocolSha256V01(rawCommand),
+        );
+        assert.notEqual(
+          durablePendingApproval.command_fingerprint,
+          createProtocolSha256V01(
+            rawCommand.replace("super-secret-value", "different-secret-value"),
+          ),
+        );
+        const pendingDurable = canonicalizeProtocolValueV01(pendingRun);
+        assert.equal(pendingDurable.includes("[redacted]"), true);
+        assert.equal(pendingDurable.includes("[absolute-path]"), true);
+        for (const value of forbidden) {
+          assert.equal(pendingDurable.includes(value), false, value);
+        }
+        assertDatabaseArtifactsOmitTextV01(config.database_path, forbidden);
+
+        const response = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "approve_once",
+              run_ref: projection.run_ref,
+              approval_ref: approval.approval_ref,
+              control_revision: approval.control_revision,
+            },
+          }),
+        );
+        assert.equal(response.status, 200);
+        jar.absorb(response);
+        projection = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "completed",
+        );
+        const terminalRun = readHostRunStateFromConfigV01(
+          config,
+          projection.run_ref!,
+        );
+        const terminalDurable = canonicalizeProtocolValueV01({
+          run: terminalRun,
+          receipt: projection.receipt,
+          trace: readFakeTraceV01(harness.trace_path),
+        });
+        for (const value of forbidden) {
+          assert.equal(terminalDurable.includes(value), false, value);
+        }
+        assertDatabaseArtifactsOmitTextV01(config.database_path, forbidden);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(harness.observations);
+      } finally {
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass("live_codex_command_approval_api_ledger_and_receipt_are_public_safe");
+  pass("live_codex_raw_command_fingerprint_uses_unredacted_ephemeral_material");
 }
 
 async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
@@ -3419,6 +3854,10 @@ function createFakeLiveCodexHarnessV01(input: {
   const statePath = path.join(runtime, "state.json");
   const cleanupMarkerPath = path.join(runtime, "cleanup.marker");
   const networkCountPath = path.join(runtime, "network-count.txt");
+  const approvalResolutionBarrierPath = path.join(
+    runtime,
+    "approval-resolution-count.txt",
+  );
   const releasePath = input.controlled_cleanup
     ? path.join(runtime, "release.marker")
     : null;
@@ -3431,7 +3870,20 @@ function createFakeLiveCodexHarnessV01(input: {
     adapter_factory: () =>
       createCodexAppServerAdapterV01({
         now: input.now,
-        observe: (observation) => observations.push(observation),
+        observe: (observation) => {
+          observations.push(observation);
+          if (observation.kind === "approval_resolved") {
+            writeFileSync(
+              approvalResolutionBarrierPath,
+              `${
+                observations.filter(
+                  (candidate) => candidate.kind === "approval_resolved",
+                ).length
+              }\n`,
+              { mode: 0o600 },
+            );
+          }
+        },
         launch: {
           command: input.command ?? process.execPath,
           prefix_args: input.command
@@ -3454,6 +3906,8 @@ function createFakeLiveCodexHarnessV01(input: {
             FAKE_CODEX_TRACE_PATH: tracePath,
             FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupMarkerPath,
             FAKE_CODEX_NETWORK_COUNT_PATH: networkCountPath,
+            FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH:
+              approvalResolutionBarrierPath,
             ...(releasePath ? { FAKE_CODEX_RELEASE_PATH: releasePath } : {}),
           },
         },
@@ -7375,6 +7829,46 @@ function assertNoPlaintextCredentialPersistence(databasePath: string): void {
     const bytes = Buffer.from(credential, "utf8");
     for (const artifact of databaseArtifacts) {
       assert.equal(readFileSync(artifact).includes(bytes), false);
+    }
+  }
+}
+
+function assertDatabaseArtifactsOmitTextV01(
+  databasePath: string,
+  forbiddenValues: readonly string[],
+): void {
+  const db = new Database(databasePath, { readonly: true, fileMustExist: true });
+  let serializedRows = "";
+  try {
+    const tables = (
+      db
+        .prepare(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+           ORDER BY name`,
+        )
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name);
+    serializedRows = JSON.stringify(
+      tables.map((table) => ({
+        table,
+        rows: db.prepare(`SELECT * FROM ${quoteIdentifier(table)}`).all(),
+      })),
+    );
+  } finally {
+    db.close();
+  }
+  const databaseArtifacts = [
+    databasePath,
+    `${databasePath}-wal`,
+    `${databasePath}-shm`,
+    `${databasePath}-journal`,
+  ].filter(existsSync);
+  for (const value of forbiddenValues) {
+    assert.equal(serializedRows.includes(value), false, value);
+    const bytes = Buffer.from(value, "utf8");
+    for (const artifact of databaseArtifacts) {
+      assert.equal(readFileSync(artifact).includes(bytes), false, `${artifact}:${value}`);
     }
   }
 }
