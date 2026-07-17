@@ -36,6 +36,10 @@ const Database = require("better-sqlite3");
 const VALIDATION_VERSION =
   "vnext_task_context_packet_handoff_browser_validation.v0.1";
 const DEFAULT_TIMEOUT_MS = 45_000;
+// Current-head CI exposed that a DOM-only wait can expire while refresh churn
+// masks the supervised run's durable state. Observe that lifecycle explicitly,
+// with a bounded allowance below the outer E2E limit, before asserting the UI.
+const LIVE_HOST_APPROVAL_TIMEOUT_MS = 90_000;
 // The same operator smoke completed in canonical CI at 203,854 ms. Keep this
 // fixture-only subprocess bounded below the outer 480,000 ms e2e lifecycle.
 const OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS = 240_000;
@@ -115,9 +119,15 @@ const result = {
   direct_host_status: null,
   live_codex_status: null,
   live_codex_waiting_for_approval: false,
+  project_home_current_run_visible: false,
   live_codex_approved_once: false,
   live_codex_receipt_persisted: false,
   live_codex_no_internal_id_input: false,
+  project_home_latest_result_visible: false,
+  workbench_result_review_read_only: false,
+  workbench_result_reload_durable: false,
+  result_inspector_complete: false,
+  result_review_semantic_authority_unchanged: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -1057,14 +1067,24 @@ async function main() {
             entry.path === "/api/vnext/operator/host-round-trip" &&
             entry.type === "Fetch" &&
             entry.status === 202,
-        ),
+      ),
       "live Codex start acceptance",
+    );
+    await waitForLiveRunStatus(
+      manifest.project_id,
+      "waiting_for_approval",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
     await waitForCondition(
       `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"]') !== null`,
       "live Codex command approval",
     );
+    await waitForCondition(
+      `document.querySelector('[data-current-host-run="waiting_for_approval"]') !== null`,
+      "Project Home current nonterminal run",
+    );
     result.live_codex_waiting_for_approval = true;
+    result.project_home_current_run_visible = true;
     const pendingShape = await evaluateJson(`(() => {
       const action = document.querySelector('[data-direct-host-round-trip="v0.2"]');
       const approval = document.querySelector('[data-live-host-approval="pending"]');
@@ -1158,6 +1178,143 @@ async function main() {
     result.live_codex_receipt_persisted = true;
     record("active_project_live_codex_waits_for_one_shot_approval_and_persists_receipt");
     record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
+
+    const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
+    await waitForCondition(
+      `document.querySelector('[data-latest-run-result="completed"] [data-review-result-link="true"]')?.getAttribute('href') === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-current-host-run]') === null`,
+      "Project Home latest immutable terminal result",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-current-host-run]') === null`,
+      ),
+      true,
+    );
+    const latestResultShape = await evaluateJson(`(() => {
+      const result = document.querySelector('[data-latest-run-result="completed"]');
+      const link = result?.querySelector('[data-review-result-link="true"]');
+      return {
+        present: Boolean(result),
+        href: link?.getAttribute('href') ?? '',
+        has_summary: result?.textContent?.includes('The deterministic fake App Server completed the bounded live lifecycle.') ?? false,
+        form_field_count: result?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(latestResultShape, {
+      present: true,
+      href: expectedReviewHref,
+      has_summary: true,
+      form_field_count: 0,
+    });
+    result.project_home_latest_result_visible = true;
+    record("project_home_distinguishes_latest_terminal_result_with_server_generated_review_link");
+
+    database ??= new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    const beforeResultReview = databaseSnapshot(database);
+    const resultResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector('[data-review-result-link="true"]');
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-run-result-review="v0.1"][data-result-review-read-only="true"][data-semantic-mutation="false"]') !== null`,
+      "read-only Workbench result review",
+    );
+    assert.equal(
+      responses.slice(resultResponseStart).some(
+        (entry) => entry.path === expectedReviewHref && entry.status === 200,
+      ),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const inspector = document.querySelector('[data-run-result-inspector="v0.1"]');
+        if (!(inspector instanceof HTMLDetailsElement)) return false;
+        inspector.open = true;
+        return inspector.open;
+      })()`),
+      true,
+    );
+    const resultReviewShape = await evaluateJson(`(() => {
+      const review = document.querySelector('[data-run-result-review="v0.1"]');
+      const inspector = document.querySelector('[data-run-result-inspector="v0.1"]');
+      const text = review?.textContent ?? '';
+      return {
+        read_only: review?.getAttribute('data-result-review-read-only') === 'true',
+        semantic_mutation: review?.getAttribute('data-semantic-mutation'),
+        form_field_count: review?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        semantic_mutation_button_count: review
+          ? Array.from(review.querySelectorAll('button')).filter((button) =>
+              /proposal|decision|accept|commit|transition|evidence|close work/i.test(button.textContent ?? '')
+            ).length
+          : -1,
+        inspector_open: inspector instanceof HTMLDetailsElement && inspector.open,
+        lineage: text.includes('Identity and lineage') && text.includes('Packet fingerprint'),
+        changes: text.includes('src/live-result.ts') && text.includes('Bounded fake result artifact.'),
+        actions: text.includes('fake_app_server_turn_completed'),
+        checks: text.includes('fake-live-check') && text.includes('validated_packet_delivery'),
+        approvals: text.includes('Native host and approvals') && text.includes('explicit local operator'),
+        model_coverage: text.includes('native host internal outside coverage'),
+        trust_privacy: text.includes('Trust, coverage, and privacy') && text.includes('Raw prompt: not persisted'),
+        authority_boundary: text.includes('No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance, semantic state change, or work closure was created'),
+        private_root_visible: text.includes(${JSON.stringify(liveAfter.normalized_root)}),
+        packet_rendering_visible: text.includes(${JSON.stringify(packet.task.goal)}),
+        raw_protocol_visible: /jsonrpc|raw diff must never be persisted|raw output must never be persisted|OPENAI_API_KEY/.test(text),
+      };
+    })()`);
+    assert.deepEqual(resultReviewShape, {
+      read_only: true,
+      semantic_mutation: "false",
+      form_field_count: 0,
+      semantic_mutation_button_count: 0,
+      inspector_open: true,
+      lineage: true,
+      changes: true,
+      actions: true,
+      checks: true,
+      approvals: true,
+      model_coverage: true,
+      trust_privacy: true,
+      authority_boundary: true,
+      private_root_visible: false,
+      packet_rendering_visible: false,
+      raw_protocol_visible: false,
+    });
+    result.workbench_result_review_read_only = true;
+    result.result_inspector_complete = true;
+
+    const reloadResponseStart = responses.length;
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForHostCondition(
+      () =>
+        responses.slice(reloadResponseStart).some(
+          (entry) =>
+            entry.path === expectedReviewHref &&
+            entry.type === "Document" &&
+            entry.status === 200,
+        ),
+      "reloaded durable Workbench result response",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-run-result-review="v0.1"][data-result-review-read-only="true"]') !== null`,
+      "reloaded durable Workbench result",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeResultReview);
+    assert.deepEqual(
+      readDirectHostBrowserState(manifest.project_id).semantic_authority_counts,
+      liveAfter.semantic_authority_counts,
+    );
+    result.workbench_result_reload_durable = true;
+    result.result_review_semantic_authority_unchanged = true;
+    record("workbench_result_review_and_inspector_reload_from_immutable_durable_state");
+    record("result_review_creates_no_proposal_decision_transition_evidence_or_work_closure");
   });
 
   await runPhase("project_home", async () => {
@@ -1257,7 +1414,10 @@ async function main() {
     record("workbench_renders_exact_persisted_m3d_durable_lineage");
   });
 
-  database = new Database(databasePath, { readonly: true, fileMustExist: true });
+  database ??= new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
   await validateProposalViewports();
   const beforeWorkbenchRefresh = databaseSnapshot(database);
   const workbenchRequestStart = requests.length;
@@ -1960,6 +2120,51 @@ async function waitForHostCondition(predicate, label, timeoutMs = DEFAULT_TIMEOU
   throw new Error(`Timed out waiting for ${label}.`);
 }
 
+async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
+  const startedAt = Date.now();
+  let lastStatus = "not_recorded";
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const state = readLatestManagedLiveRunState(projectId);
+      lastStatus = state?.status ?? "not_recorded";
+      if (lastStatus === expectedStatus) return;
+      if (
+        state?.reconciliation_required === true ||
+        [
+          "paused",
+          "blocked",
+          "completed",
+          "failed",
+          "cancelled",
+          "timed_out",
+        ].includes(lastStatus)
+      ) {
+        throw new Error(
+          `Live Codex run reached ${lastStatus} before ${expectedStatus}.`,
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Live Codex run reached ")
+      ) {
+        throw error;
+      }
+      const errorCode =
+        error && typeof error === "object" && "code" in error
+          ? String(error.code)
+          : "";
+      if (!["SQLITE_BUSY", "SQLITE_LOCKED"].includes(errorCode)) {
+        throw new Error("Durable live Codex status could not be read safely.");
+      }
+    }
+    await delay(100);
+  }
+  throw new Error(
+    `Timed out waiting for durable live Codex status ${expectedStatus}; last status ${lastStatus}.`,
+  );
+}
+
 async function waitForRequestQuiet() {
   const startedAt = Date.now();
   while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
@@ -2178,6 +2383,34 @@ function readDirectHostBrowserState(projectId) {
       latest_receipt: directReceipts.at(-1) ?? null,
       packet: packetRow ? JSON.parse(packetRow.payload_json) : null,
       normalized_root: String(root?.normalized_root ?? ""),
+    };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
+function readLatestManagedLiveRunState(projectId) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const row = readableDatabase
+      .prepare(
+        `SELECT status, metadata_json
+         FROM autonomy_runs
+         WHERE scope = ?
+           AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'
+           AND json_extract(metadata_json, '$.lifecycle_mode') = 'managed_live'
+         ORDER BY created_at DESC, run_id DESC
+         LIMIT 1`,
+      )
+      .get(projectId);
+    if (!row) return null;
+    const metadata = JSON.parse(row.metadata_json);
+    return {
+      status: String(row.status),
+      reconciliation_required: metadata.reconciliation_required === true,
     };
   } finally {
     readableDatabase.close();

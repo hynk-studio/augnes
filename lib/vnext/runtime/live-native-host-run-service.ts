@@ -26,6 +26,7 @@ import {
   admitPersistedHostTaskContextPacketV01,
   DirectNativeHostRoundTripErrorV01,
   runDirectNativeHostRoundTripV01,
+  type NativeHostTimeoutSchedulerV01,
   type PersistedHostPacketAdmissionV01,
 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import {
@@ -40,6 +41,10 @@ import {
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
 import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import {
+  appendNativeHostApprovalDecisionResidueV01,
+  appendNativeHostApprovalRequestResidueV01,
+} from "@/lib/vnext/runtime/native-host-approval-residue";
 import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
@@ -62,7 +67,6 @@ export const LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01 =
 const DEFAULT_LIVE_TIMEOUT_MS = 15 * 60 * 1_000;
 const DEFAULT_STOP_SETTLE_TIMEOUT_MS = 10_000;
 const MAX_EVENT_FINGERPRINTS = 128;
-const MAX_APPROVAL_DECISIONS = 32;
 
 type PendingApprovalProjectionV01 = NativeHostApprovalRequestV01 & {
   control_revision: number;
@@ -141,6 +145,7 @@ export interface LiveNativeHostRunServiceOptionsV01 {
   now?: () => string;
   timeout_ms?: number;
   stop_settle_timeout_ms?: number;
+  schedule_timeout?: NativeHostTimeoutSchedulerV01;
   test_only_allow_unauthenticated_interactive?: boolean;
 }
 
@@ -542,6 +547,7 @@ export class LiveNativeHostRunServiceV01 {
         timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
         stop_settle_timeout_ms:
           this.options.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS,
+        schedule_timeout: this.options.schedule_timeout,
         cancellation_signal: controller.abortController.signal,
         lifecycle_sink: controller,
         lifecycle_mode: "managed_live",
@@ -1291,6 +1297,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       db.exec("BEGIN IMMEDIATE");
       const run = requireBoundRunV01(db, request);
       assertApprovalHostBindingV01(run, approval);
+      const approvalRequests = appendNativeHostApprovalRequestResidueV01(
+        run.metadata.approval_requests,
+        approval,
+      );
       const priorDecision = approvalDecisionsFromMetadataV01(
         run.metadata.approval_decisions,
       ).find((candidate) => candidate.approval_id === approval.approval_id);
@@ -1320,12 +1330,11 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
             updated_at: decision.decided_at,
             metadata: {
               ...run.metadata,
-              approval_decisions: [
-                ...approvalDecisionsFromMetadataV01(
-                  run.metadata.approval_decisions,
-                ),
+              approval_decisions: appendNativeHostApprovalDecisionResidueV01(
+                run.metadata.approval_decisions,
                 decision,
-              ].slice(-MAX_APPROVAL_DECISIONS),
+              ),
+              approval_requests: approvalRequests,
             },
           },
           { db },
@@ -1384,6 +1393,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
             metadata: {
               ...run.metadata,
               pending_approval: pending,
+              approval_requests: approvalRequests,
               control_revision: revision,
               reconciliation_required: false,
             },
@@ -1544,8 +1554,9 @@ function persistApprovalDecisionInsideTransactionV01(
         ...current.metadata,
         control_revision: nextRevision,
         pending_approval: { ...pending, decision_submitted: true },
-        approval_decisions: [...decisions, decision].slice(
-          -MAX_APPROVAL_DECISIONS,
+        approval_decisions: appendNativeHostApprovalDecisionResidueV01(
+          decisions,
+          decision,
         ),
       },
     },

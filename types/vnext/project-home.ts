@@ -12,6 +12,10 @@ import type {
   ProjectAutomationPolicySummaryV01,
   ProjectAutomationStatusV01,
 } from "./project-controls";
+import type {
+  ProjectRunResultCurrentRunV01,
+  ProjectRunResultSummaryV01,
+} from "./project-run-result";
 
 export const PROJECT_HOME_PROJECTION_VERSION_V01 =
   "project_home_projection.v0.1" as const;
@@ -119,6 +123,17 @@ export interface ProjectHomeRecentActivityV01 {
   items: ProjectHomeActivityItemV01[];
 }
 
+export interface ProjectHomeRunResultsV01 {
+  state: ProjectHomeSectionStateV01;
+  current_run: ProjectRunResultCurrentRunV01 | null;
+  latest_result: ProjectRunResultSummaryV01 | null;
+  latest_result_state:
+    | "available"
+    | "empty"
+    | "receipt_unavailable"
+    | "error";
+}
+
 export interface ProjectHomeAutomationSummaryV01 {
   state: ProjectHomeSectionStateV01;
   status: ProjectAutomationStatusV01;
@@ -199,6 +214,7 @@ export interface ProjectHomeProjectionV01 {
   working_projection: ProjectHomeWorkingProjectionSummaryV01;
   attention: ProjectHomePendingAttentionV01;
   recent_activity: ProjectHomeRecentActivityV01;
+  run_results: ProjectHomeRunResultsV01;
   automation: ProjectHomeAutomationSummaryV01;
   personal_perspective: ProjectHomePersonalPerspectiveSummaryV01;
   capabilities: ProjectHomeCapabilitiesSummaryV01;

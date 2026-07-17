@@ -6,6 +6,7 @@ const MAX_REPOSITORY_RELATIVE_PATH_LENGTH = 4096;
 const WINDOWS_DRIVE_QUALIFIED = /^[a-zA-Z]:/u;
 const REPOSITORY_RELATIVE_REF_TYPES = new Set([
   "repository_relative_artifact",
+  "repository_relative_path",
 ]);
 
 export class RepositoryRelativePathErrorV01 extends Error {

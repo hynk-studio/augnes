@@ -27,6 +27,7 @@ import {
   createVNextOperatorHostRoundTripHandlerV01,
   createVNextOperatorHostRoundTripReadHandlerV01,
 } from "../app/api/vnext/operator/host-round-trip/route";
+import { createVNextOperatorRunResultReadHandlerV01 } from "../app/api/vnext/operator/run-results/route";
 import { createVNextOperatorLaterResultHandlersV01 } from "../app/api/vnext/operator/later-result/route";
 import { createVNextOperatorPacketHandoffHandlerV01 } from "../app/api/vnext/operator/packet-handoff/route";
 import { createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
@@ -100,6 +101,10 @@ import {
   type LiveNativeHostRunProjectionV01,
 } from "../lib/vnext/runtime/live-native-host-run-service";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import {
+  readProjectRunResultDetailV01,
+  readProjectRunResultOverviewV01,
+} from "../lib/vnext/runtime/project-run-result-read-model";
 import {
   recordVNextSemanticCommitAuthorizationInsideTransactionV01,
   type VNextSemanticCommitGateRecordV01,
@@ -1797,6 +1802,25 @@ async function assertDirectHostRoundTripCoverageV01(input: {
       true,
     );
     assert.equal(golden.receipt.model_invocations.length, 0);
+    assert.equal(golden.receipt.execution.basis, "observed");
+    assert.equal(
+      golden.receipt.checks.every((check) => check.basis === "observed"),
+      true,
+    );
+    assert.equal(
+      golden.receipt.observations.filter(
+        (observation) => observation.observation_kind === "native_host_action",
+      ).length,
+      2,
+    );
+    assert.equal(
+      golden.receipt.attestations.some(
+        (attestation) =>
+          attestation.attestation_kind === "native_host_action_report",
+      ),
+      false,
+    );
+    assert.equal(golden.receipt.host_approvals?.length ?? 0, 0);
     assert.equal(golden.receipt.privacy_egress.egress_status, "did_not_occur");
     assert.equal(golden.receipt.privacy_egress.raw_prompt_persisted, false);
     assert.equal(golden.receipt.privacy_egress.raw_output_persisted, false);
@@ -1831,6 +1855,36 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     assert.equal(runRow.metadata_json.includes(operatorProjectRoot), false);
     assert.equal(runRow.metadata_json.includes(input.packet.task.goal), false);
     assert.equal(runRow.metadata_json.includes("run_receipt_id"), true);
+
+    const resultDetail = readProjectRunResultDetailV01(db, {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      receipt_id: golden.receipt.receipt_id,
+    });
+    assert.equal(resultDetail.packet.status, "available");
+    assert.equal(
+      resultDetail.packet.packet_fingerprint,
+      input.packet.integrity.fingerprint,
+    );
+    assert.equal(resultDetail.summary.mode, "policy_triggered");
+    assert.equal(resultDetail.summary.trust_label, "observed");
+    assert.equal(resultDetail.actions.length, 2);
+    assert.equal(
+      resultDetail.actions.every((action) => action.basis === "observed"),
+      true,
+    );
+    assert.deepEqual(
+      resultDetail.model_invocations.map((entry) => entry.state),
+      ["none"],
+    );
+    assert.deepEqual(resultDetail.authority, {
+      proposal_created: false,
+      review_decision_created: false,
+      semantic_transition_created: false,
+      evidence_accepted: false,
+      work_closed: false,
+      semantic_state_changed: false,
+    });
 
     const replay = await runDirectNativeHostRoundTripV01(
       db,
@@ -2646,6 +2700,19 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           readHostRunStateFromConfigV01(config, projection.run_ref).status,
           "waiting_for_approval",
         );
+        const waitingDb = openVNextLocalOperatorDatabaseV01(config);
+        const waitingOverview = readProjectRunResultOverviewV01(waitingDb, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        waitingDb.close();
+        assert.equal(
+          waitingOverview.current_run?.status,
+          "waiting_for_approval",
+        );
+        assert.equal(waitingOverview.current_run?.receipt_available, false);
+        assert.equal(waitingOverview.latest_result_state, "available");
+        assert(waitingOverview.latest_result);
 
         const activeReplay = await harness.service.start({
           config,
@@ -2728,6 +2795,11 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           workspace_id: config.workspace_id,
           project_id: config.project_id,
         });
+        const resultDetail = readProjectRunResultDetailV01(receiptDb, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          receipt_id: receiptId,
+        });
         receiptDb.close();
         assert(record);
         const receipt = record.payload as RunReceiptV01;
@@ -2757,14 +2829,189 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         assert.equal(receipt.privacy_egress.raw_transcript_persisted, false);
         assert.equal(receipt.privacy_egress.secret_material_persisted, false);
         assert.equal(receipt.model_invocations.length, 0);
+        assert.equal(receipt.execution.basis, "mixed");
+        assert.equal(receipt.verification.basis, "mixed");
+        assert.equal(receipt.verifier_refs.length, 1);
+        assert.equal(
+          receipt.verifier_refs[0]?.external_id,
+          receipt.reporter_ref.external_id,
+        );
+        assert.equal(
+          receipt.checks.find(
+            (check) => check.check_id === "validated_packet_delivery",
+          )?.basis,
+          "observed",
+        );
+        assert.equal(
+          receipt.checks.find((check) => check.check_id === "fake-live-check")
+            ?.basis,
+          "attested",
+        );
         assert.equal(
           receipt.changed_artifacts.some(
             (artifact) =>
-              artifact.artifact_ref.external_id === "src/live-result.ts",
+              artifact.artifact_ref.external_id === "src/live-result.ts" &&
+              artifact.basis === "attested",
           ),
           true,
         );
-        const durable = canonicalizeProtocolValueV01({ run, receipt });
+        assert.equal(receipt.commands.length, 1);
+        assert.equal(receipt.commands[0]?.command_id, "fake-command-item");
+        assert.equal(receipt.commands[0]?.summary, "npm test");
+        assert.equal(receipt.commands[0]?.status, "completed");
+        assert.equal(receipt.commands[0]?.basis, "attested");
+        assert.equal(receipt.commands[0]?.raw_output_included, false);
+        assert.match(
+          receipt.commands[0]?.command_fingerprint ?? "",
+          /^sha256:[a-f0-9]{64}$/,
+        );
+        const approvalResidue = receipt.host_approvals?.[0];
+        assert(approvalResidue);
+        assert.equal(receipt.host_approvals?.length, 1);
+        assert.equal(approvalResidue.operation_class, "command_execution");
+        assert.equal(
+          approvalResidue.resource_summary,
+          "Command scoped to the selected project root.",
+        );
+        assert.equal(approvalResidue.decision, "approve_once");
+        assert.equal(
+          approvalResidue.decision_source,
+          "explicit_local_operator",
+        );
+        assert.equal(approvalResidue.coverage, "observed");
+        assert.equal(approvalResidue.semantic_approval_created, false);
+        assert.match(approvalResidue.request_fingerprint, /^sha256:[a-f0-9]{64}$/);
+        assert.match(approvalResidue.decision_fingerprint ?? "", /^sha256:[a-f0-9]{64}$/);
+        assert.equal(
+          receipt.artifact_refs.some(
+            (ref) => ref.external_id === "reports/live-result.json",
+          ),
+          true,
+        );
+        assert.equal(
+          receipt.attestations.some(
+            (attestation) =>
+              attestation.attestation_kind ===
+                "native_host_artifact_report" &&
+              attestation.summary === "Bounded fake result artifact.",
+          ),
+          true,
+        );
+        assert.equal(
+          receipt.attestations.some(
+            (attestation) =>
+              attestation.attestation_kind === "native_host_action_report" &&
+              attestation.summary === "fake_app_server_turn_completed" &&
+              attestation.trust_class === "host_attestation",
+          ),
+          true,
+        );
+        assert.equal(
+          receipt.attestations.some(
+            (attestation) =>
+              attestation.attestation_kind === "proposed_next_step" &&
+              attestation.trust_class === "derived_interpretation",
+          ),
+          true,
+        );
+        assert.equal(resultDetail.packet.status, "available");
+        assert.equal(resultDetail.summary.mode, "interactive");
+        assert.equal(resultDetail.summary.trust_label, "mixed");
+        assert.equal(resultDetail.artifacts.length, 2);
+        assert.equal(
+          resultDetail.artifacts.some(
+            (artifact) =>
+              artifact.artifact_ref.external_id ===
+                "reports/live-result.json" &&
+              artifact.summary === "Bounded fake result artifact." &&
+              artifact.basis === "attested",
+          ),
+          true,
+        );
+        assert.equal(resultDetail.actions.length >= 5, true);
+        assert.equal(
+          resultDetail.actions.some(
+            (action) =>
+              action.summary === "fake_app_server_turn_completed" &&
+              action.basis === "host_attested",
+          ),
+          true,
+        );
+        assert.equal(
+          resultDetail.actions.every(
+            (action) => action.basis === "host_attested",
+          ),
+          true,
+        );
+        assert.equal(resultDetail.commands.length, 1);
+        assert.equal(resultDetail.commands[0]?.summary, "npm test");
+        assert.equal(resultDetail.commands[0]?.basis, "attested");
+        assert.equal(resultDetail.host.approvals.length, 1);
+        assert.equal(
+          resultDetail.model_invocations.some(
+            (entry) =>
+              entry.state === "native_host_internal_outside_coverage",
+          ),
+          true,
+        );
+        assert.equal(
+          resultDetail.proposed_next_steps.every(
+            (entry) => entry.basis === "advisory",
+          ),
+          true,
+        );
+        assert.equal(resultDetail.authority.review_decision_created, false);
+        assert.equal(resultDetail.authority.semantic_transition_created, false);
+        assert.equal(resultDetail.authority.evidence_accepted, false);
+        assert.equal(resultDetail.authority.work_closed, false);
+        const readResultRoute = createVNextOperatorRunResultReadHandlerV01({
+          environment,
+          clock,
+        });
+        const readResultResponse = await readResultRoute(
+          routeRequest("/api/vnext/operator/run-results", {
+            method: "GET",
+            jar,
+            query: { receipt_ref: receipt.receipt_id },
+          }),
+        );
+        assert.equal(readResultResponse.status, 200);
+        const readResultBody = await publicJson(readResultResponse);
+        assert.equal(readResultBody.status, "result_detail");
+        assert.deepEqual(readResultBody.result, resultDetail);
+        assert.equal(readResultBody.proposal_created, false);
+        assert.equal(readResultBody.review_decision_created, false);
+        assert.equal(readResultBody.semantic_transition_created, false);
+        assert.equal(readResultBody.evidence_accepted, false);
+        assert.equal(readResultBody.work_closed, false);
+        const unauthenticatedResultResponse = await readResultRoute(
+          routeRequest("/api/vnext/operator/run-results", {
+            method: "GET",
+            query: { receipt_ref: receipt.receipt_id },
+          }),
+        );
+        assert.equal(unauthenticatedResultResponse.status, 401);
+        assert.equal(
+          (await publicJson(unauthenticatedResultResponse)).error_code,
+          "operator_session_cookie_missing",
+        );
+        const malformedResultResponse = await readResultRoute(
+          routeRequest("/api/vnext/operator/run-results", {
+            method: "GET",
+            jar,
+            query: { receipt_ref: "run-receipt:../private" },
+          }),
+        );
+        assert.equal(malformedResultResponse.status, 400);
+        assert.equal(
+          (await publicJson(malformedResultResponse)).error_code,
+          "run_result_ref_invalid",
+        );
+        const durable = canonicalizeProtocolValueV01({
+          run,
+          receipt,
+          resultDetail,
+        });
         assert.equal(
           durable.includes(operatorProjectRoot),
           false,
@@ -3185,6 +3432,26 @@ async function assertLiveCodexPolicyApprovalParityOnClonesV01(input: {
           decisions[0]?.decision_source,
           "bounded_capability_grant",
         );
+        const resultDb = openVNextLocalOperatorDatabaseV01(config);
+        const resultDetail = readProjectRunResultDetailV01(resultDb, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          receipt_id: projection.receipt.receipt_ref,
+        });
+        resultDb.close();
+        assert.equal(resultDetail.summary.mode, "policy_triggered");
+        assert.equal(resultDetail.host.approvals.length, 1);
+        assert.equal(
+          resultDetail.host.approvals[0]?.decision_source,
+          "bounded_capability_grant",
+        );
+        assert.equal(resultDetail.host.approvals[0]?.coverage, "enforced");
+        assert.equal(
+          resultDetail.host.approvals[0]?.semantic_approval_created,
+          false,
+        );
+        assert.equal(resultDetail.authority.review_decision_created, false);
+        assert.equal(resultDetail.authority.semantic_state_changed, false);
         assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
         assertObservedProcessesStoppedV01(harness.observations);
       } finally {
@@ -3462,20 +3729,38 @@ async function assertLiveCodexTimeoutSettlementOnCloneV01(input: {
         config,
         scenario: "command_approval",
         now: () => clock.now(),
-        timeout_ms: 150,
+        timeout_ms: 30_000,
         stop_settle_timeout_ms: 2_000,
+        controlled_timeout: true,
       });
       const receiptsBefore = countRunReceiptsV01(config);
       try {
         await harness.service.start({ config, mode: "interactive" });
+        await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) =>
+            value.status === "waiting_for_approval" &&
+            value.pending_approval !== null,
+          10_000,
+          "timeout_host_ready",
+        );
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        assert(harness.trigger_timeout);
+        assert.equal(harness.timeout_schedule_active(), true);
+        clock.set(addIsoMillisecondsV01(clock.now(), 30_000));
+        harness.trigger_timeout();
         const projection = await waitForLiveProjectionV01(
           harness.service,
           config,
           (value) =>
             value.status === "timed_out" &&
             value.receipt?.outcome === "timed_out",
+          10_000,
+          "timeout_terminal",
         );
         assert(projection.receipt);
+        assert.equal(harness.timeout_schedule_active(), false);
         assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
         assert.equal(
           countTraceMethodV01(
@@ -3831,6 +4116,7 @@ function createFakeLiveCodexHarnessV01(input: {
   timeout_ms?: number;
   stop_settle_timeout_ms?: number;
   controlled_cleanup?: boolean;
+  controlled_timeout?: boolean;
   command?: string;
 }): {
   service: LiveNativeHostRunServiceV01;
@@ -3840,6 +4126,8 @@ function createFakeLiveCodexHarnessV01(input: {
   cleanup_marker_path: string;
   network_count_path: string;
   release_path: string | null;
+  trigger_timeout: (() => void) | null;
+  timeout_schedule_active: () => boolean;
 } {
   liveFixtureSequenceV01 += 1;
   const root = path.join(
@@ -3861,12 +4149,34 @@ function createFakeLiveCodexHarnessV01(input: {
   const releasePath = input.controlled_cleanup
     ? path.join(runtime, "release.marker")
     : null;
+  let scheduledTimeoutCallback: (() => void) | null = null;
+  let timeoutTriggered = false;
   const observations: CodexAppServerAdapterObservationV01[] = [];
   const service = new LiveNativeHostRunServiceV01({
     now: input.now,
     test_only_allow_unauthenticated_interactive: true,
     timeout_ms: input.timeout_ms ?? 30_000,
     stop_settle_timeout_ms: input.stop_settle_timeout_ms ?? 3_000,
+    ...(input.controlled_timeout
+      ? {
+          schedule_timeout: ({
+            timeout_ms,
+            on_timeout,
+          }: {
+            timeout_ms: number;
+            on_timeout: () => void;
+          }) => {
+            assert.equal(timeout_ms, input.timeout_ms ?? 30_000);
+            assert.equal(scheduledTimeoutCallback, null);
+            scheduledTimeoutCallback = on_timeout;
+            return () => {
+              if (scheduledTimeoutCallback === on_timeout) {
+                scheduledTimeoutCallback = null;
+              }
+            };
+          },
+        }
+      : {}),
     adapter_factory: () =>
       createCodexAppServerAdapterV01({
         now: input.now,
@@ -3921,6 +4231,15 @@ function createFakeLiveCodexHarnessV01(input: {
     cleanup_marker_path: cleanupMarkerPath,
     network_count_path: networkCountPath,
     release_path: releasePath,
+    trigger_timeout: input.controlled_timeout
+      ? () => {
+          assert.equal(timeoutTriggered, false);
+          assert(scheduledTimeoutCallback);
+          timeoutTriggered = true;
+          scheduledTimeoutCallback();
+        }
+      : null,
+    timeout_schedule_active: () => scheduledTimeoutCallback !== null,
   };
 }
 
@@ -4598,6 +4917,25 @@ async function assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(
           canonicalizeProtocolValueV01(result.receipt).includes("../"),
           false,
         );
+        assert.equal(
+          result.receipt.gaps.some(
+            (gap) =>
+              gap.code ===
+              "native_host_model_invocation_receipt_unresolved",
+          ),
+          true,
+        );
+        const resultDetail = readProjectRunResultDetailV01(db, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          receipt_id: result.receipt.receipt_id,
+        });
+        assert.equal(
+          resultDetail.model_invocations.some(
+            (invocation) => invocation.state === "referenced_unresolved",
+          ),
+          true,
+        );
 
         const noncanonical = structuredClone(result.receipt);
         replaceRepositoryRelativeExternalIdV01(
@@ -4844,6 +5182,15 @@ function createRepositoryPathFixtureAdapterV01(
                 trust_class: "host_attestation",
               },
               summary: "Canonicalized path-like artifact fixture.",
+            },
+          ],
+          model_invocation_receipt_refs: [
+            {
+              ref_version: "external_ref.v0.1",
+              ref_type: "model_invocation_receipt",
+              external_id: "model-invocation-receipt:unresolved-fixture",
+              observed_at: now(),
+              trust_class: "host_attestation",
             },
           ],
         }),

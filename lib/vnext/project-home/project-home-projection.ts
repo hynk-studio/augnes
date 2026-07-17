@@ -37,6 +37,7 @@ import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gat
 import { validateReviewDecisionAgainstEpisodeDeltaProposalV01, validateReviewDecisionV01 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
+import { readProjectRunResultOverviewV01 } from "@/lib/vnext/runtime/project-run-result-read-model";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -58,6 +59,7 @@ import {
   type ProjectHomePendingAttentionV01,
   type ProjectHomeProjectionV01,
   type ProjectHomeRecentActivityV01,
+  type ProjectHomeRunResultsV01,
   type ProjectHomeSectionStateV01,
   type ProjectHomeWorkingProjectionSummaryV01,
 } from "@/types/vnext/project-home";
@@ -157,6 +159,10 @@ export async function readProjectHomeProjectionV01(
     () => readRecentActivity(db, input),
     activityError,
   );
+  const runResults = readSectionSafely(
+    () => projectHomeRunResultsV01(db, input),
+    runResultsError,
+  );
   const capabilities = await readCapabilitiesSafely(
     dependencies.read_capability_statuses,
   );
@@ -238,6 +244,7 @@ export async function readProjectHomeProjectionV01(
     working_projection: workingProjection,
     attention,
     recent_activity: recentActivity,
+    run_results: runResults,
     automation,
     personal_perspective: personalPerspective,
     capabilities,
@@ -1061,6 +1068,54 @@ function activityError(): ProjectHomeRecentActivityV01 {
       "Recent project activity could not be validated safely.",
     ),
     items: [],
+  };
+}
+
+function projectHomeRunResultsV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): ProjectHomeRunResultsV01 {
+  const overview = readProjectRunResultOverviewV01(db, input);
+  const state = overview.current_run
+    ? sectionState(
+        overview.current_run.reconciliation_required
+          ? "action_required"
+          : "available",
+        overview.current_run.reconciliation_required
+          ? "The current native-host run is paused and requires bounded reconciliation."
+          : "The current native-host run is nonterminal; any latest terminal result remains separately reviewable.",
+      )
+    : overview.latest_result_state === "available"
+      ? sectionState(
+          "available",
+          "The latest immutable terminal RunReceipt is available for review.",
+        )
+      : overview.latest_result_state === "receipt_unavailable"
+        ? sectionState(
+            "error",
+            "A terminal run references a receipt that could not be read safely.",
+          )
+        : sectionState(
+            "empty",
+            "No current native-host run or terminal result is recorded for this project.",
+          );
+  return {
+    state,
+    current_run: overview.current_run,
+    latest_result: overview.latest_result,
+    latest_result_state: overview.latest_result_state,
+  };
+}
+
+function runResultsError(): ProjectHomeRunResultsV01 {
+  return {
+    state: sectionState(
+      "error",
+      "Run and result records could not be validated safely.",
+    ),
+    current_run: null,
+    latest_result: null,
+    latest_result_state: "error",
   };
 }
 

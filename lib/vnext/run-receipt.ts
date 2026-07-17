@@ -19,6 +19,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import { externalRefUsesRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
 import {
   RUN_RECEIPT_ATTESTATION_TRUST_CLASSES_V01,
   RUN_RECEIPT_CANONICALIZATION_V01,
@@ -34,6 +35,7 @@ import {
   type RunReceiptCheckResultV01,
   type RunReceiptCommandSummaryV01,
   type RunReceiptIssueV01,
+  type RunReceiptHostApprovalV01,
   type RunReceiptModelInvocationEntryV02,
   type RunReceiptModelInvocationV01,
   type RunReceiptObservationV01,
@@ -86,6 +88,7 @@ const allowedRootKeys = new Set([
   "commands",
   "checks",
   "skipped_checks",
+  "host_approvals",
   "external_refs",
   "result_summary",
   "blockers",
@@ -190,6 +193,27 @@ const allowedChangedArtifactKeys = new Set([
   "related_observation_ids",
   "related_attestation_ids",
   "source_refs",
+]);
+const allowedHostApprovalKeys = new Set([
+  "approval_ref",
+  "host_thread_ref",
+  "host_turn_ref",
+  "host_item_ref",
+  "host_request_ref",
+  "operation_class",
+  "resource_summary",
+  "resource_refs",
+  "command_fingerprint",
+  "request_fingerprint",
+  "decision",
+  "decision_source",
+  "decision_fingerprint",
+  "issued_at",
+  "decided_at",
+  "expires_at",
+  "coverage",
+  "source_refs",
+  "semantic_approval_created",
 ]);
 const allowedModelInvocationKeys = new Set([
   "invocation_ref",
@@ -400,6 +424,9 @@ export function buildRunReceiptV01(
     commands: normalizeCommands(input.commands),
     checks: normalizeChecks(input.checks),
     skipped_checks: normalizeSkippedChecks(input.skipped_checks),
+    ...(input.host_approvals === undefined
+      ? {}
+      : { host_approvals: normalizeHostApprovals(input.host_approvals) }),
     external_refs: normalizeRefs(input.external_refs),
     result_summary: {
       summary: normalizeProtocolTextV01(input.result_summary.summary),
@@ -684,6 +711,7 @@ export function validateRunReceiptV01(
   validateAttestations(input, recordedAt, accumulator);
   validateCommands(input, recordedAt, accumulator);
   validateChecks(input, accumulator);
+  validateHostApprovals(input, accumulator);
   validateProvenanceBasisCoherence(input, accumulator);
   validateChangedArtifacts(input, accumulator);
   validateModelInvocations(input, recordedAt, accumulator);
@@ -972,6 +1000,42 @@ function normalizeChangedArtifacts(
         item.related_attestation_ids,
       ),
       source_refs: normalizeRefs(item.source_refs),
+    })),
+  ).sort(compareProtocolCanonicalV01);
+}
+
+function normalizeHostApprovals(
+  values: RunReceiptHostApprovalV01[],
+): RunReceiptHostApprovalV01[] {
+  return uniqueProtocolValuesV01(
+    values.map((item) => ({
+      approval_ref: normalizeExternalRefPrimitiveV01(item.approval_ref),
+      host_thread_ref: normalizeExternalRefPrimitiveV01(item.host_thread_ref),
+      host_turn_ref: normalizeExternalRefPrimitiveV01(item.host_turn_ref),
+      host_item_ref: normalizeExternalRefPrimitiveV01(item.host_item_ref),
+      host_request_ref: normalizeExternalRefPrimitiveV01(
+        item.host_request_ref,
+      ),
+      operation_class: item.operation_class,
+      resource_summary: normalizeProtocolTextV01(item.resource_summary),
+      resource_refs: normalizeRefs(item.resource_refs),
+      command_fingerprint: normalizeProtocolNullableTextV01(
+        item.command_fingerprint,
+      ),
+      request_fingerprint: normalizeProtocolTextV01(
+        item.request_fingerprint,
+      ),
+      decision: item.decision,
+      decision_source: item.decision_source,
+      decision_fingerprint: normalizeProtocolNullableTextV01(
+        item.decision_fingerprint,
+      ),
+      issued_at: normalizeProtocolTextV01(item.issued_at),
+      decided_at: normalizeProtocolNullableTextV01(item.decided_at),
+      expires_at: normalizeProtocolNullableTextV01(item.expires_at),
+      coverage: item.coverage,
+      source_refs: normalizeRefs(item.source_refs),
+      semantic_approval_created: false as const,
     })),
   ).sort(compareProtocolCanonicalV01);
 }
@@ -1394,6 +1458,235 @@ function validateChecks(input: ProtocolJsonRecordV01, accumulator: ValidationAcc
   }
 }
 
+function validateHostApprovals(
+  input: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+) {
+  if (input.host_approvals === undefined) return;
+  const approvals = arrayAt(
+    input.host_approvals,
+    "$.host_approvals",
+    accumulator,
+  );
+  if (approvals.length > 32) {
+    addError(
+      accumulator,
+      "host_approval_bound_exceeded",
+      "$.host_approvals",
+      "RunReceipt host approval residue is bounded to 32 entries.",
+      true,
+    );
+  }
+  const identities = new Set<string>();
+  for (const [index, value] of approvals.entries()) {
+    const path = `$.host_approvals[${index}]`;
+    const item = recordAt(value, path, accumulator);
+    if (!item) continue;
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedHostApprovalKeys,
+      path,
+      accumulator,
+    );
+    for (const [field, expectedType] of [
+      ["approval_ref", "native_host_approval"],
+      ["host_thread_ref", "host_thread"],
+      ["host_turn_ref", "host_turn"],
+      ["host_item_ref", "host_item"],
+      ["host_request_ref", "host_approval_request"],
+    ] as const) {
+      validateExternalRefStructureV01(
+        item[field],
+        `${path}.${field}`,
+        issueSink(accumulator),
+      );
+      if (
+        isProtocolRecordV01(item[field]) &&
+        item[field].ref_type !== expectedType
+      ) {
+        addError(
+          accumulator,
+          "host_approval_ref_type_invalid",
+          `${path}.${field}`,
+          `${field} must use the ${expectedType} ExternalRef type.`,
+          true,
+        );
+      }
+    }
+    const identity = refIdentity(item.approval_ref);
+    if (identity && identities.has(identity)) {
+      addError(
+        accumulator,
+        "host_approval_identity_conflict",
+        `${path}.approval_ref`,
+        "One host approval identity cannot carry conflicting receipt material.",
+        true,
+      );
+    }
+    if (identity) identities.add(identity);
+    enumValue(
+      item.operation_class,
+      new Set([
+        "command_execution",
+        "file_change",
+        "filesystem_permission",
+        "network_permission",
+      ]),
+      `${path}.operation_class`,
+      "host_approval_operation_invalid",
+      accumulator,
+    );
+    requireString(item, "resource_summary", path, accumulator);
+    const resourceRefs = arrayAt(
+      item.resource_refs,
+      `${path}.resource_refs`,
+      accumulator,
+    );
+    if (resourceRefs.length > 128) {
+      addError(
+        accumulator,
+        "host_approval_resource_bound_exceeded",
+        `${path}.resource_refs`,
+        "Host approval resource refs are bounded to 128 entries.",
+      );
+    }
+    validateRefArray(
+      item.resource_refs,
+      `${path}.resource_refs`,
+      accumulator,
+    );
+    validateNullableSha256V01(
+      item.command_fingerprint,
+      `${path}.command_fingerprint`,
+      accumulator,
+    );
+    validateSha256V01(
+      item.request_fingerprint,
+      `${path}.request_fingerprint`,
+      accumulator,
+    );
+    const issuedAt = requireTimestamp(
+      item.issued_at,
+      `${path}.issued_at`,
+      accumulator,
+    );
+    const decidedAt = optionalTimestamp(
+      item.decided_at,
+      `${path}.decided_at`,
+      accumulator,
+    );
+    const expiresAt = optionalTimestamp(
+      item.expires_at,
+      `${path}.expires_at`,
+      accumulator,
+    );
+    if (issuedAt !== null && decidedAt !== null && decidedAt < issuedAt) {
+      addError(
+        accumulator,
+        "host_approval_time_order_invalid",
+        `${path}.decided_at`,
+        "Host approval decision cannot predate its request.",
+      );
+    }
+    if (issuedAt !== null && expiresAt !== null && expiresAt <= issuedAt) {
+      addError(
+        accumulator,
+        "host_approval_expiry_invalid",
+        `${path}.expires_at`,
+        "Host approval expiry must be later than issuance.",
+      );
+    }
+    const decision = protocolStringValueV01(item.decision);
+    const decisionSource = protocolStringValueV01(item.decision_source);
+    if (item.decision !== null) {
+      enumValue(
+        item.decision,
+        new Set(["approve_once", "decline", "cancel_run"]),
+        `${path}.decision`,
+        "host_approval_decision_invalid",
+        accumulator,
+      );
+    }
+    if (item.decision_source !== null) {
+      enumValue(
+        item.decision_source,
+        new Set([
+          "explicit_local_operator",
+          "bounded_capability_grant",
+          "run_cancellation",
+        ]),
+        `${path}.decision_source`,
+        "host_approval_decision_source_invalid",
+        accumulator,
+      );
+    }
+    validateNullableSha256V01(
+      item.decision_fingerprint,
+      `${path}.decision_fingerprint`,
+      accumulator,
+    );
+    const completeDecision =
+      Boolean(decision) &&
+      Boolean(decisionSource) &&
+      decidedAt !== null &&
+      typeof item.decision_fingerprint === "string";
+    const emptyDecision =
+      item.decision === null &&
+      item.decision_source === null &&
+      item.decided_at === null &&
+      item.decision_fingerprint === null;
+    if (!completeDecision && !emptyDecision) {
+      addError(
+        accumulator,
+        "host_approval_decision_binding_invalid",
+        path,
+        "Host approval decision material must be entirely present or entirely absent.",
+        true,
+      );
+    }
+    enumValue(
+      item.coverage,
+      new Set(["observed", "enforced"]),
+      `${path}.coverage`,
+      "host_approval_coverage_invalid",
+      accumulator,
+    );
+    if (
+      (decisionSource === "explicit_local_operator" &&
+        item.coverage !== "observed") ||
+      ((decisionSource === "bounded_capability_grant" ||
+        decisionSource === "run_cancellation") &&
+        item.coverage !== "enforced")
+    ) {
+      addError(
+        accumulator,
+        "host_approval_coverage_source_mismatch",
+        `${path}.coverage`,
+        "Approval coverage must reflect the actual decision source.",
+        true,
+      );
+    }
+    validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
+    if (!Array.isArray(item.source_refs) || item.source_refs.length === 0) {
+      addError(
+        accumulator,
+        "host_approval_source_missing",
+        `${path}.source_refs`,
+        "Host approval residue requires bounded provenance refs.",
+      );
+    }
+    if (item.semantic_approval_created !== false) {
+      addError(
+        accumulator,
+        "host_approval_semantic_authority_forbidden",
+        `${path}.semantic_approval_created`,
+        "Host execution approval cannot create semantic approval.",
+        true,
+      );
+    }
+  }
+}
+
 function validateProvenanceBasisCoherence(
   input: ProtocolJsonRecordV01,
   accumulator: ValidationAccumulator,
@@ -1615,6 +1908,7 @@ function validateChangedArtifacts(input: ProtocolJsonRecordV01, accumulator: Val
   const observations = idSet(input.observations, "observation_id");
   const attestations = idSet(input.attestations, "attestation_id");
   const artifacts = arrayAt(input.changed_artifacts, "$.changed_artifacts", accumulator);
+  const artifactIdentities = new Set<string>();
   for (const [index, value] of artifacts.entries()) {
     const path = `$.changed_artifacts[${index}]`;
     const item = recordAt(value, path, accumulator);
@@ -1626,6 +1920,17 @@ function validateChangedArtifacts(input: ProtocolJsonRecordV01, accumulator: Val
       accumulator,
     );
     validateExternalRefStructureV01(item.artifact_ref, `${path}.artifact_ref`, issueSink(accumulator));
+    const artifactIdentity = refIdentity(item.artifact_ref);
+    if (artifactIdentity && artifactIdentities.has(artifactIdentity)) {
+      addError(
+        accumulator,
+        "changed_artifact_identity_conflict",
+        `${path}.artifact_ref`,
+        "One changed-artifact identity cannot carry conflicting change or hash material.",
+        true,
+      );
+    }
+    if (artifactIdentity) artifactIdentities.add(artifactIdentity);
     enumValue(
       item.change_kind,
       new Set(["added", "modified", "deleted", "renamed", "unknown"]),
@@ -2125,20 +2430,81 @@ function validateIntegrity(input: ProtocolJsonRecordV01, accumulator: Validation
   if (integrity.algorithm !== "sha256" || integrity.canonicalization !== RUN_RECEIPT_CANONICALIZATION_V01 || integrity.fingerprint_scope !== "receipt_without_integrity_fingerprint") addError(accumulator, "integrity_metadata_invalid", "$.integrity", "RunReceipt integrity metadata is invalid.");
 }
 
-function scanAbsoluteLocalPaths(value: unknown, path: string, accumulator: ValidationAccumulator) {
-  walk(value, path, (candidate, candidatePath) => {
+function scanAbsoluteLocalPaths(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+  opaqueExternalId = false,
+) {
+  if (typeof value === "string") {
     if (
-      typeof candidate === "string" &&
-      /^(?:file:\/\/|\/(?!\/)|[A-Za-z]:[\\/])/.test(candidate)
+      !opaqueExternalId &&
+      /^(?:file:\/\/|\/|\\|[A-Za-z]:)/u.test(value)
     ) {
-      addError(accumulator, "absolute_local_path_forbidden", candidatePath, "Absolute local paths are forbidden; use a repository-relative ExternalRef.", true);
+      addError(
+        accumulator,
+        "absolute_local_path_forbidden",
+        path,
+        "Absolute local paths are forbidden; use a repository-relative ExternalRef.",
+        true,
+      );
     }
-  });
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((child, index) =>
+      scanAbsoluteLocalPaths(child, `${path}[${index}]`, accumulator),
+    );
+    return;
+  }
+  if (!isProtocolRecordV01(value)) return;
+  const isExternalRef =
+    value.ref_version === EXTERNAL_REF_VERSION_V01 &&
+    typeof value.ref_type === "string";
+  const pathLikeExternalRef =
+    isExternalRef &&
+    externalRefUsesRepositoryRelativePathV01({
+      ref_type: value.ref_type as string,
+    });
+  for (const [key, child] of Object.entries(value)) {
+    scanAbsoluteLocalPaths(
+      child,
+      `${path}.${key}`,
+      accumulator,
+      isExternalRef && key === "external_id" && !pathLikeExternalRef,
+    );
+  }
 }
 
 function validateRefArray(value: unknown, path: string, accumulator: ValidationAccumulator) {
   const refs = arrayAt(value, path, accumulator);
   refs.forEach((ref, index) => validateExternalRefStructureV01(ref, `${path}[${index}]`, issueSink(accumulator)));
+}
+
+function validateSha256V01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+) {
+  if (
+    typeof value !== "string" ||
+    !/^sha256:[a-f0-9]{64}$/u.test(value)
+  ) {
+    addError(
+      accumulator,
+      "sha256_invalid",
+      path,
+      "Value must be a canonical sha256 fingerprint.",
+    );
+  }
+}
+
+function validateNullableSha256V01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+) {
+  if (value !== null) validateSha256V01(value, path, accumulator);
 }
 
 function refIdentitySet(value: unknown): Set<string> {

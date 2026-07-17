@@ -15,6 +15,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import legacyResultFixture from "../fixtures/codex-result-report-ingestion.sample.v0.1.json";
 import {
   DURABLE_LOCAL_LOOP_APPLIED_AT,
   DURABLE_LOCAL_LOOP_CONFIRMED_AT,
@@ -50,6 +51,13 @@ import {
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
+  ModelInvocationRunReceiptProjectionErrorV02,
+  projectModelInvocationReceiptToRunReceiptEntryV02,
+} from "../lib/vnext/model-gateway/run-receipt-projection";
+import { buildRunReceiptV01 } from "../lib/vnext/run-receipt";
+import { normalizeCodexResultReportV01 } from "../lib/dogfooding/codex-result-report-normalizer";
+import { mapCodexResultReportRecordToRunReceiptV01 } from "../lib/vnext/compat/run-receipt-from-codex-result-report";
+import {
   listProjectExternalRefsV01,
   readDefaultWorkspaceIdentityV01,
 } from "../lib/vnext/persistence/project-identity-registry";
@@ -72,6 +80,10 @@ import {
   prepareVNextSemanticCommitPreviewV01,
   recordVNextSemanticCommitAuthorizationV01,
 } from "../lib/vnext/runtime/durable-semantic-transition";
+import {
+  ProjectRunResultReadErrorV01,
+  readProjectRunResultDetailV01,
+} from "../lib/vnext/runtime/project-run-result-read-model";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
 import {
   LEGACY_AUGNES_PROJECT_SCOPE_V01,
@@ -79,6 +91,7 @@ import {
 import type { ProjectHomeCapabilityStatusValueV01 } from "../types/vnext/project-home";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { TaskContextPacketBuilderInputV01 } from "../lib/vnext/task-context-packet";
+import type { ModelInvocationReceiptV02 } from "../types/vnext/model-invocation-receipt";
 import type { SemanticReviewLoopProjectFixtureV01 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import {
   readLegacyProjectWorkItemsCompatibilityV01,
@@ -372,7 +385,47 @@ function insertRunReceipt(
   database: Database.Database,
   project: SemanticReviewLoopProjectFixtureV01,
 ) {
-  const receipt = buildDurableLocalClosedLoopM3APrefixFixtureV01(project).run_receipt;
+  const baseReceipt = buildDurableLocalClosedLoopM3APrefixFixtureV01(project).run_receipt;
+  const workRef = baseReceipt.work_ref ?? {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "work",
+    external_id: `work:project-home:${project.project_id}`,
+    observed_at: baseReceipt.recorded_at,
+    trust_class: "direct_local_observation" as const,
+  };
+  const modelInvocationReceipt = modelInvocationReceiptFixtureV02({
+    workspace_id: baseReceipt.workspace_id,
+    project_id: baseReceipt.project_id,
+    work_id: workRef.external_id,
+    run_id: baseReceipt.run_id,
+    started_at: baseReceipt.started_at ?? baseReceipt.recorded_at,
+    finished_at: baseReceipt.finished_at ?? baseReceipt.recorded_at,
+  });
+  const modelEntry = projectModelInvocationReceiptToRunReceiptEntryV02({
+    receipt: modelInvocationReceipt,
+    workspace_id: baseReceipt.workspace_id,
+    project_id: baseReceipt.project_id,
+    work_id: workRef.external_id,
+    run_id: baseReceipt.run_id,
+  });
+  assert.throws(
+    () =>
+      projectModelInvocationReceiptToRunReceiptEntryV02({
+        receipt: modelInvocationReceipt,
+        workspace_id: baseReceipt.workspace_id,
+        project_id: `${baseReceipt.project_id}:cross-project`,
+        work_id: workRef.external_id,
+        run_id: baseReceipt.run_id,
+      }),
+    (error) =>
+      error instanceof ModelInvocationRunReceiptProjectionErrorV02 &&
+      error.code === "model_invocation_projection_scope_mismatch",
+  );
+  const receipt = buildRunReceiptV01({
+    ...baseReceipt,
+    work_ref: workRef,
+    model_invocations: [modelEntry, clone(modelEntry)],
+  });
   insertVNextCoreRecordV01(database, {
     record_kind: "run_receipt",
     record_id: receipt.receipt_id,
@@ -384,6 +437,91 @@ function insertRunReceipt(
     created_at: receipt.recorded_at,
   });
   return receipt;
+}
+
+function modelInvocationReceiptFixtureV02(input: {
+  workspace_id: string;
+  project_id: string;
+  work_id: string;
+  run_id: string;
+  started_at: string;
+  finished_at: string;
+}): ModelInvocationReceiptV02 {
+  return {
+    receipt_version: "model_invocation_receipt.v0.2",
+    gateway_version: "model_gateway.v0.1",
+    invocation_id: `model-invocation:${input.run_id}`,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    work_id: input.work_id,
+    run_id: input.run_id,
+    purpose: "planner_plan",
+    invocation_origin: "policy_triggered",
+    attempted_implementation_id: null,
+    attempted_implementation_version: null,
+    attempted_provider_ref: null,
+    attempted_model_ref: null,
+    final_implementation_id: "deterministic.project-home-result-test",
+    final_implementation_version: "deterministic_project_home_result_test.v0.1",
+    requested_mode: "deterministic",
+    execution_mode: "deterministic",
+    selection_reason: "explicit_deterministic",
+    started_at: input.started_at,
+    finished_at: input.finished_at,
+    latency_ms: Date.parse(input.finished_at) - Date.parse(input.started_at),
+    status: "completed",
+    outcome: "deterministic_success",
+    egress_attempted: false,
+    egress_status: "did_not_occur",
+    egress_policy_version: "model_gateway_egress_policy.v0.1",
+    usage: null,
+    cost: {
+      basis: "unavailable",
+      amount: null,
+      currency: null,
+      source: "no_pricing_authority",
+    },
+    budget: {
+      decision: "not_used",
+      input_bytes_limit: 4096,
+      input_bytes_used: null,
+      output_tokens_limit: 512,
+      output_tokens_used: null,
+      provider_call_limit: 0,
+      provider_calls_used: 0,
+      timeout_limit_ms: 30_000,
+      timeout_disposition: "completed_within_deadline",
+    },
+    cancellation_disposition: "not_cancelled",
+    failure_code: null,
+    data_classification: "local_only",
+    retention_class: "none",
+    privacy_decision: "provider_egress_not_used",
+    provenance_refs: ["test:project-home-result"],
+    grant_lineage_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "model_invocation_capability_grant",
+      external_id: `model-grant:${input.run_id}`,
+      observed_at: input.started_at,
+      source_ref: `sha256:${"8".repeat(64)}`,
+      trust_class: "direct_local_observation",
+    },
+    automation_control_lineage_ref: {
+      ref_version: "external_ref.v0.1",
+      ref_type: "project_automation_control",
+      external_id: `${input.project_id}:automation-control:1`,
+      observed_at: input.started_at,
+      source_ref: "control-revision:1",
+      trust_class: "direct_local_observation",
+    },
+    fallback_used: false,
+    coverage_class: "enforced",
+    trust_class: "direct_local_observation",
+    raw_prompt_persisted: false,
+    raw_response_persisted: false,
+    hidden_reasoning_persisted: false,
+    receipt_is_semantic_authority: false,
+  };
 }
 
 function insertLegacyWorkItem(database: Database.Database) {
@@ -496,6 +634,56 @@ async function main() {
     assert(emptyHome.capabilities.items.every((item) => item.status === "unavailable"));
     assert(emptyHome.next_moves.length > 0 && emptyHome.next_moves.length <= 3);
     assert.deepEqual(databaseSnapshot(db), emptyBefore, "empty Project Home reads create no rows");
+
+    const compatibilitySource = normalizeCodexResultReportV01(
+      legacyResultFixture.safe_input_example,
+    );
+    const compatibilityMapping = mapCodexResultReportRecordToRunReceiptV01({
+      workspace_id: workspace.workspace_id,
+      project_id: emptyProject.project.project_id,
+      run_id: "run-project-home-manual-compatibility-001",
+      recorded_at: "2026-07-10T08:30:00.000Z",
+      data_classification: "public_safe",
+      source_record: compatibilitySource,
+    });
+    assert.equal(compatibilityMapping.status, "mapped");
+    assert(compatibilityMapping.receipt);
+    insertVNextCoreRecordV01(db, {
+      record_kind: "run_receipt",
+      record_id: compatibilityMapping.receipt.receipt_id,
+      workspace_id: compatibilityMapping.receipt.workspace_id,
+      project_id: compatibilityMapping.receipt.project_id,
+      fingerprint: compatibilityMapping.receipt.integrity.fingerprint,
+      idempotency_key: compatibilityMapping.receipt.idempotency_key,
+      payload: compatibilityMapping.receipt,
+      created_at: compatibilityMapping.receipt.recorded_at,
+    });
+    const compatibilityHome = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: emptyProject.project.project_id,
+    }, { now: () => fixedGeneratedAt });
+    assert.equal(
+      compatibilityHome.run_results.latest_result?.receipt_ref,
+      compatibilityMapping.receipt.receipt_id,
+    );
+    const compatibilityResult = readProjectRunResultDetailV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: emptyProject.project.project_id,
+      receipt_id: compatibilityMapping.receipt.receipt_id,
+    });
+    assert.equal(compatibilityResult.packet.status, "not_recorded");
+    assert.equal(compatibilityResult.host.approvals.length, 0);
+    assert.deepEqual(
+      compatibilityResult.model_invocations.map((entry) => entry.state),
+      ["none"],
+    );
+    assert.equal(
+      compatibilityResult.compatibility.source_contracts.includes(
+        compatibilitySource.record_version,
+      ),
+      true,
+    );
+    assert.equal(compatibilityResult.authority.semantic_state_changed, false);
 
     const malformedPacket = { malformed: true, bounded_summary: "must not render" };
     insertVNextCoreRecordV01(db, {
@@ -850,6 +1038,65 @@ async function main() {
     assert.equal(beforeAccepted.recent_activity.items.some((item) => item.summary.includes(acceptedMarker)), false);
     assert.equal(beforeAccepted.recent_activity.items.some((item) => item.summary.includes(legacyMarker)), false);
     assert.equal(runReceipt.project_id, confirmedA.project.project_id);
+    assert.equal(beforeAccepted.run_results.current_run, null);
+    assert.equal(beforeAccepted.run_results.latest_result_state, "available");
+    assert.equal(
+      beforeAccepted.run_results.latest_result?.receipt_ref,
+      runReceipt.receipt_id,
+    );
+    assert.equal(
+      beforeAccepted.run_results.latest_result?.review_href,
+      `/workbench/results/${runReceipt.receipt_id.replace(":", "~")}`,
+    );
+    const readOnlyResult = readProjectRunResultDetailV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedA.project.project_id,
+      receipt_id: runReceipt.receipt_id,
+    });
+    assert.equal(readOnlyResult.summary.receipt_ref, runReceipt.receipt_id);
+    assert.equal(readOnlyResult.authority.proposal_created, false);
+    assert.equal(readOnlyResult.authority.review_decision_created, false);
+    assert.equal(readOnlyResult.authority.semantic_transition_created, false);
+    assert.equal(readOnlyResult.authority.evidence_accepted, false);
+    assert.equal(readOnlyResult.authority.work_closed, false);
+    assert.equal(Object.hasOwn(runReceipt, "host_approvals"), false);
+    assert.equal(readOnlyResult.host.approvals.length, 0);
+    assert.equal(readOnlyResult.model_invocations.length, 1);
+    assert.equal(
+      readOnlyResult.model_invocations[0]?.state,
+      "resolved_augnes_owned",
+    );
+    assert.equal(readOnlyResult.model_invocations[0]?.status, "completed");
+    assert.equal(readOnlyResult.model_invocations[0]?.purpose, "planner_plan");
+    assert.equal(
+      readOnlyResult.model_invocations[0]?.outcome,
+      "deterministic_success",
+    );
+    assert.equal(
+      readOnlyResult.model_invocations[0]?.cost_summary,
+      "Cost unavailable; no pricing authority was recorded.",
+    );
+    assert.match(
+      readOnlyResult.model_invocations[0]?.budget_summary ?? "",
+      /0\/0 provider calls.*30000 ms timeout/u,
+    );
+    assert.equal(
+      readOnlyResult.model_invocations[0]?.cancellation_disposition,
+      "not_cancelled",
+    );
+    assert.equal(readOnlyResult.model_invocations[0]?.coverage, "enforced");
+    assert.throws(
+      () =>
+        readProjectRunResultDetailV01(db!, {
+          workspace_id: workspace.workspace_id,
+          project_id: confirmedB.project.project_id,
+          receipt_id: runReceipt.receipt_id,
+        }),
+      (error) =>
+        error instanceof ProjectRunResultReadErrorV01 &&
+        error.code === "project_result_receipt_missing",
+      "a server-issued result link must fail after the active project scope changes",
+    );
 
     const acceptedProposal = rebuildProposal(projectA, acceptedMarker, "accepted-a");
     const accepted = persistAcceptedTransition(db, projectA, acceptedProposal);
@@ -1097,6 +1344,13 @@ async function main() {
     assert.equal(reopenedHome.project_summary.project.project_id, confirmedA.project.project_id);
     assert.equal(reopenedHome.project_summary.root_binding.local_root.normalized_path, recoveredProjectARoot);
     assert.equal(reopenedHome.accepted_state.items[0]?.summary, acceptedMarker);
+    const reopenedResult = readProjectRunResultDetailV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedA.project.project_id,
+      receipt_id: runReceipt.receipt_id,
+    });
+    assert.equal(reopenedResult.summary.receipt_ref, runReceipt.receipt_id);
+    assert.equal(reopenedResult.authority.semantic_state_changed, false);
     assert.equal(readProjectHomeEntryDestinationV01(db), confirmedA.destination);
 
     const finalReadOnlySnapshot = databaseSnapshot(db);
@@ -1127,6 +1381,13 @@ async function main() {
       multiple_decisions_resolved_deterministically: true,
       pending_attention_filtered_and_bounded: true,
       meaningful_activity_filtered_and_bounded: true,
+      immutable_run_result_read_model: true,
+      project_home_latest_result_link: true,
+      cross_project_result_link_refused: true,
+      result_reload_from_durable_state: true,
+      retained_manual_compatibility_receipt_rendered: true,
+      resolved_augnes_owned_r4_receipt_rendered: true,
+      cross_project_r4_receipt_refused: true,
       automation_not_configured: true,
       personal_perspective_not_configured_and_excluded: true,
       capability_matrix_local_only: true,
