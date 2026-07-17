@@ -177,6 +177,22 @@ async function handle(message) {
     if (message.method === "turn/start") {
       turnActive = true;
       persistState({ threadId, sessionId, turnId, status: "inProgress" });
+      if (scenario === "browser_two_sequential_approvals") {
+        // Exercise the supported App Server ordering where a turn notification
+        // and approval arrive before the matching turn/start response. The
+        // adapter must preserve that first validated turn binding.
+        notify("turn/started", { threadId, turn: turn("inProgress", []) });
+        notify("thread/status/changed", {
+          threadId,
+          status: { type: "active", activeFlags: [] },
+        });
+        requestSequentialApproval();
+        setTimeout(
+          () => respond(message.id, { turn: turn("inProgress", []) }),
+          25,
+        );
+        return;
+      }
       respond(message.id, { turn: turn("inProgress", []) });
       setImmediate(() => {
         notify("turn/started", { threadId, turn: turn("inProgress", []) });
