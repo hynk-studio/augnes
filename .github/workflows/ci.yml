@@ -13,27 +13,15 @@ permissions:
   contents: read
 
 jobs:
-  canonical-tests:
+  static-authority:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            apps/augnes_apps/package-lock.json
-
-      - name: Install root dependencies
-        run: npm ci
-
-      - name: Install nested app dependencies
-        run: npm --prefix apps/augnes_apps ci
+      - name: Setup canonical dependencies
+        uses: ./.github/actions/setup-canonical
 
       - name: Typecheck
         run: npm run typecheck
@@ -44,16 +32,64 @@ jobs:
       - name: Unit and protocol tests
         run: npm test
 
-      - name: Runtime, migration, recovery, and export integration tests
-        run: npm run test:integration
-
       - name: Authority tests
         run: npm run test:authority
 
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup canonical dependencies
+        uses: ./.github/actions/setup-canonical
+
+      - name: Runtime, migration, recovery, and export integration tests
+        run: npm run test:integration
+
+  operability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup canonical dependencies
+        uses: ./.github/actions/setup-canonical
+
       - name: Runtime operability tests
-        timeout-minutes: 15
         run: npm run test:operability
 
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup canonical dependencies
+        uses: ./.github/actions/setup-canonical
+
       - name: Automated golden-path E2E
-        timeout-minutes: 10
         run: npm run test:e2e
+
+  canonical-tests:
+    name: canonical-tests
+    needs: [static-authority, integration, operability, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every canonical job to succeed
+        env:
+          STATIC_AUTHORITY_RESULT: ${{ needs.static-authority.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+          OPERABILITY_RESULT: ${{ needs.operability.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          set -eu
+          test "$STATIC_AUTHORITY_RESULT" = "success"
+          test "$INTEGRATION_RESULT" = "success"
+          test "$OPERABILITY_RESULT" = "success"
+          test "$E2E_RESULT" = "success"
