@@ -1,15 +1,24 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+import Database from "better-sqlite3";
+
+import {
+  installZeroNetworkGuard,
+  ZERO_NETWORK_GUARD_METHODS,
+} from "./test-harness-zero-network-guard.mjs";
 
 import {
   buildVNextOperatorBrowserFixtureV01,
@@ -26,6 +35,7 @@ const manifestPath = path.join(
 );
 const assertions: string[] = [];
 const referenceTime = "2026-07-17T12:00:00.000Z";
+const require = createRequire(import.meta.url);
 
 async function main(): Promise<void> {
 try {
@@ -40,6 +50,72 @@ try {
   assert.equal(existsSync(path.join(process.cwd(), ".fixture-must-not-write")), false);
   record("fixture_builder_rejects_non_disposable_output_root");
 
+  const guard = installZeroNetworkGuard({ allowLoopback: false });
+  try {
+    const http = require("node:http") as typeof import("node:http");
+    const net = require("node:net") as typeof import("node:net");
+    const dns = require("node:dns") as typeof import("node:dns");
+    assert.throws(
+      () => globalThis.fetch("https://example.invalid/fixture-guard"),
+      /test_external_network_forbidden:fetch/u,
+    );
+    assert.throws(
+      () => http.request("http://example.invalid/fixture-guard"),
+      /test_external_network_forbidden:http.request/u,
+    );
+    assert.throws(
+      () => net.connect({ host: "example.invalid", port: 443 }),
+      /test_external_network_forbidden:net.connect/u,
+    );
+    assert.throws(
+      () => dns.lookup("example.invalid", () => {}),
+      /test_external_network_forbidden:dns.lookup/u,
+    );
+    assert.deepEqual(
+      guard.attempts.map((attempt) => attempt.method),
+      ["fetch", "http.request", "net.connect", "dns.lookup"],
+    );
+  } finally {
+    guard.restore();
+  }
+  record("zero_network_guard_blocks_and_records_fetch_http_net_and_dns");
+
+  const guardedFixtureDirectory = path.join(tempRoot, "guarded-fixture");
+  await assert.rejects(
+    () =>
+      buildVNextOperatorBrowserFixtureV01({
+        output_directory: guardedFixtureDirectory,
+        reference_time: referenceTime,
+        test_only_guard_probe: async () => {
+          await globalThis.fetch("https://example.invalid/fixture-builder");
+        },
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code ===
+        "test_external_network_forbidden",
+  );
+  assert.deepEqual(readdirSync(guardedFixtureDirectory), []);
+  record("fixture_builder_installs_guard_before_production_seams_and_cleans");
+
+  const originalAmbientDatabasePath = process.env.AUGNES_DB_PATH;
+  const ambientFixtureDirectory = path.join(tempRoot, "ambient-db-fixture");
+  await assert.rejects(
+    () =>
+      buildVNextOperatorBrowserFixtureV01({
+        output_directory: ambientFixtureDirectory,
+        reference_time: referenceTime,
+        test_only_guard_probe: ({ ambient_database_path }) => {
+          const ambient = new Database(ambient_database_path);
+          ambient.close();
+        },
+      }),
+    /fixture ambient\/default database sentinel changed/u,
+  );
+  assert.deepEqual(readdirSync(ambientFixtureDirectory), []);
+  assert.equal(process.env.AUGNES_DB_PATH, originalAmbientDatabasePath);
+  record("fixture_builder_fails_closed_on_ambient_database_access_and_cleans");
+
   const summary = await buildVNextOperatorBrowserFixtureV01({
     output_directory: fixtureDirectory,
     reference_time: referenceTime,
@@ -48,9 +124,15 @@ try {
   assert.equal(summary.persisted_lineage_status, "reviewed");
   assert.equal(summary.external_network_calls, 0);
   assert.equal(summary.provider_calls, 0);
+  assert.deepEqual(summary.network_guard_methods, ZERO_NETWORK_GUARD_METHODS);
+  assert.equal(
+    summary.provider_boundary,
+    "no_live_provider_imports_and_zero_guarded_network_attempts",
+  );
   assert.equal(summary.credential_material_included, false);
   assert.equal(summary.private_absolute_path_in_manifest, false);
   assert.equal(summary.default_database_accessed, false);
+  assert.equal(summary.ambient_database_observation, "absent_before_and_after");
   assert.deepEqual(summary.production_seams, [
     "review_material",
     "review_decision_route",
@@ -99,6 +181,14 @@ try {
   });
   assert.equal(validated.status, "pass");
   record("fixture_contract_accepts_complete_owned_state");
+  for (const unobservedClaim of [
+    "external_network_calls",
+    "provider_calls",
+    "default_database_accessed",
+  ]) {
+    assert.equal(Object.hasOwn(validated, unobservedClaim), false);
+  }
+  record("fixture_validation_does_not_claim_unobserved_egress_or_database_state");
 
   await assert.rejects(
     () =>

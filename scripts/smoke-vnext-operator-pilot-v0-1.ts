@@ -3,7 +3,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer, request as requestHttp } from "node:http";
-import { createRequire } from "node:module";
 import {
   copyFileSync,
   existsSync,
@@ -156,6 +155,7 @@ import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
 } from "./db-migrations.mjs";
+import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
 const OPERATOR_WORKSPACE_UUID = "11111111-1111-4111-8111-111111111111";
@@ -191,7 +191,6 @@ const EXPECTED_FULL_LOOP_ANCHORS = {
   full_loop_fingerprint:
     "sha256:18bf5235993fd3727a3542edfce97375b1ef190950e61c0e743b3860a26fe96b",
 } as const;
-const require = createRequire(import.meta.url);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
 );
@@ -266,7 +265,10 @@ try {
   validateAdditiveAndRepeatedMigration();
   const protectedBefore = snapshotNonSessionRows(canonicalDbPath);
 
-  networkGuard = installZeroNetworkGuard();
+  networkGuard = installZeroNetworkGuard({
+    allowLoopback: true,
+    errorPrefix: "operator_pilot_external_io_blocked",
+  });
   const clock = new ManualClock("2026-07-11T00:00:00.000Z");
   const secretSource = new DeterministicSecretSource();
   const environment = pilotEnvironment({
@@ -8374,102 +8376,6 @@ function canonicalJson(value: unknown): unknown {
   }
   if (typeof value === "bigint") return value.toString();
   return value;
-}
-
-function installZeroNetworkGuard() {
-  const attempts: string[] = [];
-  const restores: Array<() => void> = [];
-  const modules = {
-    http: require("node:http"),
-    https: require("node:https"),
-    net: require("node:net"),
-    tls: require("node:tls"),
-    dns: require("node:dns"),
-  } as Record<string, Record<string, unknown>>;
-  patch(globalThis as unknown as Record<string, unknown>, "fetch", "fetch");
-  for (const [moduleName, methods] of Object.entries({
-    http: ["request", "get"],
-    https: ["request", "get"],
-    net: ["connect", "createConnection"],
-    tls: ["connect"],
-    dns: ["lookup", "resolve", "resolve4", "resolve6", "resolveAny", "reverse"],
-  })) {
-    for (const method of methods) {
-      patch(modules[moduleName], method, `${moduleName}.${method}`);
-    }
-  }
-  const dnsPromises = modules.dns.promises as Record<string, unknown> | undefined;
-  if (dnsPromises) {
-    for (const method of ["lookup", "resolve", "resolve4", "resolve6", "resolveAny", "reverse"]) {
-      patch(dnsPromises, method, `dns.promises.${method}`);
-    }
-  }
-  return {
-    attempts,
-    restore() {
-      restores.reverse().forEach((restore) => restore());
-    },
-  };
-
-  function patch(
-    target: Record<string, unknown>,
-    method: string,
-    label: string,
-  ): void {
-    const original = target[method];
-    if (typeof original !== "function") return;
-    target[method] = (...args: unknown[]) => {
-      if (isExactLoopbackCall(label, args)) {
-        return Reflect.apply(original, target, args);
-      }
-      attempts.push(label);
-      throw new Error(`operator_pilot_external_io_blocked:${label}`);
-    };
-    restores.push(() => {
-      target[method] = original;
-    });
-  }
-
-  function isExactLoopbackCall(label: string, args: unknown[]): boolean {
-    if (label.startsWith("dns.")) {
-      return isLoopbackHost(args[0]);
-    }
-    if (label.startsWith("http.")) {
-      const first = args[0];
-      if (first instanceof URL) return isLoopbackHost(first.hostname);
-      if (typeof first === "string") {
-        try {
-          return isLoopbackHost(new URL(first).hostname);
-        } catch {
-          return false;
-        }
-      }
-      if (first && typeof first === "object") {
-        return isLoopbackHost(
-          (first as { hostname?: unknown; host?: unknown }).hostname ??
-            (first as { host?: unknown }).host,
-        );
-      }
-      return false;
-    }
-    if (label.startsWith("net.")) {
-      const first = args[0];
-      if (first && typeof first === "object") {
-        return isLoopbackHost((first as { host?: unknown }).host);
-      }
-      return isLoopbackHost(args[1]);
-    }
-    return false;
-  }
-
-  function isLoopbackHost(value: unknown): boolean {
-    return (
-      value === "127.0.0.1" ||
-      value === "::1" ||
-      value === "[::1]" ||
-      value === "localhost"
-    );
-  }
 }
 
 function pass(caseId: string): void {

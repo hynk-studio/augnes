@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import Database from "better-sqlite3";
 
@@ -66,6 +67,10 @@ import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
 } from "./db-migrations.mjs";
+import {
+  installZeroNetworkGuard,
+  ZERO_NETWORK_GUARD_METHODS,
+} from "./test-harness-zero-network-guard.mjs";
 
 export const VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01 =
   "vnext_operator_pilot_browser_fixture.v0.1" as const;
@@ -120,11 +125,24 @@ export interface VNextOperatorBrowserFixtureSummaryV01 {
     "project_identity_registry",
   ];
   persisted_lineage_status: "reviewed";
-  external_network_calls: 0;
-  provider_calls: 0;
+  external_network_calls: number;
+  provider_calls: number;
+  network_guard_methods: typeof ZERO_NETWORK_GUARD_METHODS;
+  provider_boundary: "no_live_provider_imports_and_zero_guarded_network_attempts";
   credential_material_included: false;
   private_absolute_path_in_manifest: false;
-  default_database_accessed: false;
+  default_database_accessed: boolean;
+  ambient_database_observation: "absent_before_and_after";
+}
+
+export interface VNextOperatorBrowserFixtureValidationV01 {
+  status: "pass";
+  fixture_version: typeof VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01;
+  database_file: typeof DATABASE_FILE;
+  manifest_file: typeof MANIFEST_FILE;
+  persisted_lineage_status: "reviewed";
+  credential_material_included: false;
+  private_absolute_path_in_manifest: false;
 }
 
 interface DatabaseFileIdentityV01 {
@@ -200,15 +218,42 @@ class RouteCookieJarV01 {
 export async function buildVNextOperatorBrowserFixtureV01(input: {
   output_directory: string;
   reference_time: string;
+  test_only_guard_probe?: (context: {
+    ambient_database_path: string;
+  }) => void | Promise<void>;
 }): Promise<VNextOperatorBrowserFixtureSummaryV01> {
   const directory = assertDisposableOutputDirectory(input.output_directory);
   const databasePath = path.join(directory, DATABASE_FILE);
   const manifestPath = path.join(directory, MANIFEST_FILE);
   const projectRoot = path.join(directory, "operator-project-root");
-  const createdArtifacts = [databasePath, manifestPath, projectRoot];
+  const ambientDatabasePath = path.join(
+    directory,
+    "ambient-default-database-sentinel.db",
+  );
+  const ambientDatabasePaths = databaseFamilyPaths(ambientDatabasePath);
+  const createdArtifacts = [
+    databasePath,
+    manifestPath,
+    projectRoot,
+    ...ambientDatabasePaths,
+  ];
   assert.equal(readdirSync(directory).length, 0, "fixture output directory must be empty");
+  const ambientDatabaseBefore = snapshotDatabaseFamily(ambientDatabasePath);
+  const originalAmbientDatabasePath = process.env.AUGNES_DB_PATH;
+  process.env.AUGNES_DB_PATH = ambientDatabasePath;
+  const networkGuard = installZeroNetworkGuard({
+    allowLoopback: false,
+    errorPrefix: "operator_browser_fixture_external_io_blocked",
+  });
 
   try {
+    await input.test_only_guard_probe?.({
+      ambient_database_path: ambientDatabasePath,
+    });
+    assertAmbientDatabaseUnchanged(
+      ambientDatabasePath,
+      ambientDatabaseBefore,
+    );
     const schedule = fixtureSchedule(input.reference_time);
     initializeDatabase(databasePath);
     initializeProject(databasePath, projectRoot);
@@ -553,19 +598,61 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       observed_at: schedule.review,
     });
     assert.equal(validated.persisted_lineage_status, "reviewed");
-    return validated;
+    const ambientDatabaseObservation = observeAmbientDatabase(
+      ambientDatabasePath,
+      ambientDatabaseBefore,
+    );
+    const externalNetworkCalls = networkGuard.attempts.length;
+    const providerCalls = networkGuard.attempts.length;
+    assert.equal(
+      externalNetworkCalls,
+      0,
+      "fixture production seams attempted external network access",
+    );
+    assert.equal(
+      ambientDatabaseObservation.accessed,
+      false,
+      "fixture production seams accessed the ambient/default database",
+    );
+    return {
+      summary_version: VNEXT_OPERATOR_BROWSER_FIXTURE_SUMMARY_VERSION_V01,
+      ...validated,
+      artifact_ownership: "transferred_to_browser_harness",
+      production_seams: [
+        "review_material",
+        "review_decision_route",
+        "semantic_transition_route",
+        "later_result_route",
+        "context_use_review_route",
+        "project_identity_registry",
+      ],
+      external_network_calls: externalNetworkCalls,
+      provider_calls: providerCalls,
+      network_guard_methods: ZERO_NETWORK_GUARD_METHODS,
+      provider_boundary:
+        "no_live_provider_imports_and_zero_guarded_network_attempts",
+      default_database_accessed: ambientDatabaseObservation.accessed,
+      ambient_database_observation: "absent_before_and_after",
+    };
   } catch (error) {
     for (const artifact of createdArtifacts) {
       rmSync(artifact, { recursive: true, force: true });
     }
     throw error;
+  } finally {
+    networkGuard.restore();
+    if (originalAmbientDatabasePath === undefined) {
+      delete process.env.AUGNES_DB_PATH;
+    } else {
+      process.env.AUGNES_DB_PATH = originalAmbientDatabasePath;
+    }
   }
 }
 
 export function validateVNextOperatorBrowserFixtureV01(input: {
   fixture_directory: string;
   observed_at?: string;
-}): VNextOperatorBrowserFixtureSummaryV01 {
+}): VNextOperatorBrowserFixtureValidationV01 {
   const directory = assertDisposableFixtureDirectory(input.fixture_directory);
   const databasePath = path.join(directory, DATABASE_FILE);
   const manifestPath = path.join(directory, MANIFEST_FILE);
@@ -675,26 +762,13 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
     db.close();
   }
   return {
-    summary_version: VNEXT_OPERATOR_BROWSER_FIXTURE_SUMMARY_VERSION_V01,
     status: "pass",
     fixture_version: VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01,
     database_file: DATABASE_FILE,
     manifest_file: MANIFEST_FILE,
-    artifact_ownership: "transferred_to_browser_harness",
-    production_seams: [
-      "review_material",
-      "review_decision_route",
-      "semantic_transition_route",
-      "later_result_route",
-      "context_use_review_route",
-      "project_identity_registry",
-    ],
     persisted_lineage_status: "reviewed",
-    external_network_calls: 0,
-    provider_calls: 0,
     credential_material_included: false,
     private_absolute_path_in_manifest: false,
-    default_database_accessed: false,
   };
 }
 
@@ -1029,6 +1103,49 @@ function databaseFileIdentity(databasePath: string): DatabaseFileIdentityV01 {
     device: String(entry.dev),
     inode: String(entry.ino),
   };
+}
+
+function databaseFamilyPaths(databasePath: string): string[] {
+  return [
+    databasePath,
+    `${databasePath}-wal`,
+    `${databasePath}-shm`,
+    `${databasePath}-journal`,
+  ];
+}
+
+function snapshotDatabaseFamily(
+  databasePath: string,
+): Record<string, { sha256: string; size: number }> {
+  const snapshot: Record<string, { sha256: string; size: number }> = {};
+  for (const candidate of databaseFamilyPaths(databasePath)) {
+    if (!existsSync(candidate)) continue;
+    const contents = readFileSync(candidate);
+    snapshot[path.basename(candidate)] = {
+      sha256: createHash("sha256").update(contents).digest("hex"),
+      size: contents.byteLength,
+    };
+  }
+  return snapshot;
+}
+
+function observeAmbientDatabase(
+  databasePath: string,
+  before: Record<string, { sha256: string; size: number }>,
+): { accessed: boolean } {
+  const after = snapshotDatabaseFamily(databasePath);
+  return { accessed: !isDeepStrictEqual(after, before) };
+}
+
+function assertAmbientDatabaseUnchanged(
+  databasePath: string,
+  before: Record<string, { sha256: string; size: number }>,
+): void {
+  assert.equal(
+    observeAmbientDatabase(databasePath, before).accessed,
+    false,
+    "fixture ambient/default database sentinel changed",
+  );
 }
 
 function addMilliseconds(value: string, milliseconds: number): string {

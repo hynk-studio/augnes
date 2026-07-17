@@ -38,6 +38,9 @@ const fixtureBuilder = readRepositoryFile(
 const fixtureBuilderContract = readRepositoryFile(
   "scripts/test-vnext-operator-browser-fixture-v0-1.ts",
 );
+const zeroNetworkGuard = readRepositoryFile(
+  "scripts/test-harness-zero-network-guard.mjs",
+);
 const packageJson = JSON.parse(readRepositoryFile("package.json"));
 const processLifecycle = readRepositoryFile(
   "scripts/test-harness-process-lifecycle.mjs",
@@ -418,8 +421,14 @@ for (const fragment of [
   `artifact_ownership: "transferred_to_browser_harness"`,
   `persisted_lineage_status: "reviewed"`,
   `credential_material_included: false`,
-  `external_network_calls: 0`,
-  `provider_calls: 0`,
+  `external_network_calls: externalNetworkCalls`,
+  `provider_calls: providerCalls`,
+  `default_database_accessed: ambientDatabaseObservation.accessed`,
+  `ambient_database_observation: "absent_before_and_after"`,
+  `installZeroNetworkGuard({`,
+  `networkGuard.attempts.length`,
+  `assertAmbientDatabaseUnchanged(`,
+  `networkGuard.restore()`,
   `assertDisposableOutputDirectory`,
   `validateVNextOperatorBrowserFixtureV01`,
 ]) {
@@ -429,12 +438,50 @@ for (const fragment of [
     `fixture builder contract is missing: ${fragment}`,
   );
 }
+for (const [source, owner] of [
+  [fixtureBuilder, "fixture builder"],
+  [operatorSmoke, "operator smoke"],
+]) {
+  requireText(
+    source,
+    `./test-harness-zero-network-guard.mjs`,
+    `${owner} must reuse the repository-owned zero-network guard`,
+  );
+}
 assert.doesNotMatch(
   fixtureBuilder,
   /LiveNativeHostRunServiceV01|createCodexAppServerAdapterV01|openai|anthropic|provider.*transport/iu,
   "fixture construction must not introduce a live host or provider transport",
 );
+assert.doesNotMatch(
+  fixtureBuilder,
+  /external_network_calls:\s*0|provider_calls:\s*0|default_database_accessed:\s*false/u,
+  "fixture egress and default-database claims must be derived from observations",
+);
 for (const fragment of [
+  `attempts.push(Object.freeze({ method: label }))`,
+  `error.code = "test_external_network_forbidden"`,
+  `allowLoopback && isExactLoopbackCall`,
+  `restores.reverse().forEach`,
+  `"fetch"`,
+  `"http.request"`,
+  `"https.request"`,
+  `"net.connect"`,
+  `"tls.connect"`,
+  `"dns.lookup"`,
+  `"dns.promises.lookup"`,
+]) {
+  requireText(
+    zeroNetworkGuard,
+    fragment,
+    `zero-network guard coverage is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `zero_network_guard_blocks_and_records_fetch_http_net_and_dns`,
+  `fixture_builder_installs_guard_before_production_seams_and_cleans`,
+  `fixture_builder_fails_closed_on_ambient_database_access_and_cleans`,
+  `fixture_validation_does_not_claim_unobserved_egress_or_database_state`,
   `fixture_validation_fails_closed_on_incomplete_manifest`,
   `fixture_validation_fails_closed_on_conflicting_database_binding`,
   `fixture_builder_refuses_overwrite_and_preserves_existing_artifacts`,
@@ -511,6 +558,9 @@ console.log(
       moved_responsibilities_execute_once: movedResponsibilities,
       broad_operator_smoke_rerun_by_e2e: false,
       deterministic_fixture_builder_required: true,
+      fixture_network_observations_required: true,
+      fixture_ambient_database_sentinel_required: true,
+      unobserved_fixture_validation_claims_forbidden: true,
       authority_regressions_required: [
         "canonical-child-runner",
         "canonical-ci-contract",
