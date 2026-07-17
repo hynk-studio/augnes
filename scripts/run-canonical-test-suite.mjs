@@ -47,10 +47,6 @@ const suites = {
       ...rootNode("scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts"),
     },
     {
-      label: "Codex durable-summary policy",
-      ...rootNode("scripts/validate-vnext-codex-review-durable-summary-policy-v0-1.ts"),
-    },
-    {
       label: "operator deterministic and static pure contracts",
       ...rootNode("scripts/test-vnext-operator-pure-contracts-v0-1.ts"),
       timeoutMs: 30_000,
@@ -207,7 +203,7 @@ const suites = {
   e2e: [
     {
       label: "TaskContextPacket to Workbench golden path",
-      ...rootNode("scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"),
+      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
       timeoutMs: 480_000,
     },
   ],

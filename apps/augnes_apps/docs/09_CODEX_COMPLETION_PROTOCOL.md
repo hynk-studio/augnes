@@ -1,223 +1,26 @@
-# Codex Completion Protocol
+# Codex Verification Evidence and Closeout Proof
 
-Use this runbook when Codex finishes repo work, verification, review, screenshots, or a handoff that should be visible in Augnes after the PR/task.
+This runbook documents optional operator-recorded verification evidence and
+proof-only closeout. These records are distinct from native-host result intake.
+Native-host completion returns a structured result automatically through the
+shared run lifecycle, complete receipt normalizer, canonical `RunReceipt`
+admission, and project result readers. No packet copy, pasted report, session
+binding, or manual internal identifier transfer is part of that path.
 
-The protocol records two linked layers:
+## Boundaries
 
-- `action_records` are official execution proof. They feed recent actions and the Temporal State Graph.
-- `work_events` are human-readable trace notes attached to a `work_id`.
+- `RunReceipt` is immutable execution residue from the native-host lifecycle.
+- `verification_evidence_records` are bounded observations recorded only when
+  the operator explicitly authorizes evidence recording.
+- proof-only `action_records` and linked `work_events` are optional closeout
+  trace. They are not a second native-host result authority.
+- none of these records is a `ReviewDecision`, semantic transition, Evidence
+  acceptance, work closure, publication, or merge authority.
 
-`work_id` is only a trace anchor. Durable state authority remains Augnes committed state, and this protocol does not commit or reject state proposals.
+## Optional verification evidence
 
-## Related Trace Docs
-
-Use the root docs and PR template when preparing Codex work:
-
-- `docs/AUTHORITY_MATRIX.md` defines which actor can read state, propose, record proof, commit/reject, edit repo, use Browser/Chrome, and open PRs.
-- `docs/CODEX_HELPER_COMMAND_TAXONOMY.md` defines check-only,
-  record-proof, and commit-state Codex helper semantics.
-- `docs/CODEX_HANDOFF_PACKET.md` defines the copy-pasteable packet ChatGPT App or Augnes can give Codex without turning ChatGPT App into a Codex controller.
-- `docs/VERIFICATION_EVIDENCE_PACK.md` defines command, Browser/Chrome, ChatGPT Developer Mode, MCP/widget, and artifact evidence expectations.
-- `docs/EXECUTION_SURFACE_RECORD.md` defines canonical execution surface names such as `github`, `browser`, `chrome`, `chatgpt_developer_mode`, `mcp_inspector`, and `local_runtime`.
-- `docs/EXPECTED_IMPACT_CHECK.md` defines the expected files/state keys/surfaces/checks vs actual files/state keys/surfaces/checks comparison.
-- `.github/pull_request_template.md` captures the PR Trace Template for review.
-
-## Helper Command
-
-Start the local runtime from the repository root:
-
-```bash
-npm run db:reset
-npm run db:migrate
-npm run demo:seed
-npm run dev -- --port 3000
-```
-
-If local Turbopack root inference fails, use:
-
-```bash
-npm run dev -- --port 3000 --webpack
-```
-
-Prefer proof-only completion recording:
-
-```bash
-AUGNES_API_BASE_URL=http://localhost:3000 \
-CODEX_SCOPE=project:augnes \
-CODEX_WORK_ID=AG-004 \
-CODEX_ACTION_NAME=ag_004_codex_completion_protocol \
-CODEX_RESULT_SUMMARY="Codex implemented and verified the AG-004 completion protocol." \
-CODEX_FILES_CHANGED="apps/augnes_apps/scripts/codex-record-completion-proof.ts,apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md" \
-CODEX_RESULT_STATUS=completed \
-CODEX_RESULT_KIND=implementation \
-CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
-CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
-npm run codex:record-completion-proof
-```
-
-`codex:record-completion-proof` checks that `CODEX_WORK_ID` exists, then
-records `/api/actions/record-proof` and `/api/work/{work_id}/events`. It writes
-proof-native `action_records`, `work_events`, and coordination trace, links the
-work event to the action record, and does not call legacy `/api/actions/record`
-or create `external.*` committed state markers.
-
-Legacy compatibility completion recording remains available:
-
-```bash
-AUGNES_API_BASE_URL=http://localhost:3000 \
-CODEX_SCOPE=project:augnes \
-CODEX_WORK_ID=AG-004 \
-CODEX_SOURCE_AGENT_ID=agent:codex \
-CODEX_ACTION_NAME=ag_004_codex_completion_protocol \
-CODEX_RESULT_SUMMARY="Codex implemented and verified the AG-004 completion protocol." \
-CODEX_FILES_CHANGED="apps/augnes_apps/scripts/codex-record-completion.ts,apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md,apps/augnes_apps/README.md,apps/augnes_apps/package.json,package.json,scripts/demo-seed.mjs" \
-CODEX_RESULT_STATUS=completed \
-CODEX_RESULT_KIND=implementation \
-CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
-CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
-npm run codex:record-completion
-```
-
-Use this only when legacy action-record behavior is required and explicitly
-understood. `codex:record-completion` uses `/api/actions/record`, may create
-legacy `external.*` marker state, and emits a stderr compatibility warning on
-successful legacy writes. It is not the preferred/default Codex closeout proof
-path; compatibility migration remains unresolved.
-
-`CODEX_WORK_ID` is normalized to uppercase. Before writing any action record,
-the helpers preflight the trace anchor with
-`GET /api/work/{CODEX_WORK_ID}?scope=<scope>`. Unknown or unavailable work IDs
-fail before `/api/actions/record-proof` or compatibility `/api/actions/record`,
-which prevents orphan `action_records` caused by mistyped work IDs.
-
-The proof-only action-record path uses `/api/actions/record-proof`. That route
-creates an `action_records` row with no `state_key` and appends coordination
-proof. It does not call `commitStateUpdate` and does not create Temporal State
-Graph `external.*` markers.
-
-Proof-only closeout is visible in the read-only review surfaces without active
-state mutation:
-
-- Work Brief shows the linked `work_events` entry and
-  `related_proof.action_records[]` summaries, with `state_key: null` labeled
-  as proof-only.
-- Evidence Pack shows linked work-event and action-record proof in
-  `verification_trace`, including proof-only action IDs and source refs.
-- State Brief keeps active committed state separate from `recent_actions`; a
-  proof-only action record appears with `state_key: null` and does not add an
-  active state entry.
-- Session Trace requires a pre-existing session plus explicit
-  `npm run codex:bind-session`; `codex:record-completion-proof` does not create
-  or bind sessions.
-
-Session Trace separates session-owned proof from work-linked proof after an
-explicit bind:
-
-- `action_records_by_session` and `action_records` count only records with
-  `source_session_id` equal to the bound session ID.
-- `work_linked_proof_actions[]` is the canonical Session Trace vocabulary for
-  action proof visible through explicit work binding and the bound work trace's
-  `work_events.related_action_id`.
-- `proof_visibility.work_linked_proof_action_ids` is the compact ID summary for
-  that same work-linked proof lane.
-- `proof_visibility.latest_work_event_related_action_id` is a latest-event
-  shortcut and debug anchor, not the primary proof summary.
-- Proof-only completion actions keep `source_session_id: null`; binding a
-  session does not rewrite them.
-
-`CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
-
-`CODEX_RELATED_PR` and `CODEX_RELATED_STATE_KEYS` are the core trace fields that connect GitHub history back to Augnes continuity. `CODEX_RELATED_PR` points from the work event to the PR where Codex changed or verified the repo. `CODEX_RELATED_STATE_KEYS` names the committed state lanes or expected state lanes the work depended on, affected, or verified. Together with `CODEX_WORK_ID`, they let reviewers move from PR, to work trace, to state graph without giving GitHub or ChatGPT App authority over committed Augnes state.
-
-Optionally bind the current Codex session after the local runtime has a
-pre-existing session row:
-
-```bash
-AUGNES_API_BASE_URL=http://localhost:3000 \
-CODEX_SCOPE=project:augnes \
-CODEX_SESSION_ID=session:... \
-CODEX_SESSION_SURFACE=codex \
-CODEX_WORK_ID=AG-004 \
-CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
-CODEX_SESSION_SUMMARY="Short continuity summary for this Codex session." \
-CODEX_EVIDENCE_PACK_REF="evidence-pack:..." \
-npm run codex:bind-session
-```
-
-The bind helper calls only `POST /api/sessions/bind`. It fails closed when the
-session row does not already exist, validates `CODEX_SESSION_ID` before POST,
-defaults `CODEX_SESSION_SURFACE` to `codex`, and records metadata only:
-surface, actor, related work ID, related PR, summary, handoff ref, and Evidence
-Pack ref. It does not execute Codex, call GitHub/OpenAI, create evidence,
-approve, publish, replay, or mutate work/evidence/publication/delivery/readiness
-mailbox/state rows.
-
-The bind helper does not assign `source_session_id` to existing proof-only
-action records. After binding, Session Trace may show proof through
-`work_linked_proof_actions[]`, the canonical work-linked proof lane, even
-while `action_records_by_session` remains zero.
-
-Read back the trace with:
-
-```bash
-curl -sS 'http://localhost:3000/api/sessions/trace?scope=project:augnes' | jq .
-curl -sS 'http://localhost:3000/api/sessions/session:.../trace?scope=project:augnes' | jq .
-```
-
-Allowed `CODEX_RESULT_STATUS` values:
-
-- `completed`
-- `failed`
-- `blocked`
-- `partial`
-- `needs_review`
-
-Allowed `CODEX_RESULT_KIND` values:
-
-- `implementation`
-- `verification`
-- `documentation`
-- `screenshot`
-- `handoff`
-- `review`
-- `other`
-
-Dogfood episode labels are separate from proof result kinds. For example,
-`runtime_backed_dogfood` may appear in a PR body, episode report, or result
-summary, but `codex:record-completion-proof` will reject it as
-`CODEX_RESULT_KIND`. Use the closest accepted kind for proof recording, such as
-`documentation` for a docs-only dogfood slice or `verification` for a pure
-verification slice.
-
-Preserve the real result status. Failed, blocked, partial, and needs-review work must not be dressed up as completed.
-
-The compatibility helper checks that `CODEX_WORK_ID` exists, then records
-`/api/actions/record`, then records `/api/work/{work_id}/events`. If the work
-ID preflight fails, no action record is created. If action recording fails, it
-stops and does not record the work event. If the action response includes an
-action record ID, the helper passes it to the work event as
-`related_action_id`. On successful legacy writes, the helper prints its
-compatibility warning to stderr only; stdout remains reserved for the existing
-helper summary and JSON-bearing response lines.
-
-Compatibility note: `/api/actions/record` currently uses the legacy
-action-record path that also creates an `external.<action>_recorded` state
-marker. `codex:record-completion` is therefore a compatibility proof helper,
-not the final proof-only helper described by the accepted proof-vs-state
-direction. Do not treat that `external.*` marker as accepted project fact, and
-do not use it as the default model for new Codex proof helpers.
-
-`codex:record-result` is the lower-level legacy compatibility helper for
-direct `/api/actions/record` writes. It also emits a stderr compatibility
-warning on successful legacy writes and should not be used as the normal Codex
-closeout helper.
-
-The helper never calls commit/reject routes and never creates autonomous execution, GitHub sync, Discord sync, or workflow orchestration.
-
-## Structured Verification Evidence
-
-When the local runtime is available, Codex may also record bounded verification
-observations with the Codex evidence helper:
+When the local runtime and a concrete work item are available and the user has
+authorized recording, use:
 
 ```bash
 AUGNES_API_BASE_URL=http://localhost:3000 \
@@ -231,242 +34,51 @@ CODEX_RESULT_SUMMARY="TypeScript completed with no errors." \
 npm run codex:record-evidence
 ```
 
-The helper validates environment input before POST, defaults
-`AUGNES_API_BASE_URL` to `http://localhost:3000`, defaults `CODEX_SCOPE` to
-`project:augnes`, defaults `CODEX_SOURCE_SURFACE` to `codex`, defaults
-`CODEX_CREATED_BY` to `codex`, validates `CODEX_METADATA_JSON` as a JSON object
-string when provided, and then calls only `POST /api/evidence/records`.
+The helper calls only `POST /api/evidence/records`. A skipped check must use a
+concrete skipped reason; it must never be presented as passing. If runtime or
+work identity is unavailable, report the exact reason and do not fabricate a
+record.
 
-Inputs:
+## Optional proof-only closeout
 
-- `CODEX_SCOPE`, optional, defaults to `project:augnes`
-- `CODEX_WORK_ID`, `CODEX_PUBLICATION_ID`, `CODEX_DELIVERY_ID`, optional trace links
-- `CODEX_TARGET_SURFACE`, `CODEX_TARGET_REF`, optional target links
-- `CODEX_EVIDENCE_KIND`, required
-- `CODEX_EVIDENCE_STATUS`, required
-- `CODEX_EVIDENCE_LABEL`, required
-- `CODEX_COMMAND`, required only for `command_run`
-- `CODEX_RESULT_SUMMARY`, required
-- `CODEX_SKIPPED_REASON`, required only for `check_skipped`
-- `CODEX_OBSERVED_BEHAVIOR`, optional
-- `CODEX_SOURCE_SURFACE`, optional, defaults to `codex`
-- `CODEX_SOURCE_REF`, optional
-- `CODEX_RELATED_ACTION_ID`, `CODEX_RELATED_WORK_EVENT_ID`, optional
-- `CODEX_METADATA_JSON`, optional JSON object string
-- `CODEX_CREATED_BY`, optional, defaults to `codex`
-
-Allowed `evidence_kind` values are `command_run`, `check_passed`,
-`check_failed`, `check_skipped`, `replay_observed`, and
-`duplicate_block_observed`. `command_run` requires `command`; `check_skipped`
-requires `skipped_reason`. Replay and duplicate-block records describe behavior
-explicitly observed elsewhere; creating the record must not execute replay or
-attempt a duplicate publish.
-
-Common examples:
+When proof recording is explicitly authorized, use:
 
 ```bash
-CODEX_EVIDENCE_KIND=check_passed \
-CODEX_EVIDENCE_STATUS=passed \
-CODEX_EVIDENCE_LABEL="Evidence Pack smoke" \
-CODEX_RESULT_SUMMARY="npm run smoke:evidence-pack passed with fetch_calls: 0." \
-npm run codex:record-evidence
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-004 \
+CODEX_ACTION_NAME=ag_004_closeout \
+CODEX_RESULT_SUMMARY="Implemented and verified the bounded task." \
+CODEX_FILES_CHANGED="path/to/changed-file.ts" \
+CODEX_RESULT_STATUS=completed \
+CODEX_RESULT_KIND=implementation \
+npm run codex:record-completion-proof
 ```
 
-```bash
-CODEX_EVIDENCE_KIND=check_skipped \
-CODEX_EVIDENCE_STATUS=skipped \
-CODEX_EVIDENCE_LABEL="Browser screenshot check" \
-CODEX_RESULT_SUMMARY="Browser screenshot check was not run." \
-CODEX_SKIPPED_REASON="No browser runtime was available in this environment." \
-npm run codex:record-evidence
-```
+The helper preflights the work item, then writes through
+`/api/actions/record-proof` and `/api/work/{work_id}/events`. It does not use
+the legacy state-marker writer, create or bind a host session, create a
+`RunReceipt`, or change canonical project state.
 
-```bash
-CODEX_EVIDENCE_KIND=replay_observed \
-CODEX_EVIDENCE_STATUS=observed \
-CODEX_EVIDENCE_LABEL="Same-key replay observation" \
-CODEX_PUBLICATION_ID="publication:..." \
-CODEX_RESULT_SUMMARY="Same-key replay was observed outside this helper and returned the stored delivery artifact." \
-CODEX_OBSERVED_BEHAVIOR="idempotent_replay=true and posted=false" \
-npm run codex:record-evidence
-```
+Allowed result statuses are `completed`, `failed`, `blocked`, `partial`, and
+`needs_review`. Allowed kinds are `implementation`, `verification`,
+`documentation`, `screenshot`, `handoff`, `review`, and `other`. Preserve the
+truthful status and exact skipped checks.
 
-```bash
-CODEX_EVIDENCE_KIND=duplicate_block_observed \
-CODEX_EVIDENCE_STATUS=blocked \
-CODEX_EVIDENCE_LABEL="Different-key duplicate block observation" \
-CODEX_TARGET_REF="Aurna-code/augnes#..." \
-CODEX_RESULT_SUMMARY="A duplicate publish attempt observed outside this helper was blocked before posting." \
-CODEX_OBSERVED_BEHAVIOR="HTTP 409 duplicate block" \
-npm run codex:record-evidence
-```
+## Review
 
-These records are observation traces only. They do not approve, publish, retry,
-commit/reject state, mutate mailbox, call GitHub, call OpenAI, or create broad
-correctness proof. Evidence Pack v0.1 reads matching records to distinguish
-observed facts from remaining gaps.
-
-The helper also accepts `CODEX_EVIDENCE_BATCH_JSON` as a JSON array of evidence
-record inputs for low-friction batch recording. Batch mode still posts records
-one at a time to the same local endpoint and does not add execution authority.
-
-## Structured Evidence Recording Closeout
-
-Every Codex implementation or review PR should try to leave structured
-verification evidence rows after running checks. Use `npm run codex:record-evidence`
-when a local Augnes runtime is available and the evidence API is reachable.
-Keep the PR prose too; the rows make the same observations machine-readable for
-Core and Evidence Pack.
-
-Use these kinds consistently:
-
-- `command_run`: exact command execution, such as `npm run typecheck` or
-  `npm run build`, with `CODEX_COMMAND`.
-- `check_passed`: higher-level check passed, such as a smoke script or Evidence
-  Pack verification summary.
-- `check_failed`: higher-level check failed, preserving the exact failure in
-  `CODEX_RESULT_SUMMARY`.
-- `check_skipped`: expected or requested check was skipped, with
-  `CODEX_SKIPPED_REASON`.
-- `replay_observed`: same-key replay behavior was actually observed elsewhere.
-- `duplicate_block_observed`: duplicate-block behavior was actually observed
-  elsewhere.
-
-Command examples:
-
-```bash
-CODEX_WORK_ID=AG-___ \
-CODEX_EVIDENCE_KIND=command_run \
-CODEX_EVIDENCE_STATUS=passed \
-CODEX_EVIDENCE_LABEL="Root typecheck" \
-CODEX_COMMAND="npm run typecheck" \
-CODEX_RESULT_SUMMARY="npm run typecheck passed." \
-npm run codex:record-evidence
-```
-
-```bash
-CODEX_WORK_ID=AG-___ \
-CODEX_EVIDENCE_KIND=command_run \
-CODEX_EVIDENCE_STATUS=passed \
-CODEX_EVIDENCE_LABEL="Root build" \
-CODEX_COMMAND="npm run build" \
-CODEX_RESULT_SUMMARY="npm run build completed successfully." \
-npm run codex:record-evidence
-```
-
-Smoke and skipped-check examples:
-
-```bash
-CODEX_WORK_ID=AG-___ \
-CODEX_EVIDENCE_KIND=check_passed \
-CODEX_EVIDENCE_STATUS=passed \
-CODEX_EVIDENCE_LABEL="Evidence Pack smoke" \
-CODEX_RESULT_SUMMARY="npm run smoke:evidence-pack passed with fetch_calls: 0." \
-npm run codex:record-evidence
-```
-
-```bash
-CODEX_WORK_ID=AG-___ \
-CODEX_EVIDENCE_KIND=check_skipped \
-CODEX_EVIDENCE_STATUS=skipped \
-CODEX_EVIDENCE_LABEL="Browser screenshot check" \
-CODEX_RESULT_SUMMARY="Browser screenshot check was not run." \
-CODEX_SKIPPED_REASON="No browser runtime was available in this environment." \
-npm run codex:record-evidence
-```
-
-Replay and duplicate examples are observation-only. Record them only after the
-behavior was observed through another explicit, approved process; the evidence
-helper must not execute replay or attempt duplicate publish:
-
-```bash
-CODEX_PUBLICATION_ID="publication:..." \
-CODEX_EVIDENCE_KIND=replay_observed \
-CODEX_EVIDENCE_STATUS=observed \
-CODEX_EVIDENCE_LABEL="Same-key replay observation" \
-CODEX_RESULT_SUMMARY="Same-key replay was observed elsewhere and returned the stored artifact." \
-CODEX_OBSERVED_BEHAVIOR="idempotent_replay=true and posted=false" \
-npm run codex:record-evidence
-```
-
-After recording, copy the returned `evidence_id` values into the PR template's
-Structured Evidence Records section and the Reality Feedback Report. If local
-runtime or `/api/evidence/records` is unavailable, do not fabricate rows. State
-the exact skipped reason, such as `local runtime unavailable`, `evidence API
-unavailable`, `docs-only PR`, or `external check not applicable`.
-
-Evidence records are observation traces. They do not approve, publish, replay,
-retry, commit or reject state, call GitHub, call OpenAI, mutate mailbox, or
-prove broad correctness beyond the exact command/check summary recorded.
-
-## Codex Session Adapter v0.2 Closeout Flow
-
-Use `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md` as the standard workflow for
-Codex session start, optional existing-session binding, structured evidence,
-completion proof, and read-only review traces. The compact closeout sequence is:
-
-1. Read current context with `npm run codex:read-brief`.
-2. Optionally bind a pre-existing session with `npm run codex:bind-session`.
-3. Run verification and record rows with `npm run codex:record-evidence`.
-4. Record proof-only completion with `npm run codex:record-completion-proof`;
-   use `npm run codex:record-completion` only when compatibility action-record
-   behavior is required and explicitly understood.
-5. Run or reference `npm run codex:handoff-check` when validating the read-only handoff path.
-6. Review `GET /api/evidence-pack` and `GET /api/sessions/trace`.
-7. When ChatGPT App bridge review is relevant, use only read-only tools:
-   `augnes_get_evidence_pack`, `augnes_get_session_trace`, and
-   `augnes_get_verification_evidence_records`.
-
-## Manual Fallback
-
-If the proof-only helper is unavailable, confirm the work ID exists before
-recording the work event:
-
-```bash
-curl -sS 'http://localhost:3000/api/work/AG-004?scope=project:augnes' | jq .
-```
-
-Then record the trace note:
-
-```bash
-curl -sS -X POST 'http://localhost:3000/api/work/AG-004/events?scope=project:augnes' \
-  -H "content-type: application/json" \
-  -d '{
-    "scope": "project:augnes",
-    "actor": "codex",
-    "event_type": "implementation",
-    "summary": "Codex implemented and verified the AG-004 completion protocol.",
-    "result_status": "completed",
-    "result_kind": "implementation",
-    "related_pr": "https://github.com/Aurna-code/augnes/pull/...",
-    "related_state_keys": ["integration.chatgpt_app", "implementation.stack"]
-  }' | jq .
-```
-
-`GET /api/work/{work_id}` and `POST /api/work/{work_id}/events` fail for an unknown work item. Do not hide that failure; use an existing seeded `work_id` or add a minimal deterministic seed item when that is the intended demo continuity path.
+Proof-only records remain visible through the existing Work Brief, Evidence
+Pack, State Brief, and work-linked trace readers. Native-host results remain
+visible through Project Home, read-only Workbench result review, and Inspector.
+These reader families must not be conflated.
 
 ## Verification
 
-Confirm the work event is attached to the trace anchor:
-
 ```bash
-curl -sS 'http://localhost:3000/api/work/AG-004/brief?scope=project:augnes' | jq '.recent_events[0]'
+npm --prefix apps/augnes_apps run typecheck
+node --import tsx apps/augnes_apps/scripts/smoke.ts
+npm run typecheck
 ```
 
-Open the Runtime Cockpit and confirm Work Focus shows the event. When using
-the compatibility action-record helper only, expect its stderr compatibility
-warning, confirm the action record is visible in recent actions, and remember
-that the Temporal State Graph may show the legacy state marker, such as:
-
-```text
-external.ag_004_codex_completion_protocol_recorded
-```
-
-After binding session metadata, use the Cockpit Session Trace panel to inspect the read-only continuity view and confirm the session link, latest work event, latest evidence record, and gaps without creating or rebinding sessions.
-
-If bridge mode is enabled and the runtime exposes the matching read routes,
-ChatGPT Developer Mode may also inspect the same continuity slice through
-`augnes_get_evidence_pack`, `augnes_get_session_trace`, and
-`augnes_get_verification_evidence_records`.
-
-For PR work, include the Verification Evidence Pack, Execution Surface Record, and Expected Impact vs Actual Result Check in the PR body or completion summary. If Browser/Chrome, ChatGPT Developer Mode, MCP Inspector, or local runtime checks are unavailable, record the exact skipped reason.
+Normal R5 verification uses deterministic fakes and makes zero live provider
+requests. Live remote-host qualification is an Alpha/RC activity.

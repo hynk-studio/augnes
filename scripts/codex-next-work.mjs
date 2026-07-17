@@ -12,7 +12,6 @@ const JSON_END = "END_AUGNES_CODEX_NEXT_WORK_JSON";
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const workItemManifestRelativePath = "fixtures/work-items.project-augnes.v0.json";
 const workItemManifestPath = path.join(rootDir, ...workItemManifestRelativePath.split("/"));
-const resultReportTemplatePath = "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md";
 
 const defaultStopConditions = [
   "Stop if no live Work Brief, seeded work item, or repo docs fallback can identify the work item without invention.",
@@ -265,7 +264,7 @@ function buildRuntimeResult({ parsed, selectedWorkId, workBrief }) {
       stringFromUnknown(codexHandoff.task_brief) ||
       stringFromUnknown(work.next_action) ||
       stringFromUnknown(workBrief.next_action) ||
-      "Read the runtime Work Brief and follow its bounded handoff.",
+      "Read the runtime Work Brief and follow its bounded task context.",
     next_step:
       stringFromUnknown(workBrief.next_action) ||
       stringFromUnknown(work.next_action) ||
@@ -274,8 +273,8 @@ function buildRuntimeResult({ parsed, selectedWorkId, workBrief }) {
     expected_checks: expectedChecks,
     stop_conditions: stopConditions.length ? stopConditions : defaultStopConditions,
     authority_boundary_summary: constraints.length ? constraints.join(" ") : bootstrapAuthorityBoundary,
-    result_report_template: resultReportTemplatePath,
-    next_return_path: "Return through codexResultText or codexResultPaste for Augnes preview review.",
+    next_return_path:
+      "Start the native host from the active Project Home; Augnes returns the structured result automatically.",
     codex_worker_next_action:
       "Use the runtime Work Brief as source of truth, keep skipped checks honest, and report any unavailable runtime or host observation explicitly.",
   };
@@ -303,7 +302,6 @@ function buildFallbackResult({
       expected_checks: [],
       stop_conditions: defaultStopConditions,
       authority_boundary_summary: bootstrapAuthorityBoundary,
-      result_report_template: resultReportTemplatePath,
       next_return_path: "Stop and report blocked. Do not invent a work item or Work Brief.",
       codex_worker_next_action:
         "Stop and report blocked because no live Work Brief or deterministic repo fallback identified the requested work.",
@@ -344,8 +342,8 @@ function buildFallbackResult({
     authority_boundary_summary: authorityExpectations.length
       ? authorityExpectations.join("; ")
       : bootstrapAuthorityBoundary,
-    result_report_template: resultReportTemplatePath,
-    next_return_path: "Paste the field-first report through codexResultText or codexResultPaste for Augnes preview review.",
+    next_return_path:
+      "Start the native host from the active Project Home; Augnes returns the structured result automatically.",
     codex_worker_next_action: buildFallbackNextAction({
       isCurrentResearchWork,
       isHistoricalResearchDogfoodWork,

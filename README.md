@@ -44,7 +44,7 @@ The active sequence is defined in
 - `/perspective` provides Perspective and lineage views.
 - local SQLite persistence stores durable vNext semantic records and projections.
 - deterministic mock paths allow local development without an OpenAI key.
-- current MCP, handoff-copy, and manual result-paste flows remain compatibility paths until their adapter-backed replacements land.
+- persisted `TaskContextPacket` input now reaches deterministic or live native hosts without packet copy, and structured results return through one canonical `RunReceipt` authority for Project Home, Workbench, and Inspector review.
 
 ## Current development start
 

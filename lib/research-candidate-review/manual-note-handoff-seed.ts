@@ -346,7 +346,7 @@ function buildCopyablePrompt({
     ...expectedReturnReportFields.map((field) => `- ${field}`),
     "",
     "Final report requirements:",
-    "- Use docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md.",
+    "- Native-host results return automatically through the canonical structured RunReceipt path.",
     "- Include Summary, Files changed, Authority boundary statement, Verification, Skipped checks with concrete reasons, Proof-only closeout status or skipped reason, and Result report fields.",
     "- State whether selected candidate context was helpful, stale, missing, noisy, or misleading.",
     "- Include expected vs observed delta summary.",

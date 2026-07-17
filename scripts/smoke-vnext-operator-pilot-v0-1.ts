@@ -19,21 +19,19 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import { readAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
-import { createVNextOperatorContextUseReviewHandlersV01 } from "../app/api/vnext/operator/context-use-review/route";
 import {
   createVNextOperatorHostRoundTripHandlerV01,
   createVNextOperatorHostRoundTripReadHandlerV01,
 } from "../app/api/vnext/operator/host-round-trip/route";
 import { createVNextOperatorRunResultReadHandlerV01 } from "../app/api/vnext/operator/run-results/route";
-import { createVNextOperatorLaterResultHandlersV01 } from "../app/api/vnext/operator/later-result/route";
-import { createVNextOperatorPacketHandoffHandlerV01 } from "../app/api/vnext/operator/packet-handoff/route";
 import { createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
 import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
 import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
 import {
   buildSemanticReviewLoopTaskContextPacketFixture,
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopProposalFixture,
+  buildSemanticReviewLoopRunReceiptFixture,
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import {
@@ -63,20 +61,16 @@ import {
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
-  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
-  buildTaskContextPacketHandoffHrefV01,
-  decodeTaskContextPacketHandoffSlugV01,
-  encodeTaskContextPacketHandoffSlugV01,
-  isTaskContextPacketIdV01,
-} from "../lib/vnext/task-context-packet-handoff";
-import { buildContextUseReviewV01 } from "../lib/vnext/context-use-review";
-import {
   buildRunReceiptV01,
   createRunReceiptFingerprintV01,
   deriveRunReceiptIdV01,
   validateRunReceiptV01,
 } from "../lib/vnext/run-receipt";
-import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
+import {
+  buildTaskContextPacketV01,
+  isTaskContextPacketIdV01,
+  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+} from "../lib/vnext/task-context-packet";
 import { assertNativeHostResultV01 } from "../lib/vnext/native-host/native-host-contract";
 import {
   createDeterministicCodexAdapterV01,
@@ -122,7 +116,6 @@ import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runti
 import {
   createVNextOperatorPilotDecisionRequestFingerprintV01,
   createVNextOperatorPilotReviewDecisionSessionBasisRefV01,
-  prepareVNextOperatorPilotReviewMaterialV01,
   readVNextOperatorPilotSemanticReviewV01,
   recordVNextOperatorPilotReviewDecisionV01,
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
@@ -137,7 +130,6 @@ import {
 } from "../lib/vnext/runtime/operator-pilot-semantic-transition";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
-import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
@@ -164,32 +156,24 @@ const OPERATOR_WORKSPACE_ID = `workspace:${OPERATOR_WORKSPACE_UUID}`;
 const OPERATOR_PROJECT_ID = `project:${OPERATOR_PROJECT_UUID}`;
 const FOREIGN_PROJECT_ID = "project:33333333-3333-4333-8333-333333333333";
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:d3f94aa087cc900764c37822",
+  review_decision_id: "review-decision:d2d3e2215d998e71231f73ec",
   review_decision_fingerprint:
-    "sha256:637b06678caeac187a072ece94e7399feb69206821483e9300087683b2d65405",
+    "sha256:0ecb302509ee8de0f46865b2d4508deda0fa69df9ed4a3345b915ced3f19c543",
   confirmation_digest:
-    "sha256:fd522dc3049ffda1abfeb88b69594b156bfa18c3233b95aca548e6b9c75b5911",
-  gate_id: "semantic-commit-gate:aaf974435805d0dbccc34b55",
+    "sha256:f4a9997929981e61f92f35276fc51fe59a3650d468b6d785f46445d41e4bd68f",
+  gate_id: "semantic-commit-gate:7fd5c2e3c0e10f0a3bc5694f",
   gate_fingerprint:
-    "sha256:d3fe906a5b1af1d8b788e4fe1ad396d2c8cc4712b3d97b981f41b3dc74380e3b",
-  transition_receipt_id: "state-transition-receipt:79dff5e4cd5e632615d38b43",
+    "sha256:abba23db748c66f867471ffae2dcd7f3d816615cbdb23990f4bc3ac227986e21",
+  transition_receipt_id: "state-transition-receipt:bd6222fd408c0e0e1c4f805e",
   transition_receipt_idempotency_key:
-    "sha256:478cfa3f02a3cf0879ede688235e9b6cade3841c58acf4030994c4ed97be2a54",
+    "sha256:6a8788aad333fbabcf13257ebd381e5b78bd31af41f32def6660ee9f9b3cf419",
   transition_receipt_fingerprint:
-    "sha256:0d0e11edce44ccb00f245d11057e6622c59a81a9a967c3d21c09cc04c1a48baa",
-  later_packet_id: "task-context-packet:ba120ba136e2a0c0b061239",
+    "sha256:7c97761a627796a0b4562038e4bb798387bcb5c6fc22f5f3d0a82b35bd70dc61",
+  later_packet_id: "task-context-packet:6f15aa2bf1eee2c0c2f10b1",
   later_packet_fingerprint:
-    "sha256:133f5595e0dee65a25f6cbf6097a860a71a431d38f0e44a6095eef7a658c8455",
-  later_run_receipt_id: "run-receipt:f139113b375dcd12a3f5f6e4",
-  later_run_receipt_idempotency_key:
-    "sha256:d024c19880d7dea138e90b285e603d0dbeb371d54006b2e5963082d67d73d29a",
-  later_run_receipt_fingerprint:
-    "sha256:9dea6d9d83d4915a07f0d09d0ccb5c285cfb34c882b7ba8e90a26ece9fc83e40",
-  context_use_review_id: "context-use-review:edef08b84f159d0e4507feb2",
-  context_use_review_fingerprint:
-    "sha256:10b8327086796ad1601da999475a8c9ffbeb940c33ea82bb335a38803133ee67",
+    "sha256:8110a89c376241d2e097f5be7927ab701e63c1add59a0bd8c77ff96f89e65046",
   full_loop_fingerprint:
-    "sha256:18bf5235993fd3727a3542edfce97375b1ef190950e61c0e743b3860a26fe96b",
+    "sha256:5370d6a82c18229930a527572f4d461d78abdc66d57bbe93659be9e404f55e1c",
 } as const;
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
@@ -448,8 +432,6 @@ try {
   for (const caseId of [
     "semantic_transition_exact_replay",
     "later_packet_compile_exact_replay",
-    "later_result_exact_replay",
-    "context_use_review_exact_replay",
   ]) {
     assert(positiveCases.includes(caseId), `missing exact replay case: ${caseId}`);
   }
@@ -490,7 +472,6 @@ try {
     full_loop_fixture_only: true,
     full_loop_anchors: fullLoop.anchors,
     full_loop_proposal: fullLoop.proposal,
-    generated_packet_handoff_href: fullLoop.handoffHref,
     loopback_http_request_count: fullLoop.loopbackHttpRequestCount,
     backup_restore: "exact_durable_records_and_integrity_preserved",
     enrolled_project_core_record_count: fullLoop.coreRecordCount,
@@ -627,7 +608,6 @@ async function assertFullOperatorLoop(input: {
 }): Promise<{
   anchors: Record<string, string>;
   proposal: { proposal_id: string; proposal_fingerprint: string };
-  handoffHref: string;
   coreRecordCount: number;
   loopbackHttpRequestCount: number;
 }> {
@@ -642,33 +622,15 @@ async function assertFullOperatorLoop(input: {
     clock: input.clock,
     secret_source: input.secretSource,
   });
-  const nativeHandoffHandler = createVNextOperatorPacketHandoffHandlerV01({
-    environment: input.environment,
-    clock: input.clock,
-  });
   const nativeContinuityHandler = createVNextOperatorProjectContinuityHandlerV01({
     environment: input.environment,
     clock: input.clock,
   });
-  const nativeResultHandlers = createVNextOperatorLaterResultHandlersV01({
-    environment: input.environment,
-    clock: input.clock,
-    secret_source: input.secretSource,
-  });
-  const nativeContextReviewHandlers = createVNextOperatorContextUseReviewHandlersV01({
-    environment: input.environment,
-    clock: input.clock,
-    secret_source: input.secretSource,
-  });
-
   const loopback = await startOperatorPilotLoopbackHarness({
     session: input.sessionHandlers,
     semanticReview: nativeReviewHandlers,
     semanticTransition: nativeTransitionHandlers,
-    packetHandoff: nativeHandoffHandler,
     projectContinuity: nativeContinuityHandler,
-    laterResult: nativeResultHandlers,
-    contextUseReview: nativeContextReviewHandlers,
   });
   const sessionHandlers = {
     GET: loopback.forward,
@@ -682,16 +644,7 @@ async function assertFullOperatorLoop(input: {
     GET: loopback.forward,
     POST: loopback.forward,
   };
-  const handoffHandler = loopback.forward;
   const continuityHandler = loopback.forward;
-  const resultHandlers = {
-    GET: loopback.forward,
-    POST: loopback.forward,
-  };
-  const contextReviewHandlers = {
-    GET: loopback.forward,
-    POST: loopback.forward,
-  };
 
   try {
 
@@ -720,25 +673,45 @@ async function assertFullOperatorLoop(input: {
     fixtureProject,
   );
   const priorPacket = fixturePriorPacket;
-  const mapperInput = semanticReviewLoopMapperInputFixture(
+  const fixtureReceipt = buildSemanticReviewLoopRunReceiptFixture(
     fixtureProject,
     priorPacket,
+  );
+  const fixtureProposal = buildSemanticReviewLoopProposalFixture(
+    fixtureProject,
+    priorPacket,
+    fixtureReceipt,
   );
   const preparationDb = openVNextLocalOperatorDatabaseV01(config);
   const prepared = (() => {
     try {
-      return prepareVNextOperatorPilotReviewMaterialV01(preparationDb, {
-        config,
-        mapper_input: mapperInput,
-        prior_packet: priorPacket,
+      insertVNextCoreRecordV01(preparationDb, {
+        record_kind: "task_context_packet",
+        record_id: priorPacket.packet_id,
+        workspace_id: priorPacket.workspace_id,
+        project_id: priorPacket.project_id,
+        fingerprint: priorPacket.integrity.fingerprint,
+        idempotency_key: null,
+        payload: priorPacket,
+        created_at: priorPacket.generated_at,
       });
+      admitStructuredRunReceiptV01(preparationDb, fixtureReceipt);
+      insertVNextCoreRecordV01(preparationDb, {
+        record_kind: "episode_delta_proposal",
+        record_id: fixtureProposal.proposal_id,
+        workspace_id: fixtureProposal.workspace_id,
+        project_id: fixtureProposal.project_id,
+        fingerprint: fixtureProposal.integrity.fingerprint,
+        idempotency_key: null,
+        payload: fixtureProposal,
+        created_at: fixtureProposal.created_at,
+      });
+      return { proposal: fixtureProposal };
     } finally {
       preparationDb.close();
     }
   })();
-  assert.equal(prepared.decision_created, false);
-  assert.equal(prepared.transition_created, false);
-  pass("repository_native_review_material_prepared_and_persisted");
+  pass("provider_neutral_review_material_persisted");
 
   await expectRouteError(
     await reviewHandlers.GET(
@@ -1247,38 +1220,18 @@ async function assertFullOperatorLoop(input: {
     laterPacket.packet_id.slice("task-context-packet:".length).length,
     TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
   );
-  const laterPacketSlug = encodeTaskContextPacketHandoffSlugV01(
-    laterPacket.packet_id,
-  );
-  assert(laterPacketSlug);
-  assert.equal(
-    decodeTaskContextPacketHandoffSlugV01(laterPacketSlug),
-    laterPacket.packet_id,
-  );
-  const laterPacketHandoffHref = buildTaskContextPacketHandoffHrefV01({
-    packet_id: laterPacket.packet_id,
-    packet_fingerprint: laterPacket.integrity.fingerprint,
-  });
-  assert.equal(
-    laterPacketHandoffHref,
-    `/workbench/semantic-review/packet-handoff/${laterPacketSlug}?packet_fingerprint=${encodeURIComponent(
-      laterPacket.integrity.fingerprint,
-    )}`,
-  );
-  pass("compiled_packet_uses_canonical_handoff_identity");
-  pass("compiled_packet_generates_exact_project_home_handoff_href");
+  pass("compiled_packet_uses_canonical_identity");
   pass("later_packet_compilation_is_explicit");
 
   await assertWorkbenchDurableLineageRoute({
     handlers: reviewHandlers,
     jar,
     proposal: prepared.proposal,
-    expected_status: "packet_compiled_awaiting_result",
+    expected_status: "packet_compiled",
     receipt,
     packet: laterPacket,
-    handoff_href: laterPacketHandoffHref!,
   });
-  pass("workbench_lineage_reports_compiled_packet_awaiting_result");
+  pass("workbench_lineage_reports_compiled_packet");
 
   input.clock.set("2026-07-11T09:21:00.000Z");
   const compileReplayResponse = await transitionHandlers.POST(
@@ -1293,38 +1246,6 @@ async function assertFullOperatorLoop(input: {
   jar.absorb(compileReplayResponse);
   pass("later_packet_compile_exact_replay");
 
-  const handoffResponse = await handoffHandler(
-    routeRequest("/api/vnext/operator/packet-handoff", {
-      method: "GET",
-      jar,
-      query: {
-        packet_id: laterPacket.packet_id,
-        packet_fingerprint: laterPacket.integrity.fingerprint,
-      },
-    }),
-  );
-  const handoffBody = await publicJson(handoffResponse);
-  assert.equal(handoffResponse.status, 200);
-  assert.equal(handoffBody.status, "packet_handoff");
-  assert.equal(handoffBody.handoff_is_execution, false);
-  assertPublicResponseHasNoCredentials(handoffBody);
-  pass("bounded_packet_handoff_read");
-  await expectRouteError(
-    await handoffHandler(
-      routeRequest("/api/vnext/operator/packet-handoff", {
-        method: "GET",
-        jar,
-        query: {
-          packet_id: laterPacket.packet_id,
-          packet_fingerprint: `sha256:${"f".repeat(64)}`,
-        },
-      }),
-    ),
-    409,
-    "operator_pilot_packet_fingerprint_mismatch",
-    "packet_handoff_wrong_fingerprint_rejected",
-  );
-
   await assertDirectHostRoundTripCoverageV01({
     environment: input.environment,
     config,
@@ -1334,223 +1255,6 @@ async function assertFullOperatorLoop(input: {
     packet: laterPacket,
     transition_receipt: receipt,
   });
-
-  const resultReport = {
-    input_version: "codex_result_report_input.v0.1",
-    scope: "project:augnes",
-    report_id: "codex-report:operator-pilot-full-loop-later-task",
-    report_kind: "codex_validation_report",
-    reported_at: addIsoMillisecondsV01(laterPacket.generated_at, 90_000),
-    operator_actor_ref: config.operator_id,
-    codex_claimed_summary:
-      "Synthetic later task returned bounded candidate-only material after receiving the handoff.",
-    observed_checks: ["npm run typecheck"],
-    changed_files_summary: ["README.md"],
-    source_refs: [
-      laterPacket.packet_id,
-      laterPacket.integrity.fingerprint,
-      receipt.transition_receipt_id,
-      receipt.integrity.fingerprint,
-      accepted.entry_id,
-      accepted.external_ref.external_id,
-      accepted.source_ref,
-    ],
-  };
-  const laterResultRequest = {
-    packet_id: laterPacket.packet_id,
-    packet_fingerprint: laterPacket.integrity.fingerprint,
-    transition_receipt_id: receipt.transition_receipt_id,
-    transition_receipt_fingerprint: receipt.integrity.fingerprint,
-    run_id: "run:operator-pilot-full-loop-later-task",
-    result_report: resultReport,
-    packet_consumption: {
-      reported_payload_use: "yes",
-      cited_selected_context_entry_ids: [accepted.entry_id],
-    },
-  };
-  input.clock.set("2026-07-11T09:22:00.000Z");
-  const resultResponse = await resultHandlers.POST(
-    routeRequest("/api/vnext/operator/later-result", {
-      method: "POST",
-      jar,
-      body: laterResultRequest,
-    }),
-  );
-  const resultBody = await publicJson(resultResponse);
-  assert.equal(resultResponse.status, 201, "later result insert over loopback HTTP");
-  assert.equal(resultBody.status, "inserted");
-  assert.equal(resultBody.proposal_created, false);
-  assert.equal(resultBody.transition_created, false);
-  jar.absorb(resultResponse);
-  const laterRun = resultBody.receipt as RunReceiptV01;
-  pass("later_task_result_intake_persisted_run_receipt_only");
-
-  await assertWorkbenchDurableLineageRoute({
-    handlers: reviewHandlers,
-    jar,
-    proposal: prepared.proposal,
-    expected_status: "later_result_recorded_awaiting_review",
-    receipt,
-    packet: laterPacket,
-    later_result: laterRun,
-    handoff_href: laterPacketHandoffHref!,
-  });
-  pass("workbench_lineage_reports_later_result_awaiting_review");
-
-  input.clock.set("2026-07-11T09:23:00.000Z");
-  const resultReplayResponse = await resultHandlers.POST(
-    routeRequest("/api/vnext/operator/later-result", {
-      method: "POST",
-      jar,
-      body: laterResultRequest,
-    }),
-  );
-  assert.equal((await publicJson(resultReplayResponse)).status, "exact_replay");
-  jar.absorb(resultReplayResponse);
-  pass("later_result_exact_replay");
-  await expectRouteError(
-    await resultHandlers.POST(
-      routeRequest("/api/vnext/operator/later-result", {
-        method: "POST",
-        jar,
-        body: { ...laterResultRequest, run_id: "run:conflicting-result" },
-      }),
-    ),
-    409,
-    "operator_pilot_later_result_identity_conflict",
-    "later_result_conflicting_replay_rejected",
-  );
-
-  const resultRefreshBefore = coreRecordCount(canonicalDbPath);
-  for (let index = 0; index < 2; index += 1) {
-    const response = await resultHandlers.GET(
-      routeRequest("/api/vnext/operator/later-result", {
-        method: "GET",
-        jar,
-        query: {
-          packet_id: laterPacket.packet_id,
-          packet_fingerprint: laterPacket.integrity.fingerprint,
-        },
-      }),
-    );
-    assert.equal(response.status, 200);
-    assert.equal((await publicJson(response)).status, "later_result");
-  }
-  assert.equal(coreRecordCount(canonicalDbPath), resultRefreshBefore);
-  pass("later_result_refresh_does_not_repeat_post");
-
-  const contextReviewRequest = {
-    later_packet_id: laterPacket.packet_id,
-    later_packet_fingerprint: laterPacket.integrity.fingerprint,
-    transition_receipt_id: receipt.transition_receipt_id,
-    transition_receipt_fingerprint: receipt.integrity.fingerprint,
-    later_task_run_receipt_id: laterRun.receipt_id,
-    later_task_run_receipt_fingerprint: laterRun.integrity.fingerprint,
-    usage: { presented: "yes", actually_used: "yes" },
-    assessment: "helpful",
-    corrections: {
-      correction_count: 1,
-      summaries: ["Clarify one synthetic compatibility note before future reuse."],
-    },
-    metrics: {
-      wrong_context_correction_count: 1,
-      repeated_explanation_estimate: 0,
-      missing_critical_context_count: 0,
-      context_refs_used_count: 1,
-    },
-    notes: [
-      "Synthetic isolated review validates mechanics without claiming actual usefulness.",
-    ],
-  };
-  input.clock.set("2026-07-11T09:24:00.000Z");
-  const contextReviewResponse = await contextReviewHandlers.POST(
-    routeRequest("/api/vnext/operator/context-use-review", {
-      method: "POST",
-      jar,
-      body: contextReviewRequest,
-    }),
-  );
-  const contextReviewBody = await publicJson(contextReviewResponse);
-  assert.equal(
-    contextReviewResponse.status,
-    201,
-    "context-use review insert over loopback HTTP",
-  );
-  assert.equal(contextReviewBody.status, "inserted");
-  assert.equal(contextReviewBody.semantic_state_mutated, false);
-  assert.equal(contextReviewBody.correction_proposal_created, false);
-  jar.absorb(contextReviewResponse);
-  const contextReview = contextReviewBody.review as ContextUseReviewV01;
-  pass("context_use_review_persisted_without_semantic_mutation");
-
-  const beforeLineageReads = snapshotDurableRows(canonicalDbPath);
-  for (let index = 0; index < 2; index += 1) {
-    await assertWorkbenchDurableLineageRoute({
-      handlers: reviewHandlers,
-      jar,
-      proposal: prepared.proposal,
-      expected_status: "reviewed",
-      receipt,
-      packet: laterPacket,
-      later_result: laterRun,
-      context_use_review: contextReview,
-      handoff_href: laterPacketHandoffHref!,
-    });
-  }
-  assert.deepEqual(snapshotDurableRows(canonicalDbPath), beforeLineageReads);
-  pass("workbench_full_durable_lineage_get_and_refresh_write_zero_rows");
-
-  await assertWorkbenchLineageFailClosedCoverage({
-    environment: input.environment,
-    config,
-    proposal: prepared.proposal,
-    prior_packet: priorPacket,
-    receipt,
-    packet: laterPacket,
-    later_result: laterRun,
-    context_use_review: contextReview,
-  });
-
-  input.clock.set("2026-07-11T09:25:00.000Z");
-  const reviewReplayResponse = await contextReviewHandlers.POST(
-    routeRequest("/api/vnext/operator/context-use-review", {
-      method: "POST",
-      jar,
-      body: contextReviewRequest,
-    }),
-  );
-  assert.equal((await publicJson(reviewReplayResponse)).status, "exact_replay");
-  jar.absorb(reviewReplayResponse);
-  pass("context_use_review_exact_replay");
-  await expectRouteError(
-    await contextReviewHandlers.POST(
-      routeRequest("/api/vnext/operator/context-use-review", {
-        method: "POST",
-        jar,
-        body: {
-          ...contextReviewRequest,
-          notes: ["Conflicting review payload under the same logical identity."],
-        },
-      }),
-    ),
-    409,
-    "operator_pilot_context_use_review_conflict",
-    "context_use_review_conflicting_replay_rejected",
-  );
-
-  const reviewReadResponse = await contextReviewHandlers.GET(
-    routeRequest("/api/vnext/operator/context-use-review", {
-      method: "GET",
-      jar,
-      query: {
-        later_task_run_receipt_id: laterRun.receipt_id,
-        later_task_run_receipt_fingerprint: laterRun.integrity.fingerprint,
-      },
-    }),
-  );
-  assert.equal(reviewReadResponse.status, 200);
-  assert.equal((await publicJson(reviewReadResponse)).status, "context_use_review");
-  pass("context_use_review_read_after_result");
 
   const continuityResponse = await continuityHandler(
     routeRequest("/api/vnext/operator/project-continuity", {
@@ -1566,29 +1270,19 @@ async function assertFullOperatorLoop(input: {
       packet_id: string;
       packet_fingerprint: string;
     } | null;
-    latest_context_use_review_status: { review_id: string } | null;
   };
   assert.equal(continuity.latest_compiled_packet?.packet_id, laterPacket.packet_id);
   assert.equal(
-    continuity.latest_compiled_packet &&
-      buildTaskContextPacketHandoffHrefV01(continuity.latest_compiled_packet),
-    laterPacketHandoffHref,
+    continuity.latest_compiled_packet?.packet_fingerprint,
+    laterPacket.integrity.fingerprint,
   );
-  assert.equal(
-    continuity.latest_context_use_review_status?.review_id,
-    contextReview.review_id,
-  );
-  pass("project_home_continuity_projects_latest_reviewed_loop");
+  pass("project_home_continuity_projects_latest_compiled_packet");
 
   const foreignEnvironment = {
     ...input.environment,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: FOREIGN_PROJECT_ID,
   };
   const foreignReviewHandlers = createVNextOperatorSemanticReviewHandlersV01({
-    environment: foreignEnvironment,
-    clock: input.clock,
-  });
-  const foreignHandoffHandler = createVNextOperatorPacketHandoffHandlerV01({
     environment: foreignEnvironment,
     clock: input.clock,
   });
@@ -1603,21 +1297,6 @@ async function assertFullOperatorLoop(input: {
     403,
     "operator_session_scope_mismatch",
     "foreign_project_full_loop_route_rejected",
-  );
-  await expectRouteError(
-    await foreignHandoffHandler(
-      routeRequest("/api/vnext/operator/packet-handoff", {
-        method: "GET",
-        jar,
-        query: {
-          packet_id: laterPacket.packet_id,
-          packet_fingerprint: laterPacket.integrity.fingerprint,
-        },
-      }),
-    ),
-    403,
-    "operator_session_scope_mismatch",
-    "foreign_project_packet_handoff_rejected",
   );
   assert.equal(
     countProjectRows(
@@ -1679,11 +1358,6 @@ async function assertFullOperatorLoop(input: {
     transition_receipt_fingerprint: receipt.integrity.fingerprint,
     later_packet_id: laterPacket.packet_id,
     later_packet_fingerprint: laterPacket.integrity.fingerprint,
-    later_run_receipt_id: laterRun.receipt_id,
-    later_run_receipt_idempotency_key: laterRun.idempotency_key,
-    later_run_receipt_fingerprint: laterRun.integrity.fingerprint,
-    context_use_review_id: contextReview.review_id,
-    context_use_review_fingerprint: contextReview.integrity.fingerprint,
   };
   const fullLoopFingerprint = `sha256:${createHash("sha256")
     .update(JSON.stringify(canonicalJson(anchors)))
@@ -1701,7 +1375,6 @@ async function assertFullOperatorLoop(input: {
       proposal_id: prepared.proposal.proposal_id,
       proposal_fingerprint: prepared.proposal.integrity.fingerprint,
     },
-    handoffHref: laterPacketHandoffHref!,
     coreRecordCount: coreRecordCount(canonicalDbPath),
     loopbackHttpRequestCount: loopback.requests.length,
   };
@@ -5452,12 +5125,44 @@ function countTableRows(db: Database.Database, table: string): number {
   ).count;
 }
 
+function rebuildPacketForLineageTest(
+  packet: TaskContextPacketV01,
+  overrides: Partial<Parameters<typeof buildTaskContextPacketV01>[0]>,
+): TaskContextPacketV01 {
+  const {
+    packet_version: _version,
+    packet_id: _packetId,
+    authority_summary: authoritySummary,
+    integrity: _integrity,
+    ...input
+  } = packet;
+  return buildTaskContextPacketV01({
+    ...input,
+    ...overrides,
+    authority_notes: authoritySummary.notes,
+  });
+}
+
+function insertPacketRecord(
+  db: Database.Database,
+  packet: TaskContextPacketV01,
+): void {
+  insertVNextCoreRecordV01(db, {
+    record_kind: "task_context_packet",
+    record_id: packet.packet_id,
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    fingerprint: packet.integrity.fingerprint,
+    idempotency_key: null,
+    payload: packet,
+    created_at: packet.generated_at,
+  });
+}
+
 type WorkbenchLineageStageV01 =
   | "not_applied"
   | "applied_awaiting_packet"
-  | "packet_compiled_awaiting_result"
-  | "later_result_recorded_awaiting_review"
-  | "reviewed";
+  | "packet_compiled";
 
 interface WorkbenchDurableLineageReadV01 {
   proposal_id: string;
@@ -5474,17 +5179,6 @@ interface WorkbenchDurableLineageReadV01 {
     compiled_packet: null | {
       packet_id: string;
       packet_fingerprint: string;
-      handoff_href: string;
-    };
-    later_result: null | {
-      receipt_id: string;
-      receipt_fingerprint: string;
-      actual_use_review_required: boolean;
-      helpfulness_established: boolean;
-    };
-    context_use_review: null | {
-      review_id: string;
-      review_fingerprint: string;
     };
   }>;
 }
@@ -5499,12 +5193,6 @@ async function assertWorkbenchDurableLineageRoute(input: {
     integrity: { fingerprint: string };
   };
   packet?: { packet_id: string; integrity: { fingerprint: string } };
-  later_result?: { receipt_id: string; integrity: { fingerprint: string } };
-  context_use_review?: {
-    review_id: string;
-    integrity: { fingerprint: string };
-  };
-  handoff_href?: string;
 }): Promise<void> {
   const response = await input.handlers.GET(
     routeRequest("/api/vnext/operator/semantic-review", {
@@ -5526,9 +5214,6 @@ async function assertWorkbenchDurableLineageRoute(input: {
     expected_status: input.expected_status,
     receipt: input.receipt,
     packet: input.packet,
-    later_result: input.later_result,
-    context_use_review: input.context_use_review,
-    handoff_href: input.handoff_href,
   });
 }
 
@@ -5544,12 +5229,6 @@ function assertWorkbenchDurableLineageRead(input: {
     integrity: { fingerprint: string };
   };
   packet?: { packet_id: string; integrity: { fingerprint: string } };
-  later_result?: { receipt_id: string; integrity: { fingerprint: string } };
-  context_use_review?: {
-    review_id: string;
-    integrity: { fingerprint: string };
-  };
-  handoff_href?: string;
 }): void {
   assert.equal(input.detail.proposal.proposal_id, input.proposal.proposal_id);
   assert.equal(
@@ -5583,8 +5262,6 @@ function assertWorkbenchDurableLineageRead(input: {
   );
   if (!input.packet) {
     assert.equal(chain.compiled_packet, null);
-    assert.equal(chain.later_result, null);
-    assert.equal(chain.context_use_review, null);
     return;
   }
   assert.equal(chain.compiled_packet?.packet_id, input.packet.packet_id);
@@ -5592,534 +5269,6 @@ function assertWorkbenchDurableLineageRead(input: {
     chain.compiled_packet?.packet_fingerprint,
     input.packet.integrity.fingerprint,
   );
-  assert.equal(chain.compiled_packet?.handoff_href, input.handoff_href);
-  if (!input.later_result) {
-    assert.equal(chain.later_result, null);
-    assert.equal(chain.context_use_review, null);
-    return;
-  }
-  assert.equal(chain.later_result?.receipt_id, input.later_result.receipt_id);
-  assert.equal(
-    chain.later_result?.receipt_fingerprint,
-    input.later_result.integrity.fingerprint,
-  );
-  assert.equal(chain.later_result?.actual_use_review_required, true);
-  assert.equal(chain.later_result?.helpfulness_established, false);
-  if (!input.context_use_review) {
-    assert.equal(chain.context_use_review, null);
-    return;
-  }
-  assert.equal(
-    chain.context_use_review?.review_id,
-    input.context_use_review.review_id,
-  );
-  assert.equal(
-    chain.context_use_review?.review_fingerprint,
-    input.context_use_review.integrity.fingerprint,
-  );
-}
-
-async function assertWorkbenchLineageFailClosedCoverage(input: {
-  environment: NodeJS.ProcessEnv;
-  config: VNextLocalOperatorPilotConfigV01;
-  proposal: EpisodeDeltaProposalV01;
-  prior_packet: TaskContextPacketV01;
-  receipt: StateTransitionReceiptV01;
-  packet: TaskContextPacketV01;
-  later_result: RunReceiptV01;
-  context_use_review: ContextUseReviewV01;
-}): Promise<void> {
-  await withClonedLineageDatabase(
-    input.environment,
-    "foreign-project-packet",
-    (db, config) => {
-      const foreignPacket = rebuildPacketForLineageTest(input.packet, {
-        project_id: "project:operator-pilot-smoke-foreign-lineage",
-      });
-      insertPacketRecord(db, foreignPacket);
-      const lineage = readLineageForSmoke(db, config, input.proposal);
-      assert.equal(
-        lineage.chains[0]?.compiled_packet?.packet_id,
-        input.packet.packet_id,
-      );
-    },
-  );
-  reject("workbench_lineage_foreign_project_packet_not_attached");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "packet-another-receipt",
-    (db, config) => {
-      const packet = rebuildPacketWithReceiptRef(
-        input.packet,
-        `state-transition-receipt:${"a".repeat(24)}`,
-        `sha256:${"a".repeat(64)}`,
-      );
-      insertPacketRecord(db, packet);
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_packet_from_another_receipt_rejected");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "packet-another-proposal",
-    (db, config) => {
-      const packet = rebuildPacketWithReceiptRef(
-        input.packet,
-        `state-transition-receipt:${"b".repeat(24)}`,
-        `sha256:${"b".repeat(64)}`,
-      );
-      insertPacketRecord(db, packet);
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_packet_from_another_proposal_relation_rejected");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "wrong-packet-fingerprint",
-    (db, config) => {
-      mutateCoreRecordForLineageTest(
-        db,
-        "task_context_packet",
-        input.packet.packet_id,
-        () => {
-          db.prepare(
-            `UPDATE vnext_core_records SET fingerprint = ?
-             WHERE record_kind = 'task_context_packet' AND record_id = ?`,
-          ).run(`sha256:${"c".repeat(64)}`, input.packet.packet_id);
-        },
-      );
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_wrong_persisted_packet_fingerprint_rejected");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "duplicate-packet-relation",
-    (db, config) => {
-      const duplicate = compileTaskContextPacketFromPersistedSemanticStateV01(
-        db,
-        {
-          workspace_id: config.workspace_id,
-          project_id: config.project_id,
-          prior_packet: input.prior_packet,
-          transition_receipt_id: input.receipt.transition_receipt_id,
-          transition_receipt_fingerprint: input.receipt.integrity.fingerprint,
-          expiry_policy: { mode: "explicit", expires_at: null },
-          clock: new ManualClock("2026-07-11T09:20:01.000Z"),
-        },
-      );
-      assert.notEqual(duplicate.later_packet.packet_id, input.packet.packet_id);
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_duplicate_compiled_packet_relation_rejected");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "later-result-another-packet",
-    (db, config) => {
-      const receipt = rebuildRunReceiptForLineageTest(input.later_result, {
-        run_id: "run:operator-pilot-lineage-wrong-packet",
-        task_context_packet_ref: {
-          ...input.later_result.task_context_packet_ref!,
-          external_id: input.prior_packet.packet_id,
-          source_ref: input.prior_packet.integrity.fingerprint,
-        },
-      });
-      insertRunReceiptRecord(db, receipt);
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_result_from_another_packet_rejected");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "later-result-another-transition",
-    (db, config) => {
-      const receipt = rebuildRunReceiptForLineageTest(input.later_result, {
-        run_id: "run:operator-pilot-lineage-wrong-transition",
-        external_refs: input.later_result.external_refs.map((ref) =>
-          ref.ref_type === "state_transition_receipt"
-            ? {
-                ...ref,
-                external_id: `state-transition-receipt:${"d".repeat(24)}`,
-                source_ref: `sha256:${"d".repeat(64)}`,
-              }
-            : ref,
-        ),
-      });
-      insertRunReceiptRecord(db, receipt);
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_result_from_another_transition_rejected");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "generic-probe-receipt",
-    (db, config) => {
-      const genericRecord = db
-        .prepare(
-          `SELECT record_id FROM vnext_core_records
-           WHERE workspace_id = ? AND project_id = ? AND record_kind = 'run_receipt'
-             AND record_id <> ?
-           ORDER BY created_at, record_id LIMIT 1`,
-        )
-        .get(
-          config.workspace_id,
-          config.project_id,
-          input.later_result.receipt_id,
-        ) as { record_id: string } | undefined;
-      assert(genericRecord);
-      const record = readVNextCoreRecordV01(db, {
-        record_kind: "run_receipt",
-        record_id: genericRecord.record_id,
-        workspace_id: config.workspace_id,
-        project_id: config.project_id,
-      });
-      assert(record);
-      const generic = rebuildRunReceiptForLineageTest(
-        record.payload as RunReceiptV01,
-        {
-          run_id: "run:operator-pilot-lineage-generic-probe",
-          task_context_packet_ref: {
-            ...input.later_result.task_context_packet_ref!,
-            observed_at: (record.payload as RunReceiptV01).recorded_at,
-          },
-        },
-      );
-      assert.equal(
-        generic.compatibility.source_contracts.includes(
-          "vnext_operator_pilot_later_result_intake.v0.1",
-        ),
-        false,
-      );
-      insertRunReceiptRecord(db, generic);
-      const lineage = readLineageForSmoke(db, config, input.proposal);
-      assert.equal(
-        lineage.chains[0]?.later_result?.receipt_id,
-        input.later_result.receipt_id,
-      );
-    },
-  );
-  reject("workbench_lineage_generic_probe_receipt_not_substituted");
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "review-another-result",
-    (db, config) => {
-      const review = rebuildContextUseReviewForLineageTest(
-        input.context_use_review,
-        {
-          later_task_run_receipt: {
-            ...input.context_use_review.later_task_run_receipt,
-            receipt_id: `run-receipt:${"e".repeat(24)}`,
-            receipt_fingerprint: `sha256:${"e".repeat(64)}`,
-          },
-        },
-      );
-      insertContextUseReviewRecord(db, review);
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_review_from_another_later_result_rejected");
-
-  for (const [label, kind, recordId] of [
-    ["malformed-packet", "task_context_packet", input.packet.packet_id],
-    ["malformed-result", "run_receipt", input.later_result.receipt_id],
-    [
-      "malformed-review",
-      "context_use_review",
-      input.context_use_review.review_id,
-    ],
-  ] as const) {
-    await withClonedLineageDatabase(
-      input.environment,
-      label,
-      (db, config) => {
-        mutatePayloadForLineageTest(db, kind, recordId, (payload) => {
-          payload.unexpected_persisted_field = true;
-        });
-        assertLineageReadFailsClosed(db, config, input.proposal);
-      },
-    );
-    reject(`workbench_lineage_${label.replaceAll("-", "_")}_rejected`);
-  }
-
-  await withClonedLineageDatabase(
-    input.environment,
-    "unknown-relation-field",
-    (db, config) => {
-      mutatePayloadForLineageTest(
-        db,
-        "task_context_packet",
-        input.packet.packet_id,
-        (payload) => {
-          const compatibility = payload.compatibility as Record<
-            string,
-            unknown
-          >;
-          compatibility.unknown_relation = "must-fail-closed";
-        },
-      );
-      assertLineageReadFailsClosed(db, config, input.proposal);
-    },
-  );
-  reject("workbench_lineage_unknown_relation_field_rejected");
-}
-
-async function withClonedLineageDatabase(
-  environment: NodeJS.ProcessEnv,
-  label: string,
-  run: (
-    db: Database.Database,
-    config: VNextLocalOperatorPilotConfigV01,
-  ) => void,
-): Promise<void> {
-  const clonePath = path.join(tempRoot, `workbench-lineage-${label}.db`);
-  const source = new Database(canonicalDbPath, {
-    readonly: true,
-    fileMustExist: true,
-  });
-  try {
-    await source.backup(clonePath);
-  } finally {
-    source.close();
-  }
-  const config = readVNextLocalOperatorPilotConfigV01({
-    ...environment,
-    AUGNES_DB_PATH: clonePath,
-  });
-  const db = new Database(clonePath, { fileMustExist: true });
-  try {
-    db.pragma("foreign_keys = ON");
-    run(db, config);
-    assert.deepEqual(db.pragma("integrity_check"), [{ integrity_check: "ok" }]);
-  } finally {
-    db.close();
-    for (const candidate of [
-      clonePath,
-      `${clonePath}-wal`,
-      `${clonePath}-shm`,
-      `${clonePath}-journal`,
-    ]) {
-      rmSync(candidate, { force: true });
-    }
-  }
-}
-
-function readLineageForSmoke(
-  db: Database.Database,
-  config: VNextLocalOperatorPilotConfigV01,
-  proposal: EpisodeDeltaProposalV01,
-) {
-  return readVNextOperatorPilotProposalDurableLineageV01(db, {
-    config,
-    proposal,
-    clock: new ManualClock("2026-07-11T09:25:00.000Z"),
-  });
-}
-
-function assertLineageReadFailsClosed(
-  db: Database.Database,
-  config: VNextLocalOperatorPilotConfigV01,
-  proposal: EpisodeDeltaProposalV01,
-): void {
-  assert.throws(
-    () => readLineageForSmoke(db, config, proposal),
-    /operator_pilot_workbench_lineage_/,
-  );
-}
-
-function rebuildPacketForLineageTest(
-  packet: TaskContextPacketV01,
-  overrides: Partial<Parameters<typeof buildTaskContextPacketV01>[0]>,
-): TaskContextPacketV01 {
-  const {
-    packet_version: _version,
-    packet_id: _packetId,
-    authority_summary: authoritySummary,
-    integrity: _integrity,
-    ...input
-  } = packet;
-  return buildTaskContextPacketV01({
-    ...input,
-    ...overrides,
-    authority_notes: authoritySummary.notes,
-  });
-}
-
-function rebuildPacketWithReceiptRef(
-  packet: TaskContextPacketV01,
-  receiptId: string,
-  receiptFingerprint: string,
-): TaskContextPacketV01 {
-  return rebuildPacketForLineageTest(packet, {
-    compatibility: {
-      ...packet.compatibility,
-      source_refs: packet.compatibility.source_refs.map((ref) =>
-        ref.ref_type === "state_transition_receipt"
-          ? {
-              ...ref,
-              external_id: receiptId,
-              source_ref: receiptFingerprint,
-            }
-          : ref,
-      ),
-    },
-  });
-}
-
-function rebuildRunReceiptForLineageTest(
-  receipt: RunReceiptV01,
-  overrides: Partial<Parameters<typeof buildRunReceiptV01>[0]>,
-): RunReceiptV01 {
-  const {
-    receipt_version: _version,
-    receipt_id: _receiptId,
-    trust_summary: _trustSummary,
-    authority_summary: authoritySummary,
-    idempotency_key: _idempotencyKey,
-    integrity: _integrity,
-    ...input
-  } = receipt;
-  return buildRunReceiptV01({
-    ...input,
-    ...overrides,
-    authority_notes: authoritySummary.notes,
-  });
-}
-
-function rebuildContextUseReviewForLineageTest(
-  review: ContextUseReviewV01,
-  overrides: Partial<Parameters<typeof buildContextUseReviewV01>[0]>,
-): ContextUseReviewV01 {
-  const {
-    review_version: _version,
-    review_id: _reviewId,
-    material_boundary: _materialBoundary,
-    authority_summary: authoritySummary,
-    integrity: _integrity,
-    ...input
-  } = review;
-  return buildContextUseReviewV01({
-    ...input,
-    ...overrides,
-    authority_notes: authoritySummary.notes,
-  });
-}
-
-function insertPacketRecord(
-  db: Database.Database,
-  packet: TaskContextPacketV01,
-): void {
-  insertVNextCoreRecordV01(db, {
-    record_kind: "task_context_packet",
-    record_id: packet.packet_id,
-    workspace_id: packet.workspace_id,
-    project_id: packet.project_id,
-    fingerprint: packet.integrity.fingerprint,
-    idempotency_key: null,
-    payload: packet,
-    created_at: packet.generated_at,
-  });
-}
-
-function insertRunReceiptRecord(
-  db: Database.Database,
-  receipt: RunReceiptV01,
-): void {
-  insertVNextCoreRecordV01(db, {
-    record_kind: "run_receipt",
-    record_id: receipt.receipt_id,
-    workspace_id: receipt.workspace_id,
-    project_id: receipt.project_id,
-    fingerprint: receipt.integrity.fingerprint,
-    idempotency_key: receipt.idempotency_key,
-    payload: receipt,
-    created_at: receipt.recorded_at,
-  });
-}
-
-function insertContextUseReviewRecord(
-  db: Database.Database,
-  review: ContextUseReviewV01,
-): void {
-  insertVNextCoreRecordV01(db, {
-    record_kind: "context_use_review",
-    record_id: review.review_id,
-    workspace_id: review.workspace_id,
-    project_id: review.project_id,
-    fingerprint: review.integrity.fingerprint,
-    idempotency_key: createProtocolSha256V01(
-      canonicalizeProtocolValueV01({
-        negative_fixture_review_id: review.review_id,
-      }),
-    ),
-    payload: review,
-    created_at: review.reviewed_at,
-  });
-}
-
-function mutatePayloadForLineageTest(
-  db: Database.Database,
-  recordKind: VNextCoreRecordEnvelopeV01["record_kind"],
-  recordId: string,
-  mutate: (payload: Record<string, unknown>) => void,
-): void {
-  mutateCoreRecordForLineageTest(db, recordKind, recordId, () => {
-    const row = db
-      .prepare(
-        `SELECT payload_json FROM vnext_core_records
-         WHERE record_kind = ? AND record_id = ?`,
-      )
-      .get(recordKind, recordId) as { payload_json: string } | undefined;
-    assert(row);
-    const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
-    mutate(payload);
-    db.prepare(
-      `UPDATE vnext_core_records SET payload_json = ?
-       WHERE record_kind = ? AND record_id = ?`,
-    ).run(canonicalizeProtocolValueV01(payload), recordKind, recordId);
-  });
-}
-
-function mutateCoreRecordForLineageTest(
-  db: Database.Database,
-  recordKind: VNextCoreRecordEnvelopeV01["record_kind"],
-  recordId: string,
-  mutate: () => void,
-): void {
-  const trigger = db
-    .prepare(
-      `SELECT sql FROM sqlite_master
-       WHERE type = 'trigger' AND name = 'trg_vnext_core_records_immutable_update'`,
-    )
-    .get() as { sql: string } | undefined;
-  assert(trigger?.sql);
-  db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
-  try {
-    assert.equal(
-      Number(
-        (
-          db
-            .prepare(
-              `SELECT COUNT(*) AS count FROM vnext_core_records
-               WHERE record_kind = ? AND record_id = ?`,
-            )
-            .get(recordKind, recordId) as { count: number }
-        ).count,
-      ),
-      1,
-    );
-    mutate();
-  } finally {
-    db.exec(trigger.sql);
-  }
 }
 
 function assertDecisionProvenanceCoverage(input: {
@@ -7186,15 +6335,8 @@ async function startOperatorPilotLoopbackHarness(input: {
   semanticTransition: ReturnType<
     typeof createVNextOperatorSemanticTransitionHandlersV01
   >;
-  packetHandoff: ReturnType<
-    typeof createVNextOperatorPacketHandoffHandlerV01
-  >;
   projectContinuity: ReturnType<
     typeof createVNextOperatorProjectContinuityHandlerV01
-  >;
-  laterResult: ReturnType<typeof createVNextOperatorLaterResultHandlersV01>;
-  contextUseReview: ReturnType<
-    typeof createVNextOperatorContextUseReviewHandlersV01
   >;
 }): Promise<{
   origin: string;
@@ -7215,20 +6357,9 @@ async function startOperatorPilotLoopbackHarness(input: {
       "POST /api/vnext/operator/semantic-transition",
       input.semanticTransition.POST,
     ],
-    ["GET /api/vnext/operator/packet-handoff", input.packetHandoff],
     [
       "GET /api/vnext/operator/project-continuity",
       input.projectContinuity,
-    ],
-    ["GET /api/vnext/operator/later-result", input.laterResult.GET],
-    ["POST /api/vnext/operator/later-result", input.laterResult.POST],
-    [
-      "GET /api/vnext/operator/context-use-review",
-      input.contextUseReview.GET,
-    ],
-    [
-      "POST /api/vnext/operator/context-use-review",
-      input.contextUseReview.POST,
     ],
   ]);
   const requests: Array<{ method: string; pathname: string }> = [];
@@ -7370,16 +6501,11 @@ function assertOperatorLoopbackRouteCoverage(
     "POST /api/vnext/operator/semantic-review",
     "GET /api/vnext/operator/semantic-transition",
     "POST /api/vnext/operator/semantic-transition",
-    "GET /api/vnext/operator/packet-handoff",
-    "POST /api/vnext/operator/later-result",
-    "GET /api/vnext/operator/later-result",
-    "POST /api/vnext/operator/context-use-review",
-    "GET /api/vnext/operator/context-use-review",
     "GET /api/vnext/operator/project-continuity",
   ]) {
     assert(observed.has(expected), `missing real loopback request: ${expected}`);
   }
-  assert(requests.length >= 20, "full operator route loop must use real HTTP");
+  assert(requests.length >= 12, "full operator route loop must use real HTTP");
   pass("full_operator_route_sequence_exercised_over_real_loopback_http");
 }
 
@@ -8193,16 +7319,6 @@ function assertBackupRestore(
         "task_context_packet",
         anchors.later_packet_id,
         anchors.later_packet_fingerprint,
-      ],
-      [
-        "run_receipt",
-        anchors.later_run_receipt_id,
-        anchors.later_run_receipt_fingerprint,
-      ],
-      [
-        "context_use_review",
-        anchors.context_use_review_id,
-        anchors.context_use_review_fingerprint,
       ],
     ] as const) {
       assert(

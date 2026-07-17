@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
-  buildSemanticReviewLoopTaskContextPacketFixture,
-  semanticReviewLoopMapperInputFixture,
+  buildSemanticReviewLoopMaterialFixture,
   semanticReviewLoopProjectAFixture,
   semanticReviewLoopProjectBFixture,
   semanticReviewLoopTaskContextPacketRefFixture,
@@ -13,9 +12,6 @@ import {
   deriveEpisodeDeltaProposalIdV01,
   validateEpisodeDeltaProposalV01,
 } from "@/lib/vnext/episode-delta-proposal";
-import {
-  mapCodexSemanticReviewToEpisodeDeltaProposalV01,
-} from "@/lib/vnext/compat/episode-delta-proposal-from-codex-review";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -38,14 +34,12 @@ import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 const CHAIN_PACKET_EVALUATED_AT = "2026-07-10T01:00:00.000Z";
 const CHAIN_DECIDED_AT = "2026-07-10T13:15:00.000Z";
 const FIXED_SEMANTIC_REVIEW_CHAIN_FINGERPRINT =
-  "sha256:519976b1af43b0ef7617855bf637fd85e4caf06ba86f6750e4451c4da8f9f1d9";
+  "sha256:160e48e92527010db75142e6e28a34b2ac46c54cfb42079455a81e1d02d1e141";
 
 interface SemanticReviewChainFixtureResultV01 {
   project: SemanticReviewLoopProjectFixtureV01;
   packet: TaskContextPacketV01;
   receipt: RunReceiptV01;
-  preview_id: string;
-  preview_fingerprint: string;
   proposal: EpisodeDeltaProposalV01;
   decision: ReviewDecisionV01;
   chain_fingerprint: string;
@@ -122,10 +116,10 @@ export function runSemanticReviewLoopConformanceV01(): SemanticReviewLoopConform
       "valid",
       formatValidation(decisionRelation),
     );
-    assert.equal(chain.receipt.observations.length, 0);
+    assert.ok(chain.receipt.observations.length > 0);
     assert.ok(
-      chain.receipt.attestations.every(
-        (item) => item.trust_class === "imported_unverified",
+      chain.receipt.observations.every(
+        (item) => item.trust_class === "direct_local_observation",
       ),
     );
     assert.equal(chain.proposal.authority_summary.proposal_is_review_decision, false);
@@ -297,21 +291,13 @@ export function runSemanticReviewLoopConformanceV01(): SemanticReviewLoopConform
 function buildSemanticReviewChain(
   project: SemanticReviewLoopProjectFixtureV01,
 ): SemanticReviewChainFixtureResultV01 {
-  const packet = buildSemanticReviewLoopTaskContextPacketFixture(project);
+  const material = buildSemanticReviewLoopMaterialFixture(project);
+  const packet = material.prior_packet;
   const packetValidation = validateTaskContextPacketV01(packet, {
     evaluated_at: CHAIN_PACKET_EVALUATED_AT,
   });
   assert.equal(packetValidation.status, "valid", formatValidation(packetValidation));
-  const mappingInput = semanticReviewLoopMapperInputFixture(project, packet);
-  const mapping = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
-    deepFreeze(clone(mappingInput)),
-  );
-  assert.equal(mapping.status, "mapped", formatMapping(mapping));
-  assert.ok(mapping.receipt);
-  assert.ok(mapping.proposal);
-  assert.ok(mapping.preview_id);
-  assert.ok(mapping.preview_fingerprint);
-  const decisionInput = createSyntheticDecisionInput(project, mapping.proposal);
+  const decisionInput = createSyntheticDecisionInput(project, material.proposal);
   const decision = buildReviewDecisionV01(deepFreeze(decisionInput));
   const decisionValidation = validateReviewDecisionV01(decision);
   assert.equal(
@@ -326,21 +312,13 @@ function buildSemanticReviewChain(
       packet_id: packet.packet_id,
       fingerprint: packet.integrity.fingerprint,
     },
-    source_record: {
-      report_id: mappingInput.source_record.report_id,
-      fingerprint: mappingInput.source_record.report_fingerprint,
-    },
     run_receipt: {
-      receipt_id: mapping.receipt.receipt_id,
-      fingerprint: mapping.receipt.integrity.fingerprint,
-    },
-    expected_observed_delta_preview: {
-      preview_id: mapping.preview_id,
-      fingerprint: mapping.preview_fingerprint,
+      receipt_id: material.run_receipt.receipt_id,
+      fingerprint: material.run_receipt.integrity.fingerprint,
     },
     episode_delta_proposal: {
-      proposal_id: mapping.proposal.proposal_id,
-      fingerprint: mapping.proposal.integrity.fingerprint,
+      proposal_id: material.proposal.proposal_id,
+      fingerprint: material.proposal.integrity.fingerprint,
     },
     review_decision: {
       decision_id: decision.decision_id,
@@ -350,10 +328,8 @@ function buildSemanticReviewChain(
   return {
     project,
     packet,
-    receipt: mapping.receipt,
-    preview_id: mapping.preview_id,
-    preview_fingerprint: mapping.preview_fingerprint,
-    proposal: mapping.proposal,
+    receipt: material.run_receipt,
+    proposal: material.proposal,
     decision,
     chain_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(chainIdentity),
@@ -488,19 +464,27 @@ function validateReceiptProposalRelation(
 function assertSourceNativeIdsRemainExternalRefs(
   chain: SemanticReviewChainFixtureResultV01,
 ) {
-  const reportRefs = chain.proposal.compatibility.external_refs.filter(
-    (ref) => ref.ref_type === "normalized_codex_result_report_record",
-  );
-  assert.equal(reportRefs.length, 1);
-  assert.ok(reportRefs[0]?.external_id);
-  assert.ok(reportRefs[0]?.source_ref?.startsWith("sha256:"));
   assert.ok(
-    chain.proposal.compatibility.external_refs.some(
+    chain.proposal.source_refs.some(
       (ref) =>
-        ref.ref_type === "expected_observed_delta_preview" &&
-        ref.external_id === chain.preview_id &&
-        ref.source_ref === chain.preview_fingerprint,
+        ref.ref_type === "run_receipt" &&
+        ref.external_id === chain.receipt.receipt_id &&
+        ref.source_ref === chain.receipt.integrity.fingerprint,
     ),
+  );
+  assert.ok(
+    chain.proposal.source_refs.some(
+      (ref) =>
+        ref.ref_type === "task_context_packet" &&
+        ref.external_id === chain.packet.packet_id &&
+        ref.source_ref === chain.packet.integrity.fingerprint,
+    ),
+  );
+  assert.equal(
+    chain.proposal.source_refs.some((ref) =>
+      ref.ref_type.includes("codex_result_report"),
+    ),
+    false,
   );
   assert.equal(
     chain.proposal.authority_summary.fingerprint_verification_grants_authority,
@@ -546,14 +530,6 @@ function deepFreeze<T>(value: T): T {
 }
 
 function formatValidation(value: {
-  status: string;
-  errors: Array<{ code: string; path: string | null; message: string }>;
-  warnings: Array<{ code: string; path: string | null; message: string }>;
-}) {
-  return JSON.stringify(value, null, 2);
-}
-
-function formatMapping(value: {
   status: string;
   errors: Array<{ code: string; path: string | null; message: string }>;
   warnings: Array<{ code: string; path: string | null; message: string }>;

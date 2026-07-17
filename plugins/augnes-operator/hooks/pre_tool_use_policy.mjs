@@ -51,13 +51,6 @@ function findDenial(toolNameValue, text) {
     return "Denied: remote merge, publish, approval, retry, or replay calls require explicit future Core-gated scope and user approval.";
   }
 
-  if (
-    /\bnpm\s+run\s+codex:record-completion\b(?!-proof)/i.test(text) &&
-    process.env.AUGNES_ALLOW_LEGACY_CODEX_COMPLETION !== "true"
-  ) {
-    return "Denied: legacy codex:record-completion is compatibility-only unless AUGNES_ALLOW_LEGACY_CODEX_COMPLETION=true.";
-  }
-
   if (looksLikeCoreGatedActuation(text) && process.env.AUGNES_ALLOW_CORE_GATED_ACTUATION !== "true") {
     return "Denied: approval, publication, retry, or replay routes require AUGNES_ALLOW_CORE_GATED_ACTUATION=true and explicit user/Core-gated scope.";
   }

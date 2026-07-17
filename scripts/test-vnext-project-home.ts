@@ -15,7 +15,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import legacyResultFixture from "../fixtures/codex-result-report-ingestion.sample.v0.1.json";
+import { genericCliDirectObservationInputFixture } from "../fixtures/vnext/protocol/run-receipt-v0-1";
 import {
   DURABLE_LOCAL_LOOP_APPLIED_AT,
   DURABLE_LOCAL_LOOP_CONFIRMED_AT,
@@ -54,9 +54,10 @@ import {
   ModelInvocationRunReceiptProjectionErrorV02,
   projectModelInvocationReceiptToRunReceiptEntryV02,
 } from "../lib/vnext/model-gateway/run-receipt-projection";
-import { buildRunReceiptV01 } from "../lib/vnext/run-receipt";
-import { normalizeCodexResultReportV01 } from "../lib/dogfooding/codex-result-report-normalizer";
-import { mapCodexResultReportRecordToRunReceiptV01 } from "../lib/vnext/compat/run-receipt-from-codex-result-report";
+import {
+  buildRunReceiptV01,
+  type RunReceiptBuilderInputV01,
+} from "../lib/vnext/run-receipt";
 import {
   listProjectExternalRefsV01,
   readDefaultWorkspaceIdentityV01,
@@ -635,28 +636,30 @@ async function main() {
     assert(emptyHome.next_moves.length > 0 && emptyHome.next_moves.length <= 3);
     assert.deepEqual(databaseSnapshot(db), emptyBefore, "empty Project Home reads create no rows");
 
-    const compatibilitySource = normalizeCodexResultReportV01(
-      legacyResultFixture.safe_input_example,
-    );
-    const compatibilityMapping = mapCodexResultReportRecordToRunReceiptV01({
-      workspace_id: workspace.workspace_id,
-      project_id: emptyProject.project.project_id,
-      run_id: "run-project-home-manual-compatibility-001",
-      recorded_at: "2026-07-10T08:30:00.000Z",
-      data_classification: "public_safe",
-      source_record: compatibilitySource,
-    });
-    assert.equal(compatibilityMapping.status, "mapped");
-    assert(compatibilityMapping.receipt);
+    const compatibilityInput = clone(
+      genericCliDirectObservationInputFixture,
+    ) as RunReceiptBuilderInputV01;
+    compatibilityInput.workspace_id = workspace.workspace_id;
+    compatibilityInput.project_id = emptyProject.project.project_id;
+    compatibilityInput.run_id = "run-project-home-manual-compatibility-001";
+    compatibilityInput.recorded_at = "2026-07-10T08:30:00.000Z";
+    compatibilityInput.task_context_packet_ref = null;
+    compatibilityInput.compatibility.source_contracts = [
+      "augnes.codex-result-report-ingestion.v0.1",
+    ];
+    compatibilityInput.compatibility.warnings = [
+      "Canonical historical receipt retained after its manual producer was retired.",
+    ];
+    const compatibilityReceipt = buildRunReceiptV01(compatibilityInput);
     insertVNextCoreRecordV01(db, {
       record_kind: "run_receipt",
-      record_id: compatibilityMapping.receipt.receipt_id,
-      workspace_id: compatibilityMapping.receipt.workspace_id,
-      project_id: compatibilityMapping.receipt.project_id,
-      fingerprint: compatibilityMapping.receipt.integrity.fingerprint,
-      idempotency_key: compatibilityMapping.receipt.idempotency_key,
-      payload: compatibilityMapping.receipt,
-      created_at: compatibilityMapping.receipt.recorded_at,
+      record_id: compatibilityReceipt.receipt_id,
+      workspace_id: compatibilityReceipt.workspace_id,
+      project_id: compatibilityReceipt.project_id,
+      fingerprint: compatibilityReceipt.integrity.fingerprint,
+      idempotency_key: compatibilityReceipt.idempotency_key,
+      payload: compatibilityReceipt,
+      created_at: compatibilityReceipt.recorded_at,
     });
     const compatibilityHome = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
@@ -664,12 +667,12 @@ async function main() {
     }, { now: () => fixedGeneratedAt });
     assert.equal(
       compatibilityHome.run_results.latest_result?.receipt_ref,
-      compatibilityMapping.receipt.receipt_id,
+      compatibilityReceipt.receipt_id,
     );
     const compatibilityResult = readProjectRunResultDetailV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: emptyProject.project.project_id,
-      receipt_id: compatibilityMapping.receipt.receipt_id,
+      receipt_id: compatibilityReceipt.receipt_id,
     });
     assert.equal(compatibilityResult.packet.status, "not_recorded");
     assert.equal(compatibilityResult.host.approvals.length, 0);
@@ -679,7 +682,7 @@ async function main() {
     );
     assert.equal(
       compatibilityResult.compatibility.source_contracts.includes(
-        compatibilitySource.record_version,
+        "augnes.codex-result-report-ingestion.v0.1",
       ),
       true,
     );

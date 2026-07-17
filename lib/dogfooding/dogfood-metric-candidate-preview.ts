@@ -32,7 +32,6 @@ const sampleFixtureMarkers = [
   "sample-codex-result-report",
   "sample-public-safe",
   "operator-ref:sample-human-reviewer",
-  "fixtures/codex-result-report-ingestion.sample.v0.1.json",
   "codex-result-report-ingestion.sample.v0.1",
 ] as const;
 

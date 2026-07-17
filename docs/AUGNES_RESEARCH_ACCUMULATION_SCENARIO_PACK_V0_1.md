@@ -22,9 +22,9 @@ accumulation previews may show once implementation is separately authorized.
 - Selected by:
   `docs/AUGNES_CORE_HANDOFF_CURRENT_TASK_USAGE_STATUS_DOGFOOD_OBSERVATION_V0_1.md`
 
-The seeded work item expects this pack to remain preview-only and to return a
-Codex final report through `codexResultText` or `codexResultPaste` for human
-preview review.
+The seeded work item is historical preview material. Any new native-host work
+uses the persisted packet and automatic structured `RunReceipt` return path;
+this pack does not define result intake.
 
 ## Preview Shapes Only
 
@@ -231,7 +231,6 @@ Expected files:
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
 - `scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs`
 - `package.json`
-- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
 
 Expected checks:
 
@@ -303,11 +302,9 @@ ChatGPT Developer Mode session was started, report that explicitly. If runtime
 Work Brief retrieval was skipped or unavailable, report the repo-backed fallback
 instead of implying live retrieval.
 
-The next return path is:
-
-```text
-Paste this report through codexResultText or codexResultPaste for Augnes preview review.
-```
+The former pasted-report return path is retired. New execution results return
+automatically through the shared native-host lifecycle and canonical receipt
+authority.
 
 ## What This Pack Does Not Implement
 

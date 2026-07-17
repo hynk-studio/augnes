@@ -1,4 +1,4 @@
-import type { ExportedHandoffPacketArtifactRead } from "@/lib/workplane/read-exported-handoff-packet-artifact-for-web";
+import type { ExportedHandoffPacketArtifactRead } from "@/types/exported-handoff-packet-artifact-read";
 import type { HandoffPacketCopyExportRecordReview } from "./handoff-packet-copy-export-record-review";
 import type { HandoffPacketCopyExportContractRecordReview } from "./handoff-packet-copy-export-contract-record-review";
 import type { HandoffContextApplyRecordReview } from "./handoff-context-apply-record-review";

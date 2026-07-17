@@ -121,7 +121,7 @@ try {
     reference_time: referenceTime,
   });
   assert.equal(summary.status, "pass");
-  assert.equal(summary.persisted_lineage_status, "reviewed");
+  assert.equal(summary.persisted_lineage_status, "packet_compiled");
   assert.equal(summary.external_network_calls, 0);
   assert.equal(summary.provider_calls, 0);
   assert.deepEqual(summary.network_guard_methods, ZERO_NETWORK_GUARD_METHODS);
@@ -137,8 +137,6 @@ try {
     "review_material",
     "review_decision_route",
     "semantic_transition_route",
-    "later_result_route",
-    "context_use_review_route",
     "project_identity_registry",
   ]);
   assert.equal(JSON.stringify(summary).length < 2_048, true);
@@ -147,7 +145,7 @@ try {
   const manifestSource = readFileSync(manifestPath, "utf8");
   const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
   assert.equal(JSON.stringify(manifest).includes(process.env.HOME ?? "\0"), false);
-  delete manifest.context_use_review_fingerprint;
+  delete manifest.transition_receipt_fingerprint;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, {
     mode: 0o600,
   });
@@ -156,7 +154,7 @@ try {
       validateVNextOperatorBrowserFixtureV01({
         fixture_directory: fixtureDirectory,
       }),
-    /fixture manifest context_use_review_fingerprint missing/u,
+    /fixture manifest transition_receipt_fingerprint missing/u,
   );
   writeFileSync(manifestPath, manifestSource, { mode: 0o600 });
   record("fixture_validation_fails_closed_on_incomplete_manifest");

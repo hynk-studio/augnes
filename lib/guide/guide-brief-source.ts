@@ -236,7 +236,7 @@ export function buildGuideBriefRouteInput({
       "Phase 6C Web Guide UI remains deferred.",
       "Phase 6D ChatGPT App/MCP Guide tool remains deferred.",
       "Phase 6E Codex Guide alignment remains deferred.",
-      "Phase 7 Handoff Capsule / Codex Launch Card remains deferred.",
+      "Manual Handoff Capsule / Codex Launch Card transport is retired; Project Home delivers the persisted TaskContextPacket automatically.",
     ],
   };
 }

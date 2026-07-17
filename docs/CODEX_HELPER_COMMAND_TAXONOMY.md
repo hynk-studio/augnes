@@ -33,13 +33,7 @@ Forbidden behavior:
 Current check-only helpers:
 
 - `codex:read-brief`
-- `codex:handoff-check`
-- `codex:closeout-check`
-- `codex:github-comment-readiness`
-- `codex:actuation-preview`
-
-`codex:handoff-check` is now a read-only state-brief check. It reads the state
-brief before and after the check and fails if visible state counts change.
+- `codex:next-work`
 
 ### Record-Proof
 
@@ -57,23 +51,9 @@ Current proof-native helpers:
   It uses `/api/actions/record-proof`, not the legacy `/api/actions/record`
   state-marker route.
 
-Compatibility proof helpers:
-
-- `codex:record-completion`
-- `codex:record-result`
-
-The compatibility helpers above still use `/api/actions/record`, whose current
-runtime implementation records an `action_records` row and a legacy
-`external.<action>_recorded` state marker. That behavior is retained only as
-compatibility material until a separate migration decision decides whether
-these helpers become proof-only or move the state marker behind an explicit
-commit-state helper. On successful legacy writes, both compatibility helpers
-emit stderr-only compatibility warnings that recommend
-`codex:record-completion-proof`.
-
-`codex:record-completion` remains the legacy compatibility closeout helper.
-`codex:record-result` remains the low-level legacy compatibility helper for
-callers that deliberately need the `/api/actions/record` path.
+The retired legacy completion helpers are not package entry points. Historical
+`external.*` marker records remain readable, but no current helper creates them
+as native-host result intake.
 
 ### Commit-State
 
@@ -92,16 +72,14 @@ No Codex commit-state helper is defined yet.
   records only. Names ending in `-proof` may also write proof-native records
   only when the helper docs state the exact proof record type.
 - Names that create `external.*` or other committed state markers must be
-  explicit state mutation commands, except for the documented compatibility
-  helpers listed above.
+  explicit state mutation commands.
 - Legacy `external.*` entries remain readable compatibility proof-marker
   material. This guardrail does not delete, rewrite, migrate, or reinterpret
   historical records.
 
 ## Guardrail
 
-`npm run smoke:codex-helper-taxonomy` checks this taxonomy against package
-scripts, helper sources, and the decision memo. It blocks check-only helpers
-from calling known write paths, requires record-proof helpers to disclose their
-side effects, and keeps legacy `external.*` behavior constrained to the
-documented compatibility helpers.
+Canonical package-graph and authority tests check this taxonomy against package
+scripts and helper sources. They block retired manual-result aliases, require
+record-proof helpers to disclose their side effects, and keep historical
+`external.*` records read-only.

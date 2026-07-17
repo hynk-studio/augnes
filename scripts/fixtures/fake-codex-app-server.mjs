@@ -9,19 +9,37 @@ import path from "node:path";
 import readline from "node:readline";
 import tls from "node:tls";
 
-const scenario = process.env.FAKE_CODEX_SCENARIO ?? "command_approval";
 const root = process.cwd();
+const canonicalTestRoot = process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null;
+const scenario =
+  process.env.FAKE_CODEX_SCENARIO ??
+  (process.env.AUGNES_CANONICAL_TEST_MODE === "1" && canonicalTestRoot
+    ? "browser_two_sequential_approvals"
+    : "command_approval");
 const threadId = process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId = process.env.FAKE_CODEX_SESSION_ID ?? "01900000-0000-7000-8000-000000000002";
 const turnId = process.env.FAKE_CODEX_TURN_ID ?? "01900000-0000-7000-8000-000000000003";
 const approvalRequestId = "fake-server-approval-1";
 const sequentialApprovalCount = 20;
+// The full canonical browser lifecycle includes a server-rendered Project Home
+// refresh before each approval control is used. A 10-second test barrier proved
+// insufficient under the complete canonical load; keep this below the browser's
+// 90-second durable approval bound while remaining independently fail-closed.
+const browserReleaseTimeoutMs = 30_000;
 const statePath = process.env.FAKE_CODEX_STATE_PATH ?? null;
 const tracePath = process.env.FAKE_CODEX_TRACE_PATH ?? null;
 const cleanupMarkerPath = process.env.FAKE_CODEX_CLEANUP_MARKER_PATH ?? null;
 const releasePath = process.env.FAKE_CODEX_RELEASE_PATH ?? null;
 const approvalResolutionBarrierPath =
   process.env.FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH ?? null;
+const browserSecondApprovalReleasePath =
+  scenario === "browser_two_sequential_approvals" && canonicalTestRoot
+    ? path.join(canonicalTestRoot, "browser-second-approval.release")
+    : null;
+const browserTerminalReleasePath =
+  scenario === "browser_two_sequential_approvals" && canonicalTestRoot
+    ? path.join(canonicalTestRoot, "browser-terminal.release")
+    : null;
 const networkCountPath = process.env.FAKE_CODEX_NETWORK_COUNT_PATH ?? null;
 let externalNetworkAttempts = 0;
 let initialized = false;
@@ -159,6 +177,22 @@ async function handle(message) {
     if (message.method === "turn/start") {
       turnActive = true;
       persistState({ threadId, sessionId, turnId, status: "inProgress" });
+      if (scenario === "browser_two_sequential_approvals") {
+        // Exercise the supported App Server ordering where a turn notification
+        // and approval arrive before the matching turn/start response. The
+        // adapter must preserve that first validated turn binding.
+        notify("turn/started", { threadId, turn: turn("inProgress", []) });
+        notify("thread/status/changed", {
+          threadId,
+          status: { type: "active", activeFlags: [] },
+        });
+        requestSequentialApproval();
+        setTimeout(
+          () => respond(message.id, { turn: turn("inProgress", []) }),
+          25,
+        );
+        return;
+      }
       respond(message.id, { turn: turn("inProgress", []) });
       setImmediate(() => {
         notify("turn/started", { threadId, turn: turn("inProgress", []) });
@@ -182,7 +216,7 @@ async function handle(message) {
         else if (scenario === "public_safe_command_approval") requestCommandApproval({
           command: String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`,
         });
-        else if (scenario === "sequential_approval_chain") requestSequentialApproval();
+        else if (isSequentialApprovalScenario()) requestSequentialApproval();
         else if (scenario === "concurrent_approval_overflow") {
           for (let index = 1; index <= 9; index += 1) {
             requestCommandApproval(
@@ -263,9 +297,21 @@ async function handle(message) {
         message.result?.permissions &&
         Object.keys(message.result.permissions).length > 0);
     notify("serverRequest/resolved", { threadId, requestId: resolvedRequestId });
-    if (scenario === "sequential_approval_chain" && accepted) {
-      await waitForApprovalResolutionObservation(sequentialApprovalIndex);
-      if (sequentialApprovalIndex < sequentialApprovalCount) {
+    if (isSequentialApprovalScenario() && accepted) {
+      if (scenario === "sequential_approval_chain") {
+        await waitForApprovalResolutionObservation(sequentialApprovalIndex);
+      } else if (sequentialApprovalIndex === 1) {
+        await waitForBrowserRelease(
+          browserSecondApprovalReleasePath,
+          "browser_second_approval",
+        );
+      } else {
+        await waitForBrowserRelease(
+          browserTerminalReleasePath,
+          "browser_terminal",
+        );
+      }
+      if (sequentialApprovalIndex < sequentialApprovalTargetCount()) {
         requestSequentialApproval();
       } else {
         emitObservedItems();
@@ -349,6 +395,19 @@ function requestSequentialApproval() {
     { itemId: `fake-sequential-command-item-${sequentialApprovalIndex}` },
     `fake-server-sequential-${sequentialApprovalIndex}`,
   );
+}
+
+function isSequentialApprovalScenario() {
+  return [
+    "sequential_approval_chain",
+    "browser_two_sequential_approvals",
+  ].includes(scenario);
+}
+
+function sequentialApprovalTargetCount() {
+  return scenario === "browser_two_sequential_approvals"
+    ? 2
+    : sequentialApprovalCount;
 }
 
 function requestUnknownApproval() {
@@ -755,20 +814,21 @@ function waitForApprovalResolutionObservation(expectedCount) {
   if (readBarrierCount() >= expectedCount) return Promise.resolve();
   return new Promise((resolve, reject) => {
     let settled = false;
+    let poll = null;
     const finish = (error = null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      watcher.close();
+      if (poll !== null) clearInterval(poll);
       if (error) reject(error);
       else resolve();
     };
     const timeout = setTimeout(() => {
       finish(new Error("approval_resolution_barrier_timeout"));
     }, 10_000);
-    const watcher = watch(path.dirname(approvalResolutionBarrierPath), () => {
+    poll = setInterval(() => {
       if (readBarrierCount() >= expectedCount) finish();
-    });
+    }, 10);
     if (readBarrierCount() >= expectedCount) finish();
   });
 
@@ -777,6 +837,32 @@ function waitForApprovalResolutionObservation(expectedCount) {
     const value = Number(readFileSync(approvalResolutionBarrierPath, "utf8").trim());
     return Number.isSafeInteger(value) ? value : 0;
   }
+}
+
+function waitForBrowserRelease(releaseFile, label) {
+  if (!releaseFile) {
+    return Promise.reject(new Error(`${label}_barrier_missing`));
+  }
+  if (existsSync(releaseFile)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let poll = null;
+    const finish = (error = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (poll !== null) clearInterval(poll);
+      if (error) reject(error);
+      else resolve();
+    };
+    const timeout = setTimeout(() => {
+      finish(new Error(`${label}_barrier_timeout`));
+    }, browserReleaseTimeoutMs);
+    poll = setInterval(() => {
+      if (existsSync(releaseFile)) finish();
+    }, 10);
+    if (existsSync(releaseFile)) finish();
+  });
 }
 
 function installZeroNetworkGuard() {

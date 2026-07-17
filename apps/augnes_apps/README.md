@@ -49,9 +49,8 @@ For cross-surface decision/control roles, see
 ```bash
 npm install
 npm run typecheck
-npm run smoke
-npm run smoke:cross-session-read-tools
-npm run invariants
+node --import tsx scripts/smoke.ts
+node --import tsx scripts/invariants.ts
 npm run dev
 ```
 
@@ -215,110 +214,14 @@ Set these in the shell or in an untracked local `.env` file:
 
 Backward compatibility: without `AUGNES_CORE_MODE`, `AUGNES_USE_MOCK=true` selects mock mode and `AUGNES_USE_MOCK=false` selects HTTP mode. The default remains mock.
 
-## Bridge-gated Codex handoff drafts
+## Native-host result boundary
 
-When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
-running Augnes runtime, the bridge exposes
-`augnes_generate_codex_handoff_draft`.
-
-Use it when a user asks for a Codex handoff draft for a work ID:
-
-```json
-{
-  "scope": "project:augnes",
-  "workId": "AG-006",
-  "targetAgent": "codex",
-  "createdBy": "chatgpt"
-}
-```
-
-The tool calls the runtime `POST /api/handoffs/generate` endpoint and returns:
-
-- a plain-language reminder that the result is a draft guidance packet
-- `structuredContent.handoff`
-- `structuredContent.packet_text`
-- expected files, state keys, checks, execution surfaces, safety boundaries, and completion record fields
-
-Answer pattern:
-
-```text
-Current state
-- Summarize the relevant state/work context briefly.
-
-Codex handoff draft
-- Say this is a draft/guidance packet, not an execution trigger.
-- Show or offer to copy packet_text.
-
-Authority boundary
-- Codex execution happens outside this tool.
-- Durable approval remains in Augnes Core or Runtime Cockpit.
-- The tool does not commit/reject state, mark the handoff ready/delivered, or publish externally.
-```
-
-Do not expose this tool in public/default mode, and do not use it to launch
-Codex, merge GitHub PRs, post to Discord/GitHub, or approve Augnes state.
-
-## Bridge-gated Codex result review drafts
-
-When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
-running Augnes runtime, the bridge also exposes
-`augnes_review_codex_result_draft`.
-
-Use it after Codex reports work against a handoff:
-
-```json
-{
-  "scope": "project:augnes",
-  "handoffId": "handoff:...",
-  "actualFilesChanged": ["lib/handoff-review.ts"],
-  "actualStateKeys": ["coordination.handoff_registry"],
-  "actualChecks": ["npm run typecheck"],
-  "actualExecutionSurfaces": ["local_runtime", "github"],
-  "resultStatus": "partial",
-  "resultKind": "implementation",
-  "resultSummary": "Implemented review helper and route; browser checks were skipped.",
-  "relatedPr": "https://github.com/Aurna-code/augnes/pull/___",
-  "skippedChecks": [
-    {
-      "check": "ChatGPT Developer Mode",
-      "reason": "No tunnel or Developer Mode session was available."
-    }
-  ]
-}
-```
-
-The tool calls the runtime `POST /api/handoffs/review` endpoint and returns:
-
-- `structuredContent.review`
-- `structuredContent.action_record_draft`
-- `structuredContent.work_event_draft`
-
-Answer pattern:
-
-```text
-Reviewed handoff
-- Identify the handoff ID and work ID.
-
-Expected vs actual
-- Summarize files, state keys, checks, and execution surfaces.
-- Call out skipped checks and exact reasons.
-
-Recommended record
-- Show recommended result status/kind.
-- Show the action record draft and work event draft.
-
-Authority boundary
-- This is review/draft only.
-- It does not execute Codex.
-- It does not record proof.
-- It does not commit/reject Augnes state.
-- It does not publish externally.
-- Proof recording and durable approval remain separate user-directed steps.
-```
-
-Do not expose this tool in public/default mode, and do not use it to record
-action proof, create work events, approve state, launch Codex, or publish to any
-external surface.
+The ChatGPT App is a read-only context surface. It does not export packets for
+native-host transfer and does not accept pasted native-host results. Project
+Home starts the current persisted `TaskContextPacket`; deterministic and live
+native-host adapters return structured results through the shared lifecycle and
+canonical `RunReceipt` admission. Project Home, Workbench, and Inspector read
+that project-scoped receipt without giving the App write authority.
 
 ## Bridge-gated mailbox summaries
 
@@ -481,7 +384,6 @@ https://<tunnel-host>/mcp
 
 Runbooks:
 
-- [Phase 2 Handoff Review Integration Runbook](../../docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md)
 - [Developer Mode Runbook](docs/07_DEVELOPER_MODE_RUNBOOK.md)
 - [Work Tools Live Validation](docs/08_WORK_TOOLS_LIVE_VALIDATION.md)
 - [First Run Validation](docs/08_FIRST_RUN_VALIDATION.md)
@@ -489,13 +391,12 @@ Runbooks:
 - [Real Read Path Plan](docs/09_REAL_READ_PATH_PLAN.md)
 - [Widget Security Review](docs/10_WIDGET_SECURITY_REVIEW.md)
 - [Agent Bridge Local Runbook](docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md)
-- [Codex Handoff Demo](docs/CODEX_HANDOFF_DEMO.md)
 
 ## ChatGPT App state assistant flow
 
-When bridge mode is explicitly enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`, the ChatGPT App should answer human-facing Augnes state questions by calling `augnes_get_state_brief` first and prioritizing `structuredContent.brief.agent_handoff` when it exists.
+When bridge mode is explicitly enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`, the ChatGPT App should answer human-facing Augnes state questions by calling `augnes_get_state_brief` first and using its read-only project and work summaries.
 
-Use the handoff for plain questions such as:
+Use the brief for plain questions such as:
 
 - Where are we?
 - What should I do next?
@@ -503,7 +404,7 @@ Use the handoff for plain questions such as:
 - What needs my approval?
 - What is risky or blocked?
 
-Answer in plain language first: current status, next step, why, Codex handoff, and needs-your-decision or blockers. Raw state keys belong only as secondary grounding under a short `Reference` or `Grounding` note.
+Answer in plain language first: current status, next step, why, and needs-your-decision or blockers. Raw state keys belong only as secondary grounding under a short `Reference` or `Grounding` note. Do not emit packet-copy material or request result paste.
 
 The app must not add direct commit/reject tools, autonomous Codex execution, hosted auth flows, or new runtime lifecycle semantics. Public default behavior remains the original read-only nine-tool surface unless the bridge flag is enabled.
 

@@ -72,11 +72,9 @@ Execution surfaces used:
 
 ## Completion Record Use
 
-When recording Codex closeout proof, prefer
-`npm run codex:record-completion-proof`, which uses
+When optional operator closeout proof is explicitly authorized, use
+`npm run codex:record-completion-proof`, which writes through
 `/api/actions/record-proof`, and summarize surfaces in `CODEX_RESULT_SUMMARY`
-or the linked work event note. Use `npm run codex:record-completion` only as
-legacy compatibility behavior; it uses `/api/actions/record` and may create
-legacy `external.*` marker state. Successful legacy writes emit a stderr
-compatibility warning. Keep the summary short and point to the PR for full
-evidence. Compatibility migration remains unresolved.
+or the linked work event note. This proof trace is separate from automatic
+native-host `RunReceipt` admission. Keep the summary short and point to the PR
+for full evidence.

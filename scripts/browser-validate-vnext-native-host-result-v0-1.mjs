@@ -11,6 +11,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import net from "node:net";
@@ -18,23 +19,24 @@ import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
 
 import {
-  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
-  buildTaskContextPacketHandoffHrefV01,
-  decodeTaskContextPacketHandoffSlugV01,
-} from "../lib/vnext/task-context-packet-handoff.ts";
-import {
   TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
   genericCliBuilderInputFixture,
 } from "../fixtures/vnext/protocol/task-context-packet-v0-1.ts";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store.ts";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet.ts";
+import {
+  issueVNextLocalOperatorBootstrapV01,
+  openVNextLocalOperatorDatabaseV01,
+  readVNextLocalOperatorPilotConfigV01,
+} from "../lib/vnext/runtime/local-operator-session.ts";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
+const TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01 = 64;
 
 const VALIDATION_VERSION =
-  "vnext_task_context_packet_handoff_browser_validation.v0.1";
+  "vnext_native_host_result_browser_validation.v0.1";
 const DEFAULT_TIMEOUT_MS = 45_000;
 // Current-head CI exposed that a DOM-only wait can expire while refresh churn
 // masks the supervised run's durable state. Observe that lifecycle explicitly,
@@ -47,7 +49,7 @@ const REQUEST_QUIET_MS = 500;
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const originalUmask = process.umask(0o077);
 const tempRoot = mkdtempSync(
-  path.join(tmpdir(), "augnes-vnext-packet-handoff-browser-v0-1-"),
+  path.join(tmpdir(), "augnes-vnext-native-host-result-browser-v0-1-"),
 );
 const canonicalOwnedTempRoot =
   process.env.AUGNES_CANONICAL_TEMP_ROOT?.trim() ?? null;
@@ -61,6 +63,14 @@ const manifestPath = path.join(
   "operator-pilot-browser-fixture.json",
 );
 const databasePath = path.join(fixtureDir, "operator-pilot.db");
+const browserSecondApprovalReleasePath = path.join(
+  tempRoot,
+  "browser-second-approval.release",
+);
+const browserTerminalReleasePath = path.join(
+  tempRoot,
+  "browser-terminal.release",
+);
 const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
 const appRepo = realpathSync(process.cwd());
@@ -112,10 +122,6 @@ const result = {
   packet_fingerprint: null,
   active_packet_id: null,
   active_packet_fingerprint: null,
-  handoff_href: null,
-  document_status: null,
-  handoff_api_status: null,
-  project_home_exact_href: false,
   direct_host_project_home_active: false,
   direct_host_request_body_empty: false,
   direct_host_receipt_persisted: false,
@@ -126,6 +132,8 @@ const result = {
   live_codex_waiting_for_approval: false,
   project_home_current_run_visible: false,
   live_codex_approved_once: false,
+  live_codex_second_approval: false,
+  project_home_approval_refresh_count: 0,
   live_codex_receipt_persisted: false,
   live_codex_no_internal_id_input: false,
   project_home_latest_result_visible: false,
@@ -163,19 +171,22 @@ const result = {
   control_mutation_runs_created: null,
   control_mutation_semantic_rows_created: null,
   control_mutation_personal_content_created: null,
-  overview_compatibility_reachable: false,
-  proposal_list_document_status: null,
-  proposal_detail_document_status: null,
-  workbench_lineage_status: null,
-  workbench_exact_persisted_lineage: false,
-  workbench_exact_handoff_href: false,
-  workbench_refresh_read_only: false,
   viewport_results: [],
   viewport_warnings: [],
-  refresh_read_only: false,
-  malformed_slug_statuses: {},
-  missing_fingerprint_private_material_rendered: null,
-  wrong_fingerprint_private_material_rendered: null,
+  packet_copy_actions: 0,
+  handoff_capsule_copy_actions: 0,
+  core_handoff_copy_actions: 0,
+  launch_card_copy_actions: 0,
+  result_paste_actions: 0,
+  result_report_textarea_interactions: 0,
+  native_host_clipboard_calls: 0,
+  internal_id_entry_actions: 0,
+  semantic_proposals_created: 0,
+  review_decisions_created: 0,
+  semantic_transitions_created: 0,
+  work_closures_created: 0,
+  retired_route_statuses: {},
+  retired_routes_non_mutating: false,
   unexpected_external_request_count: 0,
   unexpected_console_error_count: 0,
   credential_material_in_dom: false,
@@ -312,7 +323,7 @@ async function main() {
   assert.equal(fixtureSummary.default_database_accessed, false);
   assert.equal(fixtureSummary.external_network_calls, 0);
   assert.equal(fixtureSummary.provider_calls, 0);
-  assert.equal(fixtureSummary.persisted_lineage_status, "reviewed");
+  assert.equal(fixtureSummary.persisted_lineage_status, "packet_compiled");
   assert.equal(
     fixtureSummary.artifact_ownership,
     "transferred_to_browser_harness",
@@ -321,27 +332,8 @@ async function main() {
   assert.equal(fixtureSummary.private_absolute_path_in_manifest, false);
   result.default_database_accessed = fixtureSummary.default_database_accessed;
 
-  const handoffHref = buildTaskContextPacketHandoffHrefV01({
-    packet_id: manifest.packet_id,
-    packet_fingerprint: manifest.packet_fingerprint,
-  });
-  assert.equal(handoffHref, manifest.handoff_href);
-  const activePacketId = manifest.active_packet_id ?? manifest.packet_id;
-  const activePacketFingerprint =
-    manifest.active_packet_fingerprint ?? manifest.packet_fingerprint;
-  const activeHandoffHref = buildTaskContextPacketHandoffHrefV01({
-    packet_id: activePacketId,
-    packet_fingerprint: activePacketFingerprint,
-  });
-  assert.equal(activeHandoffHref, manifest.active_handoff_href ?? handoffHref);
-  const parsedHandoffUrl = new URL(handoffHref, "http://127.0.0.1");
-  const handoffSlug = parsedHandoffUrl.pathname.split("/").at(-1);
-  assert.equal(decodeTaskContextPacketHandoffSlugV01(handoffSlug), manifest.packet_id);
-  assert.equal(
-    manifest.packet_id.slice("task-context-packet:".length).length,
-    TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
-  );
-  record("actual_compile_result_uses_shared_canonical_handoff_href");
+  const activePacketId = manifest.packet_id;
+  const activePacketFingerprint = manifest.packet_fingerprint;
 
   result.proposal_id = manifest.proposal_id;
   result.proposal_fingerprint = manifest.proposal_fingerprint;
@@ -349,7 +341,7 @@ async function main() {
   result.packet_fingerprint = manifest.packet_fingerprint;
   result.active_packet_id = activePacketId;
   result.active_packet_fingerprint = activePacketFingerprint;
-  result.handoff_href = handoffHref;
+  record("actual_compile_result_uses_canonical_packet_identity");
 
   appPort = await chooseAvailablePort();
   debugPort = await chooseAvailablePort();
@@ -849,6 +841,100 @@ async function main() {
   });
   bootstrapToken = null;
 
+  await runPhase("retired_routes", async () => {
+    database ??= new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    const beforeRetiredRequests = databaseSnapshot(database);
+    const retiredRequests = [
+      {
+        name: "packet_handoff_api",
+        path: "/api/vnext/operator/packet-handoff?packet_id=retired&packet_fingerprint=retired",
+        method: "GET",
+      },
+      {
+        name: "later_result_api",
+        path: "/api/vnext/operator/later-result",
+        method: "POST",
+        body: { result_text: "retired result text must not be admitted" },
+      },
+      {
+        name: "result_report_api",
+        path: "/api/intake/codex-result-report/records",
+        method: "POST",
+        body: { result_text: "retired report text must not be admitted" },
+      },
+      {
+        name: "handoff_capsule_api",
+        path: "/api/augnes/read/handoff-capsule?scope=project%3Aaugnes",
+        method: "GET",
+      },
+      {
+        name: "launch_card_api",
+        path: "/api/augnes/read/codex-launch-card?scope=project%3Aaugnes",
+        method: "GET",
+      },
+      {
+        name: "handoff_generate_api",
+        path: "/api/handoffs/generate",
+        method: "POST",
+        body: { work_id: "AG-001" },
+      },
+      {
+        name: "handoff_review_api",
+        path: "/api/handoffs/review",
+        method: "POST",
+        body: { result_summary: "retired review must not be admitted" },
+      },
+      {
+        name: "packet_export_api",
+        path: "/api/workplane/handoff-packet-copy-exports",
+        method: "POST",
+        body: { packet_text: "retired packet transport must not be admitted" },
+      },
+      {
+        name: "packet_handoff_page",
+        path: "/workbench/semantic-review/packet-handoff/retired",
+        method: "GET",
+      },
+    ];
+    const retiredResults = await evaluateJson(`(async () => {
+      const requests = ${JSON.stringify(retiredRequests)};
+      const results = {};
+      for (const request of requests) {
+        const response = await fetch(request.path, {
+          method: request.method,
+          redirect: 'manual',
+          headers: request.body ? { 'content-type': 'application/json' } : undefined,
+          body: request.body ? JSON.stringify(request.body) : undefined,
+        });
+        const responseText = await response.text();
+        results[request.name] = {
+          status: response.status,
+          redirected: response.type === 'opaqueredirect' || response.status >= 300 && response.status < 400,
+          private_material: responseText.includes(${JSON.stringify(manifest.packet_id)}) ||
+            responseText.includes(${JSON.stringify(manifest.packet_fingerprint)}) ||
+            responseText.includes(${JSON.stringify(path.dirname(databasePath))}),
+        };
+      }
+      return results;
+    })()`);
+    for (const [name, retired] of Object.entries(retiredResults)) {
+      assert.equal(
+        [404, 405].includes(retired.status),
+        true,
+        `${name} must be absent or method-inaccessible`,
+      );
+      assert.equal(retired.redirected, false, `${name} must not redirect`);
+      assert.equal(retired.private_material, false, `${name} exposed private material`);
+      result.retired_route_statuses[name] = retired.status;
+    }
+    assert.deepEqual(databaseSnapshot(database), beforeRetiredRequests);
+    result.retired_routes_non_mutating = true;
+    record("retired_native_host_transport_routes_return_non_mutating_404");
+  });
+
   await runPhase("direct_host_round_trip", async () => {
     await navigate(
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
@@ -903,8 +989,12 @@ async function main() {
       return {
         action_present: Boolean(action),
         form_field_count: action?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
-      start_button_count: action?.querySelectorAll('[data-direct-host-action="deterministic"], [data-live-host-action="start"]').length ?? -1,
-        copy_or_paste_action: labels.some((label) => /copy|paste/i.test(label))
+        start_button_count: action?.querySelectorAll('[data-direct-host-action="deterministic"], [data-live-host-action="start"]').length ?? -1,
+        copy_or_paste_action: labels.some((label) => /copy|paste/i.test(label)),
+        retired_control_count: Array.from(document.querySelectorAll('button, a')).filter((candidate) =>
+          /copy taskcontextpacket|handoff capsule|core handoff|launch card|paste result|result report/i.test(candidate.textContent ?? '')
+        ).length,
+        result_textarea_count: document.querySelectorAll('textarea[name*="result" i], textarea[data-result-report], [data-result-paste]').length,
       };
     })()`);
     assert.deepEqual(actionShape, {
@@ -912,6 +1002,8 @@ async function main() {
       form_field_count: 0,
       start_button_count: 2,
       copy_or_paste_action: false,
+      retired_control_count: 0,
+      result_textarea_count: 0,
     });
     result.direct_host_no_copy_paste = true;
 
@@ -1043,6 +1135,7 @@ async function main() {
     record("active_project_direct_host_round_trip_persists_exact_packet_receipt");
     record("direct_host_round_trip_has_zero_copy_paste_or_internal_id_input");
 
+    const liveProjectHomePath = await evaluateString("location.pathname");
     const liveRequestStart = requests.length;
     const liveResponseStart = responses.length;
     assert.equal(
@@ -1063,11 +1156,13 @@ async function main() {
       ),
       "live Codex start acceptance",
     );
-    await waitForLiveRunStatus(
+    const firstApprovalState = await waitForLiveRunStatus(
       manifest.project_id,
       "waiting_for_approval",
       LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
+    assert(firstApprovalState.pending_approval);
+    assert.equal(firstApprovalState.pending_approval.decision_submitted, false);
     await waitForCondition(
       `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"]') !== null`,
       "live Codex command approval",
@@ -1075,6 +1170,16 @@ async function main() {
     await waitForCondition(
       `document.querySelector('[data-current-host-run="waiting_for_approval"]') !== null`,
       "Project Home current nonterminal run",
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(liveResponseStart).some(
+          (entry) =>
+            entry.path === liveProjectHomePath &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "Project Home first approval server refresh",
     );
     result.live_codex_waiting_for_approval = true;
     result.project_home_current_run_visible = true;
@@ -1095,7 +1200,7 @@ async function main() {
       raw_protocol_visible: false,
     });
 
-    const approvalResponseStart = responses.length;
+    const firstApprovalResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
         const button = document.querySelector('[data-live-host-action="approve-once"]');
@@ -1106,14 +1211,115 @@ async function main() {
     );
     await waitForHostCondition(
       () =>
-        responses.slice(approvalResponseStart).some(
+        responses.slice(firstApprovalResponseStart).some(
           (entry) =>
             entry.path === "/api/vnext/operator/host-round-trip" &&
             entry.type === "Fetch" &&
             entry.status === 200,
       ),
-      "live Codex one-shot approval response",
+      "live Codex first one-shot approval response",
     );
+    const runningAfterFirstApproval = await waitForLiveRunStatus(
+      manifest.project_id,
+      "running",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert.equal(runningAfterFirstApproval.run_ref, firstApprovalState.run_ref);
+    assert.equal(runningAfterFirstApproval.pending_approval, null);
+    assert(
+      runningAfterFirstApproval.control_revision >
+        firstApprovalState.control_revision,
+    );
+
+    const secondApprovalRefreshStart = responses.length;
+    writeFileSync(browserSecondApprovalReleasePath, "released\n", {
+      mode: 0o600,
+    });
+    const secondApprovalState = await waitForLiveRunProjection(
+      manifest.project_id,
+      (state) =>
+        state?.status === "waiting_for_approval" &&
+        state.pending_approval !== null &&
+        state.pending_approval.approval_ref !==
+          firstApprovalState.pending_approval?.approval_ref,
+      "second distinct approval",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert(secondApprovalState.pending_approval);
+    assert.equal(secondApprovalState.run_ref, firstApprovalState.run_ref);
+    assert.notEqual(
+      secondApprovalState.pending_approval.approval_ref,
+      firstApprovalState.pending_approval.approval_ref,
+    );
+    assert(
+      secondApprovalState.control_revision >
+        firstApprovalState.control_revision,
+    );
+    assert(
+      secondApprovalState.pending_approval.control_revision >
+        firstApprovalState.pending_approval.control_revision,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"] [data-live-host-action="approve-once"]:not([disabled])') !== null`,
+      "second live Codex command approval",
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(secondApprovalRefreshStart).some(
+          (entry) =>
+            entry.path === liveProjectHomePath &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "Project Home second approval server refresh",
+    );
+    result.live_codex_second_approval = true;
+    result.project_home_approval_refresh_count = 2;
+
+    const secondApprovalResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-live-host-action="approve-once"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(secondApprovalResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "live Codex second one-shot approval response",
+    );
+    const runningAfterSecondApproval = await waitForLiveRunStatus(
+      manifest.project_id,
+      "running",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert.equal(runningAfterSecondApproval.run_ref, firstApprovalState.run_ref);
+    assert.equal(runningAfterSecondApproval.pending_approval, null);
+    assert(
+      runningAfterSecondApproval.control_revision >
+        secondApprovalState.control_revision,
+    );
+    const latestApprovalIssuedAtMs = assertLiveApprovalReceiptBindings({
+      projectId: manifest.project_id,
+      workspaceId: manifest.workspace_id,
+      runRef: runningAfterSecondApproval.run_ref,
+      packetId: activePacketId,
+      packetFingerprint: activePacketFingerprint,
+      expectedApprovalCount: 2,
+    });
+    await waitForHostCondition(
+      () => Date.now() >= latestApprovalIssuedAtMs,
+      "receipt clock after both durable approval requests",
+    );
+    writeFileSync(browserTerminalReleasePath, "released\n", { mode: 0o600 });
     await waitForLiveRunStatus(
       manifest.project_id,
       "completed",
@@ -1133,23 +1339,35 @@ async function main() {
           entry.path === "/api/vnext/operator/host-round-trip" &&
           entry.method === "POST",
       );
-    assert.equal(liveRequests.length, 2);
+    assert.equal(liveRequests.length, 3);
     assert.deepEqual(JSON.parse(liveRequests[0].post_data), {
       action: "start_live",
     });
-    const approvalBody = JSON.parse(liveRequests[1].post_data);
-    assert.deepEqual(Object.keys(approvalBody).sort(), [
-      "action",
-      "approval_ref",
-      "control_revision",
-      "run_ref",
-    ]);
-    assert.equal(approvalBody.action, "approve_once");
-    assert.equal(
-      ["packet_json", "handoff_text", "result_text", "result_paste"].some(
-        (key) => Object.hasOwn(approvalBody, key),
-      ),
-      false,
+    const approvalBodies = liveRequests
+      .slice(1)
+      .map((request) => JSON.parse(request.post_data));
+    for (const approvalBody of approvalBodies) {
+      assert.deepEqual(Object.keys(approvalBody).sort(), [
+        "action",
+        "approval_ref",
+        "control_revision",
+        "run_ref",
+      ]);
+      assert.equal(approvalBody.action, "approve_once");
+      assert.equal(
+        ["packet_json", "handoff_text", "result_text", "result_paste"].some(
+          (key) => Object.hasOwn(approvalBody, key),
+        ),
+        false,
+      );
+    }
+    assert.notEqual(
+      approvalBodies[0].approval_ref,
+      approvalBodies[1].approval_ref,
+    );
+    assert(
+      approvalBodies[1].control_revision >
+        approvalBodies[0].control_revision,
     );
     result.live_codex_no_internal_id_input = true;
 
@@ -1174,7 +1392,7 @@ async function main() {
       false,
     );
     result.live_codex_receipt_persisted = true;
-    record("active_project_live_codex_waits_for_one_shot_approval_and_persists_receipt");
+    record("active_project_live_codex_refreshes_two_approval_boundaries_and_persists_one_receipt");
     record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
 
     const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
@@ -1311,236 +1529,35 @@ async function main() {
     );
     result.workbench_result_reload_durable = true;
     result.result_review_semantic_authority_unchanged = true;
+    result.native_host_clipboard_calls = await evaluateJson(
+      "globalThis.__augnesNativeHostClipboardCalls ?? 0",
+    );
+    assert.equal(result.native_host_clipboard_calls, 0);
+    result.semantic_proposals_created =
+      liveAfter.semantic_authority_counts.proposals -
+      before.semantic_authority_counts.proposals;
+    result.review_decisions_created =
+      liveAfter.semantic_authority_counts.decisions -
+      before.semantic_authority_counts.decisions;
+    result.semantic_transitions_created =
+      liveAfter.semantic_authority_counts.transitions -
+      before.semantic_authority_counts.transitions;
+    assert.equal(result.semantic_proposals_created, 0);
+    assert.equal(result.review_decisions_created, 0);
+    assert.equal(result.semantic_transitions_created, 0);
+    assert.equal(result.work_closures_created, 0);
     record("workbench_result_review_and_inspector_reload_from_immutable_durable_state");
     record("result_review_creates_no_proposal_decision_transition_evidence_or_work_closure");
   });
-
-  await runPhase("project_home", async () => {
-    await navigate(`${appOrigin}/overview`);
-    await waitForCondition(
-      `document.querySelector('[data-vnext-project-continuity="loaded"]') !== null`,
-      "loaded Project Home continuity",
-    );
-    result.overview_compatibility_reachable = true;
-    const exactHref = await evaluateString(`(() => {
-      const link = Array.from(document.querySelectorAll('a[href]')).find(
-        (candidate) => candidate.textContent?.trim() === 'Open exact packet handoff'
-      );
-      return link?.getAttribute('href') ?? '';
-    })()`);
-    result.project_home_exact_href = exactHref === activeHandoffHref;
-    if (result.project_home_exact_href) {
-      record("project_home_emits_exact_compiled_packet_handoff_href");
-    }
-  });
-
-  let proposalHref = null;
-  await runPhase("proposal_list", async () => {
-    const responseStart = responses.length;
-    await navigate(`${appOrigin}/workbench/semantic-review`);
-    await waitForCondition(
-      `document.querySelector('[data-vnext-semantic-review-list="v0.1"]') !== null`,
-      "Semantic Workbench proposal list",
-    );
-    result.proposal_list_document_status = documentStatusSince(
-      responseStart,
-      "/workbench/semantic-review",
-    );
-    assert.equal(result.proposal_list_document_status, 200);
-    proposalHref = await evaluateString(`(() => {
-      const card = Array.from(document.querySelectorAll('[data-vnext-proposal-id]')).find(
-        (candidate) => candidate.getAttribute('data-vnext-proposal-id') === ${JSON.stringify(manifest.proposal_id)}
-      );
-      return card?.querySelector('a[href]')?.getAttribute('href') ?? '';
-    })()`);
-    assert.match(proposalHref, /^\/workbench\/semantic-review\//);
-    record("actual_proposal_detail_href_followed_from_workbench_dom");
-  });
-
-  let workbenchHandoffHref = null;
-  let proposalPathname = null;
-  await runPhase("proposal_durable_lineage", async () => {
-    proposalPathname = new URL(proposalHref, appOrigin).pathname;
-    const responseStart = responses.length;
-    await navigate(`${appOrigin}${proposalHref}`);
-    await waitForCondition(
-      `document.querySelector('[data-vnext-durable-lineage="v0.1"][data-vnext-lineage-status="reviewed"]') !== null`,
-      "reviewed Workbench durable lineage",
-    );
-    result.proposal_detail_document_status = documentStatusSince(
-      responseStart,
-      proposalPathname,
-    );
-    assert.equal(result.proposal_detail_document_status, 200);
-    const lineageState = await evaluateJson(`(() => {
-      const panel = document.querySelector('[data-vnext-durable-lineage="v0.1"]');
-      const text = panel?.textContent ?? '';
-      const exactLink = Array.from(panel?.querySelectorAll('a[href]') ?? []).find(
-        (candidate) => candidate.textContent?.trim() === 'Open exact packet handoff'
-      );
-      return {
-        status: panel?.getAttribute('data-vnext-lineage-status') ?? '',
-        packet_id: panel?.getAttribute('data-vnext-lineage-packet-id') ?? '',
-        later_result_id: panel?.getAttribute('data-vnext-lineage-later-result-id') ?? '',
-        context_review_id: panel?.getAttribute('data-vnext-lineage-context-review-id') ?? '',
-        exact_handoff_href: exactLink?.getAttribute('href') ?? '',
-        proposal_present: (document.body?.innerText ?? '').includes(${JSON.stringify(manifest.proposal_id)}) && (document.body?.innerText ?? '').includes(${JSON.stringify(manifest.proposal_fingerprint)}),
-        transition_present: text.includes(${JSON.stringify(manifest.transition_receipt_id)}) && text.includes(${JSON.stringify(manifest.transition_receipt_fingerprint)}),
-        packet_present: text.includes(${JSON.stringify(manifest.packet_id)}) && text.includes(${JSON.stringify(manifest.packet_fingerprint)}),
-        result_present: text.includes(${JSON.stringify(manifest.later_result_receipt_id)}) && text.includes(${JSON.stringify(manifest.later_result_receipt_fingerprint)}),
-        review_present: text.includes(${JSON.stringify(manifest.context_use_review_id)}) && text.includes(${JSON.stringify(manifest.context_use_review_fingerprint)}),
-        credential_names_present: /bootstrap_token_hash|session_token_hash|action_nonce_hash/.test(document.documentElement.innerHTML)
-      };
-    })()`);
-    assert.deepEqual(lineageState, {
-      status: "reviewed",
-      packet_id: manifest.packet_id,
-      later_result_id: manifest.later_result_receipt_id,
-      context_review_id: manifest.context_use_review_id,
-      exact_handoff_href: handoffHref,
-      proposal_present: true,
-      transition_present: true,
-      packet_present: true,
-      result_present: true,
-      review_present: true,
-      credential_names_present: false,
-    });
-    workbenchHandoffHref = lineageState.exact_handoff_href;
-    result.workbench_lineage_status = lineageState.status;
-    result.workbench_exact_persisted_lineage = true;
-    result.workbench_exact_handoff_href = true;
-    record("workbench_renders_exact_persisted_m3d_durable_lineage");
-  });
-
-  database ??= new Database(databasePath, {
-    readonly: true,
-    fileMustExist: true,
-  });
-  await validateProposalViewports();
-  const beforeWorkbenchRefresh = databaseSnapshot(database);
-  const workbenchRequestStart = requests.length;
-  const workbenchResponseStart = responses.length;
-  await runPhase("proposal_read_only_refresh", async () => {
-    await cdp.send("Page.reload", { ignoreCache: true });
-    await waitForHostCondition(
-      () =>
-        responses
-          .slice(workbenchResponseStart)
-          .some(
-            (entry) =>
-              entry.path === proposalPathname &&
-              entry.type === "Document" &&
-              entry.status === 200,
-          ),
-      "refreshed proposal document response",
-    );
-    await waitForCondition(
-      `document.querySelector('[data-vnext-durable-lineage="v0.1"][data-vnext-lineage-status="reviewed"]') !== null`,
-      "refreshed Workbench durable lineage",
-    );
-  });
-  assert.deepEqual(databaseSnapshot(database), beforeWorkbenchRefresh);
-  assert.equal(
-    requests
-      .slice(workbenchRequestStart)
-      .some((request) => request.method === "POST"),
-    false,
-  );
-  result.workbench_refresh_read_only = true;
-  record("workbench_lineage_refresh_is_get_only_and_database_stable");
-
-  await runPhase("canonical_handoff_navigation", async () => {
-    const responseStart = responses.length;
-    assert.equal(workbenchHandoffHref, handoffHref);
-    await navigate(`${appOrigin}${workbenchHandoffHref}`);
-    await waitForHostCondition(
-      () =>
-        responses
-          .slice(responseStart)
-          .some(
-            (entry) =>
-              entry.path === parsedHandoffUrl.pathname && entry.type === "Document",
-          ),
-      "canonical handoff document response",
-    );
-    result.document_status = documentStatusSince(
-      responseStart,
-      parsedHandoffUrl.pathname,
-    );
-    assert.equal(result.document_status, 200);
-    assert.equal(result.project_home_exact_href, true);
-    await waitForCondition(
-      `document.querySelector('[data-vnext-packet-handoff-loaded="true"]') !== null`,
-      "loaded packet handoff surface",
-    );
-    const pageState = await evaluateJson(`(() => ({
-      loaded: document.querySelector('[data-vnext-packet-handoff-loaded="true"]') !== null,
-      private_material: document.querySelector('main')?.getAttribute('data-vnext-private-material-rendered'),
-      packet_id_present: document.body?.innerText.includes(${JSON.stringify(manifest.packet_id)}) ?? false,
-      packet_fingerprint_present: document.body?.innerText.includes(${JSON.stringify(manifest.packet_fingerprint)}) ?? false
-    }))()`);
-    assert.deepEqual(pageState, {
-      loaded: true,
-      private_material: "true",
-      packet_id_present: true,
-      packet_fingerprint_present: true,
-    });
-    const handoffApiResponse = responses
-      .slice(responseStart)
-      .find(
-        (entry) =>
-          entry.path === "/api/vnext/operator/packet-handoff" &&
-          entry.status === 200,
-      );
-    assert(handoffApiResponse, "The exact authenticated handoff API read did not succeed.");
-    result.handoff_api_status = handoffApiResponse.status;
-    record("canonical_generated_packet_renders_through_page_and_api");
-  });
-
-  const beforeRefresh = databaseSnapshot(database);
-  const requestStart = requests.length;
-  const responseStart = responses.length;
-  await runPhase("read_only_refresh", async () => {
-    await cdp.send("Page.reload", { ignoreCache: true });
-    await waitForHostCondition(
-      () =>
-        responses
-          .slice(responseStart)
-          .some(
-            (entry) =>
-              entry.path === parsedHandoffUrl.pathname &&
-              entry.type === "Document" &&
-              entry.status === 200,
-          ),
-      "refreshed handoff document response",
-    );
-    await waitForCondition(
-      `document.querySelector('[data-vnext-packet-handoff-loaded="true"]') !== null`,
-      "refreshed packet handoff surface",
-    );
-  });
-  const afterRefresh = databaseSnapshot(database);
-  assert.deepEqual(afterRefresh, beforeRefresh);
-  assert.equal(
-    requests.slice(requestStart).some((request) => request.method === "POST"),
-    false,
-  );
-  result.refresh_read_only = true;
-  record("handoff_refresh_is_get_only_and_database_stable");
-
-  await validateMalformedSlugs(handoffSlug, manifest.packet_id);
-  await validateMissingAndWrongFingerprint({ handoffSlug, manifest });
 
   const unexpectedConsoleErrors = consoleErrors.filter(
     (entry) =>
       !(
         (entry.path === "/favicon.ico" && /404/i.test(entry.text)) ||
+        (entry.phase === "retired_routes" && /404|405/i.test(entry.text)) ||
         (entry.phase === "locked_workbench" &&
           entry.path?.startsWith("/api/vnext/operator/") &&
           /401/i.test(entry.text)) ||
-        (entry.phase === "wrong_fingerprint" &&
-          entry.path === "/api/vnext/operator/packet-handoff" &&
-          /409/i.test(entry.text)) ||
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/projects" &&
           /409/i.test(entry.text)) ||
@@ -1603,6 +1620,10 @@ async function main() {
       !(
         request.phase === "direct_host_round_trip" &&
         request.path === "/api/vnext/operator/host-round-trip"
+      ) &&
+      !(
+        request.phase === "retired_routes" &&
+        result.retired_routes_non_mutating === true
       ),
   );
   assert.deepEqual(postBootstrapMutations, []);
@@ -1740,24 +1761,17 @@ function startChrome(executable) {
 }
 
 async function issueBootstrap(environment) {
-  const completed = await runCapture(
-    "npm",
-    ["run", "vnext:operator-pilot", "--", "issue-session"],
-    { cwd: appRepo, env: environment, timeoutMs: DEFAULT_TIMEOUT_MS },
-  );
-  assert.equal(
-    completed.code,
-    0,
-    `bootstrap issuance failed: ${completed.stderr.trim() || "no public error output"}`,
-  );
-  const lines = completed.stdout.trimEnd().split("\n");
-  const markerIndex = lines.indexOf(
-    "Augnes vNext local operator bootstrap token (shown once):",
-  );
-  assert(markerIndex >= 0, "bootstrap marker missing from CLI output");
-  const token = lines[markerIndex + 1] ?? "";
-  assert.match(token, /^vnext_bootstrap_v01\./);
-  return token;
+  const config = readVNextLocalOperatorPilotConfigV01(environment);
+  const writableDatabase = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    const token = issueVNextLocalOperatorBootstrapV01(writableDatabase, {
+      config,
+    }).bootstrap_token;
+    assert.match(token, /^vnext_bootstrap_v01\./);
+    return token;
+  } finally {
+    writableDatabase.close();
+  }
 }
 
 async function setBootstrapInput(token) {
@@ -1771,50 +1785,6 @@ async function setBootstrapInput(token) {
     return true;
   })()`);
   assert.equal(changed, true);
-}
-
-async function validateProposalViewports() {
-  for (const width of [390, 768, 1440]) {
-    await cdp.send("Emulation.setDeviceMetricsOverride", {
-      width,
-      height: 1000,
-      deviceScaleFactor: 1,
-      mobile: false,
-    });
-    await delay(100);
-    const metrics = await evaluateJson(`(() => {
-      const panel = document.querySelector('[data-vnext-durable-lineage="v0.1"]');
-      const rect = panel?.getBoundingClientRect();
-      return {
-        width: window.innerWidth,
-        document_scroll_width: document.documentElement.scrollWidth,
-        document_client_width: document.documentElement.clientWidth,
-        document_horizontal_overflow:
-          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-        panel_scroll_width: panel?.scrollWidth ?? -1,
-        panel_client_width: panel?.clientWidth ?? -1,
-        panel_horizontal_overflow:
-          (panel?.scrollWidth ?? 0) > (panel?.clientWidth ?? 0) + 1,
-        panel_inside_viewport:
-          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
-        credential_names_present:
-          /bootstrap_token_hash|session_token_hash|action_nonce_hash/.test(document.documentElement.innerHTML)
-      };
-    })()`);
-    assert.equal(metrics.width, width);
-    assert.equal(metrics.panel_horizontal_overflow, false);
-    assert.equal(metrics.panel_inside_viewport, true);
-    assert.equal(metrics.credential_names_present, false);
-    result.viewport_results.push(metrics);
-    if (metrics.document_horizontal_overflow) {
-      result.viewport_warnings.push({
-        width,
-        warning:
-          "Known proposal-detail document overflow remains outside the durable-lineage panel; the new panel itself has no horizontal overflow.",
-      });
-    }
-  }
-  record("workbench_lineage_panel_fits_390_768_and_1440_viewports");
 }
 
 async function validateProjectHomeViewports() {
@@ -1852,84 +1822,6 @@ async function validateProjectHomeViewports() {
   }
 }
 
-async function validateMalformedSlugs(canonicalSlug, packetId) {
-  const suffix = packetId.slice("task-context-packet:".length);
-  const malformed = {
-    suffix_22: `task-context-packet~${suffix.slice(0, 22)}`,
-    suffix_24: `task-context-packet~${suffix}a`,
-    suffix_25: `task-context-packet~${suffix}aa`,
-    uppercase_hex: `task-context-packet~${suffix.toUpperCase()}`,
-    wrong_prefix: `wrong-prefix~${suffix}`,
-    raw_colon_segment: packetId,
-    extra_separator: `task-context-packet~~${suffix}`,
-    trailing_material: `${canonicalSlug}-extra`,
-  };
-  for (const [label, slug] of Object.entries(malformed)) {
-    const response = await fetch(
-      `${appOrigin}/workbench/semantic-review/packet-handoff/${slug}`,
-      { redirect: "manual" },
-    );
-    result.malformed_slug_statuses[label] = response.status;
-    assert.equal(response.status, 404, `${label} must remain a 404`);
-  }
-  record("malformed_22_24_25_uppercase_prefix_colon_and_separator_slugs_rejected");
-}
-
-async function validateMissingAndWrongFingerprint({ handoffSlug, manifest }) {
-  await runPhase("missing_fingerprint", async () => {
-    const requestStart = requests.length;
-    await navigate(
-      `${appOrigin}/workbench/semantic-review/packet-handoff/${handoffSlug}`,
-    );
-    await waitForCondition(
-      `document.querySelector('main')?.getAttribute('data-vnext-packet-handoff-state') === 'invalid_binding'`,
-      "missing-fingerprint closed surface",
-    );
-    const privateMaterial = await evaluateString(
-      `document.querySelector('main')?.getAttribute('data-vnext-private-material-rendered') ?? ''`,
-    );
-    assert.equal(privateMaterial, "false");
-    assert.equal(
-      requests
-        .slice(requestStart)
-        .some((request) => request.path === "/api/vnext/operator/packet-handoff"),
-      false,
-    );
-    result.missing_fingerprint_private_material_rendered = false;
-  });
-  record("missing_fingerprint_exposes_no_private_packet_material");
-
-  await runPhase("wrong_fingerprint", async () => {
-    const responseStart = responses.length;
-    const wrongFingerprint = `sha256:${"f".repeat(64)}`;
-    await navigate(
-      `${appOrigin}/workbench/semantic-review/packet-handoff/${handoffSlug}?packet_fingerprint=${encodeURIComponent(
-        wrongFingerprint,
-      )}`,
-    );
-    await waitForCondition(
-      `['error', 'disabled'].includes(document.querySelector('main')?.getAttribute('data-vnext-packet-handoff-state'))`,
-      "wrong-fingerprint closed surface",
-    );
-    const privateMaterial = await evaluateString(
-      `document.querySelector('main')?.getAttribute('data-vnext-private-material-rendered') ?? ''`,
-    );
-    assert.equal(privateMaterial, "false");
-    assert.equal(
-      await evaluateBoolean(
-        `document.body?.innerText.includes(${JSON.stringify(manifest.packet_id)}) ?? false`,
-      ),
-      false,
-    );
-    const response = responses
-      .slice(responseStart)
-      .find((entry) => entry.path === "/api/vnext/operator/packet-handoff");
-    assert(response && response.status >= 400);
-    result.wrong_fingerprint_private_material_rendered = false;
-  });
-  record("wrong_packet_fingerprint_fails_closed");
-}
-
 async function openCdpPage() {
   await waitForHttp(`http://127.0.0.1:${debugPort}/json/version`, DEFAULT_TIMEOUT_MS);
   const response = await fetch(
@@ -1947,6 +1839,25 @@ async function openCdpPage() {
 async function enableCdpDomains() {
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
+  await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      let persistedCalls = 0;
+      try {
+        persistedCalls = Number(sessionStorage.getItem('__augnesNativeHostClipboardCalls') ?? '0');
+      } catch {}
+      globalThis.__augnesNativeHostClipboardCalls = persistedCalls;
+      const clipboard = navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== "function") return;
+      const originalWriteText = clipboard.writeText.bind(clipboard);
+      clipboard.writeText = async (...args) => {
+        globalThis.__augnesNativeHostClipboardCalls += 1;
+        try {
+          sessionStorage.setItem('__augnesNativeHostClipboardCalls', String(globalThis.__augnesNativeHostClipboardCalls));
+        } catch {}
+        return originalWriteText(...args);
+      };
+    })();`,
+  });
   await cdp.send("Network.enable");
   await cdp.send("Log.enable");
   await cdp.send("Fetch.enable", {
@@ -2122,13 +2033,29 @@ async function waitForHostCondition(predicate, label, timeoutMs = DEFAULT_TIMEOU
 }
 
 async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
+  return waitForLiveRunProjection(
+    projectId,
+    (state) => state?.status === expectedStatus,
+    `durable live Codex status ${expectedStatus}`,
+    timeoutMs,
+  );
+}
+
+async function waitForLiveRunProjection(
+  projectId,
+  predicate,
+  label,
+  timeoutMs,
+) {
   const startedAt = Date.now();
   let lastStatus = "not_recorded";
+  let lastReason = "not_recorded";
   while (Date.now() - startedAt < timeoutMs) {
     try {
       const state = readLatestManagedLiveRunState(projectId);
       lastStatus = state?.status ?? "not_recorded";
-      if (lastStatus === expectedStatus) return;
+      lastReason = state?.public_reason ?? "not_recorded";
+      if (predicate(state)) return state;
       if (
         state?.reconciliation_required === true ||
         [
@@ -2141,7 +2068,7 @@ async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
         ].includes(lastStatus)
       ) {
         throw new Error(
-          `Live Codex run reached ${lastStatus} before ${expectedStatus}.`,
+          `Live Codex run reached ${lastStatus} (${lastReason}) before ${label}.`,
         );
       }
     } catch (error) {
@@ -2162,7 +2089,7 @@ async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
     await delay(100);
   }
   throw new Error(
-    `Timed out waiting for durable live Codex status ${expectedStatus}; last status ${lastStatus}.`,
+    `Timed out waiting for ${label}; last status ${lastStatus} (${lastReason}).`,
   );
 }
 
@@ -2398,7 +2325,7 @@ function readLatestManagedLiveRunState(projectId) {
   try {
     const row = readableDatabase
       .prepare(
-        `SELECT status, metadata_json
+        `SELECT run_id, status, stop_reason, metadata_json
          FROM autonomy_runs
          WHERE scope = ?
            AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'
@@ -2409,10 +2336,84 @@ function readLatestManagedLiveRunState(projectId) {
       .get(projectId);
     if (!row) return null;
     const metadata = JSON.parse(row.metadata_json);
+    const pendingApproval =
+      metadata.pending_approval &&
+      typeof metadata.pending_approval === "object" &&
+      !Array.isArray(metadata.pending_approval)
+        ? metadata.pending_approval
+        : null;
     return {
+      run_ref: String(row.run_id),
       status: String(row.status),
+      control_revision: Number(metadata.control_revision ?? 0),
       reconciliation_required: metadata.reconciliation_required === true,
+      public_reason:
+        typeof metadata.public_reason === "string"
+          ? metadata.public_reason
+          : typeof row.stop_reason === "string"
+            ? row.stop_reason
+            : null,
+      pending_approval: pendingApproval
+        ? {
+            approval_ref: String(pendingApproval.approval_id ?? ""),
+            control_revision: Number(pendingApproval.control_revision ?? 0),
+            decision_submitted: pendingApproval.decision_submitted === true,
+          }
+        : null,
+      receipt_ref:
+        typeof metadata.run_receipt_id === "string"
+          ? metadata.run_receipt_id
+          : null,
     };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
+function assertLiveApprovalReceiptBindings({
+  projectId,
+  workspaceId,
+  runRef,
+  packetId,
+  packetFingerprint,
+  expectedApprovalCount,
+}) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const row = readableDatabase
+      .prepare(
+        `SELECT metadata_json
+         FROM autonomy_runs
+         WHERE run_id = ?
+           AND scope = ?
+           AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'`,
+      )
+      .get(runRef, projectId);
+    assert(row, "The repeated-approval run must remain project scoped.");
+    const metadata = JSON.parse(row.metadata_json);
+    const approvalRequests = Array.isArray(metadata.approval_requests)
+      ? metadata.approval_requests
+      : [];
+    assert.equal(approvalRequests.length, expectedApprovalCount);
+    assert(metadata.host_thread_ref);
+    assert(metadata.host_turn_ref);
+    let latestIssuedAtMs = 0;
+    for (const request of approvalRequests) {
+      assert.equal(request.workspace_id, workspaceId);
+      assert.equal(request.project_id, projectId);
+      assert.equal(request.run_id, runRef);
+      assert.equal(request.packet_id, packetId);
+      assert.equal(request.packet_fingerprint, packetFingerprint);
+      assert.deepEqual(request.host_thread_ref, metadata.host_thread_ref);
+      assert.deepEqual(request.host_turn_ref, metadata.host_turn_ref);
+      const issuedAtMs = Date.parse(request.issued_at);
+      assert.equal(Number.isFinite(issuedAtMs), true);
+      latestIssuedAtMs = Math.max(latestIssuedAtMs, issuedAtMs);
+    }
+    return latestIssuedAtMs;
   } finally {
     readableDatabase.close();
   }

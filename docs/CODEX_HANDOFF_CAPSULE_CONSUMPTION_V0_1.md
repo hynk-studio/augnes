@@ -1,3 +1,5 @@
+> Historical compatibility record: the normal R5 product path no longer exports or copies this material. Native-host context and structured results are admitted automatically; this document is retained only for legacy data/type interpretation.
+
 # Codex Handoff Capsule Consumption v0.1
 
 ## 1. Purpose

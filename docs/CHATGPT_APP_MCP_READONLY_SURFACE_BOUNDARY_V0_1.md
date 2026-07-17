@@ -12,7 +12,6 @@ Scope for the first implemented contact surface is:
 - `apps/augnes_apps/src/adapters/state-runtime-http.ts`
 - `apps/augnes_apps/src/lib/state-runtime-types.ts`
 - `apps/augnes_apps/public/console-widget.html`
-- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
 - `scripts/smoke-chatgpt-constellation-preview-surface.mjs`
 - `package.json`
 

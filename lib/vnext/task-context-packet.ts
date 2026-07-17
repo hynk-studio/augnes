@@ -13,7 +13,6 @@ import {
   validateDuplicateExternalRefsPrimitiveV01,
   validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
-import { TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01 } from "@/lib/vnext/task-context-packet-handoff";
 import {
   TASK_CONTEXT_PACKET_CANONICALIZATION_V01,
   TASK_CONTEXT_PACKET_CURRENTNESS_STATUSES_V01,
@@ -36,6 +35,24 @@ import {
   type TaskContextPacketValidationIssueV01,
   type TaskContextPacketValidationResultV01,
 } from "@/types/vnext/task-context-packet";
+
+export const TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01 = 23 as const;
+const TASK_CONTEXT_PACKET_ID_PREFIX_V01 = "task-context-packet:";
+const LOWERCASE_HEX_PATTERN_V01 = /^[a-f0-9]+$/;
+
+export function isTaskContextPacketIdV01(value: unknown): value is string {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith(TASK_CONTEXT_PACKET_ID_PREFIX_V01)
+  ) {
+    return false;
+  }
+  const suffix = value.slice(TASK_CONTEXT_PACKET_ID_PREFIX_V01.length);
+  return (
+    suffix.length === TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01 &&
+    LOWERCASE_HEX_PATTERN_V01.test(suffix)
+  );
+}
 
 const DEFAULT_MAX_SELECTED_ENTRIES = 64;
 const DEFAULT_MAX_PROJECTION_ITEMS = 64;

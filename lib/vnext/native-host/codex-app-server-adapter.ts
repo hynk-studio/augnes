@@ -569,13 +569,15 @@ class CodexAppServerInvocationV01 {
     if (this.turnId && this.turnId !== turnId) {
       throw this.reconciliationError("codex_turn_identity_mismatch");
     }
-    this.turnId = turnId;
-    this.turnRef = externalRefV01(
-      "host_turn",
-      turnId,
-      this.now(),
-      "direct_local_observation",
-    );
+    if (!this.turnId) {
+      this.turnId = turnId;
+      this.turnRef = externalRefV01(
+        "host_turn",
+        turnId,
+        this.now(),
+        "direct_local_observation",
+      );
+    }
     await this.reportLifecycle({
       event_kind: "turn_started",
       state: "running",

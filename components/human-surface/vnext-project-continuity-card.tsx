@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { buildTaskContextPacketHandoffHrefV01 } from "@/lib/vnext/task-context-packet-handoff";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 
 const PROJECT_CONTINUITY_ROUTE = "/api/vnext/operator/project-continuity";
@@ -109,9 +108,6 @@ export function VNextProjectContinuityCard() {
 
   const { project, continuity } = read.value;
   const packet = continuity.latest_compiled_packet;
-  const handoffHref = packet
-    ? buildTaskContextPacketHandoffHrefV01(packet)
-    : null;
 
   return (
     <section
@@ -205,11 +201,6 @@ export function VNextProjectContinuityCard() {
         <a className="human-surface-inline-link" href="/workbench/semantic-review">
           Open Semantic Workbench
         </a>
-        {handoffHref ? (
-          <a className="human-surface-inline-link" href={handoffHref}>
-            Open exact packet handoff
-          </a>
-        ) : null}
       </div>
     </section>
   );

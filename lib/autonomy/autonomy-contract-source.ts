@@ -16,12 +16,6 @@ import {
   readGuideBriefForRoute,
 } from "@/lib/guide/guide-brief-source";
 import {
-  readCodexLaunchCardForRoute,
-  readHandoffCapsuleForRoute,
-  type CodexLaunchCardRouteResponse,
-  type HandoffCapsuleRouteResponse,
-} from "@/lib/handoff/handoff-capsule-source";
-import {
   READONLY_LOCAL_HOSTS,
   validateReadonlyApiLocalAccess,
   type ReadonlyApiAccessErrorCode,
@@ -145,8 +139,6 @@ export type AutonomyContractRouteResponse = {
 
 export type AutonomyContractRouteSourceStatus = {
   guide_brief: string;
-  handoff_capsule: string;
-  codex_launch_card: string;
   autonomy_contract: string;
   budget: string;
   delta_merge_policy: string;
@@ -176,8 +168,6 @@ type LocalMarkerValidationResult =
 type AutonomyContractRouteInputSources = {
   scope: typeof AUTONOMY_CONTRACT_ROUTE_SCOPE;
   guideBrief: GuideBrief;
-  handoffCapsuleResponse: HandoffCapsuleRouteResponse;
-  codexLaunchCardResponse: CodexLaunchCardRouteResponse;
 };
 
 export function validateAutonomyContractReadRequest(
@@ -260,16 +250,9 @@ export function readAutonomyContractForRoute({
   scope: typeof AUTONOMY_CONTRACT_ROUTE_SCOPE;
 }): AutonomyContractRouteResponse {
   const guideBrief = readGuideBriefForRoute({ scope });
-  const handoffCapsuleResponse = readHandoffCapsuleForRoute({
-    scope,
-    target: "codex_handoff",
-  });
-  const codexLaunchCardResponse = readCodexLaunchCardForRoute({ scope });
   const input = buildAutonomyContractRouteInput({
     scope,
     guideBrief,
-    handoffCapsuleResponse,
-    codexLaunchCardResponse,
   });
   const contract = buildAutonomyContract(input);
 
@@ -285,18 +268,12 @@ export function readAutonomyContractForRoute({
     ],
     source_status: buildAutonomyContractRouteSourceStatus({
       guideBrief,
-      handoffCapsuleResponse,
-      codexLaunchCardResponse,
     }),
     warnings: buildAutonomyContractRouteWarnings({
       guideBrief,
-      handoffCapsuleResponse,
-      codexLaunchCardResponse,
     }),
     gaps: buildAutonomyContractRouteGaps({
       guideBrief,
-      handoffCapsuleResponse,
-      codexLaunchCardResponse,
       contract,
     }),
   };
@@ -305,13 +282,9 @@ export function readAutonomyContractForRoute({
 export function buildAutonomyContractRouteInput({
   scope,
   guideBrief,
-  handoffCapsuleResponse,
-  codexLaunchCardResponse,
 }: AutonomyContractRouteInputSources): AutonomyContractBuilderInput {
   const scopeKey = scope.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
   const guideBriefRef = `guide_brief:${scope}:${guideBrief.as_of}`;
-  const handoffCapsule = handoffCapsuleResponse.capsule;
-  const codexLaunchCard = codexLaunchCardResponse.launch_card;
   const createdAt = guideBrief.as_of || ROUTE_PREVIEW_CREATED_AT_FALLBACK;
 
   return {
@@ -324,10 +297,10 @@ export function buildAutonomyContractRouteInput({
       "Preview a future bounded autonomy delegation contract for Augnes without running autonomy.",
     autonomy_mode: "scheduled_hunt_preview",
     bounded_context_summary:
-      "Preview-only Autonomy Contract composed from local read-only GuideBrief, Handoff Capsule, and Codex Launch Card route sources plus synthetic no-spend operator defaults.",
+      "Preview-only Autonomy Contract composed from the local read-only GuideBrief plus synthetic no-spend operator defaults.",
     guide_brief: guideBriefRef,
-    handoff_capsules: [handoffCapsule.capsule_id],
-    codex_launch_cards: [codexLaunchCard.launch_card_id],
+    handoff_capsules: [],
+    codex_launch_cards: [],
     current_working_perspective_ref:
       guideBrief.source_refs.current_working_perspective_ref,
     delta_projection_ref: guideBrief.source_refs.delta_projection_ref,
@@ -336,8 +309,6 @@ export function buildAutonomyContractRouteInput({
         "Route-composed preview context for future Augnes autonomy review.",
       included_refs: uniqueSorted([
         guideBriefRef,
-        handoffCapsule.capsule_id,
-        codexLaunchCard.launch_card_id,
         guideBrief.source_refs.current_working_perspective_ref,
         guideBrief.source_refs.delta_projection_ref,
       ]),
@@ -357,7 +328,6 @@ export function buildAutonomyContractRouteInput({
           : "fresh",
       notes: [
         "Context refs are preview inputs only.",
-        "Handoff Capsule and Codex Launch Card consumption does not grant launch, execution, handoff send, branch/PR creation, proof/evidence, merge, or external authority.",
         "This route does not run, schedule, launch, apply, post, merge, or mutate anything.",
       ],
     },
@@ -365,7 +335,6 @@ export function buildAutonomyContractRouteInput({
     allowed_surfaces: [
       "agent_workplane_preview",
       "chatgpt_review",
-      "codex_handoff",
     ],
     allowed_actions: buildDefaultAllowedActions(),
     forbidden_actions: buildDefaultForbiddenActions(),
@@ -457,11 +426,9 @@ export function buildAutonomyContractRouteInput({
       fresh_snapshot_required: true,
       stale_context_blocks_future_run: true,
       stale_guide_brief_requires_review: true,
-      stale_handoff_capsule_requires_review: true,
+      stale_handoff_capsule_requires_review: false,
       refresh_required_sources: [
         "GuideBrief",
-        "Handoff Capsule",
-        "Codex Launch Card",
         "Current Working Perspective",
         "Delta Projection",
       ],
@@ -492,7 +459,7 @@ export function buildAutonomyContractRouteInput({
       preview_id: `autonomy_run_preview.${scopeKey}.route_preview.v0.1`,
       title: "Autonomy Contract route preview",
       planned_steps: [
-        "Read GuideBrief, Handoff Capsule, Codex Launch Card, Current Working Perspective, and Delta Projection refs.",
+        "Read GuideBrief, Current Working Perspective, and Delta Projection refs.",
         "Summarize bounded context and rank candidate deltas for manual review.",
         "Prepare review packet and draft report preview.",
       ],
@@ -519,8 +486,8 @@ export function buildAutonomyContractRouteInput({
     }),
     source_refs: {
       guide_brief_refs: [guideBriefRef],
-      handoff_capsule_refs: [handoffCapsule.capsule_id],
-      codex_launch_card_refs: [codexLaunchCard.launch_card_id],
+      handoff_capsule_refs: [],
+      codex_launch_card_refs: [],
       current_working_perspective_refs: [
         guideBrief.source_refs.current_working_perspective_ref,
       ],
@@ -528,37 +495,17 @@ export function buildAutonomyContractRouteInput({
       workplane_refs: [guideBrief.source_refs.workplane_ref],
       delta_ids: guideBrief.source_refs.delta_ids,
       batch_ids: guideBrief.source_refs.batch_ids,
-      evidence_refs: uniqueSorted([
-        ...guideBrief.source_refs.evidence_refs,
-        ...handoffCapsule.source_refs.evidence_refs,
-        ...codexLaunchCard.source_refs.evidence_refs,
-      ]),
-      artifact_refs: uniqueSorted([
-        ...guideBrief.source_refs.artifact_refs,
-        ...handoffCapsule.source_refs.artifact_refs,
-        ...codexLaunchCard.source_refs.artifact_refs,
-      ]),
-      handoff_refs: uniqueSorted([
-        ...guideBrief.source_refs.handoff_refs,
-        ...handoffCapsule.source_refs.handoff_refs,
-        ...codexLaunchCard.source_refs.handoff_refs,
-      ]),
-      diagnostic_refs: uniqueSorted([
-        ...guideBrief.source_refs.diagnostic_refs,
-        ...handoffCapsule.source_refs.diagnostic_refs,
-        ...codexLaunchCard.source_refs.diagnostic_refs,
-      ]),
+      evidence_refs: uniqueSorted(guideBrief.source_refs.evidence_refs),
+      artifact_refs: uniqueSorted(guideBrief.source_refs.artifact_refs),
+      handoff_refs: [],
+      diagnostic_refs: uniqueSorted(guideBrief.source_refs.diagnostic_refs),
       route_refs: [
         "GET /api/augnes/read/autonomy-contract?scope=project:augnes",
         "GET /api/augnes/read/guide-brief?scope=project:augnes",
-        "GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff",
-        "GET /api/augnes/read/codex-launch-card?scope=project:augnes",
       ],
       docs_refs: [
         "docs/AUTONOMY_CONTRACT_V0_1.md",
         "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
-        "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
-        "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
         "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
         "docs/AUTHORITY_MATRIX.md",
         "docs/AGENT_WORKPLANE_V0_1.md",
@@ -601,16 +548,12 @@ export function buildAutonomyContractRouteSourceStatus({
   guideBrief,
 }: {
   guideBrief: GuideBrief;
-  handoffCapsuleResponse?: HandoffCapsuleRouteResponse;
-  codexLaunchCardResponse?: CodexLaunchCardRouteResponse;
 }): AutonomyContractRouteSourceStatus {
   return {
     guide_brief:
       guideBrief.gaps.length > 0
         ? "runtime_read_model_with_source_gaps"
         : "runtime_read_model",
-    handoff_capsule: "route_composed_preview",
-    codex_launch_card: "route_composed_preview",
     autonomy_contract: "route_composed_preview",
     budget: "synthetic_operator_supplied_preview_defaults",
     delta_merge_policy: "phase_8a_default_no_auto_apply_policy",
@@ -632,17 +575,11 @@ export function buildAutonomyContractRouteSourceStatus({
 
 export function buildAutonomyContractRouteWarnings({
   guideBrief,
-  handoffCapsuleResponse,
-  codexLaunchCardResponse,
 }: {
   guideBrief: GuideBrief;
-  handoffCapsuleResponse?: HandoffCapsuleRouteResponse;
-  codexLaunchCardResponse?: CodexLaunchCardRouteResponse;
 }): string[] {
   return uniqueSorted([
     ...guideBrief.staleness_warnings.map((warning) => warning.summary),
-    ...(handoffCapsuleResponse?.warnings ?? []),
-    ...(codexLaunchCardResponse?.warnings ?? []),
     "Autonomy Contract route output is preview JSON only.",
     "Route-composed budget/operator fields are synthetic preview defaults and do not grant active delegation approval.",
     "The route does not run autonomy, schedule autonomy, launch Codex, send handoffs, write proof/evidence, mutate state, or call providers/GitHub.",
@@ -651,19 +588,13 @@ export function buildAutonomyContractRouteWarnings({
 
 function buildAutonomyContractRouteGaps({
   guideBrief,
-  handoffCapsuleResponse,
-  codexLaunchCardResponse,
   contract,
 }: {
   guideBrief: GuideBrief;
-  handoffCapsuleResponse?: HandoffCapsuleRouteResponse;
-  codexLaunchCardResponse?: CodexLaunchCardRouteResponse;
   contract: AutonomyContract;
 }): string[] {
   return uniqueSorted([
     ...guideBrief.gaps.map((gap) => gap.summary),
-    ...(handoffCapsuleResponse?.gaps ?? []),
-    ...(codexLaunchCardResponse?.gaps ?? []),
     ...contract.gaps.map((gap) => gap.summary),
     "Route-composed budget fields are preview defaults; operator budget review is required before any future autonomy.",
   ]);

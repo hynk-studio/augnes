@@ -332,8 +332,8 @@ durable Perspective apply, scheduler/autonomy runner, handoff execution,
 branch/PR creation behavior from Augnes product code, merge, publish, retry,
 replay, deploy, or external side effect.
 
-Phase 7 Handoff Capsule / Codex Launch Card remains deferred and requires
-separate scope.
+Manual Handoff Capsule / Codex Launch Card transport was retired in R5. Any
+replacement requires separate scope.
 
 ## 4. Observed / Inferred / Suggested / Needs User Judgment
 
@@ -598,7 +598,7 @@ Historical deferred markers:
 
 Current deferred work after Phase 6E:
 
-- Phase 7 Handoff Capsule / Codex Launch Card remains deferred.
+- Manual Handoff Capsule / Codex Launch Card transport is retired; Project Home owns automatic native-host execution.
 
 ## 10. Validation and Smoke Plan
 

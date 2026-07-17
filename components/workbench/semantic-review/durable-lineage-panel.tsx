@@ -21,12 +21,6 @@ export function DurableLineagePanel({
       data-vnext-lineage-packet-id={
         latest?.compiled_packet?.packet_id ?? "none"
       }
-      data-vnext-lineage-later-result-id={
-        latest?.later_result?.receipt_id ?? "none"
-      }
-      data-vnext-lineage-context-review-id={
-        latest?.context_use_review?.review_id ?? "none"
-      }
     >
       <div className={styles.panelHeader}>
         <div className={styles.rowBetween}>
@@ -36,9 +30,9 @@ export function DurableLineagePanel({
         <h2 id="durable-lineage-title">Durable semantic lineage</h2>
         <p className={styles.copy}>
           Exact persisted relations from this proposal through decision, gate,
-          transition, packet compilation, later-result intake, and context-use
-          review. This projection grants no semantic authority and performs no
-          write.
+          transition and packet compilation. Native-host execution results are
+          reviewed through the project-scoped result surface and Inspector. This
+          projection grants no semantic authority and performs no write.
         </p>
       </div>
 
@@ -55,14 +49,6 @@ export function DurableLineagePanel({
           <PendingStage
             title="compiled TaskContextPacket"
             message="Packet not compiled"
-          />
-          <PendingStage
-            title="later-result RunReceipt"
-            message="Later result not recorded"
-          />
-          <PendingStage
-            title="ContextUseReview"
-            message="Context use not reviewed"
           />
         </div>
       ) : (
@@ -81,8 +67,6 @@ export function DurableLineagePanel({
                 <GateStage chain={chain} />
                 <TransitionStage chain={chain} />
                 <PacketStage chain={chain} />
-                <LaterResultStage chain={chain} />
-                <ContextReviewStage chain={chain} />
               </div>
             </li>
           ))}
@@ -188,81 +172,6 @@ function PacketStage({
         label="Projection current"
         value={String(packet.projection_current)}
       />
-      <a className={styles.linkButton} href={packet.handoff_href}>
-        Open exact packet handoff
-      </a>
-    </LineageStage>
-  );
-}
-
-function LaterResultStage({
-  chain,
-}: {
-  chain: VNextOperatorPilotProposalDurableLineageChainV01;
-}) {
-  const result = chain.later_result;
-  if (!result) {
-    return (
-      <PendingStage
-        title="later-result RunReceipt"
-        message="Later result not recorded"
-      />
-    );
-  }
-  return (
-    <LineageStage title="later-result RunReceipt">
-      <ExactValue label="Receipt ID" value={result.receipt_id} />
-      <ExactValue
-        label="Receipt fingerprint"
-        value={result.receipt_fingerprint}
-      />
-      <ExactValue label="Run ID" value={result.run_id} />
-      <ExactValue label="Recorded" value={result.recorded_at} />
-      <ExactValue
-        label="Reported packet payload use"
-        value={result.reported_payload_use}
-      />
-      <ExactValue
-        label="Cited accepted-state count"
-        value={result.cited_selected_state_count}
-      />
-      <ExactValue
-        label="Actual-use review required"
-        value={String(result.actual_use_review_required)}
-      />
-      <ExactValue
-        label="Helpfulness established"
-        value={String(result.helpfulness_established)}
-      />
-    </LineageStage>
-  );
-}
-
-function ContextReviewStage({
-  chain,
-}: {
-  chain: VNextOperatorPilotProposalDurableLineageChainV01;
-}) {
-  const review = chain.context_use_review;
-  if (!review) {
-    return (
-      <PendingStage
-        title="ContextUseReview"
-        message="Context use not reviewed"
-      />
-    );
-  }
-  return (
-    <LineageStage title="ContextUseReview">
-      <ExactValue label="Review ID" value={review.review_id} />
-      <ExactValue
-        label="Review fingerprint"
-        value={review.review_fingerprint}
-      />
-      <ExactValue label="Reviewed" value={review.reviewed_at} />
-      <ExactValue label="Actually used" value={review.actually_used} />
-      <ExactValue label="Assessment" value={review.assessment} />
-      <ExactValue label="Correction count" value={review.correction_count} />
     </LineageStage>
   );
 }

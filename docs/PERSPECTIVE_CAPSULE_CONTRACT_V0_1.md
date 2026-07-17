@@ -1,5 +1,10 @@
 # Perspective Capsule Contract v0.1
 
+> Historical design record. The native-host manual capsule/copy workflow and
+> its instruction-only consumption skill were retired in R5. This document is
+> retained only to interpret historical planning and compatibility fields; its
+> commands and workflow are not current operator instructions.
+
 ## 1. Status and Scope
 
 This document is docs-only, non-SSOT, contract/design-only, read-only,
@@ -370,16 +375,9 @@ implementation, no runtime execution, no proof/evidence writes, and no
 approval/publish/merge authority. The static guard is
 `npm run smoke:perspective-capsule-copyable-handoff-preview`.
 
-Codex Plugin consumption guidance for Perspective Capsule / Handoff Capsule
-material lives in
-`plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md`. That skill is
-instruction-only workflow guidance for preserving capsule fields, scope,
-checks, skipped reasons, evidence pointers, unresolved tensions, PR body
-requirements, and final report requirements. It does not create capsule runtime
-behavior, does not call GitHub/OpenAI/Augnes runtime, does not call MCP/App
-tools, does not create proof/evidence, does not open PRs by itself, does not
-merge, does not publish, does not approve, does not retry, does not replay, does
-not deploy, and does not grant Codex execution authority.
+The former instruction-only Codex Plugin consumption skill was removed with
+the manual native-host transport. Historical capsule fields remain
+non-authoritative compatibility material and are not an active intake path.
 
 ### Example 2: ChatGPT App/MCP Review To Codex Plugin Workflow
 
@@ -410,7 +408,8 @@ authority.
 
 ## 19. Validation and Smoke Plan
 
-Required checks for this docs/smoke/package-pointer PR:
+Historical checks used when this document was introduced (not current package
+commands):
 
 ```text
 npm run typecheck

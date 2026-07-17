@@ -21,23 +21,16 @@ import {
 import {
   buildTaskContextPacketV01,
   canonicalizeTaskContextValueV01,
+  isTaskContextPacketIdV01,
+  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
   TASK_CONTEXT_PACKET_REQUIRED_CORE_FIELDS_V01,
   type TaskContextPacketBuilderInputV01,
   validateExternalRefV01,
   validateTaskContextPacketV01,
 } from "@/lib/vnext/task-context-packet";
-import {
-  TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
-  buildTaskContextPacketHandoffHrefV01,
-  decodeTaskContextPacketHandoffSlugV01,
-  encodeTaskContextPacketHandoffSlugV01,
-  isTaskContextPacketIdV01,
-} from "@/lib/vnext/task-context-packet-handoff";
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
-import { runCodexResultReportRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-result-report-run-receipt";
 import { runContextUseReviewConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-review";
-import { runCodexReviewEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-review-episode-delta-proposal";
 import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
 import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/episode-delta-proposal";
 import { runReviewDecisionConformanceV01 } from "@/scripts/vnext-protocol-conformance/review-decision";
@@ -45,16 +38,12 @@ import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformanc
 import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-review-loop";
 import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-transition-loop";
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
-import { runCodexReviewDurableSummaryPolicyConformanceV01 } from "@/scripts/validate-vnext-codex-review-durable-summary-policy-v0-1";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
 const coreSourcePath = "lib/vnext/task-context-packet.ts";
-const taskContextHandoffSourcePath =
-  "lib/vnext/task-context-packet-handoff.ts";
 const sourcePaths = [
   coreSourcePath,
-  taskContextHandoffSourcePath,
   legacyAdapterSourcePath,
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
@@ -63,10 +52,6 @@ const sourcePaths = [
   "lib/vnext/state-transition-receipt.ts",
   "lib/vnext/state-transition-eligibility.ts",
   "lib/vnext/context-use-review.ts",
-  "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
-  "lib/vnext/compat/episode-delta-proposal-from-codex-review.ts",
-  "lib/vnext/compat/codex-review-durable-summary-policy-v0-1.ts",
-  "lib/vnext/compat/codex-result-report-source-validator.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
   "lib/vnext/compat/run-receipt-from-autohunt-result-intake.ts",
@@ -370,23 +355,6 @@ try {
     genericPacket.packet_id.slice("task-context-packet:".length).length,
     TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
   );
-  const canonicalPacketSlug = encodeTaskContextPacketHandoffSlugV01(
-    genericPacket.packet_id,
-  );
-  assert(canonicalPacketSlug);
-  assert.equal(
-    decodeTaskContextPacketHandoffSlugV01(canonicalPacketSlug),
-    genericPacket.packet_id,
-  );
-  assert.equal(
-    buildTaskContextPacketHandoffHrefV01({
-      packet_id: genericPacket.packet_id,
-      packet_fingerprint: genericPacket.integrity.fingerprint,
-    }),
-    `/workbench/semantic-review/packet-handoff/${canonicalPacketSlug}?packet_fingerprint=${encodeURIComponent(
-      genericPacket.integrity.fingerprint,
-    )}`,
-  );
   for (const malformedPacketId of [
     `task-context-packet:${"a".repeat(22)}`,
     `task-context-packet:${"a".repeat(24)}`,
@@ -395,27 +363,7 @@ try {
     `wrong-prefix:${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
   ]) {
     assert.equal(isTaskContextPacketIdV01(malformedPacketId), false);
-    assert.equal(encodeTaskContextPacketHandoffSlugV01(malformedPacketId), null);
   }
-  for (const malformedPacketSlug of [
-    genericPacket.packet_id,
-    `task-context-packet~${"a".repeat(22)}`,
-    `task-context-packet~${"a".repeat(24)}`,
-    `task-context-packet~${"a".repeat(25)}`,
-    `task-context-packet~${"A".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
-    `wrong-prefix~${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
-    `task-context-packet~~${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}`,
-    `task-context-packet~${"a".repeat(TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01)}-extra`,
-  ]) {
-    assert.equal(decodeTaskContextPacketHandoffSlugV01(malformedPacketSlug), null);
-  }
-  assert.equal(
-    buildTaskContextPacketHandoffHrefV01({
-      packet_id: genericPacket.packet_id,
-      packet_fingerprint: `sha256:${"A".repeat(64)}`,
-    }),
-    null,
-  );
 
   const sourceAxisCases = [
     { coverage: "complete", currentness: "fresh" },
@@ -624,15 +572,9 @@ try {
   const stateTransitionReceiptSummary =
     runStateTransitionReceiptConformanceV01();
   const contextUseReviewSummary = runContextUseReviewConformanceV01();
-  const codexReviewEpisodeDeltaProposalSummary =
-    runCodexReviewEpisodeDeltaProposalConformanceV01();
-  const codexReviewDurableSummaryPolicySummary =
-    runCodexReviewDurableSummaryPolicyConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
-  const codexResultCompatibilitySummary =
-    runCodexResultReportRunReceiptConformanceV01();
   const autohuntResultCompatibilitySummary =
     runAutohuntResultIntakeRunReceiptConformanceV01();
   const taskContextPacketSummary = {
@@ -657,8 +599,8 @@ try {
     fixed_regression_fingerprint: genericPacket.integrity.fingerprint,
     canonical_packet_id_suffix_length:
       TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
-    canonical_packet_handoff_identity_checked: true,
-    malformed_packet_handoff_id_and_slug_cases_checked: 13,
+    canonical_packet_identity_checked: true,
+    malformed_packet_id_cases_checked: 5,
     independent_fingerprint_scope_checked: true,
     cross_provider_external_ref_identity_checked: true,
     mixed_offset_currentness_checked: true,
@@ -695,14 +637,8 @@ try {
         review_decision: reviewDecisionSummary,
         state_transition_receipt: stateTransitionReceiptSummary,
         context_use_review: contextUseReviewSummary,
-        codex_review_episode_delta_proposal_compatibility:
-          codexReviewEpisodeDeltaProposalSummary,
-        codex_review_durable_summary_policy:
-          codexReviewDurableSummaryPolicySummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
-        codex_result_report_run_receipt_compatibility:
-          codexResultCompatibilitySummary,
         autohunt_result_intake_run_receipt_compatibility:
           autohuntResultCompatibilitySummary,
         shared_protocol_primitives: {
