@@ -371,6 +371,10 @@ const movedResponsibilities = [
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
+  "project_home_refresh_exact_projection_replay_is_idempotent",
+  "project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run",
+  "project_home_refresh_terminal_and_paused_boundaries_refresh_once",
+  "project_home_refresh_history_is_fifo_bounded",
   "static_refresh_resubmit_and_credential_safety_markers_present",
 ];
 for (const responsibility of movedResponsibilities) {

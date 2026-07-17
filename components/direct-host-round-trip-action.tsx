@@ -3,20 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  buildProjectHomeRefreshProjectionKeyV01,
+  markProjectHomeProjectionForRefreshV01,
+  type ProjectHomeRefreshProjectionStatusV01,
+} from "@/lib/vnext/project-home-refresh-projection";
+
 const ROUTE = "/api/vnext/operator/host-round-trip";
 const POLL_MS = 750;
-const PROJECT_HOME_REFRESH_STATES = new Set<LiveProjectionV01["status"]>([
-  "waiting_for_approval",
-  "cancelling",
-  "paused",
-  "blocked",
-  "completed",
-  "failed",
-  "cancelled",
-  "timed_out",
-]);
-const refreshedProjectHomeProjectionKeys: string[] = [];
-const MAX_REFRESHED_PROJECT_HOME_PROJECTIONS = 32;
 
 type DeterministicStateV01 =
   | { status: "idle" }
@@ -30,19 +24,7 @@ type DeterministicStateV01 =
   | { status: "error"; error_code: string };
 
 interface LiveProjectionV01 {
-  status:
-    | "idle"
-    | "queued"
-    | "starting"
-    | "running"
-    | "waiting_for_approval"
-    | "cancelling"
-    | "paused"
-    | "blocked"
-    | "completed"
-    | "failed"
-    | "cancelled"
-    | "timed_out";
+  status: ProjectHomeRefreshProjectionStatusV01;
   run_ref: string | null;
   control_revision: number;
   reconciliation_required: boolean;
@@ -104,20 +86,15 @@ export function DirectHostRoundTripAction() {
   }, [live?.status, live?.control_revision]);
 
   useEffect(() => {
-    if (
-      !live?.run_ref ||
-      !PROJECT_HOME_REFRESH_STATES.has(live.status)
-    ) {
-      return;
-    }
-    const projectionKey = [
-      live.run_ref,
-      live.status,
-      live.receipt?.receipt_ref ?? "nonterminal",
-    ].join(":");
+    if (!live) return;
+    const projectionKey = buildProjectHomeRefreshProjectionKeyV01(live);
+    if (!projectionKey) return;
     if (!markProjectHomeProjectionForRefreshV01(projectionKey)) return;
     router.refresh();
   }, [
+    live?.control_revision,
+    live?.pending_approval?.approval_ref,
+    live?.pending_approval?.control_revision,
     live?.receipt?.receipt_ref,
     live?.run_ref,
     live?.status,
@@ -376,18 +353,6 @@ function liveProjectionV01(body: Record<string, unknown>): LiveProjectionV01 | n
 
 function errorCodeV01(body: Record<string, unknown>, fallback: string): string {
   return typeof body.error_code === "string" ? body.error_code : fallback;
-}
-
-function markProjectHomeProjectionForRefreshV01(key: string): boolean {
-  if (refreshedProjectHomeProjectionKeys.includes(key)) return false;
-  refreshedProjectHomeProjectionKeys.push(key);
-  if (
-    refreshedProjectHomeProjectionKeys.length >
-    MAX_REFRESHED_PROJECT_HOME_PROJECTIONS
-  ) {
-    refreshedProjectHomeProjectionKeys.shift();
-  }
-  return true;
 }
 
 function isPollingStateV01(status: LiveProjectionV01["status"]): boolean {

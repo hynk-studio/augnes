@@ -11,6 +11,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import net from "node:net";
@@ -62,6 +63,14 @@ const manifestPath = path.join(
   "operator-pilot-browser-fixture.json",
 );
 const databasePath = path.join(fixtureDir, "operator-pilot.db");
+const browserSecondApprovalReleasePath = path.join(
+  tempRoot,
+  "browser-second-approval.release",
+);
+const browserTerminalReleasePath = path.join(
+  tempRoot,
+  "browser-terminal.release",
+);
 const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
 const appRepo = realpathSync(process.cwd());
@@ -123,6 +132,8 @@ const result = {
   live_codex_waiting_for_approval: false,
   project_home_current_run_visible: false,
   live_codex_approved_once: false,
+  live_codex_second_approval: false,
+  project_home_approval_refresh_count: 0,
   live_codex_receipt_persisted: false,
   live_codex_no_internal_id_input: false,
   project_home_latest_result_visible: false,
@@ -1124,6 +1135,7 @@ async function main() {
     record("active_project_direct_host_round_trip_persists_exact_packet_receipt");
     record("direct_host_round_trip_has_zero_copy_paste_or_internal_id_input");
 
+    const liveProjectHomePath = await evaluateString("location.pathname");
     const liveRequestStart = requests.length;
     const liveResponseStart = responses.length;
     assert.equal(
@@ -1144,11 +1156,13 @@ async function main() {
       ),
       "live Codex start acceptance",
     );
-    await waitForLiveRunStatus(
+    const firstApprovalState = await waitForLiveRunStatus(
       manifest.project_id,
       "waiting_for_approval",
       LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
+    assert(firstApprovalState.pending_approval);
+    assert.equal(firstApprovalState.pending_approval.decision_submitted, false);
     await waitForCondition(
       `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"]') !== null`,
       "live Codex command approval",
@@ -1156,6 +1170,16 @@ async function main() {
     await waitForCondition(
       `document.querySelector('[data-current-host-run="waiting_for_approval"]') !== null`,
       "Project Home current nonterminal run",
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(liveResponseStart).some(
+          (entry) =>
+            entry.path === liveProjectHomePath &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "Project Home first approval server refresh",
     );
     result.live_codex_waiting_for_approval = true;
     result.project_home_current_run_visible = true;
@@ -1176,7 +1200,7 @@ async function main() {
       raw_protocol_visible: false,
     });
 
-    const approvalResponseStart = responses.length;
+    const firstApprovalResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
         const button = document.querySelector('[data-live-host-action="approve-once"]');
@@ -1187,14 +1211,103 @@ async function main() {
     );
     await waitForHostCondition(
       () =>
-        responses.slice(approvalResponseStart).some(
+        responses.slice(firstApprovalResponseStart).some(
           (entry) =>
             entry.path === "/api/vnext/operator/host-round-trip" &&
             entry.type === "Fetch" &&
             entry.status === 200,
       ),
-      "live Codex one-shot approval response",
+      "live Codex first one-shot approval response",
     );
+    const runningAfterFirstApproval = await waitForLiveRunStatus(
+      manifest.project_id,
+      "running",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert.equal(runningAfterFirstApproval.run_ref, firstApprovalState.run_ref);
+    assert.equal(runningAfterFirstApproval.pending_approval, null);
+    assert(
+      runningAfterFirstApproval.control_revision >
+        firstApprovalState.control_revision,
+    );
+
+    const secondApprovalRefreshStart = responses.length;
+    writeFileSync(browserSecondApprovalReleasePath, "released\n", {
+      mode: 0o600,
+    });
+    const secondApprovalState = await waitForLiveRunProjection(
+      manifest.project_id,
+      (state) =>
+        state?.status === "waiting_for_approval" &&
+        state.pending_approval !== null &&
+        state.pending_approval.approval_ref !==
+          firstApprovalState.pending_approval?.approval_ref,
+      "second distinct approval",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert(secondApprovalState.pending_approval);
+    assert.equal(secondApprovalState.run_ref, firstApprovalState.run_ref);
+    assert.notEqual(
+      secondApprovalState.pending_approval.approval_ref,
+      firstApprovalState.pending_approval.approval_ref,
+    );
+    assert(
+      secondApprovalState.control_revision >
+        firstApprovalState.control_revision,
+    );
+    assert(
+      secondApprovalState.pending_approval.control_revision >
+        firstApprovalState.pending_approval.control_revision,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"] [data-live-host-action="approve-once"]:not([disabled])') !== null`,
+      "second live Codex command approval",
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(secondApprovalRefreshStart).some(
+          (entry) =>
+            entry.path === liveProjectHomePath &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "Project Home second approval server refresh",
+    );
+    result.live_codex_second_approval = true;
+    result.project_home_approval_refresh_count = 2;
+
+    const secondApprovalResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-live-host-action="approve-once"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(secondApprovalResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.type === "Fetch" &&
+            entry.status === 200,
+        ),
+      "live Codex second one-shot approval response",
+    );
+    const runningAfterSecondApproval = await waitForLiveRunStatus(
+      manifest.project_id,
+      "running",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert.equal(runningAfterSecondApproval.run_ref, firstApprovalState.run_ref);
+    assert.equal(runningAfterSecondApproval.pending_approval, null);
+    assert(
+      runningAfterSecondApproval.control_revision >
+        secondApprovalState.control_revision,
+    );
+    writeFileSync(browserTerminalReleasePath, "released\n", { mode: 0o600 });
     await waitForLiveRunStatus(
       manifest.project_id,
       "completed",
@@ -1214,23 +1327,35 @@ async function main() {
           entry.path === "/api/vnext/operator/host-round-trip" &&
           entry.method === "POST",
       );
-    assert.equal(liveRequests.length, 2);
+    assert.equal(liveRequests.length, 3);
     assert.deepEqual(JSON.parse(liveRequests[0].post_data), {
       action: "start_live",
     });
-    const approvalBody = JSON.parse(liveRequests[1].post_data);
-    assert.deepEqual(Object.keys(approvalBody).sort(), [
-      "action",
-      "approval_ref",
-      "control_revision",
-      "run_ref",
-    ]);
-    assert.equal(approvalBody.action, "approve_once");
-    assert.equal(
-      ["packet_json", "handoff_text", "result_text", "result_paste"].some(
-        (key) => Object.hasOwn(approvalBody, key),
-      ),
-      false,
+    const approvalBodies = liveRequests
+      .slice(1)
+      .map((request) => JSON.parse(request.post_data));
+    for (const approvalBody of approvalBodies) {
+      assert.deepEqual(Object.keys(approvalBody).sort(), [
+        "action",
+        "approval_ref",
+        "control_revision",
+        "run_ref",
+      ]);
+      assert.equal(approvalBody.action, "approve_once");
+      assert.equal(
+        ["packet_json", "handoff_text", "result_text", "result_paste"].some(
+          (key) => Object.hasOwn(approvalBody, key),
+        ),
+        false,
+      );
+    }
+    assert.notEqual(
+      approvalBodies[0].approval_ref,
+      approvalBodies[1].approval_ref,
+    );
+    assert(
+      approvalBodies[1].control_revision >
+        approvalBodies[0].control_revision,
     );
     result.live_codex_no_internal_id_input = true;
 
@@ -1255,7 +1380,7 @@ async function main() {
       false,
     );
     result.live_codex_receipt_persisted = true;
-    record("active_project_live_codex_waits_for_one_shot_approval_and_persists_receipt");
+    record("active_project_live_codex_refreshes_two_approval_boundaries_and_persists_one_receipt");
     record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
 
     const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
@@ -1896,13 +2021,29 @@ async function waitForHostCondition(predicate, label, timeoutMs = DEFAULT_TIMEOU
 }
 
 async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
+  return waitForLiveRunProjection(
+    projectId,
+    (state) => state?.status === expectedStatus,
+    `durable live Codex status ${expectedStatus}`,
+    timeoutMs,
+  );
+}
+
+async function waitForLiveRunProjection(
+  projectId,
+  predicate,
+  label,
+  timeoutMs,
+) {
   const startedAt = Date.now();
   let lastStatus = "not_recorded";
+  let lastReason = "not_recorded";
   while (Date.now() - startedAt < timeoutMs) {
     try {
       const state = readLatestManagedLiveRunState(projectId);
       lastStatus = state?.status ?? "not_recorded";
-      if (lastStatus === expectedStatus) return;
+      lastReason = state?.public_reason ?? "not_recorded";
+      if (predicate(state)) return state;
       if (
         state?.reconciliation_required === true ||
         [
@@ -1915,7 +2056,7 @@ async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
         ].includes(lastStatus)
       ) {
         throw new Error(
-          `Live Codex run reached ${lastStatus} before ${expectedStatus}.`,
+          `Live Codex run reached ${lastStatus} (${lastReason}) before ${label}.`,
         );
       }
     } catch (error) {
@@ -1936,7 +2077,7 @@ async function waitForLiveRunStatus(projectId, expectedStatus, timeoutMs) {
     await delay(100);
   }
   throw new Error(
-    `Timed out waiting for durable live Codex status ${expectedStatus}; last status ${lastStatus}.`,
+    `Timed out waiting for ${label}; last status ${lastStatus} (${lastReason}).`,
   );
 }
 
@@ -2172,7 +2313,7 @@ function readLatestManagedLiveRunState(projectId) {
   try {
     const row = readableDatabase
       .prepare(
-        `SELECT status, metadata_json
+        `SELECT run_id, status, stop_reason, metadata_json
          FROM autonomy_runs
          WHERE scope = ?
            AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'
@@ -2183,9 +2324,34 @@ function readLatestManagedLiveRunState(projectId) {
       .get(projectId);
     if (!row) return null;
     const metadata = JSON.parse(row.metadata_json);
+    const pendingApproval =
+      metadata.pending_approval &&
+      typeof metadata.pending_approval === "object" &&
+      !Array.isArray(metadata.pending_approval)
+        ? metadata.pending_approval
+        : null;
     return {
+      run_ref: String(row.run_id),
       status: String(row.status),
+      control_revision: Number(metadata.control_revision ?? 0),
       reconciliation_required: metadata.reconciliation_required === true,
+      public_reason:
+        typeof metadata.public_reason === "string"
+          ? metadata.public_reason
+          : typeof row.stop_reason === "string"
+            ? row.stop_reason
+            : null,
+      pending_approval: pendingApproval
+        ? {
+            approval_ref: String(pendingApproval.approval_id ?? ""),
+            control_revision: Number(pendingApproval.control_revision ?? 0),
+            decision_submitted: pendingApproval.decision_submitted === true,
+          }
+        : null,
+      receipt_ref:
+        typeof metadata.run_receipt_id === "string"
+          ? metadata.run_receipt_id
+          : null,
     };
   } finally {
     readableDatabase.close();

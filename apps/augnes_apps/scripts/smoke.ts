@@ -24,6 +24,7 @@ import {
 import { assertFileModeFixturePaths, readFileModeEnv } from "./load-file-env.js";
 import { MockStateRuntimeBridgeAdapter } from "./mock-state-runtime.js";
 import { assertAppsModelInvocationReceiptSemanticMatrix } from "./model-invocation-receipt-semantic-matrix.js";
+import { assertConsoleWidgetBridge } from "./widget-bridge-fixture.js";
 
 function spawnConfigProfile(env: Record<string, string | undefined>) {
   const childEnv = { ...process.env };
@@ -633,6 +634,7 @@ async function main() {
   assert.equal(WIDGET_URI, "ui://widget/augnes-console.v2.html", "widget resource URI should be versioned for cache busting");
   assert.deepEqual(WIDGET_CSP, { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] });
   await assertWidgetResourceSecurity();
+  await assertConsoleWidgetBridge();
 
   const publicToolProfiles = spawnToolProfileSnapshot({});
   assert.equal(publicToolProfiles.status, 0, `public tool profile snapshot should run: ${publicToolProfiles.stderr}`);

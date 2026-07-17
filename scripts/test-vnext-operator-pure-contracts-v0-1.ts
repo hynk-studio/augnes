@@ -5,6 +5,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { publicSafeCommandSummaryV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
+import {
+  MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01,
+  buildProjectHomeRefreshProjectionKeyV01,
+  createProjectHomeRefreshHistoryV01,
+  type ProjectHomeRefreshProjectionV01,
+} from "../lib/vnext/project-home-refresh-projection";
 import { createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 
 const assertions: string[] = [];
@@ -186,6 +192,124 @@ assert.equal(
 );
 record("package_and_canonical_graph_have_no_retired_manual_aliases");
 
+const refreshRunRef = "native-host-run:refresh-contract";
+const approvalA = refreshProjection({
+  run_ref: refreshRunRef,
+  status: "waiting_for_approval",
+  control_revision: 4,
+  pending_approval: {
+    approval_ref: "native-host-approval:refresh-a",
+    control_revision: 4,
+    decision_submitted: false,
+  },
+});
+const approvalAKey = requireRefreshKey(approvalA);
+assert.equal(approvalAKey, requireRefreshKey(structuredClone(approvalA)));
+const exactReplayHistory = createProjectHomeRefreshHistoryV01();
+assert.equal(exactReplayHistory.mark(approvalAKey), true);
+assert.equal(exactReplayHistory.mark(approvalAKey), false);
+assert.equal(exactReplayHistory.snapshot().length, 1);
+for (const status of ["idle", "queued", "starting", "running"] as const) {
+  assert.equal(
+    buildProjectHomeRefreshProjectionKeyV01(
+      refreshProjection({ status, control_revision: 4 }),
+    ),
+    null,
+  );
+}
+record("project_home_refresh_exact_projection_replay_is_idempotent");
+
+const approvalB = refreshProjection({
+  run_ref: refreshRunRef,
+  status: "waiting_for_approval",
+  control_revision: 6,
+  pending_approval: {
+    approval_ref: "native-host-approval:refresh-b",
+    control_revision: 6,
+  },
+});
+const approvalBKey = requireRefreshKey(approvalB);
+assert.notEqual(approvalAKey, approvalBKey);
+const approvalHistory = createProjectHomeRefreshHistoryV01();
+assert.equal(approvalHistory.mark(approvalAKey), true);
+assert.equal(approvalHistory.mark(approvalAKey), false);
+assert.equal(approvalHistory.mark(approvalBKey), true);
+assert.equal(approvalHistory.mark(approvalBKey), false);
+const decidedApprovalA = refreshProjection({
+  ...approvalA,
+  control_revision: 5,
+  pending_approval: {
+    ...approvalA.pending_approval!,
+    decision_submitted: true,
+  },
+});
+const decidedApprovalAKey = requireRefreshKey(decidedApprovalA);
+assert.notEqual(decidedApprovalAKey, approvalAKey);
+assert.equal(approvalHistory.mark(decidedApprovalAKey), true);
+assert.equal(approvalHistory.mark(decidedApprovalAKey), false);
+record("project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run");
+
+const terminalA = refreshProjection({
+  run_ref: refreshRunRef,
+  status: "completed",
+  control_revision: 8,
+  receipt: { receipt_ref: "run-receipt:refresh-a" },
+});
+const terminalAKey = requireRefreshKey(terminalA);
+const terminalHistory = createProjectHomeRefreshHistoryV01();
+assert.equal(terminalHistory.mark(terminalAKey), true);
+assert.equal(terminalHistory.mark(terminalAKey), false);
+const terminalBKey = requireRefreshKey(
+  refreshProjection({
+    run_ref: "native-host-run:refresh-contract-b",
+    status: "completed",
+    control_revision: 8,
+    receipt: { receipt_ref: "run-receipt:refresh-b" },
+  }),
+);
+assert.notEqual(terminalBKey, terminalAKey);
+assert.equal(terminalHistory.mark(terminalBKey), true);
+const pausedNKey = requireRefreshKey(
+  refreshProjection({ status: "paused", control_revision: 9 }),
+);
+const pausedNPlusTwoKey = requireRefreshKey(
+  refreshProjection({ status: "paused", control_revision: 11 }),
+);
+assert.equal(terminalHistory.mark(pausedNKey), true);
+assert.equal(terminalHistory.mark(pausedNKey), false);
+assert.equal(terminalHistory.mark(pausedNPlusTwoKey), true);
+assert.equal(terminalHistory.mark(pausedNPlusTwoKey), false);
+record("project_home_refresh_terminal_and_paused_boundaries_refresh_once");
+
+const boundedHistory = createProjectHomeRefreshHistoryV01();
+const boundedKeys = Array.from(
+  { length: MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01 + 3 },
+  (_, index) =>
+    requireRefreshKey(
+      refreshProjection({
+        run_ref: `native-host-run:bounded-${index}`,
+        status: index % 2 === 0 ? "paused" : "completed",
+        control_revision: index,
+        receipt:
+          index % 2 === 0
+            ? null
+            : { receipt_ref: `run-receipt:bounded-${index}` },
+      }),
+    ),
+);
+for (const key of boundedKeys) assert.equal(boundedHistory.mark(key), true);
+assert.equal(
+  boundedHistory.snapshot().length,
+  MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01,
+);
+assert.deepEqual(
+  boundedHistory.snapshot(),
+  boundedKeys.slice(-MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01),
+);
+assert.equal(boundedHistory.snapshot().includes(boundedKeys[0]), false);
+assert.equal(boundedHistory.snapshot().at(-1), boundedKeys.at(-1));
+record("project_home_refresh_history_is_fifo_bounded");
+
 const session = source(
   "components/workbench/semantic-review/operator-session-panel.tsx",
 );
@@ -254,6 +378,27 @@ function count(value: string, pattern: RegExp): number {
   return [...value.matchAll(pattern)].length;
 }
 
+function refreshProjection(
+  overrides: Partial<ProjectHomeRefreshProjectionV01> = {},
+): ProjectHomeRefreshProjectionV01 {
+  return {
+    run_ref: refreshRunRef,
+    status: "running",
+    control_revision: 0,
+    pending_approval: null,
+    receipt: null,
+    ...overrides,
+  };
+}
+
+function requireRefreshKey(
+  projection: ProjectHomeRefreshProjectionV01,
+): string {
+  const key = buildProjectHomeRefreshProjectionKeyV01(projection);
+  assert(key, "refresh-worthy projection must produce a bounded key");
+  return key;
+}
+
 assert.equal(new Set(assertions).size, assertions.length);
 assert.deepEqual(assertions, [
   "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
@@ -263,6 +408,10 @@ assert.deepEqual(assertions, [
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
+  "project_home_refresh_exact_projection_replay_is_idempotent",
+  "project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run",
+  "project_home_refresh_terminal_and_paused_boundaries_refresh_once",
+  "project_home_refresh_history_is_fifo_bounded",
   "static_refresh_resubmit_and_credential_safety_markers_present",
 ]);
 process.stdout.write(

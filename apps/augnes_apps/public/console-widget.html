@@ -131,11 +131,116 @@
         const details = document.getElementById("details");
         const facts = document.getElementById("facts");
 
+        const PROTOCOL_VERSION = "2026-01-26";
+        const MAX_PENDING_REQUESTS = 4;
+        const MAX_REQUEST_ID = 1024;
+        const REQUEST_TIMEOUT_MS = 5000;
+        const MAX_PAYLOAD_DEPTH = 6;
+        const MAX_PAYLOAD_NODES = 256;
+        const MAX_OBJECT_KEYS = 64;
+        const MAX_ARRAY_ITEMS = 64;
+        const MAX_KEY_LENGTH = 128;
+        const MAX_TEXT_LENGTH = 4096;
+        const MAX_JSON_TEXT_LENGTH = 16384;
+        const pendingRequests = new Map();
+        let requestSequence = 0;
+        let currentFingerprint = null;
+
+        const isRecord = (value) =>
+          value !== null && typeof value === "object" && !Array.isArray(value);
         const record = (value) =>
-          value && typeof value === "object" && !Array.isArray(value) ? value : {};
+          isRecord(value) ? value : {};
         const list = (value) => (Array.isArray(value) ? value : []);
         const text = (value, fallback = "Not recorded") =>
           typeof value === "string" && value.trim() ? value.trim() : fallback;
+        const owns = (value, key) =>
+          Object.prototype.hasOwnProperty.call(value, key);
+
+        function boundValue(
+          value,
+          depth = 0,
+          budget = { remaining: MAX_PAYLOAD_NODES }
+        ) {
+          if (budget.remaining <= 0) return null;
+          budget.remaining -= 1;
+          if (value === null || typeof value === "boolean") return value;
+          if (typeof value === "number") return Number.isFinite(value) ? value : null;
+          if (typeof value === "string") return value.slice(0, MAX_TEXT_LENGTH);
+          if (depth >= MAX_PAYLOAD_DEPTH) return null;
+          if (Array.isArray(value)) {
+            return value
+              .slice(0, MAX_ARRAY_ITEMS)
+              .map((item) => boundValue(item, depth + 1, budget));
+          }
+          if (!isRecord(value)) return null;
+
+          const bounded = {};
+          for (const [key, item] of Object.entries(value).slice(0, MAX_OBJECT_KEYS)) {
+            if (
+              key.length > MAX_KEY_LENGTH ||
+              key === "__proto__" ||
+              key === "constructor" ||
+              key === "prototype"
+            ) {
+              continue;
+            }
+            bounded[key] = boundValue(item, depth + 1, budget);
+          }
+          return bounded;
+        }
+
+        function boundRecord(value) {
+          if (!isRecord(value)) return null;
+          const bounded = boundValue(value);
+          return isRecord(bounded) && Object.keys(bounded).length > 0
+            ? bounded
+            : null;
+        }
+
+        function canonicalize(value) {
+          if (Array.isArray(value)) return value.map(canonicalize);
+          if (!isRecord(value)) return value;
+          return Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, canonicalize(value[key])])
+          );
+        }
+
+        function projectionCandidate(payload, publicTextFallback = false) {
+          const bounded = boundRecord(payload);
+          if (!bounded) return null;
+          return {
+            payload: bounded,
+            fingerprint: JSON.stringify(canonicalize(bounded)),
+            publicTextFallback,
+          };
+        }
+
+        function extractToolResult(params) {
+          const result = record(params);
+          const structured = projectionCandidate(result.structuredContent);
+          if (structured) return structured;
+
+          const first = list(result.content)[0];
+          const firstText = isRecord(first) && first.type === "text" ? first.text : null;
+          if (
+            typeof firstText !== "string" ||
+            !firstText.trim() ||
+            firstText.length > MAX_JSON_TEXT_LENGTH
+          ) {
+            return null;
+          }
+
+          try {
+            return projectionCandidate(JSON.parse(firstText));
+          } catch {
+            return projectionCandidate(
+              { panel: "read_only_text" },
+              true
+            );
+          }
+        }
 
         function setFacts(entries) {
           facts.replaceChildren();
@@ -206,12 +311,158 @@
           setFacts([["View", panel]]);
         }
 
+        function applyProjection(candidate) {
+          if (!candidate) return false;
+          if (candidate.publicTextFallback && currentFingerprint !== null) {
+            return false;
+          }
+          if (candidate.fingerprint === currentFingerprint) return false;
+          render(candidate.payload);
+          currentFingerprint = candidate.fingerprint;
+          return true;
+        }
+
+        function applyGlobals(value) {
+          const globals = record(value);
+          const toolOutput = projectionCandidate(globals.toolOutput);
+          if (toolOutput) return applyProjection(toolOutput);
+          return applyProjection(projectionCandidate(globals.structuredContent));
+        }
+
+        function nextRequestId() {
+          for (let attempt = 0; attempt < MAX_REQUEST_ID; attempt += 1) {
+            requestSequence = (requestSequence % MAX_REQUEST_ID) + 1;
+            const id = `augnes-ui-${requestSequence}`;
+            if (!pendingRequests.has(id)) return id;
+          }
+          return null;
+        }
+
+        function clearPendingRequest(id) {
+          const entry = pendingRequests.get(id);
+          if (!entry) return null;
+          pendingRequests.delete(id);
+          window.clearTimeout(entry.timeoutId);
+          return entry;
+        }
+
+        function rpcRequest(method, params) {
+          if (pendingRequests.size >= MAX_PENDING_REQUESTS) {
+            return Promise.reject(new Error("Bridge request unavailable."));
+          }
+          const id = nextRequestId();
+          if (!id) return Promise.reject(new Error("Bridge request unavailable."));
+
+          return new Promise((resolve, reject) => {
+            const timeoutId = window.setTimeout(() => {
+              const entry = clearPendingRequest(id);
+              if (entry) entry.reject(new Error("Bridge request timed out."));
+            }, REQUEST_TIMEOUT_MS);
+            pendingRequests.set(id, { method, resolve, reject, timeoutId });
+            try {
+              window.parent.postMessage(
+                { jsonrpc: "2.0", id, method, params },
+                "*"
+              );
+            } catch {
+              clearPendingRequest(id);
+              reject(new Error("Bridge request unavailable."));
+            }
+          });
+        }
+
+        function rpcNotify(method) {
+          try {
+            window.parent.postMessage({ jsonrpc: "2.0", method }, "*");
+          } catch {
+            // The read-only widget remains usable through window.openai globals.
+          }
+        }
+
+        function boundedImplementation(value) {
+          const implementation = record(value);
+          return (
+            typeof implementation.name === "string" &&
+            implementation.name.length > 0 &&
+            implementation.name.length <= MAX_KEY_LENGTH &&
+            typeof implementation.version === "string" &&
+            implementation.version.length > 0 &&
+            implementation.version.length <= MAX_KEY_LENGTH
+          );
+        }
+
+        function validInitializeResult(value) {
+          const result = record(value);
+          return (
+            result.protocolVersion === PROTOCOL_VERSION &&
+            boundedImplementation(result.hostInfo) &&
+            isRecord(result.hostCapabilities) &&
+            isRecord(result.hostContext)
+          );
+        }
+
+        function handleResponse(message) {
+          if (!owns(message, "id")) return false;
+          if (!pendingRequests.has(message.id)) return false;
+          const hasResult = owns(message, "result");
+          const hasError = owns(message, "error");
+          if (owns(message, "method") || hasResult === hasError) {
+            const malformedEntry = clearPendingRequest(message.id);
+            malformedEntry?.reject(new Error("Bridge response was malformed."));
+            return true;
+          }
+
+          const entry = clearPendingRequest(message.id);
+          if (!entry) return false;
+          if (hasError) {
+            entry.reject(new Error("Bridge request failed."));
+            return true;
+          }
+          if (
+            entry.method === "ui/initialize" &&
+            !validInitializeResult(message.result)
+          ) {
+            entry.reject(new Error("Bridge initialization failed."));
+            return true;
+          }
+          entry.resolve(message.result);
+          return true;
+        }
+
+        window.addEventListener(
+          "message",
+          (event) => {
+            if (event.source !== window.parent) return;
+            const message = event.data;
+            if (!isRecord(message) || message.jsonrpc !== "2.0") return;
+            if (handleResponse(message)) return;
+            if (owns(message, "id") || typeof message.method !== "string") return;
+            if (message.method !== "ui/notifications/tool-result") return;
+            applyProjection(extractToolResult(message.params));
+          },
+          { passive: true }
+        );
+
         window.addEventListener("openai:set_globals", (event) => {
-          const globals = record(event.detail?.globals);
-          render(globals.toolOutput || globals.structuredContent || {});
+          applyGlobals(event.detail?.globals);
         });
 
-        render(window.openai?.toolOutput || window.openai?.structuredContent || {});
+        applyGlobals(window.openai);
+
+        async function initializeBridge() {
+          try {
+            await rpcRequest("ui/initialize", {
+              appInfo: { name: "augnes-console-widget", version: "0.1.0" },
+              appCapabilities: {},
+              protocolVersion: PROTOCOL_VERSION,
+            });
+            rpcNotify("ui/notifications/initialized");
+          } catch {
+            // Standard bridge delivery is a fallback peer to window.openai.
+          }
+        }
+
+        initializeBridge();
       })();
     </script>
   </body>
