@@ -1307,6 +1307,18 @@ async function main() {
       runningAfterSecondApproval.control_revision >
         secondApprovalState.control_revision,
     );
+    const latestApprovalIssuedAtMs = assertLiveApprovalReceiptBindings({
+      projectId: manifest.project_id,
+      workspaceId: manifest.workspace_id,
+      runRef: runningAfterSecondApproval.run_ref,
+      packetId: activePacketId,
+      packetFingerprint: activePacketFingerprint,
+      expectedApprovalCount: 2,
+    });
+    await waitForHostCondition(
+      () => Date.now() >= latestApprovalIssuedAtMs,
+      "receipt clock after both durable approval requests",
+    );
     writeFileSync(browserTerminalReleasePath, "released\n", { mode: 0o600 });
     await waitForLiveRunStatus(
       manifest.project_id,
@@ -2353,6 +2365,55 @@ function readLatestManagedLiveRunState(projectId) {
           ? metadata.run_receipt_id
           : null,
     };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
+function assertLiveApprovalReceiptBindings({
+  projectId,
+  workspaceId,
+  runRef,
+  packetId,
+  packetFingerprint,
+  expectedApprovalCount,
+}) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const row = readableDatabase
+      .prepare(
+        `SELECT metadata_json
+         FROM autonomy_runs
+         WHERE run_id = ?
+           AND scope = ?
+           AND autonomy_contract_ref = 'direct_native_host_round_trip.v0.1'`,
+      )
+      .get(runRef, projectId);
+    assert(row, "The repeated-approval run must remain project scoped.");
+    const metadata = JSON.parse(row.metadata_json);
+    const approvalRequests = Array.isArray(metadata.approval_requests)
+      ? metadata.approval_requests
+      : [];
+    assert.equal(approvalRequests.length, expectedApprovalCount);
+    assert(metadata.host_thread_ref);
+    assert(metadata.host_turn_ref);
+    let latestIssuedAtMs = 0;
+    for (const request of approvalRequests) {
+      assert.equal(request.workspace_id, workspaceId);
+      assert.equal(request.project_id, projectId);
+      assert.equal(request.run_id, runRef);
+      assert.equal(request.packet_id, packetId);
+      assert.equal(request.packet_fingerprint, packetFingerprint);
+      assert.deepEqual(request.host_thread_ref, metadata.host_thread_ref);
+      assert.deepEqual(request.host_turn_ref, metadata.host_turn_ref);
+      const issuedAtMs = Date.parse(request.issued_at);
+      assert.equal(Number.isFinite(issuedAtMs), true);
+      latestIssuedAtMs = Math.max(latestIssuedAtMs, issuedAtMs);
+    }
+    return latestIssuedAtMs;
   } finally {
     readableDatabase.close();
   }
