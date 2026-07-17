@@ -36,7 +36,10 @@ const regressionRoot = path.join(
   "environment-isolation-regression",
 );
 const sentinelRoot = mkdtempSync(
-  path.join(tmpdir(), "augnes-canonical-environment-sentinel-"),
+  path.join(
+    path.dirname(canonicalTemporaryRoot),
+    "augnes-canonical-environment-sentinel-",
+  ),
 );
 assert.equal(isPathInsideOrEqual(canonicalTemporaryRoot, sentinelRoot), false);
 assert.equal(isPathInsideOrEqual(sentinelRoot, canonicalTemporaryRoot), false);
@@ -109,7 +112,7 @@ try {
         stepEnvironment: { AUGNES_DB_PATH: sentinelDatabasePath },
         temporaryRoot: canonicalTemporaryRoot,
       }),
-    /canonical step path must remain inside the suite temporary root/,
+    /canonical step path must remain inside the child resource root/,
   );
   const stepEnvironment = { AUGNES_DB_PATH: safeChildDatabasePath };
   const childEnvironment = buildCanonicalChildEnvironment({
@@ -136,6 +139,10 @@ try {
 const result = {
   node_env: process.env.NODE_ENV ?? null,
   database_path: process.env.AUGNES_DB_PATH ?? null,
+  canonical_temp_root: process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null,
+  runtime_state_dir: process.env.AUGNES_RUNTIME_STATE_DIR ?? null,
+  home: process.env.HOME ?? null,
+  tmpdir: process.env.TMPDIR ?? null,
   browser_executable_path: process.env.AUGNES_BROWSER_EXECUTABLE_PATH ?? null,
   forbidden_keys_present: forbidden.filter((key) => Object.hasOwn(process.env, key)),
 };
@@ -157,6 +164,18 @@ process.stdout.write(JSON.stringify(result));`,
     true,
   );
   assert.notEqual(probeResult.database_path, sentinelDatabasePath);
+  for (const childOwnedPath of [
+    probeResult.canonical_temp_root,
+    probeResult.runtime_state_dir,
+    probeResult.home,
+    probeResult.tmpdir,
+  ]) {
+    assert.equal(
+      isPathInsideOrEqual(canonicalTemporaryRoot, childOwnedPath),
+      true,
+    );
+    assert.equal(isPathInsideOrEqual(sentinelRoot, childOwnedPath), false);
+  }
   assert.equal(probeResult.browser_executable_path, browserExecutablePath);
   assert.deepEqual(probeResult.forbidden_keys_present, []);
   assert.equal(existsSync(safeChildDatabasePath), false);
@@ -191,6 +210,7 @@ process.stdout.write(JSON.stringify(result));`,
     allowed_browser_executable_path_preserved: true,
     explicit_step_database_inside_canonical_root: true,
     explicit_step_database_outside_canonical_root_refused: true,
+    child_home_tmp_runtime_and_database_uniquely_owned: true,
     sentinel_outside_canonical_root_verified: true,
     sentinel_material_unchanged: true,
     sentinel_before: before,

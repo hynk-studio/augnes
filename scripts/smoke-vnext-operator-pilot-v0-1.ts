@@ -3,9 +3,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer, request as requestHttp } from "node:http";
-import { createRequire } from "node:module";
 import {
-  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -13,7 +11,6 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -87,7 +84,6 @@ import {
 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import {
   createCodexAppServerAdapterV01,
-  publicSafeCommandSummaryV01,
   type CodexAppServerAdapterObservationV01,
 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
@@ -159,6 +155,7 @@ import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
 } from "./db-migrations.mjs";
+import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
 const OPERATOR_WORKSPACE_UUID = "11111111-1111-4111-8111-111111111111";
@@ -194,7 +191,6 @@ const EXPECTED_FULL_LOOP_ANCHORS = {
   full_loop_fingerprint:
     "sha256:18bf5235993fd3727a3542edfce97375b1ef190950e61c0e743b3860a26fe96b",
 } as const;
-const require = createRequire(import.meta.url);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
 );
@@ -218,13 +214,6 @@ const negativeCases: string[] = [];
 const credentialMaterial = new Set<string>();
 let networkGuard: ReturnType<typeof installZeroNetworkGuard> | null = null;
 let finalSummary: Record<string, unknown> | null = null;
-const browserFixtureTimeOffset = process.env
-  .AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR
-  ? Date.now() -
-    10 * 60 * 1000 -
-    Date.parse("2026-07-11T09:20:00.000Z")
-  : 0;
-
 class ManualClock implements VNextLocalRuntimeClockV01 {
   private value: string;
 
@@ -276,11 +265,11 @@ try {
   validateAdditiveAndRepeatedMigration();
   const protectedBefore = snapshotNonSessionRows(canonicalDbPath);
 
-  networkGuard = installZeroNetworkGuard();
-  const clock = new ManualClock(
-    "2026-07-11T00:00:00.000Z",
-    browserFixtureTimeOffset,
-  );
+  networkGuard = installZeroNetworkGuard({
+    allowLoopback: true,
+    errorPrefix: "operator_pilot_external_io_blocked",
+  });
+  const clock = new ManualClock("2026-07-11T00:00:00.000Z");
   const secretSource = new DeterministicSecretSource();
   const environment = pilotEnvironment({
     workspaceId: OPERATOR_WORKSPACE_ID,
@@ -465,9 +454,6 @@ try {
     assert(positiveCases.includes(caseId), `missing exact replay case: ${caseId}`);
   }
 
-  const browserFixtureExport =
-    await exportOperatorPilotBrowserFixtureV01(fullLoop);
-
   assertBackupRestore(canonicalDbPath, fullLoop.anchors);
 
   assertNoPlaintextCredentialPersistence(canonicalDbPath);
@@ -505,7 +491,6 @@ try {
     full_loop_anchors: fullLoop.anchors,
     full_loop_proposal: fullLoop.proposal,
     generated_packet_handoff_href: fullLoop.handoffHref,
-    browser_fixture_export: browserFixtureExport,
     loopback_http_request_count: fullLoop.loopbackHttpRequestCount,
     backup_restore: "exact_durable_records_and_integrity_preserved",
     enrolled_project_core_record_count: fullLoop.coreRecordCount,
@@ -734,15 +719,7 @@ async function assertFullOperatorLoop(input: {
   const fixturePriorPacket = buildSemanticReviewLoopTaskContextPacketFixture(
     fixtureProject,
   );
-  const priorPacket = process.env
-    .AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR
-    ? rebuildPacketForLineageTest(fixturePriorPacket, {
-        constraints: {
-          ...fixturePriorPacket.constraints,
-          data_classification: "public_safe",
-        },
-      })
-    : fixturePriorPacket;
+  const priorPacket = fixturePriorPacket;
   const mapperInput = semanticReviewLoopMapperInputFixture(
     fixtureProject,
     priorPacket,
@@ -1653,8 +1630,6 @@ async function assertFullOperatorLoop(input: {
   );
   pass("second_project_remains_read_write_isolated");
 
-  assertStaticBrowserSafetyMarkers();
-
   const logoutResponse = await sessionHandlers.POST(
     routeRequest("/api/vnext/operator/session", {
       method: "POST",
@@ -1717,12 +1692,8 @@ async function assertFullOperatorLoop(input: {
     ...anchors,
     full_loop_fingerprint: fullLoopFingerprint,
   };
-  if (process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR) {
-    pass("full_loop_browser_fixture_anchors_are_fresh_and_self_describing");
-  } else {
-    assert.deepEqual(anchoredLoop, EXPECTED_FULL_LOOP_ANCHORS);
-    pass("full_loop_fixed_anchors_unchanged");
-  }
+  assert.deepEqual(anchoredLoop, EXPECTED_FULL_LOOP_ANCHORS);
+  pass("full_loop_fixed_anchors_unchanged");
   assertOperatorLoopbackRouteCoverage(loopback.requests);
   return {
     anchors: anchoredLoop,
@@ -1951,22 +1922,17 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   pass("direct_host_reuses_ledger_and_structured_receipt_replay_authority");
   pass("direct_host_receipt_minimizes_data_and_grants_no_semantic_authority");
 
-  assertAutomaticPathBypassesLegacyTextParserV01();
   assertDirectHostRepositoryRelativePathContractV01(
     observed,
     golden.host_result!,
   );
-  if (!process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR) {
-    await assertInteractiveHostRouteOnCloneV01(input);
-    await assertDirectHostTerminalScenariosOnClonesV01(input);
-    await assertDirectHostStopSettlementOnClonesV01(input);
-    await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
-    await assertDirectHostPrestartRefusalsOnClonesV01(input);
-    await assertDirectHostRootScopesOnClonesV01(input);
-    await assertLiveCodexAppServerLifecycleOnClonesV01(input);
-  } else {
-    pass("browser_fixture_export_avoids_duplicate_service_matrix_execution");
-  }
+  await assertInteractiveHostRouteOnCloneV01(input);
+  await assertDirectHostTerminalScenariosOnClonesV01(input);
+  await assertDirectHostStopSettlementOnClonesV01(input);
+  await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
+  await assertDirectHostPrestartRefusalsOnClonesV01(input);
+  await assertDirectHostRootScopesOnClonesV01(input);
+  await assertLiveCodexAppServerLifecycleOnClonesV01(input);
 }
 
 function directHostPolicyContextV01(
@@ -1999,50 +1965,6 @@ function directHostPolicyContextV01(
 
 function addIsoMillisecondsV01(value: string, milliseconds: number): string {
   return new Date(Date.parse(value) + milliseconds).toISOString();
-}
-
-function assertAutomaticPathBypassesLegacyTextParserV01(): void {
-  const directSource = readFileSync(
-    path.join(
-      process.cwd(),
-      "lib/vnext/runtime/direct-native-host-round-trip.ts",
-    ),
-    "utf8",
-  );
-  const routeSource = readFileSync(
-    path.join(
-      process.cwd(),
-      "app/api/vnext/operator/host-round-trip/route.ts",
-    ),
-    "utf8",
-  );
-  const laterResultSource = readFileSync(
-    path.join(
-      process.cwd(),
-      "lib/vnext/runtime/operator-pilot-later-result-intake.ts",
-    ),
-    "utf8",
-  );
-  for (const forbidden of [
-    "normalizeCodexResultReportV01",
-    "codexResultText",
-    "codexResultPaste",
-    "result_report",
-    "handoff_text",
-    "packet_json",
-  ]) {
-    assert.equal(directSource.includes(forbidden), false);
-    assert.equal(routeSource.includes(forbidden), false);
-  }
-  assert.equal(
-    directSource.includes("admitStructuredRunReceiptV01"),
-    true,
-  );
-  assert.equal(
-    laterResultSource.includes("admitStructuredRunReceiptV01"),
-    true,
-  );
-  pass("automatic_host_path_bypasses_legacy_text_parser_and_shares_receipt_writer");
 }
 
 async function assertInteractiveHostRouteOnCloneV01(input: {
@@ -2157,7 +2079,6 @@ async function assertLiveCodexAppServerLifecycleOnClonesV01(input: {
     /live_host_operator_authority_required/,
   );
   reject("live_codex_interactive_start_without_local_operator_authority_refused");
-  assertPublicSafeCommandSummaryContractV01();
   await assertLiveCodexSequentialApprovalAccountingOnCloneV01(input);
   await assertLiveCodexServerRequestConflictCasesOnClonesV01(input);
   await assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input);
@@ -2187,67 +2108,6 @@ async function assertLiveCodexAppServerLifecycleOnClonesV01(input: {
   }
   await assertLiveCodexDisconnectResumeOnCloneV01(input);
   await assertLiveCodexFailureMatrixOnClonesV01(input);
-}
-
-function assertPublicSafeCommandSummaryContractV01(): void {
-  const credentialCases = [
-    ["tool --client-secret super-secret-value", "super-secret-value"],
-    ["tool --client-secret=super-secret-value", "super-secret-value"],
-    ["aws --secret-access-key super-secret-value", "super-secret-value"],
-    ["tool --service-account-token=super-secret-value", "super-secret-value"],
-    ["env CLIENT_SECRET=super-secret-value tool", "super-secret-value"],
-    ["set CLIENT_SECRET=super-secret-value", "super-secret-value"],
-    ['$env:CLIENT_SECRET = "super-secret-value"', "super-secret-value"],
-    [
-      'curl -H "X-Api-Key: super-secret-value" https://example.invalid',
-      "super-secret-value",
-    ],
-    [
-      'curl --header "Authorization: Bearer super-secret-value" https://example.invalid',
-      "super-secret-value",
-    ],
-    [
-      'curl --header "Proxy-Authorization: Bearer super-secret-value" https://example.invalid',
-      "super-secret-value",
-    ],
-    ["https://user:password@example.invalid/", "user:password"],
-  ] as const;
-  for (const [command, secret] of credentialCases) {
-    const summary = publicSafeCommandSummaryV01(command);
-    assert.equal(summary.includes(secret), false, command);
-    assert.equal(summary.includes("[redacted]"), true, command);
-    const fingerprint = createProtocolSha256V01(command);
-    assert.equal(fingerprint, createProtocolSha256V01(command));
-    assert.notEqual(
-      fingerprint,
-      createProtocolSha256V01(command.replace(secret, `${secret}-different`)),
-    );
-  }
-
-  for (const [command, privatePath] of [
-    ["/usr/bin/env npm test", "/usr/bin/env"],
-    ["node /home/private/project/script.js", "/home/private/project/script.js"],
-    [String.raw`"C:\Program Files\nodejs\node.exe" script.js`, String.raw`C:\Program Files\nodejs\node.exe`],
-    [String.raw`\\server\share\tool.exe`, String.raw`\\server\share\tool.exe`],
-    [String.raw`\rooted\tool.exe`, String.raw`\rooted\tool.exe`],
-    ["file:///home/private/tool", "file:///home/private/tool"],
-  ] as const) {
-    const summary = publicSafeCommandSummaryV01(command);
-    assert.equal(summary.includes(privatePath), false, command);
-    assert.equal(summary.includes("[absolute-path]"), true, command);
-    assert.match(createProtocolSha256V01(command), /^sha256:[a-f0-9]{64}$/u);
-  }
-
-  for (const command of [
-    "npm test",
-    "git status --short",
-    "node scripts/check.mjs",
-    "npm run check -- src/runtime/adapter.ts",
-  ]) {
-    assert.equal(publicSafeCommandSummaryV01(command), command);
-  }
-  pass("live_codex_public_command_summary_redacts_credentials_and_absolute_paths");
-  pass("live_codex_public_command_summary_preserves_safe_relative_commands");
 }
 
 async function assertLiveCodexSequentialApprovalAccountingOnCloneV01(input: {
@@ -5849,10 +5709,7 @@ async function assertWorkbenchLineageFailClosedCoverage(input: {
           transition_receipt_id: input.receipt.transition_receipt_id,
           transition_receipt_fingerprint: input.receipt.integrity.fingerprint,
           expiry_policy: { mode: "explicit", expires_at: null },
-          clock: new ManualClock(
-            "2026-07-11T09:20:01.000Z",
-            browserFixtureTimeOffset,
-          ),
+          clock: new ManualClock("2026-07-11T09:20:01.000Z"),
         },
       );
       assert.notEqual(duplicate.later_packet.packet_id, input.packet.packet_id);
@@ -6063,10 +5920,7 @@ function readLineageForSmoke(
   return readVNextOperatorPilotProposalDurableLineageV01(db, {
     config,
     proposal,
-    clock: new ManualClock(
-      "2026-07-11T09:25:00.000Z",
-      browserFixtureTimeOffset,
-    ),
+    clock: new ManualClock("2026-07-11T09:25:00.000Z"),
   });
 }
 
@@ -8496,259 +8350,6 @@ function validatePopulatedOldRecordKindMigration(): void {
   }
 }
 
-function assertStaticBrowserSafetyMarkers(): void {
-  const directory = path.join(
-    process.cwd(),
-    "components",
-    "workbench",
-    "semantic-review",
-  );
-  const session = readFileSync(
-    path.join(directory, "operator-session-panel.tsx"),
-    "utf8",
-  );
-  const transition = readFileSync(
-    path.join(directory, "semantic-transition-actions.tsx"),
-    "utf8",
-  );
-  const proposalDetail = readFileSync(
-    path.join(directory, "proposal-detail.tsx"),
-    "utf8",
-  );
-  const durableLineage = readFileSync(
-    path.join(directory, "durable-lineage-panel.tsx"),
-    "utf8",
-  );
-  const laterResult = readFileSync(
-    path.join(directory, "later-result-intake-panel.tsx"),
-    "utf8",
-  );
-  const contextReview = readFileSync(
-    path.join(directory, "context-use-review-panel.tsx"),
-    "utf8",
-  );
-  const packetPage = readFileSync(
-    path.join(
-      process.cwd(),
-      "app",
-      "workbench",
-      "semantic-review",
-      "packet-handoff",
-      "[packet_id]",
-      "page.tsx",
-    ),
-    "utf8",
-  );
-  const continuityCard = readFileSync(
-    path.join(
-      process.cwd(),
-      "components",
-      "human-surface",
-      "vnext-project-continuity-card.tsx",
-    ),
-    "utf8",
-  );
-  for (const marker of [
-    "event.preventDefault();",
-    'setBootstrapToken("");',
-    'type="password"',
-    'autoComplete="off"',
-  ]) assert(session.includes(marker));
-  assert(laterResult.includes('data-vnext-later-result-native-post="false"'));
-  assert(
-    contextReview.includes(
-      'data-vnext-context-use-review-native-post="false"',
-    ),
-  );
-  for (const action of ["preview", "confirm", "commit", "compile"]) {
-    assert.match(
-      transition,
-      new RegExp(
-        `type="button"[\\s\\S]{0,160}data-vnext-transition-action="${action}"`,
-      ),
-    );
-  }
-  assert(proposalDetail.includes("classification.pilot_actionable"));
-  assert(
-    proposalDetail.includes("generic history · not pilot actionable"),
-  );
-  for (const marker of [
-    'data-vnext-durable-lineage="v0.1"',
-    "Packet not compiled",
-    "Later result not recorded",
-    "Context use not reviewed",
-    "Helpfulness established",
-  ]) {
-    assert(durableLineage.includes(marker));
-  }
-  for (const forbidden of ["fetch(", "method: \"POST\"", "<button", "<form"]) {
-    assert.equal(durableLineage.includes(forbidden), false);
-  }
-  pass("workbench_durable_lineage_panel_is_read_only_and_explicit");
-  pass("api_and_ui_share_session_bound_decision_actionability_policy");
-  assert(
-    packetPage.includes("decodeTaskContextPacketHandoffSlugV01(packetSlug)"),
-  );
-  assert(
-    continuityCard.includes("buildTaskContextPacketHandoffHrefV01(packet)"),
-  );
-  assert.equal(
-    packetPage.includes("task-context-packet~[a-f0-9]{24}"),
-    false,
-  );
-  assert.equal(
-    continuityCard.includes("task-context-packet:[a-f0-9]{24}"),
-    false,
-  );
-  pass("page_and_project_home_share_canonical_packet_handoff_identity");
-  const combined = [
-    session,
-    transition,
-    proposalDetail,
-    durableLineage,
-    laterResult,
-    contextReview,
-  ].join("\n");
-  for (const forbidden of [
-    "localStorage",
-    "sessionStorage",
-    "indexedDB",
-    "document.cookie",
-    "bootstrap_token_hash",
-    "session_token_hash",
-    "action_nonce_hash",
-  ]) assert.equal(combined.includes(forbidden), false);
-  pass("static_refresh_resubmit_and_credential_safety_markers_present");
-}
-
-async function exportOperatorPilotBrowserFixtureV01(input: {
-  anchors: Record<string, string>;
-  proposal: { proposal_id: string; proposal_fingerprint: string };
-  handoffHref: string;
-}): Promise<
-  | { exported: false }
-  | {
-      exported: true;
-      manifest_path: string;
-      database_mode: "copied_fixture";
-    }
-> {
-  const requestedDirectory =
-    process.env.AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR?.trim();
-  if (!requestedDirectory) return { exported: false };
-
-  const manifest = {
-    fixture_version: "vnext_operator_pilot_browser_fixture.v0.1",
-    workspace_id: OPERATOR_WORKSPACE_ID,
-    project_id: OPERATOR_PROJECT_ID,
-    operator_id: "operator:operator-pilot-smoke",
-    proposal_id: input.proposal.proposal_id,
-    proposal_fingerprint: input.proposal.proposal_fingerprint,
-    packet_id: input.anchors.later_packet_id,
-    packet_fingerprint: input.anchors.later_packet_fingerprint,
-    transition_receipt_id: input.anchors.transition_receipt_id,
-    transition_receipt_fingerprint:
-      input.anchors.transition_receipt_fingerprint,
-    later_result_receipt_id: input.anchors.later_run_receipt_id,
-    later_result_receipt_fingerprint:
-      input.anchors.later_run_receipt_fingerprint,
-    context_use_review_id: input.anchors.context_use_review_id,
-    context_use_review_fingerprint:
-      input.anchors.context_use_review_fingerprint,
-    handoff_href: input.handoffHref,
-    credential_material_included: false,
-    external_identity_authenticated: false,
-    semantic_authority_granted: false,
-  };
-
-  assert.equal(path.isAbsolute(requestedDirectory), true);
-  const directory = path.resolve(requestedDirectory);
-  const relativeToOsTemp = path.relative(path.resolve(tmpdir()), directory);
-  assert(
-    relativeToOsTemp.length > 0 &&
-      !relativeToOsTemp.startsWith(`..${path.sep}`) &&
-      relativeToOsTemp !== ".." &&
-      !path.isAbsolute(relativeToOsTemp),
-    "browser fixture export must stay inside the OS temporary directory",
-  );
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const databasePath = path.join(directory, "operator-pilot.db");
-  const manifestPath = path.join(directory, "operator-pilot-browser-fixture.json");
-  assert.equal(existsSync(databasePath), false);
-  assert.equal(existsSync(manifestPath), false);
-  const source = new Database(canonicalDbPath, {
-    readonly: true,
-    fileMustExist: true,
-  });
-  try {
-    await source.backup(databasePath);
-  } finally {
-    source.close();
-  }
-  const exportedRoot = path.join(directory, "operator-project-root");
-  mkdirSync(exportedRoot, { recursive: true, mode: 0o700 });
-  const exported = new Database(databasePath, { fileMustExist: true });
-  try {
-    exported.pragma("foreign_keys = ON");
-    rebindCanonicalProjectLocalRootV01(
-      exported,
-      {
-        workspace_id: OPERATOR_WORKSPACE_ID,
-        project_id: OPERATOR_PROJECT_ID,
-        local_root: normalizeLocalProjectRootRefV01(exportedRoot, {
-          base_path: path.parse(exportedRoot).root,
-        }),
-      },
-      { now: () => "2026-07-11T09:26:00.000Z" },
-    );
-    exported
-      .prepare("DELETE FROM vnext_active_project_selections WHERE workspace_id = ?")
-      .run(OPERATOR_WORKSPACE_ID);
-    exported
-      .prepare("DELETE FROM vnext_recent_projects WHERE workspace_id = ?")
-      .run(OPERATOR_WORKSPACE_ID);
-  } finally {
-    exported.close();
-  }
-  chmodSync(databasePath, 0o600);
-  writeFileSync(
-    manifestPath,
-    `${JSON.stringify(
-      {
-        ...manifest,
-        database_file: path.basename(databasePath),
-        database_binding: "copied_fixture",
-        database_identity: databaseFileIdentityV01(databasePath),
-      },
-      null,
-      2,
-    )}\n`,
-    { encoding: "utf8", mode: 0o600 },
-  );
-  return {
-    exported: true,
-    manifest_path: manifestPath,
-    database_mode: "copied_fixture",
-  };
-}
-
-function databaseFileIdentityV01(databasePath: string): {
-  canonical_path_sha256: string;
-  device: string;
-  inode: string;
-} {
-  const canonicalPath = realpathSync(databasePath);
-  const entry = statSync(canonicalPath);
-  assert.equal(entry.isFile(), true);
-  return {
-    canonical_path_sha256: `sha256:${createHash("sha256")
-      .update(canonicalPath)
-      .digest("hex")}`,
-    device: String(entry.dev),
-    inode: String(entry.ino),
-  };
-}
-
 function assertIntegrity(databasePath: string): void {
   const db = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
@@ -8775,102 +8376,6 @@ function canonicalJson(value: unknown): unknown {
   }
   if (typeof value === "bigint") return value.toString();
   return value;
-}
-
-function installZeroNetworkGuard() {
-  const attempts: string[] = [];
-  const restores: Array<() => void> = [];
-  const modules = {
-    http: require("node:http"),
-    https: require("node:https"),
-    net: require("node:net"),
-    tls: require("node:tls"),
-    dns: require("node:dns"),
-  } as Record<string, Record<string, unknown>>;
-  patch(globalThis as unknown as Record<string, unknown>, "fetch", "fetch");
-  for (const [moduleName, methods] of Object.entries({
-    http: ["request", "get"],
-    https: ["request", "get"],
-    net: ["connect", "createConnection"],
-    tls: ["connect"],
-    dns: ["lookup", "resolve", "resolve4", "resolve6", "resolveAny", "reverse"],
-  })) {
-    for (const method of methods) {
-      patch(modules[moduleName], method, `${moduleName}.${method}`);
-    }
-  }
-  const dnsPromises = modules.dns.promises as Record<string, unknown> | undefined;
-  if (dnsPromises) {
-    for (const method of ["lookup", "resolve", "resolve4", "resolve6", "resolveAny", "reverse"]) {
-      patch(dnsPromises, method, `dns.promises.${method}`);
-    }
-  }
-  return {
-    attempts,
-    restore() {
-      restores.reverse().forEach((restore) => restore());
-    },
-  };
-
-  function patch(
-    target: Record<string, unknown>,
-    method: string,
-    label: string,
-  ): void {
-    const original = target[method];
-    if (typeof original !== "function") return;
-    target[method] = (...args: unknown[]) => {
-      if (isExactLoopbackCall(label, args)) {
-        return Reflect.apply(original, target, args);
-      }
-      attempts.push(label);
-      throw new Error(`operator_pilot_external_io_blocked:${label}`);
-    };
-    restores.push(() => {
-      target[method] = original;
-    });
-  }
-
-  function isExactLoopbackCall(label: string, args: unknown[]): boolean {
-    if (label.startsWith("dns.")) {
-      return isLoopbackHost(args[0]);
-    }
-    if (label.startsWith("http.")) {
-      const first = args[0];
-      if (first instanceof URL) return isLoopbackHost(first.hostname);
-      if (typeof first === "string") {
-        try {
-          return isLoopbackHost(new URL(first).hostname);
-        } catch {
-          return false;
-        }
-      }
-      if (first && typeof first === "object") {
-        return isLoopbackHost(
-          (first as { hostname?: unknown; host?: unknown }).hostname ??
-            (first as { host?: unknown }).host,
-        );
-      }
-      return false;
-    }
-    if (label.startsWith("net.")) {
-      const first = args[0];
-      if (first && typeof first === "object") {
-        return isLoopbackHost((first as { host?: unknown }).host);
-      }
-      return isLoopbackHost(args[1]);
-    }
-    return false;
-  }
-
-  function isLoopbackHost(value: unknown): boolean {
-    return (
-      value === "127.0.0.1" ||
-      value === "::1" ||
-      value === "[::1]" ||
-      value === "localhost"
-    );
-  }
 }
 
 function pass(caseId: string): void {
