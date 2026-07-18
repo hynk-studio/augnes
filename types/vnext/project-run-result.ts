@@ -1,4 +1,5 @@
 import type { AutonomyRunnerStatus } from "../autonomy-runner-execution";
+import type { CriterionAssessmentReadbackV01 } from "./criterion-assessment";
 import type { ExternalRefV01 } from "./external-ref";
 import type {
   RunReceiptCapabilityCoverageEntryV01,
@@ -135,6 +136,7 @@ export interface ProjectRunResultDetailV01 {
     selected_context_refs: ExternalRefV01[];
     source_ref_count: number | null;
   };
+  criterion_assessment: CriterionAssessmentReadbackV01;
   host: {
     host_ref: ExternalRefV01 | null;
     host_refs: ExternalRefV01[];

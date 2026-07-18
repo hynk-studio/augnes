@@ -63,6 +63,7 @@ import {
 import {
   buildRunReceiptV01,
   createRunReceiptFingerprintV01,
+  createRunReceiptIdempotencyKeyV01,
   deriveRunReceiptIdV01,
   validateRunReceiptV01,
 } from "../lib/vnext/run-receipt";
@@ -92,6 +93,7 @@ import {
 } from "../lib/vnext/runtime/live-native-host-run-service";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import {
+  ProjectRunResultReadErrorV01,
   readProjectRunResultDetailV01,
   readProjectRunResultOverviewV01,
 } from "../lib/vnext/runtime/project-run-result-read-model";
@@ -1500,6 +1502,25 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     assert.equal(runRow.metadata_json.includes(input.packet.task.goal), false);
     assert.equal(runRow.metadata_json.includes("run_receipt_id"), true);
 
+    const assessmentReadSnapshot = {
+      core_records: countTableRows(db, "vnext_core_records"),
+      semantic_state_entries: countTableRows(
+        db,
+        "vnext_semantic_state_entries",
+      ),
+      proposals: countRowsByKind(db, "episode_delta_proposal"),
+      decisions: countRowsByKind(db, "review_decision"),
+      transitions: countRowsByKind(db, "state_transition_receipt"),
+      packets: countRowsByKind(db, "task_context_packet"),
+      receipts: countRowsByKind(db, "run_receipt"),
+    };
+    const packetBeforeAssessment = readVNextCoreRecordV01(db, {
+      record_kind: "task_context_packet",
+      record_id: input.packet.packet_id,
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+    });
+    assert(packetBeforeAssessment);
     const resultDetail = readProjectRunResultDetailV01(db, {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
@@ -1529,6 +1550,99 @@ async function assertDirectHostRoundTripCoverageV01(input: {
       work_closed: false,
       semantic_state_changed: false,
     });
+    assert.equal(resultDetail.criterion_assessment.status, "available");
+    if (resultDetail.criterion_assessment.status !== "available") {
+      throw new Error("criterion_assessment_not_available");
+    }
+    const assessment = resultDetail.criterion_assessment.assessment;
+    assert.equal(assessment.packet_ref.external_id, input.packet.packet_id);
+    assert.equal(
+      assessment.packet_ref.source_ref,
+      input.packet.integrity.fingerprint,
+    );
+    assert.equal(assessment.receipt_ref.external_id, golden.receipt.receipt_id);
+    assert.equal(
+      assessment.receipt_ref.source_ref,
+      golden.receipt.integrity.fingerprint,
+    );
+    assert.equal(assessment.run_id, golden.run_id);
+    assert.equal(
+      assessment.criteria.length,
+      input.packet.task.success_criteria.length,
+    );
+    assert.deepEqual(
+      assessment.criteria.map((item) => item.criterion).sort(),
+      [...input.packet.task.success_criteria].sort(),
+    );
+    assert.equal(
+      assessment.criteria.every(
+        (item) =>
+          item.status === "unknown" &&
+          item.basis === "insufficient" &&
+          item.supporting_refs.length === 0 &&
+          item.opposing_refs.length === 0,
+      ),
+      true,
+    );
+    assert.equal(
+      assessment.criteria.every((item) =>
+        item.uncertainty.some((entry) => entry.includes("was skipped")),
+      ),
+      true,
+    );
+    assert.equal(
+      assessment.criteria.every((item) =>
+        item.operation_coverage.some(
+          (entry) =>
+            entry.capability === "repository_command_execution" &&
+            entry.coverage_level === "outside_coverage",
+        ),
+      ),
+      true,
+    );
+    assert.deepEqual(assessment.authority, {
+      authoritative: false,
+      creates_evidence: false,
+      validates_claims: false,
+      creates_proposal: false,
+      creates_decision: false,
+      applies_transition: false,
+      changes_semantic_state: false,
+      changes_later_context: false,
+    });
+    const repeatedResultDetail = readProjectRunResultDetailV01(db, {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      receipt_id: golden.receipt.receipt_id,
+    });
+    assert.deepEqual(repeatedResultDetail.criterion_assessment, {
+      status: "available",
+      assessment,
+    });
+    assert.deepEqual(
+      {
+        core_records: countTableRows(db, "vnext_core_records"),
+        semantic_state_entries: countTableRows(
+          db,
+          "vnext_semantic_state_entries",
+        ),
+        proposals: countRowsByKind(db, "episode_delta_proposal"),
+        decisions: countRowsByKind(db, "review_decision"),
+        transitions: countRowsByKind(db, "state_transition_receipt"),
+        packets: countRowsByKind(db, "task_context_packet"),
+        receipts: countRowsByKind(db, "run_receipt"),
+      },
+      assessmentReadSnapshot,
+    );
+    assert.deepEqual(
+      readVNextCoreRecordV01(db, {
+        record_kind: "task_context_packet",
+        record_id: input.packet.packet_id,
+        workspace_id: input.config.workspace_id,
+        project_id: input.config.project_id,
+      }),
+      packetBeforeAssessment,
+    );
 
     const replay = await runDirectNativeHostRoundTripV01(
       db,
@@ -1594,11 +1708,17 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   pass("direct_host_exact_packet_work_task_lineage_and_plain_root_binding");
   pass("direct_host_reuses_ledger_and_structured_receipt_replay_authority");
   pass("direct_host_receipt_minimizes_data_and_grants_no_semantic_authority");
+  pass("direct_host_persisted_packet_receipt_criterion_assessment_read_only");
 
   assertDirectHostRepositoryRelativePathContractV01(
     observed,
     golden.host_result!,
   );
+  await assertCriterionAssessmentBindingRefusalsOnClonesV01({
+    environment: input.environment,
+    packet: input.packet,
+    receipt: golden.receipt,
+  });
   await assertInteractiveHostRouteOnCloneV01(input);
   await assertDirectHostTerminalScenariosOnClonesV01(input);
   await assertDirectHostStopSettlementOnClonesV01(input);
@@ -1606,6 +1726,168 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   await assertDirectHostPrestartRefusalsOnClonesV01(input);
   await assertDirectHostRootScopesOnClonesV01(input);
   await assertLiveCodexAppServerLifecycleOnClonesV01(input);
+}
+
+async function assertCriterionAssessmentBindingRefusalsOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+  receipt: RunReceiptV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "criterion-assessment-receipt-id-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const conflictingRecordId =
+          "run-receipt:r6-a-envelope-id-conflict";
+        insertVNextCoreRecordV01(db, {
+          record_kind: "run_receipt",
+          record_id: conflictingRecordId,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          fingerprint: input.receipt.integrity.fingerprint,
+          idempotency_key: null,
+          payload: input.receipt,
+          created_at: input.receipt.recorded_at,
+        });
+        assert.throws(
+          () =>
+            readProjectRunResultDetailV01(db, {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              receipt_id: conflictingRecordId,
+            }),
+          (error) =>
+            error instanceof ProjectRunResultReadErrorV01 &&
+            error.code === "project_result_receipt_scope_conflict",
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "criterion-assessment-receipt-fingerprint-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const conflictingRecordId =
+          "run-receipt:r6-a-envelope-fingerprint-conflict";
+        insertVNextCoreRecordV01(db, {
+          record_kind: "run_receipt",
+          record_id: conflictingRecordId,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          fingerprint: `sha256:${"e".repeat(64)}`,
+          idempotency_key: null,
+          payload: input.receipt,
+          created_at: input.receipt.recorded_at,
+        });
+        assert.throws(
+          () =>
+            readProjectRunResultDetailV01(db, {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              receipt_id: conflictingRecordId,
+            }),
+          /vnext_core_record_fingerprint_mismatch/u,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "criterion-assessment-run-relation-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const update = db
+          .prepare(
+            `UPDATE autonomy_runs
+             SET metadata_json = json_set(
+               metadata_json,
+               '$.run_receipt_id',
+               'run-receipt:r6-a-conflicting-ledger-relation'
+             )
+             WHERE run_id = ?`,
+          )
+          .run(input.receipt.run_id);
+        assert.equal(update.changes, 1);
+        assert.throws(
+          () =>
+            readProjectRunResultDetailV01(db, {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              receipt_id: input.receipt.receipt_id,
+            }),
+          (error) =>
+            error instanceof ProjectRunResultReadErrorV01 &&
+            error.code === "project_result_receipt_run_conflict",
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "criterion-assessment-packet-fingerprint-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receipt = structuredClone(input.receipt);
+        receipt.run_id = "run-r6-a-packet-fingerprint-conflict";
+        receipt.recorded_at = addIsoMillisecondsV01(
+          input.receipt.recorded_at,
+          1,
+        );
+        receipt.task_context_packet_ref = {
+          ...receipt.task_context_packet_ref!,
+          source_ref: `sha256:${"d".repeat(64)}`,
+        };
+        receipt.idempotency_key = createRunReceiptIdempotencyKeyV01(receipt);
+        receipt.receipt_id = deriveRunReceiptIdV01(receipt);
+        receipt.integrity.fingerprint = createRunReceiptFingerprintV01(receipt);
+        assert.equal(validateRunReceiptV01(receipt).status, "valid");
+        insertVNextCoreRecordV01(db, {
+          record_kind: "run_receipt",
+          record_id: receipt.receipt_id,
+          workspace_id: receipt.workspace_id,
+          project_id: receipt.project_id,
+          fingerprint: receipt.integrity.fingerprint,
+          idempotency_key: receipt.idempotency_key,
+          payload: receipt,
+          created_at: receipt.recorded_at,
+        });
+        assert.throws(
+          () =>
+            readProjectRunResultDetailV01(db, {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              receipt_id: receipt.receipt_id,
+            }),
+          (error) =>
+            error instanceof ProjectRunResultReadErrorV01 &&
+            error.code === "project_result_packet_conflict",
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  assert.equal(
+    input.receipt.task_context_packet_ref?.external_id,
+    input.packet.packet_id,
+  );
+  pass("criterion_assessment_binding_conflicts_fail_closed");
 }
 
 function directHostPolicyContextV01(

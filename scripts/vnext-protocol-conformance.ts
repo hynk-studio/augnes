@@ -31,6 +31,7 @@ import {
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { runContextUseReviewConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-review";
+import { runCriterionAssessmentConformanceV01 } from "@/scripts/vnext-protocol-conformance/criterion-assessment";
 import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
 import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/episode-delta-proposal";
 import { runReviewDecisionConformanceV01 } from "@/scripts/vnext-protocol-conformance/review-decision";
@@ -47,6 +48,7 @@ const sourcePaths = [
   legacyAdapterSourcePath,
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
+  "lib/vnext/criterion-assessment.ts",
   "lib/vnext/episode-delta-proposal.ts",
   "lib/vnext/review-decision.ts",
   "lib/vnext/state-transition-receipt.ts",
@@ -566,6 +568,8 @@ try {
   assert.equal(fetchCalls, 0, "protocol conformance observed a fetch call");
 
   const runReceiptSummary = runRunReceiptConformanceV01();
+  const criterionAssessmentSummary =
+    runCriterionAssessmentConformanceV01();
   const episodeDeltaProposalSummary =
     runEpisodeDeltaProposalConformanceV01();
   const reviewDecisionSummary = runReviewDecisionConformanceV01();
@@ -633,6 +637,7 @@ try {
         status: "passed",
         task_context_packet: taskContextPacketSummary,
         run_receipt: runReceiptSummary,
+        criterion_assessment: criterionAssessmentSummary,
         episode_delta_proposal: episodeDeltaProposalSummary,
         review_decision: reviewDecisionSummary,
         state_transition_receipt: stateTransitionReceiptSummary,

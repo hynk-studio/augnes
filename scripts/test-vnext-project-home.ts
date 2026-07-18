@@ -675,6 +675,10 @@ async function main() {
       receipt_id: compatibilityReceipt.receipt_id,
     });
     assert.equal(compatibilityResult.packet.status, "not_recorded");
+    assert.deepEqual(compatibilityResult.criterion_assessment, {
+      status: "unavailable",
+      reason: "packet_missing",
+    });
     assert.equal(compatibilityResult.host.approvals.length, 0);
     assert.deepEqual(
       compatibilityResult.model_invocations.map((entry) => entry.state),

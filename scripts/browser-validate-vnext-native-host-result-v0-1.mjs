@@ -141,6 +141,9 @@ const result = {
   workbench_result_reload_durable: false,
   result_inspector_complete: false,
   result_review_semantic_authority_unchanged: false,
+  task_success_criterion_assessment: false,
+  execution_task_success_separated: false,
+  workbench_result_narrow_viewport_no_overflow: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -1461,7 +1464,18 @@ async function main() {
     const resultReviewShape = await evaluateJson(`(() => {
       const review = document.querySelector('[data-run-result-review="v0.1"]');
       const inspector = document.querySelector('[data-run-result-inspector="v0.1"]');
+      const assessment = review?.querySelector('[data-task-success-criteria="available"]');
+      const criterionItems = assessment
+        ? Array.from(assessment.querySelectorAll('[data-criterion-status]'))
+        : [];
+      const criterionDrilldowns = assessment
+        ? Array.from(assessment.querySelectorAll('[data-criterion-source-drilldown="true"]'))
+        : [];
+      for (const drilldown of criterionDrilldowns) {
+        if (drilldown instanceof HTMLDetailsElement) drilldown.open = true;
+      }
       const text = review?.textContent ?? '';
+      const assessmentText = assessment?.textContent ?? '';
       return {
         read_only: review?.getAttribute('data-result-review-read-only') === 'true',
         semantic_mutation: review?.getAttribute('data-semantic-mutation'),
@@ -1480,6 +1494,41 @@ async function main() {
         model_coverage: text.includes('native host internal outside coverage'),
         trust_privacy: text.includes('Trust, coverage, and privacy') && text.includes('Raw prompt: not persisted'),
         authority_boundary: text.includes('No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance, semantic state change, or work closure was created'),
+        criterion_assessment_available: assessment !== null,
+        execution_task_success_separated:
+          assessment?.getAttribute('data-task-success-status') === 'unknown' &&
+          assessmentText.includes('Execution completed / task success unknown'),
+        criterion_count: criterionItems.length,
+        criteria_unknown_insufficient: criterionItems.every(
+          (item) =>
+            item.getAttribute('data-criterion-status') === 'unknown' &&
+            item.getAttribute('data-criterion-basis') === 'insufficient',
+        ),
+        criterion_source_counts: criterionItems.every((item) => {
+          const sourceCountText = item.querySelector('small')?.textContent ?? '';
+          return sourceCountText.includes('0 supporting sources') && sourceCountText.includes('0 opposing');
+        }),
+        criterion_source_drilldown:
+          criterionDrilldowns.length === criterionItems.length &&
+          criterionDrilldowns.every(
+            (entry) => entry instanceof HTMLDetailsElement && entry.open,
+          ),
+        skipped_not_passed:
+          assessmentText.includes('was skipped') &&
+          !assessmentText.includes('skipped · passed'),
+        unsupported_unavailable:
+          assessment?.querySelector('[data-coverage-level="outside_coverage"]')?.textContent?.includes('unsupported / unavailable') === true,
+        criterion_trust_distinct:
+          assessmentText.includes('direct local observation') &&
+          assessmentText.includes('verified external observation') &&
+          assessmentText.includes('host attestation') &&
+          assessmentText.includes('provider report') &&
+          assessmentText.includes('derived interpretation'),
+        criterion_authority_boundary:
+          assessment?.getAttribute('data-assessment-authoritative') === 'false' &&
+          assessmentText.includes('derived and non-authoritative') &&
+          assessmentText.includes('creates no Evidence') &&
+          assessmentText.includes('changes neither semantic state nor later context'),
         private_root_visible: text.includes(${JSON.stringify(liveAfter.normalized_root)}),
         packet_rendering_visible: text.includes(${JSON.stringify(packet.task.goal)}),
         raw_protocol_visible: /jsonrpc|raw diff must never be persisted|raw output must never be persisted|OPENAI_API_KEY/.test(text),
@@ -1499,12 +1548,26 @@ async function main() {
       model_coverage: true,
       trust_privacy: true,
       authority_boundary: true,
+      criterion_assessment_available: true,
+      execution_task_success_separated: true,
+      criterion_count: packet.task.success_criteria.length,
+      criteria_unknown_insufficient: true,
+      criterion_source_counts: true,
+      criterion_source_drilldown: true,
+      skipped_not_passed: true,
+      unsupported_unavailable: true,
+      criterion_trust_distinct: true,
+      criterion_authority_boundary: true,
       private_root_visible: false,
       packet_rendering_visible: false,
       raw_protocol_visible: false,
     });
+    await validateWorkbenchResultViewports();
     result.workbench_result_review_read_only = true;
     result.result_inspector_complete = true;
+    result.task_success_criterion_assessment = true;
+    result.execution_task_success_separated = true;
+    result.workbench_result_narrow_viewport_no_overflow = true;
 
     const reloadResponseStart = responses.length;
     await cdp.send("Page.reload", { ignoreCache: true });
@@ -1818,6 +1881,41 @@ async function validateProjectHomeViewports() {
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.home_horizontal_overflow, false);
     assert.equal(metrics.home_inside_viewport, true);
+    result.viewport_results.push(metrics);
+  }
+}
+
+async function validateWorkbenchResultViewports() {
+  for (const width of [390, 768, 1440]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await delay(100);
+    const metrics = await evaluateJson(`(() => {
+      const review = document.querySelector('[data-run-result-review="v0.1"]');
+      const rect = review?.getBoundingClientRect();
+      return {
+        surface: 'workbench_run_result',
+        width: window.innerWidth,
+        document_scroll_width: document.documentElement.scrollWidth,
+        document_client_width: document.documentElement.clientWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        review_scroll_width: review?.scrollWidth ?? -1,
+        review_client_width: review?.clientWidth ?? -1,
+        review_horizontal_overflow:
+          (review?.scrollWidth ?? 0) > (review?.clientWidth ?? 0) + 1,
+        review_inside_viewport:
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+      };
+    })()`);
+    assert.equal(metrics.width, width);
+    assert.equal(metrics.document_horizontal_overflow, false);
+    assert.equal(metrics.review_horizontal_overflow, false);
+    assert.equal(metrics.review_inside_viewport, true);
     result.viewport_results.push(metrics);
   }
 }
