@@ -56,9 +56,11 @@ that can produce, reuse, export, or restore structured semantic material:
 - `unreviewed_structured_context_injection = 0`: an unreviewed host result,
   assessment, or pending proposal does not enter a later `TaskContextPacket` as
   durable reviewed context.
-- `authority_drift_after_export_restore = 0`: candidate, reviewed, accepted,
-  rejected, deferred, retracted, superseded, and applied authority/lifecycle do
-  not change through export/import or restore.
+- `authority_drift_after_export_restore = 0`: each implemented record's exact
+  lifecycle values and epistemic/authority classification do not change through
+  export/import or restore; candidate, reviewed, accepted, rejected, deferred,
+  retracted, superseded, and applied are illustrative distinctions, not a new
+  universal lifecycle enum.
 
 Focused quality measures, where the corresponding path exists, are:
 
@@ -170,8 +172,8 @@ Primary metrics:
 
 ### Decide
 
-- review time and decision debt
-- decision change per unit of review burden
+- review time and material decision corrections, tracked together
+- decision debt
 - duplicate or ignored proposals
 - transition traceability
 - decision reversal caused by missing context

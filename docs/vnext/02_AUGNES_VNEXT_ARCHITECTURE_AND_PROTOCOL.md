@@ -474,7 +474,7 @@ GitHub merge event 조회
 
 #### Operational residue to semantic assessment boundary
 
-R6는 다음의 meaning layer를 사용할 수 있다.
+R6는 다음의 semantic meaning boundary를 반드시 보존한다.
 
 ```text
 TaskContextPacket task goal와 success criteria
@@ -485,16 +485,17 @@ changed artifacts, gaps와 uncertainty
 → possible EpisodeDeltaProposal candidate
 ```
 
-`semantic assessment/comparison projection`은 설명을 위한 working name이며 이
-문서만으로 canonical protocol record, durable aggregate, DB table, API 또는 UI를
-승인하지 않는다. 각 success criterion은 `satisfied`, `unsatisfied`, `unknown` 또는
-`not_applicable`로 비교하고, basis는 `observed`, `attested`, `mixed` 또는
-`insufficient`를 구분한다. 각 판단은 observation, attestation, check, skipped-check,
-artifact, gap과 uncertainty의 구체 ref를 보존하며 support가 부족하면 `unknown`을
-기본값으로 사용한다.
+이 boundary는 rebuildable projection, pure builder 또는 동등한 non-durable
+mechanism으로 구현할 수 있다. `semantic assessment/comparison projection`은 설명을
+위한 working name이며 이 문서만으로 canonical protocol record, durable aggregate,
+DB table, API 또는 UI를 승인하지 않는다. 각 success criterion은 `satisfied`,
+`unsatisfied`, `unknown` 또는 `not_applicable`로 비교하고, basis는 `observed`,
+`attested`, `mixed` 또는 `insufficient`를 구분한다. 각 판단은 observation,
+attestation, check, skipped-check, artifact, gap과 uncertainty의 구체 ref를 보존하며
+support가 부족하면 `unknown`을 기본값으로 사용한다.
 
-이 projection은 `RunReceipt.execution.status: completed`를 task success로 해석하지
-않는다. canonical state가 아니며 Evidence나 Claim을 accept하지 않고,
+이 assessment/comparison은 `RunReceipt.execution.status: completed`를 task success로
+해석하지 않는다. canonical state가 아니며 Evidence나 Claim을 accept하지 않고,
 ReviewDecision을 만들거나 Transition을 수행하지 않으며, later TaskContextPacket을
 직접 변경하지 않는다. host-proposed next step도 advisory로 남는다. 다만 concrete
 source anchor를 가진 EpisodeDeltaProposal 준비에는 사용할 수 있다.

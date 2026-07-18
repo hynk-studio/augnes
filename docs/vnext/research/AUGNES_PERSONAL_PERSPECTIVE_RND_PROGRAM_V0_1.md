@@ -228,8 +228,16 @@ Personal Perspective는 모든 task에 자동 관련되지 않는다. 미래 con
 - data classification와 remote egress policy
 - why included, excluded refs와 reuse boundary
 
-contested 또는 model-inferred personal material을 task context에 silently inject하지
-않는다. accepted item도 relevance와 sharing rule 없이 자동 선택하지 않는다.
+candidate, model inference, semantic assessment와 relation assertion은 durable
+Personal Perspective를 직접 mutate하지 않는다. 향후 durable promotion은 기존
+source-linked `EpisodeDeltaProposal → ReviewDecision → authorized Transition` path를
+거쳐야 한다.
+
+이미 reviewed/accepted된 material의 task-context selection은 별도의 derived
+selection이다. explicit user-reviewed scope, task relevance, consent와 sharing rule,
+freshness와 `why_included`를 요구하며 selection 자체가 자동으로 새 Transition이 되는
+것은 아니다. contested, candidate 또는 model-inferred personal material을 task
+context에 silently inject하지 않는다.
 
 ### 4.5 Required future architecture decision
 
@@ -356,10 +364,9 @@ perspective_gap_candidate
 ```
 
 각 output은 source, assumptions, scope, limitations와 non-authority boundary를 가져야
-한다. output에서 추론된 disagreement, support, attack, contradiction과 다른 relation은
-candidate relation assertion으로 남고 source, scope, basis, limitations와 revision
-status를 보존한다. relation structure와 모델 agreement는 verification이 아니고
-minority opinion도 truth가 아니다.
+한다. inferred relation에는 3.1의 candidate relation assertion rule을 적용한다.
+relation structure와 모델 agreement는 verification이 아니고 minority opinion도
+truth가 아니다.
 
 ### 7.1 Initial trials
 
@@ -384,11 +391,10 @@ automatic population selection
 automatic actor promotion
 ```
 
-Arena output은 Personal Perspective candidate나 gap을 제안할 수 있지만 직접
-Personal Perspective를 mutate, apply, promote 또는 task context에 inject할 수 없다.
-Arena output, model inference, semantic assessment와 relation assertion은 모두 기존
-source-linked proposal, review, authorization과 Transition path 없이 Personal
-Perspective를 변경하거나 task context에 들어갈 수 없다.
+Arena output은 Personal Perspective candidate나 gap을 제안할 수 있지만 3.1과 4.4의
+경계를 따른다. Arena output, model inference, semantic assessment와 relation assertion은
+durable Personal Perspective를 직접 변경하거나 task context에 silently inject할 수
+없으며, durable promotion과 derived task-context selection은 서로 다른 path다.
 
 ---
 

@@ -232,7 +232,7 @@ Semantic preservation:
 Automation contribution:
 
 - one real bounded policy-triggered work loop
-- manual-triggered and policy-triggered runs converge on the same assessment,
+- interactive and policy-triggered runs converge on the same assessment,
   proposal, review, and transition path
 - retry only under explicit policy, idempotency, budget, and stop conditions
 - no automatic semantic commit
@@ -300,7 +300,10 @@ Completion:
 - Project Home, Workbench, and Inspector have distinct roles
 - automation state is understandable without exposing internal IDs or protocol mechanics
 - host completion is visibly distinct from task success
-- observed, attested, interpreted, and unknown basis are distinguishable
+- residue provenance/trust distinguishes direct local observation, verified
+  external observation, host attestation, provider report, and derived interpretation
+- criterion assessment basis distinguishes observed, attested, mixed, and insufficient
+- criterion status distinguishes satisfied, unsatisfied, unknown, and not applicable
 - semantic deltas and decision consequences are understandable without opening
   raw protocol records
 - each meaningful change can drill down to source and lineage
@@ -335,11 +338,14 @@ Portable export:
   continuity and lineage
 - when implemented and applicable, preserves canonical project/workspace
   identity, project scope, record contract/version, canonical Evidence, Claim,
-  state and memory records, `RunReceipt`, `EpisodeDeltaProposal`,
-  `ReviewDecision`, `StateTransitionReceipt`, source anchors, temporal/lifecycle
-  status, integrity, and provider-neutral `ExternalRef`
-- preserves candidate, reviewed, accepted, rejected, deferred, superseded,
-  retracted and applied distinctions without promoting one lifecycle into another
+  state and memory records and, where implemented and canonical, durable
+  Perspective records with their revision lineage, plus `RunReceipt`,
+  `EpisodeDeltaProposal`, `ReviewDecision`, `StateTransitionReceipt`, source
+  anchors, temporal/lifecycle status, integrity, and provider-neutral `ExternalRef`
+- preserves each implemented record's exact lifecycle values and
+  epistemic/authority classification; candidate, reviewed, accepted, rejected,
+  deferred, superseded, retracted, and applied are illustrative distinctions,
+  not a newly approved universal lifecycle enum
 - preserves relation-assertion source, scope, basis and revision lineage only
   when that relation is an implemented canonical record; this roadmap does not
   pre-authorize unimplemented semantic concepts as export truth
@@ -370,9 +376,10 @@ Completion:
 - ordinary users do not run migration, checksum, restore, export-repair, or run-repair shell commands
 - failed upgrades preserve recoverable data
 - portable export and recovery backup have separate contracts and validation
-- export/import preserves authority and lifecycle exactly: candidate does not
-  become accepted, `ReviewDecision` does not become Transition, and superseded
-  or retracted material does not silently reactivate
+- export/import preserves each implemented record's exact lifecycle values and
+  epistemic/authority classification: candidate material does not become
+  accepted, `ReviewDecision` does not become Transition, and superseded or
+  retracted material does not silently reactivate
 - derived assessment does not become canonical state
 - export/import or restore creates no new Decision or Transition
 - exact replay does not duplicate proposal, decision, or transition
