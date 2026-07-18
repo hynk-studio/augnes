@@ -65,6 +65,8 @@ export function RunResultReviewSurface({
           </p>
         </section>
 
+        <TaskSuccessCriteria result={result} />
+
         <div className={styles.twoColumnGrid}>
           <ResultList
             title="Changes and artifacts"
@@ -358,6 +360,147 @@ export function RunResultReviewSurface({
       </div>
     </main>
   );
+}
+
+function TaskSuccessCriteria({
+  result,
+}: {
+  result: ProjectRunResultDetailV01;
+}) {
+  const readback = result.criterion_assessment;
+  if (readback.status === "unavailable") {
+    return (
+      <section
+        className={styles.panel}
+        aria-labelledby="task-success-criteria-title"
+        data-task-success-criteria="unavailable"
+      >
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Derived criterion assessment</p>
+          <h2 id="task-success-criteria-title">Task success criteria</h2>
+        </div>
+        <p className={styles.copy} data-execution-task-success="unavailable">
+          Execution {humanize(result.summary.execution_status)} / task success unavailable
+        </p>
+        <p className={styles.muted}>
+          Criterion assessment is unavailable for this historical result: {humanize(readback.reason)}.
+          The receipt remains execution residue and no success status was inferred.
+        </p>
+      </section>
+    );
+  }
+
+  const assessment = readback.assessment;
+  const taskSuccess = taskSuccessStatusV01(assessment.summary);
+  return (
+    <section
+      className={styles.panel}
+      aria-labelledby="task-success-criteria-title"
+      data-task-success-criteria="available"
+      data-task-success-status={taskSuccess}
+      data-assessment-authoritative="false"
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>Derived criterion assessment</p>
+        <h2 id="task-success-criteria-title">Task success criteria</h2>
+      </div>
+      <p
+        className={styles.copy}
+        data-execution-task-success={`${result.summary.execution_status}:${taskSuccess}`}
+      >
+        Execution {humanize(result.summary.execution_status)} / task success {humanize(taskSuccess)}
+      </p>
+      <dl className={styles.statusGrid}>
+        <Metric label="Satisfied" value={String(assessment.summary.satisfied)} />
+        <Metric label="Unsatisfied" value={String(assessment.summary.unsatisfied)} />
+        <Metric label="Unknown" value={String(assessment.summary.unknown)} />
+        <Metric label="Not applicable" value={String(assessment.summary.not_applicable)} />
+      </dl>
+      {assessment.criteria.length ? (
+        <ul className={styles.plainList} data-criterion-assessment-items="true">
+          {assessment.criteria.map((item) => (
+            <li
+              key={item.criterion_id}
+              data-criterion-status={item.status}
+              data-criterion-basis={item.basis}
+            >
+              <strong>{item.criterion}</strong>
+              <span>{humanize(item.status)} · {humanize(item.basis)} basis</span>
+              <small>
+                {item.supporting_refs.length} supporting refs · {item.opposing_refs.length} opposing refs · {item.missing_refs.length} criterion-specific missing refs
+              </small>
+              <details data-criterion-source-drilldown="true">
+                <summary>Sources, trust, coverage, and uncertainty</summary>
+                <h4>Supporting refs ({item.supporting_refs.length})</h4>
+                <RefList refs={item.supporting_refs} />
+                <h4>Opposing refs ({item.opposing_refs.length})</h4>
+                <RefList refs={item.opposing_refs} />
+                <h4>Criterion-specific missing refs ({item.missing_refs.length})</h4>
+                <RefList refs={item.missing_refs} />
+                <h4>Task-wide receipt residue trust classes</h4>
+                <ul className={styles.plainList} data-criterion-trust="true">
+                  {Object.entries(item.trust).map(([trustClass, count]) => (
+                    <li key={trustClass}>
+                      <strong>{humanize(trustClass)}</strong>
+                      <span>{count}</span>
+                    </li>
+                  ))}
+                </ul>
+                <h4>Task-wide operation coverage</h4>
+                {item.operation_coverage.length ? (
+                  <ul className={styles.plainList} data-criterion-operation-coverage="true">
+                    {item.operation_coverage.map((entry) => (
+                      <li
+                        key={entry.capability}
+                        data-coverage-level={entry.coverage_level}
+                      >
+                        <strong>{humanize(entry.capability)}</strong>
+                        <span>{coverageLabelV01(entry.coverage_level)}</span>
+                        {entry.notes.map((note) => <small key={note}>{note}</small>)}
+                        <RefList refs={[entry.source_ref]} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className={styles.empty}>Operation coverage was not recorded.</p>}
+                <h4>Task-wide receipt uncertainty</h4>
+                <ResultListBody
+                  items={item.uncertainty.map((uncertainty) => ({
+                    id: uncertainty,
+                    primary: uncertainty,
+                    secondary: "uncertainty",
+                  }))}
+                  empty="No criterion uncertainty was recorded."
+                />
+              </details>
+            </li>
+          ))}
+        </ul>
+      ) : <p className={styles.empty}>The packet recorded no success criteria.</p>}
+      <p className={styles.muted} data-criterion-authority-boundary="true">
+        This assessment is derived and non-authoritative. It creates no Evidence,
+        validates no Claim, creates no proposal or decision, applies no Transition,
+        and changes neither semantic state nor later context.
+      </p>
+    </section>
+  );
+}
+
+function taskSuccessStatusV01(summary: {
+  satisfied: number;
+  unsatisfied: number;
+  unknown: number;
+  not_applicable: number;
+}): "satisfied" | "unsatisfied" | "unknown" | "not_applicable" {
+  if (summary.unsatisfied > 0) return "unsatisfied";
+  if (summary.unknown > 0) return "unknown";
+  if (summary.satisfied > 0) return "satisfied";
+  return summary.not_applicable > 0 ? "not_applicable" : "unknown";
+}
+
+function coverageLabelV01(value: string): string {
+  return value === "outside_coverage"
+    ? "unsupported / unavailable"
+    : humanize(value);
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

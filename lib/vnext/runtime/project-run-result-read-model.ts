@@ -12,6 +12,7 @@ import {
   readVNextCoreRecordV01,
   type VNextCoreRecordEnvelopeV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
@@ -137,6 +138,21 @@ export function readProjectRunResultDetailV01(
   }
   const packet = readLinkedPacketV01(db, input, receipt);
   assertRunPacketBindingV01(run?.metadata ?? null, receipt, packet);
+  const criterionAssessment = packet
+    ? {
+        status: "available" as const,
+        assessment: evaluateCriterionAssessmentV01({ packet, receipt }),
+      }
+    : {
+        status: "unavailable" as const,
+        reason:
+          receipt.task_context_packet_ref &&
+          (receipt.task_context_packet_ref.ref_type !==
+            "task_context_packet" ||
+            !receipt.task_context_packet_ref.source_ref)
+            ? ("unsupported_protocol" as const)
+            : ("packet_missing" as const),
+      };
   const summary = projectReceiptSummaryV01(receipt);
   const sourceTransitionRef = findRefV01(
     receipt.source_refs,
@@ -209,6 +225,7 @@ export function readProjectRunResultDetailV01(
           selected_context_refs: [],
           source_ref_count: null,
         },
+    criterion_assessment: criterionAssessment,
     host: {
       host_ref: receipt.host_ref,
       host_refs: hostRefs,
@@ -328,7 +345,27 @@ function readLinkedPacketV01(
     workspace_id: input.workspace_id,
     project_id: input.project_id,
   });
-  if (!record) return null;
+  if (!record) {
+    const conflictingScope = db
+      .prepare(
+        `SELECT workspace_id, project_id FROM vnext_core_records
+         WHERE record_kind = 'task_context_packet' AND record_id = ?
+         LIMIT 1`,
+      )
+      .get(ref.external_id) as
+      | { workspace_id: string; project_id: string }
+      | undefined;
+    if (
+      conflictingScope &&
+      (conflictingScope.workspace_id !== input.workspace_id ||
+        conflictingScope.project_id !== input.project_id)
+    ) {
+      throw new ProjectRunResultReadErrorV01(
+        "project_result_packet_conflict",
+      );
+    }
+    return null;
+  }
   const packet = record.payload as TaskContextPacketV01;
   if (
     validateTaskContextPacketV01(packet, {
@@ -339,10 +376,16 @@ function readLinkedPacketV01(
     packet.packet_id !== ref.external_id ||
     packet.integrity.fingerprint !== ref.source_ref ||
     record.record_id !== packet.packet_id ||
-    record.fingerprint !== packet.integrity.fingerprint
+    record.fingerprint !== packet.integrity.fingerprint ||
+    record.created_at !== packet.generated_at
   ) {
     throw new ProjectRunResultReadErrorV01("project_result_packet_conflict");
   }
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    fingerprint: packet.integrity.fingerprint,
+  });
   return packet;
 }
 
