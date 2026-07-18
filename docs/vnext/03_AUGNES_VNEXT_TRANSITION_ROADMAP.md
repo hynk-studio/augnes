@@ -388,8 +388,9 @@ Scope:
   assessment, source-bound base strategy, challenger, condition-bound local
   advantage, patch, transfer cost, falsifier, uncertainty, regression, decision
   consequence, and later-context consequence
-- strategic review supports candidate-level accept, reject, edit, or defer;
-  frame challenge remains distinct from within-frame strategy challenge
+- strategic review supports candidate-level review and revision, followed by
+  explicit accept, reject, or defer decisions; frame challenge remains distinct
+  from within-frame strategy challenge
 - Inspector owns typed-record, source-map, epistemic-basis, authority, provenance,
   and lineage drill-down
 - Project Home shows strategic attention and pending-decision summary only;
