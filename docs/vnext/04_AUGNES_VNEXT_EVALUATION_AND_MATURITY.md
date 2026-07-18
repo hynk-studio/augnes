@@ -12,10 +12,10 @@ During R2–R8, Augnes is judged by whether the interactive flow, bounded automa
 |---:|---|---|
 | 0 | Intent | problem or design only |
 | 1 | Tested component | implementation with focused behavior tests |
-| 2 | Integrated path | real producer and consumer connected |
-| 3 | Operable flow | user-facing path works without internal operator procedures |
-| 4 | Feature-complete flow | interactive and bounded automated R2–R8 golden paths work end to end |
-| 5 | Useful product | repeated real use shows measurable benefit |
+| 2 | Integrated path | real producer and consumer are connected, not fixture-only |
+| 3 | Operable flow | decision and authorized Transition work without internal operator procedures |
+| 4 | Feature-complete flow | interactive, policy-triggered, and later-feedback R2–R8 paths work end to end |
+| 5 | Useful product | repeated real tasks show measurable reviewed benefit |
 
 A document, type, fixture, panel, table, preview, smoke, or PR does not advance maturity by itself.
 
@@ -61,6 +61,22 @@ that can produce, reuse, export, or restore structured semantic material:
   export/import or restore; candidate, reviewed, accepted, rejected, deferred,
   retracted, superseded, and applied are illustrative distinctions, not a new
   universal lifecycle enum.
+- `source_less_advantage_transfer = 0`: no strategic transfer candidate is
+  admitted without concrete source-strategy and base-strategy refs.
+- `unbound_base_strategy_use = 0`: no patch uses a base that is unbound to the
+  exact project, packet, applicable receipt, source fingerprint, and working frame.
+- `insufficient_basis_direct_strategy_apply = 0`: insufficient support remains
+  `unknown` and cannot directly apply a plan or Perspective change.
+- `model_consensus_authority_incidents = 0`: confidence, agreement, agent count,
+  provider count, or strategic score never creates semantic authority.
+- `unreviewed_strategic_context_injection = 0`: candidate strategic material
+  never enters later context as reviewed/accepted material.
+- `strategic_patch_without_authorized_transition = 0`: a patch cannot mutate
+  durable strategy or later reviewed context without Decision and Transition.
+- `cross_project_strategy_lineage = 0`: base, source, proposal, decision,
+  transition, packet, and feedback refs remain project-isolated.
+- `raw_strategic_reasoning_persistence = 0`: raw prompts, debate turns, hidden
+  reasoning, and raw provider/challenger output are not persisted.
 
 Focused quality measures, where the corresponding path exists, are:
 
@@ -69,6 +85,20 @@ Focused quality measures, where the corresponding path exists, are:
 - preservation of `unknown` when support is insufficient
 - proposal → decision → transition → later-context traceability
 - projection rebuild consistency against restored canonical records
+
+Criterion-assessment quality additionally tracks:
+
+- criterion source-ref and assessment-basis coverage
+- `unknown` preservation under insufficient support
+- completed-only false-success count
+- observed/attested provenance or basis misclassification
+- skipped-check false-satisfaction count
+
+For each strategic transfer candidate, structural completeness tracks exact base
+binding, source strategy, target/base strategy, applicability condition, expected
+effect, transfer cost, falsifier, uncertainty, introduced/transferred risk, and
+regression status. Completeness is a reviewability check, not evidence that the
+advantage is beneficial.
 
 Semantic object count, edge count, graph density, schema count, and panel count
 are not quality metrics. These correctness measures belong to R2–R8 merge
@@ -107,6 +137,15 @@ Minimum R2–R8 evidence:
 
 Advanced hunt quality, self-prioritization, long-horizon autonomy, and scheduler optimization remain post-feature-completion evaluation topics.
 
+## Strategic advantage-transfer maturity
+
+The optional profile advances only inside the required R6 assessment path. A
+component test is Level 1; Level 2 requires a real packet/receipt/base producer
+and proposal consumer; Level 3 requires candidate-level review and authorized
+Transition closure; Level 4 requires interactive/policy-triggered parity and a
+traceable later `ContextUseReview`; Level 5 requires repeated real-task benefit.
+Model output volume, number of lenses, or apparent consensus does not increase maturity.
+
 ## Personal Perspective maturity
 
 Personal Perspective may progress in parallel without becoming a prerequisite for unrelated R2–R8 work.
@@ -130,6 +169,8 @@ Purpose:
 - find critical workflow breaks missed by automation
 - confirm that a user can complete one real interactive task without learning internal architecture
 - confirm that one bounded automated task starts, returns, stops, and reaches review coherently
+- after the profile is feature-complete, run one source-bound strategic-review
+  task through candidate review, transition, later packet, and feedback
 - verify that setup, task execution, result return, semantic approval, and later reuse form one coherent flow
 - try one Personal Perspective-assisted task when that bounded lane is ready
 
@@ -144,6 +185,7 @@ Add bounded real-world checks for:
 - migration, backup, restore, and failed-upgrade recovery
 - secret and private-data handling
 - durable semantic transition correctness
+- bounded strategic base binding, patch/regression review, and model-unavailable fallback
 - packaged startup and shutdown
 
 Manual qualification is justified here when automation cannot establish the final environment-dependent property.
@@ -177,6 +219,16 @@ Primary metrics:
 - duplicate or ignored proposals
 - transition traceability
 - decision reversal caused by missing context
+
+### Strategic advantage transfer
+
+- valid advantage capture rate
+- harmful transfer rate and regression escape rate
+- transfer rejection and edit rates
+- review time and review burden per prevented material failure
+- goal-drift detection
+- later helpful versus misleading transfer ratio
+- provider cost and latency
 
 ### Operability
 
@@ -212,6 +264,16 @@ Compare representative tasks against direct ChatGPT or Codex use:
 - correction rate
 - preference after repeated use
 
+For source-bound strategic tasks, compare all three after feature completion:
+
+- single-strategy baseline
+- ordinary critique/debate baseline
+- Augnes advantage-transfer loop
+
+Use the same source frame and assess downstream correction, prevented failure,
+harmful transfer, review burden, cost, and latency. More strategy changes are not
+inherently better.
+
 ## Outcome claims
 
 Do not claim usefulness from one fixture, one synthetic run, one self-evaluation, or the existence of a feedback record.
@@ -222,6 +284,13 @@ Usefulness requires repeated real tasks and user review. Product development sho
 
 After post-Alpha evaluation:
 
-- **Go** when Augnes reduces effort or errors without excessive review burden.
-- **Narrow** when only a subset such as continuity, bounded automation, semantic review, Personal Perspective, or cross-host lineage provides value.
-- **Stop or redesign** when Augnes remains harder to use than direct host use without a compensating measurable benefit.
+- **Go** when Augnes reduces effort or errors without excessive review burden;
+  for strategic transfer, valid condition-bound advantages improve downstream
+  outcomes over both simpler baselines with acceptably low harm and cost.
+- **Narrow** when only a subset such as continuity, bounded automation, criterion
+  assessment, regression review, semantic review, Personal Perspective, or
+  cross-host lineage provides value. Criterion assessment or regression review
+  may remain even when full advantage transfer does not justify its burden.
+- **Stop or redesign** when Augnes remains harder to use than direct host use
+  without compensating benefit, or strategic transfer causes repeated harmful
+  patches, goal drift, authority violations, or review burden above prevented harm.

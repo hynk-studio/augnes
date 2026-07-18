@@ -31,8 +31,13 @@ automatic population selection은 이 프로그램의 후반 연구 가설이지
 제품 작업이 아니다.
 
 현재 Augnes의 기본 제품은 project-centered provider-neutral temporal substrate로
-유지된다. Personal Perspective 연구는 이를 대체하거나 M3 closed loop의 우선순위를
+유지된다. Personal Perspective 연구는 이를 대체하거나 mainline R6 closed loop의 우선순위를
 낮추지 않는다.
+
+Mainline R6의 `strategic_advantage_transfer`는 required criterion assessment와 같은
+source-linked, non-authoritative boundary 안에서 작동하는 optional project/task
+analysis profile이다. Personal Perspective, Perspective Arena, persistent actor 또는 본
+R&D program의 productization이 아니다.
 
 ---
 
@@ -136,6 +141,10 @@ Task Choice ≠ Global Identity Update
 Personal Perspective ≠ Project Truth
 Lower-Scope Override ≠ Higher-Scope Rewrite
 Arena Output ≠ Personal Perspective Mutation
+Ephemeral Strategic Lens ≠ Personal Perspective
+Strategic Challenger ≠ Perspective Actor
+Task Strategy Patch ≠ Personal Identity Revision
+Strategic Outcome Feedback ≠ Global Self-Model Update
 ```
 
 ### 3.1 Epistemic status
@@ -174,6 +183,12 @@ control task-context inclusion
 ---
 
 ## 4. Scope and Architecture Boundaries
+
+R6 strategic advantage transfer는 exact project/task와 source-bound base strategy를 다루는
+mainline assessment profile이다. 나중 Structured Multi-Perspective Review가 bounded lens,
+condition-bound advantage, patch와 regression 방법의 일부를 재사용할 수는 있지만,
+그 재사용이 Personal Perspective, Perspective Actor 또는 Arena authority를 만들지
+않는다.
 
 ### 4.1 Project Core
 
@@ -238,6 +253,11 @@ selection이다. explicit user-reviewed scope, task relevance, consent와 sharin
 freshness와 `why_included`를 요구하며 selection 자체가 자동으로 새 Transition이 되는
 것은 아니다. contested, candidate 또는 model-inferred personal material을 task
 context에 silently inject하지 않는다.
+
+task outcome이 personal material에 의미가 있더라도 Personal Perspective
+counterexample 또는 revision candidate를 제안할 뿐 직접 self-model update를 하지
+않는다. Personal material을 다시 사용하려면 explicit scope, consent/sharing,
+task relevance, freshness와 `why_included`를 모두 따로 review한다.
 
 ### 4.5 Required future architecture decision
 
@@ -353,6 +373,11 @@ versus selected context/source
 초기 목표는 여러 persistent agent persona를 운영하는 것이 아니라 하나의 문제에 대한
 구조적 차이를 reviewable하게 만드는 것이다.
 
+이 track은 나중 R6 strategic profile의 bounded comparison 방법을 재사용할 수
+있지만, personal material을 사용하려면 명시적 scope, consent, relevance,
+freshness와 sharing rule을 추가로 만족해야 한다. R6-D 완료가 이 track이나
+Arena productization의 자동 next step은 아니다.
+
 허용되는 초기 연구 output:
 
 ```text
@@ -389,6 +414,8 @@ real-time competition
 resource bidding
 automatic population selection
 automatic actor promotion
+long-running evolutionary competition
+hidden cross-project actors
 ```
 
 Arena output은 Personal Perspective candidate나 gap을 제안할 수 있지만 3.1과 4.4의
@@ -410,7 +437,7 @@ durable Personal Perspective를 직접 변경하거나 task context에 silently 
 7. lineage/evolutionary research after repeated outcome evidence
 ```
 
-offline Lab work는 M3와 병렬로 진행할 수 있다. 그러나 Core integration, durable
+offline Lab work는 R6와 병렬로 진행할 수 있다. 그러나 Core integration, durable
 Personal Perspective transition과 task-context injection은 다음이 검증되기 전에는
 진행하지 않는다.
 
@@ -491,7 +518,7 @@ prompt ensemble보다 반복적으로 높아야 한다.
 - automatic semantic transition
 - identity/personality truth assignment
 - automatic cross-project reuse
-- current M3 priority 변경
+- current mainline R6 priority 변경
 - provider-neutral Core authority 변경
 
 ---

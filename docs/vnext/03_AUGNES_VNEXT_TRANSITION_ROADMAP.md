@@ -10,10 +10,13 @@ Start Augnes
 → start or accept a task
 → compile project context
 → run the native host / Codex interactively or through bounded automation
-→ return a structured result
-→ review the result
-→ approve any durable semantic change
-→ reuse the changed context in later work
+→ RunReceipt
+→ source-linked assessment/comparison
+→ EpisodeDeltaProposal
+→ ReviewDecision
+→ authorized Transition
+→ later TaskContextPacket
+→ later ContextUseReview feedback
 ```
 
 The roadmap is provider-neutral at the Core and uses OpenAI/Codex as the default reference path.
@@ -30,7 +33,10 @@ The roadmap is provider-neutral at the Core and uses OpenAI/Codex as the default
 8. Build the minimal Automation Spine during R2–R8; defer only advanced autonomy and product sprawl.
 9. Personal Perspective may progress as a bounded parallel lane when it reuses the existing Core loop and does not block mainline feature completion.
 10. Preserve the semantic separation between Evidence, Claim, accepted state, reviewed memory, Perspective, projection, ReviewDecision, and transition. `TaskContextPacket` is selected working context, not project truth; automation may create runs and proposals but does not collapse semantic layers or gain semantic authority.
-11. Delete obsolete residue after reference audit. Git history is the archive.
+11. Required criterion assessment and optional bounded strategic advantage transfer
+    share the same non-authoritative R6 boundary. Strategic transfer is not an
+    Arena, durable actor system, separate engine, or authority layer.
+12. Delete obsolete residue after reference audit. Git history is the archive.
 
 ## Immediate freeze
 
@@ -44,6 +50,7 @@ Do not add these by default:
 - feature-specific package smoke commands
 - automatic model routing before a real second adapter exists
 - separate Autohunt, automation, Personal Perspective, or Perspective Arena substrates that duplicate Core records and review flows
+- a separate StrategicCompetitionEngine, actor registry, debate store, or automatic strategy winner
 - unrestricted retry, self-modification, automatic semantic commit, or authority expansion
 
 ## Shared Automation Spine
@@ -229,43 +236,145 @@ Semantic preservation:
 - projections and `TaskContextPacket` remain derived views, not authority
 - `ReviewDecision` and durable transition remain distinct
 
-Automation contribution:
+`criterion_assessment` is the required profile. Optional bounded
+`strategic_advantage_transfer` runs inside the same source-linked,
+non-authoritative boundary only when a concrete base strategy and exact working
+frame can be bound. These are working names and internal R6 slices, not new
+top-level phases, durable protocol types, or authority layers.
 
-- one real bounded policy-triggered work loop
-- interactive and policy-triggered runs converge on the same assessment,
-  proposal, review, and transition path
-- retry only under explicit policy, idempotency, budget, and stop conditions
-- no automatic semantic commit
+#### R6-A — Source-linked criterion assessment
+
+Scope:
+
+- load the persisted packet and applicable receipt with exact project, ID, and fingerprint binding
+- assess every success criterion against observations, attestations, checks,
+  skipped checks, artifacts, gaps, and uncertainty
+- preserve criterion status, assessment basis, residue provenance/trust,
+  concrete supporting/opposing/missing refs, and uncertainty as separate axes
+- start with a pure, non-durable, deterministic path
+
+Completion:
+
+- exact packet/receipt binding and project isolation are enforced
+- insufficient support remains `unknown`; output is deterministic and bounded
+- `completed` does not equal task success and skipped checks do not satisfy criteria
+
+#### R6-B — Production proposal creation
+
+Scope:
+
+- convert source-linked assessment material into a real `EpisodeDeltaProposal`
+- use one proposal admission authority with exact replay and conflict handling
+- feed the existing semantic-review queue and Workbench consumer
+- use the same path for interactive and policy-triggered work and retain zero-model support
+
+Completion:
+
+- a real R5 receipt creates a real reviewable proposal through existing production writers/readers
+- pending assessment or proposal does not change later context
+- no second proposal store, queue, or review path exists
+
+#### R6-C — Operation-aware review and Transition closure
+
+The intended operation mapping is:
+
+```text
+add                → create
+revise             → replace
+supersede          → supersede
+retract / remove   → retract
+no-change / unknown → no Transition
+```
+
+Scope:
+
+- expand beyond the current narrow accept/create/absent-target pilot
+- validate current state, exact target revision, prior applied lineage, gate,
+  authorized after-state, replay behavior, and project scope
+- close proposal → decision → gate → Transition → later packet without collapsing steps
+
+Completion:
+
+- each supported operation applies only its authorized effect and refuses stale state
+- decision alone is not applied as Transition; no-change and unknown create no Transition
+- later packet selection changes only after the authorized Transition is durable
+
+#### R6-D — Strategic advantage-transfer profile
+
+Scope:
+
+- bind a source-backed base strategy to exact packet ID/fingerprint, applicable
+  receipt ID/fingerprint, project, task goal/success criteria, base source
+  refs/fingerprint, profile/version, and bounded budget
+- use at most three ephemeral, bounded strategic lenses in the initial profile
+- generate challenger strategy candidates and extract local advantages with
+  applicability condition, expected effect, transfer cost, concrete source refs,
+  falsifier, uncertainty, and introduced/transferred risks
+- express a source-linked patch candidate against the base and perform regression review
+- normalize only reviewable material into existing proposal material lanes and delta types
+- present candidate-level human review; do not select a global winner or consensus
+
+Initial restrictions:
+
+- one provider/model path and one bounded invocation, or a small fixed call graph
+  justified by the implementation PR
+- no free-form debate, persistent actors, actor/session/debate store, automatic
+  winner, automatic semantic commit, automatic context injection, or Arena UI
+- model confidence, agreement, agent count, provider count, and strategic score
+  are not semantic authority
+
+Completion:
+
+- exact base binding is enforced and a stale or changed base invalidates the patch candidate
+- no source-less transfer is admitted; insufficient support remains `unknown`
+  and is normally downgraded to `research_delta` or `validation_delta`
+- regression material and bounded stop/budget reason are preserved
+- unavailable model enrichment retains the base zero-model R6 loop
+
+#### R6-E — Bounded automation and feedback closure
+
+Scope:
+
+- run one real bounded policy-triggered work loop through run → receipt →
+  assessment → pending proposal automation, then stop at review
+- after an authorized Transition, compile a later packet, run later work, and
+  record `ContextUseReview` feedback
+- retain explicit policy, idempotency, timeout, cancellation, retry budget, and stop conditions
+
+Completion:
+
+- interactive and policy-triggered paths have assessment/proposal/review/transition parity
+- there is no automatic acceptance, unauthorized retry, budget increase, or scope expansion
+- later helpful, stale, or misleading feedback is traceable to the accepted material and exact lineage
+- restart, replay, cancellation, budget, and stop behavior remain bounded
 
 Personal Perspective contribution:
 
 - one bounded context-selection slice may feed a task only after explicit user-reviewed scope
 - later receipt and context-use feedback use existing contracts
 
-Completion:
+R6 overall completion:
 
 - one automated end-to-end flow uses real writers/readers and disposable data
 - one bounded Autohunt path starts, observes, returns, and stops through the shared Core loop
 - host completion and task success remain distinct
 - success criteria are assessed against concrete operational residue and
   insufficient support remains `unknown`
-- every semantic delta item has concrete source anchors; `RunReceipt` summary
-  alone cannot authorize or justify a semantic change
-- host-proposed next steps remain advisory unless separately promoted through
-  the proposal path
+- every semantic delta and strategic transfer item has concrete source anchors;
+  `RunReceipt` summary alone cannot authorize or justify semantic change
+- host/model-proposed next steps and strategy patches remain advisory unless
+  separately admitted through the proposal path
 - `RunReceipt` alone, assessment alone, and pending `EpisodeDeltaProposal` do
   not change later `TaskContextPacket`
 - `ReviewDecision` alone does not equal an applied Transition
 - only an authorized Transition changes durable semantic state and later
   `TaskContextPacket` selection
-- project isolation, exact lineage, replay refusal, stale-state refusal, and
-  idempotency are preserved
+- project isolation, exact lineage, replay refusal, stale-state/base refusal,
+  and idempotency are preserved
 - interactive and policy-triggered work converge on the same assessment,
-  proposal, review, and transition path
-- semantic layers remain source-linked and are not collapsed into a single
-  generic state record
-- no automatic semantic commit
-- usefulness is not yet a merge gate
+  proposal, review, transition, later-packet, and feedback path
+- semantic layers remain source-linked and are not collapsed into a generic state record
+- no automatic semantic commit; usefulness is not yet an ordinary merge gate
 
 ### R7 — Semantic Workbench and Inspector Consolidation
 
@@ -275,8 +384,16 @@ Scope:
   compare, verify, propose, and decide work
 - Workbench presents semantic delta, basis, limitations, and the consequence of
   approval, rejection, or deferral
+- for strategic material, Workbench presents intent, residue, criterion
+  assessment, source-bound base strategy, challenger, condition-bound local
+  advantage, patch, transfer cost, falsifier, uncertainty, regression, decision
+  consequence, and later-context consequence
+- strategic review supports candidate-level accept, reject, edit, or defer;
+  frame challenge remains distinct from within-frame strategy challenge
 - Inspector owns typed-record, source-map, epistemic-basis, authority, provenance,
   and lineage drill-down
+- Project Home shows strategic attention and pending-decision summary only;
+  protocol IDs, fingerprints, and exact bindings belong in Inspector drill-down
 - show automation queue, active run, pause, cancel, retry eligibility, stop reason, and review-needed state
 - show Personal Perspective context basis only where it affects the current task
 - remove passive workflow-stage panels, duplicate diagnostics, repeated boundary cards, and preview-of-preview UI after destination behavior exists
@@ -293,6 +410,11 @@ Default Workbench review flow:
 6. What remains uncertain.
 7. What approving, rejecting, or deferring would change.
 8. Whether and how later context would change after an authorized Transition.
+
+When an optional strategic profile exists, steps 4–7 also show which local
+advantage is proposed for transfer, its applicability, cost, falsifier and risk,
+the patch/regression material, and what remains rejected or disputed. The user
+does not manage lenses, actors, graph edges, or strategy IDs.
 
 Completion:
 
@@ -312,9 +434,12 @@ Completion:
   `TaskContextPacket` → selected context/source
 - after proposal, Inspector can trace semantic delta → supporting/opposing/missing
   refs → `ReviewDecision` → Transition → later `TaskContextPacket`
+- for strategic material, Inspector can trace base strategy/source/fingerprint →
+  advantage and applicability → patch/regression candidate → proposal →
+  decision → Transition → later packet → `ContextUseReview`
 - critical review is possible without displaying every provenance object by default
-- no new panel maze, workflow-stage table family, ontology editor, or generic
-  graph-management UI
+- no new panel maze, workflow-stage table family, ontology editor, generic
+  graph-management UI, or Arena surface
 
 ### R8 — Packaging, Update, Portable Export, Backup, Restore, Recovery, and Run Reconciliation
 
@@ -350,6 +475,10 @@ Portable export:
   when that relation is an implemented canonical record; this roadmap does not
   pre-authorize unimplemented semantic concepts as export truth
 - includes enough exact lineage to reconstruct continuity and derived views
+- where strategic material has been normalized into an implemented canonical
+  proposal, preserves its base/source binding, material, exact lifecycle and
+  authority classification, and advantage → candidate → decision → Transition
+  → later packet → feedback lineage
 - requires explicit consent and sharing scope before any later-implemented
   Personal Perspective material enters a portable export
 
@@ -357,6 +486,8 @@ Rebuildable, non-authoritative projection data:
 
 - Current Working Perspective rendering
 - semantic assessment/comparison projection
+- ephemeral strategic lenses and base/challenger comparison rendering
+- strategic transfer ledger, patch/regression summary, and candidate ordering
 - Workbench summaries and attention ranking
 - Inspector grouping/layout and graph coordinates
 - search ranking, display badges, and recommendation ordering
@@ -369,7 +500,8 @@ Recovery backup:
 - is local-only, restore-oriented, and not a portable sharing format
 - preserves full fidelity to legitimately persisted durable Augnes state
 - does not broaden fidelity into collection of raw prompts, transcripts, hidden
-  reasoning, credentials, or other material Augnes intentionally does not persist
+  reasoning, raw strategic reasoning or provider/challenger output, credentials, or other
+  material Augnes intentionally does not persist
 
 Completion:
 
@@ -383,10 +515,13 @@ Completion:
 - derived assessment does not become canonical state
 - export/import or restore creates no new Decision or Transition
 - exact replay does not duplicate proposal, decision, or transition
+- exact replay does not duplicate normalized strategic proposals, feedback, or transitions
 - project export does not leak data from another project and cross-project refs
   remain rejected
 - rebuilt Project Home, Workbench, and Inspector projections agree with restored
   canonical records
+- ephemeral lenses, comparison layouts, and strategic rankings rebuild as
+  non-authoritative projections and cannot promote candidate material
 - restart does not duplicate or silently lose an automated run
 
 ## Alpha and post-Alpha validation
@@ -397,17 +532,24 @@ After the core R2–R8 flow is feature-complete, run short real-user sessions fo
 
 - one interactive task
 - one bounded automated task
+- one source-bound strategic-review task after R6-D is feature-complete
 - one Personal Perspective-assisted task when that parallel slice is ready
 
 The user should perform product work, not a long operator runbook.
 
 ### Release candidate
 
-Validate real provider/host round trips, bounded automation, pause/cancel/reconciliation, portable export, backup/restore, secret handling, durable transitions, and recovery using a bounded qualification flow.
+Validate real provider/host round trips, bounded automation, pause/cancel/reconciliation,
+one bounded strategic transfer/regression path, portable export, backup/restore,
+secret handling, durable transitions, and recovery using a bounded qualification flow.
 
 ### Post-Alpha usefulness
 
 Measure whether Augnes reduces repeated explanation, wrong-context correction, review burden, and time to first correct action compared with using ChatGPT or Codex directly.
+For completed strategic features, compare a single-strategy baseline, ordinary
+critique/debate, and the Augnes advantage-transfer loop on the same source-bound
+task; track accepted/rejected edits, harmful transfer, regression escape, later
+outcome, cost, and latency.
 
 Usefulness, long dogfood, and outcome claims do not block ordinary R2–R8 PRs. Personal Perspective usefulness may be evaluated as soon as its bounded slice is operable, without blocking unrelated mainline work.
 
@@ -420,6 +562,10 @@ Deferred until the core product and minimal Automation Spine are feature-complet
 - generic scheduler implementation inside Augnes
 - unrestricted retry, self-modification, authority expansion, and automatic semantic commit
 - broad Personal Vault and Perspective Arena productization
+- persistent strategic/Perspective actors, actor mutation/branching/merging,
+  population evolution, resource bidding, and hidden cross-project actors
+- unrestricted debate, automatic winner/fitness selection, consensus or
+  model-count promotion, and automatic strategy mutation
 - hidden or automatic cross-project Personal Perspective injection
 - advanced multi-provider routing
 - autonomous evidence-chain expansion

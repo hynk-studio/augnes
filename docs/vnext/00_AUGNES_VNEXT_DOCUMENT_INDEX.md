@@ -27,6 +27,10 @@ The vNext commitments that remain active are:
 - `TaskContextPacket` intent + `RunReceipt` operational residue → source-linked,
   non-authoritative assessment/comparison → `EpisodeDeltaProposal` →
   `ReviewDecision` → authorized Transition → later context
+- required criterion assessment plus optional bounded `strategic_advantage_transfer`
+  analysis inside that same assessment boundary, never as a separate authority or subsystem
+- later `ContextUseReview` feedback that traces whether accepted context or
+  strategic transfers were helpful, stale, or misleading
 - Project Home, Semantic Workbench, and shared Inspector
 - a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
 - migration, backup, restore, update, recovery, and automated-run reconciliation
@@ -40,6 +44,11 @@ R3 Project Onboarding and Project Home + project automation state
 R4 Minimal Model Gateway + budget/timeout/cancellation
 R5 Codex Host Round Trip + unattended run mode
 R6 Core Closed Loop + first bounded Autohunt
+  R6-A source-linked criterion assessment
+  R6-B production EpisodeDeltaProposal creation
+  R6-C operation-aware review and Transition closure
+  R6-D bounded strategic advantage-transfer profile
+  R6-E bounded automation and later-context feedback
 R6-P Parallel bounded Personal Perspective slice
 R7 Semantic Workbench and Inspector + automation control/readback
 R8 Packaging, Update, Backup, Restore, Recovery, and run reconciliation
@@ -54,6 +63,9 @@ Active during R2–R8:
 - minimal Automation Spine integrated into the shared Core path
 - bounded policy-triggered execution
 - capability grants, budgets, stop conditions, pause/cancel, receipts, and reconciliation
+- bounded source-linked strategic review inside the required R6 assessment boundary
+- condition-bound advantage extraction, strategy-patch and regression candidates,
+  and later-outcome feedback for accepted transfers
 - Personal Perspective work that reuses existing candidate, review, scoped state, context-selection, receipt, and feedback contracts
 
 Deferred until the core product and minimal Automation Spine are feature-complete:
@@ -63,6 +75,10 @@ Deferred until the core product and minimal Automation Spine are feature-complet
 - generic scheduler implementation inside Augnes
 - unrestricted retry, self-modification, authority expansion, and automatic semantic commit
 - broad Personal Vault and Perspective Arena productization
+- persistent strategic actors; actor mutation, branching, merging, or population evolution
+- unrestricted multi-round debate, automatic winner or fitness-based selection,
+  consensus- or model-count-based promotion, and automatic strategy mutation
+- advanced model routing used merely to simulate diversity
 - hidden or automatic cross-project Personal Perspective injection
 - advanced multi-provider routing
 - autonomous evidence-chain expansion

@@ -118,6 +118,14 @@ Workbench는 projection을 조합하고 bounded review 또는 decision intent를
 gate로 보낼 수 있지만 source of truth가 아니다. workflow-stage마다 전용 table과
 panel을 만드는 방식은 계속 금지한다.
 
+Strategic review가 해당 task에서 활성화되면 Project Home은 pending
+attention과 durable coordination만 요약한다. Workbench는 base-versus-challenger,
+condition-bound advantage, transfer cost, falsifier, patch, regression과 decision/later-context
+consequence를 candidate 단위로 구성한다. Inspector는 exact packet, receipt,
+base-source fingerprint, supporting/opposing refs와 proposal → decision → Transition →
+later packet → feedback lineage를 drill down한다. 이 책임은 Arena page나 새 UI
+권한을 승인하지 않는다.
+
 Canonical interaction loop:
 
 ```text
@@ -129,6 +137,8 @@ Project Home frames or resumes work
 → EpisodeDeltaProposal
 → ReviewDecision
 → authorized transition
+→ changed later TaskContextPacket selection
+→ later RunReceipt / ContextUseReview feedback
 → updated Project Home projection
 ```
 
@@ -500,6 +510,68 @@ ReviewDecision을 만들거나 Transition을 수행하지 않으며, later TaskC
 직접 변경하지 않는다. host-proposed next step도 advisory로 남는다. 다만 concrete
 source anchor를 가진 EpisodeDeltaProposal 준비에는 사용할 수 있다.
 
+R6 assessment boundary는 모든 task에 필수인 `criterion_assessment`와,
+source-bound base strategy가 있는 task에만 적용할 수 있는 optional bounded
+`strategic_advantage_transfer` profile을 구분한다. 이 이름은 현재 working
+semantic convention이지 새 durable protocol type이 아니다. Strategic profile은
+required criterion assessment를 대체하지 않으며 host completion을 task success로
+올리거나 criterion status, assessment basis와 residue provenance/trust를 합치지
+않는다.
+
+```text
+criterion status
+= satisfied | unsatisfied | unknown | not_applicable
+
+criterion assessment basis
+= observed | attested | mixed | insufficient
+
+residue provenance/trust
+= direct_local_observation | verified_external_observation | host_attestation
+| provider_report | user_declaration | imported_unverified | derived_interpretation
+```
+
+Strategic profile은 global winner, consensus 또는 average strategy를 만드는 engine이
+아니다. bounded challenger strategy/lens를 만들고 rival의 local advantage와 적용
+조건을 찾은 뒤 source-linked patch candidate와 regression review material을
+준비한다. Strategic lens는 ephemeral task-analysis material이며 Perspective,
+Perspective Actor, persona, durable identity 또는 authority principal이 아니다.
+
+Profile admission은 다음 exact working frame을 필수로 bind한다.
+
+- `TaskContextPacket` ID와 fingerprint
+- applicable `RunReceipt` ID와 fingerprint
+- base-strategy concrete source refs와 fingerprint
+- exact workspace/project, task goal와 success criteria
+- profile/version, bounded call/work budget와 stop reason
+
+base strategy, packet, receipt, source 또는 frame이 바뀌면 이전 patch candidate는 stale로
+무효화한다. 하나의 transferable advantage는 최소한 source strategy, target/base
+strategy, local advantage, applicability condition, expected effect, transfer cost, concrete
+source refs, falsifier, uncertainty와 introduced/transferred risks를 보존한다. 이 material은
+ephemeral lens, strategy candidate, advantage claim, transfer assessment, patch candidate,
+regression finding과 bounded stop/budget reason을 구분하며 각 항목의 source,
+basis, limitation을 잃지 않는다.
+
+support가 부족하면 `unknown`을 보존하고 persuasive model interpretation을
+계획이나 Perspective 변경으로 직접 promotion하지 않는다. unsupported strategic
+suggestion은 기본적으로 `research_delta` 또는 `validation_delta` candidate로
+downgrade하고, 별도 source와 review 없이 `agent_plan_delta` 또는
+`perspective_delta`로 보내지 않는다.
+
+```text
+Strategic Lens ≠ Perspective
+Strategic Challenger ≠ Perspective Actor
+Strategy Candidate ≠ Accepted Strategy
+Advantage Claim ≠ Verified Benefit
+Strategy Patch ≠ ReviewDecision
+Regression Finding ≠ Verification
+Competition Result ≠ Automatic Promotion
+Model Diversity ≠ Evidence Diversity
+Model Agreement ≠ Verification
+Assessment ≠ Decision
+Decision ≠ Transition
+```
+
 #### 기존 compatibility inputs
 
 ```text
@@ -551,6 +623,36 @@ validation_delta
 user_decision_delta
 coordination_delta
 ```
+
+R6 assessment material이 proposal으로 admission될 때는 기존 proposal material lane과
+`basis_material_ids`를 재사용한다. 다음 `material_kind` 이름은 working semantic
+convention이며, 나중 implementation PR이 enum의 필요를 증명하기 전에는 새
+approved enum이 아니다.
+
+```text
+criterion_assessment
+strategic.base_strategy
+strategic.challenger_strategy
+strategic.advantage_claim
+strategic.transfer_assessment
+strategic.regression_finding
+```
+
+Strategic change candidate는 새 delta family를 만들지 않고 의미에 따라 기존
+type에 mapping한다.
+
+| 변경 의미 | 기존 delta type |
+|---|---|
+| execution strategy | `agent_plan_delta` |
+| frame 또는 assumption | `perspective_delta` |
+| 추가 test 또는 falsification work | `validation_delta` |
+| 추가 evidence gathering | `research_delta` |
+| responsibility 또는 dependency | `coordination_delta` |
+
+Normalized proposal item은 supporting, opposing, missing ref와 stale/base-binding status를
+보존한다. host/model이 제안한 patch, next step 또는 regression 해석은
+advisory candidate이며 proposal admission을 거쳐도 사용자 ReviewDecision과 authorized
+Transition 전에는 accepted strategy가 아니다.
 
 #### 불변식
 
@@ -1125,6 +1227,14 @@ constellation
 continuity_metrics
 ```
 
+Criterion assessment와 strategic advantage-transfer result는 기본적으로 pure builder,
+rebuildable projection 또는 동등한 non-durable mechanism이다. Strategic profile은 새
+aggregate, actor, session 또는 debate-turn store를 추가하지 않는다. 적용 가능한
+normalized canonical output만 기존 `ModelInvocationReceipt`,
+`EpisodeDeltaProposal`, `ReviewDecision`, `StateTransitionReceipt`, later
+`TaskContextPacket`과 `ContextUseReview`로 보존한다. ephemeral lens, raw debate turn,
+hidden reasoning, raw challenger/provider output과 internal score는 저장하지 않는다.
+
 `vnext_semantic_state_entries`는 `workspace_id + project_id + target_key`로 격리되고 present
 state만 보유한다. Later `TaskContextPacket`은 이 projection을 명시적으로 읽어 만드는 consumer
 output이며 projection 자체도, target head도, packet compiler도 transition authorization source가
@@ -1139,10 +1249,17 @@ ReviewDecision이나 Transition을 만들지 않는다. 아직 canonical runtime
 아닌 semantic concept를 exportable canonical truth로 약속하지 않는다.
 
 Current Working Perspective rendering, semantic assessment/comparison projection,
-Workbench summary, attention ranking, Inspector grouping/layout, graph coordinates,
-search ranking, display badge와 recommendation ordering은 rebuildable projection이다.
+ephemeral strategic lens, Workbench strategic comparison/transfer summary, attention
+ranking, Inspector grouping/layout, graph coordinates, search ranking, display badge와
+recommendation ordering은 rebuildable projection이다.
 cache하거나 export하더라도 `derived`, `non-authoritative`, `rebuildable`,
 `source-bound`임을 명시해야 한다.
+
+Portable export가 strategic material을 포함할 때는 이미 canonical proposal에 normalized된
+material과 각 implemented record의 exact lifecycle/epistemic/authority classification,
+base/source anchor, decision, Transition, later packet와 feedback lineage만 보존한다.
+Import, restore 또는 projection rebuild는 candidate를 accepted로 바꾸거나 새 strategy
+Decision/Transition을 만들지 않으며 raw strategic reasoning을 수집하지 않는다.
 
 ### 9.6 table 생성 기준
 
@@ -1184,6 +1301,9 @@ synthesis
 trade-off analysis
 contradiction candidate
 specialist interpretation
+criterion-assessment enrichment candidate
+bounded challenger and advantage candidate
+applicability/cost/falsifier/patch/regression candidate
 ```
 
 ### 10.2 Model Gateway
@@ -1211,6 +1331,19 @@ ModelInvocationEnvelope:
 ```
 
 Gateway는 호출 후 usage, cost, latency, failure와 fallback을 RunReceipt의 model subrecord로 반환한다.
+
+첫 production shape은 하나의 bounded semantic-assessment capability에 required
+criterion-review와 optional strategic-advantage-transfer profile을 둔다. Core는 provider-neutral하고,
+Gateway는 exact bounded input refs, normalized output, provider/model provenance, timeout,
+cancellation, budget와 invocation receipt를 보존한다. 하나의 provider/model path와
+deterministic 또는 unavailable fallback으로 시작하며 multi-provider router를 요구하지
+않는다. Strategic enrichment failure는 criterion assessment, zero-model proposal review
+또는 Core transition path를 비활성화해서는 안 된다.
+
+Reasoning backend은 strategy, advantage, patch와 regression candidate를 제안할 수
+있지만 strategy를 accept하거나 Perspective를 mutate하지 않는다. Transition을
+authorize/apply하거나 later context를 선택하지 않고, budget, retry 또는
+authority scope를 스스로 늘리지 않는다.
 
 ### 10.3 local/private model
 
@@ -1514,6 +1647,12 @@ Autonomy Contract / Autohunt grant
 - [ ] check/read/preview path는 durable write를 하지 않는다.
 - [ ] proof 기록은 committed project state를 만들지 않는다.
 - [ ] RunReceipt는 approval을 만들지 않는다.
+- [ ] criterion assessment는 필수이고 strategic advantage transfer는 optional이며,
+      둘 다 non-authoritative R6 assessment boundary에 남는다.
+- [ ] strategic base/patch는 exact project, packet, applicable receipt, source
+      fingerprint와 frame에 bind되고 stale-base reuse를 거부한다.
+- [ ] source-less 또는 insufficient strategic material이 plan, Perspective 또는
+      later context로 직접 올라가지 않는다.
 - [ ] Decision과 Transition이 분리된다.
 - [ ] projection은 source refs와 time basis를 가진다.
 - [ ] adapter는 coverage를 과장하지 않는다.
