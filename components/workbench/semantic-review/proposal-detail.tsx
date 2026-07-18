@@ -6,12 +6,14 @@ import { ContextUseReviewForm } from "./context-use-review-form";
 import { OperationAwareRevisionForm } from "./operation-aware-revision-form";
 import { ReviewDecisionForm } from "./review-decision-form";
 import { SemanticTransitionActions } from "./semantic-transition-actions";
+import { StrategicAdvantageTransferPanel } from "./strategic-advantage-transfer-panel";
 import type {
   SemanticReviewDecisionRequestV01,
   SemanticContextUseReviewRequestV01,
   SemanticReviewProposalDetailV01,
   SemanticReviewProjectV01,
   SemanticReviewRevisionRequestV01,
+  SemanticReviewStrategicAnalysisRequestV01,
 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
 
@@ -21,6 +23,8 @@ export function SemanticReviewProposalDetail({
   busyCandidateId,
   onDecision,
   onRevision,
+  onStrategicAnalysis,
+  strategicAnalysisBusy,
   onContextUseReview,
   onSessionInvalid,
   onPrivateMaterialChanged,
@@ -32,6 +36,10 @@ export function SemanticReviewProposalDetail({
   busyCandidateId: string | null;
   onDecision: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
   onRevision: (request: SemanticReviewRevisionRequestV01) => Promise<void>;
+  onStrategicAnalysis: (
+    request: SemanticReviewStrategicAnalysisRequestV01,
+  ) => Promise<void>;
+  strategicAnalysisBusy: boolean;
   onContextUseReview: (
     request: SemanticContextUseReviewRequestV01,
   ) => Promise<void>;
@@ -42,6 +50,9 @@ export function SemanticReviewProposalDetail({
 }) {
   const proposal = read.proposal;
   const candidateReads = read.candidates;
+  const strategicActionsAvailable =
+    !proposal.strategic_advantage_transfer ||
+    read.strategic_analysis.status === "available";
   const packetRef = proposal.task_context_packet_ref;
   const priorPacket =
     packetRef?.ref_type === "task_context_packet" &&
@@ -149,6 +160,13 @@ export function SemanticReviewProposalDetail({
           </p>
         </section>
       ) : null}
+
+      <StrategicAdvantageTransferPanel
+        proposal={proposal}
+        readback={read.strategic_analysis}
+        busy={strategicAnalysisBusy}
+        onRequest={onStrategicAnalysis}
+      />
 
       <section className={styles.panel} aria-labelledby="provenance-title">
         <div className={styles.panelHeader}>
@@ -264,20 +282,43 @@ export function SemanticReviewProposalDetail({
                   title="Pilot blocking reasons"
                   items={admission.blocking_reasons}
                 />
-                <ReviewDecisionForm
-                  proposalId={proposal.proposal_id}
-                  proposalFingerprint={proposal.integrity.fingerprint}
-                  candidateRead={candidateRead}
-                  busy={busyCandidateId !== null}
-                  onSubmit={onDecision}
-                />
-                {!proposal.operation_revision &&
+                {strategicActionsAvailable ? (
+                  <ReviewDecisionForm
+                    proposalId={proposal.proposal_id}
+                    proposalFingerprint={proposal.integrity.fingerprint}
+                    candidateRead={candidateRead}
+                    busy={busyCandidateId !== null}
+                    onSubmit={onDecision}
+                  />
+                ) : (
+                  <p
+                    className={styles.notice}
+                    data-vnext-strategic-candidate-actions="blocked"
+                  >
+                    This strategic candidate remains readable, but decisions and
+                    revisions are blocked until its exact source lineage is current
+                    and available.
+                  </p>
+                )}
+                {strategicActionsAvailable &&
+                !proposal.operation_revision &&
                 (candidate.operation === "unknown" ||
-                  candidate.operation === "no_change") ? (
+                  candidate.operation === "no_change") &&
+                (!proposal.strategic_advantage_transfer ||
+                  proposal.strategic_advantage_transfer.transfer_items.some(
+                    (transfer) =>
+                      candidate.candidate_id ===
+                      `strategic-candidate:${transfer.transfer_id.slice(
+                        "strategic-transfer:".length,
+                      )}`,
+                  )) ? (
                   <OperationAwareRevisionForm
                     proposalId={proposal.proposal_id}
                     proposalFingerprint={proposal.integrity.fingerprint}
                     sourceAssessment={proposal.source_assessment}
+                    strategicAdvantageTransfer={
+                      proposal.strategic_advantage_transfer
+                    }
                     candidateRead={candidateRead}
                     busy={busyCandidateId !== null}
                     onSubmit={onRevision}

@@ -9,6 +9,7 @@ import {
   ModelGatewayAdapterFailureV01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
   TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   type ModelAdapterImplementationV01,
   type ModelAdapterInputV01,
@@ -38,6 +39,13 @@ import {
   TEMPORAL_MODEL_EGRESS_LIMITS,
   temporalResponseSchema,
 } from "@/lib/vnext/model-gateway/openai/temporal-codec";
+import {
+  buildStrategicAdvantageTransferSystemPromptV01,
+  parseStrategicAdvantageTransferOutputV01,
+  projectStrategicAdvantageTransferModelMaterialV01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS,
+  strategicAdvantageTransferResponseSchema,
+} from "@/lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -53,6 +61,10 @@ export const OPENAI_RESPONSES_TEMPORAL_ADAPTER_ID_V01 =
   "openai_responses.temporal" as const;
 export const OPENAI_RESPONSES_TEMPORAL_ADAPTER_VERSION_V01 =
   "openai_responses_temporal_adapter.v0.1" as const;
+export const OPENAI_RESPONSES_STRATEGIC_ADAPTER_ID_V01 =
+  "openai_responses.strategic_advantage_transfer" as const;
+export const OPENAI_RESPONSES_STRATEGIC_ADAPTER_VERSION_V01 =
+  "openai_responses_strategic_advantage_transfer_adapter.v0.1" as const;
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
@@ -303,6 +315,36 @@ function codecFor(input: ModelAdapterInputV01): PurposeCodec {
       },
     };
   }
+  if (
+    input.input_kind ===
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const expectedLenses = [...input.lenses];
+    return {
+      dynamic_material:
+        projectStrategicAdvantageTransferModelMaterialV01(input),
+      dynamic_bytes:
+        STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.dynamicBytes,
+      final_request_bytes:
+        STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.finalRequestBytes,
+      response_bytes:
+        STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.responseBytes,
+      system_prompt: buildStrategicAdvantageTransferSystemPromptV01(),
+      schema_name: "strategic_advantage_transfer",
+      schema: strategicAdvantageTransferResponseSchema,
+      parse(outputText, usage, model) {
+        return {
+          purpose: STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseStrategicAdvantageTransferOutputV01(
+            outputText,
+            expectedLenses,
+          ),
+          model_identifier: model,
+          usage,
+        };
+      },
+    };
+  }
   return {
     dynamic_material: projectTemporalModelMaterial(input),
     dynamic_bytes: TEMPORAL_MODEL_EGRESS_LIMITS.dynamicBytes,
@@ -335,6 +377,15 @@ function describeOpenAIImplementation(
     return {
       implementation_id: OPENAI_RESPONSES_PLANNER_ADAPTER_ID_V01,
       implementation_version: OPENAI_RESPONSES_PLANNER_ADAPTER_VERSION_V01,
+    };
+  }
+  if (
+    purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return {
+      implementation_id: OPENAI_RESPONSES_STRATEGIC_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_STRATEGIC_ADAPTER_VERSION_V01,
     };
   }
   return {

@@ -228,6 +228,7 @@ export const ModelInvocationReceiptSchema = z
     purpose: z.enum([
       "observe_delta_compile",
       "planner_plan",
+      "strategic_advantage_transfer",
       "temporal_interpretation",
     ]),
     invocation_origin: z.enum(["interactive", "policy_triggered"]),
@@ -302,9 +303,25 @@ export const ModelInvocationReceiptSchema = z
     raw_response_persisted: z.literal(false),
     hidden_reasoning_persisted: z.literal(false),
     receipt_is_semantic_authority: z.literal(false),
+    normalized_output_fingerprint: z
+      .string()
+      .regex(/^sha256:[0-9a-f]{64}$/)
+      .nullable()
+      .optional(),
   })
   .strict()
   .superRefine((receipt, context) => {
+    if (
+      receipt.purpose === "strategic_advantage_transfer" &&
+      receipt.status === "completed" &&
+      typeof receipt.normalized_output_fingerprint !== "string"
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "completed strategic receipts must bind the normalized output fingerprint",
+      });
+    }
     const policyTriggered = receipt.invocation_origin === "policy_triggered";
     const hasPolicyLineage =
       receipt.work_id !== null &&

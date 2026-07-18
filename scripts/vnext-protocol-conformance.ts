@@ -40,6 +40,7 @@ import { runRunAssessmentProposalConformanceV01 } from "@/scripts/vnext-protocol
 import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-review-loop";
 import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-transition-loop";
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
+import { runStrategicAdvantageTransferConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategic-advantage-transfer";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -56,6 +57,7 @@ const sourcePaths = [
   "lib/vnext/state-transition-receipt.ts",
   "lib/vnext/state-transition-eligibility.ts",
   "lib/vnext/context-use-review.ts",
+  "lib/vnext/strategic-advantage-transfer-protocol.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
   "lib/vnext/compat/run-receipt-from-autohunt-result-intake.ts",
@@ -572,6 +574,8 @@ try {
   const runReceiptSummary = runRunReceiptConformanceV01();
   const criterionAssessmentSummary =
     runCriterionAssessmentConformanceV01();
+  const strategicAdvantageTransferSummary =
+    runStrategicAdvantageTransferConformanceV01();
   const episodeDeltaProposalSummary =
     runEpisodeDeltaProposalConformanceV01();
   const runAssessmentProposalSummary =
@@ -642,6 +646,7 @@ try {
         task_context_packet: taskContextPacketSummary,
         run_receipt: runReceiptSummary,
         criterion_assessment: criterionAssessmentSummary,
+        strategic_advantage_transfer: strategicAdvantageTransferSummary,
         episode_delta_proposal: episodeDeltaProposalSummary,
         run_assessment_proposal: runAssessmentProposalSummary,
         review_decision: reviewDecisionSummary,

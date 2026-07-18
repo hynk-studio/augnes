@@ -29,6 +29,13 @@ import {
   readVNextOperatorPilotProposalDurableLineageV01,
 } from "@/lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import {
+  VNextOperatorStrategicAdvantageTransferErrorV01,
+  requestVNextOperatorStrategicAdvantageTransferV01,
+  type VNextOperatorStrategicAdvantageTransferDependenciesV01,
+} from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
+import { createCanonicalTestStrategicTransportDependenciesV01 } from "@/lib/vnext/model-gateway/canonical-test-strategic-transport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +57,7 @@ interface HandlerOptionsV01 {
   open_database?: (
     config: VNextLocalOperatorPilotConfigV01,
   ) => Database.Database;
+  strategic_dependencies?: VNextOperatorStrategicAdvantageTransferDependenciesV01;
 }
 
 export function createVNextOperatorSemanticReviewHandlersV01(
@@ -76,11 +84,15 @@ export function createVNextOperatorSemanticReviewHandlersV01(
         clock: options.clock,
       });
       const proposalId = requestUrl.searchParams.get("proposal_id");
+      const modelCapability =
+        options.strategic_dependencies?.read_model_capability?.() ??
+        readDefaultModelGatewayLocalCapabilityV01();
       if (proposalId) {
         const proposal = readVNextOperatorPilotSemanticReviewV01(db, {
           config,
           proposal_id: proposalId,
           authenticated_session_id: authentication.session.session_id,
+          model_capability: modelCapability,
         });
         return jsonResponse({
           ok: true,
@@ -119,6 +131,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
         proposals: listVNextOperatorPilotSemanticReviewsV01(db, {
           config,
           authenticated_session_id: authentication.session.session_id,
+          model_capability: modelCapability,
         }),
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",
@@ -185,6 +198,57 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           }),
         );
       }
+      if (
+        body &&
+        typeof body === "object" &&
+        !Array.isArray(body) &&
+        (body as Record<string, unknown>).action ===
+          "request_strategic_advantage_transfer"
+      ) {
+        const result =
+          await requestVNextOperatorStrategicAdvantageTransferV01(db, {
+            config,
+            credential,
+            request: body,
+            signal: request.signal,
+            clock: options.clock,
+            secret_source: options.secret_source,
+            dependencies: {
+              ...options.strategic_dependencies,
+              open_gateway_database:
+                options.strategic_dependencies?.open_gateway_database ??
+                (() => openVNextLocalOperatorDatabaseV01(config)),
+            },
+          });
+        return jsonResponse(
+          {
+            ok: true,
+            route_version: ROUTE_VERSION,
+            status: result.status,
+            proposal: result.proposal,
+            proposal_id: result.proposal?.proposal_id ?? null,
+            proposal_fingerprint:
+              result.proposal?.integrity.fingerprint ?? null,
+            reason: "reason" in result ? result.reason : null,
+            retryable: "retryable" in result ? result.retryable : false,
+            model_invocation_count: result.model_invocation_count,
+            source_proposal_unchanged: true,
+            transition_applied: false,
+            authentication_boundary:
+              "local_secret_possession_only_not_external_identity",
+            semantic_authority_granted: false,
+          },
+          result.status === "inserted" ? 201 : 200,
+          result.session_cookie
+            ? serializeVNextLocalOperatorSessionCookieV01({
+                value: result.session_cookie.value,
+                expires_at: result.session_cookie.expires_at,
+                max_age_seconds: result.session_cookie.max_age_seconds,
+                secure: requestUrl.protocol === "https:",
+              })
+            : undefined,
+        );
+      }
       const result = recordVNextOperatorPilotReviewDecisionV01(db, {
         config,
         credential,
@@ -222,7 +286,10 @@ export function createVNextOperatorSemanticReviewHandlersV01(
   return { GET: getSemanticReview, POST: postSemanticReview };
 }
 
-const handlers = createVNextOperatorSemanticReviewHandlersV01();
+const handlers = createVNextOperatorSemanticReviewHandlersV01({
+  strategic_dependencies:
+    createCanonicalTestStrategicTransportDependenciesV01(process.env),
+});
 export const GET = handlers.GET;
 export const POST = handlers.POST;
 
@@ -278,6 +345,7 @@ function routeErrorResponse(error: unknown): NextResponse {
   }
   if (
     error instanceof VNextOperatorPilotReviewErrorV01 ||
+    error instanceof VNextOperatorStrategicAdvantageTransferErrorV01 ||
     error instanceof VNextOperatorPilotProposalRevisionErrorV01
   ) {
     return jsonResponse(

@@ -8,7 +8,8 @@ export const MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01 =
 export type ModelInvocationReceiptPurposeV02 =
   | "observe_delta_compile"
   | "planner_plan"
-  | "temporal_interpretation";
+  | "temporal_interpretation"
+  | "strategic_advantage_transfer";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";
@@ -106,4 +107,9 @@ export interface ModelInvocationReceiptV02 {
   raw_response_persisted: false;
   hidden_reasoning_persisted: false;
   receipt_is_semantic_authority: false;
+  /**
+   * Additive result binding for Gateway purposes whose normalized output is
+   * durably consumed. Historical v0.2 receipts legitimately omit this field.
+   */
+  normalized_output_fingerprint?: string | null;
 }

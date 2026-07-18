@@ -64,6 +64,7 @@ import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { STRATEGIC_ADVANTAGE_TRANSFER_PROFILE_VERSION_V01 } from "@/types/vnext/strategic-advantage-transfer";
 
 export const VNEXT_OPERATOR_PILOT_CONTINUITY_VERSION_V01 =
   "vnext_operator_pilot_project_continuity.v0.1" as const;
@@ -381,6 +382,16 @@ function loadProposals(db: Database.Database, config: VNextLocalOperatorPilotCon
       proposal.created_at,
       proposal.operation_revision?.admission_idempotency_key ??
         proposal.source_assessment?.admission_idempotency_key ??
+        (proposal.strategic_advantage_transfer
+          ? createProtocolSha256V01(
+              canonicalizeProtocolValueV01({
+                purpose:
+                  STRATEGIC_ADVANTAGE_TRANSFER_PROFILE_VERSION_V01,
+                analysis_identity:
+                  proposal.strategic_advantage_transfer.analysis_identity,
+              }),
+            )
+          : null) ??
         null,
     );
     return proposal;

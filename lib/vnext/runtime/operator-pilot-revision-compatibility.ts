@@ -19,6 +19,12 @@ export type VNextOperatorPilotRevisionDeltaTargetCompatibilityV01 =
     }
   | {
       status: "compatible";
+      policy: "strategic_agent_plan_lane";
+      server_selected_delta_type: "agent_plan_delta";
+      target_kind: "accepted_agent_plan_state";
+    }
+  | {
+      status: "compatible";
       policy: "generic_existing_behavior";
       server_selected_delta_type: null;
       target_kind: null;
@@ -29,6 +35,20 @@ export type VNextOperatorPilotRevisionDeltaTargetCompatibilityV01 =
       policy: "run_assessment_criterion_validation_lane";
       server_selected_delta_type: "validation_delta";
       target_kind: "criterion_assessment_item";
+    }
+  | {
+      status: "incompatible";
+      code: typeof OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01;
+      policy: "strategic_agent_plan_lane";
+      server_selected_delta_type: "agent_plan_delta";
+      target_kind: "accepted_agent_plan_state";
+    }
+  | {
+      status: "incompatible";
+      code: typeof OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01;
+      policy: "strategic_no_transfer_review_only";
+      server_selected_delta_type: null;
+      target_kind: "accepted_agent_plan_state";
     };
 
 /**
@@ -52,6 +72,60 @@ export function evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01(
     input.source_candidate.target_refs.every(
       (ref) => ref.ref_type === "criterion_assessment_item",
     );
+
+  const strategicProfile =
+    input.source_proposal.strategic_advantage_transfer;
+  const isMappedStrategicTransferCandidate =
+    strategicProfile?.transfer_items.some(
+      (transfer) =>
+        input.source_candidate.candidate_id ===
+        `strategic-candidate:${transfer.transfer_id.slice(
+          "strategic-transfer:".length,
+        )}`,
+    ) === true;
+  const isStrategicAgentPlanTarget =
+    isMappedStrategicTransferCandidate &&
+    input.source_candidate.operation === "unknown" &&
+    input.source_candidate.target_refs.length === 1 &&
+    canonicalizeProtocolValueV01(input.source_candidate.target_refs[0]) ===
+      canonicalizeProtocolValueV01(strategicProfile!.base_strategy.target_ref);
+
+  if (strategicProfile && !isMappedStrategicTransferCandidate) {
+    return {
+      status: "incompatible",
+      code: OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+      policy: "strategic_no_transfer_review_only",
+      server_selected_delta_type: null,
+      target_kind: "accepted_agent_plan_state",
+    };
+  }
+
+  if (isStrategicAgentPlanTarget) {
+    const exactTargetsPreserved =
+      input.revised_target_refs.length === 1 &&
+      canonicalizeProtocolValueV01(input.revised_target_refs[0]) ===
+        canonicalizeProtocolValueV01(
+          strategicProfile!.base_strategy.target_ref,
+        );
+    if (
+      input.revised_delta_type !== "agent_plan_delta" ||
+      !exactTargetsPreserved
+    ) {
+      return {
+        status: "incompatible",
+        code: OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+        policy: "strategic_agent_plan_lane",
+        server_selected_delta_type: "agent_plan_delta",
+        target_kind: "accepted_agent_plan_state",
+      };
+    }
+    return {
+      status: "compatible",
+      policy: "strategic_agent_plan_lane",
+      server_selected_delta_type: "agent_plan_delta",
+      target_kind: "accepted_agent_plan_state",
+    };
+  }
 
   if (!isRunAssessmentCriterionValidation) {
     return {

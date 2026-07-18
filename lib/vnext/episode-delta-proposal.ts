@@ -18,6 +18,10 @@ import {
   type ProtocolJsonRecordV01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
+import {
+  normalizeStrategicAdvantageTransferProfileV01,
+  validateStrategicAdvantageTransferProfileV01,
+} from "@/lib/vnext/strategic-advantage-transfer-protocol";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   EPISODE_DELTA_PROPOSAL_ATTESTATION_TRUST_CLASSES_V01,
@@ -47,6 +51,7 @@ import {
   type EpisodeDeltaProposalValidationIssueV01,
   type EpisodeDeltaProposalValidationResultV01,
 } from "@/types/vnext/episode-delta-proposal";
+import type { StrategicAdvantageTransferProfileV01 } from "@/types/vnext/strategic-advantage-transfer";
 
 const PENDING_PROPOSAL_ID = "episode-delta-proposal:pending";
 const PENDING_FINGERPRINT = "sha256:pending";
@@ -79,6 +84,7 @@ const allowedRootKeys = new Set([
   "run_receipt_refs",
   "source_assessment",
   "operation_revision",
+  "strategic_advantage_transfer",
   "observations",
   "attestations",
   "inferences",
@@ -462,6 +468,14 @@ export function buildEpisodeDeltaProposalV01(
           ),
         }
       : {}),
+    ...(input.strategic_advantage_transfer
+      ? {
+          strategic_advantage_transfer:
+            normalizeStrategicAdvantageTransferProfileV01(
+              input.strategic_advantage_transfer,
+            ),
+        }
+      : {}),
     observations,
     attestations,
     inferences,
@@ -701,6 +715,10 @@ export function validateEpisodeDeltaProposalV01(
       "Provider-native identifiers must remain ExternalRef values in EpisodeDeltaProposal.",
     allowed_canonical_identity_paths: new Set([
       "$.source_assessment.assessment.run_id",
+      "$.strategic_advantage_transfer.assessment.run_id",
+      "$.strategic_advantage_transfer.budget.model",
+      "$.strategic_advantage_transfer.model_invocation.receipt.invocation_id",
+      "$.strategic_advantage_transfer.model_invocation.receipt.run_id",
     ]),
     allowed_false_invariant_fields: new Set([
       "automatically_resolved",
@@ -786,6 +804,7 @@ export function validateEpisodeDeltaProposalV01(
   );
   validateSourceAssessmentV01(input, accumulator);
   validateOperationRevisionV01(input, accumulator);
+  validateStrategicAdvantageTransferV01(input, accumulator);
   validateRefArray(input.source_refs, "$.source_refs", accumulator);
   validateDuplicateExternalRefsPrimitiveV01(input, sink);
 
@@ -1806,6 +1825,153 @@ function validateOperationRevisionV01(
       "operation_aware_revision_contract_missing",
       "$.compatibility.source_contracts",
       "Revision proposals must declare the operation-aware profile contract.",
+      true,
+    );
+  }
+}
+
+function validateStrategicAdvantageTransferV01(
+  proposal: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+): void {
+  if (proposal.strategic_advantage_transfer === undefined) return;
+  const path = "$.strategic_advantage_transfer";
+  const validation = validateStrategicAdvantageTransferProfileV01(
+    proposal.strategic_advantage_transfer,
+  );
+  for (const issue of validation.errors) {
+    addError(
+      accumulator,
+      issue.code,
+      issue.path.replace("$strategic_advantage_transfer", path),
+      "Strategic advantage-transfer profile material is invalid.",
+      true,
+    );
+  }
+  if (
+    validation.status !== "valid" ||
+    !isProtocolRecordV01(proposal.strategic_advantage_transfer)
+  ) {
+    return;
+  }
+  const profile = proposal.strategic_advantage_transfer as unknown as
+    StrategicAdvantageTransferProfileV01;
+  if (
+    proposal.source_assessment !== undefined ||
+    proposal.status !== "pending_review"
+  ) {
+    addError(
+      accumulator,
+      "strategic_advantage_transfer_profile_collision",
+      path,
+      "Strategic proposals use one distinct additive profile and remain pending review.",
+      true,
+    );
+  }
+  if (
+    !sameRefV01(proposal.task_context_packet_ref, profile.packet_ref) ||
+    !Array.isArray(proposal.run_receipt_refs) ||
+    proposal.run_receipt_refs.length !== 1 ||
+    !sameRefV01(proposal.run_receipt_refs[0], profile.receipt_ref) ||
+    proposal.workspace_id !== profile.assessment.workspace_id ||
+    proposal.project_id !== profile.assessment.project_id
+  ) {
+    addError(
+      accumulator,
+      "strategic_advantage_transfer_source_binding_conflict",
+      path,
+      "Strategic proposal packet, receipt, assessment, workspace, and project binding must remain exact.",
+      true,
+    );
+  }
+  const deltas = Array.isArray(proposal.proposed_deltas)
+    ? proposal.proposed_deltas.filter(isProtocolRecordV01)
+    : [];
+  const hasOperationRevision = isProtocolRecordV01(
+    proposal.operation_revision,
+  );
+  if (profile.transfer_items.length === 0) {
+    const expectedCandidateId = `strategic-candidate:no-transfer-${profile.analysis_identity.slice(7, 31)}`;
+    const candidate = deltas[0];
+    if (
+      profile.stop_reason !== "no_transferable_advantage" ||
+      hasOperationRevision ||
+      deltas.length !== 1 ||
+      !candidate ||
+      candidate.candidate_id !== expectedCandidateId ||
+      candidate.delta_type !== "research_delta" ||
+      candidate.operation !== "unknown" ||
+      candidate.review_required !== true ||
+      !Array.isArray(candidate.target_refs) ||
+      candidate.target_refs.length !== 1 ||
+      !sameRefV01(candidate.target_refs[0], profile.base_strategy.target_ref)
+    ) {
+      addError(
+        accumulator,
+        "strategic_advantage_transfer_no_transfer_candidate_conflict",
+        "$.proposed_deltas",
+        "A bounded no-transfer result must map to one review-required unknown research candidate against the exact base target.",
+        true,
+      );
+    }
+  } else if (
+    deltas.length !==
+    profile.transfer_items.length + (hasOperationRevision ? 1 : 0)
+  ) {
+    addError(
+      accumulator,
+      "strategic_advantage_transfer_candidate_count_conflict",
+      "$.proposed_deltas",
+      "Every normalized transfer must map to exactly one reviewable candidate.",
+      true,
+    );
+  }
+  for (const transfer of profile.transfer_items) {
+    const candidateId = `strategic-candidate:${transfer.transfer_id.slice(
+      "strategic-transfer:".length,
+    )}`;
+    const candidate = deltas.find(
+      (value) => value.candidate_id === candidateId,
+    );
+    const expectedLane =
+      transfer.support.status === "supported"
+        ? "validation_delta"
+        : "research_delta";
+    if (
+      !candidate ||
+      candidate.delta_type !== expectedLane ||
+      candidate.operation !== "unknown" ||
+      candidate.review_required !== true ||
+      !Array.isArray(candidate.target_refs) ||
+      candidate.target_refs.length !== 1 ||
+      !sameRefV01(candidate.target_refs[0], profile.base_strategy.target_ref) ||
+      !Array.isArray(candidate.source_refs) ||
+      transfer.source_refs.some(
+        (ref) => !refArrayContainsV01(candidate.source_refs, ref),
+      )
+    ) {
+      addError(
+        accumulator,
+        "strategic_advantage_transfer_candidate_material_conflict",
+        "$.proposed_deltas",
+        "Strategic profile and pending candidate material must remain exactly related.",
+        true,
+      );
+    }
+  }
+  if (
+    !Array.isArray(proposal.compatibility) &&
+    isProtocolRecordV01(proposal.compatibility) &&
+    Array.isArray(proposal.compatibility.source_contracts) &&
+    !proposal.compatibility.source_contracts.includes(
+      profile.profile_version,
+    )
+  ) {
+    addError(
+      accumulator,
+      "strategic_advantage_transfer_contract_missing",
+      "$.compatibility.source_contracts",
+      "Strategic proposals must declare the strategic profile contract.",
       true,
     );
   }

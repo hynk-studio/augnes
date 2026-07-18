@@ -77,6 +77,12 @@ export interface SemanticReviewRevisionRequestV01 {
   limitations: string[];
 }
 
+export interface SemanticReviewStrategicAnalysisRequestV01 {
+  action: "request_strategic_advantage_transfer";
+  proposal_id: string;
+  proposal_fingerprint: string;
+}
+
 export interface SemanticContextUseReviewRequestV01 {
   action: "record_context_use_review";
   later_run_receipt_id: string;

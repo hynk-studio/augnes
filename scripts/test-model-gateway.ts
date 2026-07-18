@@ -25,6 +25,7 @@ import type { TemporalPreviewContext } from "../lib/temporal-interpretation/type
 import {
   invokeObserveModelGatewayV01,
   invokePlannerModelGatewayV01,
+  invokeStrategicAdvantageTransferModelGatewayV01,
   invokeTemporalModelGatewayV01,
   type ObserveModelGatewayDependenciesV01,
   type PlannerModelGatewayDependenciesV01,
@@ -34,6 +35,7 @@ import {
   MODEL_INVOCATION_ENVELOPE_VERSION_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
   TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   isModelGatewayInvocationErrorV01,
   type ModelAdapterSessionV01,
@@ -43,6 +45,7 @@ import {
   type ModelInvocationReceiptV02,
   type ObserveModelInvocationEnvelopeV01,
   type PlannerModelInvocationEnvelopeV01,
+  type StrategicAdvantageTransferModelInvocationEnvelopeV01,
   type TemporalModelInvocationEnvelopeV01,
 } from "../lib/vnext/model-gateway/contracts";
 import {
@@ -52,6 +55,10 @@ import {
 import { validateModelInvocationReceiptV02 } from "../lib/vnext/model-gateway/model-invocation-receipt";
 import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../lib/vnext/model-gateway/run-receipt-projection";
 import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "../lib/vnext/protocol-primitives";
+import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
   normalizeLocalProjectRootRefV01,
@@ -60,6 +67,10 @@ import {
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import {
+  strategicModelInputFixtureV01,
+  strategicModelOutputFixtureV01,
+} from "./vnext-protocol-conformance/strategic-advantage-transfer";
 
 const WORKSPACE_UUID = "11111111-1111-4111-8111-111111111111";
 const PROJECT_A_UUID = "22222222-2222-4222-8222-222222222222";
@@ -83,7 +94,8 @@ const onUndiciRequest = () => {
 
 void main().catch((error) => {
   console.error("model_gateway_test_failed");
-  if (error instanceof Error) console.error(error.message);
+  if (isModelGatewayInvocationErrorV01(error)) console.error(error.code);
+  else if (error instanceof Error) console.error(error.message);
   process.exitCode = 1;
 });
 
@@ -783,6 +795,7 @@ async function main() {
     databaseAfterHostile.close();
 
     const remainingCallerMetrics = await runRemainingCallerCases(fixture);
+    const strategicGatewayMetrics = await runStrategicGatewayCases(fixture);
 
     const db = openDatabase();
     const projectBSelection = selectActiveProjectV01(db, {
@@ -865,6 +878,7 @@ async function main() {
             "POST /api/observe",
             "POST /api/plan",
             "POST /api/temporal-interpretation/preview",
+            "strategic advantage transfer production gateway",
           ],
           live_transport_calls: metrics.live_transport_calls,
           deterministic_transport_calls: metrics.zero_model_transport_calls,
@@ -876,6 +890,8 @@ async function main() {
             remainingCallerMetrics.planner_live_transport_calls,
           temporal_live_transport_calls:
             remainingCallerMetrics.temporal_live_transport_calls,
+          strategic_live_transport_calls:
+            strategicGatewayMetrics.live_transport_calls,
           remaining_caller_blocked_transports:
             remainingCallerMetrics.blocked_transport_calls,
           undici_requests: undiciRequests,
@@ -893,6 +909,248 @@ async function main() {
     else process.env.AUGNES_DB_PATH = originalDatabasePath;
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+async function runStrategicGatewayCases(fixture: Fixture) {
+  const input = strategicModelInputFixtureV01();
+  const output = strategicModelOutputFixtureV01(input);
+  const requests: Parameters<OpenAIResponsesTransportV01>[0][] = [];
+  let liveTransportCalls = 0;
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "strategic-test-model",
+    },
+    transport: async (request) => {
+      liveTransportCalls += 1;
+      requests.push(request);
+      return providerJsonSuccess(output, {
+        input_tokens: 120,
+        output_tokens: 80,
+        total_tokens: 200,
+      });
+    },
+  });
+  const hostileInput = structuredClone(input) as unknown as Record<
+    string,
+    unknown
+  >;
+  const hostileWorkingFrame = hostileInput.working_frame as Record<
+    string,
+    unknown
+  >;
+  hostileWorkingFrame.provider = "client-selected-provider";
+  const hostileFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(
+      strategicEnvelope(
+        fixture,
+        hostileInput as unknown as StrategicAdvantageTransferModelInvocationEnvelopeV01["input"],
+      ),
+      { adapter },
+    ),
+  );
+  assert.equal(hostileFailure.code, "model_gateway_invalid_envelope");
+  assert.equal(liveTransportCalls, 0);
+  const policyTriggeredStrategic = strategicEnvelope(fixture, input);
+  policyTriggeredStrategic.policy = {
+    invocation_origin: "policy_triggered",
+    automation_control_revision: 1,
+    work_id: "work:strategic-policy-refused",
+    run_id: "run:strategic-policy-refused",
+    grant_id: "grant:strategic-policy-refused",
+    grant_fingerprint:
+      "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  };
+  const policyTriggeredFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(
+      policyTriggeredStrategic,
+      { adapter },
+    ),
+  );
+  assert.equal(
+    policyTriggeredFailure.code,
+    "model_gateway_invalid_envelope",
+  );
+  assert.equal(
+    liveTransportCalls,
+    0,
+    "R6-D refuses unattended strategic invocation before provider egress",
+  );
+  const preCancelled = new AbortController();
+  preCancelled.abort();
+  const cancelledEnvelope = strategicEnvelope(fixture, input);
+  cancelledEnvelope.cancellation = { signal: preCancelled.signal };
+  const cancelledFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(cancelledEnvelope, {
+      adapter,
+    }),
+  );
+  assert.equal(cancelledFailure.code, "model_gateway_cancelled");
+  assert.equal(cancelledFailure.receipt?.outcome, "cancelled");
+  assert.equal(liveTransportCalls, 0);
+
+  let strategicBudgetTransportCalls = 0;
+  const overBudgetAdapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "strategic-budget-test-model",
+    },
+    transport: async () => {
+      strategicBudgetTransportCalls += 1;
+      return providerJsonSuccess(output, {
+        input_tokens: 120,
+        output_tokens: input.budget.model.max_output_tokens + 1,
+        total_tokens: input.budget.model.max_output_tokens + 121,
+      });
+    },
+  });
+  const budgetFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(
+      strategicEnvelope(fixture, input),
+      { adapter: overBudgetAdapter },
+    ),
+  );
+  assert.equal(budgetFailure.code, "model_gateway_budget_refused");
+  assert.equal(budgetFailure.receipt?.budget.decision, "refused");
+  assert.equal(strategicBudgetTransportCalls, 1);
+
+  let malformedTransportCalls = 0;
+  const malformedAdapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: CREDENTIAL_SENTINEL,
+      OPENAI_MODEL: "strategic-malformed-test-model",
+    },
+    transport: async () => {
+      malformedTransportCalls += 1;
+      return providerJsonSuccess({ ...output, confidence: 0.99 }, {
+        input_tokens: 120,
+        output_tokens: 80,
+        total_tokens: 200,
+      });
+    },
+  });
+  const malformedFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(
+      strategicEnvelope(fixture, input),
+      { adapter: malformedAdapter },
+    ),
+  );
+  assert.equal(
+    malformedFailure.code,
+    "model_gateway_provider_response_invalid",
+  );
+  assert.equal(malformedTransportCalls, 1);
+
+  const result = await invokeStrategicAdvantageTransferModelGatewayV01(
+    strategicEnvelope(fixture, input),
+    { adapter },
+  );
+  assert.equal(liveTransportCalls, 1, "the bounded profile uses one provider call");
+  assert.equal(requests.length, 1);
+  assert.equal(result.generator, "openai");
+  assert.deepEqual(result.output, output);
+  assert.equal(
+    result.model_invocation_receipt.purpose,
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+  );
+  assert.equal(result.model_invocation_receipt.status, "completed");
+  assert.equal(result.model_invocation_receipt.outcome, "live_success");
+  assert.equal(result.model_invocation_receipt.execution_mode, "live");
+  assert.equal(result.model_invocation_receipt.egress_attempted, true);
+  assert.equal(result.model_invocation_receipt.budget.provider_call_limit, 1);
+  assert.equal(result.model_invocation_receipt.budget.provider_calls_used, 1);
+  assert.equal(result.model_invocation_receipt.raw_prompt_persisted, false);
+  assert.equal(result.model_invocation_receipt.raw_response_persisted, false);
+  assert.equal(result.model_invocation_receipt.hidden_reasoning_persisted, false);
+  assert.equal(
+    result.model_invocation_receipt.normalized_output_fingerprint,
+    createProtocolSha256V01(canonicalizeProtocolValueV01(result.output)),
+    "the Gateway receipt exact-binds the normalized strategic output",
+  );
+  assert.equal(
+    validateModelInvocationReceiptV02(result.model_invocation_receipt).purpose,
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+  );
+  const providerPayload = JSON.parse(requests[0]!.body);
+  assert.equal(providerPayload.store, false);
+  assert.equal(providerPayload.max_output_tokens, 2_048);
+  assert.equal(providerPayload.text.format.name, "strategic_advantage_transfer");
+  assert.equal(providerPayload.text.format.strict, true);
+  assert.equal(
+    providerPayload.text.format.schema.additionalProperties,
+    false,
+  );
+  assert.equal(
+    JSON.stringify(providerPayload.text.format.schema).includes(
+      '"uniqueItems"',
+    ),
+    false,
+    "the strict provider schema uses only the supported bounded-array subset; duplicate refusal remains server-owned",
+  );
+  assertStrategicProviderSchemaUsesSupportedSubset(
+    providerPayload.text.format.schema,
+  );
+  const dynamicMaterial = JSON.parse(
+    providerPayload.input[1].content[0].text,
+  );
+  assert.deepEqual(dynamicMaterial.lenses, input.lenses);
+  assert.equal(
+    dynamicMaterial.working_frame.working_frame_fingerprint,
+    input.working_frame.working_frame_fingerprint,
+  );
+  assert.equal(
+    dynamicMaterial.source_catalog.source_catalog_fingerprint,
+    input.source_catalog.source_catalog_fingerprint,
+  );
+  assert.equal(Object.hasOwn(dynamicMaterial, "workspace_id"), false);
+  assert.equal(Object.hasOwn(dynamicMaterial, "project_id"), false);
+  assert.equal(JSON.stringify(providerPayload).includes(CREDENTIAL_SENTINEL), false);
+  assertNoPrivateMaterial(result.model_invocation_receipt);
+
+  return { live_transport_calls: liveTransportCalls };
+}
+
+function assertStrategicProviderSchemaUsesSupportedSubset(
+  schema: unknown,
+): void {
+  const supportedKeywords = new Set([
+    "type",
+    "additionalProperties",
+    "required",
+    "properties",
+    "enum",
+    "minItems",
+    "maxItems",
+    "items",
+    "anyOf",
+    "minLength",
+    "maxLength",
+    "pattern",
+  ]);
+  const walk = (value: unknown, path: string): void => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      assert(
+        supportedKeywords.has(key),
+        `unsupported strategic provider schema keyword ${path}.${key}`,
+      );
+    }
+    if (record.properties && typeof record.properties === "object") {
+      for (const [name, child] of Object.entries(
+        record.properties as Record<string, unknown>,
+      )) {
+        walk(child, `${path}.properties.${name}`);
+      }
+    }
+    if (record.items) walk(record.items, `${path}.items`);
+    if (Array.isArray(record.anyOf)) {
+      record.anyOf.forEach((child, index) =>
+        walk(child, `${path}.anyOf[${index}]`),
+      );
+    }
+  };
+  walk(schema, "$schema");
 }
 
 async function runRemainingCallerCases(fixture: Fixture) {
@@ -2331,6 +2589,46 @@ function envelope(
       message: options.message ?? "Observe the bounded project state.",
       current_state: options.currentState ?? [],
     },
+  };
+}
+
+function strategicEnvelope(
+  fixture: Fixture,
+  input = strategicModelInputFixtureV01(),
+): StrategicAdvantageTransferModelInvocationEnvelopeV01 {
+  return {
+    envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+    invocation_id: "model-invocation:strategic-advantage-transfer-test",
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    purpose: STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+    data_classification: "private",
+    provenance_refs: [
+      input.working_frame.working_frame_fingerprint,
+      input.source_catalog.source_catalog_fingerprint,
+    ],
+    privacy: {
+      provider_egress: "allow",
+      retention_class: "none",
+    },
+    budget: {
+      max_input_bytes: input.budget.model.max_input_bytes,
+      max_output_tokens: input.budget.model.max_output_tokens,
+      max_provider_calls: 1,
+    },
+    timeout_ms: input.budget.model.timeout_ms,
+    cancellation: { signal: new AbortController().signal },
+    execution_mode: "live",
+    policy: {
+      invocation_origin: "interactive",
+      expected_active_project_id: fixture.projectAId,
+      expected_active_selection_revision: fixture.activeRevision,
+    },
+    project_root: {
+      path_flavor: fixture.projectARoot.path_flavor,
+      normalized_path: fixture.projectARoot.normalized_path,
+    },
+    input,
   };
 }
 

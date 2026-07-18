@@ -5,6 +5,7 @@ import {
   assertVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
+  readVNextCoreRecordByIdempotencyKeyV01,
   type VNextCoreRecordEnvelopeV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
@@ -21,6 +22,12 @@ import {
 } from "@/types/vnext/episode-delta-proposal";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import {
+  materializeStrategicAdvantageTransferProposalV01,
+  type StrategicAdvantageTransferAdmissionIdentityV01,
+  type StrategicAdvantageTransferMaterializationSourceV01,
+  type StrategicAdvantageTransferMaterializationV01,
+} from "@/lib/vnext/strategic-advantage-transfer";
 
 export const EPISODE_DELTA_PROPOSAL_ADMISSION_VERSION_V01 =
   "episode_delta_proposal_admission.v0.1" as const;
@@ -32,17 +39,44 @@ export class EpisodeDeltaProposalAdmissionErrorV01 extends Error {
   }
 }
 
-/** The single production EpisodeDeltaProposal writer and replay authority. */
+interface RunAssessmentEpisodeDeltaProposalAdmissionInputV01 {
+  expected: RunAssessmentProposalMaterializationV01;
+  source: {
+    packet: TaskContextPacketV01;
+    receipt: RunReceiptV01;
+    assessment: CriterionAssessmentV01;
+  };
+}
+
+interface StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01 {
+  expected: StrategicAdvantageTransferMaterializationV01;
+  source: StrategicAdvantageTransferMaterializationSourceV01;
+}
+
 export function admitEpisodeDeltaProposalV01(
   db: Database.Database,
-  input: {
-    expected: RunAssessmentProposalMaterializationV01;
-    source: {
-      packet: TaskContextPacketV01;
-      receipt: RunReceiptV01;
-      assessment: CriterionAssessmentV01;
-    };
-  },
+  input: RunAssessmentEpisodeDeltaProposalAdmissionInputV01,
+): {
+  status: "inserted" | "exact_replay";
+  proposal: EpisodeDeltaProposalV01;
+};
+export function admitEpisodeDeltaProposalV01(
+  db: Database.Database,
+  input: StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
+): {
+  status: "inserted" | "exact_replay";
+  proposal: EpisodeDeltaProposalV01;
+};
+/**
+ * Canonical EpisodeDeltaProposal writer and replay authority. Each production
+ * profile supplies exact source material, which is rematerialized here before
+ * the shared envelope writer can persist it.
+ */
+export function admitEpisodeDeltaProposalV01(
+  db: Database.Database,
+  input:
+    | RunAssessmentEpisodeDeltaProposalAdmissionInputV01
+    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
 ): {
   status: "inserted" | "exact_replay";
   proposal: EpisodeDeltaProposalV01;
@@ -51,19 +85,11 @@ export function admitEpisodeDeltaProposalV01(
   if (ownsTransaction) db.exec("BEGIN IMMEDIATE");
   try {
     assertVNextDurableSemanticStoreSchemaV01(db);
-    const material = materializeRunAssessmentProposalV01(input.source);
-    if (
-      canonicalizeProtocolValueV01(material) !==
-      canonicalizeProtocolValueV01(input.expected)
-    ) {
-      refuseV01("project_result_proposal_material_conflict");
-    }
-    const { identity, proposal } = material;
-    assertRunAssessmentProposalRelationV01(proposal, identity);
-    const related = readProposalForExactSourcePurposeV01(db, identity);
+    const { proposal, idempotency_key, related } =
+      resolveExpectedEpisodeDeltaProposalAdmissionV01(db, input);
     if (related) {
       if (
-        related.record.idempotency_key !== identity.idempotency_key ||
+        related.record.idempotency_key !== idempotency_key ||
         canonicalizeProtocolValueV01(related.proposal) !==
           canonicalizeProtocolValueV01(proposal)
       ) {
@@ -72,34 +98,14 @@ export function admitEpisodeDeltaProposalV01(
       if (ownsTransaction) db.exec("COMMIT");
       return { status: "exact_replay", proposal: related.proposal };
     }
-    const write = insertVNextCoreRecordV01(db, {
-      record_kind: "episode_delta_proposal",
-      record_id: proposal.proposal_id,
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      fingerprint: proposal.integrity.fingerprint,
-      idempotency_key: identity.idempotency_key,
-      payload: proposal,
-      created_at: proposal.created_at,
+    const write = writeExpectedEpisodeDeltaProposalV01(db, {
+      proposal,
+      idempotency_key,
     });
-    assertVNextCoreRecordMatchesProtocolPayloadBindingV01(write.record, {
-      workspace_id: proposal.workspace_id,
-      project_id: proposal.project_id,
-      fingerprint: proposal.integrity.fingerprint,
-    });
-    if (
-      write.record.record_id !== proposal.proposal_id ||
-      write.record.idempotency_key !== identity.idempotency_key ||
-      write.record.created_at !== proposal.created_at ||
-      canonicalizeProtocolValueV01(write.record.payload) !==
-        canonicalizeProtocolValueV01(proposal)
-    ) {
-      refuseV01("episode_delta_proposal_envelope_mismatch");
-    }
     if (ownsTransaction) db.exec("COMMIT");
     return {
       status: write.status,
-      proposal: write.record.payload as EpisodeDeltaProposalV01,
+      proposal: write.proposal,
     };
   } catch (error) {
     if (ownsTransaction && db.inTransaction) db.exec("ROLLBACK");
@@ -115,6 +121,181 @@ export function admitEpisodeDeltaProposalV01(
     }
     throw error;
   }
+}
+
+function resolveExpectedEpisodeDeltaProposalAdmissionV01(
+  db: Database.Database,
+  input:
+    | RunAssessmentEpisodeDeltaProposalAdmissionInputV01
+    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
+): {
+  proposal: EpisodeDeltaProposalV01;
+  idempotency_key: string;
+  related: {
+    record: VNextCoreRecordEnvelopeV01;
+    proposal: EpisodeDeltaProposalV01;
+  } | null;
+} {
+  if (isStrategicAdmissionInputV01(input)) {
+    const material = materializeStrategicAdvantageTransferProposalV01(
+      input.source,
+    );
+    if (
+      canonicalizeProtocolValueV01(material) !==
+      canonicalizeProtocolValueV01(input.expected)
+    ) {
+      refuseV01("project_result_proposal_material_conflict");
+    }
+    assertStrategicAdvantageTransferProposalRelationV01(
+      material.proposal,
+      material.identity,
+    );
+    return {
+      proposal: material.proposal,
+      idempotency_key: material.identity.idempotency_key,
+      related: readStrategicAdvantageTransferProposalByIdentityV01(
+        db,
+        material.identity,
+      ),
+    };
+  }
+  const material = materializeRunAssessmentProposalV01(input.source);
+  if (
+    canonicalizeProtocolValueV01(material) !==
+    canonicalizeProtocolValueV01(input.expected)
+  ) {
+    refuseV01("project_result_proposal_material_conflict");
+  }
+  assertRunAssessmentProposalRelationV01(
+    material.proposal,
+    material.identity,
+  );
+  return {
+    proposal: material.proposal,
+    idempotency_key: material.identity.idempotency_key,
+    related: readProposalForExactSourcePurposeV01(db, material.identity),
+  };
+}
+
+function isStrategicAdmissionInputV01(
+  input:
+    | RunAssessmentEpisodeDeltaProposalAdmissionInputV01
+    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
+): input is StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01 {
+  return "base_strategy" in input.source;
+}
+
+export function readStrategicAdvantageTransferProposalByIdentityV01(
+  db: Database.Database,
+  identity: StrategicAdvantageTransferAdmissionIdentityV01,
+): { record: VNextCoreRecordEnvelopeV01; proposal: EpisodeDeltaProposalV01 } | null {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  const record = readVNextCoreRecordByIdempotencyKeyV01(db, {
+    record_kind: "episode_delta_proposal",
+    workspace_id: identity.workspace_id,
+    project_id: identity.project_id,
+    idempotency_key: identity.idempotency_key,
+  });
+  if (!record) return null;
+  if (validateEpisodeDeltaProposalV01(record.payload).status !== "valid") {
+    refuseV01("strategic_advantage_transfer_record_invalid");
+  }
+  const proposal = record.payload as EpisodeDeltaProposalV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
+    workspace_id: proposal.workspace_id,
+    project_id: proposal.project_id,
+    fingerprint: proposal.integrity.fingerprint,
+  });
+  const profile = proposal.strategic_advantage_transfer;
+  if (
+    record.record_id !== proposal.proposal_id ||
+    record.fingerprint !== proposal.integrity.fingerprint ||
+    record.created_at !== proposal.created_at ||
+    record.idempotency_key !== identity.idempotency_key ||
+    !profile ||
+    profile.analysis_identity !== identity.analysis_identity ||
+    profile.source_proposal.proposal_id !== identity.source_proposal_id ||
+    profile.source_proposal.proposal_fingerprint !==
+      identity.source_proposal_fingerprint ||
+    profile.packet_ref.external_id !== identity.packet_id ||
+    profile.packet_ref.source_ref !== identity.packet_fingerprint ||
+    profile.receipt_ref.external_id !== identity.receipt_id ||
+    profile.receipt_ref.source_ref !== identity.receipt_fingerprint ||
+    profile.assessment.assessment_fingerprint !==
+      identity.assessment_fingerprint ||
+    profile.base_strategy.base_fingerprint !== identity.base_fingerprint ||
+    profile.working_frame.working_frame_fingerprint !==
+      identity.working_frame_fingerprint ||
+    profile.source_catalog.source_catalog_fingerprint !==
+      identity.source_catalog_fingerprint
+  ) {
+    refuseV01("strategic_advantage_transfer_source_binding_conflict");
+  }
+  return { record, proposal };
+}
+
+function assertStrategicAdvantageTransferProposalRelationV01(
+  proposal: EpisodeDeltaProposalV01,
+  identity: StrategicAdvantageTransferAdmissionIdentityV01,
+): void {
+  const validation = validateEpisodeDeltaProposalV01(proposal);
+  const profile = proposal.strategic_advantage_transfer;
+  if (
+    validation.status !== "valid" ||
+    !profile ||
+    proposal.workspace_id !== identity.workspace_id ||
+    proposal.project_id !== identity.project_id ||
+    proposal.status !== "pending_review" ||
+    proposal.operation_revision !== undefined ||
+    profile.analysis_identity !== identity.analysis_identity ||
+    profile.source_proposal.proposal_id !== identity.source_proposal_id ||
+    profile.source_proposal.proposal_fingerprint !==
+      identity.source_proposal_fingerprint ||
+    profile.packet_ref.external_id !== identity.packet_id ||
+    profile.packet_ref.source_ref !== identity.packet_fingerprint ||
+    profile.receipt_ref.external_id !== identity.receipt_id ||
+    profile.receipt_ref.source_ref !== identity.receipt_fingerprint ||
+    profile.assessment.assessment_fingerprint !==
+      identity.assessment_fingerprint ||
+    profile.base_strategy.base_fingerprint !== identity.base_fingerprint ||
+    profile.working_frame.working_frame_fingerprint !==
+      identity.working_frame_fingerprint ||
+    profile.source_catalog.source_catalog_fingerprint !==
+      identity.source_catalog_fingerprint
+  ) {
+    refuseV01("strategic_advantage_transfer_source_binding_conflict");
+  }
+}
+
+function writeExpectedEpisodeDeltaProposalV01(
+  db: Database.Database,
+  input: { proposal: EpisodeDeltaProposalV01; idempotency_key: string },
+) {
+  const write = insertVNextCoreRecordV01(db, {
+    record_kind: "episode_delta_proposal",
+    record_id: input.proposal.proposal_id,
+    workspace_id: input.proposal.workspace_id,
+    project_id: input.proposal.project_id,
+    fingerprint: input.proposal.integrity.fingerprint,
+    idempotency_key: input.idempotency_key,
+    payload: input.proposal,
+    created_at: input.proposal.created_at,
+  });
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(write.record, {
+    workspace_id: input.proposal.workspace_id,
+    project_id: input.proposal.project_id,
+    fingerprint: input.proposal.integrity.fingerprint,
+  });
+  if (
+    write.record.record_id !== input.proposal.proposal_id ||
+    write.record.idempotency_key !== input.idempotency_key ||
+    write.record.created_at !== input.proposal.created_at ||
+    canonicalizeProtocolValueV01(write.record.payload) !==
+      canonicalizeProtocolValueV01(input.proposal)
+  ) {
+    refuseV01("episode_delta_proposal_envelope_mismatch");
+  }
+  return { ...write, proposal: input.proposal };
 }
 
 export function readProposalForExactSourcePurposeV01(

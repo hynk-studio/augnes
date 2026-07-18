@@ -20,6 +20,7 @@ import Database from "better-sqlite3";
 import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
 import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
+import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import {
   buildSemanticReviewLoopTaskContextPacketFixture,
   buildSemanticReviewLoopProposalFixture,
@@ -54,6 +55,7 @@ import {
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
+import { runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
@@ -87,6 +89,11 @@ export interface VNextOperatorBrowserFixtureManifestV01 {
   operator_id: string;
   proposal_id: string;
   proposal_fingerprint: string;
+  strategic_source_proposal_id: string;
+  strategic_source_proposal_fingerprint: string;
+  strategic_base_fingerprint: string;
+  strategic_working_frame_fingerprint: string;
+  strategic_source_catalog_fingerprint: string;
   packet_id: string;
   packet_fingerprint: string;
   transition_receipt_id: string;
@@ -110,6 +117,7 @@ export interface VNextOperatorBrowserFixtureSummaryV01 {
     "review_material",
     "review_decision_route",
     "semantic_transition_route",
+    "strategic_analysis_route",
     "project_identity_registry",
   ];
   persisted_lineage_status: "packet_compiled";
@@ -257,6 +265,14 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       environment,
       clock,
       secret_source: secretSource,
+      strategic_dependencies: {
+        read_model_capability: () => ({
+          status: "available",
+          summary:
+            "The owned browser runtime will provide its fake R4 transport only after fixture transfer.",
+          verification: "trusted_local_status",
+        }),
+      },
     });
     const transitionHandlers = createVNextOperatorSemanticTransitionHandlersV01({
       environment,
@@ -295,6 +311,7 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       fixtureProject,
       priorPacket,
       fixtureReceipt,
+      { primary_delta_type: "agent_plan_delta" },
     );
     const config = readVNextLocalOperatorPilotConfigV01(environment);
     const prepared = withDatabase(config, (db) => {
@@ -443,6 +460,51 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       commitBody.transition_receipt as StateTransitionReceiptV01;
     const laterPacket = commitBody.later_packet as TaskContextPacketV01;
     assert.equal(commitBody.packet_compiled, true);
+    clock.set(schedule.result);
+    const sourceRunDb = openVNextLocalOperatorDatabaseV01(config);
+    const sourceRun = await runDirectNativeHostRoundTripV01(
+      sourceRunDb,
+      { config, mode: "interactive" },
+      {
+        adapter: createDeterministicCodexAdapterV01({
+          now: () => clock.now(),
+        }),
+        now: () => clock.now(),
+      },
+    ).finally(() => sourceRunDb.close());
+    assert.equal(sourceRun.status, "inserted");
+    assert.equal(sourceRun.proposal.status, "available");
+    if (sourceRun.proposal.status !== "available") {
+      throw new Error("fixture strategic source proposal unavailable");
+    }
+    const sourceProposalId = sourceRun.proposal.proposal_id;
+    const sourceProposalFingerprint = sourceRun.proposal.proposal_fingerprint;
+    const sourceDetailResponse = await reviewHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar,
+        query: { proposal_id: sourceProposalId },
+      }),
+    );
+    const sourceDetailBody = await requireSuccess(
+      sourceDetailResponse,
+      200,
+      "fixture_strategic_source_detail",
+    );
+    const strategicReadback = (
+      sourceDetailBody.proposal as {
+        strategic_analysis: {
+          status: string;
+          base_fingerprint: string | null;
+          working_frame_fingerprint: string | null;
+          source_catalog_fingerprint: string | null;
+        };
+      }
+    ).strategic_analysis;
+    assert.equal(strategicReadback.status, "eligible");
+    assert(strategicReadback.base_fingerprint);
+    assert(strategicReadback.working_frame_fingerprint);
+    assert(strategicReadback.source_catalog_fingerprint);
     finalizeTransferredDatabase(databasePath, projectRoot, schedule.compile);
     const manifest: VNextOperatorBrowserFixtureManifestV01 = {
       fixture_version: VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01,
@@ -451,6 +513,13 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       operator_id: OPERATOR_ID,
       proposal_id: prepared.proposal.proposal_id,
       proposal_fingerprint: prepared.proposal.integrity.fingerprint,
+      strategic_source_proposal_id: sourceProposalId,
+      strategic_source_proposal_fingerprint: sourceProposalFingerprint,
+      strategic_base_fingerprint: strategicReadback.base_fingerprint,
+      strategic_working_frame_fingerprint:
+        strategicReadback.working_frame_fingerprint,
+      strategic_source_catalog_fingerprint:
+        strategicReadback.source_catalog_fingerprint,
       packet_id: laterPacket.packet_id,
       packet_fingerprint: laterPacket.integrity.fingerprint,
       transition_receipt_id: transitionReceipt.transition_receipt_id,
@@ -498,6 +567,7 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
         "review_material",
         "review_decision_route",
         "semantic_transition_route",
+        "strategic_analysis_route",
         "project_identity_registry",
       ],
       external_network_calls: externalNetworkCalls,
@@ -555,6 +625,12 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
       manifest.proposal_id,
       manifest.proposal_fingerprint,
     );
+    const strategicSourceProposal = requireCoreRecord<EpisodeDeltaProposalV01>(
+      db,
+      "episode_delta_proposal",
+      manifest.strategic_source_proposal_id,
+      manifest.strategic_source_proposal_fingerprint,
+    );
     const packet = requireCoreRecord<TaskContextPacketV01>(
       db,
       "task_context_packet",
@@ -568,6 +644,29 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
       manifest.transition_receipt_fingerprint,
     );
     assert.equal(validateEpisodeDeltaProposalV01(proposal).status, "valid");
+    assert.equal(
+      validateEpisodeDeltaProposalV01(strategicSourceProposal).status,
+      "valid",
+    );
+    const strategicProposalCount = Number(
+      (
+        db
+      .prepare(
+            `SELECT COUNT(*) AS count
+           FROM vnext_core_records
+          WHERE record_kind = 'episode_delta_proposal'
+            AND workspace_id = ?
+            AND project_id = ?
+            AND json_type(payload_json, '$.strategic_advantage_transfer') = 'object'`,
+      )
+          .get(WORKSPACE_ID, PROJECT_ID) as { count: number }
+      ).count,
+    );
+    assert.equal(
+      strategicProposalCount,
+      0,
+      "fixture must leave strategic analysis and proposal admission to the browser",
+    );
     assert.equal(
       validateTaskContextPacketV01(packet, {
         evaluated_at: packet.generated_at,
@@ -905,6 +1004,11 @@ function assertManifestShape(
   for (const field of [
     "proposal_id",
     "proposal_fingerprint",
+    "strategic_source_proposal_id",
+    "strategic_source_proposal_fingerprint",
+    "strategic_base_fingerprint",
+    "strategic_working_frame_fingerprint",
+    "strategic_source_catalog_fingerprint",
     "packet_id",
     "packet_fingerprint",
     "transition_receipt_id",

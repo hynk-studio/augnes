@@ -16,6 +16,7 @@ import type {
   SemanticReviewDetailRouteResponseV01,
   SemanticReviewListRouteResponseV01,
   SemanticReviewRevisionRequestV01,
+  SemanticReviewStrategicAnalysisRequestV01,
 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
 
@@ -40,6 +41,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
   const [privateError, setPrivateError] = useState<string | null>(null);
   const [decisionStatus, setDecisionStatus] = useState<string | null>(null);
   const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
+  const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const operatorMutationInFlight = useRef(false);
 
   const loadPrivateView = useCallback(async () => {
@@ -255,6 +257,81 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
     }
   }
 
+  async function requestStrategicAnalysis(
+    request: SemanticReviewStrategicAnalysisRequestV01,
+  ) {
+    if (
+      sessionState.status !== "authenticated" ||
+      operatorMutationInFlight.current
+    ) {
+      return;
+    }
+    operatorMutationInFlight.current = true;
+    setStrategicAnalysisBusy(true);
+    setDecisionStatus(null);
+    setPrivateError(null);
+    try {
+      const response = await fetch(SEMANTIC_REVIEW_ROUTE, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      const body =
+        (await response.json()) as SemanticReviewStrategicAnalysisResponseV01;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          setPrivateView(null);
+          setSessionState({
+            status: "locked",
+            session: null,
+            error_code: publicErrorCode(body.error_code),
+          });
+          return;
+        }
+        setPrivateError(publicErrorCode(body.error_code));
+        return;
+      }
+      if (
+        (body.status === "inserted" || body.status === "exact_replay") &&
+        body.proposal_id
+      ) {
+        setDecisionStatus(
+          body.status === "exact_replay"
+            ? "Exact strategic analysis replay returned the existing pending proposal; no model or proposal duplicate was created."
+            : "Bounded strategic transfer material is available as a separate pending proposal. The source proposal remains unchanged.",
+        );
+        router.push(semanticReviewProposalHref(body.proposal_id));
+        router.refresh();
+        return;
+      }
+      if (
+        body.status === "unavailable" ||
+        body.status === "model_denied" ||
+        body.status === "model_timeout" ||
+        body.status === "model_cancelled" ||
+        body.status === "model_failed" ||
+        body.status === "malformed_output" ||
+        body.status === "source_conflict" ||
+        body.status === "stale_base" ||
+        body.status === "proposal_admission_failed"
+      ) {
+        setDecisionStatus(
+          `Optional strategic analysis ${body.status.replaceAll("_", " ")}: ${publicStrategicReason(body.reason)}. Normal zero-model proposal review remains available.`,
+        );
+        await loadPrivateView();
+        return;
+      }
+      setPrivateError("semantic_review_strategic_response_invalid");
+    } catch {
+      setPrivateError("semantic_review_strategic_request_failed");
+    } finally {
+      operatorMutationInFlight.current = false;
+      setStrategicAnalysisBusy(false);
+    }
+  }
+
   async function recordContextUseReview(
     request: SemanticContextUseReviewRequestV01,
   ) {
@@ -411,6 +488,8 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             busyCandidateId={busyCandidateId}
             onDecision={recordDecision}
             onRevision={recordRevision}
+            onStrategicAnalysis={requestStrategicAnalysis}
+            strategicAnalysisBusy={strategicAnalysisBusy}
             onContextUseReview={recordContextUseReview}
             onSessionInvalid={(errorCode) => locked(errorCode)}
             onPrivateMaterialChanged={refreshPrivateMaterial}
@@ -465,6 +544,27 @@ interface SemanticReviewRevisionResponseV01 {
   proposal_id?: string;
 }
 
+interface SemanticReviewStrategicAnalysisResponseV01 {
+  status?:
+    | "inserted"
+    | "exact_replay"
+    | "unavailable"
+    | "model_denied"
+    | "model_timeout"
+    | "model_cancelled"
+    | "model_failed"
+    | "malformed_output"
+    | "source_conflict"
+    | "stale_base"
+    | "proposal_admission_failed";
+  error_code?: string | null;
+  proposal_id?: string | null;
+  reason?: string | null;
+  retryable?: boolean;
+  model_invocation_count?: 0 | 1;
+  source_proposal_unchanged?: true;
+}
+
 interface SemanticReviewMutationResponseV01 {
   status?: string;
   error_code?: string | null;
@@ -477,6 +577,15 @@ function publicErrorCode(value: unknown): string {
   return /^[a-z0-9_:-]+$/.test(value)
     ? value
     : "semantic_review_request_failed";
+}
+
+function publicStrategicReason(value: unknown): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 160) {
+    return "bounded request unavailable";
+  }
+  return /^[a-z0-9_:-]+$/.test(value)
+    ? value.replaceAll("_", " ")
+    : "bounded request unavailable";
 }
 
 function semanticReviewProposalHref(proposalId: string | undefined): string {

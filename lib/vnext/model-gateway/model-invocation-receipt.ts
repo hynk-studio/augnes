@@ -77,6 +77,10 @@ const ROOT_KEYS = [
   "hidden_reasoning_persisted",
   "receipt_is_semantic_authority",
 ] as const;
+const ROOT_KEYS_WITH_OUTPUT_FINGERPRINT = [
+  ...ROOT_KEYS,
+  "normalized_output_fingerprint",
+] as const;
 
 export class ModelInvocationReceiptValidationErrorV02 extends Error {
   readonly code = "model_invocation_receipt_invalid";
@@ -91,7 +95,12 @@ export function validateModelInvocationReceiptV02(
   input: unknown,
 ): ModelInvocationReceiptV02 {
   try {
-    const receipt = exactRecord(input, ROOT_KEYS);
+    const receipt = exactRecord(
+      input,
+      isPlainRecord(input) && Object.hasOwn(input, "normalized_output_fingerprint")
+        ? ROOT_KEYS_WITH_OUTPUT_FINGERPRINT
+        : ROOT_KEYS,
+    );
     literal(receipt.receipt_version, MODEL_INVOCATION_RECEIPT_VERSION_V02);
     literal(receipt.gateway_version, MODEL_GATEWAY_VERSION_V01);
     safeIdentifier(receipt.invocation_id);
@@ -175,12 +184,43 @@ export function validateModelInvocationReceiptV02(
     literal(receipt.raw_response_persisted, false);
     literal(receipt.hidden_reasoning_persisted, false);
     literal(receipt.receipt_is_semantic_authority, false);
+    if (Object.hasOwn(receipt, "normalized_output_fingerprint")) {
+      if (
+        receipt.normalized_output_fingerprint !== null &&
+        (typeof receipt.normalized_output_fingerprint !== "string" ||
+          !/^sha256:[0-9a-f]{64}$/.test(
+            receipt.normalized_output_fingerprint,
+          ))
+      ) {
+        invalid();
+      }
+    }
+    if (
+      receipt.purpose === "strategic_advantage_transfer" &&
+      receipt.status === "completed" &&
+      (typeof receipt.normalized_output_fingerprint !== "string" ||
+        !/^sha256:[0-9a-f]{64}$/.test(
+          receipt.normalized_output_fingerprint,
+        ))
+    ) {
+      invalid();
+    }
     validateReceiptConsistency(receipt);
     return JSON.parse(JSON.stringify(receipt)) as ModelInvocationReceiptV02;
   } catch (error) {
     if (error instanceof ModelInvocationReceiptValidationErrorV02) throw error;
     invalid();
   }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (Object.getPrototypeOf(value) === Object.prototype ||
+      Object.getPrototypeOf(value) === null)
+  );
 }
 
 function validateUsage(value: unknown): void {

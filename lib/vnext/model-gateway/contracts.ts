@@ -7,6 +7,10 @@ import type {
 } from "@/lib/temporal-interpretation/types";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
+  StrategicAdvantageTransferModelInputV01,
+  StrategicAdvantageTransferModelOutputV01,
+} from "@/types/vnext/strategic-advantage-transfer";
+import type {
   ModelInvocationReceiptUsageV02,
   ModelInvocationReceiptV02,
 } from "@/types/vnext/model-invocation-receipt";
@@ -25,10 +29,13 @@ export const OBSERVE_MODEL_GATEWAY_PURPOSE_V01 =
 export const PLANNER_MODEL_GATEWAY_PURPOSE_V01 = "planner_plan" as const;
 export const TEMPORAL_MODEL_GATEWAY_PURPOSE_V01 =
   "temporal_interpretation" as const;
+export const STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 =
+  "strategic_advantage_transfer" as const;
 export const MODEL_GATEWAY_PURPOSES_V01 = [
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
 ] as const;
 
 export type ModelGatewayPurposeV01 =
@@ -135,10 +142,17 @@ export interface TemporalModelInvocationEnvelopeV01
   };
 }
 
+export interface StrategicAdvantageTransferModelInvocationEnvelopeV01
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01;
+  input: StrategicAdvantageTransferModelInputV01;
+}
+
 export type ModelInvocationEnvelopeV01 =
   | ObserveModelInvocationEnvelopeV01
   | PlannerModelInvocationEnvelopeV01
-  | TemporalModelInvocationEnvelopeV01;
+  | TemporalModelInvocationEnvelopeV01
+  | StrategicAdvantageTransferModelInvocationEnvelopeV01;
 
 export interface ModelGatewayPolicyAuthorizationV01 {
   workspace_id: string;
@@ -179,10 +193,17 @@ export interface TemporalModelGatewayResultV01 {
   model_invocation_receipt: ModelInvocationReceiptV02;
 }
 
+export interface StrategicAdvantageTransferModelGatewayResultV01 {
+  generator: "openai";
+  output: StrategicAdvantageTransferModelOutputV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
 export type ModelAdapterInputV01 =
   | ({ canonical_project_id: string } & ObserveModelInvocationEnvelopeV01["input"])
   | ({ canonical_project_id: string } & PlannerModelInvocationEnvelopeV01["input"])
-  | ({ canonical_project_id: string } & TemporalModelInvocationEnvelopeV01["input"]);
+  | ({ canonical_project_id: string } & TemporalModelInvocationEnvelopeV01["input"])
+  | ({ canonical_project_id: string } & StrategicAdvantageTransferModelInvocationEnvelopeV01["input"]);
 
 export interface ModelAdapterLifecycleV01 {
   signal: AbortSignal;
@@ -206,6 +227,12 @@ export type ModelAdapterInvocationResultV01 =
   | {
       purpose: typeof TEMPORAL_MODEL_GATEWAY_PURPOSE_V01;
       preview: TemporalInterpretationPreview;
+      model_identifier: string;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01;
+      output: StrategicAdvantageTransferModelOutputV01;
       model_identifier: string;
       usage: ModelGatewayNormalizedUsageV01 | null;
     };

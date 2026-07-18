@@ -15,6 +15,7 @@ import {
 import {
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
   TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   type PlannerStateBriefV01,
 } from "../lib/vnext/model-gateway/contracts";
@@ -23,9 +24,14 @@ import {
 } from "../lib/vnext/model-gateway/openai/responses-adapter";
 import { OBSERVE_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/observe-codec";
 import { PLANNER_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/planner-codec";
+import { STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec";
 import { TEMPORAL_MODEL_EGRESS_LIMITS } from "../lib/vnext/model-gateway/openai/temporal-codec";
 import { buildMockTemporalPreview } from "../lib/temporal-interpretation/mock";
 import type { TemporalPreviewContext } from "../lib/temporal-interpretation/types";
+import {
+  strategicModelInputFixtureV01,
+  strategicModelOutputFixtureV01,
+} from "./vnext-protocol-conformance/strategic-advantage-transfer";
 
 const REJECTED_MARKER = "rejected-material-must-not-escape-8f37";
 const OBSERVE_PROJECT_ID = "project:22222222-2222-4222-8222-222222222222";
@@ -80,6 +86,7 @@ async function main() {
     await runObserveCases();
     await runPlannerCases();
     await runTemporalCases();
+    await runStrategicCases();
     await runProviderErrorCases();
 
     assert.equal(counters.blockedTransportCalls, 0);
@@ -93,7 +100,7 @@ async function main() {
     const summary = {
       test: "bounded_model_egress",
       status: "pass",
-      protected_transports: 3,
+      protected_transports: 4,
       valid_transport_calls: counters.validTransportCalls,
       blocked_cases: counters.blockedCases,
       blocked_transport_calls: counters.blockedTransportCalls,
@@ -524,6 +531,69 @@ async function runTemporalCases() {
 
 }
 
+async function runStrategicCases() {
+  const input = strategicModelInputFixtureV01();
+  const output = strategicModelOutputFixtureV01(input);
+  const captured: string[] = [];
+  const result = await buildOpenAIStrategicTransferForTest(
+    input,
+    successTransport(output, captured),
+  );
+  assert.deepEqual(result, output);
+  const request = parseRequest(captured[0]);
+  const dynamic = parseDynamic(request);
+  assert.deepEqual(dynamic.lenses, input.lenses);
+  assert.equal(
+    dynamic.working_frame.working_frame_fingerprint,
+    input.working_frame.working_frame_fingerprint,
+  );
+  assert.equal(
+    dynamic.source_catalog.source_catalog_fingerprint,
+    input.source_catalog.source_catalog_fingerprint,
+  );
+  assert.equal(Object.hasOwn(dynamic, "workspace_id"), false);
+  assert.equal(Object.hasOwn(dynamic, "project_id"), false);
+
+  const tooManyLenses = structuredClone(input) as unknown as Record<
+    string,
+    unknown
+  >;
+  tooManyLenses.lenses = [
+    "constraint_fit",
+    "verification_leverage",
+    "regression_safety",
+    "constraint_fit",
+  ];
+  await expectBlocked(
+    "strategic_advantage_transfer",
+    (transport) =>
+      buildOpenAIStrategicTransferForTest(
+        tooManyLenses as never,
+        transport,
+      ),
+    "model_egress_payload_oversize",
+  );
+
+  const tooManySources = structuredClone(input);
+  tooManySources.source_catalog.items = Array.from(
+    {
+      length:
+        STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.sourceCatalogItems +
+        1,
+    },
+    (_, index) => ({
+      ...input.source_catalog.items[0]!,
+      source_key: `source:${index.toString(16).padStart(24, "0")}`,
+    }),
+  );
+  await expectBlocked(
+    "strategic_advantage_transfer",
+    (transport) =>
+      buildOpenAIStrategicTransferForTest(tooManySources, transport),
+    "model_egress_payload_oversize",
+  );
+}
+
 async function runProviderErrorCases() {
   await expectProviderError((transport) =>
     invokeObserveAdapterForTest(
@@ -540,6 +610,10 @@ async function runProviderErrorCases() {
   );
   await expectProviderError((transport) =>
     buildOpenAITemporalPreviewForTest(makeTemporalContext(), transport),
+  );
+  const strategicInput = strategicModelInputFixtureV01();
+  await expectProviderError((transport) =>
+    buildOpenAIStrategicTransferForTest(strategicInput, transport),
   );
 }
 
@@ -602,6 +676,42 @@ async function buildOpenAITemporalPreviewForTest(
     model: result.model_identifier,
     preview: result.preview,
   };
+}
+
+async function buildOpenAIStrategicTransferForTest(
+  input: ReturnType<typeof strategicModelInputFixtureV01>,
+  transport: BoundedModelTransport,
+) {
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: { OPENAI_API_KEY: "test-only-placeholder" },
+    transport: async (request) => transport(request.body),
+  });
+  const session = await adapter.prepare(
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
+  assert.ok(session);
+  const result = await session.invoke(
+    {
+      canonical_project_id: OBSERVE_PROJECT_ID,
+      ...input,
+    },
+    adapterLifecycle(
+      STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.finalRequestBytes,
+      2_048,
+    ),
+  );
+  assert.equal(
+    result.purpose,
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+  );
+  if (
+    result.purpose !==
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    throw new Error("unexpected purpose");
+  }
+  return result.output;
 }
 
 function adapterLifecycle(maxInputBytes: number, maxOutputTokens: number) {
@@ -961,4 +1071,8 @@ function plannerProviderOutput() {
 
 assert.equal(OBSERVE_MODEL_EGRESS_LIMITS.finalRequestBytes, 98_304);
 assert.equal(PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes, 98_304);
+assert.equal(
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.finalRequestBytes,
+  81_920,
+);
 assert.equal(TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes, 65_536);
