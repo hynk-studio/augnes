@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 
 import {
   buildContextUseReviewV01,
+  deriveContextUseReviewPresentationProvenanceV01,
   validateContextUseReviewRelationsV01,
   validateContextUseReviewV01,
 } from "@/lib/vnext/context-use-review";
@@ -41,8 +42,10 @@ import { inspectVNextOperatorPilotPacketLineageV01 } from "@/lib/vnext/runtime/o
 import {
   CONTEXT_USE_REVIEW_ACTUALLY_USED_VALUES_V01,
   CONTEXT_USE_REVIEW_ASSESSMENTS_V01,
+  CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
   type ContextUseReviewAssessmentV01,
   type ContextUseReviewActuallyUsedV01,
+  type ContextUseReviewUsageProvenanceV01,
   type ContextUseReviewV01,
 } from "@/types/vnext/context-use-review";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -141,6 +144,7 @@ export function recordVNextOperatorPilotContextUseReviewV01(
         request,
         session_id: admission.session.session_id,
         reviewed_at: stored.reviewed_at,
+        include_usage_provenance: stored.usage_provenance !== undefined,
       });
       assertVNextCoreRecordMatchesProtocolPayloadBindingV01(existing, {
         workspace_id: stored.workspace_id,
@@ -200,12 +204,16 @@ function materializeReview(input: {
   request: VNextOperatorPilotContextUseReviewRequestV01;
   session_id: string;
   reviewed_at: string;
+  include_usage_provenance?: boolean;
 }): ContextUseReviewV01 {
   const identity = identityMaterial(input.config, input.source);
   const logicalIdentity =
     createVNextOperatorPilotContextUseReviewLogicalIdentityV01(identity);
+  const presentation = deriveContextUseReviewPresentationProvenanceV01(
+    input.source.later_receipt,
+  );
   const usage = {
-    presented: derivePresentation(input.source.later_receipt),
+    presented: presentation.presented,
     actually_used: input.request.actually_used,
   } as const;
   const requestMaterial = {
@@ -264,8 +272,17 @@ function materializeReview(input: {
     compatibility_namespace:
       VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_NAMESPACE_V01,
   };
+  const usageProvenance =
+    deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+      receipt: input.source.later_receipt,
+      actually_used: input.request.actually_used,
+      request_ref: requestRef,
+    });
   return buildContextUseReviewV01({
     ...requestMaterial,
+    ...(input.include_usage_provenance === false
+      ? {}
+      : { usage_provenance: usageProvenance }),
     reviewer_ref: reviewerRef,
     reviewer_authentication_basis_refs: [basisRef],
     reviewed_at: input.reviewed_at,
@@ -276,7 +293,8 @@ function materializeReview(input: {
       ],
       unmapped_fields: [],
       warnings: [
-        "Presented status is derived only from an exact passed packet-delivery check; actual use and usefulness remain operator declarations.",
+        "Presented status and provenance are derived only from the exact passed packet-delivery relation.",
+        "The current RunReceipt contract has no explicit actual-context-use relation; actual use and usefulness remain operator declarations, while receipt trust counts remain task-wide residue.",
       ],
       external_refs: [requestRef],
     },
@@ -284,6 +302,28 @@ function materializeReview(input: {
       "This review cannot create a proposal, decision, Transition, state change, packet, policy change, or automatic correction.",
     ],
   });
+}
+
+export function deriveVNextOperatorPilotContextUseUsageProvenanceV01(input: {
+  receipt: RunReceiptV01;
+  actually_used: ContextUseReviewActuallyUsedV01;
+  request_ref: ExternalRefV01;
+}): ContextUseReviewUsageProvenanceV01 {
+  const presentation = deriveContextUseReviewPresentationProvenanceV01(
+    input.receipt,
+  );
+  return {
+    provenance_version: CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
+    presented: presentation.provenance,
+    actually_used:
+      input.actually_used === "unknown"
+        ? { basis: "unknown", source_refs: [] }
+        : { basis: "user_declaration", source_refs: [input.request_ref] },
+    assessment: {
+      basis: "user_declaration",
+      source_refs: [input.request_ref],
+    },
+  };
 }
 
 function identityMaterial(
@@ -448,17 +488,6 @@ function loadPacket(
     throw reviewError("operator_pilot_context_use_packet_envelope_invalid", 422);
   }
   return packet;
-}
-
-function derivePresentation(receipt: RunReceiptV01): "yes" | "unknown" {
-  return receipt.checks.some(
-    (check) =>
-      (check.check_id === "deterministic_packet_delivery" ||
-        check.check_id === "validated_packet_delivery") &&
-      check.status === "passed",
-  )
-    ? "yes"
-    : "unknown";
 }
 
 function parseRequest(value: unknown): VNextOperatorPilotContextUseReviewRequestV01 {

@@ -52,6 +52,10 @@ import {
   type VNextOperatorPilotCandidateAdmissionV01,
   type VNextOperatorPilotCurrentStateStatusV01,
 } from "@/lib/vnext/runtime/operator-pilot-policy";
+import {
+  OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+  evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01,
+} from "@/lib/vnext/runtime/operator-pilot-revision-compatibility";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
   EpisodeDeltaProposalDeltaCandidateV01,
@@ -1326,6 +1330,22 @@ function assertOperationAwareRevisionRelation(
   );
   if (!sourceCandidate || !revisedCandidate) {
     throw reviewError("operator_pilot_revision_candidate_relation_conflict", 409);
+  }
+  const compatibility =
+    evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01({
+      source_proposal: source,
+      source_candidate: sourceCandidate,
+      revised_delta_type: revisedCandidate.delta_type,
+      revised_target_refs: revisedCandidate.target_refs,
+    });
+  if (
+    compatibility.status === "incompatible" ||
+    revision.selected_delta_type !== revisedCandidate.delta_type
+  ) {
+    throw reviewError(
+      OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+      409,
+    );
   }
 
   const authorBasis =

@@ -6,6 +6,8 @@ import { TASK_CONTEXT_PACKET_VERSION_V01 } from "./task-context-packet";
 export const CONTEXT_USE_REVIEW_VERSION_V01 = "context_use_review.v0.1" as const;
 export const CONTEXT_USE_REVIEW_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
+export const CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01 =
+  "context_use_review_usage_provenance.v0.1" as const;
 
 export const CONTEXT_USE_REVIEW_PRESENTED_VALUES_V01 = [
   "yes",
@@ -26,6 +28,15 @@ export const CONTEXT_USE_REVIEW_ASSESSMENTS_V01 = [
   "noisy",
   "not_applicable",
 ] as const;
+export const CONTEXT_USE_REVIEW_USAGE_PROVENANCE_BASES_V01 = [
+  "direct_local_observation",
+  "verified_external_observation",
+  "host_attestation",
+  "provider_report",
+  "user_declaration",
+  "mixed",
+  "unknown",
+] as const;
 
 export type ContextUseReviewPresentedV01 =
   (typeof CONTEXT_USE_REVIEW_PRESENTED_VALUES_V01)[number];
@@ -33,6 +44,8 @@ export type ContextUseReviewActuallyUsedV01 =
   (typeof CONTEXT_USE_REVIEW_ACTUALLY_USED_VALUES_V01)[number];
 export type ContextUseReviewAssessmentV01 =
   (typeof CONTEXT_USE_REVIEW_ASSESSMENTS_V01)[number];
+export type ContextUseReviewUsageProvenanceBasisV01 =
+  (typeof CONTEXT_USE_REVIEW_USAGE_PROVENANCE_BASES_V01)[number];
 
 export interface ContextUseReviewPacketBindingV01 {
   packet_version: typeof TASK_CONTEXT_PACKET_VERSION_V01;
@@ -55,6 +68,21 @@ export interface ContextUseReviewRunReceiptBindingV01 {
 export interface ContextUseReviewUsageV01 {
   presented: ContextUseReviewPresentedV01;
   actually_used: ContextUseReviewActuallyUsedV01;
+}
+
+export interface ContextUseReviewUsageProvenanceLaneV01 {
+  basis: ContextUseReviewUsageProvenanceBasisV01;
+  source_refs: ExternalRefV01[];
+}
+
+export interface ContextUseReviewUsageProvenanceV01 {
+  provenance_version: typeof CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01;
+  presented: ContextUseReviewUsageProvenanceLaneV01;
+  actually_used: ContextUseReviewUsageProvenanceLaneV01;
+  assessment: {
+    basis: "user_declaration";
+    source_refs: ExternalRefV01[];
+  };
 }
 
 export interface ContextUseReviewCorrectionsV01 {
@@ -135,6 +163,11 @@ export interface ContextUseReviewV01 {
   reviewer_authentication_basis_refs: ExternalRefV01[];
   reviewed_at: string;
   usage: ContextUseReviewUsageV01;
+  /**
+   * Additive source classification for usage fields. Historical v0.1 reviews
+   * omit this field and remain readable; new production reviews include it.
+   */
+  usage_provenance?: ContextUseReviewUsageProvenanceV01;
   assessment: ContextUseReviewAssessmentV01;
   corrections: ContextUseReviewCorrectionsV01;
   metrics: ContextUseReviewMetricsV01;

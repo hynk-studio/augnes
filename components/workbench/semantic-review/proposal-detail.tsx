@@ -277,6 +277,7 @@ export function SemanticReviewProposalDetail({
                   <OperationAwareRevisionForm
                     proposalId={proposal.proposal_id}
                     proposalFingerprint={proposal.integrity.fingerprint}
+                    sourceAssessment={proposal.source_assessment}
                     candidateRead={candidateRead}
                     busy={busyCandidateId !== null}
                     onSubmit={onRevision}
@@ -450,21 +451,26 @@ export function SemanticReviewProposalDetail({
             <h2 id="context-use-feedback-title">ContextUseReview</h2>
           </div>
           <p className={styles.copy}>
-            A real later RunReceipt exists for the compiled packet. Presented, actual
-            use, and usefulness remain separate classifications.
+            A real later RunReceipt exists for the compiled packet. Packet presentation,
+            user-declared actual use, and usefulness remain separate classifications.
+            The counts below are task-wide later-receipt residue, not support for the
+            actual-use classification.
           </p>
           <dl className={styles.statusGrid}>
-            <div><dt>Later receipt direct observations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.direct_observations}</dd></div>
-            <div><dt>Verified external observations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.verified_external_observations}</dd></div>
-            <div><dt>Host attestations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.host_attestations}</dd></div>
-            <div><dt>Provider reports</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.provider_reports}</dd></div>
+            <div><dt>Task-wide direct observations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.direct_observations}</dd></div>
+            <div><dt>Task-wide verified external observations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.verified_external_observations}</dd></div>
+            <div><dt>Task-wide host attestations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.host_attestations}</dd></div>
+            <div><dt>Task-wide provider reports</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.provider_reports}</dd></div>
           </dl>
           {read.project_continuity.latest_context_use_review_status?.later_task_run_receipt_id ===
           read.project_continuity.latest_context_use_receipt.receipt_id ? (
             <dl className={styles.statusGrid}>
               <div><dt>Presented</dt><dd>{read.project_continuity.latest_context_use_review_status.presented}</dd></div>
+              <div><dt>Presentation basis</dt><dd>{read.project_continuity.latest_context_use_review_status.presentation_basis ?? "not recorded (historical)"}</dd></div>
               <div><dt>Assessment</dt><dd>{read.project_continuity.latest_context_use_review_status.assessment}</dd></div>
-              <div><dt>Actually used</dt><dd>{read.project_continuity.latest_context_use_review_status.actually_used}</dd></div>
+              <div><dt>Usefulness basis</dt><dd>{read.project_continuity.latest_context_use_review_status.assessment_basis ?? "not recorded (historical)"}</dd></div>
+              <div><dt>User-declared actually used</dt><dd>{read.project_continuity.latest_context_use_review_status.actually_used}</dd></div>
+              <div><dt>Actual-use basis</dt><dd>{read.project_continuity.latest_context_use_review_status.actually_used_basis ?? "not recorded (historical)"}</dd></div>
               <div><dt>Reviewed</dt><dd>{read.project_continuity.latest_context_use_review_status.reviewed_at}</dd></div>
               <div><dt>Authority</dt><dd>non-authoritative feedback</dd></div>
             </dl>

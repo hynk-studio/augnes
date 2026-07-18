@@ -1748,8 +1748,17 @@ async function main() {
       const candidate = form?.closest('[data-vnext-candidate-id]');
       const decisionForm = candidate?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
       const accept = decisionForm?.querySelector('option[value="accept"]');
+      const lockedLane = form?.querySelector('[data-vnext-server-selected-delta-lane="validation_delta"]');
+      const validationTarget = form?.querySelector('[data-vnext-validation-state-target="criterion_assessment_item"]');
       return {
         revision_form_present: Boolean(form),
+        lane_is_server_selected: Boolean(lockedLane),
+        unrestricted_lane_selector_absent:
+          !Array.from(form?.querySelectorAll('select') ?? []).some((select) =>
+            Array.from(select.options).some((option) => option.value === 'memory_delta')
+          ),
+        criterion_target_label_visible:
+          (validationTarget?.textContent ?? '').includes(${JSON.stringify(packet.task.success_criteria[0] ?? "")}),
         original_accept_eligible: candidate?.getAttribute('data-vnext-candidate-accept-eligible'),
         original_accept_disabled: accept instanceof HTMLOptionElement ? accept.disabled : null,
         internal_identifier_inputs: form?.querySelectorAll('input[name*="id" i], input[name*="fingerprint" i], input[name*="nonce" i], input[name*="gate" i], input[name*="checksum" i]').length ?? -1,
@@ -1757,6 +1766,9 @@ async function main() {
     })()`);
     assert.deepEqual(originalOperationShape, {
       revision_form_present: true,
+      lane_is_server_selected: true,
+      unrestricted_lane_selector_absent: true,
+      criterion_target_label_visible: true,
       original_accept_eligible: "false",
       original_accept_disabled: true,
       internal_identifier_inputs: 0,

@@ -37,6 +37,10 @@ import {
   type VNextOperatorPilotReviewDetailV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import { readVNextOperatorPilotCanonicalTargetStateV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
+import {
+  OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+  evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01,
+} from "@/lib/vnext/runtime/operator-pilot-revision-compatibility";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import {
   EPISODE_DELTA_PROPOSAL_DELTA_TYPES_V01,
@@ -255,6 +259,19 @@ function resolveSourceMaterial(
   }
   if (candidateRead.candidate_fingerprint !== request.candidate_fingerprint) {
     throw revisionError("operator_pilot_revision_candidate_conflict", 409);
+  }
+  const compatibility =
+    evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01({
+      source_proposal: detail.proposal,
+      source_candidate: candidateRead.candidate,
+      revised_delta_type: request.delta_type,
+      revised_target_refs: candidateRead.candidate.target_refs,
+    });
+  if (compatibility.status === "incompatible") {
+    throw revisionError(
+      OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+      409,
+    );
   }
   const targetStates = candidateRead.candidate.target_refs.map((targetRef) =>
     request.operation === "add"

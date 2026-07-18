@@ -42,6 +42,10 @@ import {
   deriveEpisodeDeltaProposalIdV01,
 } from "../lib/vnext/episode-delta-proposal";
 import {
+  createContextUseReviewFingerprintV01,
+  deriveContextUseReviewIdV01,
+} from "../lib/vnext/context-use-review";
+import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
@@ -123,6 +127,7 @@ import {
   type VNextLocalOperatorSecretSourceV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
+import { deriveVNextOperatorPilotContextUseUsageProvenanceV01 } from "../lib/vnext/runtime/operator-pilot-context-use-review";
 import {
   VNextOperatorPilotReviewErrorV01,
   createVNextOperatorPilotDecisionRequestFingerprintV01,
@@ -143,6 +148,7 @@ import {
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
+import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
@@ -2022,6 +2028,31 @@ async function assertR6CProductionVerticalV01(input: {
     "operator_pilot_revision_title_invalid",
     "proposal_revision_oversized_edit_refused",
   );
+  const incompatibleDeltaTypes = [
+    "research_delta",
+    "memory_delta",
+    "perspective_delta",
+    "artifact_delta",
+    "code_delta",
+    "world_state_delta",
+    "agent_plan_delta",
+    "user_decision_delta",
+    "coordination_delta",
+  ] as const;
+  for (const deltaType of incompatibleDeltaTypes) {
+    await expectRouteError(
+      await input.review_handlers.POST(
+        routeRequest("/api/vnext/operator/semantic-review", {
+          method: "POST",
+          jar: input.jar,
+          body: { ...revisionRequest, delta_type: deltaType },
+        }),
+      ),
+      409,
+      "operator_pilot_revision_delta_target_incompatible",
+      `criterion_target_${deltaType}_refused`,
+    );
+  }
   const revisionResponse = await input.review_handlers.POST(
     routeRequest("/api/vnext/operator/semantic-review", {
       method: "POST",
@@ -2034,6 +2065,10 @@ async function assertR6CProductionVerticalV01(input: {
   input.jar.absorb(revisionResponse);
   const revisionProposal = revisionBody.proposal as EpisodeDeltaProposalV01;
   assert.equal(revisionProposal.status, "pending_review");
+  assert.equal(
+    revisionProposal.operation_revision?.selected_delta_type,
+    "validation_delta",
+  );
   assert.equal(revisionProposal.operation_revision?.selected_operation, "add");
   assert.equal(
     revisionProposal.operation_revision?.source.proposal_id,
@@ -2060,6 +2095,10 @@ async function assertR6CProductionVerticalV01(input: {
   assert.equal(sourceAfterRevision.proposal.operation_revision, undefined);
   pass("immutable_operation_aware_revision_preserves_source_proposal");
   await assertOperationRevisionImmutableMaterialConflictOnCloneV01({
+    environment: input.environment,
+    proposal: revisionProposal,
+  });
+  await assertOperationRevisionDeltaTargetConflictOnCloneV01({
     environment: input.environment,
     proposal: revisionProposal,
   });
@@ -2316,13 +2355,109 @@ async function assertR6CProductionVerticalV01(input: {
   const feedbackBody = await publicJson(feedbackResponse);
   assert.equal(feedbackResponse.status, 201, JSON.stringify(feedbackBody));
   input.jar.absorb(feedbackResponse);
-  const feedbackReview = feedbackBody.review as {
-    usage: { presented: string; actually_used: string };
-    assessment: string;
-  };
+  const feedbackReview = feedbackBody.review as ContextUseReviewV01;
   assert.equal(feedbackReview.usage.presented, "yes");
   assert.equal(feedbackReview.usage.actually_used, "yes");
   assert.equal(feedbackReview.assessment, "helpful");
+  assert.equal(
+    feedbackReview.usage_provenance?.presented.basis,
+    "direct_local_observation",
+  );
+  assert.deepEqual(
+    feedbackReview.usage_provenance?.presented.source_refs,
+    laterRun.receipt.checks.find(
+      (check) => check.check_id === "deterministic_packet_delivery",
+    )?.source_refs,
+  );
+  assert.equal(
+    feedbackReview.usage_provenance?.actually_used.basis,
+    "user_declaration",
+  );
+  assert.equal(
+    feedbackReview.usage_provenance?.assessment.basis,
+    "user_declaration",
+  );
+  const requestRef = feedbackReview.compatibility.external_refs[0]!;
+  for (const actuallyUsed of ["yes", "partial", "no"] as const) {
+    const provenance =
+      deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+        receipt: laterRun.receipt,
+        actually_used: actuallyUsed,
+        request_ref: requestRef,
+      });
+    assert.equal(provenance.actually_used.basis, "user_declaration");
+    assert.deepEqual(provenance.actually_used.source_refs, [requestRef]);
+  }
+  const unknownProvenance =
+    deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+      receipt: laterRun.receipt,
+      actually_used: "unknown",
+      request_ref: requestRef,
+    });
+  assert.equal(unknownProvenance.actually_used.basis, "unknown");
+  assert.deepEqual(unknownProvenance.actually_used.source_refs, []);
+  const unrelatedResidue = structuredClone(laterRun.receipt);
+  unrelatedResidue.trust_summary.direct_observations += 100;
+  unrelatedResidue.trust_summary.host_attestations += 100;
+  unrelatedResidue.trust_summary.provider_reports += 100;
+  unrelatedResidue.observations.push({
+    observation_id: "unrelated:direct-observation",
+    observation_kind: "unrelated_task_residue",
+    summary: "Unrelated direct task observation.",
+    event_at: laterRun.receipt.recorded_at,
+    observed_at: laterRun.receipt.recorded_at,
+    observer_ref: laterRun.receipt.reporter_ref,
+    trust_class: "direct_local_observation",
+    source_refs: [laterRun.receipt.reporter_ref],
+    related_command_ids: [],
+    related_check_ids: [],
+    related_artifact_refs: [],
+  });
+  unrelatedResidue.attestations.push(
+    {
+      attestation_id: "unrelated:host-attestation",
+      attestation_kind: "unrelated_task_residue",
+      summary: "Unrelated host task attestation.",
+      reported_at: laterRun.receipt.recorded_at,
+      reporter_ref: {
+        ...laterRun.receipt.reporter_ref,
+        external_id: "unrelated-host",
+        trust_class: "host_attestation",
+      },
+      trust_class: "host_attestation",
+      source_refs: [],
+      subject_refs: [],
+    },
+    {
+      attestation_id: "unrelated:provider-report",
+      attestation_kind: "unrelated_task_residue",
+      summary: "Unrelated provider task report.",
+      reported_at: laterRun.receipt.recorded_at,
+      reporter_ref: {
+        ...laterRun.receipt.reporter_ref,
+        external_id: "unrelated-provider",
+        trust_class: "provider_report",
+      },
+      trust_class: "provider_report",
+      source_refs: [],
+      subject_refs: [],
+    },
+  );
+  const unrelatedResidueProvenance =
+    deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+      receipt: unrelatedResidue,
+      actually_used: "yes",
+      request_ref: requestRef,
+    });
+  assert.equal(
+    unrelatedResidueProvenance.actually_used.basis,
+    "user_declaration",
+  );
+  pass("context_use_review_usage_provenance_remains_source_truthful");
+  await assertContextUseReviewProvenanceConflictOnCloneV01({
+    environment: input.environment,
+    review: feedbackReview,
+  });
   assert.equal(feedbackBody.semantic_state_changed, false);
   assert.equal(feedbackBody.transition_created, false);
   assert.equal(feedbackBody.packet_created, false);
@@ -2368,11 +2503,26 @@ async function assertR6CProductionVerticalV01(input: {
     latest_context_use_review_status: {
       review_id: string;
       actually_used: string;
+      actually_used_basis: string | null;
+      presentation_basis: string | null;
+      assessment_basis: string | null;
       assessment: string;
     } | null;
   };
   assert.equal(continuity.latest_context_use_review_status?.assessment, "helpful");
   assert.equal(continuity.latest_context_use_review_status?.actually_used, "yes");
+  assert.equal(
+    continuity.latest_context_use_review_status?.actually_used_basis,
+    "user_declaration",
+  );
+  assert.equal(
+    continuity.latest_context_use_review_status?.presentation_basis,
+    "direct_local_observation",
+  );
+  assert.equal(
+    continuity.latest_context_use_review_status?.assessment_basis,
+    "user_declaration",
+  );
   pass("workbench_continuity_reads_context_use_feedback_lineage");
   return { later_packet: laterPacket };
 }
@@ -2723,6 +2873,115 @@ async function assertOperationRevisionImmutableMaterialConflictOnCloneV01(
     },
   );
   reject("proposal_revision_recomputed_forgery_refused_on_readback");
+}
+
+async function assertOperationRevisionDeltaTargetConflictOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  proposal: EpisodeDeltaProposalV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "r6-c-operation-revision-delta-target-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const forged = structuredClone(input.proposal);
+        const revision = forged.operation_revision!;
+        const revisedCandidate = forged.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id === revision.revised_candidate.candidate_id,
+        )!;
+        revisedCandidate.delta_type = "memory_delta";
+        revision.selected_delta_type = "memory_delta";
+        revision.revised_candidate.candidate_fingerprint =
+          createEpisodeDeltaCandidateFingerprintV01(revisedCandidate);
+        forged.proposal_id = deriveEpisodeDeltaProposalIdV01(forged);
+        forged.integrity.fingerprint =
+          createEpisodeDeltaProposalFingerprintV01(forged);
+        db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+        db.prepare(
+          `UPDATE vnext_core_records
+           SET record_id = ?, fingerprint = ?, payload_json = ?
+           WHERE record_kind = 'episode_delta_proposal'
+             AND record_id = ?`,
+        ).run(
+          forged.proposal_id,
+          forged.integrity.fingerprint,
+          canonicalizeProtocolValueV01(forged),
+          input.proposal.proposal_id,
+        );
+        db.exec(`
+          CREATE TRIGGER trg_vnext_core_records_immutable_update
+            BEFORE UPDATE ON vnext_core_records
+            BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+        `);
+        assert.throws(
+          () =>
+            readVNextOperatorPilotSemanticReviewV01(db, {
+              config,
+              proposal_id: forged.proposal_id,
+              authenticated_session_id: null,
+            }),
+          (error) =>
+            error instanceof VNextOperatorPilotReviewErrorV01 &&
+            error.code ===
+              "operator_pilot_revision_delta_target_incompatible",
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  reject("proposal_revision_incompatible_lane_recomputed_forgery_refused");
+}
+
+async function assertContextUseReviewProvenanceConflictOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  review: ContextUseReviewV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "r6-c-context-use-provenance-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const forged = structuredClone(input.review);
+        forged.usage_provenance!.actually_used.source_refs[0]!.observed_at =
+          "2026-07-11T09:28:01.000Z";
+        forged.review_id = deriveContextUseReviewIdV01(forged);
+        forged.integrity.fingerprint =
+          createContextUseReviewFingerprintV01(forged);
+        db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+        db.prepare(
+          `UPDATE vnext_core_records
+           SET record_id = ?, fingerprint = ?, payload_json = ?
+           WHERE record_kind = 'context_use_review'
+             AND record_id = ?`,
+        ).run(
+          forged.review_id,
+          forged.integrity.fingerprint,
+          canonicalizeProtocolValueV01(forged),
+          input.review.review_id,
+        );
+        db.exec(`
+          CREATE TRIGGER trg_vnext_core_records_immutable_update
+            BEFORE UPDATE ON vnext_core_records
+            BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+        `);
+        assert.throws(
+          () =>
+            projectVNextOperatorPilotContinuityV01(db, {
+              config,
+              clock: { now: () => "2026-07-11T09:28:02.000Z" },
+            }),
+          /operator_pilot_context_use_review_usage_provenance_invalid/,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  reject("context_use_review_changed_provenance_conflict_refused");
 }
 
 async function assertAtomicTransitionPacketRollbackOnCloneV01(input: {

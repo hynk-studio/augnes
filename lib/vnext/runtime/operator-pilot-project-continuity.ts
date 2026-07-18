@@ -20,6 +20,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import {
+  deriveContextUseReviewPresentationProvenanceV01,
   validateContextUseReviewRelationsV01,
   validateContextUseReviewV01,
 } from "@/lib/vnext/context-use-review";
@@ -55,7 +56,10 @@ import {
   type VNextLocalRuntimeClockV01,
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
-import type { ContextUseReviewV01 } from "@/types/vnext/context-use-review";
+import {
+  CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
+  type ContextUseReviewV01,
+} from "@/types/vnext/context-use-review";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
@@ -124,8 +128,17 @@ export interface VNextOperatorPilotProjectContinuityV01 {
     review_fingerprint: string;
     reviewed_at: string;
     presented: ContextUseReviewV01["usage"]["presented"];
+    presentation_basis: NonNullable<
+      ContextUseReviewV01["usage_provenance"]
+    >["presented"]["basis"] | null;
     actually_used: ContextUseReviewV01["usage"]["actually_used"];
+    actually_used_basis: NonNullable<
+      ContextUseReviewV01["usage_provenance"]
+    >["actually_used"]["basis"] | null;
     assessment: ContextUseReviewV01["assessment"];
+    assessment_basis: NonNullable<
+      ContextUseReviewV01["usage_provenance"]
+    >["assessment"]["basis"] | null;
     later_task_run_receipt_id: string;
     later_task_run_receipt_fingerprint: string;
   } | null;
@@ -288,8 +301,14 @@ export function projectVNextOperatorPilotContinuityV01(
           review_fingerprint: latestContextUseReview.integrity.fingerprint,
           reviewed_at: latestContextUseReview.reviewed_at,
           presented: latestContextUseReview.usage.presented,
+          presentation_basis:
+            latestContextUseReview.usage_provenance?.presented.basis ?? null,
           actually_used: latestContextUseReview.usage.actually_used,
+          actually_used_basis:
+            latestContextUseReview.usage_provenance?.actually_used.basis ?? null,
           assessment: latestContextUseReview.assessment,
+          assessment_basis:
+            latestContextUseReview.usage_provenance?.assessment.basis ?? null,
           later_task_run_receipt_id:
             latestContextUseReview.later_task_run_receipt.receipt_id,
           later_task_run_receipt_fingerprint:
@@ -943,6 +962,35 @@ function loadContextUseReviews(
         "operator_pilot_context_use_review_relation_invalid",
         422,
       );
+    }
+    if (review.usage_provenance) {
+      const presentation = deriveContextUseReviewPresentationProvenanceV01(
+        matchingReceipts[0]!,
+      );
+      const expectedUsageProvenance = {
+        provenance_version: CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
+        presented: presentation.provenance,
+        actually_used:
+          review.usage.actually_used === "unknown"
+            ? { basis: "unknown" as const, source_refs: [] }
+            : {
+                basis: "user_declaration" as const,
+                source_refs: [expectedRequestRef],
+              },
+        assessment: {
+          basis: "user_declaration" as const,
+          source_refs: [expectedRequestRef],
+        },
+      };
+      if (
+        canonicalizeProtocolValueV01(review.usage_provenance) !==
+        canonicalizeProtocolValueV01(expectedUsageProvenance)
+      ) {
+        throw continuityError(
+          "operator_pilot_context_use_review_usage_provenance_invalid",
+          422,
+        );
+      }
     }
     return review;
   });

@@ -52,7 +52,7 @@ export function ContextUseReviewForm({
   return (
     <form className={styles.form} data-vnext-context-use-review-form="v0.1" onSubmit={submit}>
       <label>
-        Actual later-context use
+        User-declared later-context use
         <select value={actuallyUsed} onChange={(event) => setActuallyUsed(event.target.value as typeof actuallyUsed)}>
           <option value="unknown">Unknown</option>
           <option value="yes">Yes</option>
@@ -84,6 +84,8 @@ export function ContextUseReviewForm({
       ) : null}
       <p className={styles.notice}>
         Packet presentation is derived server-side from the real later receipt. This
+        form records actual use and usefulness as user declarations; receipt-wide
+        trust counts do not upgrade them to observation or attestation. This
         declaration creates no proposal, decision, Transition, semantic state, policy,
         Perspective, memory, or packet.
       </p>

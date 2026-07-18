@@ -7,6 +7,7 @@ import type {
   SemanticReviewCandidateReadV01,
   SemanticReviewRevisionRequestV01,
 } from "./semantic-review-types";
+import type { EpisodeDeltaProposalSourceAssessmentV01 } from "@/types/vnext/episode-delta-proposal";
 import styles from "./semantic-review.module.css";
 
 const DELTA_TYPES = [
@@ -25,12 +26,14 @@ const DELTA_TYPES = [
 export function OperationAwareRevisionForm({
   proposalId,
   proposalFingerprint,
+  sourceAssessment,
   candidateRead,
   busy,
   onSubmit,
 }: {
   proposalId: string;
   proposalFingerprint: string;
+  sourceAssessment: EpisodeDeltaProposalSourceAssessmentV01 | undefined;
   candidateRead: SemanticReviewCandidateReadV01;
   busy: boolean;
   onSubmit: (request: SemanticReviewRevisionRequestV01) => Promise<void>;
@@ -39,6 +42,24 @@ export function OperationAwareRevisionForm({
   const defaultOperation = targetState === "absent" ? "add" : "revise";
   const mayResolvePresentTarget =
     targetState === "present" || targetState === "drifted";
+  const criterionValidationProfile =
+    sourceAssessment?.admission_profile === "run_assessment_proposal.v0.1" &&
+    candidateRead.candidate.delta_type === "validation_delta" &&
+    candidateRead.candidate.target_refs.length > 0 &&
+    candidateRead.candidate.target_refs.every(
+      (ref) => ref.ref_type === "criterion_assessment_item",
+    );
+  const criterionLabels = criterionValidationProfile
+    ? candidateRead.candidate.target_refs.map((target) => {
+        const criterion = sourceAssessment.assessment.criteria.find(
+          (item) => item.criterion_id === target.external_id,
+        );
+        return {
+          id: target.external_id,
+          label: criterion?.criterion ?? "Bound criterion validation state",
+        };
+      })
+    : [];
   const [operation, setOperation] = useState<
     SemanticReviewRevisionRequestV01["operation"]
   >(defaultOperation);
@@ -66,7 +87,7 @@ export function OperationAwareRevisionForm({
       proposal_fingerprint: proposalFingerprint,
       candidate_id: candidateRead.candidate.candidate_id,
       candidate_fingerprint: candidateRead.candidate_fingerprint,
-      delta_type: deltaType,
+      delta_type: criterionValidationProfile ? "validation_delta" : deltaType,
       operation,
       title: title.trim(),
       proposed_state_summary: stateSummary.trim(),
@@ -105,17 +126,34 @@ export function OperationAwareRevisionForm({
       </label>
       <label>
         Delta lane
-        <select
-          value={deltaType}
-          onChange={(event) =>
-            setDeltaType(
-              event.target.value as SemanticReviewRevisionRequestV01["delta_type"],
-            )
-          }
-        >
-          {DELTA_TYPES.map((value) => <option key={value}>{value}</option>)}
-        </select>
+        {criterionValidationProfile ? (
+          <span
+            className={styles.copy}
+            data-vnext-server-selected-delta-lane="validation_delta"
+          >
+            validation_delta (server-determined)
+          </span>
+        ) : (
+          <select
+            value={deltaType}
+            onChange={(event) =>
+              setDeltaType(
+                event.target.value as SemanticReviewRevisionRequestV01["delta_type"],
+              )
+            }
+          >
+            {DELTA_TYPES.map((value) => <option key={value}>{value}</option>)}
+          </select>
+        )}
       </label>
+      {criterionValidationProfile ? (
+        <div data-vnext-validation-state-target="criterion_assessment_item">
+          <strong>Validation-state target</strong>
+          {criterionLabels.map((criterion) => (
+            <p className={styles.copy} key={criterion.id}>{criterion.label}</p>
+          ))}
+        </div>
+      ) : null}
       <label>
         Candidate title
         <input maxLength={2000} value={title} onChange={(event) => setTitle(event.target.value)} />
