@@ -1184,6 +1184,12 @@ async function main() {
           panelText.includes('Working frame') &&
           panelText.includes('source catalog') &&
           panelText.includes('model invocation receipt'),
+        historical_budget_split:
+          panel?.querySelector('[data-vnext-strategic-historical-cost="true"]') !== null &&
+          panelText.includes('Historical invocation budget') &&
+          panelText.includes('Current new-invocation pricing') &&
+          panelText.includes('does not rewrite this proposal') &&
+          panelText.includes('semantic sources are stale'),
         non_authoritative:
           panel?.getAttribute('data-vnext-strategic-authoritative') === 'false' &&
           panel?.querySelector('[data-vnext-strategic-authority-boundary="true"]') !== null &&
@@ -1204,6 +1210,7 @@ async function main() {
       full_material: true,
       server_owned_support: true,
       lineage: true,
+      historical_budget_split: true,
       non_authoritative: true,
       arena_heading_count: 0,
       internal_input_count: 0,

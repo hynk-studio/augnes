@@ -76,6 +76,7 @@ import {
 import {
   buildModelGatewayCostAuthorityV01,
   buildModelGatewayCostBudgetV01,
+  ModelGatewayCostAuthorityErrorV01,
 } from "../lib/vnext/model-gateway/cost-authority";
 import {
   buildRunReceiptV01,
@@ -416,6 +417,10 @@ function strategicSmokeCostBudgetV01(
     pricing_expires_at?: string | null;
   } = {},
 ) {
+  const pricingExpiresAt =
+    options.pricing_expires_at === undefined
+      ? "2026-07-12T00:00:00.000Z"
+      : options.pricing_expires_at;
   const providerRef = {
     ref_version: "external_ref.v0.1" as const,
     ref_type: "model_provider",
@@ -442,7 +447,7 @@ function strategicSmokeCostBudgetV01(
     output_rate: { unit: "token", cost_per_unit: 16 },
     pricing_source_version: "operator_pilot_test_pricing.v0.1",
     pricing_effective_at: "2020-01-01T00:00:00.000Z",
-    pricing_expires_at: options.pricing_expires_at ?? null,
+    pricing_expires_at: pricingExpiresAt,
     project_model_policy_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01({
         policy: "operator_pilot_test_model_policy.v0.1",
@@ -3995,6 +4000,255 @@ async function assertR6DProductionVerticalV01(input: {
   ]) {
     assert.equal(durableStrategicMaterial.includes(forbidden), false);
   }
+  const historicalReadRowsBefore = snapshotDurableRows(
+    input.config.database_path,
+  );
+  const historicalReadNonSessionRowsBefore = snapshotNonSessionRows(
+    input.config.database_path,
+  );
+  const historicalReadTransportCallsBefore = input.gateway.transport_calls();
+  const historicalUnavailableCostHandlers =
+    createVNextOperatorSemanticReviewHandlersV01({
+      environment: input.environment,
+      clock: input.clock,
+      secret_source: input.secret_source,
+      strategic_dependencies: {
+        read_model_capability: () => ({
+          status: "available",
+          summary:
+            "The deterministic model capability is available while current pricing is absent.",
+          verification: "trusted_local_status",
+        }),
+        read_cost_budget: () => null,
+      },
+    });
+  const historicalUnavailableCostResponse =
+    await historicalUnavailableCostHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar: input.jar,
+        query: { proposal_id: strategicProposal.proposal_id },
+      }),
+    );
+  const historicalUnavailableCostBody = await publicJson(
+    historicalUnavailableCostResponse,
+  );
+  assert.equal(
+    historicalUnavailableCostResponse.status,
+    200,
+    JSON.stringify(historicalUnavailableCostBody),
+  );
+  const historicalUnavailableCostRead =
+    historicalUnavailableCostBody.proposal as VNextOperatorPilotReviewDetailV01;
+  assert.equal(historicalUnavailableCostRead.strategic_analysis.status, "available");
+  assert.equal(
+    historicalUnavailableCostRead.strategic_analysis.analysis_identity,
+    profile.analysis_identity,
+  );
+  assert.deepEqual(
+    historicalUnavailableCostRead.strategic_analysis.budget.model.cost,
+    profile.budget.model.cost,
+  );
+  assert.deepEqual(
+    historicalUnavailableCostRead.strategic_analysis.current_cost_availability,
+    {
+      status: "unavailable",
+      reason: "cost_authority_unavailable",
+    },
+  );
+  pass("strategic_historical_budget_readback_ignores_missing_current_pricing");
+
+  const currentCostBudgetB = strategicSmokeCostBudgetV01(input.config, {
+    maximum_permitted_cost: 98_305,
+    pricing_expires_at: null,
+  });
+  const historicalBudgetBHandlers = createVNextOperatorSemanticReviewHandlersV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secret_source,
+    strategic_dependencies: {
+      read_model_capability: () => ({
+        status: "available",
+        summary:
+          "A distinct current cost budget is available for new-analysis eligibility.",
+        verification: "trusted_local_status",
+      }),
+      read_cost_budget: () => currentCostBudgetB,
+    },
+  });
+  const historicalBudgetBResponse = await historicalBudgetBHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar: input.jar,
+      query: { proposal_id: strategicProposal.proposal_id },
+    }),
+  );
+  const historicalBudgetBBody = await publicJson(historicalBudgetBResponse);
+  assert.equal(
+    historicalBudgetBResponse.status,
+    200,
+    JSON.stringify(historicalBudgetBBody),
+  );
+  const historicalBudgetBRead =
+    historicalBudgetBBody.proposal as VNextOperatorPilotReviewDetailV01;
+  assert.equal(historicalBudgetBRead.strategic_analysis.status, "available");
+  assert.deepEqual(
+    historicalBudgetBRead.strategic_analysis.budget.model.cost,
+    profile.budget.model.cost,
+  );
+  assert.deepEqual(
+    historicalBudgetBRead.strategic_analysis.current_cost_availability,
+    { status: "available", budget: currentCostBudgetB },
+  );
+  const sourceBudgetBResponse = await historicalBudgetBHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar: input.jar,
+      query: { proposal_id: sourceDetail.proposal.proposal_id },
+    }),
+  );
+  const sourceBudgetBBody = await publicJson(sourceBudgetBResponse);
+  assert.equal(sourceBudgetBResponse.status, 200, JSON.stringify(sourceBudgetBBody));
+  const sourceBudgetBRead =
+    sourceBudgetBBody.proposal as VNextOperatorPilotReviewDetailV01;
+  assert.equal(
+    sourceBudgetBRead.strategic_analysis.reason,
+    "strategic_advantage_transfer_distinct_analysis_conflict",
+  );
+  assert.notEqual(
+    sourceBudgetBRead.strategic_analysis.analysis_identity,
+    profile.analysis_identity,
+  );
+  assert.deepEqual(
+    sourceBudgetBRead.strategic_analysis.budget.model.cost,
+    { status: "available", budget: currentCostBudgetB },
+  );
+  pass("strategic_current_budget_identity_does_not_reinterpret_history");
+
+  assert.equal(
+    profile.budget.model.cost.budget.authority.pricing_expires_at,
+    "2026-07-12T00:00:00.000Z",
+  );
+  const expiredHistoricalPricingDb = openVNextLocalOperatorDatabaseV01(
+    input.config,
+  );
+  try {
+    const expiredHistoricalPricingRead =
+      readVNextOperatorPilotSemanticReviewV01(expiredHistoricalPricingDb, {
+        config: input.config,
+        proposal_id: strategicProposal.proposal_id,
+        authenticated_session_id: null,
+        strategic_cost_availability: {
+          status: "unavailable",
+          reason: "pricing_stale",
+        },
+      });
+    assert.equal(
+      expiredHistoricalPricingRead.strategic_analysis.status,
+      "available",
+    );
+    assert.deepEqual(
+      expiredHistoricalPricingRead.strategic_analysis
+        .current_cost_availability,
+      { status: "unavailable", reason: "pricing_stale" },
+    );
+  } finally {
+    expiredHistoricalPricingDb.close();
+  }
+  pass("strategic_historical_budget_expiry_does_not_make_sources_stale");
+
+  for (const readCostFailure of [
+    {
+      code: "model_gateway_cost_authority_invalid",
+      reason: "cost_authority_invalid",
+    },
+    {
+      code: "model_gateway_pricing_stale",
+      reason: "pricing_stale",
+    },
+    {
+      code: "model_gateway_cost_route_conflict",
+      reason: "cost_binding_conflict",
+    },
+    {
+      code: "model_gateway_cost_binding_conflict",
+      reason: "cost_binding_conflict",
+    },
+    {
+      code: "model_gateway_cost_budget_exceeded",
+      reason: "cost_budget_exceeded",
+    },
+  ] as const) {
+    const handlers = createVNextOperatorSemanticReviewHandlersV01({
+      environment: input.environment,
+      clock: input.clock,
+      secret_source: input.secret_source,
+      strategic_dependencies: {
+        read_model_capability: () => ({
+          status: "available",
+          summary: "Pricing failure containment test capability.",
+          verification: "trusted_local_status",
+        }),
+        read_cost_budget: () => {
+          throw new ModelGatewayCostAuthorityErrorV01(readCostFailure.code);
+        },
+      },
+    });
+    const sourceResponse = await handlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar: input.jar,
+        query: { proposal_id: sourceDetail.proposal.proposal_id },
+      }),
+    );
+    const sourceBody = await publicJson(sourceResponse);
+    assert.equal(sourceResponse.status, 200, JSON.stringify(sourceBody));
+    const sourceRead = sourceBody.proposal as VNextOperatorPilotReviewDetailV01;
+    assert.equal(sourceRead.strategic_analysis.status, "unavailable");
+    assert.equal(sourceRead.strategic_analysis.reason, readCostFailure.reason);
+    const historicalResponse = await handlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar: input.jar,
+        query: { proposal_id: strategicProposal.proposal_id },
+      }),
+    );
+    const historicalBody = await publicJson(historicalResponse);
+    assert.equal(
+      historicalResponse.status,
+      200,
+      JSON.stringify(historicalBody),
+    );
+    const historicalRead =
+      historicalBody.proposal as VNextOperatorPilotReviewDetailV01;
+    assert.equal(historicalRead.strategic_analysis.status, "available");
+    assert.deepEqual(
+      historicalRead.strategic_analysis.current_cost_availability,
+      { status: "unavailable", reason: readCostFailure.reason },
+    );
+    const listResponse = await handlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar: input.jar,
+      }),
+    );
+    assert.equal(listResponse.status, 200, JSON.stringify(await publicJson(listResponse)));
+  }
+  assert.equal(input.gateway.transport_calls(), historicalReadTransportCallsBefore);
+  assert.deepEqual(
+    snapshotDurableRows(input.config.database_path),
+    historicalReadRowsBefore,
+  );
+  assert.deepEqual(
+    snapshotNonSessionRows(input.config.database_path),
+    historicalReadNonSessionRowsBefore,
+  );
+  pass("strategic_read_side_cost_failures_are_bounded_and_write_free");
+
+  await assertStrategicHistoricalBudgetTamperingRefusedOnClonesV01({
+    environment: input.environment,
+    proposal: strategicProposal,
+  });
   const forgedSettledProposal = structuredClone(strategicProposal);
   const forgedProfile = forgedSettledProposal.strategic_advantage_transfer;
   assert(forgedProfile);
@@ -4017,7 +4271,10 @@ async function assertR6DProductionVerticalV01(input: {
         readVNextOperatorStrategicAdvantageTransferV01(forgedReadbackDb, {
           config: input.config,
           proposal: forgedSettledProposal,
-          cost_budget: strategicCostBudget,
+          current_cost_availability: {
+            status: "available",
+            budget: strategicCostBudget,
+          },
           model_capability: {
             status: "available",
             summary: "Deterministic fake R4 transport remains available.",
@@ -4099,7 +4356,10 @@ async function assertR6DProductionVerticalV01(input: {
           readVNextOperatorStrategicAdvantageTransferV01(conflictDb, {
             config: input.config,
             proposal: forged,
-            cost_budget: strategicCostBudget,
+            current_cost_availability: {
+              status: "available",
+              budget: strategicCostBudget,
+            },
             model_capability: {
               status: "available",
               summary: "Deterministic fake R4 transport remains available.",
@@ -4141,7 +4401,10 @@ async function assertR6DProductionVerticalV01(input: {
         readVNextOperatorStrategicAdvantageTransferV01(adverseConflictDb, {
           config: input.config,
           proposal: forgedWithoutAdverseContext,
-          cost_budget: strategicCostBudget,
+          current_cost_availability: {
+            status: "available",
+            budget: strategicCostBudget,
+          },
           model_capability: {
             status: "available",
             summary: "Deterministic fake R4 transport remains available.",
@@ -4166,7 +4429,10 @@ async function assertR6DProductionVerticalV01(input: {
           project_id: FOREIGN_PROJECT_ID,
         },
         proposal: strategicProposal,
-        cost_budget: strategicCostBudget,
+        current_cost_availability: {
+          status: "available",
+          budget: strategicCostBudget,
+        },
         model_capability: {
           status: "available",
           summary: "Deterministic fake R4 transport remains available.",
@@ -4206,7 +4472,10 @@ async function assertR6DProductionVerticalV01(input: {
           {
             config,
             proposal: strategicProposal,
-            cost_budget: strategicCostBudget,
+            current_cost_availability: {
+              status: "available",
+              budget: strategicCostBudget,
+            },
             model_capability: {
               status: "available",
               summary: "Deterministic fake R4 transport remains available.",
@@ -4352,6 +4621,54 @@ async function assertR6DProductionVerticalV01(input: {
         revisionReadBody.proposal as VNextOperatorPilotReviewDetailV01;
       assert.equal(revisionRead.proposal_id, revision.proposal_id);
       assert.equal(revisionRead.strategic_analysis.status, "available");
+      const revisionHistoricalBudget = revision.strategic_advantage_transfer;
+      assert(revisionHistoricalBudget);
+      const revisionNoCurrentCostHandlers =
+        createVNextOperatorSemanticReviewHandlersV01({
+          environment,
+          clock: input.clock,
+          secret_source: input.secret_source,
+          strategic_dependencies: {
+            read_model_capability: () => ({
+              status: "available",
+              summary:
+                "Historical revision readback remains available without current pricing.",
+              verification: "trusted_local_status",
+            }),
+            read_cost_budget: () => null,
+          },
+        });
+      const revisionNoCurrentCostResponse =
+        await revisionNoCurrentCostHandlers.GET(
+          routeRequest("/api/vnext/operator/semantic-review", {
+            method: "GET",
+            jar,
+            query: { proposal_id: revision.proposal_id },
+          }),
+        );
+      const revisionNoCurrentCostBody = await publicJson(
+        revisionNoCurrentCostResponse,
+      );
+      assert.equal(
+        revisionNoCurrentCostResponse.status,
+        200,
+        JSON.stringify(revisionNoCurrentCostBody),
+      );
+      const revisionNoCurrentCostRead =
+        revisionNoCurrentCostBody.proposal as VNextOperatorPilotReviewDetailV01;
+      assert.equal(
+        revisionNoCurrentCostRead.strategic_analysis.status,
+        "available",
+      );
+      assert.deepEqual(
+        revisionNoCurrentCostRead.strategic_analysis.budget.model.cost,
+        revisionHistoricalBudget.budget.model.cost,
+      );
+      assert.deepEqual(
+        revisionNoCurrentCostRead.strategic_analysis
+          .current_cost_availability,
+        { status: "unavailable", reason: "cost_authority_unavailable" },
+      );
       const replayResponse = await handlers.POST(
         routeRequest("/api/vnext/operator/semantic-review", {
           method: "POST",
@@ -4953,6 +5270,123 @@ async function assertOperationRevisionImmutableMaterialConflictOnCloneV01(input:
     },
   );
   reject("proposal_revision_recomputed_forgery_refused_on_readback");
+}
+
+async function assertStrategicHistoricalBudgetTamperingRefusedOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  proposal: EpisodeDeltaProposalV01;
+}): Promise<void> {
+  const cases: Array<{
+    label: string;
+    mutate: (proposal: EpisodeDeltaProposalV01) => void;
+  }> = [
+    {
+      label: "pricing-fingerprint",
+      mutate: (proposal) => {
+        const profile = proposal.strategic_advantage_transfer!;
+        assert.equal(profile.budget.model.cost.status, "available");
+        profile.budget.model.cost.budget.authority.pricing_fingerprint =
+          `sha256:${"0".repeat(64)}`;
+      },
+    },
+    {
+      label: "resolved-route",
+      mutate: (proposal) => {
+        const profile = proposal.strategic_advantage_transfer!;
+        assert.equal(profile.budget.model.cost.status, "available");
+        profile.budget.model.cost.budget.authority.model_ref.external_id =
+          "forged-historical-model-route";
+      },
+    },
+    {
+      label: "ceiling",
+      mutate: (proposal) => {
+        const profile = proposal.strategic_advantage_transfer!;
+        assert.equal(profile.budget.model.cost.status, "available");
+        profile.budget.model.cost.budget.maximum_permitted_cost += 1;
+      },
+    },
+    {
+      label: "worst-case-calculation",
+      mutate: (proposal) => {
+        const profile = proposal.strategic_advantage_transfer!;
+        assert.equal(profile.budget.model.cost.status, "available");
+        profile.budget.model.cost.budget.calculated_worst_case_cost += 1;
+      },
+    },
+    {
+      label: "project-policy-fingerprint",
+      mutate: (proposal) => {
+        const profile = proposal.strategic_advantage_transfer!;
+        assert.equal(profile.budget.model.cost.status, "available");
+        profile.budget.model.cost.budget.authority.project_model_policy_fingerprint =
+          `sha256:${"1".repeat(64)}`;
+      },
+    },
+    {
+      label: "invocation-receipt-cost-budget",
+      mutate: (proposal) => {
+        const profile = proposal.strategic_advantage_transfer!;
+        const receiptBudget = profile.model_invocation.receipt.budget.cost_budget;
+        assert(receiptBudget);
+        receiptBudget.maximum_permitted_cost += 1;
+      },
+    },
+  ];
+
+  for (const testCase of cases) {
+    await withOperatorDatabaseCloneV01(
+      `r6d-historical-budget-${testCase.label}`,
+      input.environment,
+      async ({ config }) => {
+        const forged = structuredClone(input.proposal);
+        assert(forged.strategic_advantage_transfer);
+        testCase.mutate(forged);
+        forged.proposal_id = deriveEpisodeDeltaProposalIdV01(forged);
+        forged.integrity.fingerprint =
+          createEpisodeDeltaProposalFingerprintV01(forged);
+
+        const db = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+          const updated = db.prepare(
+            `UPDATE vnext_core_records
+             SET record_id = ?, fingerprint = ?, payload_json = ?
+             WHERE record_kind = 'episode_delta_proposal'
+               AND record_id = ?`,
+          ).run(
+            forged.proposal_id,
+            forged.integrity.fingerprint,
+            canonicalizeProtocolValueV01(forged),
+            input.proposal.proposal_id,
+          );
+          assert.equal(updated.changes, 1);
+          db.exec(`
+            CREATE TRIGGER trg_vnext_core_records_immutable_update
+              BEFORE UPDATE ON vnext_core_records
+              BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+          `);
+          assert.throws(
+            () =>
+              readVNextOperatorPilotSemanticReviewV01(db, {
+                config,
+                proposal_id: forged.proposal_id,
+                authenticated_session_id: null,
+              }),
+            (error) =>
+              error instanceof VNextOperatorPilotReviewErrorV01 &&
+              [
+                "operator_pilot_proposal_invalid",
+                "operator_pilot_proposal_envelope_mismatch",
+              ].includes(error.code),
+          );
+        } finally {
+          db.close();
+        }
+      },
+    );
+  }
+  reject("strategic_historical_budget_tampering_refused_on_readback");
 }
 
 async function assertOperationRevisionDeltaTargetConflictOnCloneV01(input: {

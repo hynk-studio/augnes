@@ -13,7 +13,10 @@ import {
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
 } from "@/lib/vnext/runtime/local-operator-session";
-import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
+import {
+  readVNextLocalRuntimeClockNowV01,
+  type VNextLocalRuntimeClockV01,
+} from "@/lib/vnext/runtime/local-runtime-clock";
 import {
   VNextOperatorPilotReviewErrorV01,
   listVNextOperatorPilotSemanticReviewsV01,
@@ -31,6 +34,7 @@ import {
 import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   VNextOperatorStrategicAdvantageTransferErrorV01,
+  resolveVNextOperatorStrategicCostAvailabilityV01,
   requestVNextOperatorStrategicAdvantageTransferV01,
   type VNextOperatorStrategicAdvantageTransferDependenciesV01,
 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
@@ -87,18 +91,24 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       const modelCapability =
         options.strategic_dependencies?.read_model_capability?.() ??
         readDefaultModelGatewayLocalCapabilityV01();
-      const costBudget =
-        options.strategic_dependencies?.read_cost_budget?.({
+      const strategicCostAvailability =
+        resolveVNextOperatorStrategicCostAvailabilityV01({
           workspace_id: config.workspace_id,
           project_id: config.project_id,
-        }) ?? null;
+          evaluated_at: readVNextLocalRuntimeClockNowV01(
+            options.clock,
+            "operator_semantic_review_strategic_cost",
+          ),
+          read_cost_budget:
+            options.strategic_dependencies?.read_cost_budget,
+        });
       if (proposalId) {
         const proposal = readVNextOperatorPilotSemanticReviewV01(db, {
           config,
           proposal_id: proposalId,
           authenticated_session_id: authentication.session.session_id,
           model_capability: modelCapability,
-          cost_budget: costBudget,
+          strategic_cost_availability: strategicCostAvailability,
         });
         return jsonResponse({
           ok: true,
@@ -138,7 +148,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           config,
           authenticated_session_id: authentication.session.session_id,
           model_capability: modelCapability,
-          cost_budget: costBudget,
+          strategic_cost_availability: strategicCostAvailability,
         }),
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",

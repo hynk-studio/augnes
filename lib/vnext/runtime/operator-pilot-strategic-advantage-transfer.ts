@@ -68,7 +68,10 @@ import {
   type StrategicAdvantageTransferModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
-import { ModelGatewayCostAuthorityErrorV01 } from "@/lib/vnext/model-gateway/cost-authority";
+import {
+  assertModelGatewayCostBudgetCurrentV01,
+  ModelGatewayCostAuthorityErrorV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import { materializeRunAssessmentProposalV01 } from "@/lib/vnext/run-assessment-proposal";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-decision";
@@ -151,12 +154,14 @@ export type VNextOperatorStrategicAdvantageTransferReadbackV01 =
   | {
       status: "eligible";
       reason: string | null;
+      analysis_identity: string;
       base_label: string;
       base_fingerprint: string;
       working_frame_fingerprint: string;
       source_catalog_fingerprint: string;
       lenses: typeof STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01;
       budget: ReturnType<typeof createStrategicAdvantageTransferBudgetV01>;
+      current_cost_availability: VNextOperatorStrategicCostAvailabilityV01;
       model_capability: ReturnType<
         typeof readDefaultModelGatewayLocalCapabilityV01
       >;
@@ -170,12 +175,14 @@ export type VNextOperatorStrategicAdvantageTransferReadbackV01 =
   | {
       status: "available";
       reason: null;
+      analysis_identity: string;
       base_label: string;
       base_fingerprint: string;
       working_frame_fingerprint: string;
       source_catalog_fingerprint: string;
       lenses: typeof STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01;
       budget: ReturnType<typeof createStrategicAdvantageTransferBudgetV01>;
+      current_cost_availability: VNextOperatorStrategicCostAvailabilityV01;
       model_capability: ReturnType<
         typeof readDefaultModelGatewayLocalCapabilityV01
       >;
@@ -192,12 +199,14 @@ export type VNextOperatorStrategicAdvantageTransferReadbackV01 =
   | {
       status: "ineligible" | "unavailable" | "stale";
       reason: string;
+      analysis_identity: string | null;
       base_label: string | null;
       base_fingerprint: string | null;
       working_frame_fingerprint: string | null;
       source_catalog_fingerprint: string | null;
       lenses: typeof STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01;
       budget: ReturnType<typeof createStrategicAdvantageTransferBudgetV01>;
+      current_cost_availability: VNextOperatorStrategicCostAvailabilityV01;
       model_capability: ReturnType<
         typeof readDefaultModelGatewayLocalCapabilityV01
       >;
@@ -287,6 +296,72 @@ export interface VNextOperatorStrategicAdvantageTransferDependenciesV01 {
   before_proposal_insert?: () => void;
 }
 
+export type VNextOperatorStrategicCostAvailabilityV01 =
+  | {
+      status: "available";
+      budget: ModelGatewayCostBudgetV01;
+    }
+  | {
+      status: "unavailable";
+      reason:
+        | "cost_authority_unavailable"
+        | "cost_authority_invalid"
+        | "pricing_stale"
+        | "cost_binding_conflict"
+        | "cost_budget_exceeded";
+    };
+
+export function resolveVNextOperatorStrategicCostAvailabilityV01(input: {
+  workspace_id: string;
+  project_id: string;
+  evaluated_at: string;
+  read_cost_budget?: VNextOperatorStrategicAdvantageTransferDependenciesV01["read_cost_budget"];
+}): VNextOperatorStrategicCostAvailabilityV01 {
+  if (!input.read_cost_budget) {
+    return {
+      status: "unavailable",
+      reason: "cost_authority_unavailable",
+    };
+  }
+  try {
+    const budget = input.read_cost_budget({
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+    });
+    if (!budget) {
+      return {
+        status: "unavailable",
+        reason: "cost_authority_unavailable",
+      };
+    }
+    const currentBudget = assertModelGatewayCostBudgetCurrentV01(
+      budget,
+      input.evaluated_at,
+    );
+    if (
+      currentBudget.authority.workspace_id !== input.workspace_id ||
+      currentBudget.authority.project_id !== input.project_id ||
+      currentBudget.authority.purpose !== "strategic_advantage_transfer"
+    ) {
+      throw new ModelGatewayCostAuthorityErrorV01(
+        "model_gateway_cost_binding_conflict",
+      );
+    }
+    return {
+      status: "available",
+      budget: currentBudget,
+    };
+  } catch (error) {
+    if (error instanceof ModelGatewayCostAuthorityErrorV01) {
+      return {
+        status: "unavailable",
+        reason: strategicReadCostFailureReasonV01(error.code),
+      };
+    }
+    throw error;
+  }
+}
+
 export function readVNextOperatorStrategicAdvantageTransferV01(
   db: Database.Database,
   input: {
@@ -295,37 +370,52 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
     model_capability?: ReturnType<
       typeof readDefaultModelGatewayLocalCapabilityV01
     >;
-    cost_budget?: ModelGatewayCostBudgetV01 | null;
+    current_cost_availability?: VNextOperatorStrategicCostAvailabilityV01;
   },
 ): VNextOperatorStrategicAdvantageTransferReadbackV01 {
   const capability =
     input.model_capability ?? readDefaultModelGatewayLocalCapabilityV01();
+  const currentCostAvailability =
+    input.current_cost_availability ?? unavailableStrategicCostV01();
   if (input.proposal.strategic_advantage_transfer) {
     try {
-      const profile = input.proposal.strategic_advantage_transfer;
+      const exactStrategicProposal =
+        resolveHistoricalStrategicProposalV01(db, input);
+      const profile = exactStrategicProposal.strategic_advantage_transfer;
+      if (!profile) {
+        throw strategicError(
+          "strategic_advantage_transfer_available_profile_missing",
+          409,
+        );
+      }
       const historicalCostBudget =
         profile.budget.model.cost.status === "available"
           ? profile.budget.model.cost.budget
-          : null;
+          : (() => {
+              throw strategicError(
+                "strategic_advantage_transfer_historical_cost_budget_missing",
+                409,
+              );
+            })();
       const sourceRecord = readVNextCoreRecordV01(db, {
         record_kind: "episode_delta_proposal",
-        record_id:
-          input.proposal.strategic_advantage_transfer.source_proposal
-            .proposal_id,
+        record_id: profile.source_proposal.proposal_id,
         workspace_id: input.config.workspace_id,
         project_id: input.config.project_id,
       });
       if (!sourceRecord) {
-        return unavailableReadback("stale", "source_proposal_missing", capability);
+        return unavailableReadback(
+          "stale",
+          "source_proposal_missing",
+          capability,
+          currentCostAvailability,
+        );
       }
       const prepared = prepareStrategicSource(db, {
         config: input.config,
         proposal_id: sourceRecord.record_id,
         proposal_fingerprint: sourceRecord.fingerprint,
-        cost_budget:
-          input.cost_budget === undefined
-            ? historicalCostBudget
-            : input.cost_budget,
+        cost_budget: historicalCostBudget,
       });
       if (
         prepared.identity.idempotency_key !==
@@ -343,47 +433,18 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
         prepared.source_catalog.source_catalog_fingerprint !==
           profile.source_catalog.source_catalog_fingerprint
       ) {
-        return unavailableReadback("stale", "stale_base", capability);
+        return unavailableReadback(
+          "stale",
+          "stale_base",
+          capability,
+          currentCostAvailability,
+        );
       }
       const expected = materializeStrategicAdvantageTransferProposalV01({
         ...prepared,
         model_output: profile.normalized_model_output,
         model_invocation_receipt: profile.model_invocation.receipt,
       });
-      let exactStrategicProposal = input.proposal;
-      if (input.proposal.operation_revision) {
-        const revisionSource = readVNextCoreRecordV01(db, {
-          record_kind: "episode_delta_proposal",
-          record_id: input.proposal.operation_revision.source.proposal_id,
-          workspace_id: input.config.workspace_id,
-          project_id: input.config.project_id,
-        });
-        if (
-          !revisionSource ||
-          revisionSource.fingerprint !==
-            input.proposal.operation_revision.source.proposal_fingerprint ||
-          validateEpisodeDeltaProposalV01(revisionSource.payload).status !==
-            "valid"
-        ) {
-          return unavailableReadback(
-            "stale",
-            "strategic_revision_source_missing_or_conflicted",
-            capability,
-          );
-        }
-        exactStrategicProposal =
-          revisionSource.payload as EpisodeDeltaProposalV01;
-        if (
-          canonicalizeProtocolValueV01(
-            exactStrategicProposal.strategic_advantage_transfer,
-          ) !== canonicalizeProtocolValueV01(profile)
-        ) {
-          throw strategicError(
-            "strategic_advantage_transfer_revision_profile_conflict",
-            409,
-          );
-        }
-      }
       if (
         canonicalizeProtocolValueV01(expected.proposal) !==
           canonicalizeProtocolValueV01(exactStrategicProposal)
@@ -393,13 +454,39 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
           409,
         );
       }
-      return availableReadback(prepared, capability, input.proposal);
+      const settlement = readStrategicSettlementV01(db, prepared);
+      if (
+        settlement.status !== "available" ||
+        settlement.proposal_id !== exactStrategicProposal.proposal_id ||
+        settlement.proposal_fingerprint !==
+          exactStrategicProposal.integrity.fingerprint ||
+        settlement.model_invocation_receipt_fingerprint !==
+          profile.model_invocation.receipt_fingerprint ||
+        settlement.normalized_output_fingerprint !==
+          profile.model_invocation.normalized_output_fingerprint
+      ) {
+        throw strategicError(
+          "strategic_advantage_transfer_settlement_conflict",
+          409,
+        );
+      }
+      return availableReadback(
+        prepared,
+        capability,
+        input.proposal,
+        currentCostAvailability,
+      );
     } catch (error) {
       if (
         error instanceof VNextOperatorStrategicAdvantageTransferErrorV01 &&
         isStaleError(error.code)
       ) {
-        return unavailableReadback("stale", error.code, capability);
+        return unavailableReadback(
+          "stale",
+          error.code,
+          capability,
+          currentCostAvailability,
+        );
       }
       if (
         error instanceof StrategicAdvantageTransferProtocolErrorV01 ||
@@ -410,6 +497,7 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
           "unavailable",
           error.code,
           capability,
+          currentCostAvailability,
         );
       }
       throw error;
@@ -420,6 +508,7 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
       "ineligible",
       "source_proposal_profile_unsupported",
       capability,
+      currentCostAvailability,
     );
   }
   let prepared: PreparedStrategicSourceV01;
@@ -428,35 +517,53 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
       config: input.config,
       proposal_id: input.proposal.proposal_id,
       proposal_fingerprint: input.proposal.integrity.fingerprint,
-      cost_budget: input.cost_budget ?? null,
+      cost_budget:
+        currentCostAvailability.status === "available"
+          ? currentCostAvailability.budget
+          : null,
     });
   } catch (error) {
     if (
       error instanceof VNextOperatorStrategicAdvantageTransferErrorV01 &&
       isCurrentBaseStaleError(error.code)
     ) {
-      return unavailableReadback("stale", error.code, capability);
+      return unavailableReadback(
+        "stale",
+        error.code,
+        capability,
+        currentCostAvailability,
+      );
     }
     if (
       error instanceof VNextOperatorStrategicAdvantageTransferErrorV01 &&
       isEligibilityError(error.code)
     ) {
-      return unavailableReadback("ineligible", error.code, capability);
+      return unavailableReadback(
+        "ineligible",
+        error.code,
+        capability,
+        currentCostAvailability,
+      );
     }
     if (
       error instanceof StrategicAdvantageTransferProtocolErrorV01 ||
       (error instanceof VNextOperatorStrategicAdvantageTransferErrorV01 &&
         isSourceMaterialUnavailableError(error.code))
     ) {
-      return unavailableReadback("unavailable", error.code, capability);
+      return unavailableReadback(
+        "unavailable",
+        error.code,
+        capability,
+        currentCostAvailability,
+      );
     }
     throw error;
   }
-  if (prepared.budget.model.cost.status !== "available") {
+  if (currentCostAvailability.status === "unavailable") {
     return {
-      ...eligibleFields(prepared, capability),
+      ...eligibleFields(prepared, capability, currentCostAvailability),
       status: "unavailable",
-      reason: "cost_authority_unavailable",
+      reason: currentCostAvailability.reason,
       existing_proposal: null,
     };
   }
@@ -478,7 +585,25 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
     ) {
       throw strategicError("strategic_advantage_transfer_material_conflict", 409);
     }
-    return availableReadback(prepared, capability, existing.proposal);
+    return availableReadback(
+      prepared,
+      capability,
+      existing.proposal,
+      currentCostAvailability,
+    );
+  }
+  const settledAnalysisIdentity = readBoundStrategicRunV01(db, prepared)
+    .metadata.strategic_advantage_transfer_analysis_identity;
+  if (
+    typeof settledAnalysisIdentity === "string" &&
+    settledAnalysisIdentity !== prepared.identity.analysis_identity
+  ) {
+    return {
+      ...eligibleFields(prepared, capability, currentCostAvailability),
+      status: "unavailable",
+      reason: "strategic_advantage_transfer_distinct_analysis_conflict",
+      existing_proposal: null,
+    };
   }
   const priorSettlement = readStrategicSettlementV01(db, prepared);
   if (
@@ -495,7 +620,7 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
           )
         : null;
     return {
-      ...eligibleFields(prepared, capability),
+      ...eligibleFields(prepared, capability, currentCostAvailability),
       status: "unavailable",
       reason:
         priorSettlement.status === "available"
@@ -541,7 +666,7 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
     activeSelection.project_id !== input.config.project_id
   ) {
     return {
-      ...eligibleFields(prepared, capability),
+      ...eligibleFields(prepared, capability, currentCostAvailability),
       status: "unavailable",
       reason: "active_project_conflict",
       existing_proposal: null,
@@ -552,7 +677,7 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
     !permitsStrategicProviderEgress(prepared.packet)
   ) {
     return {
-      ...eligibleFields(prepared, capability),
+      ...eligibleFields(prepared, capability, currentCostAvailability),
       status: "unavailable",
       reason: "model_egress_disallowed_for_packet_classification",
       existing_proposal: null,
@@ -560,14 +685,14 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
   }
   if (modelInvocationRequired && capability.status !== "available") {
     return {
-      ...eligibleFields(prepared, capability),
+      ...eligibleFields(prepared, capability, currentCostAvailability),
       status: "unavailable",
       reason: `model_${capability.status}`,
       existing_proposal: null,
     };
   }
   return {
-    ...eligibleFields(prepared, capability),
+    ...eligibleFields(prepared, capability, currentCostAvailability),
     status: "eligible",
     reason: retryReason,
     existing_proposal: null,
@@ -1189,6 +1314,68 @@ function readVerifiedStrategicProposalByIdentityV01(
     }
     throw error;
   }
+}
+
+function resolveHistoricalStrategicProposalV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    proposal: EpisodeDeltaProposalV01;
+  },
+): EpisodeDeltaProposalV01 {
+  let current = input.proposal;
+  const visited = new Set<string>();
+  while (current.operation_revision) {
+    if (visited.has(current.proposal_id)) {
+      throw strategicError(
+        "strategic_advantage_transfer_revision_lineage_conflict",
+        409,
+      );
+    }
+    visited.add(current.proposal_id);
+    const revision = current.operation_revision;
+    const sourceRecord = readVNextCoreRecordV01(db, {
+      record_kind: "episode_delta_proposal",
+      record_id: revision.source.proposal_id,
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+    });
+    if (
+      !sourceRecord ||
+      sourceRecord.fingerprint !== revision.source.proposal_fingerprint ||
+      validateEpisodeDeltaProposalV01(sourceRecord.payload).status !== "valid"
+    ) {
+      throw strategicError(
+        "strategic_revision_source_missing_or_conflicted",
+        409,
+      );
+    }
+    const source = sourceRecord.payload as EpisodeDeltaProposalV01;
+    assertVNextCoreRecordMatchesProtocolPayloadBindingV01(sourceRecord, {
+      workspace_id: source.workspace_id,
+      project_id: source.project_id,
+      fingerprint: source.integrity.fingerprint,
+    });
+    if (
+      source.proposal_id !== sourceRecord.record_id ||
+      source.created_at !== sourceRecord.created_at ||
+      canonicalizeProtocolValueV01(current.strategic_advantage_transfer) !==
+        canonicalizeProtocolValueV01(source.strategic_advantage_transfer)
+    ) {
+      throw strategicError(
+        "strategic_advantage_transfer_revision_profile_conflict",
+        409,
+      );
+    }
+    current = source;
+  }
+  if (!current.strategic_advantage_transfer) {
+    throw strategicError(
+      "strategic_advantage_transfer_available_profile_missing",
+      409,
+    );
+  }
+  return current;
 }
 
 function prepareStrategicSource(
@@ -2117,6 +2304,8 @@ type StrategicSettlementReadV01 =
       status: "available";
       proposal_id: string;
       proposal_fingerprint: string;
+      model_invocation_receipt_fingerprint: string;
+      normalized_output_fingerprint: string;
     };
 
 function readStrategicSettlementV01(
@@ -2326,6 +2515,8 @@ function readStrategicSettlementV01(
     status: "available",
     proposal_id: proposalId,
     proposal_fingerprint: proposalFingerprint,
+    model_invocation_receipt_fingerprint: receiptFingerprint,
+    normalized_output_fingerprint: outputFingerprint,
   };
 }
 
@@ -3031,9 +3222,11 @@ function modelAttemptReadbackV01(
 function eligibleFields(
   prepared: PreparedStrategicSourceV01,
   capability: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>,
+  currentCostAvailability: VNextOperatorStrategicCostAvailabilityV01,
 ) {
   return {
     base_label: prepared.base_strategy.bounded_summary,
+    analysis_identity: prepared.identity.analysis_identity,
     base_fingerprint: prepared.base_strategy.base_fingerprint,
     working_frame_fingerprint:
       prepared.working_frame.working_frame_fingerprint,
@@ -3041,6 +3234,7 @@ function eligibleFields(
       prepared.source_catalog.source_catalog_fingerprint,
     lenses: STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01,
     budget: structuredClone(prepared.budget),
+    current_cost_availability: structuredClone(currentCostAvailability),
     model_capability: capability,
     model_attempt_count: 0 as const,
     last_model_attempt: null,
@@ -3053,6 +3247,7 @@ function availableReadback(
   prepared: PreparedStrategicSourceV01,
   capability: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>,
   proposal: EpisodeDeltaProposalV01,
+  currentCostAvailability: VNextOperatorStrategicCostAvailabilityV01,
 ): VNextOperatorStrategicAdvantageTransferReadbackV01 {
   const profile = proposal.strategic_advantage_transfer;
   if (!profile) {
@@ -3071,7 +3266,7 @@ function availableReadback(
     );
   }
   return {
-    ...eligibleFields(prepared, capability),
+    ...eligibleFields(prepared, capability, currentCostAvailability),
     status: "available",
     reason: null,
     existing_proposal: {
@@ -3088,16 +3283,20 @@ function unavailableReadback(
   status: "ineligible" | "unavailable" | "stale",
   reason: string,
   capability: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>,
+  currentCostAvailability: VNextOperatorStrategicCostAvailabilityV01 =
+    unavailableStrategicCostV01(),
 ): VNextOperatorStrategicAdvantageTransferReadbackV01 {
   return {
     status,
     reason,
+    analysis_identity: null,
     base_label: null,
     base_fingerprint: null,
     working_frame_fingerprint: null,
     source_catalog_fingerprint: null,
     lenses: STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01,
     budget: createStrategicAdvantageTransferBudgetV01(),
+    current_cost_availability: structuredClone(currentCostAvailability),
     model_capability: capability,
     existing_proposal: null,
     model_attempt_count: 0,
@@ -3151,6 +3350,41 @@ function strategicCostFailureCodeV01(code: string): string {
     return "strategic_advantage_transfer_cost_binding_conflict";
   }
   return "strategic_advantage_transfer_cost_authority_unavailable";
+}
+
+function unavailableStrategicCostV01(): VNextOperatorStrategicCostAvailabilityV01 {
+  return {
+    status: "unavailable",
+    reason: "cost_authority_unavailable",
+  };
+}
+
+function strategicReadCostFailureReasonV01(
+  code: string,
+): Extract<
+  VNextOperatorStrategicCostAvailabilityV01,
+  { status: "unavailable" }
+>["reason"] {
+  if (code === "model_gateway_cost_budget_exceeded") {
+    return "cost_budget_exceeded";
+  }
+  if (code === "model_gateway_pricing_stale") {
+    return "pricing_stale";
+  }
+  if (
+    code === "model_gateway_cost_binding_conflict" ||
+    code === "model_gateway_cost_route_conflict" ||
+    code === "model_gateway_cost_calculation_invalid"
+  ) {
+    return "cost_binding_conflict";
+  }
+  if (
+    code === "model_gateway_cost_authority_invalid" ||
+    code === "model_gateway_cost_budget_invalid"
+  ) {
+    return "cost_authority_invalid";
+  }
+  return "cost_authority_unavailable";
 }
 
 function isStrategicFailureStatusV01(

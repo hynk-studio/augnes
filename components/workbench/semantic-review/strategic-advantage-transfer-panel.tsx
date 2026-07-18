@@ -104,6 +104,14 @@ function StrategicSourceAvailability({
           <dt>Preserved model attempts</dt>
           <dd>{readback.model_attempt_count}</dd>
         </div>
+        <div>
+          <dt>Current new-invocation pricing</dt>
+          <dd>
+            {readback.current_cost_availability.status === "available"
+              ? "available"
+              : humanizeCode(readback.current_cost_availability.reason)}
+          </dd>
+        </div>
       </dl>
       {readback.last_model_attempt ? (
         <section
@@ -180,8 +188,11 @@ function StrategicSourceAvailability({
             </>
           ) : (
             <span>
-              Strategic analysis is unavailable because the resolved model
-              route has no enforceable cost authority.
+              Strategic analysis is unavailable for a new invocation: {" "}
+              {readback.current_cost_availability.status === "unavailable"
+                ? humanizeCode(readback.current_cost_availability.reason)
+                : "cost authority unavailable"}
+              .
             </span>
           )}
           <p className={styles.muted}>
@@ -278,6 +289,47 @@ function StrategicProposalMaterial({
           <dd>unknown · human revision required</dd>
         </div>
       </dl>
+
+      <section
+        className={styles.materialCard}
+        data-vnext-strategic-historical-cost="true"
+      >
+        <h3>Historical invocation budget</h3>
+        {profile.budget.model.cost.status === "available" ? (
+          <>
+            <span>
+              Authorized maximum:{" "}
+              {profile.budget.model.cost.budget.maximum_permitted_cost}{" "}
+              {profile.budget.model.cost.budget.authority.cost_unit}
+            </span>
+            <span>
+              Calculated worst case:{" "}
+              {profile.budget.model.cost.budget.calculated_worst_case_cost}{" "}
+              {profile.budget.model.cost.budget.authority.cost_unit}
+            </span>
+            <span>
+              Pricing snapshot:{" "}
+              {
+                profile.budget.model.cost.budget.authority
+                  .pricing_source_version
+              }
+            </span>
+          </>
+        ) : (
+          <span>Historical cost authority is unavailable.</span>
+        )}
+        <span data-vnext-strategic-current-cost-availability="true">
+          Current new-invocation pricing:{" "}
+          {readback.current_cost_availability.status === "available"
+            ? "available"
+            : humanizeCode(readback.current_cost_availability.reason)}
+        </span>
+        <p className={styles.muted}>
+          The embedded budget is immutable authorization lineage for the
+          completed invocation. Current pricing availability does not rewrite
+          this proposal or determine whether its semantic sources are stale.
+        </p>
+      </section>
 
       {readback.status !== "available" ? (
         <p className={styles.notice} data-vnext-strategic-actionable="false">
