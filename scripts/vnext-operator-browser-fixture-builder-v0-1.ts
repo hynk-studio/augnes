@@ -424,10 +424,12 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
         method: "POST",
         jar,
         body: {
-          action: "commit",
+          action: "apply",
           ...decisionBinding,
           gate_record_id: gate.gate_record_id,
           gate_record_fingerprint: gate.integrity.fingerprint,
+          prior_packet_id: priorPacket.packet_id,
+          prior_packet_fingerprint: priorPacket.integrity.fingerprint,
         },
       }),
     );
@@ -439,29 +441,8 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
     jar.absorb(commitResponse);
     const transitionReceipt =
       commitBody.transition_receipt as StateTransitionReceiptV01;
-
-    clock.set(schedule.compile);
-    const compileResponse = await transitionHandlers.POST(
-      routeRequest("/api/vnext/operator/semantic-transition", {
-        method: "POST",
-        jar,
-        body: {
-          action: "compile",
-          transition_receipt_id: transitionReceipt.transition_receipt_id,
-          transition_receipt_fingerprint:
-            transitionReceipt.integrity.fingerprint,
-          prior_packet_id: priorPacket.packet_id,
-          prior_packet_fingerprint: priorPacket.integrity.fingerprint,
-        },
-      }),
-    );
-    const compileBody = await requireSuccess(
-      compileResponse,
-      201,
-      "fixture_packet_compile",
-    );
-    jar.absorb(compileResponse);
-    const laterPacket = compileBody.later_packet as TaskContextPacketV01;
+    const laterPacket = commitBody.later_packet as TaskContextPacketV01;
+    assert.equal(commitBody.packet_compiled, true);
     finalizeTransferredDatabase(databasePath, projectRoot, schedule.compile);
     const manifest: VNextOperatorBrowserFixtureManifestV01 = {
       fixture_version: VNEXT_OPERATOR_BROWSER_FIXTURE_VERSION_V01,

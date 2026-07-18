@@ -147,6 +147,14 @@ const result = {
   result_to_proposal_navigation: false,
   proposal_assessment_snapshot: false,
   proposal_review_narrow_viewport_no_overflow: false,
+  operation_aware_revision_created: false,
+  explicit_review_decision_created: false,
+  transition_preview_read_only: false,
+  semantic_gate_separate_from_transition: false,
+  semantic_transition_applied: false,
+  later_packet_compiled: false,
+  semantic_transition_reload_idempotent: false,
+  context_use_feedback_waits_for_real_later_run: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -1733,6 +1741,222 @@ async function main() {
     record("workbench_result_review_and_inspector_reload_from_immutable_durable_state");
     record("result_links_to_exact_pending_run_assessment_proposal_without_manual_ids");
     record("result_review_creates_no_proposal_decision_transition_evidence_or_work_closure");
+
+    const sourceProposalPath = await evaluateString("location.pathname");
+    const originalOperationShape = await evaluateJson(`(() => {
+      const form = document.querySelector('[data-vnext-operation-revision-form="v0.1"]');
+      const candidate = form?.closest('[data-vnext-candidate-id]');
+      const decisionForm = candidate?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
+      const accept = decisionForm?.querySelector('option[value="accept"]');
+      return {
+        revision_form_present: Boolean(form),
+        original_accept_eligible: candidate?.getAttribute('data-vnext-candidate-accept-eligible'),
+        original_accept_disabled: accept instanceof HTMLOptionElement ? accept.disabled : null,
+        internal_identifier_inputs: form?.querySelectorAll('input[name*="id" i], input[name*="fingerprint" i], input[name*="nonce" i], input[name*="gate" i], input[name*="checksum" i]').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(originalOperationShape, {
+      revision_form_present: true,
+      original_accept_eligible: "false",
+      original_accept_disabled: true,
+      internal_identifier_inputs: 0,
+    });
+    const beforeClosure = readDirectHostBrowserState(manifest.project_id);
+    await setFormControlValue(
+      '[data-vnext-operation-revision-form="v0.1"] textarea',
+      1,
+      "Create an explicit bounded validation-state operation while preserving the immutable unknown assessment.",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-vnext-operation-revision-form="v0.1"] button[type="submit"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname !== ${JSON.stringify(sourceProposalPath)} && document.querySelector('[data-vnext-operation-revision="v0.1"]') !== null`,
+      "immutable operation-aware revision detail",
+    );
+    const revisionPath = await evaluateString("location.pathname");
+    const afterRevision = readDirectHostBrowserState(manifest.project_id);
+    assert.deepEqual(afterRevision.semantic_authority_counts, {
+      ...beforeClosure.semantic_authority_counts,
+      proposals: beforeClosure.semantic_authority_counts.proposals + 1,
+    });
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-vnext-candidate-accept-eligible="true"] [data-vnext-operator-decision-form="v0.1"]') !== null`,
+      ),
+      true,
+    );
+    result.operation_aware_revision_created = true;
+    record("workbench_creates_immutable_operation_aware_revision_without_internal_ids");
+
+    const eligibleDecisionRoot =
+      '[data-vnext-candidate-accept-eligible="true"] [data-vnext-operator-decision-form="v0.1"]';
+    await setFormControlValue(`${eligibleDecisionRoot} select`, 0, "accept");
+    await setFormControlValue(
+      `${eligibleDecisionRoot} textarea`,
+      0,
+      "Accept this separately reviewable create operation; application remains subject to independent gate and state checks.",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector(${JSON.stringify(`${eligibleDecisionRoot} button[type="submit"]`)});
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-action="preview"]:not([disabled])') !== null && document.querySelector('[data-vnext-decision-history="v0.1"] li') !== null`,
+      "persisted explicit ReviewDecision",
+    );
+    const afterDecision = readDirectHostBrowserState(manifest.project_id);
+    assert.deepEqual(afterDecision.semantic_authority_counts, {
+      ...afterRevision.semantic_authority_counts,
+      decisions: afterRevision.semantic_authority_counts.decisions + 1,
+    });
+    result.explicit_review_decision_created = true;
+    record("workbench_records_explicit_decision_without_applying_transition");
+
+    const beforePreview = databaseSnapshot(database);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-vnext-transition-action="preview"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"][data-vnext-transition-preview-write="false"]') !== null`,
+      "read-only operation-aware transition preview",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforePreview);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const step = document.querySelector('[data-vnext-transition-step="preview"]');
+        const text = step?.textContent ?? '';
+        return text.includes('create') && text.includes('Before presence absent') && text.includes('Authorized after fingerprint');
+      })()`),
+      true,
+    );
+    result.transition_preview_read_only = true;
+
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const checkbox = document.querySelector('[data-vnext-transition-step="preview"] input[type="checkbox"]');
+        if (!(checkbox instanceof HTMLInputElement)) return false;
+        checkbox.click();
+        return checkbox.checked;
+      })()`),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-vnext-transition-action="confirm"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-step="confirmation"][data-vnext-transition-step-status="recorded"][data-vnext-transition-confirm-state-applied="false"] input[type="checkbox"]:not(:disabled)') !== null`,
+      "separate semantic gate confirmation",
+    );
+    const afterGate = readDirectHostBrowserState(manifest.project_id);
+    assert.deepEqual(afterGate.semantic_authority_counts, {
+      ...afterDecision.semantic_authority_counts,
+      commit_gates: afterDecision.semantic_authority_counts.commit_gates + 1,
+    });
+    result.semantic_gate_separate_from_transition = true;
+    record("semantic_gate_persists_without_transition_state_or_packet");
+
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const checkbox = document.querySelector('[data-vnext-transition-step="confirmation"] input[type="checkbox"]');
+        if (!(checkbox instanceof HTMLInputElement)) return false;
+        checkbox.click();
+        return checkbox.checked;
+      })()`),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-vnext-transition-action="apply"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-step="apply"][data-vnext-transition-step-status="applied"][data-vnext-transition-commit-packet-compiled="true"]') !== null && document.querySelector('[data-vnext-transition-step="later-packet"][data-vnext-transition-step-status="compiled"]') !== null`,
+      "atomic semantic Transition and later packet",
+    );
+    const appliedShape = await evaluateJson(`(() => {
+      const apply = document.querySelector('[data-vnext-transition-step="apply"]');
+      const packet = document.querySelector('[data-vnext-transition-step="later-packet"]');
+      const text = (apply?.textContent ?? '') + ' ' + (packet?.textContent ?? '');
+      return {
+        receipt_visible: text.includes('StateTransitionReceipt ID') && text.includes('Status') && text.includes('applied'),
+        create_effect_visible: text.includes('Before absent') && text.includes('After present'),
+        later_packet_visible: text.includes('Later packet ID') && text.includes('Accepted state refs'),
+        feedback_waiting_for_run: document.querySelector('[data-vnext-context-use-feedback="not_yet_available"]') !== null,
+      };
+    })()`);
+    assert.deepEqual(appliedShape, {
+      receipt_visible: true,
+      create_effect_visible: true,
+      later_packet_visible: true,
+      feedback_waiting_for_run: true,
+    });
+    const afterClosure = readDirectHostBrowserState(manifest.project_id);
+    assert.deepEqual(afterClosure.semantic_authority_counts, {
+      ...afterGate.semantic_authority_counts,
+      semantic_state: afterGate.semantic_authority_counts.semantic_state + 1,
+      transitions: afterGate.semantic_authority_counts.transitions + 1,
+      packets: afterGate.semantic_authority_counts.packets + 1,
+    });
+    result.semantic_transition_applied = true;
+    result.later_packet_compiled = true;
+    result.context_use_feedback_waits_for_real_later_run = true;
+    record("reviewed_create_transition_receipt_and_later_packet_apply_atomically");
+
+    await validateSemanticReviewViewports();
+    const beforeClosureReload = databaseSnapshot(database);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-vnext-durable-lineage="v0.1"][data-vnext-lineage-status="packet_compiled"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
+      "durable Transition and packet lineage after reload",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeClosureReload);
+    assert.deepEqual(
+      readDirectHostBrowserState(manifest.project_id).semantic_authority_counts,
+      afterClosure.semantic_authority_counts,
+    );
+    result.semantic_transition_reload_idempotent = true;
+    result.semantic_proposals_created =
+      afterClosure.semantic_authority_counts.proposals -
+      before.semantic_authority_counts.proposals;
+    result.review_decisions_created =
+      afterClosure.semantic_authority_counts.decisions -
+      before.semantic_authority_counts.decisions;
+    result.semantic_transitions_created =
+      afterClosure.semantic_authority_counts.transitions -
+      before.semantic_authority_counts.transitions;
+    assert.equal(result.semantic_proposals_created, 3);
+    assert.equal(result.review_decisions_created, 1);
+    assert.equal(result.semantic_transitions_created, 1);
+    assert.equal(result.internal_id_entry_actions, 0);
+    record("workbench_reload_reads_durable_lineage_without_duplicate_writes");
   });
 
   const unexpectedConsoleErrors = consoleErrors.filter(
@@ -1805,6 +2029,11 @@ async function main() {
       !(
         request.phase === "direct_host_round_trip" &&
         request.path === "/api/vnext/operator/host-round-trip"
+      ) &&
+      !(
+        request.phase === "direct_host_round_trip" &&
+        (request.path === "/api/vnext/operator/semantic-review" ||
+          request.path === "/api/vnext/operator/semantic-transition")
       ) &&
       !(
         request.phase === "retired_routes" &&
@@ -1970,6 +2199,24 @@ async function setBootstrapInput(token) {
     return true;
   })()`);
   assert.equal(changed, true);
+}
+
+async function setFormControlValue(selector, index, value) {
+  const changed = await evaluateBoolean(`(() => {
+    const control = Array.from(document.querySelectorAll(${JSON.stringify(selector)}))[${Number(index)}];
+    if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement || control instanceof HTMLSelectElement)) return false;
+    const prototype = control instanceof HTMLInputElement
+      ? HTMLInputElement.prototype
+      : control instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLSelectElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+    if (!setter) return false;
+    setter.call(control, ${JSON.stringify(value)});
+    control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(changed, true, `failed to set ${selector}[${index}]`);
 }
 
 async function validateProjectHomeViewports() {
@@ -2562,6 +2809,8 @@ function readDirectHostBrowserState(projectId) {
         decisions: coreCount("review_decision"),
         commit_gates: coreCount("semantic_commit_gate"),
         transitions: coreCount("state_transition_receipt"),
+        packets: coreCount("task_context_packet"),
+        context_use_reviews: coreCount("context_use_review"),
       },
       latest_receipt: directReceipts.at(-1) ?? null,
       packet: packetRow ? JSON.parse(packetRow.payload_json) : null,

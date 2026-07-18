@@ -492,16 +492,18 @@ function validateCommittedCallerBoundaryCoverage(): void {
   );
   const confirmBoundary = operatorRuntime.slice(
     operatorRuntime.indexOf("function parseConfirmRequest"),
-    operatorRuntime.indexOf("function parseCommitRequest"),
+    operatorRuntime.indexOf("function parseApplyRequest"),
   );
-  const commitBoundary = operatorRuntime.slice(
-    operatorRuntime.indexOf("function parseCommitRequest"),
-    operatorRuntime.indexOf("function parseCompileRequest"),
+  const applyBoundary = operatorRuntime.slice(
+    operatorRuntime.indexOf("function parseApplyRequest"),
+    operatorRuntime.indexOf("function parseAllowedObject"),
   );
   assert(!confirmBoundary.includes("preview_max_age_ms"));
   assert(!confirmBoundary.includes("gate_ttl_ms"));
-  assert(!commitBoundary.includes("preview_max_age_ms"));
-  assert(!commitBoundary.includes("gate_ttl_ms"));
+  assert(!applyBoundary.includes("preview_max_age_ms"));
+  assert(!applyBoundary.includes("gate_ttl_ms"));
+  assert(!operatorRuntime.includes("function parseCommitRequest"));
+  assert(!operatorRuntime.includes("function parseCompileRequest"));
   reject("caller_supplied_preview_max_age_field_rejected");
   reject("caller_supplied_gate_ttl_field_rejected");
 }

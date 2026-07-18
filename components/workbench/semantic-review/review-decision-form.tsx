@@ -72,7 +72,7 @@ export function ReviewDecisionForm({
         <option value="defer">Defer for later review</option>
         <option value="reject">Reject this candidate</option>
         <option value="accept" disabled={!acceptAllowed}>
-          Accept for one-target create intent
+          Accept for {candidateRead.pilot_admission.accept_operation ?? "eligible operation"} intent
         </option>
       </select>
 
@@ -122,8 +122,10 @@ export function ReviewDecisionForm({
       {!acceptAllowed ? (
         <p className={styles.muted}>
           Accept is unavailable under the real-pilot policy: this selected candidate
-          must have exactly one target and the local store must observe that target as
-          absent. Reject and defer remain available.
+          must declare an explicit add, revise, supersede, or retract operation whose
+          exact target state satisfies its current-state precondition. Unknown and
+          no-change candidates require a separate immutable operation-aware revision.
+          Reject and defer remain available.
         </p>
       ) : null}
 

@@ -92,7 +92,6 @@ const removedPaths = [
   "components/workbench/semantic-review/later-result-intake-panel.tsx",
   "components/workbench/semantic-review/context-use-review-panel.tsx",
   "lib/vnext/runtime/operator-pilot-later-result-intake.ts",
-  "lib/vnext/runtime/operator-pilot-context-use-review.ts",
   "lib/vnext/task-context-packet-handoff.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/dogfooding/codex-result-report-normalizer.ts",

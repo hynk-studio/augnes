@@ -130,6 +130,7 @@ export function readProposalForExactSourcePurposeV01(
       `SELECT record_id, workspace_id, project_id
        FROM vnext_core_records
        WHERE record_kind = 'episode_delta_proposal'
+         AND json_type(payload_json, '$.operation_revision') IS NULL
          AND json_extract(payload_json, '$.source_assessment.admission_profile') = ?
          AND json_extract(payload_json, '$.source_assessment.packet_ref.external_id') = ?
          AND json_extract(payload_json, '$.source_assessment.receipt_ref.external_id') = ?

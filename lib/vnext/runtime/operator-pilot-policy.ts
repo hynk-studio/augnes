@@ -48,7 +48,8 @@ export interface VNextOperatorPilotCandidateAdmissionV01 {
     reject: true;
     defer: true;
   };
-  accept_operation: "create" | null;
+  mapped_operation: "create" | "replace" | "supersede" | "retract" | null;
+  accept_operation: "create" | "replace" | "supersede" | "retract" | null;
   blocking_reasons: string[];
   policy_notes: string[];
 }
@@ -87,20 +88,46 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
     readTargetState(db, input.config, targetRef),
   );
   const blockingReasons: string[] = [];
-  if (input.candidate.target_refs.length !== 1) {
-    blockingReasons.push("pilot_accept_requires_one_target");
+  if (
+    input.candidate.target_refs.length === 0 ||
+    input.candidate.target_refs.length > 64
+  ) {
+    blockingReasons.push("pilot_accept_target_set_invalid");
   }
   if (targetStates.some((state) => state.presence === "drifted")) {
     blockingReasons.push("pilot_current_state_projection_drifted");
   }
-  if (targetStates.some((state) => state.presence === "present")) {
-    blockingReasons.push("pilot_accept_requires_observed_absent_state");
-  }
   const currentStateStatus = aggregateCurrentStateStatus(targetStates);
+  const acceptOperation = mapCandidateOperation(input.candidate.operation);
+  if (!acceptOperation) {
+    blockingReasons.push("pilot_candidate_operation_not_transitionable");
+  } else if (
+    acceptOperation === "create" &&
+    targetStates.some((state) => state.presence !== "absent")
+  ) {
+    blockingReasons.push("pilot_add_requires_observed_absent_state");
+  } else if (
+    acceptOperation !== "create" &&
+    targetStates.some((state) => state.presence !== "present")
+  ) {
+    blockingReasons.push(
+      acceptOperation === "replace"
+        ? "pilot_revise_requires_observed_present_state"
+        : acceptOperation === "supersede"
+          ? "pilot_supersede_requires_observed_present_state"
+          : "pilot_retract_requires_observed_present_state",
+    );
+  }
   const acceptAllowed =
-    input.candidate.target_refs.length === 1 &&
-    targetStates.length === 1 &&
-    targetStates[0]?.presence === "absent";
+    acceptOperation !== null &&
+    input.candidate.target_refs.length > 0 &&
+    input.candidate.target_refs.length <= 64 &&
+    targetStates.length === input.candidate.target_refs.length &&
+    targetStates.every((state) =>
+      acceptOperation === "create"
+        ? state.presence === "absent"
+        : state.presence === "present",
+    );
 
   return {
     policy_version: VNEXT_OPERATOR_PILOT_POLICY_VERSION_V01,
@@ -114,14 +141,35 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
       reject: true,
       defer: true,
     },
-    accept_operation: acceptAllowed ? "create" : null,
+    mapped_operation: acceptOperation,
+    accept_operation: acceptAllowed ? acceptOperation : null,
     blocking_reasons: [...new Set(blockingReasons)].sort(),
     policy_notes: [
-      "M3D product admission allows one selected candidate and one absent target for accept/create only.",
+      "R6-C admission maps explicit candidate add/revise/supersede/retract-or-remove operations to create/replace/supersede/retract effects.",
+      "Unknown and no-change candidates are never transitionable; an immutable operation-aware revision is required before accept.",
       "Reject and defer create no transition intent.",
       "Admission is a read-only policy result, not a decision, gate, or state transition.",
     ],
   };
+}
+
+function mapCandidateOperation(
+  operation: EpisodeDeltaProposalDeltaCandidateV01["operation"],
+): VNextOperatorPilotCandidateAdmissionV01["accept_operation"] {
+  switch (operation) {
+    case "add":
+      return "create";
+    case "revise":
+      return "replace";
+    case "supersede":
+      return "supersede";
+    case "retract":
+    case "remove":
+      return "retract";
+    case "no_change":
+    case "unknown":
+      return null;
+  }
 }
 
 function assertConfiguredProposal(
@@ -229,6 +277,45 @@ function readTargetState(
       projection?.source_transition_receipt_fingerprint ??
       null,
   };
+}
+
+/**
+ * Resolves the exact durable target currently occupying the same protocol
+ * identity as a source ref. A later run-assessment proposal carries fresh
+ * assessment provenance on its criterion ref, so that ref is deliberately
+ * reported as drifted by the ordinary admission projection after an earlier
+ * revision has established state. Operation-aware revision may select the
+ * canonical persisted target only after this second, full-lineage read proves
+ * that the stored projection and head are coherent.
+ */
+export function readVNextOperatorPilotCanonicalTargetStateV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    source_target_ref: ExternalRefV01;
+  },
+): VNextOperatorPilotTargetStateV01 {
+  const sourceState = readTargetState(
+    db,
+    input.config,
+    input.source_target_ref,
+  );
+  if (sourceState.presence !== "drifted") return sourceState;
+  const projection = readVNextSemanticStateEntryV01(db, {
+    workspace_id: input.config.workspace_id,
+    project_id: input.config.project_id,
+    target_key: sourceState.target_key,
+  });
+  if (!projection) return sourceState;
+  const canonicalState = readTargetState(
+    db,
+    input.config,
+    projection.target_ref,
+  );
+  return canonicalState.target_key === sourceState.target_key &&
+    canonicalState.presence === "present"
+    ? canonicalState
+    : sourceState;
 }
 
 function hasCoherentDurableTargetLineage(

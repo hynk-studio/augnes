@@ -9,9 +9,14 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
   canonicalizeProtocolValueV01,
+  compareExternalRefsV01,
+  compareProtocolCanonicalV01,
   createProtocolSha256V01,
+  normalizeExternalRefPrimitiveV01,
   normalizeProtocolTextV01,
   parseStrictIsoTimestampV01,
+  uniqueProtocolStringsV01,
+  uniqueProtocolValuesV01,
 } from "@/lib/vnext/protocol-primitives";
 import {
   buildReviewDecisionV01,
@@ -52,6 +57,7 @@ import type {
   EpisodeDeltaProposalDeltaCandidateV01,
   EpisodeDeltaProposalV01,
 } from "@/types/vnext/episode-delta-proposal";
+import { OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01 } from "@/types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
@@ -242,6 +248,12 @@ export function readVNextOperatorPilotSemanticReviewV01(
     throw reviewError("operator_pilot_proposal_envelope_mismatch", 422);
   }
   assertScope(input.config, proposal.workspace_id, proposal.project_id);
+  assertOperationAwareRevisionRelation(
+    db,
+    input.config,
+    proposal,
+    new Set([proposal.proposal_id]),
+  );
 
   const sourceRunReceipts = loadSourceRunReceipts(
     db,
@@ -478,7 +490,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
               ),
               transition_kind: "semantic_candidate_apply",
               bounded_summary:
-                "Request one later separately previewed and confirmed accept/create semantic transition for the selected candidate.",
+                `Request one later independently previewed and gate-authorized ${material.admission.accept_operation} semantic transition for the selected candidate.`,
               target_refs: [...material.candidate.target_refs],
               intent_only: true,
               applied: false,
@@ -500,7 +512,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
         unmapped_fields: [],
         warnings: [
           "Local session verification proves possession of a locally issued secret, not external or legal identity.",
-          "The decision does not apply state; accept carries intent for a separate preview-confirm-commit path.",
+          "The decision does not apply state; accept carries intent for a separately recomputed gate and Transition path.",
         ],
         external_refs: [sessionBasisRef],
       },
@@ -1254,6 +1266,283 @@ function aggregateAdmissionState(
   const values = new Set(admissions.map((item) => item.current_state_status));
   if (values.size > 1 || values.has("mixed")) return "mixed";
   return values.has("present") ? "present" : "absent";
+}
+
+function assertOperationAwareRevisionRelation(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  proposal: EpisodeDeltaProposalV01,
+  visitedProposalIds: Set<string>,
+): void {
+  const revision = proposal.operation_revision;
+  if (!revision) return;
+  if (visitedProposalIds.has(revision.source.proposal_id)) {
+    throw reviewError("operator_pilot_revision_source_cycle", 409);
+  }
+  const sourceRecord = readVNextCoreRecordV01(db, {
+    record_kind: "episode_delta_proposal",
+    record_id: revision.source.proposal_id,
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+  });
+  if (!sourceRecord) {
+    throw reviewError("operator_pilot_revision_source_proposal_missing", 404);
+  }
+  if (
+    sourceRecord.fingerprint !== revision.source.proposal_fingerprint ||
+    validateEpisodeDeltaProposalV01(sourceRecord.payload).status !== "valid"
+  ) {
+    throw reviewError("operator_pilot_revision_source_proposal_conflict", 409);
+  }
+  const source = sourceRecord.payload as EpisodeDeltaProposalV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(sourceRecord, {
+    workspace_id: source.workspace_id,
+    project_id: source.project_id,
+    fingerprint: source.integrity.fingerprint,
+  });
+  if (
+    sourceRecord.record_id !== source.proposal_id ||
+    sourceRecord.created_at !== source.created_at ||
+    source.proposal_id !== revision.source.proposal_id ||
+    source.integrity.fingerprint !== revision.source.proposal_fingerprint
+  ) {
+    throw reviewError("operator_pilot_revision_source_envelope_conflict", 409);
+  }
+  assertScope(config, source.workspace_id, source.project_id);
+  const nextVisited = new Set(visitedProposalIds).add(source.proposal_id);
+  assertOperationAwareRevisionRelation(db, config, source, nextVisited);
+
+  const sourceCandidate = source.proposed_deltas.find(
+    (candidate) =>
+      candidate.candidate_id === revision.source.candidate_id &&
+      createEpisodeDeltaCandidateFingerprintV01(candidate) ===
+        revision.source.candidate_fingerprint,
+  );
+  const revisedCandidate = proposal.proposed_deltas.find(
+    (candidate) =>
+      candidate.candidate_id === revision.revised_candidate.candidate_id &&
+      createEpisodeDeltaCandidateFingerprintV01(candidate) ===
+        revision.revised_candidate.candidate_fingerprint,
+  );
+  if (!sourceCandidate || !revisedCandidate) {
+    throw reviewError("operator_pilot_revision_candidate_relation_conflict", 409);
+  }
+
+  const authorBasis =
+    revision.author_basis_refs.length === 1
+      ? revision.author_basis_refs[0]!
+      : null;
+  const session = authorBasis
+    ? readVNextLocalOperatorSessionHistoryV01(db, {
+        session_id: authorBasis.external_id,
+      })
+    : null;
+  const createdAt = parseStrictIsoTimestampV01(proposal.created_at);
+  const issuedAt = session
+    ? parseStrictIsoTimestampV01(session.issued_at)
+    : null;
+  const expiresAt = session
+    ? parseStrictIsoTimestampV01(session.expires_at)
+    : null;
+  const consumedAt = session?.bootstrap_consumed_at
+    ? parseStrictIsoTimestampV01(session.bootstrap_consumed_at)
+    : null;
+  const revokedAt = session?.revoked_at
+    ? parseStrictIsoTimestampV01(session.revoked_at)
+    : null;
+  if (
+    !authorBasis ||
+    authorBasis.ref_type !== "local_operator_session_action" ||
+    authorBasis.trust_class !== "direct_local_observation" ||
+    authorBasis.compatibility_namespace !==
+      VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 ||
+    authorBasis.observed_at !== proposal.created_at ||
+    !session ||
+    session.workspace_id !== config.workspace_id ||
+    session.project_id !== config.project_id ||
+    session.operator_id !== config.operator_id ||
+    !session.bootstrap_consumed_at ||
+    createdAt === null ||
+    issuedAt === null ||
+    expiresAt === null ||
+    consumedAt === null ||
+    createdAt < issuedAt ||
+    createdAt > expiresAt ||
+    consumedAt > createdAt ||
+    (session.revoked_at !== null &&
+      (revokedAt === null || revokedAt < createdAt))
+  ) {
+    throw reviewError("operator_pilot_revision_author_session_conflict", 409);
+  }
+  const idempotencyKey = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      request_version: "vnext_operator_pilot_proposal_revision_request.v0.1",
+      revision_profile:
+        OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      operator_id: config.operator_id,
+      session_id: session.session_id,
+      source_proposal_id: source.proposal_id,
+      source_proposal_fingerprint: source.integrity.fingerprint,
+      source_candidate_id: sourceCandidate.candidate_id,
+      source_candidate_fingerprint:
+        createEpisodeDeltaCandidateFingerprintV01(sourceCandidate),
+    }),
+  );
+  const provenanceFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      action: "record_operation_aware_proposal_revision",
+      profile: OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      operator_id: config.operator_id,
+      session_id: session.session_id,
+      source_proposal_id: source.proposal_id,
+      source_proposal_fingerprint: source.integrity.fingerprint,
+      source_candidate_id: sourceCandidate.candidate_id,
+      source_candidate_fingerprint:
+        createEpisodeDeltaCandidateFingerprintV01(sourceCandidate),
+      idempotency_key: idempotencyKey,
+      created_at: proposal.created_at,
+    }),
+  );
+  const expectedAuthorBasis: ExternalRefV01 = {
+    ref_version: EXTERNAL_REF_VERSION_V01,
+    ref_type: "local_operator_session_action",
+    external_id: session.session_id,
+    trust_class: "direct_local_observation",
+    observed_at: proposal.created_at,
+    source_ref: provenanceFingerprint,
+    compatibility_namespace: VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01,
+  };
+  const expectedAuthor: ExternalRefV01 = {
+    ref_version: EXTERNAL_REF_VERSION_V01,
+    ref_type: "local_operator_actor",
+    external_id: config.operator_id,
+    trust_class: "user_declaration",
+    observed_at: proposal.created_at,
+    source_ref: provenanceFingerprint,
+    compatibility_namespace:
+      "augnes.vnext.operation-aware-proposal-revision.v0.1",
+  };
+  if (
+    revision.admission_idempotency_key !== idempotencyKey ||
+    !exactExternalRef(authorBasis, expectedAuthorBasis) ||
+    !exactExternalRef(revision.authored_by_ref, expectedAuthor)
+  ) {
+    throw reviewError("operator_pilot_revision_provenance_conflict", 409);
+  }
+
+  const sourceProposalRef = revisionLineageRef(
+    "episode_delta_proposal",
+    source.proposal_id,
+    source.created_at,
+    source.integrity.fingerprint,
+  );
+  const sourceCandidateRef = revisionLineageRef(
+    "episode_delta_candidate",
+    sourceCandidate.candidate_id,
+    source.created_at,
+    createEpisodeDeltaCandidateFingerprintV01(sourceCandidate),
+  );
+  const immutablePairs: Array<[unknown, unknown]> = [
+    [proposal.task_context_packet_ref, source.task_context_packet_ref],
+    [proposal.run_receipt_refs, source.run_receipt_refs],
+    [proposal.source_assessment ?? null, source.source_assessment ?? null],
+    [proposal.observations, source.observations],
+    [proposal.attestations, source.attestations],
+    [proposal.inferences, source.inferences],
+    [proposal.conflicts, source.conflicts],
+    [proposal.missing_information, source.missing_information],
+    [proposal.uncertainties, source.uncertainties],
+    [proposal.source_status, source.source_status],
+    [proposal.compatibility.unmapped_fields, source.compatibility.unmapped_fields],
+  ];
+  if (
+    immutablePairs.some(
+      ([left, right]) =>
+        canonicalizeProtocolValueV01(left) !==
+        canonicalizeProtocolValueV01(right),
+    ) ||
+    proposal.bounded_summary !==
+      `Operation-aware revision: ${revisedCandidate.title}` ||
+    proposal.status !== "pending_review" ||
+    canonicalizeProtocolValueV01(proposal.proposed_deltas) !==
+      canonicalizeProtocolValueV01(
+        uniqueProtocolValuesV01([
+          ...source.proposed_deltas,
+          revisedCandidate,
+        ]).sort(compareProtocolCanonicalV01),
+      ) ||
+    canonicalizeProtocolValueV01(proposal.limitations) !==
+      canonicalizeProtocolValueV01(
+        uniqueProtocolStringsV01([
+          ...source.limitations,
+          "The source proposal and candidate remain immutable history.",
+          "Operation-aware editing does not create a ReviewDecision, gate authorization, Transition, or later packet.",
+        ]),
+      ) ||
+    canonicalizeProtocolValueV01(proposal.source_refs) !==
+      canonicalizeProtocolValueV01(
+        revisionRefs([
+          ...source.source_refs,
+          sourceProposalRef,
+          sourceCandidateRef,
+          expectedAuthorBasis,
+        ]),
+      ) ||
+    canonicalizeProtocolValueV01(proposal.compatibility.source_contracts) !==
+      canonicalizeProtocolValueV01(
+        uniqueProtocolStringsV01([
+          ...source.compatibility.source_contracts,
+          OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
+          "vnext_operator_pilot_proposal_revision_request.v0.1",
+        ]),
+      ) ||
+    canonicalizeProtocolValueV01(proposal.compatibility.warnings) !==
+      canonicalizeProtocolValueV01(
+        uniqueProtocolStringsV01([
+          ...source.compatibility.warnings,
+          "The explicit operation is operator-authored candidate material and remains non-authoritative.",
+        ]),
+      ) ||
+    canonicalizeProtocolValueV01(proposal.compatibility.external_refs) !==
+      canonicalizeProtocolValueV01(
+        revisionRefs([
+          ...source.compatibility.external_refs,
+          sourceProposalRef,
+          sourceCandidateRef,
+          expectedAuthorBasis,
+        ]),
+      )
+  ) {
+    throw reviewError("operator_pilot_revision_immutable_material_conflict", 409);
+  }
+}
+
+function revisionLineageRef(
+  refType: string,
+  externalId: string,
+  observedAt: string,
+  sourceRef: string,
+): ExternalRefV01 {
+  return {
+    ref_version: EXTERNAL_REF_VERSION_V01,
+    ref_type: refType,
+    external_id: externalId,
+    trust_class: "derived_interpretation",
+    observed_at: observedAt,
+    source_ref: sourceRef,
+    compatibility_namespace:
+      "augnes.vnext.operation-aware-proposal-revision.v0.1",
+  };
+}
+
+function revisionRefs(values: ExternalRefV01[]): ExternalRefV01[] {
+  return uniqueProtocolValuesV01(
+    values.map(normalizeExternalRefPrimitiveV01),
+  ).sort(compareExternalRefsV01);
 }
 
 function assertScope(

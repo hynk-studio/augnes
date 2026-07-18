@@ -6,8 +6,7 @@ import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 
 import type {
-  SemanticTransitionCommitRouteResponseV01,
-  SemanticTransitionCompileRouteResponseV01,
+  SemanticTransitionApplyRouteResponseV01,
   SemanticTransitionConfirmationRouteResponseV01,
   SemanticTransitionPreviewRouteResponseV01,
   SemanticTransitionRouteErrorV01,
@@ -17,7 +16,7 @@ import styles from "./semantic-review.module.css";
 const SEMANTIC_TRANSITION_ROUTE =
   "/api/vnext/operator/semantic-transition";
 
-type TransitionStepV01 = "preview" | "confirm" | "commit" | "compile";
+type TransitionStepV01 = "preview" | "confirm" | "apply";
 
 export interface SemanticTransitionPriorPacketBindingV01 {
   packet_id: string;
@@ -76,13 +75,10 @@ export function SemanticTransitionActions({
     useState<SemanticTransitionPreviewRouteResponseV01 | null>(null);
   const [confirmationResponse, setConfirmationResponse] =
     useState<SemanticTransitionConfirmationRouteResponseV01 | null>(null);
-  const [commitResponse, setCommitResponse] =
-    useState<SemanticTransitionCommitRouteResponseV01 | null>(null);
-  const [compileResponse, setCompileResponse] =
-    useState<SemanticTransitionCompileRouteResponseV01 | null>(null);
+  const [applyResponse, setApplyResponse] =
+    useState<SemanticTransitionApplyRouteResponseV01 | null>(null);
   const [previewReviewed, setPreviewReviewed] = useState(false);
   const [gateReviewed, setGateReviewed] = useState(false);
-  const [receiptReviewed, setReceiptReviewed] = useState(false);
   const [busyStep, setBusyStep] = useState<TransitionStepV01 | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -97,11 +93,9 @@ export function SemanticTransitionActions({
   function resetDerivedSteps(): void {
     setPreviewResponse(null);
     setConfirmationResponse(null);
-    setCommitResponse(null);
-    setCompileResponse(null);
+    setApplyResponse(null);
     setPreviewReviewed(false);
     setGateReviewed(false);
-    setReceiptReviewed(false);
     setErrorCode(null);
     setStatusMessage(null);
   }
@@ -114,10 +108,8 @@ export function SemanticTransitionActions({
     setStatusMessage(null);
     setPreviewReviewed(false);
     setConfirmationResponse(null);
-    setCommitResponse(null);
-    setCompileResponse(null);
+    setApplyResponse(null);
     setGateReviewed(false);
-    setReceiptReviewed(false);
     try {
       const query = new URLSearchParams({
         proposal_id: proposalId,
@@ -151,9 +143,15 @@ export function SemanticTransitionActions({
           selectedDecision.candidate.candidate_fingerprint ||
         body.preview.intent_id !==
           selectedDecision.requested_transition_intent?.intent_id ||
-        body.pilot_policy.single_target !== true ||
-        body.pilot_policy.accept_create_only !== true ||
-        body.pilot_policy.current_state_required !== "absent" ||
+        body.pilot_policy.operation_aware !== true ||
+        body.pilot_policy.atomic_transition_and_packet_supported !== true ||
+        !(["create", "replace", "supersede", "retract"] as const).includes(
+          body.pilot_policy.candidate_operation,
+        ) ||
+        body.pilot_policy.current_state_required !==
+          (body.pilot_policy.candidate_operation === "create"
+            ? "absent"
+            : "present") ||
         body.pilot_policy.authorized_applier_derived_by_server !== true ||
         body.pilot_policy.review_window_config_version !==
           "vnext_operator_pilot_review_window_config.v0.1" ||
@@ -200,10 +198,8 @@ export function SemanticTransitionActions({
     setErrorCode(null);
     setStatusMessage(null);
     setConfirmationResponse(null);
-    setCommitResponse(null);
-    setCompileResponse(null);
+    setApplyResponse(null);
     setGateReviewed(false);
-    setReceiptReviewed(false);
     try {
       const response = await fetch(SEMANTIC_TRANSITION_ROUTE, {
         method: "POST",
@@ -263,10 +259,11 @@ export function SemanticTransitionActions({
     }
   }
 
-  async function commitTransition(): Promise<void> {
+  async function applyTransitionAndCompile(): Promise<void> {
     if (
       !selectedDecision ||
       !confirmationResponse ||
+      !priorPacket ||
       !gateReviewed ||
       requestInFlight.current ||
       !tryBeginOperatorMutation()
@@ -274,12 +271,10 @@ export function SemanticTransitionActions({
       return;
     }
     requestInFlight.current = true;
-    setBusyStep("commit");
+    setBusyStep("apply");
     setErrorCode(null);
     setStatusMessage(null);
-    setCommitResponse(null);
-    setCompileResponse(null);
-    setReceiptReviewed(false);
+    setApplyResponse(null);
     try {
       const gate = confirmationResponse.gate_record;
       const response = await fetch(SEMANTIC_TRANSITION_ROUTE, {
@@ -288,17 +283,19 @@ export function SemanticTransitionActions({
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          action: "commit",
+          action: "apply",
           proposal_id: proposalId,
           proposal_fingerprint: proposalFingerprint,
           decision_id: selectedDecision.decision_id,
           decision_fingerprint: selectedDecision.integrity.fingerprint,
           gate_record_id: gate.gate_record_id,
           gate_record_fingerprint: gate.integrity.fingerprint,
+          prior_packet_id: priorPacket.packet_id,
+          prior_packet_fingerprint: priorPacket.packet_fingerprint,
         }),
       });
       const body = (await response.json()) as
-        | SemanticTransitionCommitRouteResponseV01
+        | SemanticTransitionApplyRouteResponseV01
         | SemanticTransitionRouteErrorV01;
       if (!response.ok) {
         handleRouteError(response.status, body);
@@ -306,9 +303,10 @@ export function SemanticTransitionActions({
       }
       if (
         !("transition_receipt" in body) ||
+        !("later_packet" in body) ||
         !("eligibility_status" in body) ||
         !("eligibility" in body) ||
-        body.packet_compiled !== false ||
+        body.packet_compiled !== true ||
         body.eligibility_status !== "eligible" ||
         body.eligibility.status !== "eligible" ||
         body.transition_receipt.source_proposal.proposal_id !== proposalId ||
@@ -325,81 +323,18 @@ export function SemanticTransitionActions({
         body.transition_receipt.requested_transition_intent.intent_id !==
           selectedDecision.requested_transition_intent?.intent_id
       ) {
-        setErrorCode("semantic_transition_commit_response_invalid");
+        setErrorCode("semantic_transition_apply_response_invalid");
         return;
       }
-      setCommitResponse(body);
+      setApplyResponse(body);
       setStatusMessage(
         body.status === "exact_replay"
-          ? "Exact transition replay returned the persisted receipt. No packet was compiled."
-          : "Durable local semantic state and its receipt were persisted. No packet was compiled.",
+          ? "Exact replay returned the persisted Transition receipt and later packet."
+          : "The exact semantic effects, StateTransitionReceipt, and later packet were committed atomically.",
       );
       await onPrivateMaterialChanged();
     } catch {
-      setErrorCode("semantic_transition_commit_request_failed");
-    } finally {
-      requestInFlight.current = false;
-      endOperatorMutation();
-      setBusyStep(null);
-    }
-  }
-
-  async function compileLaterPacket(): Promise<void> {
-    const receipt =
-      commitResponse?.transition_receipt ?? persistedReceiptForSelectedDecision;
-    if (
-      !receipt ||
-      !priorPacket ||
-      !receiptReviewed ||
-      requestInFlight.current ||
-      !tryBeginOperatorMutation()
-    ) {
-      return;
-    }
-    requestInFlight.current = true;
-    setBusyStep("compile");
-    setErrorCode(null);
-    setStatusMessage(null);
-    setCompileResponse(null);
-    try {
-      const response = await fetch(SEMANTIC_TRANSITION_ROUTE, {
-        method: "POST",
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          action: "compile",
-          transition_receipt_id: receipt.transition_receipt_id,
-          transition_receipt_fingerprint: receipt.integrity.fingerprint,
-          prior_packet_id: priorPacket.packet_id,
-          prior_packet_fingerprint: priorPacket.packet_fingerprint,
-        }),
-      });
-      const body = (await response.json()) as
-        | SemanticTransitionCompileRouteResponseV01
-        | SemanticTransitionRouteErrorV01;
-      if (!response.ok) {
-        handleRouteError(response.status, body);
-        return;
-      }
-      if (
-        !("later_packet" in body) ||
-        body.transition_applied !== false ||
-        body.transition_receipt_id !== receipt.transition_receipt_id ||
-        body.transition_receipt_fingerprint !== receipt.integrity.fingerprint
-      ) {
-        setErrorCode("semantic_transition_compile_response_invalid");
-        return;
-      }
-      setCompileResponse(body);
-      setStatusMessage(
-        body.status === "exact_replay"
-          ? "Exact packet replay returned the persisted later packet. No transition was applied."
-          : "Later context was compiled explicitly and persisted. Packet compilation applied no transition.",
-      );
-      await onPrivateMaterialChanged();
-    } catch {
-      setErrorCode("semantic_transition_compile_request_failed");
+      setErrorCode("semantic_transition_apply_request_failed");
     } finally {
       requestInFlight.current = false;
       endOperatorMutation();
@@ -426,8 +361,8 @@ export function SemanticTransitionActions({
   const preview = previewResponse?.preview ?? null;
   const gate = confirmationResponse?.gate_record ?? null;
   const receipt =
-    commitResponse?.transition_receipt ?? persistedReceiptForSelectedDecision;
-  const laterPacket = compileResponse?.later_packet ?? null;
+    applyResponse?.transition_receipt ?? persistedReceiptForSelectedDecision;
+  const laterPacket = applyResponse?.later_packet ?? null;
   const allBusy = busyStep !== null;
 
   return (
@@ -440,7 +375,7 @@ export function SemanticTransitionActions({
       <div className={styles.panelHeader}>
         <p className={styles.kicker}>Explicit semantic transition boundary</p>
         <h2 id="semantic-transition-actions-title">
-          Preview, confirm, commit, then compile context
+          Preview, confirm, then atomically apply and compile context
         </h2>
         <p className={styles.copy}>
           Each step is a separate authenticated local action. Local secret possession
@@ -451,11 +386,12 @@ export function SemanticTransitionActions({
 
       <p
         className={styles.notice}
-        data-vnext-transition-pilot-policy="single_target_accept_create_absent"
+        data-vnext-transition-pilot-policy="operation_aware_atomic_transition_packet"
       >
-        This opt-in product pilot admits exactly one target, an accept decision, a
-        create operation, and an absent current state. The server rechecks that policy
-        at preview, confirmation, and commit; this UI does not broaden the Core writer.
+        This product path maps explicit add, revise, supersede, and retract candidates
+        to create, replace, supersede, and retract effects. Unknown and no-change remain
+        blocked. The server rechecks the exact state, lineage, gate, effect set, and
+        applier inside the write transaction.
       </p>
 
       {acceptDecisions.length === 0 ? (
@@ -635,25 +571,32 @@ export function SemanticTransitionActions({
 
         <section
           className={styles.transitionStep}
-          data-vnext-transition-step="commit"
+          data-vnext-transition-step="apply"
           data-vnext-transition-step-status={receipt ? "applied" : "not_applied"}
-          data-vnext-transition-commit-packet-compiled="false"
+          data-vnext-transition-commit-packet-compiled={String(Boolean(laterPacket))}
         >
-          <StepHeader number="3" title="Commit durable state" />
+          <StepHeader number="3" title="Apply Transition and compile later context" />
           <p className={styles.copy}>
-            Commit submits only the exact proposal, decision, and persisted gate
-            bindings. The writer reloads current state in its transaction and generates
-            application times and proof bindings. Success applies durable local semantic
-            state and records a StateTransitionReceipt; it does not compile a packet.
+            This single product mutation submits exact persisted bindings only. The
+            server reloads current state, recomputes eligibility, applies every effect,
+            records the immutable StateTransitionReceipt, and compiles the exact later
+            TaskContextPacket in one immediate transaction. Any failure rolls all of
+            those writes back while the ReviewDecision and gate remain visible.
           </p>
+          {!priorPacket ? (
+            <p className={styles.empty}>
+              The exact prior TaskContextPacket binding is unavailable, so atomic
+              Transition closure is blocked.
+            </p>
+          ) : null}
           <button
             className={styles.button}
             type="button"
-            data-vnext-transition-action="commit"
-            disabled={!gate || !gateReviewed || allBusy}
-            onClick={() => void commitTransition()}
+            data-vnext-transition-action="apply"
+            disabled={!gate || !gateReviewed || !priorPacket || allBusy}
+            onClick={() => void applyTransitionAndCompile()}
           >
-            {busyStep === "commit" ? "Applying…" : "Apply durable semantic state"}
+            {busyStep === "apply" ? "Applying…" : "Apply Transition and compile packet"}
           </button>
           {receipt ? (
             <>
@@ -673,38 +616,26 @@ export function SemanticTransitionActions({
                 <DataPoint label="Effects" value={String(receipt.effects.length)} />
               </dl>
               <ReceiptEffectList receipt={receipt} />
-              <label className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={receiptReviewed}
-                  disabled={allBusy}
-                  onChange={(event) => setReceiptReviewed(event.target.checked)}
-                />
-                <span>
-                  I reviewed the applied receipt and want to compile a separate later
-                  TaskContextPacket from the persisted state.
-                </span>
-              </label>
             </>
           ) : null}
         </section>
 
         <section
           className={styles.transitionStep}
-          data-vnext-transition-step="compile"
+          data-vnext-transition-step="later-packet"
           data-vnext-transition-step-status={laterPacket ? "compiled" : "not_compiled"}
-          data-vnext-transition-compile-transition-applied="false"
+          data-vnext-transition-compile-transition-applied={String(Boolean(receipt))}
         >
-          <StepHeader number="4" title="Compile later context" />
+          <StepHeader number="4" title="Persisted later context" />
           <p className={styles.copy}>
-            Packet compilation is a separate explicit action after receipt review. It
-            changes bounded context selection and persists the new packet; it performs no
-            semantic transition and launches no provider or native host.
+            The later packet is selected working context from the normal persisted-state
+            compiler. It launches no provider or native host and remains distinct from
+            canonical semantic state.
           </p>
           {!priorPacket ? (
             <p className={styles.empty}>
               This proposal has no exact prior TaskContextPacket ID/fingerprint binding,
-              so the compiler action is unavailable.
+              so Transition closure is unavailable.
             </p>
           ) : (
             <div className={styles.identifierStack}>
@@ -712,15 +643,6 @@ export function SemanticTransitionActions({
               <span className={styles.identifier}>{priorPacket.packet_fingerprint}</span>
             </div>
           )}
-          <button
-            className={styles.button}
-            type="button"
-            data-vnext-transition-action="compile"
-            disabled={!receipt || !priorPacket || !receiptReviewed || allBusy}
-            onClick={() => void compileLaterPacket()}
-          >
-            {busyStep === "compile" ? "Compiling…" : "Compile later packet explicitly"}
-          </button>
           {laterPacket ? (
             <>
               <ExactValue label="Later packet ID" value={laterPacket.packet_id} />
@@ -730,11 +652,11 @@ export function SemanticTransitionActions({
               />
               <ExactValue
                 label="Receipt lineage ID"
-                value={compileResponse?.transition_receipt_id ?? "missing"}
+                value={receipt?.transition_receipt_id ?? "missing"}
               />
               <ExactValue
                 label="Receipt lineage fingerprint"
-                value={compileResponse?.transition_receipt_fingerprint ?? "missing"}
+                value={receipt?.integrity.fingerprint ?? "missing"}
               />
               <dl className={styles.statusGrid}>
                 <DataPoint label="Generated" value={laterPacket.generated_at} />
@@ -750,7 +672,7 @@ export function SemanticTransitionActions({
                   label="Selected entries"
                   value={String(laterPacket.selected_context.length)}
                 />
-                <DataPoint label="Transition applied" value="false" />
+                <DataPoint label="Transition applied" value="true" />
               </dl>
               <AcceptedStateSelectionList packet={laterPacket} />
             </>
@@ -830,7 +752,7 @@ function EffectList({
 function AcceptedStateSelectionList({
   packet,
 }: {
-  packet: SemanticTransitionCompileRouteResponseV01["later_packet"];
+  packet: SemanticTransitionApplyRouteResponseV01["later_packet"];
 }) {
   const entries = packet.selected_context.filter(
     (entry) => entry.entry_kind === "accepted_state_ref",

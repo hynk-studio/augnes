@@ -24,9 +24,9 @@ import {
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 
 const FIXED_GENERIC_PROPOSAL_ID =
-  "episode-delta-proposal:85eca7dbdac56b9fe199c9d2";
+  "episode-delta-proposal:d3b5aec45d0ec7a18d1a24e7";
 const FIXED_GENERIC_FINGERPRINT =
-  "sha256:f12e192a95b785a2de8d95349b4d510f6d2b3e0a67f5dedc4262e3f6c6a30135";
+  "sha256:a4bc6817758f985b4afd9264252762b6549fc42a24b39dd7cacef9f7645429b8";
 
 const positiveFixtures = [
   [

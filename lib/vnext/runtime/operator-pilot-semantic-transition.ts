@@ -26,6 +26,7 @@ import {
   recordVNextSemanticCommitAuthorizationWithOperatorPilotCapabilityInsideTransactionV01,
   type VNextSemanticCommitGateRecordV01,
   type VNextSemanticCommitPreviewV01,
+  type VNextSemanticTransitionTestOptionsV01,
   type VNextSemanticTransitionCommitResultV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import {
@@ -122,6 +123,11 @@ interface CompileRequestV01 {
   prior_packet_fingerprint: string;
 }
 
+interface ApplyRequestV01 extends CommitRequestV01 {
+  prior_packet_id: string;
+  prior_packet_fingerprint: string;
+}
+
 interface PreviewBindingPayloadV01 extends ExactDecisionBindingV01 {
   binding_version: typeof VNEXT_OPERATOR_PILOT_TRANSITION_RUNTIME_VERSION_V01;
   session_id: string;
@@ -137,9 +143,10 @@ export interface VNextOperatorPilotPreviewResultV01 {
   preview: VNextSemanticCommitPreviewV01;
   preview_binding_cookie: string;
   pilot_policy: {
-    single_target: true;
-    accept_create_only: true;
-    current_state_required: "absent";
+    operation_aware: true;
+    candidate_operation: "create" | "replace" | "supersede" | "retract";
+    current_state_required: "absent" | "present";
+    atomic_transition_and_packet_supported: true;
     authorized_applier_derived_by_server: true;
     review_window_config_version: typeof VNEXT_OPERATOR_PILOT_REVIEW_WINDOW_CONFIG_VERSION_V01;
     preview_max_age_ms: number;
@@ -162,21 +169,15 @@ export interface VNextOperatorPilotAuthorizationResultV01 {
   session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
 }
 
-export interface VNextOperatorPilotCommitResultV01 {
-  status: VNextSemanticTransitionCommitResultV01["status"];
+export interface VNextOperatorPilotApplyResultV01 {
+  status: "applied" | "exact_replay";
+  packet_status: CompileTaskContextPacketFromPersistedSemanticStateResultV01["status"];
+  gate_record: VNextSemanticCommitGateRecordV01;
   transition_receipt: VNextSemanticTransitionCommitResultV01["transition_receipt"];
+  later_packet: TaskContextPacketV01;
   eligibility_status: "eligible";
   eligibility: VNextSemanticTransitionCommitResultV01["eligibility"];
-  packet_compiled: false;
-  session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
-}
-
-export interface VNextOperatorPilotCompileResultV01 {
-  status: CompileTaskContextPacketFromPersistedSemanticStateResultV01["status"];
-  later_packet: TaskContextPacketV01;
-  transition_receipt_id: string;
-  transition_receipt_fingerprint: string;
-  transition_applied: false;
+  packet_compiled: true;
   session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
 }
 
@@ -226,8 +227,8 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
     reviewWindowConfig,
   );
   const authentication = authenticateVNextLocalOperatorSessionV01(db, input);
-  const material = requirePilotAcceptCreateMaterial(db, input.config, request, {
-    require_absent: true,
+  const material = requirePilotAcceptedOperationMaterial(db, input.config, request, {
+    require_current_admission: true,
     required_session_id: authentication.session.session_id,
   });
   const preview =
@@ -239,7 +240,7 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
     review_window_capability: reviewWindowCapability,
     clock: input.clock,
   });
-  assertPilotPreview(preview, material.decision, reviewWindowConfig);
+  assertPilotPreview(preview, material, reviewWindowConfig);
   const binding = createPreviewBinding(
     input.config,
     authentication.credential,
@@ -254,9 +255,13 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
     preview,
     preview_binding_cookie: binding,
     pilot_policy: {
-      single_target: true,
-      accept_create_only: true,
-      current_state_required: "absent",
+      operation_aware: true,
+      candidate_operation: material.admission.mapped_operation!,
+      current_state_required:
+        material.admission.mapped_operation === "create"
+          ? "absent"
+          : "present",
+      atomic_transition_and_packet_supported: true,
       authorized_applier_derived_by_server: true,
       review_window_config_version: reviewWindowConfig.config_version,
       preview_max_age_ms: reviewWindowConfig.preview_max_age_ms,
@@ -279,6 +284,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
+    test_options?: VNextSemanticTransitionTestOptionsV01;
   },
 ): VNextOperatorPilotAuthorizationResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -304,21 +310,17 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     binding,
     reviewWindowCapability,
   );
-  requirePilotAcceptCreateMaterial(db, input.config, request, {
-    require_absent: true,
+  requirePilotAcceptedOperationMaterial(db, input.config, request, {
+    require_current_admission: true,
     required_session_id: input.credential.session_id,
   });
-  assertPilotPreview(
-    prevalidated.preview,
-    prevalidated.decision,
-    reviewWindowConfig,
-  );
+  assertPilotPreview(prevalidated.preview, prevalidated.material, reviewWindowConfig);
   if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
   db.exec("BEGIN IMMEDIATE");
   try {
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
-    const material = requirePilotAcceptCreateMaterial(db, input.config, request, {
-      require_absent: true,
+    const material = requirePilotAcceptedOperationMaterial(db, input.config, request, {
+      require_current_admission: true,
       required_session_id: admission.session.session_id,
     });
     const exact = rebuildBoundPreview(
@@ -327,7 +329,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
       binding,
       reviewWindowCapability,
     );
-    assertPilotPreview(exact.preview, material.decision, reviewWindowConfig);
+    assertPilotPreview(exact.preview, material, reviewWindowConfig);
     const confirmationBasisRef =
       createVNextOperatorPilotSemanticConfirmationBasisRefV01({
         config: input.config,
@@ -390,7 +392,12 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
   }
 }
 
-export function commitVNextOperatorPilotSemanticTransitionV01(
+/**
+ * Applies the independently revalidated semantic transition and compiles its
+ * exact later packet in one immediate transaction. The ReviewDecision and gate
+ * remain separately persisted authorities created before this call.
+ */
+export function applyVNextOperatorPilotReviewedSemanticTransitionV01(
   db: Database.Database,
   input: {
     config: VNextLocalOperatorPilotConfigV01;
@@ -399,10 +406,11 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
     review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
+    test_options?: VNextSemanticTransitionTestOptionsV01;
   },
-): VNextOperatorPilotCommitResultV01 {
+): VNextOperatorPilotApplyResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
-  const request = parseCommitRequest(input.request);
+  const request = parseApplyRequest(input.request);
   const reviewWindowConfig = reviewWindowConfigOrDefault(
     input.review_window_config,
   );
@@ -411,6 +419,15 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
     reviewWindowConfig,
   );
   authenticateVNextLocalOperatorSessionV01(db, input);
+  const material = requirePilotAcceptedOperationMaterial(
+    db,
+    input.config,
+    request,
+    {
+      require_current_admission: false,
+      required_session_id: input.credential.session_id,
+    },
+  );
   assertPilotGateAndDecision(
     db,
     input.config,
@@ -418,18 +435,46 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
     input.credential.session_id,
     reviewWindowConfig,
   );
-  if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
+  const priorPacket = readPersistedPriorPacket(db, input.config, request);
+  assertPriorPacketBindsSourceProposal(
+    material.proposal.task_context_packet_ref,
+    priorPacket,
+  );
+  if (db.inTransaction) {
+    throw transitionError("operator_pilot_nested_transaction", 409);
+  }
   db.exec("BEGIN IMMEDIATE");
   try {
-    const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
-    assertPilotGateAndDecision(
+    const admission = admitVNextLocalOperatorMutationInsideTransactionV01(
+      db,
+      input,
+    );
+    const exactMaterial = requirePilotAcceptedOperationMaterial(
+      db,
+      input.config,
+      request,
+      {
+        require_current_admission: false,
+        required_session_id: admission.session.session_id,
+      },
+    );
+    const gate = assertPilotGateAndDecision(
       db,
       input.config,
       request,
       admission.session.session_id,
       reviewWindowConfig,
     );
-    const result =
+    const exactPriorPacket = readPersistedPriorPacket(
+      db,
+      input.config,
+      request,
+    );
+    assertPriorPacketBindsSourceProposal(
+      exactMaterial.proposal.task_context_packet_ref,
+      exactPriorPacket,
+    );
+    const transition =
       commitVNextSemanticTransitionWithOperatorPilotCapabilityInsideTransactionV01(
         db,
         {
@@ -443,121 +488,40 @@ export function commitVNextOperatorPilotSemanticTransitionV01(
           gate_record_fingerprint: request.gate_record_fingerprint,
           review_window_capability: reviewWindowCapability,
           clock: input.clock,
+          test_options: input.test_options,
         },
       );
-    if (result.eligibility.status !== "eligible") {
+    if (transition.eligibility.status !== "eligible") {
       throw transitionError("operator_pilot_transition_not_eligible", 409);
     }
+    const exactTransition = requirePilotAppliedOperation(db, input.config, {
+      transition_receipt_id:
+        transition.transition_receipt.transition_receipt_id,
+      transition_receipt_fingerprint:
+        transition.transition_receipt.integrity.fingerprint,
+      prior_packet_id: request.prior_packet_id,
+      prior_packet_fingerprint: request.prior_packet_fingerprint,
+    });
+    const packet = compileLaterPacketInsideTransactionV01(db, {
+      config: input.config,
+      transition: exactTransition,
+      prior_packet: exactPriorPacket,
+      transition_receipt_id:
+        transition.transition_receipt.transition_receipt_id,
+      transition_receipt_fingerprint:
+        transition.transition_receipt.integrity.fingerprint,
+      clock: input.clock,
+    });
     db.exec("COMMIT");
     return {
-      status: result.status,
-      transition_receipt: result.transition_receipt,
+      status: transition.status,
+      packet_status: packet.status,
+      gate_record: gate,
+      transition_receipt: transition.transition_receipt,
+      later_packet: packet.later_packet,
       eligibility_status: "eligible",
-      eligibility: result.eligibility,
-      packet_compiled: false,
-      session_admission: admission,
-    };
-  } catch (error) {
-    if (db.inTransaction) db.exec("ROLLBACK");
-    throw error;
-  }
-}
-
-export function compileVNextOperatorPilotLaterContextV01(
-  db: Database.Database,
-  input: {
-    config: VNextLocalOperatorPilotConfigV01;
-    credential: VNextLocalOperatorSessionCredentialV01;
-    request: unknown;
-    clock?: VNextLocalRuntimeClockV01;
-    secret_source?: VNextLocalOperatorSecretSourceV01;
-  },
-): VNextOperatorPilotCompileResultV01 {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const request = parseCompileRequest(input.request);
-  authenticateVNextLocalOperatorSessionV01(db, input);
-  const transition = requirePilotAppliedCreate(db, input.config, request);
-  const priorPacket = readPersistedPriorPacket(db, input.config, request);
-  assertPriorPacketBindsSourceProposal(transition.proposal.task_context_packet_ref, priorPacket);
-  if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
-    const exactTransition = requirePilotAppliedCreate(db, input.config, request);
-    const exactPriorPacket = readPersistedPriorPacket(db, input.config, request);
-    assertPriorPacketBindsSourceProposal(
-      exactTransition.proposal.task_context_packet_ref,
-      exactPriorPacket,
-    );
-    const existing = findExistingCompiledPacket(
-      db,
-      exactTransition,
-      exactPriorPacket,
-    );
-    if (existing) {
-      const replay =
-        compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01(
-          db,
-          {
-            workspace_id: input.config.workspace_id,
-            project_id: input.config.project_id,
-            prior_packet: exactPriorPacket,
-            transition_receipt_id: request.transition_receipt_id,
-            transition_receipt_fingerprint:
-              request.transition_receipt_fingerprint,
-            expiry_policy: {
-              mode: "explicit",
-              expires_at: existing.expires_at,
-            },
-            clock: { now: () => existing.generated_at },
-          },
-        );
-      if (
-        replay.status !== "exact_replay" ||
-        canonicalizeProtocolValueV01(replay.later_packet) !==
-          canonicalizeProtocolValueV01(existing)
-      ) {
-        throw transitionError("operator_pilot_compiled_packet_replay_conflict", 409);
-      }
-      db.exec("COMMIT");
-      return {
-        status: "exact_replay",
-        later_packet: replay.later_packet,
-        transition_receipt_id: request.transition_receipt_id,
-        transition_receipt_fingerprint: request.transition_receipt_fingerprint,
-        transition_applied: false,
-        session_admission: admission,
-      };
-    }
-    const generatedAt = readVNextLocalRuntimeClockNowV01(
-      input.clock,
-      "operator_pilot_later_packet_generated_at",
-    );
-    const expiresAt = new Date(
-      parseStrictIsoTimestampV01(generatedAt)! +
-        VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01,
-    ).toISOString();
-    const result =
-      compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01(
-        db,
-        {
-          workspace_id: input.config.workspace_id,
-          project_id: input.config.project_id,
-          prior_packet: exactPriorPacket,
-          transition_receipt_id: request.transition_receipt_id,
-          transition_receipt_fingerprint:
-            request.transition_receipt_fingerprint,
-          expiry_policy: { mode: "explicit", expires_at: expiresAt },
-          clock: { now: () => generatedAt },
-        },
-      );
-    db.exec("COMMIT");
-    return {
-      status: result.status,
-      later_packet: result.later_packet,
-      transition_receipt_id: request.transition_receipt_id,
-      transition_receipt_fingerprint: request.transition_receipt_fingerprint,
-      transition_applied: false,
+      eligibility: transition.eligibility,
+      packet_compiled: true,
       session_admission: admission,
     };
   } catch (error) {
@@ -706,11 +670,14 @@ function rebuildBoundPreview(
   config: VNextLocalOperatorPilotConfigV01,
   binding: PreviewBindingPayloadV01,
   reviewWindowCapability: VNextOperatorPilotReviewWindowCapabilityV01,
-): { preview: VNextSemanticCommitPreviewV01; decision: ReviewDecisionV01 } {
-  const decision = requirePilotAcceptCreateMaterial(db, config, binding, {
-    require_absent: true,
+): {
+  preview: VNextSemanticCommitPreviewV01;
+  material: ReturnType<typeof requirePilotAcceptedOperationMaterial>;
+} {
+  const material = requirePilotAcceptedOperationMaterial(db, config, binding, {
+    require_current_admission: true,
     required_session_id: binding.session_id,
-  }).decision;
+  });
   const values = [binding.current_state_observed_at, binding.previewed_at];
   let index = 0;
   const clock: VNextLocalRuntimeClockV01 = {
@@ -731,15 +698,20 @@ function rebuildBoundPreview(
   if (preview.confirmation_digest !== binding.confirmation_digest) {
     throw transitionError("operator_pilot_preview_stale", 409);
   }
-  return { preview, decision };
+  return { preview, material };
 }
 
-function requirePilotAcceptCreateMaterial(
+function requirePilotAcceptedOperationMaterial(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   binding: ExactDecisionBindingV01,
-  options: { require_absent: boolean; required_session_id?: string },
-): { decision: ReviewDecisionV01; proposal: VNextOperatorPilotReviewDetailV01["proposal"] } {
+  options: { require_current_admission: boolean; required_session_id?: string },
+): {
+  decision: ReviewDecisionV01;
+  proposal: VNextOperatorPilotReviewDetailV01["proposal"];
+  candidate: VNextOperatorPilotReviewDetailV01["candidates"][number];
+  admission: VNextOperatorPilotReviewDetailV01["candidate_admissions"][number];
+} {
   const detail = readVNextOperatorPilotSemanticReviewV01(db, {
     config,
     proposal_id: binding.proposal_id,
@@ -780,25 +752,31 @@ function requirePilotAcceptCreateMaterial(
     !decision.requested_transition_intent ||
     decision.requested_transition_intent.transition_kind !==
       "semantic_candidate_apply" ||
-    decision.requested_transition_intent.target_refs.length !== 1
+    decision.requested_transition_intent.target_refs.length === 0
   ) {
-    throw transitionError("operator_pilot_accept_create_only", 409);
+    throw transitionError("operator_pilot_accept_operation_required", 409);
   }
   const candidate = detail.candidates.find(
     (item) =>
       item.candidate.candidate_id === decision.candidate.candidate_id &&
       item.candidate_fingerprint === decision.candidate.candidate_fingerprint,
   );
-  if (!candidate || candidate.candidate.target_refs.length !== 1) {
-    throw transitionError("operator_pilot_single_target_required", 409);
+  if (!candidate || candidate.candidate.target_refs.length === 0) {
+    throw transitionError("operator_pilot_transition_target_required", 409);
   }
   if (
-    options.require_absent &&
+    options.require_current_admission &&
     (!candidate.pilot_admission.decision_allowed.accept ||
-      candidate.pilot_admission.accept_operation !== "create" ||
-      candidate.pilot_admission.current_state_status !== "absent")
+      candidate.pilot_admission.accept_operation === null)
   ) {
-    throw transitionError("operator_pilot_absent_create_required", 409);
+    throw transitionError(
+      candidate.pilot_admission.blocking_reasons[0] ??
+        "operator_pilot_operation_not_admitted",
+      409,
+    );
+  }
+  if (candidate.pilot_admission.mapped_operation === null) {
+    throw transitionError("operator_pilot_candidate_operation_not_transitionable", 409);
   }
   if (
     canonicalizeProtocolValueV01(candidate.candidate.target_refs) !==
@@ -808,21 +786,36 @@ function requirePilotAcceptCreateMaterial(
   ) {
     throw transitionError("operator_pilot_decision_target_mismatch", 409);
   }
-  return { decision, proposal: detail.proposal };
+  return {
+    decision,
+    proposal: detail.proposal,
+    candidate,
+    admission: candidate.pilot_admission,
+  };
 }
 
 function assertPilotPreview(
   preview: VNextSemanticCommitPreviewV01,
-  decision: ReviewDecisionV01,
+  material: ReturnType<typeof requirePilotAcceptedOperationMaterial>,
   reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): void {
+  const expectedOperation = material.admission.mapped_operation;
   if (
-    decision.decision !== "accept" ||
-    preview.intended_effects.length !== 1 ||
-    preview.current_state_observations.length !== 1 ||
-    preview.intended_effects[0]?.operation !== "create" ||
-    preview.intended_effects[0]?.before_presence !== "absent" ||
-    preview.current_state_observations[0]?.presence !== "absent" ||
+    material.decision.decision !== "accept" ||
+    !expectedOperation ||
+    preview.intended_effects.length !== material.candidate.candidate.target_refs.length ||
+    preview.current_state_observations.length !== material.candidate.candidate.target_refs.length ||
+    preview.intended_effects.some(
+      (effect) =>
+        effect.operation !== expectedOperation ||
+        effect.before_presence !==
+          (expectedOperation === "create" ? "absent" : "present"),
+    ) ||
+    preview.current_state_observations.some(
+      (observation) =>
+        observation.presence !==
+          (expectedOperation === "create" ? "absent" : "present"),
+    ) ||
     preview.gate_ttl_ms !== reviewWindowConfig.gate_ttl_ms
   ) {
     throw transitionError("operator_pilot_preview_policy_mismatch", 409);
@@ -1188,12 +1181,12 @@ function addReviewWindowMilliseconds(value: string, milliseconds: number): strin
 function assertPilotGateAndDecision(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
-  request: ReturnType<typeof parseCommitRequest>,
+  request: CommitRequestV01,
   requiredSessionId: string,
   reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
-): void {
-  const material = requirePilotAcceptCreateMaterial(db, config, request, {
-    require_absent: false,
+): VNextSemanticCommitGateRecordV01 {
+  const material = requirePilotAcceptedOperationMaterial(db, config, request, {
+    require_current_admission: false,
     required_session_id: requiredSessionId,
   });
   const record = readVNextCoreRecordV01(db, {
@@ -1232,11 +1225,23 @@ function assertPilotGateAndDecision(
     gate.decision_id !== request.decision_id ||
     gate.decision_fingerprint !== request.decision_fingerprint ||
     !Array.isArray(gate.intended_effects) ||
-    gate.intended_effects.length !== 1 ||
-    gate.intended_effects[0]?.operation !== "create" ||
-    gate.intended_effects[0]?.before_presence !== "absent" ||
-    gate.current_state_observations?.length !== 1 ||
-    gate.current_state_observations[0]?.presence !== "absent" ||
+    gate.intended_effects.length !== material.candidate.candidate.target_refs.length ||
+    gate.intended_effects.some(
+      (effect) =>
+        effect.operation !== material.admission.mapped_operation ||
+        effect.before_presence !==
+          (material.admission.mapped_operation === "create"
+            ? "absent"
+            : "present"),
+    ) ||
+    gate.current_state_observations?.length !== material.candidate.candidate.target_refs.length ||
+    gate.current_state_observations.some(
+      (observation) =>
+        observation.presence !==
+          (material.admission.mapped_operation === "create"
+            ? "absent"
+            : "present"),
+    ) ||
     gate.semantic_commit_gate_evaluation?.authorized_applier_ref.ref_type !==
       authorizedApplierIdentity(config).ref_type ||
     gate.semantic_commit_gate_evaluation?.authorized_applier_ref.external_id !==
@@ -1263,12 +1268,13 @@ function assertPilotGateAndDecision(
       409,
     );
   }
+  return gate as VNextSemanticCommitGateRecordV01;
 }
 
-function requirePilotAppliedCreate(
+function requirePilotAppliedOperation(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
-  request: ReturnType<typeof parseCompileRequest>,
+  request: CompileRequestV01,
 ): ReturnType<typeof loadValidatedVNextSemanticTransitionRelationV01> {
   const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
     workspace_id: config.workspace_id,
@@ -1292,14 +1298,37 @@ function requirePilotAppliedCreate(
       decision: transition.decision,
       gate: transition.gate_record,
     });
+  const candidate = transition.proposal.proposed_deltas.find(
+    (item) =>
+      item.candidate_id === transition.decision.candidate.candidate_id &&
+      createProtocolSha256V01(canonicalizeProtocolValueV01(item)) ===
+        transition.decision.candidate.candidate_fingerprint,
+  );
+  const mappedOperation = candidate
+    ? candidate.operation === "add"
+      ? "create"
+      : candidate.operation === "revise"
+        ? "replace"
+        : candidate.operation === "supersede"
+          ? "supersede"
+          : candidate.operation === "retract" || candidate.operation === "remove"
+            ? "retract"
+            : null
+    : null;
   if (
     provenance.status !== "valid" ||
     gateProvenance.status !== "valid" ||
     transition.decision.decision !== "accept" ||
-    transition.receipt.effects.length !== 1 ||
-    transition.receipt.effects[0]?.operation !== "create" ||
-    transition.receipt.effects[0]?.before_state.presence !== "absent" ||
-    transition.receipt.effects[0]?.after_state.presence !== "present"
+    !mappedOperation ||
+    transition.receipt.effects.length === 0 ||
+    transition.receipt.effects.some(
+      (effect) =>
+        effect.operation !== mappedOperation ||
+        effect.before_state.presence !==
+          (mappedOperation === "create" ? "absent" : "present") ||
+        effect.after_state.presence !==
+          (mappedOperation === "retract" ? "absent" : "present"),
+    )
   ) {
     throw transitionError("operator_pilot_receipt_policy_mismatch", 409);
   }
@@ -1408,10 +1437,89 @@ function findExistingCompiledPacket(
   return matches[0] ?? null;
 }
 
+function compileLaterPacketInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    transition: ReturnType<
+      typeof loadValidatedVNextSemanticTransitionRelationV01
+    >;
+    prior_packet: TaskContextPacketV01;
+    transition_receipt_id: string;
+    transition_receipt_fingerprint: string;
+    clock?: VNextLocalRuntimeClockV01;
+  },
+): CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
+  if (!db.inTransaction) {
+    throw transitionError("operator_pilot_compile_transaction_required", 500);
+  }
+  const existing = findExistingCompiledPacket(
+    db,
+    input.transition,
+    input.prior_packet,
+  );
+  if (existing) {
+    const replay =
+      compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01(
+        db,
+        {
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+          prior_packet: input.prior_packet,
+          transition_receipt_id: input.transition_receipt_id,
+          transition_receipt_fingerprint:
+            input.transition_receipt_fingerprint,
+          expiry_policy: {
+            mode: "explicit",
+            expires_at: existing.expires_at,
+          },
+          clock: { now: () => existing.generated_at },
+        },
+      );
+    if (
+      replay.status !== "exact_replay" ||
+      canonicalizeProtocolValueV01(replay.later_packet) !==
+        canonicalizeProtocolValueV01(existing)
+    ) {
+      throw transitionError(
+        "operator_pilot_compiled_packet_replay_conflict",
+        409,
+      );
+    }
+    return replay;
+  }
+  const generatedAt = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "operator_pilot_later_packet_generated_at",
+  );
+  const parsedGeneratedAt = parseStrictIsoTimestampV01(generatedAt);
+  if (parsedGeneratedAt === null) {
+    throw transitionError("operator_pilot_later_packet_time_invalid", 500);
+  }
+  const expiresAt = new Date(
+    parsedGeneratedAt + VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01,
+  ).toISOString();
+  return compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01(
+    db,
+    {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      prior_packet: input.prior_packet,
+      transition_receipt_id: input.transition_receipt_id,
+      transition_receipt_fingerprint: input.transition_receipt_fingerprint,
+      expiry_policy: { mode: "explicit", expires_at: expiresAt },
+      clock: { now: () => generatedAt },
+    },
+  );
+}
+
 function readPersistedPriorPacket(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
-  request: ReturnType<typeof parseCompileRequest>,
+  request: Pick<
+    CompileRequestV01,
+    "prior_packet_id" | "prior_packet_fingerprint"
+  >,
 ): TaskContextPacketV01 {
   const record = readVNextCoreRecordV01(db, {
     record_kind: "task_context_packet",
@@ -1485,7 +1593,7 @@ function parseConfirmRequest(value: unknown): ConfirmRequestV01 {
   };
 }
 
-function parseCommitRequest(value: unknown): CommitRequestV01 {
+function parseApplyRequest(value: unknown): ApplyRequestV01 {
   const parsed = parseAllowedObject(value, [
     "proposal_id",
     "proposal_fingerprint",
@@ -1493,6 +1601,8 @@ function parseCommitRequest(value: unknown): CommitRequestV01 {
     "decision_fingerprint",
     "gate_record_id",
     "gate_record_fingerprint",
+    "prior_packet_id",
+    "prior_packet_fingerprint",
   ]);
   return {
     proposal_id: parsed.proposal_id!,
@@ -1501,19 +1611,6 @@ function parseCommitRequest(value: unknown): CommitRequestV01 {
     decision_fingerprint: parsed.decision_fingerprint!,
     gate_record_id: parsed.gate_record_id!,
     gate_record_fingerprint: parsed.gate_record_fingerprint!,
-  };
-}
-
-function parseCompileRequest(value: unknown): CompileRequestV01 {
-  const parsed = parseAllowedObject(value, [
-    "transition_receipt_id",
-    "transition_receipt_fingerprint",
-    "prior_packet_id",
-    "prior_packet_fingerprint",
-  ]);
-  return {
-    transition_receipt_id: parsed.transition_receipt_id!,
-    transition_receipt_fingerprint: parsed.transition_receipt_fingerprint!,
     prior_packet_id: parsed.prior_packet_id!,
     prior_packet_fingerprint: parsed.prior_packet_fingerprint!,
   };

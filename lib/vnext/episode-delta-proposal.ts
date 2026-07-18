@@ -27,6 +27,7 @@ import {
   EPISODE_DELTA_PROPOSAL_OPERATIONS_V01,
   EPISODE_DELTA_PROPOSAL_STATUSES_V01,
   EPISODE_DELTA_PROPOSAL_VERSION_V01,
+  OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
   RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
   RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
   RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
@@ -38,6 +39,7 @@ import {
   type EpisodeDeltaProposalMaterialBoundaryV01,
   type EpisodeDeltaProposalMissingInformationV01,
   type EpisodeDeltaProposalObservationV01,
+  type EpisodeDeltaProposalOperationRevisionV01,
   type EpisodeDeltaProposalSourceAssessmentV01,
   type EpisodeDeltaProposalTrustSummaryV01,
   type EpisodeDeltaProposalUncertaintyV01,
@@ -76,6 +78,7 @@ const allowedRootKeys = new Set([
   "task_context_packet_ref",
   "run_receipt_refs",
   "source_assessment",
+  "operation_revision",
   "observations",
   "attestations",
   "inferences",
@@ -313,6 +316,42 @@ const allowedSourceAssessmentAuthorityKeys = new Set([
   "changes_semantic_state",
   "changes_later_context",
 ]);
+const allowedOperationRevisionKeys = new Set([
+  "revision_profile",
+  "admission_idempotency_key",
+  "source",
+  "revised_candidate",
+  "authored_by_ref",
+  "author_basis_refs",
+  "rationale_summary",
+  "selected_delta_type",
+  "selected_operation",
+  "target_expectations",
+  "authority",
+]);
+const allowedOperationRevisionSourceKeys = new Set([
+  "proposal_id",
+  "proposal_fingerprint",
+  "candidate_id",
+  "candidate_fingerprint",
+]);
+const allowedOperationRevisionTargetExpectationKeys = new Set([
+  "target_ref",
+  "presence",
+  "revision",
+  "state_fingerprint",
+  "source_transition_receipt_id",
+  "source_transition_receipt_fingerprint",
+]);
+const allowedOperationRevisionAuthorityKeys = new Set([
+  "authoritative",
+  "creates_evidence",
+  "validates_claims",
+  "creates_decision",
+  "applies_transition",
+  "changes_semantic_state",
+  "changes_later_context",
+]);
 
 const forbiddenSemanticFieldPattern =
   /(?:accepted.?evidence|canonical.?state|review.?decision|state.?transition|state.?(?:apply|commit|mutat|write)|work.?(?:clos|complet)|perspective.?(?:apply|mutat)|memory.?(?:promot|mutat)|auto.?apply|next.?context.?(?:select|apply)|provider.?author|github.?author|merge|publish|publication|external.?(?:actuat|side.?effect)|schedule|retry|replay|deploy|execution.?authority|semantic.?commit|approv)/i;
@@ -327,6 +366,7 @@ const boundedTextFieldNames = new Set([
   "limitations",
   "uncertainties",
   "notes",
+  "rationale_summary",
 ]);
 const runAssessmentSourceTextFieldNames = new Set([
   "task_goal",
@@ -412,6 +452,13 @@ export function buildEpisodeDeltaProposalV01(
       ? {
           source_assessment: normalizeSourceAssessmentV01(
             input.source_assessment,
+          ),
+        }
+      : {}),
+    ...(input.operation_revision
+      ? {
+          operation_revision: normalizeOperationRevisionV01(
+            input.operation_revision,
           ),
         }
       : {}),
@@ -738,6 +785,7 @@ export function validateEpisodeDeltaProposalV01(
     accumulator,
   );
   validateSourceAssessmentV01(input, accumulator);
+  validateOperationRevisionV01(input, accumulator);
   validateRefArray(input.source_refs, "$.source_refs", accumulator);
   validateDuplicateExternalRefsPrimitiveV01(input, sink);
 
@@ -826,6 +874,66 @@ function normalizeSourceAssessmentV01(
       execution_status_is_task_success: false,
       gaps: uniqueProtocolStringsV01(input.comparison.gaps),
     },
+    authority: {
+      authoritative: false,
+      creates_evidence: false,
+      validates_claims: false,
+      creates_decision: false,
+      applies_transition: false,
+      changes_semantic_state: false,
+      changes_later_context: false,
+    },
+  };
+}
+
+function normalizeOperationRevisionV01(
+  input: EpisodeDeltaProposalOperationRevisionV01,
+): EpisodeDeltaProposalOperationRevisionV01 {
+  return {
+    revision_profile:
+      OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
+    admission_idempotency_key: normalizeProtocolTextV01(
+      input.admission_idempotency_key,
+    ),
+    source: {
+      proposal_id: normalizeProtocolTextV01(input.source.proposal_id),
+      proposal_fingerprint: normalizeProtocolTextV01(
+        input.source.proposal_fingerprint,
+      ),
+      candidate_id: normalizeProtocolTextV01(input.source.candidate_id),
+      candidate_fingerprint: normalizeProtocolTextV01(
+        input.source.candidate_fingerprint,
+      ),
+    },
+    revised_candidate: {
+      candidate_id: normalizeProtocolTextV01(
+        input.revised_candidate.candidate_id,
+      ),
+      candidate_fingerprint: normalizeProtocolTextV01(
+        input.revised_candidate.candidate_fingerprint,
+      ),
+    },
+    authored_by_ref: normalizeExternalRefPrimitiveV01(input.authored_by_ref),
+    author_basis_refs: normalizeRefs(input.author_basis_refs),
+    rationale_summary: normalizeProtocolTextV01(input.rationale_summary),
+    selected_delta_type: input.selected_delta_type,
+    selected_operation: input.selected_operation,
+    target_expectations: uniqueProtocolValuesV01(
+      input.target_expectations.map((expectation) => ({
+        target_ref: normalizeExternalRefPrimitiveV01(expectation.target_ref),
+        presence: expectation.presence,
+        revision: expectation.revision,
+        state_fingerprint: normalizeProtocolNullableTextV01(
+          expectation.state_fingerprint,
+        ),
+        source_transition_receipt_id: normalizeProtocolNullableTextV01(
+          expectation.source_transition_receipt_id,
+        ),
+        source_transition_receipt_fingerprint: normalizeProtocolNullableTextV01(
+          expectation.source_transition_receipt_fingerprint,
+        ),
+      })),
+    ).sort(compareProtocolCanonicalV01),
     authority: {
       authoritative: false,
       creates_evidence: false,
@@ -1291,6 +1399,413 @@ function validateSourceAssessmentV01(
       violation.code,
       violation.path,
       violation.message,
+      true,
+    );
+  }
+}
+
+function validateOperationRevisionV01(
+  proposal: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+): void {
+  if (proposal.operation_revision === undefined) return;
+  const path = "$.operation_revision";
+  const revision = recordAt(proposal.operation_revision, path, accumulator);
+  if (!revision) return;
+  rejectUnknownNestedKeys(
+    revision,
+    allowedOperationRevisionKeys,
+    path,
+    accumulator,
+  );
+  if (
+    revision.revision_profile !==
+    OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01
+  ) {
+    addError(
+      accumulator,
+      "operation_aware_revision_profile_unsupported",
+      `${path}.revision_profile`,
+      "The operation-aware proposal revision profile is unsupported.",
+      true,
+    );
+  }
+  if (
+    !/^sha256:[a-f0-9]{64}$/u.test(
+      protocolStringValueV01(revision.admission_idempotency_key) ?? "",
+    )
+  ) {
+    addError(
+      accumulator,
+      "operation_aware_revision_idempotency_invalid",
+      `${path}.admission_idempotency_key`,
+      "The operation-aware revision idempotency key must be sha256.",
+      true,
+    );
+  }
+  const source = recordAt(revision.source, `${path}.source`, accumulator);
+  if (source) {
+    rejectUnknownNestedKeys(
+      source,
+      allowedOperationRevisionSourceKeys,
+      `${path}.source`,
+      accumulator,
+    );
+    requireString(source, "proposal_id", `${path}.source`, accumulator);
+    requireString(source, "candidate_id", `${path}.source`, accumulator);
+    for (const field of [
+      "proposal_fingerprint",
+      "candidate_fingerprint",
+    ] as const) {
+      if (
+        !/^sha256:[a-f0-9]{64}$/u.test(
+          protocolStringValueV01(source[field]) ?? "",
+        )
+      ) {
+        addError(
+          accumulator,
+          "operation_aware_revision_source_fingerprint_invalid",
+          `${path}.source.${field}`,
+          "Revision source fingerprints must be sha256.",
+          true,
+        );
+      }
+    }
+    if (source.proposal_id === proposal.proposal_id) {
+      addError(
+        accumulator,
+        "operation_aware_revision_self_source",
+        `${path}.source.proposal_id`,
+        "An immutable revision must bind a distinct source proposal.",
+        true,
+      );
+    }
+  }
+  validateExternalRefStructureV01(
+    revision.authored_by_ref,
+    `${path}.authored_by_ref`,
+    issueSink(accumulator),
+  );
+  if (
+    !isProtocolRecordV01(revision.authored_by_ref) ||
+    revision.authored_by_ref.trust_class !== "user_declaration" ||
+    revision.authored_by_ref.observed_at !== proposal.created_at
+  ) {
+    addError(
+      accumulator,
+      "operation_aware_revision_author_binding_invalid",
+      `${path}.authored_by_ref`,
+      "Revision author provenance must remain a user declaration recorded at proposal creation.",
+      true,
+    );
+  }
+  const authorBasisRefs = arrayAt(
+    revision.author_basis_refs,
+    `${path}.author_basis_refs`,
+    accumulator,
+  );
+  if (authorBasisRefs.length === 0) {
+    addError(
+      accumulator,
+      "operation_aware_revision_author_basis_required",
+      `${path}.author_basis_refs`,
+      "Operation-aware revisions require an observed author-session basis.",
+      true,
+    );
+  }
+  authorBasisRefs.forEach((ref, index) => {
+    validateExternalRefStructureV01(
+      ref,
+      `${path}.author_basis_refs[${index}]`,
+      issueSink(accumulator),
+    );
+    if (
+      !isProtocolRecordV01(ref) ||
+      ![
+        "direct_local_observation",
+        "verified_external_observation",
+      ].includes(protocolStringValueV01(ref.trust_class) ?? "") ||
+      ref.observed_at !== proposal.created_at
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_author_basis_invalid",
+        `${path}.author_basis_refs[${index}]`,
+        "Revision author basis must be an exact direct or verified observation at proposal creation.",
+        true,
+      );
+    }
+  });
+  requireString(revision, "rationale_summary", path, accumulator);
+  const selectedDeltaType = protocolStringValueV01(
+    revision.selected_delta_type,
+  );
+  if (!selectedDeltaType || !deltaTypes.has(selectedDeltaType)) {
+    addError(
+      accumulator,
+      "operation_aware_revision_delta_type_invalid",
+      `${path}.selected_delta_type`,
+      "Revision delta type must be a supported proposal delta type.",
+      true,
+    );
+  }
+  const selectedOperation = protocolStringValueV01(
+    revision.selected_operation,
+  );
+  if (
+    !selectedOperation ||
+    !operations.has(selectedOperation) ||
+    selectedOperation === "unknown" ||
+    selectedOperation === "no_change"
+  ) {
+    addError(
+      accumulator,
+      "operation_aware_revision_operation_invalid",
+      `${path}.selected_operation`,
+      "Revision operation must explicitly map to create, replace, supersede, or retract.",
+      true,
+    );
+  }
+  const expectations = arrayAt(
+    revision.target_expectations,
+    `${path}.target_expectations`,
+    accumulator,
+  );
+  if (expectations.length === 0) {
+    addError(
+      accumulator,
+      "operation_aware_revision_target_required",
+      `${path}.target_expectations`,
+      "Operation-aware revisions require at least one exact target expectation.",
+      true,
+    );
+  }
+  const expectationRefs: unknown[] = [];
+  expectations.forEach((candidate, index) => {
+    const expectationPath = `${path}.target_expectations[${index}]`;
+    const expectation = recordAt(candidate, expectationPath, accumulator);
+    if (!expectation) return;
+    rejectUnknownNestedKeys(
+      expectation,
+      allowedOperationRevisionTargetExpectationKeys,
+      expectationPath,
+      accumulator,
+    );
+    validateExternalRefStructureV01(
+      expectation.target_ref,
+      `${expectationPath}.target_ref`,
+      issueSink(accumulator),
+    );
+    expectationRefs.push(expectation.target_ref);
+    const presence = protocolStringValueV01(expectation.presence);
+    if (presence !== "absent" && presence !== "present") {
+      addError(
+        accumulator,
+        "operation_aware_revision_target_presence_invalid",
+        `${expectationPath}.presence`,
+        "Target expectation presence must be absent or present.",
+        true,
+      );
+    }
+    if (
+      !Number.isSafeInteger(expectation.revision) ||
+      (expectation.revision as number) < 0
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_target_revision_invalid",
+        `${expectationPath}.revision`,
+        "Target revision must be a non-negative safe integer.",
+        true,
+      );
+    }
+    const stateFingerprint = protocolStringValueV01(
+      expectation.state_fingerprint,
+    );
+    const sourceReceiptId = protocolStringValueV01(
+      expectation.source_transition_receipt_id,
+    );
+    const sourceReceiptFingerprint = protocolStringValueV01(
+      expectation.source_transition_receipt_fingerprint,
+    );
+    if (
+      (presence === "absent" && stateFingerprint !== null) ||
+      (presence === "present" &&
+        !/^sha256:[a-f0-9]{64}$/u.test(stateFingerprint ?? ""))
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_target_state_invalid",
+        `${expectationPath}.state_fingerprint`,
+        "Present targets require an exact state fingerprint; absent targets require null.",
+        true,
+      );
+    }
+    if (
+      (sourceReceiptId === null) !== (sourceReceiptFingerprint === null) ||
+      (sourceReceiptFingerprint !== null &&
+        !/^sha256:[a-f0-9]{64}$/u.test(sourceReceiptFingerprint))
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_target_lineage_invalid",
+        expectationPath,
+        "Target transition lineage ID and fingerprint must be both null or both exact.",
+        true,
+      );
+    }
+    const requiresAbsent = selectedOperation === "add";
+    if (
+      (requiresAbsent && presence !== "absent") ||
+      (!requiresAbsent &&
+        selectedOperation !== null &&
+        selectedOperation !== "unknown" &&
+        selectedOperation !== "no_change" &&
+        presence !== "present")
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_before_state_conflict",
+        `${expectationPath}.presence`,
+        "Add requires absent state; revise, supersede, retract, and remove require present state.",
+        true,
+      );
+    }
+  });
+  const revisedCandidateBinding = recordAt(
+    revision.revised_candidate,
+    `${path}.revised_candidate`,
+    accumulator,
+  );
+  if (revisedCandidateBinding) {
+    rejectUnknownNestedKeys(
+      revisedCandidateBinding,
+      new Set(["candidate_id", "candidate_fingerprint"]),
+      `${path}.revised_candidate`,
+      accumulator,
+    );
+    requireString(
+      revisedCandidateBinding,
+      "candidate_id",
+      `${path}.revised_candidate`,
+      accumulator,
+    );
+    if (
+      !/^sha256:[a-f0-9]{64}$/u.test(
+        protocolStringValueV01(
+          revisedCandidateBinding.candidate_fingerprint,
+        ) ?? "",
+      )
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_candidate_fingerprint_invalid",
+        `${path}.revised_candidate.candidate_fingerprint`,
+        "The revised candidate fingerprint must be sha256.",
+        true,
+      );
+    }
+  }
+  const deltas = arrayAt(
+    proposal.proposed_deltas,
+    "$.proposed_deltas",
+    accumulator,
+  );
+  const delta = revisedCandidateBinding
+    ? deltas
+        .filter(
+          (item): item is ProtocolJsonRecordV01 => isProtocolRecordV01(item),
+        )
+        .find(
+          (item) =>
+            item.candidate_id === revisedCandidateBinding.candidate_id,
+        ) ?? null
+    : null;
+  if (!delta) {
+    addError(
+      accumulator,
+      "operation_aware_revision_candidate_missing",
+      "$.proposed_deltas",
+      "An operation-aware revision must contain its exactly bound revised candidate.",
+      true,
+    );
+  } else {
+    if (
+      delta.delta_type !== selectedDeltaType ||
+      delta.operation !== selectedOperation ||
+      !isProtocolRecordV01(delta.current_state) ||
+      delta.current_state.knowledge_status !== "known" ||
+      canonicalizeProtocolValueV01(delta.target_refs) !==
+        canonicalizeProtocolValueV01(expectationRefs)
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_candidate_conflict",
+        "$.proposed_deltas[0]",
+        "The revised candidate must exactly preserve the selected type, operation, target set, and known before-state expectation.",
+        true,
+      );
+    }
+    if (
+      revisedCandidateBinding &&
+      protocolStringValueV01(revisedCandidateBinding.candidate_fingerprint) !==
+        createProtocolSha256V01(canonicalizeProtocolValueV01(delta))
+    ) {
+      addError(
+        accumulator,
+        "operation_aware_revision_candidate_fingerprint_conflict",
+        `${path}.revised_candidate.candidate_fingerprint`,
+        "The revised candidate fingerprint must match the exact embedded candidate.",
+        true,
+      );
+    }
+    if (source && delta.candidate_id === source.candidate_id) {
+      addError(
+        accumulator,
+        "operation_aware_revision_candidate_identity_reused",
+        "$.proposed_deltas[0].candidate_id",
+        "A revised candidate must receive a new deterministic candidate identity.",
+        true,
+      );
+    }
+  }
+  const authority = recordAt(
+    revision.authority,
+    `${path}.authority`,
+    accumulator,
+  );
+  if (authority) {
+    rejectUnknownNestedKeys(
+      authority,
+      allowedOperationRevisionAuthorityKeys,
+      `${path}.authority`,
+      accumulator,
+    );
+    for (const key of allowedOperationRevisionAuthorityKeys) {
+      if (authority[key] !== false) {
+        addError(
+          accumulator,
+          "operation_aware_revision_authority_violation",
+          `${path}.authority.${key}`,
+          "Operation-aware revision material remains non-authoritative.",
+          true,
+        );
+      }
+    }
+  }
+  if (
+    !Array.isArray(proposal.compatibility) &&
+    isProtocolRecordV01(proposal.compatibility) &&
+    Array.isArray(proposal.compatibility.source_contracts) &&
+    !proposal.compatibility.source_contracts.includes(
+      OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
+    )
+  ) {
+    addError(
+      accumulator,
+      "operation_aware_revision_contract_missing",
+      "$.compatibility.source_contracts",
+      "Revision proposals must declare the operation-aware profile contract.",
       true,
     );
   }
