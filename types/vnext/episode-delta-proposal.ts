@@ -2,11 +2,29 @@ import type {
   ExternalRefTrustClassV01,
   ExternalRefV01,
 } from "./external-ref";
+import type { CriterionAssessmentV01 } from "./criterion-assessment";
+import type {
+  RunReceiptCapabilityCoverageEntryV01,
+  RunReceiptChangedArtifactV01,
+  RunReceiptCheckResultV01,
+  RunReceiptCommandSummaryV01,
+  RunReceiptCompatibilityMetadataV01,
+  RunReceiptIssueV01,
+  RunReceiptResultSummaryV01,
+  RunReceiptSkippedCheckV01,
+  RunReceiptStatusAxisV01,
+  RunReceiptTrustSummaryV01,
+  RunReceiptVerificationAxisV01,
+  RunReceiptExecutionStatusV01,
+} from "./run-receipt";
+import type { TaskContextPacketDataClassificationV01 } from "./task-context-packet";
 
 export const EPISODE_DELTA_PROPOSAL_VERSION_V01 =
   "episode_delta_proposal.v0.1" as const;
 export const EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
+export const RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01 =
+  "run_assessment_proposal.v0.1" as const;
 
 export const EPISODE_DELTA_PROPOSAL_STATUSES_V01 = [
   "draft",
@@ -247,6 +265,70 @@ export interface EpisodeDeltaProposalAuthoritySummaryV01 {
   notes: string[];
 }
 
+export interface EpisodeDeltaProposalExpectedMaterialV01 {
+  task_goal: string;
+  success_criteria: Array<{
+    criterion_id: string;
+    criterion: string;
+  }>;
+  required_checks: string[];
+  expected_artifacts: string[];
+  required_return_fields: string[];
+  forbidden_actions: string[];
+  data_classification: TaskContextPacketDataClassificationV01;
+}
+
+export interface EpisodeDeltaProposalObservedMaterialV01 {
+  execution: RunReceiptStatusAxisV01<RunReceiptExecutionStatusV01>;
+  verification: RunReceiptVerificationAxisV01;
+  commands: RunReceiptCommandSummaryV01[];
+  checks: RunReceiptCheckResultV01[];
+  skipped_checks: RunReceiptSkippedCheckV01[];
+  changed_artifacts: RunReceiptChangedArtifactV01[];
+  artifact_refs: ExternalRefV01[];
+  blockers: RunReceiptIssueV01[];
+  warnings: RunReceiptIssueV01[];
+  gaps: RunReceiptIssueV01[];
+  result_summary: RunReceiptResultSummaryV01;
+  capability_coverage: RunReceiptCapabilityCoverageEntryV01[];
+  trust_summary: RunReceiptTrustSummaryV01;
+  compatibility: RunReceiptCompatibilityMetadataV01;
+}
+
+/**
+ * Optional additive v0.1 material for proposals produced from one exact R5
+ * result and its derived R6-A assessment. Historical proposals omit this
+ * field and remain readable. The snapshot is part of proposal identity and
+ * fingerprinting; it is not a separate assessment record or authority.
+ */
+export interface EpisodeDeltaProposalSourceAssessmentV01 {
+  admission_profile: typeof RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01;
+  admission_idempotency_key: string;
+  work_ref: ExternalRefV01 | null;
+  run_ref: ExternalRefV01;
+  packet_ref: ExternalRefV01;
+  receipt_ref: ExternalRefV01;
+  assessment: CriterionAssessmentV01;
+  expected: EpisodeDeltaProposalExpectedMaterialV01;
+  observed: EpisodeDeltaProposalObservedMaterialV01;
+  comparison: {
+    relation_policy: "explicit_protocol_relations_only";
+    criterion_specific_relations_available: false;
+    task_success_status: "unknown";
+    execution_status_is_task_success: false;
+    gaps: string[];
+  };
+  authority: {
+    authoritative: false;
+    creates_evidence: false;
+    validates_claims: false;
+    creates_decision: false;
+    applies_transition: false;
+    changes_semantic_state: false;
+    changes_later_context: false;
+  };
+}
+
 export interface EpisodeDeltaProposalIntegrityV01 {
   algorithm: "sha256";
   canonicalization: typeof EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01;
@@ -264,6 +346,7 @@ export interface EpisodeDeltaProposalV01 {
   bounded_summary: string;
   task_context_packet_ref: ExternalRefV01 | null;
   run_receipt_refs: ExternalRefV01[];
+  source_assessment?: EpisodeDeltaProposalSourceAssessmentV01;
   observations: EpisodeDeltaProposalObservationV01[];
   attestations: EpisodeDeltaProposalAttestationV01[];
   inferences: EpisodeDeltaProposalInferenceV01[];

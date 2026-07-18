@@ -106,6 +106,8 @@ export function createVNextOperatorHostRoundTripHandlerV01(
             handoff_paste_actions: result.handoff_paste_actions,
             result_paste_actions: result.result_paste_actions,
             internal_id_entry_actions: result.internal_id_entry_actions,
+            proposal: result.proposal,
+            proposal_created: result.proposal_created,
             ...noSemanticAuthorityV01(),
           },
           result.status === "inserted" ? 201 : 200,
@@ -254,6 +256,7 @@ function liveResponseV01(
       live_run: projection,
       authentication_boundary:
         "local_secret_possession_only_not_external_identity",
+      proposal_created: false,
       ...noSemanticAuthorityV01(),
     },
     httpStatus,
@@ -263,7 +266,6 @@ function liveResponseV01(
 
 function noSemanticAuthorityV01() {
   return {
-    proposal_created: false,
     decision_created: false,
     transition_created: false,
     evidence_accepted: false,

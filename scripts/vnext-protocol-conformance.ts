@@ -36,6 +36,7 @@ import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext
 import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/episode-delta-proposal";
 import { runReviewDecisionConformanceV01 } from "@/scripts/vnext-protocol-conformance/review-decision";
 import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
+import { runRunAssessmentProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-assessment-proposal";
 import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-review-loop";
 import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-transition-loop";
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
@@ -49,6 +50,7 @@ const sourcePaths = [
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
   "lib/vnext/criterion-assessment.ts",
+  "lib/vnext/run-assessment-proposal.ts",
   "lib/vnext/episode-delta-proposal.ts",
   "lib/vnext/review-decision.ts",
   "lib/vnext/state-transition-receipt.ts",
@@ -572,6 +574,8 @@ try {
     runCriterionAssessmentConformanceV01();
   const episodeDeltaProposalSummary =
     runEpisodeDeltaProposalConformanceV01();
+  const runAssessmentProposalSummary =
+    runRunAssessmentProposalConformanceV01();
   const reviewDecisionSummary = runReviewDecisionConformanceV01();
   const stateTransitionReceiptSummary =
     runStateTransitionReceiptConformanceV01();
@@ -639,6 +643,7 @@ try {
         run_receipt: runReceiptSummary,
         criterion_assessment: criterionAssessmentSummary,
         episode_delta_proposal: episodeDeltaProposalSummary,
+        run_assessment_proposal: runAssessmentProposalSummary,
         review_decision: reviewDecisionSummary,
         state_transition_receipt: stateTransitionReceiptSummary,
         context_use_review: contextUseReviewSummary,

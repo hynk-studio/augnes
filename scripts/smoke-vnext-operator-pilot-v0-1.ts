@@ -43,7 +43,6 @@ import {
 import {
   insertVNextCoreRecordV01,
   readVNextCoreRecordV01,
-  type VNextCoreRecordEnvelopeV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
@@ -82,6 +81,7 @@ import {
   type CodexAppServerAdapterObservationV01,
 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
+import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import {
   DirectNativeHostRoundTripErrorV01,
@@ -118,6 +118,7 @@ import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runti
 import {
   createVNextOperatorPilotDecisionRequestFingerprintV01,
   createVNextOperatorPilotReviewDecisionSessionBasisRefV01,
+  listVNextOperatorPilotSemanticReviewsV01,
   readVNextOperatorPilotSemanticReviewV01,
   recordVNextOperatorPilotReviewDecisionV01,
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
@@ -1407,6 +1408,7 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   let golden;
   try {
     const receiptsBefore = countRowsByKind(db, "run_receipt");
+    const proposalsBefore = countRowsByKind(db, "episode_delta_proposal");
     golden = await runDirectNativeHostRoundTripV01(
       db,
       {
@@ -1419,6 +1421,16 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     assert.equal(golden.status, "inserted");
     assert.equal(golden.host_result?.outcome, "completed");
     assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
+    assert.equal(
+      golden.proposal.status,
+      "available",
+      JSON.stringify(golden.proposal),
+    );
+    assert.equal(golden.proposal_created, true);
+    assert.equal(
+      countRowsByKind(db, "episode_delta_proposal"),
+      proposalsBefore + 1,
+    );
     assert.equal(validateRunReceiptV01(golden.receipt).status, "valid");
     assert.equal(golden.receipt.workspace_id, input.config.workspace_id);
     assert.equal(golden.receipt.project_id, input.config.project_id);
@@ -1555,6 +1567,23 @@ async function assertDirectHostRoundTripCoverageV01(input: {
       throw new Error("criterion_assessment_not_available");
     }
     const assessment = resultDetail.criterion_assessment.assessment;
+    assert.equal(resultDetail.proposal.status, "available");
+    if (
+      resultDetail.proposal.status !== "available" ||
+      golden.proposal.status !== "available"
+    ) {
+      throw new Error("run_assessment_proposal_not_available");
+    }
+    const resultProposalId = resultDetail.proposal.proposal_id;
+    assert.equal(resultProposalId, golden.proposal.proposal_id);
+    assert.equal(
+      resultDetail.proposal.proposal_fingerprint,
+      golden.proposal.proposal_fingerprint,
+    );
+    assert.equal(
+      resultDetail.proposal.review_href,
+      `/workbench/semantic-review/${golden.proposal.proposal_id.replace(":", "~")}`,
+    );
     assert.equal(assessment.packet_ref.external_id, input.packet.packet_id);
     assert.equal(
       assessment.packet_ref.source_ref,
@@ -1622,6 +1651,39 @@ async function assertDirectHostRoundTripCoverageV01(input: {
       changes_semantic_state: false,
       changes_later_context: false,
     });
+    const proposalReview = readVNextOperatorPilotSemanticReviewV01(db, {
+      config: input.config,
+      proposal_id: resultProposalId,
+      authenticated_session_id: null,
+    });
+    assert.equal(proposalReview.status, "pending_review");
+    assert.equal(proposalReview.decision_count, 0);
+    assert.equal(proposalReview.transition.status, "not_applied");
+    assert.equal(
+      proposalReview.proposal.source_assessment?.assessment.assessment_fingerprint,
+      assessment.assessment_fingerprint,
+    );
+    assert.deepEqual(
+      proposalReview.proposal.source_assessment?.assessment.criteria,
+      assessment.criteria,
+    );
+    assert.equal(
+      proposalReview.proposal.source_assessment?.observed.skipped_checks.length,
+      resultDetail.skipped_checks.length,
+    );
+    assert.equal(
+      proposalReview.proposal.source_assessment?.observed.capability_coverage.some(
+        (entry) => entry.coverage_level === "outside_coverage",
+      ),
+      true,
+    );
+    assert.equal(
+      listVNextOperatorPilotSemanticReviewsV01(db, {
+        config: input.config,
+        authenticated_session_id: null,
+      }).some((item) => item.proposal_id === resultProposalId),
+      true,
+    );
     const repeatedResultDetail = readProjectRunResultDetailV01(db, {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
@@ -1668,6 +1730,18 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     assert.equal(replay.status, "exact_replay");
     assert.equal(replay.receipt.receipt_id, golden.receipt.receipt_id);
     assert.equal(replay.host_result, null);
+    assert.equal(replay.proposal.status, "available");
+    assert.equal(
+      replay.proposal.status === "available"
+        ? replay.proposal.admission_status
+        : null,
+      "exact_replay",
+    );
+    assert.equal(replay.proposal_created, false);
+    assert.equal(
+      countRowsByKind(db, "episode_delta_proposal"),
+      proposalsBefore + 1,
+    );
     assert.equal(observations.length, 1);
 
     const sharedReplay = admitStructuredRunReceiptV01(db, golden.receipt);
@@ -1721,6 +1795,7 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   pass("direct_host_reuses_ledger_and_structured_receipt_replay_authority");
   pass("direct_host_receipt_minimizes_data_and_grants_no_semantic_authority");
   pass("direct_host_persisted_packet_receipt_criterion_assessment_read_only");
+  pass("direct_host_assessment_proposal_pending_review_vertical");
 
   assertDirectHostRepositoryRelativePathContractV01(
     observed,
@@ -1732,6 +1807,7 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     receipt: golden.receipt,
   });
   await assertInteractiveHostRouteOnCloneV01(input);
+  await assertRunAssessmentProposalFailureSettlementOnCloneV01(input);
   await assertDirectHostTerminalScenariosOnClonesV01(input);
   await assertDirectHostStopSettlementOnClonesV01(input);
   await assertDirectHostRepositoryRelativePathPersistenceOnCloneV01(input);
@@ -1987,6 +2063,10 @@ async function assertInteractiveHostRouteOnCloneV01(input: {
       assert.equal(body.handoff_paste_actions, 0);
       assert.equal(body.result_paste_actions, 0);
       assert.equal(body.internal_id_entry_actions, 0);
+      assert.equal(body.proposal_created, true);
+      const bodyProposal = body.proposal as Record<string, unknown>;
+      assert.equal(bodyProposal.status, "available");
+      assert.equal(bodyProposal.proposal_status, "pending_review");
       assert.equal(body.semantic_state_changed, false);
       assert.equal(body.work_closed, false);
       const receipt = body.receipt as RunReceiptV01;
@@ -2015,12 +2095,215 @@ async function assertInteractiveHostRouteOnCloneV01(input: {
         }),
       );
       assert.equal(replay.status, 200);
-      assert.equal((await publicJson(replay)).status, "exact_replay");
+      const replayBody = await publicJson(replay);
+      assert.equal(replayBody.status, "exact_replay");
+      assert.equal(replayBody.proposal_created, false);
+      const replayProposal = replayBody.proposal as Record<string, unknown>;
+      assert.equal(replayProposal.status, "available");
+      assert.equal(replayProposal.admission_status, "exact_replay");
       assert.equal(observations.length, 1);
     },
   );
   pass("interactive_and_policy_modes_converge_on_direct_host_orchestrator");
   pass("direct_host_route_accepts_empty_body_only_and_rotates_session_nonce");
+}
+
+async function assertRunAssessmentProposalFailureSettlementOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "run-assessment-proposal-failure-settlement",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 40_000),
+      );
+      const observations: DeterministicCodexAdapterObservationV01[] = [];
+      const adapter = createDeterministicCodexAdapterV01({
+        now: () => clock.now(),
+        observe: (observation) => observations.push(observation),
+      });
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const before = {
+          receipts: countRowsByKind(db, "run_receipt"),
+          proposals: countRowsByKind(db, "episode_delta_proposal"),
+          decisions: countRowsByKind(db, "review_decision"),
+          transitions: countRowsByKind(db, "state_transition_receipt"),
+          packets: countRowsByKind(db, "task_context_packet"),
+          semantic_state_entries: countTableRows(
+            db,
+            "vnext_semantic_state_entries",
+          ),
+        };
+        const packetBefore = readVNextCoreRecordV01(db, {
+          record_kind: "task_context_packet",
+          record_id: input.packet.packet_id,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        assert(packetBefore);
+
+        const failed = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => clock.now(),
+            proposal_admission: {
+              admit_proposal: () => {
+                throw Object.assign(
+                  new Error("run_assessment_proposal_injected_failure"),
+                  { code: "run_assessment_proposal_injected_failure" },
+                );
+              },
+            },
+          },
+        );
+        assert.equal(failed.status, "inserted");
+        assert.equal(failed.host_result?.outcome, "completed");
+        assert.equal(failed.receipt.execution.status, "completed");
+        assert.deepEqual(failed.proposal, {
+          status: "failed",
+          error_code: "run_assessment_proposal_injected_failure",
+          retryable: true,
+        });
+        assert.equal(failed.proposal_created, false);
+        assert.equal(countRowsByKind(db, "run_receipt"), before.receipts + 1);
+        assert.equal(
+          countRowsByKind(db, "episode_delta_proposal"),
+          before.proposals,
+        );
+        const receiptBeforeRetry = readVNextCoreRecordV01(db, {
+          record_kind: "run_receipt",
+          record_id: failed.receipt.receipt_id,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        assert(receiptBeforeRetry);
+        const failedRun = readAutonomyRunLedgerRecord(failed.run_id, { db });
+        assert(failedRun);
+        assert.equal(failedRun.status, "completed");
+        assert.equal(
+          failedRun.metadata.run_assessment_proposal_status,
+          "failed",
+        );
+        assert.equal(
+          failedRun.metadata.run_assessment_proposal_retry_required,
+          true,
+        );
+        assert.equal(
+          failedRun.metadata.run_assessment_proposal_error_code,
+          "run_assessment_proposal_injected_failure",
+        );
+        const failedRead = readProjectRunResultDetailV01(db, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          receipt_id: failed.receipt.receipt_id,
+        });
+        assert.deepEqual(failedRead.proposal, {
+          status: "failed",
+          error_code: "run_assessment_proposal_injected_failure",
+          retryable: true,
+        });
+
+        const retry = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          { adapter, now: () => clock.now() },
+        );
+        assert.equal(retry.status, "exact_replay");
+        assert.equal(retry.host_result, null);
+        assert.equal(retry.receipt.receipt_id, failed.receipt.receipt_id);
+        assert.equal(retry.proposal.status, "available");
+        assert.equal(
+          retry.proposal.status === "available"
+            ? retry.proposal.admission_status
+            : null,
+          "inserted",
+        );
+        assert.equal(retry.proposal_created, true);
+        assert.equal(
+          countRowsByKind(db, "episode_delta_proposal"),
+          before.proposals + 1,
+        );
+        assert.deepEqual(
+          readVNextCoreRecordV01(db, {
+            record_kind: "run_receipt",
+            record_id: failed.receipt.receipt_id,
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          receiptBeforeRetry,
+        );
+        const recoveredRun = readAutonomyRunLedgerRecord(failed.run_id, { db });
+        assert(recoveredRun);
+        assert.equal(recoveredRun.status, "completed");
+        assert.equal(
+          recoveredRun.metadata.run_assessment_proposal_status,
+          "available",
+        );
+        assert.equal(
+          recoveredRun.metadata.run_assessment_proposal_retry_required,
+          false,
+        );
+        const recoveredRead = readProjectRunResultDetailV01(db, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          receipt_id: failed.receipt.receipt_id,
+        });
+        assert.equal(recoveredRead.proposal.status, "available");
+
+        const exactReplay = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          { adapter, now: () => clock.now() },
+        );
+        assert.equal(exactReplay.status, "exact_replay");
+        assert.equal(exactReplay.proposal.status, "available");
+        assert.equal(
+          exactReplay.proposal.status === "available"
+            ? exactReplay.proposal.admission_status
+            : null,
+          "exact_replay",
+        );
+        assert.equal(exactReplay.proposal_created, false);
+        assert.equal(observations.length, 1);
+        assert.deepEqual(
+          {
+            receipts: countRowsByKind(db, "run_receipt"),
+            proposals: countRowsByKind(db, "episode_delta_proposal"),
+            decisions: countRowsByKind(db, "review_decision"),
+            transitions: countRowsByKind(db, "state_transition_receipt"),
+            packets: countRowsByKind(db, "task_context_packet"),
+            semantic_state_entries: countTableRows(
+              db,
+              "vnext_semantic_state_entries",
+            ),
+          },
+          {
+            ...before,
+            receipts: before.receipts + 1,
+            proposals: before.proposals + 1,
+          },
+        );
+        assert.deepEqual(
+          readVNextCoreRecordV01(db, {
+            record_kind: "task_context_packet",
+            record_id: input.packet.packet_id,
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          packetBefore,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  pass("proposal_failure_preserves_receipt_and_completed_execution");
+  pass("proposal_failure_retry_creates_or_replays_exactly_one_proposal");
 }
 
 let liveFixtureSequenceV01 = 0;
@@ -2742,6 +3025,23 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           true,
         );
         assert.equal(resultDetail.packet.status, "available");
+        if (resultDetail.criterion_assessment.status !== "available") {
+          throw new Error("live_criterion_assessment_not_available");
+        }
+        materializeRunAssessmentProposalV01({
+          packet: livePacket,
+          receipt,
+          assessment: resultDetail.criterion_assessment.assessment,
+        });
+        assert.equal(
+          resultDetail.proposal.status,
+          "available",
+          JSON.stringify(resultDetail.proposal),
+        );
+        if (resultDetail.proposal.status !== "available") {
+          throw new Error("live_run_assessment_proposal_not_available");
+        }
+        assert.equal(resultDetail.proposal.proposal_status, "pending_review");
         assert.equal(resultDetail.summary.mode, "interactive");
         assert.equal(resultDetail.summary.trust_label, "mixed");
         assert.equal(resultDetail.artifacts.length, 2);

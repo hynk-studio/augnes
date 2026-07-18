@@ -244,9 +244,11 @@ export class LiveNativeHostRunServiceV01 {
         input.automation_context ?? null,
       ))
     ) {
+      await this.retryTerminalProposalAdmissionV01(input.config, existing);
+      const refreshed = this.readLatestManagedRun(input.config) ?? existing;
       return {
         status: "exact_replay",
-        projection: projectionFromRunV01(existing),
+        projection: projectionFromRunV01(refreshed),
         session_admission: this.admitReplayMutation(
           input.config,
           input.operator_mutation,
@@ -282,6 +284,37 @@ export class LiveNativeHostRunServiceV01 {
       return paused ? projectionFromRunV01(paused) : idleProjectionV01();
     }
     return projectionFromRunV01(run);
+  }
+
+  private async retryTerminalProposalAdmissionV01(
+    config: VNextLocalOperatorPilotConfigV01,
+    run: AutonomyRunRecord,
+  ): Promise<void> {
+    const receiptId = stringMetadataV01(run.metadata.run_receipt_id);
+    if (!receiptId) return;
+    const db = this.openDatabase(config);
+    try {
+      const { settleRunAssessmentProposalV01 } = await import(
+        "@/lib/vnext/runtime/run-assessment-proposal-admission"
+      );
+      const { readProjectRunResultSourceBindingV01 } = await import(
+        "@/lib/vnext/runtime/project-run-result-read-model"
+      );
+      const binding = readProjectRunResultSourceBindingV01(db, {
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        receipt_id: receiptId,
+      });
+      settleRunAssessmentProposalV01(db, {
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        receipt: binding.receipt,
+      });
+    } catch {
+      // Host terminal replay remains truthful even when proposal retry fails.
+    } finally {
+      db.close();
+    }
   }
 
   async decide(input: {

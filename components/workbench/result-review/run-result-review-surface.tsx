@@ -66,6 +66,7 @@ export function RunResultReviewSurface({
         </section>
 
         <TaskSuccessCriteria result={result} />
+        <ReviewableProposal result={result} />
 
         <div className={styles.twoColumnGrid}>
           <ResultList
@@ -480,6 +481,72 @@ function TaskSuccessCriteria({
         This assessment is derived and non-authoritative. It creates no Evidence,
         validates no Claim, creates no proposal or decision, applies no Transition,
         and changes neither semantic state nor later context.
+      </p>
+    </section>
+  );
+}
+
+function ReviewableProposal({
+  result,
+}: {
+  result: ProjectRunResultDetailV01;
+}) {
+  const proposal = result.proposal;
+  return (
+    <section
+      className={styles.panel}
+      aria-labelledby="run-result-proposal-title"
+      data-run-result-proposal={proposal.status}
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>Post-receipt candidate material</p>
+        <h2 id="run-result-proposal-title">Reviewable proposal</h2>
+      </div>
+      {proposal.status === "available" ? (
+        <>
+          <p className={styles.copy}>
+            One exact pending-review EpisodeDeltaProposal was admitted from this
+            persisted result and its criterion assessment. Opening this read-only
+            result did not create or replay it.
+          </p>
+          <dl className={styles.statusGrid}>
+            <Metric label="Proposal status" value={proposal.proposal_status} />
+            <Metric label="ReviewDecision" value="none inferred" />
+            <Metric label="Transition" value="not applied" />
+            <Metric label="Semantic state" value="unchanged" />
+          </dl>
+          <span className={styles.identifier}>{proposal.proposal_id}</span>
+          <span className={styles.identifier}>{proposal.proposal_fingerprint}</span>
+          <div className={styles.buttonRow}>
+            <a
+              className={styles.linkButton}
+              href={proposal.review_href}
+              data-result-to-proposal-link="true"
+            >
+              Review exact proposal
+            </a>
+          </div>
+        </>
+      ) : proposal.status === "failed" ? (
+        <>
+          <p className={styles.copy}>
+            The immutable receipt remains available and execution status is
+            unchanged, but proposal admission needs a bounded retry.
+          </p>
+          <p className={styles.muted}>
+            {proposal.error_code} · retryable {String(proposal.retryable)}
+          </p>
+        </>
+      ) : (
+        <p className={styles.muted}>
+          No reviewable proposal is available: {humanize(proposal.reason)}. This
+          read does not repair or create one.
+        </p>
+      )}
+      <p className={styles.muted} data-proposal-authority-boundary="true">
+        A pending proposal is candidate material, not accepted Evidence, a
+        validated Claim, a ReviewDecision, a Transition, semantic state, or later
+        context.
       </p>
     </section>
   );

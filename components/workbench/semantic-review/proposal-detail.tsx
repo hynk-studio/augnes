@@ -1,4 +1,5 @@
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type { EpisodeDeltaProposalSourceAssessmentV01 } from "@/types/vnext/episode-delta-proposal";
 
 import { DurableLineagePanel } from "./durable-lineage-panel";
 import { ReviewDecisionForm } from "./review-decision-form";
@@ -110,6 +111,10 @@ export function SemanticReviewProposalDetail({
           detailed source-lineage exploration.
         </p>
       </section>
+
+      {proposal.source_assessment ? (
+        <RunAssessmentSnapshot source={proposal.source_assessment} />
+      ) : null}
 
       <section className={styles.panel} aria-labelledby="provenance-title">
         <div className={styles.panelHeader}>
@@ -387,6 +392,135 @@ export function SemanticReviewProposalDetail({
       </section>
 
       <DurableLineagePanel lineage={read.durable_lineage} />
+    </section>
+  );
+}
+
+function RunAssessmentSnapshot({
+  source,
+}: {
+  source: EpisodeDeltaProposalSourceAssessmentV01;
+}) {
+  return (
+    <section
+      className={styles.panel}
+      data-run-assessment-proposal="v0.1"
+      data-task-success-status={source.comparison.task_success_status}
+      data-assessment-authoritative="false"
+      aria-labelledby="run-assessment-proposal-title"
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>Persisted assessment snapshot</p>
+        <h2 id="run-assessment-proposal-title">
+          Expected task versus observed execution
+        </h2>
+      </div>
+      <p className={styles.copy} data-execution-task-success="true">
+        Execution {source.observed.execution.status} / task success {source.comparison.task_success_status}
+      </p>
+      <dl className={styles.statusGrid}>
+        <div><dt>Assessment</dt><dd>{source.assessment.assessment_version}</dd></div>
+        <div><dt>Verification</dt><dd>{source.observed.verification.status}</dd></div>
+        <div><dt>Relation policy</dt><dd>explicit protocol relations only</dd></div>
+        <div><dt>Criterion relations</dt><dd>unavailable</dd></div>
+      </dl>
+      <div className={styles.twoColumnGrid}>
+        <section className={styles.materialCard}>
+          <h3>Expected</h3>
+          <strong>{source.expected.task_goal}</strong>
+          <TextCollection title="Required checks" items={source.expected.required_checks} />
+          <TextCollection title="Expected artifacts" items={source.expected.expected_artifacts} />
+          <TextCollection title="Required return fields" items={source.expected.required_return_fields} />
+          <TextCollection title="Forbidden actions" items={source.expected.forbidden_actions} />
+        </section>
+        <section className={styles.materialCard}>
+          <h3>Observed</h3>
+          <p className={styles.copy}>{source.observed.result_summary.summary}</p>
+          <span>{source.observed.commands.length} command summaries</span>
+          <span>{source.observed.changed_artifacts.length} changed artifacts</span>
+          <span>{source.observed.gaps.length} receipt gaps</span>
+          <span>Raw terminal output persisted: no</span>
+        </section>
+      </div>
+      <h3>Task success criteria</h3>
+      <ol className={styles.plainList} data-proposal-criterion-items="true">
+        {source.assessment.criteria.map((criterion) => (
+          <li
+            key={criterion.criterion_id}
+            data-criterion-status={criterion.status}
+            data-criterion-basis={criterion.basis}
+          >
+            <strong>{criterion.criterion}</strong>
+            <span>{criterion.status} · {criterion.basis}</span>
+            <small>
+              {criterion.supporting_refs.length} supporting refs · {criterion.opposing_refs.length} opposing refs · {criterion.missing_refs.length} criterion-specific missing refs
+            </small>
+            <TextCollection title="Uncertainty" items={criterion.uncertainty} />
+          </li>
+        ))}
+      </ol>
+      <div className={styles.twoColumnGrid}>
+        <section className={styles.materialCard} data-proposal-checks="true">
+          <h3>Checks</h3>
+          <ul className={styles.plainList}>
+            {source.observed.checks.map((check) => (
+              <li key={`check:${check.check_id}`}>
+                <strong>{check.check_id}</strong>
+                <span>{check.status} · {check.required ? "required" : "optional"} · {check.basis}</span>
+                <small>{check.summary}</small>
+              </li>
+            ))}
+            {source.observed.skipped_checks.map((check) => (
+              <li key={`skipped:${check.check_id}`} data-check-status="skipped">
+                <strong>{check.check_id}</strong>
+                <span>skipped · {check.required ? "required" : "optional"} · {check.basis}</span>
+                <small>{check.reason}</small>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className={styles.materialCard} data-proposal-artifacts="true">
+          <h3>Changed artifacts</h3>
+          <ul className={styles.plainList}>
+            {source.observed.changed_artifacts.map((artifact) => (
+              <li key={externalRefKey(artifact.artifact_ref)}>
+                <strong>{artifact.artifact_ref.external_id}</strong>
+                <span>{artifact.change_kind} · {artifact.basis}</span>
+                <small>Source linked; raw artifact content persisted: no</small>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+      <div className={styles.metricGrid} data-proposal-trust="true">
+        <Metric label="Direct observations" value={source.observed.trust_summary.direct_observations} />
+        <Metric label="Verified external" value={source.observed.trust_summary.verified_external_observations} />
+        <Metric label="Host attestations" value={source.observed.trust_summary.host_attestations} />
+        <Metric label="Provider reports" value={source.observed.trust_summary.provider_reports} />
+        <Metric label="Derived interpretations" value={source.observed.trust_summary.derived_interpretations} />
+      </div>
+      <h3>Operation coverage</h3>
+      <ul className={styles.plainList} data-proposal-coverage="true">
+        {source.observed.capability_coverage.map((entry) => (
+          <li key={entry.capability} data-coverage-level={entry.coverage_level}>
+            <strong>{entry.capability}</strong>
+            <span>{entry.coverage_level === "outside_coverage" ? "unsupported / unavailable" : entry.coverage_level}</span>
+            <TextCollection title="Coverage notes" items={entry.notes} />
+          </li>
+        ))}
+      </ul>
+      <TextCollection title="Comparison gaps" items={source.comparison.gaps} />
+      <div className={styles.provenanceGrid}>
+        <RefCollection title="Exact packet" refs={[source.packet_ref]} />
+        <RefCollection title="Exact receipt" refs={[source.receipt_ref]} />
+        <RefCollection title="Exact run" refs={[source.run_ref]} />
+      </div>
+      <span className={styles.identifier}>{source.assessment.assessment_fingerprint}</span>
+      <p className={styles.notice} data-run-assessment-authority="false">
+        This durable snapshot preserves candidate material only. It creates no
+        Evidence acceptance, Claim validation, ReviewDecision, Transition,
+        semantic-state change, or later-context change.
+      </p>
     </section>
   );
 }

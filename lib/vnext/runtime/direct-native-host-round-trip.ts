@@ -101,6 +101,9 @@ import type {
   RunReceiptV01,
 } from "@/types/vnext/run-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type {
+  RunAssessmentProposalAdmissionDependenciesV01,
+} from "@/lib/vnext/runtime/run-assessment-proposal-admission";
 
 export const DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 =
   "direct_native_host_round_trip.v0.1" as const;
@@ -159,7 +162,20 @@ export interface DirectNativeHostRoundTripResultV01 {
   handoff_paste_actions: 0;
   result_paste_actions: 0;
   internal_id_entry_actions: 0;
-  proposal_created: false;
+  proposal:
+    | {
+        status: "available";
+        proposal_id: string;
+        proposal_fingerprint: string;
+        proposal_status: "pending_review";
+        admission_status: "inserted" | "exact_replay";
+      }
+    | {
+        status: "failed";
+        error_code: string;
+        retryable: true;
+      };
+  proposal_created: boolean;
   decision_created: false;
   transition_created: false;
   evidence_accepted: false;
@@ -179,6 +195,7 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   resume_binding?: NativeHostResumeBindingV01 | null;
   resume_existing_run?: boolean;
   live_host_egress_authorized?: boolean;
+  proposal_admission?: RunAssessmentProposalAdmissionDependenciesV01;
   on_invocation_admitted?: (input: {
     request: NativeHostRequestV01;
     session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
@@ -462,15 +479,20 @@ export async function runDirectNativeHostRoundTripV01(
     if (existingReceipt) {
       assertReceiptBindsAdmission(existingReceipt, admitted, identity.run_id);
       db.exec("COMMIT");
-      return roundTripResult({
-        status: "exact_replay",
-        mode: input.mode,
-        request_id: identity.request_id,
-        run_id: identity.run_id,
-        receipt: existingReceipt,
-        host_result: null,
-        session_admission: sessionAdmission,
-      });
+      return settleRoundTripResultV01(
+        db,
+        {
+          config: input.config,
+          status: "exact_replay",
+          mode: input.mode,
+          request_id: identity.request_id,
+          run_id: identity.run_id,
+          receipt: existingReceipt,
+          host_result: null,
+          session_admission: sessionAdmission,
+        },
+        dependencies.proposal_admission,
+      );
     }
     const existingRun = readAutonomyRunLedgerRecord(identity.run_id, { db });
     if (existingRun) {
@@ -729,15 +751,20 @@ export async function runDirectNativeHostRoundTripV01(
     if (db.inTransaction) db.exec("ROLLBACK");
     throw error;
   }
-  return roundTripResult({
-    status: "inserted",
-    mode: input.mode,
-    request_id: identity.request_id,
-    run_id: identity.run_id,
-    receipt,
-    host_result: hostResult,
-    session_admission: sessionAdmission,
-  });
+  return settleRoundTripResultV01(
+    db,
+    {
+      config: input.config,
+      status: "inserted",
+      mode: input.mode,
+      request_id: identity.request_id,
+      run_id: identity.run_id,
+      receipt,
+      host_result: hostResult,
+      session_admission: sessionAdmission,
+    },
+    dependencies.proposal_admission,
+  );
 }
 
 function resolveLatestPacketSelection(
@@ -2478,6 +2505,58 @@ function receiptExecutionStatus(
   return "failed";
 }
 
+async function settleRoundTripResultV01(
+  db: Database.Database,
+  input: Omit<
+    DirectNativeHostRoundTripResultV01,
+    | "round_trip_version"
+    | "packet_copy_actions"
+    | "handoff_paste_actions"
+    | "result_paste_actions"
+    | "internal_id_entry_actions"
+    | "proposal"
+    | "proposal_created"
+    | "decision_created"
+    | "transition_created"
+    | "evidence_accepted"
+    | "work_closed"
+    | "semantic_state_changed"
+  > & {
+    config: VNextLocalOperatorPilotConfigV01;
+  },
+  proposalAdmission: RunAssessmentProposalAdmissionDependenciesV01 | undefined,
+): Promise<DirectNativeHostRoundTripResultV01> {
+  const { config, ...result } = input;
+  const { settleRunAssessmentProposalV01 } = await import(
+    "@/lib/vnext/runtime/run-assessment-proposal-admission"
+  );
+  const settlement = settleRunAssessmentProposalV01(
+    db,
+    {
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      receipt: input.receipt,
+    },
+    proposalAdmission,
+  );
+  return roundTripResult({
+    ...result,
+    proposal:
+      settlement.status === "available"
+        ? {
+            status: "available",
+            proposal_id: settlement.proposal.proposal_id,
+            proposal_fingerprint: settlement.proposal.integrity.fingerprint,
+            proposal_status: "pending_review",
+            admission_status: settlement.admission_status,
+          }
+        : settlement,
+    proposal_created:
+      settlement.status === "available" &&
+      settlement.admission_status === "inserted",
+  });
+}
+
 function roundTripResult(
   input: Omit<
     DirectNativeHostRoundTripResultV01,
@@ -2486,7 +2565,6 @@ function roundTripResult(
     | "handoff_paste_actions"
     | "result_paste_actions"
     | "internal_id_entry_actions"
-    | "proposal_created"
     | "decision_created"
     | "transition_created"
     | "evidence_accepted"
@@ -2501,7 +2579,6 @@ function roundTripResult(
     handoff_paste_actions: 0,
     result_paste_actions: 0,
     internal_id_entry_actions: 0,
-    proposal_created: false,
     decision_created: false,
     transition_created: false,
     evidence_accepted: false,
