@@ -4,7 +4,7 @@
 > **문서 지위:** active vNext set 하위의 조건부 R&D program
 > **버전:** v0.1
 > **기준일:** 2026-07-11 KST
-> **상위 권위:** `01_AUGNES_VNEXT_MASTERPLAN.md`, `02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`, `03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`, `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`, `05_AUGNES_VNEXT_LAB_CHARTER.md`
+> **상위 권위:** `../01_AUGNES_VNEXT_MASTERPLAN.md`, `../02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`, `../03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`, `../04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
 > **읽기 조건:** Personal Perspective, Personal Vault, Perspective Gap Management, structured multi-perspective review 또는 Perspective Arena 관련 작업
 > **핵심 경계:** 이 문서는 제품 Masterplan, schema, persistence 승인, task-context 주입 권한 또는 구현 완료 주장이 아니다.
 
@@ -41,8 +41,8 @@ automatic population selection은 이 프로그램의 후반 연구 가설이지
 이 프로그램은 다음 초기 제안을 design input으로 종합한다.
 
 - Personal Perspective R&D proposal
-- `AUGNES_PERSPECTIVE_GAP_FILLING_PROPOSAL.md`
-- `AUGNES_PERSPECTIVE_ARENA_EVOLUTIONARY_COMPETITION_PROPOSAL_2026-07-11.md`
+- Perspective Gap Filling proposal
+- Perspective Arena Evolutionary Competition proposal (2026-07-11)
 
 이 제안들은 repository authority가 아니다. 채택·수정·보류된 의미는 본 문서와 상위
 active vNext 문서에 다시 명시된 범위에서만 현재 연구 방향이 된다.
@@ -147,6 +147,9 @@ Arena Output ≠ Personal Perspective Mutation
 - candidate마다 supporting source와 counterexample status를 표현하고, 알려진
   counterexample이 있으면 그 ref를 연결할 수 있어야 한다.
 - contested, stale, inferred 또는 retracted item은 accepted item처럼 표시하지 않는다.
+- disagreement, support, attack, contradiction 또는 다른 inferred relation은 source,
+  scope, epistemic basis, limitations와 revision status를 가진 candidate relation
+  assertion이다. relation structure나 model agreement는 verified truth가 아니다.
 
 ### 3.2 User control
 
@@ -353,7 +356,10 @@ perspective_gap_candidate
 ```
 
 각 output은 source, assumptions, scope, limitations와 non-authority boundary를 가져야
-한다. 모델 agreement는 verification이 아니고 minority opinion도 truth가 아니다.
+한다. output에서 추론된 disagreement, support, attack, contradiction과 다른 relation은
+candidate relation assertion으로 남고 source, scope, basis, limitations와 revision
+status를 보존한다. relation structure와 모델 agreement는 verification이 아니고
+minority opinion도 truth가 아니다.
 
 ### 7.1 Initial trials
 
@@ -380,6 +386,9 @@ automatic actor promotion
 
 Arena output은 Personal Perspective candidate나 gap을 제안할 수 있지만 직접
 Personal Perspective를 mutate, apply, promote 또는 task context에 inject할 수 없다.
+Arena output, model inference, semantic assessment와 relation assertion은 모두 기존
+source-linked proposal, review, authorization과 Transition path 없이 Personal
+Perspective를 변경하거나 task context에 들어갈 수 없다.
 
 ---
 

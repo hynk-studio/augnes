@@ -96,18 +96,20 @@ Lineage Explorer
 Integration Health
 ```
 
-Project Home은 Resume과 current coordination을 위한 인간 front door다. 현재
+Project Home은 work를 frame/resume하고 durable current coordination을 보여 주는
+인간 front door다. 현재
 Blank State는 이 목표의 predecessor이며, route나 구현이 이미 전환됐다는 뜻은
 아니다. Semantic Workbench는 cross-host result comparison, Evidence/Claim
-reconciliation, EpisodeDeltaProposal review, ReviewDecision 준비와 next-context
-composition을 위한 능동 semantic work surface다. 현재 Agent Workplane은 이
-목표의 predecessor다. Workbench의 책임은 provider 제품의 일시적 기능 공백이
-아니라 cross-host·cross-time canonical project semantics로 정의한다.
+reconciliation, reviewable semantic delta와 decision consequence composition,
+ReviewDecision 준비와 next-context composition을 위한 능동 semantic work
+surface다. 현재 Agent Workplane은 이 목표의 predecessor다. Workbench의 책임은
+provider 제품의 일시적 기능 공백이 아니라 cross-host·cross-time canonical project
+semantics로 정의한다.
 
-Inspector는 Home과 Workbench가 공유하는 read-heavy provenance, audit와 lineage
-drill-down이다. host-native compact card는 bounded context와 review intent를
-native UX에 표시한다. compact card와 Inspector 어느 것도 Home과 Workbench를
-단독 대체하지 않는다.
+Inspector는 Home과 Workbench가 공유하는 read-heavy source map, epistemic basis,
+authority lineage, audit와 drill-down surface다. host-native compact card는 bounded
+context와 review intent를 native UX에 표시한다. compact card와 Inspector 어느
+것도 Home과 Workbench를 단독 대체하지 않는다.
 
 모든 surface는 Core record를 소비하는 projection 또는 client다. UI 이름은
 authority를 부여하지 않으며, surface가 낸 review/decision intent도 explicit Core
@@ -120,10 +122,10 @@ Canonical interaction loop:
 
 ```text
 Project Home frames or resumes work
-→ TaskContextPacket
+→ TaskContextPacket intent
 → native host execution
-→ RunReceipt
-→ Semantic Workbench review
+→ RunReceipt operational residue
+→ source-linked, non-authoritative assessment/comparison
 → EpisodeDeltaProposal
 → ReviewDecision
 → authorized transition
@@ -136,7 +138,11 @@ API, route 또는 UI implementation plan을 승인하지 않는다.
 
 ### 1.5 Augnes Lab
 
-Lab의 code와 data는 Core의 Evidence·Claim·Decision authority와 분리한다. 자세한 경계는 `05_AUGNES_VNEXT_LAB_CHARTER.md`를 따른다.
+Lab의 code와 data는 Core의 Evidence·Claim·Decision authority와 분리한다.
+`Lab Diagnostic ≠ Evidence`이며 Lab output은 Claim을 accept하거나 ReviewDecision
+또는 Transition을 만들지 않는다. Lab code, data와 model output은 Core의
+source-linked proposal, review, authorization과 persistence boundary를 우회할 수
+없다.
 
 ---
 
@@ -466,6 +472,33 @@ GitHub merge event 조회
 - provider report와 직접 관찰을 같은 trust level로 두지 않는다.
 - receipt 기록은 semantic state commit이 아니다.
 
+#### Operational residue to semantic assessment boundary
+
+R6는 다음의 meaning layer를 사용할 수 있다.
+
+```text
+TaskContextPacket task goal와 success criteria
++
+RunReceipt observations, attestations, checks, skipped checks,
+changed artifacts, gaps와 uncertainty
+→ source-linked, non-authoritative semantic assessment/comparison
+→ possible EpisodeDeltaProposal candidate
+```
+
+`semantic assessment/comparison projection`은 설명을 위한 working name이며 이
+문서만으로 canonical protocol record, durable aggregate, DB table, API 또는 UI를
+승인하지 않는다. 각 success criterion은 `satisfied`, `unsatisfied`, `unknown` 또는
+`not_applicable`로 비교하고, basis는 `observed`, `attested`, `mixed` 또는
+`insufficient`를 구분한다. 각 판단은 observation, attestation, check, skipped-check,
+artifact, gap과 uncertainty의 구체 ref를 보존하며 support가 부족하면 `unknown`을
+기본값으로 사용한다.
+
+이 projection은 `RunReceipt.execution.status: completed`를 task success로 해석하지
+않는다. canonical state가 아니며 Evidence나 Claim을 accept하지 않고,
+ReviewDecision을 만들거나 Transition을 수행하지 않으며, later TaskContextPacket을
+직접 변경하지 않는다. host-proposed next step도 advisory로 남는다. 다만 concrete
+source anchor를 가진 EpisodeDeltaProposal 준비에는 사용할 수 있다.
+
 #### 기존 compatibility inputs
 
 ```text
@@ -524,6 +557,11 @@ coordination_delta
 - expected-vs-observed 비교는 learning signal이며 validation approval이 아니다.
 - 모델 confidence는 delta scoring authority가 아니다.
 - stale source에 의존하면 fresh review requirement를 표시한다.
+- 각 semantic delta item은 observation, attestation, check, artifact 또는 기존
+  Evidence, Claim, accepted-state ref 같은 concrete source anchor를 가진다.
+- summary-only semantic delta, source-less Claim, completion-only success judgment,
+  model-confidence-only promotion과 host-proposed next step의 automatic promotion을
+  허용하지 않는다.
 
 ---
 
@@ -979,6 +1017,11 @@ broadens
 depends_on
 ```
 
+Structured comparison이나 multi-perspective review가 제안한 relation은 source,
+scope, epistemic basis, limitations와 revision status를 가진 candidate relation
+assertion이다. relation structure나 model agreement는 verified relation 또는 truth를
+만들지 않는다.
+
 ### 8.3 Evidence relation
 
 Evidence는 단독으로 truth가 아니다. 특정 Claim과의 관계를 가진다.
@@ -1087,7 +1130,20 @@ output이며 projection 자체도, target head도, packet compiler도 transition
 아니다. Compiler와 local probe는 projection, immutable state record, target head와 exact source
 receipt lineage가 모두 맞을 때만 local current-state read를 사용한다.
 
-### 9.5 table 생성 기준
+### 9.5 export, restore and projection rebuild
+
+Portable export와 recovery restore는 canonical durable record의 exact authority,
+lifecycle, source anchor와 lineage를 보존한다. Import 또는 restore는 새
+ReviewDecision이나 Transition을 만들지 않는다. 아직 canonical runtime record가
+아닌 semantic concept를 exportable canonical truth로 약속하지 않는다.
+
+Current Working Perspective rendering, semantic assessment/comparison projection,
+Workbench summary, attention ranking, Inspector grouping/layout, graph coordinates,
+search ranking, display badge와 recommendation ordering은 rebuildable projection이다.
+cache하거나 export하더라도 `derived`, `non-authoritative`, `rebuildable`,
+`source-bound`임을 명시해야 한다.
+
+### 9.6 table 생성 기준
 
 새 table 또는 aggregate는 다음을 모두 만족할 때만 고려한다.
 
