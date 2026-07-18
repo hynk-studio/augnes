@@ -2,12 +2,16 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { EpisodeDeltaProposalSourceAssessmentV01 } from "@/types/vnext/episode-delta-proposal";
 
 import { DurableLineagePanel } from "./durable-lineage-panel";
+import { ContextUseReviewForm } from "./context-use-review-form";
+import { OperationAwareRevisionForm } from "./operation-aware-revision-form";
 import { ReviewDecisionForm } from "./review-decision-form";
 import { SemanticTransitionActions } from "./semantic-transition-actions";
 import type {
   SemanticReviewDecisionRequestV01,
+  SemanticContextUseReviewRequestV01,
   SemanticReviewProposalDetailV01,
   SemanticReviewProjectV01,
+  SemanticReviewRevisionRequestV01,
 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
 
@@ -16,6 +20,8 @@ export function SemanticReviewProposalDetail({
   read,
   busyCandidateId,
   onDecision,
+  onRevision,
+  onContextUseReview,
   onSessionInvalid,
   onPrivateMaterialChanged,
   tryBeginOperatorMutation,
@@ -25,6 +31,10 @@ export function SemanticReviewProposalDetail({
   read: SemanticReviewProposalDetailV01;
   busyCandidateId: string | null;
   onDecision: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
+  onRevision: (request: SemanticReviewRevisionRequestV01) => Promise<void>;
+  onContextUseReview: (
+    request: SemanticContextUseReviewRequestV01,
+  ) => Promise<void>;
   onSessionInvalid: (errorCode: string) => void;
   onPrivateMaterialChanged: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
@@ -114,6 +124,30 @@ export function SemanticReviewProposalDetail({
 
       {proposal.source_assessment ? (
         <RunAssessmentSnapshot source={proposal.source_assessment} />
+      ) : null}
+
+      {proposal.operation_revision ? (
+        <section
+          className={styles.panel}
+          data-vnext-operation-revision="v0.1"
+          aria-labelledby="operation-revision-title"
+        >
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Immutable revision lineage</p>
+            <h2 id="operation-revision-title">Operation-aware candidate revision</h2>
+          </div>
+          <dl className={styles.statusGrid}>
+            <div><dt>Operation</dt><dd>{proposal.operation_revision.selected_operation}</dd></div>
+            <div><dt>Delta lane</dt><dd>{proposal.operation_revision.selected_delta_type}</dd></div>
+            <div><dt>Source proposal</dt><dd>{proposal.operation_revision.source.proposal_id}</dd></div>
+            <div><dt>Source candidate</dt><dd>{proposal.operation_revision.source.candidate_id}</dd></div>
+          </dl>
+          <p className={styles.copy}>{proposal.operation_revision.rationale_summary}</p>
+          <p className={styles.notice}>
+            The source proposal and candidate remain immutable. This revision is still
+            candidate material and grants no decision or Transition authority.
+          </p>
+        </section>
       ) : null}
 
       <section className={styles.panel} aria-labelledby="provenance-title">
@@ -237,6 +271,18 @@ export function SemanticReviewProposalDetail({
                   busy={busyCandidateId !== null}
                   onSubmit={onDecision}
                 />
+                {!proposal.operation_revision &&
+                (candidate.operation === "unknown" ||
+                  candidate.operation === "no_change") ? (
+                  <OperationAwareRevisionForm
+                    proposalId={proposal.proposal_id}
+                    proposalFingerprint={proposal.integrity.fingerprint}
+                    sourceAssessment={proposal.source_assessment}
+                    candidateRead={candidateRead}
+                    busy={busyCandidateId !== null}
+                    onSubmit={onRevision}
+                  />
+                ) : null}
               </li>
             );
           })}
@@ -387,11 +433,69 @@ export function SemanticReviewProposalDetail({
         <p className={styles.notice}>
           This status panel reports persisted transition lineage. A ReviewDecision is
           still not a transition; the separate controls above require fresh preview,
-          exact gate confirmation, explicit commit, and explicit packet compilation.
+          exact gate confirmation, and atomic Transition-plus-packet application.
         </p>
       </section>
 
       <DurableLineagePanel lineage={read.durable_lineage} />
+
+      {read.project_continuity.latest_applied_transition?.proposal_id ===
+        proposal.proposal_id && read.project_continuity.latest_context_use_receipt ? (
+        <section
+          className={styles.panel}
+          data-vnext-context-use-feedback="available"
+          aria-labelledby="context-use-feedback-title"
+        >
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Later-run feedback</p>
+            <h2 id="context-use-feedback-title">ContextUseReview</h2>
+          </div>
+          <p className={styles.copy}>
+            A real later RunReceipt exists for the compiled packet. Packet presentation,
+            user-declared actual use, and usefulness remain separate classifications.
+            The counts below are task-wide later-receipt residue, not support for the
+            actual-use classification.
+          </p>
+          <dl className={styles.statusGrid}>
+            <div><dt>Task-wide direct observations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.direct_observations}</dd></div>
+            <div><dt>Task-wide verified external observations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.verified_external_observations}</dd></div>
+            <div><dt>Task-wide host attestations</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.host_attestations}</dd></div>
+            <div><dt>Task-wide provider reports</dt><dd>{read.project_continuity.latest_context_use_receipt.trust_summary.provider_reports}</dd></div>
+          </dl>
+          {read.project_continuity.latest_context_use_review_status?.later_task_run_receipt_id ===
+          read.project_continuity.latest_context_use_receipt.receipt_id ? (
+            <dl className={styles.statusGrid}>
+              <div><dt>Presented</dt><dd>{read.project_continuity.latest_context_use_review_status.presented}</dd></div>
+              <div><dt>Presentation basis</dt><dd>{read.project_continuity.latest_context_use_review_status.presentation_basis ?? "not recorded (historical)"}</dd></div>
+              <div><dt>Assessment</dt><dd>{read.project_continuity.latest_context_use_review_status.assessment}</dd></div>
+              <div><dt>Usefulness basis</dt><dd>{read.project_continuity.latest_context_use_review_status.assessment_basis ?? "not recorded (historical)"}</dd></div>
+              <div><dt>User-declared actually used</dt><dd>{read.project_continuity.latest_context_use_review_status.actually_used}</dd></div>
+              <div><dt>Actual-use basis</dt><dd>{read.project_continuity.latest_context_use_review_status.actually_used_basis ?? "not recorded (historical)"}</dd></div>
+              <div><dt>Reviewed</dt><dd>{read.project_continuity.latest_context_use_review_status.reviewed_at}</dd></div>
+              <div><dt>Authority</dt><dd>non-authoritative feedback</dd></div>
+            </dl>
+          ) : (
+            <ContextUseReviewForm
+              receiptId={read.project_continuity.latest_context_use_receipt.receipt_id}
+              receiptFingerprint={read.project_continuity.latest_context_use_receipt.receipt_fingerprint}
+              busy={busyCandidateId !== null}
+              onSubmit={onContextUseReview}
+            />
+          )}
+        </section>
+      ) : (
+        <section className={styles.panel} data-vnext-context-use-feedback="not_yet_available">
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Later-run feedback</p>
+            <h2>ContextUseReview not yet available</h2>
+          </div>
+          <p className={styles.empty}>
+            Feedback requires an applied Transition, its compiled later packet, and a
+            real later interactive RunReceipt. Transition application never launches
+            that later run automatically.
+          </p>
+        </section>
+      )}
     </section>
   );
 }

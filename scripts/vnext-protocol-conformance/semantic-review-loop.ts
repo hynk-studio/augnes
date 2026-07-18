@@ -34,7 +34,7 @@ import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 const CHAIN_PACKET_EVALUATED_AT = "2026-07-10T01:00:00.000Z";
 const CHAIN_DECIDED_AT = "2026-07-10T13:15:00.000Z";
 const FIXED_SEMANTIC_REVIEW_CHAIN_FINGERPRINT =
-  "sha256:160e48e92527010db75142e6e28a34b2ac46c54cfb42079455a81e1d02d1e141";
+  "sha256:d0608730cb1f8d48607db9b39643cd70ef15ca26b08857c4fafac0453f6bf1bb";
 
 interface SemanticReviewChainFixtureResultV01 {
   project: SemanticReviewLoopProjectFixtureV01;

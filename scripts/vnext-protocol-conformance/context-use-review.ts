@@ -19,9 +19,9 @@ import type { ContextUseReviewV01 } from "@/types/vnext/context-use-review";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
 const FIXED_CONTEXT_USE_REVIEW_ID =
-  "context-use-review:96d1b77fb68e275f6c48314d";
+  "context-use-review:829c76450c0d5995a87676d3";
 const FIXED_CONTEXT_USE_REVIEW_FINGERPRINT =
-  "sha256:3084bf71486df5e06c0de24187e39d323c8a532da5a30dbae0547b6bf91b1cfa";
+  "sha256:921f7ab49c08290a487eac63dba45c08a7319a622e457ee05f26b44800cd3fa0";
 
 export interface ContextUseReviewConformanceSummaryV01 {
   suite: "context-use-review-v0.1";
@@ -46,6 +46,154 @@ export function runContextUseReviewConformanceV01(): ContextUseReviewConformance
   assert.equal(canonicalizeContextUseReviewValueV01(frozenInput), before);
   assert.equal(validateContextUseReviewV01(review).status, "valid");
   assertRelationValid(review);
+  assert.equal(review.usage_provenance, undefined);
+
+  const provenanceInput = clone(contextUseReviewInputFixture);
+  provenanceInput.usage_provenance = {
+    provenance_version: "context_use_review_usage_provenance.v0.1",
+    presented: {
+      basis: "direct_local_observation",
+      source_refs: [
+        provenanceInput.reviewer_authentication_basis_refs[0]!,
+      ],
+    },
+    actually_used: {
+      basis: "user_declaration",
+      source_refs: [provenanceInput.reviewer_ref],
+    },
+    assessment: {
+      basis: "user_declaration",
+      source_refs: [provenanceInput.reviewer_ref],
+    },
+  };
+  const provenanceReview = buildContextUseReviewV01(
+    deepFreeze(provenanceInput),
+  );
+  assert.equal(validateContextUseReviewV01(provenanceReview).status, "valid");
+  assert.equal(
+    provenanceReview.usage_provenance?.actually_used.basis,
+    "user_declaration",
+  );
+  const changedProvenance = clone(provenanceReview);
+  changedProvenance.usage_provenance!.actually_used.source_refs[0]!.observed_at =
+    "2026-07-10T13:41:00.000Z";
+  const staleProvenanceValidation =
+    validateContextUseReviewV01(changedProvenance);
+  assert.notEqual(staleProvenanceValidation.status, "valid");
+  assert.equal(
+    staleProvenanceValidation.errors.some(
+      (issue) => issue.code === "fingerprint_mismatch",
+    ),
+    true,
+  );
+  resign(changedProvenance);
+  assert.equal(validateContextUseReviewV01(changedProvenance).status, "valid");
+
+  const provenanceConflict = clone(provenanceReview);
+  provenanceConflict.usage_provenance!.actually_used.basis =
+    "host_attestation";
+  resign(provenanceConflict);
+  const provenanceConflictValidation =
+    validateContextUseReviewV01(provenanceConflict);
+  assert.equal(provenanceConflictValidation.status, "blocked");
+  assert.equal(
+    provenanceConflictValidation.errors.some(
+      (issue) => issue.code === "usage_provenance_basis_refs_conflict",
+    ),
+    true,
+  );
+  const provenanceBound = clone(provenanceReview);
+  provenanceBound.usage_provenance!.actually_used.source_refs = Array.from(
+    { length: 65 },
+    (_, index) => ({
+      ...provenanceBound.reviewer_ref,
+      external_id: `operator:context-use-provenance-bound:${index}`,
+    }),
+  );
+  provenanceBound.usage_provenance!.assessment.source_refs =
+    structuredClone(
+      provenanceBound.usage_provenance!.actually_used.source_refs,
+    );
+  resign(provenanceBound);
+  const provenanceBoundValidation = validateContextUseReviewV01(provenanceBound);
+  assert.equal(provenanceBoundValidation.status, "blocked");
+  assert.equal(
+    provenanceBoundValidation.errors.some(
+      (issue) => issue.code === "collection_bound_exceeded",
+    ),
+    true,
+  );
+
+  const unsupportedActualUseCases = [
+    {
+      basis: "direct_local_observation" as const,
+      refs: [contextUseReviewInputFixture.reviewer_authentication_basis_refs[0]!],
+    },
+    {
+      basis: "host_attestation" as const,
+      refs: [{
+        ...contextUseReviewInputFixture.reviewer_ref,
+        external_id: "host:unrelated-context-residue",
+        trust_class: "host_attestation" as const,
+      }],
+    },
+    {
+      basis: "provider_report" as const,
+      refs: [{
+        ...contextUseReviewInputFixture.reviewer_ref,
+        external_id: "provider:unrelated-context-residue",
+        trust_class: "provider_report" as const,
+      }],
+    },
+    {
+      basis: "mixed" as const,
+      refs: [
+        contextUseReviewInputFixture.reviewer_authentication_basis_refs[0]!,
+        {
+          ...contextUseReviewInputFixture.reviewer_ref,
+          external_id: "host:mixed-unrelated-context-residue",
+          trust_class: "host_attestation" as const,
+        },
+      ],
+    },
+  ];
+  for (const item of unsupportedActualUseCases) {
+    const unsupportedInput = clone(contextUseReviewInputFixture);
+    unsupportedInput.usage = { presented: "unknown", actually_used: "no" };
+    unsupportedInput.assessment = "not_applicable";
+    unsupportedInput.corrections = { correction_count: 0, summaries: [] };
+    unsupportedInput.metrics = {
+      wrong_context_correction_count: null,
+      repeated_explanation_estimate: null,
+      missing_critical_context_count: null,
+      context_refs_used_count: null,
+    };
+    unsupportedInput.usage_provenance = {
+      provenance_version: "context_use_review_usage_provenance.v0.1",
+      presented: { basis: "unknown", source_refs: [] },
+      actually_used: { basis: item.basis, source_refs: item.refs },
+      assessment: {
+        basis: "user_declaration",
+        source_refs: [unsupportedInput.reviewer_ref],
+      },
+    };
+    const unsupportedReview = buildContextUseReviewV01(unsupportedInput);
+    assert.equal(validateContextUseReviewV01(unsupportedReview).status, "valid");
+    const relation = validateContextUseReviewRelationsV01(
+      unsupportedReview,
+      contextUseReviewTransitionLoopFixture.prior_packet,
+      contextUseReviewTransitionLoopFixture.later_packet,
+      contextUseReviewTransitionLoopFixture.transition_receipt,
+      contextUseReviewLaterTaskRunReceiptFixture,
+    );
+    assert.equal(relation.status, "blocked");
+    assert.equal(
+      relation.errors.some(
+        (issue) => issue.code === "actual_use_provenance_relation_unsupported",
+      ),
+      true,
+    );
+  }
 
   const unknownInput = clone(contextUseReviewInputFixture);
   unknownInput.usage = { presented: "unknown", actually_used: "unknown" };
@@ -160,9 +308,10 @@ export function runContextUseReviewConformanceV01(): ContextUseReviewConformance
   return {
     suite: "context-use-review-v0.1",
     status: "passed",
-    positive_fixture_count: 4,
-    negative_fixture_count: standaloneCases.length + 1,
-    relation_negative_fixture_count: relationCases.length + 1,
+    positive_fixture_count: 6,
+    negative_fixture_count: standaloneCases.length + 2,
+    relation_negative_fixture_count:
+      relationCases.length + 1 + unsupportedActualUseCases.length,
     review_id: review.review_id,
     fingerprint: review.integrity.fingerprint,
     exact_cross_contract_bindings_checked: true,

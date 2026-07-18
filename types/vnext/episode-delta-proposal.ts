@@ -25,6 +25,8 @@ export const EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
 export const RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01 =
   "run_assessment_proposal.v0.1" as const;
+export const OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01 =
+  "operation_aware_proposal_revision.v0.1" as const;
 export const RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01 =
   131_072 as const;
 export const RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 =
@@ -341,6 +343,56 @@ export interface EpisodeDeltaProposalSourceAssessmentV01 {
   };
 }
 
+export interface EpisodeDeltaProposalRevisionSourceBindingV01 {
+  proposal_id: string;
+  proposal_fingerprint: string;
+  candidate_id: string;
+  candidate_fingerprint: string;
+}
+
+export interface EpisodeDeltaProposalRevisionTargetExpectationV01 {
+  target_ref: ExternalRefV01;
+  presence: "absent" | "present";
+  revision: number;
+  state_fingerprint: string | null;
+  source_transition_receipt_id: string | null;
+  source_transition_receipt_fingerprint: string | null;
+}
+
+/**
+ * Additive immutable revision material for an operator-authored operation-aware
+ * candidate. The original proposal remains unchanged and exactly source-bound;
+ * this profile records only the allowlisted semantic edit and its observed
+ * before-state expectation. It grants no review or Transition authority.
+ */
+export interface EpisodeDeltaProposalOperationRevisionV01 {
+  revision_profile: typeof OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01;
+  admission_idempotency_key: string;
+  source: EpisodeDeltaProposalRevisionSourceBindingV01;
+  revised_candidate: {
+    candidate_id: string;
+    candidate_fingerprint: string;
+  };
+  authored_by_ref: ExternalRefV01;
+  author_basis_refs: ExternalRefV01[];
+  rationale_summary: string;
+  selected_delta_type: EpisodeDeltaProposalDeltaTypeV01;
+  selected_operation: Exclude<
+    EpisodeDeltaProposalOperationV01,
+    "unknown" | "no_change"
+  >;
+  target_expectations: EpisodeDeltaProposalRevisionTargetExpectationV01[];
+  authority: {
+    authoritative: false;
+    creates_evidence: false;
+    validates_claims: false;
+    creates_decision: false;
+    applies_transition: false;
+    changes_semantic_state: false;
+    changes_later_context: false;
+  };
+}
+
 export interface EpisodeDeltaProposalIntegrityV01 {
   algorithm: "sha256";
   canonicalization: typeof EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01;
@@ -359,6 +411,7 @@ export interface EpisodeDeltaProposalV01 {
   task_context_packet_ref: ExternalRefV01 | null;
   run_receipt_refs: ExternalRefV01[];
   source_assessment?: EpisodeDeltaProposalSourceAssessmentV01;
+  operation_revision?: EpisodeDeltaProposalOperationRevisionV01;
   observations: EpisodeDeltaProposalObservationV01[];
   attestations: EpisodeDeltaProposalAttestationV01[];
   inferences: EpisodeDeltaProposalInferenceV01[];

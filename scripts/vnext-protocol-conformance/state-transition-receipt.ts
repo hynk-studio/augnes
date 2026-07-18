@@ -57,13 +57,13 @@ import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-propos
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 
 const FIXED_GENERIC_TRANSITION_RECEIPT_ID =
-  "state-transition-receipt:ad798a497f77b63f64da3d22";
+  "state-transition-receipt:7c79f6bc578f688e28105934";
 const FIXED_GENERIC_IDEMPOTENCY_KEY =
-  "sha256:73156c918536c96bd94b1f63331441b063cc6a27f28a49ae7b4f5661290d11de";
+  "sha256:89219f2e6d40579a624decc132d50653ee06af7f4b9bcffbe5e0144371d0ae2a";
 const FIXED_GENERIC_TRANSITION_RECEIPT_FINGERPRINT =
-  "sha256:7609d734ca7090f4af69bbe29c31c1ecf1af2a4544f026265e4dbcf80f5404da";
+  "sha256:3dc416022e7e5c76f618fd19008dc93b2ad93713b49714fca7c2b2b82c79471b";
 const FIXED_CANONICAL_ELIGIBILITY_PRECONDITION_FINGERPRINT =
-  "sha256:20d498b7ff23198b112c7104ded039c0ba35863bb93862f2346e65459ea428a1";
+  "sha256:2a82faf5edf58dd8aaa014997d1ff13d90e236fb157c6cc29e5907abeebfc217";
 
 export interface StateTransitionReceiptConformanceSummaryV01 {
   suite: "state-transition-receipt-v0.1";
@@ -387,9 +387,20 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     );
   }
 
+  const replaceProposalInput = clone(
+    genericCliDirectObservationProposalInputFixture,
+  );
+  replaceProposalInput.proposed_deltas[0]!.operation = "revise";
+  const replaceProposal = buildEpisodeDeltaProposalV01(replaceProposalInput);
+  const replaceDecision = buildReviewDecisionV01(
+    decisionInputForProposalCandidate(
+      replaceProposal,
+      replaceProposal.proposed_deltas[0]!,
+    ),
+  );
   const acceptPresentInput = eligibilityInputForDecision(
-    eligibilityInput.proposal,
-    eligibilityInput.decision,
+    replaceProposal,
+    replaceDecision,
     "present",
   );
   const acceptPresentEligibility =
@@ -575,6 +586,33 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
   const writerAllocatedReceiptInput = clone(
     genericStateTransitionReceiptInputFixture,
   );
+  writerAllocatedReceiptInput.source_proposal = {
+    proposal_version: writerAllocatedEligibilityInput.proposal.proposal_version,
+    proposal_id: writerAllocatedEligibilityInput.proposal.proposal_id,
+    proposal_fingerprint:
+      writerAllocatedEligibilityInput.proposal.integrity.fingerprint,
+  };
+  writerAllocatedReceiptInput.source_decision = {
+    decision_version: writerAllocatedEligibilityInput.decision.decision_version,
+    decision_id: writerAllocatedEligibilityInput.decision.decision_id,
+    decision_fingerprint:
+      writerAllocatedEligibilityInput.decision.integrity.fingerprint,
+  };
+  writerAllocatedReceiptInput.source_candidate = {
+    ...writerAllocatedEligibilityInput.decision.candidate,
+  };
+  writerAllocatedReceiptInput.requested_transition_intent = {
+    intent_id:
+      writerAllocatedEligibilityInput.decision.requested_transition_intent!
+        .intent_id,
+    transition_kind:
+      writerAllocatedEligibilityInput.decision.requested_transition_intent!
+        .transition_kind,
+    target_refs: clone(
+      writerAllocatedEligibilityInput.decision.requested_transition_intent!
+        .target_refs,
+    ),
+  };
   writerAllocatedReceiptInput.eligibility_precondition_fingerprint =
     writerAllocatedEligibility.precondition_fingerprint;
   const writerExpectedEffect = writerAllocatedEligibility.expected_effects[0];

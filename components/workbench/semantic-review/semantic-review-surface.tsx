@@ -11,14 +11,17 @@ import {
 import { SemanticReviewProposalDetail } from "./proposal-detail";
 import { SemanticReviewProposalList } from "./proposal-list";
 import type {
+  SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
   SemanticReviewDetailRouteResponseV01,
   SemanticReviewListRouteResponseV01,
+  SemanticReviewRevisionRequestV01,
 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
 
 const SESSION_ROUTE = "/api/vnext/operator/session";
 const SEMANTIC_REVIEW_ROUTE = "/api/vnext/operator/semantic-review";
+const PROJECT_CONTINUITY_ROUTE = "/api/vnext/operator/project-continuity";
 
 type PrivateSemanticReviewViewV01 =
   | { kind: "list"; value: SemanticReviewListRouteResponseV01 }
@@ -197,6 +200,107 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
     }
   }
 
+  async function recordRevision(request: SemanticReviewRevisionRequestV01) {
+    if (
+      sessionState.status !== "authenticated" ||
+      operatorMutationInFlight.current
+    ) {
+      return;
+    }
+    operatorMutationInFlight.current = true;
+    setBusyCandidateId(request.candidate_id);
+    setDecisionStatus(null);
+    setPrivateError(null);
+    try {
+      const response = await fetch(SEMANTIC_REVIEW_ROUTE, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      const body = (await response.json()) as SemanticReviewRevisionResponseV01;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          setPrivateView(null);
+          setSessionState({
+            status: "locked",
+            session: null,
+            error_code: publicErrorCode(body.error_code),
+          });
+          return;
+        }
+        setPrivateError(publicErrorCode(body.error_code));
+        return;
+      }
+      if (
+        !(body.status === "inserted" || body.status === "exact_replay") ||
+        !body.proposal_id
+      ) {
+        setPrivateError("semantic_review_revision_response_invalid");
+        return;
+      }
+      setDecisionStatus(
+        body.status === "exact_replay"
+          ? "Exact operation-aware revision replay returned the immutable existing proposal."
+          : "Immutable operation-aware proposal revision recorded. The source proposal remains unchanged.",
+      );
+      router.push(semanticReviewProposalHref(body.proposal_id));
+      router.refresh();
+    } catch {
+      setPrivateError("semantic_review_revision_request_failed");
+    } finally {
+      operatorMutationInFlight.current = false;
+      setBusyCandidateId(null);
+    }
+  }
+
+  async function recordContextUseReview(
+    request: SemanticContextUseReviewRequestV01,
+  ) {
+    if (
+      sessionState.status !== "authenticated" ||
+      operatorMutationInFlight.current
+    ) {
+      return;
+    }
+    operatorMutationInFlight.current = true;
+    setDecisionStatus(null);
+    setPrivateError(null);
+    try {
+      const response = await fetch(PROJECT_CONTINUITY_ROUTE, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      const body = (await response.json()) as SemanticReviewMutationResponseV01;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          locked(publicErrorCode(body.error_code));
+          return;
+        }
+        setPrivateError(publicErrorCode(body.error_code));
+        return;
+      }
+      if (!(body.status === "inserted" || body.status === "exact_replay")) {
+        setPrivateError("context_use_review_response_invalid");
+        return;
+      }
+      setDecisionStatus(
+        body.status === "exact_replay"
+          ? "Exact ContextUseReview replay returned the existing bounded review."
+          : "Bounded ContextUseReview recorded. It changed no semantic state or later context.",
+      );
+      await loadPrivateView();
+    } catch {
+      setPrivateError("context_use_review_request_failed");
+    } finally {
+      operatorMutationInFlight.current = false;
+    }
+  }
+
   function authenticated(session: OperatorSessionViewV01) {
     setPrivateView(null);
     setSessionState({
@@ -248,8 +352,8 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             <h1>{proposalId ? "Review proposal" : "Semantic review"}</h1>
             <p className={styles.headerCopy}>
               Review bounded project-semantic candidates, record an explicit
-              ReviewDecision, and keep preview, gate confirmation, durable commit, and
-              later-context compilation as separate operator actions. This surface is
+              ReviewDecision, inspect a read-only preview, confirm an exact gate, and
+              atomically close an eligible Transition with later context. This surface is
               not a general chat, terminal, code editor, Git diff, provider session
               manager, or scheduler.
             </p>
@@ -266,7 +370,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           <span>decision is not transition</span>
           <span>local session is not external identity</span>
           <span>confirmation is gate only</span>
-          <span>packet compilation is not transition</span>
+          <span>later packet is working context, not canonical truth</span>
         </div>
 
         <OperatorSessionPanel
@@ -306,6 +410,8 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             read={privateView.value.proposal}
             busyCandidateId={busyCandidateId}
             onDecision={recordDecision}
+            onRevision={recordRevision}
+            onContextUseReview={recordContextUseReview}
             onSessionInvalid={(errorCode) => locked(errorCode)}
             onPrivateMaterialChanged={refreshPrivateMaterial}
             tryBeginOperatorMutation={() => {
@@ -351,6 +457,17 @@ interface SemanticReviewDecisionResponseV01 {
   status?: string;
   error_code?: string | null;
   transition_requested?: boolean;
+}
+
+interface SemanticReviewRevisionResponseV01 {
+  status?: string;
+  error_code?: string | null;
+  proposal_id?: string;
+}
+
+interface SemanticReviewMutationResponseV01 {
+  status?: string;
+  error_code?: string | null;
 }
 
 function publicErrorCode(value: unknown): string {

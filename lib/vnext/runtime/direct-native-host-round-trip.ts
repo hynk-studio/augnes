@@ -61,6 +61,7 @@ import {
   type VNextLocalOperatorSessionMutationAdmissionV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
+import { VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 } from "@/lib/vnext/runtime/operator-pilot-context-use-contract";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
   projectVNextOperatorPilotContinuityV01,
@@ -1622,6 +1623,7 @@ function buildDirectHostRunReceipt(input: {
       ...result.host_refs,
       ...result.artifacts.map((artifact) => artifact.artifact_ref),
       ...result.model_invocation_receipt_refs,
+      admission.source_transition_receipt_ref,
       admission.root_scope.repository_ref,
       admission.root_scope.selected_worktree_ref,
       adapterRef,
@@ -1752,6 +1754,9 @@ function buildDirectHostRunReceipt(input: {
         NATIVE_HOST_RESULT_VERSION_V01,
         result.adapter_version,
         result.capability_version,
+        ...(admission.source_transition_receipt_ref
+          ? [VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01]
+          : []),
         ...(hostApprovals.length ? ["native_host_approval.v0.1"] : []),
       ],
       unmapped_fields: result.model_invocation_receipt_refs.length

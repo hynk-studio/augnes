@@ -21,9 +21,14 @@ import {
   recordVNextOperatorPilotReviewDecisionV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import {
+  VNextOperatorPilotProposalRevisionErrorV01,
+  recordVNextOperatorPilotProposalRevisionV01,
+} from "@/lib/vnext/runtime/operator-pilot-proposal-revision";
+import {
   VNextOperatorPilotWorkbenchLineageErrorV01,
   readVNextOperatorPilotProposalDurableLineageV01,
 } from "@/lib/vnext/runtime/operator-pilot-workbench-lineage";
+import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,6 +98,10 @@ export function createVNextOperatorSemanticReviewHandlersV01(
                 proposal: proposal.proposal,
                 clock: options.clock,
               }),
+            project_continuity: projectVNextOperatorPilotContinuityV01(db, {
+              config,
+              clock: options.clock,
+            }),
           },
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
@@ -140,6 +149,42 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       db = openDatabase(config);
+      if (
+        body &&
+        typeof body === "object" &&
+        !Array.isArray(body) &&
+        (body as Record<string, unknown>).action === "revise"
+      ) {
+        const result = recordVNextOperatorPilotProposalRevisionV01(db, {
+          config,
+          credential,
+          request: body,
+          clock: options.clock,
+          secret_source: options.secret_source,
+        });
+        return jsonResponse(
+          {
+            ok: true,
+            route_version: ROUTE_VERSION,
+            status: result.status,
+            proposal: result.proposal,
+            proposal_id: result.proposal.proposal_id,
+            proposal_fingerprint: result.proposal.integrity.fingerprint,
+            source_proposal_unchanged: true,
+            transition_applied: false,
+            authentication_boundary:
+              "local_secret_possession_only_not_external_identity",
+            semantic_authority_granted: false,
+          },
+          result.status === "inserted" ? 201 : 200,
+          serializeVNextLocalOperatorSessionCookieV01({
+            value: result.session_cookie.value,
+            expires_at: result.session_cookie.expires_at,
+            max_age_seconds: result.session_cookie.max_age_seconds,
+            secure: requestUrl.protocol === "https:",
+          }),
+        );
+      }
       const result = recordVNextOperatorPilotReviewDecisionV01(db, {
         config,
         credential,
@@ -231,7 +276,10 @@ function routeErrorResponse(error: unknown): NextResponse {
       error.status,
     );
   }
-  if (error instanceof VNextOperatorPilotReviewErrorV01) {
+  if (
+    error instanceof VNextOperatorPilotReviewErrorV01 ||
+    error instanceof VNextOperatorPilotProposalRevisionErrorV01
+  ) {
     return jsonResponse(
       {
         ok: false,

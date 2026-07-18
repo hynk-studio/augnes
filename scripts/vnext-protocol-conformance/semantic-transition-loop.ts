@@ -83,29 +83,29 @@ const FIXED_M3A_RECEIPT_ID = "run-receipt:e0d1e5a9fe5d29f2bbe2e032";
 const FIXED_M3A_RECEIPT_FINGERPRINT =
   "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59";
 const FIXED_M3A_PROPOSAL_ID =
-  "episode-delta-proposal:a133e0286aafb0afc93a594d";
+  "episode-delta-proposal:12e6554d46ae9cae71179731";
 const FIXED_M3A_PROPOSAL_FINGERPRINT =
-  "sha256:0b0205f4ed9d8d2375b8c9b9776b975ea823722f3c4368ef7c2fdd3f97ab8a20";
-const FIXED_M3A_DECISION_ID = "review-decision:3a5a42913e2b44d5f99cad44";
+  "sha256:4e837edfef0d602ecda8de8a5d02a199c3fb184b222857a7285203f6ee7b2d7f";
+const FIXED_M3A_DECISION_ID = "review-decision:7ef8f86421b32e1830ba2763";
 const FIXED_M3A_DECISION_FINGERPRINT =
-  "sha256:87b51329bf19a43024ebd7e0a9f817cefc3685763b15a3677f1494e2a816b5d4";
+  "sha256:34346af643ce7b0bd69ab3677337b1a30947458b2cd3043f67b6305b1b6b595f";
 const FIXED_M3A_CHAIN_FINGERPRINT =
-  "sha256:160e48e92527010db75142e6e28a34b2ac46c54cfb42079455a81e1d02d1e141";
+  "sha256:d0608730cb1f8d48607db9b39643cd70ef15ca26b08857c4fafac0453f6bf1bb";
 
 const FIXED_M3B_TRANSITION_RECEIPT_ID =
-  "state-transition-receipt:455c52f944b46e5c431fe9f3";
+  "state-transition-receipt:4848728d4e1c9ebf2a5ffa89";
 const FIXED_M3B_IDEMPOTENCY_KEY =
-  "sha256:0a5210d3dfb24c4cddf4c53231ad03a2d799b08bbb64eb11778ef74e2f403973";
+  "sha256:6be0a438977234d7abefd26f4f37694bf55c60a8f9b2ed02227cf3ac74af3a79";
 const FIXED_M3B_TRANSITION_RECEIPT_FINGERPRINT =
-  "sha256:108b1f5bf14097a9cfdf8ee947c65314033c432bf175b1f90625956c155f8dde";
+  "sha256:0a1fbf93bd013244382efdea1a77d2da5a17b2910acde013400db81df75d463f";
 const FIXED_M3B_ELIGIBILITY_PRECONDITION_FINGERPRINT =
-  "sha256:450100a72a43b00fe1136a3f21e316f1cb4ada608ec8776e0aabe74fbdd19072";
+  "sha256:0d8146e13379f4e01c467dd43e541906f69e27339c58330ef2d9b7e2feab0c0f";
 const FIXED_LATER_PACKET_ID =
-  "task-context-packet:7c9bc3223d1d0b6880e3eb3";
+  "task-context-packet:645f89b2c058d271ad9c83e";
 const FIXED_LATER_PACKET_FINGERPRINT =
-  "sha256:c46261a9d99675cc2e44374afeca9406b1dab054df9cef862f973bacc5dda43b";
+  "sha256:4a8bd3ccfd10b837451607ec4c5bd44f89acd093565a01f09c6969a98021c85f";
 const FIXED_M3B_CHAIN_FINGERPRINT =
-  "sha256:476b09e067b31e05d7bc1cb755ad6cd44c17b021711dbe8c8ac7f171fd9c0230";
+  "sha256:f2076811d949fea8a8b83c80ddbb32400112c11300089723ad9851e42426e368";
 const LINEAGE_DECIDED_AT = "2026-07-10T13:25:00.000Z";
 const LINEAGE_CURRENT_STATE_OBSERVED_AT = "2026-07-10T13:26:00.000Z";
 const LINEAGE_GATE_EVALUATED_AT = "2026-07-10T13:27:00.000Z";
@@ -633,10 +633,13 @@ function buildIntegratedPresentScenario(
     source.project,
     priorPacket,
   );
-  const proposal = buildSemanticReviewLoopProposalFixture(
-    source.project,
-    priorPacket,
-    runReceipt,
+  const proposal = withCandidateOperation(
+    buildSemanticReviewLoopProposalFixture(
+      source.project,
+      priorPacket,
+      runReceipt,
+    ),
+    "revise",
   );
   const acceptedPriorDecision = buildReviewDecisionV01(
     createSemanticTransitionDecisionInputV01(source.project, proposal),
@@ -670,6 +673,22 @@ function buildIntegratedPresentScenario(
   );
   assertMappedPacketBindings(scenario);
   return scenario;
+}
+
+function withCandidateOperation(
+  source: EpisodeDeltaProposalV01,
+  operation: EpisodeDeltaProposalV01["proposed_deltas"][number]["operation"],
+): EpisodeDeltaProposalV01 {
+  const proposal = clone(source);
+  const candidate = proposal.proposed_deltas[0];
+  if (!candidate) throw new Error("Operation fixture requires one candidate.");
+  candidate.operation = operation;
+  proposal.proposal_id = deriveEpisodeDeltaProposalIdV01(proposal);
+  proposal.integrity.fingerprint =
+    createEpisodeDeltaProposalFingerprintV01(proposal);
+  const validation = validateEpisodeDeltaProposalV01(proposal);
+  assert.equal(validation.status, "valid", format(validation));
+  return proposal;
 }
 
 function buildAppliedLineageScenario(

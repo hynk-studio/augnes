@@ -49,6 +49,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import {
   evaluateReviewDecisionStateTransitionEligibilityV01,
+  mapEpisodeDeltaCandidateOperationToTransitionOperationV01,
   validateStateTransitionReceiptAgainstEligibilityV01,
 } from "@/lib/vnext/state-transition-eligibility";
 import {
@@ -490,6 +491,13 @@ function prepareVNextSemanticCommitPreviewAtV01(
     transition.target_refs,
     currentStateObservedAt,
   );
+  assertOperationRevisionCurrentState(
+    proposal,
+    decision,
+    transition,
+    currentState.observations,
+    currentState.heads,
+  );
   const intendedEffects = derivePreviewEffects({
     proposal,
     decision,
@@ -545,6 +553,59 @@ function prepareVNextSemanticCommitPreviewAtV01(
     eligibility_input: null,
     eligibility: null,
   };
+}
+
+function assertOperationRevisionCurrentState(
+  proposal: EpisodeDeltaProposalV01,
+  decision: ReviewDecisionV01,
+  transition: ResolvedTransitionMaterialV01,
+  observations: StateTransitionCurrentStateObservationV01[],
+  heads: Array<VNextSemanticTargetHeadV01 | null>,
+): void {
+  const revision = proposal.operation_revision;
+  if (!revision) return;
+  if (
+    revision.revised_candidate.candidate_id !== decision.candidate.candidate_id ||
+    revision.revised_candidate.candidate_fingerprint !==
+      decision.candidate.candidate_fingerprint ||
+    mapEpisodeDeltaCandidateOperationToTransitionOperationV01(
+      revision.selected_operation,
+    ) !== transition.operation ||
+    revision.target_expectations.length !== transition.target_refs.length
+  ) {
+    throw new Error("semantic_commit_operation_revision_binding_mismatch");
+  }
+  const expectationByTarget = new Map(
+    revision.target_expectations.map((expectation) => [
+      canonicalizeProtocolValueV01(expectation.target_ref),
+      expectation,
+    ]),
+  );
+  transition.target_refs.forEach((targetRef, index) => {
+    const expectation = expectationByTarget.get(
+      canonicalizeProtocolValueV01(targetRef),
+    );
+    const observation = observations[index];
+    const head = heads[index];
+    const observedPresence =
+      observation?.presence === "present" ? "present" : "absent";
+    if (
+      !expectation ||
+      !observation ||
+      expectation.presence !== observedPresence ||
+      expectation.revision !== (head?.revision ?? 0) ||
+      expectation.state_fingerprint !==
+        (observation.presence === "present"
+          ? observation.state_fingerprint
+          : null) ||
+      expectation.source_transition_receipt_id !==
+        (head?.source_transition_receipt_id ?? null) ||
+      expectation.source_transition_receipt_fingerprint !==
+        (head?.source_transition_receipt_fingerprint ?? null)
+    ) {
+      throw new Error("semantic_commit_operation_revision_stale");
+    }
+  });
 }
 
 export function recordVNextSemanticCommitAuthorizationV01(
@@ -1844,6 +1905,7 @@ interface ResolvedTransitionMaterialV01 {
   source_candidate: EpisodeDeltaProposalDeltaCandidateV01;
   state_material_candidate: EpisodeDeltaProposalDeltaCandidateV01 | null;
   transition_kind: Exclude<ReviewDecisionRequestedTransitionKindV01, "other">;
+  operation: StateTransitionReceiptOperationV01 | null;
   target_refs: ExternalRefV01[];
 }
 
@@ -1886,6 +1948,26 @@ function resolveTransitionMaterial(
   }
   let stateMaterialCandidate: EpisodeDeltaProposalDeltaCandidateV01 | null =
     sourceCandidate;
+  let operation: StateTransitionReceiptOperationV01 | null;
+  if (decision.decision === "accept") {
+    const mapped = mapEpisodeDeltaCandidateOperationToTransitionOperationV01(
+      sourceCandidate.operation,
+    );
+    if (!mapped) {
+      throw new Error("semantic_commit_candidate_operation_not_transitionable");
+    }
+    operation =
+      !proposal.source_assessment &&
+      !proposal.operation_revision &&
+      sourceCandidate.operation === "add"
+        ? null
+        : mapped;
+    if (mapped === "retract") stateMaterialCandidate = null;
+  } else if (decision.decision === "supersede") {
+    operation = "supersede";
+  } else {
+    operation = "retract";
+  }
   if (decision.decision === "supersede") {
     const superseding = decision.lineage.superseding_candidate;
     stateMaterialCandidate = superseding
@@ -1931,6 +2013,7 @@ function resolveTransitionMaterial(
     source_candidate: sourceCandidate,
     state_material_candidate: stateMaterialCandidate,
     transition_kind: expectedKind,
+    operation,
     target_refs: targetRefs,
   };
 }
@@ -2005,19 +2088,20 @@ function derivePreviewEffects(input: {
     const observation = input.observations[index];
     const head = input.heads[index];
     if (!observation) throw new Error("semantic_commit_current_state_missing");
-    let operation: StateTransitionReceiptOperationV01;
-    if (input.decision.decision === "accept") {
-      operation = observation.presence === "absent" ? "create" : "replace";
-    } else if (input.decision.decision === "supersede") {
-      if (observation.presence !== "present") {
-        throw new Error("semantic_commit_supersede_requires_present_state");
-      }
-      operation = "supersede";
-    } else {
-      if (observation.presence !== "present") {
-        throw new Error("semantic_commit_retract_requires_present_state");
-      }
-      operation = "retract";
+    const operation =
+      input.transition.operation ??
+      (observation.presence === "absent" ? "create" : "replace");
+    if (operation === "create" && observation.presence !== "absent") {
+      throw new Error("semantic_commit_create_requires_absent_state");
+    }
+    if (operation !== "create" && observation.presence !== "present") {
+      throw new Error(
+        operation === "replace"
+          ? "semantic_commit_replace_requires_present_state"
+          : operation === "supersede"
+            ? "semantic_commit_supersede_requires_present_state"
+            : "semantic_commit_retract_requires_present_state",
+      );
     }
     const afterFingerprint = input.transition.state_material_candidate
       ? buildVNextPersistedSemanticStateV01({
@@ -2069,6 +2153,69 @@ function loadAppliedLineageFromStore(
     prior_state_transition_receipt_bindings: VNextSemanticCommitLineageBindingV01[];
   },
 ): LoadedAppliedLineageV01 {
+  const sourceCandidate = proposal.proposed_deltas.find(
+    (candidate) =>
+      candidate.candidate_id === decision.candidate.candidate_id &&
+      createEpisodeDeltaCandidateFingerprintV01(candidate) ===
+        decision.candidate.candidate_fingerprint,
+  );
+  const acceptedOperation =
+    decision.decision === "accept" &&
+    proposal.operation_revision &&
+    sourceCandidate
+      ? mapEpisodeDeltaCandidateOperationToTransitionOperationV01(
+          sourceCandidate.operation,
+        )
+      : null;
+  if (
+    decision.decision === "accept" &&
+    (acceptedOperation === "supersede" || acceptedOperation === "retract")
+  ) {
+    const revision = proposal.operation_revision;
+    const bindings = revision
+      ? uniqueProtocolValuesV01(
+          revision.target_expectations.map((expectation) => ({
+            record_id: expectation.source_transition_receipt_id,
+            fingerprint:
+              expectation.source_transition_receipt_fingerprint,
+          })),
+        )
+      : [];
+    const binding = bindings.length === 1 ? bindings[0] : null;
+    if (!binding?.record_id || !binding.fingerprint) {
+      throw new Error("semantic_commit_operation_revision_lineage_missing");
+    }
+    if (
+      expectedBindings &&
+      (expectedBindings.prior_state_transition_receipt_bindings.length !== 1 ||
+        expectedBindings.prior_state_transition_receipt_bindings[0]
+          ?.record_id !== binding.record_id ||
+        expectedBindings.prior_state_transition_receipt_bindings[0]
+          ?.fingerprint !== binding.fingerprint)
+    ) {
+      throw new Error("semantic_commit_operation_revision_lineage_mismatch");
+    }
+    const prior = loadValidatedVNextSemanticTransitionRelationV01(db, {
+      workspace_id: proposal.workspace_id,
+      project_id: proposal.project_id,
+      transition_receipt_id: binding.record_id,
+      transition_receipt_fingerprint: binding.fingerprint,
+    });
+    if (
+      expectedBindings &&
+      (expectedBindings.prior_review_decision_bindings.length !== 1 ||
+        expectedBindings.prior_review_decision_bindings[0]?.record_id !==
+          prior.decision.decision_id ||
+        expectedBindings.prior_review_decision_bindings[0]?.fingerprint !==
+          prior.decision.integrity.fingerprint)
+    ) {
+      throw new Error("semantic_commit_operation_revision_decision_mismatch");
+    }
+    return {
+      prior_review_decisions: [prior.decision],
+      prior_state_transition_receipts: [prior.receipt],
+    };
+  }
   if (decision.decision !== "supersede" && decision.decision !== "retract") {
     if (
       expectedBindings &&

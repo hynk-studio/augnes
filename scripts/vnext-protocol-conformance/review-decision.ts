@@ -28,9 +28,9 @@ import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-propos
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 
 const FIXED_GENERIC_DECISION_ID =
-  "review-decision:5d8e6beed62d1d72fb5558cf";
+  "review-decision:6afa174c627b4fec3b09a12f";
 const FIXED_GENERIC_DECISION_FINGERPRINT =
-  "sha256:5b7164496cf7bbde12c1e130e3773bf8e0a5ed8346620298f953ec4a9aaebd6f";
+  "sha256:f9510e99ade7405641366b254f86a244a9f33c602a4042f492908cc86f40180f";
 
 export interface ReviewDecisionConformanceSummaryV01 {
   suite: "review-decision-v0.1";

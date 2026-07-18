@@ -90,7 +90,7 @@ function genericDirectObservationInput(): EpisodeDeltaProposalBuilderInputV01 {
       {
         candidate_id: "delta:protocol-contract",
         delta_type: "code_delta",
-        operation: "revise",
+        operation: "add",
         title: "Review the provider-neutral proposal contract candidate",
         current_state: {
           knowledge_status: "known",

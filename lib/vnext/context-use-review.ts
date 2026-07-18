@@ -28,6 +28,8 @@ import {
   CONTEXT_USE_REVIEW_ASSESSMENTS_V01,
   CONTEXT_USE_REVIEW_CANONICALIZATION_V01,
   CONTEXT_USE_REVIEW_PRESENTED_VALUES_V01,
+  CONTEXT_USE_REVIEW_USAGE_PROVENANCE_BASES_V01,
+  CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
   CONTEXT_USE_REVIEW_VERSION_V01,
   type ContextUseReviewAuthoritySummaryV01,
   type ContextUseReviewCompatibilityMetadataV01,
@@ -36,6 +38,8 @@ import {
   type ContextUseReviewPacketBindingV01,
   type ContextUseReviewRunReceiptBindingV01,
   type ContextUseReviewTransitionReceiptBindingV01,
+  type ContextUseReviewUsageProvenanceLaneV01,
+  type ContextUseReviewUsageProvenanceV01,
   type ContextUseReviewV01,
   type ContextUseReviewValidationIssueV01,
   type ContextUseReviewValidationResultV01,
@@ -57,13 +61,16 @@ const actuallyUsedValues = new Set<string>(
   CONTEXT_USE_REVIEW_ACTUALLY_USED_VALUES_V01,
 );
 const assessmentValues = new Set<string>(CONTEXT_USE_REVIEW_ASSESSMENTS_V01);
+const usageProvenanceBases = new Set<string>(
+  CONTEXT_USE_REVIEW_USAGE_PROVENANCE_BASES_V01,
+);
 
 const allowedRootKeys = new Set([
   "review_version", "review_id", "workspace_id", "project_id",
   "prior_packet", "later_packet", "source_transition_receipt",
   "later_task_run_receipt", "reviewer_ref",
   "reviewer_authentication_basis_refs", "reviewed_at", "usage",
-  "assessment", "corrections", "metrics", "notes", "compatibility",
+  "usage_provenance", "assessment", "corrections", "metrics", "notes", "compatibility",
   "material_boundary", "authority_summary", "integrity",
 ]);
 const allowedPacketBindingKeys = new Set([
@@ -77,6 +84,10 @@ const allowedRunBindingKeys = new Set([
   "receipt_version", "receipt_id", "receipt_fingerprint",
 ]);
 const allowedUsageKeys = new Set(["presented", "actually_used"]);
+const allowedUsageProvenanceKeys = new Set([
+  "provenance_version", "presented", "actually_used", "assessment",
+]);
+const allowedUsageProvenanceLaneKeys = new Set(["basis", "source_refs"]);
 const allowedCorrectionsKeys = new Set(["correction_count", "summaries"]);
 const allowedMetricsKeys = new Set([
   "wrong_context_correction_count", "repeated_explanation_estimate",
@@ -157,6 +168,13 @@ export function buildContextUseReviewV01(
       actually_used: normalizeProtocolTextV01(input.usage.actually_used) as
         ContextUseReviewV01["usage"]["actually_used"],
     },
+    ...(input.usage_provenance
+      ? {
+          usage_provenance: normalizeUsageProvenance(
+            input.usage_provenance,
+          ),
+        }
+      : {}),
     assessment: normalizeProtocolTextV01(input.assessment) as
       ContextUseReviewV01["assessment"],
     corrections: {
@@ -244,6 +262,52 @@ export function canonicalizeContextUseReviewValueV01(value: unknown): string {
   return canonicalizeProtocolValueV01(value);
 }
 
+export function deriveContextUseReviewPresentationProvenanceV01(
+  receipt: RunReceiptV01,
+): {
+  presented: "yes" | "unknown";
+  provenance: ContextUseReviewUsageProvenanceLaneV01;
+} {
+  const exactDeliveryRefs = normalizeRefs(
+    receipt.checks
+      .filter(
+        (check) =>
+          (check.check_id === "deterministic_packet_delivery" ||
+            check.check_id === "validated_packet_delivery") &&
+          check.status === "passed",
+      )
+      .flatMap((check) => check.source_refs),
+  );
+  const trustClasses = new Set(exactDeliveryRefs.map((ref) => ref.trust_class));
+  const supported = new Set([
+    "direct_local_observation",
+    "verified_external_observation",
+    "host_attestation",
+    "provider_report",
+    "user_declaration",
+  ]);
+  if (
+    exactDeliveryRefs.length === 0 ||
+    [...trustClasses].some((trust) => !supported.has(trust))
+  ) {
+    return {
+      presented: "unknown",
+      provenance: { basis: "unknown", source_refs: [] },
+    };
+  }
+  const basis =
+    trustClasses.size > 1
+      ? "mixed"
+      : ([...trustClasses][0] as Exclude<
+          ContextUseReviewUsageProvenanceLaneV01["basis"],
+          "mixed" | "unknown"
+        >);
+  return {
+    presented: "yes",
+    provenance: { basis, source_refs: exactDeliveryRefs },
+  };
+}
+
 export function deriveContextUseReviewIdV01(review: ContextUseReviewV01): string {
   const hash = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
@@ -256,6 +320,9 @@ export function deriveContextUseReviewIdV01(review: ContextUseReviewV01): string
       later_task_run_receipt: review.later_task_run_receipt,
       reviewer_ref: review.reviewer_ref,
       reviewed_at: review.reviewed_at,
+      ...(review.usage_provenance
+        ? { usage_provenance: review.usage_provenance }
+        : {}),
     }),
   );
   return `context-use-review:${hash.slice("sha256:".length, 31)}`;
@@ -343,6 +410,9 @@ export function validateContextUseReviewV01(
   }
   requireTimestamp(input.reviewed_at, "$.reviewed_at", accumulator);
   validateUsage(input.usage, accumulator);
+  if (input.usage_provenance !== undefined) {
+    validateUsageProvenance(input.usage_provenance, input, accumulator);
+  }
   if (!assessmentValues.has(protocolStringValueV01(input.assessment) ?? "")) {
     addError(accumulator, "assessment_invalid", "$.assessment", "Assessment value is invalid.");
   }
@@ -441,6 +511,27 @@ export function validateContextUseReviewRelationsV01(
     review.later_task_run_receipt.receipt_fingerprint !== run.integrity.fingerprint
   ) addError(accumulator, "run_receipt_binding_mismatch", "$.later_task_run_receipt", "Review must bind the exact later-task RunReceipt.", true);
 
+  if (review.usage_provenance) {
+    const expectedPresentation =
+      deriveContextUseReviewPresentationProvenanceV01(run);
+    if (
+      review.usage.presented !== expectedPresentation.presented ||
+      canonicalizeProtocolValueV01(review.usage_provenance.presented) !==
+        canonicalizeProtocolValueV01(expectedPresentation.provenance)
+    ) {
+      addError(accumulator, "usage_presentation_provenance_relation_mismatch", "$.usage_provenance.presented", "Presentation provenance must come only from the exact passed packet-delivery relation.", true);
+    }
+    const actual = review.usage_provenance.actually_used;
+    if (
+      (review.usage.actually_used === "unknown" &&
+        (actual.basis !== "unknown" || actual.source_refs.length !== 0)) ||
+      (review.usage.actually_used !== "unknown" &&
+        actual.basis !== "user_declaration")
+    ) {
+      addError(accumulator, "actual_use_provenance_relation_unsupported", "$.usage_provenance.actually_used", "The current RunReceipt contract has no explicit actual-context-use relation; supplied values remain user declarations and unknown remains unknown.", true);
+    }
+  }
+
   const packetRelation = validateTaskContextPacketTransitionRelationV01(prior, transition, later);
   if (packetRelation.status !== "valid") {
     addError(accumulator, "packet_transition_relation_invalid", "$.later_packet", "Prior packet, transition receipt, and later packet relation must validate.", true);
@@ -501,6 +592,26 @@ function normalizeCompatibility(value: ContextUseReviewCompatibilityMetadataV01)
     external_refs: normalizeRefs(value.external_refs),
   };
 }
+function normalizeUsageProvenance(
+  value: ContextUseReviewUsageProvenanceV01,
+): ContextUseReviewUsageProvenanceV01 {
+  const lane = (
+    item: ContextUseReviewUsageProvenanceLaneV01,
+  ): ContextUseReviewUsageProvenanceLaneV01 => ({
+    basis: normalizeProtocolTextV01(item.basis) as
+      ContextUseReviewUsageProvenanceLaneV01["basis"],
+    source_refs: normalizeRefs(item.source_refs),
+  });
+  return {
+    provenance_version: CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
+    presented: lane(value.presented),
+    actually_used: lane(value.actually_used),
+    assessment: {
+      basis: "user_declaration",
+      source_refs: normalizeRefs(value.assessment.source_refs),
+    },
+  };
+}
 function withoutFingerprint(review: ContextUseReviewV01) {
   const copy = structuredClone(review) as ContextUseReviewV01;
   delete (copy.integrity as Partial<ContextUseReviewV01["integrity"]>).fingerprint;
@@ -519,6 +630,93 @@ function validatePacketBinding(value: unknown, path: string, acc: Accumulator) {
 function validateTransitionBinding(value: unknown, acc: Accumulator) { const path = "$.source_transition_receipt"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedTransitionBindingKeys, path, acc); if (item.transition_receipt_version !== STATE_TRANSITION_RECEIPT_VERSION_V01) addError(acc, "transition_receipt_version_invalid", `${path}.transition_receipt_version`, "Transition receipt version is invalid."); requireString(item.transition_receipt_id, `${path}.transition_receipt_id`, acc); validateSha(item.transition_receipt_fingerprint, `${path}.transition_receipt_fingerprint`, acc); }
 function validateRunBinding(value: unknown, acc: Accumulator) { const path = "$.later_task_run_receipt"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedRunBindingKeys, path, acc); if (item.receipt_version !== RUN_RECEIPT_VERSION_V01) addError(acc, "run_receipt_version_invalid", `${path}.receipt_version`, "RunReceipt version is invalid."); requireString(item.receipt_id, `${path}.receipt_id`, acc); validateSha(item.receipt_fingerprint, `${path}.receipt_fingerprint`, acc); }
 function validateUsage(value: unknown, acc: Accumulator) { const path = "$.usage"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedUsageKeys, path, acc); if (!presentedValues.has(protocolStringValueV01(item.presented) ?? "")) addError(acc, "presented_invalid", `${path}.presented`, "Presented value is invalid."); if (!actuallyUsedValues.has(protocolStringValueV01(item.actually_used) ?? "")) addError(acc, "actually_used_invalid", `${path}.actually_used`, "Actually-used value is invalid."); }
+function validateUsageProvenance(value: unknown, root: ProtocolJsonRecordV01, acc: Accumulator) {
+  const path = "$.usage_provenance";
+  const item = record(value, path, acc);
+  if (!item) return;
+  rejectNested(item, allowedUsageProvenanceKeys, path, acc);
+  if (item.provenance_version !== CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01) {
+    addError(acc, "usage_provenance_version_invalid", `${path}.provenance_version`, "Usage provenance version is invalid.", true);
+  }
+  const presented = validateUsageProvenanceLane(item.presented, `${path}.presented`, acc);
+  const actuallyUsed = validateUsageProvenanceLane(item.actually_used, `${path}.actually_used`, acc);
+  const assessment = validateUsageProvenanceLane(item.assessment, `${path}.assessment`, acc);
+  if (assessment?.basis !== "user_declaration") {
+    addError(acc, "usage_provenance_assessment_basis_invalid", `${path}.assessment.basis`, "Usefulness assessment provenance must remain a user declaration.", true);
+  }
+  const usage = isProtocolRecordV01(root.usage) ? root.usage : null;
+  validateUsageProvenanceStatusRelation(
+    protocolStringValueV01(usage?.presented),
+    presented,
+    `${path}.presented`,
+    acc,
+  );
+  validateUsageProvenanceStatusRelation(
+    protocolStringValueV01(usage?.actually_used),
+    actuallyUsed,
+    `${path}.actually_used`,
+    acc,
+  );
+  if (!assessment || assessment.source_refs.length === 0) {
+    addError(acc, "usage_provenance_assessment_ref_missing", `${path}.assessment.source_refs`, "Usefulness assessment must preserve its user-declaration source ref.", true);
+  }
+}
+function validateUsageProvenanceLane(
+  value: unknown,
+  path: string,
+  acc: Accumulator,
+): { basis: string; source_refs: ProtocolJsonRecordV01[] } | null {
+  const item = record(value, path, acc);
+  if (!item) return null;
+  rejectNested(item, allowedUsageProvenanceLaneKeys, path, acc);
+  const basis = protocolStringValueV01(item.basis) ?? "";
+  if (!usageProvenanceBases.has(basis)) {
+    addError(acc, "usage_provenance_basis_invalid", `${path}.basis`, "Usage provenance basis is invalid.", true);
+  }
+  validateRefArray(item.source_refs, `${path}.source_refs`, false, acc);
+  const refs = Array.isArray(item.source_refs)
+    ? item.source_refs.filter(isProtocolRecordV01)
+    : [];
+  const trustClasses = new Set(
+    refs.map((ref) => protocolStringValueV01(ref.trust_class) ?? ""),
+  );
+  const expectedTrust =
+    basis === "direct_local_observation" ||
+    basis === "verified_external_observation" ||
+    basis === "host_attestation" ||
+    basis === "provider_report" ||
+    basis === "user_declaration"
+      ? basis
+      : null;
+  if (
+    (expectedTrust &&
+      (refs.length === 0 ||
+        [...trustClasses].some((trust) => trust !== expectedTrust))) ||
+    (basis === "mixed" &&
+      (refs.length < 2 || trustClasses.size < 2 || trustClasses.has(""))) ||
+    (basis === "unknown" && refs.length !== 0)
+  ) {
+    addError(acc, "usage_provenance_basis_refs_conflict", path, "Usage provenance basis must exactly match its source-ref trust classes.", true);
+  }
+  return { basis, source_refs: refs };
+}
+function validateUsageProvenanceStatusRelation(
+  status: string | null,
+  provenance: { basis: string; source_refs: ProtocolJsonRecordV01[] } | null,
+  path: string,
+  acc: Accumulator,
+) {
+  if (!provenance) return;
+  const isUnknown = status === "unknown";
+  if (
+    (isUnknown &&
+      (provenance.basis !== "unknown" || provenance.source_refs.length !== 0)) ||
+    (!isUnknown &&
+      (provenance.basis === "unknown" || provenance.source_refs.length === 0))
+  ) {
+    addError(acc, "usage_provenance_status_conflict", path, "Known usage values require source-linked provenance; unknown usage must remain unknown without support refs.", true);
+  }
+}
 function validateCorrections(value: unknown, acc: Accumulator) { const path = "$.corrections"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedCorrectionsKeys, path, acc); validateNonnegativeInteger(item.correction_count, `${path}.correction_count`, false, acc); const summaries = validateStringArray(item.summaries, `${path}.summaries`, acc); if (Number.isInteger(item.correction_count) && item.correction_count !== summaries.length) addError(acc, "correction_count_mismatch", `${path}.correction_count`, "correction_count must equal summaries length.", true); }
 function validateMetrics(value: unknown, acc: Accumulator) { const path = "$.metrics"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedMetricsKeys, path, acc); for (const key of allowedMetricsKeys) validateNonnegativeInteger(item[key], `${path}.${key}`, true, acc); }
 function validateUseSemantics(input: ProtocolJsonRecordV01, acc: Accumulator) { const usage = isProtocolRecordV01(input.usage) ? input.usage : null; const metrics = isProtocolRecordV01(input.metrics) ? input.metrics : null; const presented = protocolStringValueV01(usage?.presented); const actuallyUsed = protocolStringValueV01(usage?.actually_used); const assessment = protocolStringValueV01(input.assessment); if ((actuallyUsed === "yes" || actuallyUsed === "partial") && presented !== "yes") addError(acc, "use_without_presentation", "$.usage.actually_used", "Actual use yes or partial requires presented yes.", true); if (assessment === "helpful" && actuallyUsed !== "yes" && actuallyUsed !== "partial") addError(acc, "helpful_without_use", "$.assessment", "Helpful requires actual use yes or partial.", true); if (typeof metrics?.context_refs_used_count === "number" && metrics.context_refs_used_count > 0 && actuallyUsed !== "yes" && actuallyUsed !== "partial") addError(acc, "context_refs_used_without_use", "$.metrics.context_refs_used_count", "A positive used-reference count requires actual use yes or partial.", true); }

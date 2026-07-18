@@ -16,8 +16,7 @@ import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtim
 import {
   VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01,
   VNextOperatorPilotTransitionErrorV01,
-  commitVNextOperatorPilotSemanticTransitionV01,
-  compileVNextOperatorPilotLaterContextV01,
+  applyVNextOperatorPilotReviewedSemanticTransitionV01,
   confirmVNextOperatorPilotSemanticCommitV01,
   prepareVNextOperatorPilotSemanticCommitPreviewV01,
   readVNextOperatorPilotPreviewBindingCookieFromRequestV01,
@@ -157,54 +156,34 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           mutationCookies(result.session_admission, requestUrl, true),
         );
       }
-      if (parsed.action === "commit") {
-        const result = commitVNextOperatorPilotSemanticTransitionV01(db, {
+      const result = applyVNextOperatorPilotReviewedSemanticTransitionV01(
+        db,
+        {
           config,
           credential,
           request: parsed.payload,
           review_window_config: reviewWindowConfig,
           clock: options.clock,
           secret_source: options.secret_source,
-        });
-        return jsonResponse(
-          {
-            ok: true,
-            route_version: ROUTE_VERSION,
-            status: result.status,
-            transition_receipt: result.transition_receipt,
-            eligibility_status: result.eligibility_status,
-            eligibility: result.eligibility,
-            packet_compiled: false,
-            authentication_boundary:
-              "local_secret_possession_only_not_external_identity",
-            semantic_authority_granted: false,
-          },
-          result.status === "applied" ? 201 : 200,
-          mutationCookies(result.session_admission, requestUrl, false),
-        );
-      }
-      const result = compileVNextOperatorPilotLaterContextV01(db, {
-        config,
-        credential,
-        request: parsed.payload,
-        clock: options.clock,
-        secret_source: options.secret_source,
-      });
+        },
+      );
       return jsonResponse(
         {
           ok: true,
           route_version: ROUTE_VERSION,
           status: result.status,
+          packet_status: result.packet_status,
+          gate_record: result.gate_record,
+          transition_receipt: result.transition_receipt,
           later_packet: result.later_packet,
-          transition_receipt_id: result.transition_receipt_id,
-          transition_receipt_fingerprint:
-            result.transition_receipt_fingerprint,
-          transition_applied: false,
+          eligibility_status: result.eligibility_status,
+          eligibility: result.eligibility,
+          packet_compiled: true,
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
           semantic_authority_granted: false,
         },
-        result.status === "inserted" ? 201 : 200,
+        result.status === "applied" ? 201 : 200,
         mutationCookies(result.session_admission, requestUrl, false),
       );
     } catch (error) {
@@ -243,7 +222,7 @@ function parsePreviewQuery(url: URL): Record<string, string> {
 }
 
 function parseActionBody(value: unknown): {
-  action: "confirm" | "commit" | "compile";
+  action: "confirm" | "apply";
   payload: Record<string, unknown>;
 } {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -253,7 +232,7 @@ function parseActionBody(value: unknown): {
     );
   }
   const record = value as Record<string, unknown>;
-  if (!(["confirm", "commit", "compile"] as const).includes(record.action as never)) {
+  if (!(["confirm", "apply"] as const).includes(record.action as never)) {
     throw new VNextOperatorPilotTransitionErrorV01(
       "operator_pilot_transition_action_invalid",
       400,
@@ -261,7 +240,7 @@ function parseActionBody(value: unknown): {
   }
   const { action, ...payload } = record;
   return {
-    action: action as "confirm" | "commit" | "compile",
+    action: action as "confirm" | "apply",
     payload,
   };
 }

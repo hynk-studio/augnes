@@ -24,7 +24,10 @@ import {
   createVNextOperatorHostRoundTripReadHandlerV01,
 } from "../app/api/vnext/operator/host-round-trip/route";
 import { createVNextOperatorRunResultReadHandlerV01 } from "../app/api/vnext/operator/run-results/route";
-import { createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
+import {
+  createVNextOperatorContextUseReviewHandlerV01,
+  createVNextOperatorProjectContinuityHandlerV01,
+} from "../app/api/vnext/operator/project-continuity/route";
 import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
 import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
@@ -38,6 +41,10 @@ import {
   createEpisodeDeltaProposalFingerprintV01,
   deriveEpisodeDeltaProposalIdV01,
 } from "../lib/vnext/episode-delta-proposal";
+import {
+  createContextUseReviewFingerprintV01,
+  deriveContextUseReviewIdV01,
+} from "../lib/vnext/context-use-review";
 import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
@@ -120,7 +127,9 @@ import {
   type VNextLocalOperatorSecretSourceV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
+import { deriveVNextOperatorPilotContextUseUsageProvenanceV01 } from "../lib/vnext/runtime/operator-pilot-context-use-review";
 import {
+  VNextOperatorPilotReviewErrorV01,
   createVNextOperatorPilotDecisionRequestFingerprintV01,
   createVNextOperatorPilotReviewDecisionSessionBasisRefV01,
   listVNextOperatorPilotSemanticReviewsV01,
@@ -131,7 +140,7 @@ import {
   type VNextOperatorPilotReviewDetailV01,
 } from "../lib/vnext/runtime/operator-pilot-review-material";
 import {
-  commitVNextOperatorPilotSemanticTransitionV01,
+  applyVNextOperatorPilotReviewedSemanticTransitionV01,
   createVNextOperatorPilotSemanticConfirmationBasisRefV01,
   prepareVNextOperatorPilotSemanticCommitPreviewV01,
   validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01,
@@ -139,6 +148,7 @@ import {
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
+import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
@@ -164,24 +174,24 @@ const OPERATOR_WORKSPACE_ID = `workspace:${OPERATOR_WORKSPACE_UUID}`;
 const OPERATOR_PROJECT_ID = `project:${OPERATOR_PROJECT_UUID}`;
 const FOREIGN_PROJECT_ID = "project:33333333-3333-4333-8333-333333333333";
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:d2d3e2215d998e71231f73ec",
+  review_decision_id: "review-decision:2977d9a73a9190e84318c685",
   review_decision_fingerprint:
-    "sha256:0ecb302509ee8de0f46865b2d4508deda0fa69df9ed4a3345b915ced3f19c543",
+    "sha256:cb683e96ed9cbd9f59d0c3a97b8efbef68732c00812530beab935c6cd78843b1",
   confirmation_digest:
-    "sha256:f4a9997929981e61f92f35276fc51fe59a3650d468b6d785f46445d41e4bd68f",
-  gate_id: "semantic-commit-gate:7fd5c2e3c0e10f0a3bc5694f",
+    "sha256:88133b8d99bb8ea125fc91c0117491eb1d25c04ff9bfcd5f202541b4a85e8a7a",
+  gate_id: "semantic-commit-gate:d8d963b7f17729e12d4076e3",
   gate_fingerprint:
-    "sha256:abba23db748c66f867471ffae2dcd7f3d816615cbdb23990f4bc3ac227986e21",
-  transition_receipt_id: "state-transition-receipt:bd6222fd408c0e0e1c4f805e",
+    "sha256:b19cfc26ad1ca2792005c05994d99a54ce04c70da49e864dd8384fb99bf780e2",
+  transition_receipt_id: "state-transition-receipt:8c8be6cb13f7be65f15351e8",
   transition_receipt_idempotency_key:
-    "sha256:6a8788aad333fbabcf13257ebd381e5b78bd31af41f32def6660ee9f9b3cf419",
+    "sha256:6be8df274b6ea6c88d0612ebc28e4d169c84d4263050a1293ebdddb478e3d432",
   transition_receipt_fingerprint:
-    "sha256:7c97761a627796a0b4562038e4bb798387bcb5c6fc22f5f3d0a82b35bd70dc61",
-  later_packet_id: "task-context-packet:6f15aa2bf1eee2c0c2f10b1",
+    "sha256:9cc1fd7c674ff0895e1e79d6528023a89e46afce502c07d62561c8d5443ecddc",
+  later_packet_id: "task-context-packet:bf2ae3cd9f52c831874fa4f",
   later_packet_fingerprint:
-    "sha256:8110a89c376241d2e097f5be7927ab701e63c1add59a0bd8c77ff96f89e65046",
+    "sha256:8b53216dec0a02fd211aa3670638aa256534609e64fff21b619fed9ee12e06dd",
   full_loop_fingerprint:
-    "sha256:5370d6a82c18229930a527572f4d461d78abdc66d57bbe93659be9e404f55e1c",
+    "sha256:c9671cfdbe5f003ed734ba62f83a55fbea6235540b157f4b488e533af5edaf7b",
 } as const;
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
@@ -475,9 +485,10 @@ try {
     external_network_calls: 0,
     default_database_accessed: false,
     external_identity_authenticated: false,
-    semantic_authority_granted: false,
-    real_operator_decision_created: false,
-    full_loop_fixture_only: true,
+    semantic_authority_granted: true,
+    source_assessment_semantic_authority_granted: false,
+    real_operator_decision_created: true,
+    full_loop_fixture_only: false,
     full_loop_anchors: fullLoop.anchors,
     full_loop_proposal: fullLoop.proposal,
     loopback_http_request_count: fullLoop.loopbackHttpRequestCount,
@@ -486,6 +497,7 @@ try {
     foreign_project_core_record_count: 0,
     review_did_not_mutate_semantic_state: true,
     packet_compilation_was_explicit: true,
+    packet_compilation_was_atomic_with_transition: true,
     temp_database_cleanup: "pending_finally",
   };
 } finally {
@@ -634,11 +646,20 @@ async function assertFullOperatorLoop(input: {
     environment: input.environment,
     clock: input.clock,
   });
+  const nativeContextUseReviewHandler =
+    createVNextOperatorContextUseReviewHandlerV01({
+      environment: input.environment,
+      clock: input.clock,
+      secret_source: input.secretSource,
+    });
   const loopback = await startOperatorPilotLoopbackHarness({
     session: input.sessionHandlers,
     semanticReview: nativeReviewHandlers,
     semanticTransition: nativeTransitionHandlers,
-    projectContinuity: nativeContinuityHandler,
+    projectContinuity: {
+      GET: nativeContinuityHandler,
+      POST: nativeContextUseReviewHandler,
+    },
   });
   const sessionHandlers = {
     GET: loopback.forward,
@@ -1115,11 +1136,30 @@ async function assertFullOperatorLoop(input: {
   pass("same_session_confirmation_exact_replay");
 
   input.clock.set("2026-07-11T09:18:00.000Z");
+  const rowsBeforeRetiredSplitActions = coreRecordCount(canonicalDbPath);
+  for (const action of ["commit", "compile"] as const) {
+    await expectRouteError(
+      await transitionHandlers.POST(
+        routeRequest("/api/vnext/operator/semantic-transition", {
+          method: "POST",
+          jar,
+          body: { action },
+        }),
+      ),
+      400,
+      "operator_pilot_transition_action_invalid",
+      `retired_split_${action}_action_rejected`,
+    );
+  }
+  assert.equal(coreRecordCount(canonicalDbPath), rowsBeforeRetiredSplitActions);
+  pass("atomic_apply_is_the_only_product_transition_mutation");
   const commitRequest = {
-    action: "commit",
+    action: "apply",
     ...decisionBinding,
     gate_record_id: gate.gate_record_id,
     gate_record_fingerprint: gate.integrity.fingerprint,
+    prior_packet_id: priorPacket.packet_id,
+    prior_packet_fingerprint: priorPacket.integrity.fingerprint,
   };
   const refusedCommitRows = coreRecordCount(canonicalDbPath);
   for (const [field, value] of [
@@ -1170,16 +1210,18 @@ async function assertFullOperatorLoop(input: {
   assert.equal(commitBody.status, "applied");
   jar.absorb(commitResponse);
   const receipt = commitBody.transition_receipt as StateTransitionReceiptV01;
-  pass("operator_confirmed_transition_applied_atomically");
-
-  await assertWorkbenchDurableLineageRoute({
-    handlers: reviewHandlers,
-    jar,
-    proposal: prepared.proposal,
-    expected_status: "applied_awaiting_packet",
-    receipt,
-  });
-  pass("workbench_lineage_reports_applied_receipt_awaiting_packet");
+  const laterPacket = commitBody.later_packet as TaskContextPacketV01;
+  assert.equal(commitBody.packet_compiled, true);
+  assert.equal(isTaskContextPacketIdV01(laterPacket.packet_id), true);
+  assert.equal(
+    laterPacket.packet_id.slice("task-context-packet:".length).length,
+    TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
+  );
+  const accepted = laterPacket.selected_context.find(
+    (entry) => entry.entry_kind === "accepted_state_ref",
+  );
+  assert(accepted?.external_ref && accepted.source_ref);
+  pass("operator_confirmed_transition_and_packet_applied_atomically");
 
   input.clock.set("2026-07-11T09:19:00.000Z");
   const commitReplayResponse = await transitionHandlers.POST(
@@ -1196,40 +1238,14 @@ async function assertFullOperatorLoop(input: {
       .transition_receipt_id,
     receipt.transition_receipt_id,
   );
+  assert.equal(
+    (commitReplayBody.later_packet as typeof laterPacket).packet_id,
+    laterPacket.packet_id,
+  );
   jar.absorb(commitReplayResponse);
   pass("semantic_transition_exact_replay");
-
-  input.clock.set("2026-07-11T09:20:00.000Z");
-  const compileRequest = {
-    action: "compile",
-    transition_receipt_id: receipt.transition_receipt_id,
-    transition_receipt_fingerprint: receipt.integrity.fingerprint,
-    prior_packet_id: priorPacket.packet_id,
-    prior_packet_fingerprint: priorPacket.integrity.fingerprint,
-  };
-  const compileResponse = await transitionHandlers.POST(
-    routeRequest("/api/vnext/operator/semantic-transition", {
-      method: "POST",
-      jar,
-      body: compileRequest,
-    }),
-  );
-  const compileBody = await publicJson(compileResponse);
-  assert.equal(compileResponse.status, 201, "packet compile over loopback HTTP");
-  assert.equal(compileBody.status, "inserted");
-  jar.absorb(compileResponse);
-  const laterPacket = compileBody.later_packet as TaskContextPacketV01;
-  const accepted = laterPacket.selected_context.find(
-    (entry) => entry.entry_kind === "accepted_state_ref",
-  );
-  assert(accepted?.external_ref && accepted.source_ref);
-  assert.equal(isTaskContextPacketIdV01(laterPacket.packet_id), true);
-  assert.equal(
-    laterPacket.packet_id.slice("task-context-packet:".length).length,
-    TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01,
-  );
+  pass("later_packet_compile_exact_replay");
   pass("compiled_packet_uses_canonical_identity");
-  pass("later_packet_compilation_is_explicit");
 
   await assertWorkbenchDurableLineageRoute({
     handlers: reviewHandlers,
@@ -1242,19 +1258,7 @@ async function assertFullOperatorLoop(input: {
   pass("workbench_lineage_reports_compiled_packet");
 
   input.clock.set("2026-07-11T09:21:00.000Z");
-  const compileReplayResponse = await transitionHandlers.POST(
-    routeRequest("/api/vnext/operator/semantic-transition", {
-      method: "POST",
-      jar,
-      body: compileRequest,
-    }),
-  );
-  const compileReplayBody = await publicJson(compileReplayResponse);
-  assert.equal(compileReplayBody.status, "exact_replay");
-  jar.absorb(compileReplayResponse);
-  pass("later_packet_compile_exact_replay");
-
-  await assertDirectHostRoundTripCoverageV01({
+  const firstLaterRun = await assertDirectHostRoundTripCoverageV01({
     environment: input.environment,
     config,
     clock: input.clock,
@@ -1262,6 +1266,18 @@ async function assertFullOperatorLoop(input: {
     jar,
     packet: laterPacket,
     transition_receipt: receipt,
+  });
+
+  const r6cVertical = await assertR6CProductionVerticalV01({
+    environment: input.environment,
+    config,
+    clock: input.clock,
+    secret_source: input.secretSource,
+    jar,
+    review_handlers: reviewHandlers,
+    transition_handlers: transitionHandlers,
+    continuity_handler: continuityHandler,
+    source_run: firstLaterRun,
   });
 
   const continuityResponse = await continuityHandler(
@@ -1279,10 +1295,13 @@ async function assertFullOperatorLoop(input: {
       packet_fingerprint: string;
     } | null;
   };
-  assert.equal(continuity.latest_compiled_packet?.packet_id, laterPacket.packet_id);
+  assert.equal(
+    continuity.latest_compiled_packet?.packet_id,
+    r6cVertical.later_packet.packet_id,
+  );
   assert.equal(
     continuity.latest_compiled_packet?.packet_fingerprint,
-    laterPacket.integrity.fingerprint,
+    r6cVertical.later_packet.integrity.fingerprint,
   );
   pass("project_home_continuity_projects_latest_compiled_packet");
 
@@ -1305,6 +1324,37 @@ async function assertFullOperatorLoop(input: {
     403,
     "operator_session_scope_mismatch",
     "foreign_project_full_loop_route_rejected",
+  );
+  const foreignRevisionCandidate = prepared.proposal.proposed_deltas[0]!;
+  await expectRouteError(
+    await foreignReviewHandlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar,
+        body: {
+          action: "revise",
+          proposal_id: prepared.proposal.proposal_id,
+          proposal_fingerprint: prepared.proposal.integrity.fingerprint,
+          candidate_id: foreignRevisionCandidate.candidate_id,
+          candidate_fingerprint:
+            createEpisodeDeltaCandidateFingerprintV01(
+              foreignRevisionCandidate,
+            ),
+          delta_type: "validation_delta",
+          operation: "add",
+          title: "Cross-project revision must fail",
+          proposed_state_summary:
+            "This material must never be admitted outside its project.",
+          rationale_summary:
+            "Project-scoped operator authority must bind revision admission.",
+          uncertainties: [],
+          limitations: [],
+        },
+      }),
+    ),
+    403,
+    "operator_session_scope_mismatch",
+    "proposal_revision_cross_project_refused",
   );
   assert.equal(
     countProjectRows(
@@ -1399,7 +1449,7 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   jar: RouteCookieJar;
   packet: TaskContextPacketV01;
   transition_receipt: StateTransitionReceiptV01;
-}): Promise<void> {
+}): Promise<Awaited<ReturnType<typeof runDirectNativeHostRoundTripV01>>> {
   const policyContext = directHostPolicyContextV01(
     addIsoMillisecondsV01(input.packet.generated_at, 70_000),
   );
@@ -1880,6 +1930,1125 @@ async function assertDirectHostRoundTripCoverageV01(input: {
   await assertDirectHostPrestartRefusalsOnClonesV01(input);
   await assertDirectHostRootScopesOnClonesV01(input);
   await assertLiveCodexAppServerLifecycleOnClonesV01(input);
+  return golden;
+}
+
+async function assertR6CProductionVerticalV01(input: {
+  environment: NodeJS.ProcessEnv;
+  config: VNextLocalOperatorPilotConfigV01;
+  clock: ManualClock;
+  secret_source: DeterministicSecretSource;
+  jar: RouteCookieJar;
+  review_handlers: { GET: OperatorPilotRouteHandlerV01; POST: OperatorPilotRouteHandlerV01 };
+  transition_handlers: { GET: OperatorPilotRouteHandlerV01; POST: OperatorPilotRouteHandlerV01 };
+  continuity_handler: OperatorPilotRouteHandlerV01;
+  source_run: Awaited<ReturnType<typeof runDirectNativeHostRoundTripV01>>;
+}): Promise<{ later_packet: TaskContextPacketV01 }> {
+  assert.equal(input.source_run.proposal.status, "available");
+  if (input.source_run.proposal.status !== "available") {
+    throw new Error("r6_c_source_proposal_unavailable");
+  }
+  const sourceProposalId = input.source_run.proposal.proposal_id;
+  const sourceDetailResponse = await input.review_handlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar: input.jar,
+      query: { proposal_id: sourceProposalId },
+    }),
+  );
+  const sourceDetailBody = await publicJson(sourceDetailResponse);
+  assert.equal(sourceDetailResponse.status, 200);
+  const sourceDetail = sourceDetailBody.proposal as VNextOperatorPilotReviewDetailV01;
+  const unknownCandidate = sourceDetail.candidates.find(
+    (entry) => entry.candidate.operation === "unknown",
+  );
+  assert(unknownCandidate);
+  assert.equal(unknownCandidate.pilot_admission.decision_allowed.accept, false);
+  assert.equal(unknownCandidate.pilot_admission.mapped_operation, null);
+  pass("r6_b_unknown_candidate_not_transition_ready");
+
+  await expectRouteError(
+    await input.review_handlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar: input.jar,
+        body: {
+          proposal_id: sourceDetail.proposal.proposal_id,
+          proposal_fingerprint: sourceDetail.proposal.integrity.fingerprint,
+          candidate_id: unknownCandidate.candidate.candidate_id,
+          candidate_fingerprint: unknownCandidate.candidate_fingerprint,
+          decision: "accept",
+          rationale_summary: "Unknown candidate must not apply.",
+        },
+      }),
+    ),
+    409,
+    "pilot_candidate_operation_not_transitionable",
+    "unknown_candidate_accept_refused",
+  );
+
+  input.clock.set("2026-07-11T09:22:00.000Z");
+  const revisionRequest = {
+    action: "revise" as const,
+    proposal_id: sourceDetail.proposal.proposal_id,
+    proposal_fingerprint: sourceDetail.proposal.integrity.fingerprint,
+    candidate_id: unknownCandidate.candidate.candidate_id,
+    candidate_fingerprint: unknownCandidate.candidate_fingerprint,
+    delta_type: "validation_delta" as const,
+    operation: "add" as const,
+    title: "Record bounded validation state for later review",
+    proposed_state_summary:
+      "Create one bounded validation state that preserves unknown criterion status and requires later feedback.",
+    rationale_summary:
+      "The exact target is absent and this immutable revision explicitly selects create without changing source assessment residue.",
+    uncertainties: ["Task success remains unknown and insufficient."],
+    limitations: ["The revision is candidate material only."],
+  };
+  await expectRouteError(
+    await input.review_handlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar: input.jar,
+        body: { ...revisionRequest, unexpected_revision_field: true },
+      }),
+    ),
+    400,
+    "operator_pilot_revision_body_unknown_field",
+    "proposal_revision_unknown_field_refused",
+  );
+  await expectRouteError(
+    await input.review_handlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar: input.jar,
+        body: { ...revisionRequest, title: "x".repeat(2001) },
+      }),
+    ),
+    400,
+    "operator_pilot_revision_title_invalid",
+    "proposal_revision_oversized_edit_refused",
+  );
+  const incompatibleDeltaTypes = [
+    "research_delta",
+    "memory_delta",
+    "perspective_delta",
+    "artifact_delta",
+    "code_delta",
+    "world_state_delta",
+    "agent_plan_delta",
+    "user_decision_delta",
+    "coordination_delta",
+  ] as const;
+  for (const deltaType of incompatibleDeltaTypes) {
+    await expectRouteError(
+      await input.review_handlers.POST(
+        routeRequest("/api/vnext/operator/semantic-review", {
+          method: "POST",
+          jar: input.jar,
+          body: { ...revisionRequest, delta_type: deltaType },
+        }),
+      ),
+      409,
+      "operator_pilot_revision_delta_target_incompatible",
+      `criterion_target_${deltaType}_refused`,
+    );
+  }
+  const revisionResponse = await input.review_handlers.POST(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "POST",
+      jar: input.jar,
+      body: revisionRequest,
+    }),
+  );
+  const revisionBody = await publicJson(revisionResponse);
+  assert.equal(revisionResponse.status, 201, JSON.stringify(revisionBody));
+  input.jar.absorb(revisionResponse);
+  const revisionProposal = revisionBody.proposal as EpisodeDeltaProposalV01;
+  assert.equal(revisionProposal.status, "pending_review");
+  assert.equal(
+    revisionProposal.operation_revision?.selected_delta_type,
+    "validation_delta",
+  );
+  assert.equal(revisionProposal.operation_revision?.selected_operation, "add");
+  assert.equal(
+    revisionProposal.operation_revision?.source.proposal_id,
+    sourceDetail.proposal.proposal_id,
+  );
+  assert.equal(
+    canonicalizeProtocolValueV01(revisionProposal.source_assessment),
+    canonicalizeProtocolValueV01(sourceDetail.proposal.source_assessment),
+  );
+  const sourceAfterRevisionResponse = await input.review_handlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar: input.jar,
+      query: { proposal_id: sourceDetail.proposal.proposal_id },
+    }),
+  );
+  const sourceAfterRevision = (
+    await publicJson(sourceAfterRevisionResponse)
+  ).proposal as VNextOperatorPilotReviewDetailV01;
+  assert.equal(
+    sourceAfterRevision.proposal.integrity.fingerprint,
+    sourceDetail.proposal.integrity.fingerprint,
+  );
+  assert.equal(sourceAfterRevision.proposal.operation_revision, undefined);
+  pass("immutable_operation_aware_revision_preserves_source_proposal");
+  await assertOperationRevisionImmutableMaterialConflictOnCloneV01({
+    environment: input.environment,
+    proposal: revisionProposal,
+  });
+  await assertOperationRevisionDeltaTargetConflictOnCloneV01({
+    environment: input.environment,
+    proposal: revisionProposal,
+  });
+
+  const replayRevisionResponse = await input.review_handlers.POST(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "POST",
+      jar: input.jar,
+      body: revisionRequest,
+    }),
+  );
+  const replayRevisionBody = await publicJson(replayRevisionResponse);
+  assert.equal(replayRevisionBody.status, "exact_replay");
+  assert.equal(
+    (replayRevisionBody.proposal as EpisodeDeltaProposalV01).proposal_id,
+    revisionProposal.proposal_id,
+  );
+  input.jar.absorb(replayRevisionResponse);
+  pass("proposal_revision_exact_replay");
+  await expectRouteError(
+    await input.review_handlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar: input.jar,
+        body: { ...revisionRequest, title: "Conflicting revision content" },
+      }),
+    ),
+    409,
+    "operator_pilot_revision_replay_conflict",
+    "proposal_revision_conflicting_replay_refused",
+  );
+
+  const revisionDetailResponse = await input.review_handlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar: input.jar,
+      query: { proposal_id: revisionProposal.proposal_id },
+    }),
+  );
+  const revisionDetail = (
+    await publicJson(revisionDetailResponse)
+  ).proposal as VNextOperatorPilotReviewDetailV01;
+  const revisedCandidate = revisionDetail.candidates.find(
+    (entry) =>
+      entry.candidate.candidate_id ===
+      revisionProposal.operation_revision?.revised_candidate.candidate_id,
+  );
+  assert(revisedCandidate);
+  assert.equal(revisedCandidate.candidate.operation, "add");
+  assert.equal(revisedCandidate.pilot_admission.accept_operation, "create");
+  assert.equal(revisedCandidate.pilot_admission.decision_allowed.accept, true);
+
+  input.clock.set("2026-07-11T09:23:00.000Z");
+  const beforeDecision = snapshotR6CSemanticAuthorityCounts(input.config);
+  const decisionRequest = {
+    proposal_id: revisionProposal.proposal_id,
+    proposal_fingerprint: revisionProposal.integrity.fingerprint,
+    candidate_id: revisedCandidate.candidate.candidate_id,
+    candidate_fingerprint: revisedCandidate.candidate_fingerprint,
+    decision: "accept" as const,
+    rationale_summary:
+      "Explicitly accept the separately reviewable create candidate; this decision remains distinct from application.",
+  };
+  const decisionResponse = await input.review_handlers.POST(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "POST",
+      jar: input.jar,
+      body: decisionRequest,
+    }),
+  );
+  const decisionBody = await publicJson(decisionResponse);
+  assert.equal(decisionResponse.status, 201, JSON.stringify(decisionBody));
+  input.jar.absorb(decisionResponse);
+  const decision = decisionBody.decision as ReviewDecisionV01;
+  const stateBeforeApply = snapshotR6CSemanticAuthorityCounts(input.config);
+  assert.equal(stateBeforeApply.decisions, beforeDecision.decisions + 1);
+  assert.deepEqual(
+    { ...stateBeforeApply, decisions: beforeDecision.decisions },
+    beforeDecision,
+  );
+  pass("review_decision_persisted_without_semantic_state_change");
+
+  input.clock.set("2026-07-11T09:24:00.000Z");
+  const decisionBinding = {
+    proposal_id: revisionProposal.proposal_id,
+    proposal_fingerprint: revisionProposal.integrity.fingerprint,
+    decision_id: decision.decision_id,
+    decision_fingerprint: decision.integrity.fingerprint,
+  };
+  const previewResponse = await input.transition_handlers.GET(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "GET",
+      jar: input.jar,
+      query: decisionBinding,
+    }),
+  );
+  const previewBody = await publicJson(previewResponse);
+  assert.equal(previewResponse.status, 200, JSON.stringify(previewBody));
+  input.jar.absorb(previewResponse);
+  const previewPolicy = previewBody.pilot_policy as {
+    operation_aware: boolean;
+    candidate_operation: string;
+  };
+  const preview = previewBody.preview as VNextSemanticCommitPreviewV01;
+  assert.equal(previewPolicy.operation_aware, true);
+  assert.equal(previewPolicy.candidate_operation, "create");
+  assert.equal(previewBody.preview_is_write, false);
+  const confirmResponse = await input.transition_handlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar: input.jar,
+      body: {
+        action: "confirm",
+        ...decisionBinding,
+        confirmation_digest: preview.confirmation_digest,
+      },
+    }),
+  );
+  const confirmBody = await publicJson(confirmResponse);
+  assert.equal(confirmResponse.status, 201, JSON.stringify(confirmBody));
+  input.jar.absorb(confirmResponse);
+  const gate = confirmBody.gate_record as VNextSemanticCommitGateRecordV01;
+
+  input.clock.set("2026-07-11T09:25:00.000Z");
+  const applyRequest = {
+    action: "apply",
+    ...decisionBinding,
+    gate_record_id: gate.gate_record_id,
+    gate_record_fingerprint: gate.integrity.fingerprint,
+    prior_packet_id:
+      revisionProposal.task_context_packet_ref!.external_id,
+    prior_packet_fingerprint:
+      revisionProposal.task_context_packet_ref!.source_ref!,
+  };
+  await assertAtomicTransitionPacketRollbackOnCloneV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secret_source,
+    jar: input.jar,
+    request: applyRequest,
+  });
+  const applyResponse = await input.transition_handlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar: input.jar,
+      body: applyRequest,
+    }),
+  );
+  const applyBody = await publicJson(applyResponse);
+  assert.equal(applyResponse.status, 201, JSON.stringify(applyBody));
+  assert.equal(applyBody.status, "applied");
+  assert.equal(applyBody.packet_status, "inserted");
+  assert.equal(applyBody.packet_compiled, true);
+  input.jar.absorb(applyResponse);
+  const transition = applyBody.transition_receipt as StateTransitionReceiptV01;
+  const laterPacket = applyBody.later_packet as TaskContextPacketV01;
+  assert.equal(transition.effects.every((effect) => effect.operation === "create"), true);
+  assert.equal(
+    laterPacket.selected_context.some(
+      (entry) =>
+        entry.entry_kind === "accepted_state_ref" &&
+        entry.source_ref === transition.effects[0]!.after_state.state_fingerprint,
+    ),
+    true,
+  );
+  pass("operation_aware_decision_transition_receipt_and_packet_vertical");
+
+  input.clock.set("2026-07-11T09:26:00.000Z");
+  const replayApplyResponse = await input.transition_handlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar: input.jar,
+      body: applyRequest,
+    }),
+  );
+  const replayApplyBody = await publicJson(replayApplyResponse);
+  assert.equal(replayApplyBody.status, "exact_replay");
+  assert.equal(replayApplyBody.packet_status, "exact_replay");
+  assert.equal(
+    (replayApplyBody.transition_receipt as StateTransitionReceiptV01)
+      .transition_receipt_id,
+    transition.transition_receipt_id,
+  );
+  assert.equal(
+    (replayApplyBody.later_packet as TaskContextPacketV01).packet_id,
+    laterPacket.packet_id,
+  );
+  input.jar.absorb(replayApplyResponse);
+  pass("atomic_transition_packet_exact_replay");
+
+  input.clock.set("2026-07-11T09:27:00.000Z");
+  const laterRunDb = openVNextLocalOperatorDatabaseV01(input.config);
+  let laterRun: Awaited<ReturnType<typeof runDirectNativeHostRoundTripV01>>;
+  try {
+    const adapter = createDeterministicCodexAdapterV01({
+      now: () => input.clock.now(),
+    });
+    laterRun = await runDirectNativeHostRoundTripV01(
+      laterRunDb,
+      { config: input.config, mode: "interactive" },
+      { adapter, now: () => input.clock.now() },
+    );
+  } finally {
+    laterRunDb.close();
+  }
+  assert.equal(laterRun.status, "inserted");
+  assert.equal(laterRun.mode, "interactive");
+  assert.equal(
+    laterRun.receipt.task_context_packet_ref?.external_id,
+    laterPacket.packet_id,
+  );
+  assert.equal(
+    laterRun.receipt.compatibility.source_contracts.includes(
+      "vnext_operator_pilot_later_result_intake.v0.1",
+    ),
+    true,
+  );
+  assert.equal(laterRun.proposal.status, "available");
+  if (laterRun.proposal.status !== "available") {
+    throw new Error("r6_c_later_run_proposal_unavailable");
+  }
+  pass("real_later_interactive_run_receipt_persisted");
+  await assertOperationAwareProductionOperationsOnClonesV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secret_source,
+    source_proposal_id: laterRun.proposal.proposal_id,
+  });
+
+  const beforeFeedback = snapshotR6CSemanticAuthorityCounts(input.config);
+  input.clock.set("2026-07-11T09:28:00.000Z");
+  const feedbackRequest = {
+    action: "record_context_use_review",
+    later_run_receipt_id: laterRun.receipt.receipt_id,
+    later_run_receipt_fingerprint: laterRun.receipt.integrity.fingerprint,
+    actually_used: "yes",
+    assessment: "helpful",
+    correction_summaries: [],
+    notes: ["The accepted validation state was presented and useful in the real later run."],
+    metrics: {
+      wrong_context_correction_count: 0,
+      repeated_explanation_estimate: 0,
+      missing_critical_context_count: 0,
+      context_refs_used_count: 1,
+    },
+  };
+  const feedbackResponse = await input.continuity_handler(
+    routeRequest("/api/vnext/operator/project-continuity", {
+      method: "POST",
+      jar: input.jar,
+      body: feedbackRequest,
+    }),
+  );
+  const feedbackBody = await publicJson(feedbackResponse);
+  assert.equal(feedbackResponse.status, 201, JSON.stringify(feedbackBody));
+  input.jar.absorb(feedbackResponse);
+  const feedbackReview = feedbackBody.review as ContextUseReviewV01;
+  assert.equal(feedbackReview.usage.presented, "yes");
+  assert.equal(feedbackReview.usage.actually_used, "yes");
+  assert.equal(feedbackReview.assessment, "helpful");
+  assert.equal(
+    feedbackReview.usage_provenance?.presented.basis,
+    "direct_local_observation",
+  );
+  assert.deepEqual(
+    feedbackReview.usage_provenance?.presented.source_refs,
+    laterRun.receipt.checks.find(
+      (check) => check.check_id === "deterministic_packet_delivery",
+    )?.source_refs,
+  );
+  assert.equal(
+    feedbackReview.usage_provenance?.actually_used.basis,
+    "user_declaration",
+  );
+  assert.equal(
+    feedbackReview.usage_provenance?.assessment.basis,
+    "user_declaration",
+  );
+  const requestRef = feedbackReview.compatibility.external_refs[0]!;
+  for (const actuallyUsed of ["yes", "partial", "no"] as const) {
+    const provenance =
+      deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+        receipt: laterRun.receipt,
+        actually_used: actuallyUsed,
+        request_ref: requestRef,
+      });
+    assert.equal(provenance.actually_used.basis, "user_declaration");
+    assert.deepEqual(provenance.actually_used.source_refs, [requestRef]);
+  }
+  const unknownProvenance =
+    deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+      receipt: laterRun.receipt,
+      actually_used: "unknown",
+      request_ref: requestRef,
+    });
+  assert.equal(unknownProvenance.actually_used.basis, "unknown");
+  assert.deepEqual(unknownProvenance.actually_used.source_refs, []);
+  const unrelatedResidue = structuredClone(laterRun.receipt);
+  unrelatedResidue.trust_summary.direct_observations += 100;
+  unrelatedResidue.trust_summary.host_attestations += 100;
+  unrelatedResidue.trust_summary.provider_reports += 100;
+  unrelatedResidue.observations.push({
+    observation_id: "unrelated:direct-observation",
+    observation_kind: "unrelated_task_residue",
+    summary: "Unrelated direct task observation.",
+    event_at: laterRun.receipt.recorded_at,
+    observed_at: laterRun.receipt.recorded_at,
+    observer_ref: laterRun.receipt.reporter_ref,
+    trust_class: "direct_local_observation",
+    source_refs: [laterRun.receipt.reporter_ref],
+    related_command_ids: [],
+    related_check_ids: [],
+    related_artifact_refs: [],
+  });
+  unrelatedResidue.attestations.push(
+    {
+      attestation_id: "unrelated:host-attestation",
+      attestation_kind: "unrelated_task_residue",
+      summary: "Unrelated host task attestation.",
+      reported_at: laterRun.receipt.recorded_at,
+      reporter_ref: {
+        ...laterRun.receipt.reporter_ref,
+        external_id: "unrelated-host",
+        trust_class: "host_attestation",
+      },
+      trust_class: "host_attestation",
+      source_refs: [],
+      subject_refs: [],
+    },
+    {
+      attestation_id: "unrelated:provider-report",
+      attestation_kind: "unrelated_task_residue",
+      summary: "Unrelated provider task report.",
+      reported_at: laterRun.receipt.recorded_at,
+      reporter_ref: {
+        ...laterRun.receipt.reporter_ref,
+        external_id: "unrelated-provider",
+        trust_class: "provider_report",
+      },
+      trust_class: "provider_report",
+      source_refs: [],
+      subject_refs: [],
+    },
+  );
+  const unrelatedResidueProvenance =
+    deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+      receipt: unrelatedResidue,
+      actually_used: "yes",
+      request_ref: requestRef,
+    });
+  assert.equal(
+    unrelatedResidueProvenance.actually_used.basis,
+    "user_declaration",
+  );
+  pass("context_use_review_usage_provenance_remains_source_truthful");
+  await assertContextUseReviewProvenanceConflictOnCloneV01({
+    environment: input.environment,
+    review: feedbackReview,
+  });
+  assert.equal(feedbackBody.semantic_state_changed, false);
+  assert.equal(feedbackBody.transition_created, false);
+  assert.equal(feedbackBody.packet_created, false);
+  const afterFeedback = snapshotR6CSemanticAuthorityCounts(input.config);
+  assert.equal(afterFeedback.context_use_reviews, beforeFeedback.context_use_reviews + 1);
+  assert.deepEqual(
+    { ...afterFeedback, context_use_reviews: beforeFeedback.context_use_reviews },
+    beforeFeedback,
+  );
+  pass("context_use_review_non_authoritative_no_mutation");
+
+  const feedbackReplayResponse = await input.continuity_handler(
+    routeRequest("/api/vnext/operator/project-continuity", {
+      method: "POST",
+      jar: input.jar,
+      body: feedbackRequest,
+    }),
+  );
+  const feedbackReplayBody = await publicJson(feedbackReplayResponse);
+  assert.equal(feedbackReplayBody.status, "exact_replay");
+  input.jar.absorb(feedbackReplayResponse);
+  pass("context_use_review_exact_replay");
+  await expectRouteError(
+    await input.continuity_handler(
+      routeRequest("/api/vnext/operator/project-continuity", {
+        method: "POST",
+        jar: input.jar,
+        body: { ...feedbackRequest, assessment: "noisy" },
+      }),
+    ),
+    409,
+    "operator_pilot_context_use_review_replay_conflict",
+    "context_use_review_conflicting_replay_refused",
+  );
+
+  const continuityResponse = await input.continuity_handler(
+    routeRequest("/api/vnext/operator/project-continuity", {
+      method: "GET",
+      jar: input.jar,
+    }),
+  );
+  const continuity = (await publicJson(continuityResponse)).continuity as {
+    latest_context_use_review_status: {
+      review_id: string;
+      actually_used: string;
+      actually_used_basis: string | null;
+      presentation_basis: string | null;
+      assessment_basis: string | null;
+      assessment: string;
+    } | null;
+  };
+  assert.equal(continuity.latest_context_use_review_status?.assessment, "helpful");
+  assert.equal(continuity.latest_context_use_review_status?.actually_used, "yes");
+  assert.equal(
+    continuity.latest_context_use_review_status?.actually_used_basis,
+    "user_declaration",
+  );
+  assert.equal(
+    continuity.latest_context_use_review_status?.presentation_basis,
+    "direct_local_observation",
+  );
+  assert.equal(
+    continuity.latest_context_use_review_status?.assessment_basis,
+    "user_declaration",
+  );
+  pass("workbench_continuity_reads_context_use_feedback_lineage");
+  return { later_packet: laterPacket };
+}
+
+async function assertOperationAwareProductionOperationsOnClonesV01(input: {
+  environment: NodeJS.ProcessEnv;
+  clock: ManualClock;
+  secret_source: DeterministicSecretSource;
+  source_proposal_id: string;
+}): Promise<void> {
+  const cases = [
+    {
+      operation: "revise" as const,
+      expected_effect: "replace" as const,
+      started_at: "2026-07-11T09:30:00.000Z",
+    },
+    {
+      operation: "supersede" as const,
+      expected_effect: "supersede" as const,
+      started_at: "2026-07-11T09:40:00.000Z",
+    },
+    {
+      operation: "retract" as const,
+      expected_effect: "retract" as const,
+      started_at: "2026-07-11T09:50:00.000Z",
+    },
+  ];
+  for (const testCase of cases) {
+    await withOperatorDatabaseCloneV01(
+      `r6-c-operation-aware-${testCase.operation}`,
+      input.environment,
+      async ({ environment, config }) => {
+        const startedAt = Date.parse(testCase.started_at);
+        assert(Number.isFinite(startedAt));
+        input.clock.set(new Date(startedAt).toISOString());
+        const sessionHandlers = createVNextLocalOperatorSessionHandlersV01({
+          environment,
+          clock: input.clock,
+          secret_source: input.secret_source,
+        });
+        const reviewHandlers = createVNextOperatorSemanticReviewHandlersV01({
+          environment,
+          clock: input.clock,
+          secret_source: input.secret_source,
+        });
+        const transitionHandlers =
+          createVNextOperatorSemanticTransitionHandlersV01({
+            environment,
+            clock: input.clock,
+            secret_source: input.secret_source,
+          });
+        const bootstrap = issueBootstrap(
+          environment,
+          input.clock,
+          input.secret_source,
+        );
+        rememberCredentialMaterial(bootstrap.bootstrap_token);
+        const exchange = await bootstrapThroughRoute(
+          sessionHandlers,
+          bootstrap.bootstrap_token,
+        );
+        assert.equal(exchange.response.status, 200);
+        const jar = new RouteCookieJar();
+        jar.setPair(exchange.cookiePair);
+        const sourceResponse = await reviewHandlers.GET(
+          routeRequest("/api/vnext/operator/semantic-review", {
+            method: "GET",
+            jar,
+            query: {
+              proposal_id: input.source_proposal_id,
+            },
+          }),
+        );
+        const sourceBody = await publicJson(sourceResponse);
+        assert.equal(sourceResponse.status, 200, JSON.stringify(sourceBody));
+        const sourceDetail =
+          sourceBody.proposal as VNextOperatorPilotReviewDetailV01;
+        const sourceCandidate = sourceDetail.candidates.find(
+          (entry) => entry.candidate.operation === "unknown",
+        );
+        assert(sourceCandidate);
+        assert.equal(sourceCandidate.pilot_admission.current_state_status, "drifted");
+        const revisionResponse = await reviewHandlers.POST(
+          routeRequest("/api/vnext/operator/semantic-review", {
+            method: "POST",
+            jar,
+            body: {
+              action: "revise",
+              proposal_id: sourceDetail.proposal.proposal_id,
+              proposal_fingerprint:
+                sourceDetail.proposal.integrity.fingerprint,
+              candidate_id: sourceCandidate.candidate.candidate_id,
+              candidate_fingerprint: sourceCandidate.candidate_fingerprint,
+              delta_type: "validation_delta",
+              operation: testCase.operation,
+              title: `Review exact ${testCase.operation} operation`,
+              proposed_state_summary:
+                testCase.operation === "retract"
+                  ? "Retract the exact current validation state after explicit review."
+                  : `Persist a distinct ${testCase.operation} validation state after exact current-state review.`,
+              rationale_summary:
+                `The exact current target is present and this immutable revision explicitly selects ${testCase.operation}.`,
+              uncertainties: ["Task success remains unknown and insufficient."],
+              limitations: ["This operation remains candidate material until decision and gate closure."],
+            },
+          }),
+        );
+        const revisionBody = await publicJson(revisionResponse);
+        assert.equal(revisionResponse.status, 201, JSON.stringify(revisionBody));
+        jar.absorb(revisionResponse);
+        const revision = revisionBody.proposal as EpisodeDeltaProposalV01;
+        const revisedCandidate = revision.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id ===
+            revision.operation_revision?.revised_candidate.candidate_id,
+        );
+        assert(revisedCandidate);
+        assert.equal(revisedCandidate.operation, testCase.operation);
+        assert.equal(
+          revision.operation_revision?.target_expectations.every(
+            (expectation) =>
+              expectation.presence === "present" &&
+              expectation.revision > 0 &&
+              Boolean(expectation.state_fingerprint) &&
+              Boolean(expectation.source_transition_receipt_id) &&
+              Boolean(expectation.source_transition_receipt_fingerprint),
+          ),
+          true,
+        );
+        const beforeFingerprint =
+          revision.operation_revision!.target_expectations[0]!
+            .state_fingerprint;
+
+        input.clock.set(new Date(startedAt + 60_000).toISOString());
+        const decisionResponse = await reviewHandlers.POST(
+          routeRequest("/api/vnext/operator/semantic-review", {
+            method: "POST",
+            jar,
+            body: {
+              proposal_id: revision.proposal_id,
+              proposal_fingerprint: revision.integrity.fingerprint,
+              candidate_id: revisedCandidate.candidate_id,
+              candidate_fingerprint:
+                createProtocolSha256V01(
+                  canonicalizeProtocolValueV01(revisedCandidate),
+                ),
+              decision: "accept",
+              rationale_summary:
+                `Explicitly accept the separately reviewable ${testCase.operation} candidate without implying application.`,
+            },
+          }),
+        );
+        const decisionBody = await publicJson(decisionResponse);
+        assert.equal(decisionResponse.status, 201, JSON.stringify(decisionBody));
+        jar.absorb(decisionResponse);
+        const decision = decisionBody.decision as ReviewDecisionV01;
+        const decisionBinding = {
+          proposal_id: revision.proposal_id,
+          proposal_fingerprint: revision.integrity.fingerprint,
+          decision_id: decision.decision_id,
+          decision_fingerprint: decision.integrity.fingerprint,
+        };
+
+        input.clock.set(new Date(startedAt + 120_000).toISOString());
+        const previewResponse = await transitionHandlers.GET(
+          routeRequest("/api/vnext/operator/semantic-transition", {
+            method: "GET",
+            jar,
+            query: decisionBinding,
+          }),
+        );
+        const previewBody = await publicJson(previewResponse);
+        assert.equal(previewResponse.status, 200, JSON.stringify(previewBody));
+        jar.absorb(previewResponse);
+        const preview = previewBody.preview as VNextSemanticCommitPreviewV01;
+        assert.equal(
+          preview.intended_effects.every(
+            (effect) => effect.operation === testCase.expected_effect,
+          ),
+          true,
+        );
+        const confirmResponse = await transitionHandlers.POST(
+          routeRequest("/api/vnext/operator/semantic-transition", {
+            method: "POST",
+            jar,
+            body: {
+              action: "confirm",
+              ...decisionBinding,
+              confirmation_digest: preview.confirmation_digest,
+            },
+          }),
+        );
+        const confirmBody = await publicJson(confirmResponse);
+        assert.equal(confirmResponse.status, 201, JSON.stringify(confirmBody));
+        jar.absorb(confirmResponse);
+        const gate =
+          confirmBody.gate_record as VNextSemanticCommitGateRecordV01;
+
+        input.clock.set(new Date(startedAt + 180_000).toISOString());
+        const beforeApply = snapshotR6CSemanticAuthorityCounts(config);
+        const credential =
+          readVNextLocalOperatorCredentialFromRequestV01(
+            routeRequest("/api/vnext/operator/semantic-transition", {
+              method: "GET",
+              jar,
+            }),
+          );
+        const applyDb = openVNextLocalOperatorDatabaseV01(config);
+        let applyResult: ReturnType<
+          typeof applyVNextOperatorPilotReviewedSemanticTransitionV01
+        >;
+        try {
+          applyResult = applyVNextOperatorPilotReviewedSemanticTransitionV01(
+            applyDb,
+            {
+              config,
+              credential,
+              request: {
+                ...decisionBinding,
+                gate_record_id: gate.gate_record_id,
+                gate_record_fingerprint: gate.integrity.fingerprint,
+                prior_packet_id:
+                  revision.task_context_packet_ref!.external_id,
+                prior_packet_fingerprint:
+                  revision.task_context_packet_ref!.source_ref!,
+              },
+              clock: input.clock,
+              secret_source: input.secret_source,
+            },
+          );
+        } finally {
+          applyDb.close();
+        }
+        assert.equal(applyResult.status, "applied");
+        assert.equal(applyResult.packet_status, "inserted");
+        const receipt = applyResult.transition_receipt;
+        const laterPacket = applyResult.later_packet;
+        assert.equal(
+          receipt.effects.every(
+            (effect) =>
+              effect.operation === testCase.expected_effect &&
+              effect.before_state.presence === "present" &&
+              effect.before_state.state_fingerprint === beforeFingerprint &&
+              effect.after_state.presence ===
+                (testCase.expected_effect === "retract" ? "absent" : "present"),
+          ),
+          true,
+        );
+        const acceptedSelections = laterPacket.selected_context.filter(
+          (entry) => entry.entry_kind === "accepted_state_ref",
+        );
+        if (testCase.expected_effect === "retract") {
+          assert.equal(
+            acceptedSelections.some(
+              (entry) => entry.source_ref === beforeFingerprint,
+            ),
+            false,
+          );
+          assert.equal(
+            laterPacket.excluded_context.some(
+              (entry) => entry.source_ref === beforeFingerprint,
+            ),
+            true,
+          );
+        } else {
+          const afterFingerprint =
+            receipt.effects[0]!.after_state.state_fingerprint;
+          assert(afterFingerprint);
+          assert.equal(
+            acceptedSelections.some(
+              (entry) => entry.source_ref === afterFingerprint,
+            ),
+            true,
+          );
+          assert.equal(
+            acceptedSelections.some(
+              (entry) => entry.source_ref === beforeFingerprint,
+            ),
+            false,
+          );
+        }
+        const afterApply = snapshotR6CSemanticAuthorityCounts(config);
+        assert.equal(afterApply.transitions, beforeApply.transitions + 1);
+        assert.equal(afterApply.packets, beforeApply.packets + 1);
+        assert.equal(
+          afterApply.semantic_state_entries,
+          testCase.expected_effect === "retract"
+            ? beforeApply.semantic_state_entries - 1
+            : beforeApply.semantic_state_entries,
+        );
+      },
+    );
+    pass(`operation_aware_${testCase.expected_effect}_production_vertical`);
+  }
+}
+
+async function assertOperationRevisionImmutableMaterialConflictOnCloneV01(
+  input: {
+    environment: NodeJS.ProcessEnv;
+    proposal: EpisodeDeltaProposalV01;
+  },
+): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "r6-c-operation-revision-immutable-material-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const forged = structuredClone(input.proposal);
+        assert(forged.observations[0]);
+        forged.observations[0].bounded_summary =
+          `${forged.observations[0].bounded_summary} Forged rewrite.`;
+        forged.proposal_id = deriveEpisodeDeltaProposalIdV01(forged);
+        forged.integrity.fingerprint =
+          createEpisodeDeltaProposalFingerprintV01(forged);
+        db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+        db.prepare(
+          `UPDATE vnext_core_records
+           SET record_id = ?, fingerprint = ?, payload_json = ?
+           WHERE record_kind = 'episode_delta_proposal'
+             AND record_id = ?`,
+        ).run(
+          forged.proposal_id,
+          forged.integrity.fingerprint,
+          canonicalizeProtocolValueV01(forged),
+          input.proposal.proposal_id,
+        );
+        db.exec(`
+          CREATE TRIGGER trg_vnext_core_records_immutable_update
+            BEFORE UPDATE ON vnext_core_records
+            BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+        `);
+        assert.throws(
+          () =>
+            readVNextOperatorPilotSemanticReviewV01(db, {
+              config,
+              proposal_id: forged.proposal_id,
+              authenticated_session_id: null,
+            }),
+          (error) =>
+            error instanceof VNextOperatorPilotReviewErrorV01 &&
+            error.code ===
+              "operator_pilot_revision_immutable_material_conflict",
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  reject("proposal_revision_recomputed_forgery_refused_on_readback");
+}
+
+async function assertOperationRevisionDeltaTargetConflictOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  proposal: EpisodeDeltaProposalV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "r6-c-operation-revision-delta-target-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const forged = structuredClone(input.proposal);
+        const revision = forged.operation_revision!;
+        const revisedCandidate = forged.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id === revision.revised_candidate.candidate_id,
+        )!;
+        revisedCandidate.delta_type = "memory_delta";
+        revision.selected_delta_type = "memory_delta";
+        revision.revised_candidate.candidate_fingerprint =
+          createEpisodeDeltaCandidateFingerprintV01(revisedCandidate);
+        forged.proposal_id = deriveEpisodeDeltaProposalIdV01(forged);
+        forged.integrity.fingerprint =
+          createEpisodeDeltaProposalFingerprintV01(forged);
+        db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+        db.prepare(
+          `UPDATE vnext_core_records
+           SET record_id = ?, fingerprint = ?, payload_json = ?
+           WHERE record_kind = 'episode_delta_proposal'
+             AND record_id = ?`,
+        ).run(
+          forged.proposal_id,
+          forged.integrity.fingerprint,
+          canonicalizeProtocolValueV01(forged),
+          input.proposal.proposal_id,
+        );
+        db.exec(`
+          CREATE TRIGGER trg_vnext_core_records_immutable_update
+            BEFORE UPDATE ON vnext_core_records
+            BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+        `);
+        assert.throws(
+          () =>
+            readVNextOperatorPilotSemanticReviewV01(db, {
+              config,
+              proposal_id: forged.proposal_id,
+              authenticated_session_id: null,
+            }),
+          (error) =>
+            error instanceof VNextOperatorPilotReviewErrorV01 &&
+            error.code ===
+              "operator_pilot_revision_delta_target_incompatible",
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  reject("proposal_revision_incompatible_lane_recomputed_forgery_refused");
+}
+
+async function assertContextUseReviewProvenanceConflictOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  review: ContextUseReviewV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "r6-c-context-use-provenance-conflict",
+    input.environment,
+    async ({ config }) => {
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const forged = structuredClone(input.review);
+        forged.usage_provenance!.actually_used.source_refs[0]!.observed_at =
+          "2026-07-11T09:28:01.000Z";
+        forged.review_id = deriveContextUseReviewIdV01(forged);
+        forged.integrity.fingerprint =
+          createContextUseReviewFingerprintV01(forged);
+        db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+        db.prepare(
+          `UPDATE vnext_core_records
+           SET record_id = ?, fingerprint = ?, payload_json = ?
+           WHERE record_kind = 'context_use_review'
+             AND record_id = ?`,
+        ).run(
+          forged.review_id,
+          forged.integrity.fingerprint,
+          canonicalizeProtocolValueV01(forged),
+          input.review.review_id,
+        );
+        db.exec(`
+          CREATE TRIGGER trg_vnext_core_records_immutable_update
+            BEFORE UPDATE ON vnext_core_records
+            BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+        `);
+        assert.throws(
+          () =>
+            projectVNextOperatorPilotContinuityV01(db, {
+              config,
+              clock: { now: () => "2026-07-11T09:28:02.000Z" },
+            }),
+          /operator_pilot_context_use_review_usage_provenance_invalid/,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  reject("context_use_review_changed_provenance_conflict_refused");
+}
+
+async function assertAtomicTransitionPacketRollbackOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  clock: ManualClock;
+  secret_source: DeterministicSecretSource;
+  jar: RouteCookieJar;
+  request: Record<string, unknown>;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "r6-c-transition-packet-atomic-rollback",
+    input.environment,
+    async ({ config }) => {
+      const credential = readVNextLocalOperatorCredentialFromRequestV01(
+        routeRequest("/api/vnext/operator/semantic-transition", {
+          method: "GET",
+          jar: input.jar,
+        }),
+      );
+      const before = snapshotR6CSemanticAuthorityCounts(config);
+      const { action: _action, ...serviceRequest } = input.request;
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        assert.throws(
+          () =>
+            applyVNextOperatorPilotReviewedSemanticTransitionV01(db, {
+              config,
+              credential,
+              request: serviceRequest,
+              clock: input.clock,
+              secret_source: input.secret_source,
+              test_options: {
+                on_checkpoint: (checkpoint) => {
+                  if (checkpoint === "after_receipt_insert_before_commit") {
+                    throw new Error("injected_transition_packet_atomic_failure");
+                  }
+                },
+              },
+            }),
+          /injected_transition_packet_atomic_failure/,
+        );
+      } finally {
+        db.close();
+      }
+      assert.deepEqual(snapshotR6CSemanticAuthorityCounts(config), before);
+    },
+  );
+  reject("transition_packet_atomic_failure_rolls_back_state_receipt_and_packet");
+}
+
+function snapshotR6CSemanticAuthorityCounts(
+  config: VNextLocalOperatorPilotConfigV01,
+) {
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    return {
+      semantic_state_entries: countTableRows(db, "vnext_semantic_state_entries"),
+      proposals: countRowsByKind(db, "episode_delta_proposal"),
+      decisions: countRowsByKind(db, "review_decision"),
+      transitions: countRowsByKind(db, "state_transition_receipt"),
+      packets: countRowsByKind(db, "task_context_packet"),
+      receipts: countRowsByKind(db, "run_receipt"),
+      context_use_reviews: countRowsByKind(db, "context_use_review"),
+    };
+  } finally {
+    db.close();
+  }
 }
 
 async function assertCriterionAssessmentBindingRefusalsOnClonesV01(input: {
@@ -6773,6 +7942,8 @@ async function assertCrossSessionDecisionReplayAndActionability(input: {
     );
     nextJar.absorb(confirmResponse);
     const gate = confirmBody.gate_record as VNextSemanticCommitGateRecordV01;
+    const priorPacketRef = input.proposal.task_context_packet_ref;
+    assert(priorPacketRef?.source_ref);
 
     input.clock.set("2026-07-11T09:06:00.000Z");
     const commitResponse = await transitionHandlers.POST(
@@ -6780,10 +7951,12 @@ async function assertCrossSessionDecisionReplayAndActionability(input: {
         method: "POST",
         jar: nextJar,
         body: {
-          action: "commit",
+          action: "apply",
           ...nextBinding,
           gate_record_id: gate.gate_record_id,
           gate_record_fingerprint: gate.integrity.fingerprint,
+          prior_packet_id: priorPacketRef.external_id,
+          prior_packet_fingerprint: priorPacketRef.source_ref,
         },
       }),
     );
@@ -6794,8 +7967,9 @@ async function assertCrossSessionDecisionReplayAndActionability(input: {
       String(commitBody.error_code ?? commitBody.status),
     );
     assert.equal(commitBody.status, "applied");
+    assert.equal(commitBody.packet_compiled, true);
     nextJar.absorb(commitResponse);
-    pass("new_session_decision_previews_confirms_and_commits");
+    pass("new_session_decision_previews_confirms_and_applies_atomically");
   } finally {
     input.clock.set("2026-07-11T09:00:00.000Z");
   }
@@ -7003,7 +8177,7 @@ function assertGenericGateCommitBypassRejected(input: {
     );
     assert.throws(
       () =>
-        commitVNextOperatorPilotSemanticTransitionV01(db, {
+        applyVNextOperatorPilotReviewedSemanticTransitionV01(db, {
           config: input.config,
           credential,
           request: {
@@ -7014,6 +8188,10 @@ function assertGenericGateCommitBypassRejected(input: {
             gate_record_id: generic.gate_record.gate_record_id,
             gate_record_fingerprint:
               generic.gate_record.integrity.fingerprint,
+            prior_packet_id:
+              input.proposal.task_context_packet_ref!.external_id,
+            prior_packet_fingerprint:
+              input.proposal.task_context_packet_ref!.source_ref,
           },
           clock: input.clock,
           secret_source: input.secretSource,
@@ -7225,9 +8403,10 @@ async function startOperatorPilotLoopbackHarness(input: {
   semanticTransition: ReturnType<
     typeof createVNextOperatorSemanticTransitionHandlersV01
   >;
-  projectContinuity: ReturnType<
-    typeof createVNextOperatorProjectContinuityHandlerV01
-  >;
+  projectContinuity: {
+    GET: ReturnType<typeof createVNextOperatorProjectContinuityHandlerV01>;
+    POST: ReturnType<typeof createVNextOperatorContextUseReviewHandlerV01>;
+  };
 }): Promise<{
   origin: string;
   requests: Array<{ method: string; pathname: string }>;
@@ -7249,7 +8428,11 @@ async function startOperatorPilotLoopbackHarness(input: {
     ],
     [
       "GET /api/vnext/operator/project-continuity",
-      input.projectContinuity,
+      input.projectContinuity.GET,
+    ],
+    [
+      "POST /api/vnext/operator/project-continuity",
+      input.projectContinuity.POST,
     ],
   ]);
   const requests: Array<{ method: string; pathname: string }> = [];
@@ -7392,6 +8575,7 @@ function assertOperatorLoopbackRouteCoverage(
     "GET /api/vnext/operator/semantic-transition",
     "POST /api/vnext/operator/semantic-transition",
     "GET /api/vnext/operator/project-continuity",
+    "POST /api/vnext/operator/project-continuity",
   ]) {
     assert(observed.has(expected), `missing real loopback request: ${expected}`);
   }

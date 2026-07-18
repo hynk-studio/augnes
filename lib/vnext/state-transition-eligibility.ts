@@ -27,7 +27,10 @@ import {
 } from "@/lib/vnext/state-transition-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
-import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
+import type {
+  EpisodeDeltaProposalOperationV01,
+  EpisodeDeltaProposalV01,
+} from "@/types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type {
   TaskContextPacketSelectedEntryV01,
@@ -139,6 +142,25 @@ interface ResolvedAppliedLineageV01 {
   prior_decision: ReviewDecisionV01;
   prior_receipt: StateTransitionReceiptV01;
   receipt_ref: ExternalRefV01;
+}
+
+export function mapEpisodeDeltaCandidateOperationToTransitionOperationV01(
+  operation: EpisodeDeltaProposalOperationV01,
+): StateTransitionEligibilityExpectedEffectV01["operation"] | null {
+  switch (operation) {
+    case "add":
+      return "create";
+    case "revise":
+      return "replace";
+    case "supersede":
+      return "supersede";
+    case "retract":
+    case "remove":
+      return "retract";
+    case "no_change":
+    case "unknown":
+      return null;
+  }
 }
 
 export function createStateTransitionEligibilityPreconditionFingerprintV01(
@@ -301,6 +323,46 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     ? (decision as unknown as ReviewDecisionV01)
     : null;
   const decisionValue = protocolStringValueV01(typedDecision?.decision);
+  const boundCandidate =
+    typedProposal && typedDecision
+      ? typedProposal.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id === typedDecision.candidate.candidate_id &&
+            createEpisodeDeltaCandidateFingerprintV01(candidate) ===
+              typedDecision.candidate.candidate_fingerprint,
+        ) ?? null
+      : null;
+  const historicalStateRelativeAdd =
+    decisionValue === "accept" &&
+    boundCandidate?.operation === "add" &&
+    typedProposal !== null &&
+    !typedProposal.source_assessment &&
+    !typedProposal.operation_revision;
+  const requestedOperation =
+    decisionValue === "accept" && boundCandidate
+      ? historicalStateRelativeAdd
+        ? null
+        : mapEpisodeDeltaCandidateOperationToTransitionOperationV01(
+            boundCandidate.operation,
+          )
+      : decisionValue === "supersede"
+        ? "supersede"
+        : decisionValue === "retract"
+          ? "retract"
+          : null;
+  if (
+    decisionValue === "accept" &&
+    !requestedOperation &&
+    !historicalStateRelativeAdd
+  ) {
+    addError(
+      accumulator,
+      "candidate_operation_not_transitionable",
+      "$.proposal.proposed_deltas",
+      "Unknown and no-change candidates cannot produce a Transition; an exact operation-aware revision is required.",
+      true,
+    );
+  }
   const intent = typedDecision?.requested_transition_intent ?? null;
   if (decisionValue === "reject" || decisionValue === "defer") {
     addError(
@@ -371,6 +433,7 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
   );
   const appliedLineage = validateAppliedLineage(
     decisionValue,
+    requestedOperation,
     typedProposal,
     typedDecision,
     expectedTargets,
@@ -380,7 +443,8 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     accumulator,
   );
   const expectedEffects = deriveExpectedEffects(
-    decisionValue,
+    requestedOperation,
+    historicalStateRelativeAdd,
     expectedTargets,
     observations,
     gate?.authorized_effects ?? [],
@@ -1216,6 +1280,7 @@ function validatePriorStateTransitionReceipts(
 
 function validateAppliedLineage(
   decisionValue: string | null,
+  requestedOperation: StateTransitionEligibilityExpectedEffectV01["operation"] | null,
   proposal: EpisodeDeltaProposalV01 | null,
   decision: ReviewDecisionV01 | null,
   expectedTargets: ExternalRefV01[],
@@ -1224,6 +1289,21 @@ function validateAppliedLineage(
   priorReceipts: StateTransitionReceiptV01[],
   accumulator: EligibilityAccumulator,
 ): ResolvedAppliedLineageV01 | null {
+  if (
+    decisionValue === "accept" &&
+    (requestedOperation === "supersede" || requestedOperation === "retract")
+  ) {
+    return validateOperationRevisionAppliedLineage(
+      requestedOperation,
+      proposal,
+      decision,
+      expectedTargets,
+      observations,
+      priorDecisions,
+      priorReceipts,
+      accumulator,
+    );
+  }
   if (decisionValue !== "supersede" && decisionValue !== "retract") {
     if (priorDecisions.length > 0 || priorReceipts.length > 0) {
       addError(
@@ -1624,6 +1704,182 @@ function validateAppliedLineage(
     prior_receipt: priorReceipt,
     receipt_ref: createStateTransitionReceiptLineageRefV01(priorReceipt),
   };
+}
+
+function validateOperationRevisionAppliedLineage(
+  operation: "supersede" | "retract",
+  proposal: EpisodeDeltaProposalV01 | null,
+  decision: ReviewDecisionV01 | null,
+  expectedTargets: ExternalRefV01[],
+  observations: StateTransitionCurrentStateObservationV01[],
+  priorDecisions: ReviewDecisionV01[],
+  priorReceipts: StateTransitionReceiptV01[],
+  accumulator: EligibilityAccumulator,
+): ResolvedAppliedLineageV01 | null {
+  const revision = proposal?.operation_revision ?? null;
+  if (
+    !proposal ||
+    !decision ||
+    !revision ||
+    mapEpisodeDeltaCandidateOperationToTransitionOperationV01(
+      revision.selected_operation,
+    ) !== operation
+  ) {
+    addError(
+      accumulator,
+      "operation_revision_lineage_missing",
+      "$.proposal.operation_revision",
+      "Accepted candidate supersede and retract require an exact immutable operation-aware revision.",
+      true,
+    );
+    return null;
+  }
+  if (priorDecisions.length !== 1 || priorReceipts.length !== 1) {
+    addError(
+      accumulator,
+      "operation_revision_prior_lineage_set_mismatch",
+      priorDecisions.length !== 1
+        ? "$.prior_review_decisions"
+        : "$.prior_state_transition_receipts",
+      "Operation-aware supersede and retract require exactly one prior applied decision and receipt relation.",
+      true,
+    );
+    return null;
+  }
+  const lineageBindings = uniqueProtocolValuesV01(
+    revision.target_expectations.map((expectation) => ({
+      transition_receipt_id: expectation.source_transition_receipt_id,
+      transition_receipt_fingerprint:
+        expectation.source_transition_receipt_fingerprint,
+    })),
+  );
+  if (
+    lineageBindings.length !== 1 ||
+    !lineageBindings[0]?.transition_receipt_id ||
+    !lineageBindings[0]?.transition_receipt_fingerprint
+  ) {
+    addError(
+      accumulator,
+      "operation_revision_prior_receipt_binding_missing",
+      "$.proposal.operation_revision.target_expectations",
+      "Every target must bind the same exact prior applied Transition receipt.",
+      true,
+    );
+    return null;
+  }
+  const priorDecision = priorDecisions[0]!;
+  const priorReceipt = priorReceipts[0]!;
+  const binding = lineageBindings[0];
+  if (
+    priorReceipt.transition_receipt_id !== binding.transition_receipt_id ||
+    priorReceipt.integrity.fingerprint !==
+      binding.transition_receipt_fingerprint ||
+    priorReceipt.source_decision.decision_id !== priorDecision.decision_id ||
+    priorReceipt.source_decision.decision_fingerprint !==
+      priorDecision.integrity.fingerprint ||
+    priorReceipt.source_proposal.proposal_id !==
+      priorDecision.source_proposal.proposal_id ||
+    priorReceipt.source_proposal.proposal_fingerprint !==
+      priorDecision.source_proposal.proposal_fingerprint
+  ) {
+    addError(
+      accumulator,
+      "operation_revision_prior_lineage_conflict",
+      "$.prior_state_transition_receipts",
+      "Prior decision and Transition receipt must preserve one exact applied lineage relation.",
+      true,
+    );
+    return null;
+  }
+  if (
+    !canonicalRefSetsEqual(
+      priorReceipt.effects.map((effect) => effect.target_ref),
+      expectedTargets,
+    ) ||
+    !canonicalRefSetsEqual(
+      revision.target_expectations.map((expectation) => expectation.target_ref),
+      expectedTargets,
+    )
+  ) {
+    addError(
+      accumulator,
+      "operation_revision_prior_target_set_mismatch",
+      "$.proposal.operation_revision.target_expectations",
+      "Revision, prior receipt, decision intent, and current observation target sets must match exactly.",
+      true,
+    );
+    return null;
+  }
+  const observationByTarget = new Map(
+    observations.map((observation) => [
+      canonicalExternalRef(observation.target_ref),
+      observation,
+    ]),
+  );
+  const effectByTarget = new Map(
+    priorReceipt.effects.map((effect) => [
+      canonicalExternalRef(effect.target_ref),
+      effect,
+    ]),
+  );
+  const expectationByTarget = new Map(
+    revision.target_expectations.map((expectation) => [
+      canonicalExternalRef(expectation.target_ref),
+      expectation,
+    ]),
+  );
+  for (const target of expectedTargets) {
+    const key = canonicalExternalRef(target);
+    const observation = observationByTarget.get(key);
+    const effect = effectByTarget.get(key);
+    const expectation = expectationByTarget.get(key);
+    if (
+      !observation ||
+      observation.presence !== "present" ||
+      !effect ||
+      effect.after_state.presence !== "present" ||
+      !expectation ||
+      expectation.presence !== "present" ||
+      expectation.state_fingerprint !== observation.state_fingerprint ||
+      effect.after_state.state_fingerprint !== observation.state_fingerprint ||
+      canonicalizeProtocolValueV01(effect.after_state.state_ref) !==
+        canonicalizeProtocolValueV01(observation.state_ref)
+    ) {
+      addError(
+        accumulator,
+        "operation_revision_prior_state_not_current",
+        "$.current_state_observations",
+        "Supersede and retract require the exact prior applied state to remain current.",
+        true,
+      );
+    }
+  }
+  const priorRecordedAt = parseStrictIsoTimestampV01(priorReceipt.recorded_at);
+  const decidedAt = parseStrictIsoTimestampV01(decision.decided_at);
+  if (
+    priorRecordedAt !== null &&
+    decidedAt !== null &&
+    priorRecordedAt > decidedAt
+  ) {
+    addError(
+      accumulator,
+      "operation_revision_prior_receipt_postdates_decision",
+      "$.prior_state_transition_receipts",
+      "The exact prior applied receipt cannot postdate the new decision.",
+      true,
+    );
+  }
+  return accumulator.errors.some(
+    (issue) =>
+      issue.code === "operation_revision_prior_state_not_current" ||
+      issue.code === "operation_revision_prior_receipt_postdates_decision",
+  )
+    ? null
+    : {
+        prior_decision: priorDecision,
+        prior_receipt: priorReceipt,
+        receipt_ref: createStateTransitionReceiptLineageRefV01(priorReceipt),
+      };
 }
 
 function validateGateEvaluation(
@@ -2153,7 +2409,8 @@ function validateCurrentStateObservations(
 }
 
 function deriveExpectedEffects(
-  decisionValue: string | null,
+  requestedOperation: StateTransitionEligibilityExpectedEffectV01["operation"] | null,
+  historicalStateRelativeAdd: boolean,
   expectedTargets: ExternalRefV01[],
   observations: StateTransitionCurrentStateObservationV01[],
   authorizedEffects: StateTransitionGateAuthorizedEffectV01[],
@@ -2183,15 +2440,33 @@ function deriveExpectedEffects(
     ) {
       continue;
     }
-    let operation: StateTransitionEligibilityExpectedEffectV01["operation"] | null = null;
-    if (decisionValue === "accept") {
-      operation = observation.presence === "absent" ? "create" : "replace";
-    } else if (decisionValue === "supersede") {
-      if (observation.presence === "present") operation = "supersede";
-      else addError(accumulator, "supersede_requires_present_state", "$.current_state_observations", "Supersede requires observed present state.");
-    } else if (decisionValue === "retract") {
-      if (observation.presence === "present") operation = "retract";
-      else addError(accumulator, "retract_requires_present_state", "$.current_state_observations", "Retract requires observed present state.");
+    let operation = historicalStateRelativeAdd
+      ? observation.presence === "absent"
+        ? "create"
+        : "replace"
+      : requestedOperation;
+    if (operation === "create" && observation.presence !== "absent") {
+      addError(
+        accumulator,
+        "create_requires_absent_state",
+        "$.current_state_observations",
+        "Candidate add maps to create and requires observed absent state.",
+      );
+      operation = null;
+    } else if (operation === "replace" && observation.presence !== "present") {
+      addError(
+        accumulator,
+        "replace_requires_present_state",
+        "$.current_state_observations",
+        "Candidate revise maps to replace and requires observed present state.",
+      );
+      operation = null;
+    } else if (operation === "supersede" && observation.presence !== "present") {
+      addError(accumulator, "supersede_requires_present_state", "$.current_state_observations", "Supersede requires observed present state.");
+      operation = null;
+    } else if (operation === "retract" && observation.presence !== "present") {
+      addError(accumulator, "retract_requires_present_state", "$.current_state_observations", "Retract requires observed present state.");
+      operation = null;
     }
     if (!operation) continue;
     const authorized = authorizedByTarget.get(canonicalExternalRef(target));

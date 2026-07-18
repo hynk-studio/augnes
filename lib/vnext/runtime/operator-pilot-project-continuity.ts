@@ -20,6 +20,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import {
+  deriveContextUseReviewPresentationProvenanceV01,
   validateContextUseReviewRelationsV01,
   validateContextUseReviewV01,
 } from "@/lib/vnext/context-use-review";
@@ -44,21 +45,25 @@ import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local
 import { validateVNextOperatorPilotReviewDecisionProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import { validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
 import {
+  VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_CONTRACT_V01,
+  VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_NAMESPACE_V01,
+  VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01,
+  createVNextOperatorPilotContextUseReviewLogicalIdentityV01,
+  createVNextOperatorPilotContextUseReviewRequestFingerprintV01,
+} from "@/lib/vnext/runtime/operator-pilot-context-use-contract";
+import {
   readVNextLocalRuntimeClockNowV01,
   type VNextLocalRuntimeClockV01,
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
-import type { ContextUseReviewV01 } from "@/types/vnext/context-use-review";
+import {
+  CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
+  type ContextUseReviewV01,
+} from "@/types/vnext/context-use-review";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
-const VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 =
-  "vnext_operator_pilot_later_result_intake.v0.1";
-const VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_CONTRACT_V01 =
-  "vnext_operator_pilot_context_use_review.v0.1";
-const VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_NAMESPACE_V01 =
-  "augnes.vnext.operator-pilot-context-use-review.v0.1";
 
 export const VNEXT_OPERATOR_PILOT_CONTINUITY_VERSION_V01 =
   "vnext_operator_pilot_project_continuity.v0.1" as const;
@@ -116,13 +121,24 @@ export interface VNextOperatorPilotProjectContinuityV01 {
     recorded_at: string;
     task_context_packet_id: string;
     task_context_packet_fingerprint: string;
+    trust_summary: RunReceiptV01["trust_summary"];
   } | null;
   latest_context_use_review_status: {
     review_id: string;
     review_fingerprint: string;
     reviewed_at: string;
+    presented: ContextUseReviewV01["usage"]["presented"];
+    presentation_basis: NonNullable<
+      ContextUseReviewV01["usage_provenance"]
+    >["presented"]["basis"] | null;
     actually_used: ContextUseReviewV01["usage"]["actually_used"];
+    actually_used_basis: NonNullable<
+      ContextUseReviewV01["usage_provenance"]
+    >["actually_used"]["basis"] | null;
     assessment: ContextUseReviewV01["assessment"];
+    assessment_basis: NonNullable<
+      ContextUseReviewV01["usage_provenance"]
+    >["assessment"]["basis"] | null;
     later_task_run_receipt_id: string;
     later_task_run_receipt_fingerprint: string;
   } | null;
@@ -132,6 +148,10 @@ export interface VNextOperatorPilotProjectContinuityV01 {
 
 export interface VNextOperatorPilotPacketLineageInspectionV01 {
   packet: TaskContextPacketV01;
+  prior_packet: {
+    packet_id: string;
+    packet_fingerprint: string;
+  };
   projection_current: boolean;
   source_transition_receipt: {
     transition_receipt_id: string;
@@ -181,13 +201,33 @@ export function projectVNextOperatorPilotContinuityV01(
   const latestPacketBinding = packets.at(-1) ?? null;
   const latestPacket = latestPacketBinding?.packet ?? null;
   const contextUseReceipts = loadContextUseReceipts(db, input.config);
-  const latestContextUse = contextUseReceipts.at(-1) ?? null;
+  const latestContextUse = latestPacket
+    ? contextUseReceipts
+        .filter(
+          (receipt) =>
+            receipt.task_context_packet_ref?.external_id ===
+              latestPacket.packet_id &&
+            receipt.task_context_packet_ref.source_ref ===
+              latestPacket.integrity.fingerprint,
+        )
+        .at(-1) ?? null
+    : null;
   const contextUseReviews = loadContextUseReviews(
     db,
     input.config,
     contextUseReceipts,
   );
-  const latestContextUseReview = contextUseReviews.at(-1) ?? null;
+  const latestContextUseReview = latestContextUse
+    ? contextUseReviews
+        .filter(
+          (review) =>
+            review.later_task_run_receipt.receipt_id ===
+              latestContextUse.receipt_id &&
+            review.later_task_run_receipt.receipt_fingerprint ===
+              latestContextUse.integrity.fingerprint,
+        )
+        .at(-1) ?? null
+    : null;
   const latestReceipt = receipts.at(-1) ?? null;
   const latestHead = targetHeads[0] ?? null;
   return {
@@ -252,6 +292,7 @@ export function projectVNextOperatorPilotContinuityV01(
             latestContextUse.task_context_packet_ref!.external_id,
           task_context_packet_fingerprint:
             latestContextUse.task_context_packet_ref!.source_ref!,
+          trust_summary: structuredClone(latestContextUse.trust_summary),
         }
       : null,
     latest_context_use_review_status: latestContextUseReview
@@ -259,8 +300,15 @@ export function projectVNextOperatorPilotContinuityV01(
           review_id: latestContextUseReview.review_id,
           review_fingerprint: latestContextUseReview.integrity.fingerprint,
           reviewed_at: latestContextUseReview.reviewed_at,
+          presented: latestContextUseReview.usage.presented,
+          presentation_basis:
+            latestContextUseReview.usage_provenance?.presented.basis ?? null,
           actually_used: latestContextUseReview.usage.actually_used,
+          actually_used_basis:
+            latestContextUseReview.usage_provenance?.actually_used.basis ?? null,
           assessment: latestContextUseReview.assessment,
+          assessment_basis:
+            latestContextUseReview.usage_provenance?.assessment.basis ?? null,
           later_task_run_receipt_id:
             latestContextUseReview.later_task_run_receipt.receipt_id,
           later_task_run_receipt_fingerprint:
@@ -331,7 +379,9 @@ function loadProposals(db: Database.Database, config: VNextLocalOperatorPilotCon
       proposal.integrity.fingerprint,
       proposal.proposal_id,
       proposal.created_at,
-      proposal.source_assessment?.admission_idempotency_key ?? null,
+      proposal.operation_revision?.admission_idempotency_key ??
+        proposal.source_assessment?.admission_idempotency_key ??
+        null,
     );
     return proposal;
   });
@@ -531,6 +581,10 @@ function validateCompiledPacketLineage(
   packet: TaskContextPacketV01,
 ): {
   packet: TaskContextPacketV01;
+  prior_packet: {
+    packet_id: string;
+    packet_fingerprint: string;
+  };
   projection_current: boolean;
   source_transition_receipt: {
     transition_receipt_id: string;
@@ -556,55 +610,72 @@ function validateCompiledPacketLineage(
       ref.compatibility_namespace ===
         "augnes.vnext.state-transition-receipt.v0.1",
   );
-  if (priorRefs.length !== 1 || receiptRefs.length !== 1) {
+  if (priorRefs.length === 0 || receiptRefs.length === 0) {
     throw continuityError("operator_pilot_compiled_packet_lineage_ambiguous", 422);
   }
-  const priorRef = priorRefs[0]!;
-  const receiptRef = receiptRefs[0]!;
-  if (!priorRef.source_ref || !receiptRef.source_ref) {
-    throw continuityError("operator_pilot_compiled_packet_lineage_invalid", 422);
-  }
-  const priorPacket = loadPacket(
-    db,
-    config,
-    priorRef.external_id,
-    priorRef.source_ref,
-  );
-  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-    workspace_id: config.workspace_id,
-    project_id: config.project_id,
-    transition_receipt_id: receiptRef.external_id,
-    transition_receipt_fingerprint: receiptRef.source_ref,
+  const priorCandidates = priorRefs.map((priorRef) => {
+    if (!priorRef.source_ref) {
+      throw continuityError("operator_pilot_compiled_packet_lineage_invalid", 422);
+    }
+    const priorPacket = loadPacket(
+      db,
+      config,
+      priorRef.external_id,
+      priorRef.source_ref,
+    );
+    const expectedPriorRef = {
+      ref_version: "external_ref.v0.1" as const,
+      ref_type: "task_context_packet",
+      external_id: priorPacket.packet_id,
+      trust_class: "derived_interpretation" as const,
+      observed_at: priorPacket.generated_at,
+      source_ref: priorPacket.integrity.fingerprint,
+      compatibility_namespace:
+        VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    };
+    if (
+      canonicalizeProtocolValueV01(priorRef) !==
+      canonicalizeProtocolValueV01(expectedPriorRef)
+    ) {
+      throw continuityError("operator_pilot_compiled_packet_provenance_mismatch", 422);
+    }
+    return priorPacket;
   });
-  const expectedPriorRef = {
-    ref_version: "external_ref.v0.1" as const,
-    ref_type: "task_context_packet",
-    external_id: priorPacket.packet_id,
-    trust_class: "derived_interpretation" as const,
-    observed_at: priorPacket.generated_at,
-    source_ref: priorPacket.integrity.fingerprint,
-    compatibility_namespace:
-      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-  };
-  if (
-    canonicalizeProtocolValueV01(priorRef) !==
-      canonicalizeProtocolValueV01(expectedPriorRef) ||
-    canonicalizeProtocolValueV01(receiptRef) !==
+  const transitionCandidates = receiptRefs.map((receiptRef) => {
+    if (!receiptRef.source_ref) {
+      throw continuityError("operator_pilot_compiled_packet_lineage_invalid", 422);
+    }
+    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      transition_receipt_id: receiptRef.external_id,
+      transition_receipt_fingerprint: receiptRef.source_ref,
+    });
+    if (
+      canonicalizeProtocolValueV01(receiptRef) !==
       canonicalizeProtocolValueV01(
         createStateTransitionReceiptLineageRefV01(transition.receipt),
       )
-  ) {
-    throw continuityError("operator_pilot_compiled_packet_provenance_mismatch", 422);
-  }
-  const relation = validateSemanticTransitionFullChainV01({
-    ...transition.eligibility_input,
-    receipt: transition.receipt,
-    prior_packet: priorPacket,
-    later_packet: packet,
+    ) {
+      throw continuityError("operator_pilot_compiled_packet_provenance_mismatch", 422);
+    }
+    return transition;
   });
-  if (relation.status !== "valid") {
-    throw continuityError("operator_pilot_compiled_packet_relation_invalid", 422);
+  const relations = priorCandidates.flatMap((priorPacket) =>
+    transitionCandidates.flatMap((transition) => {
+      const relation = validateSemanticTransitionFullChainV01({
+        ...transition.eligibility_input,
+        receipt: transition.receipt,
+        prior_packet: priorPacket,
+        later_packet: packet,
+      });
+      return relation.status === "valid" ? [{ priorPacket, transition }] : [];
+    }),
+  );
+  if (relations.length !== 1) {
+    throw continuityError("operator_pilot_compiled_packet_lineage_ambiguous", 422);
   }
+  const { priorPacket, transition } = relations[0]!;
   const affectedCurrent = transition.receipt.effects.every((effect) => {
     const targetKey = deriveVNextSemanticTargetKeyV01(effect.target_ref);
     const head = readVNextSemanticTargetHeadV01(db, {
@@ -661,6 +732,10 @@ function validateCompiledPacketLineage(
     );
   return {
     packet,
+    prior_packet: {
+      packet_id: priorPacket.packet_id,
+      packet_fingerprint: priorPacket.integrity.fingerprint,
+    },
     projection_current: affectedCurrent && fullSelectionCurrent,
     source_transition_receipt: {
       transition_receipt_id: transition.receipt.transition_receipt_id,
@@ -722,7 +797,8 @@ function loadContextUseReviews(
       throw continuityError("operator_pilot_context_use_review_invalid", 422);
     }
     const review = record.payload as ContextUseReviewV01;
-    const logicalIdentity = contextReviewLogicalIdentity(review);
+    const logicalIdentity =
+      createVNextOperatorPilotContextUseReviewLogicalIdentityV01(review);
     assertEnvelope(
       record,
       review.workspace_id,
@@ -774,7 +850,8 @@ function loadContextUseReviews(
         422,
       );
     }
-    const requestFingerprint = contextReviewRequestFingerprint(review);
+    const requestFingerprint =
+      createVNextOperatorPilotContextUseReviewRequestFingerprintV01(review);
     const authenticationFingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01({
         action: "record_context_use_review",
@@ -836,37 +913,31 @@ function loadContextUseReviews(
       review.later_packet.packet_id,
       review.later_packet.packet_fingerprint,
     );
-    const priorRefs = laterPacket.compatibility.source_refs.filter(
-      (ref) =>
-        ref.ref_type === "task_context_packet" &&
-        ref.compatibility_namespace ===
-          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-    );
-    if (priorRefs.length !== 1 || !priorRefs[0]!.source_ref) {
+    const inspection = validateCompiledPacketLineage(db, config, laterPacket);
+    if (
+      review.source_transition_receipt.transition_receipt_id !==
+        inspection.source_transition_receipt.transition_receipt_id ||
+      review.source_transition_receipt.transition_receipt_fingerprint !==
+        inspection.source_transition_receipt.transition_receipt_fingerprint
+    ) {
       throw continuityError(
-        "operator_pilot_context_use_review_prior_packet_invalid",
+        "operator_pilot_context_use_review_transition_lineage_invalid",
         422,
       );
     }
     const priorPacket = loadPacket(
       db,
       config,
-      priorRefs[0]!.external_id,
-      priorRefs[0]!.source_ref,
+      inspection.prior_packet.packet_id,
+      inspection.prior_packet.packet_fingerprint,
     );
     const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
       workspace_id: config.workspace_id,
       project_id: config.project_id,
       transition_receipt_id:
-        review.source_transition_receipt.transition_receipt_id,
+        inspection.source_transition_receipt.transition_receipt_id,
       transition_receipt_fingerprint:
-        review.source_transition_receipt.transition_receipt_fingerprint,
-    });
-    const fullChain = validateSemanticTransitionFullChainV01({
-      ...transition.eligibility_input,
-      receipt: transition.receipt,
-      prior_packet: priorPacket,
-      later_packet: laterPacket,
+        inspection.source_transition_receipt.transition_receipt_fingerprint,
     });
     const matchingReceipts = contextUseReceipts.filter(
       (receipt) =>
@@ -878,7 +949,6 @@ function loadContextUseReviews(
         ),
     );
     if (
-      fullChain.status !== "valid" ||
       matchingReceipts.length !== 1 ||
       validateContextUseReviewRelationsV01(
         review,
@@ -893,56 +963,37 @@ function loadContextUseReviews(
         422,
       );
     }
+    if (review.usage_provenance) {
+      const presentation = deriveContextUseReviewPresentationProvenanceV01(
+        matchingReceipts[0]!,
+      );
+      const expectedUsageProvenance = {
+        provenance_version: CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
+        presented: presentation.provenance,
+        actually_used:
+          review.usage.actually_used === "unknown"
+            ? { basis: "unknown" as const, source_refs: [] }
+            : {
+                basis: "user_declaration" as const,
+                source_refs: [expectedRequestRef],
+              },
+        assessment: {
+          basis: "user_declaration" as const,
+          source_refs: [expectedRequestRef],
+        },
+      };
+      if (
+        canonicalizeProtocolValueV01(review.usage_provenance) !==
+        canonicalizeProtocolValueV01(expectedUsageProvenance)
+      ) {
+        throw continuityError(
+          "operator_pilot_context_use_review_usage_provenance_invalid",
+          422,
+        );
+      }
+    }
     return review;
   });
-}
-
-function contextReviewLogicalIdentity(review: ContextUseReviewV01): string {
-  const fingerprint = createProtocolSha256V01(
-    canonicalizeProtocolValueV01({
-      workspace_id: review.workspace_id,
-      project_id: review.project_id,
-      prior_packet_id: review.prior_packet.packet_id,
-      prior_packet_fingerprint: review.prior_packet.packet_fingerprint,
-      later_packet_id: review.later_packet.packet_id,
-      later_packet_fingerprint: review.later_packet.packet_fingerprint,
-      transition_receipt_id:
-        review.source_transition_receipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        review.source_transition_receipt.transition_receipt_fingerprint,
-      later_task_run_receipt_id: review.later_task_run_receipt.receipt_id,
-      later_task_run_receipt_fingerprint:
-        review.later_task_run_receipt.receipt_fingerprint,
-      reviewer_id: review.reviewer_ref.external_id,
-    }),
-  );
-  return `context-use-review-logical:${fingerprint.slice(7, 39)}`;
-}
-
-function contextReviewRequestFingerprint(review: ContextUseReviewV01): string {
-  return createProtocolSha256V01(
-    canonicalizeProtocolValueV01({
-      workspace_id: review.workspace_id,
-      project_id: review.project_id,
-      prior_packet_id: review.prior_packet.packet_id,
-      prior_packet_fingerprint: review.prior_packet.packet_fingerprint,
-      later_packet_id: review.later_packet.packet_id,
-      later_packet_fingerprint: review.later_packet.packet_fingerprint,
-      transition_receipt_id:
-        review.source_transition_receipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        review.source_transition_receipt.transition_receipt_fingerprint,
-      later_task_run_receipt_id: review.later_task_run_receipt.receipt_id,
-      later_task_run_receipt_fingerprint:
-        review.later_task_run_receipt.receipt_fingerprint,
-      reviewer_id: review.reviewer_ref.external_id,
-      usage: review.usage,
-      assessment: review.assessment,
-      corrections: review.corrections,
-      metrics: review.metrics,
-      notes: review.notes,
-    }),
-  );
 }
 
 function assertEnvelope(
