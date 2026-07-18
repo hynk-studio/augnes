@@ -1452,6 +1452,10 @@ async function main() {
       `location.pathname === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-run-result-review="v0.1"][data-result-review-read-only="true"][data-semantic-mutation="false"]') !== null`,
       "read-only Workbench result review",
     );
+    await waitForCondition(
+      `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null`,
+      "read-only proposal settlement refresh",
+    );
     assert.equal(
       responses.slice(resultResponseStart).some(
         (entry) => entry.path === expectedReviewHref && entry.status === 200,
@@ -2039,7 +2043,7 @@ async function validateWorkbenchResultViewports() {
 }
 
 async function validateSemanticReviewViewports() {
-  for (const width of [390, 768, 1440]) {
+  for (const width of [375, 390, 768, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
       height: 1000,

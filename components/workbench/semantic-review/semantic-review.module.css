@@ -1,4 +1,7 @@
 .page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   padding: clamp(16px, 4vw, 36px);
   background: linear-gradient(180deg, #f4f7f6 0%, #edf2f4 100%);
@@ -9,6 +12,9 @@
   display: grid;
   gap: 18px;
   width: min(1240px, 100%);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
 }
 
@@ -127,6 +133,7 @@
 .panelHeader {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .panelHeader h2,
@@ -195,6 +202,8 @@
 .form {
   display: grid;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .form label,
@@ -335,6 +344,9 @@
 }
 
 .identifier {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   color: #526174;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.72rem;
@@ -383,6 +395,13 @@
   gap: 8px;
   align-items: baseline;
   justify-content: space-between;
+  min-width: 0;
+}
+
+.candidateHeader > *,
+.rowBetween > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .plainList li,

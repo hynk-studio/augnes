@@ -540,7 +540,9 @@ function ReviewableProposal({
       ) : (
         <p className={styles.muted}>
           No reviewable proposal is available: {humanize(proposal.reason)}. This
-          read does not repair or create one.
+          read does not repair or create one. For a newly admitted receipt, the
+          result loader performs bounded read-only refreshes while the separate
+          proposal transaction settles.
         </p>
       )}
       <p className={styles.muted} data-proposal-authority-boundary="true">

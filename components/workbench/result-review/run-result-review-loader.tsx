@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   OperatorSessionPanel,
@@ -14,6 +14,8 @@ import styles from "@/components/workbench/semantic-review/semantic-review.modul
 
 const SESSION_ROUTE = "/api/vnext/operator/session";
 const RESULT_ROUTE = "/api/vnext/operator/run-results";
+const PROPOSAL_SETTLEMENT_POLL_MS = 250;
+const MAX_PROPOSAL_SETTLEMENT_POLLS = 40;
 
 export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
   const [session, setSession] = useState<OperatorSessionStateV01>({
@@ -23,33 +25,57 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
   });
   const [result, setResult] = useState<ProjectRunResultDetailV01 | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const proposalSettlementPolls = useRef(0);
 
-  const loadResult = useCallback(async () => {
-    setResult(null);
-    setErrorCode(null);
-    try {
-      const response = await fetch(
-        `${RESULT_ROUTE}?${new URLSearchParams({ receipt_ref: receiptId })}`,
-        { method: "GET", cache: "no-store", credentials: "same-origin" },
-      );
-      const body = (await response.json()) as ResultRouteResponseV01;
-      if (response.status === 401 || response.status === 403) {
-        setSession({
-          status: "locked",
-          session: null,
-          error_code: publicErrorCodeV01(body.error_code),
-        });
-        return;
+  const loadResult = useCallback(
+    async (options: { preserve_result?: boolean } = {}) => {
+      if (options.preserve_result !== true) setResult(null);
+      setErrorCode(null);
+      try {
+        const response = await fetch(
+          `${RESULT_ROUTE}?${new URLSearchParams({ receipt_ref: receiptId })}`,
+          { method: "GET", cache: "no-store", credentials: "same-origin" },
+        );
+        const body = (await response.json()) as ResultRouteResponseV01;
+        if (response.status === 401 || response.status === 403) {
+          setSession({
+            status: "locked",
+            session: null,
+            error_code: publicErrorCodeV01(body.error_code),
+          });
+          return;
+        }
+        if (!response.ok || body.status !== "result_detail" || !body.result) {
+          setErrorCode(publicErrorCodeV01(body.error_code));
+          return;
+        }
+        setResult(body.result);
+      } catch {
+        setErrorCode("run_result_request_failed");
       }
-      if (!response.ok || body.status !== "result_detail" || !body.result) {
-        setErrorCode(publicErrorCodeV01(body.error_code));
-        return;
-      }
-      setResult(body.result);
-    } catch {
-      setErrorCode("run_result_request_failed");
-    }
+    },
+    [receiptId],
+  );
+
+  useEffect(() => {
+    proposalSettlementPolls.current = 0;
   }, [receiptId]);
+
+  useEffect(() => {
+    if (
+      session.status !== "authenticated" ||
+      result?.proposal.status !== "unavailable" ||
+      result.proposal.reason !== "not_created" ||
+      proposalSettlementPolls.current >= MAX_PROPOSAL_SETTLEMENT_POLLS
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      proposalSettlementPolls.current += 1;
+      void loadResult({ preserve_result: true });
+    }, PROPOSAL_SETTLEMENT_POLL_MS);
+    return () => window.clearTimeout(timer);
+  }, [loadResult, result?.proposal, session.status]);
 
   useEffect(() => {
     let active = true;

@@ -82,6 +82,7 @@ import {
 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
 import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal";
+import type { ProjectRunResultDetailV01 } from "../types/vnext/project-run-result";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import {
   DirectNativeHostRoundTripErrorV01,
@@ -2905,7 +2906,7 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           workspace_id: config.workspace_id,
           project_id: config.project_id,
         });
-        const resultDetail = readProjectRunResultDetailV01(receiptDb, {
+        const resultDetail = await waitForRunAssessmentProposalV01(receiptDb, {
           workspace_id: config.workspace_id,
           project_id: config.project_id,
           receipt_id: receiptId,
@@ -4473,6 +4474,30 @@ async function waitForLiveProjectionV01(
     projection = service.read(config);
   }
   return projection;
+}
+
+async function waitForRunAssessmentProposalV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    receipt_id: string;
+  },
+  timeoutMs = 10_000,
+): Promise<ProjectRunResultDetailV01> {
+  const deadline = Date.now() + timeoutMs;
+  let detail = readProjectRunResultDetailV01(db, input);
+  while (
+    detail.proposal.status === "unavailable" &&
+    detail.proposal.reason === "not_created"
+  ) {
+    if (Date.now() >= deadline) {
+      throw new Error("run_assessment_proposal_settlement_timeout");
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    detail = readProjectRunResultDetailV01(db, input);
+  }
+  return detail;
 }
 
 function projectionFromRouteBodyV01(
