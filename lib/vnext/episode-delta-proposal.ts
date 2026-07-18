@@ -28,6 +28,8 @@ import {
   EPISODE_DELTA_PROPOSAL_STATUSES_V01,
   EPISODE_DELTA_PROPOSAL_VERSION_V01,
   RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
+  RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
+  RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
   type EpisodeDeltaProposalAttestationV01,
   type EpisodeDeltaProposalAuthoritySummaryV01,
   type EpisodeDeltaProposalConflictV01,
@@ -252,6 +254,7 @@ const allowedIntegrityKeys = new Set([
 const allowedSourceAssessmentKeys = new Set([
   "admission_profile",
   "admission_idempotency_key",
+  "source_material_boundary",
   "work_ref",
   "run_ref",
   "packet_ref",
@@ -261,6 +264,12 @@ const allowedSourceAssessmentKeys = new Set([
   "observed",
   "comparison",
   "authority",
+]);
+const allowedSourceMaterialBoundaryKeys = new Set([
+  "canonical_encoding",
+  "max_canonical_bytes",
+  "max_text_characters",
+  "truncation_allowed",
 ]);
 const allowedExpectedMaterialKeys = new Set([
   "task_goal",
@@ -318,6 +327,22 @@ const boundedTextFieldNames = new Set([
   "limitations",
   "uncertainties",
   "notes",
+]);
+const runAssessmentSourceTextFieldNames = new Set([
+  "task_goal",
+  "criterion",
+  "summary",
+  "reason",
+  "outcome",
+  "required_checks",
+  "expected_artifacts",
+  "required_return_fields",
+  "forbidden_actions",
+  "limitations",
+  "notes",
+  "warnings",
+  "gaps",
+  "uncertainty",
 ]);
 
 export const EPISODE_DELTA_PROPOSAL_REQUIRED_CORE_FIELDS_V01 = [
@@ -504,6 +529,61 @@ export function createEpisodeDeltaProposalMaterialBoundaryV01(): EpisodeDeltaPro
     hidden_reasoning_persisted: false,
     credential_or_secret_persisted: false,
   };
+}
+
+export function createRunAssessmentProposalSourceMaterialBoundaryV01() {
+  return {
+    canonical_encoding: "utf8" as const,
+    max_canonical_bytes:
+      RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
+    max_text_characters: RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
+    truncation_allowed: false as const,
+  };
+}
+
+export interface RunAssessmentProposalSourceMaterialBoundViolationV01 {
+  code: "run_assessment_proposal_source_material_bound_exceeded";
+  path: string;
+  message: string;
+}
+
+export function collectRunAssessmentProposalSourceMaterialBoundViolationsV01(
+  source: unknown,
+): RunAssessmentProposalSourceMaterialBoundViolationV01[] {
+  const boundary = createRunAssessmentProposalSourceMaterialBoundaryV01();
+  const violations: RunAssessmentProposalSourceMaterialBoundViolationV01[] = [];
+  walk(source, "$.source_assessment", (candidate, path) => {
+    if (
+      typeof candidate === "string" &&
+      isRunAssessmentSourceTextPathV01(path) &&
+      candidate.length > boundary.max_text_characters
+    ) {
+      violations.push({
+        code: "run_assessment_proposal_source_material_bound_exceeded",
+        path,
+        message: `Source-derived text exceeds ${boundary.max_text_characters} characters.`,
+      });
+    }
+  });
+  let canonicalBytes: number | null = null;
+  try {
+    canonicalBytes = new TextEncoder().encode(
+      canonicalizeProtocolValueV01(source),
+    ).byteLength;
+  } catch {
+    // Structural validation reports malformed protocol values separately.
+  }
+  if (
+    canonicalBytes !== null &&
+    canonicalBytes > boundary.max_canonical_bytes
+  ) {
+    violations.push({
+      code: "run_assessment_proposal_source_material_bound_exceeded",
+      path: "$.source_assessment",
+      message: `Canonical source-assessment material exceeds ${boundary.max_canonical_bytes} UTF-8 bytes (${canonicalBytes}).`,
+    });
+  }
+  return violations;
 }
 
 export function canonicalizeEpisodeDeltaProposalValueV01(
@@ -711,6 +791,8 @@ function normalizeSourceAssessmentV01(
     admission_idempotency_key: normalizeProtocolTextV01(
       input.admission_idempotency_key,
     ),
+    source_material_boundary:
+      createRunAssessmentProposalSourceMaterialBoundaryV01(),
     work_ref: normalizeNullableRef(input.work_ref),
     run_ref: normalizeExternalRefPrimitiveV01(input.run_ref),
     packet_ref: normalizeExternalRefPrimitiveV01(input.packet_ref),
@@ -942,7 +1024,16 @@ function validateSourceAssessmentV01(
       true,
     );
   }
-  if (!/^sha256:[a-f0-9]{64}$/u.test(protocolStringValueV01(source.admission_idempotency_key) ?? "")) {
+  validateRunAssessmentProposalSourceMaterialBoundaryV01(
+    source.source_material_boundary,
+    `${path}.source_material_boundary`,
+    accumulator,
+  );
+  if (
+    !/^sha256:[a-f0-9]{64}$/u.test(
+      protocolStringValueV01(source.admission_idempotency_key) ?? "",
+    )
+  ) {
     addError(
       accumulator,
       "run_assessment_proposal_idempotency_invalid",
@@ -1189,6 +1280,17 @@ function validateSourceAssessmentV01(
       "run_assessment_proposal_no_relation_profile_conflict",
       `${path}.assessment.criteria`,
       "The current no-relation profile must preserve unknown/insufficient criteria with empty criterion-specific refs.",
+      true,
+    );
+  }
+  for (const violation of collectRunAssessmentProposalSourceMaterialBoundViolationsV01(
+    source,
+  )) {
+    addError(
+      accumulator,
+      violation.code,
+      violation.path,
+      violation.message,
       true,
     );
   }
@@ -2060,6 +2162,33 @@ function validateMaterialBoundary(
   }
 }
 
+function validateRunAssessmentProposalSourceMaterialBoundaryV01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+): void {
+  const boundary = recordAt(value, path, accumulator);
+  if (!boundary) return;
+  rejectUnknownNestedKeys(
+    boundary,
+    allowedSourceMaterialBoundaryKeys,
+    path,
+    accumulator,
+  );
+  const expected = createRunAssessmentProposalSourceMaterialBoundaryV01();
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    if (boundary[key] !== expectedValue) {
+      addError(
+        accumulator,
+        "run_assessment_proposal_source_material_boundary_conflict",
+        `${path}.${key}`,
+        `${key} must remain ${JSON.stringify(expectedValue)} for the run-assessment profile.`,
+        true,
+      );
+    }
+  }
+}
+
 function validateAuthority(
   value: unknown,
   accumulator: ValidationAccumulator,
@@ -2301,6 +2430,10 @@ function collectBoundViolations(value: unknown) {
 
 function isBoundedTextPath(path: string) {
   return boundedTextFieldNames.has(lastPathKey(path));
+}
+
+function isRunAssessmentSourceTextPathV01(path: string): boolean {
+  return runAssessmentSourceTextFieldNames.has(lastPathKey(path));
 }
 
 function lastPathKey(path: string) {

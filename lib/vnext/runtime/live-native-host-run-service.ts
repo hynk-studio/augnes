@@ -290,6 +290,13 @@ export class LiveNativeHostRunServiceV01 {
     config: VNextLocalOperatorPilotConfigV01,
     run: AutonomyRunRecord,
   ): Promise<void> {
+    if (run.metadata.run_assessment_proposal_status === "available") return;
+    if (
+      run.metadata.run_assessment_proposal_status === "failed" &&
+      run.metadata.run_assessment_proposal_retry_required !== true
+    ) {
+      return;
+    }
     const receiptId = stringMetadataV01(run.metadata.run_receipt_id);
     if (!receiptId) return;
     const db = this.openDatabase(config);

@@ -25,6 +25,10 @@ export const EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
 export const RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01 =
   "run_assessment_proposal.v0.1" as const;
+export const RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01 =
+  131_072 as const;
+export const RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 =
+  2000 as const;
 
 export const EPISODE_DELTA_PROPOSAL_STATUSES_V01 = [
   "draft",
@@ -295,6 +299,13 @@ export interface EpisodeDeltaProposalObservedMaterialV01 {
   compatibility: RunReceiptCompatibilityMetadataV01;
 }
 
+export interface RunAssessmentProposalSourceMaterialBoundaryV01 {
+  canonical_encoding: "utf8";
+  max_canonical_bytes: typeof RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01;
+  max_text_characters: typeof RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01;
+  truncation_allowed: false;
+}
+
 /**
  * Optional additive v0.1 material for proposals produced from one exact R5
  * result and its derived R6-A assessment. Historical proposals omit this
@@ -304,6 +315,7 @@ export interface EpisodeDeltaProposalObservedMaterialV01 {
 export interface EpisodeDeltaProposalSourceAssessmentV01 {
   admission_profile: typeof RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01;
   admission_idempotency_key: string;
+  source_material_boundary: RunAssessmentProposalSourceMaterialBoundaryV01;
   work_ref: ExternalRefV01 | null;
   run_ref: ExternalRefV01;
   packet_ref: ExternalRefV01;

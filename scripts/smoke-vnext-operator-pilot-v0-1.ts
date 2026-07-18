@@ -35,6 +35,10 @@ import {
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import {
+  createEpisodeDeltaProposalFingerprintV01,
+  deriveEpisodeDeltaProposalIdV01,
+} from "../lib/vnext/episode-delta-proposal";
+import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
@@ -1406,7 +1410,7 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     observe: (observation) => observations.push(observation),
   });
   const db = openVNextLocalOperatorDatabaseV01(input.config);
-  let golden;
+  let golden: Awaited<ReturnType<typeof runDirectNativeHostRoundTripV01>>;
   try {
     const receiptsBefore = countRowsByKind(db, "run_receipt");
     const proposalsBefore = countRowsByKind(db, "episode_delta_proposal");
@@ -1694,6 +1698,67 @@ async function assertDirectHostRoundTripCoverageV01(input: {
       status: "available",
       assessment,
     });
+    await withOperatorDatabaseCloneV01(
+      "run-assessment-proposal-exact-readback-conflict",
+      input.environment,
+      async ({ config }) => {
+        const conflictDb = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          const stored = readVNextCoreRecordV01(conflictDb, {
+            record_kind: "episode_delta_proposal",
+            record_id: resultProposalId,
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          });
+          assert(stored);
+          const forged = structuredClone(
+            stored.payload,
+          ) as EpisodeDeltaProposalV01;
+          const check = forged.source_assessment?.observed.checks.find(
+            (item) => item.status === "passed",
+          );
+          assert(check);
+          check.status = "failed";
+          forged.proposal_id = deriveEpisodeDeltaProposalIdV01(forged);
+          forged.integrity.fingerprint =
+            createEpisodeDeltaProposalFingerprintV01(forged);
+          conflictDb.exec(
+            "DROP TRIGGER trg_vnext_core_records_immutable_update",
+          );
+          conflictDb
+            .prepare(
+              `UPDATE vnext_core_records
+               SET record_id = ?, fingerprint = ?, payload_json = ?
+               WHERE record_kind = 'episode_delta_proposal'
+                 AND record_id = ?`,
+            )
+            .run(
+              forged.proposal_id,
+              forged.integrity.fingerprint,
+              canonicalizeProtocolValueV01(forged),
+              resultProposalId,
+            );
+          conflictDb.exec(`
+            CREATE TRIGGER trg_vnext_core_records_immutable_update
+              BEFORE UPDATE ON vnext_core_records
+              BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+          `);
+          assert.throws(
+            () =>
+              readProjectRunResultDetailV01(conflictDb, {
+                workspace_id: config.workspace_id,
+                project_id: config.project_id,
+                receipt_id: golden.receipt.receipt_id,
+              }),
+            (error) =>
+              error instanceof ProjectRunResultReadErrorV01 &&
+              error.code === "project_result_proposal_material_conflict",
+          );
+        } finally {
+          conflictDb.close();
+        }
+      },
+    );
     assert.deepEqual(
       {
         core_records: countTableRows(db, "vnext_core_records"),
@@ -2155,8 +2220,10 @@ async function assertRunAssessmentProposalFailureSettlementOnCloneV01(input: {
             proposal_admission: {
               admit_proposal: () => {
                 throw Object.assign(
-                  new Error("run_assessment_proposal_injected_failure"),
-                  { code: "run_assessment_proposal_injected_failure" },
+                  new Error("run_assessment_proposal_transient_writer_failure"),
+                  {
+                    code: "run_assessment_proposal_transient_writer_failure",
+                  },
                 );
               },
             },
@@ -2167,8 +2234,10 @@ async function assertRunAssessmentProposalFailureSettlementOnCloneV01(input: {
         assert.equal(failed.receipt.execution.status, "completed");
         assert.deepEqual(failed.proposal, {
           status: "failed",
-          error_code: "run_assessment_proposal_injected_failure",
+          error_code: "run_assessment_proposal_transient_writer_failure",
           retryable: true,
+          failure_recorded: true,
+          failure_recording_error_code: null,
         });
         assert.equal(failed.proposal_created, false);
         assert.equal(countRowsByKind(db, "run_receipt"), before.receipts + 1);
@@ -2196,7 +2265,7 @@ async function assertRunAssessmentProposalFailureSettlementOnCloneV01(input: {
         );
         assert.equal(
           failedRun.metadata.run_assessment_proposal_error_code,
-          "run_assessment_proposal_injected_failure",
+          "run_assessment_proposal_transient_writer_failure",
         );
         const failedRead = readProjectRunResultDetailV01(db, {
           workspace_id: config.workspace_id,
@@ -2205,8 +2274,10 @@ async function assertRunAssessmentProposalFailureSettlementOnCloneV01(input: {
         });
         assert.deepEqual(failedRead.proposal, {
           status: "failed",
-          error_code: "run_assessment_proposal_injected_failure",
+          error_code: "run_assessment_proposal_transient_writer_failure",
           retryable: true,
+          failure_recorded: true,
+          failure_recording_error_code: null,
         });
 
         const retry = await runDirectNativeHostRoundTripV01(
@@ -2303,8 +2374,208 @@ async function assertRunAssessmentProposalFailureSettlementOnCloneV01(input: {
       }
     },
   );
+  await withOperatorDatabaseCloneV01(
+    "run-assessment-proposal-non-retryable-settlement",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 40_000),
+      );
+      const adapter = createDeterministicCodexAdapterV01({
+        now: () => clock.now(),
+      });
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      let writerAttempts = 0;
+      const deterministicFailure = {
+        admit_proposal: () => {
+          writerAttempts += 1;
+          throw Object.assign(
+            new Error("run_assessment_proposal_source_material_bound_exceeded"),
+            {
+              code: "run_assessment_proposal_source_material_bound_exceeded",
+            },
+          );
+        },
+      };
+      try {
+        const before = {
+          receipts: countRowsByKind(db, "run_receipt"),
+          proposals: countRowsByKind(db, "episode_delta_proposal"),
+          decisions: countRowsByKind(db, "review_decision"),
+          transitions: countRowsByKind(db, "state_transition_receipt"),
+          packets: countRowsByKind(db, "task_context_packet"),
+          semantic_state_entries: countTableRows(
+            db,
+            "vnext_semantic_state_entries",
+          ),
+        };
+        const packetBefore = readVNextCoreRecordV01(db, {
+          record_kind: "task_context_packet",
+          record_id: input.packet.packet_id,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        assert(packetBefore);
+        const failed = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => clock.now(),
+            proposal_admission: deterministicFailure,
+          },
+        );
+        assert.equal(failed.status, "inserted");
+        assert.equal(failed.receipt.execution.status, "completed");
+        assert.deepEqual(failed.proposal, {
+          status: "failed",
+          error_code: "run_assessment_proposal_source_material_bound_exceeded",
+          retryable: false,
+          failure_recorded: true,
+          failure_recording_error_code: null,
+        });
+        assert.equal(writerAttempts, 1);
+        const replay = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => clock.now(),
+            proposal_admission: deterministicFailure,
+          },
+        );
+        assert.equal(replay.status, "exact_replay");
+        assert.equal(replay.receipt.receipt_id, failed.receipt.receipt_id);
+        assert.deepEqual(replay.proposal, failed.proposal);
+        assert.equal(writerAttempts, 1);
+        assert.equal(
+          countRowsByKind(db, "episode_delta_proposal"),
+          before.proposals,
+        );
+        const failedRun = readAutonomyRunLedgerRecord(failed.run_id, { db });
+        assert(failedRun);
+        assert.equal(failedRun.status, "completed");
+        assert.equal(
+          failedRun.metadata.run_assessment_proposal_retry_required,
+          false,
+        );
+        assert.deepEqual(
+          readProjectRunResultDetailV01(db, {
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+            receipt_id: failed.receipt.receipt_id,
+          }).proposal,
+          {
+            status: "failed",
+            error_code:
+              "run_assessment_proposal_source_material_bound_exceeded",
+            retryable: false,
+            failure_recorded: true,
+            failure_recording_error_code: null,
+          },
+        );
+        assert.deepEqual(
+          {
+            receipts: countRowsByKind(db, "run_receipt"),
+            proposals: countRowsByKind(db, "episode_delta_proposal"),
+            decisions: countRowsByKind(db, "review_decision"),
+            transitions: countRowsByKind(db, "state_transition_receipt"),
+            packets: countRowsByKind(db, "task_context_packet"),
+            semantic_state_entries: countTableRows(
+              db,
+              "vnext_semantic_state_entries",
+            ),
+          },
+          {
+            ...before,
+            receipts: before.receipts + 1,
+          },
+        );
+        assert.deepEqual(
+          readVNextCoreRecordV01(db, {
+            record_kind: "task_context_packet",
+            record_id: input.packet.packet_id,
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          packetBefore,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+  await withOperatorDatabaseCloneV01(
+    "run-assessment-proposal-failure-recording-failure",
+    input.environment,
+    async ({ config }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 40_000),
+      );
+      const adapter = createDeterministicCodexAdapterV01({
+        now: () => clock.now(),
+      });
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const beforeProposals = countRowsByKind(db, "episode_delta_proposal");
+        const failed = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => clock.now(),
+            proposal_admission: {
+              admit_proposal: () => {
+                throw Object.assign(
+                  new Error("run_assessment_proposal_transient_writer_failure"),
+                  {
+                    code: "run_assessment_proposal_transient_writer_failure",
+                  },
+                );
+              },
+              record_failure: () => {
+                throw Object.assign(
+                  new Error(
+                    "run_assessment_proposal_failure_metadata_unavailable",
+                  ),
+                  {
+                    code: "run_assessment_proposal_failure_metadata_unavailable",
+                  },
+                );
+              },
+            },
+          },
+        );
+        assert.equal(failed.status, "inserted");
+        assert.equal(failed.receipt.execution.status, "completed");
+        assert.deepEqual(failed.proposal, {
+          status: "failed",
+          error_code: "run_assessment_proposal_transient_writer_failure",
+          retryable: true,
+          failure_recorded: false,
+          failure_recording_error_code:
+            "run_assessment_proposal_failure_metadata_unavailable",
+        });
+        assert.equal(
+          countRowsByKind(db, "episode_delta_proposal"),
+          beforeProposals,
+        );
+        const completedRun = readAutonomyRunLedgerRecord(failed.run_id, { db });
+        assert(completedRun);
+        assert.equal(completedRun.status, "completed");
+        assert.equal(
+          completedRun.metadata.run_receipt_id,
+          failed.receipt.receipt_id,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
   pass("proposal_failure_preserves_receipt_and_completed_execution");
   pass("proposal_failure_retry_creates_or_replays_exactly_one_proposal");
+  pass("proposal_non_retryable_failure_is_not_automatically_retried");
+  pass("proposal_failure_recording_cannot_mask_committed_receipt");
 }
 
 let liveFixtureSequenceV01 = 0;

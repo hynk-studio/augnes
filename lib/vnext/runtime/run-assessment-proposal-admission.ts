@@ -32,6 +32,18 @@ export interface RunAssessmentProposalAdmissionResultV01 {
 
 export interface RunAssessmentProposalAdmissionDependenciesV01 {
   admit_proposal?: typeof admitEpisodeDeltaProposalV01;
+  record_failure?: (
+    db: Database.Database,
+    input: RunAssessmentProposalSettlementInputV01,
+    errorCode: string,
+    retryable: boolean,
+  ) => void;
+}
+
+export interface RunAssessmentProposalSettlementInputV01 {
+  workspace_id: string;
+  project_id: string;
+  receipt: RunReceiptV01;
 }
 
 export type RunAssessmentProposalSettlementV01 =
@@ -44,8 +56,15 @@ export type RunAssessmentProposalSettlementV01 =
   | {
       status: "failed";
       error_code: string;
-      retryable: true;
+      retryable: boolean;
+      failure_recorded: boolean;
+      failure_recording_error_code: string | null;
     };
+
+const RETRYABLE_PROPOSAL_ADMISSION_ERROR_CODES_V01 = new Set([
+  "run_assessment_proposal_store_busy",
+  "run_assessment_proposal_transient_writer_failure",
+]);
 
 /**
  * Production R6-B service. The exact R6-A result binding remains the source
@@ -92,7 +111,14 @@ export function admitRunAssessmentProposalV01(
     });
     const write = (dependencies.admit_proposal ?? admitEpisodeDeltaProposalV01)(
       db,
-      material,
+      {
+        expected: material,
+        source: {
+          packet: binding.packet,
+          receipt: binding.receipt,
+          assessment: binding.criterion_assessment.assessment,
+        },
+      },
     );
     updateAutonomyRunLedgerFields(
       binding.run.run_id,
@@ -138,14 +164,12 @@ export function admitRunAssessmentProposalV01(
  */
 export function settleRunAssessmentProposalV01(
   db: Database.Database,
-  input: {
-    workspace_id: string;
-    project_id: string;
-    receipt: RunReceiptV01;
-  },
+  input: RunAssessmentProposalSettlementInputV01,
   dependencies: RunAssessmentProposalAdmissionDependenciesV01 = {},
 ): RunAssessmentProposalSettlementV01 {
   try {
+    const priorFailure = readNonRetryablePriorFailureV01(db, input);
+    if (priorFailure) return priorFailure;
     const admitted = admitRunAssessmentProposalV01(
       db,
       {
@@ -162,20 +186,40 @@ export function settleRunAssessmentProposalV01(
       idempotency_key: admitted.idempotency_key,
     };
   } catch (error) {
-    const errorCode = errorCodeV01(error);
-    recordProposalFailureV01(db, input, errorCode);
-    return { status: "failed", error_code: errorCode, retryable: true };
+    const failure = classifyRunAssessmentProposalAdmissionErrorV01(error);
+    let failureRecorded = false;
+    let failureRecordingErrorCode: string | null = null;
+    try {
+      (dependencies.record_failure ?? recordProposalFailureV01)(
+        db,
+        input,
+        failure.error_code,
+        failure.retryable,
+      );
+      failureRecorded = true;
+    } catch (recordingError) {
+      try {
+        if (db.inTransaction) db.exec("ROLLBACK");
+      } catch {
+        // The original proposal error remains the settlement authority.
+      }
+      failureRecordingErrorCode = errorCodeV01(recordingError);
+    }
+    return {
+      status: "failed",
+      error_code: failure.error_code,
+      retryable: failure.retryable,
+      failure_recorded: failureRecorded,
+      failure_recording_error_code: failureRecordingErrorCode,
+    };
   }
 }
 
 function recordProposalFailureV01(
   db: Database.Database,
-  input: {
-    workspace_id: string;
-    project_id: string;
-    receipt: RunReceiptV01;
-  },
+  input: RunAssessmentProposalSettlementInputV01,
   errorCode: string,
+  retryable: boolean,
 ): void {
   if (db.inTransaction) {
     refuseV01("run_assessment_proposal_failure_nested_transaction", 409);
@@ -205,7 +249,7 @@ function recordProposalFailureV01(
           run_assessment_proposal_fingerprint: null,
           run_assessment_proposal_idempotency_key: null,
           run_assessment_proposal_error_code: errorCode,
-          run_assessment_proposal_retry_required: true,
+          run_assessment_proposal_retry_required: retryable,
           run_assessment_proposal_admission_version:
             RUN_ASSESSMENT_PROPOSAL_ADMISSION_SERVICE_VERSION_V01,
           review_decision_created: false,
@@ -222,12 +266,55 @@ function recordProposalFailureV01(
   }
 }
 
+export function classifyRunAssessmentProposalAdmissionErrorV01(
+  error: unknown,
+): { error_code: string; retryable: boolean } {
+  const errorCode = errorCodeV01(error);
+  return {
+    error_code: errorCode,
+    retryable: RETRYABLE_PROPOSAL_ADMISSION_ERROR_CODES_V01.has(errorCode),
+  };
+}
+
+function readNonRetryablePriorFailureV01(
+  db: Database.Database,
+  input: RunAssessmentProposalSettlementInputV01,
+): Extract<RunAssessmentProposalSettlementV01, { status: "failed" }> | null {
+  const run = readAutonomyRunLedgerRecord(input.receipt.run_id, { db });
+  if (
+    !run ||
+    run.scope !== input.project_id ||
+    run.metadata.workspace_id !== input.workspace_id ||
+    run.metadata.project_id !== input.project_id ||
+    run.metadata.run_receipt_id !== input.receipt.receipt_id ||
+    run.metadata.run_receipt_fingerprint !==
+      input.receipt.integrity.fingerprint ||
+    run.metadata.run_assessment_proposal_status !== "failed" ||
+    run.metadata.run_assessment_proposal_retry_required === true
+  ) {
+    return null;
+  }
+  return {
+    status: "failed",
+    error_code:
+      typeof run.metadata.run_assessment_proposal_error_code === "string"
+        ? run.metadata.run_assessment_proposal_error_code
+        : "run_assessment_proposal_admission_failed",
+    retryable: false,
+    failure_recorded: true,
+    failure_recording_error_code: null,
+  };
+}
+
 function errorCodeV01(error: unknown): string {
   const code =
     error && typeof error === "object" && "code" in error
       ? (error as { code?: unknown }).code
       : null;
   if (typeof code === "string") {
+    if (code === "SQLITE_BUSY" || code === "SQLITE_LOCKED") {
+      return "run_assessment_proposal_store_busy";
+    }
     const stableCode = code.split(":", 1)[0] ?? "";
     if (/^[a-z0-9_,-]{1,96}$/u.test(stableCode)) return stableCode;
   }

@@ -9,11 +9,18 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
-import type { RunAssessmentProposalAdmissionIdentityV01 } from "@/lib/vnext/run-assessment-proposal";
+import {
+  materializeRunAssessmentProposalV01,
+  type RunAssessmentProposalAdmissionIdentityV01,
+  type RunAssessmentProposalMaterializationV01,
+} from "@/lib/vnext/run-assessment-proposal";
+import type { CriterionAssessmentV01 } from "@/types/vnext/criterion-assessment";
 import {
   RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
   type EpisodeDeltaProposalV01,
 } from "@/types/vnext/episode-delta-proposal";
+import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
 export const EPISODE_DELTA_PROPOSAL_ADMISSION_VERSION_V01 =
   "episode_delta_proposal_admission.v0.1" as const;
@@ -29,8 +36,12 @@ export class EpisodeDeltaProposalAdmissionErrorV01 extends Error {
 export function admitEpisodeDeltaProposalV01(
   db: Database.Database,
   input: {
-    proposal: EpisodeDeltaProposalV01;
-    identity: RunAssessmentProposalAdmissionIdentityV01;
+    expected: RunAssessmentProposalMaterializationV01;
+    source: {
+      packet: TaskContextPacketV01;
+      receipt: RunReceiptV01;
+      assessment: CriterionAssessmentV01;
+    };
   },
 ): {
   status: "inserted" | "exact_replay";
@@ -40,40 +51,48 @@ export function admitEpisodeDeltaProposalV01(
   if (ownsTransaction) db.exec("BEGIN IMMEDIATE");
   try {
     assertVNextDurableSemanticStoreSchemaV01(db);
-    assertRunAssessmentProposalRelationV01(input.proposal, input.identity);
-    const related = readProposalForExactSourcePurposeV01(db, input.identity);
+    const material = materializeRunAssessmentProposalV01(input.source);
+    if (
+      canonicalizeProtocolValueV01(material) !==
+      canonicalizeProtocolValueV01(input.expected)
+    ) {
+      refuseV01("project_result_proposal_material_conflict");
+    }
+    const { identity, proposal } = material;
+    assertRunAssessmentProposalRelationV01(proposal, identity);
+    const related = readProposalForExactSourcePurposeV01(db, identity);
     if (related) {
       if (
-        related.record.idempotency_key !== input.identity.idempotency_key ||
+        related.record.idempotency_key !== identity.idempotency_key ||
         canonicalizeProtocolValueV01(related.proposal) !==
-          canonicalizeProtocolValueV01(input.proposal)
+          canonicalizeProtocolValueV01(proposal)
       ) {
-        refuseV01("episode_delta_proposal_conflicting_replay");
+        refuseV01("project_result_proposal_material_conflict");
       }
       if (ownsTransaction) db.exec("COMMIT");
       return { status: "exact_replay", proposal: related.proposal };
     }
     const write = insertVNextCoreRecordV01(db, {
       record_kind: "episode_delta_proposal",
-      record_id: input.proposal.proposal_id,
-      workspace_id: input.proposal.workspace_id,
-      project_id: input.proposal.project_id,
-      fingerprint: input.proposal.integrity.fingerprint,
-      idempotency_key: input.identity.idempotency_key,
-      payload: input.proposal,
-      created_at: input.proposal.created_at,
+      record_id: proposal.proposal_id,
+      workspace_id: proposal.workspace_id,
+      project_id: proposal.project_id,
+      fingerprint: proposal.integrity.fingerprint,
+      idempotency_key: identity.idempotency_key,
+      payload: proposal,
+      created_at: proposal.created_at,
     });
     assertVNextCoreRecordMatchesProtocolPayloadBindingV01(write.record, {
-      workspace_id: input.proposal.workspace_id,
-      project_id: input.proposal.project_id,
-      fingerprint: input.proposal.integrity.fingerprint,
+      workspace_id: proposal.workspace_id,
+      project_id: proposal.project_id,
+      fingerprint: proposal.integrity.fingerprint,
     });
     if (
-      write.record.record_id !== input.proposal.proposal_id ||
-      write.record.idempotency_key !== input.identity.idempotency_key ||
-      write.record.created_at !== input.proposal.created_at ||
+      write.record.record_id !== proposal.proposal_id ||
+      write.record.idempotency_key !== identity.idempotency_key ||
+      write.record.created_at !== proposal.created_at ||
       canonicalizeProtocolValueV01(write.record.payload) !==
-        canonicalizeProtocolValueV01(input.proposal)
+        canonicalizeProtocolValueV01(proposal)
     ) {
       refuseV01("episode_delta_proposal_envelope_mismatch");
     }

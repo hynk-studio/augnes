@@ -13,7 +13,10 @@ import {
   type VNextCoreRecordEnvelopeV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
-import { deriveRunAssessmentProposalAdmissionIdentityV01 } from "@/lib/vnext/run-assessment-proposal";
+import {
+  deriveRunAssessmentProposalAdmissionIdentityV01,
+  materializeRunAssessmentProposalV01,
+} from "@/lib/vnext/run-assessment-proposal";
 import { readProposalForExactSourcePurposeV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
@@ -58,7 +61,8 @@ export class ProjectRunResultReadErrorV01 extends Error {
       | "project_result_receipt_scope_conflict"
       | "project_result_receipt_run_conflict"
       | "project_result_packet_conflict"
-      | "project_result_proposal_conflict",
+      | "project_result_proposal_conflict"
+      | "project_result_proposal_material_conflict",
   ) {
     super(code);
     this.name = "ProjectRunResultReadErrorV01";
@@ -310,14 +314,24 @@ function projectProposalReadbackV01(
           : "assessment_unavailable",
     };
   }
-  const identity = deriveRunAssessmentProposalAdmissionIdentityV01({
+  const source = {
     packet: binding.packet,
     receipt: binding.receipt,
     assessment: binding.criterion_assessment.assessment,
-  });
+  };
+  const identity = deriveRunAssessmentProposalAdmissionIdentityV01(source);
   const related = readProposalForExactSourcePurposeV01(db, identity);
   const metadata = binding.run?.metadata ?? {};
   if (related) {
+    const expected = materializeRunAssessmentProposalV01(source);
+    if (
+      canonicalizeProtocolValueV01(related.proposal) !==
+      canonicalizeProtocolValueV01(expected.proposal)
+    ) {
+      throw new ProjectRunResultReadErrorV01(
+        "project_result_proposal_material_conflict",
+      );
+    }
     if (metadata.run_assessment_proposal_status === "failed") {
       throw new ProjectRunResultReadErrorV01(
         "project_result_proposal_conflict",
@@ -361,7 +375,9 @@ function projectProposalReadbackV01(
       error_code:
         stringMetadataV01(metadata.run_assessment_proposal_error_code) ??
         "run_assessment_proposal_admission_failed",
-      retryable: true,
+      retryable: metadata.run_assessment_proposal_retry_required === true,
+      failure_recorded: true,
+      failure_recording_error_code: null,
     };
   }
   return { status: "unavailable", reason: "not_created" };

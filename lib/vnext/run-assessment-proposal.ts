@@ -1,5 +1,7 @@
 import {
   buildEpisodeDeltaProposalV01,
+  collectRunAssessmentProposalSourceMaterialBoundViolationsV01,
+  createRunAssessmentProposalSourceMaterialBoundaryV01,
   validateEpisodeDeltaProposalV01,
 } from "@/lib/vnext/episode-delta-proposal";
 import {
@@ -95,23 +97,22 @@ export function materializeRunAssessmentProposalV01(input: {
     observed_at: input.receipt.recorded_at,
   });
   const receiptMaterialId = `receipt-record:${input.receipt.receipt_id}`;
-  const observations = projectObservationsV01(input.receipt, receiptRef, runRef);
-  if (observations.length === 0) {
-    observations.push({
+  const observations = [
+    {
       material_id: receiptMaterialId,
       material_kind: "persisted_run_receipt",
       bounded_summary:
-        "An immutable project-scoped RunReceipt was persisted; persistence and execution completion do not establish task success.",
+        "The exact immutable RunReceipt is persisted; receipt persistence and execution completion do not establish task success.",
       event_at: input.receipt.finished_at,
       observed_at: input.receipt.recorded_at,
       observer_ref: receiptRef,
-      trust_class: "direct_local_observation",
+      trust_class: "direct_local_observation" as const,
       source_run_receipt_refs: [receiptRef],
-      source_refs: [receiptRef],
+      source_refs: [receiptRef, runRef],
       subject_refs: [runRef],
-    });
-  }
-  const primaryBasisMaterialId = observations[0]!.material_id;
+    },
+    ...projectObservationsV01(input.receipt, receiptRef, runRef),
+  ];
   const { attestations, derivedAttestations } = projectAttestationsV01(
     input.receipt,
     receiptRef,
@@ -123,7 +124,7 @@ export function materializeRunAssessmentProposalV01(input: {
     assessment_ref: assessmentRef,
     interpreter_ref: interpreterRef,
     inferred_at: input.receipt.recorded_at,
-    basis_material_id: primaryBasisMaterialId,
+    basis_material_id: receiptMaterialId,
   });
   const inferences: EpisodeDeltaProposalInferenceV01[] = [
     ...derivedAttestations.map((item) => ({
@@ -133,7 +134,7 @@ export function materializeRunAssessmentProposalV01(input: {
       inferred_at: item.reported_at,
       interpreter_ref: interpreterRef,
       trust_class: "derived_interpretation" as const,
-      basis_material_ids: [primaryBasisMaterialId],
+      basis_material_ids: [receiptMaterialId],
       source_run_receipt_refs: [receiptRef],
       source_refs: cloneRefsV01([item.reporter_ref, ...item.source_refs]),
       subject_refs: cloneRefsV01(item.subject_refs),
@@ -156,6 +157,13 @@ export function materializeRunAssessmentProposalV01(input: {
     packet_ref: packetRef,
     receipt_ref: receiptRef,
   });
+  if (
+    collectRunAssessmentProposalSourceMaterialBoundViolationsV01(
+      sourceAssessment,
+    ).length > 0
+  ) {
+    failV01("run_assessment_proposal_source_material_bound_exceeded");
+  }
   const proposal = buildEpisodeDeltaProposalV01({
     workspace_id: input.packet.workspace_id,
     project_id: input.packet.project_id,
@@ -503,6 +511,8 @@ function sourceAssessmentSnapshotV01(input: {
   return {
     admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
     admission_idempotency_key: input.identity.idempotency_key,
+    source_material_boundary:
+      createRunAssessmentProposalSourceMaterialBoundaryV01(),
     work_ref: input.receipt.work_ref
       ? cloneRefV01(input.receipt.work_ref)
       : null,

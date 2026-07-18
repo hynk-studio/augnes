@@ -9,6 +9,7 @@ import {
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import {
   createEpisodeDeltaProposalFingerprintV01,
+  collectRunAssessmentProposalSourceMaterialBoundViolationsV01,
   deriveEpisodeDeltaProposalIdV01,
   validateEpisodeDeltaProposalV01,
 } from "@/lib/vnext/episode-delta-proposal";
@@ -25,8 +26,10 @@ import {
   materializeRunAssessmentProposalV01,
   RunAssessmentProposalMaterializationErrorV01,
 } from "@/lib/vnext/run-assessment-proposal";
+import { classifyRunAssessmentProposalAdmissionErrorV01 } from "@/lib/vnext/runtime/run-assessment-proposal-admission";
 import {
   buildRunReceiptV01,
+  validateRunReceiptV01,
   type RunReceiptBuilderInputV01,
 } from "@/lib/vnext/run-receipt";
 import {
@@ -34,7 +37,11 @@ import {
   type TaskContextPacketBuilderInputV01,
 } from "@/lib/vnext/task-context-packet";
 import type { CriterionAssessmentV01 } from "@/types/vnext/criterion-assessment";
-import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
+import {
+  RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
+  RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
+  type EpisodeDeltaProposalV01,
+} from "@/types/vnext/episode-delta-proposal";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 
 const WORKSPACE_ID = "workspace-run-assessment-proposal";
@@ -55,6 +62,9 @@ export interface RunAssessmentProposalConformanceSummaryV01 {
   transaction_rollback_checked: true;
   non_authority_checked: true;
   zero_model_checked: true;
+  neutral_receipt_basis_checked: true;
+  exact_source_material_checked: true;
+  source_material_bounds_checked: true;
 }
 
 export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalConformanceSummaryV01 {
@@ -126,6 +136,115 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
   assert.equal(first.proposal.authority_summary.creates_evidence, false);
   assert.equal(source.authority.creates_decision, false);
   assert.equal(source.authority.changes_later_context, false);
+  const neutralMaterial = first.proposal.observations.filter(
+    (item) => item.material_kind === "persisted_run_receipt",
+  );
+  assert.equal(neutralMaterial.length, 1);
+  const actualObservationIds = new Set(
+    first.proposal.observations
+      .filter((item) => item.material_kind !== "persisted_run_receipt")
+      .map((item) => item.material_id),
+  );
+  for (const inference of first.proposal.inferences.filter(
+    (item) => item.material_kind === "criterion_assessment_item",
+  )) {
+    assert.deepEqual(inference.basis_material_ids, [
+      neutralMaterial[0]!.material_id,
+    ]);
+    assert.equal(
+      inference.basis_material_ids.some((id) => actualObservationIds.has(id)),
+      false,
+    );
+  }
+
+  const zeroObservationInput = receiptInputV01(packet);
+  zeroObservationInput.observations = [];
+  zeroObservationInput.changed_artifacts = [];
+  zeroObservationInput.artifact_refs = [];
+  zeroObservationInput.execution = {
+    status: "unknown",
+    basis: "unknown",
+    source_refs: [],
+  };
+  const zeroObservationReceipt = buildRunReceiptV01(zeroObservationInput);
+  assert.deepEqual(validateRunReceiptV01(zeroObservationReceipt).errors, []);
+  const zeroObservationProposal = materializeRunAssessmentProposalV01({
+    packet,
+    receipt: zeroObservationReceipt,
+    assessment: evaluateCriterionAssessmentV01({
+      packet,
+      receipt: zeroObservationReceipt,
+    }),
+  }).proposal;
+  assert.equal(
+    zeroObservationProposal.observations.filter(
+      (item) => item.material_kind === "persisted_run_receipt",
+    ).length,
+    1,
+  );
+  assert.equal(
+    zeroObservationProposal.observations.filter(
+      (item) => item.material_kind !== "persisted_run_receipt",
+    ).length,
+    0,
+  );
+
+  const orderedInput = receiptInputV01(packet);
+  orderedInput.observations.push({
+    ...clone(orderedInput.observations[0]!),
+    observation_id: "observation:unrelated:second",
+    observation_kind: "unrelated_local_observation",
+    summary: "A second unrelated observation remains separate material.",
+  });
+  const reversedInput = clone(orderedInput);
+  reversedInput.observations.reverse();
+  const orderedReceipt = buildRunReceiptV01(orderedInput);
+  const reversedReceipt = buildRunReceiptV01(reversedInput);
+  assert.deepEqual(reversedReceipt, orderedReceipt);
+  const orderedMaterial = materializeRunAssessmentProposalV01({
+    packet,
+    receipt: orderedReceipt,
+    assessment: evaluateCriterionAssessmentV01({
+      packet,
+      receipt: orderedReceipt,
+    }),
+  });
+  const reversedMaterial = materializeRunAssessmentProposalV01({
+    packet,
+    receipt: reversedReceipt,
+    assessment: evaluateCriterionAssessmentV01({
+      packet,
+      receipt: reversedReceipt,
+    }),
+  });
+  assert.deepEqual(reversedMaterial, orderedMaterial);
+  assert.equal(
+    orderedMaterial.proposal.observations.filter(
+      (item) => item.material_kind === "persisted_run_receipt",
+    ).length,
+    1,
+  );
+  const orderedNeutralId = orderedMaterial.proposal.observations.find(
+    (item) => item.material_kind === "persisted_run_receipt",
+  )!.material_id;
+  const orderedActualIds = new Set(
+    orderedMaterial.proposal.observations
+      .filter((item) => item.material_kind !== "persisted_run_receipt")
+      .map((item) => item.material_id),
+  );
+  assert.equal(orderedActualIds.size, orderedReceipt.observations.length);
+  assert.equal(orderedActualIds.size > 1, true);
+  assert.equal(
+    orderedMaterial.proposal.inferences
+      .filter((item) => item.material_kind === "criterion_assessment_item")
+      .every(
+        (item) =>
+          item.basis_material_ids.length === 1 &&
+          item.basis_material_ids[0] === orderedNeutralId &&
+          !item.basis_material_ids.some((id) => orderedActualIds.has(id)),
+      ),
+    true,
+  );
 
   const mixedReceipt = mixedTrustReceiptV01(packet);
   const mixedAssessment = evaluateCriterionAssessmentV01({
@@ -167,6 +286,19 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
         item.trust_class === "derived_interpretation" &&
         item.material_kind === "derived_result_interpretation",
     ),
+    true,
+  );
+  const mixedNeutralId = mixed.observations.find(
+    (item) => item.material_kind === "persisted_run_receipt",
+  )!.material_id;
+  assert.equal(
+    mixed.inferences
+      .filter((item) => item.material_kind === "derived_result_interpretation")
+      .every(
+        (item) =>
+          item.basis_material_ids.length === 1 &&
+          item.basis_material_ids[0] === mixedNeutralId,
+      ),
     true,
   );
   assert.equal(
@@ -229,10 +361,128 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
       ].includes(error.code),
   );
 
+  const exactBoundProposal = clone(first.proposal);
+  fitSourceAssessmentCanonicalBytesV01(
+    exactBoundProposal,
+    RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
+  );
+  recomputeProposalV01(exactBoundProposal);
+  assert.deepEqual(
+    collectRunAssessmentProposalSourceMaterialBoundViolationsV01(
+      exactBoundProposal.source_assessment,
+    ),
+    [],
+  );
+  assert.equal(
+    validateEpisodeDeltaProposalV01(exactBoundProposal).status,
+    "valid",
+  );
+  const overBoundProposal = clone(exactBoundProposal);
+  const lastGap = overBoundProposal.source_assessment!.comparison.gaps.at(-1);
+  assert(lastGap);
+  assert.equal(
+    lastGap.length < RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
+    true,
+  );
+  overBoundProposal.source_assessment!.comparison.gaps[
+    overBoundProposal.source_assessment!.comparison.gaps.length - 1
+  ] = `${lastGap}x`;
+  recomputeProposalV01(overBoundProposal);
+  assert.equal(
+    validateEpisodeDeltaProposalV01(overBoundProposal).errors.some(
+      (issue) =>
+        issue.code === "run_assessment_proposal_source_material_bound_exceeded",
+    ),
+    true,
+  );
+
+  for (const oversizedPacket of [
+    packetV01({
+      goal: "g".repeat(
+        RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 + 1,
+      ),
+    }),
+    packetV01({
+      criteria: [
+        "c".repeat(RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 + 1),
+      ],
+    }),
+  ]) {
+    const oversizedReceipt = receiptV01(oversizedPacket);
+    assertMaterialBoundRefusalV01(oversizedPacket, oversizedReceipt);
+  }
+
+  for (const mutate of [
+    (input: RunReceiptBuilderInputV01) => {
+      const check = input.checks[0];
+      assert(check);
+      check.summary = "k".repeat(
+        RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 + 1,
+      );
+    },
+    (input: RunReceiptBuilderInputV01) => {
+      const skipped = input.skipped_checks[0];
+      assert(skipped);
+      skipped.reason = "s".repeat(
+        RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 + 1,
+      );
+    },
+    (input: RunReceiptBuilderInputV01) => {
+      const gap = input.gaps[0];
+      assert(gap);
+      gap.summary = "p".repeat(
+        RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 + 1,
+      );
+    },
+  ]) {
+    const oversizedInput = receiptInputV01(packet);
+    mutate(oversizedInput);
+    assertMaterialBoundRefusalV01(packet, buildRunReceiptV01(oversizedInput));
+  }
+
+  const aggregateInput = receiptInputV01(packet);
+  aggregateInput.gaps = Array.from({ length: 70 }, (_, index) => ({
+    code: `aggregate-gap-${index}`,
+    summary: `${index}:`.padEnd(1900, "n"),
+    source_refs: [aggregateInput.reporter_ref],
+  }));
+  const aggregateReceipt = buildRunReceiptV01(aggregateInput);
+  assert.equal(validateRunReceiptV01(aggregateReceipt).status, "valid");
+  assertMaterialBoundRefusalV01(packet, aggregateReceipt);
+  assert.deepEqual(
+    classifyRunAssessmentProposalAdmissionErrorV01({
+      code: "run_assessment_proposal_transient_writer_failure",
+    }),
+    {
+      error_code: "run_assessment_proposal_transient_writer_failure",
+      retryable: true,
+    },
+  );
+  for (const code of [
+    "run_assessment_proposal_packet_missing",
+    "run_assessment_proposal_protocol_unsupported",
+    "run_assessment_proposal_assessment_unavailable",
+    "run_assessment_proposal_packet_invalid",
+    "run_assessment_proposal_receipt_invalid",
+    "run_assessment_proposal_assessment_invalid",
+    "run_assessment_proposal_source_binding_conflict",
+    "project_result_proposal_material_conflict",
+    "run_assessment_proposal_source_material_bound_exceeded",
+    "run_assessment_proposal_unknown_failure",
+  ]) {
+    assert.deepEqual(classifyRunAssessmentProposalAdmissionErrorV01({ code }), {
+      error_code: code,
+      retryable: false,
+    });
+  }
+
   const db = new Database(":memory:");
   try {
     ensureVNextDurableSemanticStoreSchemaV01(db);
-    const inserted = admitEpisodeDeltaProposalV01(db, first);
+    const inserted = admitEpisodeDeltaProposalV01(
+      db,
+      persistenceInputV01(first, packet, receipt, assessment),
+    );
     assert.equal(inserted.status, "inserted");
     assert.equal(
       countVNextCoreRecordsV01(db, {
@@ -242,7 +492,36 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
       }),
       1,
     );
-    const replay = admitEpisodeDeltaProposalV01(db, second);
+    assert.throws(
+      () =>
+        admitEpisodeDeltaProposalV01(db, {
+          expected: first,
+          source: {
+            packet,
+            receipt: aggregateReceipt,
+            assessment: evaluateCriterionAssessmentV01({
+              packet,
+              receipt: aggregateReceipt,
+            }),
+          },
+        }),
+      (error) =>
+        error instanceof RunAssessmentProposalMaterializationErrorV01 &&
+        error.code === "run_assessment_proposal_source_material_bound_exceeded",
+    );
+    assert.equal(db.inTransaction, false);
+    assert.equal(
+      countVNextCoreRecordsV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        record_kind: "episode_delta_proposal",
+      }),
+      1,
+    );
+    const replay = admitEpisodeDeltaProposalV01(
+      db,
+      persistenceInputV01(second, packet, receipt, assessment),
+    );
     assert.equal(replay.status, "exact_replay");
     assert.deepEqual(replay.proposal, inserted.proposal);
     assert.equal(
@@ -254,61 +533,118 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
       1,
     );
 
-    const identityConflicts = [
-      {
-        ...clone(first.identity),
-        project_id: "project-run-assessment-proposal-foreign",
-      },
-      {
-        ...clone(first.identity),
-        packet_fingerprint: `sha256:${"a".repeat(64)}`,
-      },
-      {
-        ...clone(first.identity),
-        receipt_fingerprint: `sha256:${"b".repeat(64)}`,
-      },
-      {
-        ...clone(first.identity),
-        run_id: "run-r6-b-conflicting-relation",
-      },
-      {
-        ...clone(first.identity),
-        assessment_fingerprint: `sha256:${"c".repeat(64)}`,
-      },
-      (() => {
-        const changed = clone(first.identity);
-        assert(changed.work_ref);
-        changed.work_ref.observed_at = "2026-07-18T02:01:00.000Z";
-        return changed;
-      })(),
+    const materialMutations: Array<
+      [string, (proposal: EpisodeDeltaProposalV01) => void]
+    > = [
+      [
+        "passed check",
+        (proposal) => {
+          const check = proposal.source_assessment!.observed.checks.find(
+            (item) => item.status === "passed",
+          );
+          assert(check);
+          check.status = "failed";
+        },
+      ],
+      [
+        "skipped reason",
+        (proposal) => {
+          const skipped =
+            proposal.source_assessment!.observed.skipped_checks[0];
+          assert(skipped);
+          skipped.reason = "A forged skipped-check reason.";
+        },
+      ],
+      [
+        "artifact hash",
+        (proposal) => {
+          const artifact =
+            proposal.source_assessment!.observed.changed_artifacts[0];
+          assert(artifact);
+          artifact.after_hash = `sha256:${"d".repeat(64)}`;
+        },
+      ],
+      [
+        "capability coverage",
+        (proposal) => {
+          const coverage =
+            proposal.source_assessment!.observed.capability_coverage[0];
+          assert(coverage);
+          coverage.coverage_level = "advisory";
+        },
+      ],
+      [
+        "trust count",
+        (proposal) => {
+          proposal.source_assessment!.observed.trust_summary.direct_observations += 1;
+        },
+      ],
+      [
+        "expected task goal",
+        (proposal) => {
+          proposal.source_assessment!.expected.task_goal =
+            "A forged task goal.";
+        },
+      ],
+      [
+        "expected criterion",
+        (proposal) => {
+          const criterion =
+            proposal.source_assessment!.expected.success_criteria[0];
+          assert(criterion);
+          criterion.criterion = "A forged criterion.";
+        },
+      ],
+      [
+        "comparison gap",
+        (proposal) => {
+          proposal.source_assessment!.comparison.gaps.push(
+            "A forged comparison gap.",
+          );
+        },
+      ],
+      [
+        "embedded receipt provenance",
+        (proposal) => {
+          proposal.source_assessment!.receipt_ref.observed_at =
+            "2026-07-18T02:31:00.000Z";
+        },
+      ],
     ];
-    for (const identity of identityConflicts) {
+    for (const [label, mutate] of materialMutations) {
+      const forged = clone(first);
+      mutate(forged.proposal);
+      recomputeProposalV01(forged.proposal);
       assert.throws(
         () =>
-          admitEpisodeDeltaProposalV01(db, {
-            identity,
-            proposal: first.proposal,
-          }),
+          admitEpisodeDeltaProposalV01(
+            db,
+            persistenceInputV01(forged, packet, receipt, assessment),
+          ),
         (error) =>
           error instanceof EpisodeDeltaProposalAdmissionErrorV01 &&
-          error.code === "episode_delta_proposal_source_binding_conflict",
+          error.code === "project_result_proposal_material_conflict",
+        label,
       );
     }
 
-    const conflicting = clone(first.proposal);
-    conflicting.bounded_summary =
+    const conflicting = clone(first);
+    conflicting.proposal.bounded_summary =
       "Changed normalized content for the exact same source purpose.";
-    recomputeProposalV01(conflicting);
-    assert.equal(validateEpisodeDeltaProposalV01(conflicting).status, "valid");
+    recomputeProposalV01(conflicting.proposal);
+    assert.equal(
+      validateEpisodeDeltaProposalV01(conflicting.proposal).status,
+      "valid",
+    );
     assert.throws(
       () =>
-        admitEpisodeDeltaProposalV01(db, {
-          identity: first.identity,
-          proposal: conflicting,
-        }),
+        admitEpisodeDeltaProposalV01(
+          db,
+          persistenceInputV01(conflicting, packet, receipt, assessment),
+        ),
       (error) =>
         error instanceof EpisodeDeltaProposalAdmissionErrorV01 &&
-        error.code === "episode_delta_proposal_conflicting_replay",
+        error.code === "project_result_proposal_material_conflict",
     );
     assert.equal(db.inTransaction, false);
     assert.equal(
@@ -337,10 +673,13 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
     transaction_rollback_checked: true,
     non_authority_checked: true,
     zero_model_checked: true,
+    neutral_receipt_basis_checked: true,
+    exact_source_material_checked: true,
+    source_material_bounds_checked: true,
   };
 }
 
-function packetV01() {
+function packetV01(overrides: { goal?: string; criteria?: string[] } = {}) {
   const input = clone(
     genericCliBuilderInputFixture,
   ) as TaskContextPacketBuilderInputV01;
@@ -353,20 +692,26 @@ function packetV01() {
     "work:r6-b-conformance",
     "direct_local_observation",
   );
-  input.task.goal = "Create one reviewable proposal from an exact run assessment.";
-  input.task.success_criteria = [
+  input.task.goal =
+    overrides.goal ??
+    "Create one reviewable proposal from an exact run assessment.";
+  input.task.success_criteria = overrides.criteria ?? [
     "Preserve exact packet and receipt lineage.",
     "Keep execution completion distinct from task success.",
   ];
-  input.task.non_goals = [
-    "Do not create a ReviewDecision or Transition.",
-  ];
+  input.task.non_goals = ["Do not create a ReviewDecision or Transition."];
   input.constraints.required_checks = ["check:repository"];
   input.return_contract.required_checks = ["check:repository"];
   return buildTaskContextPacketV01(input);
 }
 
 function receiptV01(packet: ReturnType<typeof packetV01>) {
+  return buildRunReceiptV01(receiptInputV01(packet));
+}
+
+function receiptInputV01(
+  packet: ReturnType<typeof packetV01>,
+): RunReceiptBuilderInputV01 {
   const input = clone(
     genericCliDirectObservationInputFixture,
   ) as RunReceiptBuilderInputV01;
@@ -420,7 +765,7 @@ function receiptV01(packet: ReturnType<typeof packetV01>) {
     outcome: "completed",
     limitations: ["No criterion relation is present."],
   };
-  return buildRunReceiptV01(input);
+  return input;
 }
 
 function mixedTrustReceiptV01(packet: ReturnType<typeof packetV01>) {
@@ -494,6 +839,64 @@ function recomputeProposalV01(proposal: EpisodeDeltaProposalV01): void {
   proposal.proposal_id = deriveEpisodeDeltaProposalIdV01(proposal);
   proposal.integrity.fingerprint =
     createEpisodeDeltaProposalFingerprintV01(proposal);
+}
+
+function persistenceInputV01(
+  expected: ReturnType<typeof materializeRunAssessmentProposalV01>,
+  packet: ReturnType<typeof packetV01>,
+  receipt: ReturnType<typeof receiptV01>,
+  assessment: CriterionAssessmentV01,
+) {
+  return {
+    expected,
+    source: { packet, receipt, assessment },
+  };
+}
+
+function assertMaterialBoundRefusalV01(
+  packet: ReturnType<typeof packetV01>,
+  receipt: ReturnType<typeof receiptV01>,
+): void {
+  const assessment = evaluateCriterionAssessmentV01({ packet, receipt });
+  assert.throws(
+    () => materializeRunAssessmentProposalV01({ packet, receipt, assessment }),
+    (error) =>
+      error instanceof RunAssessmentProposalMaterializationErrorV01 &&
+      error.code === "run_assessment_proposal_source_material_bound_exceeded",
+  );
+}
+
+function fitSourceAssessmentCanonicalBytesV01(
+  proposal: EpisodeDeltaProposalV01,
+  targetBytes: number,
+): void {
+  const source = proposal.source_assessment;
+  assert(source);
+  for (let count = 1; count <= 128; count += 1) {
+    source.comparison.gaps = Array.from({ length: count }, (_, index) => {
+      const prefix = `${index}:`;
+      return index === count - 1
+        ? prefix
+        : prefix.padEnd(
+            RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
+            "x",
+          );
+    });
+    const currentBytes = canonicalUtf8BytesV01(source);
+    const remaining = targetBytes - currentBytes;
+    const last = source.comparison.gaps[count - 1]!;
+    const available =
+      RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01 - last.length;
+    if (remaining < 0 || remaining > available) continue;
+    source.comparison.gaps[count - 1] = `${last}${"x".repeat(remaining)}`;
+    assert.equal(canonicalUtf8BytesV01(source), targetBytes);
+    return;
+  }
+  assert.fail(`Unable to fit source assessment to ${targetBytes} bytes.`);
+}
+
+function canonicalUtf8BytesV01(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
 function clone<T>(value: T): T {

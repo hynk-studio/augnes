@@ -173,7 +173,9 @@ export interface DirectNativeHostRoundTripResultV01 {
     | {
         status: "failed";
         error_code: string;
-        retryable: true;
+        retryable: boolean;
+        failure_recorded: boolean;
+        failure_recording_error_code: string | null;
       };
   proposal_created: boolean;
   decision_created: false;

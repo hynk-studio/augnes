@@ -128,7 +128,9 @@ export type ProjectRunResultProposalReadbackV01 =
   | {
       status: "failed";
       error_code: string;
-      retryable: true;
+      retryable: boolean;
+      failure_recorded: true;
+      failure_recording_error_code: null;
     };
 
 export interface ProjectRunResultDetailV01 {
