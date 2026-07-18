@@ -109,6 +109,30 @@ export interface ProjectRunResultModelInvocationV01 {
   source_refs: ExternalRefV01[];
 }
 
+export type ProjectRunResultProposalReadbackV01 =
+  | {
+      status: "available";
+      proposal_id: string;
+      proposal_fingerprint: string;
+      proposal_status: "pending_review";
+      admission_idempotency_key: string;
+      review_href: string;
+    }
+  | {
+      status: "unavailable";
+      reason:
+        | "assessment_unavailable"
+        | "not_created"
+        | "unsupported_protocol";
+    }
+  | {
+      status: "failed";
+      error_code: string;
+      retryable: boolean;
+      failure_recorded: true;
+      failure_recording_error_code: null;
+    };
+
 export interface ProjectRunResultDetailV01 {
   read_model_version: typeof PROJECT_RUN_RESULT_READ_MODEL_VERSION_V01;
   workspace_id: string;
@@ -137,6 +161,7 @@ export interface ProjectRunResultDetailV01 {
     source_ref_count: number | null;
   };
   criterion_assessment: CriterionAssessmentReadbackV01;
+  proposal: ProjectRunResultProposalReadbackV01;
   host: {
     host_ref: ExternalRefV01 | null;
     host_refs: ExternalRefV01[];

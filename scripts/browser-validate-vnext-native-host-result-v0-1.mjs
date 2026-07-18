@@ -144,6 +144,9 @@ const result = {
   task_success_criterion_assessment: false,
   execution_task_success_separated: false,
   workbench_result_narrow_viewport_no_overflow: false,
+  result_to_proposal_navigation: false,
+  proposal_assessment_snapshot: false,
+  proposal_review_narrow_viewport_no_overflow: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -1070,7 +1073,10 @@ async function main() {
     const after = readDirectHostBrowserState(manifest.project_id);
     assert.equal(after.direct_receipt_count, before.direct_receipt_count + 1);
     assert.equal(after.direct_run_count, before.direct_run_count + 1);
-    assert.deepEqual(after.semantic_authority_counts, before.semantic_authority_counts);
+    assert.deepEqual(after.semantic_authority_counts, {
+      ...before.semantic_authority_counts,
+      proposals: before.semantic_authority_counts.proposals + 1,
+    });
     assert(after.latest_receipt, "The direct structured RunReceipt was not persisted.");
     const receipt = after.latest_receipt;
     const packet = after.packet;
@@ -1380,10 +1386,10 @@ async function main() {
       after.direct_receipt_count + 1,
     );
     assert.equal(liveAfter.direct_run_count, after.direct_run_count + 1);
-    assert.deepEqual(
-      liveAfter.semantic_authority_counts,
-      after.semantic_authority_counts,
-    );
+    assert.deepEqual(liveAfter.semantic_authority_counts, {
+      ...after.semantic_authority_counts,
+      proposals: after.semantic_authority_counts.proposals + 1,
+    });
     assert(liveAfter.latest_receipt);
     assert.equal(liveAfter.latest_receipt.result_summary.outcome, "completed");
     assert.equal(liveAfter.latest_receipt.privacy_egress.egress_status, "occurred");
@@ -1446,6 +1452,10 @@ async function main() {
       `location.pathname === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-run-result-review="v0.1"][data-result-review-read-only="true"][data-semantic-mutation="false"]') !== null`,
       "read-only Workbench result review",
     );
+    await waitForCondition(
+      `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null`,
+      "read-only proposal settlement refresh",
+    );
     assert.equal(
       responses.slice(resultResponseStart).some(
         (entry) => entry.path === expectedReviewHref && entry.status === 200,
@@ -1465,6 +1475,7 @@ async function main() {
       const review = document.querySelector('[data-run-result-review="v0.1"]');
       const inspector = document.querySelector('[data-run-result-inspector="v0.1"]');
       const assessment = review?.querySelector('[data-task-success-criteria="available"]');
+      const proposal = review?.querySelector('[data-run-result-proposal="available"]');
       const criterionItems = assessment
         ? Array.from(assessment.querySelectorAll('[data-criterion-status]'))
         : [];
@@ -1543,6 +1554,10 @@ async function main() {
           assessmentText.includes('derived and non-authoritative') &&
           assessmentText.includes('creates no Evidence') &&
           assessmentText.includes('changes neither semantic state nor later context'),
+        proposal_available:
+          proposal !== null &&
+          proposal.textContent?.includes('pending review') === true &&
+          proposal.querySelector('[data-result-to-proposal-link="true"]') !== null,
         private_root_visible: text.includes(${JSON.stringify(liveAfter.normalized_root)}),
         packet_rendering_visible: text.includes(${JSON.stringify(packet.task.goal)}),
         raw_protocol_visible: /jsonrpc|raw diff must never be persisted|raw output must never be persisted|OPENAI_API_KEY/.test(text),
@@ -1573,6 +1588,7 @@ async function main() {
       unsupported_unavailable: true,
       criterion_trust_distinct: true,
       criterion_authority_boundary: true,
+      proposal_available: true,
       private_root_visible: false,
       packet_rendering_visible: false,
       raw_protocol_visible: false,
@@ -1620,11 +1636,102 @@ async function main() {
     result.semantic_transitions_created =
       liveAfter.semantic_authority_counts.transitions -
       before.semantic_authority_counts.transitions;
-    assert.equal(result.semantic_proposals_created, 0);
+    assert.equal(result.semantic_proposals_created, 2);
     assert.equal(result.review_decisions_created, 0);
     assert.equal(result.semantic_transitions_created, 0);
     assert.equal(result.work_closures_created, 0);
+    const beforeProposalReview = databaseSnapshot(database);
+    const proposalNavigationStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector('[data-result-to-proposal-link="true"]');
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && document.querySelector('[data-vnext-semantic-review-detail="v0.1"] [data-run-assessment-proposal="v0.1"]') !== null`,
+      "result-linked run-assessment proposal detail",
+    );
+    assert.equal(
+      responses.slice(proposalNavigationStart).some(
+        (entry) =>
+          entry.path.startsWith("/workbench/semantic-review/episode-delta-proposal~") &&
+          entry.status === 200,
+      ),
+      true,
+    );
+    const proposalReviewShape = await evaluateJson(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const snapshot = detail?.querySelector('[data-run-assessment-proposal="v0.1"]');
+      const criteria = snapshot
+        ? Array.from(snapshot.querySelectorAll('[data-criterion-status]'))
+        : [];
+      const text = detail?.textContent ?? '';
+      const snapshotText = snapshot?.textContent ?? '';
+      return {
+        pending_review: text.includes('pending_review'),
+        execution_task_success:
+          snapshot?.getAttribute('data-task-success-status') === 'unknown' &&
+          snapshotText.includes('Execution completed / task success unknown'),
+        criteria_unknown_insufficient:
+          criteria.length === ${packet.task.success_criteria.length} &&
+          criteria.every((item) =>
+            item.getAttribute('data-criterion-status') === 'unknown' &&
+            item.getAttribute('data-criterion-basis') === 'insufficient'
+          ),
+        criterion_refs_empty:
+          criteria.every((item) => {
+            const value = item.querySelector('small')?.textContent ?? '';
+            return value.includes('0 supporting refs') &&
+              value.includes('0 opposing refs') &&
+              value.includes('0 criterion-specific missing refs');
+          }),
+        checks_and_skips:
+          snapshotText.includes('fake-live-check') &&
+          snapshotText.includes('skipped') &&
+          !snapshotText.includes('skipped · passed'),
+        artifacts: snapshotText.includes('src/live-result.ts'),
+        coverage:
+          snapshot?.querySelector('[data-coverage-level="outside_coverage"]')?.textContent?.includes('unsupported / unavailable') === true,
+        trust:
+          snapshotText.includes('Direct observations') &&
+          snapshotText.includes('Host attestations') &&
+          snapshotText.includes('Derived interpretations'),
+        exact_lineage:
+          snapshotText.includes('Exact packet') &&
+          snapshotText.includes('Exact receipt') &&
+          snapshotText.includes('Exact run'),
+        no_decision_or_transition:
+          text.includes('No ReviewDecision is persisted for this proposal') &&
+          text.includes('not_applied'),
+        non_authoritative:
+          snapshot?.getAttribute('data-assessment-authoritative') === 'false' &&
+          snapshotText.includes('creates no Evidence acceptance') &&
+          snapshotText.includes('later-context change'),
+      };
+    })()`);
+    assert.deepEqual(proposalReviewShape, {
+      pending_review: true,
+      execution_task_success: true,
+      criteria_unknown_insufficient: true,
+      criterion_refs_empty: true,
+      checks_and_skips: true,
+      artifacts: true,
+      coverage: true,
+      trust: true,
+      exact_lineage: true,
+      no_decision_or_transition: true,
+      non_authoritative: true,
+    });
+    await validateSemanticReviewViewports();
+    assert.deepEqual(databaseSnapshot(database), beforeProposalReview);
+    result.result_to_proposal_navigation = true;
+    result.proposal_assessment_snapshot = true;
+    result.proposal_review_narrow_viewport_no_overflow = true;
     record("workbench_result_review_and_inspector_reload_from_immutable_durable_state");
+    record("result_links_to_exact_pending_run_assessment_proposal_without_manual_ids");
     record("result_review_creates_no_proposal_decision_transition_evidence_or_work_closure");
   });
 
@@ -1927,11 +2034,46 @@ async function validateWorkbenchResultViewports() {
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
       };
     })()`);
+    result.viewport_results.push(metrics);
     assert.equal(metrics.width, width);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
+  }
+}
+
+async function validateSemanticReviewViewports() {
+  for (const width of [375, 390, 768, 1440]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await delay(100);
+    const metrics = await evaluateJson(`(() => {
+      const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const rect = review?.getBoundingClientRect();
+      return {
+        surface: 'workbench_run_assessment_proposal',
+        width: window.innerWidth,
+        document_scroll_width: document.documentElement.scrollWidth,
+        document_client_width: document.documentElement.clientWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        review_scroll_width: review?.scrollWidth ?? -1,
+        review_client_width: review?.clientWidth ?? -1,
+        review_horizontal_overflow:
+          (review?.scrollWidth ?? 0) > (review?.clientWidth ?? 0) + 1,
+        review_inside_viewport:
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+      };
+    })()`);
     result.viewport_results.push(metrics);
+    assert.equal(metrics.width, width);
+    assert.equal(metrics.document_horizontal_overflow, false);
+    assert.equal(metrics.review_horizontal_overflow, false);
+    assert.equal(metrics.review_inside_viewport, true);
   }
 }
 

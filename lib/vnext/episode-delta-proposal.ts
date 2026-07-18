@@ -17,6 +17,7 @@ import {
   validateExternalRefStructureV01,
   type ProtocolJsonRecordV01,
 } from "@/lib/vnext/protocol-primitives";
+import { validateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   EPISODE_DELTA_PROPOSAL_ATTESTATION_TRUST_CLASSES_V01,
@@ -26,6 +27,9 @@ import {
   EPISODE_DELTA_PROPOSAL_OPERATIONS_V01,
   EPISODE_DELTA_PROPOSAL_STATUSES_V01,
   EPISODE_DELTA_PROPOSAL_VERSION_V01,
+  RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
+  RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
+  RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
   type EpisodeDeltaProposalAttestationV01,
   type EpisodeDeltaProposalAuthoritySummaryV01,
   type EpisodeDeltaProposalConflictV01,
@@ -34,6 +38,7 @@ import {
   type EpisodeDeltaProposalMaterialBoundaryV01,
   type EpisodeDeltaProposalMissingInformationV01,
   type EpisodeDeltaProposalObservationV01,
+  type EpisodeDeltaProposalSourceAssessmentV01,
   type EpisodeDeltaProposalTrustSummaryV01,
   type EpisodeDeltaProposalUncertaintyV01,
   type EpisodeDeltaProposalV01,
@@ -70,6 +75,7 @@ const allowedRootKeys = new Set([
   "bounded_summary",
   "task_context_packet_ref",
   "run_receipt_refs",
+  "source_assessment",
   "observations",
   "attestations",
   "inferences",
@@ -245,6 +251,68 @@ const allowedIntegrityKeys = new Set([
   "fingerprint_scope",
   "fingerprint",
 ]);
+const allowedSourceAssessmentKeys = new Set([
+  "admission_profile",
+  "admission_idempotency_key",
+  "source_material_boundary",
+  "work_ref",
+  "run_ref",
+  "packet_ref",
+  "receipt_ref",
+  "assessment",
+  "expected",
+  "observed",
+  "comparison",
+  "authority",
+]);
+const allowedSourceMaterialBoundaryKeys = new Set([
+  "canonical_encoding",
+  "max_canonical_bytes",
+  "max_text_characters",
+  "truncation_allowed",
+]);
+const allowedExpectedMaterialKeys = new Set([
+  "task_goal",
+  "success_criteria",
+  "required_checks",
+  "expected_artifacts",
+  "required_return_fields",
+  "forbidden_actions",
+  "data_classification",
+]);
+const allowedExpectedCriterionKeys = new Set(["criterion_id", "criterion"]);
+const allowedObservedMaterialKeys = new Set([
+  "execution",
+  "verification",
+  "commands",
+  "checks",
+  "skipped_checks",
+  "changed_artifacts",
+  "artifact_refs",
+  "blockers",
+  "warnings",
+  "gaps",
+  "result_summary",
+  "capability_coverage",
+  "trust_summary",
+  "compatibility",
+]);
+const allowedComparisonKeys = new Set([
+  "relation_policy",
+  "criterion_specific_relations_available",
+  "task_success_status",
+  "execution_status_is_task_success",
+  "gaps",
+]);
+const allowedSourceAssessmentAuthorityKeys = new Set([
+  "authoritative",
+  "creates_evidence",
+  "validates_claims",
+  "creates_decision",
+  "applies_transition",
+  "changes_semantic_state",
+  "changes_later_context",
+]);
 
 const forbiddenSemanticFieldPattern =
   /(?:accepted.?evidence|canonical.?state|review.?decision|state.?transition|state.?(?:apply|commit|mutat|write)|work.?(?:clos|complet)|perspective.?(?:apply|mutat)|memory.?(?:promot|mutat)|auto.?apply|next.?context.?(?:select|apply)|provider.?author|github.?author|merge|publish|publication|external.?(?:actuat|side.?effect)|schedule|retry|replay|deploy|execution.?authority|semantic.?commit|approv)/i;
@@ -259,6 +327,22 @@ const boundedTextFieldNames = new Set([
   "limitations",
   "uncertainties",
   "notes",
+]);
+const runAssessmentSourceTextFieldNames = new Set([
+  "task_goal",
+  "criterion",
+  "summary",
+  "reason",
+  "outcome",
+  "required_checks",
+  "expected_artifacts",
+  "required_return_fields",
+  "forbidden_actions",
+  "limitations",
+  "notes",
+  "warnings",
+  "gaps",
+  "uncertainty",
 ]);
 
 export const EPISODE_DELTA_PROPOSAL_REQUIRED_CORE_FIELDS_V01 = [
@@ -324,6 +408,13 @@ export function buildEpisodeDeltaProposalV01(
       input.task_context_packet_ref,
     ),
     run_receipt_refs: normalizeRefs(input.run_receipt_refs),
+    ...(input.source_assessment
+      ? {
+          source_assessment: normalizeSourceAssessmentV01(
+            input.source_assessment,
+          ),
+        }
+      : {}),
     observations,
     attestations,
     inferences,
@@ -440,6 +531,61 @@ export function createEpisodeDeltaProposalMaterialBoundaryV01(): EpisodeDeltaPro
   };
 }
 
+export function createRunAssessmentProposalSourceMaterialBoundaryV01() {
+  return {
+    canonical_encoding: "utf8" as const,
+    max_canonical_bytes:
+      RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_CANONICAL_UTF8_BYTES_V01,
+    max_text_characters: RUN_ASSESSMENT_PROPOSAL_SOURCE_MAX_TEXT_CHARACTERS_V01,
+    truncation_allowed: false as const,
+  };
+}
+
+export interface RunAssessmentProposalSourceMaterialBoundViolationV01 {
+  code: "run_assessment_proposal_source_material_bound_exceeded";
+  path: string;
+  message: string;
+}
+
+export function collectRunAssessmentProposalSourceMaterialBoundViolationsV01(
+  source: unknown,
+): RunAssessmentProposalSourceMaterialBoundViolationV01[] {
+  const boundary = createRunAssessmentProposalSourceMaterialBoundaryV01();
+  const violations: RunAssessmentProposalSourceMaterialBoundViolationV01[] = [];
+  walk(source, "$.source_assessment", (candidate, path) => {
+    if (
+      typeof candidate === "string" &&
+      isRunAssessmentSourceTextPathV01(path) &&
+      candidate.length > boundary.max_text_characters
+    ) {
+      violations.push({
+        code: "run_assessment_proposal_source_material_bound_exceeded",
+        path,
+        message: `Source-derived text exceeds ${boundary.max_text_characters} characters.`,
+      });
+    }
+  });
+  let canonicalBytes: number | null = null;
+  try {
+    canonicalBytes = new TextEncoder().encode(
+      canonicalizeProtocolValueV01(source),
+    ).byteLength;
+  } catch {
+    // Structural validation reports malformed protocol values separately.
+  }
+  if (
+    canonicalBytes !== null &&
+    canonicalBytes > boundary.max_canonical_bytes
+  ) {
+    violations.push({
+      code: "run_assessment_proposal_source_material_bound_exceeded",
+      path: "$.source_assessment",
+      message: `Canonical source-assessment material exceeds ${boundary.max_canonical_bytes} UTF-8 bytes (${canonicalBytes}).`,
+    });
+  }
+  return violations;
+}
+
 export function canonicalizeEpisodeDeltaProposalValueV01(
   value: unknown,
 ): string {
@@ -506,6 +652,9 @@ export function validateEpisodeDeltaProposalV01(
       "Secret-shaped material is forbidden in EpisodeDeltaProposal.",
     provider_specific_field_message:
       "Provider-native identifiers must remain ExternalRef values in EpisodeDeltaProposal.",
+    allowed_canonical_identity_paths: new Set([
+      "$.source_assessment.assessment.run_id",
+    ]),
     allowed_false_invariant_fields: new Set([
       "automatically_resolved",
       "raw_prompt_persisted",
@@ -588,6 +737,7 @@ export function validateEpisodeDeltaProposalV01(
     input.run_receipt_refs,
     accumulator,
   );
+  validateSourceAssessmentV01(input, accumulator);
   validateRefArray(input.source_refs, "$.source_refs", accumulator);
   validateDuplicateExternalRefsPrimitiveV01(input, sink);
 
@@ -629,6 +779,63 @@ function normalizeRefs(refs: ExternalRefV01[]): ExternalRefV01[] {
   return uniqueProtocolValuesV01(
     refs.map(normalizeExternalRefPrimitiveV01),
   ).sort(compareExternalRefsV01);
+}
+
+function normalizeSourceAssessmentV01(
+  input: EpisodeDeltaProposalSourceAssessmentV01,
+): EpisodeDeltaProposalSourceAssessmentV01 {
+  const cloned = structuredClone(input);
+  return {
+    ...cloned,
+    admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
+    admission_idempotency_key: normalizeProtocolTextV01(
+      input.admission_idempotency_key,
+    ),
+    source_material_boundary:
+      createRunAssessmentProposalSourceMaterialBoundaryV01(),
+    work_ref: normalizeNullableRef(input.work_ref),
+    run_ref: normalizeExternalRefPrimitiveV01(input.run_ref),
+    packet_ref: normalizeExternalRefPrimitiveV01(input.packet_ref),
+    receipt_ref: normalizeExternalRefPrimitiveV01(input.receipt_ref),
+    expected: {
+      task_goal: normalizeProtocolTextV01(input.expected.task_goal),
+      success_criteria: uniqueProtocolValuesV01(
+        input.expected.success_criteria.map((criterion) => ({
+          criterion_id: normalizeProtocolTextV01(criterion.criterion_id),
+          criterion: normalizeProtocolTextV01(criterion.criterion),
+        })),
+      ).sort(compareProtocolCanonicalV01),
+      required_checks: uniqueProtocolStringsV01(
+        input.expected.required_checks,
+      ),
+      expected_artifacts: uniqueProtocolStringsV01(
+        input.expected.expected_artifacts,
+      ),
+      required_return_fields: uniqueProtocolStringsV01(
+        input.expected.required_return_fields,
+      ),
+      forbidden_actions: uniqueProtocolStringsV01(
+        input.expected.forbidden_actions,
+      ),
+      data_classification: input.expected.data_classification,
+    },
+    comparison: {
+      relation_policy: "explicit_protocol_relations_only",
+      criterion_specific_relations_available: false,
+      task_success_status: "unknown",
+      execution_status_is_task_success: false,
+      gaps: uniqueProtocolStringsV01(input.comparison.gaps),
+    },
+    authority: {
+      authoritative: false,
+      creates_evidence: false,
+      validates_claims: false,
+      creates_decision: false,
+      applies_transition: false,
+      changes_semantic_state: false,
+      changes_later_context: false,
+    },
+  };
 }
 
 function normalizeObservations(
@@ -792,6 +999,316 @@ function validateTaskContextPacketRef(
       "task_context_packet_ref must use ref_type task_context_packet.",
     );
   }
+}
+
+function validateSourceAssessmentV01(
+  proposal: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+): void {
+  if (proposal.source_assessment === undefined) return;
+  const path = "$.source_assessment";
+  const source = recordAt(proposal.source_assessment, path, accumulator);
+  if (!source) return;
+  rejectUnknownNestedKeys(
+    source,
+    allowedSourceAssessmentKeys,
+    path,
+    accumulator,
+  );
+  if (source.admission_profile !== RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01) {
+    addError(
+      accumulator,
+      "run_assessment_proposal_profile_unsupported",
+      `${path}.admission_profile`,
+      "The embedded run-assessment proposal profile is unsupported.",
+      true,
+    );
+  }
+  validateRunAssessmentProposalSourceMaterialBoundaryV01(
+    source.source_material_boundary,
+    `${path}.source_material_boundary`,
+    accumulator,
+  );
+  if (
+    !/^sha256:[a-f0-9]{64}$/u.test(
+      protocolStringValueV01(source.admission_idempotency_key) ?? "",
+    )
+  ) {
+    addError(
+      accumulator,
+      "run_assessment_proposal_idempotency_invalid",
+      `${path}.admission_idempotency_key`,
+      "The run-assessment proposal idempotency key must be a sha256 fingerprint.",
+      true,
+    );
+  }
+  validateExternalRefStructureV01(
+    source.work_ref,
+    `${path}.work_ref`,
+    issueSink(accumulator),
+    true,
+  );
+  for (const [field, refType] of [
+    ["run_ref", "run"],
+    ["packet_ref", "task_context_packet"],
+    ["receipt_ref", "run_receipt"],
+  ] as const) {
+    validateExternalRefStructureV01(
+      source[field],
+      `${path}.${field}`,
+      issueSink(accumulator),
+    );
+    if (
+      isProtocolRecordV01(source[field]) &&
+      source[field].ref_type !== refType
+    ) {
+      addError(
+        accumulator,
+        "run_assessment_proposal_source_ref_type_invalid",
+        `${path}.${field}.ref_type`,
+        `${field} must use ref_type ${refType}.`,
+        true,
+      );
+    }
+  }
+
+  const assessmentValidation = validateCriterionAssessmentV01(
+    source.assessment,
+  );
+  if (assessmentValidation.status !== "valid") {
+    addError(
+      accumulator,
+      "run_assessment_proposal_assessment_invalid",
+      `${path}.assessment`,
+      `The embedded criterion assessment is invalid: ${assessmentValidation.errors
+        .map((issue) => issue.code)
+        .join(",")}.`,
+      true,
+    );
+  }
+
+  const expected = recordAt(source.expected, `${path}.expected`, accumulator);
+  if (expected) {
+    rejectUnknownNestedKeys(
+      expected,
+      allowedExpectedMaterialKeys,
+      `${path}.expected`,
+      accumulator,
+    );
+    requireString(expected, "task_goal", `${path}.expected`, accumulator);
+    for (const field of [
+      "required_checks",
+      "expected_artifacts",
+      "required_return_fields",
+      "forbidden_actions",
+    ] as const) {
+      stringArray(expected[field], `${path}.expected.${field}`, accumulator);
+    }
+    enumValue(
+      expected.data_classification,
+      new Set(["public_safe", "private", "local_only", "secret"]),
+      `${path}.expected.data_classification`,
+      "run_assessment_proposal_data_classification_invalid",
+      accumulator,
+    );
+    const criteria = arrayAt(
+      expected.success_criteria,
+      `${path}.expected.success_criteria`,
+      accumulator,
+    );
+    criteria.forEach((candidate, index) => {
+      const criterionPath = `${path}.expected.success_criteria[${index}]`;
+      const criterion = recordAt(candidate, criterionPath, accumulator);
+      if (!criterion) return;
+      rejectUnknownNestedKeys(
+        criterion,
+        allowedExpectedCriterionKeys,
+        criterionPath,
+        accumulator,
+      );
+      requireString(criterion, "criterion_id", criterionPath, accumulator);
+      requireString(criterion, "criterion", criterionPath, accumulator);
+    });
+    if (
+      isProtocolRecordV01(source.assessment) &&
+      Array.isArray(source.assessment.criteria) &&
+      canonicalizeProtocolValueV01(criteria) !==
+        canonicalizeProtocolValueV01(
+          source.assessment.criteria.map((criterion) =>
+            isProtocolRecordV01(criterion)
+              ? {
+                  criterion_id: criterion.criterion_id,
+                  criterion: criterion.criterion,
+                }
+              : criterion,
+          ),
+        )
+    ) {
+      addError(
+        accumulator,
+        "run_assessment_proposal_criteria_conflict",
+        `${path}.expected.success_criteria`,
+        "Expected criteria must exactly preserve the embedded assessment criteria.",
+        true,
+      );
+    }
+  }
+
+  const observed = recordAt(source.observed, `${path}.observed`, accumulator);
+  if (observed) {
+    rejectUnknownNestedKeys(
+      observed,
+      allowedObservedMaterialKeys,
+      `${path}.observed`,
+      accumulator,
+    );
+    for (const field of [
+      "commands",
+      "checks",
+      "skipped_checks",
+      "changed_artifacts",
+      "artifact_refs",
+      "blockers",
+      "warnings",
+      "gaps",
+      "capability_coverage",
+    ] as const) {
+      arrayAt(observed[field], `${path}.observed.${field}`, accumulator);
+    }
+    for (const field of [
+      "execution",
+      "verification",
+      "result_summary",
+      "trust_summary",
+      "compatibility",
+    ] as const) {
+      recordAt(observed[field], `${path}.observed.${field}`, accumulator);
+    }
+  }
+
+  const comparison = recordAt(
+    source.comparison,
+    `${path}.comparison`,
+    accumulator,
+  );
+  if (comparison) {
+    rejectUnknownNestedKeys(
+      comparison,
+      allowedComparisonKeys,
+      `${path}.comparison`,
+      accumulator,
+    );
+    if (
+      comparison.relation_policy !== "explicit_protocol_relations_only" ||
+      comparison.criterion_specific_relations_available !== false ||
+      comparison.task_success_status !== "unknown" ||
+      comparison.execution_status_is_task_success !== false
+    ) {
+      addError(
+        accumulator,
+        "run_assessment_proposal_relation_policy_conflict",
+        `${path}.comparison`,
+        "The v0.1 run-assessment profile must preserve no criterion relation and unknown task success.",
+        true,
+      );
+    }
+    stringArray(comparison.gaps, `${path}.comparison.gaps`, accumulator);
+  }
+
+  const authority = recordAt(
+    source.authority,
+    `${path}.authority`,
+    accumulator,
+  );
+  if (authority) {
+    rejectUnknownNestedKeys(
+      authority,
+      allowedSourceAssessmentAuthorityKeys,
+      `${path}.authority`,
+      accumulator,
+    );
+    for (const key of allowedSourceAssessmentAuthorityKeys) {
+      if (authority[key] !== false) {
+        addError(
+          accumulator,
+          "run_assessment_proposal_authority_violation",
+          `${path}.authority.${key}`,
+          "The embedded assessment snapshot must remain non-authoritative.",
+          true,
+        );
+      }
+    }
+  }
+
+  if (
+    isProtocolRecordV01(source.assessment) &&
+    (source.assessment.workspace_id !== proposal.workspace_id ||
+      source.assessment.project_id !== proposal.project_id ||
+      !sameRefV01(source.packet_ref, source.assessment.packet_ref) ||
+      !sameRefV01(source.receipt_ref, source.assessment.receipt_ref) ||
+      !sameRefV01(source.packet_ref, proposal.task_context_packet_ref) ||
+      !refArrayContainsV01(proposal.run_receipt_refs, source.receipt_ref) ||
+      (isProtocolRecordV01(source.run_ref) &&
+        source.run_ref.external_id !== source.assessment.run_id))
+  ) {
+    addError(
+      accumulator,
+      "run_assessment_proposal_source_binding_conflict",
+      path,
+      "The embedded assessment must exactly bind the proposal, packet, receipt, run, workspace, and project.",
+      true,
+    );
+  }
+  if (
+    isProtocolRecordV01(source.assessment) &&
+    Array.isArray(source.assessment.criteria) &&
+    source.assessment.criteria.some(
+      (criterion) =>
+        !isProtocolRecordV01(criterion) ||
+        criterion.status !== "unknown" ||
+        criterion.basis !== "insufficient" ||
+        !Array.isArray(criterion.supporting_refs) ||
+        criterion.supporting_refs.length !== 0 ||
+        !Array.isArray(criterion.opposing_refs) ||
+        criterion.opposing_refs.length !== 0 ||
+        !Array.isArray(criterion.missing_refs) ||
+        criterion.missing_refs.length !== 0,
+    )
+  ) {
+    addError(
+      accumulator,
+      "run_assessment_proposal_no_relation_profile_conflict",
+      `${path}.assessment.criteria`,
+      "The current no-relation profile must preserve unknown/insufficient criteria with empty criterion-specific refs.",
+      true,
+    );
+  }
+  for (const violation of collectRunAssessmentProposalSourceMaterialBoundViolationsV01(
+    source,
+  )) {
+    addError(
+      accumulator,
+      violation.code,
+      violation.path,
+      violation.message,
+      true,
+    );
+  }
+}
+
+function sameRefV01(left: unknown, right: unknown): boolean {
+  return (
+    isProtocolRecordV01(left) &&
+    isProtocolRecordV01(right) &&
+    canonicalizeProtocolValueV01(left) === canonicalizeProtocolValueV01(right)
+  );
+}
+
+function refArrayContainsV01(value: unknown, expected: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.some((candidate) => sameRefV01(candidate, expected))
+  );
 }
 
 function validateRunReceiptRefs(
@@ -1645,6 +2162,33 @@ function validateMaterialBoundary(
   }
 }
 
+function validateRunAssessmentProposalSourceMaterialBoundaryV01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+): void {
+  const boundary = recordAt(value, path, accumulator);
+  if (!boundary) return;
+  rejectUnknownNestedKeys(
+    boundary,
+    allowedSourceMaterialBoundaryKeys,
+    path,
+    accumulator,
+  );
+  const expected = createRunAssessmentProposalSourceMaterialBoundaryV01();
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    if (boundary[key] !== expectedValue) {
+      addError(
+        accumulator,
+        "run_assessment_proposal_source_material_boundary_conflict",
+        `${path}.${key}`,
+        `${key} must remain ${JSON.stringify(expectedValue)} for the run-assessment profile.`,
+        true,
+      );
+    }
+  }
+}
+
 function validateAuthority(
   value: unknown,
   accumulator: ValidationAccumulator,
@@ -1886,6 +2430,10 @@ function collectBoundViolations(value: unknown) {
 
 function isBoundedTextPath(path: string) {
   return boundedTextFieldNames.has(lastPathKey(path));
+}
+
+function isRunAssessmentSourceTextPathV01(path: string): boolean {
+  return runAssessmentSourceTextFieldNames.has(lastPathKey(path));
 }
 
 function lastPathKey(path: string) {

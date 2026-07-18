@@ -324,7 +324,15 @@ function loadProposals(db: Database.Database, config: VNextLocalOperatorPilotCon
       throw continuityError("operator_pilot_continuity_proposal_invalid", 422);
     }
     const proposal = record.payload as EpisodeDeltaProposalV01;
-    assertEnvelope(record, proposal.workspace_id, proposal.project_id, proposal.integrity.fingerprint, proposal.proposal_id, proposal.created_at, null);
+    assertEnvelope(
+      record,
+      proposal.workspace_id,
+      proposal.project_id,
+      proposal.integrity.fingerprint,
+      proposal.proposal_id,
+      proposal.created_at,
+      proposal.source_assessment?.admission_idempotency_key ?? null,
+    );
     return proposal;
   });
 }

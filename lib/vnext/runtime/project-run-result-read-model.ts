@@ -13,11 +13,20 @@ import {
   type VNextCoreRecordEnvelopeV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
+import {
+  deriveRunAssessmentProposalAdmissionIdentityV01,
+  materializeRunAssessmentProposalV01,
+} from "@/lib/vnext/run-assessment-proposal";
+import { readProposalForExactSourcePurposeV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import { DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
-import type { AutonomyRunSummary } from "@/types/autonomy-runner-execution";
+import type {
+  AutonomyRunRecord,
+  AutonomyRunSummary,
+} from "@/types/autonomy-runner-execution";
+import type { CriterionAssessmentReadbackV01 } from "@/types/vnext/criterion-assessment";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   PROJECT_RUN_RESULT_READ_MODEL_VERSION_V01,
@@ -28,6 +37,7 @@ import {
   type ProjectRunResultDetailV01,
   type ProjectRunResultModelInvocationV01,
   type ProjectRunResultOverviewV01,
+  type ProjectRunResultProposalReadbackV01,
   type ProjectRunResultSummaryV01,
 } from "@/types/vnext/project-run-result";
 import type {
@@ -50,11 +60,20 @@ export class ProjectRunResultReadErrorV01 extends Error {
       | "project_result_receipt_invalid"
       | "project_result_receipt_scope_conflict"
       | "project_result_receipt_run_conflict"
-      | "project_result_packet_conflict",
+      | "project_result_packet_conflict"
+      | "project_result_proposal_conflict"
+      | "project_result_proposal_material_conflict",
   ) {
     super(code);
     this.name = "ProjectRunResultReadErrorV01";
   }
+}
+
+export interface ProjectRunResultSourceBindingV01 {
+  receipt: RunReceiptV01;
+  packet: TaskContextPacketV01 | null;
+  run: AutonomyRunRecord | null;
+  criterion_assessment: CriterionAssessmentReadbackV01;
 }
 
 export function readProjectRunResultOverviewV01(
@@ -92,67 +111,8 @@ export function readProjectRunResultDetailV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string; receipt_id: string },
 ): ProjectRunResultDetailV01 {
-  const record = readVNextCoreRecordV01(db, {
-    record_kind: "run_receipt",
-    record_id: input.receipt_id,
-    workspace_id: input.workspace_id,
-    project_id: input.project_id,
-  });
-  if (!record) {
-    throw new ProjectRunResultReadErrorV01("project_result_receipt_missing");
-  }
-  const receipt = validatedReceiptFromEnvelopeV01(record, input);
-  const duplicateCount = (
-    db
-      .prepare(
-        `SELECT COUNT(*) AS count FROM vnext_core_records
-         WHERE workspace_id = ? AND project_id = ?
-           AND record_kind = 'run_receipt'
-           AND json_extract(payload_json, '$.run_id') = ?`,
-      )
-      .get(input.workspace_id, input.project_id, receipt.run_id) as {
-      count: number;
-    }
-  ).count;
-  if (duplicateCount !== 1) {
-    throw new ProjectRunResultReadErrorV01(
-      "project_result_receipt_run_conflict",
-    );
-  }
-  const run = autonomyRunnerLedgerSchemaExistsV01(db)
-    ? readAutonomyRunLedgerRecord(receipt.run_id, { db })
-    : null;
-  if (
-    run &&
-    (run.scope !== input.project_id ||
-      run.metadata.workspace_id !== input.workspace_id ||
-      run.metadata.project_id !== input.project_id ||
-      (typeof run.metadata.run_receipt_id === "string" &&
-        run.metadata.run_receipt_id !== receipt.receipt_id) ||
-      (typeof run.metadata.run_receipt_fingerprint === "string" &&
-        run.metadata.run_receipt_fingerprint !== receipt.integrity.fingerprint))
-  ) {
-    throw new ProjectRunResultReadErrorV01(
-      "project_result_receipt_run_conflict",
-    );
-  }
-  const packet = readLinkedPacketV01(db, input, receipt);
-  assertRunPacketBindingV01(run?.metadata ?? null, receipt, packet);
-  const criterionAssessment = packet
-    ? {
-        status: "available" as const,
-        assessment: evaluateCriterionAssessmentV01({ packet, receipt }),
-      }
-    : {
-        status: "unavailable" as const,
-        reason:
-          receipt.task_context_packet_ref &&
-          (receipt.task_context_packet_ref.ref_type !==
-            "task_context_packet" ||
-            !receipt.task_context_packet_ref.source_ref)
-            ? ("unsupported_protocol" as const)
-            : ("packet_missing" as const),
-      };
+  const binding = readProjectRunResultSourceBindingV01(db, input);
+  const { receipt, packet, criterion_assessment: criterionAssessment } = binding;
   const summary = projectReceiptSummaryV01(receipt);
   const sourceTransitionRef = findRefV01(
     receipt.source_refs,
@@ -226,6 +186,7 @@ export function readProjectRunResultDetailV01(
           source_ref_count: null,
         },
     criterion_assessment: criterionAssessment,
+    proposal: projectProposalReadbackV01(db, binding),
     host: {
       host_ref: receipt.host_ref,
       host_refs: hostRefs,
@@ -261,6 +222,165 @@ export function readProjectRunResultDetailV01(
       semantic_state_changed: false,
     },
   };
+}
+
+export function readProjectRunResultSourceBindingV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; receipt_id: string },
+): ProjectRunResultSourceBindingV01 {
+  const record = readVNextCoreRecordV01(db, {
+    record_kind: "run_receipt",
+    record_id: input.receipt_id,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+  });
+  if (!record) {
+    throw new ProjectRunResultReadErrorV01("project_result_receipt_missing");
+  }
+  const receipt = validatedReceiptFromEnvelopeV01(record, input);
+  const duplicateCount = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM vnext_core_records
+         WHERE workspace_id = ? AND project_id = ?
+           AND record_kind = 'run_receipt'
+           AND json_extract(payload_json, '$.run_id') = ?`,
+      )
+      .get(input.workspace_id, input.project_id, receipt.run_id) as {
+      count: number;
+    }
+  ).count;
+  if (duplicateCount !== 1) {
+    throw new ProjectRunResultReadErrorV01(
+      "project_result_receipt_run_conflict",
+    );
+  }
+  const run = autonomyRunnerLedgerSchemaExistsV01(db)
+    ? readAutonomyRunLedgerRecord(receipt.run_id, { db })
+    : null;
+  if (
+    run &&
+    (run.scope !== input.project_id ||
+      run.metadata.workspace_id !== input.workspace_id ||
+      run.metadata.project_id !== input.project_id ||
+      (typeof run.metadata.run_receipt_id === "string" &&
+        run.metadata.run_receipt_id !== receipt.receipt_id) ||
+      (typeof run.metadata.run_receipt_fingerprint === "string" &&
+        run.metadata.run_receipt_fingerprint !== receipt.integrity.fingerprint))
+  ) {
+    throw new ProjectRunResultReadErrorV01(
+      "project_result_receipt_run_conflict",
+    );
+  }
+  const packet = readLinkedPacketV01(db, input, receipt);
+  assertRunPacketBindingV01(run?.metadata ?? null, receipt, packet);
+  const criterionAssessment = packet
+    ? {
+        status: "available" as const,
+        assessment: evaluateCriterionAssessmentV01({ packet, receipt }),
+      }
+    : {
+        status: "unavailable" as const,
+        reason:
+          receipt.task_context_packet_ref &&
+          (receipt.task_context_packet_ref.ref_type !==
+            "task_context_packet" ||
+            !receipt.task_context_packet_ref.source_ref)
+            ? ("unsupported_protocol" as const)
+            : ("packet_missing" as const),
+      };
+  return {
+    receipt,
+    packet,
+    run,
+    criterion_assessment: criterionAssessment,
+  };
+}
+
+function projectProposalReadbackV01(
+  db: Database.Database,
+  binding: ProjectRunResultSourceBindingV01,
+): ProjectRunResultProposalReadbackV01 {
+  if (
+    !binding.packet ||
+    binding.criterion_assessment.status !== "available"
+  ) {
+    return {
+      status: "unavailable",
+      reason:
+        binding.criterion_assessment.status === "unavailable" &&
+        binding.criterion_assessment.reason === "unsupported_protocol"
+          ? "unsupported_protocol"
+          : "assessment_unavailable",
+    };
+  }
+  const source = {
+    packet: binding.packet,
+    receipt: binding.receipt,
+    assessment: binding.criterion_assessment.assessment,
+  };
+  const identity = deriveRunAssessmentProposalAdmissionIdentityV01(source);
+  const related = readProposalForExactSourcePurposeV01(db, identity);
+  const metadata = binding.run?.metadata ?? {};
+  if (related) {
+    const expected = materializeRunAssessmentProposalV01(source);
+    if (
+      canonicalizeProtocolValueV01(related.proposal) !==
+      canonicalizeProtocolValueV01(expected.proposal)
+    ) {
+      throw new ProjectRunResultReadErrorV01(
+        "project_result_proposal_material_conflict",
+      );
+    }
+    if (metadata.run_assessment_proposal_status === "failed") {
+      throw new ProjectRunResultReadErrorV01(
+        "project_result_proposal_conflict",
+      );
+    }
+    if (
+      (metadata.run_assessment_proposal_status === "available" &&
+        (metadata.run_assessment_proposal_id !== related.proposal.proposal_id ||
+          metadata.run_assessment_proposal_fingerprint !==
+            related.proposal.integrity.fingerprint ||
+          metadata.run_assessment_proposal_idempotency_key !==
+            identity.idempotency_key)) ||
+      (typeof metadata.run_assessment_proposal_id === "string" &&
+        metadata.run_assessment_proposal_id !== related.proposal.proposal_id) ||
+      (typeof metadata.run_assessment_proposal_fingerprint === "string" &&
+        metadata.run_assessment_proposal_fingerprint !==
+          related.proposal.integrity.fingerprint) ||
+      (typeof metadata.run_assessment_proposal_idempotency_key === "string" &&
+        metadata.run_assessment_proposal_idempotency_key !==
+          identity.idempotency_key)
+    ) {
+      throw new ProjectRunResultReadErrorV01(
+        "project_result_proposal_conflict",
+      );
+    }
+    return {
+      status: "available",
+      proposal_id: related.proposal.proposal_id,
+      proposal_fingerprint: related.proposal.integrity.fingerprint,
+      proposal_status: "pending_review",
+      admission_idempotency_key: identity.idempotency_key,
+      review_href: `/workbench/semantic-review/${related.proposal.proposal_id.replace(":", "~")}`,
+    };
+  }
+  if (metadata.run_assessment_proposal_status === "available") {
+    throw new ProjectRunResultReadErrorV01("project_result_proposal_conflict");
+  }
+  if (metadata.run_assessment_proposal_status === "failed") {
+    return {
+      status: "failed",
+      error_code:
+        stringMetadataV01(metadata.run_assessment_proposal_error_code) ??
+        "run_assessment_proposal_admission_failed",
+      retryable: metadata.run_assessment_proposal_retry_required === true,
+      failure_recorded: true,
+      failure_recording_error_code: null,
+    };
+  }
+  return { status: "unavailable", reason: "not_created" };
 }
 
 function listManagedHostRunsV01(
