@@ -14,10 +14,13 @@ Start Augnes
 → start or accept a task
 → compile project context
 → run the native host / Codex interactively or through bounded automation
-→ return a structured result
-→ review the result
-→ approve any durable semantic change
-→ reuse the changed context in later work
+→ RunReceipt
+→ source-linked, non-authoritative assessment/comparison
+→ EpisodeDeltaProposal
+→ ReviewDecision
+→ authorized Transition
+→ later TaskContextPacket
+→ later ContextUseReview feedback
 ```
 
 Read only the documents needed for the task:
@@ -34,6 +37,11 @@ Older plans, handoff documents, dogfood reports, closeout records, and runbooks 
 
 - Prefer a working vertical slice over planning, preview, boundary, or smoke-only work.
 - Each PR should move the active product path forward or remove verified obsolete residue.
+- Implement R6 in this order: R6-A source-linked criterion assessment; R6-B
+  production `EpisodeDeltaProposal` creation; R6-C operation-aware review and
+  Transition closure; R6-D bounded strategic advantage-transfer profile; R6-E
+  bounded automation and later-context feedback. These are R6 slices, not new
+  top-level phases.
 - Treat the minimal Automation Spine as a cross-cutting core capability across R2–R8: policy evaluation, bounded grants, run lifecycle, timeout/cancel/stop conditions, receipts, reconciliation, and user-visible pause/retry state.
 - Do not defer automation architecture until after the manual path. Interactive and policy-triggered runs should converge on the same Core contracts and receipts.
 - Defer only advanced automation: generic scheduler replication, broad hunt heuristics, unrestricted retry, self-modification, automatic semantic commit, and automation-specific product sprawl.
@@ -41,6 +49,24 @@ Older plans, handoff documents, dogfood reports, closeout records, and runbooks 
 - Do not add a new planning-only document, workflow-stage table, passive panel, manual copy/paste flow, native execution replica, or feature-specific package smoke command by default.
 - Reuse native host task, terminal, browser, diff, PR, worktree, and scheduler UX instead of rebuilding them in Augnes.
 - Keep provider-neutral Core semantics; provider-specific behavior belongs in adapters.
+- Keep `criterion_assessment` required and `strategic_advantage_transfer` optional
+  inside the same non-authoritative R6 assessment boundary. Do not create a
+  separate strategic engine, Arena, actor store, debate table, or authority layer.
+- Source-bind every strategic base to the exact packet, applicable receipt,
+  project, working frame, source refs, fingerprint, profile/version, and budget.
+  Require applicability condition, expected effect, transfer cost, falsifier,
+  uncertainty, introduced risks, and regression material for a transferable
+  advantage.
+- Downgrade insufficiently supported strategy patches to `research_delta` or
+  `validation_delta` candidates rather than applying plan or Perspective changes.
+- Preserve zero-model Core behavior. Model unavailability may remove strategic
+  enrichment but must not disable criterion assessment, proposal review, or Core
+  transitions.
+- Do not persist raw prompts, debate transcripts, raw provider or challenger
+  output, hidden reasoning, or internal strategic scores.
+- Model confidence, model agreement, agent count, and provider count are not
+  semantic authority. Never automatically select, accept, apply, or inject a
+  strategy, expand a strategic budget, or retry beyond explicit policy.
 - Preserve current user data, migration history, recovery paths, and working runtime behavior unless the task explicitly replaces them.
 - When replacing compatibility behavior, remove the old path in the same PR after the replacement is tested.
 
@@ -67,6 +93,13 @@ For ordinary PRs:
 - use disposable databases for destructive or migration tests
 - use automated browser/CDP checks for affected user flows when practical
 - cover both interactive and policy-triggered paths when changing shared run lifecycle behavior
+- for strategic/R6 changes, verify exact packet, receipt where applicable,
+  project, and base-strategy binding; cross-project and stale-base refusal;
+  `insufficient → unknown`; skipped checks and host completion not becoming task
+  success; interactive/policy-triggered parity; and model-unavailable fallback
+- verify that no unreviewed assessment, strategic candidate, or pending proposal
+  enters later context, and that proposal → decision → Transition → later packet
+  → feedback lineage is complete
 - report exact commands, results, and concrete skipped reasons
 
 ### Canonical CI lifecycle

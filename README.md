@@ -14,10 +14,13 @@ Start Augnes
 → start or accept a task
 → compile project context
 → run Codex / the native host interactively or through bounded automation
-→ return a structured result
-→ review the result
-→ approve any durable semantic change
-→ reuse the changed context in later work
+→ RunReceipt
+→ source-linked assessment/comparison
+→ reviewable semantic proposal
+→ user decision
+→ authorized Transition
+→ later context reuse
+→ later outcome feedback
 ```
 
 The active product commitments are:
@@ -26,6 +29,10 @@ The active product commitments are:
 - Resume / Verify / Decide
 - project and workspace identity with isolation
 - `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, and `ReviewDecision`
+- source-linked criterion assessment that preserves `unknown` when support is insufficient
+- bounded strategic advantage transfer inside the shared R6 assessment boundary
+- candidate-level review before any strategic or semantic change can be authorized
+- later `ContextUseReview` outcome feedback for reviewed context reuse
 - a bounded Automation Spine using policy, grants, runs, receipts, stop conditions, and user control
 - minimal Model Gateway with an OpenAI reference adapter
 - adapter-backed Codex round trip for interactive and unattended runs
@@ -110,6 +117,11 @@ npm run test:e2e
 - Do not make long manual operator pilots a normal PR merge gate.
 - Move broad real-user usefulness validation to Alpha, after the core R2–R8 flow is feature-complete.
 - Keep irreversible external actions and durable semantic changes under explicit user control.
+- Implement strategic analysis as an optional bounded profile inside the shared R6
+  assessment → proposal → decision → Transition path, not as a separate Arena,
+  strategic engine, or multi-agent subsystem.
+- Never let assessment, strategic candidates, model agreement, or outcome feedback
+  bypass proposal, decision, or Transition gates.
 - Do not add new planning-only documents, passive workflow-stage panels, manual copy UI, feature-specific smoke commands, or separate automation/perspective subsystems by default.
 
 ## Active documents
