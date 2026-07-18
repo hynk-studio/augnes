@@ -1506,7 +1506,11 @@ async function main() {
         ),
         criterion_source_counts: criterionItems.every((item) => {
           const sourceCountText = item.querySelector('small')?.textContent ?? '';
-          return sourceCountText.includes('0 supporting sources') && sourceCountText.includes('0 opposing');
+          return (
+            sourceCountText.includes('0 supporting refs') &&
+            sourceCountText.includes('0 opposing refs') &&
+            sourceCountText.includes('0 criterion-specific missing refs')
+          );
         }),
         criterion_source_drilldown:
           criterionDrilldowns.length === criterionItems.length &&
@@ -1516,6 +1520,16 @@ async function main() {
         skipped_not_passed:
           assessmentText.includes('was skipped') &&
           !assessmentText.includes('skipped · passed'),
+        task_wide_residue_visible:
+          text.includes('Checks and skipped checks') &&
+          text.includes('required · skipped') &&
+          text.includes('Limitations and next steps') &&
+          text.includes('No live provider was called') &&
+          text.includes('Trust, coverage, and privacy') &&
+          text.includes('native host internal outside coverage') &&
+          assessmentText.includes('Task-wide receipt residue trust classes') &&
+          assessmentText.includes('Task-wide operation coverage') &&
+          assessmentText.includes('Task-wide receipt uncertainty'),
         unsupported_unavailable:
           assessment?.querySelector('[data-coverage-level="outside_coverage"]')?.textContent?.includes('unsupported / unavailable') === true,
         criterion_trust_distinct:
@@ -1555,6 +1569,7 @@ async function main() {
       criterion_source_counts: true,
       criterion_source_drilldown: true,
       skipped_not_passed: true,
+      task_wide_residue_visible: true,
       unsupported_unavailable: true,
       criterion_trust_distinct: true,
       criterion_authority_boundary: true,

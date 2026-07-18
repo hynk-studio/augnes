@@ -23,6 +23,10 @@ import {
   type TaskContextPacketBuilderInputV01,
 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type {
+  CriterionAssessmentStatusV01,
+  CriterionAssessmentV01,
+} from "@/types/vnext/criterion-assessment";
 
 const WORKSPACE_ID = "workspace-criterion-assessment";
 const PROJECT_ID = "project-criterion-assessment";
@@ -36,6 +40,9 @@ export interface CriterionAssessmentConformanceSummaryV01 {
   deterministic_output_checked: true;
   stable_criterion_identity_checked: true;
   insufficient_unknown_checked: true;
+  status_basis_invariant_checked: true;
+  criterion_specific_refs_unassigned_checked: true;
+  full_source_provenance_fingerprint_checked: true;
   completed_not_success_checked: true;
   skipped_not_support_checked: true;
   unsupported_not_observed_success_checked: true;
@@ -88,12 +95,9 @@ export function runCriterionAssessmentConformanceV01(): CriterionAssessmentConfo
         item.status === "unknown" &&
         item.basis === "insufficient" &&
         item.supporting_refs.length === 0 &&
-        item.opposing_refs.length === 0,
+        item.opposing_refs.length === 0 &&
+        item.missing_refs.length === 0,
     ),
-    true,
-  );
-  assert.equal(
-    first.criteria.every((item) => item.missing_refs.length > 0),
     true,
   );
   assert.equal(
@@ -115,6 +119,16 @@ export function runCriterionAssessmentConformanceV01(): CriterionAssessmentConfo
   assert.equal(
     first.criteria.every((item) =>
       item.uncertainty.some((value) => value.includes("was skipped")),
+    ),
+    true,
+  );
+  assert.equal(
+    first.criteria.every((item) =>
+      item.uncertainty.some((value) =>
+        value.includes(
+          "Receipt gap repository_command_execution_unavailable",
+        ),
+      ),
     ),
     true,
   );
@@ -159,13 +173,65 @@ export function runCriterionAssessmentConformanceV01(): CriterionAssessmentConfo
     );
   }
 
-  const withSourceTimes = clone(first);
-  withSourceTimes.packet_ref.observed_at = "2026-07-18T01:00:00.000Z";
-  withSourceTimes.receipt_ref.observed_at = "2026-07-18T01:01:00.000Z";
+  assertProvenanceFingerprintMutationV01(
+    first,
+    (changed) => {
+      changed.packet_ref.observed_at = "2026-07-18T01:00:00.000Z";
+    },
+    "packet_ref.observed_at",
+  );
+  assertProvenanceFingerprintMutationV01(
+    first,
+    (changed) => {
+      changed.receipt_ref.observed_at = "2026-07-18T01:01:00.000Z";
+    },
+    "receipt_ref.observed_at",
+  );
+  assertProvenanceFingerprintMutationV01(
+    first,
+    (changed) => {
+      for (const item of changed.criteria) {
+        const coverage = item.operation_coverage.find(
+          (entry) => entry.capability === "local_repository_observation",
+        );
+        assert(coverage?.source_ref?.observed_at);
+        coverage.source_ref.observed_at = "2026-07-18T01:02:00.000Z";
+      }
+    },
+    "operation_coverage.source_ref.observed_at",
+  );
+
+  for (const status of [
+    "satisfied",
+    "unsatisfied",
+    "not_applicable",
+  ] as const satisfies readonly CriterionAssessmentStatusV01[]) {
+    const conflict = clone(first);
+    conflict.criteria[0]!.status = status;
+    conflict.summary.unknown -= 1;
+    conflict.summary[status] += 1;
+    conflict.assessment_fingerprint =
+      createCriterionAssessmentFingerprintV01(conflict);
+    const validation = validateCriterionAssessmentV01(conflict);
+    assert.equal(validation.status, "blocked");
+    assert.equal(
+      validation.errors.some(
+        (issue) =>
+          issue.code === "criterion_assessment_status_basis_conflict",
+      ),
+      true,
+      `${status} with insufficient basis must fail closed`,
+    );
+  }
+
+  const unknownObserved = clone(first);
+  unknownObserved.criteria[0]!.basis = "observed";
+  unknownObserved.assessment_fingerprint =
+    createCriterionAssessmentFingerprintV01(unknownObserved);
   assert.equal(
-    createCriterionAssessmentFingerprintV01(withSourceTimes),
-    first.assessment_fingerprint,
-    "source observation time must not affect the assessment fingerprint",
+    validateCriterionAssessmentV01(unknownObserved).status,
+    "valid",
+    "unknown status may retain an observed basis when future explicit residue is incomplete or conflicting",
   );
 
   const failedReceiptInput = insufficientReceiptInputV01(packet);
@@ -275,6 +341,9 @@ export function runCriterionAssessmentConformanceV01(): CriterionAssessmentConfo
     deterministic_output_checked: true,
     stable_criterion_identity_checked: true,
     insufficient_unknown_checked: true,
+    status_basis_invariant_checked: true,
+    criterion_specific_refs_unassigned_checked: true,
+    full_source_provenance_fingerprint_checked: true,
     completed_not_success_checked: true,
     skipped_not_support_checked: true,
     unsupported_not_observed_success_checked: true,
@@ -460,6 +529,40 @@ function assertAssessmentErrorV01(
     (error) =>
       error instanceof CriterionAssessmentErrorV01 &&
       error.code === expectedCode,
+  );
+}
+
+function assertProvenanceFingerprintMutationV01(
+  assessment: CriterionAssessmentV01,
+  mutate: (changed: CriterionAssessmentV01) => void,
+  field: string,
+): void {
+  const changed = clone(assessment);
+  mutate(changed);
+  const recomputedFingerprint =
+    createCriterionAssessmentFingerprintV01(changed);
+  assert.notEqual(
+    recomputedFingerprint,
+    assessment.assessment_fingerprint,
+    `${field} must affect the assessment fingerprint`,
+  );
+
+  const staleValidation = validateCriterionAssessmentV01(changed);
+  assert.equal(staleValidation.status, "blocked");
+  assert.equal(
+    staleValidation.errors.some(
+      (issue) => issue.code === "criterion_assessment_fingerprint_mismatch",
+    ),
+    true,
+    `${field} with the prior fingerprint must fail validation`,
+  );
+
+  changed.assessment_fingerprint = recomputedFingerprint;
+  const recomputedValidation = validateCriterionAssessmentV01(changed);
+  assert.equal(
+    recomputedValidation.status,
+    "valid",
+    JSON.stringify(recomputedValidation),
   );
 }
 

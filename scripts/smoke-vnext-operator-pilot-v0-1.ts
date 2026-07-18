@@ -1580,10 +1580,22 @@ async function assertDirectHostRoundTripCoverageV01(input: {
           item.status === "unknown" &&
           item.basis === "insufficient" &&
           item.supporting_refs.length === 0 &&
-          item.opposing_refs.length === 0,
+          item.opposing_refs.length === 0 &&
+          item.missing_refs.length === 0,
       ),
       true,
     );
+    assert.equal(resultDetail.skipped_checks.length > 0, true);
+    assert.equal(resultDetail.gaps.length > 0, true);
+    assert.equal(
+      resultDetail.capability_coverage.some(
+        (entry) =>
+          entry.capability === "repository_command_execution" &&
+          entry.coverage_level === "outside_coverage",
+      ),
+      true,
+    );
+    assert.equal(resultDetail.trust_summary.direct_observations > 0, true);
     assert.equal(
       assessment.criteria.every((item) =>
         item.uncertainty.some((entry) => entry.includes("was skipped")),

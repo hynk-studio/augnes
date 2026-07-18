@@ -1,6 +1,5 @@
 import {
   canonicalizeProtocolValueV01,
-  compareExternalRefsV01,
   compareProtocolCanonicalV01,
   compareProtocolCodeUnitsV01,
   createProtocolSha256V01,
@@ -113,9 +112,10 @@ export class CriterionAssessmentErrorV01 extends Error {
  * Current v0.1 packet and receipt contracts expose no explicit
  * criterion-to-residue relation. Consequently this first policy never uses
  * prose similarity, check names, artifacts, completion, or model output as
- * positive or negative criterion support. It truthfully preserves every
- * criterion as unknown/insufficient while projecting task-wide missing and
- * unavailable residue for review.
+ * positive, negative, or missing criterion support. It truthfully preserves
+ * every criterion as unknown/insufficient while projecting task-wide
+ * uncertainty, trust, and coverage for review without assigning criterion
+ * relations that the protocol does not provide.
  */
 export function evaluateCriterionAssessmentV01(input: {
   packet: TaskContextPacketV01;
@@ -134,7 +134,6 @@ export function evaluateCriterionAssessmentV01(input: {
     source_ref: input.receipt.integrity.fingerprint,
     compatibility_namespace: RUN_RECEIPT_REF_NAMESPACE_V01,
   });
-  const missingRefs = taskWideMissingRefsV01(input.receipt);
   const trust = projectReceiptTrustV01(input.receipt);
   const operationCoverage = projectOperationCoverageV01(input.receipt);
   const uncertainty = taskWideUncertaintyV01(input.receipt);
@@ -155,7 +154,7 @@ export function evaluateCriterionAssessmentV01(input: {
       basis: "insufficient",
       supporting_refs: [],
       opposing_refs: [],
-      missing_refs: missingRefs.map((ref) => ({ ...ref })),
+      missing_refs: [],
       trust: { ...trust },
       operation_coverage: operationCoverage.map((entry) => ({
         ...entry,
@@ -379,6 +378,19 @@ export function validateCriterionAssessmentV01(
         "Criterion basis is not recognized.",
       );
     }
+    if (
+      basis === "insufficient" &&
+      status &&
+      assessmentStatuses.has(status) &&
+      status !== "unknown"
+    ) {
+      sink.error(
+        "criterion_assessment_status_basis_conflict",
+        `${path}.status`,
+        "An insufficient assessment basis requires unknown criterion status.",
+        true,
+      );
+    }
     for (const field of [
       "supporting_refs",
       "opposing_refs",
@@ -488,19 +500,9 @@ function assertAssessmentInputBindingV01(input: {
   }
 }
 
-function taskWideMissingRefsV01(receipt: RunReceiptV01): ExternalRefV01[] {
-  return normalizeUniqueAssessmentRefsV01([
-    ...receipt.skipped_checks.flatMap((check) => check.source_refs),
-    ...receipt.gaps.flatMap((gap) => gap.source_refs),
-    ...receipt.capability_coverage
-      .filter((entry) => entry.coverage_level === "outside_coverage")
-      .flatMap((entry) => (entry.source_ref ? [entry.source_ref] : [])),
-  ]);
-}
-
 function taskWideUncertaintyV01(receipt: RunReceiptV01): string[] {
   return uniqueProtocolStringsV01([
-    "No explicit protocol-owned criterion-to-residue relation is available; receipt residue was not treated as criterion support or opposition.",
+    "No explicit protocol-owned criterion-to-residue relation is available; receipt residue was not assigned as criterion supporting, opposing, or missing refs.",
     ...(receipt.execution.status === "completed"
       ? [
           "Host execution completed, but execution completion does not establish task success.",
@@ -596,34 +598,6 @@ function projectOperationCoverageV01(
   return [...byCapability.values()].sort(compareProtocolCanonicalV01);
 }
 
-function normalizeUniqueAssessmentRefsV01(
-  refs: ExternalRefV01[],
-): ExternalRefV01[] {
-  const byIdentity = new Map<string, ExternalRefV01>();
-  for (const ref of refs) {
-    const normalized = assessmentExternalRefV01(ref);
-    const identity = canonicalizeProtocolValueV01({
-      compatibility_namespace: normalized.compatibility_namespace ?? null,
-      provider: normalized.provider ?? null,
-      host: normalized.host ?? null,
-      ref_type: normalized.ref_type,
-      external_id: normalized.external_id,
-    });
-    const prior = byIdentity.get(identity);
-    if (
-      prior &&
-      canonicalizeProtocolValueV01(prior) !==
-        canonicalizeProtocolValueV01(normalized)
-    ) {
-      throw new CriterionAssessmentErrorV01(
-        "criterion_assessment_source_ref_conflict",
-      );
-    }
-    if (!prior) byIdentity.set(identity, normalized);
-  }
-  return [...byIdentity.values()].sort(compareExternalRefsV01);
-}
-
 function assessmentExternalRefV01(ref: ExternalRefV01): ExternalRefV01 {
   return normalizeExternalRefPrimitiveV01(ref);
 }
@@ -663,29 +637,13 @@ function criterionAssessmentFingerprintMaterialV01(
     assessment_version: assessment.assessment_version,
     workspace_id: assessment.workspace_id,
     project_id: assessment.project_id,
-    packet_ref: fingerprintRefV01(assessment.packet_ref),
-    receipt_ref: fingerprintRefV01(assessment.receipt_ref),
+    packet_ref: assessment.packet_ref,
+    receipt_ref: assessment.receipt_ref,
     run_id: assessment.run_id,
-    criteria: assessment.criteria.map((item) => ({
-      ...item,
-      supporting_refs: item.supporting_refs.map(fingerprintRefV01),
-      opposing_refs: item.opposing_refs.map(fingerprintRefV01),
-      missing_refs: item.missing_refs.map(fingerprintRefV01),
-      operation_coverage: item.operation_coverage.map((entry) => ({
-        ...entry,
-        source_ref: entry.source_ref
-          ? fingerprintRefV01(entry.source_ref)
-          : null,
-      })),
-    })),
+    criteria: assessment.criteria,
     summary: assessment.summary,
     authority: assessment.authority,
   };
-}
-
-function fingerprintRefV01(ref: ExternalRefV01): ExternalRefV01 {
-  const { observed_at: _observedAt, ...withoutObservedAt } = ref;
-  return withoutObservedAt;
 }
 
 type ValidationAccumulatorV01 = {

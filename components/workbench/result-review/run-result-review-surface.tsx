@@ -427,17 +427,17 @@ function TaskSuccessCriteria({
               <strong>{item.criterion}</strong>
               <span>{humanize(item.status)} · {humanize(item.basis)} basis</span>
               <small>
-                {item.supporting_refs.length} supporting sources · {item.opposing_refs.length} opposing · {item.missing_refs.length} missing
+                {item.supporting_refs.length} supporting refs · {item.opposing_refs.length} opposing refs · {item.missing_refs.length} criterion-specific missing refs
               </small>
               <details data-criterion-source-drilldown="true">
                 <summary>Sources, trust, coverage, and uncertainty</summary>
-                <h4>Supporting sources ({item.supporting_refs.length})</h4>
+                <h4>Supporting refs ({item.supporting_refs.length})</h4>
                 <RefList refs={item.supporting_refs} />
-                <h4>Opposing sources ({item.opposing_refs.length})</h4>
+                <h4>Opposing refs ({item.opposing_refs.length})</h4>
                 <RefList refs={item.opposing_refs} />
-                <h4>Missing or unavailable sources ({item.missing_refs.length})</h4>
+                <h4>Criterion-specific missing refs ({item.missing_refs.length})</h4>
                 <RefList refs={item.missing_refs} />
-                <h4>Receipt residue trust classes</h4>
+                <h4>Task-wide receipt residue trust classes</h4>
                 <ul className={styles.plainList} data-criterion-trust="true">
                   {Object.entries(item.trust).map(([trustClass, count]) => (
                     <li key={trustClass}>
@@ -446,7 +446,7 @@ function TaskSuccessCriteria({
                     </li>
                   ))}
                 </ul>
-                <h4>Operation coverage</h4>
+                <h4>Task-wide operation coverage</h4>
                 {item.operation_coverage.length ? (
                   <ul className={styles.plainList} data-criterion-operation-coverage="true">
                     {item.operation_coverage.map((entry) => (
@@ -462,7 +462,7 @@ function TaskSuccessCriteria({
                     ))}
                   </ul>
                 ) : <p className={styles.empty}>Operation coverage was not recorded.</p>}
-                <h4>Uncertainty</h4>
+                <h4>Task-wide receipt uncertainty</h4>
                 <ResultListBody
                   items={item.uncertainty.map((uncertainty) => ({
                     id: uncertainty,
