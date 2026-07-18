@@ -44,6 +44,37 @@ The following are not ordinary merge gates during R2–R8:
 - proof that advanced Autohunt heuristics are useful
 - proof that Personal Perspective improves every task
 
+## Semantic authority guardrails
+
+The following are zero-tolerance correctness guardrails for any implemented path
+that can produce, reuse, export, or restore structured semantic material:
+
+- `semantic_layer_collapse_incidents = 0`: a Receipt is not treated as accepted
+  Evidence; a Claim does not become state without Decision and Transition; a
+  Decision is not applied as Transition; an assessment is not persisted as
+  project truth.
+- `unreviewed_structured_context_injection = 0`: an unreviewed host result,
+  assessment, or pending proposal does not enter a later `TaskContextPacket` as
+  durable reviewed context.
+- `authority_drift_after_export_restore = 0`: each implemented record's exact
+  lifecycle values and epistemic/authority classification do not change through
+  export/import or restore; candidate, reviewed, accepted, rejected, deferred,
+  retracted, superseded, and applied are illustrative distinctions, not a new
+  universal lifecycle enum.
+
+Focused quality measures, where the corresponding path exists, are:
+
+- success-criterion assessment source coverage
+- semantic-delta item source coverage
+- preservation of `unknown` when support is insufficient
+- proposal → decision → transition → later-context traceability
+- projection rebuild consistency against restored canonical records
+
+Semantic object count, edge count, graph density, schema count, and panel count
+are not quality metrics. These correctness measures belong to R2–R8 merge
+verification for the changed path; long dogfood and demonstrated usefulness
+remain post-Alpha evidence.
+
 ## Operability criteria
 
 Feature completion requires the normal path to avoid making the user act as a database, process, security, scheduler, or integration operator.
@@ -141,7 +172,8 @@ Primary metrics:
 
 ### Decide
 
-- review time and decision debt
+- review time and material decision corrections, tracked together
+- decision debt
 - duplicate or ignored proposals
 - transition traceability
 - decision reversal caused by missing context

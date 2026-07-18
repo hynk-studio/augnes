@@ -24,7 +24,9 @@ The vNext commitments that remain active are:
 - a bounded Automation Spine using policy, grants, runs, receipts, stop conditions, and user control
 - minimal Model Gateway and OpenAI reference adapter
 - Codex/native-host context and receipt round trip for interactive and unattended runs
-- `RunReceipt → Delta → Decision → later context` closed loop
+- `TaskContextPacket` intent + `RunReceipt` operational residue → source-linked,
+  non-authoritative assessment/comparison → `EpisodeDeltaProposal` →
+  `ReviewDecision` → authorized Transition → later context
 - Project Home, Semantic Workbench, and shared Inspector
 - a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
 - migration, backup, restore, update, recovery, and automated-run reconciliation

@@ -172,6 +172,9 @@ Completion:
 
 ### R5 — Codex Host Round Trip
 
+Status: complete on current main. R5 is the operational round trip consumed by
+R6; this roadmap does not reopen its implementation or contracts.
+
 Scope:
 
 ```text
@@ -203,15 +206,23 @@ Completion:
 Scope:
 
 ```text
-RunReceipt
+TaskContextPacket intent
++
+RunReceipt operational residue
+→ source-linked, non-authoritative assessment/comparison
 → EpisodeDeltaProposal
 → ReviewDecision
-→ semantic transition when approved
+→ authorized Transition
 → changed later TaskContextPacket
 ```
 
 Semantic preservation:
 
+- task goal and success criteria are compared with concrete observations,
+  attestations, checks, skipped checks, changed artifacts, gaps, and uncertainty
+- each criterion preserves satisfied, unsatisfied, unknown, or not-applicable
+  status; insufficient support remains unknown
+- observed, attested, mixed, and insufficient basis remain distinguishable
 - Evidence remains source-linked support, not accepted project state
 - Claims remain revisable and distinguishable from state
 - accepted state, reviewed memory, and Perspective retain separate lifecycles
@@ -221,7 +232,8 @@ Semantic preservation:
 Automation contribution:
 
 - one real bounded policy-triggered work loop
-- manual-triggered and policy-triggered runs converge on the same receipt, delta, and review path
+- interactive and policy-triggered runs converge on the same assessment,
+  proposal, review, and transition path
 - retry only under explicit policy, idempotency, budget, and stop conditions
 - no automatic semantic commit
 
@@ -234,26 +246,75 @@ Completion:
 
 - one automated end-to-end flow uses real writers/readers and disposable data
 - one bounded Autohunt path starts, observes, returns, and stops through the shared Core loop
-- decision and transition remain distinct
-- project isolation, idempotency, replay refusal, stale-state refusal, and lineage are preserved
-- semantic layers remain source-linked and are not collapsed into a single generic state record
+- host completion and task success remain distinct
+- success criteria are assessed against concrete operational residue and
+  insufficient support remains `unknown`
+- every semantic delta item has concrete source anchors; `RunReceipt` summary
+  alone cannot authorize or justify a semantic change
+- host-proposed next steps remain advisory unless separately promoted through
+  the proposal path
+- `RunReceipt` alone, assessment alone, and pending `EpisodeDeltaProposal` do
+  not change later `TaskContextPacket`
+- `ReviewDecision` alone does not equal an applied Transition
+- only an authorized Transition changes durable semantic state and later
+  `TaskContextPacket` selection
+- project isolation, exact lineage, replay refusal, stale-state refusal, and
+  idempotency are preserved
+- interactive and policy-triggered work converge on the same assessment,
+  proposal, review, and transition path
+- semantic layers remain source-linked and are not collapsed into a single
+  generic state record
+- no automatic semantic commit
 - usefulness is not yet a merge gate
 
 ### R7 — Semantic Workbench and Inspector Consolidation
 
 Scope:
 
-- Semantic Workbench owns active compare, verify, propose, and decide work
-- Inspector owns shared detail, provenance, and lineage drill-down
+- Semantic Workbench is decision-centered, not ontology-centered; it owns active
+  compare, verify, propose, and decide work
+- Workbench presents semantic delta, basis, limitations, and the consequence of
+  approval, rejection, or deferral
+- Inspector owns typed-record, source-map, epistemic-basis, authority, provenance,
+  and lineage drill-down
 - show automation queue, active run, pause, cancel, retry eligibility, stop reason, and review-needed state
 - show Personal Perspective context basis only where it affects the current task
 - remove passive workflow-stage panels, duplicate diagnostics, repeated boundary cards, and preview-of-preview UI after destination behavior exists
+- do not make users manage internal IDs, graph edges, protocol objects, or
+  ontology administration
+
+Default Workbench review flow:
+
+1. What was intended.
+2. What was observed or reported.
+3. Which success criteria are satisfied, unsatisfied, unknown, or not applicable.
+4. What semantic delta is proposed.
+5. Which sources support or oppose it.
+6. What remains uncertain.
+7. What approving, rejecting, or deferring would change.
+8. Whether and how later context would change after an authorized Transition.
 
 Completion:
 
 - one coherent golden path replaces the current panel maze
 - Project Home, Workbench, and Inspector have distinct roles
 - automation state is understandable without exposing internal IDs or protocol mechanics
+- host completion is visibly distinct from task success
+- residue provenance/trust distinguishes direct local observation, verified
+  external observation, host attestation, provider report, and derived interpretation
+- criterion assessment basis distinguishes observed, attested, mixed, and insufficient
+- criterion status distinguishes satisfied, unsatisfied, unknown, and not applicable
+- semantic deltas and decision consequences are understandable without opening
+  raw protocol records
+- each meaningful change can drill down to source and lineage
+- Inspector can trace success criterion → assessment →
+  observation/attestation/check/artifact → `RunReceipt` → run →
+  `TaskContextPacket` → selected context/source
+- after proposal, Inspector can trace semantic delta → supporting/opposing/missing
+  refs → `ReviewDecision` → Transition → later `TaskContextPacket`
+- critical review is possible without displaying every provenance object by default
+- no new panel maze, workflow-stage table family, ontology editor, or generic
+  graph-management UI
 
 ### R8 — Packaging, Update, Portable Export, Backup, Restore, Recovery, and Run Reconciliation
 
@@ -273,28 +334,59 @@ Scope:
 
 Portable export:
 
-```text
-redacted
-provider-neutral
-movable or shareable
-reconstructable continuity and lineage
-```
+- is redacted, provider-neutral, movable or shareable, and reconstructs
+  continuity and lineage
+- when implemented and applicable, preserves canonical project/workspace
+  identity, project scope, record contract/version, canonical Evidence, Claim,
+  state and memory records and, where implemented and canonical, durable
+  Perspective records with their revision lineage, plus `RunReceipt`,
+  `EpisodeDeltaProposal`, `ReviewDecision`, `StateTransitionReceipt`, source
+  anchors, temporal/lifecycle status, integrity, and provider-neutral `ExternalRef`
+- preserves each implemented record's exact lifecycle values and
+  epistemic/authority classification; candidate, reviewed, accepted, rejected,
+  deferred, superseded, retracted, and applied are illustrative distinctions,
+  not a newly approved universal lifecycle enum
+- preserves relation-assertion source, scope, basis and revision lineage only
+  when that relation is an implemented canonical record; this roadmap does not
+  pre-authorize unimplemented semantic concepts as export truth
+- includes enough exact lineage to reconstruct continuity and derived views
+- requires explicit consent and sharing scope before any later-implemented
+  Personal Perspective material enters a portable export
+
+Rebuildable, non-authoritative projection data:
+
+- Current Working Perspective rendering
+- semantic assessment/comparison projection
+- Workbench summaries and attention ranking
+- Inspector grouping/layout and graph coordinates
+- search ranking, display badges, and recommendation ordering
+
+If cached or exported, these are explicitly marked `derived`,
+`non-authoritative`, `rebuildable`, and `source-bound`.
 
 Recovery backup:
 
-```text
-full-fidelity
-local-only
-restore-oriented
-not a portable sharing format
-```
+- is local-only, restore-oriented, and not a portable sharing format
+- preserves full fidelity to legitimately persisted durable Augnes state
+- does not broaden fidelity into collection of raw prompts, transcripts, hidden
+  reasoning, credentials, or other material Augnes intentionally does not persist
 
 Completion:
 
 - ordinary users do not run migration, checksum, restore, export-repair, or run-repair shell commands
 - failed upgrades preserve recoverable data
 - portable export and recovery backup have separate contracts and validation
-- project export does not leak data from another project
+- export/import preserves each implemented record's exact lifecycle values and
+  epistemic/authority classification: candidate material does not become
+  accepted, `ReviewDecision` does not become Transition, and superseded or
+  retracted material does not silently reactivate
+- derived assessment does not become canonical state
+- export/import or restore creates no new Decision or Transition
+- exact replay does not duplicate proposal, decision, or transition
+- project export does not leak data from another project and cross-project refs
+  remain rejected
+- rebuilt Project Home, Workbench, and Inspector projections agree with restored
+  canonical records
 - restart does not duplicate or silently lose an automated run
 
 ## Alpha and post-Alpha validation
