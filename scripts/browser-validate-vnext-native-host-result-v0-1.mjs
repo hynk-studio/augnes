@@ -2034,11 +2034,11 @@ async function validateWorkbenchResultViewports() {
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
       };
     })()`);
+    result.viewport_results.push(metrics);
     assert.equal(metrics.width, width);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
-    result.viewport_results.push(metrics);
   }
 }
 
@@ -2069,11 +2069,11 @@ async function validateSemanticReviewViewports() {
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
       };
     })()`);
+    result.viewport_results.push(metrics);
     assert.equal(metrics.width, width);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
-    result.viewport_results.push(metrics);
   }
 }
 
