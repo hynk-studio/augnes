@@ -12,15 +12,18 @@ import {
   compareProtocolCanonicalV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import { strategicTransferCandidateLaneV01 } from "@/lib/vnext/strategic-advantage-transfer";
 
 import {
   assertStrategicAdvantageTransferSourceTextSafeV01,
+  createStrategicAdvantageTransferAdverseContextV01,
   createStrategicAdvantageTransferBudgetV01,
   createStrategicAnalysisIdentityV01,
   createStrategicSourceCatalogFingerprintV01,
   createStrategicSourceKeyV01,
   createStrategicWorkingFrameFingerprintV01,
   normalizeStrategicAdvantageTransferModelOutputV01,
+  projectStrategicCatalogAdverseContextItemsV01,
   resolveStrategicAdvantageTransferItemsV01,
   StrategicAdvantageTransferProtocolErrorV01,
   validateStrategicAdvantageTransferSourceCatalogV01,
@@ -28,11 +31,13 @@ import {
 } from "@/lib/vnext/strategic-advantage-transfer-protocol";
 import {
   STRATEGIC_ADVANTAGE_TRANSFER_MAX_CANONICAL_UTF8_BYTES_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MAX_ADVERSE_CONTEXT_ITEMS_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MAX_SOURCE_CATALOG_ITEMS_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_SCHEMA_VERSION_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_SOURCE_CATALOG_VERSION_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_WORKING_FRAME_VERSION_V01,
   type StrategicAdvantageTransferBaseStrategyV01,
+  type StrategicAdvantageTransferAdverseContextItemV01,
   type StrategicAdvantageTransferLensIdV01,
   type StrategicAdvantageTransferModelInputV01,
   type StrategicAdvantageTransferModelOutputV01,
@@ -167,7 +172,7 @@ export function runStrategicAdvantageTransferConformanceV01() {
   const directCatalog = catalogFixture([
     catalogEntryFixture({
       label: "direct",
-      materialKind: "receipt_observation:direct",
+      materialKind: "source_observation:strategic_transfer_support",
       trustClass: "direct_local_observation",
     }),
   ]);
@@ -338,12 +343,221 @@ export function runStrategicAdvantageTransferConformanceV01() {
 
   const directItems = resolveStrategicAdvantageTransferItemsV01({
     catalog: directCatalog,
+    server_adverse_context: adverseContextForCatalog(directCatalog),
     model_output: oneLens,
   });
   assert.equal(directItems.length, 1);
   assert.equal(directItems[0]!.support.status, "supported");
   assert.equal(directItems[0]!.support.basis, "observed");
+  assert.equal(
+    strategicTransferCandidateLaneV01(directItems[0]!.support),
+    "validation_delta",
+  );
   assert.deepEqual(directItems[0]!.source_refs, [directCatalog.items[0]!.ref]);
+
+  for (const adverseMaterial of [
+    {
+      label: "omitted-conflict",
+      materialKind: "source_conflict",
+      expectedCount: "conflicted_material" as const,
+    },
+    {
+      label: "omitted-skipped-check",
+      materialKind: "skipped_check",
+      expectedCount: "skipped_material" as const,
+    },
+    {
+      label: "omitted-failed-check",
+      materialKind: "check_failed",
+      expectedCount: "missing_material" as const,
+    },
+    {
+      label: "omitted-blocked-check",
+      materialKind: "check_blocked",
+      expectedCount: "missing_material" as const,
+    },
+    {
+      label: "omitted-unsupported-coverage",
+      materialKind: "coverage_unsupported",
+      expectedCount: "unavailable_material" as const,
+    },
+    {
+      label: "omitted-outside-coverage",
+      materialKind: "coverage_outside_coverage",
+      expectedCount: "unavailable_material" as const,
+    },
+    {
+      label: "omitted-unknown-insufficient-criterion",
+      materialKind: "criterion_assessment_item:unknown:insufficient",
+      expectedCount: "uncertain_material" as const,
+    },
+  ]) {
+    const fullCatalog = catalogFixture([
+      directCatalog.items[0]!,
+      catalogEntryFixture({
+        label: adverseMaterial.label,
+        materialKind: adverseMaterial.materialKind,
+        trustClass: "derived_interpretation",
+      }),
+    ]);
+    const omittedAdverseOutput =
+      normalizeStrategicAdvantageTransferModelOutputV01(
+        outputFixture([
+          transferFixture("constraint_fit", directKey),
+        ]),
+      );
+    const classified = resolveStrategicAdvantageTransferItemsV01({
+      catalog: fullCatalog,
+      server_adverse_context: adverseContextForCatalog(fullCatalog),
+      model_output: omittedAdverseOutput,
+    })[0]!;
+    assert.equal(classified.support.status, "unknown");
+    assert.equal(classified.support.basis, "insufficient");
+    assert.equal(
+      strategicTransferCandidateLaneV01(classified.support),
+      "research_delta",
+    );
+    assert.ok(classified.support[adverseMaterial.expectedCount] > 0);
+    assert.deepEqual(classified.source_keys, [directKey]);
+    assert.deepEqual(
+      classified.selected_support_entries.map((entry) => entry.source_key),
+      [directKey],
+    );
+  }
+
+  const sourceLessWarning = taskWideAdverseItemFixture(
+    "receipt_warning",
+    "A source-less receipt warning remains unresolved.",
+  );
+  const sourceLessContext = adverseContextForCatalog(directCatalog, [
+    sourceLessWarning,
+  ]);
+  const sourceLessClassified = resolveStrategicAdvantageTransferItemsV01({
+    catalog: directCatalog,
+    server_adverse_context: sourceLessContext,
+    model_output: oneLens,
+  })[0]!;
+  assert.equal(sourceLessClassified.support.status, "unknown");
+  assert.equal(sourceLessClassified.support.basis, "insufficient");
+  assert.equal(sourceLessClassified.support.task_wide_adverse_material, 1);
+  assert.deepEqual(sourceLessContext.items[0]!.source_refs, []);
+  assert.notEqual(
+    sourceLessContext.adverse_context_fingerprint,
+    emptyAdverseContextFixture().adverse_context_fingerprint,
+  );
+  assertProtocolError(
+    () =>
+      createStrategicAdvantageTransferAdverseContextV01(
+        Array.from(
+          {
+            length:
+              STRATEGIC_ADVANTAGE_TRANSFER_MAX_ADVERSE_CONTEXT_ITEMS_V01 + 1,
+          },
+          (_, index) =>
+            taskWideAdverseItemFixture(
+              "receipt_gap",
+              `Over-bound source-less gap ${index}.`,
+            ),
+        ),
+      ),
+    "strategic_advantage_transfer_adverse_context_bound_exceeded",
+  );
+
+  const genericPacketDeliveryCatalog = catalogFixture([
+    catalogEntryFixture({
+      label: "packet-delivery-passed",
+      materialKind: "check_passed",
+      trustClass: "direct_local_observation",
+    }),
+  ]);
+  const packetDeliveryOnly = resolveStrategicAdvantageTransferItemsV01({
+    catalog: genericPacketDeliveryCatalog,
+    server_adverse_context: adverseContextForCatalog(
+      genericPacketDeliveryCatalog,
+    ),
+    model_output: normalizeStrategicAdvantageTransferModelOutputV01(
+      outputFixture([
+        transferFixture(
+          "constraint_fit",
+          genericPacketDeliveryCatalog.items[0]!.source_key,
+        ),
+      ]),
+    ),
+  })[0]!;
+  assert.equal(packetDeliveryOnly.support.status, "unknown");
+  assert.equal(packetDeliveryOnly.support.basis, "insufficient");
+  assert.equal(packetDeliveryOnly.support.direct_local_observation, 1);
+
+  const genericExecutionCatalog = catalogFixture([
+    catalogEntryFixture({
+      label: "execution-completed-observation",
+      materialKind: "receipt_observation:execution_completed",
+      trustClass: "direct_local_observation",
+    }),
+  ]);
+  const executionOnly = resolveStrategicAdvantageTransferItemsV01({
+    catalog: genericExecutionCatalog,
+    server_adverse_context: adverseContextForCatalog(genericExecutionCatalog),
+    model_output: normalizeStrategicAdvantageTransferModelOutputV01(
+      outputFixture([
+        transferFixture(
+          "constraint_fit",
+          genericExecutionCatalog.items[0]!.source_key,
+        ),
+      ]),
+    ),
+  })[0]!;
+  assert.equal(executionOnly.support.status, "unknown");
+  assert.equal(executionOnly.support.basis, "insufficient");
+
+  const secondReorderedSupport = catalogEntryFixture({
+    label: "reordered-verified-support",
+    materialKind: "source_observation:strategic_transfer_support",
+    trustClass: "verified_external_observation",
+  });
+  const reorderedConflict = catalogEntryFixture({
+      label: "reordered-conflict",
+      materialKind: "source_conflict",
+      trustClass: "derived_interpretation",
+    });
+  const reorderedCatalog = catalogFixture([
+    directCatalog.items[0]!,
+    secondReorderedSupport,
+    reorderedConflict,
+  ].reverse());
+  const reorderedModelKeys = normalizeStrategicAdvantageTransferModelOutputV01(
+    outputFixture([
+      transferFixture(
+        "constraint_fit",
+        [secondReorderedSupport.source_key, directKey],
+      ),
+    ]),
+  );
+  assert.equal(
+    canonicalizeProtocolValueV01(
+      resolveStrategicAdvantageTransferItemsV01({
+        catalog: reorderedCatalog,
+        server_adverse_context: adverseContextForCatalog(reorderedCatalog),
+        model_output: reorderedModelKeys,
+      }),
+    ),
+    canonicalizeProtocolValueV01(
+      resolveStrategicAdvantageTransferItemsV01({
+        catalog: catalogFixture([...reorderedCatalog.items].reverse()),
+        server_adverse_context: adverseContextForCatalog(
+          catalogFixture([...reorderedCatalog.items].reverse()),
+        ),
+        model_output: normalizeStrategicAdvantageTransferModelOutputV01(
+          outputFixture([
+            transferFixture(
+              "constraint_fit",
+              [directKey, secondReorderedSupport.source_key],
+            ),
+          ]),
+        ),
+      }),
+    ),
+  );
 
   const noSource = structuredClone(oneLens);
   (noSource.lens_results[0] as StrategicAdvantageTransferModelTransferV01).source_keys = [];
@@ -362,24 +576,25 @@ export function runStrategicAdvantageTransferConformanceV01() {
     () =>
       resolveStrategicAdvantageTransferItemsV01({
         catalog: directCatalog,
+        server_adverse_context: adverseContextForCatalog(directCatalog),
         model_output: normalizedUnknownSource,
       }),
     "strategic_advantage_transfer_unknown_source_key",
   );
 
-  assertSupportClassification("verified_external_observation", "receipt_observation:verified", {
+  assertSupportClassification("verified_external_observation", "source_observation:strategic_transfer_support", {
     status: "supported",
     basis: "observed",
   });
-  assertSupportClassification("host_attestation", "receipt_attestation:host", {
+  assertSupportClassification("host_attestation", "source_observation:strategic_transfer_support", {
     status: "unknown",
     basis: "attested",
   });
-  assertSupportClassification("provider_report", "receipt_attestation:provider", {
+  assertSupportClassification("provider_report", "source_observation:strategic_transfer_support", {
     status: "unknown",
     basis: "attested",
   });
-  assertSupportClassification("derived_interpretation", "source_inference:derived", {
+  assertSupportClassification("derived_interpretation", "source_observation:strategic_transfer_support", {
     status: "unknown",
     basis: "insufficient",
   });
@@ -397,6 +612,7 @@ export function runStrategicAdvantageTransferConformanceV01() {
   ]);
   const derivedOnDirectRef = resolveStrategicAdvantageTransferItemsV01({
     catalog: derivedOnDirectRefCatalog,
+    server_adverse_context: adverseContextForCatalog(derivedOnDirectRefCatalog),
     model_output: normalizeStrategicAdvantageTransferModelOutputV01(
       outputFixture([
         transferFixture(
@@ -435,6 +651,7 @@ export function runStrategicAdvantageTransferConformanceV01() {
     ]);
     const unavailableItem = resolveStrategicAdvantageTransferItemsV01({
       catalog: unavailableCatalog,
+      server_adverse_context: adverseContextForCatalog(unavailableCatalog),
       model_output: normalizeStrategicAdvantageTransferModelOutputV01(
         outputFixture([
           transferFixture(
@@ -447,18 +664,18 @@ export function runStrategicAdvantageTransferConformanceV01() {
     assert.equal(unavailableItem.support.status, "unknown");
     assert.equal(unavailableItem.support.basis, "insufficient");
     assert.equal(unavailableItem.support.unavailable_material, 1);
-    assert.equal(unavailableItem.support.direct_local_observation, 0);
+    assert.equal(unavailableItem.support.direct_local_observation, 1);
   }
 
   const mixedCatalog = catalogFixture([
     catalogEntryFixture({
       label: "mixed-direct",
-      materialKind: "receipt_observation:direct",
+      materialKind: "source_observation:strategic_transfer_support",
       trustClass: "direct_local_observation",
     }),
     catalogEntryFixture({
       label: "mixed-attestation",
-      materialKind: "receipt_attestation:host",
+      materialKind: "source_observation:strategic_transfer_support",
       trustClass: "host_attestation",
     }),
   ]);
@@ -472,6 +689,7 @@ export function runStrategicAdvantageTransferConformanceV01() {
   );
   const mixed = resolveStrategicAdvantageTransferItemsV01({
     catalog: mixedCatalog,
+    server_adverse_context: adverseContextForCatalog(mixedCatalog),
     model_output: mixedOutput,
   });
   assert.equal(mixed[0]!.support.status, "supported");
@@ -497,6 +715,7 @@ export function runStrategicAdvantageTransferConformanceV01() {
   );
   const agreementItems = resolveStrategicAdvantageTransferItemsV01({
     catalog: agreementCatalog,
+    server_adverse_context: adverseContextForCatalog(agreementCatalog),
     model_output: agreementOutput,
   });
   assert.equal(agreementItems.length, 3);
@@ -533,6 +752,20 @@ export function runStrategicAdvantageTransferConformanceV01() {
     createStrategicWorkingFrameFingerprintV01({
       ...frameWithoutFingerprint,
       task_goal: "A materially changed task goal.",
+    }),
+    frameFingerprint,
+  );
+  assert.notEqual(
+    createStrategicWorkingFrameFingerprintV01({
+      ...frameWithoutFingerprint,
+      server_adverse_context: createStrategicAdvantageTransferAdverseContextV01(
+        [
+          taskWideAdverseItemFixture(
+            "receipt_gap",
+            "A changed source-less gap remains fingerprinted.",
+          ),
+        ],
+      ),
     }),
     frameFingerprint,
   );
@@ -686,6 +919,10 @@ export function runStrategicAdvantageTransferConformanceV01() {
     exact_source_key_resolution_checked: true,
     source_less_transfer_refused: true,
     server_owned_support_classification_checked: true,
+    full_context_adverse_classification_checked: true,
+    source_less_adverse_context_preserved_checked: true,
+    positive_support_allowlist_checked: true,
+    omitted_adverse_material_cannot_grant_support: true,
     deterministic_frame_catalog_identity_checked: true,
     forbidden_model_material_refused: true,
     no_authority_from_confidence_or_agreement: true,
@@ -730,6 +967,19 @@ export function strategicModelInputFixtureV01(
       base_strategy_summary: frame.base_strategy.bounded_summary,
       excluded_context_summaries: frame.excluded_context_summaries,
       gap_summaries: frame.gap_summaries,
+      server_adverse_context: {
+        projection_version: frame.server_adverse_context.projection_version,
+        items: frame.server_adverse_context.items.map((item) => ({
+          code: item.code,
+          category: item.category,
+          bounded_summary: item.bounded_summary,
+          epistemic_class: item.epistemic_class,
+          scope: item.scope,
+          source_ref_count: item.source_refs.length,
+        })),
+        adverse_context_fingerprint:
+          frame.server_adverse_context.adverse_context_fingerprint,
+      },
     },
     source_catalog: {
       source_catalog_fingerprint: catalog.source_catalog_fingerprint,
@@ -757,6 +1007,34 @@ export function strategicModelOutputFixtureV01(
   );
 }
 
+function adverseContextForCatalog(
+  catalog: StrategicAdvantageTransferSourceCatalogV01,
+  taskWideItems: StrategicAdvantageTransferAdverseContextItemV01[] = [],
+) {
+  return createStrategicAdvantageTransferAdverseContextV01([
+    ...projectStrategicCatalogAdverseContextItemsV01(catalog),
+    ...taskWideItems,
+  ]);
+}
+
+function emptyAdverseContextFixture() {
+  return createStrategicAdvantageTransferAdverseContextV01([]);
+}
+
+function taskWideAdverseItemFixture(
+  category: StrategicAdvantageTransferAdverseContextItemV01["category"],
+  summary: string,
+): StrategicAdvantageTransferAdverseContextItemV01 {
+  return {
+    code: `adverse:${category}:${createProtocolSha256V01(summary).slice(7, 31)}`,
+    category,
+    bounded_summary: summary,
+    source_refs: [],
+    epistemic_class: "unknown",
+    scope: "task_wide_context",
+  };
+}
+
 function assertSupportClassification(
   trustClass: ExternalRefTrustClassV01,
   materialKind: string,
@@ -776,6 +1054,7 @@ function assertSupportClassification(
   );
   const item = resolveStrategicAdvantageTransferItemsV01({
     catalog,
+    server_adverse_context: adverseContextForCatalog(catalog),
     model_output: output,
   })[0]!;
   assert.equal(item.support.status, expected.status);
@@ -874,12 +1153,17 @@ function workingFrameAtCanonicalSize(
       { length: fullCriterionCount },
       (_, index) => boundCriterionFixture(index, 1_200),
     );
-    const candidate = (adjustableLength: number) => {
+    const candidate = (adjustableLength: number, paddingLength: number) => {
+      const baseFrame = workingFrameFixture();
       const material = {
-        ...workingFrameFixture(),
+        ...baseFrame,
         success_criteria: [
           ...fixedCriteria,
           boundCriterionFixture(fullCriterionCount, adjustableLength),
+        ],
+        gap_summaries: [
+          ...baseFrame.gap_summaries,
+          "p".repeat(paddingLength),
         ],
       };
       return {
@@ -888,11 +1172,15 @@ function workingFrameAtCanonicalSize(
           createStrategicWorkingFrameFingerprintV01(material),
       };
     };
-    const minimum = candidate(1);
+    const minimum = candidate(1, 1);
     const minimumBytes = canonicalUtf8Size(minimum);
-    const maximumBytes = canonicalUtf8Size(candidate(1_200));
+    const maximumBytes = canonicalUtf8Size(candidate(1_200, 1_200));
     if (targetBytes < minimumBytes || targetBytes > maximumBytes) continue;
-    const exact = candidate(1 + targetBytes - minimumBytes);
+    const variableBytes = targetBytes - minimumBytes;
+    const criterionDelta = Math.min(1_199, variableBytes);
+    const paddingDelta = variableBytes - criterionDelta;
+    if (paddingDelta > 1_199) continue;
+    const exact = candidate(1 + criterionDelta, 1 + paddingDelta);
     assert.equal(canonicalUtf8Size(exact), targetBytes);
     return exact;
   }
@@ -1024,6 +1312,7 @@ function workingFrameFixture(): Omit<
     selected_accepted_state_refs: [base.state_ref],
     excluded_context_summaries: ["Unselected state remains excluded."],
     gap_summaries: ["Criterion-specific support remains unavailable."],
+    server_adverse_context: emptyAdverseContextFixture(),
     base_strategy: base,
     trust_summary: {
       direct_local_observation: 1,

@@ -135,6 +135,7 @@ export function buildStrategicAdvantageTransferSystemPromptV01(): string {
   return [
     "Evaluate only bounded local transfer opportunities against the supplied exact base and working frame.",
     "Return one result for each supplied fixed lens and use only supplied source keys.",
+    "Treat the supplied server adverse context as mandatory task-wide context; selecting source keys does not remove conflicts, skipped or failed checks, unavailable coverage, missing information, or uncertainty from server classification.",
     "Do not rank, vote, select a winner, invent sources, infer authority, or emit hidden reasoning, confidence, scores, personas, debate, or transcripts.",
     "A transfer requires applicability, expected effect, cost, falsifier, uncertainty, risks, a local patch summary, and regression review material.",
     "When no source-linked transfer is supportable for a lens, return no_transfer with a bounded reason.",

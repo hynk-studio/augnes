@@ -1171,7 +1171,13 @@ async function main() {
           panelText.includes('Checks or observations needed') &&
           panelText.includes('Stop conditions') &&
           panelText.includes('Invalidation conditions') &&
-          panelText.includes('Exact transfer sources'),
+          panelText.includes('Model-selected candidate source relation'),
+        server_owned_support:
+          panel?.querySelector('[data-vnext-strategic-server-adverse-context="true"]') !== null &&
+          panelText.includes('Server-owned adverse context') &&
+          panelText.includes('cannot be selected away') &&
+          panelText.includes('Final server support: unknown · insufficient') &&
+          panelText.includes('explicit strategic-transfer observations only'),
         lineage:
           panelText.includes('Base and source lineage') &&
           panelText.includes('Packet, receipt, and model-receipt lineage') &&
@@ -1196,6 +1202,7 @@ async function main() {
       transfer_count: 1,
       candidate_operation_unknown: true,
       full_material: true,
+      server_owned_support: true,
       lineage: true,
       non_authoritative: true,
       arena_heading_count: 0,

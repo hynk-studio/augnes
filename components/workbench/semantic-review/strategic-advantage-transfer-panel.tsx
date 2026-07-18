@@ -312,6 +312,42 @@ function StrategicProposalMaterial({
         </p>
       </section>
 
+      <section
+        className={styles.materialCard}
+        data-vnext-strategic-server-adverse-context="true"
+      >
+        <h3>Server-owned adverse context</h3>
+        <p className={styles.copy}>
+          Model-selected sources preserve a proposed relation only. Receipt-wide
+          conflicts, skipped or failed checks, unavailable coverage, missing or
+          unknown material, and source-less blockers remain in the server
+          classification even when the model omits them.
+        </p>
+        <span>
+          {profile.server_adverse_context.items.length} bounded adverse context
+          item(s)
+        </span>
+        <ul className={styles.plainList}>
+          {profile.server_adverse_context.items.map((item) => (
+            <li key={item.code}>
+              <strong>{humanizeCode(item.category)}</strong>
+              <span>{item.bounded_summary}</span>
+              <span>
+                {item.scope === "source_linked"
+                  ? `${item.source_refs.length} exact source ref(s)`
+                  : "task-wide contextual residue; no source ref was fabricated"}
+                {` · ${humanizeCode(item.epistemic_class)}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {profile.server_adverse_context.items.length === 0 ? (
+          <p className={styles.muted}>
+            No unresolved adverse context is present.
+          </p>
+        ) : null}
+      </section>
+
       <ol
         className={styles.candidateList}
         data-vnext-strategic-transfer-items="true"
@@ -349,12 +385,21 @@ function StrategicProposalMaterial({
               <h3>Source-linked patch</h3>
               <p className={styles.copy}>{item.patch_summary}</p>
               <p className={styles.muted}>
-                Exact support context: {item.support.conflicted_material}
+                Final server support: {item.support.status} ·{" "}
+                {item.support.basis}
+                {" · "}
+                {item.support.conflicted_material}
                 {" conflict · "}{item.support.skipped_material}
                 {" skipped · "}{item.support.unavailable_material}
                 {" unavailable · "}{item.support.missing_material}
                 {" missing · "}{item.support.uncertain_material}
                 {" uncertain item(s)"}
+              </p>
+              <p className={styles.muted}>
+                Positive support policy: explicit strategic-transfer
+                observations only. Source trust, passed transport checks,
+                execution completion, source count, wording, and lens agreement
+                do not establish transfer relevance.
               </p>
             </section>
             <StrategicTextList title="Uncertainty" items={item.uncertainty} />
@@ -385,13 +430,14 @@ function StrategicProposalMaterial({
               />
             </div>
             <StrategicRefs
-              title="Exact transfer sources"
+              title="Model-selected candidate source relation"
               refs={item.source_refs}
             />
             <p className={styles.notice}>
-              This transfer is mapped to an existing research or validation lane
-              with operation unknown. It remains review-required and is not
-              Transition-ready.
+              Omitted adverse material remains visible and cannot be selected
+              away. This transfer is mapped to an existing research or
+              validation lane with operation unknown. It remains
+              review-required, non-authoritative, and is not Transition-ready.
             </p>
           </li>
         ))}

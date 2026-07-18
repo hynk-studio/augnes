@@ -15,6 +15,8 @@ export const STRATEGIC_ADVANTAGE_TRANSFER_MODEL_SCHEMA_VERSION_V01 =
   "strategic_advantage_transfer_model_output.v0.1" as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_BUDGET_VERSION_V01 =
   "strategic_advantage_transfer_budget.v0.1" as const;
+export const STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01 =
+  "strategic_advantage_transfer_adverse_context.v0.1" as const;
 
 export const STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01 = [
   "constraint_fit",
@@ -32,6 +34,8 @@ export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_SOURCE_CATALOG_ITEMS_V01 =
 export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_SOURCE_REFS_V01 = 16 as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_TEXT_CHARACTERS_V01 = 1200 as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_TEXT_ITEMS_V01 = 16 as const;
+export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_ADVERSE_CONTEXT_ITEMS_V01 =
+  64 as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_CANONICAL_UTF8_BYTES_V01 =
   98_304 as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MAX_INPUT_BYTES_V01 = 65_536 as const;
@@ -99,6 +103,45 @@ export interface StrategicAdvantageTransferBaseStrategyV01 {
   base_fingerprint: string;
 }
 
+export type StrategicAdvantageTransferAdverseCategoryV01 =
+  | "conflict"
+  | "receipt_blocker"
+  | "receipt_warning"
+  | "receipt_gap"
+  | "failed_check"
+  | "blocked_check"
+  | "skipped_check"
+  | "unsupported_capability"
+  | "outside_coverage"
+  | "missing_information"
+  | "uncertainty"
+  | "unknown_criterion"
+  | "insufficient_criterion"
+  | "packet_gap"
+  | "packet_exclusion"
+  | "stale_source"
+  | "unavailable_source";
+
+export type StrategicAdvantageTransferAdverseEpistemicClassV01 =
+  | ExternalRefTrustClassV01
+  | "unavailable"
+  | "unknown";
+
+export interface StrategicAdvantageTransferAdverseContextItemV01 {
+  code: string;
+  category: StrategicAdvantageTransferAdverseCategoryV01;
+  bounded_summary: string;
+  source_refs: ExternalRefV01[];
+  epistemic_class: StrategicAdvantageTransferAdverseEpistemicClassV01;
+  scope: "source_linked" | "task_wide_context";
+}
+
+export interface StrategicAdvantageTransferAdverseContextV01 {
+  projection_version: typeof STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01;
+  items: StrategicAdvantageTransferAdverseContextItemV01[];
+  adverse_context_fingerprint: string;
+}
+
 export interface StrategicAdvantageTransferWorkingFrameV01 {
   frame_version: typeof STRATEGIC_ADVANTAGE_TRANSFER_WORKING_FRAME_VERSION_V01;
   workspace_id: string;
@@ -124,6 +167,7 @@ export interface StrategicAdvantageTransferWorkingFrameV01 {
   selected_accepted_state_refs: ExternalRefV01[];
   excluded_context_summaries: string[];
   gap_summaries: string[];
+  server_adverse_context: StrategicAdvantageTransferAdverseContextV01;
   base_strategy: StrategicAdvantageTransferBaseStrategyV01;
   trust_summary: CriterionAssessmentV01["criteria"][number]["trust"];
   coverage_summary: string[];
@@ -173,6 +217,18 @@ export interface StrategicAdvantageTransferModelInputV01 {
     base_strategy_summary: string;
     excluded_context_summaries: string[];
     gap_summaries: string[];
+    server_adverse_context: {
+      projection_version: typeof STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01;
+      items: Array<{
+        code: string;
+        category: StrategicAdvantageTransferAdverseCategoryV01;
+        bounded_summary: string;
+        epistemic_class: StrategicAdvantageTransferAdverseEpistemicClassV01;
+        scope: "source_linked" | "task_wide_context";
+        source_ref_count: number;
+      }>;
+      adverse_context_fingerprint: string;
+    };
   };
   source_catalog: {
     source_catalog_fingerprint: string;
@@ -236,6 +292,12 @@ export interface StrategicAdvantageTransferNormalizedItemV01 {
   transfer_cost: string;
   source_keys: string[];
   source_refs: ExternalRefV01[];
+  selected_support_entries: Array<{
+    source_key: string;
+    ref: ExternalRefV01;
+    material_kind: string;
+    trust_class: ExternalRefTrustClassV01;
+  }>;
   falsifier: string;
   uncertainty: string[];
   introduced_risks: string[];
@@ -258,6 +320,9 @@ export interface StrategicAdvantageTransferNormalizedItemV01 {
     missing_material: number;
     uncertain_material: number;
     skipped_or_unavailable_material: number;
+    task_wide_adverse_material: number;
+    server_adverse_context_fingerprint: string;
+    positive_support_policy: "explicit_strategic_transfer_observation_only";
   };
 }
 
@@ -271,6 +336,7 @@ export interface StrategicAdvantageTransferProfileV01 {
   base_strategy: StrategicAdvantageTransferBaseStrategyV01;
   working_frame: StrategicAdvantageTransferWorkingFrameV01;
   source_catalog: StrategicAdvantageTransferSourceCatalogV01;
+  server_adverse_context: StrategicAdvantageTransferAdverseContextV01;
   lenses: StrategicAdvantageTransferLensIdV01[];
   budget: StrategicAdvantageTransferBudgetV01;
   model_invocation: {

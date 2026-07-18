@@ -23,8 +23,10 @@ import {
 } from "@/types/vnext/external-ref";
 import {
   STRATEGIC_ADVANTAGE_TRANSFER_BUDGET_VERSION_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MAX_CANONICAL_UTF8_BYTES_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MAX_ADVERSE_CONTEXT_ITEMS_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MAX_INPUT_BYTES_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MAX_LENSES_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MAX_OUTPUT_TOKENS_V01,
@@ -39,6 +41,10 @@ import {
   STRATEGIC_ADVANTAGE_TRANSFER_TIMEOUT_MS_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_WORKING_FRAME_VERSION_V01,
   type StrategicAdvantageTransferBudgetV01,
+  type StrategicAdvantageTransferAdverseContextItemV01,
+  type StrategicAdvantageTransferAdverseContextV01,
+  type StrategicAdvantageTransferAdverseCategoryV01,
+  type StrategicAdvantageTransferAdverseEpistemicClassV01,
   type StrategicAdvantageTransferLensIdV01,
   type StrategicAdvantageTransferModelLensResultV01,
   type StrategicAdvantageTransferModelOutputV01,
@@ -52,6 +58,28 @@ import {
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9:._-]{1,256}$/u;
 const SOURCE_KEY = /^source:[a-f0-9]{24}$/u;
+const STRATEGIC_ADVERSE_CATEGORIES_V01 = [
+  "conflict",
+  "receipt_blocker",
+  "receipt_warning",
+  "receipt_gap",
+  "failed_check",
+  "blocked_check",
+  "skipped_check",
+  "unsupported_capability",
+  "outside_coverage",
+  "missing_information",
+  "uncertainty",
+  "unknown_criterion",
+  "insufficient_criterion",
+  "packet_gap",
+  "packet_exclusion",
+  "stale_source",
+  "unavailable_source",
+] as const satisfies readonly StrategicAdvantageTransferAdverseCategoryV01[];
+const STRATEGIC_POSITIVE_SUPPORT_MATERIAL_KINDS_V01 = new Set([
+  "source_observation:strategic_transfer_support",
+]);
 
 export class StrategicAdvantageTransferProtocolErrorV01 extends Error {
   constructor(readonly code: string, readonly path: string = "$") {
@@ -113,6 +141,234 @@ export function createStrategicSourceCatalogFingerprintV01(
   catalog: Omit<StrategicAdvantageTransferSourceCatalogV01, "source_catalog_fingerprint">,
 ): string {
   return createProtocolSha256V01(canonicalizeProtocolValueV01(catalog));
+}
+
+export function createStrategicAdverseContextFingerprintV01(
+  context: Omit<
+    StrategicAdvantageTransferAdverseContextV01,
+    "adverse_context_fingerprint"
+  >,
+): string {
+  return createProtocolSha256V01(canonicalizeProtocolValueV01(context));
+}
+
+export function createStrategicAdverseContextItemCodeV01(input: {
+  category: StrategicAdvantageTransferAdverseCategoryV01;
+  discriminator: unknown;
+  bounded_summary: string;
+  source_refs: ExternalRefV01[];
+}): string {
+  return `adverse:${input.category}:${createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      discriminator: input.discriminator,
+      bounded_summary: boundedText(
+        input.bounded_summary,
+        "$server_adverse_context.item.bounded_summary",
+      ),
+      source_refs: normalizeRefs(input.source_refs),
+    }),
+  ).slice(7, 31)}`;
+}
+
+export function projectStrategicCatalogAdverseContextItemsV01(
+  input: StrategicAdvantageTransferSourceCatalogV01,
+): StrategicAdvantageTransferAdverseContextItemV01[] {
+  const catalog = validateStrategicAdvantageTransferSourceCatalogV01(input);
+  return catalog.items
+    .flatMap((entry) => {
+      const categories = strategicCatalogAdverseCategoriesV01(
+        entry.material_kind,
+      );
+      const sourceRefs = [normalizeExternalRefPrimitiveV01(entry.ref)];
+      return categories.map((category) => ({
+        code: createStrategicAdverseContextItemCodeV01({
+          category,
+          discriminator: {
+            source_key: entry.source_key,
+            material_kind: entry.material_kind,
+          },
+          bounded_summary: entry.bounded_summary,
+          source_refs: sourceRefs,
+        }),
+        category,
+        bounded_summary: entry.bounded_summary,
+        source_refs: sourceRefs,
+        epistemic_class: entry.trust_class,
+        scope: "source_linked" as const,
+      }));
+    })
+    .sort(compareProtocolCanonicalV01);
+}
+
+export function createStrategicAdvantageTransferAdverseContextV01(
+  items: readonly StrategicAdvantageTransferAdverseContextItemV01[],
+): StrategicAdvantageTransferAdverseContextV01 {
+  const normalizedItems = uniqueProtocolValuesV01(
+    items.map((item, index) =>
+      normalizeStrategicAdverseContextItemV01(
+        item,
+        `$server_adverse_context.items[${index}]`,
+      ),
+    ),
+  ).sort(compareProtocolCanonicalV01);
+  if (
+    normalizedItems.length >
+    STRATEGIC_ADVANTAGE_TRANSFER_MAX_ADVERSE_CONTEXT_ITEMS_V01
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_bound_exceeded",
+      "$server_adverse_context.items",
+    );
+  }
+  const withoutFingerprint = {
+    projection_version:
+      STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01,
+    items: normalizedItems,
+  };
+  const context = {
+    ...withoutFingerprint,
+    adverse_context_fingerprint:
+      createStrategicAdverseContextFingerprintV01(withoutFingerprint),
+  };
+  validateStrategicAdvantageTransferAdverseContextV01(context);
+  return context;
+}
+
+export function validateStrategicAdvantageTransferAdverseContextV01(
+  input: unknown,
+): StrategicAdvantageTransferAdverseContextV01 {
+  const context = exactRecord(
+    input,
+    ["projection_version", "items", "adverse_context_fingerprint"],
+    "$strategic_advantage_transfer.server_adverse_context",
+  );
+  literal(
+    context.projection_version,
+    STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01,
+    "$strategic_advantage_transfer.server_adverse_context.projection_version",
+  );
+  const items = exactArray(
+    context.items,
+    "$strategic_advantage_transfer.server_adverse_context.items",
+    0,
+    STRATEGIC_ADVANTAGE_TRANSFER_MAX_ADVERSE_CONTEXT_ITEMS_V01,
+  ).map((item, index) =>
+    normalizeStrategicAdverseContextItemV01(
+      item as StrategicAdvantageTransferAdverseContextItemV01,
+      `$strategic_advantage_transfer.server_adverse_context.items[${index}]`,
+    ),
+  );
+  if (
+    canonicalizeProtocolValueV01(items) !==
+    canonicalizeProtocolValueV01(
+      uniqueProtocolValuesV01(items).sort(compareProtocolCanonicalV01),
+    )
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_noncanonical",
+      "$strategic_advantage_transfer.server_adverse_context.items",
+    );
+  }
+  requiredSha(
+    context.adverse_context_fingerprint,
+    "$strategic_advantage_transfer.server_adverse_context.adverse_context_fingerprint",
+  );
+  const withoutFingerprint = {
+    projection_version:
+      STRATEGIC_ADVANTAGE_TRANSFER_ADVERSE_CONTEXT_VERSION_V01,
+    items,
+  };
+  if (
+    context.adverse_context_fingerprint !==
+    createStrategicAdverseContextFingerprintV01(withoutFingerprint)
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_fingerprint_conflict",
+      "$strategic_advantage_transfer.server_adverse_context.adverse_context_fingerprint",
+    );
+  }
+  assertStrategicAdvantageTransferSourceTextSafeV01(
+    context,
+    "$strategic_advantage_transfer.server_adverse_context",
+  );
+  assertCanonicalSize(
+    context,
+    "$strategic_advantage_transfer.server_adverse_context",
+  );
+  return structuredClone(context) as unknown as StrategicAdvantageTransferAdverseContextV01;
+}
+
+function normalizeStrategicAdverseContextItemV01(
+  input: unknown,
+  path: string,
+): StrategicAdvantageTransferAdverseContextItemV01 {
+  const item = exactRecord(
+    input,
+    [
+      "code",
+      "category",
+      "bounded_summary",
+      "source_refs",
+      "epistemic_class",
+      "scope",
+    ],
+    path,
+  );
+  const code = requiredId(item.code, `${path}.code`);
+  const category = requiredText(item.category, `${path}.category`);
+  if (
+    !STRATEGIC_ADVERSE_CATEGORIES_V01.includes(
+      category as StrategicAdvantageTransferAdverseCategoryV01,
+    )
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_category_invalid",
+      `${path}.category`,
+    );
+  }
+  const boundedSummary = boundedText(
+    item.bounded_summary,
+    `${path}.bounded_summary`,
+  );
+  const sourceRefs = refArray(item.source_refs, `${path}.source_refs`);
+  const epistemicClass = requiredText(
+    item.epistemic_class,
+    `${path}.epistemic_class`,
+  );
+  if (
+    ![
+      ...EXTERNAL_REF_TRUST_CLASSES_V01,
+      "unavailable",
+      "unknown",
+    ].includes(epistemicClass as StrategicAdvantageTransferAdverseEpistemicClassV01)
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_epistemic_class_invalid",
+      `${path}.epistemic_class`,
+    );
+  }
+  const scope = requiredText(item.scope, `${path}.scope`);
+  if (scope !== "source_linked" && scope !== "task_wide_context") {
+    fail(
+      "strategic_advantage_transfer_adverse_context_scope_invalid",
+      `${path}.scope`,
+    );
+  }
+  if (scope === "source_linked" && sourceRefs.length === 0) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_source_ref_required",
+      `${path}.source_refs`,
+    );
+  }
+  return {
+    code,
+    category: category as StrategicAdvantageTransferAdverseCategoryV01,
+    bounded_summary: boundedSummary,
+    source_refs: sourceRefs,
+    epistemic_class:
+      epistemicClass as StrategicAdvantageTransferAdverseEpistemicClassV01,
+    scope,
+  };
 }
 
 export function createStrategicSourceKeyV01(input: {
@@ -239,8 +495,13 @@ export function validateStrategicAdvantageTransferSourceCatalogV01(
 
 export function resolveStrategicAdvantageTransferItemsV01(input: {
   catalog: StrategicAdvantageTransferSourceCatalogV01;
+  server_adverse_context: StrategicAdvantageTransferAdverseContextV01;
   model_output: StrategicAdvantageTransferModelOutputV01;
 }): StrategicAdvantageTransferNormalizedItemV01[] {
+  const adverseContext =
+    validateStrategicAdvantageTransferAdverseContextV01(
+      input.server_adverse_context,
+    );
   const catalogByKey = new Map(
     input.catalog.items.map((item) => [item.source_key, item] as const),
   );
@@ -270,7 +531,27 @@ export function resolveStrategicAdvantageTransferItemsV01(input: {
         regressionKeys,
         `$model.${transfer.lens_id}.regression_review.source_keys`,
       );
-      const support = classifyStrategicSupport(sourceEntries);
+      const selectedSupportEntries = sourceEntries
+        .map((entry) => ({
+          source_key: entry.source_key,
+          ref: entry.ref,
+          material_kind: entry.material_kind,
+          trust_class: entry.trust_class,
+        }))
+        .sort(compareProtocolCanonicalV01);
+      const support = classifyStrategicSupport({
+        selected_support_entries: sourceEntries,
+        full_catalog_adverse_entries: input.catalog.items.filter(
+          (entry) =>
+            strategicCatalogAdverseCategoriesV01(entry.material_kind).length >
+            0,
+        ),
+        task_wide_adverse_context: adverseContext.items.filter(
+          (entry) => entry.scope === "task_wide_context",
+        ),
+        server_adverse_context_fingerprint:
+          adverseContext.adverse_context_fingerprint,
+      });
       const core = {
         lens_id: transfer.lens_id,
         title: transfer.title,
@@ -279,6 +560,7 @@ export function resolveStrategicAdvantageTransferItemsV01(input: {
         transfer_cost: transfer.transfer_cost,
         source_keys: sourceKeys,
         source_refs: normalizeRefs(sourceEntries.map((entry) => entry.ref)),
+        selected_support_entries: selectedSupportEntries,
         falsifier: transfer.falsifier,
         uncertainty: uniqueProtocolStringsV01(transfer.uncertainty),
         introduced_risks: uniqueProtocolStringsV01(
@@ -365,6 +647,7 @@ function validateProfileOrThrow(
       "base_strategy",
       "working_frame",
       "source_catalog",
+      "server_adverse_context",
       "lenses",
       "budget",
       "model_invocation",
@@ -397,6 +680,33 @@ function validateProfileOrThrow(
   const base = validateBaseStrategy(profile.base_strategy);
   const frame = validateWorkingFrame(profile.working_frame);
   const catalog = validateCatalog(profile.source_catalog);
+  const adverseContext =
+    validateStrategicAdvantageTransferAdverseContextV01(
+      profile.server_adverse_context,
+    );
+  if (
+    canonicalizeProtocolValueV01(frame.server_adverse_context) !==
+      canonicalizeProtocolValueV01(adverseContext)
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_binding_conflict",
+      "$strategic_advantage_transfer.server_adverse_context",
+    );
+  }
+  const expectedCatalogAdverseItems =
+    projectStrategicCatalogAdverseContextItemsV01(catalog);
+  const actualCatalogAdverseItems = adverseContext.items.filter(
+    (item) => item.scope === "source_linked",
+  );
+  if (
+    canonicalizeProtocolValueV01(actualCatalogAdverseItems) !==
+    canonicalizeProtocolValueV01(expectedCatalogAdverseItems)
+  ) {
+    fail(
+      "strategic_advantage_transfer_adverse_context_binding_conflict",
+      "$strategic_advantage_transfer.server_adverse_context.items",
+    );
+  }
   const lenses = validateLenses(profile.lenses);
   validateBudget(profile.budget);
   const budget = profile.budget as StrategicAdvantageTransferBudgetV01;
@@ -412,6 +722,7 @@ function validateProfileOrThrow(
   );
   const expectedTransfers = resolveStrategicAdvantageTransferItemsV01({
     catalog,
+    server_adverse_context: adverseContext,
     model_output: modelOutput,
   });
   if (
@@ -501,6 +812,7 @@ function validateProfileOrThrow(
     base.base_fingerprint,
     frame.working_frame_fingerprint,
     catalog.source_catalog_fingerprint,
+    adverseContext.adverse_context_fingerprint,
     assessment.assessment_fingerprint,
     packetRef.source_ref,
     receiptRef.source_ref,
@@ -799,6 +1111,7 @@ function validateWorkingFrame(input: unknown) {
       "selected_accepted_state_refs",
       "excluded_context_summaries",
       "gap_summaries",
+      "server_adverse_context",
       "base_strategy",
       "trust_summary",
       "coverage_summary",
@@ -837,6 +1150,9 @@ function validateWorkingFrame(input: unknown) {
   for (const key of ["required_checks", "forbidden_actions", "expected_artifacts", "required_return_fields", "excluded_context_summaries", "gap_summaries", "coverage_summary"] as const) {
     textArray(frame[key], `$strategic_advantage_transfer.working_frame.${key}`, 0);
   }
+  validateStrategicAdvantageTransferAdverseContextV01(
+    frame.server_adverse_context,
+  );
   refArray(frame.selected_accepted_state_refs, "$strategic_advantage_transfer.working_frame.selected_accepted_state_refs", 1);
   validateBaseStrategy(frame.base_strategy);
   const trust = exactRecord(
@@ -1045,56 +1361,91 @@ function validateAuthority(input: unknown): void {
   for (const [key, value] of Object.entries(authority)) if (value !== false) fail("strategic_advantage_transfer_authority_violation", `$strategic_advantage_transfer.authority.${key}`);
 }
 
-function classifyStrategicSupport(
-  entries: StrategicAdvantageTransferSourceCatalogV01["items"],
-): StrategicAdvantageTransferNormalizedItemV01["support"] {
-  const conflictedMaterial = entries.filter((entry) =>
-    /conflict/u.test(entry.material_kind),
-  ).length;
-  const skippedMaterial = entries.filter((entry) =>
-    /skipped/u.test(entry.material_kind),
-  ).length;
-  const unavailableMaterial = entries.filter((entry) =>
-    /(?:unsupported|outside_coverage)/u.test(entry.material_kind),
-  ).length;
-  const missingMaterial = entries.filter((entry) =>
-    /(?:receipt_gap|source_missing|check_failed|check_blocked)/u.test(
-      entry.material_kind,
-    ),
-  ).length;
-  const uncertainMaterial = entries.filter((entry) =>
-    /(?:source_uncertainty|criterion_assessment(?::|_item:).*unknown|criterion_assessment_item:[^:]+:insufficient)/u.test(
-      entry.material_kind,
-    ),
-  ).length;
-  const eligible = entries.filter((entry) =>
-    /^(?:receipt_observation:|source_observation:(?!persisted_run_receipt)|receipt_attestation:|source_attestation:|source_inference:|check_passed$)/u.test(
-      entry.material_kind,
-    ),
+function classifyStrategicSupport(input: {
+  selected_support_entries: StrategicAdvantageTransferSourceCatalogV01["items"];
+  full_catalog_adverse_entries: StrategicAdvantageTransferSourceCatalogV01["items"];
+  task_wide_adverse_context: StrategicAdvantageTransferAdverseContextItemV01[];
+  server_adverse_context_fingerprint: string;
+}): StrategicAdvantageTransferNormalizedItemV01["support"] {
+  const catalogCategories = input.full_catalog_adverse_entries.flatMap(
+    (entry) => strategicCatalogAdverseCategoriesV01(entry.material_kind),
+  );
+  const taskCategories = input.task_wide_adverse_context.map(
+    (entry) => entry.category,
+  );
+  const count = (
+    categories: readonly StrategicAdvantageTransferAdverseCategoryV01[],
+  ) =>
+    catalogCategories.filter((category) => categories.includes(category))
+      .length +
+    taskCategories.filter((category) => categories.includes(category)).length;
+  const conflictedMaterial = count(["conflict"]);
+  const skippedMaterial = count(["skipped_check"]);
+  const unavailableMaterial = count([
+    "unsupported_capability",
+    "outside_coverage",
+    "stale_source",
+    "unavailable_source",
+  ]);
+  const missingMaterial = count([
+    "receipt_blocker",
+    "receipt_warning",
+    "receipt_gap",
+    "failed_check",
+    "blocked_check",
+    "missing_information",
+    "packet_gap",
+    "packet_exclusion",
+  ]);
+  const uncertainMaterial = count([
+    "uncertainty",
+    "unknown_criterion",
+    "insufficient_criterion",
+  ]);
+  const eligible = input.selected_support_entries.filter((entry) =>
+    STRATEGIC_POSITIVE_SUPPORT_MATERIAL_KINDS_V01.has(entry.material_kind),
   );
   const counts = {
-    direct_local_observation: eligible.filter((entry) => entry.trust_class === "direct_local_observation").length,
-    verified_external_observation: eligible.filter((entry) => entry.trust_class === "verified_external_observation").length,
-    host_attestation: eligible.filter((entry) => entry.trust_class === "host_attestation").length,
-    provider_report: eligible.filter((entry) => entry.trust_class === "provider_report").length,
-    derived_interpretation: eligible.filter((entry) => entry.trust_class === "derived_interpretation").length,
+    direct_local_observation: input.selected_support_entries.filter(
+      (entry) => entry.trust_class === "direct_local_observation",
+    ).length,
+    verified_external_observation: input.selected_support_entries.filter(
+      (entry) => entry.trust_class === "verified_external_observation",
+    ).length,
+    host_attestation: input.selected_support_entries.filter(
+      (entry) => entry.trust_class === "host_attestation",
+    ).length,
+    provider_report: input.selected_support_entries.filter(
+      (entry) => entry.trust_class === "provider_report",
+    ).length,
+    derived_interpretation: input.selected_support_entries.filter(
+      (entry) => entry.trust_class === "derived_interpretation",
+    ).length,
   };
-  const observed = counts.direct_local_observation + counts.verified_external_observation;
-  const attested = counts.host_attestation + counts.provider_report;
+  const eligibleObserved = eligible.filter(
+    (entry) =>
+      entry.trust_class === "direct_local_observation" ||
+      entry.trust_class === "verified_external_observation",
+  ).length;
+  const eligibleAttested = eligible.filter(
+    (entry) =>
+      entry.trust_class === "host_attestation" ||
+      entry.trust_class === "provider_report",
+  ).length;
   const blockingMaterial =
     conflictedMaterial +
     skippedMaterial +
     unavailableMaterial +
     missingMaterial +
     uncertainMaterial;
-  const sufficient = blockingMaterial === 0 && observed > 0;
+  const sufficient = blockingMaterial === 0 && eligibleObserved > 0;
   return {
     status: sufficient ? "supported" : "unknown",
     basis: sufficient
-      ? attested > 0
+      ? eligibleAttested > 0
         ? "mixed"
         : "observed"
-      : blockingMaterial === 0 && observed === 0 && attested > 0
+      : blockingMaterial === 0 && eligibleObserved === 0 && eligibleAttested > 0
         ? "attested"
         : "insufficient",
     ...counts,
@@ -1105,7 +1456,50 @@ function classifyStrategicSupport(
     uncertain_material: uncertainMaterial,
     skipped_or_unavailable_material:
       skippedMaterial + unavailableMaterial,
+    task_wide_adverse_material: input.task_wide_adverse_context.length,
+    server_adverse_context_fingerprint:
+      input.server_adverse_context_fingerprint,
+    positive_support_policy:
+      "explicit_strategic_transfer_observation_only",
   };
+}
+
+export function strategicCatalogAdverseCategoriesV01(
+  materialKind: string,
+): StrategicAdvantageTransferAdverseCategoryV01[] {
+  const categories: StrategicAdvantageTransferAdverseCategoryV01[] = [];
+  if (materialKind === "source_conflict") categories.push("conflict");
+  if (materialKind.startsWith("source_missing:")) {
+    categories.push("missing_information");
+  }
+  if (materialKind === "source_uncertainty") categories.push("uncertainty");
+  if (materialKind === "check_failed") categories.push("failed_check");
+  if (materialKind === "check_blocked") categories.push("blocked_check");
+  if (materialKind === "skipped_check") categories.push("skipped_check");
+  if (materialKind === "coverage_unsupported") {
+    categories.push("unsupported_capability");
+  }
+  if (materialKind === "coverage_outside_coverage") {
+    categories.push("outside_coverage");
+  }
+  if (materialKind.startsWith("receipt_blocker:")) {
+    categories.push("receipt_blocker");
+  }
+  if (materialKind.startsWith("receipt_warning:")) {
+    categories.push("receipt_warning");
+  }
+  if (materialKind.startsWith("receipt_gap:")) {
+    categories.push("receipt_gap");
+  }
+  if (materialKind.startsWith("packet_gap:")) categories.push("packet_gap");
+  if (materialKind === "packet_exclusion") categories.push("packet_exclusion");
+  if (materialKind.startsWith("criterion_assessment_item:unknown:")) {
+    categories.push("unknown_criterion");
+  }
+  if (materialKind.endsWith(":insufficient")) {
+    categories.push("insufficient_criterion");
+  }
+  return categories.sort();
 }
 
 function resolveCatalogKeys(

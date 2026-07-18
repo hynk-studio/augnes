@@ -35,11 +35,14 @@ import {
 import {
   assertStrategicAdvantageTransferSourceTextSafeV01,
   createStrategicAnalysisIdentityV01,
+  createStrategicAdverseContextItemCodeV01,
+  createStrategicAdvantageTransferAdverseContextV01,
   createStrategicAdvantageTransferBudgetV01,
   createStrategicSourceCatalogFingerprintV01,
   createStrategicSourceKeyV01,
   createStrategicWorkingFrameFingerprintV01,
   normalizeStrategicAdvantageTransferModelOutputV01,
+  projectStrategicCatalogAdverseContextItemsV01,
   StrategicAdvantageTransferProtocolErrorV01,
   validateStrategicAdvantageTransferSourceCatalogV01,
   validateStrategicAdvantageTransferWorkingFrameV01,
@@ -92,6 +95,9 @@ import {
   STRATEGIC_ADVANTAGE_TRANSFER_SOURCE_CATALOG_VERSION_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_WORKING_FRAME_VERSION_V01,
   type StrategicAdvantageTransferBaseStrategyV01,
+  type StrategicAdvantageTransferAdverseCategoryV01,
+  type StrategicAdvantageTransferAdverseContextItemV01,
+  type StrategicAdvantageTransferAdverseContextV01,
   type StrategicAdvantageTransferModelInputV01,
   type StrategicAdvantageTransferModelOutputV01,
   type StrategicAdvantageTransferSourceCatalogEntryV01,
@@ -1250,19 +1256,27 @@ function prepareStrategicSource(
     config: input.config,
     packet: binding.packet,
   });
-  const workingFrame = buildWorkingFrame({
-    proposal,
-    packet: binding.packet,
-    receipt: binding.receipt,
-    assessment: binding.criterion_assessment.assessment,
-    base,
-  });
   const catalog = buildSourceCatalog({
     proposal,
     packet: binding.packet,
     receipt: binding.receipt,
     assessment: binding.criterion_assessment.assessment,
     base,
+  });
+  const adverseContext = buildServerAdverseContext({
+    proposal,
+    packet: binding.packet,
+    receipt: binding.receipt,
+    assessment: binding.criterion_assessment.assessment,
+    catalog,
+  });
+  const workingFrame = buildWorkingFrame({
+    proposal,
+    packet: binding.packet,
+    receipt: binding.receipt,
+    assessment: binding.criterion_assessment.assessment,
+    base,
+    server_adverse_context: adverseContext,
   });
   const validatedWorkingFrame =
     validateStrategicAdvantageTransferWorkingFrameV01(workingFrame);
@@ -1506,6 +1520,7 @@ function buildWorkingFrame(input: {
   receipt: PreparedStrategicSourceV01["receipt"];
   assessment: PreparedStrategicSourceV01["assessment"];
   base: StrategicAdvantageTransferBaseStrategyV01;
+  server_adverse_context: StrategicAdvantageTransferAdverseContextV01;
 }): StrategicAdvantageTransferWorkingFrameV01 {
   // R6-A projects task-wide trust into every criterion item. Summing those
   // projections would multiply the exact receipt counts by criterion count.
@@ -1567,6 +1582,7 @@ function buildWorkingFrame(input: {
         "criterion_relation_gap: current TaskContextPacket and RunReceipt contracts establish no criterion-to-residue relation; current unknown/insufficient assessment is preserved.",
       ],
     ),
+    server_adverse_context: structuredClone(input.server_adverse_context),
     base_strategy: structuredClone(input.base),
     trust_summary: trust,
     coverage_summary: uniqueProtocolStringsV01(
@@ -1782,13 +1798,15 @@ function buildSourceCatalog(input: {
       add(ref, "skipped_check", `${check.check_id}: ${check.reason}`);
     }
   }
-  for (const issue of [
-    ...input.receipt.blockers,
-    ...input.receipt.warnings,
-    ...input.receipt.gaps,
-  ]) {
-    for (const ref of issue.source_refs) {
-      add(ref, `receipt_gap:${issue.code}`, issue.summary);
+  for (const [category, issues] of [
+    ["receipt_blocker", input.receipt.blockers],
+    ["receipt_warning", input.receipt.warnings],
+    ["receipt_gap", input.receipt.gaps],
+  ] as const) {
+    for (const issue of issues) {
+      for (const ref of issue.source_refs) {
+        add(ref, `${category}:${issue.code}`, issue.summary);
+      }
     }
   }
   for (const coverage of input.receipt.capability_coverage) {
@@ -1798,6 +1816,20 @@ function buildSourceCatalog(input: {
         `coverage_${coverage.coverage_level}`,
         `${coverage.capability}: ${coverage.notes.join("; ") || coverage.coverage_level}`,
       );
+    }
+  }
+  for (const gap of input.packet.gaps) {
+    for (const ref of gap.external_refs) {
+      add(ref, `packet_gap:${gap.code}`, gap.summary);
+    }
+  }
+  for (const excluded of input.packet.excluded_context) {
+    const refs = [
+      excluded.external_ref,
+      excluded.currentness.source_ref,
+    ].filter((ref): ref is ExternalRefV01 => ref !== null);
+    for (const ref of refs) {
+      add(ref, "packet_exclusion", excluded.why_excluded);
     }
   }
   const normalized = uniqueProtocolValuesV01(items).sort(
@@ -1827,6 +1859,180 @@ function buildSourceCatalog(input: {
   };
 }
 
+function buildServerAdverseContext(input: {
+  proposal: EpisodeDeltaProposalV01;
+  packet: PreparedStrategicSourceV01["packet"];
+  receipt: PreparedStrategicSourceV01["receipt"];
+  assessment: PreparedStrategicSourceV01["assessment"];
+  catalog: StrategicAdvantageTransferSourceCatalogV01;
+}): StrategicAdvantageTransferAdverseContextV01 {
+  const items: StrategicAdvantageTransferAdverseContextItemV01[] =
+    projectStrategicCatalogAdverseContextItemsV01(input.catalog);
+  const add = (entry: {
+    category: StrategicAdvantageTransferAdverseCategoryV01;
+    summary: string;
+    source_refs: ExternalRefV01[];
+    epistemic_class:
+      StrategicAdvantageTransferAdverseContextItemV01["epistemic_class"];
+    discriminator: unknown;
+  }) => {
+    const sourceRefs = uniqueProtocolValuesV01(
+      entry.source_refs.map(normalizeExternalRefPrimitiveV01),
+    ).sort(compareExternalRefsV01);
+    const boundedSummary = boundedCatalogText(entry.summary);
+    items.push({
+      code: createStrategicAdverseContextItemCodeV01({
+        category: entry.category,
+        discriminator: entry.discriminator,
+        bounded_summary: boundedSummary,
+        source_refs: sourceRefs,
+      }),
+      category: entry.category,
+      bounded_summary: boundedSummary,
+      source_refs: sourceRefs,
+      epistemic_class: entry.epistemic_class,
+      scope: sourceRefs.length > 0 ? "source_linked" : "task_wide_context",
+    });
+  };
+
+  for (const [category, issues] of [
+    ["receipt_blocker", input.receipt.blockers],
+    ["receipt_warning", input.receipt.warnings],
+    ["receipt_gap", input.receipt.gaps],
+  ] as const) {
+    for (const issue of issues) {
+      if (issue.source_refs.length > 0) continue;
+      add({
+        category,
+        summary: issue.summary,
+        source_refs: [],
+        epistemic_class: "unknown",
+        discriminator: { source: "receipt_issue", code: issue.code },
+      });
+    }
+  }
+  for (const check of input.receipt.checks) {
+    if (
+      (check.status !== "failed" && check.status !== "blocked") ||
+      check.source_refs.length > 0
+    ) {
+      continue;
+    }
+    add({
+      category: check.status === "failed" ? "failed_check" : "blocked_check",
+      summary: `${check.check_id}: ${check.summary}`,
+      source_refs: [],
+      epistemic_class: "unknown",
+      discriminator: {
+        source: "receipt_check",
+        check_id: check.check_id,
+        status: check.status,
+      },
+    });
+  }
+  for (const check of input.receipt.skipped_checks) {
+    if (check.source_refs.length > 0) continue;
+    add({
+      category: "skipped_check",
+      summary: `${check.check_id}: ${check.reason}`,
+      source_refs: [],
+      epistemic_class: "unknown",
+      discriminator: {
+        source: "receipt_skipped_check",
+        check_id: check.check_id,
+      },
+    });
+  }
+  for (const coverage of input.receipt.capability_coverage) {
+    if (
+      coverage.coverage_level !== "outside_coverage" ||
+      coverage.source_ref !== null
+    ) {
+      continue;
+    }
+    add({
+      category: "outside_coverage",
+      summary: `${coverage.capability}: ${
+        coverage.notes.join("; ") || coverage.coverage_level
+      }`,
+      source_refs: [],
+      epistemic_class: "unavailable",
+      discriminator: {
+        source: "receipt_capability_coverage",
+        capability: coverage.capability,
+      },
+    });
+  }
+  for (const conflict of input.proposal.conflicts) {
+    if (conflict.source_refs.length > 0) continue;
+    add({
+      category: "conflict",
+      summary: conflict.bounded_summary,
+      source_refs: [],
+      epistemic_class: "derived_interpretation",
+      discriminator: {
+        source: "source_proposal_conflict",
+        conflict_id: conflict.conflict_id,
+      },
+    });
+  }
+  for (const missing of input.proposal.missing_information) {
+    if (missing.source_refs.length > 0) continue;
+    add({
+      category: "missing_information",
+      summary: missing.bounded_summary,
+      source_refs: [],
+      epistemic_class: "derived_interpretation",
+      discriminator: {
+        source: "source_proposal_missing_information",
+        missing_id: missing.missing_id,
+      },
+    });
+  }
+  for (const uncertainty of input.proposal.uncertainties) {
+    if (uncertainty.source_refs.length > 0) continue;
+    add({
+      category: "uncertainty",
+      summary: uncertainty.bounded_summary,
+      source_refs: [],
+      epistemic_class: "derived_interpretation",
+      discriminator: {
+        source: "source_proposal_uncertainty",
+        uncertainty_id: uncertainty.uncertainty_id,
+      },
+    });
+  }
+  for (const gap of input.packet.gaps) {
+    if (gap.external_refs.length > 0) continue;
+    add({
+      category: "packet_gap",
+      summary: `${gap.code}: ${gap.summary}`,
+      source_refs: [],
+      epistemic_class: "unknown",
+      discriminator: { source: "packet_gap", code: gap.code },
+    });
+  }
+  for (const excluded of input.packet.excluded_context) {
+    const refs = [
+      excluded.external_ref,
+      excluded.currentness.source_ref,
+    ].filter((ref): ref is ExternalRefV01 => ref !== null);
+    if (refs.length > 0) continue;
+    add({
+      category: "packet_exclusion",
+      summary: excluded.why_excluded,
+      source_refs: [],
+      epistemic_class: "unknown",
+      discriminator: {
+        source: "packet_exclusion",
+        entry_id: excluded.entry_id,
+      },
+    });
+  }
+
+  return createStrategicAdvantageTransferAdverseContextV01(items);
+}
+
 function buildModelInput(
   frame: StrategicAdvantageTransferWorkingFrameV01,
   catalog: StrategicAdvantageTransferSourceCatalogV01,
@@ -1848,6 +2054,19 @@ function buildModelInput(
       base_strategy_summary: frame.base_strategy.bounded_summary,
       excluded_context_summaries: [...frame.excluded_context_summaries],
       gap_summaries: [...frame.gap_summaries],
+      server_adverse_context: {
+        projection_version: frame.server_adverse_context.projection_version,
+        items: frame.server_adverse_context.items.map((item) => ({
+          code: item.code,
+          category: item.category,
+          bounded_summary: item.bounded_summary,
+          epistemic_class: item.epistemic_class,
+          scope: item.scope,
+          source_ref_count: item.source_refs.length,
+        })),
+        adverse_context_fingerprint:
+          frame.server_adverse_context.adverse_context_fingerprint,
+      },
     },
     source_catalog: {
       source_catalog_fingerprint: catalog.source_catalog_fingerprint,
@@ -1873,6 +2092,8 @@ function strategicInvocationProvenanceV01(
     prepared.base_strategy.base_fingerprint,
     prepared.working_frame.working_frame_fingerprint,
     prepared.source_catalog.source_catalog_fingerprint,
+    prepared.working_frame.server_adverse_context
+      .adverse_context_fingerprint,
     prepared.source_proposal.integrity.fingerprint,
   ]);
 }

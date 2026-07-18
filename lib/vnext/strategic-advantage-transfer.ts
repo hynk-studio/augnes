@@ -83,6 +83,14 @@ export interface StrategicAdvantageTransferMaterializationV01 {
   proposal: EpisodeDeltaProposalV01;
 }
 
+export function strategicTransferCandidateLaneV01(
+  support: StrategicAdvantageTransferProfileV01["transfer_items"][number]["support"],
+): "validation_delta" | "research_delta" {
+  return support.status === "supported"
+    ? "validation_delta"
+    : "research_delta";
+}
+
 export function deriveStrategicAdvantageTransferAdmissionIdentityV01(input: {
   source_proposal: EpisodeDeltaProposalV01;
   packet: TaskContextPacketV01;
@@ -153,6 +161,7 @@ export function materializeStrategicAdvantageTransferProposalV01(
   );
   const transfers = resolveStrategicAdvantageTransferItemsV01({
     catalog: input.source_catalog,
+    server_adverse_context: input.working_frame.server_adverse_context,
     model_output: modelOutput,
   });
   const modelReceipt = validateModelInvocationReceiptV02(
@@ -232,6 +241,9 @@ export function materializeStrategicAdvantageTransferProposalV01(
     base_strategy: structuredClone(input.base_strategy),
     working_frame: structuredClone(input.working_frame),
     source_catalog: structuredClone(input.source_catalog),
+    server_adverse_context: structuredClone(
+      input.working_frame.server_adverse_context,
+    ),
     lenses: [...STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01],
     budget: structuredClone(input.budget),
     model_invocation: {
@@ -258,6 +270,7 @@ export function materializeStrategicAdvantageTransferProposalV01(
       warnings: [
         "The admitted immutable proposal embeds the exact normalized result and ModelInvocationReceipt for review lineage; no separate strategic result record is created.",
         "Normalized lens output is derived candidate material and grants no authority.",
+        "Model-selected sources preserve candidate lineage; the server-owned support classifier also evaluates the complete adverse context, including source-less task-wide residue that the model cannot omit.",
         "The exact server-owned route pricing authority and worst-case pre-egress cost ceiling are bound to this proposal; provider-reported actual cost remains execution residue when available.",
       ],
     },
@@ -359,9 +372,7 @@ export function materializeStrategicAdvantageTransferProposalV01(
           ? {
               candidate_id: `strategic-candidate:${transfer.transfer_id.slice("strategic-transfer:".length)}`,
               delta_type:
-                transfer.support.status === "supported"
-                  ? "validation_delta"
-                  : "research_delta",
+                strategicTransferCandidateLaneV01(transfer.support),
               operation: "unknown",
               title: transfer.title,
               current_state: {

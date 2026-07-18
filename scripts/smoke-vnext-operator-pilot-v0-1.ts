@@ -101,6 +101,7 @@ import {
 import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
 import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal";
 import { materializeStrategicAdvantageTransferProposalV01 } from "../lib/vnext/strategic-advantage-transfer";
+import { createStrategicAdvantageTransferAdverseContextV01 } from "../lib/vnext/strategic-advantage-transfer-protocol";
 import { ModelGatewayInvocationErrorV01 } from "../lib/vnext/model-gateway/contracts";
 import {
   createOpenAIResponsesAdapterV01,
@@ -3503,7 +3504,11 @@ async function assertR6DProductionVerticalV01(input: {
       );
       const body = await publicJson(response);
       assert.equal(response.status, 200, JSON.stringify(body));
-      assert.equal(body.status, "proposal_admission_failed");
+      assert.equal(
+        body.status,
+        "proposal_admission_failed",
+        JSON.stringify(body),
+      );
       assert.equal(body.reason, "SQLITE_BUSY");
       assert.equal(body.retryable, true);
       assert.equal(body.proposal, null);
@@ -3846,6 +3851,10 @@ async function assertR6DProductionVerticalV01(input: {
     input.gateway.requests()[0]!.body.includes(operatorProjectRoot),
     false,
   );
+  assert.equal(
+    input.gateway.requests()[0]!.body.includes("server_adverse_context"),
+    true,
+  );
   pass("strategic_explicit_action_invokes_one_r4_call_and_admits_proposal");
   const strategicProposal = insertedBody.proposal as EpisodeDeltaProposalV01;
   assert.equal(strategicProposal.status, "pending_review");
@@ -3949,6 +3958,35 @@ async function assertR6DProductionVerticalV01(input: {
   );
   assert.equal(profile.transfer_items[0]!.support.status, "unknown");
   assert.equal(profile.transfer_items[0]!.support.basis, "insufficient");
+  assert.deepEqual(
+    profile.server_adverse_context,
+    profile.working_frame.server_adverse_context,
+  );
+  assert.equal(
+    profile.transfer_items[0]!.support.server_adverse_context_fingerprint,
+    profile.server_adverse_context.adverse_context_fingerprint,
+  );
+  assert.ok(profile.server_adverse_context.items.length > 0);
+  assert.ok(
+    profile.server_adverse_context.items.some(
+      (item) => item.category === "unknown_criterion",
+    ),
+  );
+  assert.ok(
+    profile.server_adverse_context.items.some(
+      (item) => item.category === "insufficient_criterion",
+    ),
+  );
+  assert.ok(
+    profile.server_adverse_context.items.some(
+      (item) => item.source_refs.length === 0,
+    ),
+    "source-less task-wide residue must remain typed and fingerprinted",
+  );
+  assert.equal(
+    profile.transfer_items[0]!.selected_support_entries.length,
+    profile.transfer_items[0]!.source_keys.length,
+  );
   const durableStrategicMaterial = JSON.stringify(strategicProposal);
   for (const forbidden of [
     "operator-pilot-strategic-fixture-credential",
@@ -4076,6 +4114,47 @@ async function assertR6DProductionVerticalV01(input: {
     }
   }
   pass("strategic_source_proposal_and_candidate_conflicts_fail_closed");
+
+  const sourceLessAdverseItem = profile.server_adverse_context.items.find(
+    (item) => item.source_refs.length === 0,
+  );
+  assert(sourceLessAdverseItem);
+  const forgedWithoutAdverseContext = structuredClone(strategicProposal);
+  const forgedWithoutAdverseProfile =
+    forgedWithoutAdverseContext.strategic_advantage_transfer;
+  assert(forgedWithoutAdverseProfile);
+  forgedWithoutAdverseProfile.server_adverse_context =
+    createStrategicAdvantageTransferAdverseContextV01(
+      forgedWithoutAdverseProfile.server_adverse_context.items.filter(
+        (item) => item.code !== sourceLessAdverseItem.code,
+      ),
+    );
+  forgedWithoutAdverseContext.proposal_id = deriveEpisodeDeltaProposalIdV01(
+    forgedWithoutAdverseContext,
+  );
+  forgedWithoutAdverseContext.integrity.fingerprint =
+    createEpisodeDeltaProposalFingerprintV01(forgedWithoutAdverseContext);
+  const adverseConflictDb = openVNextLocalOperatorDatabaseV01(input.config);
+  try {
+    assert.throws(
+      () =>
+        readVNextOperatorStrategicAdvantageTransferV01(adverseConflictDb, {
+          config: input.config,
+          proposal: forgedWithoutAdverseContext,
+          cost_budget: strategicCostBudget,
+          model_capability: {
+            status: "available",
+            summary: "Deterministic fake R4 transport remains available.",
+            verification: "trusted_local_status",
+          },
+        }),
+      /strategic_advantage_transfer_material_conflict/,
+      "recomputed proposal identity must not hide removed server adverse context",
+    );
+  } finally {
+    adverseConflictDb.close();
+  }
+  pass("strategic_adverse_context_removal_fails_closed_after_recomputed_identity");
 
   const crossProjectDb = openVNextLocalOperatorDatabaseV01(input.config);
   try {
