@@ -12,7 +12,14 @@ import {
   type ModelAdapterSessionV01,
   type ModelAdapterV01,
 } from "@/lib/vnext/model-gateway/contracts";
-import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import {
+  buildModelGatewayCostAuthorityV01,
+  buildModelGatewayCostBudgetV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
+import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
 import { normalizeStrategicAdvantageTransferModelOutputV01 } from "@/lib/vnext/strategic-advantage-transfer-protocol";
 import type { VNextOperatorStrategicAdvantageTransferDependenciesV01 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
 import type {
@@ -26,6 +33,9 @@ export const CANONICAL_TEST_STRATEGIC_TRANSPORT_COUNTER_FILE_V01 =
   "strategic-model-transport-counter-v0-1.json" as const;
 export const CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01 =
   "strategic_model_transport_fixture.v0.1" as const;
+export const CANONICAL_TEST_STRATEGIC_COST_UNIT_V01 =
+  "canonical_test_credit_microunit" as const;
+export const CANONICAL_TEST_STRATEGIC_COST_CEILING_V01 = 98_304 as const;
 
 interface CanonicalTestStrategicTransportFixtureV01 {
   fixture_version: typeof CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01;
@@ -78,6 +88,7 @@ export function createCanonicalTestStrategicTransportDependenciesV01(
     root,
     CANONICAL_TEST_STRATEGIC_TRANSPORT_COUNTER_FILE_V01,
   );
+  const costBudget = createCanonicalTestStrategicCostBudgetV01(fixture);
   return {
     read_model_capability: () => ({
       status: "available",
@@ -85,6 +96,10 @@ export function createCanonicalTestStrategicTransportDependenciesV01(
         "A deterministic fake R4 transport is available inside this owned canonical-test runtime.",
       verification: "trusted_local_status",
     }),
+    read_cost_budget: ({ workspace_id, project_id }) =>
+      workspace_id === fixture.workspace_id && project_id === fixture.project_id
+        ? structuredClone(costBudget)
+        : null,
     adapter: createCanonicalTestStrategicAdapterV01((projected) => {
       if (
         projected.working_frame.working_frame_fingerprint !==
@@ -122,6 +137,75 @@ export function createCanonicalTestStrategicTransportDependenciesV01(
       );
       return buildOutput(base.source_key);
     }),
+  };
+}
+
+export function createCanonicalTestStrategicCostBudgetV01(
+  fixture: Pick<
+    CanonicalTestStrategicTransportFixtureV01,
+    "workspace_id" | "project_id"
+  >,
+) {
+  const providerRef = canonicalTestProviderRefV01();
+  const modelRef = canonicalTestModelRefV01();
+  const authority = buildModelGatewayCostAuthorityV01({
+    authority_kind: "provider_model_pricing_snapshot",
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    cost_unit: CANONICAL_TEST_STRATEGIC_COST_UNIT_V01,
+    input_rate: { unit: "utf8_byte", cost_per_unit: 1 },
+    output_rate: { unit: "token", cost_per_unit: 16 },
+    pricing_source_version: "canonical_test_strategic_pricing.v0.1",
+    pricing_effective_at: "2020-01-01T00:00:00.000Z",
+    pricing_expires_at: null,
+    project_model_policy_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        policy_version: "canonical_test_project_model_policy.v0.1",
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        provider_ref: providerRef,
+        model_ref: modelRef,
+        maximum_permitted_cost:
+          CANONICAL_TEST_STRATEGIC_COST_CEILING_V01,
+        cost_unit: CANONICAL_TEST_STRATEGIC_COST_UNIT_V01,
+      }),
+    ),
+  });
+  return buildModelGatewayCostBudgetV01({
+    authority,
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    maximum_input_units: 65_536,
+    maximum_output_units: 2_048,
+    timeout_ms: 20_000,
+    maximum_permitted_cost: CANONICAL_TEST_STRATEGIC_COST_CEILING_V01,
+    evaluated_at: "2025-01-01T00:00:00.000Z",
+  });
+}
+
+function canonicalTestProviderRefV01() {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "model_provider",
+    external_id: "canonical-test-provider",
+    provider: "canonical-test-provider",
+    trust_class: "direct_local_observation" as const,
+  };
+}
+
+function canonicalTestModelRefV01() {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "provider_model",
+    external_id: "canonical-test-strategic-model",
+    provider: "canonical-test-provider",
+    trust_class: "direct_local_observation" as const,
   };
 }
 
@@ -177,20 +261,8 @@ function createCanonicalTestStrategicAdapterV01(
       const session: ModelAdapterSessionV01 = {
         ...implementation,
         purpose,
-        provider_ref: {
-          ref_version: "external_ref.v0.1",
-          ref_type: "model_provider",
-          external_id: "canonical-test-provider",
-          provider: "canonical-test-provider",
-          trust_class: "direct_local_observation",
-        },
-        model_ref: {
-          ref_version: "external_ref.v0.1",
-          ref_type: "provider_model",
-          external_id: "canonical-test-strategic-model",
-          provider: "canonical-test-provider",
-          trust_class: "direct_local_observation",
-        },
+        provider_ref: canonicalTestProviderRefV01(),
+        model_ref: canonicalTestModelRefV01(),
         async invoke(input, lifecycle) {
           if (
             input.input_kind !==

@@ -53,6 +53,10 @@ import {
   type OpenAIResponsesTransportV01,
 } from "../lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "../lib/vnext/model-gateway/model-invocation-receipt";
+import {
+  buildModelGatewayCostAuthorityV01,
+  buildModelGatewayCostBudgetV01,
+} from "../lib/vnext/model-gateway/cost-authority";
 import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../lib/vnext/model-gateway/run-receipt-projection";
 import {
   canonicalizeProtocolValueV01,
@@ -993,7 +997,7 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   const overBudgetAdapter = createOpenAIResponsesAdapterV01({
     environment: {
       OPENAI_API_KEY: CREDENTIAL_SENTINEL,
-      OPENAI_MODEL: "strategic-budget-test-model",
+      OPENAI_MODEL: "strategic-test-model",
     },
     transport: async () => {
       strategicBudgetTransportCalls += 1;
@@ -1018,7 +1022,7 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   const malformedAdapter = createOpenAIResponsesAdapterV01({
     environment: {
       OPENAI_API_KEY: CREDENTIAL_SENTINEL,
-      OPENAI_MODEL: "strategic-malformed-test-model",
+      OPENAI_MODEL: "strategic-test-model",
     },
     transport: async () => {
       malformedTransportCalls += 1;
@@ -1041,6 +1045,57 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   );
   assert.equal(malformedTransportCalls, 1);
 
+  assert.throws(
+    () =>
+      strategicCostBudgetFixture(fixture, input, {
+        maximum_permitted_cost: 98_303,
+      }),
+    /model_gateway_cost_budget_exceeded/,
+    "one cost microunit over the ceiling is refused before transport",
+  );
+  assert.throws(
+    () =>
+      strategicCostBudgetFixture(fixture, input, {
+        pricing_expires_at: "2026-07-01T00:00:00.000Z",
+      }),
+    /model_gateway_pricing_stale/,
+    "stale pricing is refused before transport",
+  );
+  const wrongRouteEnvelope = strategicEnvelope(fixture, input);
+  const wrongRouteBudget = strategicCostBudgetFixture(fixture, input, {
+    model_id: "different-strategic-model",
+  });
+  wrongRouteEnvelope.budget.cost_budget = wrongRouteBudget;
+  wrongRouteEnvelope.input.budget.model.cost = {
+    status: "available",
+    budget: wrongRouteBudget,
+  };
+  const wrongRouteCallsBefore = liveTransportCalls;
+  const wrongRouteFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(wrongRouteEnvelope, {
+      adapter,
+    }),
+  );
+  assert.equal(wrongRouteFailure.code, "model_gateway_budget_refused");
+  assert.equal(liveTransportCalls, wrongRouteCallsBefore);
+
+  const changedPricingEnvelope = strategicEnvelope(fixture, input);
+  changedPricingEnvelope.budget.cost_budget!.authority.pricing_fingerprint =
+    "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+  changedPricingEnvelope.input.budget.model.cost = {
+    status: "available",
+    budget: changedPricingEnvelope.budget.cost_budget!,
+  };
+  const changedPricingCallsBefore = liveTransportCalls;
+  const changedPricingFailure = await captureAnyGatewayFailure(() =>
+    invokeStrategicAdvantageTransferModelGatewayV01(
+      changedPricingEnvelope,
+      { adapter },
+    ),
+  );
+  assert.equal(changedPricingFailure.code, "model_gateway_invalid_envelope");
+  assert.equal(liveTransportCalls, changedPricingCallsBefore);
+
   const result = await invokeStrategicAdvantageTransferModelGatewayV01(
     strategicEnvelope(fixture, input),
     { adapter },
@@ -1059,6 +1114,26 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   assert.equal(result.model_invocation_receipt.egress_attempted, true);
   assert.equal(result.model_invocation_receipt.budget.provider_call_limit, 1);
   assert.equal(result.model_invocation_receipt.budget.provider_calls_used, 1);
+  assert.equal(
+    result.model_invocation_receipt.budget.cost_budget
+      ?.maximum_permitted_cost,
+    98_304,
+  );
+  assert.equal(
+    result.model_invocation_receipt.budget.cost_budget
+      ?.calculated_worst_case_cost,
+    98_304,
+  );
+  assert.equal(
+    result.model_invocation_receipt.budget.cost_budget?.authority.cost_unit,
+    "model_gateway_test_credit_microunit",
+  );
+  assert.deepEqual(result.model_invocation_receipt.cost, {
+    basis: "unavailable",
+    amount: null,
+    currency: null,
+    source: "provider_cost_not_reported",
+  });
   assert.equal(result.model_invocation_receipt.raw_prompt_persisted, false);
   assert.equal(result.model_invocation_receipt.raw_response_persisted, false);
   assert.equal(result.model_invocation_receipt.hidden_reasoning_persisted, false);
@@ -2596,6 +2671,12 @@ function strategicEnvelope(
   fixture: Fixture,
   input = strategicModelInputFixtureV01(),
 ): StrategicAdvantageTransferModelInvocationEnvelopeV01 {
+  const costBudget = strategicCostBudgetFixture(fixture, input);
+  const boundInput = structuredClone(input);
+  boundInput.budget.model.cost = {
+    status: "available",
+    budget: costBudget,
+  };
   return {
     envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
     invocation_id: "model-invocation:strategic-advantage-transfer-test",
@@ -2612,11 +2693,12 @@ function strategicEnvelope(
       retention_class: "none",
     },
     budget: {
-      max_input_bytes: input.budget.model.max_input_bytes,
-      max_output_tokens: input.budget.model.max_output_tokens,
+      max_input_bytes: boundInput.budget.model.max_input_bytes,
+      max_output_tokens: boundInput.budget.model.max_output_tokens,
       max_provider_calls: 1,
+      cost_budget: costBudget,
     },
-    timeout_ms: input.budget.model.timeout_ms,
+    timeout_ms: boundInput.budget.model.timeout_ms,
     cancellation: { signal: new AbortController().signal },
     execution_mode: "live",
     policy: {
@@ -2628,8 +2710,68 @@ function strategicEnvelope(
       path_flavor: fixture.projectARoot.path_flavor,
       normalized_path: fixture.projectARoot.normalized_path,
     },
-    input,
+    input: boundInput,
   };
+}
+
+function strategicCostBudgetFixture(
+  fixture: Fixture,
+  input = strategicModelInputFixtureV01(),
+  options: {
+    model_id?: string;
+    maximum_permitted_cost?: number;
+    pricing_expires_at?: string | null;
+    evaluated_at?: string;
+  } = {},
+) {
+  const providerRef = {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "model_provider",
+    external_id: "openai",
+    provider: "openai",
+    trust_class: "direct_local_observation" as const,
+  };
+  const modelRef = {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "provider_model",
+    external_id: options.model_id ?? "strategic-test-model",
+    provider: "openai",
+    trust_class: "direct_local_observation" as const,
+  };
+  return buildModelGatewayCostBudgetV01({
+    authority: buildModelGatewayCostAuthorityV01({
+      authority_kind: "provider_model_pricing_snapshot",
+      workspace_id: fixture.workspaceId,
+      project_id: fixture.projectAId,
+      purpose: "strategic_advantage_transfer",
+      provider_ref: providerRef,
+      model_ref: modelRef,
+      cost_unit: "model_gateway_test_credit_microunit",
+      input_rate: { unit: "utf8_byte", cost_per_unit: 1 },
+      output_rate: { unit: "token", cost_per_unit: 16 },
+      pricing_source_version: "model_gateway_test_pricing.v0.1",
+      pricing_effective_at: "2026-01-01T00:00:00.000Z",
+      pricing_expires_at: options.pricing_expires_at ?? null,
+      project_model_policy_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          policy: "model_gateway_test_policy.v0.1",
+          workspace_id: fixture.workspaceId,
+          project_id: fixture.projectAId,
+          model_id: modelRef.external_id,
+        }),
+      ),
+    }),
+    workspace_id: fixture.workspaceId,
+    project_id: fixture.projectAId,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    maximum_input_units: input.budget.model.max_input_bytes,
+    maximum_output_units: input.budget.model.max_output_tokens,
+    timeout_ms: input.budget.model.timeout_ms,
+    maximum_permitted_cost: options.maximum_permitted_cost ?? 98_304,
+    evaluated_at: options.evaluated_at ?? "2026-07-15T00:00:00.000Z",
+  });
 }
 
 function gatewayDependencies(

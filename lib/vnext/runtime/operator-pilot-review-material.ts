@@ -70,6 +70,7 @@ import { OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01 } from "@/types/v
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
+import type { ModelGatewayCostBudgetV01 } from "@/types/vnext/model-invocation-receipt";
 
 export const VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01 =
   "vnext_operator_pilot_review_material.v0.1" as const;
@@ -181,6 +182,7 @@ export function listVNextOperatorPilotSemanticReviewsV01(
     config: VNextLocalOperatorPilotConfigV01;
     authenticated_session_id: string | null;
     model_capability?: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>;
+    cost_budget?: ModelGatewayCostBudgetV01 | null;
   },
 ): VNextOperatorPilotReviewListItemV01[] {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -206,6 +208,7 @@ export function listVNextOperatorPilotSemanticReviewsV01(
       proposal_id: row.record_id,
       authenticated_session_id: input.authenticated_session_id,
       model_capability: input.model_capability,
+      cost_budget: input.cost_budget,
     });
     return {
       proposal_id: detail.proposal_id,
@@ -231,6 +234,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
     proposal_id: string;
     authenticated_session_id: string | null;
     model_capability?: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>;
+    cost_budget?: ModelGatewayCostBudgetV01 | null;
   },
 ): VNextOperatorPilotReviewDetailV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -357,6 +361,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
       config: input.config,
       proposal,
       model_capability: input.model_capability,
+      cost_budget: input.cost_budget,
     }),
   };
 }

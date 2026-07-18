@@ -65,6 +65,7 @@ import {
   type StrategicAdvantageTransferModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import { ModelGatewayCostAuthorityErrorV01 } from "@/lib/vnext/model-gateway/cost-authority";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import { materializeRunAssessmentProposalV01 } from "@/lib/vnext/run-assessment-proposal";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-decision";
@@ -97,7 +98,10 @@ import {
   type StrategicAdvantageTransferSourceCatalogV01,
   type StrategicAdvantageTransferWorkingFrameV01,
 } from "@/types/vnext/strategic-advantage-transfer";
-import type { ModelInvocationReceiptV02 } from "@/types/vnext/model-invocation-receipt";
+import type {
+  ModelGatewayCostBudgetV01,
+  ModelInvocationReceiptV02,
+} from "@/types/vnext/model-invocation-receipt";
 
 export const VNEXT_OPERATOR_STRATEGIC_REQUEST_VERSION_V01 =
   "vnext_operator_strategic_advantage_transfer_request.v0.1" as const;
@@ -251,6 +255,7 @@ interface PreparedStrategicSourceV01
     typeof deriveStrategicAdvantageTransferAdmissionIdentityV01
   >;
   model_input: StrategicAdvantageTransferModelInputV01;
+  budget: ReturnType<typeof createStrategicAdvantageTransferBudgetV01>;
 }
 
 interface StrategicCompletedModelResultV01 {
@@ -263,6 +268,10 @@ interface StrategicCompletedModelResultV01 {
 export interface VNextOperatorStrategicAdvantageTransferDependenciesV01 {
   adapter?: ModelAdapterV01;
   read_model_capability?: typeof readDefaultModelGatewayLocalCapabilityV01;
+  read_cost_budget?: (input: {
+    workspace_id: string;
+    project_id: string;
+  }) => ModelGatewayCostBudgetV01 | null;
   invoke_model?: typeof invokeStrategicAdvantageTransferModelGatewayV01;
   open_gateway_database?: () => Database.Database;
   read_root_availability?: NonNullable<
@@ -280,13 +289,18 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
     model_capability?: ReturnType<
       typeof readDefaultModelGatewayLocalCapabilityV01
     >;
+    cost_budget?: ModelGatewayCostBudgetV01 | null;
   },
 ): VNextOperatorStrategicAdvantageTransferReadbackV01 {
   const capability =
     input.model_capability ?? readDefaultModelGatewayLocalCapabilityV01();
-  const budget = createStrategicAdvantageTransferBudgetV01();
   if (input.proposal.strategic_advantage_transfer) {
     try {
+      const profile = input.proposal.strategic_advantage_transfer;
+      const historicalCostBudget =
+        profile.budget.model.cost.status === "available"
+          ? profile.budget.model.cost.budget
+          : null;
       const sourceRecord = readVNextCoreRecordV01(db, {
         record_kind: "episode_delta_proposal",
         record_id:
@@ -302,8 +316,11 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
         config: input.config,
         proposal_id: sourceRecord.record_id,
         proposal_fingerprint: sourceRecord.fingerprint,
+        cost_budget:
+          input.cost_budget === undefined
+            ? historicalCostBudget
+            : input.cost_budget,
       });
-      const profile = input.proposal.strategic_advantage_transfer;
       if (
         prepared.identity.idempotency_key !==
           createProtocolSha256V01(
@@ -405,6 +422,7 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
       config: input.config,
       proposal_id: input.proposal.proposal_id,
       proposal_fingerprint: input.proposal.integrity.fingerprint,
+      cost_budget: input.cost_budget ?? null,
     });
   } catch (error) {
     if (
@@ -427,6 +445,14 @@ export function readVNextOperatorStrategicAdvantageTransferV01(
       return unavailableReadback("unavailable", error.code, capability);
     }
     throw error;
+  }
+  if (prepared.budget.model.cost.status !== "available") {
+    return {
+      ...eligibleFields(prepared, capability),
+      status: "unavailable",
+      reason: "cost_authority_unavailable",
+      existing_proposal: null,
+    };
   }
   const existing = readVerifiedStrategicProposalByIdentityV01(
     db,
@@ -569,10 +595,32 @@ export async function requestVNextOperatorStrategicAdvantageTransferV01(
   }
   let prepared: PreparedStrategicSourceV01;
   try {
+    let costBudget: ModelGatewayCostBudgetV01 | null;
+    try {
+      costBudget =
+        input.dependencies?.read_cost_budget?.({
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+        }) ?? null;
+    } catch (error) {
+      if (error instanceof ModelGatewayCostAuthorityErrorV01) {
+        return {
+          status: "unavailable",
+          reason: strategicCostFailureCodeV01(error.code),
+          retryable: false,
+          proposal: null,
+          source_proposal_unchanged: true,
+          model_invocation_count: 0,
+          session_cookie: null,
+        };
+      }
+      throw error;
+    }
     prepared = prepareStrategicSource(db, {
       config: input.config,
       proposal_id: request.proposal_id,
       proposal_fingerprint: request.proposal_fingerprint,
+      cost_budget: costBudget,
     });
   } catch (error) {
     if (
@@ -599,6 +647,21 @@ export async function requestVNextOperatorStrategicAdvantageTransferV01(
     (priorSettlement.status === "failed" &&
       priorSettlement.retryable &&
       !priorSettlement.model_result);
+  if (
+    !existing &&
+    modelInvocationRequired &&
+    prepared.budget.model.cost.status !== "available"
+  ) {
+    return {
+      status: "unavailable",
+      reason: "cost_authority_unavailable",
+      retryable: false,
+      proposal: null,
+      source_proposal_unchanged: true,
+      model_invocation_count: 0,
+      session_cookie: null,
+    };
+  }
   if (
     !existing &&
     modelInvocationRequired &&
@@ -716,6 +779,10 @@ export async function requestVNextOperatorStrategicAdvantageTransferV01(
                 max_output_tokens:
                   prepared.model_input.budget.model.max_output_tokens,
                 max_provider_calls: 1,
+                cost_budget:
+                  prepared.budget.model.cost.status === "available"
+                    ? prepared.budget.model.cost.budget
+                    : undefined,
               },
               timeout_ms: prepared.model_input.budget.model.timeout_ms,
               cancellation: { signal: input.signal },
@@ -817,6 +884,10 @@ export async function requestVNextOperatorStrategicAdvantageTransferV01(
         config: input.config,
         proposal_id: request.proposal_id,
         proposal_fingerprint: request.proposal_fingerprint,
+        cost_budget:
+          prepared.budget.model.cost.status === "available"
+            ? prepared.budget.model.cost.budget
+            : null,
       });
     } catch (error) {
       if (error instanceof VNextOperatorStrategicAdvantageTransferErrorV01) {
@@ -1033,6 +1104,7 @@ function admitPreparedStrategicProposalV01(
       config: input.config,
       proposal_id: input.source_proposal_id,
       proposal_fingerprint: input.source_proposal_fingerprint,
+      cost_budget: input.model_invocation_receipt.budget.cost_budget ?? null,
     });
     if (
       current.identity.analysis_identity !== input.expected_analysis_identity
@@ -1119,6 +1191,7 @@ function prepareStrategicSource(
     config: VNextLocalOperatorPilotConfigV01;
     proposal_id: string;
     proposal_fingerprint: string;
+    cost_budget?: ModelGatewayCostBudgetV01 | null;
   },
 ): PreparedStrategicSourceV01 {
   const record = readVNextCoreRecordV01(db, {
@@ -1195,7 +1268,14 @@ function prepareStrategicSource(
     validateStrategicAdvantageTransferWorkingFrameV01(workingFrame);
   const validatedCatalog =
     validateStrategicAdvantageTransferSourceCatalogV01(catalog);
-  const modelInput = buildModelInput(validatedWorkingFrame, validatedCatalog);
+  const budget = createStrategicAdvantageTransferBudgetV01(
+    input.cost_budget ?? null,
+  );
+  const modelInput = buildModelInput(
+    validatedWorkingFrame,
+    validatedCatalog,
+    budget,
+  );
   if (
     new TextEncoder().encode(canonicalizeProtocolValueV01(modelInput))
       .byteLength > modelInput.budget.model.max_input_bytes
@@ -1228,6 +1308,7 @@ function prepareStrategicSource(
     base_strategy: base,
     working_frame: validatedWorkingFrame,
     source_catalog: validatedCatalog,
+    budget,
   });
   return {
     run_id: binding.run.run_id,
@@ -1238,6 +1319,7 @@ function prepareStrategicSource(
     base_strategy: base,
     working_frame: validatedWorkingFrame,
     source_catalog: validatedCatalog,
+    budget,
     identity,
     model_input: modelInput,
   };
@@ -1361,13 +1443,7 @@ function resolveEligibleBaseStrategy(
     }
     eligible.push({ projection, state });
   }
-  if (eligible.length === 0) {
-    throw strategicError("base_strategy_missing", 409);
-  }
-  if (eligible.length > 1) {
-    throw strategicError("base_strategy_ambiguous", 409);
-  }
-  const { projection, state } = eligible[0]!;
+  const { projection, state } = selectUniqueStrategicBaseV01(eligible);
   const transitionRef: ExternalRefV01 = {
     ref_version: "external_ref.v0.1",
     ref_type: "state_transition_receipt",
@@ -1410,6 +1486,18 @@ function resolveEligibleBaseStrategy(
       canonicalizeProtocolValueV01(withoutFingerprint),
     ),
   };
+}
+
+export function selectUniqueStrategicBaseV01<T>(
+  eligible: readonly T[],
+): T {
+  if (eligible.length === 0) {
+    throw strategicError("base_strategy_missing", 409);
+  }
+  if (eligible.length > 1) {
+    throw strategicError("base_strategy_ambiguous", 409);
+  }
+  return eligible[0]!;
 }
 
 function buildWorkingFrame(input: {
@@ -1742,6 +1830,7 @@ function buildSourceCatalog(input: {
 function buildModelInput(
   frame: StrategicAdvantageTransferWorkingFrameV01,
   catalog: StrategicAdvantageTransferSourceCatalogV01,
+  budget: ReturnType<typeof createStrategicAdvantageTransferBudgetV01>,
 ): StrategicAdvantageTransferModelInputV01 {
   return {
     input_kind: STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -1770,7 +1859,7 @@ function buildModelInput(
       })),
     },
     lenses: [...STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01],
-    budget: createStrategicAdvantageTransferBudgetV01(),
+    budget: structuredClone(budget),
   };
 }
 
@@ -2523,7 +2612,7 @@ function normalizeStrategicAttemptReceiptV01(
   receipt: unknown,
 ): ModelInvocationReceiptV02 {
   const normalized = validateModelInvocationReceiptV02(receipt);
-  const expectedBudget = createStrategicAdvantageTransferBudgetV01().model;
+  const expectedBudget = prepared.budget.model;
   const expectedProvenance = strategicInvocationProvenanceV01(prepared);
   if (
     normalized.purpose !==
@@ -2546,6 +2635,9 @@ function normalizeStrategicAttemptReceiptV01(
       expectedBudget.max_output_tokens ||
     normalized.budget.provider_call_limit !== 1 ||
     normalized.budget.timeout_limit_ms !== expectedBudget.timeout_ms ||
+    expectedBudget.cost.status !== "available" ||
+    canonicalizeProtocolValueV01(normalized.budget.cost_budget) !==
+      canonicalizeProtocolValueV01(expectedBudget.cost.budget) ||
     (normalized.status === "completed" &&
       typeof normalized.normalized_output_fingerprint !== "string") ||
     (normalized.status !== "completed" && normalized.failure_code === null) ||
@@ -2727,7 +2819,7 @@ function eligibleFields(
     source_catalog_fingerprint:
       prepared.source_catalog.source_catalog_fingerprint,
     lenses: STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01,
-    budget: createStrategicAdvantageTransferBudgetV01(),
+    budget: structuredClone(prepared.budget),
     model_capability: capability,
     model_attempt_count: 0 as const,
     last_model_attempt: null,
@@ -2821,6 +2913,23 @@ function classifyStrategicFailureStatusV01(
   }
   if (errorCode.startsWith("model_gateway_")) return "model_failed";
   return "proposal_admission_failed";
+}
+
+function strategicCostFailureCodeV01(code: string): string {
+  if (code === "model_gateway_cost_budget_exceeded") {
+    return "strategic_advantage_transfer_cost_budget_exceeded";
+  }
+  if (code === "model_gateway_pricing_stale") {
+    return "strategic_advantage_transfer_pricing_stale";
+  }
+  if (
+    code === "model_gateway_cost_binding_conflict" ||
+    code === "model_gateway_cost_route_conflict" ||
+    code === "model_gateway_cost_calculation_invalid"
+  ) {
+    return "strategic_advantage_transfer_cost_binding_conflict";
+  }
+  return "strategic_advantage_transfer_cost_authority_unavailable";
 }
 
 function isStrategicFailureStatusV01(

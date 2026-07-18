@@ -20,6 +20,10 @@ import {
   readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import {
+  assertModelGatewayCostBudgetCurrentV01,
+  validateModelGatewayCostBudgetV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
 import { OBSERVE_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/observe-codec";
 import { PLANNER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/planner-codec";
 import { TEMPORAL_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/temporal-codec";
@@ -436,6 +440,48 @@ async function invokeModelGatewayV01(
         lifecycle,
         "provider_unavailable",
       );
+    }
+
+    if (
+      envelope.purpose ===
+      STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      const costBudget = envelope.budget.cost_budget;
+      if (!costBudget) {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+      if (
+        canonicalizeProtocolValueV01(costBudget.authority.provider_ref) !==
+          canonicalizeProtocolValueV01(adapterSession.provider_ref) ||
+        canonicalizeProtocolValueV01(costBudget.authority.model_ref) !==
+          canonicalizeProtocolValueV01(adapterSession.model_ref) ||
+        costBudget.authority.workspace_id !== scope.workspace_id ||
+        costBudget.authority.project_id !== scope.project_id ||
+        costBudget.authority.purpose !== envelope.purpose ||
+        costBudget.maximum_input_units !== envelope.budget.max_input_bytes ||
+        costBudget.maximum_output_units !== envelope.budget.max_output_tokens ||
+        costBudget.maximum_invocation_count !==
+          envelope.budget.max_provider_calls ||
+        costBudget.timeout_ms !== envelope.timeout_ms
+      ) {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+      try {
+        assertModelGatewayCostBudgetCurrentV01(
+          costBudget,
+          started.toISOString(),
+        );
+      } catch {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+      if (
+        envelope.input.budget.model.cost.status !== "available" ||
+        canonicalizeProtocolValueV01(
+          envelope.input.budget.model.cost.budget,
+        ) !== canonicalizeProtocolValueV01(costBudget)
+      ) {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
     }
 
     try {
@@ -1180,7 +1226,9 @@ function buildReceipt(
       basis: "unavailable",
       amount: null,
       currency: null,
-      source: "no_pricing_authority",
+      source: input.envelope.budget.cost_budget
+        ? "provider_cost_not_reported"
+        : "no_pricing_authority",
     },
     budget: {
       decision: input.budget_decision,
@@ -1192,6 +1240,9 @@ function buildReceipt(
       provider_calls_used: input.provider_calls_used,
       timeout_limit_ms: input.envelope.timeout_ms,
       timeout_disposition: timeoutDisposition,
+      ...(input.envelope.budget.cost_budget
+        ? { cost_budget: input.envelope.budget.cost_budget }
+        : {}),
     },
     cancellation_disposition:
       input.outcome === "cancelled" ? "cancelled" : "not_cancelled",
@@ -1334,7 +1385,9 @@ function validateBudget(
     "max_input_bytes",
     "max_output_tokens",
     "max_provider_calls",
-  ]);
+  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+    ? ["cost_budget"]
+    : []);
   const maxInputBytes = requireInteger(
     readOwn(record, "max_input_bytes"),
     1,
@@ -1347,10 +1400,20 @@ function validateBudget(
   );
   const maxProviderCalls = readOwn(record, "max_provider_calls");
   if (maxProviderCalls !== (mode === "live" ? 1 : 0)) invalid();
+  const costBudget = Object.hasOwn(record, "cost_budget")
+    ? validateModelGatewayCostBudgetV01(readOwn(record, "cost_budget"))
+    : undefined;
+  if (
+    purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 &&
+    !costBudget
+  ) {
+    invalid();
+  }
   return {
     max_input_bytes: maxInputBytes,
     max_output_tokens: maxOutputTokens,
     max_provider_calls: mode === "live" ? 1 : 0,
+    ...(costBudget ? { cost_budget: costBudget } : {}),
   };
 }
 
@@ -1681,9 +1744,13 @@ function validateStrategicProfileBudget(budget: Record<string, unknown>): void {
     "timeout_ms",
     "automatic_retry",
     "provider_failover",
-    "cost_control",
-    "monetary_cost_basis",
+    "cost",
   ]);
+  const cost = requirePlainRecord(readOwn(model, "cost"));
+  requireExactKeys(cost, ["status", "budget"]);
+  const costBudget = validateModelGatewayCostBudgetV01(
+    readOwn(cost, "budget"),
+  );
   if (
     readOwn(budget, "budget_version") !==
       "strategic_advantage_transfer_budget.v0.1" ||
@@ -1700,10 +1767,11 @@ function validateStrategicProfileBudget(budget: Record<string, unknown>): void {
     readOwn(model, "timeout_ms") !== 20_000 ||
     readOwn(model, "automatic_retry") !== false ||
     readOwn(model, "provider_failover") !== false ||
-    readOwn(model, "cost_control") !==
-      "one_server_selected_call_with_token_ceiling" ||
-    readOwn(model, "monetary_cost_basis") !==
-      "unavailable_no_pricing_authority"
+    readOwn(cost, "status") !== "available" ||
+    costBudget.maximum_input_units !== 65_536 ||
+    costBudget.maximum_output_units !== 2_048 ||
+    costBudget.maximum_invocation_count !== 1 ||
+    costBudget.timeout_ms !== 20_000
   ) {
     invalid();
   }
@@ -1723,9 +1791,13 @@ function assertNoStrategicProviderControlFields(value: unknown): void {
     if (typeof node !== "object" || node === null) return;
     for (const [key, child] of Object.entries(node)) {
       const allowedProfileBudgetModel = path === "$.budget" && key === "model";
+      const allowedBoundCostRoute =
+        path.startsWith("$.budget.model.cost.budget.authority") &&
+        (key === "provider" || key === "model_ref" || key === "provider_ref");
       if (
         PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
-        !allowedProfileBudgetModel
+        !allowedProfileBudgetModel &&
+        !allowedBoundCostRoute
       ) {
         invalid();
       }

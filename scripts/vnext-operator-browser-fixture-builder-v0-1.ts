@@ -18,6 +18,7 @@ import { isDeepStrictEqual } from "node:util";
 import Database from "better-sqlite3";
 
 import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
+import { createCanonicalTestStrategicCostBudgetV01 } from "../lib/vnext/model-gateway/canonical-test-strategic-transport";
 import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
@@ -272,6 +273,11 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
             "The owned browser runtime will provide its fake R4 transport only after fixture transfer.",
           verification: "trusted_local_status",
         }),
+        read_cost_budget: () =>
+          createCanonicalTestStrategicCostBudgetV01({
+            workspace_id: WORKSPACE_ID,
+            project_id: PROJECT_ID,
+          }),
       },
     });
     const transitionHandlers = createVNextOperatorSemanticTransitionHandlersV01({

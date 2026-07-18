@@ -3,8 +3,14 @@ import assert from "node:assert/strict";
 import { isModelEgressBoundaryError } from "@/lib/model-egress/bounded-model-payload";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
+  buildModelGatewayCostAuthorityV01,
+  buildModelGatewayCostBudgetV01,
+  validateModelGatewayCostBudgetV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
+import {
   canonicalizeProtocolValueV01,
   compareProtocolCanonicalV01,
+  createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 
 import {
@@ -44,6 +50,103 @@ const WORKSPACE_ID = "workspace:11111111-1111-4111-8111-111111111111";
 const PROJECT_ID = "project:22222222-2222-4222-8222-222222222222";
 
 export function runStrategicAdvantageTransferConformanceV01() {
+  const providerRef: ExternalRefV01 = {
+    ref_version: "external_ref.v0.1",
+    ref_type: "model_provider",
+    external_id: "cost-provider",
+    provider: "cost-provider",
+    trust_class: "direct_local_observation",
+  };
+  const modelRef: ExternalRefV01 = {
+    ref_version: "external_ref.v0.1",
+    ref_type: "provider_model",
+    external_id: "cost-model",
+    provider: "cost-provider",
+    trust_class: "direct_local_observation",
+  };
+  const costAuthority = buildModelGatewayCostAuthorityV01({
+    authority_kind: "provider_model_pricing_snapshot",
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    cost_unit: "protocol_test_credit_microunit",
+    input_rate: { unit: "utf8_byte", cost_per_unit: 1 },
+    output_rate: { unit: "token", cost_per_unit: 16 },
+    pricing_source_version: "protocol_test_pricing.v0.1",
+    pricing_effective_at: "2026-01-01T00:00:00.000Z",
+    pricing_expires_at: null,
+    project_model_policy_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        policy: "protocol_test_model_policy.v0.1",
+        project_id: PROJECT_ID,
+      }),
+    ),
+  });
+  const costBudget = buildModelGatewayCostBudgetV01({
+    authority: costAuthority,
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    maximum_input_units: 65_536,
+    maximum_output_units: 2_048,
+    timeout_ms: 20_000,
+    maximum_permitted_cost: 98_304,
+    evaluated_at: "2026-07-15T00:00:00.000Z",
+  });
+  assert.equal(
+    validateModelGatewayCostBudgetV01(costBudget).calculated_worst_case_cost,
+    98_304,
+  );
+  assert.throws(
+    () =>
+      buildModelGatewayCostBudgetV01({
+        authority: costAuthority,
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        purpose: "strategic_advantage_transfer",
+        provider_ref: providerRef,
+        model_ref: modelRef,
+        maximum_input_units: 65_536,
+        maximum_output_units: 2_048,
+        timeout_ms: 20_000,
+        maximum_permitted_cost: 98_303,
+        evaluated_at: "2026-07-15T00:00:00.000Z",
+      }),
+    /model_gateway_cost_budget_exceeded/,
+  );
+  assert.notEqual(
+    createStrategicAnalysisIdentityV01({
+      budget: createStrategicAdvantageTransferBudgetV01(costBudget),
+    }),
+    createStrategicAnalysisIdentityV01({
+      budget: createStrategicAdvantageTransferBudgetV01(),
+    }),
+  );
+  const higherCeilingBudget = buildModelGatewayCostBudgetV01({
+    authority: costAuthority,
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    maximum_input_units: 65_536,
+    maximum_output_units: 2_048,
+    timeout_ms: 20_000,
+    maximum_permitted_cost: 100_000,
+    evaluated_at: "2026-07-15T00:00:00.000Z",
+  });
+  assert.notEqual(
+    createStrategicAnalysisIdentityV01({
+      budget: createStrategicAdvantageTransferBudgetV01(costBudget),
+    }),
+    createStrategicAnalysisIdentityV01({
+      budget: createStrategicAdvantageTransferBudgetV01(higherCeilingBudget),
+    }),
+  );
   assert.doesNotThrow(() =>
     assertStrategicAdvantageTransferSourceTextSafeV01({
       summary: "Bounded project-relative material without local paths.",
@@ -590,6 +693,8 @@ export function runStrategicAdvantageTransferConformanceV01() {
     aggregate_material_bounds_checked: true,
     source_text_safety_checked: true,
     historical_model_receipt_compatibility_checked: true,
+    pre_egress_cost_authority_checked: true,
+    exact_cost_ceiling_checked: true,
   };
 }
 

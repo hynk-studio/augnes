@@ -74,6 +74,10 @@ import {
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
+  buildModelGatewayCostAuthorityV01,
+  buildModelGatewayCostBudgetV01,
+} from "../lib/vnext/model-gateway/cost-authority";
+import {
   buildRunReceiptV01,
   createRunReceiptFingerprintV01,
   createRunReceiptIdempotencyKeyV01,
@@ -158,7 +162,10 @@ import {
   validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01,
 } from "../lib/vnext/runtime/operator-pilot-semantic-transition";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
-import { readVNextOperatorStrategicAdvantageTransferV01 } from "../lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
+import {
+  readVNextOperatorStrategicAdvantageTransferV01,
+  selectUniqueStrategicBaseV01,
+} from "../lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
 import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
@@ -399,6 +406,65 @@ function createStrategicAdvantageTransferSmokeGatewayV01(
     transport_calls: () => transportCalls,
     requests: () => requests,
   };
+}
+
+function strategicSmokeCostBudgetV01(
+  config: VNextLocalOperatorPilotConfigV01,
+  options: {
+    maximum_permitted_cost?: number;
+    pricing_expires_at?: string | null;
+  } = {},
+) {
+  const providerRef = {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "model_provider",
+    external_id: "openai",
+    provider: "openai",
+    trust_class: "direct_local_observation" as const,
+  };
+  const modelRef = {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "provider_model",
+    external_id: "operator-pilot-strategic-fixture-model",
+    provider: "openai",
+    trust_class: "direct_local_observation" as const,
+  };
+  const authority = buildModelGatewayCostAuthorityV01({
+    authority_kind: "provider_model_pricing_snapshot",
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    cost_unit: "operator_pilot_test_credit_microunit",
+    input_rate: { unit: "utf8_byte", cost_per_unit: 1 },
+    output_rate: { unit: "token", cost_per_unit: 16 },
+    pricing_source_version: "operator_pilot_test_pricing.v0.1",
+    pricing_effective_at: "2020-01-01T00:00:00.000Z",
+    pricing_expires_at: options.pricing_expires_at ?? null,
+    project_model_policy_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        policy: "operator_pilot_test_model_policy.v0.1",
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        provider_ref: providerRef,
+        model_ref: modelRef,
+      }),
+    ),
+  });
+  return buildModelGatewayCostBudgetV01({
+    authority,
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+    purpose: "strategic_advantage_transfer",
+    provider_ref: providerRef,
+    model_ref: modelRef,
+    maximum_input_units: 65_536,
+    maximum_output_units: 2_048,
+    timeout_ms: 20_000,
+    maximum_permitted_cost: options.maximum_permitted_cost ?? 98_304,
+    evaluated_at: "2026-07-11T00:00:00.000Z",
+  });
 }
 
 async function main(): Promise<void> {
@@ -804,6 +870,7 @@ async function assertFullOperatorLoop(input: {
           "Deterministic fake R4 transport is available for the bounded smoke fixture.",
         verification: "trusted_local_status",
       }),
+      read_cost_budget: () => strategicSmokeCostBudgetV01(config),
       open_gateway_database: () =>
         new Database(canonicalDbPath, { fileMustExist: true }),
       now: () => new Date(input.clock.now()),
@@ -2756,6 +2823,21 @@ async function assertR6DProductionVerticalV01(input: {
   source_run: Awaited<ReturnType<typeof runDirectNativeHostRoundTripV01>>;
   gateway: StrategicAdvantageTransferSmokeGatewayV01;
 }): Promise<void> {
+  assert.throws(
+    () => selectUniqueStrategicBaseV01([]),
+    /base_strategy_missing/,
+  );
+  assert.equal(selectUniqueStrategicBaseV01(["only-base"]), "only-base");
+  for (const candidates of [
+    ["base-a", "base-b"],
+    ["base-b", "base-a"],
+  ]) {
+    assert.throws(
+      () => selectUniqueStrategicBaseV01(candidates),
+      /base_strategy_ambiguous/,
+    );
+  }
+  pass("strategic_base_selection_is_unique_and_order_independent");
   assert.equal(input.source_run.proposal.status, "available");
   if (input.source_run.proposal.status !== "available") {
     throw new Error("r6_d_source_proposal_unavailable");
@@ -2838,6 +2920,44 @@ async function assertR6DProductionVerticalV01(input: {
       }),
     },
   });
+  const costUnavailableHandlers =
+    createVNextOperatorSemanticReviewHandlersV01({
+      environment: input.environment,
+      clock: input.clock,
+      secret_source: input.secret_source,
+      strategic_dependencies: {
+        read_model_capability: () => ({
+          status: "available",
+          summary: "A model route is configured for the cost-authority refusal fixture.",
+          verification: "trusted_local_status",
+        }),
+      },
+    });
+  const costUnavailableDetail = await publicJson(
+    await costUnavailableHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar: input.jar,
+        query: { proposal_id: proposalId },
+      }),
+    ),
+  );
+  assert.equal(
+    (
+      costUnavailableDetail.proposal as {
+        strategic_analysis: { status: string; reason: string };
+      }
+    ).strategic_analysis.status,
+    "unavailable",
+  );
+  assert.equal(
+    (
+      costUnavailableDetail.proposal as {
+        strategic_analysis: { status: string; reason: string };
+      }
+    ).strategic_analysis.reason,
+    "cost_authority_unavailable",
+  );
   const unavailableDetailResponse = await unavailableHandlers.GET(
     routeRequest("/api/vnext/operator/semantic-review", {
       method: "GET",
@@ -2860,6 +2980,70 @@ async function assertR6DProductionVerticalV01(input: {
     proposal_id: sourceDetail.proposal.proposal_id,
     proposal_fingerprint: sourceDetail.proposal.integrity.fingerprint,
   };
+  const costUnavailableResponse = await costUnavailableHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "POST",
+      jar: input.jar,
+      body: analysisRequest,
+    }),
+  );
+  const costUnavailableBody = await publicJson(costUnavailableResponse);
+  assert.equal(costUnavailableResponse.status, 200);
+  assert.equal(costUnavailableBody.status, "unavailable");
+  assert.equal(costUnavailableBody.reason, "cost_authority_unavailable");
+  assert.equal(costUnavailableBody.retryable, false);
+  assert.equal(costUnavailableBody.model_invocation_count, 0);
+  assert.equal(input.gateway.transport_calls(), 0);
+  assert.deepEqual(snapshotR6CSemanticAuthorityCounts(input.config), beforeReads);
+  pass("strategic_cost_authority_unavailable_blocks_before_egress");
+  for (const costFailure of [
+    {
+      label: "exceeded",
+      reason: "strategic_advantage_transfer_cost_budget_exceeded",
+      read: () =>
+        strategicSmokeCostBudgetV01(input.config, {
+          maximum_permitted_cost: 98_303,
+        }),
+    },
+    {
+      label: "stale",
+      reason: "strategic_advantage_transfer_pricing_stale",
+      read: () =>
+        strategicSmokeCostBudgetV01(input.config, {
+          pricing_expires_at: "2026-07-01T00:00:00.000Z",
+        }),
+    },
+  ]) {
+    const handlers = createVNextOperatorSemanticReviewHandlersV01({
+      environment: input.environment,
+      clock: input.clock,
+      secret_source: input.secret_source,
+      strategic_dependencies: {
+        read_model_capability: () => ({
+          status: "available",
+          summary: `Cost ${costFailure.label} fixture model capability is available.`,
+          verification: "trusted_local_status",
+        }),
+        read_cost_budget: costFailure.read,
+      },
+    });
+    const response = await handlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar: input.jar,
+        body: analysisRequest,
+      }),
+    );
+    const body = await publicJson(response);
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "unavailable");
+    assert.equal(body.reason, costFailure.reason);
+    assert.equal(body.retryable, false);
+    assert.equal(body.model_invocation_count, 0);
+    assert.equal(input.gateway.transport_calls(), 0);
+  }
+  assert.deepEqual(snapshotR6CSemanticAuthorityCounts(input.config), beforeReads);
+  pass("strategic_cost_exceeded_and_stale_pricing_fail_before_egress");
   const transportCallsBeforeBindingRefusal = input.gateway.transport_calls();
   await expectRouteError(
     await input.review_handlers.POST(
@@ -2919,6 +3103,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic fake R4 transport is available for envelope refusal coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
           open_gateway_database: () =>
             new Database(config.database_path, { fileMustExist: true }),
           now: () => new Date(input.clock.now()),
@@ -2958,6 +3143,7 @@ async function assertR6DProductionVerticalV01(input: {
               : "Capability changed after the terminal attempt and must not mask replay settlement.",
             verification: "trusted_local_status" as const,
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
           invoke_model: async () => {
             timeoutInvocations += 1;
             throw new ModelGatewayInvocationErrorV01(
@@ -3043,6 +3229,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic failing R4 transport is available for attempt-receipt coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
           open_gateway_database: () =>
             new Database(config.database_path, { fileMustExist: true }),
           now: () => new Date(input.clock.now()),
@@ -3161,6 +3348,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic malformed strategic result is available for local rejection receipt coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
           open_gateway_database: () =>
             new Database(config.database_path, { fileMustExist: true }),
           now: () => new Date(input.clock.now()),
@@ -3275,6 +3463,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic fake R4 transport is available for proposal rollback coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
           open_gateway_database: () =>
             new Database(config.database_path, { fileMustExist: true }),
           now: () => new Date(input.clock.now()),
@@ -3418,6 +3607,7 @@ async function assertR6DProductionVerticalV01(input: {
                 "No current model capability is needed to reconcile the exact settled normalized result.",
               verification: "trusted_local_status",
             }),
+            read_cost_budget: () => strategicSmokeCostBudgetV01(config),
             invoke_model: async () => {
               throw new Error(
                 "cached strategic reconciliation must not invoke the Model Gateway",
@@ -3536,6 +3726,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic fake R4 transport is available for concurrent request coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
           open_gateway_database: () =>
             new Database(config.database_path, { fileMustExist: true }),
           now: () => new Date(input.clock.now()),
@@ -3675,6 +3866,31 @@ async function assertR6DProductionVerticalV01(input: {
   assert.equal(profile.model_invocation.receipt.execution_mode, "live");
   assert.equal(profile.model_invocation.receipt.egress_attempted, true);
   assert.equal(profile.model_invocation.receipt.status, "completed");
+  assert.equal(profile.budget.model.cost.status, "available");
+  if (profile.budget.model.cost.status !== "available") {
+    throw new Error("strategic_cost_budget_missing");
+  }
+  const strategicCostBudget = profile.budget.model.cost.budget;
+  assert.equal(
+    profile.budget.model.cost.budget.maximum_permitted_cost,
+    98_304,
+  );
+  assert.equal(
+    profile.budget.model.cost.budget.calculated_worst_case_cost,
+    98_304,
+  );
+  assert.equal(
+    profile.budget.model.cost.budget.authority.cost_unit,
+    "operator_pilot_test_credit_microunit",
+  );
+  assert.deepEqual(
+    profile.model_invocation.receipt.budget.cost_budget,
+    profile.budget.model.cost.budget,
+  );
+  assert.equal(
+    profile.model_invocation.receipt.cost.source,
+    "provider_cost_not_reported",
+  );
   const strategicSettlementDb = openVNextLocalOperatorDatabaseV01(input.config);
   try {
     const run = readAutonomyRunLedgerRecord(profile.assessment.run_id, {
@@ -3763,6 +3979,7 @@ async function assertR6DProductionVerticalV01(input: {
         readVNextOperatorStrategicAdvantageTransferV01(forgedReadbackDb, {
           config: input.config,
           proposal: forgedSettledProposal,
+          cost_budget: strategicCostBudget,
           model_capability: {
             status: "available",
             summary: "Deterministic fake R4 transport remains available.",
@@ -3796,6 +4013,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic fake R4 transport is available for envelope refusal coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
         },
       });
       await expectRouteError(
@@ -3843,6 +4061,7 @@ async function assertR6DProductionVerticalV01(input: {
           readVNextOperatorStrategicAdvantageTransferV01(conflictDb, {
             config: input.config,
             proposal: forged,
+            cost_budget: strategicCostBudget,
             model_capability: {
               status: "available",
               summary: "Deterministic fake R4 transport remains available.",
@@ -3868,6 +4087,7 @@ async function assertR6DProductionVerticalV01(input: {
           project_id: FOREIGN_PROJECT_ID,
         },
         proposal: strategicProposal,
+        cost_budget: strategicCostBudget,
         model_capability: {
           status: "available",
           summary: "Deterministic fake R4 transport remains available.",
@@ -3907,6 +4127,7 @@ async function assertR6DProductionVerticalV01(input: {
           {
             config,
             proposal: strategicProposal,
+            cost_budget: strategicCostBudget,
             model_capability: {
               status: "available",
               summary: "Deterministic fake R4 transport remains available.",
@@ -3977,6 +4198,7 @@ async function assertR6DProductionVerticalV01(input: {
               "Deterministic fake R4 transport remains available for immutable revision readback coverage.",
             verification: "trusted_local_status",
           }),
+          read_cost_budget: () => strategicSmokeCostBudgetV01(config),
         },
       });
       const jar = cloneRouteCookieJarV01(input.jar);
@@ -4108,6 +4330,7 @@ async function assertR6DProductionVerticalV01(input: {
     base_strategy: profile.base_strategy,
     working_frame: profile.working_frame,
     source_catalog: profile.source_catalog,
+    budget: profile.budget,
     model_output: noTransferOutput,
     model_invocation_receipt: profile.model_invocation.receipt,
   };

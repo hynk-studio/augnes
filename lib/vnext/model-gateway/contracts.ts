@@ -11,6 +11,7 @@ import type {
   StrategicAdvantageTransferModelOutputV01,
 } from "@/types/vnext/strategic-advantage-transfer";
 import type {
+  ModelGatewayCostBudgetV01,
   ModelInvocationReceiptUsageV02,
   ModelInvocationReceiptV02,
 } from "@/types/vnext/model-invocation-receipt";
@@ -85,6 +86,7 @@ export interface ModelGatewayBudgetV01 {
   max_input_bytes: number;
   max_output_tokens: number;
   max_provider_calls: 0 | 1;
+  cost_budget?: ModelGatewayCostBudgetV01;
 }
 
 interface ModelInvocationEnvelopeBaseV01 {

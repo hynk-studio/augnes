@@ -1,6 +1,9 @@
 import type { CriterionAssessmentV01 } from "./criterion-assessment";
 import type { ExternalRefTrustClassV01, ExternalRefV01 } from "./external-ref";
-import type { ModelInvocationReceiptV02 } from "./model-invocation-receipt";
+import type {
+  ModelGatewayCostBudgetV01,
+  ModelInvocationReceiptV02,
+} from "./model-invocation-receipt";
 
 export const STRATEGIC_ADVANTAGE_TRANSFER_PROFILE_VERSION_V01 =
   "strategic_advantage_transfer.v0.1" as const;
@@ -50,8 +53,15 @@ export interface StrategicAdvantageTransferBudgetV01 {
     timeout_ms: typeof STRATEGIC_ADVANTAGE_TRANSFER_TIMEOUT_MS_V01;
     automatic_retry: false;
     provider_failover: false;
-    cost_control: "one_server_selected_call_with_token_ceiling";
-    monetary_cost_basis: "unavailable_no_pricing_authority";
+    cost:
+      | {
+          status: "unavailable";
+          reason: "cost_authority_unavailable";
+        }
+      | {
+          status: "available";
+          budget: ModelGatewayCostBudgetV01;
+        };
   };
   truncation_allowed: false;
 }

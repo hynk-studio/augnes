@@ -87,12 +87,18 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       const modelCapability =
         options.strategic_dependencies?.read_model_capability?.() ??
         readDefaultModelGatewayLocalCapabilityV01();
+      const costBudget =
+        options.strategic_dependencies?.read_cost_budget?.({
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        }) ?? null;
       if (proposalId) {
         const proposal = readVNextOperatorPilotSemanticReviewV01(db, {
           config,
           proposal_id: proposalId,
           authenticated_session_id: authentication.session.session_id,
           model_capability: modelCapability,
+          cost_budget: costBudget,
         });
         return jsonResponse({
           ok: true,
@@ -132,6 +138,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           config,
           authenticated_session_id: authentication.session.session_id,
           model_capability: modelCapability,
+          cost_budget: costBudget,
         }),
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",

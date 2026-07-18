@@ -14,6 +14,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import { validateModelGatewayCostBudgetV01 } from "@/lib/vnext/model-gateway/cost-authority";
 import { assertNativeHostPublicTextV01 } from "@/lib/vnext/native-host/native-host-contract";
 import {
   EXTERNAL_REF_TRUST_CLASSES_V01,
@@ -69,7 +70,9 @@ export interface StrategicAdvantageTransferProfileValidationResultV01 {
   errors: StrategicAdvantageTransferValidationIssueV01[];
 }
 
-export function createStrategicAdvantageTransferBudgetV01(): StrategicAdvantageTransferBudgetV01 {
+export function createStrategicAdvantageTransferBudgetV01(
+  costBudget: import("@/types/vnext/model-invocation-receipt").ModelGatewayCostBudgetV01 | null = null,
+): StrategicAdvantageTransferBudgetV01 {
   return {
     budget_version: STRATEGIC_ADVANTAGE_TRANSFER_BUDGET_VERSION_V01,
     max_lenses: STRATEGIC_ADVANTAGE_TRANSFER_MAX_LENSES_V01,
@@ -89,8 +92,12 @@ export function createStrategicAdvantageTransferBudgetV01(): StrategicAdvantageT
       timeout_ms: STRATEGIC_ADVANTAGE_TRANSFER_TIMEOUT_MS_V01,
       automatic_retry: false,
       provider_failover: false,
-      cost_control: "one_server_selected_call_with_token_ceiling",
-      monetary_cost_basis: "unavailable_no_pricing_authority",
+      cost: costBudget
+        ? { status: "available", budget: structuredClone(costBudget) }
+        : {
+            status: "unavailable",
+            reason: "cost_authority_unavailable",
+          },
     },
     truncation_allowed: false,
   };
@@ -392,6 +399,13 @@ function validateProfileOrThrow(
   const catalog = validateCatalog(profile.source_catalog);
   const lenses = validateLenses(profile.lenses);
   validateBudget(profile.budget);
+  const budget = profile.budget as StrategicAdvantageTransferBudgetV01;
+  if (budget.model.cost.status !== "available") {
+    fail(
+      "strategic_advantage_transfer_cost_authority_unavailable",
+      "$strategic_advantage_transfer.budget.model.cost",
+    );
+  }
   const modelOutput = normalizeStrategicAdvantageTransferModelOutputV01(
     profile.normalized_model_output,
     lenses,
@@ -459,6 +473,8 @@ function validateProfileOrThrow(
     receipt.budget.provider_calls_used !== 1 ||
     receipt.budget.timeout_limit_ms !==
       createStrategicAdvantageTransferBudgetV01().model.timeout_ms ||
+    canonicalizeProtocolValueV01(receipt.budget.cost_budget) !==
+      canonicalizeProtocolValueV01(budget.model.cost.budget) ||
     receipt.budget.timeout_disposition !== "completed_within_deadline" ||
     receipt.cancellation_disposition !== "not_cancelled" ||
     receipt.failure_code !== null ||
@@ -538,7 +554,7 @@ function validateProfileOrThrow(
     working_frame_fingerprint: frame.working_frame_fingerprint,
     source_catalog_fingerprint: catalog.source_catalog_fingerprint,
     lenses,
-    budget: createStrategicAdvantageTransferBudgetV01(),
+    budget,
   });
   if (profile.analysis_identity !== expectedAnalysisIdentity) {
     fail(
@@ -938,7 +954,83 @@ function validateLenses(input: unknown): StrategicAdvantageTransferLensIdV01[] {
 }
 
 function validateBudget(input: unknown): void {
-  if (canonicalizeProtocolValueV01(input) !== canonicalizeProtocolValueV01(createStrategicAdvantageTransferBudgetV01())) fail("strategic_advantage_transfer_budget_conflict", "$strategic_advantage_transfer.budget");
+  const budget = exactRecord(
+    input,
+    [
+      "budget_version",
+      "max_lenses",
+      "max_transfer_items",
+      "max_source_catalog_items",
+      "max_source_refs_per_transfer",
+      "max_text_characters",
+      "max_total_canonical_utf8_bytes",
+      "model",
+      "truncation_allowed",
+    ],
+    "$strategic_advantage_transfer.budget",
+  );
+  const model = exactRecord(
+    budget.model,
+    [
+      "max_input_bytes",
+      "max_output_tokens",
+      "max_provider_calls",
+      "timeout_ms",
+      "automatic_retry",
+      "provider_failover",
+      "cost",
+    ],
+    "$strategic_advantage_transfer.budget.model",
+  );
+  const cost = plainRecord(
+    model.cost,
+    "$strategic_advantage_transfer.budget.model.cost",
+  );
+  const expectedBase = createStrategicAdvantageTransferBudgetV01();
+  const { cost: _expectedCost, ...expectedModelBase } = expectedBase.model;
+  const { cost: _actualCost, ...actualModelBase } = model;
+  if (
+    canonicalizeProtocolValueV01({
+      ...budget,
+      model: actualModelBase,
+    }) !==
+    canonicalizeProtocolValueV01({
+      ...expectedBase,
+      model: expectedModelBase,
+    })
+  ) {
+    fail(
+      "strategic_advantage_transfer_budget_conflict",
+      "$strategic_advantage_transfer.budget",
+    );
+  }
+  if (cost.status === "unavailable") {
+    if (
+      canonicalizeProtocolValueV01(cost) !==
+      canonicalizeProtocolValueV01({
+        status: "unavailable",
+        reason: "cost_authority_unavailable",
+      })
+    ) {
+      fail(
+        "strategic_advantage_transfer_budget_conflict",
+        "$strategic_advantage_transfer.budget.model.cost",
+      );
+    }
+    return;
+  }
+  if (cost.status !== "available") {
+    fail(
+      "strategic_advantage_transfer_budget_conflict",
+      "$strategic_advantage_transfer.budget.model.cost",
+    );
+  }
+  exactRecord(
+    cost,
+    ["status", "budget"],
+    "$strategic_advantage_transfer.budget.model.cost",
+  );
+  validateModelGatewayCostBudgetV01(cost.budget);
 }
 
 function validateCompatibility(input: unknown): void {

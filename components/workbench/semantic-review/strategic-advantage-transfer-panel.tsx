@@ -163,11 +163,27 @@ function StrategicSourceAvailability({
           </span>
           <span>Timeout {readback.budget.model.timeout_ms} ms</span>
           <span>Automatic retry: no · provider failover: no</span>
-          <span>
-            Monetary cost basis: unavailable under the current R4 pricing
-            authority; one call plus input, output, and timeout ceilings bound
-            exposure.
-          </span>
+          {readback.budget.model.cost.status === "available" ? (
+            <>
+              <span>
+                Maximum cost: {readback.budget.model.cost.budget.maximum_permitted_cost}{" "}
+                {readback.budget.model.cost.budget.authority.cost_unit}
+              </span>
+              <span>
+                Worst-case bounded cost: {readback.budget.model.cost.budget.calculated_worst_case_cost}{" "}
+                {readback.budget.model.cost.budget.authority.cost_unit}
+              </span>
+              <span>
+                Pricing and project policy are exact-bound before provider
+                egress.
+              </span>
+            </>
+          ) : (
+            <span>
+              Strategic analysis is unavailable because the resolved model
+              route has no enforceable cost authority.
+            </span>
+          )}
           <p className={styles.muted}>
             Model, provider, source catalog, profile, lenses, and budget are
             derived by the server; this surface accepts no overrides.

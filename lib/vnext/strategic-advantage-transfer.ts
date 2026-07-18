@@ -53,6 +53,7 @@ export interface StrategicAdvantageTransferMaterializationSourceV01 {
   base_strategy: StrategicAdvantageTransferBaseStrategyV01;
   working_frame: StrategicAdvantageTransferWorkingFrameV01;
   source_catalog: StrategicAdvantageTransferSourceCatalogV01;
+  budget: import("@/types/vnext/strategic-advantage-transfer").StrategicAdvantageTransferBudgetV01;
   model_output: StrategicAdvantageTransferModelOutputV01;
   model_invocation_receipt: ModelInvocationReceiptV02;
 }
@@ -90,8 +91,9 @@ export function deriveStrategicAdvantageTransferAdmissionIdentityV01(input: {
   base_strategy: StrategicAdvantageTransferBaseStrategyV01;
   working_frame: StrategicAdvantageTransferWorkingFrameV01;
   source_catalog: StrategicAdvantageTransferSourceCatalogV01;
+  budget: import("@/types/vnext/strategic-advantage-transfer").StrategicAdvantageTransferBudgetV01;
 }): StrategicAdvantageTransferAdmissionIdentityV01 {
-  const budget = createStrategicAdvantageTransferBudgetV01();
+  const budget = structuredClone(input.budget);
   const analysisIdentity = createStrategicAnalysisIdentityV01({
     profile_version: STRATEGIC_ADVANTAGE_TRANSFER_PROFILE_VERSION_V01,
     schema_version: STRATEGIC_ADVANTAGE_TRANSFER_MODEL_SCHEMA_VERSION_V01,
@@ -156,6 +158,13 @@ export function materializeStrategicAdvantageTransferProposalV01(
   const modelReceipt = validateModelInvocationReceiptV02(
     input.model_invocation_receipt,
   );
+  if (
+    input.budget.model.cost.status !== "available" ||
+    canonicalizeProtocolValueV01(modelReceipt.budget.cost_budget) !==
+      canonicalizeProtocolValueV01(input.budget.model.cost.budget)
+  ) {
+    refuse("strategic_advantage_transfer_cost_binding_conflict");
+  }
   const normalizedOutputFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01(modelOutput),
   );
@@ -224,7 +233,7 @@ export function materializeStrategicAdvantageTransferProposalV01(
     working_frame: structuredClone(input.working_frame),
     source_catalog: structuredClone(input.source_catalog),
     lenses: [...STRATEGIC_ADVANTAGE_TRANSFER_LENSES_V01],
-    budget: createStrategicAdvantageTransferBudgetV01(),
+    budget: structuredClone(input.budget),
     model_invocation: {
       receipt: modelReceipt,
       receipt_ref: modelReceiptRef,
@@ -249,7 +258,7 @@ export function materializeStrategicAdvantageTransferProposalV01(
       warnings: [
         "The admitted immutable proposal embeds the exact normalized result and ModelInvocationReceipt for review lineage; no separate strategic result record is created.",
         "Normalized lens output is derived candidate material and grants no authority.",
-        "Monetary cost remains unavailable under the current R4 no-pricing-authority contract; one server-selected call and token ceilings bound exposure.",
+        "The exact server-owned route pricing authority and worst-case pre-egress cost ceiling are bound to this proposal; provider-reported actual cost remains execution residue when available.",
       ],
     },
     authority: {
