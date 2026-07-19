@@ -47,7 +47,13 @@ import {
 import {
   createEpisodeDeltaProposalFingerprintV01,
   deriveEpisodeDeltaProposalIdV01,
+  validateEpisodeDeltaProposalV01,
 } from "../lib/vnext/episode-delta-proposal";
+import {
+  createCriterionAssessmentFingerprintV01,
+  formatCriterionRelationRefExternalIdV01,
+  parseCriterionRelationRefExternalIdV01,
+} from "../lib/vnext/criterion-assessment";
 import {
   createContextUseReviewFingerprintV01,
   deriveContextUseReviewPresentationProvenanceV01,
@@ -114,6 +120,7 @@ import {
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+  createLocalProjectRootCriterionVerificationPlanV01,
 } from "../lib/vnext/automation/local-project-root-verification-profile";
 import {
   createCodexAppServerAdapterV01,
@@ -1921,6 +1928,19 @@ async function assertDirectHostRoundTripCoverageV01(input: {
       throw new Error("criterion_assessment_not_available");
     }
     const assessment = resultDetail.criterion_assessment.assessment;
+    assert.equal(
+      resultDetail.criterion_assessment
+        .criterion_specific_relations_available,
+      false,
+    );
+    assert.equal(
+      resultDetail.criterion_assessment.task_success_status,
+      "unknown",
+    );
+    assert.equal(
+      resultDetail.criterion_assessment.source_validation,
+      "recomputed_from_packet_and_receipt",
+    );
     assert.equal(resultDetail.proposal.status, "available");
     if (
       resultDetail.proposal.status !== "available" ||
@@ -2014,6 +2034,10 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     assert.equal(proposalReview.decision_count, 0);
     assert.equal(proposalReview.transition.status, "not_applied");
     assert.equal(
+      proposalReview.criterion_specific_relations_source_bound,
+      false,
+    );
+    assert.equal(
       proposalReview.proposal.source_assessment?.assessment
         .assessment_fingerprint,
       assessment.assessment_fingerprint,
@@ -2047,6 +2071,9 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     assert.deepEqual(repeatedResultDetail.criterion_assessment, {
       status: "available",
       assessment,
+      criterion_specific_relations_available: false,
+      task_success_status: "unknown",
+      source_validation: "recomputed_from_packet_and_receipt",
     });
     await withOperatorDatabaseCloneV01(
       "run-assessment-proposal-exact-readback-conflict",
@@ -6489,6 +6516,14 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           automationPacketPayload.capability_grant?.grant_external_ref?.source_ref,
           boundedGrant.grant_fingerprint,
         );
+        assert.deepEqual(
+          automationPacketPayload.criterion_verification_plan,
+          createLocalProjectRootCriterionVerificationPlanV01({
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          "bounded automation must persist the exact server-owned criterion plan before adapter execution",
+        );
         assert.equal(
           (runDb.prepare(
             `SELECT COUNT(*) AS count FROM autonomy_run_events
@@ -6512,6 +6547,25 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         assert.equal(detail.summary.mode, "policy_triggered");
         assert.equal(detail.automation?.stopped_at_review_needed, true);
         assert.equal(detail.automation?.budget.max_augnes_model_invocations, 0);
+        assert.equal(detail.criterion_assessment.status, "available");
+        if (detail.criterion_assessment.status === "available") {
+          assert.deepEqual(detail.criterion_assessment.assessment.summary, {
+            satisfied: 0,
+            unsatisfied: 0,
+            unknown: 4,
+            not_applicable: 0,
+          });
+          assert.equal(
+            detail.criterion_assessment.assessment.criteria.every(
+              (criterion) =>
+                criterion.status === "unknown" &&
+                criterion.basis === "insufficient" &&
+                criterion.missing_refs.length > 0,
+            ),
+            true,
+            "the deterministic adapter's skipped production checks must remain unknown",
+          );
+        }
         assert.equal(detail.proposal.status, "available");
         const policyFeedbackHome = await readProjectHomeProjectionV01(
           runDb,
@@ -6798,6 +6852,28 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         assert(receiptRecord);
         const receipt = receiptRecord.payload as RunReceiptV01;
         productReceipt = receipt;
+        const productPacketRef = receipt.task_context_packet_ref;
+        assert(productPacketRef?.source_ref);
+        const productionPacketRecord = readVNextCoreRecordV01(resultDb, {
+          ...config,
+          record_kind: "task_context_packet",
+          record_id: productPacketRef.external_id,
+        });
+        assert(productionPacketRecord);
+        const productionPacket =
+          productionPacketRecord.payload as TaskContextPacketV01;
+        assert.equal(
+          productionPacket.integrity.fingerprint,
+          productPacketRef.source_ref,
+        );
+        assert.deepEqual(
+          productionPacket.criterion_verification_plan,
+          createLocalProjectRootCriterionVerificationPlanV01({
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          "the persisted product packet must carry the exact server-owned four-criterion/five-check plan",
+        );
         assert.equal(receipt.execution.status, "completed");
         assert.equal(receipt.commands.length, 0);
         assert.equal(receipt.changed_artifacts.length, 0);
@@ -6899,16 +6975,100 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           receipt_id: receipt.receipt_id,
         });
         assert.equal(detail.criterion_assessment.status, "available");
-        assert.deepEqual(
-          detail.criterion_assessment.status === "available"
-            ? detail.criterion_assessment.assessment.criteria
-                .map((criterion) => criterion.criterion)
-                .sort()
-            : [],
-          [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
-        );
+        if (detail.criterion_assessment.status === "available") {
+          const assessment = detail.criterion_assessment.assessment;
+          assert.equal(
+            detail.criterion_assessment
+              .criterion_specific_relations_available,
+            true,
+          );
+          assert.equal(
+            detail.criterion_assessment.task_success_status,
+            "satisfied",
+          );
+          assert.equal(
+            detail.criterion_assessment.source_validation,
+            "recomputed_from_packet_and_receipt",
+          );
+          assert.deepEqual(
+            assessment.criteria.map((criterion) => criterion.criterion).sort(),
+            [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
+          );
+          assert.deepEqual(assessment.summary, {
+            satisfied: 4,
+            unsatisfied: 0,
+            unknown: 0,
+            not_applicable: 0,
+          });
+          assert.equal(
+            assessment.criteria.every(
+              (criterion) =>
+                criterion.status === "satisfied" &&
+                criterion.basis === "observed" &&
+                criterion.supporting_refs.length > 0 &&
+                criterion.opposing_refs.length === 0 &&
+                criterion.missing_refs.length === 0 &&
+                criterion.supporting_refs.every(
+                  (ref) =>
+                    ref.ref_type === "criterion_check_support" &&
+                    ref.source_ref === receipt.integrity.fingerprint &&
+                    ref.trust_class === "direct_local_observation",
+                ),
+            ),
+            true,
+            "the complete production adapter receipt must satisfy every exactly bound criterion with observed residue",
+          );
+          for (const checkId of LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01) {
+            assert.equal(
+              assessment.criteria.some((criterion) =>
+                criterion.supporting_refs.some((ref) => {
+                  const identity =
+                    parseCriterionRelationRefExternalIdV01(
+                      ref.external_id,
+                    );
+                  return identity?.kind === "check" &&
+                    identity.check_id === checkId;
+                }),
+              ),
+              true,
+              `the production assessment must retain the exact ${checkId} relation`,
+            );
+          }
+          assert.equal(
+            assessment.criteria.some((criterion) =>
+              criterion.supporting_refs.some((ref) => {
+                const identity = parseCriterionRelationRefExternalIdV01(
+                  ref.external_id,
+                );
+                return identity?.kind === "check" &&
+                  identity.check_id === "validated_packet_delivery";
+              }),
+            ),
+            false,
+            "the unrelated delivery check must not establish criterion status",
+          );
+          assert.equal(assessment.authority.creates_evidence, false);
+          assert.equal(assessment.authority.validates_claims, false);
+          assert.equal(assessment.authority.creates_proposal, false);
+          assert.equal(assessment.authority.creates_decision, false);
+          assert.equal(assessment.authority.applies_transition, false);
+          assert.equal(assessment.authority.changes_semantic_state, false);
+          assert.equal(assessment.authority.changes_later_context, false);
+        }
         assert.equal(detail.proposal.status, "available");
         if (detail.proposal.status === "available") {
+          const proposalReview = readVNextOperatorPilotSemanticReviewV01(
+            resultDb,
+            {
+              config,
+              proposal_id: detail.proposal.proposal_id,
+              authenticated_session_id: null,
+            },
+          );
+          assert.equal(
+            proposalReview.criterion_specific_relations_source_bound,
+            true,
+          );
           const proposalRecord = readVNextCoreRecordV01(resultDb, {
             ...config,
             record_kind: "episode_delta_proposal",
@@ -6946,6 +7106,98 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       } finally {
         resultDb.close();
       }
+      await withOperatorDatabaseCloneV01(
+        "restored-forged-exact-criterion-relation",
+        productEnvironment,
+        async ({ config: restoredConfig }) => {
+          const restoredDb = openVNextLocalOperatorDatabaseV01(restoredConfig);
+          try {
+            const proposalId = String(
+              productRun!.metadata.run_assessment_proposal_id,
+            );
+            const stored = readVNextCoreRecordV01(restoredDb, {
+              ...restoredConfig,
+              record_kind: "episode_delta_proposal",
+              record_id: proposalId,
+            });
+            assert(stored);
+            const forged = structuredClone(
+              stored.payload,
+            ) as EpisodeDeltaProposalV01;
+            const forgedAssessment = forged.source_assessment?.assessment;
+            assert(forgedAssessment);
+            const relationRef = forgedAssessment.criteria
+              .flatMap((criterion) => criterion.supporting_refs)
+              .find((ref) =>
+                parseCriterionRelationRefExternalIdV01(ref.external_id),
+              );
+            assert(relationRef);
+            const relationIdentity =
+              parseCriterionRelationRefExternalIdV01(
+                relationRef.external_id,
+              );
+            assert(relationIdentity?.kind === "check");
+            relationRef.external_id =
+              formatCriterionRelationRefExternalIdV01({
+                ...relationIdentity,
+                relation_material_fingerprint:
+                  `sha256:${"9".repeat(64)}`,
+              });
+            assert.equal(
+              relationRef.source_ref,
+              productReceipt.integrity.fingerprint,
+              "the forged relation must retain the authentic receipt source fingerprint",
+            );
+            forgedAssessment.assessment_fingerprint =
+              createCriterionAssessmentFingerprintV01(forgedAssessment);
+            forged.proposal_id = deriveEpisodeDeltaProposalIdV01(forged);
+            forged.integrity.fingerprint =
+              createEpisodeDeltaProposalFingerprintV01(forged);
+            assert.equal(
+              validateEpisodeDeltaProposalV01(forged).status,
+              "valid",
+              "the restored proposal forge must pass standalone structure so source-bound readback is the refusing boundary",
+            );
+            restoredDb.exec(
+              "DROP TRIGGER trg_vnext_core_records_immutable_update",
+            );
+            restoredDb
+              .prepare(
+                `UPDATE vnext_core_records
+                 SET record_id = ?, fingerprint = ?, payload_json = ?
+                 WHERE record_kind = 'episode_delta_proposal'
+                   AND record_id = ?`,
+              )
+              .run(
+                forged.proposal_id,
+                forged.integrity.fingerprint,
+                canonicalizeProtocolValueV01(forged),
+                proposalId,
+              );
+            restoredDb.exec(`
+              CREATE TRIGGER trg_vnext_core_records_immutable_update
+                BEFORE UPDATE ON vnext_core_records
+                BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END
+            `);
+            assert.throws(
+              () =>
+                readVNextOperatorPilotSemanticReviewV01(restoredDb, {
+                  config: restoredConfig,
+                  proposal_id: forged.proposal_id,
+                  authenticated_session_id: null,
+                }),
+              (error) =>
+                error instanceof VNextOperatorPilotReviewErrorV01 &&
+                error.code ===
+                  "operator_pilot_proposal_relation_source_conflict",
+              "a structurally valid restored forge must never reach Workbench as an exact relation",
+            );
+          } finally {
+            restoredDb.close();
+          }
+        },
+        config.database_path,
+      );
       const afterCycle = snapshotR6CSemanticAuthorityCounts(config);
       assert.equal(afterCycle.proposals, authorityBefore.proposals + 1);
       assert.equal(afterCycle.receipts, authorityBefore.receipts + 1);
@@ -11158,12 +11410,13 @@ async function withOperatorDatabaseCloneV01<T>(
     environment: NodeJS.ProcessEnv;
     config: VNextLocalOperatorPilotConfigV01;
   }) => Promise<T>,
+  sourceDatabasePath = canonicalDbPath,
 ): Promise<T> {
   const databasePath = path.join(
     tempRoot,
     `${label.replace(/[^a-z0-9-]/gi, "-")}.db`,
   );
-  const source = new Database(canonicalDbPath, {
+  const source = new Database(sourceDatabasePath, {
     readonly: true,
     fileMustExist: true,
   });

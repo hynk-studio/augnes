@@ -18,7 +18,11 @@ import {
   validateExternalRefStructureV01,
   type ProtocolJsonRecordV01,
 } from "@/lib/vnext/protocol-primitives";
-import { validateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
+import {
+  isExactCriterionRelationRefV01,
+  validateCriterionAssessmentAgainstSourcesV01,
+  validateCriterionAssessmentV01,
+} from "@/lib/vnext/criterion-assessment";
 import {
   normalizeStrategicAdvantageTransferProfileV01,
   validateStrategicAdvantageTransferProfileV01,
@@ -52,7 +56,13 @@ import {
   type EpisodeDeltaProposalValidationIssueV01,
   type EpisodeDeltaProposalValidationResultV01,
 } from "@/types/vnext/episode-delta-proposal";
+import type {
+  CriterionAssessmentStatusV01,
+  CriterionAssessmentV01,
+} from "@/types/vnext/criterion-assessment";
 import type { StrategicAdvantageTransferProfileV01 } from "@/types/vnext/strategic-advantage-transfer";
+import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
 const PENDING_PROPOSAL_ID = "episode-delta-proposal:pending";
 const PENDING_FINGERPRINT = "sha256:pending";
@@ -532,6 +542,78 @@ export function buildEpisodeDeltaProposalV01(
   return proposal;
 }
 
+export function criterionSpecificRelationsAvailableV01(
+  input: {
+    packet: TaskContextPacketV01;
+    receipt: RunReceiptV01;
+    assessment: CriterionAssessmentV01;
+  },
+): boolean {
+  if (validateCriterionAssessmentAgainstSourcesV01(input).status !== "valid") {
+    return false;
+  }
+  return criterionSpecificRelationsStructurallyValidV01(input.assessment);
+}
+
+export function criterionSpecificRelationsStructurallyValidV01(
+  assessment: CriterionAssessmentV01,
+): boolean {
+  if (validateCriterionAssessmentV01(assessment).status !== "valid") {
+    return false;
+  }
+  const refs = assessment.criteria.flatMap((criterion) => [
+    ...criterion.supporting_refs,
+    ...criterion.opposing_refs,
+    ...criterion.missing_refs,
+  ]);
+  return refs.length > 0 && refs.every(isExactCriterionRelationRefV01);
+}
+
+export function criterionAssessmentTaskSuccessStatusV01(
+  input: {
+    packet: TaskContextPacketV01;
+    receipt: RunReceiptV01;
+    assessment: CriterionAssessmentV01;
+  },
+): CriterionAssessmentStatusV01 {
+  if (!criterionSpecificRelationsAvailableV01(input)) return "unknown";
+  return criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+    input.assessment,
+  );
+}
+
+function criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+  assessment: CriterionAssessmentV01,
+): CriterionAssessmentStatusV01 {
+  if (
+    assessment.criteria.length === 0 ||
+    !criterionSpecificRelationsStructurallyValidV01(assessment) ||
+    assessment.criteria.some((criterion) => {
+      if (criterion.status === "unknown") return false;
+      const refs = [
+        ...criterion.supporting_refs,
+        ...criterion.opposing_refs,
+        ...criterion.missing_refs,
+      ];
+      return refs.length === 0 || !refs.every(isExactCriterionRelationRefV01);
+    }) ||
+    assessment.criteria.some((criterion) => criterion.status === "unknown")
+  ) {
+    return "unknown";
+  }
+  if (assessment.criteria.some((criterion) => criterion.status === "unsatisfied")) {
+    return "unsatisfied";
+  }
+  if (assessment.criteria.some((criterion) => criterion.status === "satisfied")) {
+    return "satisfied";
+  }
+  return assessment.criteria.every(
+    (criterion) => criterion.status === "not_applicable",
+  )
+    ? "not_applicable"
+    : "unknown";
+}
+
 export function createEpisodeDeltaProposalAuthoritySummaryV01(
   notes: string[] = [],
 ): EpisodeDeltaProposalAuthoritySummaryV01 {
@@ -853,6 +935,8 @@ function normalizeSourceAssessmentV01(
   input: EpisodeDeltaProposalSourceAssessmentV01,
 ): EpisodeDeltaProposalSourceAssessmentV01 {
   const cloned = structuredClone(input);
+  const criterionSpecificRelationsAvailable =
+    criterionSpecificRelationsStructurallyValidV01(cloned.assessment);
   return {
     ...cloned,
     admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
@@ -895,8 +979,11 @@ function normalizeSourceAssessmentV01(
     },
     comparison: {
       relation_policy: "explicit_protocol_relations_only",
-      criterion_specific_relations_available: false,
-      task_success_status: "unknown",
+      criterion_specific_relations_available:
+        criterionSpecificRelationsAvailable,
+      task_success_status: criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+        cloned.assessment,
+      ),
       execution_status_is_task_success: false,
       gaps: uniqueProtocolStringsV01(input.comparison.gaps),
     },
@@ -1209,6 +1296,10 @@ function validateSourceAssessmentV01(
   const assessmentValidation = validateCriterionAssessmentV01(
     source.assessment,
   );
+  const sourceAssessment =
+    assessmentValidation.status === "valid"
+      ? (source.assessment as unknown as CriterionAssessmentV01)
+      : null;
   if (assessmentValidation.status !== "valid") {
     addError(
       accumulator,
@@ -1332,17 +1423,28 @@ function validateSourceAssessmentV01(
       `${path}.comparison`,
       accumulator,
     );
+    const expectedRelationsAvailable = sourceAssessment
+      ? criterionSpecificRelationsStructurallyValidV01(sourceAssessment)
+      : null;
+    const expectedTaskSuccessStatus = sourceAssessment
+      ? criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+          sourceAssessment,
+        )
+      : null;
     if (
       comparison.relation_policy !== "explicit_protocol_relations_only" ||
-      comparison.criterion_specific_relations_available !== false ||
-      comparison.task_success_status !== "unknown" ||
+      (expectedRelationsAvailable !== null &&
+        comparison.criterion_specific_relations_available !==
+          expectedRelationsAvailable) ||
+      (expectedTaskSuccessStatus !== null &&
+        comparison.task_success_status !== expectedTaskSuccessStatus) ||
       comparison.execution_status_is_task_success !== false
     ) {
       addError(
         accumulator,
         "run_assessment_proposal_relation_policy_conflict",
         `${path}.comparison`,
-        "The v0.1 run-assessment profile must preserve no criterion relation and unknown task success.",
+        "The run-assessment comparison must exactly reflect its embedded criterion assessment while keeping execution status separate from task success.",
         true,
       );
     }
@@ -1394,18 +1496,14 @@ function validateSourceAssessmentV01(
     );
   }
   if (
-    isProtocolRecordV01(source.assessment) &&
-    Array.isArray(source.assessment.criteria) &&
-    source.assessment.criteria.some(
+    sourceAssessment &&
+    !criterionSpecificRelationsStructurallyValidV01(sourceAssessment) &&
+    sourceAssessment.criteria.some(
       (criterion) =>
-        !isProtocolRecordV01(criterion) ||
         criterion.status !== "unknown" ||
         criterion.basis !== "insufficient" ||
-        !Array.isArray(criterion.supporting_refs) ||
         criterion.supporting_refs.length !== 0 ||
-        !Array.isArray(criterion.opposing_refs) ||
         criterion.opposing_refs.length !== 0 ||
-        !Array.isArray(criterion.missing_refs) ||
         criterion.missing_refs.length !== 0,
     )
   ) {
@@ -1413,7 +1511,7 @@ function validateSourceAssessmentV01(
       accumulator,
       "run_assessment_proposal_no_relation_profile_conflict",
       `${path}.assessment.criteria`,
-      "The current no-relation profile must preserve unknown/insufficient criteria with empty criterion-specific refs.",
+      "A no-relation assessment must preserve unknown/insufficient criteria with empty criterion-specific refs.",
       true,
     );
   }

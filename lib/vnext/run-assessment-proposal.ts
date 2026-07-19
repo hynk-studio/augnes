@@ -2,6 +2,8 @@ import {
   buildEpisodeDeltaProposalV01,
   collectRunAssessmentProposalSourceMaterialBoundViolationsV01,
   createRunAssessmentProposalSourceMaterialBoundaryV01,
+  criterionAssessmentTaskSuccessStatusV01,
+  criterionSpecificRelationsAvailableV01,
   validateEpisodeDeltaProposalV01,
 } from "@/lib/vnext/episode-delta-proposal";
 import {
@@ -9,12 +11,15 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import {
-  evaluateCriterionAssessmentV01,
-  validateCriterionAssessmentV01,
+  isExactCriterionRelationRefV01,
+  validateCriterionAssessmentAgainstSourcesV01,
 } from "@/lib/vnext/criterion-assessment";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
-import type { CriterionAssessmentV01 } from "@/types/vnext/criterion-assessment";
+import type {
+  CriterionAssessmentItemV01,
+  CriterionAssessmentV01,
+} from "@/types/vnext/criterion-assessment";
 import {
   RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
   type EpisodeDeltaProposalAttestationTrustClassV01,
@@ -73,6 +78,13 @@ export function materializeRunAssessmentProposalV01(input: {
 }): RunAssessmentProposalMaterializationV01 {
   assertExactSourceMaterialV01(input);
   const identity = deriveRunAssessmentProposalAdmissionIdentityV01(input);
+  const criterionRelationsAvailable =
+    criterionSpecificRelationsAvailableV01(input);
+  const allCriteriaConclusive =
+    input.assessment.criteria.length > 0 &&
+    input.assessment.criteria.every(
+      (criterion) => criterion.status !== "unknown",
+    );
   const receiptRef = cloneRefV01(input.assessment.receipt_ref);
   const packetRef = cloneRefV01(input.assessment.packet_ref);
   const runRef = sourceRefV01({
@@ -182,7 +194,9 @@ export function materializeRunAssessmentProposalV01(input: {
     missing_information: candidateMaterial.missing_information,
     uncertainties: candidateMaterial.uncertainties,
     limitations: [
-      "TaskContextPacket v0.1 and RunReceipt v0.1 expose no protocol-owned criterion-to-residue relation.",
+      criterionRelationsAvailable
+        ? "Criterion-specific status is derived only from exact protocol-owned relations preserved in the assessment snapshot; it is not accepted Evidence or semantic authority."
+        : "TaskContextPacket v0.1 and RunReceipt v0.1 expose no protocol-owned criterion-to-residue relation.",
       "Execution completion, passed transport checks, skipped checks, changed artifacts, and unsupported coverage do not establish task success.",
       "The proposal is pending review and does not create a ReviewDecision, Transition, accepted Evidence, semantic state, or later context.",
     ],
@@ -196,7 +210,11 @@ export function materializeRunAssessmentProposalV01(input: {
             input.receipt.recorded_at,
       review_required: true,
       basis:
-        "Exact persisted packet, receipt, run, and criterion-assessment lineage is available; criterion-specific relations remain unavailable.",
+        criterionRelationsAvailable
+          ? allCriteriaConclusive
+            ? "Exact persisted packet, receipt, run, criterion-assessment, and criterion-specific relation lineage is available for every criterion; the assessment remains derived and non-authoritative."
+            : "Exact persisted packet, receipt, run, and criterion-assessment lineage is available; criterion-specific relation material is available for at least one criterion while one or more criteria remain unknown."
+          : "Exact persisted packet, receipt, run, and criterion-assessment lineage is available; criterion-specific relations remain unavailable.",
       source_refs: [packetRef, receiptRef, assessmentRef],
     },
     source_refs: [
@@ -280,18 +298,16 @@ function assertExactSourceMaterialV01(input: {
   if (validateRunReceiptV01(input.receipt).status !== "valid") {
     failV01("run_assessment_proposal_receipt_invalid");
   }
-  if (validateCriterionAssessmentV01(input.assessment).status !== "valid") {
-    failV01("run_assessment_proposal_assessment_invalid");
-  }
-  const recomputed = evaluateCriterionAssessmentV01({
-    packet: input.packet,
-    receipt: input.receipt,
-  });
-  if (
-    canonicalizeProtocolValueV01(recomputed) !==
-    canonicalizeProtocolValueV01(input.assessment)
-  ) {
-    failV01("run_assessment_proposal_assessment_conflict");
+  const sourceValidation = validateCriterionAssessmentAgainstSourcesV01(input);
+  if (sourceValidation.status !== "valid") {
+    failV01(
+      sourceValidation.code === "criterion_assessment_source_structure_invalid"
+        ? "run_assessment_proposal_assessment_invalid"
+        : sourceValidation.code ===
+            "criterion_assessment_source_material_conflict"
+          ? "run_assessment_proposal_assessment_conflict"
+          : "run_assessment_proposal_source_binding_conflict",
+    );
   }
   if (
     input.packet.workspace_id !== input.receipt.workspace_id ||
@@ -401,26 +417,36 @@ function assessmentInferencesV01(input: {
   const criteria = input.assessment.criteria.length
     ? input.assessment.criteria
     : [null];
-  return criteria.map((criterion) => ({
-    material_id: criterion
-      ? assessmentMaterialIdV01(criterion.criterion_id)
-      : "criterion-assessment:task",
-    material_kind: criterion
-      ? "criterion_assessment_item"
-      : "criterion_assessment_summary",
-    bounded_summary: criterion
-      ? `Criterion remains ${criterion.status} with basis ${criterion.basis}; no criterion-specific protocol relation is available.`
-      : "No success criterion was present; validation remains required before semantic change can be considered.",
-    inferred_at: input.inferred_at,
-    interpreter_ref: input.interpreter_ref,
-    trust_class: "derived_interpretation",
-    basis_material_ids: [input.basis_material_id],
-    source_run_receipt_refs: [input.receipt_ref],
-    source_refs: [input.packet_ref, input.receipt_ref, input.assessment_ref],
-    subject_refs: criterion
-      ? [criterionRefV01(criterion.criterion_id, input.assessment_ref)]
-      : [input.assessment_ref],
-  }));
+  return criteria.map((criterion) => {
+    const relationRefs = criterion ? criterionRelationRefsV01(criterion) : [];
+    return {
+      material_id: criterion
+        ? assessmentMaterialIdV01(criterion.criterion_id)
+        : "criterion-assessment:task",
+      material_kind: criterion
+        ? "criterion_assessment_item"
+        : "criterion_assessment_summary",
+      bounded_summary: criterion
+        ? criterionHasSpecificRelationsV01(criterion)
+          ? `Criterion is ${criterion.status} with ${criterion.basis} basis from ${criterion.supporting_refs.length} exact supporting, ${criterion.opposing_refs.length} exact opposing, and ${criterion.missing_refs.length} exact missing relation refs; the assessment remains derived and non-authoritative.`
+          : `Criterion remains ${criterion.status} with basis ${criterion.basis}; no criterion-specific protocol relation is available.`
+        : "No success criterion was present; validation remains required before semantic change can be considered.",
+      inferred_at: input.inferred_at,
+      interpreter_ref: input.interpreter_ref,
+      trust_class: "derived_interpretation" as const,
+      basis_material_ids: [input.basis_material_id],
+      source_run_receipt_refs: [input.receipt_ref],
+      source_refs: cloneRefsV01([
+        input.packet_ref,
+        input.receipt_ref,
+        input.assessment_ref,
+        ...relationRefs,
+      ]),
+      subject_refs: criterion
+        ? [criterionRefV01(criterion.criterion_id, input.assessment_ref)]
+        : [input.assessment_ref],
+    };
+  });
 }
 
 function proposalCandidatesV01(input: {
@@ -442,6 +468,11 @@ function proposalCandidatesV01(input: {
     const targetRef = criterion
       ? criterionRefV01(criterion.criterion_id, input.assessment_ref)
       : input.assessment_ref;
+    const relationAvailable =
+      criterion !== null && criterionHasSpecificRelationsV01(criterion);
+    const relationRefs = criterion ? criterionRelationRefsV01(criterion) : [];
+    const criterionIsConclusive =
+      criterion !== null && criterion.status !== "unknown";
     return {
       candidate_id: candidateId,
       delta_type: "validation_delta" as const,
@@ -452,50 +483,100 @@ function proposalCandidatesV01(input: {
       current_state: {
         knowledge_status: "unknown" as const,
         bounded_summary: null,
-        source_material_ids: [],
-        source_refs: [],
+        source_material_ids: relationAvailable ? [materialId] : [],
+        source_refs: relationAvailable
+          ? cloneRefsV01([input.assessment_ref, ...relationRefs])
+          : [],
       },
       proposed_state_summary: criterion
-        ? "Validate this criterion through an explicit protocol-owned relation; current run residue supports no semantic state change."
+        ? relationAvailable
+          ? criterionIsConclusive
+            ? "Review the exact derived criterion relation and status; no semantic state change is proposed automatically."
+            : "Resolve the exact missing or conflicting criterion relation material before any semantic state change is considered."
+          : "Validate this criterion through an explicit protocol-owned relation; current run residue supports no semantic state change."
         : "Establish bounded success criteria before any semantic state change is proposed.",
       target_refs: [targetRef],
       basis_material_ids: [materialId],
-      source_refs: [input.assessment_ref, input.packet_ref, input.receipt_ref],
+      source_refs: cloneRefsV01([
+        input.assessment_ref,
+        input.packet_ref,
+        input.receipt_ref,
+        ...relationRefs,
+      ]),
       uncertainties: criterion
         ? [...criterion.uncertainty]
         : ["Task success criteria are absent."],
       limitations: [
         "Operation remains unknown and review-required.",
-        "No criterion-to-residue relation was inferred.",
+        relationAvailable
+          ? "Exact criterion relation material is copied from the derived assessment without creating Evidence, a decision, or Transition."
+          : "No criterion-to-residue relation was inferred.",
       ],
       review_required: true as const,
     };
   });
   return {
     candidates,
-    missing_information: candidates.map((candidate, index) => ({
-      missing_id: stableIdV01("missing-information", candidate.candidate_id),
-      knowledge_status: "unknown" as const,
-      code: input.assessment.criteria[index]
-        ? "criterion_relation_unavailable"
-        : "success_criteria_missing",
-      bounded_summary: input.assessment.criteria[index]
-        ? "No protocol-owned relation connects this criterion to receipt residue."
-        : "The packet contains no explicit success criterion to assess.",
-      related_material_ids: [candidate.basis_material_ids[0]!],
-      related_delta_ids: [candidate.candidate_id],
-      source_refs: [],
-      review_required: true as const,
-    })),
-    uncertainties: candidates.map((candidate, index) => ({
-      uncertainty_id: stableIdV01("uncertainty", candidate.candidate_id),
-      bounded_summary: input.assessment.criteria[index]
-        ? "Execution completion and task success remain separate; criterion status is unknown."
-        : "Task success cannot be assessed without an explicit criterion.",
-      related_material_ids: [candidate.basis_material_ids[0]!],
-      related_delta_ids: [candidate.candidate_id],
-      source_refs: [],
-    })),
+    missing_information: candidates.flatMap((candidate, index) => {
+      const criterion = input.assessment.criteria[index] ?? null;
+      const relationAvailable =
+        criterion !== null && criterionHasSpecificRelationsV01(criterion);
+      const criterionIsConclusive =
+        criterion !== null && criterion.status !== "unknown";
+      return [
+        {
+          missing_id: stableIdV01(
+            "missing-information",
+            candidate.candidate_id,
+          ),
+          knowledge_status: "unknown" as const,
+          code: criterion
+            ? relationAvailable
+              ? criterionIsConclusive
+                ? "semantic_review_required"
+                : "criterion_relation_incomplete"
+              : "criterion_relation_unavailable"
+            : "success_criteria_missing",
+          bounded_summary: criterion
+            ? relationAvailable
+              ? criterionIsConclusive
+                ? "An exact derived criterion status is available, but no accepted Evidence, ReviewDecision, or semantic-state determination exists."
+                : "Exact criterion relation material is missing, incomplete, under-trusted, or conflicting."
+              : "No protocol-owned relation connects this criterion to receipt residue."
+            : "The packet contains no explicit success criterion to assess.",
+          related_material_ids: [candidate.basis_material_ids[0]!],
+          related_delta_ids: [candidate.candidate_id],
+          source_refs: relationAvailable
+            ? criterionRelationRefsV01(criterion)
+            : [],
+          review_required: true as const,
+        },
+      ];
+    }),
+    uncertainties: candidates.flatMap((candidate, index) => {
+      const criterion = input.assessment.criteria[index] ?? null;
+      const relationAvailable =
+        criterion !== null && criterionHasSpecificRelationsV01(criterion);
+      const criterionIsConclusive =
+        criterion !== null && criterion.status !== "unknown";
+      return [
+        {
+          uncertainty_id: stableIdV01("uncertainty", candidate.candidate_id),
+          bounded_summary: criterion
+            ? relationAvailable
+              ? criterionIsConclusive
+                ? "Derived criterion status remains separate from accepted Evidence, ReviewDecision, and semantic state."
+                : "Exact relation material is incomplete or conflicting, so criterion status remains unknown."
+              : "Execution completion and task success remain separate; criterion status is unknown."
+            : "Task success cannot be assessed without an explicit criterion.",
+          related_material_ids: [candidate.basis_material_ids[0]!],
+          related_delta_ids: [candidate.candidate_id],
+          source_refs: relationAvailable
+            ? criterionRelationRefsV01(criterion)
+            : [],
+        },
+      ];
+    }),
   };
 }
 
@@ -508,6 +589,12 @@ function sourceAssessmentSnapshotV01(input: {
   packet_ref: ExternalRefV01;
   receipt_ref: ExternalRefV01;
 }): EpisodeDeltaProposalSourceAssessmentV01 {
+  const criterionRelationsAvailable =
+    criterionSpecificRelationsAvailableV01({
+      packet: input.packet,
+      receipt: input.receipt,
+      assessment: input.assessment,
+    });
   return {
     admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
     admission_idempotency_key: input.identity.idempotency_key,
@@ -550,10 +637,20 @@ function sourceAssessmentSnapshotV01(input: {
     },
     comparison: {
       relation_policy: "explicit_protocol_relations_only",
-      criterion_specific_relations_available: false,
-      task_success_status: "unknown",
+      criterion_specific_relations_available: criterionRelationsAvailable,
+      task_success_status: criterionAssessmentTaskSuccessStatusV01(
+        {
+          packet: input.packet,
+          receipt: input.receipt,
+          assessment: input.assessment,
+        },
+      ),
       execution_status_is_task_success: false,
-      gaps: comparisonGapsV01(input.receipt, input.assessment),
+      gaps: comparisonGapsV01(
+        input.receipt,
+        input.assessment,
+        criterionRelationsAvailable,
+      ),
     },
     authority: {
       authoritative: false,
@@ -570,9 +667,17 @@ function sourceAssessmentSnapshotV01(input: {
 function comparisonGapsV01(
   receipt: RunReceiptV01,
   assessment: CriterionAssessmentV01,
+  criterionRelationsAvailable: boolean,
 ): string[] {
   return [
-    "No protocol-owned criterion-to-residue relation is available.",
+    ...(criterionRelationsAvailable
+      ? assessment.criteria
+          .filter((criterion) => criterion.status === "unknown")
+          .map(
+            (criterion) =>
+              `Criterion ${criterion.criterion_id} remains unknown because exact relation material is missing, incomplete, under-trusted, or conflicting.`,
+          )
+      : ["No protocol-owned criterion-to-residue relation is available."]),
     ...receipt.skipped_checks.map(
       (check) => `Skipped check ${check.check_id}: ${check.reason}`,
     ),
@@ -598,6 +703,27 @@ function sourceCurrentnessV01(
 
 function assessmentMaterialIdV01(criterionId: string): string {
   return stableIdV01("criterion-assessment", criterionId);
+}
+
+function criterionHasSpecificRelationsV01(
+  criterion: CriterionAssessmentItemV01,
+): boolean {
+  const refs = [
+    ...criterion.supporting_refs,
+    ...criterion.opposing_refs,
+    ...criterion.missing_refs,
+  ];
+  return refs.length > 0 && refs.every(isExactCriterionRelationRefV01);
+}
+
+function criterionRelationRefsV01(
+  criterion: CriterionAssessmentItemV01,
+): ExternalRefV01[] {
+  return cloneRefsV01([
+    ...criterion.supporting_refs,
+    ...criterion.opposing_refs,
+    ...criterion.missing_refs,
+  ]);
 }
 
 function criterionRefV01(

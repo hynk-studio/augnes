@@ -2,6 +2,7 @@ import type {
   ExternalRefTrustClassV01,
   ExternalRefV01,
 } from "./external-ref";
+import type { CriterionVerificationPlanV01 } from "./criterion-verification-plan";
 
 export const TASK_CONTEXT_PACKET_VERSION_V01 =
   "task_context_packet.v0.1" as const;
@@ -248,6 +249,12 @@ export interface TaskContextPacketV01 {
   gaps: TaskContextPacketGapV01[];
   constraints: TaskContextPacketConstraintsV01;
   capability_grant: TaskContextPacketBoundedCapabilitySummaryV01 | null;
+  /**
+   * Optional additive v0.1 material. Historical packets omit this field and
+   * retain their exact prior identity. When present, the enclosing packet
+   * identity/fingerprint binds the complete server-owned verification plan.
+   */
+  criterion_verification_plan?: CriterionVerificationPlanV01;
   return_contract: TaskContextPacketReturnContractV01;
   authority_summary: TaskContextPacketAuthoritySummaryV01;
   source_status: TaskContextPacketSourceStatusV01;

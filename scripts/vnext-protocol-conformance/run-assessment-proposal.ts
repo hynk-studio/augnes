@@ -8,12 +8,28 @@ import {
 } from "@/fixtures/vnext/protocol/run-receipt-v0-1";
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import {
+  createLocalProjectRootCriterionVerificationPlanV01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
+} from "@/lib/vnext/automation/local-project-root-verification-profile";
+import {
   createEpisodeDeltaProposalFingerprintV01,
   collectRunAssessmentProposalSourceMaterialBoundViolationsV01,
+  criterionAssessmentTaskSuccessStatusV01,
+  criterionSpecificRelationsAvailableV01,
   deriveEpisodeDeltaProposalIdV01,
   validateEpisodeDeltaProposalV01,
 } from "@/lib/vnext/episode-delta-proposal";
-import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
+import {
+  createCriterionAssessmentFingerprintV01,
+  evaluateCriterionAssessmentV01,
+  formatCriterionRelationRefExternalIdV01,
+  isExactCriterionRelationRefV01,
+  parseCriterionRelationRefExternalIdV01,
+  validateCriterionAssessmentAgainstSourcesV01,
+  validateCriterionAssessmentV01,
+  type CriterionCheckRelationRefIdentityV01,
+} from "@/lib/vnext/criterion-assessment";
 import {
   countVNextCoreRecordsV01,
   ensureVNextDurableSemanticStoreSchemaV01,
@@ -65,6 +81,9 @@ export interface RunAssessmentProposalConformanceSummaryV01 {
   neutral_receipt_basis_checked: true;
   exact_source_material_checked: true;
   source_material_bounds_checked: true;
+  relation_aware_snapshot_checked: true;
+  partial_relation_task_unknown_checked: true;
+  relation_change_refused_checked: true;
 }
 
 export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalConformanceSummaryV01 {
@@ -136,6 +155,13 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
   assert.equal(first.proposal.authority_summary.creates_evidence, false);
   assert.equal(source.authority.creates_decision, false);
   assert.equal(source.authority.changes_later_context, false);
+  assertUntypedCandidateRelationsFailClosedV01(
+    first.proposal,
+    packet,
+    receipt,
+    assessment,
+  );
+  assertRelationAwareProposalV01();
   const neutralMaterial = first.proposal.observations.filter(
     (item) => item.material_kind === "persisted_run_receipt",
   );
@@ -676,7 +702,463 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
     neutral_receipt_basis_checked: true,
     exact_source_material_checked: true,
     source_material_bounds_checked: true,
+    relation_aware_snapshot_checked: true,
+    partial_relation_task_unknown_checked: true,
+    relation_change_refused_checked: true,
   };
+}
+
+function assertRelationAwareProposalV01(): void {
+  const packet = relationAwarePacketV01();
+  const partialReceipt = relationAwareReceiptV01(packet, false);
+  const partialAssessment = evaluateCriterionAssessmentV01({
+    packet,
+    receipt: partialReceipt,
+  });
+  assert.equal(partialAssessment.summary.satisfied, 1);
+  assert.equal(partialAssessment.summary.unknown, 3);
+  const rootCriterion = partialAssessment.criteria.find(
+    (criterion) =>
+      criterion.criterion ===
+      LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria[0],
+  );
+  assert(rootCriterion);
+  assert.equal(rootCriterion.status, "satisfied");
+  assert.equal(rootCriterion.basis, "observed");
+  assert.equal(rootCriterion.supporting_refs.length, 1);
+  const rootSupportRef = rootCriterion.supporting_refs[0]!;
+  const partial = materializeRunAssessmentProposalV01({
+    packet,
+    receipt: partialReceipt,
+    assessment: partialAssessment,
+  });
+  const partialSource = partial.proposal.source_assessment;
+  assert(partialSource);
+  assert.equal(
+    partialSource.comparison.criterion_specific_relations_available,
+    true,
+  );
+  assert.equal(partialSource.comparison.task_success_status, "unknown");
+  assert.deepEqual(partialSource.assessment.criteria, partialAssessment.criteria);
+  assert.equal(
+    partialSource.comparison.gaps.some((gap) => gap.includes("remains unknown")),
+    true,
+  );
+  const rootInference = partial.proposal.inferences.find(
+    (inference) =>
+      inference.material_kind === "criterion_assessment_item" &&
+      inference.bounded_summary.includes("Criterion is satisfied"),
+  );
+  assert(rootInference);
+  assert.equal(
+    rootInference.source_refs.some(
+      (ref) => ref.external_id === rootSupportRef.external_id,
+    ),
+    true,
+  );
+  const rootCandidate = partial.proposal.proposed_deltas.find((candidate) =>
+    candidate.title.includes(
+      LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria[0],
+    ),
+  );
+  assert(rootCandidate);
+  assert.equal(rootCandidate.operation, "unknown");
+  assert.equal(rootCandidate.current_state.knowledge_status, "unknown");
+  assert.equal(rootCandidate.review_required, true);
+  assert.equal(
+    rootCandidate.source_refs.some(
+      (ref) => ref.external_id === rootSupportRef.external_id,
+    ),
+    true,
+  );
+  assert.equal(validateEpisodeDeltaProposalV01(partial.proposal).status, "valid");
+
+  const completeReceipt = relationAwareReceiptV01(packet, true);
+  const completeAssessment = evaluateCriterionAssessmentV01({
+    packet,
+    receipt: completeReceipt,
+  });
+  assert.deepEqual(completeAssessment.summary, {
+    satisfied: 4,
+    unsatisfied: 0,
+    unknown: 0,
+    not_applicable: 0,
+  });
+  const complete = materializeRunAssessmentProposalV01({
+    packet,
+    receipt: completeReceipt,
+    assessment: completeAssessment,
+  });
+  const completeReplay = materializeRunAssessmentProposalV01({
+    packet: clone(packet),
+    receipt: clone(completeReceipt),
+    assessment: clone(completeAssessment),
+  });
+  assert.deepEqual(completeReplay, complete);
+  assert.equal(
+    complete.proposal.source_assessment?.comparison.task_success_status,
+    "satisfied",
+  );
+  assert.equal(
+    complete.proposal.source_assessment?.comparison
+      .criterion_specific_relations_available,
+    true,
+  );
+  assert.equal(
+    complete.proposal.source_assessment?.assessment.criteria.every(
+      (criterion) =>
+        criterion.status === "satisfied" &&
+        criterion.basis === "observed" &&
+        criterion.supporting_refs.length > 0 &&
+        criterion.opposing_refs.length === 0 &&
+        criterion.missing_refs.length === 0,
+    ),
+    true,
+  );
+  assert.equal(complete.proposal.status, "pending_review");
+  assert.equal(complete.proposal.authority_summary.creates_evidence, false);
+  assert.equal(
+    complete.proposal.authority_summary.performs_durable_transition,
+    false,
+  );
+  assert.equal(
+    complete.proposal.source_assessment?.authority.creates_decision,
+    false,
+  );
+  assert.equal(
+    complete.proposal.source_assessment?.authority.changes_semantic_state,
+    false,
+  );
+  assertForgedRelationProposalSourceBoundV01({
+    packet,
+    receipt: completeReceipt,
+    proposal: complete.proposal,
+  });
+
+  const changedAssessment = clone(completeAssessment);
+  const changedRef = changedAssessment.criteria[0]!.supporting_refs[0]!;
+  changedRef.external_id = `${changedRef.external_id}:changed`;
+  changedAssessment.assessment_fingerprint =
+    createCriterionAssessmentFingerprintV01(changedAssessment);
+  assert.notEqual(
+    changedAssessment.assessment_fingerprint,
+    completeAssessment.assessment_fingerprint,
+  );
+  assert.throws(
+    () =>
+      materializeRunAssessmentProposalV01({
+        packet,
+        receipt: completeReceipt,
+        assessment: changedAssessment,
+      }),
+    (error) =>
+      error instanceof RunAssessmentProposalMaterializationErrorV01 &&
+      [
+        "run_assessment_proposal_assessment_invalid",
+        "run_assessment_proposal_assessment_conflict",
+      ].includes(error.code),
+  );
+}
+
+function assertForgedRelationProposalSourceBoundV01(input: {
+  packet: ReturnType<typeof relationAwarePacketV01>;
+  receipt: ReturnType<typeof relationAwareReceiptV01>;
+  proposal: EpisodeDeltaProposalV01;
+}): void {
+  const mutations: Array<
+    [
+      string,
+      (identity: CriterionCheckRelationRefIdentityV01) =>
+        CriterionCheckRelationRefIdentityV01,
+    ]
+  > = [
+    [
+      "obligation-id",
+      (identity) => ({
+        ...identity,
+        obligation_id: `criterion-obligation:sha256:${"0".repeat(64)}`,
+      }),
+    ],
+    [
+      "check-id",
+      (identity) => ({
+        ...identity,
+        check_id: "project_root_manifest_verified",
+      }),
+    ],
+    [
+      "relation-direction",
+      (identity) => ({ ...identity, direction: "opposition" }),
+    ],
+    [
+      "residue-kind",
+      (identity) => ({ ...identity, residue_kind: "skipped_check" }),
+    ],
+    [
+      "check-status",
+      (identity) => ({ ...identity, residue_status: "failed" }),
+    ],
+    [
+      "basis",
+      (identity) => ({ ...identity, basis: "attested" }),
+    ],
+    [
+      "relation-material-fingerprint",
+      (identity) => ({
+        ...identity,
+        relation_material_fingerprint: `sha256:${"8".repeat(64)}`,
+      }),
+    ],
+  ];
+  for (const [label, mutate] of mutations) {
+    const forgedProposal = clone(input.proposal);
+    const forgedAssessment = forgedProposal.source_assessment?.assessment;
+    assert(forgedAssessment);
+    const relationRef = forgedAssessment.criteria
+      .flatMap((criterion) => criterion.supporting_refs)
+      .find((ref) =>
+        parseCriterionRelationRefExternalIdV01(ref.external_id),
+      );
+    assert(relationRef);
+    const identity = parseCriterionRelationRefExternalIdV01(
+      relationRef.external_id,
+    );
+    assert(identity?.kind === "check");
+    const receiptFingerprint = relationRef.source_ref;
+    relationRef.external_id = formatCriterionRelationRefExternalIdV01(
+      mutate(identity),
+    );
+    assert.equal(
+      relationRef.source_ref,
+      receiptFingerprint,
+      `${label} must retain the authentic receipt source fingerprint`,
+    );
+    forgedAssessment.assessment_fingerprint =
+      createCriterionAssessmentFingerprintV01(forgedAssessment);
+    forgedProposal.proposal_id =
+      deriveEpisodeDeltaProposalIdV01(forgedProposal);
+    forgedProposal.integrity.fingerprint =
+      createEpisodeDeltaProposalFingerprintV01(forgedProposal);
+    assert.equal(
+      forgedProposal.integrity.fingerprint,
+      createEpisodeDeltaProposalFingerprintV01(forgedProposal),
+      `${label} must recompute the outer proposal fingerprint`,
+    );
+    const sourceValidation = validateCriterionAssessmentAgainstSourcesV01({
+      packet: input.packet,
+      receipt: input.receipt,
+      assessment: forgedAssessment,
+    });
+    assert.equal(
+      sourceValidation.status,
+      "blocked",
+      `${label} must fail exact packet/receipt recomputation`,
+    );
+    assert.equal(
+      criterionSpecificRelationsAvailableV01({
+        packet: input.packet,
+        receipt: input.receipt,
+        assessment: forgedAssessment,
+      }),
+      false,
+      `${label} must not project exact relation availability`,
+    );
+    assert.equal(
+      criterionAssessmentTaskSuccessStatusV01({
+        packet: input.packet,
+        receipt: input.receipt,
+        assessment: forgedAssessment,
+      }),
+      "unknown",
+      `${label} must not project task success`,
+    );
+    if (label === "relation-material-fingerprint") {
+      assert.equal(
+        validateEpisodeDeltaProposalV01(forgedProposal).status,
+        "valid",
+        "a structurally valid relation-fingerprint forge must still require source-bound validation",
+      );
+    }
+  }
+}
+
+function assertUntypedCandidateRelationsFailClosedV01(
+  sourceProposal: EpisodeDeltaProposalV01,
+  packet: ReturnType<typeof packetV01>,
+  receipt: ReturnType<typeof receiptV01>,
+  sourceAssessment: CriterionAssessmentV01,
+): void {
+  const candidateAssessment = clone(sourceAssessment);
+  const criterion = candidateAssessment.criteria[0]!;
+  criterion.status = "satisfied";
+  criterion.basis = "observed";
+  criterion.supporting_refs = [
+    {
+      ref_version: "external_ref.v0.1",
+      ref_type: "criterion_relation_candidate",
+      external_id: "provider-candidate:not-exact-relation",
+      observed_at: RECORDED_AT,
+      source_ref: candidateAssessment.receipt_ref.source_ref,
+      compatibility_namespace: "provider_relation_candidate.v0.1",
+      trust_class: "provider_report",
+    },
+  ];
+  criterion.trust = {
+    direct_local_observation: 0,
+    verified_external_observation: 0,
+    host_attestation: 0,
+    provider_report: 1,
+    user_declaration: 0,
+    imported_unverified: 0,
+    derived_interpretation: 0,
+  };
+  candidateAssessment.summary.unknown -= 1;
+  candidateAssessment.summary.satisfied += 1;
+  candidateAssessment.assessment_fingerprint =
+    createCriterionAssessmentFingerprintV01(candidateAssessment);
+  assert.equal(
+    validateCriterionAssessmentV01(candidateAssessment).status,
+    "valid",
+    "historical untyped assessment refs remain readable but are not exact relations",
+  );
+  assert.equal(
+    isExactCriterionRelationRefV01(criterion.supporting_refs[0]),
+    false,
+  );
+  assert.equal(
+    criterionSpecificRelationsAvailableV01({
+      packet,
+      receipt,
+      assessment: candidateAssessment,
+    }),
+    false,
+  );
+  assert.equal(
+    criterionAssessmentTaskSuccessStatusV01({
+      packet,
+      receipt,
+      assessment: candidateAssessment,
+    }),
+    "unknown",
+  );
+
+  const candidateProposal = clone(sourceProposal);
+  candidateProposal.source_assessment!.assessment = candidateAssessment;
+  candidateProposal.source_assessment!.comparison = {
+    ...candidateProposal.source_assessment!.comparison,
+    criterion_specific_relations_available: false,
+    task_success_status: "unknown",
+  };
+  recomputeProposalV01(candidateProposal);
+  const validation = validateEpisodeDeltaProposalV01(candidateProposal);
+  assert.equal(validation.status, "blocked", JSON.stringify(validation));
+  assert.equal(
+    validation.errors.some(
+      (issue) =>
+        issue.code === "run_assessment_proposal_no_relation_profile_conflict",
+    ),
+    true,
+    JSON.stringify(validation),
+  );
+}
+
+function relationAwarePacketV01() {
+  const input = clone(
+    genericCliBuilderInputFixture,
+  ) as TaskContextPacketBuilderInputV01;
+  input.workspace_id = WORKSPACE_ID;
+  input.project_id = PROJECT_ID;
+  input.generated_at = "2026-07-18T02:05:00.000Z";
+  input.expires_at = null;
+  input.task = {
+    goal: LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.goal,
+    success_criteria: [
+      ...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria,
+    ],
+    non_goals: [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.non_goals],
+  };
+  input.constraints.required_checks = [
+    ...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  ];
+  input.return_contract.required_checks = [
+    ...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  ];
+  input.criterion_verification_plan =
+    createLocalProjectRootCriterionVerificationPlanV01({
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+    });
+  return buildTaskContextPacketV01(input);
+}
+
+function relationAwareReceiptV01(
+  packet: ReturnType<typeof relationAwarePacketV01>,
+  complete: boolean,
+) {
+  const input = clone(
+    genericCliDirectObservationInputFixture,
+  ) as RunReceiptBuilderInputV01;
+  input.workspace_id = WORKSPACE_ID;
+  input.project_id = PROJECT_ID;
+  input.run_id = complete
+    ? "run-r6-b-relation-complete"
+    : "run-r6-b-relation-partial";
+  input.work_ref = clone(packet.work_ref as ExternalRefV01);
+  input.task_context_packet_ref = {
+    ref_version: "external_ref.v0.1",
+    ref_type: "task_context_packet",
+    external_id: packet.packet_id,
+    trust_class: "direct_local_observation",
+    observed_at: packet.generated_at,
+    source_ref: packet.integrity.fingerprint,
+    compatibility_namespace: packet.packet_version,
+  };
+  input.recorded_at = RECORDED_AT;
+  const requiredCheckIds = [
+    ...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  ];
+  const resultCheckIds = complete
+    ? requiredCheckIds
+    : ["project_root_scope_verified"];
+  const verifierRef = input.verifier_refs[0]!;
+  input.verification = {
+    status: complete ? "passed" : "partial",
+    basis: "observed",
+    required_check_ids: requiredCheckIds,
+    source_refs: [verifierRef],
+  };
+  input.checks = resultCheckIds.map((checkId) => ({
+    check_id: checkId,
+    required: true,
+    status: "passed",
+    basis: "observed",
+    summary: `Exact production check ${checkId} passed.`,
+    source_refs: [verifierRef],
+  }));
+  input.skipped_checks = requiredCheckIds
+    .filter((checkId) => !resultCheckIds.includes(checkId))
+    .map((checkId) => ({
+      check_id: checkId,
+      required: true,
+      reason: "The bounded relation-aware fixture stopped before this exact check completed.",
+      basis: "observed" as const,
+      source_refs: [verifierRef],
+    }));
+  input.observations[0]!.related_check_ids = resultCheckIds;
+  input.observations[0]!.source_refs = [verifierRef];
+  input.result_summary = {
+    summary: complete
+      ? "All exact production obligations completed."
+      : "Only one exact production obligation completed.",
+    outcome: complete ? "completed" : "partial",
+    limitations: [
+      "The derived assessment remains non-authoritative and review-required.",
+    ],
+  };
+  const receipt = buildRunReceiptV01(input);
+  const validation = validateRunReceiptV01(receipt);
+  assert.equal(validation.status, "valid", JSON.stringify(validation));
+  return receipt;
 }
 
 function packetV01(overrides: { goal?: string; criteria?: string[] } = {}) {
