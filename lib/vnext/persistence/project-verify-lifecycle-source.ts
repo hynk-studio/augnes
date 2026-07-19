@@ -21,6 +21,7 @@ import {
 import {
   canonicalizeProtocolValueV01,
   normalizeExternalRefPrimitiveV01,
+  normalizeProtocolTextV01,
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import {
@@ -41,10 +42,13 @@ import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-de
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
-import type {
-  ProjectVerifyLifecycleBindingV01,
-  ProjectVerifyLifecycleCurrentHeadExpectationV01,
-  ProjectVerifyLifecycleEntityKindV01,
+import {
+  PROJECT_VERIFY_LIFECYCLE_MAX_ID_CHARACTERS_V01,
+  PROJECT_VERIFY_LIFECYCLE_PROPOSAL_PROFILE_VERSION_V01,
+  type ProjectVerifyLifecycleBindingV01,
+  type ProjectVerifyLifecycleRecordReferenceV01,
+  type ProjectVerifyLifecycleCurrentHeadExpectationV01,
+  type ProjectVerifyLifecycleEntityKindV01,
 } from "@/types/vnext/project-verify-lifecycle";
 import type {
   ClaimEvidenceRelationV01,
@@ -77,6 +81,22 @@ export interface ProjectVerifyLifecycleStructuralSourceV01 {
   lineage_revision_count: number;
   lifecycle_binding: ProjectVerifyLifecycleBindingV01;
 }
+
+const LIFECYCLE_PROPOSAL_LOCATOR_IDENTITY_KEYS_V01 = new Set([
+  "proposal_profile",
+  "workspace_id",
+  "project_id",
+  "entity_kind",
+  "family_id",
+  "selected_record_ref",
+  "admission_idempotency_key",
+]);
+const LIFECYCLE_PROPOSAL_LOCATOR_RECORD_REF_KEYS_V01 = new Set([
+  "record_kind",
+  "record_id",
+  "record_fingerprint",
+]);
+const SHA256_V01 = /^sha256:[a-f0-9]{64}$/u;
 
 /**
  * Canonical scoped materializer. The selected record is explicit: the reader
@@ -112,35 +132,63 @@ export function readProjectVerifyLifecycleProposalStructuralOnlyV01(
   record: VNextCoreRecordEnvelopeV01;
   proposal: EpisodeDeltaProposalV01;
 } | null {
+  const located = readProjectVerifyLifecycleProposalLocatorOnlyV01(
+    db,
+    identity,
+  );
+  if (!located) return null;
+  assertProjectVerifyLifecycleProposalStructuralOnlyV01(db, located.proposal);
+  return located;
+}
+
+/**
+ * @internal Envelope/identity locator only. This validates the bounded lookup,
+ * canonical EpisodeDeltaProposal shape, lifecycle-profile identity, and exact
+ * vnext_core_records envelope. It deliberately does not load or authenticate
+ * the selected SR-2 record, family lineage, historical/current head, decision,
+ * gate, Transition, or semantic state. A caller must traverse one of the full
+ * source-authenticity gates before projecting lifecycle meaning.
+ */
+export function readProjectVerifyLifecycleProposalLocatorOnlyV01(
+  db: Database.Database,
+  identity: ProjectVerifyLifecycleProposalAdmissionIdentityV01,
+): {
+  record: VNextCoreRecordEnvelopeV01;
+  proposal: EpisodeDeltaProposalV01;
+} | null {
   assertVNextDurableSemanticStoreSchemaV01(db);
+  const normalizedIdentity = normalizeProposalLocatorIdentityV01(identity);
   const record = readVNextCoreRecordByIdempotencyKeyV01(db, {
     record_kind: "episode_delta_proposal",
-    workspace_id: requiredTextV01(
-      identity.workspace_id,
-      "workspace_id_invalid",
-    ),
-    project_id: requiredTextV01(identity.project_id, "project_id_invalid"),
-    idempotency_key: identity.admission_idempotency_key,
+    workspace_id: normalizedIdentity.workspace_id,
+    project_id: normalizedIdentity.project_id,
+    idempotency_key: normalizedIdentity.admission_idempotency_key,
   });
   if (!record) return null;
   if (validateEpisodeDeltaProposalV01(record.payload).status !== "valid") {
     refuseV01("project_verify_lifecycle_proposal_invalid");
   }
   const proposal = record.payload as EpisodeDeltaProposalV01;
-  assertProposalEnvelopeV01(record, proposal, identity);
-  const authenticated = assertProjectVerifyLifecycleProposalStructuralOnlyV01(
-    db,
-    proposal,
+  assertProposalEnvelopeV01(record, proposal, normalizedIdentity);
+  const profile = proposal.project_verify_lifecycle;
+  if (!profile) {
+    refuseV01("project_verify_lifecycle_proposal_profile_missing");
+  }
+  const bindingValidation = validateProjectVerifyLifecycleBindingV01(
+    profile.lifecycle_binding,
   );
+  if (bindingValidation.status !== "valid") {
+    refuseV01("project_verify_lifecycle_binding_invalid");
+  }
   const expectedIdentity =
     deriveProjectVerifyLifecycleProposalAdmissionIdentityV01({
-      workspace_id: authenticated.lifecycle_binding.workspace_id,
-      project_id: authenticated.lifecycle_binding.project_id,
-      entity_kind: authenticated.lifecycle_binding.entity_kind,
-      family_id: authenticated.lifecycle_binding.family_id,
-      selected_record_ref: authenticated.lifecycle_binding.selected_record_ref,
+      workspace_id: profile.lifecycle_binding.workspace_id,
+      project_id: profile.lifecycle_binding.project_id,
+      entity_kind: profile.lifecycle_binding.entity_kind,
+      family_id: profile.lifecycle_binding.family_id,
+      selected_record_ref: profile.lifecycle_binding.selected_record_ref,
     });
-  if (!canonicalEqualV01(expectedIdentity, identity)) {
+  if (!canonicalEqualV01(expectedIdentity, normalizedIdentity)) {
     refuseV01("project_verify_lifecycle_proposal_identity_conflict");
   }
   return { record, proposal };
@@ -705,6 +753,114 @@ function absentHeadExpectationV01(): ProjectVerifyLifecycleCurrentHeadExpectatio
 function requiredTextV01(value: unknown, code: string): string {
   if (typeof value !== "string" || value.trim().length === 0) refuseV01(code);
   return value.trim();
+}
+
+function normalizeProposalLocatorIdentityV01(
+  value: ProjectVerifyLifecycleProposalAdmissionIdentityV01,
+): ProjectVerifyLifecycleProposalAdmissionIdentityV01 {
+  assertExactLocatorKeysV01(
+    value,
+    LIFECYCLE_PROPOSAL_LOCATOR_IDENTITY_KEYS_V01,
+    "project_verify_lifecycle_proposal_locator_identity_fields_invalid",
+  );
+  if (
+    value.proposal_profile !==
+    PROJECT_VERIFY_LIFECYCLE_PROPOSAL_PROFILE_VERSION_V01
+  ) {
+    refuseV01("project_verify_lifecycle_proposal_locator_profile_invalid");
+  }
+  if (
+    value.entity_kind !== "claim_record" &&
+    value.entity_kind !== "claim_evidence_relation"
+  ) {
+    refuseV01("project_verify_lifecycle_proposal_locator_entity_invalid");
+  }
+  assertExactLocatorKeysV01(
+    value.selected_record_ref,
+    LIFECYCLE_PROPOSAL_LOCATOR_RECORD_REF_KEYS_V01,
+    "project_verify_lifecycle_proposal_locator_record_ref_fields_invalid",
+  );
+  const selectedRecordKind = value.selected_record_ref.record_kind;
+  if (
+    selectedRecordKind !== value.entity_kind ||
+    (selectedRecordKind !== "claim_record" &&
+      selectedRecordKind !== "claim_evidence_relation")
+  ) {
+    refuseV01("project_verify_lifecycle_proposal_locator_record_kind_invalid");
+  }
+  const selectedRecordRef: ProjectVerifyLifecycleRecordReferenceV01 = {
+    record_kind: selectedRecordKind,
+    record_id: boundedLocatorTextV01(
+      value.selected_record_ref.record_id,
+      "project_verify_lifecycle_proposal_locator_record_id_invalid",
+    ),
+    record_fingerprint: locatorShaV01(
+      value.selected_record_ref.record_fingerprint,
+      "project_verify_lifecycle_proposal_locator_record_fingerprint_invalid",
+    ),
+  };
+  const normalized =
+    deriveProjectVerifyLifecycleProposalAdmissionIdentityV01({
+      workspace_id: boundedLocatorTextV01(
+        value.workspace_id,
+        "project_verify_lifecycle_proposal_locator_workspace_invalid",
+      ),
+      project_id: boundedLocatorTextV01(
+        value.project_id,
+        "project_verify_lifecycle_proposal_locator_project_invalid",
+      ),
+      entity_kind: value.entity_kind,
+      family_id: boundedLocatorTextV01(
+        value.family_id,
+        "project_verify_lifecycle_proposal_locator_family_invalid",
+      ),
+      selected_record_ref: selectedRecordRef,
+    });
+  if (
+    locatorShaV01(
+      value.admission_idempotency_key,
+      "project_verify_lifecycle_proposal_locator_idempotency_invalid",
+    ) !== normalized.admission_idempotency_key ||
+    !canonicalEqualV01(normalized, value)
+  ) {
+    refuseV01("project_verify_lifecycle_proposal_identity_conflict");
+  }
+  return normalized;
+}
+
+function assertExactLocatorKeysV01(
+  value: unknown,
+  expected: ReadonlySet<string>,
+  code: string,
+): asserts value is Record<string, unknown> {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).length !== expected.size ||
+    Object.keys(value).some((key) => !expected.has(key))
+  ) {
+    refuseV01(code);
+  }
+}
+
+function boundedLocatorTextV01(value: unknown, code: string): string {
+  const normalized = normalizeProtocolTextV01(value);
+  if (
+    typeof value !== "string" ||
+    normalized !== value ||
+    normalized.length === 0 ||
+    normalized.length > PROJECT_VERIFY_LIFECYCLE_MAX_ID_CHARACTERS_V01
+  ) {
+    refuseV01(code);
+  }
+  return normalized;
+}
+
+function locatorShaV01(value: unknown, code: string): string {
+  const normalized = boundedLocatorTextV01(value, code);
+  if (!SHA256_V01.test(normalized)) refuseV01(code);
+  return normalized;
 }
 
 function assertObservationTimeV01(value: unknown, notBefore: string): void {

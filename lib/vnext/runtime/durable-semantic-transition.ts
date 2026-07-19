@@ -41,7 +41,7 @@ import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/
 import {
   assertProjectVerifyLifecycleCurrentHeadStructuralOnlyV01,
   assertProjectVerifyLifecycleProposalStructuralOnlyV01,
-  readProjectVerifyLifecycleProposalStructuralOnlyV01,
+  readProjectVerifyLifecycleProposalLocatorOnlyV01,
   type ProjectVerifyLifecycleStructuralSourceV01,
 } from "@/lib/vnext/persistence/project-verify-lifecycle-source";
 import { deriveProjectVerifyLifecycleProposalAdmissionIdentityV01 } from "@/lib/vnext/project-verify-lifecycle";
@@ -347,7 +347,9 @@ export function persistVNextSemanticReviewMaterialV01(
     const lifecycle = input.proposal.project_verify_lifecycle;
     if (lifecycle) {
       const binding = lifecycle.lifecycle_binding;
-      const admitted = readProjectVerifyLifecycleProposalStructuralOnlyV01(
+      // Locate only the canonical envelope here; the mandatory full source
+      // gate below authenticates the selected SR-2 record and prior chain.
+      const admitted = readProjectVerifyLifecycleProposalLocatorOnlyV01(
         db,
         deriveProjectVerifyLifecycleProposalAdmissionIdentityV01({
           workspace_id: binding.workspace_id,
@@ -1055,6 +1057,18 @@ interface VNextSemanticTransitionValidationContextV01 {
   readonly max_cached_sources: number | null;
 }
 
+interface VNextSemanticTransitionRelationReadSessionRegistrationV01 {
+  readonly db: Database.Database;
+  readonly workspace_id: string;
+  readonly project_id: string;
+  readonly validation_context: VNextSemanticTransitionValidationContextV01;
+}
+
+const vNextSemanticTransitionRelationReadSessionRegistryV01 = new WeakMap<
+  VNextSemanticTransitionRelationReadSessionV01,
+  VNextSemanticTransitionRelationReadSessionRegistrationV01
+>();
+
 /**
  * Full Project Verify source-authenticity gate. The structural SR-2/state
  * validator is intentionally private to Transition assembly; this public gate
@@ -1112,6 +1126,8 @@ export function loadValidatedVNextSemanticTransitionRelationV01(
  * Callers must create a new loader for every top-level read; no mutable head,
  * gate expiry, missing source, or conflict result is cached here. After the
  * cache bound, additional sources are still fully validated but not memoized.
+ * The returned callable is also a creator-issued opaque runtime handle; exact
+ * state validation rejects structurally compatible unregistered callables.
  */
 export function createValidatedVNextSemanticTransitionRelationReadSessionV01(
   db: Database.Database,
@@ -1123,7 +1139,7 @@ export function createValidatedVNextSemanticTransitionRelationReadSessionV01(
   const validationContext = createTransitionValidationContextV01(
     VNEXT_SEMANTIC_TRANSITION_READ_SESSION_MAX_CACHED_SOURCES_V01,
   );
-  return (input) =>
+  const readSession: VNextSemanticTransitionRelationReadSessionV01 = (input) =>
     structuredClone(
       loadValidatedVNextSemanticTransitionRelationWithContextV01(
         db,
@@ -1136,6 +1152,13 @@ export function createValidatedVNextSemanticTransitionRelationReadSessionV01(
         validationContext,
       ),
     );
+  vNextSemanticTransitionRelationReadSessionRegistryV01.set(readSession, {
+    db,
+    workspace_id: workspaceId,
+    project_id: projectId,
+    validation_context: validationContext,
+  });
+  return readSession;
 }
 
 function loadValidatedVNextSemanticTransitionRelationWithContextV01(
@@ -1524,13 +1547,50 @@ export function assertProjectVerifyLifecyclePersistedStateSourceBoundV01(
   );
 }
 
+/**
+ * Source-authenticates one persisted Project Verify state through an existing
+ * creator-issued, scope- and database-bound Transition read session. Its
+ * private validation context fully validates the exact receipt source chain
+ * (or returns an exact successful cache hit); this helper then performs the
+ * complete persisted state/proposal/candidate/decision/gate/receipt/effect
+ * comparison.
+ */
+export function assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+  db: Database.Database,
+  input: ProjectVerifyLifecyclePersistedStateSourceInputV01,
+  readSession: VNextSemanticTransitionRelationReadSessionV01,
+): ValidatedVNextSemanticTransitionRelationV01 {
+  const registration =
+    vNextSemanticTransitionRelationReadSessionRegistryV01.get(readSession);
+  if (!registration) {
+    throw new Error(
+      "persisted_project_verify_lifecycle_read_session_invalid",
+    );
+  }
+  if (
+    registration.db !== db ||
+    input.state.workspace_id !== registration.workspace_id ||
+    input.state.project_id !== registration.project_id
+  ) {
+    throw new Error(
+      "persisted_project_verify_lifecycle_read_session_scope_mismatch",
+    );
+  }
+  return structuredClone(
+    assertProjectVerifyLifecyclePersistedStateSourceBoundWithContextV01(
+      registration.db,
+      input,
+      registration.validation_context,
+    ),
+  );
+}
+
 function assertProjectVerifyLifecyclePersistedStateSourceBoundWithContextV01(
   db: Database.Database,
   input: ProjectVerifyLifecyclePersistedStateSourceInputV01,
   validationContext: VNextSemanticTransitionValidationContextV01,
 ): ValidatedVNextSemanticTransitionRelationV01 {
-  const binding = input.state.state_content.project_verify_lifecycle_binding;
-  if (!binding) {
+  if (!input.state.state_content.project_verify_lifecycle_binding) {
     throw new Error("persisted_project_verify_lifecycle_binding_missing");
   }
   const transition = loadValidatedVNextSemanticTransitionRelationWithContextV01(
@@ -1543,6 +1603,20 @@ function assertProjectVerifyLifecyclePersistedStateSourceBoundWithContextV01(
     },
     validationContext,
   );
+  return assertProjectVerifyLifecyclePersistedStateMatchesTransitionV01(
+    input,
+    transition,
+  );
+}
+
+function assertProjectVerifyLifecyclePersistedStateMatchesTransitionV01(
+  input: ProjectVerifyLifecyclePersistedStateSourceInputV01,
+  transition: ValidatedVNextSemanticTransitionRelationV01,
+): ValidatedVNextSemanticTransitionRelationV01 {
+  const binding = input.state.state_content.project_verify_lifecycle_binding;
+  if (!binding) {
+    throw new Error("persisted_project_verify_lifecycle_binding_missing");
+  }
   const profile = transition.proposal.project_verify_lifecycle;
   const candidate = transition.proposal.proposed_deltas.find(
     (item) =>
@@ -2472,7 +2546,10 @@ function loadReviewMaterial(
   if (proposal.project_verify_lifecycle) {
     try {
       const binding = proposal.project_verify_lifecycle.lifecycle_binding;
-      const admitted = readProjectVerifyLifecycleProposalStructuralOnlyV01(
+      // The locator authenticates no lifecycle meaning. The context-aware
+      // full source traversal immediately below remains mandatory before this
+      // review material is returned to any Transition caller.
+      const admitted = readProjectVerifyLifecycleProposalLocatorOnlyV01(
         input.db,
         deriveProjectVerifyLifecycleProposalAdmissionIdentityV01({
           workspace_id: binding.workspace_id,

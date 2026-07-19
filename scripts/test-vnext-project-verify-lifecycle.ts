@@ -36,6 +36,7 @@ import {
   ProjectVerifyLifecycleAdmissionErrorV01,
   assertProjectVerifyLifecycleProposalCurrentHeadExpectationV01,
 } from "@/lib/vnext/persistence/project-verify-lifecycle-admission";
+import { readProjectVerifyLifecycleProposalLocatorOnlyV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-source";
 import {
   admitClaimEvidenceRelationV01,
   admitClaimRecordV01,
@@ -68,6 +69,7 @@ import {
   type ReviewDecisionBuilderInputV01,
 } from "@/lib/vnext/review-decision";
 import {
+  assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01,
   commitVNextSemanticTransitionV01,
   createValidatedVNextSemanticTransitionRelationReadSessionV01,
   loadValidatedVNextSemanticTransitionRelationV01,
@@ -806,6 +808,75 @@ function assertTransitionReadSessionBoundaryV01(
   };
   const first = loadTransition(source);
   assert.deepEqual(first.receipt, applied.commit.transition_receipt);
+  const persistedState = assertPresentV01(applied.commit.semantic_state);
+  assert.deepEqual(
+    assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+      db,
+      {
+        state: persistedState,
+        ...source,
+      },
+      loadTransition,
+    ).receipt,
+    applied.commit.transition_receipt,
+    "the read-session state validator preserves exact source authentication",
+  );
+  const fakeReadSession = (_input: typeof source) => structuredClone(first);
+  assert.throws(
+    () =>
+      assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+        db,
+        { state: persistedState, ...source },
+        fakeReadSession,
+      ),
+    /persisted_project_verify_lifecycle_read_session_invalid/,
+    "an arbitrary callable cannot forge a source-authenticated read session",
+  );
+  const crossScopeState = structuredClone(persistedState);
+  crossScopeState.project_id = OTHER_PROJECT_ID;
+  assert.throws(
+    () =>
+      assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+        db,
+        { state: crossScopeState, ...source },
+        loadTransition,
+      ),
+    /persisted_project_verify_lifecycle_read_session_scope_mismatch/,
+    "a creator-issued session cannot authenticate a state from another scope",
+  );
+  const otherDb = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(otherDb);
+    const otherDatabaseSession =
+      createValidatedVNextSemanticTransitionRelationReadSessionV01(otherDb, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+      });
+    assert.throws(
+      () =>
+        assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+          db,
+          { state: persistedState, ...source },
+          otherDatabaseSession,
+        ),
+      /persisted_project_verify_lifecycle_read_session_scope_mismatch/,
+      "a same-scope session issued for another database cannot be reused",
+    );
+  } finally {
+    otherDb.close();
+  }
+  const changedState = structuredClone(persistedState);
+  changedState.source_candidate_id = "forged-read-session-candidate";
+  assert.throws(
+    () =>
+      assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+        db,
+        { state: changedState, ...source },
+        loadTransition,
+      ),
+    /persisted_project_verify_lifecycle_source_conflict/,
+    "a successful Transition cache hit cannot authenticate changed persisted-state source material",
+  );
   first.receipt.recorded_at = "2000-01-01T00:00:00.000Z";
   assert.deepEqual(
     loadTransition(source).receipt,
@@ -815,6 +886,20 @@ function assertTransitionReadSessionBoundaryV01(
 
   const wrongFingerprint = `sha256:${"f".repeat(64)}`;
   assert.notEqual(wrongFingerprint, source.transition_receipt_fingerprint);
+  assert.throws(
+    () =>
+      assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+        db,
+        {
+          state: persistedState,
+          ...source,
+          transition_receipt_fingerprint: wrongFingerprint,
+        },
+        loadTransition,
+      ),
+    /persisted_transition_receipt_fingerprint_mismatch/,
+    "the state helper cannot reuse a successful cache entry under a changed receipt fingerprint",
+  );
   assert.throws(
     () =>
       loadTransition({
@@ -2411,6 +2496,42 @@ function assertLifecycleRefusalMatrixV01(): void {
     );
 
     admitProjectVerifyLifecycleProposalV01(db, createMaterial);
+    assert.deepEqual(
+      readProjectVerifyLifecycleProposalLocatorOnlyV01(
+        db,
+        createMaterial.identity,
+      )?.proposal,
+      createMaterial.proposal,
+      "the internal locator returns the exact canonical proposal envelope without projecting lifecycle authenticity",
+    );
+    assert.throws(
+      () =>
+        readProjectVerifyLifecycleProposalLocatorOnlyV01(db, {
+          ...createMaterial.identity,
+          unexpected: "locator-boundary-forgery",
+        } as Parameters<
+          typeof readProjectVerifyLifecycleProposalLocatorOnlyV01
+        >[1]),
+      /project_verify_lifecycle_proposal_locator_identity_fields_invalid/,
+    );
+    assert.throws(
+      () =>
+        readProjectVerifyLifecycleProposalLocatorOnlyV01(db, {
+          ...createMaterial.identity,
+          family_id: "claim-family:locator-identity-forgery",
+        }),
+      /project_verify_lifecycle_proposal_identity_conflict/,
+      "a matching idempotency lookup cannot substitute a different family identity",
+    );
+    assert.throws(
+      () =>
+        readProjectVerifyLifecycleProposalLocatorOnlyV01(db, {
+          ...createMaterial.identity,
+          workspace_id: "x".repeat(257),
+        }),
+      /project_verify_lifecycle_proposal_locator_workspace_invalid/,
+      "locator scope is bounded before the database lookup",
+    );
     const correctDecision = decisionV01({
       proposal: createMaterial.proposal,
       priorDecision: null,
@@ -4159,6 +4280,56 @@ function assertStructuralSourceImportBoundaryV01(): void {
     "lib/vnext/runtime/durable-semantic-transition.ts",
     "lib/vnext/runtime/project-verify-reconciliation.ts",
   ]);
+  const locatorImporters = files
+    .filter(
+      (path) =>
+        !path.endsWith(
+          "lib/vnext/persistence/project-verify-lifecycle-source.ts",
+        ) &&
+        readFileSync(path, "utf8").includes(
+          "readProjectVerifyLifecycleProposalLocatorOnlyV01",
+        ),
+    )
+    .map((path) => path.slice(repositoryRoot.length + 1))
+    .sort();
+  assert.deepEqual(locatorImporters, [
+    "lib/vnext/persistence/project-verify-lifecycle-admission.ts",
+    "lib/vnext/runtime/durable-semantic-transition.ts",
+    "lib/vnext/runtime/project-verify-reconciliation.ts",
+  ]);
+  const structuralReaderImporters = files
+    .filter(
+      (path) =>
+        !path.endsWith(
+          "lib/vnext/persistence/project-verify-lifecycle-source.ts",
+        ) &&
+        readFileSync(path, "utf8").includes(
+          "readProjectVerifyLifecycleProposalStructuralOnlyV01",
+        ),
+    )
+    .map((path) => path.slice(repositoryRoot.length + 1))
+    .sort();
+  assert.deepEqual(structuralReaderImporters, []);
+  const reconciliationSource = readFileSync(
+    join(
+      repositoryRoot,
+      "lib/vnext/runtime/project-verify-reconciliation.ts",
+    ),
+    "utf8",
+  );
+  assert.equal(
+    reconciliationSource.includes(
+      "readProjectVerifyLifecycleProposalStructuralOnlyV01",
+    ),
+    false,
+  );
+  assert.equal(
+    reconciliationSource.includes(
+      "assertProjectVerifyLifecycleProposalFullSourceBoundV01",
+    ),
+    true,
+    "zero-receipt and ambiguous-receipt projection retains the full source gate",
+  );
   const structuralSource = readFileSync(
     join(
       repositoryRoot,

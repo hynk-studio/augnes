@@ -20,7 +20,7 @@ import {
   type VNextSemanticTargetHeadV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
-import { readProjectVerifyLifecycleProposalStructuralOnlyV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-source";
+import { readProjectVerifyLifecycleProposalLocatorOnlyV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-source";
 import {
   createProjectVerifyMaterialReadSessionV01,
   listClaimEvidenceRelationFamilyRevisionsV01,
@@ -60,7 +60,7 @@ import {
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import {
   assertProjectVerifyLifecycleProposalFullSourceBoundV01,
-  assertProjectVerifyLifecyclePersistedStateSourceBoundV01,
+  assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01,
   createValidatedVNextSemanticTransitionRelationReadSessionV01,
   loadValidatedVNextSemanticCommitGateRelationV01,
   type ValidatedVNextSemanticTransitionRelationV01,
@@ -1265,11 +1265,12 @@ function readLifecycleSourcesV01(
     family_id: familyId,
     selected_record_ref: recordRef,
   });
-  // Use the structural read only to locate the exact immutable proposal. A
-  // unique receipt is the mandatory full source-authenticity path below;
-  // missing or ambiguous receipt material falls back to the standalone full
-  // proposal gate before any lifecycle projection is returned.
-  const persisted = readProjectVerifyLifecycleProposalStructuralOnlyV01(
+  // Use the bounded envelope/identity reader only to locate the exact immutable
+  // proposal. It authenticates no SR-2 or head material. A unique receipt is
+  // the mandatory full source-authenticity path below; missing or ambiguous
+  // receipt material falls back to the standalone full proposal gate before
+  // any lifecycle projection is returned.
+  const persisted = readProjectVerifyLifecycleProposalLocatorOnlyV01(
     db,
     identity,
   );
@@ -1336,7 +1337,12 @@ function readLifecycleSourcesV01(
       ],
       values: [persisted.proposal.proposal_id, transition.decision.decision_id],
     });
-    assertLifecycleTransitionStateSourceV01(db, scope, transition);
+    assertLifecycleTransitionStateSourceV01(
+      db,
+      scope,
+      transition,
+      loadTransition,
+    );
     const conflictCodes = [
       ...(decisionCount > 1
         ? ["project_verify_competing_decision_lineage"]
@@ -1438,6 +1444,7 @@ function assertLifecycleTransitionStateSourceV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   transition: ValidatedVNextSemanticTransitionRelationV01,
+  loadTransition: ProjectVerifyTransitionLoaderV01,
 ): void {
   const binding =
     transition.proposal.project_verify_lifecycle?.lifecycle_binding;
@@ -1473,11 +1480,16 @@ function assertLifecycleTransitionStateSourceV01(
   ) {
     failV01("project_verify_historical_semantic_state_conflict");
   }
-  assertProjectVerifyLifecyclePersistedStateSourceBoundV01(db, {
-    state,
-    transition_receipt_id: transition.receipt.transition_receipt_id,
-    transition_receipt_fingerprint: transition.receipt.integrity.fingerprint,
-  });
+  assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+    db,
+    {
+      state,
+      transition_receipt_id: transition.receipt.transition_receipt_id,
+      transition_receipt_fingerprint:
+        transition.receipt.integrity.fingerprint,
+    },
+    loadTransition,
+  );
 }
 
 function projectClaimFamilyV01(
@@ -1923,12 +1935,16 @@ function readFamilyCurrentHeadV01(
     failV01("project_verify_current_state_binding_conflict");
   }
   try {
-    assertProjectVerifyLifecyclePersistedStateSourceBoundV01(db, {
-      state,
-      transition_receipt_id: head.source_transition_receipt_id,
-      transition_receipt_fingerprint:
-        head.source_transition_receipt_fingerprint,
-    });
+    assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
+      db,
+      {
+        state,
+        transition_receipt_id: head.source_transition_receipt_id,
+        transition_receipt_fingerprint:
+          head.source_transition_receipt_fingerprint,
+      },
+      loadTransition,
+    );
   } catch {
     failV01("project_verify_current_state_source_conflict");
   }

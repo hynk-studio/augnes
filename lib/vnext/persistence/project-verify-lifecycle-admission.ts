@@ -8,7 +8,7 @@ import {
   PROJECT_VERIFY_LIFECYCLE_ADMISSION_VERSION_V01,
   ProjectVerifyLifecycleAdmissionErrorV01,
   materializeProjectVerifyLifecycleProposalStructuralOnlyV01 as materializeStructuralProposalV01,
-  readProjectVerifyLifecycleProposalStructuralOnlyV01 as readStructuralProposalV01,
+  readProjectVerifyLifecycleProposalLocatorOnlyV01 as readProposalLocatorOnlyV01,
   type ProjectVerifyLifecycleStructuralSourceV01,
   type ProjectVerifyLifecycleStoreSelectionV01,
 } from "@/lib/vnext/persistence/project-verify-lifecycle-source";
@@ -136,9 +136,10 @@ export function admitProjectVerifyLifecycleProposalV01(
     });
     // The exact proposal was fully source-authenticated above while this same
     // BEGIN IMMEDIATE transaction owns the write boundary. Re-reading the new
-    // immutable envelope only needs the structural reader; replay and every
+    // immutable envelope only needs the locator; the proposal was already
+    // fully source-authenticated in this same transaction. Replay and every
     // public read still traverse the complete prior Transition source chain.
-    const persisted = readStructuralProposalV01(db, rematerialized.identity);
+    const persisted = readProposalLocatorOnlyV01(db, rematerialized.identity);
     if (
       !persisted ||
       persisted.record.record_id !== write.record.record_id ||
@@ -165,7 +166,10 @@ export function readProjectVerifyLifecycleProposalByIdentityV01(
   db: Database.Database,
   identity: ProjectVerifyLifecycleProposalAdmissionIdentityV01,
 ) {
-  const persisted = readStructuralProposalV01(db, identity);
+  // The locator establishes only the exact bounded envelope and admission
+  // identity. The mandatory full source gate immediately below establishes
+  // selected-record, lineage, and historical-head authenticity.
+  const persisted = readProposalLocatorOnlyV01(db, identity);
   if (!persisted) return null;
   assertPersistedProjectVerifyLifecycleProposalSourceBoundV01(
     db,
