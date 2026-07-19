@@ -230,6 +230,7 @@ for (const groupId of ["operator-process", "supporting-serial"]) {
   );
 }
 const integrationChildren = [
+  "project-verify-material",
   "project-controls",
   "policy-triggered-model-run",
   "project-home",

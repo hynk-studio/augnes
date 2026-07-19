@@ -42,6 +42,7 @@ import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protoco
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
 import { runStrategicAdvantageTransferConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategic-advantage-transfer";
 import { runBoundedAutomationCycleConformanceV01 } from "@/scripts/vnext-protocol-conformance/bounded-automation-cycle";
+import { runProjectVerifyMaterialConformanceV01 } from "@/scripts/vnext-protocol-conformance/project-verify-material";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -52,6 +53,7 @@ const sourcePaths = [
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
   "lib/vnext/criterion-assessment.ts",
+  "lib/vnext/project-verify-material.ts",
   "lib/vnext/run-assessment-proposal.ts",
   "lib/vnext/episode-delta-proposal.ts",
   "lib/vnext/review-decision.ts",
@@ -575,6 +577,7 @@ try {
   const runReceiptSummary = runRunReceiptConformanceV01();
   const criterionAssessmentSummary =
     runCriterionAssessmentConformanceV01();
+  const projectVerifyMaterialSummary = runProjectVerifyMaterialConformanceV01();
   const strategicAdvantageTransferSummary =
     runStrategicAdvantageTransferConformanceV01();
   const boundedAutomationCycleSummary =
@@ -649,6 +652,7 @@ try {
         task_context_packet: taskContextPacketSummary,
         run_receipt: runReceiptSummary,
         criterion_assessment: criterionAssessmentSummary,
+        project_verify_material: projectVerifyMaterialSummary,
         strategic_advantage_transfer: strategicAdvantageTransferSummary,
         bounded_automation_cycle: boundedAutomationCycleSummary,
         episode_delta_proposal: episodeDeltaProposalSummary,

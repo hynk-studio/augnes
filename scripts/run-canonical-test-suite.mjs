@@ -66,6 +66,15 @@ const suites = {
   ],
   integration: [
     {
+      id: "project-verify-material",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "backup-restore"],
+      label:
+        "project-scoped Evidence, Claim, relation admission, lineage, and source replay",
+      ...rootNode("scripts/test-vnext-project-verify-material.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],

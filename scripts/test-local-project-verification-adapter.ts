@@ -11,6 +11,8 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import Database from "better-sqlite3";
+
 import { genericCliDirectObservationInputFixture } from "@/fixtures/vnext/protocol/run-receipt-v0-1";
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import {
@@ -38,6 +40,22 @@ import { inspectNativeHostPhysicalRootIdentityV01 } from "@/lib/vnext/native-hos
 import { assertNativeHostResultV01 } from "@/lib/vnext/native-host/native-host-contract";
 import { deriveNativeHostDeliveryAuthorityV01 } from "@/lib/vnext/native-host/native-host-delivery-authority";
 import {
+  admitEpisodeDeltaProposalV01,
+} from "@/lib/vnext/persistence/episode-delta-proposal-admission";
+import {
+  countVNextCoreRecordsV01,
+  ensureVNextDurableSemanticStoreSchemaV01,
+  insertVNextCoreRecordV01,
+} from "@/lib/vnext/persistence/durable-semantic-store";
+import {
+  admitRunCriterionProjectVerifyMaterialV01,
+  readSourceBoundRunCriterionProjectVerifyMaterialV01,
+} from "@/lib/vnext/persistence/run-criterion-project-verify-material-admission";
+import {
+  admitStructuredRunReceiptV01,
+} from "@/lib/vnext/persistence/structured-run-receipt-admission";
+import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import {
   materializeValidatedPacketDeliveryCheckV01,
   projectDirectNativeHostActionObservationsV01,
 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
@@ -46,6 +64,12 @@ import {
   validateRunReceiptV01,
   type RunReceiptBuilderInputV01,
 } from "@/lib/vnext/run-receipt";
+import {
+  materializeRunAssessmentProposalV01,
+} from "@/lib/vnext/run-assessment-proposal";
+import {
+  materializeRunCriterionProjectVerifyMaterialV01,
+} from "@/lib/vnext/run-criterion-project-verify-material";
 import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -80,6 +104,8 @@ async function main(): Promise<void> {
         truthful_terminal_residue_checked: true,
         typed_criterion_plan_checked: true,
         relation_aware_production_assessment_checked: true,
+        project_verify_candidate_material_checked: true,
+        durable_project_verify_candidate_material_checked: true,
         blocked_cancelled_skipped_unknown_checked: true,
         packet_presentation_egress_separation_checked: true,
       }, null, 2)}\n`,
@@ -230,10 +256,11 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   assert.equal(JSON.stringify(completed).includes(projectRoot), false);
   assert.equal(JSON.stringify(completed).includes("package.json"), false);
   assertLocalDeliveryV01(completed);
-  const completedAssessment = productionAssessmentV01(
+  const completedSource = productionSourceMaterialV01(
     completedRequest,
     completed,
   );
+  const completedAssessment = completedSource.assessment;
   assertProductionAssessmentV01(completedAssessment, {
     root: "satisfied",
     bound: "satisfied",
@@ -281,6 +308,27 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     false,
     "the unrelated packet-delivery check must not create a criterion relation",
   );
+  const completedVerifyExpected: ProductionVerifyMaterialExpectationV01 = {
+    relation_kinds: {
+      supports: 5,
+      opposes: 0,
+      insufficient: 0,
+    },
+    criterion_relation_kinds: {
+      root: ["supports"],
+      bound: ["supports"],
+      manifest: ["supports"],
+      side_effects: ["supports", "supports"],
+    },
+  };
+  assertProductionVerifyMaterialV01(
+    completedSource.verifyMaterial,
+    completedVerifyExpected,
+  );
+  assertDurableProductionVerifyMaterialV01(
+    completedSource,
+    completedVerifyExpected,
+  );
 
   const preCancelledController = new AbortController();
   preCancelledController.abort();
@@ -298,14 +346,36 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
   );
   assertLocalDeliveryV01(preCancelled);
-  assertProductionAssessmentV01(
-    productionAssessmentV01(preCancelledRequest, preCancelled),
-    {
-      root: "unknown",
-      bound: "unknown",
-      manifest: "unknown",
-      side_effects: "unknown",
+  const preCancelledSource = productionSourceMaterialV01(
+    preCancelledRequest,
+    preCancelled,
+  );
+  assertProductionAssessmentV01(preCancelledSource.assessment, {
+    root: "unknown",
+    bound: "unknown",
+    manifest: "unknown",
+    side_effects: "unknown",
+  });
+  const preCancelledVerifyExpected: ProductionVerifyMaterialExpectationV01 = {
+    relation_kinds: {
+      supports: 0,
+      opposes: 0,
+      insufficient: 5,
     },
+    criterion_relation_kinds: {
+      root: ["insufficient"],
+      bound: ["insufficient"],
+      manifest: ["insufficient"],
+      side_effects: ["insufficient", "insufficient"],
+    },
+  };
+  assertProductionVerifyMaterialV01(
+    preCancelledSource.verifyMaterial,
+    preCancelledVerifyExpected,
+  );
+  assertDurableProductionVerifyMaterialV01(
+    preCancelledSource,
+    preCancelledVerifyExpected,
   );
 
   const duringController = new AbortController();
@@ -420,10 +490,11 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     ],
   );
   assertLocalDeliveryV01(filesystemFailure);
-  const failedAssessment = productionAssessmentV01(
+  const failedSource = productionSourceMaterialV01(
     filesystemFailureRequest,
     filesystemFailure,
   );
+  const failedAssessment = failedSource.assessment;
   assertProductionAssessmentV01(failedAssessment, {
     root: "satisfied",
     bound: "unknown",
@@ -449,6 +520,24 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
       failedManifestRelation.check_id === "project_root_manifest_verified",
     true,
   );
+  const failedVerifyExpected: ProductionVerifyMaterialExpectationV01 = {
+    relation_kinds: {
+      supports: 1,
+      opposes: 1,
+      insufficient: 3,
+    },
+    criterion_relation_kinds: {
+      root: ["supports"],
+      bound: ["insufficient"],
+      manifest: ["opposes"],
+      side_effects: ["insufficient", "insufficient"],
+    },
+  };
+  assertProductionVerifyMaterialV01(
+    failedSource.verifyMaterial,
+    failedVerifyExpected,
+  );
+  assertDurableProductionVerifyMaterialV01(failedSource, failedVerifyExpected);
 
   const replaced = path.join(root, "replaced");
   const replacedPrior = path.join(root, "replaced-prior");
@@ -536,10 +625,10 @@ function assertProductionCriterionVerificationPlanV01(
   }
 }
 
-function productionAssessmentV01(
+function productionSourceMaterialV01(
   request: NativeHostRequestV01,
   result: NativeHostResultV01,
-): CriterionAssessmentV01 {
+) {
   const adapter = {
     adapter_version: "local_project_verification_adapter.v0.1",
     execution_profile: "deterministic_zero_model" as const,
@@ -733,10 +822,37 @@ function productionAssessmentV01(
   assert.equal(receipt.model_invocations.length, 0);
   assert.equal(receipt.privacy_egress.egress_status, "did_not_occur");
   assert.equal(receipt.authority_summary.writes_database, false);
-  return evaluateCriterionAssessmentV01({
+  const assessment = evaluateCriterionAssessmentV01({
     packet: request.packet,
     receipt,
   });
+  const proposalMaterial = materializeRunAssessmentProposalV01({
+    packet: request.packet,
+    receipt,
+    assessment,
+  });
+  const proposal = proposalMaterial.proposal;
+  const verifyMaterial = materializeRunCriterionProjectVerifyMaterialV01({
+    packet: request.packet,
+    receipt,
+    assessment,
+    proposal,
+  });
+  return {
+    packet: request.packet,
+    receipt,
+    assessment,
+    proposalMaterial,
+    proposal,
+    verifyMaterial,
+  };
+}
+
+function productionAssessmentV01(
+  request: NativeHostRequestV01,
+  result: NativeHostResultV01,
+): CriterionAssessmentV01 {
+  return productionSourceMaterialV01(request, result).assessment;
 }
 
 function receiptExecutionStatusV01(
@@ -795,6 +911,383 @@ function assertProductionAssessmentV01(
   assert.equal(assessment.authority.applies_transition, false);
   assert.equal(assessment.authority.changes_semantic_state, false);
   assert.equal(assessment.authority.changes_later_context, false);
+}
+
+type ProductionVerifyRelationKindV01 =
+  | "supports"
+  | "opposes"
+  | "insufficient";
+
+interface ProductionVerifyMaterialExpectationV01 {
+  relation_kinds: Record<ProductionVerifyRelationKindV01, number>;
+  criterion_relation_kinds: Record<
+    ProductionCriterionRoleV01,
+    ProductionVerifyRelationKindV01[]
+  >;
+}
+
+function assertProductionVerifyMaterialV01(
+  material: ReturnType<
+    typeof materializeRunCriterionProjectVerifyMaterialV01
+  >,
+  expected: ProductionVerifyMaterialExpectationV01,
+): void {
+  assert.equal(material.evidence_records.length, 5);
+  assert.equal(material.claim_records.length, 4);
+  assert.equal(material.relations.length, 5);
+  assert.deepEqual(material.authority, {
+    explicit_admission_required: true,
+    source_validation_grants_truth: false,
+    evidence_is_accepted_automatically: false,
+    claims_are_candidate_only: true,
+    relations_are_candidate_only: true,
+    creates_review_decision: false,
+    applies_transition: false,
+    changes_semantic_state: false,
+    selects_applied_current_head: false,
+    changes_later_context: false,
+  });
+
+  for (const evidence of material.evidence_records) {
+    assert.equal(evidence.evidence_kind, "exact_criterion_relation_material");
+    assert.deepEqual(evidence.lifecycle, {
+      record_status: "recorded",
+      review_status: "not_reviewed",
+      decision_ref: null,
+      acceptance_status: "not_accepted",
+      transition_ref: null,
+    });
+    assert.equal(evidence.authority.record_establishes_truth, false);
+    assert.equal(evidence.authority.record_is_accepted_semantic_state, false);
+    assert.equal(evidence.authority.satisfies_criterion_automatically, false);
+    assert.equal(evidence.authority.activates_claim_automatically, false);
+    assert.equal(evidence.authority.creates_review_decision, false);
+    assert.equal(evidence.authority.applies_transition, false);
+    assert.equal(evidence.authority.changes_semantic_state, false);
+    assert.equal(evidence.authority.changes_later_context, false);
+    assert.equal(
+      evidence.producer.producer_kind,
+      "server_deterministic_evaluator",
+    );
+    assert.equal(
+      evidence.source_refs.some(
+        (ref) =>
+          ref.ref_type === "task_context_packet" &&
+          ref.external_id === material.source.packet.packet_id &&
+          ref.source_ref === material.source.packet.packet_fingerprint,
+      ),
+      true,
+    );
+    assert.equal(
+      evidence.source_refs.some(
+        (ref) =>
+          ref.ref_type === "run_receipt" &&
+          ref.external_id === material.source.receipt.receipt_id &&
+          ref.source_ref === material.source.receipt.receipt_fingerprint,
+      ),
+      true,
+    );
+    assert.equal(
+      evidence.source_refs.some(
+        (ref) =>
+          ref.ref_type === "criterion_assessment" &&
+          ref.external_id ===
+            material.source.assessment.assessment_fingerprint &&
+          ref.source_ref === material.source.assessment.assessment_fingerprint,
+      ),
+      true,
+    );
+    assert.equal(
+      evidence.source_refs.some(
+        (ref) =>
+          ref.ref_type === "episode_delta_proposal" &&
+          ref.external_id === material.source.proposal.proposal_id &&
+          ref.source_ref === material.source.proposal.proposal_fingerprint,
+      ),
+      true,
+    );
+    const exactSourceRefs = evidence.source_refs.flatMap((ref) => {
+      const parsed = parseCriterionRelationRefExternalIdV01(ref.external_id);
+      return parsed ? [{ ref, parsed }] : [];
+    });
+    assert.equal(exactSourceRefs.length, 1);
+    const parsed = exactSourceRefs[0]?.parsed;
+    assert(parsed);
+    assert.equal(
+      evidence.material_fingerprint,
+      parsed.relation_material_fingerprint,
+    );
+    assert.equal(evidence.trust_class, parsed.trust_class);
+    assert.equal(
+      evidence.coverage,
+      parsed.kind === "applicability"
+        ? "not_applicable"
+        : parsed.direction === "missing"
+          ? "partial"
+          : "complete",
+    );
+  }
+
+  for (const claim of material.claim_records) {
+    assert.equal(claim.revision, 1);
+    assert.equal(claim.operation_intent, "create");
+    assert.equal(claim.prior_claim_ref, null);
+    assert.equal(claim.operation_target_claim_ref, null);
+    assert.deepEqual(claim.lifecycle, {
+      record_status: "recorded",
+      candidate_status: "candidate",
+      review_status: "not_reviewed",
+      decision_ref: null,
+      application_status: "not_applied",
+      transition_ref: null,
+      truth_status: "not_established",
+    });
+    assert.equal(claim.authority.record_establishes_truth, false);
+    assert.equal(claim.authority.selects_applied_current_head, false);
+    assert.equal(claim.authority.creates_review_decision, false);
+    assert.equal(claim.authority.applies_transition, false);
+    assert.equal(claim.authority.changes_semantic_state, false);
+    assert.equal(claim.authority.changes_later_context, false);
+  }
+
+  const actualKindCounts: Record<ProductionVerifyRelationKindV01, number> = {
+    supports: 0,
+    opposes: 0,
+    insufficient: 0,
+  };
+  for (const relation of material.relations) {
+    assert.equal(
+      relation.relation_kind === "supports" ||
+        relation.relation_kind === "opposes" ||
+        relation.relation_kind === "insufficient",
+      true,
+    );
+    const relationKind =
+      relation.relation_kind as ProductionVerifyRelationKindV01;
+    actualKindCounts[relationKind] += 1;
+    assert.deepEqual(relation.lifecycle, {
+      record_status: "recorded",
+      candidate_status: "candidate",
+      review_status: "not_reviewed",
+      decision_ref: null,
+      application_status: "not_applied",
+      transition_ref: null,
+      relation_status: "not_established",
+    });
+    assert.equal(relation.authority.relation_existence_proves_claim, false);
+    assert.equal(relation.authority.evidence_count_calculates_truth, false);
+    assert.equal(relation.authority.selects_applied_current_head, false);
+    assert.equal(relation.authority.creates_review_decision, false);
+    assert.equal(relation.authority.applies_transition, false);
+    assert.equal(relation.authority.changes_semantic_state, false);
+    assert.equal(relation.authority.changes_later_context, false);
+
+    const claim = material.claim_records.find(
+      (candidate) => candidate.claim_id === relation.claim_ref.record_id,
+    );
+    const evidence = material.evidence_records.find(
+      (candidate) => candidate.evidence_id === relation.evidence_ref.record_id,
+    );
+    assert(claim);
+    assert(evidence);
+    assert.equal(
+      relation.claim_ref.record_fingerprint,
+      claim.integrity.fingerprint,
+    );
+    assert.equal(
+      relation.evidence_ref.record_fingerprint,
+      evidence.integrity.fingerprint,
+    );
+    const exactSource = evidence.source_refs
+      .map((ref) => parseCriterionRelationRefExternalIdV01(ref.external_id))
+      .find((parsed) => parsed !== null);
+    assert(exactSource);
+    const expectedKind =
+      exactSource.kind === "applicability"
+        ? "qualifies"
+        : exactSource.direction === "support"
+          ? "supports"
+          : exactSource.direction === "opposition"
+            ? "opposes"
+            : "insufficient";
+    assert.equal(relation.relation_kind, expectedKind);
+    assert.equal(
+      relation.basis,
+      relationKind === "insufficient" ? "insufficient" : "observed",
+    );
+  }
+  assert.deepEqual(actualKindCounts, expected.relation_kinds);
+
+  for (const role of Object.keys(
+    expected.criterion_relation_kinds,
+  ) as ProductionCriterionRoleV01[]) {
+    const proposition =
+      LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria[
+        PRODUCTION_CRITERION_INDEX_V01[role]
+      ];
+    const claim = material.claim_records.find(
+      (candidate) => candidate.proposition === proposition,
+    );
+    assert(claim, `missing project Verify Claim candidate for ${role}`);
+    const relationKinds = material.relations
+      .filter((relation) => relation.claim_ref.record_id === claim.claim_id)
+      .map((relation) => relation.relation_kind)
+      .sort();
+    assert.deepEqual(
+      relationKinds,
+      [...expected.criterion_relation_kinds[role]].sort(),
+      `${role} project Verify relations`,
+    );
+  }
+}
+
+function assertDurableProductionVerifyMaterialV01(
+  source: ReturnType<typeof productionSourceMaterialV01>,
+  expected: ProductionVerifyMaterialExpectationV01,
+): void {
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    const packetWrite = insertVNextCoreRecordV01(db, {
+      record_kind: "task_context_packet",
+      record_id: source.packet.packet_id,
+      workspace_id: source.packet.workspace_id,
+      project_id: source.packet.project_id,
+      fingerprint: source.packet.integrity.fingerprint,
+      idempotency_key: null,
+      payload: source.packet,
+      created_at: source.packet.generated_at,
+    });
+    assert.equal(packetWrite.status, "inserted");
+    assertCanonicalProtocolEqualV01(packetWrite.record.payload, source.packet);
+    const receiptWrite = admitStructuredRunReceiptV01(db, source.receipt);
+    assert.equal(receiptWrite.status, "inserted");
+    assertCanonicalProtocolEqualV01(receiptWrite.receipt, source.receipt);
+    const proposalWrite = admitEpisodeDeltaProposalV01(db, {
+      expected: source.proposalMaterial,
+      source: {
+        packet: source.packet,
+        receipt: source.receipt,
+        assessment: source.assessment,
+      },
+    });
+    assert.equal(proposalWrite.status, "inserted");
+    assertCanonicalProtocolEqualV01(proposalWrite.proposal, source.proposal);
+
+    const scope = {
+      workspace_id: source.packet.workspace_id,
+      project_id: source.packet.project_id,
+      receipt_id: source.receipt.receipt_id,
+    };
+    const authorityBefore = durableAuthoritySnapshotV01(db, scope);
+    assert.deepEqual(authorityBefore, {
+      review_decisions: 0,
+      semantic_commit_gates: 0,
+      state_transition_receipts: 0,
+      semantic_state_records: 0,
+      semantic_state_entries: 0,
+      semantic_target_heads: 0,
+    });
+
+    const admitted = admitRunCriterionProjectVerifyMaterialV01(db, scope);
+    assert.equal(admitted.status, "inserted");
+    assertCanonicalProtocolEqualV01(admitted.material, source.verifyMaterial);
+    assertProductionVerifyMaterialV01(admitted.material, expected);
+    assert.equal(
+      countVNextCoreRecordsV01(db, {
+        workspace_id: scope.workspace_id,
+        project_id: scope.project_id,
+        record_kind: "evidence_record",
+      }),
+      5,
+    );
+    assert.equal(
+      countVNextCoreRecordsV01(db, {
+        workspace_id: scope.workspace_id,
+        project_id: scope.project_id,
+        record_kind: "claim_record",
+      }),
+      4,
+    );
+    assert.equal(
+      countVNextCoreRecordsV01(db, {
+        workspace_id: scope.workspace_id,
+        project_id: scope.project_id,
+        record_kind: "claim_evidence_relation",
+      }),
+      5,
+    );
+    assert.deepEqual(durableAuthoritySnapshotV01(db, scope), authorityBefore);
+
+    const replay = admitRunCriterionProjectVerifyMaterialV01(db, scope);
+    assert.equal(replay.status, "exact_replay");
+    assertCanonicalProtocolEqualV01(replay.material, admitted.material);
+    assertProductionVerifyMaterialV01(replay.material, expected);
+
+    const reloaded =
+      readSourceBoundRunCriterionProjectVerifyMaterialV01(db, scope);
+    assertCanonicalProtocolEqualV01(reloaded, admitted.material);
+    assertProductionVerifyMaterialV01(reloaded, expected);
+    assert.deepEqual(durableAuthoritySnapshotV01(db, scope), authorityBefore);
+  } finally {
+    db.close();
+  }
+}
+
+function durableAuthoritySnapshotV01(
+  db: Database.Database,
+  scope: { workspace_id: string; project_id: string },
+) {
+  const recordScope = {
+    workspace_id: scope.workspace_id,
+    project_id: scope.project_id,
+  };
+  return {
+    review_decisions: countVNextCoreRecordsV01(db, {
+      ...recordScope,
+      record_kind: "review_decision",
+    }),
+    semantic_commit_gates: countVNextCoreRecordsV01(db, {
+      ...recordScope,
+      record_kind: "semantic_commit_gate",
+    }),
+    state_transition_receipts: countVNextCoreRecordsV01(db, {
+      ...recordScope,
+      record_kind: "state_transition_receipt",
+    }),
+    semantic_state_records: countVNextCoreRecordsV01(db, {
+      ...recordScope,
+      record_kind: "semantic_state",
+    }),
+    semantic_state_entries: (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM vnext_semantic_state_entries
+           WHERE workspace_id = ? AND project_id = ?`,
+        )
+        .get(scope.workspace_id, scope.project_id) as { count: number }
+    ).count,
+    semantic_target_heads: (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM vnext_semantic_target_heads
+           WHERE workspace_id = ? AND project_id = ?`,
+        )
+        .get(scope.workspace_id, scope.project_id) as { count: number }
+    ).count,
+  };
+}
+
+function assertCanonicalProtocolEqualV01(
+  actual: unknown,
+  expected: unknown,
+): void {
+  assert.equal(
+    canonicalizeProtocolValueV01(actual),
+    canonicalizeProtocolValueV01(expected),
+  );
 }
 
 function criterionByRoleV01(
