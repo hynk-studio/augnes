@@ -436,6 +436,7 @@ export async function readProjectHomeProjectionV01(
       createProjectReviewWorkbenchEntryV01({
         ...input,
         reason: "Open the project-scoped semantic review queue.",
+        review_required: false,
       })
     : null;
   const coordinationState = projectCoordinationStateV01({
@@ -1474,6 +1475,7 @@ function composeProjectAttentionV01(input: {
       workbench_entry: createProjectReviewWorkbenchEntryV01({
         ...input.input,
         reason,
+        review_required: true,
       }),
       action_href: null,
       action_label: "Verify selected context",

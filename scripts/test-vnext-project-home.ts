@@ -107,6 +107,7 @@ const emptyRoot = path.join(root, "Empty local project");
 const projectARoot = path.join(root, "Project A");
 const projectBRoot = path.join(root, "Project B");
 const temporalReviewRoot = path.join(root, "Temporal Review Project");
+const contextReviewRoot = path.join(root, "Context Review Project");
 const recoveredProjectARoot = path.join(root, "Project A recovered");
 const sharedRemote = "https://example.test/shared/project-home.git";
 const fixedGeneratedAt = "2026-07-15T09:00:00.000Z";
@@ -339,13 +340,20 @@ function insertTaskContextPacket(
     marker: string;
     perspective_ref: string;
     expires_at: string | null;
+    generated_at?: string;
+    currentness?: "fresh" | "stale" | "partial";
   },
 ) {
   const input = clone(genericCliBuilderInputFixture) as TaskContextPacketBuilderInputV01;
   const currentness = clone(input.source_status.currentness);
+  const generatedAt =
+    inputOptions.generated_at ?? TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+  currentness.status = inputOptions.currentness ?? "fresh";
+  currentness.as_of = generatedAt;
+  currentness.basis = `${currentness.status} project context fixture.`;
   input.workspace_id = workspaceId;
   input.project_id = projectId;
-  input.generated_at = TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+  input.generated_at = generatedAt;
   input.expires_at = inputOptions.expires_at;
   input.current_projection = {
     projection_kind: "current_working_perspective",
@@ -353,7 +361,7 @@ function insertTaskContextPacket(
     canonical_state: false,
     perspective_ref: inputOptions.perspective_ref,
     bounded_summary: inputOptions.marker,
-    as_of: TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+    as_of: generatedAt,
     items: [
       {
         item_kind: "frame",
@@ -632,6 +640,7 @@ async function main() {
     mkdirSync(projectARoot);
     mkdirSync(projectBRoot);
     mkdirSync(temporalReviewRoot);
+    mkdirSync(contextReviewRoot);
     mkdirSync(recoveredProjectARoot);
     for (const projectRoot of [projectARoot, projectBRoot]) {
       mkdirSync(path.join(projectRoot, ".git"));
@@ -673,6 +682,15 @@ async function main() {
     assert.equal(emptyHome.personal_perspective.effectively_included, false);
     assert.equal(emptyHome.personal_perspective.task_basis, null);
     assert.equal(emptyHome.coordination.primary_action?.href, "/workbench/semantic-review");
+    assert.equal(
+      emptyHome.coordination.primary_action?.entry_state,
+      "project_review",
+    );
+    assert.equal(emptyHome.coordination.primary_action?.review_required, false);
+    assert.deepEqual(emptyHome.coordination.primary_action?.source, {
+      record_kind: "project_review",
+      record_id: null,
+    });
     assert.equal(emptyHome.coordination.projection_only, true);
     assert.equal(emptyHome.coordination.semantic_authority_granted, false);
     assert.equal(emptyHome.capabilities.items.length, 5);
@@ -801,6 +819,14 @@ async function main() {
       policyProposalAttention.workbench_entry?.origin,
       "policy_triggered",
     );
+    assert.equal(
+      policyProposalAttention.workbench_entry?.entry_state,
+      "pending_proposal",
+    );
+    assert.deepEqual(policyProposalAttention.workbench_entry?.source, {
+      record_kind: "episode_delta_proposal",
+      record_id: policyProposal.proposal_id,
+    });
 
     const malformedPacket = { malformed: true, bounded_summary: "must not render" };
     insertVNextCoreRecordV01(db, {
@@ -830,6 +856,98 @@ async function main() {
       temporalReviewRoot,
       "2026-07-15T09:02:30.000Z",
     );
+    const confirmedContextReview = await onboard(
+      contextReviewRoot,
+      "2026-07-15T09:02:45.000Z",
+    );
+    insertTaskContextPacket(
+      db,
+      workspace.workspace_id,
+      confirmedContextReview.project.project_id,
+      {
+        marker: "Stale selected context requiring review",
+        perspective_ref: "perspective:project-home-stale-review",
+        expires_at: null,
+        generated_at: "2026-07-15T09:02:46.000Z",
+        currentness: "stale",
+      },
+    );
+    const staleContextBefore = databaseSnapshot(db);
+    const staleContextHome = await readProjectHomeProjectionV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: confirmedContextReview.project.project_id,
+      },
+      { now: () => "2026-07-15T09:02:46.500Z" },
+    );
+    const staleContextAttention = staleContextHome.attention.items.find(
+      (item) => item.attention_id === "working-context:stale",
+    );
+    assert(staleContextAttention?.workbench_entry);
+    assert.equal(
+      staleContextAttention.workbench_entry.entry_state,
+      "project_review",
+    );
+    assert.equal(staleContextAttention.workbench_entry.review_required, true);
+    assert.deepEqual(staleContextAttention.workbench_entry.source, {
+      record_kind: "project_review",
+      record_id: null,
+    });
+    assert.equal(
+      staleContextHome.coordination.primary_action?.review_required,
+      true,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      staleContextBefore,
+      "stale context review reads create no rows",
+    );
+
+    insertTaskContextPacket(
+      db,
+      workspace.workspace_id,
+      confirmedContextReview.project.project_id,
+      {
+        marker: "Partial selected context requiring review",
+        perspective_ref: "perspective:project-home-partial-review",
+        expires_at: null,
+        generated_at: "2026-07-15T09:02:47.000Z",
+        currentness: "partial",
+      },
+    );
+    const partialContextBefore = databaseSnapshot(db);
+    const partialContextHome = await readProjectHomeProjectionV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: confirmedContextReview.project.project_id,
+      },
+      { now: () => "2026-07-15T09:02:47.500Z" },
+    );
+    const partialContextAttention = partialContextHome.attention.items.find(
+      (item) => item.attention_id === "working-context:partial",
+    );
+    assert(partialContextAttention?.workbench_entry);
+    assert.equal(
+      partialContextAttention.workbench_entry.entry_state,
+      "project_review",
+    );
+    assert.equal(partialContextAttention.workbench_entry.review_required, true);
+    assert.deepEqual(partialContextAttention.workbench_entry.source, {
+      record_kind: "project_review",
+      record_id: null,
+    });
+    assert.equal(
+      partialContextHome.coordination.primary_action?.review_required,
+      true,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      partialContextBefore,
+      "partial context review reads create no rows",
+    );
+
     const confirmedB = await onboard(projectBRoot, "2026-07-15T09:03:00.000Z");
     assert.notEqual(confirmedA.project.project_id, confirmedB.project.project_id);
     const refsA = listProjectExternalRefsV01(db, {
@@ -1429,14 +1547,26 @@ async function main() {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_MODEL;
 
-    const activeBeforeDeepLink = clone(readActiveProjectSelectionV01(db, workspace.workspace_id));
+    const activeBeforeDeepLink = clone(
+      readActiveProjectSelectionV01(db, workspace.workspace_id),
+    );
+    const inactiveReadBefore = databaseSnapshot(db);
     const nonActiveA = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: confirmedA.project.project_id,
     }, { now: () => fixedGeneratedAt });
     assert.equal(nonActiveA.project_summary.is_active, false);
+    assert.equal(nonActiveA.coordination.primary_action, null);
     assert(nonActiveA.next_moves.some((move) => move.move_id === "make_active"));
-    assert.deepEqual(readActiveProjectSelectionV01(db, workspace.workspace_id), activeBeforeDeepLink);
+    assert.deepEqual(
+      readActiveProjectSelectionV01(db, workspace.workspace_id),
+      activeBeforeDeepLink,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      inactiveReadBefore,
+      "inactive Project Home reads create no rows or switch projects",
+    );
     assert.equal(
       readProjectHomeEntryDestinationV01(db),
       `/projects/${encodeURIComponent(confirmedB.project.project_id)}`,

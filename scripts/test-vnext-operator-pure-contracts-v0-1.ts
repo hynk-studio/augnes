@@ -16,6 +16,11 @@ import {
   type ProjectHomeRefreshProjectionV01,
 } from "../lib/vnext/project-home-refresh-projection";
 import { createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
+import {
+  createProjectReviewWorkbenchEntryV01,
+  createProposalWorkbenchEntryV01,
+  createRunResultWorkbenchEntryV01,
+} from "../lib/vnext/runtime/semantic-workbench-entry";
 
 const assertions: string[] = [];
 
@@ -375,6 +380,61 @@ assert.deepEqual(
   { state: "transition_applied", label: "Later-context feedback recorded" },
 );
 record("semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage");
+
+const optionalProjectReviewEntry = createProjectReviewWorkbenchEntryV01({
+  workspace_id: "workspace:semantic-workbench-contract",
+  project_id: "project:semantic-workbench-contract",
+  reason: "Open the project review queue when useful.",
+  review_required: false,
+});
+const requiredProjectReviewEntry = createProjectReviewWorkbenchEntryV01({
+  workspace_id: "workspace:semantic-workbench-contract",
+  project_id: "project:semantic-workbench-contract",
+  reason: "Selected project context is stale and requires verification.",
+  review_required: true,
+});
+assert.equal(optionalProjectReviewEntry.entry_state, "project_review");
+assert.equal(optionalProjectReviewEntry.review_required, false);
+assert.equal(requiredProjectReviewEntry.entry_state, "project_review");
+assert.equal(requiredProjectReviewEntry.review_required, true);
+
+const sourceConsistentWorkbenchEntries = [
+  createRunResultWorkbenchEntryV01({
+    workspace_id: "workspace:semantic-workbench-contract",
+    project_id: "project:semantic-workbench-contract",
+    receipt_id: "run-receipt:111111111111111111111111",
+    entry_state: "assessment",
+    origin: "interactive",
+    reason: "Verify the exact result assessment.",
+  }),
+  createProposalWorkbenchEntryV01({
+    workspace_id: "workspace:semantic-workbench-contract",
+    project_id: "project:semantic-workbench-contract",
+    proposal_id: "episode-delta-proposal:222222222222222222222222",
+    entry_state: "pending_proposal",
+    origin: "policy_triggered",
+    reason: "Review the exact pending proposal.",
+  }),
+  optionalProjectReviewEntry,
+  requiredProjectReviewEntry,
+];
+for (const entry of sourceConsistentWorkbenchEntries) {
+  if (entry.source.record_kind === "run_receipt") {
+    assert(["result_only", "assessment"].includes(entry.entry_state));
+  } else if (entry.source.record_kind === "episode_delta_proposal") {
+    assert([
+      "pending_proposal",
+      "decided_proposal",
+      "transition_blocked",
+      "transition_applied",
+      "feedback_needed",
+    ].includes(entry.entry_state));
+  } else {
+    assert.equal(entry.source.record_id, null);
+    assert.equal(entry.entry_state, "project_review");
+  }
+}
+record("semantic_workbench_entry_source_and_state_are_consistent");
 
 const packageScripts = JSON.stringify({
   root: JSON.parse(source("package.json")).scripts,
@@ -742,6 +802,7 @@ assert.deepEqual(assertions, [
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
   "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",
+  "semantic_workbench_entry_source_and_state_are_consistent",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
   "project_home_refresh_exact_projection_replay_is_idempotent",
   "project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run",

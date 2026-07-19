@@ -94,19 +94,22 @@ export function createProjectReviewWorkbenchEntryV01(input: {
   workspace_id: string;
   project_id: string;
   reason: string;
+  review_required: boolean;
 }): SemanticWorkbenchEntryV01 {
   assertScope(input.workspace_id, input.project_id);
   return {
     entry_version: SEMANTIC_WORKBENCH_ENTRY_VERSION_V01,
     workspace_id: input.workspace_id,
     project_id: input.project_id,
-    entry_state: "pending_proposal",
+    entry_state: "project_review",
     origin: "unknown",
     source: { record_kind: "project_review", record_id: null },
     href: "/workbench/semantic-review",
-    action_label: "Open Semantic Workbench",
+    action_label: input.review_required
+      ? "Review project context"
+      : "Open Semantic Workbench",
     reason: boundedReason(input.reason),
-    review_required: true,
+    review_required: input.review_required,
     server_scope_validation_required: true,
     projection_only: true,
     semantic_authority_granted: false,
