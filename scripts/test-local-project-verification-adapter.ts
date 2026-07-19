@@ -1516,10 +1516,10 @@ function assertExactCriterionReceiptIsolationV01(
       failedCriterionNode.record_fingerprint,
       failed.assessment.assessment_fingerprint,
     );
-    for (const [source, criterion, lineage] of [
-      [completed, completedManifest, completedLineage],
-      [failed, failedManifest, failedLineage],
-    ] as const) {
+    const exactCriterionMaterial = (
+      source: typeof completed,
+      criterion: CriterionAssessmentItemV01,
+    ) => {
       const exactRelationRef = assertPresentV01(
         criterion.supporting_refs[0] ?? criterion.opposing_refs[0],
       );
@@ -1532,11 +1532,28 @@ function assertExactCriterionReceiptIsolationV01(
           ),
         ),
       );
+      const exactRelation = assertPresentV01(
+        source.verifyMaterial.relations.find(
+          (record) =>
+            record.evidence_ref.record_id === exactEvidence.evidence_id,
+        ),
+      );
+      return { exactRelationRef, exactEvidence, exactRelation };
+    };
+    const completedExact = exactCriterionMaterial(
+      completed,
+      completedManifest,
+    );
+    const failedExact = exactCriterionMaterial(failed, failedManifest);
+    for (const [lineage, exact] of [
+      [completedLineage, completedExact],
+      [failedLineage, failedExact],
+    ] as const) {
       assert.equal(
         lineage.nodes.some(
           (node) =>
             node.node_kind === "criterion_relation_residue" &&
-            node.record_id === exactRelationRef.external_id,
+            node.record_id === exact.exactRelationRef.external_id,
         ),
         true,
       );
@@ -1544,13 +1561,49 @@ function assertExactCriterionReceiptIsolationV01(
         lineage.nodes.some(
           (node) =>
             node.node_kind === "evidence_record" &&
-            node.record_id === exactEvidence.evidence_id &&
-            node.record_fingerprint === exactEvidence.integrity.fingerprint,
+            node.record_id === exact.exactEvidence.evidence_id &&
+            node.record_fingerprint ===
+              exact.exactEvidence.integrity.fingerprint,
+        ),
+        true,
+      );
+      assert.equal(
+        lineage.nodes.some(
+          (node) =>
+            node.node_kind === "claim_evidence_relation" &&
+            node.record_id === exact.exactRelation.relation_id,
         ),
         true,
       );
       assert.notEqual(lineage.completeness.status, "bounded_incomplete");
     }
+    assert.equal(
+      completedLineage.nodes.some(
+        (node) =>
+          node.node_kind === "claim_evidence_relation" &&
+          node.record_id === failedExact.exactRelation.relation_id,
+      ),
+      true,
+      "criterion → Evidence → relation → Claim expansion retains the opposing relation attached through the same exact Claim",
+    );
+    assert.equal(
+      completedLineage.nodes.some(
+        (node) =>
+          node.node_kind === "evidence_record" &&
+          node.record_id === failedExact.exactEvidence.evidence_id,
+      ),
+      true,
+      "the transitive opposing relation retains its exact Evidence endpoint",
+    );
+    assert.equal(
+      failedLineage.nodes.some(
+        (node) =>
+          node.node_kind === "claim_evidence_relation" &&
+          node.record_id === completedExact.exactRelation.relation_id,
+      ),
+      true,
+      "the inverse criterion lineage preserves coexisting support material without choosing a winner",
+    );
     assert.equal(completedManifest.status, "satisfied");
     assert.equal(failedManifest.status, "unsatisfied");
   } finally {

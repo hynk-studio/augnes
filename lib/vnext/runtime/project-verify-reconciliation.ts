@@ -152,6 +152,11 @@ export interface ProjectVerifyFocusedReconciliationV01 {
   focus_bounded: boolean;
 }
 
+type ProjectVerifyTransitionLoaderV01 = (input: {
+  transition_receipt_id: string;
+  transition_receipt_fingerprint: string;
+}) => ValidatedVNextSemanticTransitionRelationV01;
+
 interface LifecycleSourcesV01 {
   proposal: EpisodeDeltaProposalV01 | null;
   decision: ReviewDecisionV01 | null;
@@ -226,6 +231,24 @@ function readProjectVerifyReconciliationInternalV01(
     input.observed_at,
     "observed_at_invalid",
   );
+  const validatedTransitions = new Map<
+    string,
+    ValidatedVNextSemanticTransitionRelationV01
+  >();
+  // Reuse only successful immutable source validation inside this one
+  // synchronous read. Every new read gets a fresh cache, while mutable heads,
+  // projections, missing sources, and conflicts are always queried again.
+  const loadTransition: ProjectVerifyTransitionLoaderV01 = (source) => {
+    const key = `${source.transition_receipt_id}\0${source.transition_receipt_fingerprint}`;
+    const cached = validatedTransitions.get(key);
+    if (cached) return cached;
+    const validated = loadValidatedVNextSemanticTransitionRelationV01(db, {
+      ...scope,
+      ...source,
+    });
+    validatedTransitions.set(key, validated);
+    return validated;
+  };
 
   const evidenceCount = countVNextCoreRecordsV01(db, {
     ...scope,
@@ -251,14 +274,21 @@ function readProjectVerifyReconciliationInternalV01(
     ...scope,
     record_kind: "context_use_review",
   });
-  const focusedMaterial = readFocusedMaterialV01(db, scope, focus);
-  // Focused public readers have already source-validated these records. Once
-  // an exact focused collection fills the fixed cap, the ordinary project
-  // list could only repeat those identities or be truthfully omitted by the
-  // aggregate bound tracked below.
+  const focusedMaterial = readFocusedMaterialV01(
+    db,
+    scope,
+    focus,
+    loadTransition,
+  );
+  const exactCriterionFocus = focus?.focus_kind === "criterion";
+  // Criterion lineage direct-loads and source-validates its exact connected
+  // closure. Unrelated ordinary windows cannot enter that selected graph; the
+  // project counts below still make any wider material explicitly bounded.
+  // Other focused reads retain their ordinary project collection because some
+  // endpoint graphs can reach material beyond the initially selected family.
   const evidenceCollection = boundedUniqueRecordsV01(
     focusedMaterial.evidence,
-    focusedMaterial.evidence.length >= READ_LIMIT_V01
+    exactCriterionFocus || focusedMaterial.evidence.length >= READ_LIMIT_V01
       ? []
       : listProjectEvidenceRecordsV01(db, {
           ...scope,
@@ -268,7 +298,7 @@ function readProjectVerifyReconciliationInternalV01(
   );
   const claimCollection = boundedUniqueRecordsV01(
     focusedMaterial.claims,
-    focusedMaterial.claims.length >= READ_LIMIT_V01
+    exactCriterionFocus || focusedMaterial.claims.length >= READ_LIMIT_V01
       ? []
       : listProjectClaimRecordsV01(db, {
           ...scope,
@@ -278,7 +308,7 @@ function readProjectVerifyReconciliationInternalV01(
   );
   const relationCollection = boundedUniqueRecordsV01(
     focusedMaterial.relations,
-    focusedMaterial.relations.length >= READ_LIMIT_V01
+    exactCriterionFocus || focusedMaterial.relations.length >= READ_LIMIT_V01
       ? []
       : listProjectRelationsV01(db, scope),
     (record) => record.relation_id,
@@ -306,20 +336,30 @@ function readProjectVerifyReconciliationInternalV01(
   const topLevelConflicts: ProjectVerifyConflictV01[] = [];
 
   for (const family of claimFamilies) {
-    const target = readFamilyCurrentHeadV01(db, scope, family[0]!);
+    const target = readFamilyCurrentHeadV01(
+      db,
+      scope,
+      family[0]!,
+      loadTransition,
+    );
     const revisionWork = family.map((record) => ({
       record,
-      sources: readLifecycleSourcesV01(db, scope, record),
+      sources: readLifecycleSourcesV01(db, scope, record, loadTransition),
     }));
     claimFamilyProjections.push(
       projectClaimFamilyV01(family, revisionWork, target, observedAt),
     );
   }
   for (const family of relationFamilies) {
-    const target = readFamilyCurrentHeadV01(db, scope, family[0]!);
+    const target = readFamilyCurrentHeadV01(
+      db,
+      scope,
+      family[0]!,
+      loadTransition,
+    );
     const revisionWork = family.map((record) => ({
       record,
-      sources: readLifecycleSourcesV01(db, scope, record),
+      sources: readLifecycleSourcesV01(db, scope, record, loadTransition),
     }));
     relationFamilyProjections.push(
       projectRelationFamilyV01(family, revisionWork, target, observedAt),
@@ -343,8 +383,7 @@ function readProjectVerifyReconciliationInternalV01(
       ),
     ),
   ]).map((ref) =>
-    loadValidatedVNextSemanticTransitionRelationV01(db, {
-      ...scope,
+    loadTransition({
       transition_receipt_id: ref.record_id,
       transition_receipt_fingerprint: ref.record_fingerprint,
     }),
@@ -569,10 +608,16 @@ function readFocusedMaterialV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   focus: ProjectVerifyReconciliationFocusV01 | null,
+  loadTransition: ProjectVerifyTransitionLoaderV01,
 ): FocusedProjectVerifyMaterialV01 {
   const evidence = new Map<string, EvidenceRecordV01>();
   const claims = new Map<string, ClaimRecordV01>();
   const relations = new Map<string, ClaimEvidenceRelationV01>();
+  const evidenceExpansionQueue: EvidenceRecordV01[] = [];
+  const claimExpansionQueue: ClaimRecordV01[] = [];
+  const expandedEvidenceEndpoints = new Set<string>();
+  const expandedClaimEndpoints = new Set<string>();
+  const expandedRelationFamilies = new Set<string>();
   let bounded = false;
 
   const addEvidenceRecord = (record: EvidenceRecordV01): boolean => {
@@ -582,6 +627,7 @@ function readFocusedMaterialV01(
       return false;
     }
     evidence.set(record.evidence_id, record);
+    evidenceExpansionQueue.push(record);
     return true;
   };
   const addClaimRecord = (record: ClaimRecordV01): boolean => {
@@ -591,6 +637,7 @@ function readFocusedMaterialV01(
       return false;
     }
     claims.set(record.claim_id, record);
+    claimExpansionQueue.push(record);
     return true;
   };
   const addRelationRecord = (record: ClaimEvidenceRelationV01): boolean => {
@@ -629,8 +676,10 @@ function readFocusedMaterialV01(
       relation_id: relationId,
     });
     if (!record) return;
-    // As above, preserve the exact relation root before bounded expansion.
     addRelationRecord(record);
+    if (expandedRelationFamilies.has(record.relation_family_id)) return;
+    expandedRelationFamilies.add(record.relation_family_id);
+    // As above, preserve the exact relation root before bounded expansion.
     for (const revision of listClaimEvidenceRelationFamilyRevisionsV01(db, {
       ...scope,
       relation_family_id: record.relation_family_id,
@@ -647,6 +696,9 @@ function readFocusedMaterialV01(
     }
   };
   const addRelationsForClaim = (claim: ClaimRecordV01): void => {
+    const endpointKey = `${claim.claim_id}\0${claim.integrity.fingerprint}`;
+    if (expandedClaimEndpoints.has(endpointKey)) return;
+    expandedClaimEndpoints.add(endpointKey);
     const count = countRelationsByExactEndpointV01(db, scope, {
       id_path: "$.claim_ref.record_id",
       fingerprint_path: "$.claim_ref.record_fingerprint",
@@ -663,6 +715,9 @@ function readFocusedMaterialV01(
     );
   };
   const addRelationsForEvidence = (record: EvidenceRecordV01): void => {
+    const endpointKey = `${record.evidence_id}\0${record.integrity.fingerprint}`;
+    if (expandedEvidenceEndpoints.has(endpointKey)) return;
+    expandedEvidenceEndpoints.add(endpointKey);
     const count = countRelationsByExactEndpointV01(db, scope, {
       id_path: "$.evidence_ref.record_id",
       fingerprint_path: "$.evidence_ref.record_fingerprint",
@@ -677,6 +732,24 @@ function readFocusedMaterialV01(
         limit: READ_LIMIT_V01,
       }),
     );
+  };
+  const expandConnectedMaterial = (): void => {
+    let evidenceCursor = 0;
+    let claimCursor = 0;
+    // A relation can reveal a new exact Claim or Evidence endpoint, which can
+    // reveal another relation. Walk that graph to a fixed point while the
+    // existing record caps and endpoint counts preserve bounded reads.
+    while (
+      evidenceCursor < evidenceExpansionQueue.length ||
+      claimCursor < claimExpansionQueue.length
+    ) {
+      while (evidenceCursor < evidenceExpansionQueue.length) {
+        addRelationsForEvidence(evidenceExpansionQueue[evidenceCursor++]!);
+      }
+      while (claimCursor < claimExpansionQueue.length) {
+        addRelationsForClaim(claimExpansionQueue[claimCursor++]!);
+      }
+    }
   };
   const addSelectedRecord = (
     selected:
@@ -715,12 +788,11 @@ function readFocusedMaterialV01(
             );
             bounded = bounded || matching.bounded;
             for (const record of matching.records) {
-              if (addEvidenceRecord(record)) {
-                addRelationsForEvidence(record);
-              }
+              addEvidenceRecord(record);
             }
           }
         }
+        expandConnectedMaterial();
         break;
       }
       case "evidence": {
@@ -768,6 +840,7 @@ function readFocusedMaterialV01(
             db,
             scope,
             focus.transition_receipt_id,
+            loadTransition,
           ),
         );
         break;
@@ -956,6 +1029,7 @@ function selectedRecordForExactTransitionV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   transitionReceiptId: string,
+  loadTransition: ProjectVerifyTransitionLoaderV01,
 ): ClaimRecordReferenceV01 | ClaimEvidenceRelationReferenceV01 | null {
   const envelope = readVNextCoreRecordV01(db, {
     ...scope,
@@ -963,8 +1037,7 @@ function selectedRecordForExactTransitionV01(
     record_id: transitionReceiptId,
   });
   if (!envelope) return null;
-  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-    ...scope,
+  const transition = loadTransition({
     transition_receipt_id: envelope.record_id,
     transition_receipt_fingerprint: envelope.fingerprint,
   });
@@ -1085,6 +1158,7 @@ function readLifecycleSourcesV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   record: ProjectVerifyLifecycleSelectedRecordV01,
+  loadTransition: ProjectVerifyTransitionLoaderV01,
 ): LifecycleSourcesV01 {
   const entityKind =
     "claim_version" in record ? "claim_record" : "claim_evidence_relation";
@@ -1145,8 +1219,7 @@ function readLifecycleSourcesV01(
   }
   const receiptEnvelope = receiptEnvelopes[0] ?? null;
   if (receiptEnvelope) {
-    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      ...scope,
+    const transition = loadTransition({
       transition_receipt_id: receiptEnvelope.record_id,
       transition_receipt_fingerprint: receiptEnvelope.fingerprint,
     });
@@ -1173,6 +1246,7 @@ function readLifecycleSourcesV01(
       exactDecisionEnvelope,
       persisted.proposal,
       scope,
+      loadTransition,
     );
     if (
       canonicalizeProtocolValueV01(exactDecision) !==
@@ -1251,7 +1325,13 @@ function readLifecycleSourcesV01(
   }
   const decisionEnvelope = decisionEnvelopes[0] ?? null;
   const decision = decisionEnvelope
-    ? validatedDecisionV01(db, decisionEnvelope, persisted.proposal, scope)
+    ? validatedDecisionV01(
+        db,
+        decisionEnvelope,
+        persisted.proposal,
+        scope,
+        loadTransition,
+      )
     : null;
   if (!decision) {
     return {
@@ -1675,6 +1755,7 @@ function readFamilyCurrentHeadV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   record: ProjectVerifyLifecycleSelectedRecordV01,
+  loadTransition: ProjectVerifyTransitionLoaderV01,
 ): FamilyCurrentHeadV01 {
   const targetRef = familyTargetForRecordV01(record);
   const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
@@ -1691,8 +1772,7 @@ function readFamilyCurrentHeadV01(
       selected_record_ref: null,
     };
   }
-  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-    ...scope,
+  const transition = loadTransition({
     transition_receipt_id: head.source_transition_receipt_id,
     transition_receipt_fingerprint: head.source_transition_receipt_fingerprint,
   });
@@ -1812,6 +1892,7 @@ function validatedDecisionV01(
   envelope: VNextCoreRecordEnvelopeV01,
   proposal: EpisodeDeltaProposalV01,
   scope: { workspace_id: string; project_id: string },
+  loadTransition: ProjectVerifyTransitionLoaderV01,
 ): ReviewDecisionV01 {
   const validation = validateReviewDecisionAgainstEpisodeDeltaProposalV01(
     envelope.payload,
@@ -1836,8 +1917,7 @@ function validatedDecisionV01(
     ) {
       failV01("project_verify_prior_decision_source_missing");
     }
-    const prior = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      ...scope,
+    const prior = loadTransition({
       transition_receipt_id: expectedHead.source_transition_receipt_id,
       transition_receipt_fingerprint:
         expectedHead.source_transition_receipt_fingerprint,
@@ -1907,11 +1987,17 @@ function readSourceAssessmentMaterialV01(
   const receiptRefs: ProjectVerifyExactProtocolRefV01[] = [];
   const assessmentRefs: ProjectVerifyExactProtocolRefV01[] = [];
   const criteria: ProjectVerifyReconciliationV01["criteria"] = [];
-  const proposalEnvelopes = listVNextCoreRecordsV01(db, {
-    ...scope,
-    record_kinds: ["episode_delta_proposal"],
-    limit: READ_LIMIT_V01,
-  });
+  // Exact criterion focus has its own packet/receipt/criterion query below.
+  // Avoid authenticating an unrelated ordinary window that the exact lineage
+  // graph would discard; project counts still expose bounded incompleteness.
+  const proposalEnvelopes =
+    focus?.focus_kind === "criterion"
+      ? []
+      : listVNextCoreRecordsV01(db, {
+          ...scope,
+          record_kinds: ["episode_delta_proposal"],
+          limit: READ_LIMIT_V01,
+        });
   if (focus?.focus_kind === "criterion") {
     const rows = db
       .prepare(
