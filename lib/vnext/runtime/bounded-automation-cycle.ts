@@ -57,6 +57,7 @@ import {
 import {
   inspectVNextOperatorPilotPacketLineageV01,
   projectVNextOperatorPilotContinuityV01,
+  resolveVNextOperatorPilotPendingContextUseReviewV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   type LiveNativeHostRunServiceV01,
@@ -682,11 +683,21 @@ export function readBoundedAutomationCycleProjectionV01(
     stopReason = "final_grant_readback_conflict";
     retryable = false;
   }
+  const pendingContextUseReview =
+    resolveVNextOperatorPilotPendingContextUseReviewV01(db, {
+      config: input.config,
+      continuity,
+    });
   const runReceiptId = stringMetadataV01(run?.metadata.run_receipt_id);
+  const runReceiptFingerprint = stringMetadataV01(
+    run?.metadata.run_receipt_fingerprint,
+  );
   const feedbackNeeded = Boolean(
     runReceiptId &&
-      continuity.latest_context_use_receipt?.receipt_id === runReceiptId &&
-      continuity.latest_context_use_review_status?.later_task_run_receipt_id !== runReceiptId,
+      runReceiptFingerprint &&
+      pendingContextUseReview?.later_run_receipt_id === runReceiptId &&
+      pendingContextUseReview.later_run_receipt_fingerprint ===
+        runReceiptFingerprint,
   );
   const nextAction = status === "review_needed" ? "open_review" :
     feedbackNeeded ? "provide_context_use_feedback" :
@@ -723,9 +734,17 @@ export function readBoundedAutomationCycleProjectionV01(
     } : null,
     budget: resolved.budget,
     run: run ? cycleRunProjectionV01(run) : null,
+    review_proposal_id:
+      proposalPending && run
+        ? stringMetadataV01(run.metadata.run_assessment_proposal_id)
+        : null,
     feedback_needed: feedbackNeeded,
-    feedback_href: feedbackNeeded && continuity.latest_applied_transition
-      ? `/workbench/semantic-review/${continuity.latest_applied_transition.proposal_id.replace(":", "~")}`
+    feedback_proposal_id:
+      feedbackNeeded && pendingContextUseReview
+        ? pendingContextUseReview.proposal_id
+        : null,
+    feedback_href: feedbackNeeded && pendingContextUseReview
+      ? `/workbench/semantic-review/${pendingContextUseReview.proposal_id.replace(":", "~")}`
       : null,
     next_action: nextAction,
     model_calls_allowed: 0,

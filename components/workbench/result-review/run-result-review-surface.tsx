@@ -1,5 +1,6 @@
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
+import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
@@ -11,6 +12,7 @@ export function RunResultReviewSurface({
   accessBoundary?: React.ReactNode;
 }) {
   const summary = result.summary;
+  const entryPresentation = resultEntryPresentation(result);
   return (
     <main
       className={styles.page}
@@ -18,32 +20,14 @@ export function RunResultReviewSurface({
       data-result-review-read-only="true"
       data-semantic-mutation="false"
     >
-      <div className={styles.shell}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Semantic Workbench · read-only result</p>
-            <h1>Review native-host result</h1>
-            <p className={styles.headerCopy}>
-              This view is derived from one immutable project-scoped RunReceipt.
-              It does not create a proposal, ReviewDecision, semantic transition,
-              Evidence acceptance, or work closure.
-            </p>
-          </div>
-          <nav className={styles.nav} aria-label="Result review navigation">
-            <a href={`/projects/${encodeURIComponent(result.project_id)}`}>
-              Project Home
-            </a>
-            <a href="#run-result-inspector">Open Inspector</a>
-          </nav>
-        </header>
-
-        <div className={styles.boundaryBand} aria-label="Authority boundary">
-          <span>Immutable execution residue</span>
-          <span>Read only</span>
-          <span>No semantic authority</span>
-          <span>{humanize(summary.review_attention)}</span>
-        </div>
-
+      <SemanticWorkbenchShell
+        title="Verify run result"
+        description="Compare one immutable, project-scoped RunReceipt with its selected context, verification residue, criterion assessment, and admitted candidate material. Opening this entry performs no semantic write."
+        entryState={entryPresentation.state}
+        entryLabel={entryPresentation.label}
+        projectHref={`/projects/${encodeURIComponent(result.project_id)}`}
+        inspectorHref="#run-result-inspector"
+      >
         {accessBoundary}
 
         <section className={styles.panel} aria-labelledby="result-summary-title">
@@ -398,9 +382,27 @@ export function RunResultReviewSurface({
           No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance,
           semantic state change, or work closure was created by opening this result.
         </section>
-      </div>
+      </SemanticWorkbenchShell>
     </main>
   );
+}
+
+function resultEntryPresentation(
+  result: ProjectRunResultDetailV01,
+): {
+  state: "result_only" | "assessment";
+  label: string;
+} {
+  if (result.proposal.status === "available") {
+    return {
+      state: "assessment",
+      label: "Assessment · source-bound proposal available",
+    };
+  }
+  if (result.criterion_assessment.status === "available") {
+    return { state: "assessment", label: "Assessment available" };
+  }
+  return { state: "result_only", label: "Result only" };
 }
 
 function TaskSuccessCriteria({

@@ -20,6 +20,11 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 export const VNEXT_OPERATOR_PILOT_POLICY_VERSION_V01 =
   "vnext_operator_pilot_policy.v0.1" as const;
 
+type VNextOperatorPilotProjectScopeV01 = Pick<
+  VNextLocalOperatorPilotConfigV01,
+  "workspace_id" | "project_id"
+>;
+
 export type VNextOperatorPilotCurrentStateStatusV01 =
   | "absent"
   | "present"
@@ -61,7 +66,7 @@ export interface VNextOperatorPilotCandidateAdmissionV01 {
 export function inspectVNextOperatorPilotCandidateAdmissionV01(
   db: Database.Database,
   input: {
-    config: VNextLocalOperatorPilotConfigV01;
+    config: VNextOperatorPilotProjectScopeV01;
     proposal: EpisodeDeltaProposalV01;
     candidate: EpisodeDeltaProposalDeltaCandidateV01;
     candidate_fingerprint: string;
@@ -173,7 +178,7 @@ function mapCandidateOperation(
 }
 
 function assertConfiguredProposal(
-  config: VNextLocalOperatorPilotConfigV01,
+  config: VNextOperatorPilotProjectScopeV01,
   proposal: EpisodeDeltaProposalV01,
 ): void {
   if (
@@ -186,7 +191,7 @@ function assertConfiguredProposal(
 
 function readTargetState(
   db: Database.Database,
-  config: VNextLocalOperatorPilotConfigV01,
+  config: VNextOperatorPilotProjectScopeV01,
   targetRef: ExternalRefV01,
 ): VNextOperatorPilotTargetStateV01 {
   const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
@@ -291,7 +296,7 @@ function readTargetState(
 export function readVNextOperatorPilotCanonicalTargetStateV01(
   db: Database.Database,
   input: {
-    config: VNextLocalOperatorPilotConfigV01;
+    config: VNextOperatorPilotProjectScopeV01;
     source_target_ref: ExternalRefV01;
   },
 ): VNextOperatorPilotTargetStateV01 {
@@ -320,7 +325,7 @@ export function readVNextOperatorPilotCanonicalTargetStateV01(
 
 function hasCoherentDurableTargetLineage(
   db: Database.Database,
-  config: VNextLocalOperatorPilotConfigV01,
+  config: VNextOperatorPilotProjectScopeV01,
   targetRef: ExternalRefV01,
   targetKey: string,
   head: VNextSemanticTargetHeadV01,

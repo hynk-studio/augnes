@@ -43,10 +43,27 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
-import { validateReviewDecisionAgainstEpisodeDeltaProposalV01, validateReviewDecisionV01 } from "@/lib/vnext/review-decision";
+import {
+  createEpisodeDeltaCandidateFingerprintV01,
+  validateReviewDecisionAgainstEpisodeDeltaProposalV01,
+  validateReviewDecisionV01,
+} from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
-import { readProjectRunResultOverviewV01 } from "@/lib/vnext/runtime/project-run-result-read-model";
+import { inspectVNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
+import {
+  projectVNextOperatorPilotContinuityV01,
+  resolveVNextOperatorPilotPendingContextUseReviewV01,
+} from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import {
+  readProjectRunResultDetailV01,
+  readProjectRunResultOverviewV01,
+} from "@/lib/vnext/runtime/project-run-result-read-model";
+import {
+  createProjectReviewWorkbenchEntryV01,
+  createProposalWorkbenchEntryV01,
+  createRunResultWorkbenchEntryV01,
+} from "@/lib/vnext/runtime/semantic-workbench-entry";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -65,6 +82,7 @@ import {
   type ProjectHomeLineageAnchorV01,
   type ProjectHomeLineageKindV01,
   type ProjectHomeNextMoveV01,
+  type ProjectHomePendingAttentionItemV01,
   type ProjectHomePendingAttentionV01,
   type ProjectHomeProjectionV01,
   type ProjectHomeRecentActivityV01,
@@ -74,6 +92,7 @@ import {
 } from "@/types/vnext/project-home";
 import type { ProjectRootAvailabilityV01 } from "@/types/vnext/project-onboarding";
 import type { BoundedAutomationCycleProjectionV01 } from "@/types/vnext/bounded-automation-cycle";
+import type { SemanticWorkbenchEntryOriginV01 } from "@/types/vnext/semantic-workbench";
 
 const ACCEPTED_STATE_LIMIT = 5;
 const ATTENTION_LIMIT = 5;
@@ -81,8 +100,11 @@ const ACTIVITY_LIMIT = 5;
 const NEXT_MOVE_LIMIT = 3;
 const PROPOSAL_SCAN_LIMIT = 64;
 const DECISION_SCAN_LIMIT = 128;
+const TRANSITION_SCAN_LIMIT = 128;
 const ACTIVITY_SCAN_LIMIT = 24;
 const SUMMARY_LIMIT = 320;
+const TASK_DETAIL_LIMIT = 6;
+const PERSONAL_BASIS_LIMIT = 3;
 
 const DEFAULT_CAPABILITY_SUMMARIES: Record<ProjectHomeCapabilityV01, string> = {
   openai: "No trusted local OpenAI readiness status is available.",
@@ -126,6 +148,52 @@ function automationAdmissionFromCycle(
   return { status, reason: cycle.stop_reason };
 }
 
+function automationSectionStateV01(
+  control: import("@/types/vnext/project-controls").ProjectAutomationEffectiveStatusV01,
+  cycle: BoundedAutomationCycleProjectionV01,
+): ProjectHomeSectionStateV01 {
+  if (control.status === "not_configured") {
+    return sectionState(
+      "not_configured",
+      "Project automation is not configured.",
+    );
+  }
+  if (control.status === "disabled") {
+    return sectionState("action_required", "Project automation is disabled.");
+  }
+  if (control.status === "paused") {
+    return sectionState(
+      "action_required",
+      "Project automation is paused for new policy-triggered work.",
+    );
+  }
+  const requiresAttention = [
+    "work_ambiguous",
+    "grant_required",
+    "grant_expired",
+    "capability_unavailable",
+    "policy_denied",
+    "cancellation_requested",
+    "cancelled",
+    "timed_out",
+    "failed",
+    "proposal_settlement_pending",
+    "proposal_settlement_failed",
+    "reconciliation_required",
+    "review_needed",
+  ].includes(cycle.status);
+  return sectionState(
+    requiresAttention ? "action_required" : "available",
+    requiresAttention
+      ? `Bounded automation requires attention: ${cycle.stop_reason.replaceAll("_", " ")}.`
+      : cycle.status === "no_eligible_work"
+        ? "Bounded automation is enabled; no eligible work is currently queued."
+        : cycle.status === "eligible"
+          ? "One bounded automation cycle is eligible to run."
+          : "Bounded automation is active within the current project policy.",
+  );
+}
+
 function boundedAutomationUnavailableV01(
   input: { workspace_id: string; project_id: string },
   control: import("@/types/vnext/project-controls").ProjectAutomationEffectiveStatusV01,
@@ -166,7 +234,9 @@ function boundedAutomationUnavailableV01(
       automatic_retry: false,
     },
     run: null,
+    review_proposal_id: null,
     feedback_needed: false,
+    feedback_proposal_id: null,
     feedback_href: null,
     next_action:
       status === "not_configured" || status === "disabled"
@@ -252,7 +322,11 @@ export async function readProjectHomeProjectionV01(
     () => readWorkingProjection(db, input, evaluation.timestamp),
     workingProjectionError,
   );
-  const attention = readSectionSafely(
+  const taskFrame = readSectionSafely(
+    () => readTaskFrame(db, input, evaluation.timestamp),
+    taskFrameError,
+  );
+  const proposalAttention = readSectionSafely(
     () => readPendingAttention(db, input, evaluation),
     attentionError,
   );
@@ -296,20 +370,7 @@ export async function readProjectHomeProjectionV01(
       : boundedAutomationUnavailableV01(input, effectiveAutomation);
   const automationAdmission = automationAdmissionFromCycle(automationCycle);
   const automation = {
-    state: sectionState(
-      effectiveAutomation.status === "not_configured"
-        ? "not_configured"
-        : effectiveAutomation.status === "enabled"
-          ? "available"
-          : "action_required",
-      effectiveAutomation.status === "not_configured"
-        ? "Project automation is not configured."
-        : effectiveAutomation.status === "disabled"
-          ? "Project automation is disabled."
-          : effectiveAutomation.status === "paused"
-            ? "Project automation is paused for new policy-triggered work."
-            : automationAdmission.reason,
-    ),
+    state: automationSectionStateV01(effectiveAutomation, automationCycle),
     status: effectiveAutomation.status,
     control_revision: effectiveAutomation.control_revision,
     updated_at: effectiveAutomation.updated_at,
@@ -323,6 +384,15 @@ export async function readProjectHomeProjectionV01(
   } satisfies ProjectHomeProjectionV01["automation"];
   const effectivePersonalPerspective =
     readPersonalPerspectiveEffectiveScopeV01(db, input);
+  const personalPerspectiveTaskBasis = readSectionSafely(
+    () =>
+      readPersonalPerspectiveTaskBasis(
+        db,
+        input,
+        evaluation.timestamp,
+      ),
+    () => null,
+  );
   const personalPerspective = {
     state: sectionState(
       effectivePersonalPerspective.status === "not_configured"
@@ -339,14 +409,68 @@ export async function readProjectHomeProjectionV01(
     effective_context_behavior:
       effectivePersonalPerspective.effective_context_behavior,
     explanation: effectivePersonalPerspective.explanation,
-    eligible_selected_count: readPersonalPerspectiveSelectedCount(
-      db,
-      input,
-      evaluation.timestamp,
-      effectivePersonalPerspective.effectively_included,
-      effectivePersonalPerspective.scope_revision,
-    ),
+    task_selected_count: personalPerspectiveTaskBasis?.selected_count ?? 0,
+    task_basis: personalPerspectiveTaskBasis,
   } satisfies ProjectHomeProjectionV01["personal_perspective"];
+  const attention = readSectionSafely(
+    () =>
+      composeProjectAttentionV01({
+        db,
+        input,
+        operator_config:
+          dependencies.operator_config?.workspace_id === input.workspace_id &&
+          dependencies.operator_config.project_id === input.project_id
+            ? dependencies.operator_config
+            : null,
+        proposal_attention: proposalAttention,
+        run_results: runResults,
+        automation,
+        working_projection: workingProjection,
+        evaluation_timestamp: evaluation.timestamp,
+      }),
+    attentionError,
+  );
+  const primaryAction = projectSummary.is_active
+    ? attention.items.find((item) => item.workbench_entry)?.workbench_entry ??
+      runResults.workbench_entry ??
+      createProjectReviewWorkbenchEntryV01({
+        ...input,
+        reason: "Open the project-scoped semantic review queue.",
+        review_required: false,
+      })
+    : null;
+  const coordinationState = projectCoordinationStateV01({
+    accepted_state: acceptedState.state,
+    working_projection: workingProjection.state,
+    task_frame: taskFrame.state,
+    attention: attention.state,
+    recent_activity: recentActivity.state,
+    run_results: runResults.state,
+    automation: automation.state,
+    attention_count: attention.total_count,
+  });
+  const coordination = {
+    state: coordinationState,
+    task_frame: taskFrame,
+    active_work: {
+      current_run_active: runResults.current_run !== null,
+      current_run_mode: runResults.current_run?.mode ?? null,
+      automation_status: automation.cycle.status,
+      automation_work_label: automation.cycle.work_source?.label ?? null,
+      latest_result_available: runResults.latest_result !== null,
+    },
+    attention_count: attention.total_count,
+    decision_debt_count:
+      attention.decision_debt.pending_candidate_count +
+      attention.decision_debt.accepted_awaiting_transition_count +
+      attention.decision_debt.deferred_candidate_count,
+    tension_count: taskFrame.tensions.length + taskFrame.risks.length,
+    gap_count: taskFrame.gaps.length,
+    personal_perspective_affected_task: personalPerspective.task_basis !== null,
+    primary_action: primaryAction,
+    projection_only: true,
+    semantic_authority_granted: false,
+  } satisfies ProjectHomeProjectionV01["coordination"];
 
   return {
     project_home_projection_version: PROJECT_HOME_PROJECTION_VERSION_V01,
@@ -356,6 +480,7 @@ export async function readProjectHomeProjectionV01(
     project_summary: projectSummary,
     accepted_state: acceptedState,
     working_projection: workingProjection,
+    coordination,
     attention,
     recent_activity: recentActivity,
     run_results: runResults,
@@ -368,6 +493,7 @@ export async function readProjectHomeProjectionV01(
       is_active: projectSummary.is_active,
       accepted_state: acceptedState,
       attention,
+      primary_action: primaryAction,
       automation_status: automation.status,
       personal_perspective_status: personalPerspective.status,
     }),
@@ -558,6 +684,80 @@ function readWorkingProjection(
   };
 }
 
+function readTaskFrame(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  evaluationTimestamp: string,
+): ProjectHomeProjectionV01["coordination"]["task_frame"] {
+  const record = listVNextCoreRecordsV01(db, {
+    ...input,
+    record_kinds: ["task_context_packet"],
+    limit: 1,
+  })[0];
+  if (!record) {
+    return {
+      state: sectionState(
+        "empty",
+        "No current TaskContextPacket is available for this project.",
+      ),
+      goal: null,
+      success_criteria: [],
+      non_goals: [],
+      required_checks: [],
+      forbidden_actions: [],
+      tensions: [],
+      risks: [],
+      gaps: [],
+      selected_context_count: 0,
+      excluded_context_count: 0,
+      packet_generated_at: null,
+      packet_currentness: null,
+    };
+  }
+  const packetResult = validatedPacket(record, input, evaluationTimestamp);
+  const packet = packetResult.packet;
+  return {
+    state: sectionState(
+      packetResult.status === "expired" ||
+        packet.source_status.currentness.status === "stale"
+        ? "action_required"
+        : "available",
+      packetResult.status === "expired"
+        ? "The latest selected working context is expired and must not be treated as current."
+        : "Task intent and selected working context are available from the latest exact packet.",
+    ),
+    goal: safeSummary(packet.task.goal),
+    success_criteria: packet.task.success_criteria
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map(safeSummary),
+    non_goals: packet.task.non_goals
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map(safeSummary),
+    required_checks: packet.constraints.required_checks
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map(safeSummary),
+    forbidden_actions: packet.constraints.forbidden_actions
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map(safeSummary),
+    tensions: packet.tensions
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map((item) => safeSummary(item.summary)),
+    risks: packet.risks
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map((item) => safeSummary(item.summary)),
+    gaps: packet.gaps
+      .slice(0, TASK_DETAIL_LIMIT)
+      .map((item) => safeSummary(item.summary)),
+    selected_context_count: packet.selected_context.length,
+    excluded_context_count: packet.excluded_context.length,
+    packet_generated_at: packet.generated_at,
+    packet_currentness:
+      packetResult.status === "expired"
+        ? "stale"
+        : packet.source_status.currentness.status,
+  };
+}
+
 function readPendingAttention(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
@@ -581,6 +781,27 @@ function readPendingAttention(
   }
   const decisions = decisionRecords.map((record) => validatedDecision(record, input));
   validateDecisionLineageForProjection(decisions);
+  const transitionRecords = listVNextCoreRecordsV01(db, {
+    ...input,
+    record_kinds: ["state_transition_receipt"],
+    limit: TRANSITION_SCAN_LIMIT + 1,
+  });
+  if (transitionRecords.length > TRANSITION_SCAN_LIMIT) {
+    throw new Error("project_home_transition_scan_bound_exceeded");
+  }
+  const appliedDecisionKeys = new Set(
+    transitionRecords.map((record) => {
+      const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+        ...input,
+        transition_receipt_id: record.record_id,
+        transition_receipt_fingerprint: record.fingerprint,
+      });
+      return decisionIdentity(
+        transition.decision.decision_id,
+        transition.decision.integrity.fingerprint,
+      );
+    }),
+  );
   const evaluated = proposalRecords
     .map((record) => validatedProposal(record, input))
     .filter((proposal) => proposal.status === "pending_review")
@@ -597,24 +818,50 @@ function readPendingAttention(
           throw new Error("project_home_decision_relation_invalid");
         }
       }
-      const candidateStates = proposal.proposed_deltas.map((candidate) =>
-        resolveCandidateAttention(
+      const candidateEvaluations = proposal.proposed_deltas.map((candidate) => {
+        const attention = resolveCandidateAttention(
           proposalDecisions.filter(
             (decision) => decision.candidate.candidate_id === candidate.candidate_id,
           ),
           evaluation,
-        ),
+          appliedDecisionKeys,
+        );
+        const admission = inspectVNextOperatorPilotCandidateAdmissionV01(db, {
+          config: input,
+          proposal,
+          candidate,
+          candidate_fingerprint:
+            createEpisodeDeltaCandidateFingerprintV01(candidate),
+        });
+        return { attention, admission };
+      });
+      const requiringAttention = candidateEvaluations.filter(
+        ({ attention }) =>
+          attention.state === "requires_attention" ||
+          attention.state === "accepted_awaiting_transition",
       );
-      const requiringAttention = candidateStates.filter(
-        (candidate) => candidate.state === "requires_attention",
+      const acceptedAwaitingTransition = candidateEvaluations.filter(
+        ({ attention }) =>
+          attention.state === "accepted_awaiting_transition",
+      );
+      const transitionBlocked = acceptedAwaitingTransition.filter(
+        ({ admission }) => !admission.decision_allowed.accept,
       );
       return {
         proposal,
+        origin: proposalWorkbenchOriginV01(db, input, proposal),
         pendingCandidateCount: requiringAttention.length,
-        deferredCandidateCount: candidateStates.filter(
-          (candidate) => candidate.state === "deferred",
+        acceptedAwaitingTransitionCount: acceptedAwaitingTransition.length,
+        transitionBlockedCount: transitionBlocked.length,
+        transitionBlockedByDrift: transitionBlocked.some(
+          ({ admission }) => admission.current_state_status === "drifted",
+        ),
+        deferredCandidateCount: candidateEvaluations.filter(
+          ({ attention }) => attention.state === "deferred",
         ).length,
-        attentionReason: summarizeAttentionReasons(requiringAttention),
+        attentionReason: summarizeAttentionReasons(
+          requiringAttention.map(({ attention }) => attention),
+        ),
       };
     });
   const pending = evaluated.filter((item) => item.pendingCandidateCount > 0);
@@ -622,21 +869,102 @@ function readPendingAttention(
     (total, item) => total + item.deferredCandidateCount,
     0,
   );
-  const items = pending.slice(0, ATTENTION_LIMIT).map(({ proposal, pendingCandidateCount, attentionReason }) => ({
-    proposal_id: proposal.proposal_id,
-    summary: safeSummary(proposal.bounded_summary),
-    created_at: proposal.created_at,
-    pending_candidate_count: pendingCandidateCount,
-    reason: attentionReason,
-    lineage: [
-      lineage(
-        "episode_delta_proposal",
-        proposal.proposal_id,
-        "source_proposal",
-        proposal.created_at,
-      ),
-    ],
-  }));
+  const acceptedAwaitingTransitionCount = evaluated.reduce(
+    (total, item) => total + item.acceptedAwaitingTransitionCount,
+    0,
+  );
+  const pendingDecisionCount = evaluated.reduce(
+    (total, item) =>
+      total + item.pendingCandidateCount - item.acceptedAwaitingTransitionCount,
+    0,
+  );
+  const items = pending.map(
+    ({
+      proposal,
+      origin,
+      pendingCandidateCount,
+      acceptedAwaitingTransitionCount: proposalTransitionDebt,
+      transitionBlockedCount,
+      transitionBlockedByDrift,
+      attentionReason,
+    }) => {
+      const strategic = Boolean(proposal.strategic_advantage_transfer);
+      const unresolvedDecisionCount =
+        pendingCandidateCount - proposalTransitionDebt;
+      const entryState = unresolvedDecisionCount > 0
+        ? "pending_proposal" as const
+        : transitionBlockedCount > 0
+          ? "transition_blocked" as const
+          : "decided_proposal" as const;
+      const reason = unresolvedDecisionCount > 0
+        ? `${attentionReason}${proposalTransitionDebt > 0 ? ` ${proposalTransitionDebt} accepted ${proposalTransitionDebt === 1 ? "decision is" : "decisions are"} also awaiting explicit Transition review.` : ""}`
+        : transitionBlockedCount > 0
+          ? `${transitionBlockedCount} accepted ${transitionBlockedCount === 1 ? "candidate is" : "candidates are"} currently blocked from Transition eligibility by exact server-side admission checks.`
+        : `${proposalTransitionDebt} accepted ${proposalTransitionDebt === 1 ? "decision is" : "decisions are"} awaiting an explicit Transition review.`;
+      return {
+        attention_id: `proposal:${proposal.proposal_id}`,
+        proposal_id: proposal.proposal_id,
+        summary: safeSummary(proposal.bounded_summary),
+        created_at: proposal.created_at,
+        pending_candidate_count: pendingCandidateCount,
+        priority: transitionBlockedCount > 0
+          ? 15
+          : proposalTransitionDebt > 0
+            ? 20
+            : strategic
+              ? 30
+              : 40,
+        signals: [
+          ...(origin === "interactive" || origin === "policy_triggered"
+            ? [origin]
+            : []),
+          ...(strategic ? ["strategic" as const] : []),
+          ...(proposalTransitionDebt > 0
+            ? ["decision_debt" as const]
+            : []),
+          ...(transitionBlockedCount > 0 ? ["blocked" as const] : []),
+          ...(transitionBlockedByDrift ? ["conflict" as const] : []),
+        ],
+        reason,
+        workbench_entry: createProposalWorkbenchEntryV01({
+          ...input,
+          proposal_id: proposal.proposal_id,
+          entry_state: entryState,
+          origin,
+          reason,
+        }),
+        action_href: null,
+        action_label: transitionBlockedCount > 0
+          ? "Inspect Transition blockers"
+          : unresolvedDecisionCount === 0 && proposalTransitionDebt > 0
+            ? "Review consequence"
+          : strategic
+            ? "Review strategic candidate"
+            : "Review candidate",
+        lineage: [
+          lineage(
+            "episode_delta_proposal",
+            proposal.proposal_id,
+            "source_proposal",
+            proposal.created_at,
+          ),
+        ],
+      };
+    },
+  );
+  items.sort(
+    (left, right) =>
+      left.priority - right.priority ||
+      requireStrictTimestamp(
+        right.created_at,
+        "project_home_attention_timestamp_invalid",
+      ) -
+        requireStrictTimestamp(
+          left.created_at,
+          "project_home_attention_timestamp_invalid",
+        ) ||
+      compareProtocolCodeUnitsV01(left.attention_id, right.attention_id),
+  );
   return {
     state: sectionState(
       pending.length
@@ -645,23 +973,33 @@ function readPendingAttention(
           ? "available"
           : "empty",
       pending.length
-        ? `${pending.length} proposal ${pending.length === 1 ? "needs" : "need"} a decision.${deferredCandidateCount > 0 ? ` ${deferredCandidateCount} ${deferredCandidateCount === 1 ? "candidate remains" : "candidates remain"} deferred.` : ""}`
+        ? `${pending.length} proposal ${pending.length === 1 ? "needs" : "need"} review attention.${acceptedAwaitingTransitionCount > 0 ? ` ${acceptedAwaitingTransitionCount} accepted ${acceptedAwaitingTransitionCount === 1 ? "decision is" : "decisions are"} awaiting Transition review.` : ""}${deferredCandidateCount > 0 ? ` ${deferredCandidateCount} ${deferredCandidateCount === 1 ? "candidate remains" : "candidates remain"} deferred.` : ""}`
         : deferredCandidateCount > 0
           ? `No immediate decisions need attention. ${deferredCandidateCount} ${deferredCandidateCount === 1 ? "candidate remains" : "candidates remain"} deferred under recorded revisit semantics.`
           : "No project-scoped decisions currently need attention.",
     ),
     total_count: pending.length,
-    items,
+    decision_debt: {
+      pending_candidate_count: pendingDecisionCount,
+      accepted_awaiting_transition_count: acceptedAwaitingTransitionCount,
+      deferred_candidate_count: deferredCandidateCount,
+    },
+    items: items.slice(0, ATTENTION_LIMIT),
   };
 }
 
 type CandidateAttentionResolutionV01 = {
-  state: "requires_attention" | "deferred" | "terminal";
+  state:
+    | "requires_attention"
+    | "accepted_awaiting_transition"
+    | "deferred"
+    | "terminal";
   reason:
     | "undecided"
     | "revisit_due"
     | "expiry_due"
     | "retracted"
+    | "transition_pending"
     | "deferred"
     | "terminal";
 };
@@ -669,12 +1007,23 @@ type CandidateAttentionResolutionV01 = {
 function resolveCandidateAttention(
   decisions: ReviewDecisionV01[],
   evaluation: { timestamp: string; milliseconds: number },
+  appliedDecisionKeys: ReadonlySet<string>,
 ): CandidateAttentionResolutionV01 {
   if (decisions.length === 0) {
     return { state: "requires_attention", reason: "undecided" };
   }
   const effective = [...decisions].sort(compareEffectiveDecisions)[0]!;
-  if (["accept", "reject", "supersede"].includes(effective.decision)) {
+  if (effective.decision === "accept") {
+    return appliedDecisionKeys.has(
+      decisionIdentity(effective.decision_id, effective.integrity.fingerprint),
+    )
+      ? { state: "terminal", reason: "terminal" }
+      : {
+          state: "accepted_awaiting_transition",
+          reason: "transition_pending",
+        };
+  }
+  if (["reject", "supersede"].includes(effective.decision)) {
     return { state: "terminal", reason: "terminal" };
   }
   if (effective.decision === "retract") {
@@ -768,6 +1117,10 @@ function decisionReferences(
   );
 }
 
+function decisionIdentity(decisionId: string, fingerprint: string): string {
+  return canonicalizeProtocolValueV01([decisionId, fingerprint]);
+}
+
 function summarizeAttentionReasons(
   candidates: CandidateAttentionResolutionV01[],
 ): string {
@@ -798,6 +1151,415 @@ function requireStrictTimestamp(value: string, errorCode: string): number {
   return parsed;
 }
 
+function composeProjectAttentionV01(input: {
+  db: Database.Database;
+  input: { workspace_id: string; project_id: string };
+  operator_config: VNextLocalOperatorPilotConfigV01 | null;
+  proposal_attention: ProjectHomePendingAttentionV01;
+  run_results: ProjectHomeRunResultsV01;
+  automation: ProjectHomeProjectionV01["automation"];
+  working_projection: ProjectHomeWorkingProjectionSummaryV01;
+  evaluation_timestamp: string;
+}): ProjectHomePendingAttentionV01 {
+  const items = input.proposal_attention.items.map((item) => ({
+    ...item,
+    signals: [...item.signals],
+  }));
+  const baseAttentionIds = new Set(items.map((item) => item.attention_id));
+  const extraAttentionIds = new Set<string>();
+  const automationReviewProposalId =
+    input.automation.cycle.review_proposal_id;
+
+  const append = (
+    item: ProjectHomePendingAttentionItemV01,
+    countAsExtra = true,
+  ): void => {
+    if (
+      baseAttentionIds.has(item.attention_id) ||
+      extraAttentionIds.has(item.attention_id)
+    ) {
+      return;
+    }
+    if (countAsExtra) extraAttentionIds.add(item.attention_id);
+    else baseAttentionIds.add(item.attention_id);
+    items.push(item);
+  };
+
+  if (automationReviewProposalId) {
+    let automationProposal = items.find(
+      (item) => item.proposal_id === automationReviewProposalId,
+    );
+    if (!automationProposal) {
+      const record = readVNextCoreRecordV01(input.db, {
+        ...input.input,
+        record_kind: "episode_delta_proposal",
+        record_id: automationReviewProposalId,
+      });
+      if (!record) {
+        throw new Error("project_home_automation_review_proposal_missing");
+      }
+      const proposal = validatedProposal(record, input.input);
+      const reason =
+        "Bounded automation stopped at review-needed; no ReviewDecision or Transition was created automatically.";
+      const item = {
+        attention_id: `proposal:${proposal.proposal_id}`,
+        proposal_id: proposal.proposal_id,
+        summary: safeSummary(proposal.bounded_summary),
+        created_at: proposal.created_at,
+        pending_candidate_count: proposal.proposed_deltas.length,
+        priority: 25,
+        signals: [
+          "policy_triggered" as const,
+          ...(proposal.strategic_advantage_transfer
+            ? (["strategic"] as const)
+            : []),
+        ],
+        reason,
+        workbench_entry: createProposalWorkbenchEntryV01({
+          ...input.input,
+          proposal_id: proposal.proposal_id,
+          entry_state: "pending_proposal",
+          origin: "policy_triggered",
+          reason,
+        }),
+        action_href: null,
+        action_label: "Review automated candidate",
+        lineage: [
+          lineage(
+            "episode_delta_proposal",
+            proposal.proposal_id,
+            "source_proposal",
+            proposal.created_at,
+          ),
+        ],
+      } satisfies ProjectHomePendingAttentionItemV01;
+      append(item, false);
+      automationProposal = item;
+    }
+    if (automationProposal) {
+      const reason =
+        "Bounded automation stopped at review-needed; no ReviewDecision or Transition was created automatically.";
+      automationProposal.priority = 25;
+      automationProposal.signals = [
+        "policy_triggered",
+        ...automationProposal.signals.filter(
+          (signal) =>
+            signal !== "interactive" &&
+            signal !== "policy_triggered" &&
+            signal !== "feedback",
+        ),
+      ];
+      automationProposal.reason = reason;
+      automationProposal.workbench_entry = createProposalWorkbenchEntryV01({
+        ...input.input,
+        proposal_id: automationReviewProposalId,
+        entry_state: "pending_proposal",
+        origin: "policy_triggered",
+        reason,
+      });
+      automationProposal.action_label = "Review automated candidate";
+    }
+  }
+
+  const pendingContextUseReview = input.operator_config
+    ? resolveVNextOperatorPilotPendingContextUseReviewV01(input.db, {
+        config: input.operator_config,
+        continuity: projectVNextOperatorPilotContinuityV01(input.db, {
+          config: input.operator_config,
+          clock: { now: () => input.evaluation_timestamp },
+        }),
+      })
+    : null;
+  if (pendingContextUseReview) {
+    const record = readVNextCoreRecordV01(input.db, {
+      ...input.input,
+      record_kind: "episode_delta_proposal",
+      record_id: pendingContextUseReview.proposal_id,
+    });
+    if (!record) {
+      throw new Error("project_home_context_feedback_proposal_missing");
+    }
+    const proposal = validatedProposal(record, input.input);
+    if (
+      proposal.integrity.fingerprint !==
+      pendingContextUseReview.proposal_fingerprint
+    ) {
+      throw new Error("project_home_context_feedback_proposal_conflict");
+    }
+    const laterResult = readProjectRunResultDetailV01(input.db, {
+      ...input.input,
+      receipt_id: pendingContextUseReview.later_run_receipt_id,
+    });
+    if (
+      laterResult.identity.receipt_fingerprint !==
+      pendingContextUseReview.later_run_receipt_fingerprint
+    ) {
+      throw new Error("project_home_context_feedback_receipt_conflict");
+    }
+    const origin = laterResult.summary.mode;
+    const reason =
+      "The applied candidate has exact later-context feedback waiting for explicit review.";
+    const workbenchEntry = createProposalWorkbenchEntryV01({
+      ...input.input,
+      proposal_id: proposal.proposal_id,
+      entry_state: "feedback_needed",
+      origin,
+      reason,
+    });
+    if (
+      input.automation.cycle.feedback_needed &&
+      (input.automation.cycle.feedback_proposal_id !== proposal.proposal_id ||
+        input.automation.cycle.feedback_href !== workbenchEntry.href)
+    ) {
+      throw new Error("project_home_automation_feedback_binding_conflict");
+    }
+    append({
+      attention_id: `feedback:${proposal.proposal_id}`,
+      proposal_id: proposal.proposal_id,
+      summary: safeSummary(proposal.bounded_summary),
+      created_at: laterResult.summary.recorded_at,
+      pending_candidate_count: 0,
+      priority: 10,
+      signals: [
+        ...(origin === "unknown" ? [] : [origin]),
+        "feedback",
+      ],
+      reason,
+      workbench_entry: workbenchEntry,
+      action_href: null,
+      action_label: "Review later-context feedback",
+      lineage: [
+        lineage(
+          "episode_delta_proposal",
+          proposal.proposal_id,
+          "source_proposal",
+          proposal.created_at,
+        ),
+        lineage(
+          "run_receipt",
+          pendingContextUseReview.later_run_receipt_id,
+          "run_result",
+          laterResult.summary.recorded_at,
+        ),
+      ],
+    });
+  }
+
+  const latestResult = input.run_results.latest_result;
+  const resultEntry = input.run_results.workbench_entry;
+  if (
+    latestResult &&
+    resultEntry &&
+    !items.some((item) => item.workbench_entry?.href === resultEntry.href)
+  ) {
+    const blocked = [
+      "blocked",
+      "verification_failed",
+      "receipt_unavailable",
+      "reconciliation_required",
+    ].includes(latestResult.review_attention);
+    const conflict = latestResult.review_attention === "reconciliation_required";
+    append({
+      attention_id: `result:${latestResult.receipt_ref}`,
+      proposal_id:
+        resultEntry.source.record_kind === "episode_delta_proposal"
+          ? resultEntry.source.record_id
+          : null,
+      summary: safeSummary(latestResult.summary),
+      created_at: latestResult.recorded_at,
+      pending_candidate_count: 0,
+      priority: blocked ? 35 : 55,
+      signals: [
+        ...(latestResult.mode === "unknown" ? [] : [latestResult.mode]),
+        ...(blocked ? (["blocked"] as const) : []),
+        ...(conflict ? (["conflict"] as const) : []),
+      ],
+      reason: safeSummary(resultEntry.reason),
+      workbench_entry: resultEntry,
+      action_href: null,
+      action_label: resultEntry.action_label,
+      lineage: [
+        lineage(
+          "run_receipt",
+          latestResult.receipt_ref,
+          "run_result",
+          latestResult.recorded_at,
+        ),
+      ],
+    });
+  }
+
+  if (input.run_results.current_run?.reconciliation_required) {
+    append({
+      attention_id: `run-reconciliation:${input.run_results.current_run.run_ref}`,
+      proposal_id: null,
+      summary: "The current native-host run requires bounded reconciliation.",
+      created_at: input.run_results.current_run.updated_at,
+      pending_candidate_count: 0,
+      priority: 12,
+      signals: [
+        ...(input.run_results.current_run.mode === "unknown"
+          ? []
+          : [input.run_results.current_run.mode]),
+        "blocked",
+        "conflict",
+      ],
+      reason:
+        "The recorded host lifecycle and durable run state disagree; review bounded controls before continuing.",
+      workbench_entry: null,
+      action_href: "#project-controls",
+      action_label: "Review run controls",
+      lineage: [],
+    });
+  }
+
+  const automationStatus = input.automation.cycle.status;
+  if (
+    [
+      "proposal_settlement_pending",
+      "proposal_settlement_failed",
+      "reconciliation_required",
+      "grant_required",
+      "grant_expired",
+      "capability_unavailable",
+      "policy_denied",
+      "failed",
+      "timed_out",
+      "cancelled",
+    ].includes(automationStatus)
+  ) {
+    const conflict = automationStatus === "reconciliation_required";
+    append({
+      attention_id: `automation:${automationStatus}`,
+      proposal_id: input.automation.cycle.run?.proposal_id ?? null,
+      summary: input.automation.cycle.work_source?.label
+        ? safeSummary(input.automation.cycle.work_source.label)
+        : "Bounded automation requires attention.",
+      created_at: input.evaluation_timestamp,
+      pending_candidate_count: 0,
+      priority: 18,
+      signals: [
+        "policy_triggered",
+        "blocked",
+        ...(conflict ? (["conflict"] as const) : []),
+      ],
+      reason: safeSummary(input.automation.cycle.stop_reason),
+      workbench_entry: null,
+      action_href: "#project-controls",
+      action_label: input.automation.cycle.retryable
+        ? "Review retry eligibility"
+        : "Review automation state",
+      lineage: [],
+    });
+  }
+
+  if (
+    ["stale", "partial"].includes(
+      input.working_projection.source_currentness ?? "",
+    )
+  ) {
+    const reason =
+      input.working_projection.source_currentness === "stale"
+        ? "Selected working context is stale and should be verified before the next semantic decision."
+        : "Selected working context is partial; review its known gaps before deciding.";
+    append({
+      attention_id: `working-context:${input.working_projection.source_currentness}`,
+      proposal_id: null,
+      summary: input.working_projection.summary ?? "Selected working context",
+      created_at:
+        input.working_projection.generated_at ?? input.evaluation_timestamp,
+      pending_candidate_count: 0,
+      priority: 60,
+      signals: ["stale"],
+      reason,
+      workbench_entry: createProjectReviewWorkbenchEntryV01({
+        ...input.input,
+        reason,
+        review_required: true,
+      }),
+      action_href: null,
+      action_label: "Verify selected context",
+      lineage: input.working_projection.lineage,
+    });
+  }
+
+  items.sort(
+    (left, right) =>
+      left.priority - right.priority ||
+      requireStrictTimestamp(
+        right.created_at,
+        "project_home_attention_timestamp_invalid",
+      ) -
+        requireStrictTimestamp(
+          left.created_at,
+          "project_home_attention_timestamp_invalid",
+        ) ||
+      compareProtocolCodeUnitsV01(left.attention_id, right.attention_id),
+  );
+  const totalCount = input.proposal_attention.total_count + extraAttentionIds.size;
+  const attentionReadFailed = input.proposal_attention.state.status === "error";
+  return {
+    state: sectionState(
+      attentionReadFailed
+        ? "error"
+        : totalCount > 0
+          ? "action_required"
+          : input.proposal_attention.state.status,
+      attentionReadFailed
+        ? "Some project attention could not be validated safely; independently verified items remain available."
+        : totalCount > 0
+        ? `${totalCount} project-scoped ${totalCount === 1 ? "item requires" : "items require"} attention, ordered by consequence and currentness.`
+        : input.proposal_attention.state.message,
+    ),
+    total_count: totalCount,
+    decision_debt: input.proposal_attention.decision_debt,
+    items: items.slice(0, ATTENTION_LIMIT),
+  };
+}
+
+function projectCoordinationStateV01(input: {
+  accepted_state: ProjectHomeSectionStateV01;
+  working_projection: ProjectHomeSectionStateV01;
+  task_frame: ProjectHomeSectionStateV01;
+  attention: ProjectHomeSectionStateV01;
+  recent_activity: ProjectHomeSectionStateV01;
+  run_results: ProjectHomeSectionStateV01;
+  automation: ProjectHomeSectionStateV01;
+  attention_count: number;
+}): ProjectHomeSectionStateV01 {
+  const sections = [
+    input.accepted_state,
+    input.working_projection,
+    input.task_frame,
+    input.attention,
+    input.recent_activity,
+    input.run_results,
+    input.automation,
+  ];
+  if (sections.some((state) => state.status === "error")) {
+    return sectionState(
+      "error",
+      "Some current project coordinates could not be validated safely; verified sections remain read-only.",
+    );
+  }
+  if (
+    input.attention_count > 0 ||
+    sections.some(
+      (state) =>
+        state.status === "action_required" || state.status === "unavailable",
+    )
+  ) {
+    return sectionState(
+      "action_required",
+      "Current project coordinates include attention, stale context, or unavailable material that should be reviewed.",
+    );
+  }
+  return sectionState(
+    "available",
+    "Current project coordinates are available; no immediate review debt is recorded.",
+  );
+}
+
 function readRecentActivity(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
@@ -820,6 +1582,14 @@ function readRecentActivity(
         summary: safeSummary(`Accepted-state ${operations}: ${transition.proposal.bounded_summary}`),
         occurred_at: transition.receipt.recorded_at,
         outcome: "Applied durable transition",
+        workbench_entry: createProposalWorkbenchEntryV01({
+          ...input,
+          proposal_id: transition.proposal.proposal_id,
+          entry_state: "transition_applied",
+          origin: "unknown",
+          reason:
+            "Review the immutable applied Transition and its later-context consequence.",
+        }),
         lineage: [
           lineage("episode_delta_proposal", transition.proposal.proposal_id, "source_proposal", transition.proposal.created_at),
           lineage("review_decision", transition.decision.decision_id, "decision", transition.decision.decided_at),
@@ -847,6 +1617,14 @@ function readRecentActivity(
         summary: safeSummary(`${decisionLabel(decision.decision)}: ${proposal.bounded_summary}`),
         occurred_at: decision.decided_at,
         outcome: decisionLabel(decision.decision),
+        workbench_entry: createProposalWorkbenchEntryV01({
+          ...input,
+          proposal_id: proposal.proposal_id,
+          entry_state: "decided_proposal",
+          origin: "unknown",
+          reason:
+            "Review the recorded decision separately from Transition eligibility and application.",
+        }),
         lineage: [
           lineage("episode_delta_proposal", proposal.proposal_id, "source_proposal", proposal.created_at),
           lineage("review_decision", decision.decision_id, "decision", decision.decided_at),
@@ -859,15 +1637,33 @@ function readRecentActivity(
       summary: safeSummary(receipt.result_summary.summary),
       occurred_at: receipt.finished_at ?? receipt.recorded_at,
       outcome: `Run ${receipt.execution.status}; verification ${receipt.verification.status}`,
+      workbench_entry: createRunResultWorkbenchEntryV01({
+        ...input,
+        receipt_id: receipt.receipt_id,
+        entry_state: "result_only",
+        origin: "unknown",
+        reason:
+          "Open the immutable result and verify its available assessment or candidate state.",
+      }),
       lineage: [
         lineage("run_receipt", receipt.receipt_id, "run_result", receipt.recorded_at),
       ],
     };
   });
   items.sort((left, right) =>
-    right.occurred_at.localeCompare(left.occurred_at) ||
-    left.activity_kind.localeCompare(right.activity_kind) ||
-    left.lineage[0]!.record_id.localeCompare(right.lineage[0]!.record_id),
+    requireStrictTimestamp(
+      right.occurred_at,
+      "project_home_activity_timestamp_invalid",
+    ) -
+      requireStrictTimestamp(
+        left.occurred_at,
+        "project_home_activity_timestamp_invalid",
+      ) ||
+    compareProtocolCodeUnitsV01(left.activity_kind, right.activity_kind) ||
+    compareProtocolCodeUnitsV01(
+      left.lineage[0]!.record_id,
+      right.lineage[0]!.record_id,
+    ),
   );
   const bounded = items.slice(0, ACTIVITY_LIMIT);
   return {
@@ -887,6 +1683,7 @@ function buildNextMoves(input: {
   is_active: boolean;
   accepted_state: ProjectHomeAcceptedStateSummaryV01;
   attention: ProjectHomePendingAttentionV01;
+  primary_action: ProjectHomeProjectionV01["coordination"]["primary_action"];
   automation_status: ProjectHomeProjectionV01["automation"]["status"];
   personal_perspective_status: ProjectHomeProjectionV01["personal_perspective"]["status"];
 }): ProjectHomeNextMoveV01[] {
@@ -900,13 +1697,16 @@ function buildNextMoves(input: {
       caused_by: [`root_availability:${input.root_availability}`],
     });
   }
-  if (input.attention.total_count > 0) {
+  if (input.is_active && input.primary_action) {
     moves.push({
-      move_id: "review_attention",
-      label: "Review pending decisions",
-      reason: `${input.attention.total_count} project-scoped proposal ${input.attention.total_count === 1 ? "needs" : "need"} attention.`,
-      href: "#attention",
-      caused_by: [`pending_attention:${input.attention.total_count}`],
+      move_id: "open_workbench",
+      label: input.primary_action.action_label,
+      reason: input.primary_action.reason,
+      href: input.primary_action.href,
+      caused_by: [
+        `workbench_entry:${input.primary_action.entry_state}`,
+        `pending_attention:${input.attention.total_count}`,
+      ],
     });
   }
   if (!input.is_active) {
@@ -969,29 +1769,36 @@ function buildNextMoves(input: {
   return moves.slice(0, NEXT_MOVE_LIMIT);
 }
 
-function readPersonalPerspectiveSelectedCount(
+function readPersonalPerspectiveTaskBasis(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
   evaluationTimestamp: string,
-  effectivelyIncluded: boolean,
-  scopeRevision: number | null,
-): number {
-  if (!effectivelyIncluded || scopeRevision === null) return 0;
+): ProjectHomeProjectionV01["personal_perspective"]["task_basis"] {
   const record = listVNextCoreRecordsV01(db, {
     ...input,
     record_kinds: ["task_context_packet"],
     limit: 1,
   })[0];
-  if (!record) return 0;
+  if (!record) return null;
   const packetResult = validatedPacket(record, input, evaluationTimestamp);
-  if (packetResult.status === "expired") return 0;
-  const expectedExternalId =
-    `${input.project_id}:personal-perspective-scope:${scopeRevision}`;
-  return packetResult.packet.selected_context.filter(
-    (entry) =>
-      isPersonalPerspectiveSelectedEntryV01(entry) &&
-      entry.compatibility_source_ref?.external_id === expectedExternalId,
-  ).length;
+  if (packetResult.status === "expired") return null;
+  const selected = packetResult.packet.selected_context.filter(
+    isPersonalPerspectiveSelectedEntryV01,
+  );
+  if (selected.length === 0) return null;
+  return {
+    packet_generated_at: packetResult.packet.generated_at,
+    selected_count: selected.length,
+    items: selected.slice(0, PERSONAL_BASIS_LIMIT).map((entry) => ({
+      summary:
+        entry.bounded_summary === null
+          ? null
+          : safeSummary(entry.bounded_summary),
+      why_included: safeSummary(entry.why_included),
+      currentness: entry.currentness.status,
+      trust_class: entry.trust_class,
+    })),
+  };
 }
 
 function validatedProposal(
@@ -1049,7 +1856,7 @@ function validatedPacket(
   evaluationTimestamp: string,
 ):
   | { status: "available"; packet: TaskContextPacketV01 }
-  | { status: "expired" } {
+  | { status: "expired"; packet: TaskContextPacketV01 } {
   if (record.record_kind !== "task_context_packet") {
     throw new Error("project_home_task_context_packet_invalid");
   }
@@ -1067,7 +1874,9 @@ function validatedPacket(
   if (record.record_id !== packet.packet_id || record.created_at !== packet.generated_at) {
     throw new Error("project_home_task_context_packet_envelope_mismatch");
   }
-  return expiredOnly ? { status: "expired" } : { status: "available", packet };
+  return expiredOnly
+    ? { status: "expired", packet }
+    : { status: "available", packet };
 }
 
 function assertRecordBinding(
@@ -1164,6 +1973,27 @@ function workingProjectionError(): ProjectHomeWorkingProjectionSummaryV01 {
   };
 }
 
+function taskFrameError(): ProjectHomeProjectionV01["coordination"]["task_frame"] {
+  return {
+    state: sectionState(
+      "error",
+      "Task intent and selected working context could not be validated safely.",
+    ),
+    goal: null,
+    success_criteria: [],
+    non_goals: [],
+    required_checks: [],
+    forbidden_actions: [],
+    tensions: [],
+    risks: [],
+    gaps: [],
+    selected_context_count: 0,
+    excluded_context_count: 0,
+    packet_generated_at: null,
+    packet_currentness: null,
+  };
+}
+
 function attentionError(): ProjectHomePendingAttentionV01 {
   return {
     state: sectionState(
@@ -1171,6 +2001,11 @@ function attentionError(): ProjectHomePendingAttentionV01 {
       "Pending decision records could not be validated safely.",
     ),
     total_count: 0,
+    decision_debt: {
+      pending_candidate_count: 0,
+      accepted_awaiting_transition_count: 0,
+      deferred_candidate_count: 0,
+    },
     items: [],
   };
 }
@@ -1190,6 +2025,30 @@ function projectHomeRunResultsV01(
   input: { workspace_id: string; project_id: string },
 ): ProjectHomeRunResultsV01 {
   const overview = readProjectRunResultOverviewV01(db, input);
+  const workbenchEntry = overview.latest_result
+    ? (() => {
+        const detail = readProjectRunResultDetailV01(db, {
+          ...input,
+          receipt_id: overview.latest_result.receipt_ref,
+        });
+        const origin = workbenchOrigin(detail.summary.mode);
+        return createRunResultWorkbenchEntryV01({
+          ...input,
+          receipt_id: overview.latest_result.receipt_ref,
+          entry_state:
+            detail.criterion_assessment.status === "available"
+              ? "assessment"
+              : "result_only",
+          origin,
+          reason:
+            detail.automation?.stopped_at_review_needed === true
+              ? "Verify the automated result before opening its source-bound candidate; no automatic decision or Transition occurred."
+              : detail.criterion_assessment.status === "available"
+              ? "Verify the result and its non-authoritative criterion assessment."
+              : "Inspect the immutable result before any semantic review is possible.",
+        });
+      })()
+    : null;
   const state = overview.current_run
     ? sectionState(
         overview.current_run.reconciliation_required
@@ -1218,6 +2077,7 @@ function projectHomeRunResultsV01(
     current_run: overview.current_run,
     latest_result: overview.latest_result,
     latest_result_state: overview.latest_result_state,
+    workbench_entry: workbenchEntry,
   };
 }
 
@@ -1230,7 +2090,73 @@ function runResultsError(): ProjectHomeRunResultsV01 {
     current_run: null,
     latest_result: null,
     latest_result_state: "error",
+    workbench_entry: null,
   };
+}
+
+function workbenchOrigin(
+  mode: "interactive" | "policy_triggered" | "unknown",
+): SemanticWorkbenchEntryOriginV01 {
+  return mode;
+}
+
+function proposalWorkbenchOriginV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  proposal: EpisodeDeltaProposalV01,
+): SemanticWorkbenchEntryOriginV01 {
+  const refs = proposal.source_assessment
+    ? [proposal.source_assessment.receipt_ref]
+    : proposal.run_receipt_refs;
+  if (refs.length === 0) return "unknown";
+  const receipts = refs.map((ref) => {
+    if (ref.ref_type !== "run_receipt" || !ref.source_ref) {
+      throw new Error("project_home_proposal_receipt_binding_invalid");
+    }
+    const record = readVNextCoreRecordV01(db, {
+      ...input,
+      record_kind: "run_receipt",
+      record_id: ref.external_id,
+    });
+    if (!record) return null;
+    const receipt = validatedRunReceipt(record, input);
+    if (receipt.integrity.fingerprint !== ref.source_ref) {
+      throw new Error("project_home_proposal_receipt_binding_conflict");
+    }
+    return receipt;
+  });
+  if (receipts.some((receipt) => receipt === null)) return "unknown";
+  const exactReceipts = receipts.filter(
+    (receipt): receipt is RunReceiptV01 => receipt !== null,
+  );
+  const knownModes = new Set(
+    exactReceipts
+      .map((receipt) => receiptModeV01(receipt))
+      .filter((mode) => mode !== "unknown"),
+  );
+  if (
+    knownModes.size === 1 &&
+    exactReceipts.every((receipt) => receiptModeV01(receipt) !== "unknown")
+  ) {
+    return [...knownModes][0]!;
+  }
+  const hosts = new Set(
+    exactReceipts
+      .map((receipt) => receipt.host_ref?.external_id ?? null)
+      .filter((value): value is string => value !== null),
+  );
+  return hosts.size > 1 ? "cross_host" : "unknown";
+}
+
+function receiptModeV01(
+  receipt: RunReceiptV01,
+): "interactive" | "policy_triggered" | "unknown" {
+  const label = receipt.execution_environment.runtime_labels.find((value) =>
+    value === "interactive" || value === "policy_triggered",
+  );
+  return label === "interactive" || label === "policy_triggered"
+    ? label
+    : "unknown";
 }
 
 function normalizeCapability(

@@ -91,14 +91,15 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       const modelCapability =
         options.strategic_dependencies?.read_model_capability?.() ??
         readDefaultModelGatewayLocalCapabilityV01();
+      const projectionObservedAt = readVNextLocalRuntimeClockNowV01(
+        options.clock,
+        "operator_semantic_review_strategic_cost",
+      );
       const strategicCostAvailability =
         resolveVNextOperatorStrategicCostAvailabilityV01({
           workspace_id: config.workspace_id,
           project_id: config.project_id,
-          evaluated_at: readVNextLocalRuntimeClockNowV01(
-            options.clock,
-            "operator_semantic_review_strategic_cost",
-          ),
+          evaluated_at: projectionObservedAt,
           read_cost_budget:
             options.strategic_dependencies?.read_cost_budget,
         });
@@ -120,6 +121,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           },
           proposal: {
             ...proposal,
+            projection_observed_at: projectionObservedAt,
             durable_lineage:
               readVNextOperatorPilotProposalDurableLineageV01(db, {
                 config,

@@ -121,7 +121,9 @@ export interface BoundedAutomationCycleProjectionV01 {
     result_href: string | null;
     proposal_href: string | null;
   };
+  review_proposal_id: string | null;
   feedback_needed: boolean;
+  feedback_proposal_id: string | null;
   feedback_href: string | null;
   next_action:
     | "enable"

@@ -28,6 +28,7 @@ import {
   buildDurableLocalClosedLoopM3APrefixFixtureV01,
 } from "../fixtures/vnext/runtime/durable-local-closed-loop-v0-1";
 import { createSemanticTransitionDecisionInputV01 } from "../fixtures/vnext/protocol/semantic-transition-loop-v0-1";
+import { buildSemanticReviewLoopProposalFixture } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import {
   TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
@@ -106,6 +107,7 @@ const emptyRoot = path.join(root, "Empty local project");
 const projectARoot = path.join(root, "Project A");
 const projectBRoot = path.join(root, "Project B");
 const temporalReviewRoot = path.join(root, "Temporal Review Project");
+const contextReviewRoot = path.join(root, "Context Review Project");
 const recoveredProjectARoot = path.join(root, "Project A recovered");
 const sharedRemote = "https://example.test/shared/project-home.git";
 const fixedGeneratedAt = "2026-07-15T09:00:00.000Z";
@@ -338,13 +340,20 @@ function insertTaskContextPacket(
     marker: string;
     perspective_ref: string;
     expires_at: string | null;
+    generated_at?: string;
+    currentness?: "fresh" | "stale" | "partial";
   },
 ) {
   const input = clone(genericCliBuilderInputFixture) as TaskContextPacketBuilderInputV01;
   const currentness = clone(input.source_status.currentness);
+  const generatedAt =
+    inputOptions.generated_at ?? TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+  currentness.status = inputOptions.currentness ?? "fresh";
+  currentness.as_of = generatedAt;
+  currentness.basis = `${currentness.status} project context fixture.`;
   input.workspace_id = workspaceId;
   input.project_id = projectId;
-  input.generated_at = TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+  input.generated_at = generatedAt;
   input.expires_at = inputOptions.expires_at;
   input.current_projection = {
     projection_kind: "current_working_perspective",
@@ -352,7 +361,7 @@ function insertTaskContextPacket(
     canonical_state: false,
     perspective_ref: inputOptions.perspective_ref,
     bounded_summary: inputOptions.marker,
-    as_of: TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+    as_of: generatedAt,
     items: [
       {
         item_kind: "frame",
@@ -427,6 +436,45 @@ function insertRunReceipt(
     work_ref: workRef,
     model_invocations: [modelEntry, clone(modelEntry)],
   });
+  insertVNextCoreRecordV01(database, {
+    record_kind: "run_receipt",
+    record_id: receipt.receipt_id,
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    fingerprint: receipt.integrity.fingerprint,
+    idempotency_key: receipt.idempotency_key,
+    payload: receipt,
+    created_at: receipt.recorded_at,
+  });
+  return receipt;
+}
+
+function insertFailedRunReceipt(
+  database: Database.Database,
+  project: SemanticReviewLoopProjectFixtureV01,
+) {
+  const input = clone(
+    genericCliDirectObservationInputFixture,
+  ) as RunReceiptBuilderInputV01;
+  input.workspace_id = project.workspace_id;
+  input.project_id = project.project_id;
+  input.run_id = `run-project-home-failed-${project.project_id}`;
+  input.task_context_packet_ref = null;
+  input.recorded_at = "2026-07-15T09:08:00.000Z";
+  input.verification.status = "failed";
+  input.checks = input.checks.map((check) => ({
+    ...check,
+    status: check.required ? "failed" : check.status,
+    summary: check.required
+      ? "The required Project Home verification check failed."
+      : check.summary,
+  }));
+  input.result_summary = {
+    ...input.result_summary,
+    summary: "The latest result requires verification attention.",
+    outcome: "Required verification failed.",
+  };
+  const receipt = buildRunReceiptV01(input);
   insertVNextCoreRecordV01(database, {
     record_kind: "run_receipt",
     record_id: receipt.receipt_id,
@@ -592,6 +640,7 @@ async function main() {
     mkdirSync(projectARoot);
     mkdirSync(projectBRoot);
     mkdirSync(temporalReviewRoot);
+    mkdirSync(contextReviewRoot);
     mkdirSync(recoveredProjectARoot);
     for (const projectRoot of [projectARoot, projectBRoot]) {
       mkdirSync(path.join(projectRoot, ".git"));
@@ -631,6 +680,19 @@ async function main() {
     assert.equal(emptyHome.automation.admission_status, "not_configured");
     assert.equal(emptyHome.personal_perspective.status, "not_configured");
     assert.equal(emptyHome.personal_perspective.effectively_included, false);
+    assert.equal(emptyHome.personal_perspective.task_basis, null);
+    assert.equal(emptyHome.coordination.primary_action?.href, "/workbench/semantic-review");
+    assert.equal(
+      emptyHome.coordination.primary_action?.entry_state,
+      "project_review",
+    );
+    assert.equal(emptyHome.coordination.primary_action?.review_required, false);
+    assert.deepEqual(emptyHome.coordination.primary_action?.source, {
+      record_kind: "project_review",
+      record_id: null,
+    });
+    assert.equal(emptyHome.coordination.projection_only, true);
+    assert.equal(emptyHome.coordination.semantic_authority_granted, false);
     assert.equal(emptyHome.capabilities.items.length, 5);
     assert(emptyHome.capabilities.items.every((item) => item.status === "unavailable"));
     assert(emptyHome.next_moves.length > 0 && emptyHome.next_moves.length <= 3);
@@ -669,6 +731,16 @@ async function main() {
       compatibilityHome.run_results.latest_result?.receipt_ref,
       compatibilityReceipt.receipt_id,
     );
+    assert.equal(compatibilityHome.run_results.latest_result?.mode, "unknown");
+    const compatibilityAttention = compatibilityHome.attention.items.find(
+      (item) => item.attention_id === `result:${compatibilityReceipt.receipt_id}`,
+    );
+    assert(compatibilityAttention);
+    assert.equal(compatibilityAttention.signals.includes("interactive"), false);
+    assert.equal(
+      compatibilityAttention.signals.includes("policy_triggered"),
+      false,
+    );
     const compatibilityResult = readProjectRunResultDetailV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: emptyProject.project.project_id,
@@ -692,6 +764,70 @@ async function main() {
     );
     assert.equal(compatibilityResult.authority.semantic_state_changed, false);
 
+    const policyInput = clone(
+      genericCliDirectObservationInputFixture,
+    ) as RunReceiptBuilderInputV01;
+    policyInput.workspace_id = workspace.workspace_id;
+    policyInput.project_id = emptyProject.project.project_id;
+    policyInput.run_id = "run-project-home-policy-history-001";
+    policyInput.recorded_at = "2026-07-10T08:31:00.000Z";
+    policyInput.execution_environment.runtime_labels = [
+      ...policyInput.execution_environment.runtime_labels.filter(
+        (label) => label !== "interactive" && label !== "policy_triggered",
+      ),
+      "policy_triggered",
+    ];
+    const policyReceipt = buildRunReceiptV01(policyInput);
+    insertVNextCoreRecordV01(db, {
+      record_kind: "run_receipt",
+      record_id: policyReceipt.receipt_id,
+      workspace_id: policyReceipt.workspace_id,
+      project_id: policyReceipt.project_id,
+      fingerprint: policyReceipt.integrity.fingerprint,
+      idempotency_key: policyReceipt.idempotency_key,
+      payload: policyReceipt,
+      created_at: policyReceipt.recorded_at,
+    });
+    const policyProject = projectFixture(
+      emptyProject.project.project_id,
+      workspace.workspace_id,
+      "policy-history",
+    );
+    const policyPrefix = buildDurableLocalClosedLoopM3APrefixFixtureV01(
+      policyProject,
+    );
+    const policyProposal = buildSemanticReviewLoopProposalFixture(
+      policyProject,
+      policyPrefix.prior_packet,
+      policyReceipt,
+    );
+    insertPendingProposal(db, policyProposal);
+    const policyHistoryHome = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: emptyProject.project.project_id,
+    }, { now: () => fixedGeneratedAt });
+    const policyProposalAttention = policyHistoryHome.attention.items.find(
+      (item) => item.proposal_id === policyProposal.proposal_id,
+    );
+    assert(policyProposalAttention);
+    assert.equal(
+      policyProposalAttention.signals.includes("policy_triggered"),
+      true,
+    );
+    assert.equal(policyProposalAttention.signals.includes("interactive"), false);
+    assert.equal(
+      policyProposalAttention.workbench_entry?.origin,
+      "policy_triggered",
+    );
+    assert.equal(
+      policyProposalAttention.workbench_entry?.entry_state,
+      "pending_proposal",
+    );
+    assert.deepEqual(policyProposalAttention.workbench_entry?.source, {
+      record_kind: "episode_delta_proposal",
+      record_id: policyProposal.proposal_id,
+    });
+
     const malformedPacket = { malformed: true, bounded_summary: "must not render" };
     insertVNextCoreRecordV01(db, {
       record_kind: "task_context_packet",
@@ -710,6 +846,8 @@ async function main() {
       project_id: emptyProject.project.project_id,
     }, { now: () => fixedGeneratedAt });
     assert.equal(malformedOptionalSection.working_projection.state.status, "error");
+    assert.equal(malformedOptionalSection.coordination.state.status, "error");
+    assert.equal(malformedOptionalSection.personal_perspective.task_basis, null);
     assert.equal(malformedOptionalSection.accepted_state.state.status, "empty");
     assert.equal(JSON.stringify(malformedOptionalSection).includes("must not render"), false);
 
@@ -718,6 +856,98 @@ async function main() {
       temporalReviewRoot,
       "2026-07-15T09:02:30.000Z",
     );
+    const confirmedContextReview = await onboard(
+      contextReviewRoot,
+      "2026-07-15T09:02:45.000Z",
+    );
+    insertTaskContextPacket(
+      db,
+      workspace.workspace_id,
+      confirmedContextReview.project.project_id,
+      {
+        marker: "Stale selected context requiring review",
+        perspective_ref: "perspective:project-home-stale-review",
+        expires_at: null,
+        generated_at: "2026-07-15T09:02:46.000Z",
+        currentness: "stale",
+      },
+    );
+    const staleContextBefore = databaseSnapshot(db);
+    const staleContextHome = await readProjectHomeProjectionV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: confirmedContextReview.project.project_id,
+      },
+      { now: () => "2026-07-15T09:02:46.500Z" },
+    );
+    const staleContextAttention = staleContextHome.attention.items.find(
+      (item) => item.attention_id === "working-context:stale",
+    );
+    assert(staleContextAttention?.workbench_entry);
+    assert.equal(
+      staleContextAttention.workbench_entry.entry_state,
+      "project_review",
+    );
+    assert.equal(staleContextAttention.workbench_entry.review_required, true);
+    assert.deepEqual(staleContextAttention.workbench_entry.source, {
+      record_kind: "project_review",
+      record_id: null,
+    });
+    assert.equal(
+      staleContextHome.coordination.primary_action?.review_required,
+      true,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      staleContextBefore,
+      "stale context review reads create no rows",
+    );
+
+    insertTaskContextPacket(
+      db,
+      workspace.workspace_id,
+      confirmedContextReview.project.project_id,
+      {
+        marker: "Partial selected context requiring review",
+        perspective_ref: "perspective:project-home-partial-review",
+        expires_at: null,
+        generated_at: "2026-07-15T09:02:47.000Z",
+        currentness: "partial",
+      },
+    );
+    const partialContextBefore = databaseSnapshot(db);
+    const partialContextHome = await readProjectHomeProjectionV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: confirmedContextReview.project.project_id,
+      },
+      { now: () => "2026-07-15T09:02:47.500Z" },
+    );
+    const partialContextAttention = partialContextHome.attention.items.find(
+      (item) => item.attention_id === "working-context:partial",
+    );
+    assert(partialContextAttention?.workbench_entry);
+    assert.equal(
+      partialContextAttention.workbench_entry.entry_state,
+      "project_review",
+    );
+    assert.equal(partialContextAttention.workbench_entry.review_required, true);
+    assert.deepEqual(partialContextAttention.workbench_entry.source, {
+      record_kind: "project_review",
+      record_id: null,
+    });
+    assert.equal(
+      partialContextHome.coordination.primary_action?.review_required,
+      true,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      partialContextBefore,
+      "partial context review reads create no rows",
+    );
+
     const confirmedB = await onboard(projectBRoot, "2026-07-15T09:03:00.000Z");
     assert.notEqual(confirmedA.project.project_id, confirmedB.project.project_id);
     const refsA = listProjectExternalRefsV01(db, {
@@ -791,6 +1021,7 @@ async function main() {
       project_id: confirmedA.project.project_id,
     }, { now: () => TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT });
     assert.equal(atPacketExpiry.working_projection.state.status, "unavailable");
+    assert.equal(atPacketExpiry.coordination.state.status, "action_required");
     assert.equal(atPacketExpiry.working_projection.summary, null);
     assert.equal(atPacketExpiry.working_projection.source_perspective_ref, null);
     assert.equal(JSON.stringify(atPacketExpiry).includes(expiringPerspectiveMarker), false);
@@ -841,6 +1072,7 @@ async function main() {
         ),
       );
     }
+    const latestFailedReceipt = insertFailedRunReceipt(db, projectA);
     const revisitProposal = rebuildProposal(
       temporalProject,
       "TEMPORAL REVIEW REVISIT MARKER",
@@ -964,7 +1196,7 @@ async function main() {
     assert.equal(beforeRevisit.attention.state.status, "available");
     assert.equal(beforeRevisit.attention.total_count, 0);
     assert(beforeRevisit.attention.state.message.includes("4 candidates remain deferred"));
-    assert.equal(beforeRevisit.next_moves.some((move) => move.move_id === "review_attention"), false);
+    assert.equal(beforeRevisit.next_moves.some((move) => move.move_id === "open_workbench"), false);
 
     const atRevisit = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
@@ -973,7 +1205,12 @@ async function main() {
     assert.equal(atRevisit.attention.total_count, 1);
     assert.equal(atRevisit.attention.items[0]?.proposal_id, revisitProposal.proposal_id);
     assert.equal(atRevisit.attention.items[0]?.reason, "A deferred review time has arrived.");
-    assert(atRevisit.next_moves.some((move) => move.move_id === "review_attention"));
+    assert.equal(atRevisit.coordination.primary_action, null);
+    assert(atRevisit.next_moves.some((move) => move.move_id === "make_active"));
+    assert.equal(
+      atRevisit.attention.items[0]?.workbench_entry?.href,
+      `/workbench/semantic-review/${revisitProposal.proposal_id.replace(":", "~")}`,
+    );
 
     const afterRevisit = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
@@ -1037,8 +1274,22 @@ async function main() {
     assert.equal(beforeAccepted.working_projection.state.status, "unavailable");
     assert.equal(beforeAccepted.working_projection.summary, null);
     assert.equal(JSON.stringify(beforeAccepted).includes(expiringPerspectiveMarker), false);
-    assert.equal(beforeAccepted.attention.total_count, 6);
+    assert.equal(beforeAccepted.attention.total_count, 7);
     assert.equal(beforeAccepted.attention.items.length, 5, "pending attention is bounded");
+    assert.equal(beforeAccepted.attention.decision_debt.pending_candidate_count, 6);
+    const blockedResultAttention = beforeAccepted.attention.items.find(
+      (item) => item.attention_id === `result:${latestFailedReceipt.receipt_id}`,
+    );
+    assert(blockedResultAttention, "blocked result remains visible beside proposals");
+    assert.equal(blockedResultAttention.signals.includes("blocked"), true);
+    assert.equal(
+      beforeAccepted.attention.items.every(
+        (item, index, items) =>
+          index === 0 || items[index - 1]!.priority <= item.priority,
+      ),
+      true,
+      "attention ordering is deterministic and consequence-first",
+    );
     assert.equal(beforeAccepted.attention.items.some((item) => item.summary.includes("REJECTED")), false);
     assert.equal(beforeAccepted.attention.items.some((item) => item.summary.includes(projectBMarker)), false);
     assert.equal(beforeAccepted.recent_activity.items.some((item) => item.activity_kind === "run_receipt"), true);
@@ -1049,11 +1300,19 @@ async function main() {
     assert.equal(beforeAccepted.run_results.latest_result_state, "available");
     assert.equal(
       beforeAccepted.run_results.latest_result?.receipt_ref,
-      runReceipt.receipt_id,
+      latestFailedReceipt.receipt_id,
     );
     assert.equal(
       beforeAccepted.run_results.latest_result?.review_href,
-      `/workbench/results/${runReceipt.receipt_id.replace(":", "~")}`,
+      `/workbench/results/${latestFailedReceipt.receipt_id.replace(":", "~")}`,
+    );
+    assert.equal(
+      beforeAccepted.run_results.workbench_entry?.href,
+      `/workbench/results/${latestFailedReceipt.receipt_id.replace(":", "~")}`,
+    );
+    assert.equal(
+      beforeAccepted.run_results.workbench_entry?.server_scope_validation_required,
+      true,
     );
     const readOnlyResult = readProjectRunResultDetailV01(db, {
       workspace_id: workspace.workspace_id,
@@ -1105,6 +1364,32 @@ async function main() {
       "a server-issued result link must fail after the active project scope changes",
     );
 
+    const transitionDebtProposal = rebuildProposal(
+      projectA,
+      "PROJECT A ACCEPTED DECISION AWAITING TRANSITION",
+      "accepted-awaiting-transition-a",
+    );
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: transitionDebtProposal,
+      decision: buildDecision(projectA, transitionDebtProposal, "accept"),
+    });
+    const withTransitionDebt = await readProjectHomeProjectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: confirmedA.project.project_id,
+    }, { now: () => fixedGeneratedAt });
+    const transitionDebtItem = withTransitionDebt.attention.items.find(
+      (item) => item.proposal_id === transitionDebtProposal.proposal_id,
+    );
+    assert(transitionDebtItem);
+    assert.equal(transitionDebtItem.priority, 20);
+    assert.equal(transitionDebtItem.workbench_entry?.entry_state, "decided_proposal");
+    assert.equal(transitionDebtItem.signals.includes("decision_debt"), true);
+    assert.equal(
+      withTransitionDebt.attention.decision_debt.accepted_awaiting_transition_count,
+      1,
+    );
+    assert.equal(withTransitionDebt.accepted_state.total_count, 0);
+
     const acceptedProposal = rebuildProposal(projectA, acceptedMarker, "accepted-a");
     const accepted = persistAcceptedTransition(db, projectA, acceptedProposal);
     assert(accepted.committed.transition_receipt);
@@ -1119,6 +1404,16 @@ async function main() {
       afterAccepted.accepted_state.items[0]?.lineage.map((item) => item.role),
       ["source_proposal", "decision", "durable_transition", "accepted_state"],
     );
+    const blockedTransitionDebt = afterAccepted.attention.items.find(
+      (item) => item.proposal_id === transitionDebtProposal.proposal_id,
+    );
+    assert(blockedTransitionDebt);
+    assert.equal(
+      blockedTransitionDebt.workbench_entry?.entry_state,
+      "transition_blocked",
+    );
+    assert.equal(blockedTransitionDebt.priority, 15);
+    assert.equal(blockedTransitionDebt.signals.includes("blocked"), true);
     assert.equal(afterAccepted.working_projection.state.status, "unavailable");
     assert.equal(afterAccepted.working_projection.summary, null);
     assert.equal(afterAccepted.working_projection.projection_kind, null);
@@ -1252,14 +1547,26 @@ async function main() {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_MODEL;
 
-    const activeBeforeDeepLink = clone(readActiveProjectSelectionV01(db, workspace.workspace_id));
+    const activeBeforeDeepLink = clone(
+      readActiveProjectSelectionV01(db, workspace.workspace_id),
+    );
+    const inactiveReadBefore = databaseSnapshot(db);
     const nonActiveA = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: confirmedA.project.project_id,
     }, { now: () => fixedGeneratedAt });
     assert.equal(nonActiveA.project_summary.is_active, false);
+    assert.equal(nonActiveA.coordination.primary_action, null);
     assert(nonActiveA.next_moves.some((move) => move.move_id === "make_active"));
-    assert.deepEqual(readActiveProjectSelectionV01(db, workspace.workspace_id), activeBeforeDeepLink);
+    assert.deepEqual(
+      readActiveProjectSelectionV01(db, workspace.workspace_id),
+      activeBeforeDeepLink,
+    );
+    assert.deepEqual(
+      databaseSnapshot(db),
+      inactiveReadBefore,
+      "inactive Project Home reads create no rows or switch projects",
+    );
     assert.equal(
       readProjectHomeEntryDestinationV01(db),
       `/projects/${encodeURIComponent(confirmedB.project.project_id)}`,

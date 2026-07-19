@@ -160,6 +160,17 @@ export interface VNextOperatorPilotPacketLineageInspectionV01 {
   };
 }
 
+export interface VNextOperatorPilotPendingContextUseReviewV01 {
+  later_run_receipt_id: string;
+  later_run_receipt_fingerprint: string;
+  packet_id: string;
+  packet_fingerprint: string;
+  transition_receipt_id: string;
+  transition_receipt_fingerprint: string;
+  proposal_id: string;
+  proposal_fingerprint: string;
+}
+
 export function projectVNextOperatorPilotContinuityV01(
   db: Database.Database,
   input: {
@@ -338,6 +349,57 @@ export function inspectVNextOperatorPilotPacketLineageV01(
   );
   validateCurrentSemanticState(db, input.config);
   return validateCompiledPacketLineage(db, input.config, packet);
+}
+
+export function resolveVNextOperatorPilotPendingContextUseReviewV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    continuity: VNextOperatorPilotProjectContinuityV01;
+  },
+): VNextOperatorPilotPendingContextUseReviewV01 | null {
+  const receipt = input.continuity.latest_context_use_receipt;
+  const packet = input.continuity.latest_compiled_packet;
+  if (!receipt || !packet) return null;
+  const review = input.continuity.latest_context_use_review_status;
+  if (
+    review?.later_task_run_receipt_id === receipt.receipt_id &&
+    review.later_task_run_receipt_fingerprint === receipt.receipt_fingerprint
+  ) {
+    return null;
+  }
+  if (
+    receipt.task_context_packet_id !== packet.packet_id ||
+    receipt.task_context_packet_fingerprint !== packet.packet_fingerprint
+  ) {
+    throw continuityError(
+      "operator_pilot_context_use_packet_binding_conflict",
+      422,
+    );
+  }
+  const packetLineage = inspectVNextOperatorPilotPacketLineageV01(db, {
+    config: input.config,
+    packet_id: packet.packet_id,
+    packet_fingerprint: packet.packet_fingerprint,
+  });
+  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+    workspace_id: input.config.workspace_id,
+    project_id: input.config.project_id,
+    transition_receipt_id:
+      packetLineage.source_transition_receipt.transition_receipt_id,
+    transition_receipt_fingerprint:
+      packetLineage.source_transition_receipt.transition_receipt_fingerprint,
+  });
+  return {
+    later_run_receipt_id: receipt.receipt_id,
+    later_run_receipt_fingerprint: receipt.receipt_fingerprint,
+    packet_id: packet.packet_id,
+    packet_fingerprint: packet.packet_fingerprint,
+    transition_receipt_id: transition.receipt.transition_receipt_id,
+    transition_receipt_fingerprint: transition.receipt.integrity.fingerprint,
+    proposal_id: transition.proposal.proposal_id,
+    proposal_fingerprint: transition.proposal.integrity.fingerprint,
+  };
 }
 
 function loadRecords(
