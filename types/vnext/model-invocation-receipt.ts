@@ -4,11 +4,53 @@ export const MODEL_INVOCATION_RECEIPT_VERSION_V02 =
   "model_invocation_receipt.v0.2" as const;
 export const MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01 =
   "model_gateway_egress_policy.v0.1" as const;
+export const MODEL_GATEWAY_COST_AUTHORITY_VERSION_V01 =
+  "model_gateway_cost_authority.v0.1" as const;
+export const MODEL_GATEWAY_COST_BUDGET_VERSION_V01 =
+  "model_gateway_cost_budget.v0.1" as const;
+
+export interface ModelGatewayCostAuthorityV01 {
+  authority_version: typeof MODEL_GATEWAY_COST_AUTHORITY_VERSION_V01;
+  authority_kind: "provider_model_pricing_snapshot";
+  workspace_id: string;
+  project_id: string;
+  purpose: ModelInvocationReceiptPurposeV02;
+  provider_ref: ExternalRefV01;
+  model_ref: ExternalRefV01;
+  cost_unit: string;
+  input_rate: {
+    unit: "utf8_byte";
+    cost_per_unit: number;
+  };
+  output_rate: {
+    unit: "token";
+    cost_per_unit: number;
+  };
+  pricing_source_version: string;
+  pricing_effective_at: string;
+  pricing_expires_at: string | null;
+  project_model_policy_fingerprint: string;
+  pricing_fingerprint: string;
+}
+
+export interface ModelGatewayCostBudgetV01 {
+  budget_version: typeof MODEL_GATEWAY_COST_BUDGET_VERSION_V01;
+  authority: ModelGatewayCostAuthorityV01;
+  maximum_input_units: number;
+  maximum_output_units: number;
+  maximum_invocation_count: 1;
+  timeout_ms: number;
+  evaluated_at: string;
+  maximum_permitted_cost: number;
+  calculated_worst_case_cost: number;
+  within_ceiling: true;
+}
 
 export type ModelInvocationReceiptPurposeV02 =
   | "observe_delta_compile"
   | "planner_plan"
-  | "temporal_interpretation";
+  | "temporal_interpretation"
+  | "strategic_advantage_transfer";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";
@@ -63,7 +105,7 @@ export interface ModelInvocationReceiptV02 {
     basis: "unavailable";
     amount: null;
     currency: null;
-    source: "no_pricing_authority";
+    source: "no_pricing_authority" | "provider_cost_not_reported";
   };
   budget: {
     decision: "within_budget" | "not_used" | "refused";
@@ -75,6 +117,8 @@ export interface ModelInvocationReceiptV02 {
     provider_calls_used: 0 | 1;
     timeout_limit_ms: number;
     timeout_disposition: "completed_within_deadline" | "timed_out" | "cancelled";
+    /** Additive exact pre-egress cost authority for priced invocations. */
+    cost_budget?: ModelGatewayCostBudgetV01;
   };
   cancellation_disposition: "not_cancelled" | "cancelled";
   failure_code:
@@ -106,4 +150,9 @@ export interface ModelInvocationReceiptV02 {
   raw_response_persisted: false;
   hidden_reasoning_persisted: false;
   receipt_is_semantic_authority: false;
+  /**
+   * Additive result binding for Gateway purposes whose normalized output is
+   * durably consumed. Historical v0.2 receipts legitimately omit this field.
+   */
+  normalized_output_fingerprint?: string | null;
 }

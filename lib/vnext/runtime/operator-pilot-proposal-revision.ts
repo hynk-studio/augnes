@@ -248,6 +248,15 @@ function resolveSourceMaterial(
     proposal_id: request.proposal_id,
     authenticated_session_id: sessionId,
   });
+  if (
+    detail.proposal.strategic_advantage_transfer &&
+    detail.strategic_analysis.status !== "available"
+  ) {
+    throw revisionError(
+      `operator_pilot_strategic_revision_${detail.strategic_analysis.status}`,
+      409,
+    );
+  }
   if (detail.proposal_fingerprint !== request.proposal_fingerprint) {
     throw revisionError("operator_pilot_revision_proposal_conflict", 409);
   }
@@ -579,6 +588,13 @@ function materializeRevision(input: {
       ? {
           source_assessment: structuredClone(
             input.source.proposal.source_assessment,
+          ),
+        }
+      : {}),
+    ...(input.source.proposal.strategic_advantage_transfer
+      ? {
+          strategic_advantage_transfer: structuredClone(
+            input.source.proposal.strategic_advantage_transfer,
           ),
         }
       : {}),

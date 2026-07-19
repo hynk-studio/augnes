@@ -41,6 +41,9 @@ export const semanticReviewLoopProjectBFixture: SemanticReviewLoopProjectFixture
 
 export function buildSemanticReviewLoopTaskContextPacketFixture(
   project: SemanticReviewLoopProjectFixtureV01,
+  options: {
+    data_classification?: "public_safe";
+  } = {},
 ): TaskContextPacketV01 {
   const input = clone(
     genericCliBuilderInputFixture,
@@ -58,6 +61,9 @@ export function buildSemanticReviewLoopTaskContextPacketFixture(
   input.authority_notes = [
     "This synthetic packet is protocol conformance context, not execution authority.",
   ];
+  if (options.data_classification) {
+    input.constraints.data_classification = options.data_classification;
+  }
   return buildTaskContextPacketV01(input);
 }
 
@@ -103,6 +109,9 @@ export function buildSemanticReviewLoopProposalFixture(
   project: SemanticReviewLoopProjectFixtureV01,
   packet: TaskContextPacketV01,
   receipt: RunReceiptV01,
+  options: {
+    primary_delta_type?: "agent_plan_delta";
+  } = {},
 ): EpisodeDeltaProposalV01 {
   const receiptRef: ExternalRefV01 = {
     ref_version: EXTERNAL_REF_VERSION_V01,
@@ -126,6 +135,9 @@ export function buildSemanticReviewLoopProposalFixture(
   const primaryCandidate = input.proposed_deltas[0];
   if (!primaryCandidate) {
     throw new Error("Provider-neutral semantic review fixture requires a candidate.");
+  }
+  if (options.primary_delta_type) {
+    primaryCandidate.delta_type = options.primary_delta_type;
   }
   const secondaryCandidate = clone(primaryCandidate);
   secondaryCandidate.candidate_id = "delta:host-attested-result-secondary";

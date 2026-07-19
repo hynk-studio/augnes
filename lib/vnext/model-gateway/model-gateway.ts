@@ -20,9 +20,14 @@ import {
   readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import {
+  assertModelGatewayCostBudgetCurrentV01,
+  validateModelGatewayCostBudgetV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
 import { OBSERVE_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/observe-codec";
 import { PLANNER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/planner-codec";
 import { TEMPORAL_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/temporal-codec";
+import { STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec";
 import {
   MODEL_GATEWAY_PURPOSES_V01,
   MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
@@ -33,6 +38,7 @@ import {
   ModelGatewayInvocationErrorV01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
   TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   type ModelAdapterImplementationV01,
   type ModelAdapterInvocationResultV01,
@@ -50,10 +56,16 @@ import {
   type PlannerModelGatewayResultV01,
   type PlannerModelInvocationEnvelopeV01,
   type PlannerRecommendationV01,
+  type StrategicAdvantageTransferModelGatewayResultV01,
+  type StrategicAdvantageTransferModelInvocationEnvelopeV01,
   type TemporalModelGatewayResultV01,
   type TemporalModelInvocationEnvelopeV01,
 } from "@/lib/vnext/model-gateway/contracts";
 import { LOCAL_PROJECT_ROOT_REF_VERSION_V01 } from "@/types/vnext/project-identity";
+import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
 
 export const DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01 =
   "deterministic.observe" as const;
@@ -67,6 +79,10 @@ export const DETERMINISTIC_TEMPORAL_IMPLEMENTATION_ID_V01 =
   "deterministic.temporal" as const;
 export const DETERMINISTIC_TEMPORAL_IMPLEMENTATION_VERSION_V01 =
   "deterministic_temporal.v0.1" as const;
+export const DETERMINISTIC_STRATEGIC_IMPLEMENTATION_ID_V01 =
+  "deterministic.strategic-unavailable" as const;
+export const DETERMINISTIC_STRATEGIC_IMPLEMENTATION_VERSION_V01 =
+  "deterministic_strategic_unavailable.v0.1" as const;
 
 export interface ModelGatewayLocalCapabilityDiagnosticV01 {
   status:
@@ -147,6 +163,9 @@ export interface TemporalModelGatewayDependenciesV01
     | TemporalInterpretationPreview
     | Promise<TemporalInterpretationPreview>;
 }
+
+export interface StrategicAdvantageTransferModelGatewayDependenciesV01
+  extends SharedModelGatewayDependenciesV01 {}
 
 type DeterministicOutputV01 =
   | {
@@ -276,6 +295,31 @@ export async function invokeTemporalModelGatewayV01(
   };
 }
 
+export async function invokeStrategicAdvantageTransferModelGatewayV01(
+  input: unknown,
+  dependencies: StrategicAdvantageTransferModelGatewayDependenciesV01 = {},
+): Promise<StrategicAdvantageTransferModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error("strategic_model_required");
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
 async function invokeModelGatewayV01(
   input: unknown,
   dependencies: InternalModelGatewayDependenciesV01,
@@ -398,6 +442,48 @@ async function invokeModelGatewayV01(
       );
     }
 
+    if (
+      envelope.purpose ===
+      STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      const costBudget = envelope.budget.cost_budget;
+      if (!costBudget) {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+      if (
+        canonicalizeProtocolValueV01(costBudget.authority.provider_ref) !==
+          canonicalizeProtocolValueV01(adapterSession.provider_ref) ||
+        canonicalizeProtocolValueV01(costBudget.authority.model_ref) !==
+          canonicalizeProtocolValueV01(adapterSession.model_ref) ||
+        costBudget.authority.workspace_id !== scope.workspace_id ||
+        costBudget.authority.project_id !== scope.project_id ||
+        costBudget.authority.purpose !== envelope.purpose ||
+        costBudget.maximum_input_units !== envelope.budget.max_input_bytes ||
+        costBudget.maximum_output_units !== envelope.budget.max_output_tokens ||
+        costBudget.maximum_invocation_count !==
+          envelope.budget.max_provider_calls ||
+        costBudget.timeout_ms !== envelope.timeout_ms
+      ) {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+      try {
+        assertModelGatewayCostBudgetCurrentV01(
+          costBudget,
+          started.toISOString(),
+        );
+      } catch {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+      if (
+        envelope.input.budget.model.cost.status !== "available" ||
+        canonicalizeProtocolValueV01(
+          envelope.input.budget.model.cost.budget,
+        ) !== canonicalizeProtocolValueV01(costBudget)
+      ) {
+        throw gatewayFailure("model_gateway_budget_refused");
+      }
+    }
+
     try {
       return await invokeLiveAdapter(
         envelope,
@@ -448,6 +534,19 @@ export function validateTemporalModelInvocationEnvelopeV01(
 ): TemporalModelInvocationEnvelopeV01 {
   const envelope = validateModelInvocationEnvelopeV01(input);
   if (envelope.purpose !== TEMPORAL_MODEL_GATEWAY_PURPOSE_V01) invalid();
+  return envelope;
+}
+
+export function validateStrategicAdvantageTransferModelInvocationEnvelopeV01(
+  input: unknown,
+): StrategicAdvantageTransferModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    invalid();
+  }
   return envelope;
 }
 
@@ -538,6 +637,19 @@ export function validateModelInvocationEnvelopeV01(
       return { ...common, purpose, input: purposeInput };
     }
     if (purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return { ...common, purpose, input: purposeInput };
+    }
+    if (
+      purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive"
+      ) {
+        invalid();
+      }
       const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
       validatePurposeInputSafety(purpose, purposeInput);
       return { ...common, purpose, input: purposeInput };
@@ -856,6 +968,13 @@ async function invokeLiveAdapter(
         input_bytes_used: inputBytesUsed,
         provider_calls_used: egressAttempted ? 1 : 0,
         failure_code: null,
+        normalized_output_fingerprint:
+          result.purpose ===
+          STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+            ? createProtocolSha256V01(
+                canonicalizeProtocolValueV01(result.output),
+              )
+            : undefined,
       }),
     };
   } catch (error) {
@@ -1052,6 +1171,7 @@ function buildReceipt(
       input_bytes_used: number | null;
       provider_calls_used: 0 | 1;
       failure_code: ModelGatewayFailureCodeV01 | null;
+      normalized_output_fingerprint?: string;
       attempted_provider_ref?: ModelAdapterSessionV01["provider_ref"] | null;
       attempted_model_ref?: ModelAdapterSessionV01["model_ref"] | null;
     },
@@ -1106,7 +1226,9 @@ function buildReceipt(
       basis: "unavailable",
       amount: null,
       currency: null,
-      source: "no_pricing_authority",
+      source: input.envelope.budget.cost_budget
+        ? "provider_cost_not_reported"
+        : "no_pricing_authority",
     },
     budget: {
       decision: input.budget_decision,
@@ -1118,6 +1240,9 @@ function buildReceipt(
       provider_calls_used: input.provider_calls_used,
       timeout_limit_ms: input.envelope.timeout_ms,
       timeout_disposition: timeoutDisposition,
+      ...(input.envelope.budget.cost_budget
+        ? { cost_budget: input.envelope.budget.cost_budget }
+        : {}),
     },
     cancellation_disposition:
       input.outcome === "cancelled" ? "cancelled" : "not_cancelled",
@@ -1145,6 +1270,12 @@ function buildReceipt(
     raw_response_persisted: false,
     hidden_reasoning_persisted: false,
     receipt_is_semantic_authority: false,
+    ...(input.normalized_output_fingerprint === undefined
+      ? {}
+      : {
+          normalized_output_fingerprint:
+            input.normalized_output_fingerprint,
+        }),
   };
   return validateModelInvocationReceiptV02(receipt);
 }
@@ -1212,6 +1343,13 @@ function deterministicImplementation(
       implementation_version: DETERMINISTIC_PLANNER_IMPLEMENTATION_VERSION_V01,
     };
   }
+  if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
+    return {
+      implementation_id: DETERMINISTIC_STRATEGIC_IMPLEMENTATION_ID_V01,
+      implementation_version:
+        DETERMINISTIC_STRATEGIC_IMPLEMENTATION_VERSION_V01,
+    };
+  }
   return {
     implementation_id: DETERMINISTIC_TEMPORAL_IMPLEMENTATION_ID_V01,
     implementation_version: DETERMINISTIC_TEMPORAL_IMPLEMENTATION_VERSION_V01,
@@ -1247,7 +1385,9 @@ function validateBudget(
     "max_input_bytes",
     "max_output_tokens",
     "max_provider_calls",
-  ]);
+  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+    ? ["cost_budget"]
+    : []);
   const maxInputBytes = requireInteger(
     readOwn(record, "max_input_bytes"),
     1,
@@ -1260,10 +1400,20 @@ function validateBudget(
   );
   const maxProviderCalls = readOwn(record, "max_provider_calls");
   if (maxProviderCalls !== (mode === "live" ? 1 : 0)) invalid();
+  const costBudget = Object.hasOwn(record, "cost_budget")
+    ? validateModelGatewayCostBudgetV01(readOwn(record, "cost_budget"))
+    : undefined;
+  if (
+    purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 &&
+    !costBudget
+  ) {
+    invalid();
+  }
   return {
     max_input_bytes: maxInputBytes,
     max_output_tokens: maxOutputTokens,
     max_provider_calls: mode === "live" ? 1 : 0,
+    ...(costBudget ? { cost_budget: costBudget } : {}),
   };
 }
 
@@ -1273,6 +1423,9 @@ function maximumInputBytesForPurpose(purpose: ModelGatewayPurposeV01) {
   }
   if (purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
     return PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes;
+  }
+  if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
+    return STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.finalRequestBytes;
   }
   return TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes;
 }
@@ -1374,6 +1527,11 @@ function validatePurposeInput(
 ): TemporalModelInvocationEnvelopeV01["input"];
 function validatePurposeInput(
   value: unknown,
+  purpose: typeof STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): StrategicAdvantageTransferModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
   purpose: ModelGatewayPurposeV01,
   projectId: string,
 ): ModelInvocationEnvelopeV01["input"] {
@@ -1415,6 +1573,49 @@ function validatePurposeInput(
       message,
       brief: brief as PlannerModelInvocationEnvelopeV01["input"]["brief"],
     };
+  }
+  if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
+    requireExactKeys(record, [
+      "input_kind",
+      "profile_version",
+      "schema_version",
+      "working_frame",
+      "source_catalog",
+      "lenses",
+      "budget",
+    ]);
+    if (readOwn(record, "input_kind") !== purpose) invalid();
+    const profileVersion = readOwn(record, "profile_version");
+    const schemaVersion = readOwn(record, "schema_version");
+    const workingFrame = requirePlainRecord(readOwn(record, "working_frame"));
+    const sourceCatalog = requirePlainRecord(readOwn(record, "source_catalog"));
+    const lenses = readOwn(record, "lenses");
+    const budget = requirePlainRecord(readOwn(record, "budget"));
+    if (
+      profileVersion !== "strategic_advantage_transfer.v0.1" ||
+      schemaVersion !== "strategic_advantage_transfer_model_output.v0.1" ||
+      !Array.isArray(lenses) ||
+      lenses.length < 1 ||
+      lenses.length > 3 ||
+      new Set(lenses).size !== lenses.length ||
+      lenses.some(
+        (lens) =>
+          ![
+            "constraint_fit",
+            "verification_leverage",
+            "regression_safety",
+          ].includes(String(lens)),
+      ) ||
+      typeof readOwn(workingFrame, "working_frame_fingerprint") !== "string" ||
+      typeof readOwn(sourceCatalog, "source_catalog_fingerprint") !== "string" ||
+      !Array.isArray(readOwn(sourceCatalog, "items")) ||
+      (readOwn(sourceCatalog, "items") as unknown[]).length > 64
+    ) {
+      invalid();
+    }
+    validateStrategicProfileBudget(budget);
+    assertNoStrategicProviderControlFields(record);
+    return record as unknown as StrategicAdvantageTransferModelInvocationEnvelopeV01["input"];
   }
   requireExactKeys(record, ["input_kind", "context"]);
   if (readOwn(record, "input_kind") !== purpose) invalid();
@@ -1521,6 +1722,89 @@ function assertNoProviderControlFields(value: unknown) {
     }
   };
   visit(cloned);
+}
+
+function validateStrategicProfileBudget(budget: Record<string, unknown>): void {
+  requireExactKeys(budget, [
+    "budget_version",
+    "max_lenses",
+    "max_transfer_items",
+    "max_source_catalog_items",
+    "max_source_refs_per_transfer",
+    "max_text_characters",
+    "max_total_canonical_utf8_bytes",
+    "model",
+    "truncation_allowed",
+  ]);
+  const model = requirePlainRecord(readOwn(budget, "model"));
+  requireExactKeys(model, [
+    "max_input_bytes",
+    "max_output_tokens",
+    "max_provider_calls",
+    "timeout_ms",
+    "automatic_retry",
+    "provider_failover",
+    "cost",
+  ]);
+  const cost = requirePlainRecord(readOwn(model, "cost"));
+  requireExactKeys(cost, ["status", "budget"]);
+  const costBudget = validateModelGatewayCostBudgetV01(
+    readOwn(cost, "budget"),
+  );
+  if (
+    readOwn(budget, "budget_version") !==
+      "strategic_advantage_transfer_budget.v0.1" ||
+    readOwn(budget, "max_lenses") !== 3 ||
+    readOwn(budget, "max_transfer_items") !== 3 ||
+    readOwn(budget, "max_source_catalog_items") !== 64 ||
+    readOwn(budget, "max_source_refs_per_transfer") !== 16 ||
+    readOwn(budget, "max_text_characters") !== 1_200 ||
+    readOwn(budget, "max_total_canonical_utf8_bytes") !== 98_304 ||
+    readOwn(budget, "truncation_allowed") !== false ||
+    readOwn(model, "max_input_bytes") !== 65_536 ||
+    readOwn(model, "max_output_tokens") !== 2_048 ||
+    readOwn(model, "max_provider_calls") !== 1 ||
+    readOwn(model, "timeout_ms") !== 20_000 ||
+    readOwn(model, "automatic_retry") !== false ||
+    readOwn(model, "provider_failover") !== false ||
+    readOwn(cost, "status") !== "available" ||
+    costBudget.maximum_input_units !== 65_536 ||
+    costBudget.maximum_output_units !== 2_048 ||
+    costBudget.maximum_invocation_count !== 1 ||
+    costBudget.timeout_ms !== 20_000
+  ) {
+    invalid();
+  }
+}
+
+function assertNoStrategicProviderControlFields(value: unknown): void {
+  const cloned = cloneBoundedModelEgressJson(
+    STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+    value,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedProfileBudgetModel = path === "$.budget" && key === "model";
+      const allowedBoundCostRoute =
+        path.startsWith("$.budget.model.cost.budget.authority") &&
+        (key === "provider" || key === "model_ref" || key === "provider_ref");
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedProfileBudgetModel &&
+        !allowedBoundCostRoute
+      ) {
+        invalid();
+      }
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
 }
 
 function validateProvenance(value: unknown): string[] {

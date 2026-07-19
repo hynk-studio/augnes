@@ -1,10 +1,11 @@
 import {
-  MODEL_GATEWAY_PURPOSES_V01,
+  OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+  PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   type ModelGatewayBudgetV01,
   type ModelGatewayDataClassificationV01,
   type ModelGatewayExecutionModeV01,
   type ModelGatewayPolicyAuthorizationV01,
-  type ModelGatewayPurposeV01,
 } from "@/lib/vnext/model-gateway/contracts";
 import { normalizeWorkId } from "@/lib/work";
 import {
@@ -16,6 +17,12 @@ import {
   MODEL_INVOCATION_CAPABILITY_GRANT_VERSION_V01,
   type ModelInvocationCapabilityGrantV01,
 } from "@/types/vnext/model-invocation-capability-grant";
+
+const AUTOMATION_MODEL_GATEWAY_PURPOSES_V01 = [
+  OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
+  PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+  TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
+] as const;
 
 const SAFE_IDENTIFIER = /^[A-Za-z0-9:._-]{1,256}$/;
 const CANONICAL_WORKSPACE =
@@ -134,7 +141,10 @@ export function validateModelInvocationCapabilityGrantV01(
     if (grant.work_id !== normalizeWorkId(String(grant.work_id))) invalid();
     matches(grant.run_id, SAFE_IDENTIFIER);
     positiveInteger(grant.automation_control_revision);
-    validateMembers(grant.permitted_purposes, MODEL_GATEWAY_PURPOSES_V01);
+    validateMembers(
+      grant.permitted_purposes,
+      AUTOMATION_MODEL_GATEWAY_PURPOSES_V01,
+    );
     validateMembers(grant.permitted_execution_modes, [
       "live",
       "deterministic",
@@ -186,7 +196,7 @@ export function authorizeModelInvocationCapabilityGrantV01(input: {
   work_id: string;
   run_id: string;
   automation_control_revision: number;
-  purpose: ModelGatewayPurposeV01;
+  purpose: (typeof AUTOMATION_MODEL_GATEWAY_PURPOSES_V01)[number];
   execution_mode: ModelGatewayExecutionModeV01;
   data_classification: ModelGatewayDataClassificationV01;
   budget: ModelGatewayBudgetV01;

@@ -137,6 +137,7 @@ try {
     "review_material",
     "review_decision_route",
     "semantic_transition_route",
+    "strategic_analysis_route",
     "project_identity_registry",
   ]);
   assert.equal(JSON.stringify(summary).length < 2_048, true);

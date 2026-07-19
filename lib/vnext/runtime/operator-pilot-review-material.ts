@@ -26,6 +26,12 @@ import {
 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import {
+  readVNextOperatorStrategicAdvantageTransferV01,
+  type VNextOperatorStrategicCostAvailabilityV01,
+  type VNextOperatorStrategicAdvantageTransferReadbackV01,
+} from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import {
   loadValidatedVNextSemanticTransitionRelationV01,
@@ -131,6 +137,7 @@ export interface VNextOperatorPilotReviewDetailV01
     transition_receipt_fingerprint: string | null;
     notes: string[];
   };
+  strategic_analysis: VNextOperatorStrategicAdvantageTransferReadbackV01;
 }
 
 export interface VNextOperatorPilotDecisionProvenanceValidationV01 {
@@ -174,6 +181,8 @@ export function listVNextOperatorPilotSemanticReviewsV01(
   input: {
     config: VNextLocalOperatorPilotConfigV01;
     authenticated_session_id: string | null;
+    model_capability?: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>;
+    strategic_cost_availability?: VNextOperatorStrategicCostAvailabilityV01;
   },
 ): VNextOperatorPilotReviewListItemV01[] {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -198,6 +207,8 @@ export function listVNextOperatorPilotSemanticReviewsV01(
       config: input.config,
       proposal_id: row.record_id,
       authenticated_session_id: input.authenticated_session_id,
+      model_capability: input.model_capability,
+      strategic_cost_availability: input.strategic_cost_availability,
     });
     return {
       proposal_id: detail.proposal_id,
@@ -222,6 +233,8 @@ export function readVNextOperatorPilotSemanticReviewV01(
     config: VNextLocalOperatorPilotConfigV01;
     proposal_id: string;
     authenticated_session_id: string | null;
+    model_capability?: ReturnType<typeof readDefaultModelGatewayLocalCapabilityV01>;
+    strategic_cost_availability?: VNextOperatorStrategicCostAvailabilityV01;
   },
 ): VNextOperatorPilotReviewDetailV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -247,7 +260,18 @@ export function readVNextOperatorPilotSemanticReviewV01(
   });
   if (
     proposalRecord.record_id !== proposal.proposal_id ||
-    proposalRecord.created_at !== proposal.created_at
+    proposalRecord.created_at !== proposal.created_at ||
+    (proposal.strategic_advantage_transfer &&
+      !proposal.operation_revision &&
+      proposalRecord.idempotency_key !==
+        createProtocolSha256V01(
+          canonicalizeProtocolValueV01({
+            purpose:
+              proposal.strategic_advantage_transfer.profile_version,
+            analysis_identity:
+              proposal.strategic_advantage_transfer.analysis_identity,
+          }),
+        ))
   ) {
     throw reviewError("operator_pilot_proposal_envelope_mismatch", 422);
   }
@@ -333,6 +357,12 @@ export function readVNextOperatorPilotSemanticReviewV01(
           ? ["An exact validated StateTransitionReceipt is persisted for this proposal."]
           : ["No StateTransitionReceipt is persisted for this proposal."],
     },
+    strategic_analysis: readVNextOperatorStrategicAdvantageTransferV01(db, {
+      config: input.config,
+      proposal,
+      model_capability: input.model_capability,
+      current_cost_availability: input.strategic_cost_availability,
+    }),
   };
 }
 
@@ -579,6 +609,15 @@ function resolveDecisionRequestMaterial(
     authenticated_session_id: authenticatedSessionId,
   });
   const proposal = detail.proposal;
+  if (
+    proposal.strategic_advantage_transfer &&
+    detail.strategic_analysis.status !== "available"
+  ) {
+    throw reviewError(
+      `operator_pilot_strategic_decision_${detail.strategic_analysis.status}`,
+      409,
+    );
+  }
   if (proposal.integrity.fingerprint !== request.proposal_fingerprint) {
     throw reviewError("operator_pilot_proposal_fingerprint_mismatch", 409);
   }
@@ -1470,6 +1509,10 @@ function assertOperationAwareRevisionRelation(
     [proposal.task_context_packet_ref, source.task_context_packet_ref],
     [proposal.run_receipt_refs, source.run_receipt_refs],
     [proposal.source_assessment ?? null, source.source_assessment ?? null],
+    [
+      proposal.strategic_advantage_transfer ?? null,
+      source.strategic_advantage_transfer ?? null,
+    ],
     [proposal.observations, source.observations],
     [proposal.attestations, source.attestations],
     [proposal.inferences, source.inferences],

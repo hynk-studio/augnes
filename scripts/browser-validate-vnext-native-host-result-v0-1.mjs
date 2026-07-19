@@ -24,6 +24,11 @@ import {
   genericCliBuilderInputFixture,
 } from "../fixtures/vnext/protocol/task-context-packet-v0-1.ts";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store.ts";
+import {
+  CANONICAL_TEST_STRATEGIC_TRANSPORT_COUNTER_FILE_V01,
+  CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_FILE_V01,
+  CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01,
+} from "../lib/vnext/model-gateway/canonical-test-strategic-transport.ts";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet.ts";
 import {
   issueVNextLocalOperatorBootstrapV01,
@@ -63,6 +68,14 @@ const manifestPath = path.join(
   "operator-pilot-browser-fixture.json",
 );
 const databasePath = path.join(fixtureDir, "operator-pilot.db");
+const strategicTransportFixturePath = path.join(
+  tempRoot,
+  CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_FILE_V01,
+);
+const strategicTransportCounterPath = path.join(
+  tempRoot,
+  CANONICAL_TEST_STRATEGIC_TRANSPORT_COUNTER_FILE_V01,
+);
 const browserSecondApprovalReleasePath = path.join(
   tempRoot,
   "browser-second-approval.release",
@@ -147,6 +160,17 @@ const result = {
   result_to_proposal_navigation: false,
   proposal_assessment_snapshot: false,
   proposal_review_narrow_viewport_no_overflow: false,
+  strategic_profile_optional_unavailable: false,
+  strategic_profile_no_analysis_on_load: false,
+  strategic_profile_no_internal_id_input: false,
+  strategic_profile_zero_model_review_preserved: false,
+  strategic_profile_explicit_request: false,
+  strategic_model_gateway_fake_transport_calls: 0,
+  strategic_source_to_proposal_navigation: false,
+  strategic_proposal_pending_unknown_non_authoritative: false,
+  strategic_proposal_material_visible: false,
+  strategic_candidate_defer_no_transition: false,
+  strategic_proposal_reload_idempotent: false,
   operation_aware_revision_created: false,
   explicit_review_decision_created: false,
   transition_preview_read_only: false,
@@ -364,6 +388,20 @@ async function main() {
     databasePath,
     manifest,
   });
+  writeFileSync(
+    strategicTransportFixturePath,
+    `${JSON.stringify({
+      fixture_version:
+        CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01,
+      workspace_id: manifest.workspace_id,
+      project_id: manifest.project_id,
+      working_frame_fingerprint:
+        manifest.strategic_working_frame_fingerprint,
+      source_catalog_fingerprint:
+        manifest.strategic_source_catalog_fingerprint,
+    })}\n`,
+    { encoding: "utf8", flag: "wx", mode: 0o600 },
+  );
   mkdirSync(onboardingFolder, { recursive: true });
   mkdirSync(onboardingFolderB, { recursive: true });
 
@@ -854,6 +892,423 @@ async function main() {
     record("bootstrap_token_absent_from_dom_and_server_log");
   });
   bootstrapToken = null;
+
+  await runPhase("strategic_proposal_review", async () => {
+    database ??= new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    await navigate(
+      `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"]') !== null`,
+      "strategic source Project Home",
+    );
+    if (
+      await evaluateBoolean(
+        `document.querySelector('[data-project-home-active="false"]') !== null`,
+      )
+    ) {
+      await delay(750);
+      const activationResponseStart = responses.length;
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === 'Make active'
+          );
+          button?.click();
+          return Boolean(button);
+        })()`),
+        true,
+      );
+      await waitForHostCondition(
+        () =>
+          responses.slice(activationResponseStart).some(
+            (entry) =>
+              entry.path === "/api/vnext/projects" &&
+              entry.type === "Fetch",
+          ),
+        "strategic source project activation response",
+      );
+      const activationResponse = responses
+        .slice(activationResponseStart)
+        .find(
+          (entry) =>
+            entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+        );
+      assert.equal(activationResponse?.status, 200);
+    }
+    await waitForCondition(
+      `document.querySelector('[data-project-home-active="true"]') !== null`,
+      "active strategic source Project Home",
+    );
+    const beforeStrategicRead = databaseSnapshot(database);
+    const initialRequestStart = requests.length;
+    const initialResponseStart = responses.length;
+    const sourcePath = `/workbench/semantic-review/${manifest.strategic_source_proposal_id.replace(":", "~")}`;
+    await navigate(`${appOrigin}${sourcePath}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(sourcePath)}`,
+      "source proposal route",
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(initialResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/semantic-review" &&
+            entry.type === "Fetch" &&
+            entry.method === "GET",
+        ),
+      "source proposal private read response",
+    );
+    const sourceReadResponses = responses
+      .slice(initialResponseStart)
+      .filter(
+        (entry) =>
+          entry.path === "/api/vnext/operator/semantic-review" &&
+          entry.type === "Fetch" &&
+          entry.method === "GET",
+      );
+    const sourceReadDebug = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({
+        proposal_id: ${JSON.stringify(manifest.strategic_source_proposal_id)}
+      }), { cache: 'no-store', credentials: 'same-origin' });
+      const text = await response.text();
+      let strategic = null;
+      try {
+        const analysis = JSON.parse(text)?.proposal?.strategic_analysis ?? null;
+        strategic = analysis
+          ? {
+              status: analysis.status,
+              reason: analysis.reason,
+              model_capability: analysis.model_capability,
+            }
+          : null;
+      } catch {}
+      return { status: response.status, strategic, body_tail: text.slice(-500) };
+    })()`);
+    const strategicServerErrors = serverLog
+      .split("\n")
+      .filter((line) => /canonical_strategic|error|conflict|invalid/i.test(line))
+      .slice(-8);
+    assert.equal(
+      sourceReadResponses.some((entry) => entry.status === 200),
+      true,
+      `strategic source read failed: errors=${JSON.stringify(strategicServerErrors)}; response=${JSON.stringify({ sourceReadResponses, sourceReadDebug })}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null`,
+      "source proposal detail",
+    );
+    const sourceShape = await evaluateJson(`(() => {
+      const panel = document.querySelector('[data-vnext-strategic-advantage-transfer]');
+      const link = panel?.querySelector('[data-vnext-strategic-review-link="true"]');
+      const button = panel?.querySelector('[data-vnext-strategic-request="true"]');
+      return {
+        panel_present: Boolean(panel),
+        optional: panel?.getAttribute('data-vnext-strategic-optional') === 'true',
+        authoritative: panel?.getAttribute('data-vnext-strategic-authoritative'),
+        status: panel?.getAttribute('data-vnext-strategic-readback-status') ?? null,
+        review_link_absent: link === null,
+        request_button_present: button instanceof HTMLButtonElement && !button.disabled,
+        request_label: button?.textContent?.trim() ?? '',
+        internal_input_count: panel?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        text: panel?.textContent ?? '',
+        body_text: (document.body.textContent ?? '').slice(-4_000),
+      };
+    })()`);
+    assert.equal(
+      sourceShape.panel_present,
+      true,
+      `strategic panel missing: ${JSON.stringify(sourceShape)}; server=${serverLog.slice(-2_000)}`,
+    );
+    assert.equal(sourceShape.optional, true);
+    assert.equal(sourceShape.authoritative, "false");
+    assert.equal(
+      sourceShape.status,
+      "eligible",
+      `strategic source must be eligible: ${JSON.stringify({ status: sourceShape.status, sourceReadDebug })}`,
+    );
+    assert.equal(sourceShape.review_link_absent, true);
+    assert.equal(sourceShape.request_button_present, true);
+    assert.equal(sourceShape.request_label, "Request bounded strategic analysis");
+    assert.equal(sourceShape.internal_input_count, 0);
+    assert.equal(sourceShape.text.includes("Nothing runs on page load"), true);
+    assert.equal(/settlement|reconciliation/i.test(sourceShape.text), false);
+    assert.equal(
+      sourceShape.text.includes("Local model capability") &&
+        sourceShape.text.includes("available"),
+      true,
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeStrategicRead);
+    assert.equal(
+      requests.slice(initialRequestStart).some(
+        (entry) =>
+          entry.method === "POST" ||
+          /provider|openai/u.test(entry.path ?? ""),
+      ),
+      false,
+    );
+
+    const beforeStrategicAction = readDirectHostBrowserState(
+      manifest.project_id,
+    );
+    const actionRequestStart = requests.length;
+    const actionResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-vnext-strategic-request="true"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(actionResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/semantic-review" &&
+            entry.type === "Fetch" &&
+            entry.method === "POST",
+        ),
+      "explicit strategic proposal admission response",
+    );
+    const strategicAdmissionResponse = responses
+      .slice(actionResponseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/operator/semantic-review" &&
+          entry.type === "Fetch" &&
+          entry.method === "POST",
+      );
+    const strategicAdmissionResponseBody = strategicAdmissionResponse
+      ? await cdp
+          .send("Network.getResponseBody", {
+            requestId: strategicAdmissionResponse.request_id,
+          })
+          .then((value) => JSON.parse(String(value.body ?? "{}")))
+          .catch(() => null)
+      : null;
+    const strategicAdmissionDebug =
+      strategicAdmissionResponse?.status === 201
+        ? null
+        : await evaluateJson(`(() => ({
+            path: location.pathname,
+            body_text: (document.body.textContent ?? '').slice(-5_000),
+            error_text: document.querySelector('[role="alert"]')?.textContent ?? null
+          }))()`);
+    assert.equal(
+      strategicAdmissionResponse?.status,
+      201,
+      `explicit strategic proposal admission must insert the source-bound proposal: response=${JSON.stringify(strategicAdmissionResponseBody)}; page=${JSON.stringify(strategicAdmissionDebug)}; server=${serverLog.slice(-3_000)}`,
+    );
+    await waitForCondition(
+      `location.pathname !== ${JSON.stringify(sourcePath)} && location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"] [data-vnext-strategic-transfer-items="true"]') !== null`,
+      "exact strategic proposal detail",
+    );
+    const strategicPath = await evaluateString("location.pathname");
+    const strategicPosts = requests
+      .slice(actionRequestStart)
+      .filter(
+        (entry) =>
+          entry.method === "POST" &&
+          entry.path === "/api/vnext/operator/semantic-review",
+      );
+    assert.equal(strategicPosts.length, 1);
+    assert.equal(
+      requests.slice(actionRequestStart).some((entry) =>
+        /provider|openai/u.test(entry.path ?? ""),
+      ),
+      false,
+    );
+    const fakeTransportCounter = JSON.parse(
+      readFileSync(strategicTransportCounterPath, "utf8"),
+    );
+    assert.deepEqual(fakeTransportCounter, {
+      counter_version: "strategic_model_transport_counter.v0.1",
+      transport_calls: 1,
+      working_frame_fingerprint:
+        manifest.strategic_working_frame_fingerprint,
+      source_catalog_fingerprint:
+        manifest.strategic_source_catalog_fingerprint,
+    });
+    const afterStrategicAction = readDirectHostBrowserState(
+      manifest.project_id,
+    );
+    assert.deepEqual(afterStrategicAction.semantic_authority_counts, {
+      ...beforeStrategicAction.semantic_authority_counts,
+      proposals: beforeStrategicAction.semantic_authority_counts.proposals + 1,
+    });
+    const strategicShape = await evaluateJson(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const panel = detail?.querySelector('[data-vnext-strategic-advantage-transfer="proposal"]');
+      const transferList = panel?.querySelector('[data-vnext-strategic-transfer-items="true"]');
+      const candidate = detail?.querySelector('[data-vnext-candidate-accept-eligible="false"]');
+      const accept = candidate?.querySelector('[data-vnext-operator-decision-form="v0.1"] option[value="accept"]');
+      const panelText = panel?.textContent ?? '';
+      const headingText = Array.from(panel?.querySelectorAll('h1, h2, h3, h4, [role="heading"], button') ?? [])
+        .map((entry) => entry.textContent ?? '')
+        .join(' ');
+      return {
+        pending: panelText.includes('pending review') && detail?.textContent?.includes('pending_review'),
+        transfer_count: transferList?.querySelectorAll(':scope > li').length ?? -1,
+        candidate_operation_unknown:
+          panelText.includes('unknown · human revision required') &&
+          candidate?.getAttribute('data-vnext-candidate-accept-eligible') === 'false' &&
+          accept instanceof HTMLOptionElement && accept.disabled,
+        full_material:
+          panelText.includes('Applicability') &&
+          panelText.includes('Expected effect') &&
+          panelText.includes('Transfer cost') &&
+          panelText.includes('Falsifier') &&
+          panelText.includes('Source-linked patch') &&
+          panelText.includes('Uncertainty') &&
+          panelText.includes('Introduced or transferred risks') &&
+          panelText.includes('Known limitations') &&
+          panelText.includes('Regression risks') &&
+          panelText.includes('Checks or observations needed') &&
+          panelText.includes('Stop conditions') &&
+          panelText.includes('Invalidation conditions') &&
+          panelText.includes('Model-selected candidate source relation'),
+        server_owned_support:
+          panel?.querySelector('[data-vnext-strategic-server-adverse-context="true"]') !== null &&
+          panelText.includes('Server-owned adverse context') &&
+          panelText.includes('cannot be selected away') &&
+          panelText.includes('Final server support: unknown · insufficient') &&
+          panelText.includes('explicit strategic-transfer observations only'),
+        lineage:
+          panelText.includes('Base and source lineage') &&
+          panelText.includes('Packet, receipt, and model-receipt lineage') &&
+          panelText.includes('Working frame') &&
+          panelText.includes('source catalog') &&
+          panelText.includes('model invocation receipt'),
+        historical_budget_split:
+          panel?.querySelector('[data-vnext-strategic-historical-cost="true"]') !== null &&
+          panelText.includes('Historical invocation budget') &&
+          panelText.includes('Current new-invocation pricing') &&
+          panelText.includes('does not rewrite this proposal') &&
+          panelText.includes('semantic sources are stale'),
+        non_authoritative:
+          panel?.getAttribute('data-vnext-strategic-authoritative') === 'false' &&
+          panel?.querySelector('[data-vnext-strategic-authority-boundary="true"]') !== null &&
+          panelText.includes('grants no decision, Transition') &&
+          panelText.includes('not Transition-ready'),
+        arena_heading_count:
+          (headingText.match(/\b(?:Arena|winner|scoreboard|debate|consensus|voting)\b/gi) ?? []).length,
+        internal_input_count:
+          panel?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        fixture_credential_visible:
+          panelText.includes('owned-canonical-test-credential-not-persisted'),
+      };
+    })()`);
+    assert.deepEqual(strategicShape, {
+      pending: true,
+      transfer_count: 1,
+      candidate_operation_unknown: true,
+      full_material: true,
+      server_owned_support: true,
+      lineage: true,
+      historical_budget_split: true,
+      non_authoritative: true,
+      arena_heading_count: 0,
+      internal_input_count: 0,
+      fixture_credential_visible: false,
+    });
+    await validateSemanticReviewViewports();
+
+    const strategicDecisionRoot =
+      '[data-vnext-candidate-accept-eligible="false"] [data-vnext-operator-decision-form="v0.1"]';
+    await setFormControlValue(
+      `${strategicDecisionRoot} textarea`,
+      0,
+      "Defer this optional local transfer until a reviewer can supply stronger exact support.",
+    );
+    await setFormControlValue(
+      `${strategicDecisionRoot} textarea`,
+      1,
+      "Revisit only when the accepted plan and exact source catalog remain current and stronger source material is available.",
+    );
+    const decisionResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector(${JSON.stringify(`${strategicDecisionRoot} button[type="submit"]`)});
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(decisionResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/semantic-review" &&
+            entry.type === "Fetch" &&
+            entry.method === "POST" &&
+            (entry.status === 200 || entry.status === 201),
+        ),
+      "strategic defer decision response",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-decision-history="v0.1"] li')?.textContent?.includes('defer') === true && document.querySelector('[data-vnext-transition-actions-status="awaiting_accept"]') !== null`,
+      "strategic defer decision without transition",
+    );
+    const afterStrategicDecision = readDirectHostBrowserState(
+      manifest.project_id,
+    );
+    assert.deepEqual(afterStrategicDecision.semantic_authority_counts, {
+      ...afterStrategicAction.semantic_authority_counts,
+      decisions: afterStrategicAction.semantic_authority_counts.decisions + 1,
+    });
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-vnext-transition-step-status="applied"]') === null && document.querySelector('[data-vnext-transition-status="applied"]') === null`,
+      ),
+      true,
+    );
+    const beforeReload = databaseSnapshot(database);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(strategicPath)} && document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"] [data-vnext-strategic-transfer-items="true"]') !== null`,
+      "strategic proposal after reload",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeReload);
+    assert.deepEqual(
+      readDirectHostBrowserState(manifest.project_id).semantic_authority_counts,
+      afterStrategicDecision.semantic_authority_counts,
+    );
+    assert.equal(
+      JSON.parse(readFileSync(strategicTransportCounterPath, "utf8"))
+        .transport_calls,
+      1,
+    );
+    result.strategic_profile_explicit_request = true;
+    result.strategic_model_gateway_fake_transport_calls = 1;
+    result.strategic_source_to_proposal_navigation = true;
+    result.strategic_proposal_pending_unknown_non_authoritative = true;
+    result.strategic_proposal_material_visible = true;
+    result.strategic_candidate_defer_no_transition = true;
+    result.strategic_proposal_reload_idempotent = true;
+    record("strategic_source_explicitly_admits_exact_pending_unknown_proposal_without_internal_input");
+    record("strategic_proposal_full_material_lineage_and_non_authority_render");
+    record("strategic_candidate_defer_records_decision_without_transition_or_packet_change");
+    record("strategic_proposal_reload_creates_no_model_or_semantic_write");
+
+    // Let the completed Next navigation and its read-only refresh settle before
+    // the deliberate server restart used to prove model-unavailable behavior.
+    // Otherwise CDP observes our owned shutdown as a product request failure.
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    rmSync(strategicTransportFixturePath, { force: true });
+    startDevServer(runtimeEnvironment);
+    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/`);
+  });
 
   await runPhase("retired_routes", async () => {
     database ??= new Database(databasePath, {
@@ -1649,6 +2104,7 @@ async function main() {
     assert.equal(result.semantic_transitions_created, 0);
     assert.equal(result.work_closures_created, 0);
     const beforeProposalReview = databaseSnapshot(database);
+    const proposalRequestStart = requests.length;
     const proposalNavigationStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -1673,11 +2129,13 @@ async function main() {
     const proposalReviewShape = await evaluateJson(`(() => {
       const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const snapshot = detail?.querySelector('[data-run-assessment-proposal="v0.1"]');
+      const strategic = detail?.querySelector('[data-vnext-strategic-advantage-transfer="unavailable"]');
       const criteria = snapshot
         ? Array.from(snapshot.querySelectorAll('[data-criterion-status]'))
         : [];
       const text = detail?.textContent ?? '';
       const snapshotText = snapshot?.textContent ?? '';
+      const strategicText = strategic?.textContent ?? '';
       return {
         pending_review: text.includes('pending_review'),
         execution_task_success:
@@ -1718,6 +2176,33 @@ async function main() {
           snapshot?.getAttribute('data-assessment-authoritative') === 'false' &&
           snapshotText.includes('creates no Evidence acceptance') &&
           snapshotText.includes('later-context change'),
+        strategic_optional_unavailable:
+          strategic?.getAttribute('data-vnext-strategic-optional') === 'true' &&
+          strategic?.getAttribute('data-vnext-strategic-authoritative') === 'false' &&
+          strategic?.getAttribute('data-vnext-strategic-readback-status') === 'unavailable' &&
+          strategicText.includes('Bounded strategic local transfer'),
+        strategic_model_unavailable:
+          strategicText.includes('Local model capability') &&
+          strategicText.includes('unavailable'),
+        strategic_server_profile_visible:
+          strategicText.includes('Fixed ephemeral lenses') &&
+          strategic?.querySelectorAll('[data-vnext-strategic-lenses="fixed"] li').length === 3 &&
+          strategicText.includes('One logical Model Gateway invocation') &&
+          strategicText.includes('Automatic retry: no') &&
+          strategicText.includes('provider failover: no'),
+        strategic_no_analysis_on_load:
+          strategicText.includes('Nothing runs on page load') &&
+          strategic?.querySelector('[data-vnext-strategic-request="true"]') === null &&
+          strategic?.querySelector('[data-vnext-strategic-review-link="true"]') === null,
+        strategic_no_internal_inputs:
+          strategic?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length === 0,
+        strategic_zero_model_review_preserved:
+          strategicText.includes('source proposal remains available for normal zero-model review') &&
+          strategicText.includes('grants no decision, Transition') &&
+          strategicText.includes('later-context') &&
+          strategicText.includes('authority'),
+        strategic_no_arena_surface:
+          !/\b(?:Arena|winner|scoreboard|debate|consensus|voting)\b/i.test(strategicText),
       };
     })()`);
     assert.deepEqual(proposalReviewShape, {
@@ -1732,15 +2217,35 @@ async function main() {
       exact_lineage: true,
       no_decision_or_transition: true,
       non_authoritative: true,
+      strategic_optional_unavailable: true,
+      strategic_model_unavailable: true,
+      strategic_server_profile_visible: true,
+      strategic_no_analysis_on_load: true,
+      strategic_no_internal_inputs: true,
+      strategic_zero_model_review_preserved: true,
+      strategic_no_arena_surface: true,
     });
     await validateSemanticReviewViewports();
     assert.deepEqual(databaseSnapshot(database), beforeProposalReview);
+    assert.equal(
+      requests.slice(proposalRequestStart).some(
+        (entry) =>
+          entry.method === "POST" &&
+          entry.path === "/api/vnext/operator/semantic-review",
+      ),
+      false,
+    );
     result.result_to_proposal_navigation = true;
     result.proposal_assessment_snapshot = true;
     result.proposal_review_narrow_viewport_no_overflow = true;
+    result.strategic_profile_optional_unavailable = true;
+    result.strategic_profile_no_analysis_on_load = true;
+    result.strategic_profile_no_internal_id_input = true;
+    result.strategic_profile_zero_model_review_preserved = true;
     record("workbench_result_review_and_inspector_reload_from_immutable_durable_state");
     record("result_links_to_exact_pending_run_assessment_proposal_without_manual_ids");
     record("result_review_creates_no_proposal_decision_transition_evidence_or_work_closure");
+    record("optional_strategic_profile_load_is_read_only_unavailable_and_zero_model_safe");
 
     const sourceProposalPath = await evaluateString("location.pathname");
     const originalOperationShape = await evaluateJson(`(() => {
@@ -2046,6 +2551,11 @@ async function main() {
         request.phase === "direct_host_round_trip" &&
         (request.path === "/api/vnext/operator/semantic-review" ||
           request.path === "/api/vnext/operator/semantic-transition")
+      ) &&
+      !(
+        request.phase === "strategic_proposal_review" &&
+        (request.path === "/api/vnext/projects" ||
+          request.path === "/api/vnext/operator/semantic-review")
       ) &&
       !(
         request.phase === "retired_routes" &&
@@ -2420,6 +2930,7 @@ function attachCdpObservers() {
       const response = event.params?.response ?? {};
       const classification = classifyUrl(String(response.url ?? ""));
       responses.push({
+        request_id: String(event.params?.requestId ?? ""),
         phase: currentPhase,
         path: classification.path,
         status: Number(response.status ?? 0),
@@ -3015,7 +3526,9 @@ async function waitForHttp(url, timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (serverProcess?.exitCode !== null && serverProcess?.exitCode !== undefined) {
-      throw new Error(`Next runtime exited early with code ${serverProcess.exitCode}.`);
+      throw new Error(
+        `Next runtime exited early with code ${serverProcess.exitCode}: ${serverLog.slice(-4_000)}`,
+      );
     }
     try {
       const response = await fetch(url, { redirect: "manual" });

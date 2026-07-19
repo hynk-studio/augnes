@@ -721,13 +721,20 @@ function projectModelInvocationsV01(
         latency_ms: invocation.latency_ms,
         cost_summary:
           invocation.cost.amount === null
-            ? "Cost unavailable; no pricing authority was recorded."
+            ? invocation.cost.source === "provider_cost_not_reported"
+              ? "Actual provider cost was not reported; a pre-egress maximum was enforced."
+              : "Cost unavailable; no pricing authority was recorded."
             : `${invocation.cost.amount} ${invocation.cost.currency ?? "currency not recorded"}`,
         budget_summary: [
           invocation.budget.decision,
           `${invocation.budget.provider_calls_used}/${invocation.budget.provider_call_limit} provider calls`,
           `${invocation.budget.input_bytes_used ?? "unknown"}/${invocation.budget.input_bytes_limit} input bytes`,
           `${invocation.budget.output_tokens_used ?? "unknown"}/${invocation.budget.output_tokens_limit} output tokens`,
+          ...(invocation.budget.cost_budget
+            ? [
+                `${invocation.budget.cost_budget.calculated_worst_case_cost}/${invocation.budget.cost_budget.maximum_permitted_cost} ${invocation.budget.cost_budget.authority.cost_unit} worst-case cost`,
+              ]
+            : []),
           `${invocation.budget.timeout_limit_ms} ms timeout · ${invocation.budget.timeout_disposition}`,
         ].join(" · "),
         egress_status: invocation.egress_status,

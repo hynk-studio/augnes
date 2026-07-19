@@ -21,6 +21,7 @@ const sharedGatewayOwner = "lib/vnext/model-gateway/model-gateway.ts";
 const approvedPurposeCodecOwners = new Set([
   "lib/vnext/model-gateway/openai/observe-codec.ts",
   "lib/vnext/model-gateway/openai/planner-codec.ts",
+  "lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec.ts",
   "lib/vnext/model-gateway/openai/temporal-codec.ts",
 ]);
 const approvedOpenAIBoundaryImporters = new Set([
@@ -121,7 +122,7 @@ const providerResponseShapePattern = /\boutput_text\b|["'`]json_schema["'`]/i;
 const providerRoleLayoutPattern =
   /\brole\s*:\s*["'`](?:system|developer|user)["'`][\s\S]{0,240}(?:input_text|json_schema)/i;
 const purposeCodecPattern =
-  /\b(?:build(?:Observe|Planner|Temporal)SystemPrompt|parse(?:Observe|Planner|Temporal)Output|project(?:Observe|Planner|Temporal)ModelMaterial|(?:observe|planner|temporal)ResponseSchema)\b/;
+  /\b(?:build(?:Observe|Planner|Temporal|StrategicAdvantageTransfer)SystemPrompt|parse(?:Observe|Planner|Temporal|StrategicAdvantageTransfer)Output|project(?:Observe|Planner|Temporal|StrategicAdvantageTransfer)ModelMaterial|(?:observe|planner|temporal|strategicAdvantageTransfer)ResponseSchema)\b/;
 const openAIBoundaryImportPattern =
   /(?:from\s*|require\s*\(\s*)["'`][^"'`]*model-gateway\/openai(?:\/[^"'`]*)?["'`]/;
 
@@ -618,6 +619,10 @@ function assertCallerGatewayBoundary(files: SourceFile[]) {
       "lib/vnext/automation/policy-triggered-planner-run.ts",
       "invokePlannerModelGatewayV01",
     ],
+    [
+      "lib/vnext/runtime/operator-pilot-strategic-advantage-transfer.ts",
+      "invokeStrategicAdvantageTransferModelGatewayV01",
+    ],
   ] as const) {
     const source = sourceFor(files, relativePath);
     assert(source.includes(invocation), `${relativePath}:${invocation}`);
@@ -632,6 +637,33 @@ function assertCallerGatewayBoundary(files: SourceFile[]) {
     projectHomeSource.includes("readDefaultModelGatewayLocalCapabilityV01"),
   );
   assert.equal(openAIBoundaryImportPattern.test(projectHomeSource), false);
+
+  const strategicRuntimeSource = sourceFor(
+    files,
+    "lib/vnext/runtime/operator-pilot-strategic-advantage-transfer.ts",
+  );
+  const proposalAdmissionSource = sourceFor(
+    files,
+    "lib/vnext/persistence/episode-delta-proposal-admission.ts",
+  );
+  assert(
+    strategicRuntimeSource.includes(
+      "function admitPreparedStrategicProposalV01(",
+    ),
+  );
+  assert.equal(
+    strategicRuntimeSource.includes(
+      "export function admitPreparedStrategicProposalV01(",
+    ),
+    false,
+  );
+  assert.equal(
+    proposalAdmissionSource.includes(
+      "StrategicEpisodeDeltaProposalAdmissionInputV01",
+    ),
+    false,
+    "no exported low-level strategic payload writer may bypass persisted source re-resolution",
+  );
 }
 
 function assertRunReceiptCompatibilityDisposition(files: SourceFile[]) {

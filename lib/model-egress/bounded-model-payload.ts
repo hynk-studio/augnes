@@ -2,6 +2,7 @@ export const MODEL_EGRESS_PURPOSES = [
   "observe_delta_compile",
   "planner_plan",
   "temporal_interpretation",
+  "strategic_advantage_transfer",
 ] as const;
 
 export type ModelEgressPurpose = (typeof MODEL_EGRESS_PURPOSES)[number];

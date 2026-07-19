@@ -18,6 +18,7 @@ import type {
   RunReceiptExecutionStatusV01,
 } from "./run-receipt";
 import type { TaskContextPacketDataClassificationV01 } from "./task-context-packet";
+import type { StrategicAdvantageTransferProfileV01 } from "./strategic-advantage-transfer";
 
 export const EPISODE_DELTA_PROPOSAL_VERSION_V01 =
   "episode_delta_proposal.v0.1" as const;
@@ -412,6 +413,7 @@ export interface EpisodeDeltaProposalV01 {
   run_receipt_refs: ExternalRefV01[];
   source_assessment?: EpisodeDeltaProposalSourceAssessmentV01;
   operation_revision?: EpisodeDeltaProposalOperationRevisionV01;
+  strategic_advantage_transfer?: StrategicAdvantageTransferProfileV01;
   observations: EpisodeDeltaProposalObservationV01[];
   attestations: EpisodeDeltaProposalAttestationV01[];
   inferences: EpisodeDeltaProposalInferenceV01[];

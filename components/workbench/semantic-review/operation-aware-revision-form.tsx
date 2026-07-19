@@ -8,6 +8,7 @@ import type {
   SemanticReviewRevisionRequestV01,
 } from "./semantic-review-types";
 import type { EpisodeDeltaProposalSourceAssessmentV01 } from "@/types/vnext/episode-delta-proposal";
+import type { StrategicAdvantageTransferProfileV01 } from "@/types/vnext/strategic-advantage-transfer";
 import styles from "./semantic-review.module.css";
 
 const DELTA_TYPES = [
@@ -27,6 +28,7 @@ export function OperationAwareRevisionForm({
   proposalId,
   proposalFingerprint,
   sourceAssessment,
+  strategicAdvantageTransfer,
   candidateRead,
   busy,
   onSubmit,
@@ -34,6 +36,9 @@ export function OperationAwareRevisionForm({
   proposalId: string;
   proposalFingerprint: string;
   sourceAssessment: EpisodeDeltaProposalSourceAssessmentV01 | undefined;
+  strategicAdvantageTransfer:
+    | StrategicAdvantageTransferProfileV01
+    | undefined;
   candidateRead: SemanticReviewCandidateReadV01;
   busy: boolean;
   onSubmit: (request: SemanticReviewRevisionRequestV01) => Promise<void>;
@@ -49,6 +54,14 @@ export function OperationAwareRevisionForm({
     candidateRead.candidate.target_refs.every(
       (ref) => ref.ref_type === "criterion_assessment_item",
     );
+  const strategicAgentPlanProfile =
+    strategicAdvantageTransfer !== undefined &&
+    candidateRead.candidate.operation === "unknown" &&
+    candidateRead.candidate.target_refs.length === 1 &&
+    candidateRead.candidate.target_refs[0]?.external_id ===
+      strategicAdvantageTransfer.base_strategy.target_ref.external_id &&
+    candidateRead.candidate.target_refs[0]?.ref_type ===
+      strategicAdvantageTransfer.base_strategy.target_ref.ref_type;
   const criterionLabels = criterionValidationProfile
     ? candidateRead.candidate.target_refs.map((target) => {
         const criterion = sourceAssessment.assessment.criteria.find(
@@ -87,7 +100,11 @@ export function OperationAwareRevisionForm({
       proposal_fingerprint: proposalFingerprint,
       candidate_id: candidateRead.candidate.candidate_id,
       candidate_fingerprint: candidateRead.candidate_fingerprint,
-      delta_type: criterionValidationProfile ? "validation_delta" : deltaType,
+      delta_type: criterionValidationProfile
+        ? "validation_delta"
+        : strategicAgentPlanProfile
+          ? "agent_plan_delta"
+          : deltaType,
       operation,
       title: title.trim(),
       proposed_state_summary: stateSummary.trim(),
@@ -126,12 +143,18 @@ export function OperationAwareRevisionForm({
       </label>
       <label>
         Delta lane
-        {criterionValidationProfile ? (
+        {criterionValidationProfile || strategicAgentPlanProfile ? (
           <span
             className={styles.copy}
-            data-vnext-server-selected-delta-lane="validation_delta"
+            data-vnext-server-selected-delta-lane={
+              criterionValidationProfile
+                ? "validation_delta"
+                : "agent_plan_delta"
+            }
           >
-            validation_delta (server-determined)
+            {criterionValidationProfile
+              ? "validation_delta"
+              : "agent_plan_delta"} (server-determined)
           </span>
         ) : (
           <select
@@ -152,6 +175,14 @@ export function OperationAwareRevisionForm({
           {criterionLabels.map((criterion) => (
             <p className={styles.copy} key={criterion.id}>{criterion.label}</p>
           ))}
+        </div>
+      ) : null}
+      {strategicAgentPlanProfile ? (
+        <div data-vnext-validation-state-target="accepted_agent_plan_state">
+          <strong>Accepted plan-state target</strong>
+          <p className={styles.copy}>
+            {strategicAdvantageTransfer.base_strategy.bounded_summary}
+          </p>
         </div>
       ) : null}
       <label>

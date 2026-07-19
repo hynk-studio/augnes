@@ -6,7 +6,9 @@ import {
   MODEL_INVOCATION_RECEIPT_VERSION_V02,
   type ModelInvocationReceiptV02,
 } from "@/lib/vnext/model-gateway/contracts";
+import { validateModelGatewayCostBudgetV01 } from "@/lib/vnext/model-gateway/cost-authority";
 import {
+  canonicalizeProtocolValueV01,
   parseStrictIsoTimestampV01,
   validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
@@ -77,6 +79,10 @@ const ROOT_KEYS = [
   "hidden_reasoning_persisted",
   "receipt_is_semantic_authority",
 ] as const;
+const ROOT_KEYS_WITH_OUTPUT_FINGERPRINT = [
+  ...ROOT_KEYS,
+  "normalized_output_fingerprint",
+] as const;
 
 export class ModelInvocationReceiptValidationErrorV02 extends Error {
   readonly code = "model_invocation_receipt_invalid";
@@ -91,7 +97,12 @@ export function validateModelInvocationReceiptV02(
   input: unknown,
 ): ModelInvocationReceiptV02 {
   try {
-    const receipt = exactRecord(input, ROOT_KEYS);
+    const receipt = exactRecord(
+      input,
+      isPlainRecord(input) && Object.hasOwn(input, "normalized_output_fingerprint")
+        ? ROOT_KEYS_WITH_OUTPUT_FINGERPRINT
+        : ROOT_KEYS,
+    );
     literal(receipt.receipt_version, MODEL_INVOCATION_RECEIPT_VERSION_V02);
     literal(receipt.gateway_version, MODEL_GATEWAY_VERSION_V01);
     safeIdentifier(receipt.invocation_id);
@@ -175,12 +186,43 @@ export function validateModelInvocationReceiptV02(
     literal(receipt.raw_response_persisted, false);
     literal(receipt.hidden_reasoning_persisted, false);
     literal(receipt.receipt_is_semantic_authority, false);
+    if (Object.hasOwn(receipt, "normalized_output_fingerprint")) {
+      if (
+        receipt.normalized_output_fingerprint !== null &&
+        (typeof receipt.normalized_output_fingerprint !== "string" ||
+          !/^sha256:[0-9a-f]{64}$/.test(
+            receipt.normalized_output_fingerprint,
+          ))
+      ) {
+        invalid();
+      }
+    }
+    if (
+      receipt.purpose === "strategic_advantage_transfer" &&
+      receipt.status === "completed" &&
+      (typeof receipt.normalized_output_fingerprint !== "string" ||
+        !/^sha256:[0-9a-f]{64}$/.test(
+          receipt.normalized_output_fingerprint,
+        ))
+    ) {
+      invalid();
+    }
     validateReceiptConsistency(receipt);
     return JSON.parse(JSON.stringify(receipt)) as ModelInvocationReceiptV02;
   } catch (error) {
     if (error instanceof ModelInvocationReceiptValidationErrorV02) throw error;
     invalid();
   }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (Object.getPrototypeOf(value) === Object.prototype ||
+      Object.getPrototypeOf(value) === null)
+  );
 }
 
 function validateUsage(value: unknown): void {
@@ -212,11 +254,14 @@ function validateCost(value: unknown): void {
   literal(cost.basis, "unavailable");
   literal(cost.amount, null);
   literal(cost.currency, null);
-  literal(cost.source, "no_pricing_authority");
+  member(cost.source, [
+    "no_pricing_authority",
+    "provider_cost_not_reported",
+  ]);
 }
 
 function validateBudget(value: unknown): void {
-  const budget = exactRecord(value, [
+  const keys = [
     "decision",
     "input_bytes_limit",
     "input_bytes_used",
@@ -226,7 +271,13 @@ function validateBudget(value: unknown): void {
     "provider_calls_used",
     "timeout_limit_ms",
     "timeout_disposition",
-  ]);
+  ];
+  const budget = exactRecord(
+    value,
+    isPlainRecord(value) && Object.hasOwn(value, "cost_budget")
+      ? [...keys, "cost_budget"]
+      : keys,
+  );
   member(budget.decision, ["within_budget", "not_used", "refused"]);
   positiveInteger(budget.input_bytes_limit);
   nullableNonnegativeInteger(budget.input_bytes_used);
@@ -248,6 +299,9 @@ function validateBudget(value: unknown): void {
       Number(budget.output_tokens_used) > Number(budget.output_tokens_limit))
   ) {
     invalid();
+  }
+  if (Object.hasOwn(budget, "cost_budget")) {
+    validateModelGatewayCostBudgetV01(budget.cost_budget);
   }
 }
 
@@ -324,6 +378,15 @@ function validateReceiptConsistency(receipt: Record<string, unknown>): void {
     }
   }
   const budget = receipt.budget as Record<string, unknown>;
+  const cost = receipt.cost as Record<string, unknown>;
+  if (
+    cost.source !==
+      (Object.hasOwn(budget, "cost_budget")
+        ? "provider_cost_not_reported"
+        : "no_pricing_authority")
+  ) {
+    invalid();
+  }
   const usage = receipt.usage as Record<string, unknown> | null;
   const providerCallsUsed = Number(budget.provider_calls_used);
   const providerRefsPresent = receipt.attempted_provider_ref !== null;
@@ -364,6 +427,23 @@ function validateReceiptConsistency(receipt: Record<string, unknown>): void {
     (budget.decision === "refused") !== (receipt.outcome === "refused")
   ) {
     invalid();
+  }
+
+  if (Object.hasOwn(budget, "cost_budget")) {
+    const costBudget = validateModelGatewayCostBudgetV01(budget.cost_budget);
+    if (
+      (receipt.attempted_provider_ref !== null &&
+        (canonicalize(receipt.attempted_provider_ref) !==
+          canonicalize(costBudget.authority.provider_ref) ||
+          canonicalize(receipt.attempted_model_ref) !==
+            canonicalize(costBudget.authority.model_ref))) ||
+      costBudget.maximum_input_units !== budget.input_bytes_limit ||
+      costBudget.maximum_output_units !== budget.output_tokens_limit ||
+      costBudget.maximum_invocation_count !== budget.provider_call_limit ||
+      costBudget.timeout_ms !== budget.timeout_limit_ms
+    ) {
+      invalid();
+    }
   }
 
   if (
@@ -560,6 +640,8 @@ function validateReceiptConsistency(receipt: Record<string, unknown>): void {
     invalid();
   }
 }
+
+const canonicalize = canonicalizeProtocolValueV01;
 
 function validateProvenance(value: unknown): void {
   if (!Array.isArray(value) || value.length < 1 || value.length > 16) invalid();
