@@ -6,13 +6,19 @@ import {
   selectBoundedAutomationWorkSourceV01,
 } from "@/lib/vnext/runtime/bounded-automation-cycle";
 import {
+  createBoundedAutomationCapabilityGrantFingerprintV01,
   deriveBoundedAutomationCycleIdV01,
   validateBoundedAutomationCapabilityGrantV01,
 } from "@/lib/vnext/bounded-automation-cycle";
-import { createProtocolSha256V01 } from "@/lib/vnext/protocol-primitives";
+import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
+import { createVNextAutomationWorkSourceV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { TaskContextPacketBuilderInputV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type { VNextAutomationWorkSnapshotV01 } from "@/types/vnext/automation-work-item";
 
 const ISSUED_AT = "2026-07-19T00:00:00.000Z";
 const EXPIRES_AT = "2026-07-19T00:15:00.000Z";
@@ -20,16 +26,20 @@ const EXPIRES_AT = "2026-07-19T00:15:00.000Z";
 export function runBoundedAutomationCycleConformanceV01() {
   const packet = packetV01("Bounded policy work");
   const secondPacket = packetV01("Second bounded policy work");
+  const work = workV01(packet);
+  const secondWork = workV01(secondPacket);
+  const workSnapshot = workSnapshotV01(work);
+  const secondWorkSnapshot = workSnapshotV01(secondWork);
   assert.deepEqual(selectBoundedAutomationWorkSourceV01([]), { status: "none" });
-  assert.equal(selectBoundedAutomationWorkSourceV01([packet]).status, "selected");
+  assert.equal(selectBoundedAutomationWorkSourceV01([workSnapshot]).status, "selected");
   assert.deepEqual(
-    selectBoundedAutomationWorkSourceV01([packet, secondPacket]),
-    selectBoundedAutomationWorkSourceV01([secondPacket, packet]),
+    selectBoundedAutomationWorkSourceV01([workSnapshot, secondWorkSnapshot]),
+    selectBoundedAutomationWorkSourceV01([secondWorkSnapshot, workSnapshot]),
     "work ambiguity must not depend on query or array order",
   );
   assert.deepEqual(
-    selectBoundedAutomationWorkSourceV01([packet, structuredClone(packet)]),
-    { status: "selected", packet },
+    selectBoundedAutomationWorkSourceV01([workSnapshot, structuredClone(workSnapshot)]),
+    { status: "selected", work: workSnapshot },
     "exact duplicate work material must converge before selection",
   );
 
@@ -45,9 +55,11 @@ export function runBoundedAutomationCycleConformanceV01() {
     max_attempts: 1 as const,
     max_runtime_ms: 900_000,
     max_commands: 128,
-    max_model_invocations: 0 as const,
-    max_model_tokens: 0 as const,
-    max_model_cost_units: 0 as const,
+    max_augnes_model_invocations: 0 as const,
+    max_augnes_model_tokens: 0 as const,
+    max_augnes_model_cost_units: 0 as const,
+    native_host_model_scope: "none" as const,
+    host_egress: "local_in_process_only" as const,
     network_access: "denied" as const,
     automatic_retry: false as const,
   };
@@ -56,7 +68,8 @@ export function runBoundedAutomationCycleConformanceV01() {
       workspace_id: packet.workspace_id,
       project_id: packet.project_id,
     },
-    packet,
+    work,
+    source_packet: packet,
     policy_ref: policyRef,
     policy_fingerprint: policyRef.source_ref!,
     control_revision: 1,
@@ -64,6 +77,8 @@ export function runBoundedAutomationCycleConformanceV01() {
       adapter_version: "deterministic_codex_adapter.v0.1",
       capability_version: "deterministic_codex_capability.v0.1",
       timeout_ms: 900_000,
+      execution_profile: "deterministic_zero_model" as const,
+      provider_egress: "forbidden" as const,
     },
     root_fingerprint: createProtocolSha256V01("root"),
     issued_at: ISSUED_AT,
@@ -78,6 +93,31 @@ export function runBoundedAutomationCycleConformanceV01() {
       can_merge: true as false,
     }),
     false,
+  );
+  const {
+    grant_id: _grantId,
+    grant_fingerprint: _grantFingerprint,
+    ...unsafeMaterial
+  } = grant;
+  const recomputedUnsafeMaterial = {
+    ...unsafeMaterial,
+    allowed_capabilities: [...unsafeMaterial.allowed_capabilities, "merge"].sort(),
+    forbidden_capabilities: unsafeMaterial.forbidden_capabilities.filter(
+      (capability) => capability !== "merge",
+    ),
+  };
+  const recomputedUnsafeFingerprint =
+    createBoundedAutomationCapabilityGrantFingerprintV01(
+      recomputedUnsafeMaterial,
+    );
+  assert.equal(
+    validateBoundedAutomationCapabilityGrantV01({
+      ...recomputedUnsafeMaterial,
+      grant_id: `bounded-grant:${recomputedUnsafeFingerprint.slice(0, 24)}`,
+      grant_fingerprint: recomputedUnsafeFingerprint,
+    }),
+    false,
+    "a recomputed fingerprint cannot broaden the server-owned profile",
   );
   assert.equal(
     validateBoundedAutomationCapabilityGrantV01({
@@ -100,8 +140,24 @@ export function runBoundedAutomationCycleConformanceV01() {
   assert.equal(grant.budget.max_work_items, 1);
   assert.equal(grant.budget.max_active_runs, 1);
   assert.equal(grant.budget.max_attempts, 1);
-  assert.equal(grant.budget.max_model_invocations, 0);
+  assert.equal(grant.budget.max_augnes_model_invocations, 0);
   assert.equal(grant.budget.network_access, "denied");
+  assert.equal(grant.host_execution_profile, "deterministic_zero_model");
+  assert.equal(grant.host_provider_egress, "forbidden");
+  assert.deepEqual(
+    grant.source_grant_ref,
+    packet.capability_grant?.grant_external_ref,
+  );
+  assert.equal(
+    grant.source_grant_fingerprint,
+    packet.capability_grant?.grant_external_ref?.source_ref,
+  );
+  assert.equal(
+    grant.allowed_capabilities.some((capability) =>
+      grant.forbidden_capabilities.includes(capability),
+    ),
+    false,
+  );
   assert.equal(grant.grants_semantic_authority, false);
   assert.equal(grant.grants_external_action_authority, false);
   for (const forbidden of [
@@ -137,7 +193,7 @@ export function runBoundedAutomationCycleConformanceV01() {
     max_work_items: grant.budget.max_work_items,
     max_active_runs: grant.budget.max_active_runs,
     max_attempts: grant.budget.max_attempts,
-    model_calls: grant.budget.max_model_invocations,
+    model_calls: grant.budget.max_augnes_model_invocations,
     network: grant.budget.network_access,
   };
 }
@@ -161,7 +217,9 @@ function packetV01(goal: string) {
     capability_grant: {
       grant_ref: grantRef.external_id,
       grant_external_ref: grantRef,
-      allowed_capabilities: ["native_host.execute_project_task"],
+      allowed_capabilities: [
+        "project_scoped_structured_task_round_trip.v0.1",
+      ],
       forbidden_capabilities: ["network_access", "model_invocation"],
       resource_scope: [input.project_id],
       stop_conditions: ["review_needed", "timeout"],
@@ -169,6 +227,82 @@ function packetV01(goal: string) {
       expires_at: EXPIRES_AT,
     },
   });
+}
+
+function workV01(packet: ReturnType<typeof packetV01>) {
+  const sourceGrant = packet.capability_grant!;
+  return createVNextAutomationWorkSourceV01({
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    work_class: "bounded_project_task",
+    title: packet.task.goal,
+    task: packet.task,
+    source_packet: {
+      packet_id: packet.packet_id,
+      packet_fingerprint: packet.integrity.fingerprint,
+    },
+    source_capability_grant: sourceGrant,
+    source_capability_grant_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(sourceGrant),
+    ),
+    source_grant_record_status: "packet_bound_summary",
+    required_context_refs: [],
+    proposed_files: [],
+    required_checks: packet.constraints.required_checks,
+    expected_outputs: packet.return_contract.expected_artifacts,
+    blocked_actions: [
+      ...packet.constraints.forbidden_actions,
+      "authority_expansion",
+      "credential_access",
+      "deploy",
+      "external_post",
+      "merge",
+      "model_invocation",
+      "native_host_approval:command_execution",
+      "native_host_approval:file_change",
+      "native_host_approval:filesystem_permission",
+      "native_host_approval:network_permission",
+      "network_access",
+      "publish",
+      "semantic_commit",
+      "strategic_analysis",
+    ],
+    stop_conditions: ["budget_exhausted", "cancellation_requested", "review_needed", "timeout"],
+    budget_projection: {
+      max_work_items: 1,
+      max_active_runs: 1,
+      max_attempts: 1,
+      max_commands: 128,
+      max_runtime_ms: 900_000,
+      augnes_model_invocations: 0,
+      augnes_model_tokens: 0,
+      augnes_model_cost_units: 0,
+      native_host_model_scope: "none",
+      network_access: "denied",
+    },
+    created_at: ISSUED_AT,
+  });
+}
+
+function workSnapshotV01(
+  source: ReturnType<typeof workV01>,
+): VNextAutomationWorkSnapshotV01 {
+  return {
+    snapshot_version: "vnext_automation_work_snapshot.v0.1",
+    source,
+    status: "queued",
+    revision: 1,
+    prior_snapshot_ref: null,
+    cycle_binding: null,
+    status_reason: "explicit_operator_queue",
+    observed_at: ISSUED_AT,
+    snapshot_id: `fixture:${source.work_id}`,
+    integrity: {
+      algorithm: "sha256",
+      fingerprint_scope: "automation_work_snapshot_without_integrity_fingerprint",
+      fingerprint: createProtocolSha256V01(source.work_id),
+    },
+  };
 }
 
 function refV01(

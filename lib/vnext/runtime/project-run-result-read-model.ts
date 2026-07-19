@@ -271,8 +271,13 @@ function projectAutomationLineageV01(
       canonicalizeProtocolValueV01(policyRef) ||
     canonicalizeProtocolValueV01(automationContext.capability_grant_ref) !==
       canonicalizeProtocolValueV01(grantRef) ||
-    grant.packet_id !== binding.packet.packet_id ||
-    grant.packet_fingerprint !== binding.packet.integrity.fingerprint ||
+    binding.packet.capability_grant?.grant_external_ref?.external_id !==
+      grant.grant_id ||
+    binding.packet.capability_grant.grant_external_ref.source_ref !==
+      grant.grant_fingerprint ||
+    (typeof binding.packet.work_ref !== "object" ||
+      binding.packet.work_ref?.external_id !== grant.work_source_ref.external_id ||
+      binding.packet.work_ref.source_ref !== grant.work_source_fingerprint) ||
     grant.workspace_id !== binding.packet.workspace_id ||
     grant.project_id !== binding.packet.project_id
   ) {

@@ -38,6 +38,8 @@ export function createDeterministicCodexAdapterV01(
   return {
     adapter_version: DETERMINISTIC_CODEX_ADAPTER_VERSION_V01,
     capability_version: DETERMINISTIC_CODEX_CAPABILITY_VERSION_V01,
+    execution_profile: "deterministic_zero_model",
+    provider_egress: "forbidden",
     invoke(
       request: NativeHostRequestV01,
       control: NativeHostInvocationControlV01,

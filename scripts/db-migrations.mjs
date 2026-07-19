@@ -4687,6 +4687,8 @@ export function migrateVNextProjectControlsV01(db) {
 export const vNextDurableSemanticStoreSchemaSqlV01 = `
   CREATE TABLE IF NOT EXISTS vnext_core_records (
     record_kind TEXT NOT NULL CHECK (record_kind IN (
+      'automation_work_item',
+      'capability_grant',
       'episode_delta_proposal',
       'review_decision',
       'semantic_commit_gate',
@@ -4814,7 +4816,7 @@ const vNextDurableSemanticStoreArtifactsV01 = {
 };
 
 const vNextCoreRecordsUpgradeTableV01 =
-  "vnext_core_records_upgrade_v0_1";
+  "vnext_core_records_upgrade_v0_2";
 
 function upgradeVNextCoreRecordKindConstraintV01(db) {
   const table = db
@@ -4822,7 +4824,12 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
     )
     .get();
-  if (!table || table.sql?.includes("'context_use_review'")) {
+  if (
+    !table ||
+    (table.sql?.includes("'context_use_review'") &&
+      table.sql.includes("'automation_work_item'") &&
+      table.sql.includes("'capability_grant'"))
+  ) {
     return false;
   }
   if (db.inTransaction) {
@@ -4845,6 +4852,8 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
     db.exec(`
       CREATE TABLE ${vNextCoreRecordsUpgradeTableV01} (
         record_kind TEXT NOT NULL CHECK (record_kind IN (
+          'automation_work_item',
+          'capability_grant',
           'episode_delta_proposal',
           'review_decision',
           'semantic_commit_gate',

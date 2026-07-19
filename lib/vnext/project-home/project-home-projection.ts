@@ -26,7 +26,10 @@ import {
 import {
   isPersonalPerspectiveSelectedEntryV01,
 } from "@/lib/vnext/project-controls/project-controls";
-import { readBoundedAutomationCycleProjectionV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
+import {
+  readBoundedAutomationCycleProjectionV01,
+  type BoundedAutomationHostContractV01,
+} from "@/lib/vnext/runtime/bounded-automation-cycle";
 import {
   CODEX_APP_SERVER_ADAPTER_VERSION_V01,
   CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
@@ -154,9 +157,11 @@ function boundedAutomationUnavailableV01(
       max_attempts: 1,
       max_runtime_ms: DEFAULT_LIVE_TIMEOUT_MS,
       max_commands: 128,
-      max_model_invocations: 0,
-      max_model_tokens: 0,
-      max_model_cost_units: 0,
+      max_augnes_model_invocations: 0,
+      max_augnes_model_tokens: 0,
+      max_augnes_model_cost_units: 0,
+      native_host_model_scope: "none",
+      host_egress: "local_in_process_only",
       network_access: "denied",
       automatic_retry: false,
     },
@@ -185,6 +190,7 @@ export interface ProjectHomeProjectionDependenciesV01 {
   read_root_availability?: (root: string) => Promise<ProjectRootAvailabilityV01>;
   read_capability_statuses?: ProjectHomeCapabilityStatusReaderV01;
   operator_config?: VNextLocalOperatorPilotConfigV01 | null;
+  automation_host_contract?: BoundedAutomationHostContractV01;
 }
 
 export class ProjectHomeProjectionErrorV01 extends Error {
@@ -279,10 +285,12 @@ export async function readProjectHomeProjectionV01(
       ? readBoundedAutomationCycleProjectionV01(db, {
           config: dependencies.operator_config,
           observed_at: evaluation.timestamp,
-          host: {
+          host: dependencies.automation_host_contract ?? {
             adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
             capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
             timeout_ms: DEFAULT_LIVE_TIMEOUT_MS,
+            execution_profile: "native_host_managed_model",
+            provider_egress: "native_host_managed",
           },
         })
       : boundedAutomationUnavailableV01(input, effectiveAutomation);

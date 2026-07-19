@@ -20,6 +20,7 @@ import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtim
 import type { BoundedAutomationCycleServiceV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
 import { LiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import { createDeterministicCodexAdapterV01 } from "@/lib/vnext/native-host/deterministic-codex-adapter";
+import { BoundedAutomationAuthorityErrorV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,7 +81,9 @@ export function createVNextOperatorAutomationCycleHandlerV01(
         secret_source: options.secret_source,
       };
       const result =
-        action === "run_one_bounded_cycle"
+        action === "queue_current_task_for_automation"
+          ? service.queueCurrentTask(common)
+          : action === "run_one_bounded_cycle"
           ? await service.runOne({
               ...common,
               expected_control_revision: revisionV01(
@@ -108,7 +111,7 @@ export function createVNextOperatorAutomationCycleHandlerV01(
           semantic_state_changed: false,
           model_invocation_created: false,
         },
-        result.status === "accepted" ? 202 : 200,
+        result.status === "accepted" || result.status === "inserted" ? 202 : 200,
         cookieFromAdmissionV01(result.session_admission, url),
       );
     } catch (error) {
@@ -253,6 +256,7 @@ function cookieFromAdmissionV01(
 function errorResponseV01(error: unknown): NextResponse {
   const recognized =
     error instanceof BoundedAutomationCycleErrorV01 ||
+    error instanceof BoundedAutomationAuthorityErrorV01 ||
     error instanceof VNextLocalOperatorSessionErrorV01;
   return jsonResponse(
     {

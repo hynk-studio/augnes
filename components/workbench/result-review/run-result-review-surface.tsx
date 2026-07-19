@@ -89,7 +89,8 @@ export function RunResultReviewSurface({
             <dl className={styles.statusGrid}>
               <Metric label="Attempt" value={String(result.automation.attempt)} />
               <Metric label="Stop reason" value={result.automation.stop_reason ?? "unknown"} />
-              <Metric label="Model calls" value={String(result.automation.budget.max_model_invocations)} />
+              <Metric label="Augnes model calls" value={String(result.automation.budget.max_augnes_model_invocations)} />
+              <Metric label="Native-host model scope" value={result.automation.budget.native_host_model_scope} />
               <Metric label="Network" value={result.automation.budget.network_access} />
             </dl>
           </section>

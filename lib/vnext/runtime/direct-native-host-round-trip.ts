@@ -57,6 +57,13 @@ import {
   validateBoundedAutomationCapabilityGrantV01,
 } from "@/lib/vnext/bounded-automation-cycle";
 import { readProjectAutomationControlV01 } from "@/lib/vnext/persistence/project-control-store";
+import {
+  createAutomationWorkRefV01,
+  createBoundedAutomationGrantRefV01,
+  readBoundedAutomationCapabilityGrantV01,
+  readCurrentVNextAutomationWorkSnapshotV01,
+  transitionVNextAutomationWorkV01,
+} from "@/lib/vnext/persistence/bounded-automation-authority";
 import { validateProjectAutomationPolicyV01 } from "@/lib/vnext/project-controls/project-controls";
 import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
@@ -418,6 +425,8 @@ export async function runDirectNativeHostRoundTripV01(
     if (
       grant.host_adapter_version !== adapter.adapter_version ||
       grant.host_capability_version !== adapter.capability_version ||
+      grant.host_execution_profile !== adapter.execution_profile ||
+      grant.host_provider_egress !== adapter.provider_egress ||
       timeoutMs > grant.budget.max_runtime_ms ||
       MAX_COMMANDS > grant.budget.max_commands
     ) {
@@ -491,6 +500,7 @@ export async function runDirectNativeHostRoundTripV01(
       admission: admitted,
       evaluated_at: startedAt,
       automation_context: input.automation_context ?? null,
+      run_id: identity.run_id,
     });
     const existingReceipt = readReceiptForRun(db, {
       workspace_id: input.config.workspace_id,
@@ -564,6 +574,7 @@ export async function runDirectNativeHostRoundTripV01(
     timeout_ms: timeoutMs,
     stop_settle_timeout_ms: stopSettleTimeoutMs,
     live_host: managedLive,
+    adapter,
   });
   dependencies.on_invocation_admitted?.({
     request,
@@ -813,6 +824,7 @@ function revalidateAdmissionInsideTransaction(
     admission: PersistedHostPacketAdmissionV01;
     evaluated_at: string;
     automation_context: NativeHostAutomationContextV01 | null;
+    run_id: string;
   },
 ): void {
   const registration = readCanonicalProjectWithRootV01(db, input.config);
@@ -872,6 +884,7 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     admission: PersistedHostPacketAdmissionV01;
     evaluated_at: string;
     automation_context: NativeHostAutomationContextV01;
+    run_id: string;
   },
 ): void {
   const cycle = input.automation_context.bounded_cycle;
@@ -888,6 +901,19 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     grant,
     packet: input.admission.packet,
   });
+  const persistedGrant = readBoundedAutomationCapabilityGrantV01(db, {
+    workspace_id: input.config.workspace_id,
+    project_id: input.config.project_id,
+    grant_id: grant.grant_id,
+    grant_fingerprint: grant.grant_fingerprint,
+  });
+  const work = readCurrentVNextAutomationWorkSnapshotV01(db, {
+    workspace_id: input.config.workspace_id,
+    project_id: input.config.project_id,
+    work_id: grant.work_source_ref.external_id,
+  });
+  const expectedGrantRef = createBoundedAutomationGrantRefV01(grant);
+  const expectedWorkRef = work ? createAutomationWorkRefV01(work.source) : null;
   if (
     !control ||
     !control.enabled ||
@@ -904,21 +930,29 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     cycle.trigger_ref.trust_class !== "direct_local_observation" ||
     !packetGrant?.grant_external_ref ||
     canonicalizeProtocolValueV01(packetGrant.grant_external_ref) !==
-      canonicalizeProtocolValueV01(
-        input.automation_context.capability_grant_ref,
-      ) ||
+      canonicalizeProtocolValueV01(expectedGrantRef) ||
+    canonicalizeProtocolValueV01(input.automation_context.capability_grant_ref) !==
+      canonicalizeProtocolValueV01(expectedGrantRef) ||
+    canonicalizeProtocolValueV01(input.admission.work_ref) !==
+      canonicalizeProtocolValueV01(expectedWorkRef) ||
+    canonicalizeProtocolValueV01(persistedGrant) !==
+      canonicalizeProtocolValueV01(grant) ||
+    !work ||
+    !["claimed", "running", "review_needed"].includes(work.status) ||
     grant.workspace_id !== input.config.workspace_id ||
     grant.project_id !== input.config.project_id ||
     grant.control_revision !== control.revision ||
     grant.policy_ref.source_ref !== grant.policy_fingerprint ||
     grant.policy_ref.external_id !==
       `${input.config.project_id}:${control.revision}` ||
-    grant.issued_at !== control.updated_at ||
-    grant.packet_id !== input.admission.packet.packet_id ||
-    grant.packet_fingerprint !== input.admission.packet.integrity.fingerprint ||
-    grant.work_source_ref.external_id !== input.admission.packet.packet_id ||
-    grant.work_source_ref.source_ref !==
-      input.admission.packet.integrity.fingerprint ||
+    grant.work_source_ref.external_id !== work.source.work_id ||
+    grant.work_source_fingerprint !== work.source.work_fingerprint ||
+    grant.work_source_ref.source_ref !== work.source.work_fingerprint ||
+    work.cycle_binding?.cycle_id !== cycle.cycle_id ||
+    work.cycle_binding.final_grant_ref.external_id !== grant.grant_id ||
+    work.cycle_binding.final_grant_ref.source_ref !== grant.grant_fingerprint ||
+    work.cycle_binding.packet_ref.external_id !== input.admission.packet.packet_id ||
+    work.cycle_binding.packet_ref.source_ref !== input.admission.packet.integrity.fingerprint ||
     grant.expires_at !== packetGrant.expires_at ||
     grant.root_fingerprint !== input.admission.root_scope.root_fingerprint ||
     !validateBoundedAutomationCapabilityGrantV01(grant) ||
@@ -928,9 +962,12 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     grant.budget.max_work_items !== 1 ||
     grant.budget.max_active_runs !== 1 ||
     grant.budget.max_attempts !== 1 ||
-    grant.budget.max_model_invocations !== 0 ||
-    grant.budget.max_model_tokens !== 0 ||
-    grant.budget.max_model_cost_units !== 0 ||
+    grant.budget.max_augnes_model_invocations !== 0 ||
+    grant.budget.max_augnes_model_tokens !== 0 ||
+    grant.budget.max_augnes_model_cost_units !== 0 ||
+    grant.budget.native_host_model_scope !== "none" ||
+    grant.host_execution_profile !== "deterministic_zero_model" ||
+    grant.host_provider_egress !== "forbidden" ||
     grant.budget.network_access !== "denied" ||
     grant.grants_semantic_authority !== false ||
     grant.grants_external_action_authority !== false ||
@@ -941,6 +978,24 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     grant.can_expand_authority !== false
   ) {
     refuse("direct_host_bounded_automation_binding_conflict", 409);
+  }
+  if (work.status === "claimed") {
+    transitionVNextAutomationWorkV01(db, {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      work_id: work.source.work_id,
+      expected_work_fingerprint: work.source.work_fingerprint,
+      expected_status: "claimed",
+      status: "running",
+      cycle_binding: { ...work.cycle_binding, run_id: input.run_id },
+      status_reason: "native_host_run_admitted",
+      observed_at: input.evaluated_at,
+    });
+  } else if (
+    work.status === "running" &&
+    work.cycle_binding.run_id !== input.run_id
+  ) {
+    refuse("direct_host_bounded_automation_run_binding_conflict", 409);
   }
 }
 
@@ -1056,6 +1111,7 @@ function buildNativeHostRequest(input: {
   timeout_ms: number;
   stop_settle_timeout_ms: number;
   live_host: boolean;
+  adapter: NativeHostAdapterV01;
 }): NativeHostRequestV01 {
   const packet = input.admission.packet;
   return {
@@ -1083,7 +1139,7 @@ function buildNativeHostRequest(input: {
     allowed_operation_categories: [
       "read_validated_task_context",
       "return_bounded_structured_result",
-      ...(input.live_host
+      ...(input.adapter.execution_profile === "native_host_managed_model"
         ? [
             "project_scoped_command_with_approval",
             "project_scoped_file_change_with_approval",
@@ -1092,24 +1148,31 @@ function buildNativeHostRequest(input: {
     ],
     forbidden_operation_categories: [
       "filesystem_outside_selected_project_root",
-      ...(input.live_host ? [] : ["network_egress", "provider_or_model_call"]),
+      ...(input.adapter.provider_egress === "native_host_managed"
+        ? []
+        : ["network_egress", "provider_or_model_call"]),
       "external_state_mutation",
       "semantic_commit",
       "raw_output_return",
       ...packet.constraints.forbidden_actions,
     ],
     packet_capability_grant: packet.capability_grant,
+    execution_grant_ref:
+      input.automation_context?.capability_grant_ref ?? null,
     automation_context: input.automation_context,
     policy: {
       filesystem: "selected_project_root_only",
-      network: input.live_host ? "exact_grant_only" : "forbidden",
-      commands: input.live_host
+      network:
+        input.adapter.provider_egress === "native_host_managed"
+          ? "exact_grant_only"
+          : "forbidden",
+      commands: input.adapter.execution_profile === "native_host_managed_model"
         ? "approval_required"
         : "forbidden_in_deterministic_adapter",
-      model: input.live_host
+      model: input.adapter.execution_profile === "native_host_managed_model"
         ? "native_host_managed"
         : "forbidden_in_deterministic_adapter",
-      host_egress: input.live_host
+      host_egress: input.adapter.provider_egress === "native_host_managed"
         ? input.mode === "interactive"
           ? "explicit_interactive_start"
           : "bounded_capability_grant"
@@ -2822,14 +2885,9 @@ function validAutomationContext(
         "bounded_automation_capability_grant.v0.1" &&
       cycle.grant.profile === cycle.profile &&
       validateBoundedAutomationCapabilityGrantV01(cycle.grant) &&
-      cycle.cycle_id ===
-        deriveBoundedAutomationCycleIdV01({
-          grant: cycle.grant,
-          packet: {
-            packet_id: cycle.grant.packet_id,
-            integrity: { fingerprint: cycle.grant.packet_fingerprint },
-          },
-        }),
+      value.capability_grant_ref.external_id === cycle.grant.grant_id &&
+      value.capability_grant_ref.source_ref === cycle.grant.grant_fingerprint &&
+      cycle.cycle_id.startsWith("bounded-cycle:"),
   );
 }
 

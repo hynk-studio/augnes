@@ -7,6 +7,7 @@ import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
 import type { ProjectControlActionV01 } from "@/types/vnext/project-controls";
 
 type AutomationCycleActionV01 =
+  | "queue_current_task_for_automation"
   | "run_one_bounded_cycle"
   | "cancel_bounded_cycle"
   | "retry_bounded_cycle";
@@ -98,7 +99,9 @@ export function ProjectControls({
           ? "Cancellation requested. Terminal status appears only after the owned host settles."
           : action === "retry_bounded_cycle"
             ? "Proposal settlement retry admitted without rerunning the host."
-            : "One bounded policy-triggered cycle started.",
+            : action === "queue_current_task_for_automation"
+              ? "The exact current task was queued as explicit bounded automation work."
+              : "One bounded policy-triggered cycle started.",
       );
       router.refresh();
     } catch {
@@ -201,6 +204,9 @@ function automationCycleActions(
   if (projection.automation.cycle.next_action === "run_one_bounded_cycle") {
     return ["run_one_bounded_cycle"];
   }
+  if (projection.automation.cycle.next_action === "queue_current_task") {
+    return ["queue_current_task_for_automation"];
+  }
   if (projection.automation.cycle.next_action === "cancel") {
     return ["cancel_bounded_cycle"];
   }
@@ -224,6 +230,7 @@ function actionLabel(
     include_personal_perspective: "Include Personal Perspective",
     exclude_personal_perspective: "Exclude Personal Perspective",
     run_one_bounded_cycle: "Run one bounded cycle",
+    queue_current_task_for_automation: "Queue current task",
     cancel_bounded_cycle: "Request cancellation",
     retry_bounded_cycle: "Retry proposal settlement",
   }[action];

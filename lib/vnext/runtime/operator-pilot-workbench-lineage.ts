@@ -31,7 +31,10 @@ import {
   VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import { validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
-import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
+import {
+  VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
+  VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+} from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -273,6 +276,9 @@ function loadValidatedCompiledPackets(
     if (
       !packet.compatibility.source_contracts.includes(
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+      ) ||
+      packet.compatibility.source_contracts.includes(
+        VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
       )
     ) {
       continue;

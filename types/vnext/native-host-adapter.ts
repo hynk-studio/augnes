@@ -44,6 +44,10 @@ export type NativeHostApprovalDecisionKindV01 =
   | "approve_once"
   | "decline"
   | "cancel_run";
+export type NativeHostExecutionProfileV01 =
+  | "deterministic_zero_model"
+  | "native_host_managed_model";
+export type NativeHostProviderEgressV01 = "forbidden" | "native_host_managed";
 
 export interface NativeHostRootScopeV01 {
   canonical_root: string;
@@ -92,6 +96,7 @@ export interface NativeHostRequestV01 {
   allowed_operation_categories: string[];
   forbidden_operation_categories: string[];
   packet_capability_grant: TaskContextPacketV01["capability_grant"];
+  execution_grant_ref: ExternalRefV01 | null;
   automation_context: NativeHostAutomationContextV01 | null;
   policy: {
     filesystem: "selected_project_root_only";
@@ -296,6 +301,8 @@ export interface NativeHostInvocationV01 {
 export interface NativeHostAdapterV01 {
   readonly adapter_version: string;
   readonly capability_version: string;
+  readonly execution_profile: NativeHostExecutionProfileV01;
+  readonly provider_egress: NativeHostProviderEgressV01;
   invoke(
     request: NativeHostRequestV01,
     control: NativeHostInvocationControlV01,

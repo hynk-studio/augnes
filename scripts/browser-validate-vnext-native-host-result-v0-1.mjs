@@ -2504,7 +2504,36 @@ async function main() {
       true,
     );
     await waitForCondition(
-      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Run one bounded cycle') && document.body.textContent.includes('model/network budget zero')`,
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Queue current task') && document.body.textContent.includes('deterministic zero-model host') && document.body.textContent.includes('network denied')`,
+      "explicit automation work-source action",
+    );
+    const queueResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const controls = document.querySelector('[data-project-control-kind="automation"]');
+        const button = controls
+          ? Array.from(controls.querySelectorAll('button')).find(
+              (candidate) => candidate.textContent?.trim() === 'Queue current task'
+            )
+          : null;
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(queueResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/automation-cycle" &&
+            entry.type === "Fetch" &&
+            entry.method === "POST" &&
+            entry.status === 202,
+        ),
+      "explicit automation work-source admission",
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Run one bounded cycle')`,
       "eligible bounded automation cycle",
     );
     const boundedCycleControlShape = await evaluateJson(`(() => {
@@ -2597,6 +2626,7 @@ async function main() {
     );
     assert.deepEqual(afterBoundedCycle.semantic_authority_counts, {
       ...beforeBoundedCycle.semantic_authority_counts,
+      packets: beforeBoundedCycle.semantic_authority_counts.packets + 1,
       proposals: beforeBoundedCycle.semantic_authority_counts.proposals + 1,
     });
     assert.equal(
@@ -2618,15 +2648,31 @@ async function main() {
     assert.deepEqual(databaseSnapshot(database), beforeBoundedReload);
     result.bounded_automation_reload_idempotent = true;
 
-    assert.equal(
-      await evaluateBoolean(`(() => {
+    const contextUseFeedbackHref = await evaluateString(`(() => {
         const link = Array.from(document.querySelectorAll('a')).find(
           (candidate) => candidate.textContent?.trim() === 'Provide context-use feedback'
         );
-        link?.click();
-        return Boolean(link);
-      })()`),
-      true,
+        return link?.getAttribute('href') ?? '';
+      })()`);
+    assert.match(
+      contextUseFeedbackHref,
+      /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/,
+    );
+    await navigate(new URL(contextUseFeedbackHref, appOrigin).toString());
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null || document.querySelector('[data-vnext-semantic-review] [role="alert"]') !== null`,
+      "policy-triggered later-run feedback proposal detail",
+    );
+    const contextUseFeedbackState = await evaluateJson(`(() => ({
+      path: location.pathname,
+      review_state: document.querySelector('[data-vnext-semantic-review]')?.getAttribute('data-vnext-semantic-review-state') ?? null,
+      feedback_state: document.querySelector('[data-vnext-context-use-feedback]')?.getAttribute('data-vnext-context-use-feedback') ?? null,
+      alert: document.querySelector('[data-vnext-semantic-review] [role="alert"]')?.textContent?.trim() ?? null,
+    }))()`);
+    assert.equal(
+      contextUseFeedbackState.feedback_state,
+      "available",
+      `policy-triggered feedback proposal did not expose current feedback: ${JSON.stringify(contextUseFeedbackState)}`,
     );
     await waitForCondition(
       `document.querySelector('[data-vnext-context-use-feedback="available"] [data-vnext-context-use-review-form="v0.1"]') !== null`,

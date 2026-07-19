@@ -60,10 +60,8 @@ import {
   type NativeHostRunModeV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
-import {
-  deriveBoundedAutomationCycleIdV01,
-  validateBoundedAutomationCapabilityGrantV01,
-} from "@/lib/vnext/bounded-automation-cycle";
+import { validateBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/bounded-automation-cycle";
+import { readBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 
 export const LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01 =
   "live_native_host_run_service.v0.1" as const;
@@ -176,12 +174,16 @@ export class LiveNativeHostRunServiceV01 {
     adapter_version: string;
     capability_version: string;
     timeout_ms: number;
+    execution_profile: NativeHostAdapterV01["execution_profile"];
+    provider_egress: NativeHostAdapterV01["provider_egress"];
   } {
     const adapter = this.currentAdapterContract();
     return {
       adapter_version: adapter.adapter_version,
       capability_version: adapter.capability_version,
       timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+      execution_profile: adapter.execution_profile,
+      provider_egress: adapter.provider_egress,
     };
   }
 
@@ -942,6 +944,8 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
     this.adapter = {
       adapter_version: input.delegate.adapter_version,
       capability_version: input.delegate.capability_version,
+      execution_profile: input.delegate.execution_profile,
+      provider_egress: input.delegate.provider_egress,
       invoke: (request, control) => {
         if (!this.request) this.request = request;
         else if (canonicalizeProtocolValueV01(this.request) !== canonicalizeProtocolValueV01(request)) {
@@ -1432,7 +1436,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           refuseV01("live_host_approval_conflict", 409);
         }
         pending = existing;
-        automatic = exactPolicyGrantCoversV01(request, approval);
+        automatic = exactPolicyGrantCoversV01(db, request, approval);
         db.exec("COMMIT");
       } else {
         const revision = numberMetadataV01(run.metadata.control_revision) + 1;
@@ -1441,7 +1445,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           control_revision: revision,
           decision_submitted: false,
         };
-        automatic = exactPolicyGrantCoversV01(request, approval);
+        automatic = exactPolicyGrantCoversV01(db, request, approval);
         updateAutonomyRunLedgerFields(
           run.run_id,
           {
@@ -1482,7 +1486,11 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       throw error;
     }
 
-    if (automatic) {
+    const boundedPolicyDenial =
+      request.mode === "policy_triggered" &&
+      request.automation_context?.bounded_cycle != null &&
+      !automatic;
+    if (automatic || boundedPolicyDenial) {
       const run = requireBoundRunV01(db, request);
       db.exec("BEGIN IMMEDIATE");
       try {
@@ -1493,7 +1501,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           {
             approval_ref: pending.approval_id,
             expected_revision: pending.control_revision,
-            decision: "approve_once",
+            decision: boundedPolicyDenial ? "decline" : "approve_once",
             decision_source: "bounded_capability_grant",
             decided_at: this.input.now(),
           },
@@ -2012,16 +2020,11 @@ function nativeHostAutomationContextMetadataV01(
       !validateBoundedAutomationCapabilityGrantV01(
         candidate.bounded_cycle.grant,
       ) ||
-      candidate.bounded_cycle.cycle_id !==
-        deriveBoundedAutomationCycleIdV01({
-          grant: candidate.bounded_cycle.grant,
-          packet: {
-            packet_id: candidate.bounded_cycle.grant.packet_id,
-            integrity: {
-              fingerprint: candidate.bounded_cycle.grant.packet_fingerprint,
-            },
-          },
-        }))
+      !candidate.bounded_cycle.cycle_id.startsWith("bounded-cycle:") ||
+      candidate.capability_grant_ref?.external_id !==
+        candidate.bounded_cycle.grant.grant_id ||
+      candidate.capability_grant_ref.source_ref !==
+        candidate.bounded_cycle.grant.grant_fingerprint)
   ) {
     return null;
   }
@@ -2062,6 +2065,7 @@ function startMaterialMatchesRunV01(
 }
 
 function exactPolicyGrantCoversV01(
+  db: Database.Database,
   request: NativeHostRequestV01,
   approval: NativeHostApprovalRequestV01,
 ): boolean {
@@ -2074,14 +2078,31 @@ function exactPolicyGrantCoversV01(
     grant.grant_ref === automationGrant.external_id;
   if (!grantIdentityMatches) return false;
   const boundedGrant = request.automation_context.bounded_cycle?.grant;
-  if (
-    boundedGrant &&
-    ((approval.operation_class === "network_permission" &&
-      boundedGrant.budget.network_access === "denied") ||
+  if (boundedGrant) {
+    const persisted = readBoundedAutomationCapabilityGrantV01(db, {
+      workspace_id: request.workspace_id,
+      project_id: request.project_id,
+      grant_id: boundedGrant.grant_id,
+      grant_fingerprint: boundedGrant.grant_fingerprint,
+    });
+    if (
+      canonicalizeProtocolValueV01(persisted) !==
+        canonicalizeProtocolValueV01(boundedGrant) ||
+      request.execution_grant_ref?.external_id !== boundedGrant.grant_id ||
+      request.execution_grant_ref.source_ref !== boundedGrant.grant_fingerprint ||
+      grant.grant_external_ref?.external_id !== boundedGrant.grant_id ||
+      grant.grant_external_ref.source_ref !== boundedGrant.grant_fingerprint ||
+      boundedGrant.host_execution_profile !== "deterministic_zero_model" ||
+      boundedGrant.host_provider_egress !== "forbidden" ||
       boundedGrant.forbidden_capabilities.includes(
         `native_host_approval:${approval.operation_class}`,
-      ))
-  ) {
+      )
+    ) {
+      return false;
+    }
+    // The conservative v0.1 profile admits no approval-bearing native-host
+    // operation. Generic command text cannot prove that external effects are
+    // absent, and network permission is always denied.
     return false;
   }
   if (

@@ -5883,12 +5883,13 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       const jar = cloneRouteCookieJarV01(input.jar);
       const before = snapshotR6CSemanticAuthorityCounts(config);
       const initial = service.read(config);
-      assert.equal(initial.status, "eligible", JSON.stringify(initial));
+      assert.equal(initial.status, "no_eligible_work", JSON.stringify(initial));
+      assert.equal(initial.next_action, "queue_current_task");
       assert(initial.control_revision);
       assert.equal(initial.budget.max_work_items, 1);
       assert.equal(initial.budget.max_active_runs, 1);
       assert.equal(initial.budget.max_attempts, 1);
-      assert.equal(initial.budget.max_model_invocations, 0);
+      assert.equal(initial.budget.max_augnes_model_invocations, 0);
       assert.equal(initial.budget.network_access, "denied");
       assert.equal(initial.feedback_needed, false);
       const readOnlyBefore = snapshotR6CSemanticAuthorityCounts(config);
@@ -5903,13 +5904,77 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       assert.equal(readBody.read_only, true);
       assert.equal(
         (readBody.automation_cycle as { status?: unknown }).status,
-        "eligible",
+        "no_eligible_work",
       );
       assert.deepEqual(
         snapshotR6CSemanticAuthorityCounts(config),
         readOnlyBefore,
       );
       assert.equal(observations.length, 0);
+      const queueResponse = await handler(
+        routeRequest("/api/vnext/operator/automation-cycle", {
+          method: "POST",
+          jar,
+          body: { action: "queue_current_task_for_automation" },
+        }),
+      );
+      const queueBody = await publicJson(queueResponse);
+      assert.equal(queueResponse.status, 202, JSON.stringify(queueBody));
+      jar.absorb(queueResponse);
+      const queued = service.read(config);
+      assert.equal(queued.status, "eligible", JSON.stringify(queued));
+      assert.equal(queued.work_source?.lifecycle_status, "queued");
+      assert.equal(queued.next_action, "run_one_bounded_cycle");
+      assert.equal(observations.length, 0);
+      let modelBackedHostInvocations = 0;
+      const modelBackedLive = new LiveNativeHostRunServiceV01({
+        open_database: openVNextLocalOperatorDatabaseV01,
+        adapter_factory: (): NativeHostAdapterV01 => ({
+          adapter_version: "model_backed_host_refusal_fixture.v0.1",
+          capability_version: "model_backed_host_refusal_capability.v0.1",
+          execution_profile: "native_host_managed_model",
+          provider_egress: "native_host_managed",
+          invoke() {
+            modelBackedHostInvocations += 1;
+            throw new Error("model_backed_host_must_not_start");
+          },
+        }),
+        now: () => clock.now(),
+      });
+      try {
+        const unavailableService = new BoundedAutomationCycleServiceV01({
+          open_database: openVNextLocalOperatorDatabaseV01,
+          live_service: modelBackedLive,
+          now: () => clock.now(),
+        });
+        const unavailable = unavailableService.read(config);
+        assert.equal(unavailable.status, "capability_unavailable");
+        assert.equal(unavailable.stop_reason, "zero_model_host_required");
+        const unavailableHandler = createVNextOperatorAutomationCycleHandlerV01({
+          environment,
+          clock,
+          secret_source: new DeterministicSecretSource(),
+          service: unavailableService,
+        });
+        await expectRouteError(
+          await unavailableHandler(
+            routeRequest("/api/vnext/operator/automation-cycle", {
+              method: "POST",
+              jar,
+              body: {
+                action: "run_one_bounded_cycle",
+                expected_control_revision: queued.control_revision,
+              },
+            }),
+          ),
+          409,
+          "bounded_automation_zero_model_host_required",
+          "bounded_automation_model_backed_host_refused_before_start",
+        );
+        assert.equal(modelBackedHostInvocations, 0);
+      } finally {
+        await modelBackedLive.shutdown();
+      }
       await expectRouteError(
         await handler(
           routeRequest("/api/vnext/operator/automation-cycle", {
@@ -5917,7 +5982,7 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
             jar,
             body: {
               action: "run_one_bounded_cycle",
-              expected_control_revision: initial.control_revision,
+              expected_control_revision: queued.control_revision,
               grant: { forbidden_client_material: true },
             },
           }),
@@ -5937,7 +6002,7 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           jar,
           body: {
             action: "run_one_bounded_cycle",
-            expected_control_revision: initial.control_revision,
+            expected_control_revision: queued.control_revision,
           },
         }),
       );
@@ -5977,6 +6042,36 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         observations[0]?.request.automation_context?.bounded_cycle?.profile,
         "bounded_autohunt_review_needed.v0.1",
       );
+      assert.equal(
+        observations[0]?.request.execution_grant_ref?.external_id,
+        observations[0]?.request.automation_context?.bounded_cycle?.grant.grant_id,
+      );
+      assert.equal(observations[0]?.request.policy.model, "forbidden_in_deterministic_adapter");
+      assert.equal(observations[0]?.request.policy.network, "forbidden");
+      assert.equal(
+        observations[0]?.request.allowed_operation_categories.includes(
+          "project_scoped_command_with_approval",
+        ),
+        false,
+      );
+      assert.equal(
+        observations[0]?.request.allowed_operation_categories.includes(
+          "project_scoped_file_change_with_approval",
+        ),
+        false,
+      );
+      assert.equal(
+        observations[0]?.request.forbidden_operation_categories.includes(
+          "network_egress",
+        ),
+        true,
+      );
+      assert.equal(
+        observations[0]?.request.forbidden_operation_categories.includes(
+          "provider_or_model_call",
+        ),
+        true,
+      );
       const runDb = openVNextLocalOperatorDatabaseV01(config);
       let policyReceipt: RunReceiptV01;
       try {
@@ -5989,9 +6084,58 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         assert.equal(run.metadata.automatic_retry, false);
         assert.equal(run.metadata.bounded_automation_attempt, 1);
         assert.equal(
-          (run.metadata.bounded_automation_grant as { budget?: { max_model_invocations?: number } })
-            .budget?.max_model_invocations,
+          (run.metadata.bounded_automation_grant as { budget?: { max_augnes_model_invocations?: number } })
+            .budget?.max_augnes_model_invocations,
           0,
+        );
+        const boundedGrant = run.metadata.bounded_automation_grant as {
+          grant_id: string;
+          grant_fingerprint: string;
+          allowed_capabilities: string[];
+          forbidden_capabilities: string[];
+        };
+        assert.deepEqual(boundedGrant.allowed_capabilities, [
+          "project_scoped_structured_task_round_trip.v0.1",
+        ]);
+        assert.equal(
+          boundedGrant.allowed_capabilities.some((value) =>
+            boundedGrant.forbidden_capabilities.includes(value),
+          ),
+          false,
+        );
+        assert.equal(countRowsByKind(runDb, "capability_grant"), 1);
+        assert.equal(countRowsByKind(runDb, "automation_work_item"), 4);
+        const latestWork = runDb.prepare(
+          `SELECT payload_json FROM vnext_core_records
+           WHERE record_kind = 'automation_work_item'
+           ORDER BY created_at DESC, record_id DESC LIMIT 1`,
+        ).get() as { payload_json: string };
+        assert.equal(
+          (JSON.parse(latestWork.payload_json) as { status: string }).status,
+          "review_needed",
+        );
+        const automationPacket = readVNextCoreRecordV01(runDb, {
+          record_kind: "task_context_packet",
+          record_id: observations[0]!.request.packet.packet_id,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        assert(automationPacket);
+        const automationPacketPayload = automationPacket.payload as TaskContextPacketV01;
+        assert.equal(
+          automationPacketPayload.capability_grant?.grant_external_ref?.external_id,
+          boundedGrant.grant_id,
+        );
+        assert.equal(
+          automationPacketPayload.capability_grant?.grant_external_ref?.source_ref,
+          boundedGrant.grant_fingerprint,
+        );
+        assert.equal(
+          (runDb.prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_run_events
+             WHERE run_id = ? AND event_type = 'run_needs_review'`,
+          ).get(run.run_id) as { count: number }).count,
+          1,
         );
         const receiptRecord = readVNextCoreRecordV01(runDb, {
           record_kind: "run_receipt",
@@ -6008,7 +6152,7 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         });
         assert.equal(detail.summary.mode, "policy_triggered");
         assert.equal(detail.automation?.stopped_at_review_needed, true);
-        assert.equal(detail.automation?.budget.max_model_invocations, 0);
+        assert.equal(detail.automation?.budget.max_augnes_model_invocations, 0);
         assert.equal(detail.proposal.status, "available");
       } finally {
         runDb.close();
@@ -6019,7 +6163,7 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       assert.equal(afterCycle.semantic_state_entries, before.semantic_state_entries);
       assert.equal(afterCycle.context_use_reviews, before.context_use_reviews);
       assert.equal(afterCycle.proposals, before.proposals + 1);
-      assert.equal(afterCycle.packets, before.packets);
+      assert.equal(afterCycle.packets, before.packets + 1);
       assert.equal(afterCycle.receipts, before.receipts + 1);
 
       const replayResponse = await handler(
@@ -6042,6 +6186,20 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         before.receipts + 1,
         "exact cycle replay must not duplicate the receipt",
       );
+      const replayDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        assert.equal(countRowsByKind(replayDb, "capability_grant"), 1);
+        assert.equal(countRowsByKind(replayDb, "automation_work_item"), 4);
+        assert.equal(
+          (replayDb.prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_run_events
+             WHERE run_id = ? AND event_type = 'run_needs_review'`,
+          ).get(settled.run!.run_id) as { count: number }).count,
+          1,
+        );
+      } finally {
+        replayDb.close();
+      }
 
       clock.set(addIsoMillisecondsV01(clock.now(), 1_000));
       const feedbackResponse = await feedbackHandler(
@@ -9312,6 +9470,8 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
         const adapter: NativeHostAdapterV01 = {
           adapter_version: "deterministic_codex_rejection.v0.1",
           capability_version: "codex_host_round_trip.v0.1",
+          execution_profile: "deterministic_zero_model",
+          provider_egress: "forbidden",
           invoke() {
             return {
               result: Promise.reject(new Error("private adapter rejection")),
@@ -9374,6 +9534,8 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
         const adapter: NativeHostAdapterV01 = {
           adapter_version: "deterministic_codex_unsettled.v0.1",
           capability_version: "codex_host_round_trip.v0.1",
+          execution_profile: "deterministic_zero_model",
+          provider_egress: "forbidden",
           invoke(request) {
             invoked.resolve(request);
             return {
@@ -9551,6 +9713,8 @@ function createControlledStopAdapterV01(input: {
   const adapter: NativeHostAdapterV01 = {
     adapter_version: input.adapter_version,
     capability_version: "codex_host_round_trip.v0.1",
+    execution_profile: "deterministic_zero_model",
+    provider_egress: "forbidden",
     invoke(request, control) {
       state.invocations += 1;
       invoked.resolve({ request, control });
@@ -9706,6 +9870,8 @@ function createRepositoryPathFixtureAdapterV01(
   return {
     adapter_version: adapterVersion,
     capability_version: capabilityVersion,
+    execution_profile: "deterministic_zero_model",
+    provider_egress: "forbidden",
     invoke(request, control) {
       const base = baseAdapter.invoke(request, control);
       const result = base.result.then((hostResult): NativeHostResultV01 => ({

@@ -9,6 +9,7 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { ensureVNextProjectLifecycleSchemaV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { ensureVNextProjectControlSchemaV01 } from "@/lib/vnext/persistence/project-control-store";
+import { ensureVNextDurableSemanticStoreSchemaV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -262,6 +263,7 @@ export function openDatabase() {
   migrateAutohuntDailyLauncherRunTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
+  ensureVNextDurableSemanticStoreSchemaV01(db);
   ensureVNextProjectIdentityRegistrySchemaV01(db);
   ensureVNextProjectLifecycleSchemaV01(db);
   ensureVNextProjectControlSchemaV01(db);

@@ -129,6 +129,8 @@ export function createCodexAppServerAdapterV01(
   return {
     adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
     capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
+    execution_profile: "native_host_managed_model",
+    provider_egress: "native_host_managed",
     invoke(request, control) {
       return new CodexAppServerInvocationV01(request, control, options).public;
     },

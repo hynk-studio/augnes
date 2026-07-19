@@ -9,6 +9,16 @@ import {
 } from "@/lib/vnext/project-home/project-home-projection";
 import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
 import { readVNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
+import {
+  DETERMINISTIC_CODEX_ADAPTER_VERSION_V01,
+  DETERMINISTIC_CODEX_CAPABILITY_VERSION_V01,
+} from "@/lib/vnext/native-host/deterministic-codex-adapter";
+import {
+  CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+  CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
+} from "@/lib/vnext/native-host/codex-app-server-adapter";
+import { DEFAULT_LIVE_TIMEOUT_MS } from "@/lib/vnext/runtime/live-native-host-run-service";
+import type { BoundedAutomationHostContractV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +47,10 @@ export default async function ProjectPage({
       projection = await readProjectHomeProjectionV01(db, {
         workspace_id: workspace.workspace_id,
         project_id: projectId,
-      }, { operator_config: operatorConfig });
+      }, {
+        operator_config: operatorConfig,
+        automation_host_contract: automationHostContractV01(),
+      });
     }
   } catch (error) {
     if (!isProjectNotFoundError(error)) throw error;
@@ -52,6 +65,27 @@ export default async function ProjectPage({
       directHostRoundTripAvailable={directHostRoundTripAvailable(projection)}
     />
   );
+}
+
+function automationHostContractV01(): BoundedAutomationHostContractV01 {
+  const deterministic =
+    process.env.AUGNES_CANONICAL_TEST_MODE === "1" &&
+    process.env.AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER === "1";
+  return deterministic
+    ? {
+        adapter_version: DETERMINISTIC_CODEX_ADAPTER_VERSION_V01,
+        capability_version: DETERMINISTIC_CODEX_CAPABILITY_VERSION_V01,
+        timeout_ms: DEFAULT_LIVE_TIMEOUT_MS,
+        execution_profile: "deterministic_zero_model",
+        provider_egress: "forbidden",
+      }
+    : {
+        adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+        capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
+        timeout_ms: DEFAULT_LIVE_TIMEOUT_MS,
+        execution_profile: "native_host_managed_model",
+        provider_egress: "native_host_managed",
+      };
 }
 
 function readMatchingOperatorConfigV01(

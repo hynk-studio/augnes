@@ -14,9 +14,11 @@ export interface BoundedAutomationBudgetV01 {
   max_attempts: 1;
   max_runtime_ms: number;
   max_commands: number;
-  max_model_invocations: 0;
-  max_model_tokens: 0;
-  max_model_cost_units: 0;
+  max_augnes_model_invocations: 0;
+  max_augnes_model_tokens: 0;
+  max_augnes_model_cost_units: 0;
+  native_host_model_scope: "none";
+  host_egress: "local_in_process_only";
   network_access: "denied";
   automatic_retry: false;
 }
@@ -29,11 +31,15 @@ export interface BoundedAutomationCapabilityGrantV01 {
   policy_ref: ExternalRefV01;
   policy_fingerprint: string;
   control_revision: number;
+  source_grant_ref: ExternalRefV01;
+  source_grant_fingerprint: string;
   work_source_ref: ExternalRefV01;
-  packet_id: string;
-  packet_fingerprint: string;
+  work_source_fingerprint: string;
+  packet_intent_fingerprint: string;
   host_adapter_version: string;
   host_capability_version: string;
+  host_execution_profile: "deterministic_zero_model";
+  host_provider_egress: "forbidden";
   root_fingerprint: string;
   allowed_capabilities: string[];
   forbidden_capabilities: string[];
@@ -85,8 +91,11 @@ export interface BoundedAutomationCycleProjectionV01 {
   control_revision: number | null;
   work_source: null | {
     label: string;
-    packet_id: string;
-    packet_fingerprint: string;
+    work_id: string;
+    work_fingerprint: string;
+    lifecycle_status: string;
+    source_packet_id: string;
+    source_packet_fingerprint: string;
   };
   grant: null | {
     grant_id: string;
@@ -94,6 +103,7 @@ export interface BoundedAutomationCycleProjectionV01 {
     expires_at: string;
     host_adapter_version: string;
     host_capability_version: string;
+    host_execution_profile: "deterministic_zero_model";
   };
   budget: BoundedAutomationBudgetV01;
   run: null | {
@@ -113,6 +123,7 @@ export interface BoundedAutomationCycleProjectionV01 {
   next_action:
     | "enable"
     | "resume"
+    | "queue_current_task"
     | "run_one_bounded_cycle"
     | "cancel"
     | "retry_proposal_settlement"

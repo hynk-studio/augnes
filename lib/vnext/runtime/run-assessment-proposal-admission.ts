@@ -10,6 +10,11 @@ import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { admitEpisodeDeltaProposalV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { materializeRunAssessmentProposalV01 } from "@/lib/vnext/run-assessment-proposal";
 import { readProjectRunResultSourceBindingV01 } from "@/lib/vnext/runtime/project-run-result-read-model";
+import {
+  readCurrentVNextAutomationWorkSnapshotV01,
+  transitionVNextAutomationWorkV01,
+} from "@/lib/vnext/persistence/bounded-automation-authority";
+import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
@@ -153,7 +158,52 @@ export function admitRunAssessmentProposalV01(
       { db },
     );
     if (binding.run.metadata.bounded_automation_cycle_id != null) {
-      appendAutonomyRunLedgerEvent(
+      const automationGrant = binding.run.metadata.bounded_automation_grant as
+        | { work_source_ref?: { external_id?: unknown } }
+        | undefined;
+      const workId = automationGrant?.work_source_ref?.external_id;
+      const work = typeof workId === "string"
+        ? readCurrentVNextAutomationWorkSnapshotV01(db, {
+            workspace_id: input.workspace_id,
+            project_id: input.project_id,
+            work_id: workId,
+          })
+        : null;
+      if (!work?.cycle_binding) {
+        refuseV01("run_assessment_proposal_automation_work_binding_missing", 409);
+      }
+      transitionVNextAutomationWorkV01(db, {
+        workspace_id: input.workspace_id,
+        project_id: input.project_id,
+        work_id: work.source.work_id,
+        expected_work_fingerprint: work.source.work_fingerprint,
+        expected_status: ["running", "reconciliation_required", "review_needed"],
+        status: "review_needed",
+        cycle_binding: {
+          ...work.cycle_binding,
+          run_id: binding.run.run_id,
+          receipt_ref: protocolRefV01(
+            "run_receipt",
+            binding.receipt.receipt_id,
+            binding.receipt.recorded_at,
+            binding.receipt.integrity.fingerprint,
+          ),
+          proposal_ref: protocolRefV01(
+            "episode_delta_proposal",
+            write.proposal.proposal_id,
+            write.proposal.created_at,
+            write.proposal.integrity.fingerprint,
+          ),
+        },
+        status_reason: "review_needed",
+        observed_at: binding.receipt.recorded_at,
+      });
+      const existingReviewEvent = db.prepare(
+        `SELECT 1 FROM autonomy_run_events
+         WHERE run_id = ? AND event_type = 'run_needs_review'
+         LIMIT 1`,
+      ).get(binding.run.run_id);
+      if (!existingReviewEvent) appendAutonomyRunLedgerEvent(
         buildAutonomyRunEventRecord({
           run_id: binding.run.run_id,
           event_type: "run_needs_review",
@@ -185,6 +235,23 @@ export function admitRunAssessmentProposalV01(
       409,
     );
   }
+}
+
+function protocolRefV01(
+  refType: string,
+  externalId: string,
+  observedAt: string,
+  sourceRef: string,
+): ExternalRefV01 {
+  return {
+    ref_version: "external_ref.v0.1",
+    ref_type: refType,
+    external_id: externalId,
+    observed_at: observedAt,
+    source_ref: sourceRef,
+    compatibility_namespace: "bounded_autohunt_review_needed.v0.1",
+    trust_class: "direct_local_observation",
+  };
 }
 
 /**
@@ -288,6 +355,32 @@ function recordProposalFailureV01(
       },
       { db },
     );
+    const automationGrant = run.metadata.bounded_automation_grant as
+      | { work_source_ref?: { external_id?: unknown } }
+      | undefined;
+    const workId = automationGrant?.work_source_ref?.external_id;
+    if (typeof workId === "string") {
+      const work = readCurrentVNextAutomationWorkSnapshotV01(db, {
+        workspace_id: input.workspace_id,
+        project_id: input.project_id,
+        work_id: workId,
+      });
+      if (work?.cycle_binding && ["claimed", "running"].includes(work.status)) {
+        transitionVNextAutomationWorkV01(db, {
+          workspace_id: input.workspace_id,
+          project_id: input.project_id,
+          work_id: work.source.work_id,
+          expected_work_fingerprint: work.source.work_fingerprint,
+          expected_status: work.status as "claimed" | "running",
+          status: "reconciliation_required",
+          cycle_binding: { ...work.cycle_binding, run_id: run.run_id },
+          status_reason: retryable
+            ? "proposal_settlement_retry_available"
+            : "proposal_settlement_failed_non_retryable",
+          observed_at: input.receipt.recorded_at,
+        });
+      }
+    }
     db.exec("COMMIT");
   } catch (error) {
     if (db.inTransaction) db.exec("ROLLBACK");
