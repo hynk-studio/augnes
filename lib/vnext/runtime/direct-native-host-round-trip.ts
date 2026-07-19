@@ -89,6 +89,9 @@ import {
   inspectNativeHostPhysicalRootIdentityV01,
 } from "@/lib/vnext/native-host/project-root-identity";
 import {
+  deriveNativeHostDeliveryAuthorityV01,
+} from "@/lib/vnext/native-host/native-host-delivery-authority";
+import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_REQUEST_VERSION_V01,
   NATIVE_HOST_RESULT_RETURN_VERSION_V01,
@@ -742,6 +745,7 @@ export async function runDirectNativeHostRoundTripV01(
     session_admission: sessionAdmission,
   });
   let hostResult: NativeHostResultV01;
+  let adapterInvocationStarted = false;
   try {
     hostResult = assertNativeHostResultV01(
       request,
@@ -753,6 +757,9 @@ export async function runDirectNativeHostRoundTripV01(
         lifecycle_sink: dependencies.lifecycle_sink,
         resume_binding: dependencies.resume_binding,
         now,
+        on_invocation_started: () => {
+          adapterInvocationStarted = true;
+        },
       }),
     );
   } catch (error) {
@@ -789,6 +796,11 @@ export async function runDirectNativeHostRoundTripV01(
   }
   let synthesizedSkippedCheckIds = new Set<string>();
   try {
+    hostResult = materializeValidatedPacketDeliveryCheckV01({
+      adapter,
+      result: hostResult,
+      adapter_invocation_started: adapterInvocationStarted,
+    });
     const normalized = normalizeNativeHostResultResidueV01({
       result: hostResult,
       required_check_ids: requiredCheckIdsForResultV01(
@@ -816,6 +828,11 @@ export async function runDirectNativeHostRoundTripV01(
         now,
       }),
     );
+    hostResult = materializeValidatedPacketDeliveryCheckV01({
+      adapter,
+      result: hostResult,
+      adapter_invocation_started: adapterInvocationStarted,
+    });
     const normalized = normalizeNativeHostResultResidueV01({
       result: hostResult,
       required_check_ids: requiredCheckIdsForResultV01(
@@ -851,6 +868,8 @@ export async function runDirectNativeHostRoundTripV01(
       result: hostResult,
       admission: admitted,
       run: current,
+      adapter,
+      adapter_invocation_started: adapterInvocationStarted,
       synthesized_skipped_check_ids: synthesizedSkippedCheckIds,
     });
     const write = admitStructuredRunReceiptV01(db, receipt);
@@ -1747,16 +1766,60 @@ function assertLiveHostEgressAdmissionV01(input: {
   }
 }
 
+export function materializeValidatedPacketDeliveryCheckV01(input: {
+  adapter: Pick<
+    NativeHostAdapterV01,
+    "adapter_version" | "execution_profile" | "provider_egress"
+  >;
+  result: NativeHostResultV01;
+  adapter_invocation_started: boolean;
+}): NativeHostResultV01 {
+  const authority = deriveNativeHostDeliveryAuthorityV01(input);
+  const existing = input.result.checks.filter(
+    (check) => check.check_id === "validated_packet_delivery",
+  );
+  if (!authority.validated_packet_delivery_observed) {
+    if (existing.some((check) => check.status === "passed")) {
+      throw new NativeHostResultNormalizationErrorV01(
+        "native_host_packet_delivery_relation_conflict",
+      );
+    }
+    return input.result;
+  }
+  return {
+    ...input.result,
+    checks: [
+      ...input.result.checks.filter(
+        (check) => check.check_id !== "validated_packet_delivery",
+      ),
+      {
+        check_id: "validated_packet_delivery",
+        required: true,
+        status: "passed",
+        summary:
+          authority.delivery_scope === "local_in_process"
+            ? "The local orchestration boundary presented the exact admitted packet to the in-process adapter."
+            : "The local orchestration boundary observed transfer of the exact admitted packet across the configured native-host boundary.",
+      },
+    ],
+  };
+}
+
 function buildDirectHostRunReceipt(input: {
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
   admission: PersistedHostPacketAdmissionV01;
   run: AutonomyRunRecord;
+  adapter: NativeHostAdapterV01;
+  adapter_invocation_started: boolean;
   synthesized_skipped_check_ids: ReadonlySet<string>;
 }): RunReceiptV01 {
   const { request, result, admission, run } = input;
-  const packetDeliveryInitiated =
-    result.adapter_extension.bounded_metadata.packet_delivery_initiated === true;
+  const deliveryAuthority = deriveNativeHostDeliveryAuthorityV01({
+    adapter: input.adapter,
+    result,
+    adapter_invocation_started: input.adapter_invocation_started,
+  });
   const liveAppServerResult =
     result.adapter_extension.adapter_kind === "codex_app_server";
   const residueBasis = liveAppServerResult ? "attested" : "observed";
@@ -1788,6 +1851,7 @@ function buildDirectHostRunReceipt(input: {
     null,
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
   );
+  const deliveryCheckSourceRefs = [reporterRef];
   const hostRef = result.host_refs[0] ?? null;
   const artifactRefs = result.changed_files.map((changed) =>
     repositoryArtifactRef(
@@ -1872,6 +1936,9 @@ function buildDirectHostRunReceipt(input: {
       trust_class: "direct_local_observation",
       source_refs: uniqueRefs([
         admission.packet_ref,
+        runRef,
+        adapterRef,
+        request.execution_grant_ref,
         admission.source_transition_receipt_ref,
         admission.root_scope.root_scope_ref,
         ...request.packet_lineage.packet_source_refs,
@@ -2045,15 +2112,18 @@ function buildDirectHostRunReceipt(input: {
     checks: result.checks.map((check) => ({
       ...check,
       basis:
-        !liveAppServerResult || check.check_id === "validated_packet_delivery"
+        !liveAppServerResult ||
+        check.check_id === "validated_packet_delivery" ||
+        check.check_id === "deterministic_packet_delivery"
           ? ("observed" as const)
           : residueBasis,
       source_refs:
-        liveAppServerResult &&
-        hostRef &&
-        check.check_id !== "validated_packet_delivery"
-          ? [hostRef]
-          : [reporterRef],
+        check.check_id === "validated_packet_delivery" ||
+        check.check_id === "deterministic_packet_delivery"
+          ? deliveryCheckSourceRefs
+          : liveAppServerResult && hostRef
+            ? [hostRef]
+            : [reporterRef],
     })),
     skipped_checks: result.skipped_checks.map((check) => ({
       ...check,
@@ -2139,25 +2209,38 @@ function buildDirectHostRunReceipt(input: {
     ],
     privacy_egress: {
       data_classification: admission.packet.constraints.data_classification,
-      egress_status: packetDeliveryInitiated ? "occurred" : "did_not_occur",
+      egress_status: deliveryAuthority.privacy_or_external_egress_occurred
+        ? "occurred"
+        : "did_not_occur",
       basis: "observed",
       destination_refs:
-        packetDeliveryInitiated && hostRef ? [hostRef] : [],
-      redaction_status: packetDeliveryInitiated ? "unknown" : "not_needed",
-      retention_class: packetDeliveryInitiated
+        deliveryAuthority.privacy_or_external_egress_occurred && hostRef
+          ? [hostRef]
+          : [],
+      redaction_status:
+        deliveryAuthority.privacy_or_external_egress_occurred
+          ? "unknown"
+          : "not_needed",
+      retention_class: deliveryAuthority.privacy_or_external_egress_occurred
         ? "native_host_managed_or_unknown"
-        : "bounded_structured_receipt_only",
+        : deliveryAuthority.delivery_scope === "local_in_process"
+          ? "bounded_structured_local_receipt_only"
+          : "bounded_structured_receipt_only",
       raw_prompt_persisted: false,
       raw_output_persisted: false,
       raw_transcript_persisted: false,
       secret_material_persisted: false,
       source_refs: [reporterRef],
       notes: [
-        packetDeliveryInitiated
-          ? "Packet delivery to the configured native host was directly observed; native-host retention is host-managed or unknown."
-          : "The packet was delivered in process and was not copied into the ledger or receipt.",
+        deliveryAuthority.packet_presented_to_adapter
+          ? deliveryAuthority.delivery_scope === "local_in_process"
+            ? "The exact admitted packet was presented to the in-process adapter; no external privacy boundary was crossed."
+            : deliveryAuthority.privacy_or_external_egress_occurred
+              ? "Packet transfer to the configured native-host boundary was directly observed; native-host retention is managed or unknown."
+              : "The native-host adapter received the request, but packet transfer across its managed boundary was not observed."
+          : "Adapter invocation did not begin, so packet presentation was not observed.",
         "No prompt, transcript, hidden reasoning, environment dump, provider payload, stdout, stderr, credential, or absolute root path is persisted.",
-        ...(packetDeliveryInitiated
+        ...(deliveryAuthority.provider_or_model_egress_occurred
           ? [
               "Native-host-internal model activity is outside Augnes-owned R4 Model Gateway invocation coverage.",
             ]
@@ -2278,6 +2361,7 @@ async function invokeAdapterBounded(
     lifecycle_sink?: NativeHostLifecycleSinkV01;
     resume_binding?: NativeHostResumeBindingV01 | null;
     now: () => string;
+    on_invocation_started?: () => void;
   },
 ): Promise<NativeHostResultV01> {
   const controller = new AbortController();
@@ -2292,6 +2376,7 @@ async function invokeAdapterBounded(
       lifecycle_sink: input.lifecycle_sink,
       resume_binding: input.resume_binding,
     });
+    input.on_invocation_started?.();
   } catch {
     return buildBoundaryTerminalResult({
       request,
@@ -2534,7 +2619,8 @@ function buildBoundaryTerminalResult(input: {
         source_ref: hostRef,
         notes: ["The orchestration boundary observed the terminal control outcome."],
       },
-      ...(input.prior_result?.adapter_extension.bounded_metadata
+      ...(input.adapter.provider_egress === "native_host_managed" &&
+      input.prior_result?.adapter_extension.bounded_metadata
         .packet_delivery_initiated === true
         ? [
             {

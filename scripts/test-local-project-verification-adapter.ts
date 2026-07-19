@@ -30,7 +30,11 @@ import {
 } from "@/lib/vnext/native-host/local-project-verification-adapter";
 import { inspectNativeHostPhysicalRootIdentityV01 } from "@/lib/vnext/native-host/project-root-identity";
 import { assertNativeHostResultV01 } from "@/lib/vnext/native-host/native-host-contract";
-import { projectDirectNativeHostActionObservationsV01 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
+import { deriveNativeHostDeliveryAuthorityV01 } from "@/lib/vnext/native-host/native-host-delivery-authority";
+import {
+  materializeValidatedPacketDeliveryCheckV01,
+  projectDirectNativeHostActionObservationsV01,
+} from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -48,6 +52,7 @@ async function main(): Promise<void> {
     await assertBoundedEnumerationV01();
     assertCanonicalManifestV01();
     await assertRootAndResidueOutcomesV01();
+    assertNoInvocationDeliveryV01();
     process.stdout.write(
       `${JSON.stringify({
         suite: "local-project-verification-adapter.v0.1",
@@ -57,6 +62,7 @@ async function main(): Promise<void> {
         canonical_manifest_checked: true,
         exact_root_identity_checked: true,
         truthful_terminal_residue_checked: true,
+        packet_presentation_egress_separation_checked: true,
       }, null, 2)}\n`,
     );
   } finally {
@@ -202,6 +208,7 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   );
   assert.equal(JSON.stringify(completed).includes(projectRoot), false);
   assert.equal(JSON.stringify(completed).includes("package.json"), false);
+  assertLocalDeliveryV01(completed);
 
   const preCancelledController = new AbortController();
   preCancelledController.abort();
@@ -217,6 +224,7 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     preCancelled.skipped_checks.map((check) => check.check_id).sort(),
     [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
   );
+  assertLocalDeliveryV01(preCancelled);
 
   const duringController = new AbortController();
   const duringFixture = directoryFixtureV01(10, {
@@ -238,6 +246,7 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     [{ check_id: "project_root_scope_verified", status: "passed" }],
   );
   assert.equal(duringFixture.closed(), true);
+  assertLocalDeliveryV01(duringCancelled);
 
   const conflictingIdentity: NativeHostPhysicalRootIdentityV01 = {
     ...identity,
@@ -253,6 +262,7 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
       ?.status,
     "blocked",
   );
+  assertLocalDeliveryV01(conflict);
 
   const overflow = directoryFixtureV01(MAX_ROOT_ENTRIES_V01 + 1);
   const overflowResult = await invokeV01(
@@ -274,6 +284,7 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
       { check_id: "project_root_manifest_bound", status: "blocked" },
     ],
   );
+  assertLocalDeliveryV01(overflowResult);
 
   const filesystemFailure = await invokeV01(
     requestV01(projectRoot, identity),
@@ -295,6 +306,7 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
       { check_id: "project_root_manifest_verified", status: "failed" },
     ],
   );
+  assertLocalDeliveryV01(filesystemFailure);
 
   const replaced = path.join(root, "replaced");
   const replacedPrior = path.join(root, "replaced-prior");
@@ -326,6 +338,99 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   assertNegativeResidueV01(
     await invokeV01(requestV01(notDirectory, identity)),
     "blocked",
+  );
+}
+
+function assertLocalDeliveryV01(result: NativeHostResultV01): void {
+  const adapter = {
+    adapter_version: "local_project_verification_adapter.v0.1",
+    execution_profile: "deterministic_zero_model" as const,
+    provider_egress: "forbidden" as const,
+  };
+  const authority = deriveNativeHostDeliveryAuthorityV01({
+    adapter,
+    result,
+    adapter_invocation_started: true,
+  });
+  assert.deepEqual(authority, {
+    authority_version: "native_host_delivery_authority.v0.1",
+    packet_presented_to_adapter: true,
+    privacy_or_external_egress_occurred: false,
+    provider_or_model_egress_occurred: false,
+    delivery_scope: "local_in_process",
+    validated_packet_delivery_observed: true,
+  });
+  const materialized = materializeValidatedPacketDeliveryCheckV01({
+    adapter,
+    result,
+    adapter_invocation_started: true,
+  });
+  assert.equal(
+    materialized.checks.filter(
+      (check) =>
+        check.check_id === "validated_packet_delivery" &&
+        check.status === "passed",
+    ).length,
+    1,
+  );
+  assert.equal(materialized.model_invocation_receipt_refs.length, 0);
+}
+
+function assertNoInvocationDeliveryV01(): void {
+  const result: NativeHostResultV01 = {
+    result_version: "native_host_result.v0.1",
+    request_id: "host-request:not-started",
+    run_id: "host-run:not-started",
+    outcome: "failed",
+    public_stop_reason: "adapter_invocation_not_started",
+    started_at: TEST_AT,
+    finished_at: TEST_AT,
+    host_refs: [],
+    adapter_version: "local_project_verification_adapter.v0.1",
+    capability_version: "local_project_verification_capability.v0.1",
+    changed_files: [],
+    artifacts: [],
+    observed_actions: [],
+    commands: [],
+    checks: [],
+    skipped_checks: [],
+    model_invocation_receipt_refs: [],
+    summary: "Adapter invocation did not begin.",
+    uncertainty: [],
+    gaps: [],
+    proposed_next_steps: [],
+    capability_coverage: [],
+    adapter_extension: {
+      extension_version: "native_host_boundary_extension.v0.1",
+      adapter_kind: "local_project_verification_adapter.v0.1",
+      bounded_metadata: {
+        live_host_invoked: false,
+        packet_delivery_initiated: false,
+        raw_provider_payload_included: false,
+      },
+    },
+  };
+  const adapter = {
+    adapter_version: "local_project_verification_adapter.v0.1",
+    execution_profile: "deterministic_zero_model" as const,
+    provider_egress: "forbidden" as const,
+  };
+  const authority = deriveNativeHostDeliveryAuthorityV01({
+    adapter,
+    result,
+    adapter_invocation_started: false,
+  });
+  assert.equal(authority.packet_presented_to_adapter, false);
+  assert.equal(authority.validated_packet_delivery_observed, false);
+  assert.equal(authority.privacy_or_external_egress_occurred, false);
+  assert.equal(authority.provider_or_model_egress_occurred, false);
+  assert.equal(
+    materializeValidatedPacketDeliveryCheckV01({
+      adapter,
+      result,
+      adapter_invocation_started: false,
+    }).checks.length,
+    0,
   );
 }
 

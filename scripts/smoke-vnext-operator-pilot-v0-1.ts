@@ -50,6 +50,7 @@ import {
 } from "../lib/vnext/episode-delta-proposal";
 import {
   createContextUseReviewFingerprintV01,
+  deriveContextUseReviewPresentationProvenanceV01,
   deriveContextUseReviewIdV01,
 } from "../lib/vnext/context-use-review";
 import {
@@ -6571,8 +6572,14 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         clock,
         secret_source: new DeterministicSecretSource(),
       });
+      const feedbackHandler = createVNextOperatorContextUseReviewHandlerV01({
+        environment: productEnvironment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+      });
       const jar = cloneRouteCookieJarV01(input.jar);
       const authorityBefore = snapshotR6CSemanticAuthorityCounts(config);
+      let productReceipt!: RunReceiptV01;
       const queueResponse = await handler(
         routeRequest("/api/vnext/operator/automation-cycle", {
           method: "POST",
@@ -6656,10 +6663,85 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         });
         assert(receiptRecord);
         const receipt = receiptRecord.payload as RunReceiptV01;
+        productReceipt = receipt;
         assert.equal(receipt.execution.status, "completed");
         assert.equal(receipt.commands.length, 0);
         assert.equal(receipt.changed_artifacts.length, 0);
         assert.equal(receipt.model_invocations.length, 0);
+        const deliveryCheck = receipt.checks.find(
+          (check) => check.check_id === "validated_packet_delivery",
+        );
+        assert(deliveryCheck);
+        assert.equal(deliveryCheck.status, "passed");
+        assert.equal(deliveryCheck.basis, "observed");
+        assert.equal(deliveryCheck.source_refs.length, 1);
+        assert.equal(
+          deliveryCheck.source_refs.some(
+            (ref) =>
+              ref.ref_type === "native_host_orchestrator" &&
+              ref.trust_class === "direct_local_observation",
+          ),
+          true,
+        );
+        const deliveryObservation = receipt.observations.find(
+          (observation) =>
+            observation.observation_kind ===
+            "validated_packet_and_root_binding",
+        );
+        assert(deliveryObservation);
+        assert.equal(
+          deliveryObservation.source_refs.some(
+            (ref) =>
+              ref.ref_type === "task_context_packet" &&
+              ref.external_id === receipt.task_context_packet_ref?.external_id &&
+              ref.source_ref === receipt.task_context_packet_ref?.source_ref,
+          ),
+          true,
+        );
+        assert.equal(
+          deliveryObservation.source_refs.some(
+            (ref) =>
+              ref.ref_type === "automation_run" &&
+              ref.external_id === productRun!.run_id,
+          ),
+          true,
+        );
+        assert.equal(
+          deliveryObservation.source_refs.some(
+            (ref) => ref.ref_type === "native_host_adapter_version",
+          ),
+          true,
+        );
+        assert.equal(
+          deliveryObservation.source_refs.some(
+            (ref) => ref.ref_type === "capability_grant",
+          ),
+          true,
+        );
+        const presentation =
+          deriveContextUseReviewPresentationProvenanceV01(receipt);
+        assert.equal(presentation.presented, "yes");
+        assert.equal(
+          presentation.provenance.basis,
+          "direct_local_observation",
+        );
+        assert.deepEqual(
+          presentation.provenance.source_refs,
+          deliveryCheck.source_refs,
+        );
+        assert.equal(receipt.privacy_egress.egress_status, "did_not_occur");
+        assert.deepEqual(receipt.privacy_egress.destination_refs, []);
+        assert.equal(receipt.privacy_egress.redaction_status, "not_needed");
+        assert.equal(
+          receipt.privacy_egress.retention_class,
+          "bounded_structured_local_receipt_only",
+        );
+        assert.equal(
+          receipt.privacy_egress.notes.some((note) =>
+            note.includes("Native-host-internal model activity"),
+          ),
+          false,
+        );
         assert.equal(
           receipt.checks.some(
             (check) =>
@@ -6730,14 +6812,111 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       } finally {
         resultDb.close();
       }
-      const authorityAfter = snapshotR6CSemanticAuthorityCounts(config);
-      assert.equal(authorityAfter.proposals, authorityBefore.proposals + 1);
-      assert.equal(authorityAfter.receipts, authorityBefore.receipts + 1);
-      assert.equal(authorityAfter.decisions, authorityBefore.decisions);
-      assert.equal(authorityAfter.transitions, authorityBefore.transitions);
+      const afterCycle = snapshotR6CSemanticAuthorityCounts(config);
+      assert.equal(afterCycle.proposals, authorityBefore.proposals + 1);
+      assert.equal(afterCycle.receipts, authorityBefore.receipts + 1);
+      assert.equal(afterCycle.decisions, authorityBefore.decisions);
+      assert.equal(afterCycle.transitions, authorityBefore.transitions);
       assert.equal(
-        authorityAfter.semantic_state_entries,
+        afterCycle.semantic_state_entries,
         authorityBefore.semantic_state_entries,
+      );
+
+      clock.set(addIsoMillisecondsV01(clock.now(), 1_000));
+      const feedbackRequest = {
+        action: "record_context_use_review",
+        later_run_receipt_id: productReceipt.receipt_id,
+        later_run_receipt_fingerprint: productReceipt.integrity.fingerprint,
+        actually_used: "partial",
+        assessment: "helpful",
+        correction_summaries: [],
+        notes: [
+          "The exact later packet was presented to the local verification adapter; actual use remains an explicit declaration.",
+        ],
+        metrics: {
+          wrong_context_correction_count: 0,
+          repeated_explanation_estimate: 0,
+          missing_critical_context_count: 0,
+          context_refs_used_count: 1,
+        },
+      } as const;
+      const feedbackResponse = await feedbackHandler(
+        routeRequest("/api/vnext/operator/project-continuity", {
+          method: "POST",
+          jar,
+          body: feedbackRequest,
+        }),
+      );
+      const feedbackBody = await publicJson(feedbackResponse);
+      assert.equal(feedbackResponse.status, 201, JSON.stringify(feedbackBody));
+      jar.absorb(feedbackResponse);
+      const review = feedbackBody.review as ContextUseReviewV01;
+      assert.equal(review.usage.presented, "yes");
+      assert.equal(review.usage.actually_used, "partial");
+      assert.equal(review.assessment, "helpful");
+      assert.equal(
+        review.usage_provenance?.presented.basis,
+        "direct_local_observation",
+      );
+      assert.deepEqual(
+        review.usage_provenance?.presented.source_refs,
+        productReceipt.checks.find(
+          (check) => check.check_id === "validated_packet_delivery",
+        )?.source_refs,
+      );
+      assert.equal(
+        review.usage_provenance?.actually_used.basis,
+        "user_declaration",
+      );
+      assert.equal(
+        review.usage_provenance?.assessment.basis,
+        "user_declaration",
+      );
+      const requestRef = review.compatibility.external_refs[0]!;
+      const unknownUsage =
+        deriveVNextOperatorPilotContextUseUsageProvenanceV01({
+          receipt: productReceipt,
+          actually_used: "unknown",
+          request_ref: requestRef,
+        });
+      assert.equal(unknownUsage.presented.basis, "direct_local_observation");
+      assert.equal(unknownUsage.actually_used.basis, "unknown");
+      assert.deepEqual(unknownUsage.actually_used.source_refs, []);
+
+      const exactReplay = await feedbackHandler(
+        routeRequest("/api/vnext/operator/project-continuity", {
+          method: "POST",
+          jar,
+          body: feedbackRequest,
+        }),
+      );
+      const exactReplayBody = await publicJson(exactReplay);
+      assert.equal(exactReplay.status, 200, JSON.stringify(exactReplayBody));
+      assert.equal(exactReplayBody.status, "exact_replay");
+      jar.absorb(exactReplay);
+      await expectRouteError(
+        await feedbackHandler(
+          routeRequest("/api/vnext/operator/project-continuity", {
+            method: "POST",
+            jar,
+            body: { ...feedbackRequest, assessment: "noisy" },
+          }),
+        ),
+        409,
+        "operator_pilot_context_use_review_replay_conflict",
+        "policy_triggered_local_context_use_review_conflict_refused",
+      );
+      const afterFeedback = snapshotR6CSemanticAuthorityCounts(config);
+      assert.equal(
+        afterFeedback.context_use_reviews,
+        afterCycle.context_use_reviews + 1,
+      );
+      assert.deepEqual(
+        {
+          ...afterFeedback,
+          context_use_reviews: afterCycle.context_use_reviews,
+        },
+        afterCycle,
       );
     },
   );
@@ -6745,6 +6924,8 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
   pass("bounded_automation_exact_replay_starts_no_second_host_or_work_item");
   pass("bounded_automation_product_environment_local_verification_reaches_review_needed");
   pass("policy_triggered_later_receipt_reuses_context_use_review_with_user_declaration_provenance");
+  pass("local_packet_presentation_is_distinct_from_privacy_provider_egress");
+  pass("policy_triggered_local_delivery_check_drives_context_use_presentation");
 }
 
 async function assertInteractiveHostRouteOnCloneV01(input: {
@@ -9667,6 +9848,10 @@ async function assertDirectHostTerminalScenariosOnClonesV01(input: {
           assert.equal(result.status, "inserted");
           assert.equal(result.host_result?.outcome, expectedOutcome);
           assert.equal(result.receipt.execution.status, expectedStatus);
+          assertLocalInProcessPacketPresentationReceiptV01(
+            result.receipt,
+            true,
+          );
           assert.equal(result.receipt.authority_summary.closes_work, false);
           const continuity = projectVNextOperatorPilotContinuityV01(db, {
             config,
@@ -9686,6 +9871,43 @@ async function assertDirectHostTerminalScenariosOnClonesV01(input: {
     "deterministic_host_failure_and_unavailable_results_are_truthful_and_durable",
   );
   pass("optional_host_unavailability_preserves_local_project_continuity");
+}
+
+function assertLocalInProcessPacketPresentationReceiptV01(
+  receipt: RunReceiptV01,
+  presented: boolean,
+): void {
+  const deliveryChecks = receipt.checks.filter(
+    (check) =>
+      check.check_id === "validated_packet_delivery" &&
+      check.status === "passed",
+  );
+  assert.equal(deliveryChecks.length, presented ? 1 : 0);
+  const presentation =
+    deriveContextUseReviewPresentationProvenanceV01(receipt);
+  assert.equal(presentation.presented, presented ? "yes" : "unknown");
+  assert.equal(
+    presentation.provenance.basis,
+    presented ? "direct_local_observation" : "unknown",
+  );
+  assert.equal(
+    presentation.provenance.source_refs.length > 0,
+    presented,
+  );
+  assert.equal(receipt.privacy_egress.egress_status, "did_not_occur");
+  assert.deepEqual(receipt.privacy_egress.destination_refs, []);
+  assert.equal(receipt.privacy_egress.redaction_status, "not_needed");
+  assert.equal(
+    receipt.privacy_egress.retention_class,
+    "bounded_structured_local_receipt_only",
+  );
+  assert.equal(
+    receipt.privacy_egress.notes.some((note) =>
+      note.includes("Native-host-internal model activity"),
+    ),
+    false,
+  );
+  assert.deepEqual(receipt.model_invocations, []);
 }
 
 function assertDirectHostRepositoryRelativePathContractV01(
@@ -9861,6 +10083,10 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
         const result = await roundTrip;
         assert.equal(result.host_result?.outcome, "timed_out");
         assert.equal(result.receipt.execution.status, "cancelled");
+        assertLocalInProcessPacketPresentationReceiptV01(
+          result.receipt,
+          true,
+        );
         assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
         assert.equal(controlled.state.stop_requests, 1);
         assert.deepEqual(controlled.state.stop_reasons, ["timeout"]);
@@ -9920,6 +10146,10 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
         controlled.release_cleanup.resolve(undefined);
         const result = await roundTrip;
         assert.equal(result.host_result?.outcome, "cancelled");
+        assertLocalInProcessPacketPresentationReceiptV01(
+          result.receipt,
+          true,
+        );
         assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
         assert.equal(controlled.state.stop_requests, 1);
         assert.deepEqual(controlled.state.stop_reasons, [
@@ -9997,6 +10227,10 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
           "native_host_adapter_failed",
         );
         assert.equal(result.receipt.execution.status, "failed");
+        assertLocalInProcessPacketPresentationReceiptV01(
+          result.receipt,
+          true,
+        );
         assert.equal(
           canonicalizeProtocolValueV01(result.receipt).includes(
             "private adapter rejection",
@@ -10008,6 +10242,46 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
         assert.equal(listenerState.added, 1);
         assert.equal(listenerState.removed, 1);
         assert.equal(activeTimeoutResourceCountV01(), activeTimeoutsBefore);
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  await withOperatorDatabaseCloneV01(
+    "direct-host-invocation-not-started",
+    input.environment,
+    async ({ config }) => {
+      const now = addIsoMillisecondsV01(input.packet.generated_at, 28_500);
+      const db = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptsBefore = countRowsByKind(db, "run_receipt");
+        const adapter: NativeHostAdapterV01 = {
+          adapter_version: "deterministic_codex_sync_rejection.v0.1",
+          capability_version: "codex_host_round_trip.v0.1",
+          execution_profile: "deterministic_zero_model",
+          provider_egress: "forbidden",
+          invoke() {
+            throw new Error("private synchronous adapter rejection");
+          },
+        };
+        const result = await runDirectNativeHostRoundTripV01(
+          db,
+          { config, mode: "interactive" },
+          {
+            adapter,
+            now: () => now,
+            timeout_ms: 60_000,
+            stop_settle_timeout_ms: 1_000,
+          },
+        );
+        assert.equal(result.host_result?.outcome, "failed");
+        assert.equal(result.receipt.execution.status, "failed");
+        assertLocalInProcessPacketPresentationReceiptV01(
+          result.receipt,
+          false,
+        );
+        assert.equal(countRowsByKind(db, "run_receipt"), receiptsBefore + 1);
       } finally {
         db.close();
       }
@@ -10081,6 +10355,9 @@ async function assertDirectHostStopSettlementOnClonesV01(input: {
   );
   pass(
     "direct_host_invocation_rejection_is_bounded_and_cleans_control_resources",
+  );
+  pass(
+    "direct_host_no_invocation_creates_no_packet_presentation_relation_or_egress",
   );
   pass("direct_host_unconfirmed_stop_stays_nonterminal_without_receipt");
 }
