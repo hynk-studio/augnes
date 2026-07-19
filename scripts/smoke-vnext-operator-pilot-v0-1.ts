@@ -6528,6 +6528,13 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           (item) =>
             item.attention_id === `feedback:${settled.feedback_proposal_id}`,
         );
+        for (const item of policyFeedbackHome.attention.items) {
+          assert.equal(
+            new Set(item.signals).size,
+            item.signals.length,
+            `attention signals must be unique: ${item.attention_id}`,
+          );
+        }
         assert(policyFeedbackAttention);
         assert.deepEqual(policyFeedbackAttention.signals, [
           "policy_triggered",

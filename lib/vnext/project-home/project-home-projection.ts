@@ -1242,7 +1242,10 @@ function composeProjectAttentionV01(input: {
       automationProposal.signals = [
         "policy_triggered",
         ...automationProposal.signals.filter(
-          (signal) => signal !== "interactive" && signal !== "feedback",
+          (signal) =>
+            signal !== "interactive" &&
+            signal !== "policy_triggered" &&
+            signal !== "feedback",
         ),
       ];
       automationProposal.reason = reason;

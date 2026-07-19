@@ -676,7 +676,7 @@ async function main() {
     );
     assert.equal(
       await evaluateBoolean(
-        `!document.body.textContent.includes('Private fixture') && document.body.textContent.includes('Eligible selected material 0')`,
+        `!document.body.textContent.includes('Private fixture') && document.body.textContent.includes('Task-selected material 0')`,
       ),
       true,
     );
@@ -3235,9 +3235,11 @@ function attachCdpObservers() {
         phase: currentPhase,
         path: null,
         text: (event.params?.args ?? [])
-          .map((argument) => String(argument.value ?? argument.description ?? ""))
+          .map((argument) =>
+            String(argument.value ?? argument.description ?? "").slice(0, 240),
+          )
           .join(" ")
-          .slice(0, 240),
+          .slice(0, 720),
       });
       return;
     }
