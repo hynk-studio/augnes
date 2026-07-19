@@ -3829,6 +3829,9 @@ CREATE TABLE IF NOT EXISTS vnext_core_records (
   record_kind TEXT NOT NULL CHECK (record_kind IN (
     'automation_work_item',
     'capability_grant',
+    'evidence_record',
+    'claim_record',
+    'claim_evidence_relation',
     'episode_delta_proposal',
     'review_decision',
     'semantic_commit_gate',

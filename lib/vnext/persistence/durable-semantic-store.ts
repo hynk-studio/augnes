@@ -29,6 +29,9 @@ export const VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01 =
 export const VNEXT_CORE_RECORD_KINDS_V01 = [
   "automation_work_item",
   "capability_grant",
+  "evidence_record",
+  "claim_record",
+  "claim_evidence_relation",
   "episode_delta_proposal",
   "review_decision",
   "semantic_commit_gate",
@@ -164,6 +167,9 @@ export const VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01 = `
     record_kind TEXT NOT NULL CHECK (record_kind IN (
       'automation_work_item',
       'capability_grant',
+      'evidence_record',
+      'claim_record',
+      'claim_evidence_relation',
       'episode_delta_proposal',
       'review_decision',
       'semantic_commit_gate',
@@ -314,8 +320,10 @@ interface TargetHeadRowV01 {
   updated_at: string;
 }
 
-const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01 =
+const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V02 =
   "vnext_core_records_upgrade_v0_2" as const;
+const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03 =
+  "vnext_core_records_upgrade_v0_3" as const;
 
 function upgradeVNextCoreRecordKindConstraintV01(
   db: Database.Database,
@@ -325,24 +333,30 @@ function upgradeVNextCoreRecordKindConstraintV01(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
     )
     .get() as { sql: string | null } | undefined;
+  const orphan = db
+    .prepare(
+      `SELECT 1 FROM sqlite_master
+       WHERE type = 'table' AND name IN (?, ?)`,
+    )
+    .get(
+      VNEXT_CORE_RECORDS_UPGRADE_TABLE_V02,
+      VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03,
+    );
+  if (orphan) {
+    throw new Error("vnext_core_record_kind_upgrade_orphan_table");
+  }
+  const tableSql = table?.sql;
   if (
     !table ||
-    (table.sql?.includes("'context_use_review'") &&
-      table.sql.includes("'automation_work_item'") &&
-      table.sql.includes("'capability_grant'"))
+    (typeof tableSql === "string" &&
+      VNEXT_CORE_RECORD_KINDS_V01.every((kind) =>
+        tableSql.includes(`'${kind}'`),
+      ))
   ) {
     return;
   }
   if (db.inTransaction) {
     throw new Error("vnext_core_record_kind_upgrade_nested_transaction_forbidden");
-  }
-  const orphan = db
-    .prepare(
-      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
-    )
-    .get(VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01);
-  if (orphan) {
-    throw new Error("vnext_core_record_kind_upgrade_orphan_table");
   }
   const before = db
     .prepare("SELECT COUNT(*) AS count FROM vnext_core_records")
@@ -350,10 +364,13 @@ function upgradeVNextCoreRecordKindConstraintV01(
   db.exec("BEGIN IMMEDIATE");
   try {
     db.exec(`
-      CREATE TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01} (
+      CREATE TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03} (
         record_kind TEXT NOT NULL CHECK (record_kind IN (
           'automation_work_item',
           'capability_grant',
+          'evidence_record',
+          'claim_record',
+          'claim_evidence_relation',
           'episode_delta_proposal',
           'review_decision',
           'semantic_commit_gate',
@@ -380,7 +397,7 @@ function upgradeVNextCoreRecordKindConstraintV01(
         PRIMARY KEY (record_kind, record_id)
       );
 
-      INSERT INTO ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01} (
+      INSERT INTO ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03} (
         record_kind, record_id, workspace_id, project_id, fingerprint,
         idempotency_key, payload_json, created_at
       )
@@ -390,7 +407,7 @@ function upgradeVNextCoreRecordKindConstraintV01(
       FROM vnext_core_records;
     `);
     const copied = db
-      .prepare(`SELECT COUNT(*) AS count FROM ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01}`)
+      .prepare(`SELECT COUNT(*) AS count FROM ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03}`)
       .get() as { count: number };
     if (copied.count !== before.count) {
       throw new Error("vnext_core_record_kind_upgrade_copy_count_mismatch");
@@ -399,7 +416,7 @@ function upgradeVNextCoreRecordKindConstraintV01(
       DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_update;
       DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_delete;
       DROP TABLE vnext_core_records;
-      ALTER TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01}
+      ALTER TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03}
         RENAME TO vnext_core_records;
 
       CREATE UNIQUE INDEX idx_vnext_core_records_project_idempotency
@@ -459,10 +476,12 @@ export function assertVNextDurableSemanticStoreSchemaV01(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
     )
     .get() as { sql: string | null } | undefined;
+  const coreRecordTableSql = coreRecordTable?.sql;
   if (
-    !coreRecordTable?.sql?.includes("'context_use_review'") ||
-    !coreRecordTable.sql.includes("'automation_work_item'") ||
-    !coreRecordTable.sql.includes("'capability_grant'")
+    !coreRecordTableSql ||
+    !VNEXT_CORE_RECORD_KINDS_V01.every((kind) =>
+      coreRecordTableSql.includes(`'${kind}'`),
+    )
   ) {
     throw new Error(
       "vnext_durable_semantic_store_schema_uninitialized:table:vnext_core_records:required_record_kinds",
