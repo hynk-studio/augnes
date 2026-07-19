@@ -69,6 +69,7 @@ import {
 } from "@/lib/vnext/review-decision";
 import {
   commitVNextSemanticTransitionV01,
+  createValidatedVNextSemanticTransitionRelationReadSessionV01,
   loadValidatedVNextSemanticTransitionRelationV01,
   persistVNextSemanticReviewMaterialV01,
   prepareVNextSemanticCommitPreviewV01,
@@ -788,6 +789,43 @@ function applyLifecycleV01(input: {
   return { proposal: input.proposal, decision, preview, authorization, commit };
 }
 
+function assertTransitionReadSessionBoundaryV01(
+  db: Database.Database,
+  applied: AppliedLifecycleV01,
+): void {
+  const loadTransition =
+    createValidatedVNextSemanticTransitionRelationReadSessionV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+    });
+  const source = {
+    transition_receipt_id:
+      applied.commit.transition_receipt.transition_receipt_id,
+    transition_receipt_fingerprint:
+      applied.commit.transition_receipt.integrity.fingerprint,
+  };
+  const first = loadTransition(source);
+  assert.deepEqual(first.receipt, applied.commit.transition_receipt);
+  first.receipt.recorded_at = "2000-01-01T00:00:00.000Z";
+  assert.deepEqual(
+    loadTransition(source).receipt,
+    applied.commit.transition_receipt,
+    "a caller-local mutation cannot alter the cached Transition source",
+  );
+
+  const wrongFingerprint = `sha256:${"f".repeat(64)}`;
+  assert.notEqual(wrongFingerprint, source.transition_receipt_fingerprint);
+  assert.throws(
+    () =>
+      loadTransition({
+        ...source,
+        transition_receipt_fingerprint: wrongFingerprint,
+      }),
+    /persisted_transition_receipt_fingerprint_mismatch/,
+    "a successful cache hit cannot authenticate the same receipt ID under a changed fingerprint",
+  );
+}
+
 function assertCurrentBindingV01(input: {
   db: Database.Database;
   proposal: EpisodeDeltaProposalV01;
@@ -961,6 +999,7 @@ function assertClaimLifecycleV01(): void {
       proposal: createMaterial.proposal,
       cycle: 10,
     });
+    assertTransitionReadSessionBoundaryV01(db, createApplied);
     assertCurrentBindingV01({
       db,
       proposal: createMaterial.proposal,
@@ -4204,6 +4243,7 @@ try {
       transplanted_prior_state_without_complete_source_chain_refused: true,
       exact_state_binding_and_single_family_head_checked: true,
       transition_exact_replay_checked: true,
+      call_local_transition_read_session_boundaries_checked: true,
       intermediate_revision_skip_refused: true,
       project_isolation_checked: true,
       rollback_checkpoints_checked: [

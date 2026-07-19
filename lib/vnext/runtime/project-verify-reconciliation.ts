@@ -22,6 +22,7 @@ import {
 import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { readProjectVerifyLifecycleProposalByIdentityV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-admission";
 import {
+  createProjectVerifyMaterialReadSessionV01,
   listClaimEvidenceRelationFamilyRevisionsV01,
   listClaimFamilyRevisionsV01,
   listRelationsForExactClaimV01,
@@ -31,6 +32,7 @@ import {
   readClaimRecordV01,
   readClaimEvidenceRelationV01,
   readEvidenceRecordV01,
+  type ProjectVerifyMaterialReadSessionV01,
 } from "@/lib/vnext/persistence/project-verify-material-store";
 import { compareProjectVerifyApplicabilityScopesV01 } from "@/lib/vnext/project-verify-applicability";
 import {
@@ -59,8 +61,8 @@ import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-propo
 import {
   assertProjectVerifyLifecycleProposalFullSourceBoundV01,
   assertProjectVerifyLifecyclePersistedStateSourceBoundV01,
+  createValidatedVNextSemanticTransitionRelationReadSessionV01,
   loadValidatedVNextSemanticCommitGateRelationV01,
-  loadValidatedVNextSemanticTransitionRelationV01,
   type ValidatedVNextSemanticTransitionRelationV01,
   type VNextSemanticCommitGateRecordV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
@@ -231,24 +233,23 @@ function readProjectVerifyReconciliationInternalV01(
     input.observed_at,
     "observed_at_invalid",
   );
-  const validatedTransitions = new Map<
-    string,
-    ValidatedVNextSemanticTransitionRelationV01
-  >();
-  // Reuse only successful immutable source validation inside this one
-  // synchronous read. Every new read gets a fresh cache, while mutable heads,
-  // projections, missing sources, and conflicts are always queried again.
-  const loadTransition: ProjectVerifyTransitionLoaderV01 = (source) => {
-    const key = `${source.transition_receipt_id}\0${source.transition_receipt_fingerprint}`;
-    const cached = validatedTransitions.get(key);
-    if (cached) return cached;
-    const validated = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      ...scope,
-      ...source,
-    });
-    validatedTransitions.set(key, validated);
-    return validated;
+  const materialReadSession = createProjectVerifyMaterialReadSessionV01(
+    db,
+    scope,
+  );
+  let sourceAssessmentCache: ReturnType<
+    typeof readSourceAssessmentMaterialV01
+  > | null = null;
+  const loadSourceAssessment = () => {
+    sourceAssessmentCache ??= readSourceAssessmentMaterialV01(db, scope, focus);
+    return sourceAssessmentCache;
   };
+  // Reuse only successful immutable Transition source validation inside this
+  // synchronous read. The private validation context also shares exact prior
+  // chains between revisions. Mutable heads, expiry projections, missing
+  // sources, and conflicts are always queried again.
+  const loadTransition: ProjectVerifyTransitionLoaderV01 =
+    createValidatedVNextSemanticTransitionRelationReadSessionV01(db, scope);
 
   const evidenceCount = countVNextCoreRecordsV01(db, {
     ...scope,
@@ -279,6 +280,8 @@ function readProjectVerifyReconciliationInternalV01(
     scope,
     focus,
     loadTransition,
+    materialReadSession,
+    loadSourceAssessment,
   );
   const exactCriterionFocus = focus?.focus_kind === "criterion";
   // Criterion lineage direct-loads and source-validates its exact connected
@@ -290,27 +293,35 @@ function readProjectVerifyReconciliationInternalV01(
     focusedMaterial.evidence,
     exactCriterionFocus || focusedMaterial.evidence.length >= READ_LIMIT_V01
       ? []
-      : listProjectEvidenceRecordsV01(db, {
-          ...scope,
-          limit: READ_LIMIT_V01,
-        }),
+      : listProjectEvidenceRecordsV01(
+          db,
+          {
+            ...scope,
+            limit: READ_LIMIT_V01,
+          },
+          materialReadSession,
+        ),
     (record) => record.evidence_id,
   );
   const claimCollection = boundedUniqueRecordsV01(
     focusedMaterial.claims,
     exactCriterionFocus || focusedMaterial.claims.length >= READ_LIMIT_V01
       ? []
-      : listProjectClaimRecordsV01(db, {
-          ...scope,
-          limit: READ_LIMIT_V01,
-        }),
+      : listProjectClaimRecordsV01(
+          db,
+          {
+            ...scope,
+            limit: READ_LIMIT_V01,
+          },
+          materialReadSession,
+        ),
     (record) => record.claim_id,
   );
   const relationCollection = boundedUniqueRecordsV01(
     focusedMaterial.relations,
     exactCriterionFocus || focusedMaterial.relations.length >= READ_LIMIT_V01
       ? []
-      : listProjectRelationsV01(db, scope),
+      : listProjectRelationsV01(db, scope, materialReadSession),
     (record) => record.relation_id,
   );
   const evidenceRecords = evidenceCollection.records;
@@ -321,11 +332,17 @@ function readProjectVerifyReconciliationInternalV01(
   const relationById = new Map(
     relationRecords.map((record) => [record.relation_id, record]),
   );
-  const claimFamilyCollection = groupClaimsV01(db, scope, claimRecords);
+  const claimFamilyCollection = groupClaimsV01(
+    db,
+    scope,
+    claimRecords,
+    materialReadSession,
+  );
   const relationFamilyCollection = groupRelationsV01(
     db,
     scope,
     relationRecords,
+    materialReadSession,
   );
   const claimFamilies = claimFamilyCollection.families;
   const relationFamilies = relationFamilyCollection.families;
@@ -366,7 +383,7 @@ function readProjectVerifyReconciliationInternalV01(
     );
   }
 
-  const sourceAssessment = readSourceAssessmentMaterialV01(db, scope, focus);
+  const sourceAssessment = loadSourceAssessment();
   const transitions = uniqueValidatedTransitionsV01([
     ...claimFamilyProjections.flatMap((family) =>
       family.revisions.flatMap((revision) =>
@@ -582,16 +599,21 @@ function readProjectVerifyReconciliationInternalV01(
 function listProjectRelationsV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
+  materialReadSession: ProjectVerifyMaterialReadSessionV01,
 ): ClaimEvidenceRelationV01[] {
   return listVNextCoreRecordsV01(db, {
     ...scope,
     record_kinds: ["claim_evidence_relation"],
     limit: READ_LIMIT_V01,
   }).map((envelope) => {
-    const record = readClaimEvidenceRelationV01(db, {
-      ...scope,
-      relation_id: envelope.record_id,
-    });
+    const record = readClaimEvidenceRelationV01(
+      db,
+      {
+        ...scope,
+        relation_id: envelope.record_id,
+      },
+      materialReadSession,
+    );
     if (!record) failV01("project_verify_relation_disappeared");
     return record;
   });
@@ -609,6 +631,10 @@ function readFocusedMaterialV01(
   scope: { workspace_id: string; project_id: string },
   focus: ProjectVerifyReconciliationFocusV01 | null,
   loadTransition: ProjectVerifyTransitionLoaderV01,
+  materialReadSession: ProjectVerifyMaterialReadSessionV01,
+  loadSourceAssessment: () => ReturnType<
+    typeof readSourceAssessmentMaterialV01
+  >,
 ): FocusedProjectVerifyMaterialV01 {
   const evidence = new Map<string, EvidenceRecordV01>();
   const claims = new Map<string, ClaimRecordV01>();
@@ -650,49 +676,80 @@ function readFocusedMaterialV01(
     return true;
   };
   const addEvidence = (evidenceId: string): void => {
-    const record = readEvidenceRecordV01(db, {
-      ...scope,
-      evidence_id: evidenceId,
-    });
+    const record = readEvidenceRecordV01(
+      db,
+      {
+        ...scope,
+        evidence_id: evidenceId,
+      },
+      materialReadSession,
+    );
     if (record) addEvidenceRecord(record);
   };
   const addClaimFamily = (claimId: string): void => {
-    const record = readClaimRecordV01(db, { ...scope, claim_id: claimId });
+    const record = readClaimRecordV01(
+      db,
+      { ...scope, claim_id: claimId },
+      materialReadSession,
+    );
     if (!record) return;
     // Pin the exact requested or endpoint record before expanding its family.
     // A family is never later projected partially; groupClaimsV01 either keeps
     // the complete lineage inside the aggregate cap or marks it omitted.
     addClaimRecord(record);
-    for (const revision of listClaimFamilyRevisionsV01(db, {
-      ...scope,
-      claim_family_id: record.claim_family_id,
-    })) {
+    for (const revision of listClaimFamilyRevisionsV01(
+      db,
+      {
+        ...scope,
+        claim_family_id: record.claim_family_id,
+      },
+      materialReadSession,
+    )) {
       addClaimRecord(revision);
     }
   };
-  const addRelationFamily = (relationId: string): void => {
-    const record = readClaimEvidenceRelationV01(db, {
-      ...scope,
-      relation_id: relationId,
-    });
-    if (!record) return;
+  const addValidatedRelationFamily = (
+    record: ClaimEvidenceRelationV01,
+  ): void => {
     addRelationRecord(record);
     if (expandedRelationFamilies.has(record.relation_family_id)) return;
-    expandedRelationFamilies.add(record.relation_family_id);
     // As above, preserve the exact relation root before bounded expansion.
-    for (const revision of listClaimEvidenceRelationFamilyRevisionsV01(db, {
-      ...scope,
-      relation_family_id: record.relation_family_id,
-    })) {
+    const family = listClaimEvidenceRelationFamilyRevisionsV01(
+      db,
+      {
+        ...scope,
+        relation_family_id: record.relation_family_id,
+      },
+      materialReadSession,
+    );
+    const exactMember = family.find(
+      (candidate) => candidate.relation_id === record.relation_id,
+    );
+    if (!exactMember || canonical(exactMember) !== canonical(record)) {
+      failV01("project_verify_focused_relation_family_conflict");
+    }
+    expandedRelationFamilies.add(record.relation_family_id);
+    for (const revision of family) {
       if (addRelationRecord(revision)) {
         addClaimFamily(revision.claim_ref.record_id);
         addEvidence(revision.evidence_ref.record_id);
       }
     }
   };
+  const addRelationFamily = (relationId: string): void => {
+    const record = readClaimEvidenceRelationV01(
+      db,
+      {
+        ...scope,
+        relation_id: relationId,
+      },
+      materialReadSession,
+    );
+    if (record) addValidatedRelationFamily(record);
+  };
   const addRelations = (records: ClaimEvidenceRelationV01[]): void => {
     for (const record of records) {
-      addRelationFamily(record.relation_id);
+      addValidatedRelationFamily(record);
     }
   };
   const addRelationsForClaim = (claim: ClaimRecordV01): void => {
@@ -707,11 +764,15 @@ function readFocusedMaterialV01(
     });
     bounded = bounded || count > READ_LIMIT_V01;
     addRelations(
-      listRelationsForExactClaimV01(db, {
-        ...scope,
-        claim_ref: claimRecordReferenceV01(claim),
-        limit: READ_LIMIT_V01,
-      }),
+      listRelationsForExactClaimV01(
+        db,
+        {
+          ...scope,
+          claim_ref: claimRecordReferenceV01(claim),
+          limit: READ_LIMIT_V01,
+        },
+        materialReadSession,
+      ),
     );
   };
   const addRelationsForEvidence = (record: EvidenceRecordV01): void => {
@@ -726,11 +787,15 @@ function readFocusedMaterialV01(
     });
     bounded = bounded || count > READ_LIMIT_V01;
     addRelations(
-      listRelationsForExactEvidenceV01(db, {
-        ...scope,
-        evidence_ref: evidenceRecordReferenceV01(record),
-        limit: READ_LIMIT_V01,
-      }),
+      listRelationsForExactEvidenceV01(
+        db,
+        {
+          ...scope,
+          evidence_ref: evidenceRecordReferenceV01(record),
+          limit: READ_LIMIT_V01,
+        },
+        materialReadSession,
+      ),
     );
   };
   const expandConnectedMaterial = (): void => {
@@ -768,7 +833,7 @@ function readFocusedMaterialV01(
   if (focus) {
     switch (focus.focus_kind) {
       case "criterion": {
-        const source = readSourceAssessmentMaterialV01(db, scope, focus);
+        const source = loadSourceAssessment();
         const exactCriteria = source.criteria.filter(
           (item) =>
             item.criterion.criterion_id === focus.criterion_id &&
@@ -785,6 +850,7 @@ function readFocusedMaterialV01(
               db,
               scope,
               relationRef,
+              materialReadSession,
             );
             bounded = bounded || matching.bounded;
             for (const record of matching.records) {
@@ -808,10 +874,14 @@ function readFocusedMaterialV01(
         break;
       }
       case "claim_family": {
-        const family = listClaimFamilyRevisionsV01(db, {
-          ...scope,
-          claim_family_id: focus.claim_family_id,
-        });
+        const family = listClaimFamilyRevisionsV01(
+          db,
+          {
+            ...scope,
+            claim_family_id: focus.claim_family_id,
+          },
+          materialReadSession,
+        );
         if (family[0]) addClaimFamily(family[0].claim_id);
         for (const claim of family) {
           addRelationsForClaim(claim);
@@ -822,10 +892,14 @@ function readFocusedMaterialV01(
         addRelationFamily(focus.relation_id);
         break;
       case "claim_evidence_relation_family": {
-        const family = listClaimEvidenceRelationFamilyRevisionsV01(db, {
-          ...scope,
-          relation_family_id: focus.relation_family_id,
-        });
+        const family = listClaimEvidenceRelationFamilyRevisionsV01(
+          db,
+          {
+            ...scope,
+            relation_family_id: focus.relation_family_id,
+          },
+          materialReadSession,
+        );
         if (family[0]) addRelationFamily(family[0].relation_id);
         break;
       }
@@ -911,6 +985,7 @@ function queryEvidenceByExactSourceRefV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   sourceRef: ExternalRefV01,
+  materialReadSession: ProjectVerifyMaterialReadSessionV01,
 ): { records: EvidenceRecordV01[]; bounded: boolean } {
   const rows = db
     .prepare(
@@ -934,10 +1009,14 @@ function queryEvidenceByExactSourceRefV01(
       READ_LIMIT_V01 + 1,
     ) as Array<{ record_id: string }>;
   const records = rows.slice(0, READ_LIMIT_V01).map(({ record_id }) => {
-    const record = readEvidenceRecordV01(db, {
-      ...scope,
-      evidence_id: record_id,
-    });
+    const record = readEvidenceRecordV01(
+      db,
+      {
+        ...scope,
+        evidence_id: record_id,
+      },
+      materialReadSession,
+    );
     if (
       !record ||
       !record.source_refs.some(
@@ -1098,16 +1177,21 @@ function groupClaimsV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   records: ClaimRecordV01[],
+  materialReadSession: ProjectVerifyMaterialReadSessionV01,
 ): BoundedFamilyCollectionV01<ClaimRecordV01> {
   const families = new Map<string, ClaimRecordV01[]>();
   let revisionCount = 0;
   let bounded = false;
   for (const record of records) {
     if (!families.has(record.claim_family_id)) {
-      const lineage = listClaimFamilyRevisionsV01(db, {
-        ...scope,
-        claim_family_id: record.claim_family_id,
-      });
+      const lineage = listClaimFamilyRevisionsV01(
+        db,
+        {
+          ...scope,
+          claim_family_id: record.claim_family_id,
+        },
+        materialReadSession,
+      );
       if (revisionCount + lineage.length > READ_LIMIT_V01) {
         bounded = true;
         continue;
@@ -1128,16 +1212,21 @@ function groupRelationsV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   records: ClaimEvidenceRelationV01[],
+  materialReadSession: ProjectVerifyMaterialReadSessionV01,
 ): BoundedFamilyCollectionV01<ClaimEvidenceRelationV01> {
   const families = new Map<string, ClaimEvidenceRelationV01[]>();
   let revisionCount = 0;
   let bounded = false;
   for (const record of records) {
     if (!families.has(record.relation_family_id)) {
-      const lineage = listClaimEvidenceRelationFamilyRevisionsV01(db, {
-        ...scope,
-        relation_family_id: record.relation_family_id,
-      });
+      const lineage = listClaimEvidenceRelationFamilyRevisionsV01(
+        db,
+        {
+          ...scope,
+          relation_family_id: record.relation_family_id,
+        },
+        materialReadSession,
+      );
       if (revisionCount + lineage.length > READ_LIMIT_V01) {
         bounded = true;
         continue;

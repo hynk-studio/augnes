@@ -98,6 +98,7 @@ export const VNEXT_SEMANTIC_COMMIT_PREVIEW_VERSION_V01 =
   "vnext_semantic_commit_preview.v0.1" as const;
 export const VNEXT_SEMANTIC_COMMIT_GATE_RECORD_VERSION_V01 =
   "vnext_semantic_commit_gate_record.v0.1" as const;
+const VNEXT_SEMANTIC_TRANSITION_READ_SESSION_MAX_CACHED_SOURCES_V01 = 256;
 export const VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01 =
   "augnes.vnext.durable-semantic-transition.v0.1" as const;
 export const VNEXT_SEMANTIC_COMMIT_CONFIRMATION_CONTEXT_REF_TYPE_V01 =
@@ -314,6 +315,11 @@ export interface ValidatedVNextSemanticTransitionRelationV01 {
   eligibility_input: StateTransitionEligibilityEvaluationInputV01;
   eligibility: StateTransitionEligibilityResultV01;
 }
+
+export type VNextSemanticTransitionRelationReadSessionV01 = (input: {
+  transition_receipt_id: string;
+  transition_receipt_fingerprint: string;
+}) => ValidatedVNextSemanticTransitionRelationV01;
 
 export interface ProjectVerifyLifecyclePersistedStateSourceInputV01 {
   state: VNextPersistedSemanticStateVersionV01;
@@ -1046,6 +1052,7 @@ interface VNextSemanticTransitionValidationContextV01 {
     ValidatedVNextSemanticTransitionRelationV01
   >;
   readonly active_source_keys: Set<string>;
+  readonly max_cached_sources: number | null;
 }
 
 /**
@@ -1077,10 +1084,13 @@ export function assertProjectVerifyLifecycleProposalFullCurrentHeadV01(
   return authenticated;
 }
 
-function createTransitionValidationContextV01(): VNextSemanticTransitionValidationContextV01 {
+function createTransitionValidationContextV01(
+  maxCachedSources: number | null = null,
+): VNextSemanticTransitionValidationContextV01 {
   return {
     validated_by_source: new Map(),
     active_source_keys: new Set(),
+    max_cached_sources: maxCachedSources,
   };
 }
 
@@ -1093,6 +1103,39 @@ export function loadValidatedVNextSemanticTransitionRelationV01(
     input,
     createTransitionValidationContextV01(),
   );
+}
+
+/**
+ * Creates one synchronous, scope-bound loader for immutable Transition source
+ * chains. Successful exact receipt validations share the same private context
+ * so revisions with a common prior chain do not replay that chain repeatedly.
+ * Callers must create a new loader for every top-level read; no mutable head,
+ * gate expiry, missing source, or conflict result is cached here. After the
+ * cache bound, additional sources are still fully validated but not memoized.
+ */
+export function createValidatedVNextSemanticTransitionRelationReadSessionV01(
+  db: Database.Database,
+  scope: { workspace_id: string; project_id: string },
+): VNextSemanticTransitionRelationReadSessionV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  const workspaceId = scope.workspace_id;
+  const projectId = scope.project_id;
+  const validationContext = createTransitionValidationContextV01(
+    VNEXT_SEMANTIC_TRANSITION_READ_SESSION_MAX_CACHED_SOURCES_V01,
+  );
+  return (input) =>
+    structuredClone(
+      loadValidatedVNextSemanticTransitionRelationWithContextV01(
+        db,
+        {
+          workspace_id: workspaceId,
+          project_id: projectId,
+          transition_receipt_id: input.transition_receipt_id,
+          transition_receipt_fingerprint: input.transition_receipt_fingerprint,
+        },
+        validationContext,
+      ),
+    );
 }
 
 function loadValidatedVNextSemanticTransitionRelationWithContextV01(
@@ -1224,7 +1267,13 @@ function loadValidatedVNextSemanticTransitionRelationWithContextV01(
       eligibility_input: eligibilityInput,
       eligibility,
     };
-    validationContext.validated_by_source.set(sourceKey, validated);
+    if (
+      validationContext.max_cached_sources === null ||
+      validationContext.validated_by_source.size <
+        validationContext.max_cached_sources
+    ) {
+      validationContext.validated_by_source.set(sourceKey, validated);
+    }
     return validated;
   } finally {
     validationContext.active_source_keys.delete(sourceKey);
