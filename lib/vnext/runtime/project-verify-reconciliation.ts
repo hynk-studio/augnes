@@ -165,6 +165,17 @@ interface LifecycleSourcesV01 {
   gate: VNextSemanticCommitGateRecordV01 | null;
   transition: ValidatedVNextSemanticTransitionRelationV01 | null;
   conflict_codes: string[];
+  bounded_incomplete: boolean;
+}
+
+interface ValidatedLifecycleGateSourceV01 {
+  gate: VNextSemanticCommitGateRecordV01;
+  decision: ReviewDecisionV01;
+}
+
+interface BoundedLifecycleSourceCollectionV01<T> {
+  records: T[];
+  bounded: boolean;
 }
 
 interface FamilyCurrentHeadV01 {
@@ -361,7 +372,13 @@ function readProjectVerifyReconciliationInternalV01(
     );
     const revisionWork = family.map((record) => ({
       record,
-      sources: readLifecycleSourcesV01(db, scope, record, loadTransition),
+      sources: readLifecycleSourcesV01(
+        db,
+        scope,
+        record,
+        observedAt,
+        loadTransition,
+      ),
     }));
     claimFamilyProjections.push(
       projectClaimFamilyV01(family, revisionWork, target, observedAt),
@@ -376,7 +393,13 @@ function readProjectVerifyReconciliationInternalV01(
     );
     const revisionWork = family.map((record) => ({
       record,
-      sources: readLifecycleSourcesV01(db, scope, record, loadTransition),
+      sources: readLifecycleSourcesV01(
+        db,
+        scope,
+        record,
+        observedAt,
+        loadTransition,
+      ),
     }));
     relationFamilyProjections.push(
       projectRelationFamilyV01(family, revisionWork, target, observedAt),
@@ -462,6 +485,12 @@ function readProjectVerifyReconciliationInternalV01(
     relationCollection.bounded ||
     claimFamilyCollection.bounded ||
     relationFamilyCollection.bounded ||
+    claimFamilyProjections.some(
+      (family) => family.completeness.status === "bounded_incomplete",
+    ) ||
+    relationFamilyProjections.some(
+      (family) => family.completeness.status === "bounded_incomplete",
+    ) ||
     applicabilityCollection.bounded ||
     sourceAssessment.bounded_incomplete ||
     laterContextCollection.bounded ||
@@ -584,6 +613,22 @@ function readProjectVerifyReconciliationInternalV01(
     completeness,
     authority: readAuthorityV01(),
   } satisfies Omit<ProjectVerifyReconciliationV01, "projection_fingerprint">;
+  const focusedLifecycleRecordIds = new Set([
+    ...focusedMaterial.claims.map((record) => record.claim_id),
+    ...focusedMaterial.relations.map((record) => record.relation_id),
+  ]);
+  const focusedLifecycleBounded = [
+    ...claimFamilyProjections.flatMap((family) =>
+      family.completeness.status === "bounded_incomplete"
+        ? family.revisions.map((revision) => revision.claim_ref.record_id)
+        : [],
+    ),
+    ...relationFamilyProjections.flatMap((family) =>
+      family.completeness.status === "bounded_incomplete"
+        ? family.revisions.map((revision) => revision.relation_ref.record_id)
+        : [],
+    ),
+  ].some((recordId) => focusedLifecycleRecordIds.has(recordId));
   return {
     reconciliation: {
       ...withoutFingerprint,
@@ -592,7 +637,9 @@ function readProjectVerifyReconciliationInternalV01(
       ),
     },
     focus_bounded:
-      focusedMaterial.bounded || laterContextCollection.focus_bounded,
+      focusedMaterial.bounded ||
+      focusedLifecycleBounded ||
+      laterContextCollection.focus_bounded,
   };
 }
 
@@ -1247,6 +1294,7 @@ function readLifecycleSourcesV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   record: ProjectVerifyLifecycleSelectedRecordV01,
+  observedAt: string,
   loadTransition: ProjectVerifyTransitionLoaderV01,
 ): LifecycleSourcesV01 {
   const entityKind =
@@ -1281,6 +1329,7 @@ function readLifecycleSourcesV01(
       gate: null,
       transition: null,
       conflict_codes: [],
+      bounded_incomplete: false,
     };
   }
   const receiptEnvelopes = queryCoreRecordsV01(db, scope, {
@@ -1300,6 +1349,7 @@ function readLifecycleSourcesV01(
       gate: null,
       transition: null,
       conflict_codes: ["project_verify_transition_lineage_ambiguous"],
+      bounded_incomplete: false,
     };
   }
   const receiptEnvelope = receiptEnvelopes[0] ?? null;
@@ -1315,129 +1365,227 @@ function readLifecycleSourcesV01(
       failV01("project_verify_transition_proposal_conflict");
     }
     // loadTransition authenticates the exact persisted proposal, decision,
-    // gate, receipt, prior chain, and scoped envelopes. Reuse those immutable
-    // authenticated values instead of independently replaying the same chain.
-    const decisionCount = countCoreRecordsWhereV01(db, scope, {
-      record_kind: "review_decision",
-      where: [
-        "json_extract(payload_json, '$.source_proposal.proposal_id') = ?",
-        "json_extract(payload_json, '$.candidate.candidate_id') = ?",
-      ],
-      values: [
-        persisted.proposal.proposal_id,
-        persisted.proposal.project_verify_lifecycle!.lifecycle_binding
-          .decision_candidate.candidate_id,
-      ],
-    });
-    const gateCount = countCoreRecordsWhereV01(db, scope, {
-      record_kind: "semantic_commit_gate",
-      where: [
-        "json_extract(payload_json, '$.proposal_id') = ?",
-        "json_extract(payload_json, '$.decision_id') = ?",
-      ],
-      values: [persisted.proposal.proposal_id, transition.decision.decision_id],
-    });
+    // gate, receipt, prior chain, and scoped envelopes. Historical decisions
+    // and gate attempts are still loaded through their exact validators. Their
+    // mere count cannot override the receipt-selected immutable chain.
+    const decisions = readValidatedLifecycleDecisionsV01(
+      db,
+      scope,
+      persisted.proposal,
+      loadTransition,
+    );
+    const gates = readValidatedLifecycleGatesV01(
+      db,
+      scope,
+      persisted.proposal,
+    );
+    if (
+      !decisions.bounded &&
+      !decisions.records.some(
+        (decision) => canonical(decision) === canonical(transition.decision),
+      )
+    ) {
+      failV01("project_verify_transition_decision_history_missing");
+    }
+    if (
+      !gates.bounded &&
+      !gates.records.some(
+        (source) => canonical(source.gate) === canonical(transition.gate_record),
+      )
+    ) {
+      failV01("project_verify_transition_gate_history_missing");
+    }
     assertLifecycleTransitionStateSourceV01(
       db,
       scope,
       transition,
       loadTransition,
     );
-    const conflictCodes = [
-      ...(decisionCount > 1
-        ? ["project_verify_competing_decision_lineage"]
-        : []),
-      ...(gateCount > 1 ? ["project_verify_competing_gate_lineage"] : []),
-    ];
     return {
       proposal: persisted.proposal,
       decision: transition.decision,
       gate: transition.gate_record,
       transition,
-      conflict_codes: conflictCodes,
+      conflict_codes: [],
+      bounded_incomplete: decisions.bounded || gates.bounded,
     };
   }
   assertProjectVerifyLifecycleProposalFullSourceBoundV01(
     db,
     persisted.proposal,
   );
-  const decisionEnvelopes = queryCoreRecordsV01(db, scope, {
-    record_kind: "review_decision",
-    where: [
-      "json_extract(payload_json, '$.source_proposal.proposal_id') = ?",
-      "json_extract(payload_json, '$.candidate.candidate_id') = ?",
-    ],
-    values: [
-      persisted.proposal.proposal_id,
-      persisted.proposal.project_verify_lifecycle!.lifecycle_binding
-        .decision_candidate.candidate_id,
-    ],
-    limit: 3,
-  });
-  if (decisionEnvelopes.length > 1) {
+  const decisions = readValidatedLifecycleDecisionsV01(
+    db,
+    scope,
+    persisted.proposal,
+    loadTransition,
+  );
+  const gates = readValidatedLifecycleGatesV01(
+    db,
+    scope,
+    persisted.proposal,
+  );
+  if (decisions.bounded || gates.bounded) {
+    return {
+      proposal: persisted.proposal,
+      decision: null,
+      gate: null,
+      transition: null,
+      conflict_codes: [
+        ...(decisions.bounded
+          ? ["project_verify_decision_lineage_bounded_incomplete"]
+          : []),
+        ...(gates.bounded
+          ? ["project_verify_gate_lineage_bounded_incomplete"]
+          : []),
+      ],
+      bounded_incomplete: true,
+    };
+  }
+  const gateResolution = resolvePendingLifecycleGateV01(
+    gates.records,
+    observedAt,
+  );
+  if (gateResolution) {
+    return {
+      proposal: persisted.proposal,
+      decision: gateResolution.decision,
+      gate: gateResolution.gate,
+      transition: null,
+      conflict_codes: gateResolution.conflict_codes,
+      bounded_incomplete: false,
+    };
+  }
+  if (decisions.records.length > 1) {
     return {
       proposal: persisted.proposal,
       decision: null,
       gate: null,
       transition: null,
       conflict_codes: ["project_verify_decision_lineage_ambiguous"],
+      bounded_incomplete: false,
     };
   }
-  const decisionEnvelope = decisionEnvelopes[0] ?? null;
-  const decision = decisionEnvelope
-    ? validatedDecisionV01(
+  return {
+    proposal: persisted.proposal,
+    decision: decisions.records[0] ?? null,
+    gate: null,
+    transition: null,
+    conflict_codes: [],
+    bounded_incomplete: false,
+  };
+}
+
+function readValidatedLifecycleDecisionsV01(
+  db: Database.Database,
+  scope: { workspace_id: string; project_id: string },
+  proposal: EpisodeDeltaProposalV01,
+  loadTransition: ProjectVerifyTransitionLoaderV01,
+): BoundedLifecycleSourceCollectionV01<ReviewDecisionV01> {
+  const collection = queryLifecycleCoreRecordsV01(db, scope, {
+    record_kind: "review_decision",
+    where: [
+      "json_extract(payload_json, '$.source_proposal.proposal_id') = ?",
+      "json_extract(payload_json, '$.candidate.candidate_id') = ?",
+    ],
+    values: [
+      proposal.proposal_id,
+      proposal.project_verify_lifecycle!.lifecycle_binding.decision_candidate
+        .candidate_id,
+    ],
+  });
+  return {
+    records: collection.records.map((envelope) =>
+      validatedDecisionV01(
         db,
-        decisionEnvelope,
-        persisted.proposal,
+        envelope,
+        proposal,
         scope,
         loadTransition,
-      )
-    : null;
-  if (!decision) {
+      ),
+    ),
+    bounded: collection.bounded,
+  };
+}
+
+function readValidatedLifecycleGatesV01(
+  db: Database.Database,
+  scope: { workspace_id: string; project_id: string },
+  proposal: EpisodeDeltaProposalV01,
+): BoundedLifecycleSourceCollectionV01<ValidatedLifecycleGateSourceV01> {
+  const collection = queryLifecycleCoreRecordsV01(db, scope, {
+    record_kind: "semantic_commit_gate",
+    where: ["json_extract(payload_json, '$.proposal_id') = ?"],
+    values: [proposal.proposal_id],
+  });
+  return {
+    records: collection.records.map((envelope) =>
+      validatedGateEnvelopeV01(db, envelope, proposal, scope),
+    ),
+    bounded: collection.bounded,
+  };
+}
+
+function resolvePendingLifecycleGateV01(
+  sources: ValidatedLifecycleGateSourceV01[],
+  observedAt: string,
+): {
+  decision: ReviewDecisionV01 | null;
+  gate: VNextSemanticCommitGateRecordV01 | null;
+  conflict_codes: string[];
+} | null {
+  if (sources.length === 0) return null;
+  const observedAtMs = parseStrictIsoTimestampV01(observedAt);
+  if (observedAtMs === null) failV01("project_verify_gate_timestamp_invalid");
+  const unexpired = sources.filter((source) => {
+    const expiresAtMs = parseStrictIsoTimestampV01(
+      source.gate.semantic_commit_gate_evaluation.expires_at,
+    );
+    if (expiresAtMs === null) failV01("project_verify_gate_timestamp_invalid");
+    return observedAtMs <= expiresAtMs;
+  });
+  if (unexpired.length > 1) {
+    const decisions = new Map(
+      unexpired.map((source) => [canonical(source.decision), source.decision]),
+    );
     return {
-      proposal: persisted.proposal,
-      decision: null,
+      decision: decisions.size === 1 ? [...decisions.values()][0]! : null,
       gate: null,
-      transition: null,
+      conflict_codes: [
+        "project_verify_competing_gate_authorization",
+        ...(decisions.size > 1
+          ? ["project_verify_decision_lineage_ambiguous"]
+          : []),
+      ],
+    };
+  }
+  if (unexpired.length === 1) {
+    const selected = unexpired[0]!;
+    return {
+      decision: selected.decision,
+      gate: selected.gate,
       conflict_codes: [],
     };
   }
-  const gateEnvelopes = queryCoreRecordsV01(db, scope, {
-    record_kind: "semantic_commit_gate",
-    where: [
-      "json_extract(payload_json, '$.proposal_id') = ?",
-      "json_extract(payload_json, '$.decision_id') = ?",
-    ],
-    values: [persisted.proposal.proposal_id, decision.decision_id],
-    limit: 3,
-  });
-  if (gateEnvelopes.length > 1) {
-    return {
-      proposal: persisted.proposal,
-      decision,
-      gate: null,
-      transition: null,
-      conflict_codes: ["project_verify_gate_lineage_ambiguous"],
-    };
-  }
-  const gateEnvelope = gateEnvelopes[0] ?? null;
-  const gate = gateEnvelope
-    ? validatedGateEnvelopeV01(
-        db,
-        gateEnvelope,
-        persisted.proposal,
-        decision,
-        scope,
-      )
-    : null;
-
+  // Historical expired authorizations remain immutable. Select the newest
+  // exact confirmed_at + gate ID only for deterministic readback; this does
+  // not authorize a Transition or establish semantic precedence.
+  const selected = [...sources].sort(compareLifecycleGateHistoryV01).at(-1)!;
   return {
-    proposal: persisted.proposal,
-    decision,
-    gate,
-    transition: null,
+    decision: selected.decision,
+    gate: selected.gate,
     conflict_codes: [],
   };
+}
+
+function compareLifecycleGateHistoryV01(
+  left: ValidatedLifecycleGateSourceV01,
+  right: ValidatedLifecycleGateSourceV01,
+): number {
+  return (
+    left.gate.confirmed_at.localeCompare(right.gate.confirmed_at) ||
+    left.gate.gate_record_id.localeCompare(right.gate.gate_record_id)
+  );
 }
 
 function assertLifecycleTransitionStateSourceV01(
@@ -1499,6 +1647,9 @@ function projectClaimFamilyV01(
   observedAt: string,
 ): ProjectVerifyClaimFamilyProjectionV01 {
   const first = family[0]!;
+  const lifecycleSourceBounded = work.some(
+    (item) => item.sources.bounded_incomplete,
+  );
   const revisions = work.map((item, index) => ({
     claim_ref: claimRecordReferenceV01(item.record),
     claim: item.record,
@@ -1545,7 +1696,13 @@ function projectClaimFamilyV01(
       )
       .map((revision) => revision.claim_ref),
     conflicts: familyConflictsV01(revisions),
-    completeness: completenessV01(family.length, false, null),
+    completeness: completenessV01(
+      family.length,
+      lifecycleSourceBounded,
+      lifecycleSourceBounded
+        ? "project_verify_lifecycle_source_bound_exceeded"
+        : null,
+    ),
   };
 }
 
@@ -1556,6 +1713,9 @@ function projectRelationFamilyV01(
   observedAt: string,
 ): ProjectVerifyRelationFamilyProjectionV01 {
   const first = family[0]!;
+  const lifecycleSourceBounded = work.some(
+    (item) => item.sources.bounded_incomplete,
+  );
   const revisions = work.map((item, index) => ({
     relation_ref: claimEvidenceRelationReferenceV01(item.record),
     relation: item.record,
@@ -1605,7 +1765,13 @@ function projectRelationFamilyV01(
       )
       .map((revision) => revision.relation_ref),
     conflicts: familyConflictsV01(revisions),
-    completeness: completenessV01(family.length, false, null),
+    completeness: completenessV01(
+      family.length,
+      lifecycleSourceBounded,
+      lifecycleSourceBounded
+        ? "project_verify_lifecycle_source_bound_exceeded"
+        : null,
+    ),
   };
 }
 
@@ -2019,9 +2185,8 @@ function validatedGateEnvelopeV01(
   db: Database.Database,
   envelope: VNextCoreRecordEnvelopeV01,
   proposal: EpisodeDeltaProposalV01,
-  decision: ReviewDecisionV01,
   scope: { workspace_id: string; project_id: string },
-): VNextSemanticCommitGateRecordV01 {
+): ValidatedLifecycleGateSourceV01 {
   const authenticated = loadValidatedVNextSemanticCommitGateRelationV01(db, {
     ...scope,
     gate_record_id: envelope.record_id,
@@ -2031,7 +2196,6 @@ function validatedGateEnvelopeV01(
   if (
     authenticated.eligibility.status !== "eligible" ||
     canonical(authenticated.proposal) !== canonical(proposal) ||
-    canonical(authenticated.decision) !== canonical(decision) ||
     canonical(gate) !== canonical(envelope.payload)
   ) {
     failV01("project_verify_semantic_gate_source_conflict");
@@ -2045,7 +2209,7 @@ function validatedGateEnvelopeV01(
   if (envelope.idempotency_key !== gate.confirmation_digest) {
     failV01("project_verify_semantic_gate_envelope_conflict");
   }
-  return gate;
+  return { gate, decision: authenticated.decision };
 }
 
 function readSourceAssessmentMaterialV01(
@@ -2781,30 +2945,41 @@ function queryCoreRecordsV01(
   });
 }
 
-function countCoreRecordsWhereV01(
+function queryLifecycleCoreRecordsV01(
   db: Database.Database,
   scope: { workspace_id: string; project_id: string },
   input: {
-    record_kind:
-      "review_decision" | "semantic_commit_gate" | "state_transition_receipt";
+    record_kind: "review_decision" | "semantic_commit_gate";
     where: string[];
     values: string[];
   },
-): number {
-  const row = db
+): BoundedLifecycleSourceCollectionV01<VNextCoreRecordEnvelopeV01> {
+  const rows = db
     .prepare(
-      `SELECT COUNT(*) AS count
+      `SELECT record_id
        FROM vnext_core_records
        WHERE workspace_id = ? AND project_id = ? AND record_kind = ?
-         AND ${input.where.join(" AND ")}`,
+         AND ${input.where.join(" AND ")}
+       ORDER BY created_at, record_id
+       LIMIT ?`,
     )
-    .get(
+    .all(
       scope.workspace_id,
       scope.project_id,
       input.record_kind,
       ...input.values,
-    ) as { count: number };
-  return row.count;
+      READ_LIMIT_V01 + 1,
+    ) as Array<{ record_id: string }>;
+  const records = rows.slice(0, READ_LIMIT_V01).map(({ record_id }) => {
+    const envelope = readVNextCoreRecordV01(db, {
+      ...scope,
+      record_kind: input.record_kind,
+      record_id,
+    });
+    if (!envelope) failV01("project_verify_source_record_disappeared");
+    return envelope;
+  });
+  return { records, bounded: rows.length > READ_LIMIT_V01 };
 }
 
 export function assertProjectVerifyTaskContextPacketEnvelopeV01(

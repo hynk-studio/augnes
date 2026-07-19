@@ -1164,13 +1164,7 @@ function deriveStopV01(
   lookup: ProjectVerifyLineageLookupV01,
 ): ProjectVerifyLineageStopV01 {
   if (
-    revisions.some((revision) =>
-      revision.lifecycle.conflicts.some(
-        (conflict) =>
-          conflict.code !== "project_verify_competing_decision_lineage" &&
-          conflict.code !== "project_verify_competing_gate_lineage",
-      ),
-    )
+    revisions.some((revision) => revision.lifecycle.conflicts.length > 0)
   ) {
     return { stopped_at: "lookup", reason: "source_conflict", exact_ref: null };
   }

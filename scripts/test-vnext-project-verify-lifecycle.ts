@@ -791,6 +791,94 @@ function applyLifecycleV01(input: {
   return { proposal: input.proposal, decision, preview, authorization, commit };
 }
 
+function authorizeLifecycleGateV01(input: {
+  db: Database.Database;
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  cycle: number;
+  gateTtlMs: number;
+  applierSuffix: string;
+}): {
+  preview: VNextSemanticCommitPreviewV01;
+  authorization: VNextSemanticCommitAuthorizationResultV01;
+} {
+  const preview = prepareVNextSemanticCommitPreviewV01(input.db, {
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    proposal_id: input.proposal.proposal_id,
+    proposal_fingerprint: input.proposal.integrity.fingerprint,
+    decision_id: input.decision.decision_id,
+    decision_fingerprint: input.decision.integrity.fingerprint,
+    authorized_applier_identity: {
+      ref_type: "semantic_transition_applier",
+      external_id: `local-core-applier:gate-history:${input.applierSuffix}`,
+    },
+    gate_ttl_ms: input.gateTtlMs,
+    clock: fixedClockV01(
+      cycleTimestampV01(input.cycle, 1),
+      cycleTimestampV01(input.cycle, 2),
+    ),
+  });
+  const authorization = recordVNextSemanticCommitAuthorizationV01(input.db, {
+    preview,
+    confirmation_digest: preview.confirmation_digest,
+    operator_actor_ref: input.decision.actor_ref,
+    clock: fixedClockV01(
+      cycleTimestampV01(input.cycle, 3),
+      cycleTimestampV01(input.cycle, 4),
+      cycleTimestampV01(input.cycle, 5),
+    ),
+  });
+  assert.equal(authorization.status, "inserted");
+  assert.equal(authorization.eligibility.status, "eligible");
+  return { preview, authorization };
+}
+
+function createReviewedClaimLifecycleV01(input: {
+  db: Database.Database;
+  familySeed: string;
+  proposition: string;
+  cycle: number;
+  decision?: ReviewDecisionV01["decision"];
+}): {
+  claim: ClaimRecordV01;
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+} {
+  const claim = claimV01({
+    revision: 1,
+    prior: null,
+    operation: "create",
+    proposition: input.proposition,
+    familySeed: input.familySeed,
+  });
+  admitClaimRecordV01(input.db, {
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    claim,
+  });
+  const material = materializeProjectVerifyClaimLifecycleProposalV01(
+    input.db,
+    {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      claim_id: claim.claim_id,
+    },
+  );
+  admitProjectVerifyLifecycleProposalV01(input.db, material);
+  const decision = decisionV01({
+    proposal: material.proposal,
+    decision: input.decision,
+    priorDecision: null,
+    cycle: input.cycle,
+  });
+  persistVNextSemanticReviewMaterialV01(input.db, {
+    proposal: material.proposal,
+    decision,
+  });
+  return { claim, proposal: material.proposal, decision };
+}
+
 function assertTransitionReadSessionBoundaryV01(
   db: Database.Database,
   applied: AppliedLifecycleV01,
@@ -3755,6 +3843,467 @@ function assertRollbackCheckpointsV01(): void {
   }
 }
 
+function assertCanonicalGateAndDecisionHistoryResolutionV01(): void {
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+
+    const reauthorized = createReviewedClaimLifecycleV01({
+      db,
+      familySeed: "expired-then-reauthorized",
+      proposition:
+        "An expired authorization can be followed by one exact current authorization.",
+      cycle: 800,
+    });
+    const gateA = authorizeLifecycleGateV01({
+      db,
+      proposal: reauthorized.proposal,
+      decision: reauthorized.decision,
+      cycle: 800,
+      gateTtlMs: 5_000,
+      applierSuffix: "expired-a",
+    }).authorization.gate_record;
+    const gateB = authorizeLifecycleGateV01({
+      db,
+      proposal: reauthorized.proposal,
+      decision: reauthorized.decision,
+      cycle: 801,
+      gateTtlMs: 30_000,
+      applierSuffix: "reauthorized-b",
+    }).authorization.gate_record;
+    assert.notEqual(gateA.gate_record_id, gateB.gate_record_id);
+
+    const beforePendingReads = fullCountSnapshotV01(db);
+    const pendingObservedAt = cycleTimestampV01(801, 8);
+    const pendingReconciliation = readProjectVerifyReconciliationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: pendingObservedAt,
+    });
+    const pendingRevision = assertPresentV01(
+      pendingReconciliation.claim_families
+        .find(
+          (family) =>
+            family.claim_family_id === reauthorized.claim.claim_family_id,
+        )
+        ?.revisions.find(
+          (revision) =>
+            revision.claim_ref.record_id === reauthorized.claim.claim_id,
+        ),
+    );
+    assert.equal(pendingRevision.lifecycle.decision.status, "accepted");
+    assert.equal(pendingRevision.lifecycle.gate.status, "authorized");
+    assert.equal(
+      pendingRevision.lifecycle.gate.gate_ref?.record_id,
+      gateB.gate_record_id,
+    );
+    assert.equal(pendingRevision.lifecycle.transition.status, "transition_missing");
+    assert.equal(pendingRevision.lifecycle.conflicts.length, 0);
+    const pendingLineage = readProjectVerifyLineageV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: pendingObservedAt,
+      lookup: {
+        lookup_kind: "claim",
+        claim_id: reauthorized.claim.claim_id,
+        expected_fingerprint: reauthorized.claim.integrity.fingerprint,
+      },
+    });
+    assert.equal(pendingLineage.stop.reason, "gate_authorized_transition_pending");
+    assert.equal(
+      pendingLineage.nodes.some(
+        (node) =>
+          node.node_kind === "semantic_commit_gate" &&
+          node.record_id === gateB.gate_record_id &&
+          node.status === "gate_authorized",
+      ),
+      true,
+    );
+    assert.equal(
+      pendingLineage.nodes.some(
+        (node) =>
+          node.node_kind === "semantic_commit_gate" &&
+          node.record_id === gateA.gate_record_id,
+      ),
+      false,
+      "the single-gate lineage projection selects the current valid reauthorization, not expired history",
+    );
+    assert.deepEqual(fullCountSnapshotV01(db), beforePendingReads);
+
+    const applied = commitVNextSemanticTransitionV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      proposal_id: reauthorized.proposal.proposal_id,
+      proposal_fingerprint: reauthorized.proposal.integrity.fingerprint,
+      decision_id: reauthorized.decision.decision_id,
+      decision_fingerprint: reauthorized.decision.integrity.fingerprint,
+      gate_record_id: gateB.gate_record_id,
+      gate_record_fingerprint: gateB.integrity.fingerprint,
+      clock: fixedClockV01(
+        cycleTimestampV01(801, 9),
+        cycleTimestampV01(801, 10),
+      ),
+    });
+    assert.equal(applied.status, "applied");
+    const appliedHead = assertPresentV01(
+      readVNextSemanticTargetHeadV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        target_key: deriveVNextSemanticTargetKeyV01(
+          assertPresentV01(
+            reauthorized.proposal.project_verify_lifecycle,
+          ).lifecycle_binding.family_target_ref,
+        ),
+      }),
+    );
+    assert.equal(
+      appliedHead.source_transition_receipt_id,
+      applied.transition_receipt.transition_receipt_id,
+    );
+    const beforeAppliedReads = fullCountSnapshotV01(db);
+    const appliedObservedAt = cycleTimestampV01(802, 0);
+    const appliedReconciliation = readProjectVerifyReconciliationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: appliedObservedAt,
+    });
+    const appliedRevision = assertPresentV01(
+      appliedReconciliation.claim_families
+        .find(
+          (family) =>
+            family.claim_family_id === reauthorized.claim.claim_family_id,
+        )
+        ?.revisions.find(
+          (revision) =>
+            revision.claim_ref.record_id === reauthorized.claim.claim_id,
+        ),
+    );
+    assert.equal(appliedRevision.lifecycle.gate.status, "authorized");
+    assert.equal(
+      appliedRevision.lifecycle.gate.gate_ref?.record_id,
+      gateB.gate_record_id,
+    );
+    assert.equal(appliedRevision.lifecycle.transition.status, "applied");
+    assert.equal(appliedRevision.lifecycle.application.status, "applied_current");
+    assert.equal(appliedRevision.lifecycle.conflicts.length, 0);
+    const appliedLineage = readProjectVerifyLineageV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: appliedObservedAt,
+      lookup: {
+        lookup_kind: "claim",
+        claim_id: reauthorized.claim.claim_id,
+        expected_fingerprint: reauthorized.claim.integrity.fingerprint,
+      },
+    });
+    assert.equal(appliedLineage.stop.reason, "transition_applied_packet_pending");
+    assert.equal(
+      appliedLineage.nodes.some(
+        (node) =>
+          node.node_kind === "semantic_commit_gate" &&
+          node.record_id === gateB.gate_record_id,
+      ),
+      true,
+    );
+    assert.equal(
+      appliedLineage.nodes.some(
+        (node) =>
+          node.node_kind === "state_transition_receipt_effect" &&
+          node.record_id === applied.transition_receipt.transition_receipt_id,
+      ),
+      true,
+    );
+    assert.deepEqual(fullCountSnapshotV01(db), beforeAppliedReads);
+
+    const expired = createReviewedClaimLifecycleV01({
+      db,
+      familySeed: "multiple-expired-gates",
+      proposition:
+        "Multiple expired authorization attempts remain immutable non-applying history.",
+      cycle: 810,
+    });
+    const expiredGateA = authorizeLifecycleGateV01({
+      db,
+      proposal: expired.proposal,
+      decision: expired.decision,
+      cycle: 810,
+      gateTtlMs: 5_000,
+      applierSuffix: "expired-history-a",
+    }).authorization.gate_record;
+    const expiredGateB = authorizeLifecycleGateV01({
+      db,
+      proposal: expired.proposal,
+      decision: expired.decision,
+      cycle: 811,
+      gateTtlMs: 5_000,
+      applierSuffix: "expired-history-b",
+    }).authorization.gate_record;
+    db.prepare(
+      `INSERT INTO vnext_core_records (
+         record_kind, record_id, workspace_id, project_id, fingerprint,
+         idempotency_key, payload_json, created_at
+       )
+       SELECT record_kind, ?, workspace_id, ?, fingerprint,
+              idempotency_key, payload_json, created_at
+       FROM vnext_core_records
+       WHERE record_kind = 'semantic_commit_gate' AND record_id = ?`,
+    ).run(
+      `foreign-project:${expiredGateA.gate_record_id}`,
+      OTHER_PROJECT_ID,
+      expiredGateA.gate_record_id,
+    );
+    const beforeExpiredReads = fullCountSnapshotV01(db);
+    const expiredObservedAt = cycleTimestampV01(812, 0);
+    const expiredReconciliation = readProjectVerifyReconciliationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: expiredObservedAt,
+    });
+    const expiredRevision = assertPresentV01(
+      expiredReconciliation.claim_families
+        .find(
+          (family) => family.claim_family_id === expired.claim.claim_family_id,
+        )
+        ?.revisions.find(
+          (revision) => revision.claim_ref.record_id === expired.claim.claim_id,
+        ),
+    );
+    assert.equal(expiredRevision.lifecycle.gate.status, "expired");
+    assert.equal(
+      expiredRevision.lifecycle.gate.gate_ref?.record_id,
+      expiredGateB.gate_record_id,
+      "the newest confirmed expired gate is selected only for deterministic history display",
+    );
+    assert.equal(expiredRevision.lifecycle.conflicts.length, 0);
+    const expiredLineage = readProjectVerifyLineageV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: expiredObservedAt,
+      lookup: {
+        lookup_kind: "claim",
+        claim_id: expired.claim.claim_id,
+        expected_fingerprint: expired.claim.integrity.fingerprint,
+      },
+    });
+    assert.equal(
+      expiredLineage.stop.reason,
+      "gate_expired_transition_not_applied",
+    );
+    assert.equal(
+      expiredLineage.stop.exact_ref?.record_id,
+      expiredGateB.gate_record_id,
+    );
+    assert.equal(
+      expiredLineage.nodes.some(
+        (node) => node.record_id === `foreign-project:${expiredGateA.gate_record_id}`,
+      ),
+      false,
+      "cross-project secondary gate material never enters the exact project chain",
+    );
+    assert.deepEqual(fullCountSnapshotV01(db), beforeExpiredReads);
+
+    const competing = createReviewedClaimLifecycleV01({
+      db,
+      familySeed: "simultaneous-valid-gates",
+      proposition:
+        "Simultaneously valid pending authorizations remain explicitly ambiguous.",
+      cycle: 820,
+    });
+    authorizeLifecycleGateV01({
+      db,
+      proposal: competing.proposal,
+      decision: competing.decision,
+      cycle: 820,
+      gateTtlMs: 300_000,
+      applierSuffix: "simultaneous-a",
+    });
+    authorizeLifecycleGateV01({
+      db,
+      proposal: competing.proposal,
+      decision: competing.decision,
+      cycle: 821,
+      gateTtlMs: 300_000,
+      applierSuffix: "simultaneous-b",
+    });
+    const beforeCompetingReads = fullCountSnapshotV01(db);
+    const competingObservedAt = cycleTimestampV01(822, 0);
+    const competingReconciliation = readProjectVerifyReconciliationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: competingObservedAt,
+    });
+    const competingRevision = assertPresentV01(
+      competingReconciliation.claim_families
+        .find(
+          (family) =>
+            family.claim_family_id === competing.claim.claim_family_id,
+        )
+        ?.revisions.find(
+          (revision) =>
+            revision.claim_ref.record_id === competing.claim.claim_id,
+        ),
+    );
+    assert.equal(competingRevision.lifecycle.decision.status, "accepted");
+    assert.equal(competingRevision.lifecycle.gate.status, "source_conflict");
+    assert.equal(competingRevision.lifecycle.gate.gate_ref, null);
+    assert.equal(
+      competingRevision.lifecycle.conflicts.some(
+        (conflict) =>
+          conflict.code === "project_verify_competing_gate_authorization",
+      ),
+      true,
+    );
+    const competingLineage = readProjectVerifyLineageV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: competingObservedAt,
+      lookup: {
+        lookup_kind: "claim",
+        claim_id: competing.claim.claim_id,
+        expected_fingerprint: competing.claim.integrity.fingerprint,
+      },
+    });
+    assert.equal(competingLineage.stop.reason, "source_conflict");
+    assert.deepEqual(fullCountSnapshotV01(db), beforeCompetingReads);
+
+    const reviewedTwice = createReviewedClaimLifecycleV01({
+      db,
+      familySeed: "review-decision-history",
+      proposition:
+        "Historical review decisions coexist until an exact gate or Transition selects one chain.",
+      cycle: 830,
+      decision: "reject",
+    });
+    const laterAccept = decisionV01({
+      proposal: reviewedTwice.proposal,
+      decision: "accept",
+      priorDecision: null,
+      cycle: 831,
+    });
+    persistVNextSemanticReviewMaterialV01(db, {
+      proposal: reviewedTwice.proposal,
+      decision: laterAccept,
+    });
+    const ambiguousDecisionRead = readProjectVerifyReconciliationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: cycleTimestampV01(831, 8),
+    });
+    const ambiguousDecisionRevision = assertPresentV01(
+      ambiguousDecisionRead.claim_families
+        .find(
+          (family) =>
+            family.claim_family_id === reviewedTwice.claim.claim_family_id,
+        )
+        ?.revisions.find(
+          (revision) =>
+            revision.claim_ref.record_id === reviewedTwice.claim.claim_id,
+        ),
+    );
+    assert.equal(ambiguousDecisionRevision.lifecycle.decision.status, "conflict");
+    assert.equal(
+      ambiguousDecisionRevision.lifecycle.conflicts.some(
+        (conflict) =>
+          conflict.code === "project_verify_decision_lineage_ambiguous",
+      ),
+      true,
+      "the authority permits multiple immutable decisions, so an ungated pending read remains genuinely ambiguous",
+    );
+    const selectedDecisionGate = authorizeLifecycleGateV01({
+      db,
+      proposal: reviewedTwice.proposal,
+      decision: laterAccept,
+      cycle: 832,
+      gateTtlMs: 30_000,
+      applierSuffix: "decision-selected-by-gate",
+    }).authorization.gate_record;
+    const selectedDecisionRead = readProjectVerifyReconciliationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      observed_at: cycleTimestampV01(832, 8),
+    });
+    const selectedDecisionRevision = assertPresentV01(
+      selectedDecisionRead.claim_families
+        .find(
+          (family) =>
+            family.claim_family_id === reviewedTwice.claim.claim_family_id,
+        )
+        ?.revisions.find(
+          (revision) =>
+            revision.claim_ref.record_id === reviewedTwice.claim.claim_id,
+        ),
+    );
+    assert.equal(selectedDecisionRevision.lifecycle.decision.status, "accepted");
+    assert.equal(
+      selectedDecisionRevision.lifecycle.decision.decision_ref?.record_id,
+      laterAccept.decision_id,
+    );
+    assert.equal(
+      selectedDecisionRevision.lifecycle.gate.gate_ref?.record_id,
+      selectedDecisionGate.gate_record_id,
+    );
+    assert.equal(selectedDecisionRevision.lifecycle.conflicts.length, 0);
+  } finally {
+    db.close();
+  }
+
+  const forgedDb = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(forgedDb);
+    const forged = createReviewedClaimLifecycleV01({
+      db: forgedDb,
+      familySeed: "forged-secondary-gate",
+      proposition: "A forged historical gate must fail the complete read chain.",
+      cycle: 840,
+    });
+    const validGate = authorizeLifecycleGateV01({
+      db: forgedDb,
+      proposal: forged.proposal,
+      decision: forged.decision,
+      cycle: 840,
+      gateTtlMs: 5_000,
+      applierSuffix: "forged-history-valid",
+    }).authorization.gate_record;
+    authorizeLifecycleGateV01({
+      db: forgedDb,
+      proposal: forged.proposal,
+      decision: forged.decision,
+      cycle: 841,
+      gateTtlMs: 30_000,
+      applierSuffix: "forged-history-current",
+    });
+    forgedDb.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+    forgedDb
+      .prepare(
+        `UPDATE vnext_core_records
+         SET payload_json = json_set(
+           payload_json,
+           '$.semantic_commit_gate_evaluation.decision_fingerprint',
+           ?
+         )
+         WHERE record_kind = 'semantic_commit_gate' AND record_id = ?`,
+      )
+      .run(`sha256:${"f".repeat(64)}`, validGate.gate_record_id);
+    forgedDb.exec(`CREATE TRIGGER trg_vnext_core_records_immutable_update
+      BEFORE UPDATE ON vnext_core_records
+      BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END`);
+    const beforeForgedRead = fullCountSnapshotV01(forgedDb);
+    assert.throws(
+      () =>
+        readProjectVerifyReconciliationV01(forgedDb, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          observed_at: cycleTimestampV01(841, 8),
+        }),
+      /semantic_commit_gate|project_verify_protocol_envelope_conflict|persisted_semantic_commit_gate/,
+      "a forged secondary gate fails closed instead of being ignored by count or ordering",
+    );
+    assert.deepEqual(fullCountSnapshotV01(forgedDb), beforeForgedRead);
+  } finally {
+    forgedDb.close();
+  }
+}
+
 function assertSerializedCrossConnectionReplayV01(): void {
   const directory = mkdtempSync(join(tmpdir(), "augnes-sr3-lifecycle-"));
   const databasePath = join(directory, "lifecycle.sqlite");
@@ -3996,27 +4545,20 @@ function assertSerializedCrossConnectionReplayV01(): void {
           (candidate) => candidate.claim.claim_id === claim.claim_id,
         ),
     );
-    assert.equal(revision.lifecycle.decision.status, "conflict");
-    assert.equal(revision.lifecycle.gate.status, "source_conflict");
+    assert.equal(revision.lifecycle.decision.status, "accepted");
+    assert.equal(revision.lifecycle.gate.status, "authorized");
     assert.equal(revision.lifecycle.transition.status, "applied");
     assert.equal(revision.lifecycle.application.status, "applied_current");
-    assert.equal(
-      revision.lifecycle.conflicts.some(
-        (conflict) =>
-          conflict.code === "project_verify_competing_decision_lineage",
-      ),
-      true,
-    );
-    assert.equal(
-      revision.lifecycle.conflicts.some(
-        (conflict) => conflict.code === "project_verify_competing_gate_lineage",
-      ),
-      true,
-    );
+    assert.equal(revision.lifecycle.conflicts.length, 0);
     assert.equal(
       revision.lifecycle.decision.decision_ref?.record_id,
       firstDecision.decision_id,
-      "the exact receipt-selected decision remains readable alongside the losing pending decision",
+      "the exact receipt-selected decision remains canonical alongside the losing historical attempt",
+    );
+    assert.equal(
+      revision.lifecycle.gate.gate_ref?.record_id,
+      firstAuthorization.gate_record.gate_record_id,
+      "the exact receipt-selected gate remains canonical alongside unused valid gates",
     );
     const lineage = readProjectVerifyLineageV01(competingDb, {
       workspace_id: WORKSPACE_ID,
@@ -4044,7 +4586,7 @@ function assertSerializedCrossConnectionReplayV01(): void {
   }
 }
 
-function assertAppliedSourcesBeyondCompetitorBoundV01(): void {
+function assertReceiptSelectedSourcesIgnoreHistoricalMultiplicityV01(): void {
   const db = new Database(":memory:");
   try {
     ensureVNextDurableSemanticStoreSchemaV01(db);
@@ -4053,8 +4595,8 @@ function assertAppliedSourcesBeyondCompetitorBoundV01(): void {
       prior: null,
       operation: "create",
       proposition:
-        "The receipt-selected Decision and gate remain authoritative beyond competing rows.",
-      familySeed: "applied-source-beyond-competitor-bound",
+        "The receipt-selected Decision and gate remain canonical alongside bounded historical attempts.",
+      familySeed: "receipt-selected-source-history",
     });
     admitClaimRecordV01(db, {
       workspace_id: WORKSPACE_ID,
@@ -4155,17 +4697,9 @@ function assertAppliedSourcesBeyondCompetitorBoundV01(): void {
       appliedGate.gate_record_id,
     );
     assert.equal(
-      revision.lifecycle.conflicts.some(
-        (conflict) =>
-          conflict.code === "project_verify_competing_decision_lineage",
-      ),
-      true,
-    );
-    assert.equal(
-      revision.lifecycle.conflicts.some(
-        (conflict) => conflict.code === "project_verify_competing_gate_lineage",
-      ),
-      true,
+      revision.lifecycle.conflicts.length,
+      0,
+      "validated historical decisions and unused gates do not conflict with the exact receipt-selected chain",
     );
   } finally {
     db.close();
@@ -4373,8 +4907,9 @@ try {
   assertPriorLifecycleSourceChainRequiredV01();
   assertHistoricalAppliedStateRequiredV01();
   assertRollbackCheckpointsV01();
+  assertCanonicalGateAndDecisionHistoryResolutionV01();
   assertSerializedCrossConnectionReplayV01();
-  assertAppliedSourcesBeyondCompetitorBoundV01();
+  assertReceiptSelectedSourcesIgnoreHistoricalMultiplicityV01();
   assertHistoricalStateCompatibilityV01();
   assert.equal(unexpectedExternalCalls, 0);
   process.stdout.write(
@@ -4428,9 +4963,18 @@ try {
           "after_receipt_insert_before_commit",
         ].includes(checkpoint),
       ),
+      canonical_gate_history_resolution_checked: [
+        "expired_then_reauthorized_pending",
+        "expired_then_reauthorized_applied",
+        "multiple_expired_history",
+        "simultaneously_unexpired_conflict",
+        "forged_secondary_gate_refusal",
+        "cross_project_secondary_gate_exclusion",
+      ],
+      review_decision_multiplicity_resolved_by_exact_gate_or_transition: true,
       serialized_cross_connection_exact_replay_checked: true,
       competing_authorized_family_cas_checked: true,
-      receipt_selected_sources_beyond_competitor_bound_checked: true,
+      receipt_selected_sources_ignore_historical_multiplicity_checked: true,
       historical_generic_state_compatibility_checked: true,
       reconciliation_read_only_lifecycle_projection_checked: true,
       claim_truth_not_established_checked: true,
