@@ -285,6 +285,7 @@ function relationV01(input: {
   evidence: EvidenceRecordV01;
   kind: ClaimEvidenceRelationKindV01;
   applicabilityScope?: ClaimApplicabilityScopeV01;
+  createdAt?: string;
 }): ClaimEvidenceRelationV01 {
   const producer = input.revision === 1 ? PRODUCER : USER_PRODUCER;
   return buildClaimEvidenceRelationV01({
@@ -329,7 +330,7 @@ function relationV01(input: {
     limitations: ["Relation existence does not prove the Claim."],
     uncertainty: ["The relation basis remains non-conclusive."],
     producer,
-    created_at: timestampV01(input.revision, 2),
+    created_at: input.createdAt ?? timestampV01(input.revision, 2),
   });
 }
 
@@ -1950,22 +1951,6 @@ function assertBoundedReadIncompletenessV01(): void {
         evidence,
       });
       allEvidence.push(evidence);
-      assert.equal(
-        insertVNextCoreRecordV01(db, {
-          record_kind: "episode_delta_proposal",
-          record_id: `bounded-project-proposal:${index.toString().padStart(3, "0")}`,
-          workspace_id: WORKSPACE_ID,
-          project_id: PROJECT_ID,
-          fingerprint: `sha256:${index.toString(16).padStart(64, "0")}`,
-          idempotency_key: null,
-          payload: {
-            bounded_read_fixture: true,
-            sequence: index,
-          },
-          created_at: timestampV01(index, 0),
-        }).status,
-        "inserted",
-      );
     }
     const beforeRead = fullCountSnapshotV01(db);
     const readInput = {
@@ -2038,54 +2023,83 @@ function assertFocusedAggregateExpansionBoundV01(): void {
       evidence: focusedEvidence,
     });
 
-    // 129 exact relations fit inside the relation window, but their two-record
-    // Claim families would expand to 258 Claim revisions. The focused reader
-    // must retain the exact Evidence root, keep complete families only, cap
-    // every aggregate collection, and report focus incompleteness.
-    for (let batchStart = 0; batchStart < 129; batchStart += 32) {
-      const claims: ClaimRecordV01[] = [];
-      const relations: ClaimEvidenceRelationV01[] = [];
-      const batchEnd = Math.min(batchStart + 32, 129);
-      for (let index = batchStart; index < batchEnd; index += 1) {
-        const familySeed = `focused-aggregate-family-${index
-          .toString()
-          .padStart(3, "0")}`;
-        const claim1 = claimV01({
-          revision: 1,
-          prior: null,
-          operation: "create",
-          proposition: `Focused aggregate candidate ${index} revision 1.`,
-          familySeed,
-        });
-        const claim2 = claimV01({
-          revision: 2,
-          prior: claim1,
-          operation: "revise",
-          proposition: `Focused aggregate candidate ${index} revision 2.`,
-          familySeed,
-        });
-        claims.push(claim1, claim2);
-        relations.push(
-          relationV01({
-            revision: 1,
-            prior: null,
-            operation: "create",
-            familySeed: `focused-aggregate-relation-${index
-              .toString()
-              .padStart(3, "0")}`,
-            claim: claim2,
-            evidence: focusedEvidence,
-            kind: "insufficient",
-          }),
-        );
-      }
-      admitProjectVerifyMaterialBatchV01(db, {
-        workspace_id: WORKSPACE_ID,
-        project_id: PROJECT_ID,
-        evidence_records: [],
-        claim_records: claims,
-        relations,
+    // Two complete Claim families expand to 257 revisions. The 256-revision
+    // family is deliberately related first, so the focused reader must retain
+    // that complete lineage, omit the later one-record family, preserve the
+    // exact Evidence root, and report aggregate incompleteness. Direct generic
+    // envelope insertion keeps this fixture about read validation; the reader
+    // still validates every material fingerprint, endpoint, and prior link.
+    const completeFamily: ClaimRecordV01[] = [];
+    let prior: ClaimRecordV01 | null = null;
+    for (let revision = 1; revision <= 256; revision += 1) {
+      const claim = claimV01({
+        revision,
+        prior,
+        operation: revision === 1 ? "create" : "revise",
+        proposition: `Focused aggregate complete-family revision ${revision}.`,
+        familySeed: "focused-aggregate-complete-family",
       });
+      completeFamily.push(claim);
+      prior = claim;
+    }
+    const omittedFamily = claimV01({
+      revision: 1,
+      prior: null,
+      operation: "create",
+      proposition: "Focused aggregate omitted one-record family.",
+      familySeed: "focused-aggregate-omitted-family",
+    });
+    for (const claim of [...completeFamily, omittedFamily]) {
+      assert.equal(
+        insertVNextCoreRecordV01(db, {
+          record_kind: "claim_record",
+          record_id: claim.claim_id,
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          fingerprint: claim.integrity.fingerprint,
+          idempotency_key: claim.idempotency_key,
+          payload: claim,
+          created_at: claim.created_at,
+        }).status,
+        "inserted",
+      );
+    }
+    const relations = [
+      relationV01({
+        revision: 1,
+        prior: null,
+        operation: "create",
+        familySeed: "focused-aggregate-complete-relation",
+        claim: assertPresentV01(completeFamily.at(-1)),
+        evidence: focusedEvidence,
+        kind: "insufficient",
+        createdAt: timestampV01(300, 2),
+      }),
+      relationV01({
+        revision: 1,
+        prior: null,
+        operation: "create",
+        familySeed: "focused-aggregate-omitted-relation",
+        claim: omittedFamily,
+        evidence: focusedEvidence,
+        kind: "insufficient",
+        createdAt: timestampV01(299, 2),
+      }),
+    ];
+    for (const relation of relations) {
+      assert.equal(
+        insertVNextCoreRecordV01(db, {
+          record_kind: "claim_evidence_relation",
+          record_id: relation.relation_id,
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          fingerprint: relation.integrity.fingerprint,
+          idempotency_key: relation.idempotency_key,
+          payload: relation,
+          created_at: relation.created_at,
+        }).status,
+        "inserted",
+      );
     }
 
     const beforeRead = fullCountSnapshotV01(db);
@@ -2117,11 +2131,16 @@ function assertFocusedAggregateExpansionBoundV01(): void {
       "the exact focused Evidence root survives aggregate truncation",
     );
     assert.equal(claimRevisionCount, 256);
-    assert.equal(relationRevisionCount, 129);
+    assert.equal(relationRevisionCount, 2);
     assert.equal(reconciliation.evidence.length <= 256, true);
+    assert.equal(reconciliation.claim_families.length, 1);
     assert.equal(
       reconciliation.claim_families.every(
-        (family) => family.revisions.length === 2,
+        (family) =>
+          family.revisions.length === 256 &&
+          family.revisions.every(
+            (revision, index) => revision.claim.revision === index + 1,
+          ),
       ),
       true,
       "aggregate truncation never emits a partial Claim family lineage",

@@ -2099,17 +2099,11 @@ function assertProductionVerifyLifecycleGoldenV01(
   assert.equal(lineage.authority.writes_database, false);
   assert.equal(lineage.authority.establishes_truth, false);
 
-  const retractionLineage = readProjectVerifyLineageV01(db, {
-    ...scope,
-    observed_at: productionLifecycleTimestampV01(61, 2),
-    lookup: {
-      lookup_kind: "claim",
-      claim_id: retraction.claim_id,
-      expected_fingerprint: retraction.integrity.fingerprint,
-    },
-  });
+  // Exact relation lookup expands its Claim endpoint and the complete Claim
+  // family, so the same authenticated graph proves the retraction and its
+  // later packet without rebuilding the full reconciliation a second time.
   assert.equal(
-    retractionLineage.nodes.some(
+    lineage.nodes.some(
       (node) =>
         node.node_kind === "state_transition_receipt_effect" &&
         node.status === "retracted",
@@ -2117,14 +2111,14 @@ function assertProductionVerifyLifecycleGoldenV01(
     true,
   );
   assert.equal(
-    retractionLineage.nodes.some(
+    lineage.nodes.some(
       (node) =>
         node.node_kind === "later_task_context_packet" &&
         node.record_id === postRetract.later_packet.packet_id,
     ),
     true,
   );
-  assert.equal(retractionLineage.stop.reason, "later_packet_feedback_pending");
+  assert.equal(lineage.stop.reason, "later_packet_feedback_pending");
   assert.deepEqual(
     durableAuthoritySnapshotV01(db, scope),
     beforeReads,

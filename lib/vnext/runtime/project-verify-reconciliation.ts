@@ -252,25 +252,35 @@ function readProjectVerifyReconciliationInternalV01(
     record_kind: "context_use_review",
   });
   const focusedMaterial = readFocusedMaterialV01(db, scope, focus);
+  // Focused public readers have already source-validated these records. Once
+  // an exact focused collection fills the fixed cap, the ordinary project
+  // list could only repeat those identities or be truthfully omitted by the
+  // aggregate bound tracked below.
   const evidenceCollection = boundedUniqueRecordsV01(
     focusedMaterial.evidence,
-    listProjectEvidenceRecordsV01(db, {
-      ...scope,
-      limit: READ_LIMIT_V01,
-    }),
+    focusedMaterial.evidence.length >= READ_LIMIT_V01
+      ? []
+      : listProjectEvidenceRecordsV01(db, {
+          ...scope,
+          limit: READ_LIMIT_V01,
+        }),
     (record) => record.evidence_id,
   );
   const claimCollection = boundedUniqueRecordsV01(
     focusedMaterial.claims,
-    listProjectClaimRecordsV01(db, {
-      ...scope,
-      limit: READ_LIMIT_V01,
-    }),
+    focusedMaterial.claims.length >= READ_LIMIT_V01
+      ? []
+      : listProjectClaimRecordsV01(db, {
+          ...scope,
+          limit: READ_LIMIT_V01,
+        }),
     (record) => record.claim_id,
   );
   const relationCollection = boundedUniqueRecordsV01(
     focusedMaterial.relations,
-    listProjectRelationsV01(db, scope),
+    focusedMaterial.relations.length >= READ_LIMIT_V01
+      ? []
+      : listProjectRelationsV01(db, scope),
     (record) => record.relation_id,
   );
   const evidenceRecords = evidenceCollection.records;
