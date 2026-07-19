@@ -1,5 +1,6 @@
 import type { ExternalRefV01 } from "./external-ref";
 import type { TaskContextPacketV01 } from "./task-context-packet";
+import type { BoundedAutomationCapabilityGrantV01 } from "./bounded-automation-cycle";
 
 export const NATIVE_HOST_REQUEST_VERSION_V01 =
   "native_host_request.v0.1" as const;
@@ -60,6 +61,13 @@ export interface NativeHostAutomationContextV01 {
   control_revision: number | null;
   automatic_retry_allowed: false;
   scheduler_started: false;
+  bounded_cycle?: {
+    profile: "bounded_autohunt_review_needed.v0.1";
+    cycle_id: string;
+    attempt: 1;
+    trigger_ref: ExternalRefV01;
+    grant: BoundedAutomationCapabilityGrantV01;
+  };
 }
 
 export interface NativeHostRequestV01 {

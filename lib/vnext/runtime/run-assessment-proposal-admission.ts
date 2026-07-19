@@ -1,6 +1,8 @@
 import type Database from "better-sqlite3";
 
 import {
+  appendAutonomyRunLedgerEvent,
+  buildAutonomyRunEventRecord,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
 } from "@/lib/autonomy/runner-ledger";
@@ -123,6 +125,14 @@ export function admitRunAssessmentProposalV01(
     updateAutonomyRunLedgerFields(
       binding.run.run_id,
       {
+        status:
+          binding.run.metadata.bounded_automation_cycle_id != null
+            ? "needs_review"
+            : binding.run.status,
+        stop_reason:
+          binding.run.metadata.bounded_automation_cycle_id != null
+            ? "review_needed"
+            : binding.run.stop_reason,
         metadata: {
           ...binding.run.metadata,
           run_assessment_proposal_status: "available",
@@ -142,6 +152,25 @@ export function admitRunAssessmentProposalV01(
       },
       { db },
     );
+    if (binding.run.metadata.bounded_automation_cycle_id != null) {
+      appendAutonomyRunLedgerEvent(
+        buildAutonomyRunEventRecord({
+          run_id: binding.run.run_id,
+          event_type: "run_needs_review",
+          status: "needs_review",
+          message:
+            "The bounded policy-triggered cycle stopped after one pending proposal became reviewable.",
+          payload: {
+            stop_reason: "review_needed",
+            proposal_id: write.proposal.proposal_id,
+            automatic_retry: false,
+            semantic_state_changed: false,
+          },
+          created_at: binding.receipt.recorded_at,
+        }),
+        { db },
+      );
+    }
     db.exec("COMMIT");
     return {
       status: write.status,

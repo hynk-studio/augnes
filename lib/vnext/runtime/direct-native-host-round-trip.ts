@@ -53,6 +53,12 @@ import {
   normalizeNativeHostResultResidueV01,
 } from "@/lib/vnext/native-host/native-host-result-normalization";
 import {
+  deriveBoundedAutomationCycleIdV01,
+  validateBoundedAutomationCapabilityGrantV01,
+} from "@/lib/vnext/bounded-automation-cycle";
+import { readProjectAutomationControlV01 } from "@/lib/vnext/persistence/project-control-store";
+import { validateProjectAutomationPolicyV01 } from "@/lib/vnext/project-controls/project-controls";
+import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
   authenticateVNextLocalOperatorSessionV01,
   type VNextLocalOperatorPilotConfigV01,
@@ -407,6 +413,17 @@ export async function runDirectNativeHostRoundTripV01(
   ) {
     refuse("direct_host_automation_context_required");
   }
+  if (input.automation_context?.bounded_cycle) {
+    const grant = input.automation_context.bounded_cycle.grant;
+    if (
+      grant.host_adapter_version !== adapter.adapter_version ||
+      grant.host_capability_version !== adapter.capability_version ||
+      timeoutMs > grant.budget.max_runtime_ms ||
+      MAX_COMMANDS > grant.budget.max_commands
+    ) {
+      refuse("direct_host_bounded_automation_budget_or_host_conflict", 409);
+    }
+  }
   if (input.mode === "interactive" && input.automation_context) {
     refuse("direct_host_automation_context_forbidden");
   }
@@ -473,6 +490,7 @@ export async function runDirectNativeHostRoundTripV01(
       config: input.config,
       admission: admitted,
       evaluated_at: startedAt,
+      automation_context: input.automation_context ?? null,
     });
     const existingReceipt = readReceiptForRun(db, {
       workspace_id: input.config.workspace_id,
@@ -794,6 +812,7 @@ function revalidateAdmissionInsideTransaction(
     config: VNextLocalOperatorPilotConfigV01;
     admission: PersistedHostPacketAdmissionV01;
     evaluated_at: string;
+    automation_context: NativeHostAutomationContextV01 | null;
   },
 ): void {
   const registration = readCanonicalProjectWithRootV01(db, input.config);
@@ -837,6 +856,91 @@ function revalidateAdmissionInsideTransaction(
       exact.packet.integrity.fingerprint
   ) {
     refuse("direct_host_packet_superseded", 409);
+  }
+  if (input.automation_context?.bounded_cycle) {
+    revalidateBoundedAutomationContextInsideTransactionV01(db, {
+      ...input,
+      automation_context: input.automation_context,
+    });
+  }
+}
+
+function revalidateBoundedAutomationContextInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    admission: PersistedHostPacketAdmissionV01;
+    evaluated_at: string;
+    automation_context: NativeHostAutomationContextV01;
+  },
+): void {
+  const cycle = input.automation_context.bounded_cycle;
+  if (!cycle) refuse("direct_host_automation_context_invalid", 409);
+  const control = readProjectAutomationControlV01(db, input.config);
+  const grant = cycle.grant;
+  const packetGrant = input.admission.packet.capability_grant;
+  const policyFingerprint = control
+    ? createProtocolSha256V01(canonicalizeProtocolValueV01(control.policy))
+    : null;
+  const evaluatedAt = parseStrictIsoTimestampV01(input.evaluated_at);
+  const expiresAt = parseStrictIsoTimestampV01(grant.expires_at);
+  const expectedCycleId = deriveBoundedAutomationCycleIdV01({
+    grant,
+    packet: input.admission.packet,
+  });
+  if (
+    !control ||
+    !control.enabled ||
+    control.paused ||
+    control.revision !== input.automation_context.control_revision ||
+    !validateProjectAutomationPolicyV01(control.policy, input.config).valid ||
+    policyFingerprint !== grant.policy_fingerprint ||
+    canonicalizeProtocolValueV01(input.automation_context.policy_ref) !==
+      canonicalizeProtocolValueV01(grant.policy_ref) ||
+    cycle.cycle_id !== expectedCycleId ||
+    cycle.attempt !== 1 ||
+    cycle.trigger_ref.external_id !==
+      `${input.config.project_id}:${expectedCycleId}` ||
+    cycle.trigger_ref.trust_class !== "direct_local_observation" ||
+    !packetGrant?.grant_external_ref ||
+    canonicalizeProtocolValueV01(packetGrant.grant_external_ref) !==
+      canonicalizeProtocolValueV01(
+        input.automation_context.capability_grant_ref,
+      ) ||
+    grant.workspace_id !== input.config.workspace_id ||
+    grant.project_id !== input.config.project_id ||
+    grant.control_revision !== control.revision ||
+    grant.policy_ref.source_ref !== grant.policy_fingerprint ||
+    grant.policy_ref.external_id !==
+      `${input.config.project_id}:${control.revision}` ||
+    grant.issued_at !== control.updated_at ||
+    grant.packet_id !== input.admission.packet.packet_id ||
+    grant.packet_fingerprint !== input.admission.packet.integrity.fingerprint ||
+    grant.work_source_ref.external_id !== input.admission.packet.packet_id ||
+    grant.work_source_ref.source_ref !==
+      input.admission.packet.integrity.fingerprint ||
+    grant.expires_at !== packetGrant.expires_at ||
+    grant.root_fingerprint !== input.admission.root_scope.root_fingerprint ||
+    !validateBoundedAutomationCapabilityGrantV01(grant) ||
+    evaluatedAt === null ||
+    expiresAt === null ||
+    expiresAt <= evaluatedAt ||
+    grant.budget.max_work_items !== 1 ||
+    grant.budget.max_active_runs !== 1 ||
+    grant.budget.max_attempts !== 1 ||
+    grant.budget.max_model_invocations !== 0 ||
+    grant.budget.max_model_tokens !== 0 ||
+    grant.budget.max_model_cost_units !== 0 ||
+    grant.budget.network_access !== "denied" ||
+    grant.grants_semantic_authority !== false ||
+    grant.grants_external_action_authority !== false ||
+    grant.grants_credential_access !== false ||
+    grant.can_merge !== false ||
+    grant.can_publish !== false ||
+    grant.can_deploy !== false ||
+    grant.can_expand_authority !== false
+  ) {
+    refuse("direct_host_bounded_automation_binding_conflict", 409);
   }
 }
 
@@ -1115,6 +1219,13 @@ function createRunLedgerRecord(
         input.input.automation_context?.capability_grant_ref ?? null,
       automation_control_revision:
         input.input.automation_context?.control_revision ?? null,
+      automation_context: input.input.automation_context ?? null,
+      bounded_automation_cycle_id:
+        input.input.automation_context?.bounded_cycle?.cycle_id ?? null,
+      bounded_automation_attempt:
+        input.input.automation_context?.bounded_cycle?.attempt ?? null,
+      bounded_automation_grant:
+        input.input.automation_context?.bounded_cycle?.grant ?? null,
       automatic_retry: false,
       semantic_mutation_authorized: false,
       raw_packet_persisted_in_ledger: false,
@@ -2690,7 +2801,7 @@ function uniqueRefs(
 function validAutomationContext(
   value: NativeHostAutomationContextV01 | null | undefined,
 ): value is NativeHostAutomationContextV01 {
-  return Boolean(
+  const validBase = Boolean(
     value &&
       value.automatic_retry_allowed === false &&
       value.scheduler_started === false &&
@@ -2699,6 +2810,26 @@ function validAutomationContext(
       (value.control_revision === null ||
         (Number.isSafeInteger(value.control_revision) &&
           value.control_revision! >= 0)),
+  );
+  if (!validBase || !value?.bounded_cycle) return validBase;
+  const cycle = value.bounded_cycle;
+  return Boolean(
+    cycle.profile === "bounded_autohunt_review_needed.v0.1" &&
+      cycle.cycle_id.length > 0 &&
+      cycle.attempt === 1 &&
+      cycle.trigger_ref?.ref_version === "external_ref.v0.1" &&
+      cycle.grant?.grant_version ===
+        "bounded_automation_capability_grant.v0.1" &&
+      cycle.grant.profile === cycle.profile &&
+      validateBoundedAutomationCapabilityGrantV01(cycle.grant) &&
+      cycle.cycle_id ===
+        deriveBoundedAutomationCycleIdV01({
+          grant: cycle.grant,
+          packet: {
+            packet_id: cycle.grant.packet_id,
+            integrity: { fingerprint: cycle.grant.packet_fingerprint },
+          },
+        }),
   );
 }
 

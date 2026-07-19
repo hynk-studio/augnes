@@ -26,6 +26,10 @@ import {
   createVNextOperatorHostRoundTripHandlerV01,
   createVNextOperatorHostRoundTripReadHandlerV01,
 } from "../app/api/vnext/operator/host-round-trip/route";
+import {
+  createVNextOperatorAutomationCycleHandlerV01,
+  createVNextOperatorAutomationCycleReadHandlerV01,
+} from "../app/api/vnext/operator/automation-cycle/route";
 import { createVNextOperatorRunResultReadHandlerV01 } from "../app/api/vnext/operator/run-results/route";
 import {
   createVNextOperatorContextUseReviewHandlerV01,
@@ -66,9 +70,14 @@ import {
   rebindCanonicalProjectLocalRootV01,
 } from "../lib/vnext/persistence/project-identity-registry";
 import {
+  readActiveProjectSelectionV01,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import {
+  mutateProjectControlV01,
+  readProjectAutomationControlV01,
+} from "../lib/vnext/persistence/project-control-store";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -119,6 +128,8 @@ import {
   LiveNativeHostRunServiceV01,
   type LiveNativeHostRunProjectionV01,
 } from "../lib/vnext/runtime/live-native-host-run-service";
+import { BoundedAutomationCycleServiceV01 } from "../lib/vnext/runtime/bounded-automation-cycle";
+import type { BoundedAutomationCycleProjectionV01 } from "../types/vnext/bounded-automation-cycle";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   ProjectRunResultReadErrorV01,
@@ -1520,6 +1531,12 @@ async function assertFullOperatorLoop(input: {
     jar,
     packet: laterPacket,
     transition_receipt: receipt,
+  });
+
+  await assertBoundedAutomationCycleVerticalOnCloneV01({
+    environment: input.environment,
+    jar,
+    packet: laterPacket,
   });
 
     await assertR6DProductionVerticalV01({
@@ -5764,6 +5781,319 @@ function addIsoMillisecondsV01(value: string, milliseconds: number): string {
   return new Date(Date.parse(value) + milliseconds).toISOString();
 }
 
+async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
+  environment: NodeJS.ProcessEnv;
+  jar: RouteCookieJar;
+  packet: TaskContextPacketV01;
+}): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "bounded-automation-cycle-review-needed",
+    input.environment,
+    async ({ config, environment }) => {
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 40_000),
+      );
+      const legacyGrant = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, legacyGrant, {
+        approval_capabilities: [],
+        resources: [],
+        expires_at: addIsoMillisecondsV01(clock.now(), 10 * 60_000),
+      });
+      const controlDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const active = readActiveProjectSelectionV01(
+          controlDb,
+          config.workspace_id,
+        );
+        assert(active);
+        const current = readProjectAutomationControlV01(controlDb, config);
+        if (!current) {
+          mutateProjectControlV01(
+            controlDb,
+            {
+              ...config,
+              action: "enable_automation",
+              expected_active_project_id: config.project_id,
+              expected_active_selection_revision: active.selection_revision,
+              expected_control_revision: null,
+            },
+            { now: () => clock.now() },
+          );
+        } else if (current.paused) {
+          mutateProjectControlV01(
+            controlDb,
+            {
+              ...config,
+              action: "resume_automation",
+              expected_active_project_id: config.project_id,
+              expected_active_selection_revision: active.selection_revision,
+              expected_control_revision: current.revision,
+            },
+            { now: () => clock.now() },
+          );
+        } else if (!current.enabled) {
+          mutateProjectControlV01(
+            controlDb,
+            {
+              ...config,
+              action: "enable_automation",
+              expected_active_project_id: config.project_id,
+              expected_active_selection_revision: active.selection_revision,
+              expected_control_revision: current.revision,
+            },
+            { now: () => clock.now() },
+          );
+        }
+      } finally {
+        controlDb.close();
+      }
+      const observations: DeterministicCodexAdapterObservationV01[] = [];
+      const live = new LiveNativeHostRunServiceV01({
+        open_database: openVNextLocalOperatorDatabaseV01,
+        adapter_factory: () =>
+          createDeterministicCodexAdapterV01({
+            now: () => clock.now(),
+            observe: (value) => observations.push(value),
+          }),
+        now: () => clock.now(),
+        timeout_ms: 60_000,
+      });
+      const service = new BoundedAutomationCycleServiceV01({
+        open_database: openVNextLocalOperatorDatabaseV01,
+        live_service: live,
+        now: () => clock.now(),
+      });
+      try {
+      const handler = createVNextOperatorAutomationCycleHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        service,
+      });
+      const readHandler = createVNextOperatorAutomationCycleReadHandlerV01({
+        environment,
+        clock,
+        service,
+      });
+      const feedbackHandler = createVNextOperatorContextUseReviewHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const before = snapshotR6CSemanticAuthorityCounts(config);
+      const initial = service.read(config);
+      assert.equal(initial.status, "eligible", JSON.stringify(initial));
+      assert(initial.control_revision);
+      assert.equal(initial.budget.max_work_items, 1);
+      assert.equal(initial.budget.max_active_runs, 1);
+      assert.equal(initial.budget.max_attempts, 1);
+      assert.equal(initial.budget.max_model_invocations, 0);
+      assert.equal(initial.budget.network_access, "denied");
+      assert.equal(initial.feedback_needed, false);
+      const readOnlyBefore = snapshotR6CSemanticAuthorityCounts(config);
+      const readResponse = await readHandler(
+        routeRequest("/api/vnext/operator/automation-cycle", {
+          method: "GET",
+          jar,
+        }),
+      );
+      const readBody = await publicJson(readResponse);
+      assert.equal(readResponse.status, 200, JSON.stringify(readBody));
+      assert.equal(readBody.read_only, true);
+      assert.equal(
+        (readBody.automation_cycle as { status?: unknown }).status,
+        "eligible",
+      );
+      assert.deepEqual(
+        snapshotR6CSemanticAuthorityCounts(config),
+        readOnlyBefore,
+      );
+      assert.equal(observations.length, 0);
+      await expectRouteError(
+        await handler(
+          routeRequest("/api/vnext/operator/automation-cycle", {
+            method: "POST",
+            jar,
+            body: {
+              action: "run_one_bounded_cycle",
+              expected_control_revision: initial.control_revision,
+              grant: { forbidden_client_material: true },
+            },
+          }),
+        ),
+        400,
+        "bounded_automation_action_body_invalid",
+        "bounded_automation_client_grant_refused",
+      );
+      assert.deepEqual(
+        snapshotR6CSemanticAuthorityCounts(config),
+        readOnlyBefore,
+      );
+      assert.equal(observations.length, 0);
+      const startResponse = await handler(
+        routeRequest("/api/vnext/operator/automation-cycle", {
+          method: "POST",
+          jar,
+          body: {
+            action: "run_one_bounded_cycle",
+            expected_control_revision: initial.control_revision,
+          },
+        }),
+      );
+      const startBody = await publicJson(startResponse);
+      assert.equal(startResponse.status, 202, JSON.stringify(startBody));
+      assert.equal(startBody.decision_created, false);
+      assert.equal(startBody.transition_created, false);
+      assert.equal(startBody.semantic_state_changed, false);
+      assert.equal(startBody.model_invocation_created, false);
+      jar.absorb(startResponse);
+      await waitForLiveProjectionV01(
+        live,
+        config,
+        (projection) => projection.status === "completed",
+        10_000,
+        "bounded_automation_review_needed",
+      );
+      const settled = await waitForBoundedAutomationProjectionV01(
+        service,
+        config,
+        (projection) =>
+          projection.status === "review_needed" ||
+          projection.status === "proposal_settlement_failed",
+        10_000,
+      );
+      assert.equal(settled.status, "review_needed", JSON.stringify(settled));
+      assert.equal(settled.stop_reason, "review_needed");
+      assert.equal(settled.next_action, "open_review");
+      assert(settled.run?.receipt_id);
+      assert(settled.run?.proposal_id);
+      assert(settled.run?.result_href);
+      assert(settled.run?.proposal_href);
+      assert.equal(settled.feedback_needed, true);
+      assert.equal(observations.length, 1);
+      assert.equal(observations[0]?.request.mode, "policy_triggered");
+      assert.equal(
+        observations[0]?.request.automation_context?.bounded_cycle?.profile,
+        "bounded_autohunt_review_needed.v0.1",
+      );
+      const runDb = openVNextLocalOperatorDatabaseV01(config);
+      let policyReceipt: RunReceiptV01;
+      try {
+        const run = readAutonomyRunLedgerRecord(settled.run!.run_id, {
+          db: runDb,
+        });
+        assert(run);
+        assert.equal(run.status, "needs_review");
+        assert.equal(run.stop_reason, "review_needed");
+        assert.equal(run.metadata.automatic_retry, false);
+        assert.equal(run.metadata.bounded_automation_attempt, 1);
+        assert.equal(
+          (run.metadata.bounded_automation_grant as { budget?: { max_model_invocations?: number } })
+            .budget?.max_model_invocations,
+          0,
+        );
+        const receiptRecord = readVNextCoreRecordV01(runDb, {
+          record_kind: "run_receipt",
+          record_id: settled.run!.receipt_id!,
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        assert(receiptRecord);
+        policyReceipt = receiptRecord.payload as RunReceiptV01;
+        const detail = readProjectRunResultDetailV01(runDb, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          receipt_id: policyReceipt.receipt_id,
+        });
+        assert.equal(detail.summary.mode, "policy_triggered");
+        assert.equal(detail.automation?.stopped_at_review_needed, true);
+        assert.equal(detail.automation?.budget.max_model_invocations, 0);
+        assert.equal(detail.proposal.status, "available");
+      } finally {
+        runDb.close();
+      }
+      const afterCycle = snapshotR6CSemanticAuthorityCounts(config);
+      assert.equal(afterCycle.decisions, before.decisions);
+      assert.equal(afterCycle.transitions, before.transitions);
+      assert.equal(afterCycle.semantic_state_entries, before.semantic_state_entries);
+      assert.equal(afterCycle.context_use_reviews, before.context_use_reviews);
+      assert.equal(afterCycle.proposals, before.proposals + 1);
+      assert.equal(afterCycle.packets, before.packets);
+      assert.equal(afterCycle.receipts, before.receipts + 1);
+
+      const replayResponse = await handler(
+        routeRequest("/api/vnext/operator/automation-cycle", {
+          method: "POST",
+          jar,
+          body: {
+            action: "run_one_bounded_cycle",
+            expected_control_revision: settled.control_revision,
+          },
+        }),
+      );
+      const replayBody = await publicJson(replayResponse);
+      assert.equal(replayResponse.status, 200, JSON.stringify(replayBody));
+      assert.equal(replayBody.status, "exact_replay");
+      jar.absorb(replayResponse);
+      assert.equal(observations.length, 1, "exact cycle replay must not rerun the host");
+      assert.equal(
+        countRunReceiptsV01(config),
+        before.receipts + 1,
+        "exact cycle replay must not duplicate the receipt",
+      );
+
+      clock.set(addIsoMillisecondsV01(clock.now(), 1_000));
+      const feedbackResponse = await feedbackHandler(
+        routeRequest("/api/vnext/operator/project-continuity", {
+          method: "POST",
+          jar,
+          body: {
+            action: "record_context_use_review",
+            later_run_receipt_id: policyReceipt.receipt_id,
+            later_run_receipt_fingerprint: policyReceipt.integrity.fingerprint,
+            actually_used: "yes",
+            assessment: "helpful",
+            correction_summaries: [],
+            notes: [
+              "The policy-triggered later packet was presented; actual use remains an explicit user declaration.",
+            ],
+            metrics: {
+              wrong_context_correction_count: 0,
+              repeated_explanation_estimate: 0,
+              missing_critical_context_count: 0,
+              context_refs_used_count: 1,
+            },
+          },
+        }),
+      );
+      const feedbackBody = await publicJson(feedbackResponse);
+      assert.equal(feedbackResponse.status, 201, JSON.stringify(feedbackBody));
+      jar.absorb(feedbackResponse);
+      const review = feedbackBody.review as ContextUseReviewV01;
+      assert.equal(review.usage_provenance?.presented.basis, "direct_local_observation");
+      assert.equal(review.usage_provenance?.actually_used.basis, "user_declaration");
+      assert.equal(review.usage_provenance?.assessment.basis, "user_declaration");
+      assert.equal(service.read(config).feedback_needed, false);
+      const afterFeedback = snapshotR6CSemanticAuthorityCounts(config);
+      assert.equal(afterFeedback.context_use_reviews, before.context_use_reviews + 1);
+      assert.deepEqual(
+        {
+          ...afterFeedback,
+          context_use_reviews: afterCycle.context_use_reviews,
+        },
+        afterCycle,
+      );
+      } finally {
+        await live.shutdown();
+      }
+    },
+  );
+  pass("bounded_automation_policy_grant_packet_run_receipt_proposal_review_needed_vertical");
+  pass("bounded_automation_exact_replay_starts_no_second_host_or_work_item");
+  pass("policy_triggered_later_receipt_reuses_context_use_review_with_user_declaration_provenance");
+}
+
 async function assertInteractiveHostRouteOnCloneV01(input: {
   environment: NodeJS.ProcessEnv;
   config: VNextLocalOperatorPilotConfigV01;
@@ -8506,6 +8836,26 @@ async function waitForLiveProjectionV01(
       );
     }
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    projection = service.read(config);
+  }
+  return projection;
+}
+
+async function waitForBoundedAutomationProjectionV01(
+  service: BoundedAutomationCycleServiceV01,
+  config: VNextLocalOperatorPilotConfigV01,
+  predicate: (projection: BoundedAutomationCycleProjectionV01) => boolean,
+  timeoutMs: number,
+): Promise<BoundedAutomationCycleProjectionV01> {
+  const deadline = Date.now() + timeoutMs;
+  let projection = service.read(config);
+  while (!predicate(projection)) {
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `bounded_automation_projection_timeout:${projection.status}:${projection.stop_reason}`,
+      );
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
     projection = service.read(config);
   }
   return projection;

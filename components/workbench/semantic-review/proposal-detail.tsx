@@ -532,7 +532,7 @@ export function SemanticReviewProposalDetail({
           </div>
           <p className={styles.empty}>
             Feedback requires an applied Transition, its compiled later packet, and a
-            real later interactive RunReceipt. Transition application never launches
+            real later interactive or policy-triggered RunReceipt. Transition application never launches
             that later run automatically.
           </p>
         </section>

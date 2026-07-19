@@ -200,6 +200,10 @@ const result = {
   project_automation_policy_summary_visible: false,
   project_automation_stale_conflict_visible: false,
   project_automation_restart_persisted: false,
+  bounded_automation_cycle_started: false,
+  bounded_automation_review_needed: false,
+  bounded_automation_reload_idempotent: false,
+  bounded_automation_context_feedback_recorded: false,
   personal_perspective_default_excluded: false,
   personal_perspective_included: false,
   personal_perspective_project_b_excluded: false,
@@ -2474,6 +2478,197 @@ async function main() {
     assert.equal(result.semantic_transitions_created, 1);
     assert.equal(result.internal_id_entry_actions, 0);
     record("workbench_reload_reads_durable_lineage_without_duplicate_writes");
+
+    await navigate(
+      `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-home-active="true"]') !== null`,
+      "operator Project Home for bounded later-packet cycle",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-control-kind="automation"][data-project-controls-hydrated="true"]') !== null`,
+      "hydrated bounded automation controls",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const controls = document.querySelector('[data-project-control-kind="automation"]');
+        const button = controls
+          ? Array.from(controls.querySelectorAll('button')).find(
+              (candidate) => candidate.textContent?.trim() === 'Enable'
+            )
+          : null;
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Run one bounded cycle') && document.body.textContent.includes('model/network budget zero')`,
+      "eligible bounded automation cycle",
+    );
+    const boundedCycleControlShape = await evaluateJson(`(() => {
+      const controls = document.querySelector('[data-project-control-kind="automation"]');
+      return {
+        field_count: controls?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        bounded_action_count: Array.from(controls?.querySelectorAll('button') ?? []).filter(
+          (button) => button.textContent?.trim() === 'Run one bounded cycle'
+        ).length,
+      };
+    })()`);
+    assert.deepEqual(boundedCycleControlShape, {
+      field_count: 0,
+      bounded_action_count: 1,
+    });
+    const beforeBoundedCycle = readDirectHostBrowserState(manifest.project_id);
+    const boundedCycleResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const controls = document.querySelector('[data-project-control-kind="automation"]');
+        const button = controls
+          ? Array.from(controls.querySelectorAll('button')).find(
+              (candidate) => candidate.textContent?.trim() === 'Run one bounded cycle'
+            )
+          : null;
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () =>
+        responses.slice(boundedCycleResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/automation-cycle" &&
+            entry.type === "Fetch" &&
+            entry.method === "POST" &&
+            entry.status === 202,
+        ),
+      "bounded automation cycle acceptance",
+    );
+    const boundedCycleDeadline = Date.now() + DEFAULT_TIMEOUT_MS;
+    let boundedCycleRead = null;
+    while (Date.now() < boundedCycleDeadline) {
+      boundedCycleRead = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/operator/automation-cycle');
+        return { status: response.status, body: await response.json() };
+      })()`);
+      if (
+        boundedCycleRead.status === 200 &&
+        boundedCycleRead.body?.automation_cycle?.status === "review_needed"
+      ) {
+        break;
+      }
+      if (
+        boundedCycleRead.body?.automation_cycle?.status ===
+          "proposal_settlement_failed" ||
+        ["failed", "cancelled", "timed_out", "reconciliation_required"].includes(
+          boundedCycleRead.body?.automation_cycle?.status,
+        )
+      ) {
+        break;
+      }
+      await delay(100);
+    }
+    assert.equal(
+      boundedCycleRead?.body?.automation_cycle?.status,
+      "review_needed",
+      `bounded cycle did not reach review-needed: ${JSON.stringify({
+        response_status: boundedCycleRead?.status,
+        cycle_status: boundedCycleRead?.body?.automation_cycle?.status,
+        stop_reason: boundedCycleRead?.body?.automation_cycle?.stop_reason,
+        grant: boundedCycleRead?.body?.automation_cycle?.grant,
+        run: boundedCycleRead?.body?.automation_cycle?.run,
+      })}`,
+    );
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.body.textContent.includes('Cycle review needed') && document.body.textContent.includes('Stop review needed') && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Open review-needed proposal') && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Provide context-use feedback')`,
+      "bounded automation review-needed stop",
+    );
+    const afterBoundedCycle = readDirectHostBrowserState(manifest.project_id);
+    assert.equal(
+      afterBoundedCycle.direct_receipt_count,
+      beforeBoundedCycle.direct_receipt_count + 1,
+    );
+    assert.equal(
+      afterBoundedCycle.direct_run_count,
+      beforeBoundedCycle.direct_run_count + 1,
+    );
+    assert.deepEqual(afterBoundedCycle.semantic_authority_counts, {
+      ...beforeBoundedCycle.semantic_authority_counts,
+      proposals: beforeBoundedCycle.semantic_authority_counts.proposals + 1,
+    });
+    assert.equal(
+      afterBoundedCycle.latest_receipt.execution_environment.runtime_labels.includes(
+        "policy_triggered",
+      ),
+      true,
+    );
+    result.bounded_automation_cycle_started = true;
+    result.bounded_automation_review_needed = true;
+    record("bounded_policy_cycle_stops_at_one_pending_review_proposal");
+
+    const beforeBoundedReload = databaseSnapshot(database);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.body.textContent.includes('Cycle review needed')`,
+      "bounded automation durable review-needed reload",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeBoundedReload);
+    result.bounded_automation_reload_idempotent = true;
+
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = Array.from(document.querySelectorAll('a')).find(
+          (candidate) => candidate.textContent?.trim() === 'Provide context-use feedback'
+        );
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-context-use-feedback="available"] [data-vnext-context-use-review-form="v0.1"]') !== null`,
+      "policy-triggered later-run feedback form",
+    );
+    const beforeBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('[data-vnext-context-use-review-form="v0.1"]');
+        const selects = form?.querySelectorAll('select');
+        if (!form || !selects || selects.length !== 2) return false;
+        selects[0].value = 'yes';
+        selects[0].dispatchEvent(new Event('change', { bubbles: true }));
+        selects[1].value = 'helpful';
+        selects[1].dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(
+          document.querySelectorAll('[data-vnext-context-use-review-form="v0.1"] button')
+        ).find((candidate) => candidate.textContent?.trim() === 'Record context-use review');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-context-use-feedback="available"]')?.textContent?.includes('user_declaration') === true && document.querySelector('[data-vnext-context-use-feedback="available"]')?.textContent?.includes('direct_local_observation') === true`,
+      "policy-triggered context-use provenance",
+    );
+    const afterBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
+    assert.deepEqual(afterBoundedFeedback.semantic_authority_counts, {
+      ...beforeBoundedFeedback.semantic_authority_counts,
+      context_use_reviews:
+        beforeBoundedFeedback.semantic_authority_counts.context_use_reviews + 1,
+    });
+    result.bounded_automation_context_feedback_recorded = true;
+    record("policy_triggered_later_receipt_uses_explicit_non_authoritative_feedback");
   });
 
   const unexpectedConsoleErrors = consoleErrors.filter(
@@ -2546,6 +2741,12 @@ async function main() {
       !(
         request.phase === "direct_host_round_trip" &&
         request.path === "/api/vnext/operator/host-round-trip"
+      ) &&
+      !(
+        request.phase === "direct_host_round_trip" &&
+        (request.path === "/api/vnext/project-controls" ||
+          request.path === "/api/vnext/operator/automation-cycle" ||
+          request.path === "/api/vnext/operator/project-continuity")
       ) &&
       !(
         request.phase === "direct_host_round_trip" &&
@@ -2632,6 +2833,7 @@ function isolatedRuntimeEnvironment({ databasePath, manifest }) {
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: manifest.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: manifest.project_id,
     AUGNES_VNEXT_OPERATOR_ID: manifest.operator_id,
+    AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER: "1",
   };
 }
 

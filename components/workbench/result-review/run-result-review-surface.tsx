@@ -65,6 +65,36 @@ export function RunResultReviewSurface({
           </p>
         </section>
 
+        {result.automation ? (
+          <section
+            className={styles.panel}
+            aria-labelledby="automation-boundary-title"
+            data-policy-triggered-result="true"
+          >
+            <div className={styles.panelHeader}>
+              <p className={styles.kicker}>Bounded automation</p>
+              <h2 id="automation-boundary-title">
+                {result.automation.stopped_at_review_needed
+                  ? "Stopped for human review"
+                  : "Bounded automation settlement"}
+              </h2>
+            </div>
+            <p className={styles.copy}>
+              This policy-triggered run used one bounded CapabilityGrant and the
+              normal native-host and immutable receipt path. A review-needed
+              stop is shown only after the assessment proposal is durably
+              available. The policy and grant create no ReviewDecision or
+              semantic authority.
+            </p>
+            <dl className={styles.statusGrid}>
+              <Metric label="Attempt" value={String(result.automation.attempt)} />
+              <Metric label="Stop reason" value={result.automation.stop_reason ?? "unknown"} />
+              <Metric label="Model calls" value={String(result.automation.budget.max_model_invocations)} />
+              <Metric label="Network" value={result.automation.budget.network_access} />
+            </dl>
+          </section>
+        ) : null}
+
         <TaskSuccessCriteria result={result} />
         <ReviewableProposal result={result} />
 
@@ -176,6 +206,15 @@ export function RunResultReviewSurface({
                 ...result.packet.selected_context_refs,
                 ...result.identity.source_refs,
               ]} />
+              {result.automation ? (
+                <>
+                  <Exact label="Automation cycle" value={result.automation.cycle_id} />
+                  <RefList refs={[
+                    result.automation.policy_ref,
+                    result.automation.capability_grant_ref,
+                  ]} />
+                </>
+              ) : null}
             </InspectorCard>
 
             <InspectorCard title="Native host and approvals">

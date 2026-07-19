@@ -60,11 +60,15 @@ import {
   type NativeHostRunModeV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import {
+  deriveBoundedAutomationCycleIdV01,
+  validateBoundedAutomationCapabilityGrantV01,
+} from "@/lib/vnext/bounded-automation-cycle";
 
 export const LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01 =
   "live_native_host_run_service.v0.1" as const;
 
-const DEFAULT_LIVE_TIMEOUT_MS = 15 * 60 * 1_000;
+export const DEFAULT_LIVE_TIMEOUT_MS = 15 * 60 * 1_000;
 const DEFAULT_STOP_SETTLE_TIMEOUT_MS = 10_000;
 const MAX_EVENT_FINGERPRINTS = 128;
 
@@ -166,6 +170,19 @@ export class LiveNativeHostRunServiceV01 {
   constructor(private readonly options: LiveNativeHostRunServiceOptionsV01 = {}) {
     this.openDatabase = options.open_database ?? openVNextLocalOperatorDatabaseV01;
     this.now = options.now ?? (() => new Date().toISOString());
+  }
+
+  readCapabilityContractV01(): {
+    adapter_version: string;
+    capability_version: string;
+    timeout_ms: number;
+  } {
+    const adapter = this.currentAdapterContract();
+    return {
+      adapter_version: adapter.adapter_version,
+      capability_version: adapter.capability_version,
+      timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+    };
   }
 
   async start(input: {
@@ -1940,6 +1957,10 @@ function resumeBindingFromRunV01(run: AutonomyRunRecord): NativeHostResumeBindin
 function automationContextFromRunV01(
   run: AutonomyRunRecord,
 ): NativeHostAutomationContextV01 {
+  const exact = nativeHostAutomationContextMetadataV01(
+    run.metadata.automation_context,
+  );
+  if (exact) return exact;
   const policyRef = genericExternalRefMetadataV01(run.metadata.policy_ref);
   const grantRef = genericExternalRefMetadataV01(
     run.metadata.capability_grant_ref,
@@ -1960,6 +1981,51 @@ function automationContextFromRunV01(
     automatic_retry_allowed: false,
     scheduler_started: false,
   };
+}
+
+function nativeHostAutomationContextMetadataV01(
+  value: unknown,
+): NativeHostAutomationContextV01 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<NativeHostAutomationContextV01>;
+  if (
+    candidate.automatic_retry_allowed !== false ||
+    candidate.scheduler_started !== false ||
+    !genericExternalRefMetadataV01(candidate.policy_ref) ||
+    !genericExternalRefMetadataV01(candidate.capability_grant_ref) ||
+    !(
+      candidate.control_revision === null ||
+      (Number.isSafeInteger(candidate.control_revision) &&
+        Number(candidate.control_revision) >= 0)
+    )
+  ) {
+    return null;
+  }
+  if (
+    candidate.bounded_cycle &&
+    (candidate.bounded_cycle.profile !==
+      "bounded_autohunt_review_needed.v0.1" ||
+      candidate.bounded_cycle.attempt !== 1 ||
+      typeof candidate.bounded_cycle.cycle_id !== "string" ||
+      candidate.bounded_cycle.grant?.grant_version !==
+        "bounded_automation_capability_grant.v0.1" ||
+      !validateBoundedAutomationCapabilityGrantV01(
+        candidate.bounded_cycle.grant,
+      ) ||
+      candidate.bounded_cycle.cycle_id !==
+        deriveBoundedAutomationCycleIdV01({
+          grant: candidate.bounded_cycle.grant,
+          packet: {
+            packet_id: candidate.bounded_cycle.grant.packet_id,
+            integrity: {
+              fingerprint: candidate.bounded_cycle.grant.packet_fingerprint,
+            },
+          },
+        }))
+  ) {
+    return null;
+  }
+  return candidate as NativeHostAutomationContextV01;
 }
 
 function automationContextMatchesRunV01(
@@ -2007,6 +2073,17 @@ function exactPolicyGrantCoversV01(
     grant.grant_external_ref?.external_id === automationGrant.external_id ||
     grant.grant_ref === automationGrant.external_id;
   if (!grantIdentityMatches) return false;
+  const boundedGrant = request.automation_context.bounded_cycle?.grant;
+  if (
+    boundedGrant &&
+    ((approval.operation_class === "network_permission" &&
+      boundedGrant.budget.network_access === "denied") ||
+      boundedGrant.forbidden_capabilities.includes(
+        `native_host_approval:${approval.operation_class}`,
+      ))
+  ) {
+    return false;
+  }
   if (
     grant.expires_at &&
     Date.parse(grant.expires_at) <= Date.parse(approval.issued_at)

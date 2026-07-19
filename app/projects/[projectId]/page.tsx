@@ -30,10 +30,14 @@ export default async function ProjectPage({
   try {
     const workspace = readDefaultWorkspaceIdentityV01(db);
     if (workspace) {
+      const operatorConfig = readMatchingOperatorConfigV01(
+        workspace.workspace_id,
+        projectId,
+      );
       projection = await readProjectHomeProjectionV01(db, {
         workspace_id: workspace.workspace_id,
         project_id: projectId,
-      });
+      }, { operator_config: operatorConfig });
     }
   } catch (error) {
     if (!isProjectNotFoundError(error)) throw error;
@@ -48,6 +52,20 @@ export default async function ProjectPage({
       directHostRoundTripAvailable={directHostRoundTripAvailable(projection)}
     />
   );
+}
+
+function readMatchingOperatorConfigV01(
+  workspaceId: string,
+  projectId: string,
+) {
+  try {
+    const config = readVNextLocalOperatorPilotConfigV01(process.env);
+    return config.workspace_id === workspaceId && config.project_id === projectId
+      ? config
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function directHostRoundTripAvailable(

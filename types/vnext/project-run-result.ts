@@ -11,6 +11,7 @@ import type {
   RunReceiptSkippedCheckV01,
   RunReceiptTrustSummaryV01,
 } from "./run-receipt";
+import type { BoundedAutomationBudgetV01 } from "./bounded-automation-cycle";
 
 export const PROJECT_RUN_RESULT_READ_MODEL_VERSION_V01 =
   "project_run_result_read_model.v0.1" as const;
@@ -162,6 +163,18 @@ export interface ProjectRunResultDetailV01 {
   };
   criterion_assessment: CriterionAssessmentReadbackV01;
   proposal: ProjectRunResultProposalReadbackV01;
+  automation: null | {
+    origin: "policy_triggered";
+    cycle_id: string;
+    attempt: number;
+    policy_ref: ExternalRefV01;
+    capability_grant_ref: ExternalRefV01;
+    budget: BoundedAutomationBudgetV01;
+    stop_reason: string | null;
+    stopped_at_review_needed: boolean;
+    automatic_retry: false;
+    semantic_authority_granted: false;
+  };
   host: {
     host_ref: ExternalRefV01 | null;
     host_refs: ExternalRefV01[];

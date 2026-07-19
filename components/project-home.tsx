@@ -321,6 +321,44 @@ export function ProjectHome({
               Control layer {projection.automation.policy_control_eligible ? "eligible" : "blocked"}
               {` · Admission ${humanize(projection.automation.admission_status)}`}
             </p>
+            <p className="project-home-meta">
+              Cycle {humanize(projection.automation.cycle.status)}
+              {` · Stop ${humanize(projection.automation.cycle.stop_reason)}`}
+            </p>
+            {projection.automation.cycle.work_source ? (
+              <p>
+                <strong>Eligible work:</strong>{" "}
+                {projection.automation.cycle.work_source.label}
+              </p>
+            ) : null}
+            <p className="project-home-meta">
+              One work item · one active run · {Math.round(
+                projection.automation.cycle.budget.max_runtime_ms / 60_000,
+              )} minute timeout · model/network budget zero
+            </p>
+            {projection.automation.cycle.run ? (
+              <p className="project-home-meta">
+                Run {humanize(projection.automation.cycle.run.status)} · attempt{" "}
+                {projection.automation.cycle.run.attempt}
+                {projection.automation.cycle.run.cancellation_requested
+                  ? " · cancellation requested"
+                  : ""}
+              </p>
+            ) : null}
+            {projection.automation.cycle.run?.result_href ? (
+              <a href={projection.automation.cycle.run.result_href}>Open automated result</a>
+            ) : null}
+            {projection.automation.cycle.run?.proposal_href ? (
+              <a href={projection.automation.cycle.run.proposal_href}>Open review-needed proposal</a>
+            ) : null}
+            {projection.automation.cycle.feedback_needed ? (
+              <p>
+                <strong>Later-context feedback is ready for an explicit user assessment.</strong>
+                {projection.automation.cycle.feedback_href ? (
+                  <>{" "}<a href={projection.automation.cycle.feedback_href}>Provide context-use feedback</a></>
+                ) : null}
+              </p>
+            ) : null}
             <h4>{projection.automation.policy_summary.title}</h4>
             <ul className="project-home-policy-list">
               {projection.automation.policy_summary.boundaries.map((boundary) => (
