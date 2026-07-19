@@ -2504,7 +2504,7 @@ async function main() {
       true,
     );
     await waitForCondition(
-      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Queue current task') && document.body.textContent.includes('deterministic zero-model host') && document.body.textContent.includes('network denied')`,
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Queue current task') && document.body.textContent.includes('bounded read-only local verification host') && document.body.textContent.includes('model and network denied')`,
       "explicit automation work-source action",
     );
     const queueResponseStart = responses.length;
