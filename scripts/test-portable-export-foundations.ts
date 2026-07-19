@@ -8,6 +8,7 @@ import {
   validateLocalGitLedgerExportRequestV01,
   writeLocalGitLedgerExportArtifactsV01,
 } from "../lib/git-ledger/local-export";
+import { PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01 } from "../types/vnext/project-verify-material";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -80,6 +81,40 @@ try {
 
   assert.equal(isSafeLocalGitLedgerExportOutputDirV01("tmp/git-ledger-export/example"), true);
   assert.equal(isSafeLocalGitLedgerExportOutputDirV01("/tmp/escape"), false);
+  assert.deepEqual(
+    PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.import_authority,
+    {
+      creates_review_decision: false,
+      applies_transition: false,
+      accepts_evidence: false,
+      selects_applied_current_head: false,
+      changes_truth_status: false,
+    },
+  );
+  assert.equal(
+    PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.canonical_lifecycle_material.some(
+      (item) => item.includes("EvidenceRecordV01"),
+    ),
+    true,
+  );
+  assert.equal(
+    PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.canonical_lifecycle_material.some(
+      (item) => item.includes("ClaimRecordV01 revisions"),
+    ),
+    true,
+  );
+  assert.equal(
+    PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.canonical_lifecycle_material.some(
+      (item) => item.includes("ClaimEvidenceRelationV01 revisions"),
+    ),
+    true,
+  );
+  assert.equal(
+    PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.rebuildable_material.some(
+      (item) => item.includes("relation counts"),
+    ),
+    true,
+  );
   assert.equal(fetchCalls, 0);
 
   console.log(
@@ -90,6 +125,7 @@ try {
         deterministic_manifest: true,
         project_scope_refusal: true,
         dry_run_writes: 0,
+        project_verify_lifecycle_classification_checked: true,
         network_calls: fetchCalls,
       },
       null,
