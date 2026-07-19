@@ -334,7 +334,7 @@ export function ProjectHome({
             <p className="project-home-meta">
               One work item · one active run · {Math.round(
                 projection.automation.cycle.budget.max_runtime_ms / 60_000,
-              )} minute timeout · deterministic zero-model host · network denied
+              )} minute timeout · bounded read-only local verification host · model and network denied
             </p>
             {projection.automation.cycle.run ? (
               <p className="project-home-meta">

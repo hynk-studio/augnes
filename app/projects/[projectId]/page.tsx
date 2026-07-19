@@ -14,9 +14,9 @@ import {
   DETERMINISTIC_CODEX_CAPABILITY_VERSION_V01,
 } from "@/lib/vnext/native-host/deterministic-codex-adapter";
 import {
-  CODEX_APP_SERVER_ADAPTER_VERSION_V01,
-  CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
-} from "@/lib/vnext/native-host/codex-app-server-adapter";
+  LOCAL_PROJECT_VERIFICATION_ADAPTER_VERSION_V01,
+  LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
+} from "@/lib/vnext/native-host/local-project-verification-adapter";
 import { DEFAULT_LIVE_TIMEOUT_MS } from "@/lib/vnext/runtime/live-native-host-run-service";
 import type { BoundedAutomationHostContractV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
 
@@ -80,11 +80,11 @@ function automationHostContractV01(): BoundedAutomationHostContractV01 {
         provider_egress: "forbidden",
       }
     : {
-        adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
-        capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
+        adapter_version: LOCAL_PROJECT_VERIFICATION_ADAPTER_VERSION_V01,
+        capability_version: LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
         timeout_ms: DEFAULT_LIVE_TIMEOUT_MS,
-        execution_profile: "native_host_managed_model",
-        provider_egress: "native_host_managed",
+        execution_profile: "deterministic_zero_model",
+        provider_egress: "forbidden",
       };
 }
 

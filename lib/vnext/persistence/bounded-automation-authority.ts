@@ -356,6 +356,12 @@ export function validateVNextAutomationWorkSnapshotV01(value: unknown): value is
 }
 
 function normalizeWorkSourceMaterialV01(input: Omit<VNextAutomationWorkSourceV01, "work_source_version" | "work_id" | "work_fingerprint">) {
+  if (
+    input.source_grant_record_status !== "exact_record" &&
+    input.source_grant_record_status !== "packet_bound_summary"
+  ) {
+    refuseV01("bounded_automation_source_grant_record_status_invalid", 422);
+  }
   if (!input.source_capability_grant || input.source_capability_grant.coverage !== "enforced") {
     refuseV01("bounded_automation_source_grant_unenforced", 422);
   }

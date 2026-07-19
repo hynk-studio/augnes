@@ -105,6 +105,10 @@ import {
   type DeterministicCodexAdapterObservationV01,
 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import {
+  LOCAL_PROJECT_VERIFICATION_ADAPTER_VERSION_V01,
+  LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
+} from "../lib/vnext/native-host/local-project-verification-adapter";
+import {
   createCodexAppServerAdapterV01,
   type CodexAppServerAdapterObservationV01,
 } from "../lib/vnext/native-host/codex-app-server-adapter";
@@ -5996,15 +6000,167 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         readOnlyBefore,
       );
       assert.equal(observations.length, 0);
-      const startResponse = await handler(
-        routeRequest("/api/vnext/operator/automation-cycle", {
-          method: "POST",
-          jar,
-          body: {
-            action: "run_one_bounded_cycle",
-            expected_control_revision: queued.control_revision,
+      clock.set(addIsoMillisecondsV01(clock.now(), 100));
+      const driftDb = openVNextLocalOperatorDatabaseV01(config);
+      let runControlRevision: number;
+      try {
+        const active = readActiveProjectSelectionV01(
+          driftDb,
+          config.workspace_id,
+        );
+        const priorControl = readProjectAutomationControlV01(driftDb, config);
+        assert(active && priorControl);
+        const paused = mutateProjectControlV01(
+          driftDb,
+          {
+            ...config,
+            action: "pause_automation",
+            expected_active_project_id: config.project_id,
+            expected_active_selection_revision: active.selection_revision,
+            expected_control_revision: priorControl.revision,
           },
-        }),
+          { now: () => clock.now() },
+        );
+        assert(paused.automation?.control_revision);
+        runControlRevision = paused.automation.control_revision;
+      } finally {
+        driftDb.close();
+      }
+      await expectRouteError(
+        await handler(
+          routeRequest("/api/vnext/operator/automation-cycle", {
+            method: "POST",
+            jar,
+            body: {
+              action: "run_one_bounded_cycle",
+              expected_control_revision: queued.control_revision,
+            },
+          }),
+        ),
+        409,
+        "bounded_automation_control_revision_conflict",
+        "bounded_automation_paused_control_drift_rolls_back_atomic_mutation",
+      );
+      clock.set(addIsoMillisecondsV01(clock.now(), 100));
+      const resumeDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const active = readActiveProjectSelectionV01(
+          resumeDb,
+          config.workspace_id,
+        );
+        const pausedControl = readProjectAutomationControlV01(resumeDb, config);
+        assert(active && pausedControl && pausedControl.paused);
+        const resumed = mutateProjectControlV01(
+          resumeDb,
+          {
+            ...config,
+            action: "resume_automation",
+            expected_active_project_id: config.project_id,
+            expected_active_selection_revision: active.selection_revision,
+            expected_control_revision: runControlRevision,
+          },
+          { now: () => clock.now() },
+        );
+        assert(resumed.automation?.control_revision);
+        runControlRevision = resumed.automation.control_revision;
+      } finally {
+        resumeDb.close();
+      }
+      const atomicBaselineDb = openVNextLocalOperatorDatabaseV01(config);
+      const atomicBaseline = (() => {
+        try {
+          return {
+            grants: countRowsByKind(atomicBaselineDb, "capability_grant"),
+            packets: countRowsByKind(atomicBaselineDb, "task_context_packet"),
+            work: countRowsByKind(atomicBaselineDb, "automation_work_item"),
+            runs: countTableRows(atomicBaselineDb, "autonomy_runs"),
+            events: countTableRows(atomicBaselineDb, "autonomy_run_events"),
+          };
+        } finally {
+          atomicBaselineDb.close();
+        }
+      })();
+      for (const stage of [
+        "after_mutation_admission",
+        "after_grant_admission",
+        "after_packet_admission",
+        "after_work_claim",
+        "after_run_claim",
+      ] as const) {
+        const failureService = new BoundedAutomationCycleServiceV01({
+          open_database: openVNextLocalOperatorDatabaseV01,
+          live_service: live,
+          now: () => clock.now(),
+          test_only_fail_atomic_stage: stage,
+        });
+        const failureHandler = createVNextOperatorAutomationCycleHandlerV01({
+          environment,
+          clock,
+          secret_source: new DeterministicSecretSource(),
+          service: failureService,
+        });
+        await expectRouteError(
+          await failureHandler(
+            routeRequest("/api/vnext/operator/automation-cycle", {
+              method: "POST",
+              jar,
+              body: {
+                action: "run_one_bounded_cycle",
+                expected_control_revision: runControlRevision,
+              },
+            }),
+          ),
+          503,
+          `bounded_automation_test_atomic_failure:${stage}`,
+          `bounded_automation_atomic_rollback_${stage}`,
+        );
+        const rollbackDb = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          assert.deepEqual(
+            {
+              grants: countRowsByKind(rollbackDb, "capability_grant"),
+              packets: countRowsByKind(rollbackDb, "task_context_packet"),
+              work: countRowsByKind(rollbackDb, "automation_work_item"),
+              runs: countTableRows(rollbackDb, "autonomy_runs"),
+              events: countTableRows(rollbackDb, "autonomy_run_events"),
+            },
+            atomicBaseline,
+            `atomic stage ${stage} must roll back the nonce and every authority write`,
+          );
+        } finally {
+          rollbackDb.close();
+        }
+        assert.equal(observations.length, 0);
+      }
+      clock.set(addIsoMillisecondsV01(clock.now(), 1_000));
+      const concurrentRequest = () =>
+        handler(
+          routeRequest("/api/vnext/operator/automation-cycle", {
+            method: "POST",
+            jar,
+            body: {
+              action: "run_one_bounded_cycle",
+              expected_control_revision: runControlRevision,
+            },
+          }),
+        );
+      const concurrentResponses = await Promise.all([
+        concurrentRequest(),
+        concurrentRequest(),
+      ]);
+      const startResponse = concurrentResponses.find(
+        (response) => response.status === 202,
+      );
+      const refusedResponse = concurrentResponses.find(
+        (response) => response.status !== 202,
+      );
+      assert(startResponse, "one concurrent bounded-cycle mutation must win");
+      assert(refusedResponse, "one concurrent nonce reuse must be refused");
+      assert.equal(refusedResponse.status, 409);
+      assert.ok(
+        ["operator_action_nonce_invalid", "bounded_automation_claim_conflict"].includes(
+          String((await publicJson(refusedResponse)).error_code),
+        ),
       );
       const startBody = await publicJson(startResponse);
       assert.equal(startResponse.status, 202, JSON.stringify(startBody));
@@ -6074,6 +6230,8 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       );
       const runDb = openVNextLocalOperatorDatabaseV01(config);
       let policyReceipt: RunReceiptV01;
+      let originalGrantIssuedAt = "";
+      let originalClaimObservedAt = "";
       try {
         const run = readAutonomyRunLedgerRecord(settled.run!.run_id, {
           db: runDb,
@@ -6091,9 +6249,11 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         const boundedGrant = run.metadata.bounded_automation_grant as {
           grant_id: string;
           grant_fingerprint: string;
+          issued_at: string;
           allowed_capabilities: string[];
           forbidden_capabilities: string[];
         };
+        originalGrantIssuedAt = boundedGrant.issued_at;
         assert.deepEqual(boundedGrant.allowed_capabilities, [
           "project_scoped_structured_task_round_trip.v0.1",
         ]);
@@ -6102,6 +6262,37 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
             boundedGrant.forbidden_capabilities.includes(value),
           ),
           false,
+        );
+        const reviewWork = JSON.parse(
+          (runDb.prepare(
+            `SELECT payload_json FROM vnext_core_records
+             WHERE record_kind = 'automation_work_item'
+             ORDER BY created_at DESC, record_id DESC LIMIT 1`,
+          ).get() as { payload_json: string }).payload_json,
+        ) as { source: { created_at: string }; observed_at: string };
+        assert(
+          Date.parse(reviewWork.source.created_at) <
+            Date.parse(boundedGrant.issued_at),
+          "the final grant issue time must be the later admitted mutation time",
+        );
+        assert(
+          Date.parse(boundedGrant.issued_at) <= Date.parse(run.created_at),
+          "grant issue must not follow the atomic run claim",
+        );
+        const claimedWorkRow = runDb.prepare(
+          `SELECT payload_json FROM vnext_core_records
+           WHERE record_kind = 'automation_work_item'
+             AND json_extract(payload_json, '$.status') = 'claimed'
+           ORDER BY created_at, record_id LIMIT 1`,
+        ).get() as { payload_json: string };
+        originalClaimObservedAt = String(
+          (JSON.parse(claimedWorkRow.payload_json) as { observed_at: string })
+            .observed_at,
+        );
+        assert(
+          Date.parse(boundedGrant.issued_at) <=
+            Date.parse(originalClaimObservedAt),
+          "grant issue must not follow the work claim observation",
         );
         assert.equal(countRowsByKind(runDb, "capability_grant"), 1);
         assert.equal(countRowsByKind(runDb, "automation_work_item"), 4);
@@ -6197,6 +6388,26 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           ).get(settled.run!.run_id) as { count: number }).count,
           1,
         );
+        const replayGrant = replayDb.prepare(
+          `SELECT payload_json FROM vnext_core_records
+           WHERE record_kind = 'capability_grant' LIMIT 1`,
+        ).get() as { payload_json: string };
+        assert.equal(
+          (JSON.parse(replayGrant.payload_json) as { issued_at: string })
+            .issued_at,
+          originalGrantIssuedAt,
+        );
+        const replayClaim = replayDb.prepare(
+          `SELECT payload_json FROM vnext_core_records
+           WHERE record_kind = 'automation_work_item'
+             AND json_extract(payload_json, '$.status') = 'claimed'
+           ORDER BY created_at, record_id LIMIT 1`,
+        ).get() as { payload_json: string };
+        assert.equal(
+          (JSON.parse(replayClaim.payload_json) as { observed_at: string })
+            .observed_at,
+          originalClaimObservedAt,
+        );
       } finally {
         replayDb.close();
       }
@@ -6247,8 +6458,173 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       }
     },
   );
+  await withOperatorDatabaseCloneV01(
+    "bounded-automation-product-local-verification",
+    input.environment,
+    async ({ config, environment }) => {
+      const productEnvironment = { ...environment };
+      delete productEnvironment.AUGNES_CANONICAL_TEST_MODE;
+      delete productEnvironment.AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER;
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 70_000),
+      );
+      const sourceGrant = directHostPolicyContextV01(clock.now());
+      installPolicySafeLivePacketV01(config, input.packet, sourceGrant, {
+        approval_capabilities: [],
+        resources: [],
+        expires_at: addIsoMillisecondsV01(clock.now(), 10 * 60_000),
+      });
+      const controlDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const active = readActiveProjectSelectionV01(
+          controlDb,
+          config.workspace_id,
+        );
+        assert(active);
+        const current = readProjectAutomationControlV01(controlDb, config);
+        if (!current?.enabled || current.paused) {
+          mutateProjectControlV01(
+            controlDb,
+            {
+              ...config,
+              action: current?.paused ? "resume_automation" : "enable_automation",
+              expected_active_project_id: config.project_id,
+              expected_active_selection_revision: active.selection_revision,
+              expected_control_revision: current?.revision ?? null,
+            },
+            { now: () => clock.now() },
+          );
+        }
+      } finally {
+        controlDb.close();
+      }
+      const handler = createVNextOperatorAutomationCycleHandlerV01({
+        environment: productEnvironment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const authorityBefore = snapshotR6CSemanticAuthorityCounts(config);
+      const queueResponse = await handler(
+        routeRequest("/api/vnext/operator/automation-cycle", {
+          method: "POST",
+          jar,
+          body: { action: "queue_current_task_for_automation" },
+        }),
+      );
+      assert.equal(queueResponse.status, 202, JSON.stringify(await publicJson(queueResponse.clone())));
+      jar.absorb(queueResponse);
+      clock.set(addIsoMillisecondsV01(clock.now(), 1_000));
+      const projectionDb = openVNextLocalOperatorDatabaseV01(config);
+      const controlRevision = readProjectAutomationControlV01(
+        projectionDb,
+        config,
+      )?.revision;
+      projectionDb.close();
+      assert(controlRevision);
+      const startResponse = await handler(
+        routeRequest("/api/vnext/operator/automation-cycle", {
+          method: "POST",
+          jar,
+          body: {
+            action: "run_one_bounded_cycle",
+            expected_control_revision: controlRevision,
+          },
+        }),
+      );
+      const startBody = await publicJson(startResponse);
+      assert.equal(startResponse.status, 202, JSON.stringify(startBody));
+      jar.absorb(startResponse);
+      const deadline = Date.now() + 10_000;
+      let productRun: ReturnType<typeof readAutonomyRunLedgerRecord> = null;
+      while (Date.now() < deadline) {
+        const readDb = openVNextLocalOperatorDatabaseV01(config);
+        try {
+          const row = readDb.prepare(
+            `SELECT run_id FROM autonomy_runs
+             WHERE scope = ?
+               AND json_extract(metadata_json, '$.invocation_origin') = 'policy_triggered'
+               AND json_extract(metadata_json, '$.bounded_automation_cycle_id') IS NOT NULL
+             ORDER BY created_at DESC, run_id DESC LIMIT 1`,
+          ).get(config.project_id) as { run_id: string } | undefined;
+          productRun = row
+            ? readAutonomyRunLedgerRecord(row.run_id, { db: readDb })
+            : null;
+        } finally {
+          readDb.close();
+        }
+        if (
+          productRun?.status === "needs_review" &&
+          productRun.metadata.run_assessment_proposal_id
+        ) {
+          break;
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 25));
+      }
+      assert(productRun, "the product local verification run must exist");
+      assert.equal(
+        productRun.status,
+        "needs_review",
+        JSON.stringify(productRun.metadata),
+      );
+      assert.equal(
+        productRun.metadata.adapter_version,
+        LOCAL_PROJECT_VERIFICATION_ADAPTER_VERSION_V01,
+      );
+      assert.equal(
+        productRun.metadata.capability_version,
+        LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
+      );
+      assert.notEqual(
+        productRun.metadata.adapter_version,
+        "deterministic_codex_adapter.v0.1",
+      );
+      const resultDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const receiptRecord = readVNextCoreRecordV01(resultDb, {
+          ...config,
+          record_kind: "run_receipt",
+          record_id: String(productRun.metadata.run_receipt_id),
+        });
+        assert(receiptRecord);
+        const receipt = receiptRecord.payload as RunReceiptV01;
+        assert.equal(receipt.execution.status, "completed");
+        assert.equal(receipt.commands.length, 0);
+        assert.equal(receipt.changed_artifacts.length, 0);
+        assert.equal(receipt.model_invocations.length, 0);
+        assert.equal(
+          receipt.checks.some(
+            (check) =>
+              check.check_id === "project_root_manifest_verified" &&
+              check.status === "passed",
+          ),
+          true,
+        );
+        assert.equal(receipt.artifact_refs.length, 1);
+        assert.equal(
+          (resultDb.prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_run_events
+             WHERE run_id = ? AND event_type = 'run_needs_review'`,
+          ).get(productRun.run_id) as { count: number }).count,
+          1,
+        );
+      } finally {
+        resultDb.close();
+      }
+      const authorityAfter = snapshotR6CSemanticAuthorityCounts(config);
+      assert.equal(authorityAfter.proposals, authorityBefore.proposals + 1);
+      assert.equal(authorityAfter.receipts, authorityBefore.receipts + 1);
+      assert.equal(authorityAfter.decisions, authorityBefore.decisions);
+      assert.equal(authorityAfter.transitions, authorityBefore.transitions);
+      assert.equal(
+        authorityAfter.semantic_state_entries,
+        authorityBefore.semantic_state_entries,
+      );
+    },
+  );
   pass("bounded_automation_policy_grant_packet_run_receipt_proposal_review_needed_vertical");
   pass("bounded_automation_exact_replay_starts_no_second_host_or_work_item");
+  pass("bounded_automation_product_environment_local_verification_reaches_review_needed");
   pass("policy_triggered_later_receipt_reuses_context_use_review_with_user_declaration_provenance");
 }
 

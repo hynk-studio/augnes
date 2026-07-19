@@ -20,6 +20,7 @@ import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtim
 import type { BoundedAutomationCycleServiceV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
 import { LiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import { createDeterministicCodexAdapterV01 } from "@/lib/vnext/native-host/deterministic-codex-adapter";
+import { createLocalProjectVerificationAdapterV01 } from "@/lib/vnext/native-host/local-project-verification-adapter";
 import { BoundedAutomationAuthorityErrorV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ export const dynamic = "force-dynamic";
 
 const ROUTE_VERSION = "vnext_operator_bounded_automation_cycle_route.v0.1" as const;
 let canonicalTestServiceV01: BoundedAutomationCycleServiceV01 | null = null;
+let productServiceV01: BoundedAutomationCycleServiceV01 | null = null;
 const SECURITY_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
   Pragma: "no-cache",
@@ -46,6 +48,7 @@ interface HandlerOptionsV01 {
 export function createVNextOperatorAutomationCycleHandlerV01(
   options: HandlerOptionsV01 = {},
 ) {
+  let handlerService = options.service ?? null;
   return async function POST(request: Request): Promise<NextResponse> {
     try {
       const environment = options.environment ?? process.env;
@@ -73,7 +76,9 @@ export function createVNextOperatorAutomationCycleHandlerV01(
       } finally {
         authDb.close();
       }
-      const service = options.service ?? serviceForEnvironmentV01(environment);
+      const service =
+        handlerService ??=
+          serviceForEnvironmentV01(environment, options.clock);
       const common = {
         config,
         credential,
@@ -161,19 +166,37 @@ export const GET = createVNextOperatorAutomationCycleReadHandlerV01();
 
 function serviceForEnvironmentV01(
   environment: NodeJS.ProcessEnv,
+  clock?: VNextLocalRuntimeClockV01,
 ): BoundedAutomationCycleServiceV01 {
   if (
     environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
     environment.AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER === "1"
   ) {
-    canonicalTestServiceV01 ??= createBoundedAutomationCycleServiceV01({
+    const createCanonical = () => createBoundedAutomationCycleServiceV01({
       live_service: new LiveNativeHostRunServiceV01({
-        adapter_factory: () => createDeterministicCodexAdapterV01(),
+        adapter_factory: () => createDeterministicCodexAdapterV01({
+          now: clock ? () => clock.now() : undefined,
+        }),
+        now: clock ? () => clock.now() : undefined,
       }),
+      now: clock ? () => clock.now() : undefined,
     });
+    if (clock) return createCanonical();
+    canonicalTestServiceV01 ??= createCanonical();
     return canonicalTestServiceV01;
   }
-  return createBoundedAutomationCycleServiceV01();
+  const createProduct = () => createBoundedAutomationCycleServiceV01({
+    live_service: new LiveNativeHostRunServiceV01({
+      adapter_factory: () => createLocalProjectVerificationAdapterV01({
+        now: clock ? () => clock.now() : undefined,
+      }),
+      now: clock ? () => clock.now() : undefined,
+    }),
+    now: clock ? () => clock.now() : undefined,
+  });
+  if (clock) return createProduct();
+  productServiceV01 ??= createProduct();
+  return productServiceV01;
 }
 
 function assertEnabledV01(environment: NodeJS.ProcessEnv): void {

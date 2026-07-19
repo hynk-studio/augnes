@@ -23,11 +23,14 @@ import {
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
+  admitPreparedNativeHostRunClaimInsideTransactionV01,
   admitPersistedHostTaskContextPacketV01,
   DirectNativeHostRoundTripErrorV01,
+  prepareNativeHostRunClaimInsideTransactionV01,
   runDirectNativeHostRoundTripV01,
   type NativeHostTimeoutSchedulerV01,
   type PersistedHostPacketAdmissionV01,
+  type PreparedNativeHostRunClaimV01,
 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import {
   admitVNextLocalOperatorMutationV01,
@@ -185,6 +188,69 @@ export class LiveNativeHostRunServiceV01 {
       execution_profile: adapter.execution_profile,
       provider_egress: adapter.provider_egress,
     };
+  }
+
+  async preparePolicyTriggeredRunClaimInsideTransactionV01(
+    db: Database.Database,
+    input: {
+      config: VNextLocalOperatorPilotConfigV01;
+      automation_context: NativeHostAutomationContextV01;
+      packet_id: string;
+      packet_fingerprint: string;
+      claimed_at: string;
+    },
+  ) {
+    return prepareNativeHostRunClaimInsideTransactionV01(
+      db,
+      {
+        ...input,
+        mode: "policy_triggered",
+        adapter: this.currentAdapterContract(),
+        timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+      },
+    );
+  }
+
+  admitPolicyTriggeredRunClaimInsideTransactionV01(
+    db: Database.Database,
+    input: {
+      config: VNextLocalOperatorPilotConfigV01;
+      automation_context: NativeHostAutomationContextV01;
+      prepared: Awaited<
+        ReturnType<
+          LiveNativeHostRunServiceV01["preparePolicyTriggeredRunClaimInsideTransactionV01"]
+        >
+      >;
+    },
+  ): void {
+    admitPreparedNativeHostRunClaimInsideTransactionV01(db, {
+      ...input,
+      adapter: this.currentAdapterContract(),
+    });
+  }
+
+  async startAdmittedPolicyTriggeredV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    automation_context: NativeHostAutomationContextV01;
+    claim: PreparedNativeHostRunClaimV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+  }): Promise<LiveNativeHostStartResultV01> {
+    const key = projectKeyV01(input.config);
+    const active = this.controllers.get(key);
+    if (active && !active.completionSettled) {
+      refuseV01("live_host_start_conflict", 409);
+    }
+    return this.launch({
+      config: input.config,
+      mode: "policy_triggered",
+      automation_context: input.automation_context,
+      resume_binding: null,
+      resume_existing: false,
+      pre_admitted_run_claim: {
+        claim: input.claim,
+        session_admission: input.session_admission,
+      },
+    });
   }
 
   async start(input: {
@@ -579,6 +645,10 @@ export class LiveNativeHostRunServiceV01 {
     };
     resume_binding: NativeHostResumeBindingV01 | null;
     resume_existing: boolean;
+    pre_admitted_run_claim?: {
+      claim: PreparedNativeHostRunClaimV01;
+      session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+    };
   }): Promise<LiveNativeHostStartResultV01> {
     const db = this.openDatabase(input.config);
     const delegate =
@@ -613,6 +683,7 @@ export class LiveNativeHostRunServiceV01 {
         resume_binding: input.resume_binding,
         resume_existing_run: input.resume_existing,
         live_host_egress_authorized: input.mode === "interactive",
+        pre_admitted_run_claim: input.pre_admitted_run_claim,
         on_invocation_admitted: ({ request, session_admission }) =>
           controller.admit(request, session_admission),
       },

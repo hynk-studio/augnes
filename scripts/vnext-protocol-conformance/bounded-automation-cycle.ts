@@ -37,6 +37,15 @@ export function runBoundedAutomationCycleConformanceV01() {
     selectBoundedAutomationWorkSourceV01([secondWorkSnapshot, workSnapshot]),
     "work ambiguity must not depend on query or array order",
   );
+  assert.throws(
+    () =>
+      createVNextAutomationWorkSourceV01({
+        ...workSourceInputV01(packet),
+        source_grant_record_status: "forged_status" as "exact_record",
+      }),
+    /bounded_automation_source_grant_record_status_invalid/u,
+    "only exact-record or packet-bound-summary source grant lineage is valid",
+  );
   assert.deepEqual(
     selectBoundedAutomationWorkSourceV01([workSnapshot, structuredClone(workSnapshot)]),
     { status: "selected", work: workSnapshot },
@@ -230,8 +239,12 @@ function packetV01(goal: string) {
 }
 
 function workV01(packet: ReturnType<typeof packetV01>) {
+  return createVNextAutomationWorkSourceV01(workSourceInputV01(packet));
+}
+
+function workSourceInputV01(packet: ReturnType<typeof packetV01>) {
   const sourceGrant = packet.capability_grant!;
-  return createVNextAutomationWorkSourceV01({
+  return {
     workspace_id: packet.workspace_id,
     project_id: packet.project_id,
     work_class: "bounded_project_task",
@@ -281,7 +294,7 @@ function workV01(packet: ReturnType<typeof packetV01>) {
       network_access: "denied",
     },
     created_at: ISSUED_AT,
-  });
+  } satisfies Parameters<typeof createVNextAutomationWorkSourceV01>[0];
 }
 
 function workSnapshotV01(

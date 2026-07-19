@@ -6,8 +6,12 @@ import {
   validateBoundedAutomationCapabilityGrantV01,
 } from "@/lib/vnext/bounded-automation-cycle";
 import {
+  appendAutonomyRunLedgerEvent,
   autonomyRunnerLedgerSchemaExistsV01,
+  buildAutonomyRunEventRecord,
   listAutonomyRunLedgerRecords,
+  readAutonomyRunLedgerRecord,
+  updateAutonomyRunLedgerFields,
 } from "@/lib/autonomy/runner-ledger";
 import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import {
@@ -26,6 +30,7 @@ import {
   readVNextCoreRecordV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
+import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   readProjectAutomationControlV01,
   readProjectAutomationEffectiveStatusV01,
@@ -121,6 +126,12 @@ export interface BoundedAutomationCycleServiceOptionsV01 {
   open_database?: (config: VNextLocalOperatorPilotConfigV01) => Database.Database;
   live_service?: LiveNativeHostRunServiceV01;
   now?: () => string;
+  test_only_fail_atomic_stage?:
+    | "after_mutation_admission"
+    | "after_grant_admission"
+    | "after_packet_admission"
+    | "after_work_claim"
+    | "after_run_claim";
 }
 
 type MutationInputV01 = {
@@ -135,7 +146,9 @@ export class BoundedAutomationCycleServiceV01 {
   private readonly now: () => string;
   private readonly openDatabase: (config: VNextLocalOperatorPilotConfigV01) => Database.Database;
 
-  constructor(options: BoundedAutomationCycleServiceOptionsV01 = {}) {
+  constructor(
+    private readonly options: BoundedAutomationCycleServiceOptionsV01 = {},
+  ) {
     this.liveService = options.live_service ?? getLiveNativeHostRunServiceV01();
     this.now = options.now ?? (() => new Date().toISOString());
     this.openDatabase = options.open_database ?? openVNextLocalOperatorDatabaseV01;
@@ -257,6 +270,9 @@ export class BoundedAutomationCycleServiceV01 {
       };
     } catch (error) {
       if (db.inTransaction) db.exec("ROLLBACK");
+      if (isSqliteClaimConflictV01(error)) {
+        refuseV01("bounded_automation_claim_conflict", 409);
+      }
       throw error;
     } finally {
       db.close();
@@ -264,122 +280,194 @@ export class BoundedAutomationCycleServiceV01 {
   }
 
   async runOne(input: MutationInputV01 & { expected_control_revision: number }) {
-    const authDb = this.openDatabase(input.config);
-    try {
-      authenticateVNextLocalOperatorSessionV01(authDb, input);
-    } finally {
-      authDb.close();
-    }
-    const before = this.read(input.config);
-    if (before.control_revision !== input.expected_control_revision) {
-      refuseV01("bounded_automation_control_revision_conflict", 409);
-    }
-    if (before.status === "review_needed") {
-      return {
-        status: "exact_replay" as const,
-        projection: before,
-        session_admission: null,
-      };
-    }
-    if (["starting", "running", "reconciliation_required"].includes(before.status)) {
-      const context = this.readStoredAutomationContextV01(input.config);
-      const replay = await this.liveService.start({
-        config: input.config,
-        mode: "policy_triggered",
-        automation_context: context,
-        operator_mutation: input,
-      });
-      return {
-        status: "exact_replay" as const,
-        projection: this.read(input.config),
-        session_admission: replay.session_admission,
-      };
-    }
-    if (before.status !== "eligible" || !before.work_source || !before.grant) {
-      refuseV01(`bounded_automation_${before.stop_reason}`, 409);
-    }
     const db = this.openDatabase(input.config);
-    let context: NativeHostAutomationContextV01;
+    let context: NativeHostAutomationContextV01 | null = null;
+    let prepared:
+      | Awaited<
+          ReturnType<
+            LiveNativeHostRunServiceV01["preparePolicyTriggeredRunClaimInsideTransactionV01"]
+          >
+        >
+      | null = null;
+    let sessionAdmission!: VNextLocalOperatorSessionMutationAdmissionV01;
+    let exactReplay = false;
     try {
       authenticateVNextLocalOperatorSessionV01(db, input);
-      const observedAt = this.now();
-      const resolved = resolveBoundedAutomationAdmissionV01(db, {
-        config: input.config,
-        observed_at: observedAt,
-        host: this.liveService.readCapabilityContractV01(),
-      });
-      if (resolved.status !== "eligible" || !resolved.work || !resolved.source_packet || !resolved.grant || !resolved.policy_ref) {
-        refuseV01(`bounded_automation_${resolved.reason}`, 409);
-      }
       db.exec("BEGIN IMMEDIATE");
-      const grantWrite = admitBoundedAutomationCapabilityGrantV01(db, resolved.grant);
-      const persistedGrant = grantWrite.record.payload as BoundedAutomationCapabilityGrantV01;
-      const workRef = createAutomationWorkRefV01(resolved.work.source);
-      const grantRef = createBoundedAutomationGrantRefV01(persistedGrant);
-      const compiled = compileBoundedAutomationTaskContextPacketV01(db, {
-        workspace_id: input.config.workspace_id,
-        project_id: input.config.project_id,
-        source_packet: resolved.source_packet,
-        work: resolved.work.source,
-        grant: persistedGrant,
-        work_ref: workRef,
-        grant_ref: grantRef,
-        generated_at: observedAt,
-      });
-      const cycleId = deriveBoundedAutomationCycleIdV01({
-        grant: persistedGrant,
-        packet: compiled.packet,
-      });
-      const triggerRef = triggerRefV01(input.config, cycleId, observedAt);
-      context = {
-        policy_ref: resolved.policy_ref,
-        capability_grant_ref: grantRef,
-        control_revision: persistedGrant.control_revision,
-        automatic_retry_allowed: false,
-        scheduler_started: false,
-        bounded_cycle: {
-          profile: BOUNDED_AUTOMATION_CYCLE_PROFILE_V01,
-          cycle_id: cycleId,
-          attempt: 1,
-          trigger_ref: triggerRef,
+      sessionAdmission = admitVNextLocalOperatorMutationInsideTransactionV01(
+        db,
+        input,
+      );
+      this.failAtomicStageV01("after_mutation_admission");
+      const observedAt = sessionAdmission.action_observed_at;
+      const currentControl = readProjectAutomationControlV01(db, input.config);
+      if (
+        !currentControl ||
+        !currentControl.enabled ||
+        currentControl.paused ||
+        currentControl.revision !== input.expected_control_revision ||
+        !validateProjectAutomationPolicyV01(
+          currentControl.policy,
+          input.config,
+        ).valid
+      ) {
+        refuseV01("bounded_automation_control_revision_conflict", 409);
+      }
+      const existing = latestBoundAutomationWorkV01(db, input.config);
+      if (
+        existing?.cycle_binding &&
+        ["claimed", "running", "review_needed"].includes(existing.status)
+      ) {
+        context = validateExactCycleReplayInsideTransactionV01(db, {
+          config: input.config,
+          work: existing,
+          control_revision: input.expected_control_revision,
+          host: this.liveService.readCapabilityContractV01(),
+          observed_at: observedAt,
+        });
+        exactReplay = true;
+        db.exec("COMMIT");
+      } else {
+        const resolved = resolveBoundedAutomationAdmissionV01(db, {
+          config: input.config,
+          observed_at: observedAt,
+          host: this.liveService.readCapabilityContractV01(),
+          grant_issued_at: observedAt,
+        });
+        if (
+          resolved.status !== "eligible" ||
+          !resolved.work ||
+          !resolved.source_packet ||
+          !resolved.grant ||
+          !resolved.policy_ref
+        ) {
+          refuseV01(`bounded_automation_${resolved.reason}`, 409);
+        }
+        const grantWrite = admitBoundedAutomationCapabilityGrantV01(
+          db,
+          resolved.grant,
+        );
+        this.failAtomicStageV01("after_grant_admission");
+        const persistedGrant = grantWrite.record
+          .payload as BoundedAutomationCapabilityGrantV01;
+        const workRef = createAutomationWorkRefV01(resolved.work.source);
+        const grantRef = createBoundedAutomationGrantRefV01(persistedGrant);
+        const compiled = compileBoundedAutomationTaskContextPacketV01(db, {
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+          source_packet: resolved.source_packet,
+          work: resolved.work.source,
           grant: persistedGrant,
-        },
-      };
-      transitionVNextAutomationWorkV01(db, {
-        workspace_id: input.config.workspace_id,
-        project_id: input.config.project_id,
-        work_id: resolved.work.source.work_id,
-        expected_work_fingerprint: resolved.work.source.work_fingerprint,
-        expected_status: "queued",
-        status: "claimed",
-        cycle_binding: {
-          cycle_id: cycleId,
+          work_ref: workRef,
+          grant_ref: grantRef,
+          generated_at: observedAt,
+        });
+        this.failAtomicStageV01("after_packet_admission");
+        const cycleId = deriveBoundedAutomationCycleIdV01({
+          grant: persistedGrant,
+          packet: compiled.packet,
+        });
+        const triggerRef = triggerRefV01(input.config, cycleId, observedAt);
+        context = {
           policy_ref: resolved.policy_ref,
+          capability_grant_ref: grantRef,
           control_revision: persistedGrant.control_revision,
-          final_grant_ref: grantRef,
-          packet_ref: packetRefV01(compiled.packet),
-          trigger_ref: triggerRef,
-          attempt: 1,
-          run_id: `pending:${cycleId}`,
-          receipt_ref: null,
-          proposal_ref: null,
-        },
-        status_reason: "bounded_cycle_claimed_before_host_start",
-        observed_at: observedAt,
-      });
-      db.exec("COMMIT");
+          automatic_retry_allowed: false,
+          scheduler_started: false,
+          bounded_cycle: {
+            profile: BOUNDED_AUTOMATION_CYCLE_PROFILE_V01,
+            cycle_id: cycleId,
+            attempt: 1,
+            trigger_ref: triggerRef,
+            grant: persistedGrant,
+          },
+        };
+        prepared =
+          await this.liveService.preparePolicyTriggeredRunClaimInsideTransactionV01(
+            db,
+            {
+              config: input.config,
+              automation_context: context,
+              packet_id: compiled.packet.packet_id,
+              packet_fingerprint: compiled.packet.integrity.fingerprint,
+              claimed_at: observedAt,
+            },
+          );
+        transitionVNextAutomationWorkV01(db, {
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+          work_id: resolved.work.source.work_id,
+          expected_work_fingerprint: resolved.work.source.work_fingerprint,
+          expected_status: "queued",
+          status: "claimed",
+          cycle_binding: {
+            cycle_id: cycleId,
+            policy_ref: resolved.policy_ref,
+            control_revision: persistedGrant.control_revision,
+            final_grant_ref: grantRef,
+            packet_ref: packetRefV01(compiled.packet),
+            trigger_ref: triggerRef,
+            attempt: 1,
+            run_id: prepared.claim.run_id,
+            receipt_ref: null,
+            proposal_ref: null,
+          },
+          status_reason: "bounded_cycle_claimed_before_host_start",
+          observed_at: observedAt,
+        });
+        this.failAtomicStageV01("after_work_claim");
+        this.liveService.admitPolicyTriggeredRunClaimInsideTransactionV01(db, {
+          config: input.config,
+          automation_context: context,
+          prepared,
+        });
+        this.failAtomicStageV01("after_run_claim");
+        db.exec("COMMIT");
+      }
     } catch (error) {
       if (db.inTransaction) db.exec("ROLLBACK");
+      if (isSqliteClaimConflictV01(error)) {
+        refuseV01("bounded_automation_claim_conflict", 409);
+      }
       throw error;
     } finally {
       db.close();
     }
-    const result = await this.liveService.start({
-      config: input.config,
-      mode: "policy_triggered",
-      automation_context: context,
-      operator_mutation: input,
-    });
+    if (exactReplay) {
+      return {
+        status: "exact_replay" as const,
+        projection: this.read(input.config),
+        session_admission: sessionAdmission,
+      };
+    }
+    if (!context || !prepared) {
+      refuseV01("bounded_automation_atomic_claim_missing", 500);
+    }
+    let result;
+    try {
+      result = await this.liveService.startAdmittedPolicyTriggeredV01({
+        config: input.config,
+        automation_context: context,
+        claim: prepared.claim,
+        session_admission: sessionAdmission,
+      });
+    } catch (error) {
+      this.recordPostCommitStartFailureV01({
+        config: input.config,
+        context,
+        run_id: prepared.claim.run_id,
+        error_code:
+          error && typeof error === "object" && "code" in error &&
+          typeof error.code === "string"
+            ? error.code
+            : "bounded_automation_host_start_failed_after_claim",
+      });
+      return {
+        status: "reconciliation_required" as const,
+        projection: this.read(input.config),
+        session_admission: sessionAdmission,
+      };
+    }
     return {
       status: result.status,
       projection: this.read(input.config),
@@ -450,6 +538,79 @@ export class BoundedAutomationCycleServiceV01 {
       db.close();
     }
   }
+
+  private failAtomicStageV01(
+    stage: NonNullable<
+      BoundedAutomationCycleServiceOptionsV01["test_only_fail_atomic_stage"]
+    >,
+  ): void {
+    if (this.options.test_only_fail_atomic_stage === stage) {
+      refuseV01(`bounded_automation_test_atomic_failure:${stage}`, 503);
+    }
+  }
+
+  private recordPostCommitStartFailureV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    context: NativeHostAutomationContextV01;
+    run_id: string;
+    error_code: string;
+  }): void {
+    const db = this.openDatabase(input.config);
+    const observedAt = this.now();
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      const work = readCurrentVNextAutomationWorkSnapshotV01(db, {
+        ...input.config,
+        work_id: input.context.bounded_cycle!.grant.work_source_ref.external_id,
+      });
+      if (work?.status === "claimed" && work.cycle_binding?.run_id === input.run_id) {
+        transitionVNextAutomationWorkV01(db, {
+          ...input.config,
+          work_id: work.source.work_id,
+          expected_work_fingerprint: work.source.work_fingerprint,
+          expected_status: "claimed",
+          status: "reconciliation_required",
+          cycle_binding: work.cycle_binding,
+          status_reason: input.error_code,
+          observed_at: observedAt,
+        });
+      }
+      const run = readAutonomyRunLedgerRecord(input.run_id, { db });
+      if (run && run.status === "queued") {
+        updateAutonomyRunLedgerFields(
+          run.run_id,
+          {
+            status: "paused",
+            updated_at: observedAt,
+            stop_reason: "native_host_reconciliation_required",
+            metadata: {
+              ...run.metadata,
+              reconciliation_required: true,
+              public_reason: input.error_code,
+            },
+          },
+          { db },
+        );
+        appendAutonomyRunLedgerEvent(
+          buildAutonomyRunEventRecord({
+            run_id: run.run_id,
+            event_type: "run_reconciliation_required",
+            status: "paused",
+            message:
+              "The atomic run claim committed, but the exact host invocation did not start.",
+            payload: { reason: input.error_code, host_started: false },
+            created_at: observedAt,
+          }),
+          { db },
+        );
+      }
+      db.exec("COMMIT");
+    } catch {
+      if (db.inTransaction) db.exec("ROLLBACK");
+    } finally {
+      db.close();
+    }
+  }
 }
 
 export function createBoundedAutomationCycleServiceV01(options: BoundedAutomationCycleServiceOptionsV01 = {}) {
@@ -489,10 +650,13 @@ export function readBoundedAutomationCycleProjectionV01(
     status = "review_needed";
     stopReason = "review_needed";
   } else if (run && !isTerminalRunnerStatus(run.status)) {
-    status = run.status === "cancelling" ? "cancellation_requested" :
-      run.status === "starting" || run.status === "queued" ? "starting" :
+    status = run.status === "queued" ? "reconciliation_required" :
+      run.status === "cancelling" ? "cancellation_requested" :
+      run.status === "starting" ? "starting" :
       run.status === "paused" ? "reconciliation_required" : "running";
-    stopReason = run.stop_reason ?? status;
+    stopReason = run.status === "queued"
+      ? "claimed_run_not_started"
+      : run.stop_reason ?? status;
   } else if (run?.metadata.run_assessment_proposal_status === "failed") {
     status = "proposal_settlement_failed";
     stopReason = stringMetadataV01(run.metadata.run_assessment_proposal_error_code) ?? status;
@@ -563,7 +727,12 @@ export function readBoundedAutomationCycleProjectionV01(
 
 function resolveBoundedAutomationAdmissionV01(
   db: Database.Database,
-  input: { config: VNextLocalOperatorPilotConfigV01; observed_at: string; host: HostContractV01 },
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    observed_at: string;
+    host: HostContractV01;
+    grant_issued_at?: string;
+  },
 ): {
   status: BoundedAutomationCycleProjectionV01["status"];
   reason: string;
@@ -603,6 +772,39 @@ function resolveBoundedAutomationAdmissionV01(
   } catch {
     return { ...emptyAdmissionV01("policy_denied", "work_source_stale", budget, control.revision), work };
   }
+  if (sourcePacketAlreadyExecutedV01(db, input.config, work.source.source_packet)) {
+    return {
+      ...emptyAdmissionV01(
+        "policy_denied",
+        "work_source_packet_already_executed",
+        budget,
+        control.revision,
+      ),
+      work,
+      source_packet: packet,
+    };
+  }
+  try {
+    assertCurrentSourceGrantBindingV01(db, {
+      config: input.config,
+      work,
+      packet,
+      observed_at: input.observed_at,
+    });
+  } catch (error) {
+    return {
+      ...emptyAdmissionV01(
+        "policy_denied",
+        error instanceof BoundedAutomationCycleErrorV01
+          ? error.code
+          : "source_grant_conflict",
+        budget,
+        control.revision,
+      ),
+      work,
+      source_packet: packet,
+    };
+  }
   if (input.host.execution_profile !== "deterministic_zero_model" || input.host.provider_egress !== "forbidden") {
     return { ...emptyAdmissionV01("capability_unavailable", "zero_model_host_required", budget, control.revision), work, source_packet: packet };
   }
@@ -628,7 +830,7 @@ function resolveBoundedAutomationAdmissionV01(
       control_revision: control.revision,
       host: input.host,
       root_fingerprint: rootFingerprint,
-      issued_at: work.source.created_at,
+      issued_at: input.grant_issued_at ?? input.observed_at,
       expires_at: work.source.source_capability_grant.expires_at ?? "",
       budget,
     });
@@ -664,9 +866,157 @@ function resolveBoundedAutomationAdmissionV01(
     work,
     source_packet: packet,
     policy_ref: policyRef,
-    grant,
+    grant: input.grant_issued_at ? grant : null,
     budget,
   };
+}
+
+function validateExactCycleReplayInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    work: VNextAutomationWorkSnapshotV01;
+    control_revision: number;
+    host: HostContractV01;
+    observed_at: string;
+  },
+): NativeHostAutomationContextV01 {
+  if (!db.inTransaction || !input.work.cycle_binding) {
+    refuseV01("bounded_automation_replay_binding_missing", 409);
+  }
+  const control = readProjectAutomationControlV01(db, input.config);
+  const active = readActiveProjectSelectionV01(db, input.config.workspace_id);
+  const registration = readCanonicalProjectWithRootV01(db, input.config);
+  if (
+    !control ||
+    !control.enabled ||
+    control.paused ||
+    control.revision !== input.control_revision ||
+    active?.project_id !== input.config.project_id ||
+    !registration ||
+    !validateProjectAutomationPolicyV01(control.policy, input.config).valid
+  ) {
+    refuseV01("bounded_automation_replay_current_authority_conflict", 409);
+  }
+  const binding = input.work.cycle_binding;
+  const grant = readBoundedAutomationCapabilityGrantV01(db, {
+    ...input.config,
+    grant_id: binding.final_grant_ref.external_id,
+    grant_fingerprint: binding.final_grant_ref.source_ref ?? "",
+  });
+  const packetRecord = readVNextCoreRecordV01(db, {
+    ...input.config,
+    record_kind: "task_context_packet",
+    record_id: binding.packet_ref.external_id,
+  });
+  const run = readAutonomyRunLedgerRecord(binding.run_id, { db });
+  if (!packetRecord || !run) {
+    refuseV01("bounded_automation_replay_material_missing", 409);
+  }
+  const packet = packetRecord.payload as TaskContextPacketV01;
+  const sourceLineage = inspectVNextOperatorPilotPacketLineageV01(db, {
+    config: input.config,
+    packet_id: input.work.source.source_packet.packet_id,
+    packet_fingerprint: input.work.source.source_packet.packet_fingerprint,
+  });
+  if (
+    !sourceLineage.projection_current ||
+    validateTaskContextPacketV01(sourceLineage.packet, {
+      evaluated_at: input.observed_at,
+    }).status !== "valid" ||
+    sourcePacketAlreadyExecutedV01(
+      db,
+      input.config,
+      input.work.source.source_packet,
+    )
+  ) {
+    refuseV01("bounded_automation_replay_source_packet_conflict", 409);
+  }
+  assertCurrentSourceGrantBindingV01(db, {
+    config: input.config,
+    work: input.work,
+    packet: sourceLineage.packet,
+    observed_at: input.observed_at,
+  });
+  const packetWorkRef = packet.work_ref;
+  const packetWorkId =
+    typeof packetWorkRef === "string"
+      ? packetWorkRef
+      : packetWorkRef?.external_id ?? null;
+  const packetWorkFingerprint =
+    typeof packetWorkRef === "string" ? null : packetWorkRef?.source_ref ?? null;
+  const rootFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      local_root: registration.root_binding.local_root,
+      binding_version: registration.root_binding.binding_version,
+      bound_at: registration.root_binding.bound_at,
+    }),
+  );
+  const policyFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(control.policy),
+  );
+  const policyRef = externalRefV01(
+    "automation_policy",
+    `${input.config.project_id}:${control.revision}`,
+    control.updated_at,
+    policyFingerprint,
+  );
+  const context: NativeHostAutomationContextV01 = {
+    policy_ref: binding.policy_ref,
+    capability_grant_ref: binding.final_grant_ref,
+    control_revision: binding.control_revision,
+    automatic_retry_allowed: false,
+    scheduler_started: false,
+    bounded_cycle: {
+      profile: BOUNDED_AUTOMATION_CYCLE_PROFILE_V01,
+      cycle_id: binding.cycle_id,
+      attempt: 1,
+      trigger_ref: binding.trigger_ref,
+      grant,
+    },
+  };
+  if (
+    validateTaskContextPacketV01(packet, { evaluated_at: run.created_at }).status !==
+      "valid" ||
+    packet.integrity.fingerprint !== binding.packet_ref.source_ref ||
+    packetWorkId !== input.work.source.work_id ||
+    packetWorkFingerprint !== input.work.source.work_fingerprint ||
+    packet.capability_grant?.grant_external_ref?.external_id !== grant.grant_id ||
+    packet.capability_grant?.grant_external_ref?.source_ref !==
+      grant.grant_fingerprint ||
+    grant.policy_fingerprint !== policyFingerprint ||
+    canonicalizeProtocolValueV01(grant.policy_ref) !==
+      canonicalizeProtocolValueV01(policyRef) ||
+    canonicalizeProtocolValueV01(binding.policy_ref) !==
+      canonicalizeProtocolValueV01(policyRef) ||
+    grant.control_revision !== control.revision ||
+    grant.root_fingerprint !== rootFingerprint ||
+    grant.host_adapter_version !== input.host.adapter_version ||
+    grant.host_capability_version !== input.host.capability_version ||
+    grant.host_execution_profile !== input.host.execution_profile ||
+    grant.host_provider_egress !== input.host.provider_egress ||
+    binding.control_revision !== control.revision ||
+    binding.final_grant_ref.external_id !== grant.grant_id ||
+    binding.final_grant_ref.source_ref !== grant.grant_fingerprint ||
+    deriveBoundedAutomationCycleIdV01({ grant, packet }) !== binding.cycle_id ||
+    run.metadata.bounded_automation_cycle_id !== binding.cycle_id ||
+    run.metadata.packet_id !== packet.packet_id ||
+    run.metadata.packet_fingerprint !== packet.integrity.fingerprint ||
+    run.metadata.adapter_version !== input.host.adapter_version ||
+    run.metadata.capability_version !== input.host.capability_version ||
+    canonicalizeProtocolValueV01(grant.budget) !==
+      canonicalizeProtocolValueV01(budgetV01(input.host.timeout_ms)) ||
+    canonicalizeProtocolValueV01(run.metadata.automation_context) !==
+      canonicalizeProtocolValueV01(context) ||
+    Date.parse(grant.expires_at) <= Date.parse(input.observed_at) ||
+    Date.parse(input.work.source.created_at) > Date.parse(grant.issued_at) ||
+    Date.parse(grant.issued_at) > Date.parse(run.created_at)
+  ) {
+    refuseV01("bounded_automation_replay_binding_conflict", 409);
+  }
+  return context;
 }
 
 export function selectBoundedAutomationWorkSourceV01(
@@ -715,6 +1065,13 @@ export function buildBoundedAutomationCapabilityGrantV01(input: {
     !sourceGrant.resource_scope.includes(input.config.project_id)
   ) {
     refuseV01("bounded_automation_final_grant_source_conflict", 409);
+  }
+  if (
+    Date.parse(input.policy_ref.observed_at ?? "") > Date.parse(input.issued_at) ||
+    Date.parse(input.work.created_at) > Date.parse(input.issued_at) ||
+    Date.parse(input.issued_at) >= Date.parse(input.expires_at)
+  ) {
+    refuseV01("bounded_automation_final_grant_timestamp_conflict", 409);
   }
   const allowed = [REQUIRED_HOST_CAPABILITY_V01];
   const forbidden = [...new Set([
@@ -795,6 +1152,56 @@ export function buildBoundedAutomationCapabilityGrantV01(input: {
   return grant;
 }
 
+function assertCurrentSourceGrantBindingV01(
+  db: Database.Database,
+  input: {
+    config: ProjectScopeV01;
+    work: VNextAutomationWorkSnapshotV01;
+    packet: TaskContextPacketV01;
+    observed_at: string;
+  },
+): void {
+  const source = input.work.source;
+  const packetGrant = input.packet.capability_grant;
+  if (
+    !packetGrant?.grant_external_ref ||
+    canonicalizeProtocolValueV01(packetGrant) !==
+      canonicalizeProtocolValueV01(source.source_capability_grant) ||
+    createProtocolSha256V01(canonicalizeProtocolValueV01(packetGrant)) !==
+      source.source_capability_grant_fingerprint ||
+    !packetGrant.expires_at ||
+    Date.parse(packetGrant.expires_at) <= Date.parse(input.observed_at)
+  ) {
+    refuseV01("bounded_automation_source_grant_conflict", 409);
+  }
+  if (source.source_grant_record_status === "packet_bound_summary") return;
+  if (source.source_grant_record_status !== "exact_record") {
+    refuseV01("bounded_automation_source_grant_record_status_invalid", 409);
+  }
+  const record = readVNextCoreRecordV01(db, {
+    ...input.config,
+    record_kind: "capability_grant",
+    record_id: packetGrant.grant_external_ref.external_id,
+  });
+  if (
+    !record ||
+    record.fingerprint !== packetGrant.grant_external_ref.source_ref ||
+    record.record_id !== packetGrant.grant_external_ref.external_id ||
+    !validateBoundedAutomationCapabilityGrantV01(record.payload)
+  ) {
+    refuseV01("bounded_automation_source_grant_record_conflict", 409);
+  }
+  if (
+    record.payload.workspace_id !== input.config.workspace_id ||
+    record.payload.project_id !== input.config.project_id ||
+    record.payload.grant_id !== packetGrant.grant_external_ref.external_id ||
+    record.payload.grant_fingerprint !== packetGrant.grant_external_ref.source_ref ||
+    Date.parse(record.payload.expires_at) <= Date.parse(input.observed_at)
+  ) {
+    refuseV01("bounded_automation_source_grant_record_conflict", 409);
+  }
+}
+
 function resolveQueueableCurrentPacketV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01, observedAt: string): TaskContextPacketV01 {
   const continuity = projectVNextOperatorPilotContinuityV01(db, { config, clock: { now: () => observedAt } });
   const latest = continuity.latest_compiled_packet;
@@ -805,6 +1212,22 @@ function resolveQueueableCurrentPacketV01(db: Database.Database, config: VNextLo
     packet_fingerprint: latest.packet_fingerprint,
   });
   if (!lineage.projection_current) refuseV01("bounded_automation_queue_packet_stale", 409);
+  if (
+    sourcePacketAlreadyExecutedV01(db, config, {
+      packet_id: latest.packet_id,
+      packet_fingerprint: latest.packet_fingerprint,
+    })
+  ) {
+    refuseV01("bounded_automation_queue_packet_already_executed", 409);
+  }
+  return lineage.packet;
+}
+
+function sourcePacketAlreadyExecutedV01(
+  db: Database.Database,
+  config: ProjectScopeV01,
+  packet: { packet_id: string; packet_fingerprint: string },
+): boolean {
   const receiptRecords = listVNextCoreRecordsV01(db, {
     ...config,
     record_kinds: ["run_receipt"],
@@ -813,13 +1236,18 @@ function resolveQueueableCurrentPacketV01(db: Database.Database, config: VNextLo
   if (receiptRecords.length > 128) {
     refuseV01("bounded_automation_receipt_history_bound_exceeded", 422);
   }
-  const alreadyExecuted = receiptRecords
-    .some((record) => {
-      const payload = record.payload as { task_context_packet_ref?: { external_id?: unknown; source_ref?: unknown } };
-      return payload.task_context_packet_ref?.external_id === latest.packet_id && payload.task_context_packet_ref.source_ref === latest.packet_fingerprint;
-    });
-  if (alreadyExecuted) refuseV01("bounded_automation_queue_packet_already_executed", 409);
-  return lineage.packet;
+  return receiptRecords.some((record) => {
+    const payload = record.payload as {
+      task_context_packet_ref?: {
+        external_id?: unknown;
+        source_ref?: unknown;
+      };
+    };
+    return (
+      payload.task_context_packet_ref?.external_id === packet.packet_id &&
+      payload.task_context_packet_ref.source_ref === packet.packet_fingerprint
+    );
+  });
 }
 
 function queueablePacketAvailableV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01, observedAt: string): boolean {
@@ -921,4 +1349,10 @@ function readPacketIdentityFromCycleBindingV01(cycleId: string, grant: BoundedAu
 
 function refuseV01(code: string, status = 409): never {
   throw new BoundedAutomationCycleErrorV01(code, status);
+}
+
+function isSqliteClaimConflictV01(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? error.code : null;
+  return code === "SQLITE_BUSY" || code === "SQLITE_LOCKED";
 }

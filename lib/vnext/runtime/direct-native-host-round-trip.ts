@@ -163,6 +163,17 @@ export interface PersistedHostPacketAdmissionV01 {
   root_scope: NativeHostRootScopeV01;
 }
 
+export interface PreparedNativeHostRunClaimV01 {
+  run_id: string;
+  request_id: string;
+  idempotency_key: string;
+  packet_id: string;
+  packet_fingerprint: string;
+  adapter_version: string;
+  capability_version: string;
+  claimed_at: string;
+}
+
 export interface DirectNativeHostRoundTripResultV01 {
   round_trip_version: typeof DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01;
   status: "inserted" | "exact_replay";
@@ -211,6 +222,10 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   resume_binding?: NativeHostResumeBindingV01 | null;
   resume_existing_run?: boolean;
   live_host_egress_authorized?: boolean;
+  pre_admitted_run_claim?: {
+    claim: PreparedNativeHostRunClaimV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+  };
   proposal_admission?: RunAssessmentProposalAdmissionDependenciesV01;
   on_invocation_admitted?: (input: {
     request: NativeHostRequestV01;
@@ -383,6 +398,110 @@ export async function admitPersistedHostTaskContextPacketV01(
   };
 }
 
+/**
+ * Resolves the exact packet/root/host identity while the caller owns the
+ * operator mutation transaction. No run row is written until the caller has
+ * also admitted the final grant, packet, and work claim.
+ */
+export async function prepareNativeHostRunClaimInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    mode: "policy_triggered";
+    automation_context: NativeHostAutomationContextV01;
+    packet_id: string;
+    packet_fingerprint: string;
+    claimed_at: string;
+    adapter: NativeHostAdapterV01;
+    timeout_ms: number;
+  },
+): Promise<{
+  claim: PreparedNativeHostRunClaimV01;
+  admission: PersistedHostPacketAdmissionV01;
+}> {
+  if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
+  ensureAutonomyRunnerLedgerSchemaV01(db);
+  assertBoundedHostContractV01({
+    automation_context: input.automation_context,
+    adapter: input.adapter,
+    timeout_ms: input.timeout_ms,
+  });
+  const admission = await admitPersistedHostTaskContextPacketV01(db, {
+    config: input.config,
+    packet_id: input.packet_id,
+    packet_fingerprint: input.packet_fingerprint,
+    evaluated_at: input.claimed_at,
+  });
+  revalidateAdmissionInsideTransaction(db, {
+    config: input.config,
+    admission,
+    evaluated_at: input.claimed_at,
+    automation_context: null,
+    run_id: "preparing",
+  });
+  const identity = buildRunIdentity({
+    config: input.config,
+    mode: input.mode,
+    admission,
+    adapter: input.adapter,
+    automation_context: input.automation_context,
+  });
+  return {
+    claim: {
+      ...identity,
+      packet_id: admission.packet.packet_id,
+      packet_fingerprint: admission.packet.integrity.fingerprint,
+      adapter_version: input.adapter.adapter_version,
+      capability_version: input.adapter.capability_version,
+      claimed_at: input.claimed_at,
+    },
+    admission,
+  };
+}
+
+/** Admit the initial queued run claim after the exact work claim exists. */
+export function admitPreparedNativeHostRunClaimInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    automation_context: NativeHostAutomationContextV01;
+    prepared: {
+      claim: PreparedNativeHostRunClaimV01;
+      admission: PersistedHostPacketAdmissionV01;
+    };
+    adapter: NativeHostAdapterV01;
+  },
+): void {
+  if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
+  const existing = readAutonomyRunLedgerRecord(input.prepared.claim.run_id, { db });
+  if (existing) {
+    assertPreparedRunClaimMatchesV01(existing, input.prepared.claim);
+    return;
+  }
+  revalidateAdmissionInsideTransaction(db, {
+    config: input.config,
+    admission: input.prepared.admission,
+    evaluated_at: input.prepared.claim.claimed_at,
+    automation_context: input.automation_context,
+    run_id: input.prepared.claim.run_id,
+    transition_bounded_work: false,
+  });
+  createRunLedgerRecord(db, {
+    input: {
+      config: input.config,
+      mode: "policy_triggered",
+      automation_context: input.automation_context,
+    },
+    admission: input.prepared.admission,
+    request_id: input.prepared.claim.request_id,
+    run_id: input.prepared.claim.run_id,
+    started_at: input.prepared.claim.claimed_at,
+    adapter: input.adapter,
+    lifecycle_mode: "managed_live",
+    initial_claim_only: true,
+  });
+}
+
 export async function runDirectNativeHostRoundTripV01(
   db: Database.Database,
   input: {
@@ -421,23 +540,21 @@ export async function runDirectNativeHostRoundTripV01(
     refuse("direct_host_automation_context_required");
   }
   if (input.automation_context?.bounded_cycle) {
-    const grant = input.automation_context.bounded_cycle.grant;
-    if (
-      grant.host_adapter_version !== adapter.adapter_version ||
-      grant.host_capability_version !== adapter.capability_version ||
-      grant.host_execution_profile !== adapter.execution_profile ||
-      grant.host_provider_egress !== adapter.provider_egress ||
-      timeoutMs > grant.budget.max_runtime_ms ||
-      MAX_COMMANDS > grant.budget.max_commands
-    ) {
-      refuse("direct_host_bounded_automation_budget_or_host_conflict", 409);
-    }
+    assertBoundedHostContractV01({
+      automation_context: input.automation_context,
+      adapter,
+      timeout_ms: timeoutMs,
+    });
   }
   if (input.mode === "interactive" && input.automation_context) {
     refuse("direct_host_automation_context_forbidden");
   }
   const managedLive = dependencies.lifecycle_mode === "managed_live";
-  if (managedLive) {
+  const preAdmitted = dependencies.pre_admitted_run_claim ?? null;
+  if (preAdmitted && input.operator_mutation) {
+    refuse("direct_host_pre_admitted_mutation_conflict", 409);
+  }
+  if (managedLive && adapter.provider_egress === "native_host_managed") {
     assertLiveHostEgressAdmissionV01({
       mode: input.mode,
       packet: null,
@@ -454,15 +571,21 @@ export async function runDirectNativeHostRoundTripV01(
     });
   }
   const prevalidatedAt = strictTimestamp(now());
-  const selection = (
-    dependencies.resolve_packet_selection ?? resolveLatestPacketSelection
-  )(db, { config: input.config, evaluated_at: prevalidatedAt });
+  const selection = preAdmitted
+    ? {
+        packet_id: preAdmitted.claim.packet_id,
+        packet_fingerprint: preAdmitted.claim.packet_fingerprint,
+      }
+    : (dependencies.resolve_packet_selection ?? resolveLatestPacketSelection)(db, {
+        config: input.config,
+        evaluated_at: prevalidatedAt,
+      });
   const admitted = await admitPersistedHostTaskContextPacketV01(db, {
     config: input.config,
     ...selection,
     evaluated_at: prevalidatedAt,
   });
-  if (managedLive) {
+  if (managedLive && adapter.provider_egress === "native_host_managed") {
     assertLiveHostEgressAdmissionV01({
       mode: input.mode,
       packet: admitted.packet,
@@ -478,9 +601,19 @@ export async function runDirectNativeHostRoundTripV01(
     adapter,
     automation_context: input.automation_context ?? null,
   });
+  if (
+    preAdmitted &&
+    (preAdmitted.claim.run_id !== identity.run_id ||
+      preAdmitted.claim.request_id !== identity.request_id ||
+      preAdmitted.claim.idempotency_key !== identity.idempotency_key ||
+      preAdmitted.claim.adapter_version !== adapter.adapter_version ||
+      preAdmitted.claim.capability_version !== adapter.capability_version)
+  ) {
+    refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
   if (db.inTransaction) refuse("direct_host_nested_transaction", 409);
   let sessionAdmission: VNextLocalOperatorSessionMutationAdmissionV01 | null =
-    null;
+    preAdmitted?.session_admission ?? null;
   const startedAt = strictTimestamp(now());
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -527,7 +660,16 @@ export async function runDirectNativeHostRoundTripV01(
     }
     const existingRun = readAutonomyRunLedgerRecord(identity.run_id, { db });
     if (existingRun) {
-      if (
+      if (preAdmitted) {
+        assertPreparedRunClaimMatchesV01(existingRun, preAdmitted.claim);
+        startPreparedRunInsideTransactionV01(db, {
+          run: existingRun,
+          admission: admitted,
+          automation_context: input.automation_context!,
+          observed_at: startedAt,
+        });
+        db.exec("COMMIT");
+      } else if (
         dependencies.resume_existing_run === true &&
         managedLive &&
         existingRun.status === "paused" &&
@@ -547,6 +689,7 @@ export async function runDirectNativeHostRoundTripV01(
         refuse("direct_host_run_conflict", 409);
       }
     } else {
+      if (preAdmitted) refuse("direct_host_pre_admitted_run_claim_missing", 409);
       createRunLedgerRecord(db, {
         input,
         admission: admitted,
@@ -825,6 +968,7 @@ function revalidateAdmissionInsideTransaction(
     evaluated_at: string;
     automation_context: NativeHostAutomationContextV01 | null;
     run_id: string;
+    transition_bounded_work?: boolean;
   },
 ): void {
   const registration = readCanonicalProjectWithRootV01(db, input.config);
@@ -873,6 +1017,7 @@ function revalidateAdmissionInsideTransaction(
     revalidateBoundedAutomationContextInsideTransactionV01(db, {
       ...input,
       automation_context: input.automation_context,
+      transition_work: input.transition_bounded_work !== false,
     });
   }
 }
@@ -885,6 +1030,7 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     evaluated_at: string;
     automation_context: NativeHostAutomationContextV01;
     run_id: string;
+    transition_work: boolean;
   },
 ): void {
   const cycle = input.automation_context.bounded_cycle;
@@ -949,6 +1095,7 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
     grant.work_source_fingerprint !== work.source.work_fingerprint ||
     grant.work_source_ref.source_ref !== work.source.work_fingerprint ||
     work.cycle_binding?.cycle_id !== cycle.cycle_id ||
+    work.cycle_binding.run_id !== input.run_id ||
     work.cycle_binding.final_grant_ref.external_id !== grant.grant_id ||
     work.cycle_binding.final_grant_ref.source_ref !== grant.grant_fingerprint ||
     work.cycle_binding.packet_ref.external_id !== input.admission.packet.packet_id ||
@@ -979,7 +1126,7 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
   ) {
     refuse("direct_host_bounded_automation_binding_conflict", 409);
   }
-  if (work.status === "claimed") {
+  if (work.status === "claimed" && input.transition_work) {
     transitionVNextAutomationWorkV01(db, {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
@@ -1214,18 +1361,20 @@ function createRunLedgerRecord(
     started_at: string;
     adapter: NativeHostAdapterV01;
     lifecycle_mode: "synchronous" | "managed_live";
+    initial_claim_only?: boolean;
   },
 ): void {
   const packet = input.admission.packet;
   const managedLive = input.lifecycle_mode === "managed_live";
+  const initialClaimOnly = input.initial_claim_only === true;
   const run: AutonomyRunSummary = {
     run_id: input.run_id,
     scope: input.input.config.project_id,
     autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
     title: "Project-scoped native-host round trip",
-    status: managedLive ? "starting" : "running",
+    status: initialClaimOnly ? "queued" : managedLive ? "starting" : "running",
     scheduled_for: null,
-    started_at: input.started_at,
+    started_at: initialClaimOnly ? null : input.started_at,
     finished_at: null,
     created_at: input.started_at,
     updated_at: input.started_at,
@@ -1242,13 +1391,15 @@ function createRunLedgerRecord(
           "The resulting receipt is operational history, not approval, proof, accepted Evidence, semantic state, or work closure.",
         ],
       }),
-      can_execute_codex: managedLive,
+      can_execute_codex:
+        managedLive && input.adapter.execution_profile === "native_host_managed_model",
     },
     budget_snapshot: buildDefaultRunnerBudgetSnapshot({
       budget_id: `native-host-budget:${input.run_id}`,
       max_iterations: 1,
       max_tool_calls: 0,
-      max_codex_tasks: 1,
+      max_codex_tasks:
+        input.adapter.execution_profile === "native_host_managed_model" ? 1 : 0,
       notes: [
         managedLive
           ? "One local Codex App Server thread and turn are allowed; no automatic retry or GitHub action is granted."
@@ -1306,11 +1457,11 @@ function createRunLedgerRecord(
     run_id: input.run_id,
     step_index: 1,
     action_kind: "invoke_project_scoped_host_adapter",
-    status: "running",
+    status: initialClaimOnly ? "planned" : "running",
     title: "Invoke project-scoped native-host adapter",
     summary:
       "Deliver one exact admitted packet and receive one bounded structured result.",
-    started_at: input.started_at,
+    started_at: initialClaimOnly ? null : input.started_at,
     finished_at: null,
     output: {},
     error_message: null,
@@ -1343,27 +1494,138 @@ function createRunLedgerRecord(
           }),
         ]
       : []),
+    ...(!initialClaimOnly
+      ? [
+          buildAutonomyRunEventRecord({
+            run_id: input.run_id,
+            event_type: managedLive ? "run_starting" : "run_started",
+            status: managedLive ? "starting" : "running",
+            message: managedLive
+              ? "The admitted live run is ready for registered invocation ownership."
+              : "Direct native-host round trip started.",
+            payload: { mode: input.input.mode, automatic_retry: false },
+            created_at: input.started_at,
+          }),
+          buildAutonomyRunEventRecord({
+            run_id: input.run_id,
+            step_id: step.step_id,
+            event_type: "step_started",
+            status: "running",
+            message: "Project-scoped host adapter step started.",
+            payload: { capability: HOST_CAPABILITY },
+            created_at: input.started_at,
+          }),
+        ]
+      : []),
+  ];
+  insertAutonomyRunLedgerRecord(run, [step], events, { db });
+}
+
+function assertPreparedRunClaimMatchesV01(
+  run: AutonomyRunRecord,
+  claim: PreparedNativeHostRunClaimV01,
+): void {
+  if (
+    run.run_id !== claim.run_id ||
+    run.metadata.request_id !== claim.request_id ||
+    run.metadata.packet_id !== claim.packet_id ||
+    run.metadata.packet_fingerprint !== claim.packet_fingerprint ||
+    run.metadata.adapter_version !== claim.adapter_version ||
+    run.metadata.capability_version !== claim.capability_version ||
+    run.created_at !== claim.claimed_at
+  ) {
+    refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
+}
+
+function startPreparedRunInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    run: AutonomyRunRecord;
+    admission: PersistedHostPacketAdmissionV01;
+    automation_context: NativeHostAutomationContextV01;
+    observed_at: string;
+  },
+): void {
+  const step = input.run.steps[0];
+  if (
+    input.run.status !== "queued" ||
+    input.run.started_at !== null ||
+    !step ||
+    step.status !== "planned" ||
+    step.started_at !== null ||
+    input.run.metadata.packet_id !== input.admission.packet.packet_id ||
+    input.run.metadata.packet_fingerprint !==
+      input.admission.packet.integrity.fingerprint ||
+    canonicalizeProtocolValueV01(input.run.metadata.automation_context) !==
+      canonicalizeProtocolValueV01(input.automation_context)
+  ) {
+    refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
+  updateAutonomyRunStepLedgerFields(
+    step.step_id,
+    {
+      status: "running",
+      started_at: input.observed_at,
+      updated_at: input.observed_at,
+    },
+    { db },
+  );
+  updateAutonomyRunLedgerFields(
+    input.run.run_id,
+    {
+      status: "starting",
+      started_at: input.observed_at,
+      updated_at: input.observed_at,
+      metadata: {
+        ...input.run.metadata,
+        host_invocation_started_at: input.observed_at,
+      },
+    },
+    { db },
+  );
+  appendAutonomyRunLedgerEvent(
     buildAutonomyRunEventRecord({
-      run_id: input.run_id,
-      event_type: managedLive ? "run_starting" : "run_started",
-      status: managedLive ? "starting" : "running",
-      message: managedLive
-        ? "The admitted live run is ready for registered invocation ownership."
-        : "Direct native-host round trip started.",
-      payload: { mode: input.input.mode, automatic_retry: false },
-      created_at: input.started_at,
+      run_id: input.run.run_id,
+      event_type: "run_starting",
+      status: "starting",
+      message: "The exact admitted run claim entered host invocation.",
+      payload: { mode: "policy_triggered", automatic_retry: false },
+      created_at: input.observed_at,
     }),
+    { db },
+  );
+  appendAutonomyRunLedgerEvent(
     buildAutonomyRunEventRecord({
-      run_id: input.run_id,
+      run_id: input.run.run_id,
       step_id: step.step_id,
       event_type: "step_started",
       status: "running",
       message: "Project-scoped host adapter step started.",
       payload: { capability: HOST_CAPABILITY },
-      created_at: input.started_at,
+      created_at: input.observed_at,
     }),
-  ];
-  insertAutonomyRunLedgerRecord(run, [step], events, { db });
+    { db },
+  );
+}
+
+function assertBoundedHostContractV01(input: {
+  automation_context: NativeHostAutomationContextV01;
+  adapter: NativeHostAdapterV01;
+  timeout_ms: number;
+}): void {
+  const grant = input.automation_context.bounded_cycle?.grant;
+  if (
+    !grant ||
+    grant.host_adapter_version !== input.adapter.adapter_version ||
+    grant.host_capability_version !== input.adapter.capability_version ||
+    grant.host_execution_profile !== input.adapter.execution_profile ||
+    grant.host_provider_egress !== input.adapter.provider_egress ||
+    input.timeout_ms > grant.budget.max_runtime_ms ||
+    MAX_COMMANDS > grant.budget.max_commands
+  ) {
+    refuse("direct_host_bounded_automation_budget_or_host_conflict", 409);
+  }
 }
 
 function resumeManagedLiveRunInsideTransactionV01(
