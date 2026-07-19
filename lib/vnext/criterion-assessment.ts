@@ -14,6 +14,7 @@ import {
   type ProtocolValidationIssueSinkV01,
 } from "@/lib/vnext/protocol-primitives";
 import { deriveCriterionIdentityV01 } from "@/lib/vnext/criterion-identity";
+import { deriveCriterionVerificationObligationIdV01 } from "@/lib/vnext/criterion-verification-plan";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import {
@@ -30,7 +31,11 @@ import {
   type CriterionAssessmentValidationIssueV01,
   type CriterionAssessmentValidationResultV01,
 } from "@/types/vnext/criterion-assessment";
-import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import {
+  EXTERNAL_REF_TRUST_CLASSES_V01,
+  type ExternalRefTrustClassV01,
+  type ExternalRefV01,
+} from "@/types/vnext/external-ref";
 import {
   CRITERION_VERIFICATION_EVALUATOR_VERSION_V01,
   type CriterionVerificationConclusiveTrustClassV01,
@@ -41,6 +46,7 @@ import type {
   RunReceiptCapabilityCoverageEntryV01,
   RunReceiptCheckResultV01,
   RunReceiptSkippedCheckV01,
+  RunReceiptStatusBasisV01,
   RunReceiptV01,
 } from "@/types/vnext/run-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -55,6 +61,93 @@ const CRITERION_RELATION_REF_TYPES_V01 = new Set([
   "criterion_applicability",
 ]);
 const SHA256_PATTERN_V01 = /^sha256:[a-f0-9]{64}$/u;
+const CRITERION_CHECK_RELATION_EXTERNAL_ID_VERSION_V01 =
+  "criterion-check-relation.v0.1" as const;
+const CRITERION_APPLICABILITY_RELATION_EXTERNAL_ID_VERSION_V01 =
+  "criterion-applicability-relation.v0.1" as const;
+const criterionRelationTrustClassesV01 = new Set<string>(
+  EXTERNAL_REF_TRUST_CLASSES_V01,
+);
+const criterionRelationBasesV01 = new Set<string>([
+  "observed",
+  "attested",
+  "mixed",
+  "unknown",
+  "insufficient",
+]);
+const criterionRelationResidueKindsV01 = new Set<string>([
+  "check",
+  "skipped_check",
+  "absent_check",
+]);
+const criterionRelationResidueStatusesV01 = new Set<string>([
+  "passed",
+  "failed",
+  "blocked",
+  "unknown",
+  "skipped",
+  "absent",
+]);
+
+export type CriterionCheckRelationDirectionV01 =
+  | "support"
+  | "opposition"
+  | "missing";
+
+export interface CriterionCheckRelationRefIdentityV01 {
+  kind: "check";
+  evaluator_version: typeof CRITERION_VERIFICATION_EVALUATOR_VERSION_V01;
+  direction: CriterionCheckRelationDirectionV01;
+  packet_id: string;
+  packet_fingerprint: string;
+  receipt_id: string;
+  receipt_fingerprint: string;
+  run_id: string;
+  criterion_id: string;
+  obligation_id: string;
+  check_id: string;
+  residue_kind: "check" | "skipped_check" | "absent_check";
+  residue_status:
+    | "passed"
+    | "failed"
+    | "blocked"
+    | "unknown"
+    | "skipped"
+    | "absent";
+  basis: RunReceiptStatusBasisV01 | "insufficient";
+  trust_class: ExternalRefTrustClassV01;
+  relation_material_fingerprint: string;
+}
+
+export interface CriterionApplicabilityRelationRefIdentityV01 {
+  kind: "applicability";
+  evaluator_version: typeof CRITERION_VERIFICATION_EVALUATOR_VERSION_V01;
+  direction: "applicability";
+  packet_id: string;
+  packet_fingerprint: string;
+  criterion_id: string;
+  applicability: "not_applicable";
+  basis: "observed";
+  trust_class: "direct_local_observation";
+  relation_material_fingerprint: string;
+}
+
+export type ParsedCriterionRelationRefIdentityV01 =
+  | CriterionCheckRelationRefIdentityV01
+  | CriterionApplicabilityRelationRefIdentityV01;
+
+export type CriterionAssessmentSourceValidationResultV01 =
+  | {
+      status: "valid";
+      expected_assessment: CriterionAssessmentV01;
+    }
+  | {
+      status: "blocked";
+      code:
+        | "criterion_assessment_source_structure_invalid"
+        | "criterion_assessment_source_binding_invalid"
+        | "criterion_assessment_source_material_conflict";
+    };
 
 const assessmentStatuses = new Set<string>(
   CRITERION_ASSESSMENT_STATUSES_V01,
@@ -251,16 +344,337 @@ export function createCriterionAssessmentFingerprintV01(
   );
 }
 
+export function formatCriterionRelationRefExternalIdV01(
+  identity: ParsedCriterionRelationRefIdentityV01,
+): string {
+  if (identity.kind === "applicability") {
+    return formatRelationExternalIdSegmentsV01(
+      CRITERION_APPLICABILITY_RELATION_EXTERNAL_ID_VERSION_V01,
+      [
+        ["evaluator", identity.evaluator_version],
+        ["direction", identity.direction],
+        ["packet_id", identity.packet_id],
+        ["packet_fingerprint", identity.packet_fingerprint],
+        ["criterion_id", identity.criterion_id],
+        ["applicability", identity.applicability],
+        ["basis", identity.basis],
+        ["trust", identity.trust_class],
+        ["material_fingerprint", identity.relation_material_fingerprint],
+      ],
+    );
+  }
+  return formatRelationExternalIdSegmentsV01(
+    CRITERION_CHECK_RELATION_EXTERNAL_ID_VERSION_V01,
+    [
+      ["evaluator", identity.evaluator_version],
+      ["direction", identity.direction],
+      ["packet_id", identity.packet_id],
+      ["packet_fingerprint", identity.packet_fingerprint],
+      ["receipt_id", identity.receipt_id],
+      ["receipt_fingerprint", identity.receipt_fingerprint],
+      ["run_id", identity.run_id],
+      ["criterion_id", identity.criterion_id],
+      ["obligation_id", identity.obligation_id],
+      ["check_id", identity.check_id],
+      ["residue_kind", identity.residue_kind],
+      ["residue_status", identity.residue_status],
+      ["basis", identity.basis],
+      ["trust", identity.trust_class],
+      ["material_fingerprint", identity.relation_material_fingerprint],
+    ],
+  );
+}
+
+export function parseCriterionRelationRefExternalIdV01(
+  value: unknown,
+): ParsedCriterionRelationRefIdentityV01 | null {
+  if (typeof value !== "string") return null;
+  if (
+    value.startsWith(
+      `${CRITERION_CHECK_RELATION_EXTERNAL_ID_VERSION_V01}|`,
+    )
+  ) {
+    const fields = parseRelationExternalIdSegmentsV01(
+      value,
+      CRITERION_CHECK_RELATION_EXTERNAL_ID_VERSION_V01,
+      [
+        "evaluator",
+        "direction",
+        "packet_id",
+        "packet_fingerprint",
+        "receipt_id",
+        "receipt_fingerprint",
+        "run_id",
+        "criterion_id",
+        "obligation_id",
+        "check_id",
+        "residue_kind",
+        "residue_status",
+        "basis",
+        "trust",
+        "material_fingerprint",
+      ],
+    );
+    if (!fields) return null;
+    const direction = fields.direction;
+    const residueKind = fields.residue_kind;
+    const residueStatus = fields.residue_status;
+    const basis = fields.basis;
+    const trustClass = fields.trust;
+    if (
+      fields.evaluator !== CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 ||
+      !["support", "opposition", "missing"].includes(direction) ||
+      !criterionRelationResidueKindsV01.has(residueKind) ||
+      !criterionRelationResidueStatusesV01.has(residueStatus) ||
+      !criterionRelationBasesV01.has(basis) ||
+      !criterionRelationTrustClassesV01.has(trustClass) ||
+      !SHA256_PATTERN_V01.test(fields.packet_fingerprint) ||
+      !SHA256_PATTERN_V01.test(fields.receipt_fingerprint) ||
+      !SHA256_PATTERN_V01.test(fields.material_fingerprint)
+    ) {
+      return null;
+    }
+    const identity: CriterionCheckRelationRefIdentityV01 = {
+      kind: "check",
+      evaluator_version: CRITERION_VERIFICATION_EVALUATOR_VERSION_V01,
+      direction: direction as CriterionCheckRelationDirectionV01,
+      packet_id: fields.packet_id,
+      packet_fingerprint: fields.packet_fingerprint,
+      receipt_id: fields.receipt_id,
+      receipt_fingerprint: fields.receipt_fingerprint,
+      run_id: fields.run_id,
+      criterion_id: fields.criterion_id,
+      obligation_id: fields.obligation_id,
+      check_id: fields.check_id,
+      residue_kind: residueKind as CriterionCheckRelationRefIdentityV01["residue_kind"],
+      residue_status:
+        residueStatus as CriterionCheckRelationRefIdentityV01["residue_status"],
+      basis: basis as CriterionCheckRelationRefIdentityV01["basis"],
+      trust_class:
+        trustClass as CriterionCheckRelationRefIdentityV01["trust_class"],
+      relation_material_fingerprint: fields.material_fingerprint,
+    };
+    return isValidParsedCheckRelationIdentityV01(identity) &&
+      formatCriterionRelationRefExternalIdV01(identity) === value
+      ? identity
+      : null;
+  }
+  if (
+    value.startsWith(
+      `${CRITERION_APPLICABILITY_RELATION_EXTERNAL_ID_VERSION_V01}|`,
+    )
+  ) {
+    const fields = parseRelationExternalIdSegmentsV01(
+      value,
+      CRITERION_APPLICABILITY_RELATION_EXTERNAL_ID_VERSION_V01,
+      [
+        "evaluator",
+        "direction",
+        "packet_id",
+        "packet_fingerprint",
+        "criterion_id",
+        "applicability",
+        "basis",
+        "trust",
+        "material_fingerprint",
+      ],
+    );
+    if (
+      !fields ||
+      fields.evaluator !== CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 ||
+      fields.direction !== "applicability" ||
+      fields.applicability !== "not_applicable" ||
+      fields.basis !== "observed" ||
+      fields.trust !== "direct_local_observation" ||
+      !SHA256_PATTERN_V01.test(fields.packet_fingerprint) ||
+      !SHA256_PATTERN_V01.test(fields.material_fingerprint)
+    ) {
+      return null;
+    }
+    const identity: CriterionApplicabilityRelationRefIdentityV01 = {
+      kind: "applicability",
+      evaluator_version: CRITERION_VERIFICATION_EVALUATOR_VERSION_V01,
+      direction: "applicability",
+      packet_id: fields.packet_id,
+      packet_fingerprint: fields.packet_fingerprint,
+      criterion_id: fields.criterion_id,
+      applicability: "not_applicable",
+      basis: "observed",
+      trust_class: "direct_local_observation",
+      relation_material_fingerprint: fields.material_fingerprint,
+    };
+    return formatCriterionRelationRefExternalIdV01(identity) === value
+      ? identity
+      : null;
+  }
+  return null;
+}
+
 export function isExactCriterionRelationRefV01(
   value: unknown,
 ): value is ExternalRefV01 {
   if (!isProtocolRecordV01(value)) return false;
   const refType = protocolStringValueV01(value.ref_type);
+  const parsed = parseCriterionRelationRefExternalIdV01(value.external_id);
+  if (
+    value.ref_version !== "external_ref.v0.1" ||
+    value.compatibility_namespace !== CRITERION_RELATION_REF_NAMESPACE_V01 ||
+    !refType ||
+    !CRITERION_RELATION_REF_TYPES_V01.has(refType) ||
+    !parsed ||
+    value.trust_class !== parsed.trust_class
+  ) {
+    return false;
+  }
+  if (parsed.kind === "applicability") {
+    return (
+      refType === "criterion_applicability" &&
+      value.source_ref === parsed.packet_fingerprint
+    );
+  }
+  const expectedType =
+    parsed.direction === "support"
+      ? "criterion_check_support"
+      : parsed.direction === "opposition"
+        ? "criterion_check_opposition"
+        : "criterion_check_missing";
   return (
-    value.ref_version === "external_ref.v0.1" &&
-    value.compatibility_namespace === CRITERION_RELATION_REF_NAMESPACE_V01 &&
-    Boolean(refType && CRITERION_RELATION_REF_TYPES_V01.has(refType))
+    refType === expectedType &&
+    value.source_ref === parsed.receipt_fingerprint
   );
+}
+
+export function validateCriterionAssessmentAgainstSourcesV01(input: {
+  packet: TaskContextPacketV01;
+  receipt: RunReceiptV01;
+  assessment: CriterionAssessmentV01;
+}): CriterionAssessmentSourceValidationResultV01 {
+  if (validateCriterionAssessmentV01(input.assessment).status !== "valid") {
+    return {
+      status: "blocked",
+      code: "criterion_assessment_source_structure_invalid",
+    };
+  }
+  let expected: CriterionAssessmentV01;
+  try {
+    expected = evaluateCriterionAssessmentV01({
+      packet: input.packet,
+      receipt: input.receipt,
+    });
+  } catch {
+    return {
+      status: "blocked",
+      code: "criterion_assessment_source_binding_invalid",
+    };
+  }
+  if (
+    canonicalizeProtocolValueV01(expected) !==
+    canonicalizeProtocolValueV01(input.assessment)
+  ) {
+    return {
+      status: "blocked",
+      code: "criterion_assessment_source_material_conflict",
+    };
+  }
+  return { status: "valid", expected_assessment: expected };
+}
+
+function formatRelationExternalIdSegmentsV01(
+  version: string,
+  fields: ReadonlyArray<readonly [string, string]>,
+): string {
+  return [
+    version,
+    ...fields.map(
+      ([key, value]) => `${key}=${encodeURIComponent(value)}`,
+    ),
+  ].join("|");
+}
+
+function parseRelationExternalIdSegmentsV01(
+  value: string,
+  version: string,
+  keys: readonly string[],
+): Record<string, string> | null {
+  const segments = value.split("|");
+  if (segments.length !== keys.length + 1 || segments[0] !== version) {
+    return null;
+  }
+  const fields: Record<string, string> = {};
+  for (const [index, key] of keys.entries()) {
+    const segment = segments[index + 1]!;
+    const prefix = `${key}=`;
+    if (!segment.startsWith(prefix)) return null;
+    const encoded = segment.slice(prefix.length);
+    if (!encoded) return null;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(encoded);
+    } catch {
+      return null;
+    }
+    if (!decoded || encodeURIComponent(decoded) !== encoded) return null;
+    fields[key] = decoded;
+  }
+  return fields;
+}
+
+function isValidParsedCheckRelationIdentityV01(
+  identity: CriterionCheckRelationRefIdentityV01,
+): boolean {
+  if (
+    deriveCriterionVerificationObligationIdV01({
+      criterion_id: identity.criterion_id,
+      check_id: identity.check_id,
+    }) !== identity.obligation_id
+  ) {
+    return false;
+  }
+  if (identity.direction === "support") {
+    return (
+      identity.residue_kind === "check" &&
+      identity.residue_status === "passed" &&
+      conclusiveRelationBasisTrustCompatibleV01(identity)
+    );
+  }
+  if (identity.direction === "opposition") {
+    return (
+      identity.residue_kind === "check" &&
+      identity.residue_status === "failed" &&
+      conclusiveRelationBasisTrustCompatibleV01(identity)
+    );
+  }
+  if (identity.residue_kind === "skipped_check") {
+    return identity.residue_status === "skipped";
+  }
+  if (identity.residue_kind === "absent_check") {
+    return (
+      identity.residue_status === "absent" &&
+      identity.basis === "insufficient" &&
+      identity.trust_class === "derived_interpretation"
+    );
+  }
+  return (
+    identity.residue_kind === "check" &&
+    ["passed", "failed", "blocked", "unknown"].includes(
+      identity.residue_status,
+    )
+  );
+}
+
+function conclusiveRelationBasisTrustCompatibleV01(
+  identity: CriterionCheckRelationRefIdentityV01,
+): boolean {
+  if (
+    identity.trust_class === "direct_local_observation" ||
+    identity.trust_class === "verified_external_observation"
+  ) {
+    return identity.basis === "observed" || identity.basis === "mixed";
+  }
+  if (identity.trust_class === "host_attestation") {
+    return identity.basis === "attested" || identity.basis === "mixed";
+  }
+  return false;
 }
 
 export function validateCriterionAssessmentV01(
@@ -550,17 +964,11 @@ function evaluatePlannedCriterionV01(input: {
     uncertainty.push(
       "At least one exact required obligation is missing, skipped, blocked, unknown, under-covered, or below the declared basis/trust boundary.",
     );
-  } else if (supportPresent && oppositionPresent) {
-    status = "unknown";
-    basis = "insufficient";
-    uncertainty.push(
-      "Exact supporting and opposing obligation residue coexist; the fixed conflict policy preserves both and returns unknown.",
-    );
   } else if (oppositionPresent) {
     status = "unsatisfied";
     basis = conclusiveBasisV01(resolutions);
     uncertainty.push(
-      "At least one exact required obligation failed under the fixed unsatisfied policy; no completion or prose inference was used.",
+      "At least one exact required obligation failed under aggregation=all and the fixed unsatisfied policy; passed obligations remain preserved as supporting refs, and no completion or prose inference was used.",
     );
   } else if (
     supportPresent &&
@@ -829,17 +1237,24 @@ function criterionCheckRelationRefsV01(input: {
             : input.relation === "opposition"
               ? "criterion_check_opposition"
               : "criterion_check_missing",
-        external_id: [
-          "criterion-relation",
-          input.relation,
-          input.receipt.receipt_id,
-          input.entry.criterion_id,
-          input.obligation.obligation_id,
-          input.obligation.check_id,
-          residueStatus,
-          input.residue?.basis ?? "insufficient",
-          relationFingerprint.slice("sha256:".length, 31),
-        ].join(":"),
+        external_id: formatCriterionRelationRefExternalIdV01({
+          kind: "check",
+          evaluator_version: CRITERION_VERIFICATION_EVALUATOR_VERSION_V01,
+          direction: input.relation,
+          packet_id: input.packet.packet_id,
+          packet_fingerprint: input.packet.integrity.fingerprint,
+          receipt_id: input.receipt.receipt_id,
+          receipt_fingerprint: input.receipt.integrity.fingerprint,
+          run_id: input.receipt.run_id,
+          criterion_id: input.entry.criterion_id,
+          obligation_id: input.obligation.obligation_id,
+          check_id: input.obligation.check_id,
+          residue_kind: input.residue_kind,
+          residue_status: residueStatus,
+          basis: input.residue?.basis ?? "insufficient",
+          trust_class: sourceRef?.trust_class ?? "derived_interpretation",
+          relation_material_fingerprint: relationFingerprint,
+        }),
         observed_at: input.receipt.recorded_at,
         source_ref: input.receipt.integrity.fingerprint,
         compatibility_namespace: CRITERION_RELATION_REF_NAMESPACE_V01,
@@ -873,7 +1288,18 @@ function criterionApplicabilityRefV01(input: {
   return assessmentExternalRefV01({
     ref_version: "external_ref.v0.1",
     ref_type: "criterion_applicability",
-    external_id: `criterion-applicability:${input.packet.packet_id}:${input.entry.criterion_id}:${fingerprint.slice("sha256:".length, 31)}`,
+    external_id: formatCriterionRelationRefExternalIdV01({
+      kind: "applicability",
+      evaluator_version: CRITERION_VERIFICATION_EVALUATOR_VERSION_V01,
+      direction: "applicability",
+      packet_id: input.packet.packet_id,
+      packet_fingerprint: input.packet.integrity.fingerprint,
+      criterion_id: input.entry.criterion_id,
+      applicability: "not_applicable",
+      basis: "observed",
+      trust_class: "direct_local_observation",
+      relation_material_fingerprint: fingerprint,
+    }),
     observed_at: input.packet.generated_at,
     source_ref: input.packet.integrity.fingerprint,
     compatibility_namespace: CRITERION_RELATION_REF_NAMESPACE_V01,
@@ -1287,20 +1713,27 @@ function validateRelationAwareAssessmentItemV01(
       true,
     );
   }
+  const obligationDirections = new Map<string, Set<string>>();
 
   for (const { ref, field, index } of relationRefs) {
     const refPath = `${path}.${field}[${index}]`;
     const refType = protocolStringValueV01(ref.ref_type);
-    if (!isExactCriterionRelationRefV01(ref)) {
+    const parsed = parseCriterionRelationRefExternalIdV01(ref.external_id);
+    if (
+      ref.ref_version !== "external_ref.v0.1" ||
+      ref.compatibility_namespace !== CRITERION_RELATION_REF_NAMESPACE_V01 ||
+      !refType ||
+      !CRITERION_RELATION_REF_TYPES_V01.has(refType) ||
+      !parsed
+    ) {
       sink.error(
         "criterion_assessment_relation_ref_invalid",
         refPath,
-        "Criterion relation refs require the exact evaluator namespace and supported relation type.",
+        "Criterion relation refs require the complete canonical evaluator-owned identifier, namespace, and supported relation type.",
         true,
       );
       continue;
     }
-    if (!refType) continue;
     const expectedTypes =
       field === "supporting_refs"
         ? new Set(["criterion_check_support", "criterion_applicability"])
@@ -1315,18 +1748,36 @@ function validateRelationAwareAssessmentItemV01(
         true,
       );
     }
-    const sourceRef = protocolStringValueV01(ref.source_ref);
-    if (!sourceRef || !SHA256_PATTERN_V01.test(sourceRef)) {
+    const parsedType =
+      parsed.kind === "applicability"
+        ? "criterion_applicability"
+        : parsed.direction === "support"
+          ? "criterion_check_support"
+          : parsed.direction === "opposition"
+            ? "criterion_check_opposition"
+            : "criterion_check_missing";
+    if (refType !== parsedType) {
       sink.error(
-        "criterion_assessment_relation_source_invalid",
-        `${refPath}.source_ref`,
-        "Criterion relation refs require the exact packet or receipt fingerprint.",
+        "criterion_assessment_relation_ref_direction_invalid",
+        `${refPath}.external_id`,
+        "Criterion relation identifier direction does not match its ref type.",
         true,
       );
     }
-    const externalId = protocolStringValueV01(ref.external_id);
-    if (refType === "criterion_applicability") {
-      if (!packetFingerprint || sourceRef !== packetFingerprint) {
+    if (protocolStringValueV01(ref.trust_class) !== parsed.trust_class) {
+      sink.error(
+        "criterion_assessment_relation_ref_trust_mismatch",
+        `${refPath}.trust_class`,
+        "Criterion relation ref trust must match the canonical relation identifier.",
+        true,
+      );
+    }
+    if (parsed.kind === "applicability") {
+      if (
+        !packetFingerprint ||
+        ref.source_ref !== packetFingerprint ||
+        parsed.packet_fingerprint !== packetFingerprint
+      ) {
         sink.error(
           "criterion_assessment_relation_applicability_source_mismatch",
           `${refPath}.source_ref`,
@@ -1334,11 +1785,12 @@ function validateRelationAwareAssessmentItemV01(
           true,
         );
       }
-      const expectedPrefix =
-        packetId && criterionId
-          ? `criterion-applicability:${packetId}:${criterionId}:`
-          : null;
-      if (!externalId || !expectedPrefix || !externalId.startsWith(expectedPrefix)) {
+      if (
+        !packetId ||
+        !criterionId ||
+        parsed.packet_id !== packetId ||
+        parsed.criterion_id !== criterionId
+      ) {
         sink.error(
           "criterion_assessment_relation_applicability_identity_mismatch",
           `${refPath}.external_id`,
@@ -1346,16 +1798,12 @@ function validateRelationAwareAssessmentItemV01(
           true,
         );
       }
-      if (ref.trust_class !== "direct_local_observation") {
-        sink.error(
-          "criterion_assessment_relation_applicability_trust_mismatch",
-          `${refPath}.trust_class`,
-          "Server-owned constant applicability must remain a direct local observation.",
-          true,
-        );
-      }
     } else {
-      if (!receiptFingerprint || sourceRef !== receiptFingerprint) {
+      if (
+        !receiptFingerprint ||
+        ref.source_ref !== receiptFingerprint ||
+        parsed.receipt_fingerprint !== receiptFingerprint
+      ) {
         sink.error(
           "criterion_assessment_relation_check_source_mismatch",
           `${refPath}.source_ref`,
@@ -1363,24 +1811,39 @@ function validateRelationAwareAssessmentItemV01(
           true,
         );
       }
-      const direction =
-        refType === "criterion_check_support"
-          ? "support"
-          : refType === "criterion_check_opposition"
-            ? "opposition"
-            : "missing";
-      const expectedPrefix =
-        receiptId && criterionId
-          ? `criterion-relation:${direction}:${receiptId}:${criterionId}:`
-          : null;
-      if (!externalId || !expectedPrefix || !externalId.startsWith(expectedPrefix)) {
+      if (
+        !packetId ||
+        !packetFingerprint ||
+        !receiptId ||
+        !criterionId ||
+        parsed.packet_id !== packetId ||
+        parsed.packet_fingerprint !== packetFingerprint ||
+        parsed.receipt_id !== receiptId ||
+        parsed.criterion_id !== criterionId ||
+        protocolStringValueV01(ref.trust_class) !== parsed.trust_class
+      ) {
         sink.error(
           "criterion_assessment_relation_check_identity_mismatch",
           `${refPath}.external_id`,
-          "Criterion check refs must bind the assessment receipt and criterion identities.",
+          "Criterion check refs must bind the assessment packet, receipt, criterion, residue, basis, and trust identities.",
           true,
         );
       }
+      const directions = obligationDirections.get(parsed.obligation_id) ??
+        new Set<string>();
+      directions.add(parsed.direction);
+      obligationDirections.set(parsed.obligation_id, directions);
+    }
+  }
+
+  for (const directions of obligationDirections.values()) {
+    if (directions.size > 1) {
+      sink.error(
+        "criterion_assessment_relation_obligation_conflict",
+        path,
+        "One exact obligation cannot project multiple relation directions; contradictory same-obligation material fails closed.",
+        true,
+      );
     }
   }
 
@@ -1395,7 +1858,6 @@ function validateRelationAwareAssessmentItemV01(
       applicabilityCount === 0 &&
       basis !== "insufficient") ||
     (status === "unsatisfied" &&
-      supportCount === 0 &&
       oppositionCount > 0 &&
       missingCount === 0 &&
       basis !== "insufficient") ||

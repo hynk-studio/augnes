@@ -435,7 +435,7 @@ function TaskSuccessCriteria({
   }
 
   const assessment = readback.assessment;
-  const taskSuccess = taskSuccessStatusV01(assessment.summary);
+  const taskSuccess = readback.task_success_status;
   return (
     <section
       className={styles.panel}
@@ -481,11 +481,17 @@ function TaskSuccessCriteria({
                 <RefList refs={item.opposing_refs} />
                 <h4>Criterion-specific missing refs ({item.missing_refs.length})</h4>
                 <RefList refs={item.missing_refs} />
-                <h4>{criterionTrustHeadingV01(item)}</h4>
+                <h4>{criterionTrustHeadingV01(
+                  item,
+                  readback.criterion_specific_relations_available,
+                )}</h4>
                 <ul
                   className={styles.plainList}
                   data-criterion-trust="true"
-                  data-criterion-trust-scope={criterionTrustScopeV01(item)}
+                  data-criterion-trust-scope={criterionTrustScopeV01(
+                    item,
+                    readback.criterion_specific_relations_available,
+                  )}
                 >
                   {Object.entries(item.trust).map(([trustClass, count]) => (
                     <li key={trustClass}>
@@ -494,7 +500,10 @@ function TaskSuccessCriteria({
                     </li>
                   ))}
                 </ul>
-                <h4>{criterionCoverageHeadingV01(item)}</h4>
+                <h4>{criterionCoverageHeadingV01(
+                  item,
+                  readback.criterion_specific_relations_available,
+                )}</h4>
                 {item.operation_coverage.length ? (
                   <ul className={styles.plainList} data-criterion-operation-coverage="true">
                     {item.operation_coverage.map((entry) => (
@@ -510,7 +519,10 @@ function TaskSuccessCriteria({
                     ))}
                   </ul>
                 ) : <p className={styles.empty}>Operation coverage was not recorded.</p>}
-                <h4>{criterionUncertaintyHeadingV01(item)}</h4>
+                <h4>{criterionUncertaintyHeadingV01(
+                  item,
+                  readback.criterion_specific_relations_available,
+                )}</h4>
                 <ResultListBody
                   items={item.uncertainty.map((uncertainty) => ({
                     id: uncertainty,
@@ -537,14 +549,17 @@ function criterionTrustScopeV01(item: {
   supporting_refs: ExternalRefV01[];
   opposing_refs: ExternalRefV01[];
   missing_refs: ExternalRefV01[];
-}): "exact_relation" | "criterion_specific_reference" | "task_wide_receipt" {
+}, sourceBoundRelationsAvailable: boolean):
+  | "exact_relation"
+  | "criterion_specific_reference"
+  | "task_wide_receipt" {
   const refs = [
     ...item.supporting_refs,
     ...item.opposing_refs,
     ...item.missing_refs,
   ];
   if (refs.length === 0) return "task_wide_receipt";
-  return refs.every(
+  return sourceBoundRelationsAvailable && refs.every(
     (ref) =>
       ref.compatibility_namespace ===
         CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 &&
@@ -563,8 +578,8 @@ function criterionTrustHeadingV01(item: {
   supporting_refs: ExternalRefV01[];
   opposing_refs: ExternalRefV01[];
   missing_refs: ExternalRefV01[];
-}): string {
-  switch (criterionTrustScopeV01(item)) {
+}, sourceBoundRelationsAvailable: boolean): string {
+  switch (criterionTrustScopeV01(item, sourceBoundRelationsAvailable)) {
     case "exact_relation":
       return "Exact criterion relation trust";
     case "criterion_specific_reference":
@@ -578,8 +593,9 @@ function criterionCoverageHeadingV01(item: {
   supporting_refs: ExternalRefV01[];
   opposing_refs: ExternalRefV01[];
   missing_refs: ExternalRefV01[];
-}): string {
-  return criterionTrustScopeV01(item) === "task_wide_receipt"
+}, sourceBoundRelationsAvailable: boolean): string {
+  return criterionTrustScopeV01(item, sourceBoundRelationsAvailable) ===
+    "task_wide_receipt"
     ? "Task-wide operation coverage"
     : "Recorded operation coverage";
 }
@@ -588,8 +604,9 @@ function criterionUncertaintyHeadingV01(item: {
   supporting_refs: ExternalRefV01[];
   opposing_refs: ExternalRefV01[];
   missing_refs: ExternalRefV01[];
-}): string {
-  return criterionTrustScopeV01(item) === "task_wide_receipt"
+}, sourceBoundRelationsAvailable: boolean): string {
+  return criterionTrustScopeV01(item, sourceBoundRelationsAvailable) ===
+    "task_wide_receipt"
     ? "Task-wide receipt uncertainty"
     : "Assessment uncertainty";
 }
@@ -660,18 +677,6 @@ function ReviewableProposal({
       </p>
     </section>
   );
-}
-
-function taskSuccessStatusV01(summary: {
-  satisfied: number;
-  unsatisfied: number;
-  unknown: number;
-  not_applicable: number;
-}): "satisfied" | "unsatisfied" | "unknown" | "not_applicable" {
-  if (summary.unknown > 0) return "unknown";
-  if (summary.unsatisfied > 0) return "unsatisfied";
-  if (summary.satisfied > 0) return "satisfied";
-  return summary.not_applicable > 0 ? "not_applicable" : "unknown";
 }
 
 function coverageLabelV01(value: string): string {

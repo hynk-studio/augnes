@@ -10,6 +10,8 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
+import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
+import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import {
   materializeRunAssessmentProposalV01,
   type RunAssessmentProposalAdmissionIdentityV01,
@@ -364,7 +366,87 @@ export function readProposalForExactSourcePurposeV01(
     refuseV01("episode_delta_proposal_envelope_mismatch");
   }
   assertRunAssessmentProposalRelationV01(proposal, identity);
+  assertPersistedRunAssessmentProposalSourceBoundV01(db, proposal);
   return { record, proposal };
+}
+
+/**
+ * Source-authenticity gate for durable run-assessment proposal readback. The
+ * standalone proposal validator proves only canonical structure. Exact
+ * criterion relation availability additionally requires the linked durable
+ * packet and receipt to reproduce the complete embedded source snapshot.
+ */
+export function assertPersistedRunAssessmentProposalSourceBoundV01(
+  db: Database.Database,
+  proposal: EpisodeDeltaProposalV01,
+): boolean {
+  const source = proposal.source_assessment;
+  if (!source || !source.comparison.criterion_specific_relations_available) {
+    return false;
+  }
+  const packetRecord = readVNextCoreRecordV01(db, {
+    record_kind: "task_context_packet",
+    record_id: source.packet_ref.external_id,
+    workspace_id: proposal.workspace_id,
+    project_id: proposal.project_id,
+  });
+  const receiptRecord = readVNextCoreRecordV01(db, {
+    record_kind: "run_receipt",
+    record_id: source.receipt_ref.external_id,
+    workspace_id: proposal.workspace_id,
+    project_id: proposal.project_id,
+  });
+  if (!packetRecord || !receiptRecord) {
+    refuseV01("episode_delta_proposal_relation_source_missing");
+  }
+  const packet = packetRecord.payload as TaskContextPacketV01;
+  const receipt = receiptRecord.payload as RunReceiptV01;
+  if (
+    validateTaskContextPacketV01(packetRecord.payload, {
+      evaluated_at: packet.generated_at,
+    }).status !== "valid" ||
+    validateRunReceiptV01(receiptRecord.payload).status !== "valid"
+  ) {
+    refuseV01("episode_delta_proposal_relation_source_invalid");
+  }
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(packetRecord, {
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    fingerprint: packet.integrity.fingerprint,
+  });
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(receiptRecord, {
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    fingerprint: receipt.integrity.fingerprint,
+  });
+  if (
+    packetRecord.record_id !== packet.packet_id ||
+    packetRecord.fingerprint !== packet.integrity.fingerprint ||
+    receiptRecord.record_id !== receipt.receipt_id ||
+    receiptRecord.fingerprint !== receipt.integrity.fingerprint ||
+    source.packet_ref.source_ref !== packet.integrity.fingerprint ||
+    source.receipt_ref.source_ref !== receipt.integrity.fingerprint
+  ) {
+    refuseV01("episode_delta_proposal_relation_source_binding_conflict");
+  }
+  let expected: RunAssessmentProposalMaterializationV01;
+  try {
+    expected = materializeRunAssessmentProposalV01({
+      packet,
+      receipt,
+      assessment: source.assessment,
+    });
+  } catch {
+    refuseV01("episode_delta_proposal_relation_source_material_conflict");
+  }
+  if (
+    !expected.proposal.source_assessment ||
+    canonicalizeProtocolValueV01(expected.proposal.source_assessment) !==
+      canonicalizeProtocolValueV01(source)
+  ) {
+    refuseV01("episode_delta_proposal_relation_source_material_conflict");
+  }
+  return true;
 }
 
 export function assertRunAssessmentProposalRelationV01(

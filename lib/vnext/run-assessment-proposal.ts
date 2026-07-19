@@ -11,9 +11,8 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import {
-  evaluateCriterionAssessmentV01,
   isExactCriterionRelationRefV01,
-  validateCriterionAssessmentV01,
+  validateCriterionAssessmentAgainstSourcesV01,
 } from "@/lib/vnext/criterion-assessment";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
@@ -80,7 +79,7 @@ export function materializeRunAssessmentProposalV01(input: {
   assertExactSourceMaterialV01(input);
   const identity = deriveRunAssessmentProposalAdmissionIdentityV01(input);
   const criterionRelationsAvailable =
-    criterionSpecificRelationsAvailableV01(input.assessment);
+    criterionSpecificRelationsAvailableV01(input);
   const allCriteriaConclusive =
     input.assessment.criteria.length > 0 &&
     input.assessment.criteria.every(
@@ -299,18 +298,16 @@ function assertExactSourceMaterialV01(input: {
   if (validateRunReceiptV01(input.receipt).status !== "valid") {
     failV01("run_assessment_proposal_receipt_invalid");
   }
-  if (validateCriterionAssessmentV01(input.assessment).status !== "valid") {
-    failV01("run_assessment_proposal_assessment_invalid");
-  }
-  const recomputed = evaluateCriterionAssessmentV01({
-    packet: input.packet,
-    receipt: input.receipt,
-  });
-  if (
-    canonicalizeProtocolValueV01(recomputed) !==
-    canonicalizeProtocolValueV01(input.assessment)
-  ) {
-    failV01("run_assessment_proposal_assessment_conflict");
+  const sourceValidation = validateCriterionAssessmentAgainstSourcesV01(input);
+  if (sourceValidation.status !== "valid") {
+    failV01(
+      sourceValidation.code === "criterion_assessment_source_structure_invalid"
+        ? "run_assessment_proposal_assessment_invalid"
+        : sourceValidation.code ===
+            "criterion_assessment_source_material_conflict"
+          ? "run_assessment_proposal_assessment_conflict"
+          : "run_assessment_proposal_source_binding_conflict",
+    );
   }
   if (
     input.packet.workspace_id !== input.receipt.workspace_id ||
@@ -593,7 +590,11 @@ function sourceAssessmentSnapshotV01(input: {
   receipt_ref: ExternalRefV01;
 }): EpisodeDeltaProposalSourceAssessmentV01 {
   const criterionRelationsAvailable =
-    criterionSpecificRelationsAvailableV01(input.assessment);
+    criterionSpecificRelationsAvailableV01({
+      packet: input.packet,
+      receipt: input.receipt,
+      assessment: input.assessment,
+    });
   return {
     admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
     admission_idempotency_key: input.identity.idempotency_key,
@@ -638,10 +639,18 @@ function sourceAssessmentSnapshotV01(input: {
       relation_policy: "explicit_protocol_relations_only",
       criterion_specific_relations_available: criterionRelationsAvailable,
       task_success_status: criterionAssessmentTaskSuccessStatusV01(
-        input.assessment,
+        {
+          packet: input.packet,
+          receipt: input.receipt,
+          assessment: input.assessment,
+        },
       ),
       execution_status_is_task_success: false,
-      gaps: comparisonGapsV01(input.receipt, input.assessment),
+      gaps: comparisonGapsV01(
+        input.receipt,
+        input.assessment,
+        criterionRelationsAvailable,
+      ),
     },
     authority: {
       authoritative: false,
@@ -658,9 +667,8 @@ function sourceAssessmentSnapshotV01(input: {
 function comparisonGapsV01(
   receipt: RunReceiptV01,
   assessment: CriterionAssessmentV01,
+  criterionRelationsAvailable: boolean,
 ): string[] {
-  const criterionRelationsAvailable =
-    criterionSpecificRelationsAvailableV01(assessment);
   return [
     ...(criterionRelationsAvailable
       ? assessment.criteria

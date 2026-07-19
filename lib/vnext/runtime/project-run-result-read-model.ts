@@ -14,6 +14,10 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
 import {
+  criterionAssessmentTaskSuccessStatusV01,
+  criterionSpecificRelationsAvailableV01,
+} from "@/lib/vnext/episode-delta-proposal";
+import {
   deriveRunAssessmentProposalAdmissionIdentityV01,
   materializeRunAssessmentProposalV01,
 } from "@/lib/vnext/run-assessment-proposal";
@@ -388,10 +392,7 @@ export function readProjectRunResultSourceBindingV01(
   const packet = readLinkedPacketV01(db, input, receipt);
   assertRunPacketBindingV01(run?.metadata ?? null, receipt, packet);
   const criterionAssessment = packet
-    ? {
-        status: "available" as const,
-        assessment: evaluateCriterionAssessmentV01({ packet, receipt }),
-      }
+    ? sourceBoundCriterionAssessmentReadbackV01(packet, receipt)
     : {
         status: "unavailable" as const,
         reason:
@@ -407,6 +408,22 @@ export function readProjectRunResultSourceBindingV01(
     packet,
     run,
     criterion_assessment: criterionAssessment,
+  };
+}
+
+function sourceBoundCriterionAssessmentReadbackV01(
+  packet: TaskContextPacketV01,
+  receipt: RunReceiptV01,
+): Extract<CriterionAssessmentReadbackV01, { status: "available" }> {
+  const assessment = evaluateCriterionAssessmentV01({ packet, receipt });
+  const source = { packet, receipt, assessment };
+  return {
+    status: "available",
+    assessment,
+    criterion_specific_relations_available:
+      criterionSpecificRelationsAvailableV01(source),
+    task_success_status: criterionAssessmentTaskSuccessStatusV01(source),
+    source_validation: "recomputed_from_packet_and_receipt",
   };
 }
 

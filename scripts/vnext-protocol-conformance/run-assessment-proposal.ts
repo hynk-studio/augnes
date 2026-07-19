@@ -23,8 +23,12 @@ import {
 import {
   createCriterionAssessmentFingerprintV01,
   evaluateCriterionAssessmentV01,
+  formatCriterionRelationRefExternalIdV01,
   isExactCriterionRelationRefV01,
+  parseCriterionRelationRefExternalIdV01,
+  validateCriterionAssessmentAgainstSourcesV01,
   validateCriterionAssessmentV01,
+  type CriterionCheckRelationRefIdentityV01,
 } from "@/lib/vnext/criterion-assessment";
 import {
   countVNextCoreRecordsV01,
@@ -151,7 +155,12 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
   assert.equal(first.proposal.authority_summary.creates_evidence, false);
   assert.equal(source.authority.creates_decision, false);
   assert.equal(source.authority.changes_later_context, false);
-  assertUntypedCandidateRelationsFailClosedV01(first.proposal, assessment);
+  assertUntypedCandidateRelationsFailClosedV01(
+    first.proposal,
+    packet,
+    receipt,
+    assessment,
+  );
   assertRelationAwareProposalV01();
   const neutralMaterial = first.proposal.observations.filter(
     (item) => item.material_kind === "persisted_run_receipt",
@@ -820,6 +829,11 @@ function assertRelationAwareProposalV01(): void {
     complete.proposal.source_assessment?.authority.changes_semantic_state,
     false,
   );
+  assertForgedRelationProposalSourceBoundV01({
+    packet,
+    receipt: completeReceipt,
+    proposal: complete.proposal,
+  });
 
   const changedAssessment = clone(completeAssessment);
   const changedRef = changedAssessment.criteria[0]!.supporting_refs[0]!;
@@ -839,12 +853,139 @@ function assertRelationAwareProposalV01(): void {
       }),
     (error) =>
       error instanceof RunAssessmentProposalMaterializationErrorV01 &&
-      error.code === "run_assessment_proposal_assessment_conflict",
+      [
+        "run_assessment_proposal_assessment_invalid",
+        "run_assessment_proposal_assessment_conflict",
+      ].includes(error.code),
   );
+}
+
+function assertForgedRelationProposalSourceBoundV01(input: {
+  packet: ReturnType<typeof relationAwarePacketV01>;
+  receipt: ReturnType<typeof relationAwareReceiptV01>;
+  proposal: EpisodeDeltaProposalV01;
+}): void {
+  const mutations: Array<
+    [
+      string,
+      (identity: CriterionCheckRelationRefIdentityV01) =>
+        CriterionCheckRelationRefIdentityV01,
+    ]
+  > = [
+    [
+      "obligation-id",
+      (identity) => ({
+        ...identity,
+        obligation_id: `criterion-obligation:sha256:${"0".repeat(64)}`,
+      }),
+    ],
+    [
+      "check-id",
+      (identity) => ({
+        ...identity,
+        check_id: "project_root_manifest_verified",
+      }),
+    ],
+    [
+      "relation-direction",
+      (identity) => ({ ...identity, direction: "opposition" }),
+    ],
+    [
+      "residue-kind",
+      (identity) => ({ ...identity, residue_kind: "skipped_check" }),
+    ],
+    [
+      "check-status",
+      (identity) => ({ ...identity, residue_status: "failed" }),
+    ],
+    [
+      "basis",
+      (identity) => ({ ...identity, basis: "attested" }),
+    ],
+    [
+      "relation-material-fingerprint",
+      (identity) => ({
+        ...identity,
+        relation_material_fingerprint: `sha256:${"8".repeat(64)}`,
+      }),
+    ],
+  ];
+  for (const [label, mutate] of mutations) {
+    const forgedProposal = clone(input.proposal);
+    const forgedAssessment = forgedProposal.source_assessment?.assessment;
+    assert(forgedAssessment);
+    const relationRef = forgedAssessment.criteria
+      .flatMap((criterion) => criterion.supporting_refs)
+      .find((ref) =>
+        parseCriterionRelationRefExternalIdV01(ref.external_id),
+      );
+    assert(relationRef);
+    const identity = parseCriterionRelationRefExternalIdV01(
+      relationRef.external_id,
+    );
+    assert(identity?.kind === "check");
+    const receiptFingerprint = relationRef.source_ref;
+    relationRef.external_id = formatCriterionRelationRefExternalIdV01(
+      mutate(identity),
+    );
+    assert.equal(
+      relationRef.source_ref,
+      receiptFingerprint,
+      `${label} must retain the authentic receipt source fingerprint`,
+    );
+    forgedAssessment.assessment_fingerprint =
+      createCriterionAssessmentFingerprintV01(forgedAssessment);
+    forgedProposal.proposal_id =
+      deriveEpisodeDeltaProposalIdV01(forgedProposal);
+    forgedProposal.integrity.fingerprint =
+      createEpisodeDeltaProposalFingerprintV01(forgedProposal);
+    assert.equal(
+      forgedProposal.integrity.fingerprint,
+      createEpisodeDeltaProposalFingerprintV01(forgedProposal),
+      `${label} must recompute the outer proposal fingerprint`,
+    );
+    const sourceValidation = validateCriterionAssessmentAgainstSourcesV01({
+      packet: input.packet,
+      receipt: input.receipt,
+      assessment: forgedAssessment,
+    });
+    assert.equal(
+      sourceValidation.status,
+      "blocked",
+      `${label} must fail exact packet/receipt recomputation`,
+    );
+    assert.equal(
+      criterionSpecificRelationsAvailableV01({
+        packet: input.packet,
+        receipt: input.receipt,
+        assessment: forgedAssessment,
+      }),
+      false,
+      `${label} must not project exact relation availability`,
+    );
+    assert.equal(
+      criterionAssessmentTaskSuccessStatusV01({
+        packet: input.packet,
+        receipt: input.receipt,
+        assessment: forgedAssessment,
+      }),
+      "unknown",
+      `${label} must not project task success`,
+    );
+    if (label === "relation-material-fingerprint") {
+      assert.equal(
+        validateEpisodeDeltaProposalV01(forgedProposal).status,
+        "valid",
+        "a structurally valid relation-fingerprint forge must still require source-bound validation",
+      );
+    }
+  }
 }
 
 function assertUntypedCandidateRelationsFailClosedV01(
   sourceProposal: EpisodeDeltaProposalV01,
+  packet: ReturnType<typeof packetV01>,
+  receipt: ReturnType<typeof receiptV01>,
   sourceAssessment: CriterionAssessmentV01,
 ): void {
   const candidateAssessment = clone(sourceAssessment);
@@ -885,11 +1026,19 @@ function assertUntypedCandidateRelationsFailClosedV01(
     false,
   );
   assert.equal(
-    criterionSpecificRelationsAvailableV01(candidateAssessment),
+    criterionSpecificRelationsAvailableV01({
+      packet,
+      receipt,
+      assessment: candidateAssessment,
+    }),
     false,
   );
   assert.equal(
-    criterionAssessmentTaskSuccessStatusV01(candidateAssessment),
+    criterionAssessmentTaskSuccessStatusV01({
+      packet,
+      receipt,
+      assessment: candidateAssessment,
+    }),
     "unknown",
   );
 

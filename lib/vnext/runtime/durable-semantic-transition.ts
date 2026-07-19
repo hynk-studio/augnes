@@ -37,6 +37,7 @@ import {
   type VNextSemanticStateProjectionEntryV01,
   type VNextSemanticTargetHeadV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
@@ -1879,6 +1880,13 @@ function loadReviewMaterial(input: {
   if (decisionRecord.fingerprint !== input.decision_fingerprint) throw new Error("persisted_decision_fingerprint_mismatch");
   const proposal = proposalRecord.payload as EpisodeDeltaProposalV01;
   const decision = decisionRecord.payload as ReviewDecisionV01;
+  if (proposal.source_assessment) {
+    try {
+      assertPersistedRunAssessmentProposalSourceBoundV01(input.db, proposal);
+    } catch {
+      throw new Error("persisted_proposal_relation_source_conflict");
+    }
+  }
   assertProposalDecision(proposal, decision);
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01(proposalRecord, {
     workspace_id: proposal.workspace_id,

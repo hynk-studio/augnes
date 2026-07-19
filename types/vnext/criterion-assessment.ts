@@ -86,6 +86,9 @@ export type CriterionAssessmentReadbackV01 =
   | {
       status: "available";
       assessment: CriterionAssessmentV01;
+      criterion_specific_relations_available: boolean;
+      task_success_status: CriterionAssessmentStatusV01;
+      source_validation: "recomputed_from_packet_and_receipt";
     }
   | {
       status: "unavailable";

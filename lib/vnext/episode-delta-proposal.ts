@@ -20,6 +20,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import {
   isExactCriterionRelationRefV01,
+  validateCriterionAssessmentAgainstSourcesV01,
   validateCriterionAssessmentV01,
 } from "@/lib/vnext/criterion-assessment";
 import {
@@ -60,6 +61,8 @@ import type {
   CriterionAssessmentV01,
 } from "@/types/vnext/criterion-assessment";
 import type { StrategicAdvantageTransferProfileV01 } from "@/types/vnext/strategic-advantage-transfer";
+import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
 const PENDING_PROPOSAL_ID = "episode-delta-proposal:pending";
 const PENDING_FINGERPRINT = "sha256:pending";
@@ -540,8 +543,24 @@ export function buildEpisodeDeltaProposalV01(
 }
 
 export function criterionSpecificRelationsAvailableV01(
+  input: {
+    packet: TaskContextPacketV01;
+    receipt: RunReceiptV01;
+    assessment: CriterionAssessmentV01;
+  },
+): boolean {
+  if (validateCriterionAssessmentAgainstSourcesV01(input).status !== "valid") {
+    return false;
+  }
+  return criterionSpecificRelationsStructurallyValidV01(input.assessment);
+}
+
+export function criterionSpecificRelationsStructurallyValidV01(
   assessment: CriterionAssessmentV01,
 ): boolean {
+  if (validateCriterionAssessmentV01(assessment).status !== "valid") {
+    return false;
+  }
   const refs = assessment.criteria.flatMap((criterion) => [
     ...criterion.supporting_refs,
     ...criterion.opposing_refs,
@@ -551,11 +570,24 @@ export function criterionSpecificRelationsAvailableV01(
 }
 
 export function criterionAssessmentTaskSuccessStatusV01(
+  input: {
+    packet: TaskContextPacketV01;
+    receipt: RunReceiptV01;
+    assessment: CriterionAssessmentV01;
+  },
+): CriterionAssessmentStatusV01 {
+  if (!criterionSpecificRelationsAvailableV01(input)) return "unknown";
+  return criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+    input.assessment,
+  );
+}
+
+function criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
   assessment: CriterionAssessmentV01,
 ): CriterionAssessmentStatusV01 {
   if (
     assessment.criteria.length === 0 ||
-    !criterionSpecificRelationsAvailableV01(assessment) ||
+    !criterionSpecificRelationsStructurallyValidV01(assessment) ||
     assessment.criteria.some((criterion) => {
       if (criterion.status === "unknown") return false;
       const refs = [
@@ -904,7 +936,7 @@ function normalizeSourceAssessmentV01(
 ): EpisodeDeltaProposalSourceAssessmentV01 {
   const cloned = structuredClone(input);
   const criterionSpecificRelationsAvailable =
-    criterionSpecificRelationsAvailableV01(cloned.assessment);
+    criterionSpecificRelationsStructurallyValidV01(cloned.assessment);
   return {
     ...cloned,
     admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
@@ -949,7 +981,7 @@ function normalizeSourceAssessmentV01(
       relation_policy: "explicit_protocol_relations_only",
       criterion_specific_relations_available:
         criterionSpecificRelationsAvailable,
-      task_success_status: criterionAssessmentTaskSuccessStatusV01(
+      task_success_status: criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
         cloned.assessment,
       ),
       execution_status_is_task_success: false,
@@ -1392,10 +1424,12 @@ function validateSourceAssessmentV01(
       accumulator,
     );
     const expectedRelationsAvailable = sourceAssessment
-      ? criterionSpecificRelationsAvailableV01(sourceAssessment)
+      ? criterionSpecificRelationsStructurallyValidV01(sourceAssessment)
       : null;
     const expectedTaskSuccessStatus = sourceAssessment
-      ? criterionAssessmentTaskSuccessStatusV01(sourceAssessment)
+      ? criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+          sourceAssessment,
+        )
       : null;
     if (
       comparison.relation_policy !== "explicit_protocol_relations_only" ||
@@ -1463,7 +1497,7 @@ function validateSourceAssessmentV01(
   }
   if (
     sourceAssessment &&
-    !criterionSpecificRelationsAvailableV01(sourceAssessment) &&
+    !criterionSpecificRelationsStructurallyValidV01(sourceAssessment) &&
     sourceAssessment.criteria.some(
       (criterion) =>
         criterion.status !== "unknown" ||

@@ -19,7 +19,10 @@ import {
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
   createLocalProjectRootCriterionVerificationPlanV01,
 } from "@/lib/vnext/automation/local-project-root-verification-profile";
-import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
+import {
+  evaluateCriterionAssessmentV01,
+  parseCriterionRelationRefExternalIdV01,
+} from "@/lib/vnext/criterion-assessment";
 import {
   MAX_ROOT_ENTRIES_V01,
   createLocalProjectVerificationAdapterV01,
@@ -267,7 +270,13 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   assert.equal(
     completedAssessment.criteria.some((criterion) =>
       [...criterion.supporting_refs, ...criterion.opposing_refs, ...criterion.missing_refs]
-        .some((ref) => ref.external_id.includes("validated_packet_delivery")),
+        .some((ref) => {
+          const identity = parseCriterionRelationRefExternalIdV01(
+            ref.external_id,
+          );
+          return identity?.kind === "check" &&
+            identity.check_id === "validated_packet_delivery";
+        }),
     ),
     false,
     "the unrelated packet-delivery check must not create a criterion relation",
@@ -432,10 +441,12 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   assert.equal(failedManifest.supporting_refs.length, 0);
   assert.equal(failedManifest.opposing_refs.length, 1);
   assert.equal(failedManifest.missing_refs.length, 0);
+  const failedManifestRelation = parseCriterionRelationRefExternalIdV01(
+    failedManifest.opposing_refs[0]?.external_id,
+  );
   assert.equal(
-    failedManifest.opposing_refs[0]?.external_id.includes(
-      "project_root_manifest_verified",
-    ),
+    failedManifestRelation?.kind === "check" &&
+      failedManifestRelation.check_id === "project_root_manifest_verified",
     true,
   );
 
@@ -751,7 +762,12 @@ function assertProductionAssessmentV01(
     ];
     for (const checkId of exactChecks) {
       assert.equal(
-        relationRefs.some((ref) => ref.external_id.includes(checkId)),
+        relationRefs.some((ref) => {
+          const identity = parseCriterionRelationRefExternalIdV01(
+            ref.external_id,
+          );
+          return identity?.kind === "check" && identity.check_id === checkId;
+        }),
         true,
         `${role} must retain an exact relation ref for ${checkId}`,
       );

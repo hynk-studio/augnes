@@ -7,6 +7,7 @@ import {
   readVNextCoreRecordV01,
   readVNextCoreRecordByIdempotencyKeyV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
@@ -117,6 +118,7 @@ export interface VNextOperatorPilotReviewListItemV01 {
 export interface VNextOperatorPilotReviewDetailV01
   extends VNextOperatorPilotReviewListItemV01 {
   proposal: EpisodeDeltaProposalV01;
+  criterion_specific_relations_source_bound: boolean;
   candidates: Array<{
     candidate: EpisodeDeltaProposalV01["proposed_deltas"][number];
     candidate_fingerprint: string;
@@ -276,6 +278,16 @@ export function readVNextOperatorPilotSemanticReviewV01(
     throw reviewError("operator_pilot_proposal_envelope_mismatch", 422);
   }
   assertScope(input.config, proposal.workspace_id, proposal.project_id);
+  let criterionSpecificRelationsSourceBound = false;
+  try {
+    criterionSpecificRelationsSourceBound =
+      assertPersistedRunAssessmentProposalSourceBoundV01(db, proposal);
+  } catch {
+    throw reviewError(
+      "operator_pilot_proposal_relation_source_conflict",
+      422,
+    );
+  }
   assertOperationAwareRevisionRelation(
     db,
     input.config,
@@ -331,6 +343,8 @@ export function readVNextOperatorPilotSemanticReviewV01(
     transition_status:
       transitionReceipts.length > 0 ? "applied" : "not_applied",
     proposal,
+    criterion_specific_relations_source_bound:
+      criterionSpecificRelationsSourceBound,
     candidates: proposal.proposed_deltas.map((candidate, index) => ({
       candidate,
       candidate_fingerprint:

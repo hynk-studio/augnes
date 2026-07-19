@@ -135,7 +135,12 @@ export function SemanticReviewProposalDetail({
       </section>
 
       {proposal.source_assessment ? (
-        <RunAssessmentSnapshot source={proposal.source_assessment} />
+        <RunAssessmentSnapshot
+          source={proposal.source_assessment}
+          criterionRelationsSourceBound={
+            read.criterion_specific_relations_source_bound
+          }
+        />
       ) : null}
 
       {proposal.operation_revision ? (
@@ -544,16 +549,24 @@ export function SemanticReviewProposalDetail({
 
 function RunAssessmentSnapshot({
   source,
+  criterionRelationsSourceBound,
 }: {
   source: EpisodeDeltaProposalSourceAssessmentV01;
+  criterionRelationsSourceBound: boolean;
 }) {
+  const exactRelationsAvailable =
+    criterionRelationsSourceBound &&
+    source.comparison.criterion_specific_relations_available;
+  const taskSuccessStatus = exactRelationsAvailable
+    ? source.comparison.task_success_status
+    : "unknown";
   return (
     <section
       className={styles.panel}
       data-run-assessment-proposal="v0.1"
-      data-task-success-status={source.comparison.task_success_status}
+      data-task-success-status={taskSuccessStatus}
       data-criterion-relations-available={String(
-        source.comparison.criterion_specific_relations_available,
+        exactRelationsAvailable,
       )}
       data-assessment-authoritative="false"
       aria-labelledby="run-assessment-proposal-title"
@@ -565,7 +578,7 @@ function RunAssessmentSnapshot({
         </h2>
       </div>
       <p className={styles.copy} data-execution-task-success="true">
-        Execution {source.observed.execution.status} / task success {source.comparison.task_success_status}
+        Execution {source.observed.execution.status} / task success {taskSuccessStatus}
       </p>
       <dl className={styles.statusGrid}>
         <div><dt>Assessment</dt><dd>{source.assessment.assessment_version}</dd></div>
@@ -574,7 +587,7 @@ function RunAssessmentSnapshot({
         <div>
           <dt>Criterion relations</dt>
           <dd>
-            {source.comparison.criterion_specific_relations_available
+            {exactRelationsAvailable
               ? "exact typed relations available"
               : "unavailable"}
           </dd>
@@ -616,11 +629,17 @@ function RunAssessmentSnapshot({
               <RefCollection title="Opposing refs" refs={criterion.opposing_refs} />
               <RefCollection title="Missing refs" refs={criterion.missing_refs} />
             </div>
-            <h4>{criterionTrustHeadingV01(criterion)}</h4>
+            <h4>{criterionTrustHeadingV01(
+              criterion,
+              exactRelationsAvailable,
+            )}</h4>
             <dl
               className={styles.statusGrid}
               data-criterion-trust="true"
-              data-criterion-trust-scope={criterionTrustScopeV01(criterion)}
+              data-criterion-trust-scope={criterionTrustScopeV01(
+                criterion,
+                exactRelationsAvailable,
+              )}
             >
               {Object.entries(criterion.trust).map(([trustClass, count]) => (
                 <div key={trustClass}>
@@ -712,14 +731,17 @@ function criterionTrustScopeV01(criterion: {
   supporting_refs: ExternalRefV01[];
   opposing_refs: ExternalRefV01[];
   missing_refs: ExternalRefV01[];
-}): "exact_relation" | "criterion_specific_reference" | "task_wide_receipt" {
+}, sourceBoundRelationsAvailable: boolean):
+  | "exact_relation"
+  | "criterion_specific_reference"
+  | "task_wide_receipt" {
   const refs = [
     ...criterion.supporting_refs,
     ...criterion.opposing_refs,
     ...criterion.missing_refs,
   ];
   if (refs.length === 0) return "task_wide_receipt";
-  return refs.every(
+  return sourceBoundRelationsAvailable && refs.every(
     (ref) =>
       ref.compatibility_namespace ===
         CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 &&
@@ -738,8 +760,10 @@ function criterionTrustHeadingV01(criterion: {
   supporting_refs: ExternalRefV01[];
   opposing_refs: ExternalRefV01[];
   missing_refs: ExternalRefV01[];
-}): string {
-  switch (criterionTrustScopeV01(criterion)) {
+}, sourceBoundRelationsAvailable: boolean): string {
+  switch (
+    criterionTrustScopeV01(criterion, sourceBoundRelationsAvailable)
+  ) {
     case "exact_relation":
       return "Exact criterion relation trust";
     case "criterion_specific_reference":

@@ -10,14 +10,19 @@ import {
   LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
 } from "@/lib/vnext/automation/local-project-root-verification-profile";
+import { deriveCriterionVerificationObligationIdV01 } from "@/lib/vnext/criterion-verification-plan";
 import {
   canonicalizeCriterionAssessmentValueV01,
   createCriterionAssessmentFingerprintV01,
   deriveCriterionAssessmentIdV01,
   evaluateCriterionAssessmentV01,
+  formatCriterionRelationRefExternalIdV01,
   isExactCriterionRelationRefV01,
+  parseCriterionRelationRefExternalIdV01,
+  validateCriterionAssessmentAgainstSourcesV01,
   validateCriterionAssessmentV01,
   CriterionAssessmentErrorV01,
+  type CriterionCheckRelationRefIdentityV01,
 } from "@/lib/vnext/criterion-assessment";
 import {
   buildRunReceiptV01,
@@ -66,7 +71,7 @@ export interface CriterionAssessmentConformanceSummaryV01 {
   optional_plan_backward_compatibility_checked: true;
   exact_pass_fail_relation_checked: true;
   incomplete_relation_unknown_checked: true;
-  all_aggregation_and_conflict_checked: true;
+  all_aggregation_failure_semantics_checked: true;
   explicit_constant_applicability_checked: true;
   observed_attested_mixed_basis_checked: true;
   candidate_only_material_excluded_checked: true;
@@ -390,7 +395,7 @@ export function runCriterionAssessmentConformanceV01(): CriterionAssessmentConfo
     optional_plan_backward_compatibility_checked: true,
     exact_pass_fail_relation_checked: true,
     incomplete_relation_unknown_checked: true,
-    all_aggregation_and_conflict_checked: true,
+    all_aggregation_failure_semantics_checked: true,
     explicit_constant_applicability_checked: true,
     observed_attested_mixed_basis_checked: true,
     candidate_only_material_excluded_checked: true,
@@ -523,10 +528,14 @@ function assertTypedCriterionVerificationV01(): void {
   const wrongReceiptRef = wrongCheckReceiptIdentityAssessment.criteria.find(
     (item) => item.criterion === rootCriterion,
   )!.supporting_refs[0]!;
-  wrongReceiptRef.external_id = wrongReceiptRef.external_id.replace(
-    passedRootReceipt.receipt_id,
-    "run-receipt:foreign",
+  const wrongReceiptIdentity = parseCriterionRelationRefExternalIdV01(
+    wrongReceiptRef.external_id,
   );
+  assert(wrongReceiptIdentity?.kind === "check");
+  wrongReceiptRef.external_id = formatCriterionRelationRefExternalIdV01({
+    ...wrongReceiptIdentity,
+    receipt_id: "run-receipt:foreign",
+  });
   assertAssessmentValidationErrorV01(
     wrongCheckReceiptIdentityAssessment,
     "criterion_assessment_relation_check_identity_mismatch",
@@ -535,14 +544,181 @@ function assertTypedCriterionVerificationV01(): void {
   const wrongCriterionRef = wrongCheckCriterionIdentityAssessment.criteria.find(
     (item) => item.criterion === rootCriterion,
   )!.supporting_refs[0]!;
-  wrongCriterionRef.external_id = wrongCriterionRef.external_id.replace(
-    deriveCriterionAssessmentIdV01(rootCriterion),
-    deriveCriterionAssessmentIdV01(manifestBoundCriterion),
+  const wrongCriterionIdentity = parseCriterionRelationRefExternalIdV01(
+    wrongCriterionRef.external_id,
   );
+  assert(wrongCriterionIdentity?.kind === "check");
+  const foreignCriterionId =
+    deriveCriterionAssessmentIdV01(manifestBoundCriterion);
+  wrongCriterionRef.external_id = formatCriterionRelationRefExternalIdV01({
+    ...wrongCriterionIdentity,
+    criterion_id: foreignCriterionId,
+    obligation_id: deriveCriterionVerificationObligationIdV01({
+      criterion_id: foreignCriterionId,
+      check_id: wrongCriterionIdentity.check_id,
+    }),
+  });
   assertAssessmentValidationErrorV01(
     wrongCheckCriterionIdentityAssessment,
     "criterion_assessment_relation_check_identity_mismatch",
   );
+  assert.equal(
+    validateCriterionAssessmentAgainstSourcesV01({
+      packet,
+      receipt: passedRootReceipt,
+      assessment: passedRoot,
+    }).status,
+    "valid",
+  );
+  const exactRelationMutations: Array<{
+    label: string;
+    mutate: (input: {
+      assessment: CriterionAssessmentV01;
+      item: CriterionAssessmentV01["criteria"][number];
+      ref: ExternalRefV01;
+      identity: CriterionCheckRelationRefIdentityV01;
+    }) => void;
+  }> = [
+    {
+      label: "obligation-id",
+      mutate: ({ ref, identity }) => {
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          obligation_id: `criterion-obligation:sha256:${"0".repeat(64)}`,
+        });
+      },
+    },
+    {
+      label: "check-id",
+      mutate: ({ ref, identity }) => {
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          check_id: "project_root_manifest_verified",
+        });
+      },
+    },
+    {
+      label: "relation-direction",
+      mutate: ({ assessment, item, ref, identity }) => {
+        item.supporting_refs = [];
+        ref.ref_type = "criterion_check_opposition";
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          direction: "opposition",
+          residue_status: "failed",
+          relation_material_fingerprint: `sha256:${"1".repeat(64)}`,
+        });
+        item.opposing_refs = [ref];
+        item.status = "unsatisfied";
+        assessment.summary.satisfied -= 1;
+        assessment.summary.unsatisfied += 1;
+      },
+    },
+    {
+      label: "residue-kind",
+      mutate: ({ assessment, item, ref, identity }) => {
+        item.supporting_refs = [];
+        ref.ref_type = "criterion_check_missing";
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          direction: "missing",
+          residue_kind: "skipped_check",
+          residue_status: "skipped",
+          relation_material_fingerprint: `sha256:${"2".repeat(64)}`,
+        });
+        item.missing_refs = [ref];
+        item.status = "unknown";
+        item.basis = "insufficient";
+        assessment.summary.satisfied -= 1;
+        assessment.summary.unknown += 1;
+      },
+    },
+    {
+      label: "check-status",
+      mutate: ({ ref, identity }) => {
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          residue_status: "failed",
+        });
+      },
+    },
+    {
+      label: "basis",
+      mutate: ({ ref, identity }) => {
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          basis: "attested",
+        });
+      },
+    },
+    {
+      label: "relation-material-fingerprint",
+      mutate: ({ ref, identity }) => {
+        ref.external_id = formatCriterionRelationRefExternalIdV01({
+          ...identity,
+          relation_material_fingerprint: `sha256:${"3".repeat(64)}`,
+        });
+      },
+    },
+  ];
+  for (const testCase of exactRelationMutations) {
+    const changed = clone(passedRoot);
+    const item = criterionItemV01(changed, rootCriterion);
+    const ref = item.supporting_refs[0]!;
+    const receiptSourceFingerprint = ref.source_ref;
+    const identity = parseCriterionRelationRefExternalIdV01(ref.external_id);
+    assert(identity?.kind === "check");
+    testCase.mutate({ assessment: changed, item, ref, identity });
+    assert.equal(
+      ref.source_ref,
+      receiptSourceFingerprint,
+      `${testCase.label} must retain the correct receipt source fingerprint`,
+    );
+    changed.assessment_fingerprint =
+      createCriterionAssessmentFingerprintV01(changed);
+    const structural = validateCriterionAssessmentV01(changed);
+    const sourceBound = validateCriterionAssessmentAgainstSourcesV01({
+      packet,
+      receipt: passedRootReceipt,
+      assessment: changed,
+    });
+    assert.equal(
+      sourceBound.status,
+      "blocked",
+      `${testCase.label} must fail source-bound validation`,
+    );
+    assert.equal(
+      structural.status !== "valid" || sourceBound.status === "blocked",
+      true,
+      `${testCase.label} must be refused structurally or by source binding`,
+    );
+  }
+  const canonicalRelationExternalId =
+    passedRootItem.supporting_refs[0]!.external_id;
+  const relationSegments = canonicalRelationExternalId.split("|");
+  const reorderedSegments = [...relationSegments];
+  [reorderedSegments[3], reorderedSegments[4]] = [
+    reorderedSegments[4]!,
+    reorderedSegments[3]!,
+  ];
+  for (const [label, externalId] of [
+    ["truncated", relationSegments.slice(0, -1).join("|")],
+    ["reordered", reorderedSegments.join("|")],
+    ["malformed", `${canonicalRelationExternalId}%`],
+  ] as const) {
+    const malformed = clone(passedRoot);
+    criterionItemV01(malformed, rootCriterion).supporting_refs[0]!.external_id =
+      externalId;
+    assertAssessmentValidationErrorV01(
+      malformed,
+      "criterion_assessment_relation_ref_invalid",
+    );
+    assert.equal(
+      parseCriterionRelationRefExternalIdV01(externalId),
+      null,
+      `${label} relation identifiers must not parse`,
+    );
+  }
 
   const failedRootReceipt = plannedReceiptV01(packet, {
     label: "failed-root",
@@ -610,11 +786,13 @@ function assertTypedCriterionVerificationV01(): void {
     assert.equal(incomplete.supporting_refs.length, 0, incompleteCase.label);
     assert.equal(incomplete.opposing_refs.length, 0, incompleteCase.label);
     assert.equal(incomplete.missing_refs.length, 1, incompleteCase.label);
+    const parsedMissing = parseCriterionRelationRefExternalIdV01(
+      incomplete.missing_refs[0]!.external_id,
+    );
+    assert(parsedMissing?.kind === "check");
     assert.equal(
-      incomplete.missing_refs[0]!.external_id.includes(
-        `:${incompleteCase.expectedResidue}:`,
-      ),
-      true,
+      parsedMissing.residue_status,
+      incompleteCase.expectedResidue,
       `${incompleteCase.label} must preserve its exact missing residue status`,
     );
   }
@@ -646,6 +824,23 @@ function assertTypedCriterionVerificationV01(): void {
   assert.equal(oneMissingItem.supporting_refs.length, 1);
   assert.equal(oneMissingItem.missing_refs.length, 1);
 
+  const oneFailedOneMissingReceipt = plannedReceiptV01(packet, {
+    label: "one-failed-one-missing",
+    checks: [observedCheckV01("project_file_mutation_absent", "failed")],
+  });
+  const oneFailedOneMissingItem = criterionItemV01(
+    evaluateCriterionAssessmentV01({
+      packet,
+      receipt: oneFailedOneMissingReceipt,
+    }),
+    noSideEffectsCriterion,
+  );
+  assert.equal(oneFailedOneMissingItem.status, "unknown");
+  assert.equal(oneFailedOneMissingItem.basis, "insufficient");
+  assert.equal(oneFailedOneMissingItem.supporting_refs.length, 0);
+  assert.equal(oneFailedOneMissingItem.opposing_refs.length, 1);
+  assert.equal(oneFailedOneMissingItem.missing_refs.length, 1);
+
   const allFailedReceipt = plannedReceiptV01(packet, {
     label: "all-two-failed",
     checks: [
@@ -660,24 +855,65 @@ function assertTypedCriterionVerificationV01(): void {
   assert.equal(allFailedItem.status, "unsatisfied");
   assert.equal(allFailedItem.opposing_refs.length, 2);
 
-  const conflictReceipt = plannedReceiptV01(packet, {
-    label: "support-opposition-conflict",
+  const differentObligationPassFailReceipt = plannedReceiptV01(packet, {
+    label: "different-obligation-pass-fail",
     checks: [
       observedCheckV01("project_file_mutation_absent", "passed"),
       observedCheckV01("provider_model_network_absent", "failed"),
     ],
   });
-  const conflictItem = criterionItemV01(
-    evaluateCriterionAssessmentV01({ packet, receipt: conflictReceipt }),
+  const differentObligationPassFailAssessment =
+    evaluateCriterionAssessmentV01({
+      packet,
+      receipt: differentObligationPassFailReceipt,
+    });
+  const differentObligationPassFailItem = criterionItemV01(
+    differentObligationPassFailAssessment,
     noSideEffectsCriterion,
   );
-  assert.equal(conflictItem.status, "unknown");
-  assert.equal(conflictItem.basis, "insufficient");
-  assert.equal(conflictItem.supporting_refs.length, 1);
-  assert.equal(conflictItem.opposing_refs.length, 1);
+  assert.equal(differentObligationPassFailItem.status, "unsatisfied");
+  assert.equal(differentObligationPassFailItem.basis, "observed");
+  assert.equal(differentObligationPassFailItem.supporting_refs.length, 1);
+  assert.equal(differentObligationPassFailItem.opposing_refs.length, 1);
+  assert.equal(differentObligationPassFailItem.missing_refs.length, 0);
   assert.equal(
-    conflictItem.uncertainty.some((value) => value.includes("coexist")),
+    differentObligationPassFailItem.uncertainty.some((value) =>
+      value.includes("passed obligations remain preserved"),
+    ),
     true,
+  );
+
+  const contradictorySameObligation = clone(
+    differentObligationPassFailAssessment,
+  );
+  const contradictoryItem = criterionItemV01(
+    contradictorySameObligation,
+    noSideEffectsCriterion,
+  );
+  const originalSupport = contradictoryItem.supporting_refs[0]!;
+  const parsedSupport = parseCriterionRelationRefExternalIdV01(
+    originalSupport.external_id,
+  );
+  assert(parsedSupport?.kind === "check");
+  const contradictoryRef: ExternalRefV01 = {
+    ...clone(originalSupport),
+    ref_type: "criterion_check_opposition",
+    external_id: formatCriterionRelationRefExternalIdV01({
+      ...parsedSupport,
+      direction: "opposition",
+      residue_status: "failed",
+      relation_material_fingerprint: `sha256:${"f".repeat(64)}`,
+    }),
+  };
+  contradictoryItem.opposing_refs.push(contradictoryRef);
+  contradictoryItem.status = "unknown";
+  contradictoryItem.basis = "insufficient";
+  contradictoryItem.trust.direct_local_observation += 1;
+  contradictorySameObligation.summary.unsatisfied -= 1;
+  contradictorySameObligation.summary.unknown += 1;
+  assertAssessmentValidationErrorV01(
+    contradictorySameObligation,
+    "criterion_assessment_relation_obligation_conflict",
   );
 
   const notApplicableInput = productionPacketInputV01(PROJECT_ID, true);
@@ -720,10 +956,15 @@ function assertTypedCriterionVerificationV01(): void {
     wrongApplicabilityIdentityAssessment.criteria.find(
       (item) => item.criterion === notApplicableItem.criterion,
     )!.supporting_refs[0]!;
-  wrongApplicabilityRef.external_id = wrongApplicabilityRef.external_id.replace(
-    notApplicablePacket.packet_id,
-    "task-context-packet:00000000000000000000000",
+  const wrongApplicabilityIdentity = parseCriterionRelationRefExternalIdV01(
+    wrongApplicabilityRef.external_id,
   );
+  assert(wrongApplicabilityIdentity?.kind === "applicability");
+  wrongApplicabilityRef.external_id =
+    formatCriterionRelationRefExternalIdV01({
+      ...wrongApplicabilityIdentity,
+      packet_id: "task-context-packet:00000000000000000000000",
+    });
   assertAssessmentValidationErrorV01(
     wrongApplicabilityIdentityAssessment,
     "criterion_assessment_relation_applicability_identity_mismatch",
@@ -776,6 +1017,32 @@ function assertTypedCriterionVerificationV01(): void {
   assert.equal(mixedObligationsItem.basis, "mixed");
   assert.equal(mixedObligationsItem.trust.direct_local_observation, 1);
   assert.equal(mixedObligationsItem.trust.host_attestation, 1);
+
+  const mixedPassFailReceipt = plannedReceiptV01(packet, {
+    label: "mixed-pass-fail-obligations",
+    checks: [
+      observedCheckV01("project_file_mutation_absent", "passed"),
+      {
+        check_id: "provider_model_network_absent",
+        status: "failed",
+        basis: "attested",
+      },
+    ],
+  });
+  const mixedPassFailItem = criterionItemV01(
+    evaluateCriterionAssessmentV01({
+      packet,
+      receipt: mixedPassFailReceipt,
+    }),
+    noSideEffectsCriterion,
+  );
+  assert.equal(mixedPassFailItem.status, "unsatisfied");
+  assert.equal(mixedPassFailItem.basis, "mixed");
+  assert.equal(mixedPassFailItem.supporting_refs.length, 1);
+  assert.equal(mixedPassFailItem.opposing_refs.length, 1);
+  assert.equal(mixedPassFailItem.missing_refs.length, 0);
+  assert.equal(mixedPassFailItem.trust.direct_local_observation, 1);
+  assert.equal(mixedPassFailItem.trust.host_attestation, 1);
 
   const candidateOnlyReceipt = plannedReceiptV01(packet, {
     label: "candidate-only",
@@ -1350,7 +1617,15 @@ function assertCriterionCheckRefV01(
   assert.equal(ref.source_ref, receipt.integrity.fingerprint);
   assert.equal(ref.trust_class, trustClass);
   assert.equal(ref.compatibility_namespace, "criterion_exact_check_evaluator.v0.1");
-  assert.equal(ref.external_id.includes(`:${checkId}:${status}:`), true);
+  const parsed = parseCriterionRelationRefExternalIdV01(ref.external_id);
+  assert(parsed?.kind === "check");
+  assert.equal(parsed.receipt_id, receipt.receipt_id);
+  assert.equal(parsed.receipt_fingerprint, receipt.integrity.fingerprint);
+  assert.equal(parsed.run_id, receipt.run_id);
+  assert.equal(parsed.check_id, checkId);
+  assert.equal(parsed.residue_status, status);
+  assert.equal(parsed.trust_class, trustClass);
+  assert.equal(parsed.relation_material_fingerprint.startsWith("sha256:"), true);
 }
 
 function assertInvalidPlanBindingV01(
