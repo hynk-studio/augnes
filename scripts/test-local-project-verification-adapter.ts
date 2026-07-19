@@ -11,12 +11,15 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { genericCliDirectObservationInputFixture } from "@/fixtures/vnext/protocol/run-receipt-v0-1";
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import {
   LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
+  createLocalProjectRootCriterionVerificationPlanV01,
 } from "@/lib/vnext/automation/local-project-root-verification-profile";
+import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
 import {
   MAX_ROOT_ENTRIES_V01,
   createLocalProjectVerificationAdapterV01,
@@ -35,6 +38,11 @@ import {
   materializeValidatedPacketDeliveryCheckV01,
   projectDirectNativeHostActionObservationsV01,
 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
+import {
+  buildRunReceiptV01,
+  validateRunReceiptV01,
+  type RunReceiptBuilderInputV01,
+} from "@/lib/vnext/run-receipt";
 import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -42,6 +50,11 @@ import type {
   NativeHostRequestV01,
   NativeHostResultV01,
 } from "@/types/vnext/native-host-adapter";
+import type {
+  CriterionAssessmentItemV01,
+  CriterionAssessmentStatusV01,
+  CriterionAssessmentV01,
+} from "@/types/vnext/criterion-assessment";
 
 const TEST_AT = "2026-07-19T08:00:00.000Z";
 let root = "";
@@ -62,6 +75,9 @@ async function main(): Promise<void> {
         canonical_manifest_checked: true,
         exact_root_identity_checked: true,
         truthful_terminal_residue_checked: true,
+        typed_criterion_plan_checked: true,
+        relation_aware_production_assessment_checked: true,
+        blocked_cancelled_skipped_unknown_checked: true,
         packet_presentation_egress_separation_checked: true,
       }, null, 2)}\n`,
     );
@@ -179,7 +195,9 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   await mkdir(path.join(projectRoot, "src"));
   const identity = await inspectNativeHostPhysicalRootIdentityV01(projectRoot);
 
-  const completed = await invokeV01(requestV01(projectRoot, identity));
+  const completedRequest = requestV01(projectRoot, identity);
+  assertProductionCriterionVerificationPlanV01(completedRequest);
+  const completed = await invokeV01(completedRequest);
   assert.equal(completed.outcome, "completed");
   assert.deepEqual(
     completed.checks.map((check) => check.check_id).sort(),
@@ -209,11 +227,57 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   assert.equal(JSON.stringify(completed).includes(projectRoot), false);
   assert.equal(JSON.stringify(completed).includes("package.json"), false);
   assertLocalDeliveryV01(completed);
+  const completedAssessment = productionAssessmentV01(
+    completedRequest,
+    completed,
+  );
+  assertProductionAssessmentV01(completedAssessment, {
+    root: "satisfied",
+    bound: "satisfied",
+    manifest: "satisfied",
+    side_effects: "satisfied",
+  });
+  assert.deepEqual(completedAssessment.summary, {
+    satisfied: 4,
+    unsatisfied: 0,
+    unknown: 0,
+    not_applicable: 0,
+  });
+  assert.equal(
+    completedAssessment.criteria.every(
+      (criterion) =>
+        criterion.basis === "observed" &&
+        criterion.supporting_refs.length > 0 &&
+        criterion.opposing_refs.length === 0 &&
+        criterion.missing_refs.length === 0,
+    ),
+    true,
+  );
+  assert.equal(
+    completedAssessment.criteria.every((criterion) =>
+      criterion.supporting_refs.every(
+        (ref) =>
+          ref.ref_type === "criterion_check_support" &&
+          ref.source_ref === completedAssessment.receipt_ref.source_ref &&
+          ref.trust_class === "direct_local_observation",
+      ),
+    ),
+    true,
+  );
+  assert.equal(
+    completedAssessment.criteria.some((criterion) =>
+      [...criterion.supporting_refs, ...criterion.opposing_refs, ...criterion.missing_refs]
+        .some((ref) => ref.external_id.includes("validated_packet_delivery")),
+    ),
+    false,
+    "the unrelated packet-delivery check must not create a criterion relation",
+  );
 
   const preCancelledController = new AbortController();
   preCancelledController.abort();
+  const preCancelledRequest = requestV01(projectRoot, identity);
   const preCancelled = await invokeV01(
-    requestV01(projectRoot, identity),
+    preCancelledRequest,
     undefined,
     preCancelledController.signal,
   );
@@ -225,14 +289,24 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
   );
   assertLocalDeliveryV01(preCancelled);
+  assertProductionAssessmentV01(
+    productionAssessmentV01(preCancelledRequest, preCancelled),
+    {
+      root: "unknown",
+      bound: "unknown",
+      manifest: "unknown",
+      side_effects: "unknown",
+    },
+  );
 
   const duringController = new AbortController();
   const duringFixture = directoryFixtureV01(10, {
     after_read: () => duringController.abort(),
   });
   const duringFilesystem = filesystemV01(async () => duringFixture.handle);
+  const duringCancelledRequest = requestV01(projectRoot, identity);
   const duringCancelled = await invokeV01(
-    requestV01(projectRoot, identity),
+    duringCancelledRequest,
     duringFilesystem,
     duringController.signal,
   );
@@ -247,12 +321,22 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   );
   assert.equal(duringFixture.closed(), true);
   assertLocalDeliveryV01(duringCancelled);
+  assertProductionAssessmentV01(
+    productionAssessmentV01(duringCancelledRequest, duringCancelled),
+    {
+      root: "satisfied",
+      bound: "unknown",
+      manifest: "unknown",
+      side_effects: "unknown",
+    },
+  );
 
   const conflictingIdentity: NativeHostPhysicalRootIdentityV01 = {
     ...identity,
     inode: `${identity.inode}-changed`,
   };
-  const conflict = await invokeV01(requestV01(projectRoot, conflictingIdentity));
+  const conflictRequest = requestV01(projectRoot, conflictingIdentity);
+  const conflict = await invokeV01(conflictRequest);
   assertNegativeResidueV01(conflict, "blocked");
   assert.deepEqual(conflict.observed_actions, [
     "project_root_inspection_started",
@@ -263,10 +347,20 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     "blocked",
   );
   assertLocalDeliveryV01(conflict);
+  assertProductionAssessmentV01(
+    productionAssessmentV01(conflictRequest, conflict),
+    {
+      root: "unknown",
+      bound: "unknown",
+      manifest: "unknown",
+      side_effects: "unknown",
+    },
+  );
 
   const overflow = directoryFixtureV01(MAX_ROOT_ENTRIES_V01 + 1);
+  const overflowRequest = requestV01(projectRoot, identity);
   const overflowResult = await invokeV01(
-    requestV01(projectRoot, identity),
+    overflowRequest,
     filesystemV01(async () => overflow.handle),
   );
   assertNegativeResidueV01(overflowResult, "blocked");
@@ -285,9 +379,19 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     ],
   );
   assertLocalDeliveryV01(overflowResult);
+  assertProductionAssessmentV01(
+    productionAssessmentV01(overflowRequest, overflowResult),
+    {
+      root: "satisfied",
+      bound: "unknown",
+      manifest: "unknown",
+      side_effects: "unknown",
+    },
+  );
 
+  const filesystemFailureRequest = requestV01(projectRoot, identity);
   const filesystemFailure = await invokeV01(
-    requestV01(projectRoot, identity),
+    filesystemFailureRequest,
     filesystemV01(async () => {
       throw new Error("injected_open_failure");
     }),
@@ -307,6 +411,33 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     ],
   );
   assertLocalDeliveryV01(filesystemFailure);
+  const failedAssessment = productionAssessmentV01(
+    filesystemFailureRequest,
+    filesystemFailure,
+  );
+  assertProductionAssessmentV01(failedAssessment, {
+    root: "satisfied",
+    bound: "unknown",
+    manifest: "unsatisfied",
+    side_effects: "unknown",
+  });
+  assert.deepEqual(failedAssessment.summary, {
+    satisfied: 1,
+    unsatisfied: 1,
+    unknown: 2,
+    not_applicable: 0,
+  });
+  const failedManifest = criterionByRoleV01(failedAssessment, "manifest");
+  assert.equal(failedManifest.basis, "observed");
+  assert.equal(failedManifest.supporting_refs.length, 0);
+  assert.equal(failedManifest.opposing_refs.length, 1);
+  assert.equal(failedManifest.missing_refs.length, 0);
+  assert.equal(
+    failedManifest.opposing_refs[0]?.external_id.includes(
+      "project_root_manifest_verified",
+    ),
+    true,
+  );
 
   const replaced = path.join(root, "replaced");
   const replacedPrior = path.join(root, "replaced-prior");
@@ -339,6 +470,330 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
     await invokeV01(requestV01(notDirectory, identity)),
     "blocked",
   );
+}
+
+type ProductionCriterionRoleV01 =
+  | "root"
+  | "bound"
+  | "manifest"
+  | "side_effects";
+
+const PRODUCTION_CRITERION_INDEX_V01 = {
+  root: 0,
+  bound: 1,
+  manifest: 2,
+  side_effects: 3,
+} as const satisfies Record<ProductionCriterionRoleV01, number>;
+
+const PRODUCTION_CRITERION_CHECKS_V01 = {
+  root: ["project_root_scope_verified"],
+  bound: ["project_root_manifest_bound"],
+  manifest: ["project_root_manifest_verified"],
+  side_effects: [
+    "project_file_mutation_absent",
+    "provider_model_network_absent",
+  ],
+} as const satisfies Record<ProductionCriterionRoleV01, readonly string[]>;
+
+function assertProductionCriterionVerificationPlanV01(
+  request: NativeHostRequestV01,
+): void {
+  const expected = createLocalProjectRootCriterionVerificationPlanV01({
+    workspace_id: request.workspace_id,
+    project_id: request.project_id,
+  });
+  assert.deepEqual(request.packet.criterion_verification_plan, expected);
+  assert.deepEqual(
+    expected.criteria.map((entry) => entry.criterion).sort(),
+    [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
+  );
+  for (const role of Object.keys(
+    PRODUCTION_CRITERION_INDEX_V01,
+  ) as ProductionCriterionRoleV01[]) {
+    const criterion =
+      LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria[
+        PRODUCTION_CRITERION_INDEX_V01[role]
+      ];
+    const entry = expected.criteria.find(
+      (candidate) => candidate.criterion === criterion,
+    );
+    assert(entry, `missing production verification entry for ${role}`);
+    assert.deepEqual(
+      entry.obligations.map((obligation) => obligation.check_id).sort(),
+      [...PRODUCTION_CRITERION_CHECKS_V01[role]].sort(),
+    );
+  }
+}
+
+function productionAssessmentV01(
+  request: NativeHostRequestV01,
+  result: NativeHostResultV01,
+): CriterionAssessmentV01 {
+  const adapter = {
+    adapter_version: "local_project_verification_adapter.v0.1",
+    execution_profile: "deterministic_zero_model" as const,
+    provider_egress: "forbidden" as const,
+  };
+  const materialized = materializeValidatedPacketDeliveryCheckV01({
+    adapter,
+    result,
+    adapter_invocation_started: true,
+  });
+  const verifierRef = refV01(
+    "native_host_orchestrator",
+    "local_project_verification_relation_fixture.v0.1",
+    `sha256:${"d".repeat(64)}`,
+  );
+  const fixture = structuredClone(
+    genericCliDirectObservationInputFixture,
+  ) as RunReceiptBuilderInputV01;
+  const requiredChecks = [
+    ...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  ];
+  const checkIds = materialized.checks.map((check) => check.check_id);
+  const failed = materialized.checks.some(
+    (check) => check.required && check.status === "failed",
+  );
+  const allRequiredPassed = requiredChecks.every((checkId) =>
+    materialized.checks.some(
+      (check) => check.check_id === checkId && check.status === "passed",
+    ),
+  );
+  const receiptInput: RunReceiptBuilderInputV01 = {
+    ...fixture,
+    workspace_id: request.workspace_id,
+    project_id: request.project_id,
+    run_id: request.run_id,
+    work_ref: request.work_ref,
+    task_context_packet_ref: request.task_context_packet_ref,
+    recorded_at: materialized.finished_at,
+    started_at: materialized.started_at,
+    finished_at: materialized.finished_at,
+    execution: {
+      status: receiptExecutionStatusV01(materialized.outcome),
+      basis: "observed",
+      source_refs: [verifierRef],
+    },
+    verification: {
+      status: allRequiredPassed
+        ? "passed"
+        : failed
+          ? "failed"
+          : checkIds.length === 0
+            ? "not_run"
+            : "partial",
+      basis: "observed",
+      required_check_ids: requiredChecks,
+      source_refs: [verifierRef],
+    },
+    reporter_ref: verifierRef,
+    observer_refs: [verifierRef],
+    verifier_refs: [verifierRef],
+    host_ref: null,
+    worker_ref: verifierRef,
+    model_invocations: [],
+    execution_environment: {
+      environment_kind: "local",
+      host_ref: null,
+      worker_ref: verifierRef,
+      operating_system: null,
+      runtime_labels: [
+        "local_project_verification_adapter.v0.1",
+        "deterministic_zero_model",
+      ],
+      source_refs: [verifierRef],
+    },
+    observations: materialized.checks.map((check, index) => ({
+      observation_id: `observation:local-verification-check:${index}:${check.check_id}`,
+      observation_kind: "local_project_verification_check_result",
+      summary: check.summary,
+      event_at: materialized.finished_at,
+      observed_at: materialized.finished_at,
+      observer_ref: verifierRef,
+      trust_class: "direct_local_observation",
+      source_refs: [verifierRef],
+      related_command_ids: [],
+      related_check_ids: [check.check_id],
+      related_artifact_refs: [],
+    })),
+    attestations: [],
+    changed_artifacts: [],
+    commands: [],
+    checks: materialized.checks.map((check) => ({
+      ...check,
+      basis: "observed",
+      source_refs: [verifierRef],
+    })),
+    skipped_checks: materialized.skipped_checks.map((check) => ({
+      ...check,
+      basis: "observed",
+      source_refs: [verifierRef],
+    })),
+    external_refs: materialized.artifacts.map(
+      (artifact) => artifact.artifact_ref,
+    ),
+    result_summary: {
+      summary: materialized.summary,
+      outcome: materialized.outcome,
+      limitations: [
+        ...materialized.uncertainty,
+        ...materialized.gaps,
+        "This receipt is execution residue, not accepted Evidence or task acceptance.",
+      ],
+    },
+    blockers:
+      materialized.outcome === "blocked"
+        ? [
+            {
+              code: "local_project_verification_blocked",
+              summary:
+                materialized.public_stop_reason ??
+                "Local project verification was blocked.",
+              source_refs: [verifierRef],
+            },
+          ]
+        : [],
+    warnings: [],
+    gaps: materialized.gaps.map((gap, index) => ({
+      code: `local_project_verification_gap_${index}`,
+      summary: gap,
+      source_refs: [verifierRef],
+    })),
+    privacy_egress: {
+      data_classification: "local_only",
+      egress_status: "did_not_occur",
+      basis: "observed",
+      destination_refs: [],
+      redaction_status: "not_needed",
+      retention_class: "bounded_structured_local_receipt_only",
+      raw_prompt_persisted: false,
+      raw_output_persisted: false,
+      raw_transcript_persisted: false,
+      secret_material_persisted: false,
+      source_refs: [verifierRef],
+      notes: [
+        "The in-process deterministic adapter performed no network, provider, or model call.",
+      ],
+    },
+    cost_usage: {
+      cost_basis: "measured",
+      cost_amount: 0,
+      currency: "USD",
+      usage: {
+        basis: "measured",
+        input_units: 0,
+        output_units: 0,
+        total_units: 0,
+        unit: "model_tokens",
+      },
+      source_refs: [verifierRef],
+    },
+    capability_coverage: materialized.capability_coverage.map((entry) => ({
+      capability: entry.capability,
+      coverage_level:
+        entry.coverage === "unsupported"
+          ? "outside_coverage"
+          : entry.coverage === "host_attested"
+            ? "advisory"
+          : entry.coverage,
+      source_ref: entry.source_ref,
+      notes: [...entry.notes],
+    })),
+    source_refs: [verifierRef, request.task_context_packet_ref],
+    artifact_refs: materialized.artifacts.map(
+      (artifact) => artifact.artifact_ref,
+    ),
+    compatibility: {
+      source_contracts: [
+        "local_project_verification_adapter.v0.1",
+        "criterion_verification_plan.v0.1",
+      ],
+      unmapped_fields: [],
+      warnings: [],
+      external_refs: [],
+    },
+    authority_notes: [
+      "Criterion assessment creates no Evidence, Claim, proposal, decision, Transition, or semantic state.",
+    ],
+  };
+  const receipt = buildRunReceiptV01(receiptInput);
+  const validation = validateRunReceiptV01(receipt);
+  assert.equal(validation.status, "valid", JSON.stringify(validation));
+  assert.equal(receipt.model_invocations.length, 0);
+  assert.equal(receipt.privacy_egress.egress_status, "did_not_occur");
+  assert.equal(receipt.authority_summary.writes_database, false);
+  return evaluateCriterionAssessmentV01({
+    packet: request.packet,
+    receipt,
+  });
+}
+
+function receiptExecutionStatusV01(
+  outcome: NativeHostResultV01["outcome"],
+): RunReceiptBuilderInputV01["execution"]["status"] {
+  if (outcome === "timed_out") return "failed";
+  if (outcome === "unavailable") return "blocked";
+  return outcome;
+}
+
+function assertProductionAssessmentV01(
+  assessment: CriterionAssessmentV01,
+  expected: Record<ProductionCriterionRoleV01, CriterionAssessmentStatusV01>,
+): void {
+  for (const role of Object.keys(expected) as ProductionCriterionRoleV01[]) {
+    const criterion = criterionByRoleV01(assessment, role);
+    assert.equal(criterion.status, expected[role], `${role} status`);
+    const exactChecks = PRODUCTION_CRITERION_CHECKS_V01[role];
+    const relationRefs = [
+      ...criterion.supporting_refs,
+      ...criterion.opposing_refs,
+      ...criterion.missing_refs,
+    ];
+    for (const checkId of exactChecks) {
+      assert.equal(
+        relationRefs.some((ref) => ref.external_id.includes(checkId)),
+        true,
+        `${role} must retain an exact relation ref for ${checkId}`,
+      );
+    }
+    if (criterion.status === "satisfied") {
+      assert.equal(criterion.basis, "observed");
+      assert.equal(criterion.supporting_refs.length, exactChecks.length);
+      assert.equal(criterion.opposing_refs.length, 0);
+      assert.equal(criterion.missing_refs.length, 0);
+    } else if (criterion.status === "unsatisfied") {
+      assert.equal(criterion.basis, "observed");
+      assert.equal(criterion.supporting_refs.length, 0);
+      assert.equal(criterion.opposing_refs.length > 0, true);
+      assert.equal(criterion.missing_refs.length, 0);
+    } else {
+      assert.equal(criterion.basis, "insufficient");
+      assert.equal(criterion.missing_refs.length > 0, true);
+    }
+  }
+  assert.equal(assessment.authority.authoritative, false);
+  assert.equal(assessment.authority.creates_evidence, false);
+  assert.equal(assessment.authority.validates_claims, false);
+  assert.equal(assessment.authority.creates_proposal, false);
+  assert.equal(assessment.authority.creates_decision, false);
+  assert.equal(assessment.authority.applies_transition, false);
+  assert.equal(assessment.authority.changes_semantic_state, false);
+  assert.equal(assessment.authority.changes_later_context, false);
+}
+
+function criterionByRoleV01(
+  assessment: CriterionAssessmentV01,
+  role: ProductionCriterionRoleV01,
+): CriterionAssessmentItemV01 {
+  const expected =
+    LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria[
+      PRODUCTION_CRITERION_INDEX_V01[role]
+    ];
+  const criterion = assessment.criteria.find(
+    (candidate) => candidate.criterion === expected,
+  );
+  assert(criterion, `missing production assessment criterion for ${role}`);
+  return criterion;
 }
 
 function assertLocalDeliveryV01(result: NativeHostResultV01): void {
@@ -517,15 +972,21 @@ function requestV01(
   canonicalRoot: string,
   physicalIdentity: NativeHostPhysicalRootIdentityV01,
 ): NativeHostRequestV01 {
+  const packetInput = structuredClone(genericCliBuilderInputFixture);
   const packet = buildTaskContextPacketV01({
-    ...structuredClone(genericCliBuilderInputFixture),
+    ...packetInput,
     task: structuredClone(LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
     constraints: {
-      ...structuredClone(genericCliBuilderInputFixture.constraints),
+      ...packetInput.constraints,
       required_checks: [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
     },
+    criterion_verification_plan:
+      createLocalProjectRootCriterionVerificationPlanV01({
+        workspace_id: packetInput.workspace_id,
+        project_id: packetInput.project_id,
+      }),
     return_contract: {
-      ...structuredClone(genericCliBuilderInputFixture.return_contract),
+      ...packetInput.return_contract,
       required_checks: [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
       expected_artifacts: [...LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01],
     },

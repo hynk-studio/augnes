@@ -1,5 +1,6 @@
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
+import { CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 } from "@/types/vnext/criterion-verification-plan";
 import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
@@ -480,8 +481,12 @@ function TaskSuccessCriteria({
                 <RefList refs={item.opposing_refs} />
                 <h4>Criterion-specific missing refs ({item.missing_refs.length})</h4>
                 <RefList refs={item.missing_refs} />
-                <h4>Task-wide receipt residue trust classes</h4>
-                <ul className={styles.plainList} data-criterion-trust="true">
+                <h4>{criterionTrustHeadingV01(item)}</h4>
+                <ul
+                  className={styles.plainList}
+                  data-criterion-trust="true"
+                  data-criterion-trust-scope={criterionTrustScopeV01(item)}
+                >
                   {Object.entries(item.trust).map(([trustClass, count]) => (
                     <li key={trustClass}>
                       <strong>{humanize(trustClass)}</strong>
@@ -489,7 +494,7 @@ function TaskSuccessCriteria({
                     </li>
                   ))}
                 </ul>
-                <h4>Task-wide operation coverage</h4>
+                <h4>{criterionCoverageHeadingV01(item)}</h4>
                 {item.operation_coverage.length ? (
                   <ul className={styles.plainList} data-criterion-operation-coverage="true">
                     {item.operation_coverage.map((entry) => (
@@ -505,7 +510,7 @@ function TaskSuccessCriteria({
                     ))}
                   </ul>
                 ) : <p className={styles.empty}>Operation coverage was not recorded.</p>}
-                <h4>Task-wide receipt uncertainty</h4>
+                <h4>{criterionUncertaintyHeadingV01(item)}</h4>
                 <ResultListBody
                   items={item.uncertainty.map((uncertainty) => ({
                     id: uncertainty,
@@ -526,6 +531,67 @@ function TaskSuccessCriteria({
       </p>
     </section>
   );
+}
+
+function criterionTrustScopeV01(item: {
+  supporting_refs: ExternalRefV01[];
+  opposing_refs: ExternalRefV01[];
+  missing_refs: ExternalRefV01[];
+}): "exact_relation" | "criterion_specific_reference" | "task_wide_receipt" {
+  const refs = [
+    ...item.supporting_refs,
+    ...item.opposing_refs,
+    ...item.missing_refs,
+  ];
+  if (refs.length === 0) return "task_wide_receipt";
+  return refs.every(
+    (ref) =>
+      ref.compatibility_namespace ===
+        CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 &&
+      [
+        "criterion_check_support",
+        "criterion_check_opposition",
+        "criterion_check_missing",
+        "criterion_applicability",
+      ].includes(ref.ref_type),
+  )
+    ? "exact_relation"
+    : "criterion_specific_reference";
+}
+
+function criterionTrustHeadingV01(item: {
+  supporting_refs: ExternalRefV01[];
+  opposing_refs: ExternalRefV01[];
+  missing_refs: ExternalRefV01[];
+}): string {
+  switch (criterionTrustScopeV01(item)) {
+    case "exact_relation":
+      return "Exact criterion relation trust";
+    case "criterion_specific_reference":
+      return "Criterion-specific reference trust";
+    case "task_wide_receipt":
+      return "Task-wide receipt residue trust classes";
+  }
+}
+
+function criterionCoverageHeadingV01(item: {
+  supporting_refs: ExternalRefV01[];
+  opposing_refs: ExternalRefV01[];
+  missing_refs: ExternalRefV01[];
+}): string {
+  return criterionTrustScopeV01(item) === "task_wide_receipt"
+    ? "Task-wide operation coverage"
+    : "Recorded operation coverage";
+}
+
+function criterionUncertaintyHeadingV01(item: {
+  supporting_refs: ExternalRefV01[];
+  opposing_refs: ExternalRefV01[];
+  missing_refs: ExternalRefV01[];
+}): string {
+  return criterionTrustScopeV01(item) === "task_wide_receipt"
+    ? "Task-wide receipt uncertainty"
+    : "Assessment uncertainty";
 }
 
 function ReviewableProposal({
@@ -602,8 +668,8 @@ function taskSuccessStatusV01(summary: {
   unknown: number;
   not_applicable: number;
 }): "satisfied" | "unsatisfied" | "unknown" | "not_applicable" {
-  if (summary.unsatisfied > 0) return "unsatisfied";
   if (summary.unknown > 0) return "unknown";
+  if (summary.unsatisfied > 0) return "unsatisfied";
   if (summary.satisfied > 0) return "satisfied";
   return summary.not_applicable > 0 ? "not_applicable" : "unknown";
 }

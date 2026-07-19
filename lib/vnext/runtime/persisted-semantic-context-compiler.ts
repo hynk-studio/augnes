@@ -36,6 +36,8 @@ import {
   buildTaskContextPacketV01,
   validateTaskContextPacketV01,
 } from "@/lib/vnext/task-context-packet";
+import { validateVNextAutomationWorkSourceV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
+import { createLocalProjectRootCriterionVerificationPlanV01 } from "@/lib/vnext/automation/local-project-root-verification-profile";
 import {
   isPersonalPerspectiveSelectedEntryV01,
   selectPersonalPerspectiveContextV01,
@@ -127,6 +129,9 @@ export function compileBoundedAutomationTaskContextPacketV01(
 ): CompileBoundedAutomationTaskContextPacketResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   validatePriorPacket(input.source_packet, input.workspace_id, input.project_id);
+  if (!validateVNextAutomationWorkSourceV01(input.work)) {
+    throw new Error("bounded_automation_packet_work_profile_invalid");
+  }
   if (
     input.work.workspace_id !== input.workspace_id ||
     input.work.project_id !== input.project_id ||
@@ -183,6 +188,11 @@ export function compileBoundedAutomationTaskContextPacketV01(
       ]),
     },
     capability_grant: capabilityGrant,
+    criterion_verification_plan:
+      createLocalProjectRootCriterionVerificationPlanV01({
+        workspace_id: input.workspace_id,
+        project_id: input.project_id,
+      }),
     return_contract: {
       ...input.source_packet.return_contract,
       required_checks: input.work.required_checks,
@@ -800,6 +810,8 @@ function buildLaterPacket(
     gaps: input.prior_packet.gaps,
     constraints: input.prior_packet.constraints,
     capability_grant: input.prior_packet.capability_grant,
+    criterion_verification_plan:
+      input.prior_packet.criterion_verification_plan,
     return_contract: input.prior_packet.return_contract,
     source_status: input.prior_packet.source_status,
     compatibility: {

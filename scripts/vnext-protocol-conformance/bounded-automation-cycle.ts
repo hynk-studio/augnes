@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 
+import Database from "better-sqlite3";
+
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import {
   buildBoundedAutomationCapabilityGrantV01,
@@ -14,7 +16,13 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { createVNextAutomationWorkSourceV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
+import {
+  createAutomationWorkRefV01,
+  createBoundedAutomationGrantRefV01,
+  createVNextAutomationWorkSourceV01,
+} from "@/lib/vnext/persistence/bounded-automation-authority";
+import { ensureVNextDurableSemanticStoreSchemaV01 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { compileBoundedAutomationTaskContextPacketV01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { TaskContextPacketBuilderInputV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -25,6 +33,7 @@ import {
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+  createLocalProjectRootCriterionVerificationPlanV01,
 } from "@/lib/vnext/automation/local-project-root-verification-profile";
 
 const ISSUED_AT = "2026-07-19T00:00:00.000Z";
@@ -198,6 +207,66 @@ export function runBoundedAutomationCycleConformanceV01() {
   );
   assert.equal(grant.grants_semantic_authority, false);
   assert.equal(grant.grants_external_action_authority, false);
+
+  const database = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(database);
+    const compiled = compileBoundedAutomationTaskContextPacketV01(database, {
+      workspace_id: packet.workspace_id,
+      project_id: packet.project_id,
+      source_packet: packet,
+      work,
+      grant,
+      work_ref: createAutomationWorkRefV01(work),
+      grant_ref: createBoundedAutomationGrantRefV01(grant),
+      generated_at: ISSUED_AT,
+    });
+    const exactPlan = createLocalProjectRootCriterionVerificationPlanV01({
+      workspace_id: packet.workspace_id,
+      project_id: packet.project_id,
+    });
+    assert.deepEqual(
+      compiled.packet.criterion_verification_plan,
+      exactPlan,
+      "the production compiler must persist the exact server-owned criterion/check plan before host execution",
+    );
+    assert.equal(exactPlan.criteria.length, 4);
+    assert.deepEqual(
+      exactPlan.criteria.map((entry) => entry.criterion).sort(),
+      [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
+    );
+    assert.deepEqual(
+      exactPlan.criteria
+        .flatMap((entry) => entry.obligations.map((obligation) => obligation.check_id))
+        .sort(),
+      [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01].sort(),
+    );
+    assert.equal(
+      exactPlan.criteria.every(
+        (entry) =>
+          entry.applicability.value === "applicable" &&
+          entry.aggregation === "all" &&
+          entry.missing_policy === "unknown" &&
+          entry.failed_policy === "unsatisfied" &&
+          entry.conflict_policy === "unknown",
+      ),
+      true,
+    );
+    assert.deepEqual(exactPlan.authority, {
+      server_owned_profile: true,
+      grants_execution_authority: false,
+      grants_external_side_effect_authority: false,
+      creates_evidence: false,
+      validates_claims: false,
+      creates_proposal: false,
+      creates_decision: false,
+      applies_transition: false,
+      changes_semantic_state: false,
+      changes_later_context: false,
+    });
+  } finally {
+    database.close();
+  }
   for (const forbidden of [
     "credential_access",
     "deploy",
@@ -233,6 +302,7 @@ export function runBoundedAutomationCycleConformanceV01() {
     max_attempts: grant.budget.max_attempts,
     model_calls: grant.budget.max_augnes_model_invocations,
     network: grant.budget.network_access,
+    typed_criterion_plan: "four_criteria_five_exact_checks",
   };
 }
 

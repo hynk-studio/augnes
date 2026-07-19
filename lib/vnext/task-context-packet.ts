@@ -13,6 +13,24 @@ import {
   validateDuplicateExternalRefsPrimitiveV01,
   validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
+import { deriveCriterionIdentityV01 } from "@/lib/vnext/criterion-identity";
+import {
+  deriveCriterionVerificationObligationIdV01,
+  normalizeCriterionVerificationPlanV01,
+} from "@/lib/vnext/criterion-verification-plan";
+import {
+  CRITERION_VERIFICATION_CONCLUSIVE_TRUST_CLASSES_V01,
+  CRITERION_VERIFICATION_EVALUATOR_VERSION_V01,
+  CRITERION_VERIFICATION_MAX_CRITERIA_V01,
+  CRITERION_VERIFICATION_MAX_OBLIGATIONS_PER_CRITERION_V01,
+  CRITERION_VERIFICATION_MAX_TEXT_CHARACTERS_V01,
+  CRITERION_VERIFICATION_PLAN_VERSION_V01,
+  CRITERION_VERIFICATION_PROFILE_VERSION_V01,
+  LOCAL_PROJECT_ROOT_CRITERION_CHECK_BINDINGS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_ADMITTED_CHECK_IDS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_OPERATION_PROFILE_V01,
+  type CriterionVerificationPlanV01,
+} from "@/types/vnext/criterion-verification-plan";
 import {
   TASK_CONTEXT_PACKET_CANONICALIZATION_V01,
   TASK_CONTEXT_PACKET_CURRENTNESS_STATUSES_V01,
@@ -122,6 +140,7 @@ const allowedRootKeys = new Set([
   "gaps",
   "constraints",
   "capability_grant",
+  "criterion_verification_plan",
   "return_contract",
   "authority_summary",
   "source_status",
@@ -166,6 +185,7 @@ export interface TaskContextPacketBuilderInputV01 {
     context_budget?: Partial<TaskContextPacketContextBudgetV01> | null;
   };
   capability_grant?: TaskContextPacketBoundedCapabilitySummaryV01 | null;
+  criterion_verification_plan?: CriterionVerificationPlanV01;
   return_contract: TaskContextPacketReturnContractV01;
   source_status: TaskContextPacketSourceStatusV01;
   compatibility: TaskContextPacketCompatibilityMetadataV01;
@@ -279,6 +299,9 @@ export function buildTaskContextPacketV01(
   const authoritySummary = createTaskContextPacketAuthoritySummaryV01(
     input.authority_notes,
   );
+  const criterionVerificationPlan = input.criterion_verification_plan
+    ? normalizeCriterionVerificationPlanV01(input.criterion_verification_plan)
+    : undefined;
   const packetWithPendingIdentity: TaskContextPacketV01 = {
     packet_version: TASK_CONTEXT_PACKET_VERSION_V01,
     packet_id: PENDING_PACKET_ID,
@@ -303,6 +326,9 @@ export function buildTaskContextPacketV01(
       context_budget: contextBudget,
     },
     capability_grant: capabilityGrant,
+    ...(criterionVerificationPlan
+      ? { criterion_verification_plan: criterionVerificationPlan }
+      : {}),
     return_contract: returnContract,
     authority_summary: authoritySummary,
     source_status: sourceStatus,
@@ -554,6 +580,7 @@ export function validateTaskContextPacketV01(
     accumulator,
   );
   validateReturnContractV01(input.return_contract, accumulator);
+  validateCriterionVerificationPlanV01(input, accumulator);
   validateAuthoritySummaryV01(input.authority_summary, accumulator);
   validateSourceStatusV01(input.source_status, accumulator);
   validateCompatibilityV01(input.compatibility, accumulator);
@@ -808,6 +835,564 @@ function validateTaskV01(input: unknown, accumulator: ValidationAccumulator) {
     accumulator,
   );
   requireStringArray(input.non_goals, "$.task.non_goals", accumulator);
+}
+
+function validateCriterionVerificationPlanV01(
+  packet: JsonRecord,
+  accumulator: ValidationAccumulator,
+) {
+  const input = packet.criterion_verification_plan;
+  if (input === undefined) return;
+  const path = "$.criterion_verification_plan";
+  if (!isRecord(input)) {
+    addError(
+      accumulator,
+      "criterion_verification_plan_malformed",
+      path,
+      "criterion_verification_plan must be an object when present.",
+      true,
+    );
+    return;
+  }
+  rejectUnknownKeysV01(
+    input,
+    new Set([
+      "plan_version",
+      "profile_version",
+      "evaluator_version",
+      "operation_profile",
+      "workspace_id",
+      "project_id",
+      "criteria",
+      "authority",
+    ]),
+    path,
+    accumulator,
+    "criterion_verification_plan_unknown_field",
+    true,
+  );
+  for (const [field, expected] of [
+    ["plan_version", CRITERION_VERIFICATION_PLAN_VERSION_V01],
+    ["profile_version", CRITERION_VERIFICATION_PROFILE_VERSION_V01],
+    ["evaluator_version", CRITERION_VERIFICATION_EVALUATOR_VERSION_V01],
+    [
+      "operation_profile",
+      LOCAL_PROJECT_ROOT_VERIFICATION_OPERATION_PROFILE_V01,
+    ],
+  ] as const) {
+    if (input[field] !== expected) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_version_invalid",
+        `${path}.${field}`,
+        `${field} must equal the supported server-owned exact-check profile value.`,
+        true,
+      );
+    }
+  }
+  validateBoundedCanonicalPlanTextV01(
+    input.workspace_id,
+    `${path}.workspace_id`,
+    accumulator,
+  );
+  validateBoundedCanonicalPlanTextV01(
+    input.project_id,
+    `${path}.project_id`,
+    accumulator,
+  );
+  if (input.workspace_id !== packet.workspace_id) {
+    addError(
+      accumulator,
+      "criterion_verification_plan_workspace_mismatch",
+      `${path}.workspace_id`,
+      "Verification plan workspace must exactly match its containing packet.",
+      true,
+    );
+  }
+  if (input.project_id !== packet.project_id) {
+    addError(
+      accumulator,
+      "criterion_verification_plan_project_mismatch",
+      `${path}.project_id`,
+      "Verification plan project must exactly match its containing packet.",
+      true,
+    );
+  }
+
+  const task = jsonRecord(packet.task);
+  const packetCriteria = new Set(
+    Array.isArray(task?.success_criteria)
+      ? task.success_criteria.map(normalizeText).filter(Boolean)
+      : [],
+  );
+  const constraints = jsonRecord(packet.constraints);
+  const returnContract = jsonRecord(packet.return_contract);
+  const constraintChecks = new Set(
+    Array.isArray(constraints?.required_checks)
+      ? constraints.required_checks.map(normalizeText).filter(Boolean)
+      : [],
+  );
+  const returnChecks = new Set(
+    Array.isArray(returnContract?.required_checks)
+      ? returnContract.required_checks.map(normalizeText).filter(Boolean)
+      : [],
+  );
+  const admittedProfileChecks = new Set<string>(
+    LOCAL_PROJECT_ROOT_VERIFICATION_ADMITTED_CHECK_IDS_V01,
+  );
+  const profileBindings = new Map<string, ReadonlySet<string>>(
+    LOCAL_PROJECT_ROOT_CRITERION_CHECK_BINDINGS_V01.map((binding) => [
+      normalizeText(binding.criterion),
+      new Set<string>(binding.check_ids),
+    ]),
+  );
+  if (
+    !Array.isArray(input.criteria) ||
+    input.criteria.length === 0 ||
+    input.criteria.length > CRITERION_VERIFICATION_MAX_CRITERIA_V01
+  ) {
+    addError(
+      accumulator,
+      "criterion_verification_plan_criteria_invalid",
+      `${path}.criteria`,
+      `criteria must contain between 1 and ${CRITERION_VERIFICATION_MAX_CRITERIA_V01} bounded entries.`,
+      true,
+    );
+  }
+  const criterionIds = new Set<string>();
+  const criterionTexts = new Set<string>();
+  for (const [index, value] of (
+    Array.isArray(input.criteria) ? input.criteria : []
+  ).entries()) {
+    const entryPath = `${path}.criteria[${index}]`;
+    if (!isRecord(value)) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_entry_malformed",
+        entryPath,
+        "Verification plan criterion entry must be an object.",
+        true,
+      );
+      continue;
+    }
+    rejectUnknownKeysV01(
+      value,
+      new Set([
+        "criterion_id",
+        "criterion",
+        "applicability",
+        "aggregation",
+        "required_basis",
+        "admitted_trust_classes",
+        "obligations",
+        "missing_policy",
+        "failed_policy",
+        "conflict_policy",
+      ]),
+      entryPath,
+      accumulator,
+      "criterion_verification_plan_entry_unknown_field",
+      true,
+    );
+    const criterion = validateBoundedCanonicalPlanTextV01(
+      value.criterion,
+      `${entryPath}.criterion`,
+      accumulator,
+    );
+    const criterionId = validateBoundedCanonicalPlanTextV01(
+      value.criterion_id,
+      `${entryPath}.criterion_id`,
+      accumulator,
+    );
+    if (criterion) {
+      if (!packetCriteria.has(criterion)) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_criterion_missing",
+          `${entryPath}.criterion`,
+          "A planned criterion must exactly match normalized packet criterion text.",
+          true,
+        );
+      }
+      if (!profileBindings.has(criterion)) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_profile_criterion_invalid",
+          `${entryPath}.criterion`,
+          "The server-owned operation profile does not admit this criterion binding.",
+          true,
+        );
+      }
+      if (criterionTexts.has(criterion)) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_criterion_duplicate",
+          `${entryPath}.criterion`,
+          "A criterion may appear only once in a verification plan.",
+          true,
+        );
+      }
+      criterionTexts.add(criterion);
+    }
+    if (criterionId) {
+      if (criterion && deriveCriterionIdentityV01(criterion) !== criterionId) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_criterion_identity_mismatch",
+          `${entryPath}.criterion_id`,
+          "criterion_id must be derived from the exact normalized criterion text.",
+          true,
+        );
+      }
+      if (criterionIds.has(criterionId)) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_criterion_identity_duplicate",
+          `${entryPath}.criterion_id`,
+          "A criterion identity may appear only once in a verification plan.",
+          true,
+        );
+      }
+      criterionIds.add(criterionId);
+    }
+
+    const applicability = value.applicability;
+    if (!isRecord(applicability)) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_applicability_malformed",
+        `${entryPath}.applicability`,
+        "applicability must be an explicit constant rule.",
+        true,
+      );
+    } else {
+      rejectUnknownKeysV01(
+        applicability,
+        new Set(["rule", "value"]),
+        `${entryPath}.applicability`,
+        accumulator,
+        "criterion_verification_plan_applicability_unknown_field",
+        true,
+      );
+      if (
+        applicability.rule !== "constant" ||
+        !["applicable", "not_applicable"].includes(
+          String(applicability.value),
+        )
+      ) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_applicability_invalid",
+          `${entryPath}.applicability`,
+          "SR-1 applicability must be an explicit applicable/not_applicable constant.",
+          true,
+        );
+      }
+    }
+    for (const [field, expected] of [
+      ["aggregation", "all"],
+      ["missing_policy", "unknown"],
+      ["failed_policy", "unsatisfied"],
+      ["conflict_policy", "unknown"],
+    ] as const) {
+      if (value[field] !== expected) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_policy_invalid",
+          `${entryPath}.${field}`,
+          `${field} must remain ${expected} for the SR-1 exact-check evaluator.`,
+          true,
+        );
+      }
+    }
+    const requiredBasis = stringValue(value.required_basis);
+    if (
+      !requiredBasis ||
+      !["observed", "attested", "observed_or_attested"].includes(
+        requiredBasis,
+      )
+    ) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_required_basis_invalid",
+        `${entryPath}.required_basis`,
+        "required_basis must use the bounded observed/attested policy.",
+        true,
+      );
+    }
+    const admittedTrust = Array.isArray(value.admitted_trust_classes)
+      ? value.admitted_trust_classes
+      : [];
+    const admittedTrustSet = new Set<string>();
+    if (admittedTrust.length === 0) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_trust_missing",
+        `${entryPath}.admitted_trust_classes`,
+        "At least one conclusive server-admitted trust class is required.",
+        true,
+      );
+    }
+    for (const [trustIndex, trustValue] of admittedTrust.entries()) {
+      const trustPath = `${entryPath}.admitted_trust_classes[${trustIndex}]`;
+      const trust = stringValue(trustValue);
+      if (
+        !trust ||
+        !CRITERION_VERIFICATION_CONCLUSIVE_TRUST_CLASSES_V01.includes(
+          trust as (typeof CRITERION_VERIFICATION_CONCLUSIVE_TRUST_CLASSES_V01)[number],
+        )
+      ) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_trust_invalid",
+          trustPath,
+          "Only direct, verified, or host-attested trust may be conclusive.",
+          true,
+        );
+        continue;
+      }
+      if (admittedTrustSet.has(trust)) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_trust_duplicate",
+          trustPath,
+          "Admitted trust classes must be unique.",
+          true,
+        );
+      }
+      admittedTrustSet.add(trust);
+    }
+    const observedTrustPresent =
+      admittedTrustSet.has("direct_local_observation") ||
+      admittedTrustSet.has("verified_external_observation");
+    const attestedTrustPresent = admittedTrustSet.has("host_attestation");
+    if (
+      (requiredBasis === "observed" &&
+        (!observedTrustPresent || attestedTrustPresent)) ||
+      (requiredBasis === "attested" &&
+        (!attestedTrustPresent || observedTrustPresent)) ||
+      (requiredBasis === "observed_or_attested" &&
+        !observedTrustPresent &&
+        !attestedTrustPresent)
+    ) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_basis_trust_conflict",
+        `${entryPath}.admitted_trust_classes`,
+        "Admitted trust classes must exactly respect the declared required basis boundary.",
+        true,
+      );
+    }
+
+    const obligations = Array.isArray(value.obligations)
+      ? value.obligations
+      : [];
+    if (
+      obligations.length === 0 ||
+      obligations.length >
+        CRITERION_VERIFICATION_MAX_OBLIGATIONS_PER_CRITERION_V01
+    ) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_obligations_invalid",
+        `${entryPath}.obligations`,
+        `obligations must contain between 1 and ${CRITERION_VERIFICATION_MAX_OBLIGATIONS_PER_CRITERION_V01} exact checks.`,
+        true,
+      );
+    }
+    const obligationIds = new Set<string>();
+    const obligationChecks = new Set<string>();
+    for (const [obligationIndex, obligationValue] of obligations.entries()) {
+      const obligationPath = `${entryPath}.obligations[${obligationIndex}]`;
+      if (!isRecord(obligationValue)) {
+        addError(
+          accumulator,
+          "criterion_verification_plan_obligation_malformed",
+          obligationPath,
+          "Exact-check obligation must be an object.",
+          true,
+        );
+        continue;
+      }
+      rejectUnknownKeysV01(
+        obligationValue,
+        new Set(["obligation_id", "check_id", "expected_status"]),
+        obligationPath,
+        accumulator,
+        "criterion_verification_plan_obligation_unknown_field",
+        true,
+      );
+      const obligationId = validateBoundedCanonicalPlanTextV01(
+        obligationValue.obligation_id,
+        `${obligationPath}.obligation_id`,
+        accumulator,
+      );
+      const checkId = validateBoundedCanonicalPlanTextV01(
+        obligationValue.check_id,
+        `${obligationPath}.check_id`,
+        accumulator,
+      );
+      if (obligationValue.expected_status !== "passed") {
+        addError(
+          accumulator,
+          "criterion_verification_plan_expected_status_invalid",
+          `${obligationPath}.expected_status`,
+          "SR-1 exact-check obligations must expect passed.",
+          true,
+        );
+      }
+      if (obligationId) {
+        if (
+          criterionId &&
+          checkId &&
+          deriveCriterionVerificationObligationIdV01({
+            criterion_id: criterionId,
+            check_id: checkId,
+          }) !== obligationId
+        ) {
+          addError(
+            accumulator,
+            "criterion_verification_plan_obligation_identity_mismatch",
+            `${obligationPath}.obligation_id`,
+            "obligation_id must bind the exact criterion and check identities.",
+            true,
+          );
+        }
+        if (obligationIds.has(obligationId)) {
+          addError(
+            accumulator,
+            "criterion_verification_plan_obligation_duplicate",
+            `${obligationPath}.obligation_id`,
+            "Obligation identities must be unique within a criterion.",
+            true,
+          );
+        }
+        obligationIds.add(obligationId);
+      }
+      if (checkId) {
+        if (obligationChecks.has(checkId)) {
+          addError(
+            accumulator,
+            "criterion_verification_plan_check_duplicate",
+            `${obligationPath}.check_id`,
+            "A check may bind only one obligation within a criterion.",
+            true,
+          );
+        }
+        obligationChecks.add(checkId);
+        if (!admittedProfileChecks.has(checkId)) {
+          addError(
+            accumulator,
+            "criterion_verification_plan_check_not_admitted",
+            `${obligationPath}.check_id`,
+            "The server-owned operation profile does not admit this exact check.",
+            true,
+          );
+        }
+        if (!constraintChecks.has(checkId) || !returnChecks.has(checkId)) {
+          addError(
+            accumulator,
+            "criterion_verification_plan_check_not_packet_admitted",
+            `${obligationPath}.check_id`,
+            "The exact check must be admitted by both packet required-check contracts.",
+            true,
+          );
+        }
+      }
+    }
+    const expectedChecks = criterion
+      ? profileBindings.get(criterion)
+      : undefined;
+    if (
+      expectedChecks &&
+      (expectedChecks.size !== obligationChecks.size ||
+        [...expectedChecks].some((checkId) => !obligationChecks.has(checkId)))
+    ) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_profile_binding_mismatch",
+        `${entryPath}.obligations`,
+        "Criterion obligations must exactly match the server-owned operation profile binding.",
+        true,
+      );
+    }
+  }
+  validateCriterionVerificationPlanAuthorityV01(
+    input.authority,
+    `${path}.authority`,
+    accumulator,
+  );
+}
+
+function validateBoundedCanonicalPlanTextV01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+): string | null {
+  const normalized = normalizeText(value);
+  if (
+    !normalized ||
+    value !== normalized ||
+    normalized.length > CRITERION_VERIFICATION_MAX_TEXT_CHARACTERS_V01
+  ) {
+    addError(
+      accumulator,
+      "criterion_verification_plan_text_invalid",
+      path,
+      `Plan text must be non-empty, normalized, and at most ${CRITERION_VERIFICATION_MAX_TEXT_CHARACTERS_V01} characters.`,
+      true,
+    );
+    return null;
+  }
+  return normalized;
+}
+
+function validateCriterionVerificationPlanAuthorityV01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+) {
+  if (!isRecord(value)) {
+    addError(
+      accumulator,
+      "criterion_verification_plan_authority_malformed",
+      path,
+      "Verification plan authority boundary must be an object.",
+      true,
+    );
+    return;
+  }
+  const expected = {
+    server_owned_profile: true,
+    grants_execution_authority: false,
+    grants_external_side_effect_authority: false,
+    creates_evidence: false,
+    validates_claims: false,
+    creates_proposal: false,
+    creates_decision: false,
+    applies_transition: false,
+    changes_semantic_state: false,
+    changes_later_context: false,
+  } as const;
+  rejectUnknownKeysV01(
+    value,
+    new Set(Object.keys(expected)),
+    path,
+    accumulator,
+    "criterion_verification_plan_authority_unknown_field",
+    true,
+  );
+  for (const [field, expectedValue] of Object.entries(expected)) {
+    if (value[field] !== expectedValue) {
+      addError(
+        accumulator,
+        "criterion_verification_plan_authority_invalid",
+        `${path}.${field}`,
+        `${field} must remain ${String(expectedValue)}.`,
+        true,
+      );
+    }
+  }
 }
 
 function validateSelectedContextV01(

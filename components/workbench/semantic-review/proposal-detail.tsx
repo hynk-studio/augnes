@@ -1,5 +1,6 @@
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { EpisodeDeltaProposalSourceAssessmentV01 } from "@/types/vnext/episode-delta-proposal";
+import { CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 } from "@/types/vnext/criterion-verification-plan";
 
 import { DurableLineagePanel } from "./durable-lineage-panel";
 import { ContextUseReviewForm } from "./context-use-review-form";
@@ -551,6 +552,9 @@ function RunAssessmentSnapshot({
       className={styles.panel}
       data-run-assessment-proposal="v0.1"
       data-task-success-status={source.comparison.task_success_status}
+      data-criterion-relations-available={String(
+        source.comparison.criterion_specific_relations_available,
+      )}
       data-assessment-authoritative="false"
       aria-labelledby="run-assessment-proposal-title"
     >
@@ -567,7 +571,14 @@ function RunAssessmentSnapshot({
         <div><dt>Assessment</dt><dd>{source.assessment.assessment_version}</dd></div>
         <div><dt>Verification</dt><dd>{source.observed.verification.status}</dd></div>
         <div><dt>Relation policy</dt><dd>explicit protocol relations only</dd></div>
-        <div><dt>Criterion relations</dt><dd>unavailable</dd></div>
+        <div>
+          <dt>Criterion relations</dt>
+          <dd>
+            {source.comparison.criterion_specific_relations_available
+              ? "exact typed relations available"
+              : "unavailable"}
+          </dd>
+        </div>
       </dl>
       <div className={styles.twoColumnGrid}>
         <section className={styles.materialCard}>
@@ -600,6 +611,33 @@ function RunAssessmentSnapshot({
             <small>
               {criterion.supporting_refs.length} supporting refs · {criterion.opposing_refs.length} opposing refs · {criterion.missing_refs.length} criterion-specific missing refs
             </small>
+            <div className={styles.provenanceGrid} data-criterion-relation-refs="true">
+              <RefCollection title="Supporting refs" refs={criterion.supporting_refs} />
+              <RefCollection title="Opposing refs" refs={criterion.opposing_refs} />
+              <RefCollection title="Missing refs" refs={criterion.missing_refs} />
+            </div>
+            <h4>{criterionTrustHeadingV01(criterion)}</h4>
+            <dl
+              className={styles.statusGrid}
+              data-criterion-trust="true"
+              data-criterion-trust-scope={criterionTrustScopeV01(criterion)}
+            >
+              {Object.entries(criterion.trust).map(([trustClass, count]) => (
+                <div key={trustClass}>
+                  <dt>{trustClass.replaceAll("_", " ")}</dt>
+                  <dd>{count}</dd>
+                </div>
+              ))}
+            </dl>
+            <TextCollection
+              title="Operation coverage"
+              items={criterion.operation_coverage.map(
+                (entry) =>
+                  `${entry.capability}: ${entry.coverage_level}${
+                    entry.notes.length > 0 ? ` — ${entry.notes.join("; ")}` : ""
+                  }`,
+              )}
+            />
             <TextCollection title="Uncertainty" items={criterion.uncertainty} />
           </li>
         ))}
@@ -668,6 +706,47 @@ function RunAssessmentSnapshot({
       </p>
     </section>
   );
+}
+
+function criterionTrustScopeV01(criterion: {
+  supporting_refs: ExternalRefV01[];
+  opposing_refs: ExternalRefV01[];
+  missing_refs: ExternalRefV01[];
+}): "exact_relation" | "criterion_specific_reference" | "task_wide_receipt" {
+  const refs = [
+    ...criterion.supporting_refs,
+    ...criterion.opposing_refs,
+    ...criterion.missing_refs,
+  ];
+  if (refs.length === 0) return "task_wide_receipt";
+  return refs.every(
+    (ref) =>
+      ref.compatibility_namespace ===
+        CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 &&
+      [
+        "criterion_check_support",
+        "criterion_check_opposition",
+        "criterion_check_missing",
+        "criterion_applicability",
+      ].includes(ref.ref_type),
+  )
+    ? "exact_relation"
+    : "criterion_specific_reference";
+}
+
+function criterionTrustHeadingV01(criterion: {
+  supporting_refs: ExternalRefV01[];
+  opposing_refs: ExternalRefV01[];
+  missing_refs: ExternalRefV01[];
+}): string {
+  switch (criterionTrustScopeV01(criterion)) {
+    case "exact_relation":
+      return "Exact criterion relation trust";
+    case "criterion_specific_reference":
+      return "Criterion-specific reference trust";
+    case "task_wide_receipt":
+      return "Task-wide receipt residue trust";
+  }
 }
 
 function ProvenanceLane({

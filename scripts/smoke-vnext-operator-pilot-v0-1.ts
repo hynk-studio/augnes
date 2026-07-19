@@ -114,6 +114,7 @@ import {
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
   LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+  createLocalProjectRootCriterionVerificationPlanV01,
 } from "../lib/vnext/automation/local-project-root-verification-profile";
 import {
   createCodexAppServerAdapterV01,
@@ -6489,6 +6490,14 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           automationPacketPayload.capability_grant?.grant_external_ref?.source_ref,
           boundedGrant.grant_fingerprint,
         );
+        assert.deepEqual(
+          automationPacketPayload.criterion_verification_plan,
+          createLocalProjectRootCriterionVerificationPlanV01({
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          "bounded automation must persist the exact server-owned criterion plan before adapter execution",
+        );
         assert.equal(
           (runDb.prepare(
             `SELECT COUNT(*) AS count FROM autonomy_run_events
@@ -6512,6 +6521,25 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         assert.equal(detail.summary.mode, "policy_triggered");
         assert.equal(detail.automation?.stopped_at_review_needed, true);
         assert.equal(detail.automation?.budget.max_augnes_model_invocations, 0);
+        assert.equal(detail.criterion_assessment.status, "available");
+        if (detail.criterion_assessment.status === "available") {
+          assert.deepEqual(detail.criterion_assessment.assessment.summary, {
+            satisfied: 0,
+            unsatisfied: 0,
+            unknown: 4,
+            not_applicable: 0,
+          });
+          assert.equal(
+            detail.criterion_assessment.assessment.criteria.every(
+              (criterion) =>
+                criterion.status === "unknown" &&
+                criterion.basis === "insufficient" &&
+                criterion.missing_refs.length > 0,
+            ),
+            true,
+            "the deterministic adapter's skipped production checks must remain unknown",
+          );
+        }
         assert.equal(detail.proposal.status, "available");
         const policyFeedbackHome = await readProjectHomeProjectionV01(
           runDb,
@@ -6798,6 +6826,28 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         assert(receiptRecord);
         const receipt = receiptRecord.payload as RunReceiptV01;
         productReceipt = receipt;
+        const productPacketRef = receipt.task_context_packet_ref;
+        assert(productPacketRef?.source_ref);
+        const productionPacketRecord = readVNextCoreRecordV01(resultDb, {
+          ...config,
+          record_kind: "task_context_packet",
+          record_id: productPacketRef.external_id,
+        });
+        assert(productionPacketRecord);
+        const productionPacket =
+          productionPacketRecord.payload as TaskContextPacketV01;
+        assert.equal(
+          productionPacket.integrity.fingerprint,
+          productPacketRef.source_ref,
+        );
+        assert.deepEqual(
+          productionPacket.criterion_verification_plan,
+          createLocalProjectRootCriterionVerificationPlanV01({
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          }),
+          "the persisted product packet must carry the exact server-owned four-criterion/five-check plan",
+        );
         assert.equal(receipt.execution.status, "completed");
         assert.equal(receipt.commands.length, 0);
         assert.equal(receipt.changed_artifacts.length, 0);
@@ -6899,14 +6949,64 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           receipt_id: receipt.receipt_id,
         });
         assert.equal(detail.criterion_assessment.status, "available");
-        assert.deepEqual(
-          detail.criterion_assessment.status === "available"
-            ? detail.criterion_assessment.assessment.criteria
-                .map((criterion) => criterion.criterion)
-                .sort()
-            : [],
-          [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
-        );
+        if (detail.criterion_assessment.status === "available") {
+          const assessment = detail.criterion_assessment.assessment;
+          assert.deepEqual(
+            assessment.criteria.map((criterion) => criterion.criterion).sort(),
+            [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
+          );
+          assert.deepEqual(assessment.summary, {
+            satisfied: 4,
+            unsatisfied: 0,
+            unknown: 0,
+            not_applicable: 0,
+          });
+          assert.equal(
+            assessment.criteria.every(
+              (criterion) =>
+                criterion.status === "satisfied" &&
+                criterion.basis === "observed" &&
+                criterion.supporting_refs.length > 0 &&
+                criterion.opposing_refs.length === 0 &&
+                criterion.missing_refs.length === 0 &&
+                criterion.supporting_refs.every(
+                  (ref) =>
+                    ref.ref_type === "criterion_check_support" &&
+                    ref.source_ref === receipt.integrity.fingerprint &&
+                    ref.trust_class === "direct_local_observation",
+                ),
+            ),
+            true,
+            "the complete production adapter receipt must satisfy every exactly bound criterion with observed residue",
+          );
+          for (const checkId of LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01) {
+            assert.equal(
+              assessment.criteria.some((criterion) =>
+                criterion.supporting_refs.some((ref) =>
+                  ref.external_id.includes(checkId),
+                ),
+              ),
+              true,
+              `the production assessment must retain the exact ${checkId} relation`,
+            );
+          }
+          assert.equal(
+            assessment.criteria.some((criterion) =>
+              criterion.supporting_refs.some((ref) =>
+                ref.external_id.includes("validated_packet_delivery"),
+              ),
+            ),
+            false,
+            "the unrelated delivery check must not establish criterion status",
+          );
+          assert.equal(assessment.authority.creates_evidence, false);
+          assert.equal(assessment.authority.validates_claims, false);
+          assert.equal(assessment.authority.creates_proposal, false);
+          assert.equal(assessment.authority.creates_decision, false);
+          assert.equal(assessment.authority.applies_transition, false);
+          assert.equal(assessment.authority.changes_semantic_state, false);
+          assert.equal(assessment.authority.changes_later_context, false);
+        }
         assert.equal(detail.proposal.status, "available");
         if (detail.proposal.status === "available") {
           const proposalRecord = readVNextCoreRecordV01(resultDb, {

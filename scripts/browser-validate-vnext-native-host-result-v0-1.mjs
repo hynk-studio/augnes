@@ -205,6 +205,7 @@ const result = {
   bounded_automation_cycle_started: false,
   bounded_automation_review_needed: false,
   bounded_automation_reload_idempotent: false,
+  bounded_automation_exact_relation_readback: false,
   bounded_automation_context_feedback_recorded: false,
   personal_perspective_default_excluded: false,
   personal_perspective_included: false,
@@ -2011,6 +2012,11 @@ async function main() {
           criterionDrilldowns.every(
             (entry) => entry instanceof HTMLDetailsElement && entry.open,
           ),
+        criterion_trust_scope: criterionItems.every(
+          (item) =>
+            item.querySelector('[data-criterion-trust-scope="task_wide_receipt"]') !== null &&
+            item.textContent?.includes('Task-wide receipt residue trust') === true,
+        ),
         skipped_not_passed:
           assessmentText.includes('was skipped') &&
           !assessmentText.includes('skipped · passed'),
@@ -2066,6 +2072,7 @@ async function main() {
       criteria_unknown_insufficient: true,
       criterion_source_counts: true,
       criterion_source_drilldown: true,
+      criterion_trust_scope: true,
       skipped_not_passed: true,
       task_wide_residue_visible: true,
       unsupported_unavailable: true,
@@ -2680,6 +2687,150 @@ async function main() {
       contextUseFeedbackHref,
       /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/,
     );
+    const boundedReviewProposalHref = await evaluateString(`(() => {
+        const link = Array.from(document.querySelectorAll('a')).find(
+          (candidate) => candidate.textContent?.trim() === 'Open review-needed proposal'
+        );
+        return link?.getAttribute('href') ?? '';
+      })()`);
+    assert.match(
+      boundedReviewProposalHref,
+      /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/,
+    );
+    const boundedResultHref = `/workbench/results/${afterBoundedCycle.latest_receipt.receipt_id.replace(":", "~")}`;
+    const beforeBoundedResultRead = databaseSnapshot(database);
+    const boundedResultRequestStart = requests.length;
+    await navigate(new URL(boundedResultHref, appOrigin).toString());
+    await waitForCondition(
+      `document.querySelector('[data-run-result-review="v0.1"] [data-task-success-criteria="available"][data-task-success-status="satisfied"]') !== null`,
+      "policy-triggered exact criterion result readback",
+    );
+    const exactResultRelationReadback = await evaluateJson(`(() => {
+      const review = document.querySelector('[data-run-result-review="v0.1"]');
+      const assessment = review?.querySelector(
+        '[data-task-success-criteria="available"][data-task-success-status="satisfied"]'
+      );
+      const criteria = Array.from(
+        assessment?.querySelectorAll('[data-criterion-assessment-items="true"] > [data-criterion-status]') ?? []
+      );
+      return {
+        read_only: review?.getAttribute('data-result-review-read-only') === 'true',
+        semantic_mutation: review?.getAttribute('data-semantic-mutation') ?? null,
+        form_field_count: review?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        criterion_count: criteria.length,
+        criteria_satisfied_observed: criteria.every(
+          (criterion) =>
+            criterion.getAttribute('data-criterion-status') === 'satisfied' &&
+            criterion.getAttribute('data-criterion-basis') === 'observed'
+        ),
+        exact_relation_trust: criteria.every(
+          (criterion) =>
+            criterion.querySelector('[data-criterion-trust-scope="exact_relation"]') !== null &&
+            criterion.textContent?.includes('Exact criterion relation trust') === true
+        ),
+        exact_relation_refs: criteria.every(
+          (criterion) =>
+            criterion.textContent?.includes('criterion_check_support') === true &&
+            criterion.textContent?.includes(${JSON.stringify(afterBoundedCycle.latest_receipt.integrity.fingerprint)}) === true
+        ),
+      };
+    })()`);
+    assert.deepEqual(exactResultRelationReadback, {
+      read_only: true,
+      semantic_mutation: "false",
+      form_field_count: 0,
+      criterion_count: 4,
+      criteria_satisfied_observed: true,
+      exact_relation_trust: true,
+      exact_relation_refs: true,
+    });
+    assert.deepEqual(databaseSnapshot(database), beforeBoundedResultRead);
+    assert.equal(
+      requests
+        .slice(boundedResultRequestStart)
+        .some((request) => request.method !== "GET"),
+      false,
+    );
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelectorAll('[data-task-success-criteria="available"] [data-criterion-trust-scope="exact_relation"]').length === 4`,
+      "policy-triggered exact criterion result reload",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeBoundedResultRead);
+    assert.equal(
+      requests
+        .slice(boundedResultRequestStart)
+        .some((request) => request.method !== "GET"),
+      false,
+    );
+    const beforeBoundedProposalRead = databaseSnapshot(database);
+    const boundedProposalRequestStart = requests.length;
+    await navigate(new URL(boundedReviewProposalHref, appOrigin).toString());
+    await waitForCondition(
+      `document.querySelector('[data-run-assessment-proposal="v0.1"][data-criterion-relations-available="true"]') !== null`,
+      "policy-triggered exact criterion proposal detail",
+    );
+    const exactRelationReadback = await evaluateJson(`(() => {
+      const assessment = document.querySelector(
+        '[data-run-assessment-proposal="v0.1"][data-criterion-relations-available="true"]'
+      );
+      const criteria = Array.from(
+        assessment?.querySelectorAll('[data-proposal-criterion-items="true"] > [data-criterion-status]') ?? []
+      );
+      return {
+        present: assessment !== null,
+        task_success: assessment?.getAttribute('data-task-success-status') ?? null,
+        relation_copy: assessment?.textContent?.includes('exact typed relations available') ?? false,
+        criterion_count: criteria.length,
+        criteria_satisfied_observed: criteria.every(
+          (criterion) =>
+            criterion.getAttribute('data-criterion-status') === 'satisfied' &&
+            criterion.getAttribute('data-criterion-basis') === 'observed'
+        ),
+        exact_relation_trust: criteria.every(
+          (criterion) =>
+            criterion.querySelector('[data-criterion-trust-scope="exact_relation"]') !== null
+        ),
+        exact_relation_refs: criteria.every((criterion) => {
+          const relations = criterion.querySelector('[data-criterion-relation-refs="true"]');
+          return (
+            relations !== null &&
+            relations.textContent?.includes('criterion_check_support') === true &&
+            relations.textContent?.includes('source fingerprint sha256:') === true
+          );
+        }),
+      };
+    })()`);
+    assert.deepEqual(exactRelationReadback, {
+      present: true,
+      task_success: "satisfied",
+      relation_copy: true,
+      criterion_count: 4,
+      criteria_satisfied_observed: true,
+      exact_relation_trust: true,
+      exact_relation_refs: true,
+    });
+    assert.deepEqual(databaseSnapshot(database), beforeBoundedProposalRead);
+    assert.equal(
+      requests
+        .slice(boundedProposalRequestStart)
+        .some((request) => request.method !== "GET"),
+      false,
+    );
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-run-assessment-proposal="v0.1"][data-criterion-relations-available="true"] [data-criterion-trust-scope="exact_relation"]') !== null`,
+      "policy-triggered exact criterion relation reload",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeBoundedProposalRead);
+    assert.equal(
+      requests
+        .slice(boundedProposalRequestStart)
+        .some((request) => request.method !== "GET"),
+      false,
+    );
+    result.bounded_automation_exact_relation_readback = true;
+    record("policy_triggered_exact_criterion_relations_render_and_reload_read_only");
     await navigate(new URL(contextUseFeedbackHref, appOrigin).toString());
     await waitForCondition(
       `document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null || document.querySelector('[data-vnext-semantic-review] [role="alert"]') !== null`,
@@ -2901,7 +3052,6 @@ function isolatedRuntimeEnvironment({ databasePath, manifest }) {
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: manifest.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: manifest.project_id,
     AUGNES_VNEXT_OPERATOR_ID: manifest.operator_id,
-    AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER: "1",
   };
 }
 

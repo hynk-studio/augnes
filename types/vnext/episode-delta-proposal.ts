@@ -2,7 +2,10 @@ import type {
   ExternalRefTrustClassV01,
   ExternalRefV01,
 } from "./external-ref";
-import type { CriterionAssessmentV01 } from "./criterion-assessment";
+import type {
+  CriterionAssessmentStatusV01,
+  CriterionAssessmentV01,
+} from "./criterion-assessment";
 import type {
   RunReceiptCapabilityCoverageEntryV01,
   RunReceiptChangedArtifactV01,
@@ -328,8 +331,8 @@ export interface EpisodeDeltaProposalSourceAssessmentV01 {
   observed: EpisodeDeltaProposalObservedMaterialV01;
   comparison: {
     relation_policy: "explicit_protocol_relations_only";
-    criterion_specific_relations_available: false;
-    task_success_status: "unknown";
+    criterion_specific_relations_available: boolean;
+    task_success_status: CriterionAssessmentStatusV01;
     execution_status_is_task_success: false;
     gaps: string[];
   };

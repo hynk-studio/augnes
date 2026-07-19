@@ -345,7 +345,8 @@ async function verifyProjectRootV01(
         check_id: "provider_model_network_absent",
         required: true,
         status: "passed",
-        summary: "The in-process adapter has no provider, model, or network path.",
+        summary:
+          "The in-process adapter has no provider, model, network, credential, or external-action path.",
       },
       {
         check_id: "project_file_mutation_absent",
@@ -497,7 +498,9 @@ function terminalResultV01(
         capability: "provider_or_model_egress",
         coverage: "enforced",
         source_ref: hostRef,
-        notes: ["The in-process adapter contains no provider, model, or network path."],
+        notes: [
+          "The in-process adapter contains no provider, model, network, credential, or external-action path.",
+        ],
       },
       {
         capability: "project_file_mutation",
