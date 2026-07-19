@@ -20,7 +20,7 @@ import {
   type VNextSemanticTargetHeadV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
-import { readProjectVerifyLifecycleProposalByIdentityV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-admission";
+import { readProjectVerifyLifecycleProposalStructuralOnlyV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-source";
 import {
   createProjectVerifyMaterialReadSessionV01,
   listClaimEvidenceRelationFamilyRevisionsV01,
@@ -1265,7 +1265,11 @@ function readLifecycleSourcesV01(
     family_id: familyId,
     selected_record_ref: recordRef,
   });
-  const persisted = readProjectVerifyLifecycleProposalByIdentityV01(
+  // Use the structural read only to locate the exact immutable proposal. A
+  // unique receipt is the mandatory full source-authenticity path below;
+  // missing or ambiguous receipt material falls back to the standalone full
+  // proposal gate before any lifecycle projection is returned.
+  const persisted = readProjectVerifyLifecycleProposalStructuralOnlyV01(
     db,
     identity,
   );
@@ -1278,19 +1282,6 @@ function readLifecycleSourcesV01(
       conflict_codes: [],
     };
   }
-  const decisionEnvelopes = queryCoreRecordsV01(db, scope, {
-    record_kind: "review_decision",
-    where: [
-      "json_extract(payload_json, '$.source_proposal.proposal_id') = ?",
-      "json_extract(payload_json, '$.candidate.candidate_id') = ?",
-    ],
-    values: [
-      persisted.proposal.proposal_id,
-      persisted.proposal.project_verify_lifecycle!.lifecycle_binding
-        .decision_candidate.candidate_id,
-    ],
-    limit: 3,
-  });
   const receiptEnvelopes = queryCoreRecordsV01(db, scope, {
     record_kind: "state_transition_receipt",
     where: ["json_extract(payload_json, '$.source_proposal.proposal_id') = ?"],
@@ -1298,6 +1289,10 @@ function readLifecycleSourcesV01(
     limit: 3,
   });
   if (receiptEnvelopes.length > 1) {
+    assertProjectVerifyLifecycleProposalFullSourceBoundV01(
+      db,
+      persisted.proposal,
+    );
     return {
       proposal: persisted.proposal,
       decision: null,
@@ -1318,56 +1313,9 @@ function readLifecycleSourcesV01(
     ) {
       failV01("project_verify_transition_proposal_conflict");
     }
-    const exactDecisionEnvelope = readVNextCoreRecordV01(db, {
-      ...scope,
-      record_kind: "review_decision",
-      record_id: transition.decision.decision_id,
-    });
-    if (
-      !exactDecisionEnvelope ||
-      exactDecisionEnvelope.fingerprint !==
-        transition.decision.integrity.fingerprint
-    ) {
-      failV01("project_verify_transition_decision_envelope_missing");
-    }
-    const exactDecision = validatedDecisionV01(
-      db,
-      exactDecisionEnvelope,
-      persisted.proposal,
-      scope,
-      loadTransition,
-    );
-    if (
-      canonicalizeProtocolValueV01(exactDecision) !==
-      canonicalizeProtocolValueV01(transition.decision)
-    ) {
-      failV01("project_verify_transition_decision_envelope_conflict");
-    }
-    const exactGateEnvelope = readVNextCoreRecordV01(db, {
-      ...scope,
-      record_kind: "semantic_commit_gate",
-      record_id: transition.gate_record.gate_record_id,
-    });
-    if (
-      !exactGateEnvelope ||
-      exactGateEnvelope.fingerprint !==
-        transition.gate_record.integrity.fingerprint
-    ) {
-      failV01("project_verify_transition_gate_envelope_missing");
-    }
-    const exactGate = validatedGateEnvelopeV01(
-      db,
-      exactGateEnvelope,
-      persisted.proposal,
-      exactDecision,
-      scope,
-    );
-    if (
-      canonicalizeProtocolValueV01(exactGate) !==
-      canonicalizeProtocolValueV01(transition.gate_record)
-    ) {
-      failV01("project_verify_transition_gate_envelope_conflict");
-    }
+    // loadTransition authenticates the exact persisted proposal, decision,
+    // gate, receipt, prior chain, and scoped envelopes. Reuse those immutable
+    // authenticated values instead of independently replaying the same chain.
     const decisionCount = countCoreRecordsWhereV01(db, scope, {
       record_kind: "review_decision",
       where: [
@@ -1403,6 +1351,23 @@ function readLifecycleSourcesV01(
       conflict_codes: conflictCodes,
     };
   }
+  assertProjectVerifyLifecycleProposalFullSourceBoundV01(
+    db,
+    persisted.proposal,
+  );
+  const decisionEnvelopes = queryCoreRecordsV01(db, scope, {
+    record_kind: "review_decision",
+    where: [
+      "json_extract(payload_json, '$.source_proposal.proposal_id') = ?",
+      "json_extract(payload_json, '$.candidate.candidate_id') = ?",
+    ],
+    values: [
+      persisted.proposal.proposal_id,
+      persisted.proposal.project_verify_lifecycle!.lifecycle_binding
+        .decision_candidate.candidate_id,
+    ],
+    limit: 3,
+  });
   if (decisionEnvelopes.length > 1) {
     return {
       proposal: persisted.proposal,

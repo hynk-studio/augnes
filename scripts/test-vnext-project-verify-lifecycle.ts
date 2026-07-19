@@ -4157,6 +4157,7 @@ function assertStructuralSourceImportBoundaryV01(): void {
   assert.deepEqual(importers, [
     "lib/vnext/persistence/project-verify-lifecycle-admission.ts",
     "lib/vnext/runtime/durable-semantic-transition.ts",
+    "lib/vnext/runtime/project-verify-reconciliation.ts",
   ]);
   const structuralSource = readFileSync(
     join(
