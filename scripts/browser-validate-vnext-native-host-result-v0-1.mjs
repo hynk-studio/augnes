@@ -459,7 +459,7 @@ async function main() {
       automation_not_configured: document.body.textContent.includes('Project automation is not configured.'),
       personal_perspective_not_configured: document.body.textContent.includes('No project-specific choice has been made. Personal Perspective is excluded by default.'),
       coordination: document.querySelector('[data-project-home-coordination="v0.1"]') !== null,
-      workbench_entry: document.querySelector('[data-primary-workbench-entry="pending_proposal"]')?.getAttribute('href') === '/workbench/semantic-review',
+      workbench_entry: document.querySelector('[data-primary-workbench-entry="project_review"]')?.getAttribute('href') === '/workbench/semantic-review',
       personal_task_basis_absent: document.querySelector('[data-personal-perspective-task-basis="absent"]') !== null,
       capability_count: document.querySelectorAll('.project-home-capabilities > li').length,
       next_move_count: document.querySelectorAll('.project-home-next-moves > li').length,
