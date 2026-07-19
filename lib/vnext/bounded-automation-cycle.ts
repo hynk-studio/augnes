@@ -79,6 +79,7 @@ export function validateBoundedAutomationCapabilityGrantV01(
       "stop_conditions",
       "work_source_ref",
       "work_source_fingerprint",
+      "work_operation_profile",
       "workspace_id",
     ]) ||
     !grant.budget ||
@@ -136,6 +137,7 @@ export function validateBoundedAutomationCapabilityGrantV01(
     /^sha256:[a-f0-9]{64}$/u.test(grant.source_grant_fingerprint ?? "") &&
     grant.source_grant_ref.source_ref === grant.source_grant_fingerprint &&
     /^sha256:[a-f0-9]{64}$/u.test(grant.work_source_fingerprint ?? "") &&
+    grant.work_operation_profile === "local_project_root_verification.v0.1" &&
     /^sha256:[a-f0-9]{64}$/u.test(grant.packet_intent_fingerprint ?? "") &&
     typeof grant.host_adapter_version === "string" &&
     nonemptyV01(grant.host_adapter_version) &&
@@ -207,6 +209,7 @@ export function deriveBoundedAutomationCycleIdV01(input: {
       project_id: input.grant.project_id,
       work_source_ref: input.grant.work_source_ref,
       work_source_fingerprint: input.grant.work_source_fingerprint,
+      work_operation_profile: input.grant.work_operation_profile,
       packet_id: input.packet.packet_id,
       packet_fingerprint: input.packet.integrity.fingerprint,
       policy_ref: input.grant.policy_ref,

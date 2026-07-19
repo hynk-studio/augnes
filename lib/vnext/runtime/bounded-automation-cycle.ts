@@ -48,6 +48,13 @@ import {
   compileBoundedAutomationTaskContextPacketV01,
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
+  LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+} from "@/lib/vnext/automation/local-project-root-verification-profile";
+import {
   inspectVNextOperatorPilotPacketLineageV01,
   projectVNextOperatorPilotContinuityV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
@@ -222,8 +229,10 @@ export class BoundedAutomationCycleServiceV01 {
         workspace_id: input.config.workspace_id,
         project_id: input.config.project_id,
         work_class: "bounded_project_task",
-        title: packet.task.goal,
-        task: structuredClone(packet.task),
+        operation_profile: LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+        title: LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+        task: structuredClone(LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
+        source_task: structuredClone(packet.task),
         source_packet: {
           packet_id: packet.packet_id,
           packet_fingerprint: packet.integrity.fingerprint,
@@ -235,8 +244,8 @@ export class BoundedAutomationCycleServiceV01 {
           entry.external_ref ? [entry.external_ref] : [],
         ),
         proposed_files: [],
-        required_checks: [...packet.constraints.required_checks],
-        expected_outputs: [...packet.return_contract.expected_artifacts],
+        required_checks: [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
+        expected_outputs: [...LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01],
         blocked_actions: [...new Set([
           ...packet.constraints.forbidden_actions,
           ...PROFILE_FORBIDDEN_CAPABILITIES_V01,
@@ -699,6 +708,7 @@ export function readBoundedAutomationCycleProjectionV01(
       label: work.source.title,
       work_id: work.source.work_id,
       work_fingerprint: work.source.work_fingerprint,
+      operation_profile: work.source.operation_profile,
       lifecycle_status: work.status,
       source_packet_id: work.source.source_packet.packet_id,
       source_packet_fingerprint: work.source.source_packet.packet_fingerprint,
@@ -1089,6 +1099,8 @@ export function buildBoundedAutomationCapabilityGrantV01(input: {
     work_fingerprint: input.work.work_fingerprint,
     source_packet: input.work.source_packet,
     task: input.work.task,
+    source_task: input.work.source_task,
+    operation_profile: input.work.operation_profile,
     required_checks: input.work.required_checks,
     expected_outputs: input.work.expected_outputs,
     blocked_actions: input.work.blocked_actions,
@@ -1112,6 +1124,7 @@ export function buildBoundedAutomationCapabilityGrantV01(input: {
       input.work.source_capability_grant_fingerprint,
     work_source_ref: createAutomationWorkRefV01(input.work),
     work_source_fingerprint: input.work.work_fingerprint,
+    work_operation_profile: input.work.operation_profile,
     packet_intent_fingerprint: packetIntentFingerprint,
     host_adapter_version: input.host.adapter_version,
     host_capability_version: input.host.capability_version,

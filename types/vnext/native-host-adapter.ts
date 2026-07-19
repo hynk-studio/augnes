@@ -49,11 +49,19 @@ export type NativeHostExecutionProfileV01 =
   | "native_host_managed_model";
 export type NativeHostProviderEgressV01 = "forbidden" | "native_host_managed";
 
+export interface NativeHostPhysicalRootIdentityV01 {
+  identity_version: "native_host_physical_root_identity.v0.1";
+  canonical_realpath_fingerprint: string;
+  device: string;
+  inode: string;
+}
+
 export interface NativeHostRootScopeV01 {
   canonical_root: string;
   path_flavor: "posix" | "win32";
   root_kind: NativeHostRootKindV01;
   root_fingerprint: string;
+  physical_root_identity: NativeHostPhysicalRootIdentityV01;
   root_scope_ref: ExternalRefV01;
   repository_ref: ExternalRefV01 | null;
   selected_worktree_ref: ExternalRefV01 | null;

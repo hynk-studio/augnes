@@ -19,6 +19,13 @@ import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { TaskContextPacketBuilderInputV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { VNextAutomationWorkSnapshotV01 } from "@/types/vnext/automation-work-item";
+import {
+  LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+} from "@/lib/vnext/automation/local-project-root-verification-profile";
 
 const ISSUED_AT = "2026-07-19T00:00:00.000Z";
 const EXPIRES_AT = "2026-07-19T00:15:00.000Z";
@@ -45,6 +52,24 @@ export function runBoundedAutomationCycleConformanceV01() {
       }),
     /bounded_automation_source_grant_record_status_invalid/u,
     "only exact-record or packet-bound-summary source grant lineage is valid",
+  );
+  assert.throws(
+    () =>
+      createVNextAutomationWorkSourceV01({
+        ...workSourceInputV01(packet),
+        task: structuredClone(packet.task),
+      }),
+    /bounded_automation_work_operation_profile_conflict/u,
+    "an arbitrary source-packet task cannot masquerade as the server-owned verification profile",
+  );
+  assert.throws(
+    () =>
+      createVNextAutomationWorkSourceV01({
+        ...workSourceInputV01(packet),
+        operation_profile: "forged_operation_profile.v0.1" as typeof LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+      }),
+    /bounded_automation_work_operation_profile_invalid/u,
+    "a recomputed work identity cannot bypass the server-owned operation profile",
   );
   assert.deepEqual(
     selectBoundedAutomationWorkSourceV01([workSnapshot, structuredClone(workSnapshot)]),
@@ -153,6 +178,10 @@ export function runBoundedAutomationCycleConformanceV01() {
   assert.equal(grant.budget.network_access, "denied");
   assert.equal(grant.host_execution_profile, "deterministic_zero_model");
   assert.equal(grant.host_provider_egress, "forbidden");
+  assert.equal(
+    grant.work_operation_profile,
+    LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+  );
   assert.deepEqual(
     grant.source_grant_ref,
     packet.capability_grant?.grant_external_ref,
@@ -248,8 +277,10 @@ function workSourceInputV01(packet: ReturnType<typeof packetV01>) {
     workspace_id: packet.workspace_id,
     project_id: packet.project_id,
     work_class: "bounded_project_task",
-    title: packet.task.goal,
-    task: packet.task,
+    operation_profile: LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+    title: LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+    task: structuredClone(LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
+    source_task: packet.task,
     source_packet: {
       packet_id: packet.packet_id,
       packet_fingerprint: packet.integrity.fingerprint,
@@ -261,8 +292,8 @@ function workSourceInputV01(packet: ReturnType<typeof packetV01>) {
     source_grant_record_status: "packet_bound_summary",
     required_context_refs: [],
     proposed_files: [],
-    required_checks: packet.constraints.required_checks,
-    expected_outputs: packet.return_contract.expected_artifacts,
+    required_checks: [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
+    expected_outputs: [...LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01],
     blocked_actions: [
       ...packet.constraints.forbidden_actions,
       "authority_expansion",

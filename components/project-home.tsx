@@ -329,6 +329,7 @@ export function ProjectHome({
               <p>
                 <strong>Eligible work:</strong>{" "}
                 {projection.automation.cycle.work_source.label}
+                {` · ${humanize(projection.automation.cycle.work_source.operation_profile)}`}
               </p>
             ) : null}
             <p className="project-home-meta">

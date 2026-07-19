@@ -134,6 +134,7 @@ export function compileBoundedAutomationTaskContextPacketV01(
     input.grant.project_id !== input.project_id ||
     input.grant.work_source_ref.external_id !== input.work.work_id ||
     input.grant.work_source_fingerprint !== input.work.work_fingerprint ||
+    input.grant.work_operation_profile !== input.work.operation_profile ||
     input.work_ref.external_id !== input.work.work_id ||
     input.work_ref.source_ref !== input.work.work_fingerprint ||
     input.grant_ref.external_id !== input.grant.grant_id ||
@@ -194,6 +195,7 @@ export function compileBoundedAutomationTaskContextPacketV01(
         ...input.source_packet.compatibility.source_contracts,
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
         VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
+        input.work.operation_profile,
       ]),
       source_refs: normalizeRefs([
         ...input.source_packet.compatibility.source_refs,
@@ -204,6 +206,7 @@ export function compileBoundedAutomationTaskContextPacketV01(
       warnings: uniqueStrings([
         ...input.source_packet.compatibility.warnings,
         "This packet was compiled from one explicit queued automation work item and one exact final execution grant.",
+        "The source packet task remains lineage only; this packet executes the server-owned bounded project-root verification profile.",
       ]),
     },
     authority_notes: [

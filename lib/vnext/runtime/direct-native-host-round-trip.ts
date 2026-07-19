@@ -85,6 +85,10 @@ import {
   readNativeHostApprovalRequestResidueV01,
 } from "@/lib/vnext/runtime/native-host-approval-residue";
 import {
+  fingerprintNativeHostPhysicalRootIdentityV01,
+  inspectNativeHostPhysicalRootIdentityV01,
+} from "@/lib/vnext/native-host/project-root-identity";
+import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_REQUEST_VERSION_V01,
   NATIVE_HOST_RESULT_RETURN_VERSION_V01,
@@ -171,6 +175,7 @@ export interface PreparedNativeHostRunClaimV01 {
   packet_fingerprint: string;
   adapter_version: string;
   capability_version: string;
+  root_physical_identity_fingerprint: string;
   claimed_at: string;
 }
 
@@ -336,6 +341,10 @@ export async function admitPersistedHostTaskContextPacketV01(
     registration.root_binding.local_root.normalized_path,
     inspection.folder_kind,
   );
+  const physicalRootIdentity =
+    await inspectNativeHostPhysicalRootIdentityV01(
+      registration.root_binding.local_root.normalized_path,
+    );
   const repositoryRef =
     listProjectExternalRefsV01(db, input.config)
       .map((binding) => binding.external_ref)
@@ -382,6 +391,7 @@ export async function admitPersistedHostTaskContextPacketV01(
       path_flavor: registration.root_binding.local_root.path_flavor,
       root_kind: rootKind,
       root_fingerprint: rootFingerprint,
+      physical_root_identity: physicalRootIdentity,
       root_scope_ref: rootScopeRef,
       repository_ref: repositoryRef ?? null,
       selected_worktree_ref:
@@ -453,6 +463,10 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
       packet_fingerprint: admission.packet.integrity.fingerprint,
       adapter_version: input.adapter.adapter_version,
       capability_version: input.adapter.capability_version,
+      root_physical_identity_fingerprint:
+        fingerprintNativeHostPhysicalRootIdentityV01(
+          admission.root_scope.physical_root_identity,
+        ),
       claimed_at: input.claimed_at,
     },
     admission,
@@ -607,7 +621,11 @@ export async function runDirectNativeHostRoundTripV01(
       preAdmitted.claim.request_id !== identity.request_id ||
       preAdmitted.claim.idempotency_key !== identity.idempotency_key ||
       preAdmitted.claim.adapter_version !== adapter.adapter_version ||
-      preAdmitted.claim.capability_version !== adapter.capability_version)
+      preAdmitted.claim.capability_version !== adapter.capability_version ||
+      preAdmitted.claim.root_physical_identity_fingerprint !==
+        fingerprintNativeHostPhysicalRootIdentityV01(
+          admitted.root_scope.physical_root_identity,
+        ))
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
   }
@@ -1421,6 +1439,10 @@ function createRunLedgerRecord(
         input.admission.source_transition_receipt_ref.source_ref,
       root_kind: input.admission.root_scope.root_kind,
       root_fingerprint: input.admission.root_scope.root_fingerprint,
+      root_physical_identity_fingerprint:
+        fingerprintNativeHostPhysicalRootIdentityV01(
+          input.admission.root_scope.physical_root_identity,
+        ),
       request_id: input.request_id,
       adapter_version: input.adapter.adapter_version,
       capability_version: input.adapter.capability_version,
@@ -1532,6 +1554,8 @@ function assertPreparedRunClaimMatchesV01(
     run.metadata.packet_fingerprint !== claim.packet_fingerprint ||
     run.metadata.adapter_version !== claim.adapter_version ||
     run.metadata.capability_version !== claim.capability_version ||
+    run.metadata.root_physical_identity_fingerprint !==
+      claim.root_physical_identity_fingerprint ||
     run.created_at !== claim.claimed_at
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
@@ -1883,23 +1907,12 @@ function buildDirectHostRunReceipt(input: {
           }),
         )
       : []),
-    ...(!liveAppServerResult
-      ? result.observed_actions.map(
-          (action): RunReceiptObservationV01 => ({
-            observation_id: stableResidueIdV01("observation:action", action),
-            observation_kind: "native_host_action",
-            summary: action,
-            event_at: result.finished_at,
-            observed_at: result.finished_at,
-            observer_ref: reporterRef,
-            trust_class: "direct_local_observation",
-            source_refs: [runRef, adapterRef],
-            related_command_ids: [],
-            related_check_ids: [],
-            related_artifact_refs: [],
-          }),
-        )
-      : []),
+    ...projectDirectNativeHostActionObservationsV01({
+      result,
+      run_ref: runRef,
+      adapter_ref: adapterRef,
+      reporter_ref: reporterRef,
+    }),
   ];
   const attestations: RunReceiptAttestationV01[] = [
     ...(liveAppServerResult && hostRef
@@ -2228,6 +2241,32 @@ function buildDirectHostRunReceipt(input: {
   return receipt;
 }
 
+export function projectDirectNativeHostActionObservationsV01(input: {
+  result: NativeHostResultV01;
+  run_ref: ExternalRefV01;
+  adapter_ref: ExternalRefV01;
+  reporter_ref: ExternalRefV01;
+}): RunReceiptObservationV01[] {
+  if (input.result.adapter_extension.adapter_kind === "codex_app_server") {
+    return [];
+  }
+  return input.result.observed_actions.map(
+    (action): RunReceiptObservationV01 => ({
+      observation_id: stableResidueIdV01("observation:action", action),
+      observation_kind: "native_host_action",
+      summary: action,
+      event_at: input.result.finished_at,
+      observed_at: input.result.finished_at,
+      observer_ref: input.reporter_ref,
+      trust_class: "direct_local_observation",
+      source_refs: [input.run_ref, input.adapter_ref],
+      related_command_ids: [],
+      related_check_ids: [],
+      related_artifact_refs: [],
+    }),
+  );
+}
+
 async function invokeAdapterBounded(
   adapter: NativeHostAdapterV01,
   request: NativeHostRequestV01,
@@ -2544,6 +2583,7 @@ function buildRunIdentity(input: {
     source_transition_receipt_ref:
       input.admission.source_transition_receipt_ref,
     root_fingerprint: input.admission.root_scope.root_fingerprint,
+    root_physical_identity: input.admission.root_scope.physical_root_identity,
     root_kind: input.admission.root_scope.root_kind,
     adapter_version: input.adapter.adapter_version,
     capability_version: input.adapter.capability_version,

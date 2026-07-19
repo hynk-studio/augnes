@@ -1,4 +1,5 @@
 import type { ExternalRefV01 } from "./external-ref";
+import type { VNextAutomationWorkSourceV01 } from "./automation-work-item";
 
 export const BOUNDED_AUTOMATION_CYCLE_PROFILE_V01 =
   "bounded_autohunt_review_needed.v0.1" as const;
@@ -35,6 +36,7 @@ export interface BoundedAutomationCapabilityGrantV01 {
   source_grant_fingerprint: string;
   work_source_ref: ExternalRefV01;
   work_source_fingerprint: string;
+  work_operation_profile: VNextAutomationWorkSourceV01["operation_profile"];
   packet_intent_fingerprint: string;
   host_adapter_version: string;
   host_capability_version: string;
@@ -93,6 +95,7 @@ export interface BoundedAutomationCycleProjectionV01 {
     label: string;
     work_id: string;
     work_fingerprint: string;
+    operation_profile: VNextAutomationWorkSourceV01["operation_profile"];
     lifecycle_status: string;
     source_packet_id: string;
     source_packet_fingerprint: string;

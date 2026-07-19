@@ -18,6 +18,12 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/bounded-automation-cycle";
 import { validateExternalRefV01 } from "@/lib/vnext/task-context-packet";
+import {
+  LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+} from "@/lib/vnext/automation/local-project-root-verification-profile";
 import type {
   VNextAutomationWorkCycleBindingV01,
   VNextAutomationWorkSnapshotV01,
@@ -25,6 +31,7 @@ import type {
   VNextAutomationWorkStatusV01,
 } from "@/types/vnext/automation-work-item";
 import {
+  LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
   VNEXT_AUTOMATION_WORK_SNAPSHOT_VERSION_V01,
   VNEXT_AUTOMATION_WORK_SOURCE_VERSION_V01,
   VNEXT_AUTOMATION_WORK_STATUSES_V01,
@@ -294,11 +301,12 @@ export function validateVNextAutomationWorkSourceV01(value: unknown): value is V
     "blocked_actions", "budget_projection", "created_at", "expected_outputs",
     "project_id", "proposed_files", "required_checks", "required_context_refs",
     "source_capability_grant", "source_capability_grant_fingerprint",
-    "source_grant_record_status", "source_packet", "stop_conditions", "task",
+    "operation_profile", "source_grant_record_status", "source_packet", "source_task", "stop_conditions", "task",
     "title", "work_class", "work_fingerprint", "work_id", "work_source_version",
     "workspace_id",
   ])) return false;
   if (!source.task || !hasExactKeysV01(source.task, ["goal", "non_goals", "success_criteria"])) return false;
+  if (!source.source_task || !hasExactKeysV01(source.source_task, ["goal", "non_goals", "success_criteria"])) return false;
   if (!source.source_packet || !hasExactKeysV01(source.source_packet, ["packet_fingerprint", "packet_id"])) return false;
   if (!source.budget_projection || !hasExactKeysV01(source.budget_projection, [
     "augnes_model_cost_units", "augnes_model_invocations", "augnes_model_tokens",
@@ -380,7 +388,46 @@ function normalizeWorkSourceMaterialV01(input: Omit<VNextAutomationWorkSourceV01
     success_criteria: canonicalStringsV01(input.task.success_criteria, "task.success_criteria"),
     non_goals: canonicalStringsV01(input.task.non_goals, "task.non_goals"),
   };
+  const sourceTask = {
+    goal: normalizeTextV01(input.source_task.goal, "source_task.goal", WORK_TEXT_LIMIT_V01),
+    success_criteria: canonicalStringsV01(input.source_task.success_criteria, "source_task.success_criteria"),
+    non_goals: canonicalStringsV01(input.source_task.non_goals, "source_task.non_goals"),
+  };
   if (task.success_criteria.length === 0) refuseV01("bounded_automation_success_criteria_empty", 422);
+  const expectedTask = {
+    goal: normalizeTextV01(
+      LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.goal,
+      "expected_task.goal",
+      WORK_TEXT_LIMIT_V01,
+    ),
+    success_criteria: canonicalStringsV01(
+      [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria],
+      "expected_task.success_criteria",
+    ),
+    non_goals: canonicalStringsV01(
+      [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.non_goals],
+      "expected_task.non_goals",
+    ),
+  };
+  const normalizedTitle = normalizeTextV01(input.title, "title", 320);
+  const requiredChecks = canonicalStringsV01(input.required_checks, "required_checks");
+  const expectedOutputs = canonicalStringsV01(input.expected_outputs, "expected_outputs");
+  if (
+    canonicalizeProtocolValueV01(task) !==
+      canonicalizeProtocolValueV01(expectedTask) ||
+    normalizedTitle !== LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01 ||
+    canonicalizeProtocolValueV01(requiredChecks) !==
+      canonicalizeProtocolValueV01(
+        [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
+      ) ||
+    canonicalizeProtocolValueV01(expectedOutputs) !==
+      canonicalizeProtocolValueV01(
+        [...LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01],
+      ) ||
+    input.proposed_files.length !== 0
+  ) {
+    refuseV01("bounded_automation_work_operation_profile_conflict", 422);
+  }
   const requiredContextRefs = uniqueProtocolValuesV01(
     input.required_context_refs.map(normalizeExternalRefPrimitiveV01),
   ).sort(compareExternalRefsV01);
@@ -400,16 +447,20 @@ function normalizeWorkSourceMaterialV01(input: Omit<VNextAutomationWorkSourceV01
     workspace_id: normalizeTextV01(input.workspace_id, "workspace_id"),
     project_id: normalizeTextV01(input.project_id, "project_id"),
     work_class: "bounded_project_task" as const,
-    title: normalizeTextV01(input.title, "title", 320),
+    operation_profile: input.operation_profile === LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01
+      ? LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01
+      : refuseV01("bounded_automation_work_operation_profile_invalid", 422),
+    title: normalizedTitle,
     task,
+    source_task: sourceTask,
     source_packet: sourcePacket,
     source_capability_grant: structuredClone(input.source_capability_grant),
     source_capability_grant_fingerprint: sourceGrantFingerprint,
     source_grant_record_status: input.source_grant_record_status,
     required_context_refs: requiredContextRefs,
     proposed_files: canonicalStringsV01(input.proposed_files, "proposed_files"),
-    required_checks: canonicalStringsV01(input.required_checks, "required_checks"),
-    expected_outputs: canonicalStringsV01(input.expected_outputs, "expected_outputs"),
+    required_checks: requiredChecks,
+    expected_outputs: expectedOutputs,
     blocked_actions: canonicalStringsV01(input.blocked_actions, "blocked_actions"),
     stop_conditions: canonicalStringsV01(input.stop_conditions, "stop_conditions"),
     budget_projection: structuredClone(budget),

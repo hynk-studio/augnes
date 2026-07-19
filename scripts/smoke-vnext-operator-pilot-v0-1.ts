@@ -109,6 +109,12 @@ import {
   LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
 } from "../lib/vnext/native-host/local-project-verification-adapter";
 import {
+  LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+  LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+} from "../lib/vnext/automation/local-project-root-verification-profile";
+import {
   createCodexAppServerAdapterV01,
   type CodexAppServerAdapterObservationV01,
 } from "../lib/vnext/native-host/codex-app-server-adapter";
@@ -5785,6 +5791,18 @@ function addIsoMillisecondsV01(value: string, milliseconds: number): string {
   return new Date(Date.parse(value) + milliseconds).toISOString();
 }
 
+function normalizeTaskForAssertionV01(input: {
+  goal: string;
+  success_criteria: readonly string[];
+  non_goals: readonly string[];
+}): TaskContextPacketV01["task"] {
+  return {
+    goal: input.goal,
+    success_criteria: [...input.success_criteria].sort(),
+    non_goals: [...input.non_goals].sort(),
+  };
+}
+
 async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
   environment: NodeJS.ProcessEnv;
   jar: RouteCookieJar;
@@ -5928,6 +5946,48 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       const queued = service.read(config);
       assert.equal(queued.status, "eligible", JSON.stringify(queued));
       assert.equal(queued.work_source?.lifecycle_status, "queued");
+      assert.equal(
+        queued.work_source?.operation_profile,
+        LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+      );
+      assert.equal(
+        queued.work_source?.label,
+        LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+      );
+      const queuedWorkDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        const queuedRow = queuedWorkDb.prepare(
+          `SELECT payload_json FROM vnext_core_records
+           WHERE record_kind = 'automation_work_item'
+             AND json_extract(payload_json, '$.status') = 'queued'
+           ORDER BY created_at, record_id LIMIT 1`,
+        ).get() as { payload_json: string };
+        const queuedPayload = JSON.parse(queuedRow.payload_json) as {
+          source: {
+            operation_profile: string;
+            task: TaskContextPacketV01["task"];
+            source_task: TaskContextPacketV01["task"];
+          };
+        };
+        assert.equal(
+          queuedPayload.source.operation_profile,
+          LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+        );
+        assert.deepEqual(
+          queuedPayload.source.task,
+          normalizeTaskForAssertionV01(LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
+        );
+        assert.deepEqual(
+          queuedPayload.source.source_task,
+          normalizeTaskForAssertionV01(input.packet.task),
+        );
+        assert.notEqual(
+          queuedPayload.source.task.goal,
+          queuedPayload.source.source_task.goal,
+        );
+      } finally {
+        queuedWorkDb.close();
+      }
       assert.equal(queued.next_action, "run_one_bounded_cycle");
       assert.equal(observations.length, 0);
       let modelBackedHostInvocations = 0;
@@ -6194,6 +6254,14 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       assert.equal(settled.feedback_needed, true);
       assert.equal(observations.length, 1);
       assert.equal(observations[0]?.request.mode, "policy_triggered");
+      assert.deepEqual(
+        observations[0]?.request.packet.task,
+        normalizeTaskForAssertionV01(LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
+      );
+      assert.notEqual(
+        observations[0]?.request.packet.task.goal,
+        input.packet.task.goal,
+      );
       assert.equal(
         observations[0]?.request.automation_context?.bounded_cycle?.profile,
         "bounded_autohunt_review_needed.v0.1",
@@ -6601,6 +6669,57 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
           true,
         );
         assert.equal(receipt.artifact_refs.length, 1);
+        assert.equal(
+          receipt.observations.some(
+            (observation) =>
+              observation.observation_kind === "native_host_action" &&
+              observation.summary ===
+                "fingerprinted_bounded_project_root_manifest",
+          ),
+          true,
+        );
+        const detail = readProjectRunResultDetailV01(resultDb, {
+          ...config,
+          receipt_id: receipt.receipt_id,
+        });
+        assert.equal(detail.criterion_assessment.status, "available");
+        assert.deepEqual(
+          detail.criterion_assessment.status === "available"
+            ? detail.criterion_assessment.assessment.criteria
+                .map((criterion) => criterion.criterion)
+                .sort()
+            : [],
+          [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria].sort(),
+        );
+        assert.equal(detail.proposal.status, "available");
+        if (detail.proposal.status === "available") {
+          const proposalRecord = readVNextCoreRecordV01(resultDb, {
+            ...config,
+            record_kind: "episode_delta_proposal",
+            record_id: detail.proposal.proposal_id,
+          });
+          assert(proposalRecord);
+          const proposal = proposalRecord.payload as {
+            source_assessment?: {
+              expected?: {
+                task_goal?: string;
+                required_checks?: string[];
+              };
+            };
+          };
+          assert.equal(
+            proposal.source_assessment?.expected?.task_goal,
+            LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.goal,
+          );
+          assert.notEqual(
+            proposal.source_assessment?.expected?.task_goal,
+            input.packet.task.goal,
+          );
+          assert.deepEqual(
+            proposal.source_assessment?.expected?.required_checks,
+            [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
+          );
+        }
         assert.equal(
           (resultDb.prepare(
             `SELECT COUNT(*) AS count FROM autonomy_run_events

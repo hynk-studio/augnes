@@ -100,7 +100,7 @@ export function ProjectControls({
           : action === "retry_bounded_cycle"
             ? "Proposal settlement retry admitted without rerunning the host."
             : action === "queue_current_task_for_automation"
-              ? "The exact current task was queued as explicit bounded automation work."
+              ? "Bounded project verification was queued with the current packet retained as source lineage."
               : "One bounded policy-triggered cycle started.",
       );
       router.refresh();
@@ -230,7 +230,7 @@ function actionLabel(
     include_personal_perspective: "Include Personal Perspective",
     exclude_personal_perspective: "Exclude Personal Perspective",
     run_one_bounded_cycle: "Run one bounded cycle",
-    queue_current_task_for_automation: "Queue current task",
+    queue_current_task_for_automation: "Queue bounded project verification",
     cancel_bounded_cycle: "Request cancellation",
     retry_bounded_cycle: "Retry proposal settlement",
   }[action];

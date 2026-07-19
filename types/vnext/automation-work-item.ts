@@ -5,6 +5,8 @@ export const VNEXT_AUTOMATION_WORK_SOURCE_VERSION_V01 =
   "vnext_automation_work_source.v0.1" as const;
 export const VNEXT_AUTOMATION_WORK_SNAPSHOT_VERSION_V01 =
   "vnext_automation_work_snapshot.v0.1" as const;
+export const LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01 =
+  "local_project_root_verification.v0.1" as const;
 
 export const VNEXT_AUTOMATION_WORK_STATUSES_V01 = [
   "queued",
@@ -26,8 +28,14 @@ export interface VNextAutomationWorkSourceV01 {
   project_id: string;
   work_id: string;
   work_class: "bounded_project_task";
+  operation_profile: typeof LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01;
   title: string;
   task: {
+    goal: string;
+    success_criteria: string[];
+    non_goals: string[];
+  };
+  source_task: {
     goal: string;
     success_criteria: string[];
     non_goals: string[];
