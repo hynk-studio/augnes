@@ -46,6 +46,7 @@ import {
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
+import { createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition-receipt";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
 import {
@@ -306,8 +307,13 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       project_id: PROJECT_ID,
       run_id: "run:operator-browser-fixture-source",
     };
-    const priorPacket = publicSafePacket(
+    const publicPacket = publicSafePacket(
       buildSemanticReviewLoopTaskContextPacketFixture(fixtureProject),
+    );
+    const priorPacket = boundedAutomationPacketV01(
+      publicPacket,
+      publicPacket.generated_at,
+      new Date(Date.parse(schedule.result) + 60 * 60_000).toISOString(),
     );
     const fixtureReceipt = buildSemanticReviewLoopRunReceiptFixture(
       fixtureProject,
@@ -884,6 +890,62 @@ function publicSafePacket(packet: TaskContextPacketV01): TaskContextPacketV01 {
     constraints: {
       ...packet.constraints,
       data_classification: "public_safe",
+    },
+    authority_notes: authoritySummary.notes,
+  });
+}
+
+function boundedAutomationPacketV01(
+  packet: TaskContextPacketV01,
+  generatedAt: string,
+  expiresAt: string,
+): TaskContextPacketV01 {
+  const {
+    packet_version: _version,
+    packet_id: _packetId,
+    authority_summary: authoritySummary,
+    integrity: _integrity,
+    ...builderInput
+  } = packet;
+  const grantFingerprint = createProtocolSha256V01(
+    `${packet.project_id}:operator-browser-bounded-cycle`,
+  );
+  return buildTaskContextPacketV01({
+    ...builderInput,
+    generated_at: generatedAt,
+    expires_at: expiresAt,
+    capability_grant: {
+      grant_ref: "grant:operator-browser-bounded-cycle",
+      grant_external_ref: {
+        ref_version: "external_ref.v0.1",
+        ref_type: "capability_grant",
+        external_id: "grant:operator-browser-bounded-cycle",
+        observed_at: generatedAt,
+        source_ref: grantFingerprint,
+        compatibility_namespace: "bounded_autohunt_review_needed.v0.1",
+        trust_class: "direct_local_observation",
+      },
+      allowed_capabilities: [
+        "project_scoped_structured_task_round_trip.v0.1",
+      ],
+      forbidden_capabilities: [
+        "credential_access",
+        "deploy",
+        "external_post",
+        "merge",
+        "model_invocation",
+        "network_access",
+        "publish",
+      ],
+      resource_scope: [packet.project_id],
+      stop_conditions: [
+        "budget_exhausted",
+        "cancellation_requested",
+        "review_needed",
+        "timeout",
+      ],
+      coverage: "enforced",
+      expires_at: expiresAt,
     },
     authority_notes: authoritySummary.notes,
   });

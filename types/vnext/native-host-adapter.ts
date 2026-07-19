@@ -1,5 +1,6 @@
 import type { ExternalRefV01 } from "./external-ref";
 import type { TaskContextPacketV01 } from "./task-context-packet";
+import type { BoundedAutomationCapabilityGrantV01 } from "./bounded-automation-cycle";
 
 export const NATIVE_HOST_REQUEST_VERSION_V01 =
   "native_host_request.v0.1" as const;
@@ -43,12 +44,24 @@ export type NativeHostApprovalDecisionKindV01 =
   | "approve_once"
   | "decline"
   | "cancel_run";
+export type NativeHostExecutionProfileV01 =
+  | "deterministic_zero_model"
+  | "native_host_managed_model";
+export type NativeHostProviderEgressV01 = "forbidden" | "native_host_managed";
+
+export interface NativeHostPhysicalRootIdentityV01 {
+  identity_version: "native_host_physical_root_identity.v0.1";
+  canonical_realpath_fingerprint: string;
+  device: string;
+  inode: string;
+}
 
 export interface NativeHostRootScopeV01 {
   canonical_root: string;
   path_flavor: "posix" | "win32";
   root_kind: NativeHostRootKindV01;
   root_fingerprint: string;
+  physical_root_identity: NativeHostPhysicalRootIdentityV01;
   root_scope_ref: ExternalRefV01;
   repository_ref: ExternalRefV01 | null;
   selected_worktree_ref: ExternalRefV01 | null;
@@ -60,6 +73,13 @@ export interface NativeHostAutomationContextV01 {
   control_revision: number | null;
   automatic_retry_allowed: false;
   scheduler_started: false;
+  bounded_cycle?: {
+    profile: "bounded_autohunt_review_needed.v0.1";
+    cycle_id: string;
+    attempt: 1;
+    trigger_ref: ExternalRefV01;
+    grant: BoundedAutomationCapabilityGrantV01;
+  };
 }
 
 export interface NativeHostRequestV01 {
@@ -84,6 +104,7 @@ export interface NativeHostRequestV01 {
   allowed_operation_categories: string[];
   forbidden_operation_categories: string[];
   packet_capability_grant: TaskContextPacketV01["capability_grant"];
+  execution_grant_ref: ExternalRefV01 | null;
   automation_context: NativeHostAutomationContextV01 | null;
   policy: {
     filesystem: "selected_project_root_only";
@@ -288,6 +309,8 @@ export interface NativeHostInvocationV01 {
 export interface NativeHostAdapterV01 {
   readonly adapter_version: string;
   readonly capability_version: string;
+  readonly execution_profile: NativeHostExecutionProfileV01;
+  readonly provider_egress: NativeHostProviderEgressV01;
   invoke(
     request: NativeHostRequestV01,
     control: NativeHostInvocationControlV01,

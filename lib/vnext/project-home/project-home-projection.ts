@@ -24,9 +24,18 @@ import {
   readProjectAutomationEffectiveStatusV01,
 } from "@/lib/vnext/persistence/project-control-store";
 import {
-  evaluateProjectAutomationAdmissionV01,
   isPersonalPerspectiveSelectedEntryV01,
 } from "@/lib/vnext/project-controls/project-controls";
+import {
+  readBoundedAutomationCycleProjectionV01,
+  type BoundedAutomationHostContractV01,
+} from "@/lib/vnext/runtime/bounded-automation-cycle";
+import {
+  CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+  CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
+} from "@/lib/vnext/native-host/codex-app-server-adapter";
+import { DEFAULT_LIVE_TIMEOUT_MS } from "@/lib/vnext/runtime/live-native-host-run-service";
+import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import {
   canonicalizeProtocolValueV01,
   compareProtocolCodeUnitsV01,
@@ -64,6 +73,7 @@ import {
   type ProjectHomeWorkingProjectionSummaryV01,
 } from "@/types/vnext/project-home";
 import type { ProjectRootAvailabilityV01 } from "@/types/vnext/project-onboarding";
+import type { BoundedAutomationCycleProjectionV01 } from "@/types/vnext/bounded-automation-cycle";
 
 const ACCEPTED_STATE_LIMIT = 5;
 const ATTENTION_LIMIT = 5;
@@ -82,6 +92,95 @@ const DEFAULT_CAPABILITY_SUMMARIES: Record<ProjectHomeCapabilityV01, string> = {
   scheduler: "No trusted local scheduler readiness status is available.",
 };
 
+function automationAdmissionFromCycle(
+  cycle: BoundedAutomationCycleProjectionV01,
+): {
+  status: import("@/types/vnext/project-controls").ProjectAutomationAdmissionStatusV01;
+  reason: string;
+} {
+  const status =
+    cycle.status === "eligible"
+      ? "eligible"
+      : cycle.status === "not_configured"
+        ? "not_configured"
+        : cycle.status === "disabled"
+          ? "disabled"
+          : cycle.status === "paused"
+            ? "paused"
+            : cycle.status === "grant_required" ||
+                cycle.status === "grant_expired"
+              ? "grant_required"
+              : cycle.status === "capability_unavailable"
+                ? "capability_unavailable"
+                : [
+                      "starting",
+                      "running",
+                      "cancellation_requested",
+                      "reconciliation_required",
+                      "review_needed",
+                    ].includes(cycle.status)
+                  ? "active_run_limit"
+                  : cycle.status === "policy_denied"
+                    ? "policy_denied"
+                    : "unsupported";
+  return { status, reason: cycle.stop_reason };
+}
+
+function boundedAutomationUnavailableV01(
+  input: { workspace_id: string; project_id: string },
+  control: import("@/types/vnext/project-controls").ProjectAutomationEffectiveStatusV01,
+): BoundedAutomationCycleProjectionV01 {
+  const status =
+    control.status === "not_configured"
+      ? "not_configured"
+      : control.status === "disabled"
+        ? "disabled"
+      : control.status === "paused"
+          ? "paused"
+          : "grant_required";
+  return {
+    projection_version: "bounded_automation_cycle_projection.v0.1",
+    ...input,
+    status,
+    stop_reason:
+      status === "grant_required"
+        ? "local_operator_runtime_unavailable"
+        : `automation_${status}`,
+    retryable: false,
+    control_revision: control.control_revision,
+    work_source: null,
+    grant: null,
+    budget: {
+      budget_version: "bounded_automation_budget.v0.1",
+      max_work_items: 1,
+      max_active_runs: 1,
+      max_attempts: 1,
+      max_runtime_ms: DEFAULT_LIVE_TIMEOUT_MS,
+      max_commands: 128,
+      max_augnes_model_invocations: 0,
+      max_augnes_model_tokens: 0,
+      max_augnes_model_cost_units: 0,
+      native_host_model_scope: "none",
+      host_egress: "local_in_process_only",
+      network_access: "denied",
+      automatic_retry: false,
+    },
+    run: null,
+    feedback_needed: false,
+    feedback_href: null,
+    next_action:
+      status === "not_configured" || status === "disabled"
+        ? "enable"
+        : status === "paused"
+          ? "resume"
+          : "none",
+    model_calls_allowed: 0,
+    semantic_authority_granted: false,
+    decision_created: false,
+    transition_created: false,
+  };
+}
+
 export type ProjectHomeCapabilityStatusReaderV01 = () =>
   | readonly ProjectHomeCapabilityStatusV01[]
   | Promise<readonly ProjectHomeCapabilityStatusV01[]>;
@@ -90,6 +189,8 @@ export interface ProjectHomeProjectionDependenciesV01 {
   now?: () => string;
   read_root_availability?: (root: string) => Promise<ProjectRootAvailabilityV01>;
   read_capability_statuses?: ProjectHomeCapabilityStatusReaderV01;
+  operator_config?: VNextLocalOperatorPilotConfigV01 | null;
+  automation_host_contract?: BoundedAutomationHostContractV01;
 }
 
 export class ProjectHomeProjectionErrorV01 extends Error {
@@ -178,16 +279,22 @@ export async function readProjectHomeProjectionV01(
     db,
     input,
   );
-  const automationAdmission = evaluateProjectAutomationAdmissionV01({
-    ...input,
-    control: effectiveAutomation,
-    candidate: input,
-    grant_readiness: { ...input, status: "required" },
-    active_run_readiness: {
-      ...input,
-      active_automated_run_count: 0,
-    },
-  });
+  const automationCycle =
+    dependencies.operator_config?.workspace_id === input.workspace_id &&
+    dependencies.operator_config.project_id === input.project_id
+      ? readBoundedAutomationCycleProjectionV01(db, {
+          config: dependencies.operator_config,
+          observed_at: evaluation.timestamp,
+          host: dependencies.automation_host_contract ?? {
+            adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+            capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
+            timeout_ms: DEFAULT_LIVE_TIMEOUT_MS,
+            execution_profile: "native_host_managed_model",
+            provider_egress: "native_host_managed",
+          },
+        })
+      : boundedAutomationUnavailableV01(input, effectiveAutomation);
+  const automationAdmission = automationAdmissionFromCycle(automationCycle);
   const automation = {
     state: sectionState(
       effectiveAutomation.status === "not_configured"
@@ -195,7 +302,13 @@ export async function readProjectHomeProjectionV01(
         : effectiveAutomation.status === "enabled"
           ? "available"
           : "action_required",
-      automationAdmission.reason,
+      effectiveAutomation.status === "not_configured"
+        ? "Project automation is not configured."
+        : effectiveAutomation.status === "disabled"
+          ? "Project automation is disabled."
+          : effectiveAutomation.status === "paused"
+            ? "Project automation is paused for new policy-triggered work."
+            : automationAdmission.reason,
     ),
     status: effectiveAutomation.status,
     control_revision: effectiveAutomation.control_revision,
@@ -205,7 +318,8 @@ export async function readProjectHomeProjectionV01(
       effectiveAutomation.policy_triggered_work_allowed_at_control_layer,
     admission_status: automationAdmission.status,
     admission_reason: automationAdmission.reason,
-    current_run_summary: null,
+    current_run_summary: automationCycle.run,
+    cycle: automationCycle,
   } satisfies ProjectHomeProjectionV01["automation"];
   const effectivePersonalPerspective =
     readPersonalPerspectiveEffectiveScopeV01(db, input);

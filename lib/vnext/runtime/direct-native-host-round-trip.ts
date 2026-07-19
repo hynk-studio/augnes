@@ -53,6 +53,19 @@ import {
   normalizeNativeHostResultResidueV01,
 } from "@/lib/vnext/native-host/native-host-result-normalization";
 import {
+  deriveBoundedAutomationCycleIdV01,
+  validateBoundedAutomationCapabilityGrantV01,
+} from "@/lib/vnext/bounded-automation-cycle";
+import { readProjectAutomationControlV01 } from "@/lib/vnext/persistence/project-control-store";
+import {
+  createAutomationWorkRefV01,
+  createBoundedAutomationGrantRefV01,
+  readBoundedAutomationCapabilityGrantV01,
+  readCurrentVNextAutomationWorkSnapshotV01,
+  transitionVNextAutomationWorkV01,
+} from "@/lib/vnext/persistence/bounded-automation-authority";
+import { validateProjectAutomationPolicyV01 } from "@/lib/vnext/project-controls/project-controls";
+import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
   authenticateVNextLocalOperatorSessionV01,
   type VNextLocalOperatorPilotConfigV01,
@@ -71,6 +84,13 @@ import {
   readNativeHostApprovalDecisionResidueV01,
   readNativeHostApprovalRequestResidueV01,
 } from "@/lib/vnext/runtime/native-host-approval-residue";
+import {
+  fingerprintNativeHostPhysicalRootIdentityV01,
+  inspectNativeHostPhysicalRootIdentityV01,
+} from "@/lib/vnext/native-host/project-root-identity";
+import {
+  deriveNativeHostDeliveryAuthorityV01,
+} from "@/lib/vnext/native-host/native-host-delivery-authority";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_REQUEST_VERSION_V01,
@@ -150,6 +170,18 @@ export interface PersistedHostPacketAdmissionV01 {
   root_scope: NativeHostRootScopeV01;
 }
 
+export interface PreparedNativeHostRunClaimV01 {
+  run_id: string;
+  request_id: string;
+  idempotency_key: string;
+  packet_id: string;
+  packet_fingerprint: string;
+  adapter_version: string;
+  capability_version: string;
+  root_physical_identity_fingerprint: string;
+  claimed_at: string;
+}
+
 export interface DirectNativeHostRoundTripResultV01 {
   round_trip_version: typeof DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01;
   status: "inserted" | "exact_replay";
@@ -198,6 +230,10 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   resume_binding?: NativeHostResumeBindingV01 | null;
   resume_existing_run?: boolean;
   live_host_egress_authorized?: boolean;
+  pre_admitted_run_claim?: {
+    claim: PreparedNativeHostRunClaimV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+  };
   proposal_admission?: RunAssessmentProposalAdmissionDependenciesV01;
   on_invocation_admitted?: (input: {
     request: NativeHostRequestV01;
@@ -308,6 +344,10 @@ export async function admitPersistedHostTaskContextPacketV01(
     registration.root_binding.local_root.normalized_path,
     inspection.folder_kind,
   );
+  const physicalRootIdentity =
+    await inspectNativeHostPhysicalRootIdentityV01(
+      registration.root_binding.local_root.normalized_path,
+    );
   const repositoryRef =
     listProjectExternalRefsV01(db, input.config)
       .map((binding) => binding.external_ref)
@@ -354,6 +394,7 @@ export async function admitPersistedHostTaskContextPacketV01(
       path_flavor: registration.root_binding.local_root.path_flavor,
       root_kind: rootKind,
       root_fingerprint: rootFingerprint,
+      physical_root_identity: physicalRootIdentity,
       root_scope_ref: rootScopeRef,
       repository_ref: repositoryRef ?? null,
       selected_worktree_ref:
@@ -368,6 +409,114 @@ export async function admitPersistedHostTaskContextPacketV01(
           : null,
     },
   };
+}
+
+/**
+ * Resolves the exact packet/root/host identity while the caller owns the
+ * operator mutation transaction. No run row is written until the caller has
+ * also admitted the final grant, packet, and work claim.
+ */
+export async function prepareNativeHostRunClaimInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    mode: "policy_triggered";
+    automation_context: NativeHostAutomationContextV01;
+    packet_id: string;
+    packet_fingerprint: string;
+    claimed_at: string;
+    adapter: NativeHostAdapterV01;
+    timeout_ms: number;
+  },
+): Promise<{
+  claim: PreparedNativeHostRunClaimV01;
+  admission: PersistedHostPacketAdmissionV01;
+}> {
+  if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
+  ensureAutonomyRunnerLedgerSchemaV01(db);
+  assertBoundedHostContractV01({
+    automation_context: input.automation_context,
+    adapter: input.adapter,
+    timeout_ms: input.timeout_ms,
+  });
+  const admission = await admitPersistedHostTaskContextPacketV01(db, {
+    config: input.config,
+    packet_id: input.packet_id,
+    packet_fingerprint: input.packet_fingerprint,
+    evaluated_at: input.claimed_at,
+  });
+  revalidateAdmissionInsideTransaction(db, {
+    config: input.config,
+    admission,
+    evaluated_at: input.claimed_at,
+    automation_context: null,
+    run_id: "preparing",
+  });
+  const identity = buildRunIdentity({
+    config: input.config,
+    mode: input.mode,
+    admission,
+    adapter: input.adapter,
+    automation_context: input.automation_context,
+  });
+  return {
+    claim: {
+      ...identity,
+      packet_id: admission.packet.packet_id,
+      packet_fingerprint: admission.packet.integrity.fingerprint,
+      adapter_version: input.adapter.adapter_version,
+      capability_version: input.adapter.capability_version,
+      root_physical_identity_fingerprint:
+        fingerprintNativeHostPhysicalRootIdentityV01(
+          admission.root_scope.physical_root_identity,
+        ),
+      claimed_at: input.claimed_at,
+    },
+    admission,
+  };
+}
+
+/** Admit the initial queued run claim after the exact work claim exists. */
+export function admitPreparedNativeHostRunClaimInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    automation_context: NativeHostAutomationContextV01;
+    prepared: {
+      claim: PreparedNativeHostRunClaimV01;
+      admission: PersistedHostPacketAdmissionV01;
+    };
+    adapter: NativeHostAdapterV01;
+  },
+): void {
+  if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
+  const existing = readAutonomyRunLedgerRecord(input.prepared.claim.run_id, { db });
+  if (existing) {
+    assertPreparedRunClaimMatchesV01(existing, input.prepared.claim);
+    return;
+  }
+  revalidateAdmissionInsideTransaction(db, {
+    config: input.config,
+    admission: input.prepared.admission,
+    evaluated_at: input.prepared.claim.claimed_at,
+    automation_context: input.automation_context,
+    run_id: input.prepared.claim.run_id,
+    transition_bounded_work: false,
+  });
+  createRunLedgerRecord(db, {
+    input: {
+      config: input.config,
+      mode: "policy_triggered",
+      automation_context: input.automation_context,
+    },
+    admission: input.prepared.admission,
+    request_id: input.prepared.claim.request_id,
+    run_id: input.prepared.claim.run_id,
+    started_at: input.prepared.claim.claimed_at,
+    adapter: input.adapter,
+    lifecycle_mode: "managed_live",
+    initial_claim_only: true,
+  });
 }
 
 export async function runDirectNativeHostRoundTripV01(
@@ -407,11 +556,22 @@ export async function runDirectNativeHostRoundTripV01(
   ) {
     refuse("direct_host_automation_context_required");
   }
+  if (input.automation_context?.bounded_cycle) {
+    assertBoundedHostContractV01({
+      automation_context: input.automation_context,
+      adapter,
+      timeout_ms: timeoutMs,
+    });
+  }
   if (input.mode === "interactive" && input.automation_context) {
     refuse("direct_host_automation_context_forbidden");
   }
   const managedLive = dependencies.lifecycle_mode === "managed_live";
-  if (managedLive) {
+  const preAdmitted = dependencies.pre_admitted_run_claim ?? null;
+  if (preAdmitted && input.operator_mutation) {
+    refuse("direct_host_pre_admitted_mutation_conflict", 409);
+  }
+  if (managedLive && adapter.provider_egress === "native_host_managed") {
     assertLiveHostEgressAdmissionV01({
       mode: input.mode,
       packet: null,
@@ -428,15 +588,21 @@ export async function runDirectNativeHostRoundTripV01(
     });
   }
   const prevalidatedAt = strictTimestamp(now());
-  const selection = (
-    dependencies.resolve_packet_selection ?? resolveLatestPacketSelection
-  )(db, { config: input.config, evaluated_at: prevalidatedAt });
+  const selection = preAdmitted
+    ? {
+        packet_id: preAdmitted.claim.packet_id,
+        packet_fingerprint: preAdmitted.claim.packet_fingerprint,
+      }
+    : (dependencies.resolve_packet_selection ?? resolveLatestPacketSelection)(db, {
+        config: input.config,
+        evaluated_at: prevalidatedAt,
+      });
   const admitted = await admitPersistedHostTaskContextPacketV01(db, {
     config: input.config,
     ...selection,
     evaluated_at: prevalidatedAt,
   });
-  if (managedLive) {
+  if (managedLive && adapter.provider_egress === "native_host_managed") {
     assertLiveHostEgressAdmissionV01({
       mode: input.mode,
       packet: admitted.packet,
@@ -452,9 +618,23 @@ export async function runDirectNativeHostRoundTripV01(
     adapter,
     automation_context: input.automation_context ?? null,
   });
+  if (
+    preAdmitted &&
+    (preAdmitted.claim.run_id !== identity.run_id ||
+      preAdmitted.claim.request_id !== identity.request_id ||
+      preAdmitted.claim.idempotency_key !== identity.idempotency_key ||
+      preAdmitted.claim.adapter_version !== adapter.adapter_version ||
+      preAdmitted.claim.capability_version !== adapter.capability_version ||
+      preAdmitted.claim.root_physical_identity_fingerprint !==
+        fingerprintNativeHostPhysicalRootIdentityV01(
+          admitted.root_scope.physical_root_identity,
+        ))
+  ) {
+    refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
   if (db.inTransaction) refuse("direct_host_nested_transaction", 409);
   let sessionAdmission: VNextLocalOperatorSessionMutationAdmissionV01 | null =
-    null;
+    preAdmitted?.session_admission ?? null;
   const startedAt = strictTimestamp(now());
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -473,6 +653,8 @@ export async function runDirectNativeHostRoundTripV01(
       config: input.config,
       admission: admitted,
       evaluated_at: startedAt,
+      automation_context: input.automation_context ?? null,
+      run_id: identity.run_id,
     });
     const existingReceipt = readReceiptForRun(db, {
       workspace_id: input.config.workspace_id,
@@ -499,7 +681,16 @@ export async function runDirectNativeHostRoundTripV01(
     }
     const existingRun = readAutonomyRunLedgerRecord(identity.run_id, { db });
     if (existingRun) {
-      if (
+      if (preAdmitted) {
+        assertPreparedRunClaimMatchesV01(existingRun, preAdmitted.claim);
+        startPreparedRunInsideTransactionV01(db, {
+          run: existingRun,
+          admission: admitted,
+          automation_context: input.automation_context!,
+          observed_at: startedAt,
+        });
+        db.exec("COMMIT");
+      } else if (
         dependencies.resume_existing_run === true &&
         managedLive &&
         existingRun.status === "paused" &&
@@ -519,6 +710,7 @@ export async function runDirectNativeHostRoundTripV01(
         refuse("direct_host_run_conflict", 409);
       }
     } else {
+      if (preAdmitted) refuse("direct_host_pre_admitted_run_claim_missing", 409);
       createRunLedgerRecord(db, {
         input,
         admission: admitted,
@@ -546,12 +738,14 @@ export async function runDirectNativeHostRoundTripV01(
     timeout_ms: timeoutMs,
     stop_settle_timeout_ms: stopSettleTimeoutMs,
     live_host: managedLive,
+    adapter,
   });
   dependencies.on_invocation_admitted?.({
     request,
     session_admission: sessionAdmission,
   });
   let hostResult: NativeHostResultV01;
+  let adapterInvocationStarted = false;
   try {
     hostResult = assertNativeHostResultV01(
       request,
@@ -563,6 +757,9 @@ export async function runDirectNativeHostRoundTripV01(
         lifecycle_sink: dependencies.lifecycle_sink,
         resume_binding: dependencies.resume_binding,
         now,
+        on_invocation_started: () => {
+          adapterInvocationStarted = true;
+        },
       }),
     );
   } catch (error) {
@@ -599,6 +796,11 @@ export async function runDirectNativeHostRoundTripV01(
   }
   let synthesizedSkippedCheckIds = new Set<string>();
   try {
+    hostResult = materializeValidatedPacketDeliveryCheckV01({
+      adapter,
+      result: hostResult,
+      adapter_invocation_started: adapterInvocationStarted,
+    });
     const normalized = normalizeNativeHostResultResidueV01({
       result: hostResult,
       required_check_ids: requiredCheckIdsForResultV01(
@@ -626,6 +828,11 @@ export async function runDirectNativeHostRoundTripV01(
         now,
       }),
     );
+    hostResult = materializeValidatedPacketDeliveryCheckV01({
+      adapter,
+      result: hostResult,
+      adapter_invocation_started: adapterInvocationStarted,
+    });
     const normalized = normalizeNativeHostResultResidueV01({
       result: hostResult,
       required_check_ids: requiredCheckIdsForResultV01(
@@ -661,6 +868,8 @@ export async function runDirectNativeHostRoundTripV01(
       result: hostResult,
       admission: admitted,
       run: current,
+      adapter,
+      adapter_invocation_started: adapterInvocationStarted,
       synthesized_skipped_check_ids: synthesizedSkippedCheckIds,
     });
     const write = admitStructuredRunReceiptV01(db, receipt);
@@ -794,6 +1003,9 @@ function revalidateAdmissionInsideTransaction(
     config: VNextLocalOperatorPilotConfigV01;
     admission: PersistedHostPacketAdmissionV01;
     evaluated_at: string;
+    automation_context: NativeHostAutomationContextV01 | null;
+    run_id: string;
+    transition_bounded_work?: boolean;
   },
 ): void {
   const registration = readCanonicalProjectWithRootV01(db, input.config);
@@ -837,6 +1049,137 @@ function revalidateAdmissionInsideTransaction(
       exact.packet.integrity.fingerprint
   ) {
     refuse("direct_host_packet_superseded", 409);
+  }
+  if (input.automation_context?.bounded_cycle) {
+    revalidateBoundedAutomationContextInsideTransactionV01(db, {
+      ...input,
+      automation_context: input.automation_context,
+      transition_work: input.transition_bounded_work !== false,
+    });
+  }
+}
+
+function revalidateBoundedAutomationContextInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    admission: PersistedHostPacketAdmissionV01;
+    evaluated_at: string;
+    automation_context: NativeHostAutomationContextV01;
+    run_id: string;
+    transition_work: boolean;
+  },
+): void {
+  const cycle = input.automation_context.bounded_cycle;
+  if (!cycle) refuse("direct_host_automation_context_invalid", 409);
+  const control = readProjectAutomationControlV01(db, input.config);
+  const grant = cycle.grant;
+  const packetGrant = input.admission.packet.capability_grant;
+  const policyFingerprint = control
+    ? createProtocolSha256V01(canonicalizeProtocolValueV01(control.policy))
+    : null;
+  const evaluatedAt = parseStrictIsoTimestampV01(input.evaluated_at);
+  const expiresAt = parseStrictIsoTimestampV01(grant.expires_at);
+  const expectedCycleId = deriveBoundedAutomationCycleIdV01({
+    grant,
+    packet: input.admission.packet,
+  });
+  const persistedGrant = readBoundedAutomationCapabilityGrantV01(db, {
+    workspace_id: input.config.workspace_id,
+    project_id: input.config.project_id,
+    grant_id: grant.grant_id,
+    grant_fingerprint: grant.grant_fingerprint,
+  });
+  const work = readCurrentVNextAutomationWorkSnapshotV01(db, {
+    workspace_id: input.config.workspace_id,
+    project_id: input.config.project_id,
+    work_id: grant.work_source_ref.external_id,
+  });
+  const expectedGrantRef = createBoundedAutomationGrantRefV01(grant);
+  const expectedWorkRef = work ? createAutomationWorkRefV01(work.source) : null;
+  if (
+    !control ||
+    !control.enabled ||
+    control.paused ||
+    control.revision !== input.automation_context.control_revision ||
+    !validateProjectAutomationPolicyV01(control.policy, input.config).valid ||
+    policyFingerprint !== grant.policy_fingerprint ||
+    canonicalizeProtocolValueV01(input.automation_context.policy_ref) !==
+      canonicalizeProtocolValueV01(grant.policy_ref) ||
+    cycle.cycle_id !== expectedCycleId ||
+    cycle.attempt !== 1 ||
+    cycle.trigger_ref.external_id !==
+      `${input.config.project_id}:${expectedCycleId}` ||
+    cycle.trigger_ref.trust_class !== "direct_local_observation" ||
+    !packetGrant?.grant_external_ref ||
+    canonicalizeProtocolValueV01(packetGrant.grant_external_ref) !==
+      canonicalizeProtocolValueV01(expectedGrantRef) ||
+    canonicalizeProtocolValueV01(input.automation_context.capability_grant_ref) !==
+      canonicalizeProtocolValueV01(expectedGrantRef) ||
+    canonicalizeProtocolValueV01(input.admission.work_ref) !==
+      canonicalizeProtocolValueV01(expectedWorkRef) ||
+    canonicalizeProtocolValueV01(persistedGrant) !==
+      canonicalizeProtocolValueV01(grant) ||
+    !work ||
+    !["claimed", "running", "review_needed"].includes(work.status) ||
+    grant.workspace_id !== input.config.workspace_id ||
+    grant.project_id !== input.config.project_id ||
+    grant.control_revision !== control.revision ||
+    grant.policy_ref.source_ref !== grant.policy_fingerprint ||
+    grant.policy_ref.external_id !==
+      `${input.config.project_id}:${control.revision}` ||
+    grant.work_source_ref.external_id !== work.source.work_id ||
+    grant.work_source_fingerprint !== work.source.work_fingerprint ||
+    grant.work_source_ref.source_ref !== work.source.work_fingerprint ||
+    work.cycle_binding?.cycle_id !== cycle.cycle_id ||
+    work.cycle_binding.run_id !== input.run_id ||
+    work.cycle_binding.final_grant_ref.external_id !== grant.grant_id ||
+    work.cycle_binding.final_grant_ref.source_ref !== grant.grant_fingerprint ||
+    work.cycle_binding.packet_ref.external_id !== input.admission.packet.packet_id ||
+    work.cycle_binding.packet_ref.source_ref !== input.admission.packet.integrity.fingerprint ||
+    grant.expires_at !== packetGrant.expires_at ||
+    grant.root_fingerprint !== input.admission.root_scope.root_fingerprint ||
+    !validateBoundedAutomationCapabilityGrantV01(grant) ||
+    evaluatedAt === null ||
+    expiresAt === null ||
+    expiresAt <= evaluatedAt ||
+    grant.budget.max_work_items !== 1 ||
+    grant.budget.max_active_runs !== 1 ||
+    grant.budget.max_attempts !== 1 ||
+    grant.budget.max_augnes_model_invocations !== 0 ||
+    grant.budget.max_augnes_model_tokens !== 0 ||
+    grant.budget.max_augnes_model_cost_units !== 0 ||
+    grant.budget.native_host_model_scope !== "none" ||
+    grant.host_execution_profile !== "deterministic_zero_model" ||
+    grant.host_provider_egress !== "forbidden" ||
+    grant.budget.network_access !== "denied" ||
+    grant.grants_semantic_authority !== false ||
+    grant.grants_external_action_authority !== false ||
+    grant.grants_credential_access !== false ||
+    grant.can_merge !== false ||
+    grant.can_publish !== false ||
+    grant.can_deploy !== false ||
+    grant.can_expand_authority !== false
+  ) {
+    refuse("direct_host_bounded_automation_binding_conflict", 409);
+  }
+  if (work.status === "claimed" && input.transition_work) {
+    transitionVNextAutomationWorkV01(db, {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      work_id: work.source.work_id,
+      expected_work_fingerprint: work.source.work_fingerprint,
+      expected_status: "claimed",
+      status: "running",
+      cycle_binding: { ...work.cycle_binding, run_id: input.run_id },
+      status_reason: "native_host_run_admitted",
+      observed_at: input.evaluated_at,
+    });
+  } else if (
+    work.status === "running" &&
+    work.cycle_binding.run_id !== input.run_id
+  ) {
+    refuse("direct_host_bounded_automation_run_binding_conflict", 409);
   }
 }
 
@@ -952,6 +1295,7 @@ function buildNativeHostRequest(input: {
   timeout_ms: number;
   stop_settle_timeout_ms: number;
   live_host: boolean;
+  adapter: NativeHostAdapterV01;
 }): NativeHostRequestV01 {
   const packet = input.admission.packet;
   return {
@@ -979,7 +1323,7 @@ function buildNativeHostRequest(input: {
     allowed_operation_categories: [
       "read_validated_task_context",
       "return_bounded_structured_result",
-      ...(input.live_host
+      ...(input.adapter.execution_profile === "native_host_managed_model"
         ? [
             "project_scoped_command_with_approval",
             "project_scoped_file_change_with_approval",
@@ -988,24 +1332,31 @@ function buildNativeHostRequest(input: {
     ],
     forbidden_operation_categories: [
       "filesystem_outside_selected_project_root",
-      ...(input.live_host ? [] : ["network_egress", "provider_or_model_call"]),
+      ...(input.adapter.provider_egress === "native_host_managed"
+        ? []
+        : ["network_egress", "provider_or_model_call"]),
       "external_state_mutation",
       "semantic_commit",
       "raw_output_return",
       ...packet.constraints.forbidden_actions,
     ],
     packet_capability_grant: packet.capability_grant,
+    execution_grant_ref:
+      input.automation_context?.capability_grant_ref ?? null,
     automation_context: input.automation_context,
     policy: {
       filesystem: "selected_project_root_only",
-      network: input.live_host ? "exact_grant_only" : "forbidden",
-      commands: input.live_host
+      network:
+        input.adapter.provider_egress === "native_host_managed"
+          ? "exact_grant_only"
+          : "forbidden",
+      commands: input.adapter.execution_profile === "native_host_managed_model"
         ? "approval_required"
         : "forbidden_in_deterministic_adapter",
-      model: input.live_host
+      model: input.adapter.execution_profile === "native_host_managed_model"
         ? "native_host_managed"
         : "forbidden_in_deterministic_adapter",
-      host_egress: input.live_host
+      host_egress: input.adapter.provider_egress === "native_host_managed"
         ? input.mode === "interactive"
           ? "explicit_interactive_start"
           : "bounded_capability_grant"
@@ -1047,18 +1398,20 @@ function createRunLedgerRecord(
     started_at: string;
     adapter: NativeHostAdapterV01;
     lifecycle_mode: "synchronous" | "managed_live";
+    initial_claim_only?: boolean;
   },
 ): void {
   const packet = input.admission.packet;
   const managedLive = input.lifecycle_mode === "managed_live";
+  const initialClaimOnly = input.initial_claim_only === true;
   const run: AutonomyRunSummary = {
     run_id: input.run_id,
     scope: input.input.config.project_id,
     autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
     title: "Project-scoped native-host round trip",
-    status: managedLive ? "starting" : "running",
+    status: initialClaimOnly ? "queued" : managedLive ? "starting" : "running",
     scheduled_for: null,
-    started_at: input.started_at,
+    started_at: initialClaimOnly ? null : input.started_at,
     finished_at: null,
     created_at: input.started_at,
     updated_at: input.started_at,
@@ -1075,13 +1428,15 @@ function createRunLedgerRecord(
           "The resulting receipt is operational history, not approval, proof, accepted Evidence, semantic state, or work closure.",
         ],
       }),
-      can_execute_codex: managedLive,
+      can_execute_codex:
+        managedLive && input.adapter.execution_profile === "native_host_managed_model",
     },
     budget_snapshot: buildDefaultRunnerBudgetSnapshot({
       budget_id: `native-host-budget:${input.run_id}`,
       max_iterations: 1,
       max_tool_calls: 0,
-      max_codex_tasks: 1,
+      max_codex_tasks:
+        input.adapter.execution_profile === "native_host_managed_model" ? 1 : 0,
       notes: [
         managedLive
           ? "One local Codex App Server thread and turn are allowed; no automatic retry or GitHub action is granted."
@@ -1103,6 +1458,10 @@ function createRunLedgerRecord(
         input.admission.source_transition_receipt_ref.source_ref,
       root_kind: input.admission.root_scope.root_kind,
       root_fingerprint: input.admission.root_scope.root_fingerprint,
+      root_physical_identity_fingerprint:
+        fingerprintNativeHostPhysicalRootIdentityV01(
+          input.admission.root_scope.physical_root_identity,
+        ),
       request_id: input.request_id,
       adapter_version: input.adapter.adapter_version,
       capability_version: input.adapter.capability_version,
@@ -1115,6 +1474,13 @@ function createRunLedgerRecord(
         input.input.automation_context?.capability_grant_ref ?? null,
       automation_control_revision:
         input.input.automation_context?.control_revision ?? null,
+      automation_context: input.input.automation_context ?? null,
+      bounded_automation_cycle_id:
+        input.input.automation_context?.bounded_cycle?.cycle_id ?? null,
+      bounded_automation_attempt:
+        input.input.automation_context?.bounded_cycle?.attempt ?? null,
+      bounded_automation_grant:
+        input.input.automation_context?.bounded_cycle?.grant ?? null,
       automatic_retry: false,
       semantic_mutation_authorized: false,
       raw_packet_persisted_in_ledger: false,
@@ -1132,11 +1498,11 @@ function createRunLedgerRecord(
     run_id: input.run_id,
     step_index: 1,
     action_kind: "invoke_project_scoped_host_adapter",
-    status: "running",
+    status: initialClaimOnly ? "planned" : "running",
     title: "Invoke project-scoped native-host adapter",
     summary:
       "Deliver one exact admitted packet and receive one bounded structured result.",
-    started_at: input.started_at,
+    started_at: initialClaimOnly ? null : input.started_at,
     finished_at: null,
     output: {},
     error_message: null,
@@ -1169,27 +1535,140 @@ function createRunLedgerRecord(
           }),
         ]
       : []),
+    ...(!initialClaimOnly
+      ? [
+          buildAutonomyRunEventRecord({
+            run_id: input.run_id,
+            event_type: managedLive ? "run_starting" : "run_started",
+            status: managedLive ? "starting" : "running",
+            message: managedLive
+              ? "The admitted live run is ready for registered invocation ownership."
+              : "Direct native-host round trip started.",
+            payload: { mode: input.input.mode, automatic_retry: false },
+            created_at: input.started_at,
+          }),
+          buildAutonomyRunEventRecord({
+            run_id: input.run_id,
+            step_id: step.step_id,
+            event_type: "step_started",
+            status: "running",
+            message: "Project-scoped host adapter step started.",
+            payload: { capability: HOST_CAPABILITY },
+            created_at: input.started_at,
+          }),
+        ]
+      : []),
+  ];
+  insertAutonomyRunLedgerRecord(run, [step], events, { db });
+}
+
+function assertPreparedRunClaimMatchesV01(
+  run: AutonomyRunRecord,
+  claim: PreparedNativeHostRunClaimV01,
+): void {
+  if (
+    run.run_id !== claim.run_id ||
+    run.metadata.request_id !== claim.request_id ||
+    run.metadata.packet_id !== claim.packet_id ||
+    run.metadata.packet_fingerprint !== claim.packet_fingerprint ||
+    run.metadata.adapter_version !== claim.adapter_version ||
+    run.metadata.capability_version !== claim.capability_version ||
+    run.metadata.root_physical_identity_fingerprint !==
+      claim.root_physical_identity_fingerprint ||
+    run.created_at !== claim.claimed_at
+  ) {
+    refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
+}
+
+function startPreparedRunInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    run: AutonomyRunRecord;
+    admission: PersistedHostPacketAdmissionV01;
+    automation_context: NativeHostAutomationContextV01;
+    observed_at: string;
+  },
+): void {
+  const step = input.run.steps[0];
+  if (
+    input.run.status !== "queued" ||
+    input.run.started_at !== null ||
+    !step ||
+    step.status !== "planned" ||
+    step.started_at !== null ||
+    input.run.metadata.packet_id !== input.admission.packet.packet_id ||
+    input.run.metadata.packet_fingerprint !==
+      input.admission.packet.integrity.fingerprint ||
+    canonicalizeProtocolValueV01(input.run.metadata.automation_context) !==
+      canonicalizeProtocolValueV01(input.automation_context)
+  ) {
+    refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
+  updateAutonomyRunStepLedgerFields(
+    step.step_id,
+    {
+      status: "running",
+      started_at: input.observed_at,
+      updated_at: input.observed_at,
+    },
+    { db },
+  );
+  updateAutonomyRunLedgerFields(
+    input.run.run_id,
+    {
+      status: "starting",
+      started_at: input.observed_at,
+      updated_at: input.observed_at,
+      metadata: {
+        ...input.run.metadata,
+        host_invocation_started_at: input.observed_at,
+      },
+    },
+    { db },
+  );
+  appendAutonomyRunLedgerEvent(
     buildAutonomyRunEventRecord({
-      run_id: input.run_id,
-      event_type: managedLive ? "run_starting" : "run_started",
-      status: managedLive ? "starting" : "running",
-      message: managedLive
-        ? "The admitted live run is ready for registered invocation ownership."
-        : "Direct native-host round trip started.",
-      payload: { mode: input.input.mode, automatic_retry: false },
-      created_at: input.started_at,
+      run_id: input.run.run_id,
+      event_type: "run_starting",
+      status: "starting",
+      message: "The exact admitted run claim entered host invocation.",
+      payload: { mode: "policy_triggered", automatic_retry: false },
+      created_at: input.observed_at,
     }),
+    { db },
+  );
+  appendAutonomyRunLedgerEvent(
     buildAutonomyRunEventRecord({
-      run_id: input.run_id,
+      run_id: input.run.run_id,
       step_id: step.step_id,
       event_type: "step_started",
       status: "running",
       message: "Project-scoped host adapter step started.",
       payload: { capability: HOST_CAPABILITY },
-      created_at: input.started_at,
+      created_at: input.observed_at,
     }),
-  ];
-  insertAutonomyRunLedgerRecord(run, [step], events, { db });
+    { db },
+  );
+}
+
+function assertBoundedHostContractV01(input: {
+  automation_context: NativeHostAutomationContextV01;
+  adapter: NativeHostAdapterV01;
+  timeout_ms: number;
+}): void {
+  const grant = input.automation_context.bounded_cycle?.grant;
+  if (
+    !grant ||
+    grant.host_adapter_version !== input.adapter.adapter_version ||
+    grant.host_capability_version !== input.adapter.capability_version ||
+    grant.host_execution_profile !== input.adapter.execution_profile ||
+    grant.host_provider_egress !== input.adapter.provider_egress ||
+    input.timeout_ms > grant.budget.max_runtime_ms ||
+    MAX_COMMANDS > grant.budget.max_commands
+  ) {
+    refuse("direct_host_bounded_automation_budget_or_host_conflict", 409);
+  }
 }
 
 function resumeManagedLiveRunInsideTransactionV01(
@@ -1287,16 +1766,60 @@ function assertLiveHostEgressAdmissionV01(input: {
   }
 }
 
+export function materializeValidatedPacketDeliveryCheckV01(input: {
+  adapter: Pick<
+    NativeHostAdapterV01,
+    "adapter_version" | "execution_profile" | "provider_egress"
+  >;
+  result: NativeHostResultV01;
+  adapter_invocation_started: boolean;
+}): NativeHostResultV01 {
+  const authority = deriveNativeHostDeliveryAuthorityV01(input);
+  const existing = input.result.checks.filter(
+    (check) => check.check_id === "validated_packet_delivery",
+  );
+  if (!authority.validated_packet_delivery_observed) {
+    if (existing.some((check) => check.status === "passed")) {
+      throw new NativeHostResultNormalizationErrorV01(
+        "native_host_packet_delivery_relation_conflict",
+      );
+    }
+    return input.result;
+  }
+  return {
+    ...input.result,
+    checks: [
+      ...input.result.checks.filter(
+        (check) => check.check_id !== "validated_packet_delivery",
+      ),
+      {
+        check_id: "validated_packet_delivery",
+        required: true,
+        status: "passed",
+        summary:
+          authority.delivery_scope === "local_in_process"
+            ? "The local orchestration boundary presented the exact admitted packet to the in-process adapter."
+            : "The local orchestration boundary observed transfer of the exact admitted packet across the configured native-host boundary.",
+      },
+    ],
+  };
+}
+
 function buildDirectHostRunReceipt(input: {
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
   admission: PersistedHostPacketAdmissionV01;
   run: AutonomyRunRecord;
+  adapter: NativeHostAdapterV01;
+  adapter_invocation_started: boolean;
   synthesized_skipped_check_ids: ReadonlySet<string>;
 }): RunReceiptV01 {
   const { request, result, admission, run } = input;
-  const packetDeliveryInitiated =
-    result.adapter_extension.bounded_metadata.packet_delivery_initiated === true;
+  const deliveryAuthority = deriveNativeHostDeliveryAuthorityV01({
+    adapter: input.adapter,
+    result,
+    adapter_invocation_started: input.adapter_invocation_started,
+  });
   const liveAppServerResult =
     result.adapter_extension.adapter_kind === "codex_app_server";
   const residueBasis = liveAppServerResult ? "attested" : "observed";
@@ -1328,6 +1851,7 @@ function buildDirectHostRunReceipt(input: {
     null,
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
   );
+  const deliveryCheckSourceRefs = [reporterRef];
   const hostRef = result.host_refs[0] ?? null;
   const artifactRefs = result.changed_files.map((changed) =>
     repositoryArtifactRef(
@@ -1412,6 +1936,9 @@ function buildDirectHostRunReceipt(input: {
       trust_class: "direct_local_observation",
       source_refs: uniqueRefs([
         admission.packet_ref,
+        runRef,
+        adapterRef,
+        request.execution_grant_ref,
         admission.source_transition_receipt_ref,
         admission.root_scope.root_scope_ref,
         ...request.packet_lineage.packet_source_refs,
@@ -1447,23 +1974,12 @@ function buildDirectHostRunReceipt(input: {
           }),
         )
       : []),
-    ...(!liveAppServerResult
-      ? result.observed_actions.map(
-          (action): RunReceiptObservationV01 => ({
-            observation_id: stableResidueIdV01("observation:action", action),
-            observation_kind: "native_host_action",
-            summary: action,
-            event_at: result.finished_at,
-            observed_at: result.finished_at,
-            observer_ref: reporterRef,
-            trust_class: "direct_local_observation",
-            source_refs: [runRef, adapterRef],
-            related_command_ids: [],
-            related_check_ids: [],
-            related_artifact_refs: [],
-          }),
-        )
-      : []),
+    ...projectDirectNativeHostActionObservationsV01({
+      result,
+      run_ref: runRef,
+      adapter_ref: adapterRef,
+      reporter_ref: reporterRef,
+    }),
   ];
   const attestations: RunReceiptAttestationV01[] = [
     ...(liveAppServerResult && hostRef
@@ -1596,15 +2112,18 @@ function buildDirectHostRunReceipt(input: {
     checks: result.checks.map((check) => ({
       ...check,
       basis:
-        !liveAppServerResult || check.check_id === "validated_packet_delivery"
+        !liveAppServerResult ||
+        check.check_id === "validated_packet_delivery" ||
+        check.check_id === "deterministic_packet_delivery"
           ? ("observed" as const)
           : residueBasis,
       source_refs:
-        liveAppServerResult &&
-        hostRef &&
-        check.check_id !== "validated_packet_delivery"
-          ? [hostRef]
-          : [reporterRef],
+        check.check_id === "validated_packet_delivery" ||
+        check.check_id === "deterministic_packet_delivery"
+          ? deliveryCheckSourceRefs
+          : liveAppServerResult && hostRef
+            ? [hostRef]
+            : [reporterRef],
     })),
     skipped_checks: result.skipped_checks.map((check) => ({
       ...check,
@@ -1690,25 +2209,38 @@ function buildDirectHostRunReceipt(input: {
     ],
     privacy_egress: {
       data_classification: admission.packet.constraints.data_classification,
-      egress_status: packetDeliveryInitiated ? "occurred" : "did_not_occur",
+      egress_status: deliveryAuthority.privacy_or_external_egress_occurred
+        ? "occurred"
+        : "did_not_occur",
       basis: "observed",
       destination_refs:
-        packetDeliveryInitiated && hostRef ? [hostRef] : [],
-      redaction_status: packetDeliveryInitiated ? "unknown" : "not_needed",
-      retention_class: packetDeliveryInitiated
+        deliveryAuthority.privacy_or_external_egress_occurred && hostRef
+          ? [hostRef]
+          : [],
+      redaction_status:
+        deliveryAuthority.privacy_or_external_egress_occurred
+          ? "unknown"
+          : "not_needed",
+      retention_class: deliveryAuthority.privacy_or_external_egress_occurred
         ? "native_host_managed_or_unknown"
-        : "bounded_structured_receipt_only",
+        : deliveryAuthority.delivery_scope === "local_in_process"
+          ? "bounded_structured_local_receipt_only"
+          : "bounded_structured_receipt_only",
       raw_prompt_persisted: false,
       raw_output_persisted: false,
       raw_transcript_persisted: false,
       secret_material_persisted: false,
       source_refs: [reporterRef],
       notes: [
-        packetDeliveryInitiated
-          ? "Packet delivery to the configured native host was directly observed; native-host retention is host-managed or unknown."
-          : "The packet was delivered in process and was not copied into the ledger or receipt.",
+        deliveryAuthority.packet_presented_to_adapter
+          ? deliveryAuthority.delivery_scope === "local_in_process"
+            ? "The exact admitted packet was presented to the in-process adapter; no external privacy boundary was crossed."
+            : deliveryAuthority.privacy_or_external_egress_occurred
+              ? "Packet transfer to the configured native-host boundary was directly observed; native-host retention is managed or unknown."
+              : "The native-host adapter received the request, but packet transfer across its managed boundary was not observed."
+          : "Adapter invocation did not begin, so packet presentation was not observed.",
         "No prompt, transcript, hidden reasoning, environment dump, provider payload, stdout, stderr, credential, or absolute root path is persisted.",
-        ...(packetDeliveryInitiated
+        ...(deliveryAuthority.provider_or_model_egress_occurred
           ? [
               "Native-host-internal model activity is outside Augnes-owned R4 Model Gateway invocation coverage.",
             ]
@@ -1792,6 +2324,32 @@ function buildDirectHostRunReceipt(input: {
   return receipt;
 }
 
+export function projectDirectNativeHostActionObservationsV01(input: {
+  result: NativeHostResultV01;
+  run_ref: ExternalRefV01;
+  adapter_ref: ExternalRefV01;
+  reporter_ref: ExternalRefV01;
+}): RunReceiptObservationV01[] {
+  if (input.result.adapter_extension.adapter_kind === "codex_app_server") {
+    return [];
+  }
+  return input.result.observed_actions.map(
+    (action): RunReceiptObservationV01 => ({
+      observation_id: stableResidueIdV01("observation:action", action),
+      observation_kind: "native_host_action",
+      summary: action,
+      event_at: input.result.finished_at,
+      observed_at: input.result.finished_at,
+      observer_ref: input.reporter_ref,
+      trust_class: "direct_local_observation",
+      source_refs: [input.run_ref, input.adapter_ref],
+      related_command_ids: [],
+      related_check_ids: [],
+      related_artifact_refs: [],
+    }),
+  );
+}
+
 async function invokeAdapterBounded(
   adapter: NativeHostAdapterV01,
   request: NativeHostRequestV01,
@@ -1803,6 +2361,7 @@ async function invokeAdapterBounded(
     lifecycle_sink?: NativeHostLifecycleSinkV01;
     resume_binding?: NativeHostResumeBindingV01 | null;
     now: () => string;
+    on_invocation_started?: () => void;
   },
 ): Promise<NativeHostResultV01> {
   const controller = new AbortController();
@@ -1817,6 +2376,7 @@ async function invokeAdapterBounded(
       lifecycle_sink: input.lifecycle_sink,
       resume_binding: input.resume_binding,
     });
+    input.on_invocation_started?.();
   } catch {
     return buildBoundaryTerminalResult({
       request,
@@ -2059,7 +2619,8 @@ function buildBoundaryTerminalResult(input: {
         source_ref: hostRef,
         notes: ["The orchestration boundary observed the terminal control outcome."],
       },
-      ...(input.prior_result?.adapter_extension.bounded_metadata
+      ...(input.adapter.provider_egress === "native_host_managed" &&
+      input.prior_result?.adapter_extension.bounded_metadata
         .packet_delivery_initiated === true
         ? [
             {
@@ -2108,6 +2669,7 @@ function buildRunIdentity(input: {
     source_transition_receipt_ref:
       input.admission.source_transition_receipt_ref,
     root_fingerprint: input.admission.root_scope.root_fingerprint,
+    root_physical_identity: input.admission.root_scope.physical_root_identity,
     root_kind: input.admission.root_scope.root_kind,
     adapter_version: input.adapter.adapter_version,
     capability_version: input.adapter.capability_version,
@@ -2690,7 +3252,7 @@ function uniqueRefs(
 function validAutomationContext(
   value: NativeHostAutomationContextV01 | null | undefined,
 ): value is NativeHostAutomationContextV01 {
-  return Boolean(
+  const validBase = Boolean(
     value &&
       value.automatic_retry_allowed === false &&
       value.scheduler_started === false &&
@@ -2699,6 +3261,21 @@ function validAutomationContext(
       (value.control_revision === null ||
         (Number.isSafeInteger(value.control_revision) &&
           value.control_revision! >= 0)),
+  );
+  if (!validBase || !value?.bounded_cycle) return validBase;
+  const cycle = value.bounded_cycle;
+  return Boolean(
+    cycle.profile === "bounded_autohunt_review_needed.v0.1" &&
+      cycle.cycle_id.length > 0 &&
+      cycle.attempt === 1 &&
+      cycle.trigger_ref?.ref_version === "external_ref.v0.1" &&
+      cycle.grant?.grant_version ===
+        "bounded_automation_capability_grant.v0.1" &&
+      cycle.grant.profile === cycle.profile &&
+      validateBoundedAutomationCapabilityGrantV01(cycle.grant) &&
+      value.capability_grant_ref.external_id === cycle.grant.grant_id &&
+      value.capability_grant_ref.source_ref === cycle.grant.grant_fingerprint &&
+      cycle.cycle_id.startsWith("bounded-cycle:"),
   );
 }
 

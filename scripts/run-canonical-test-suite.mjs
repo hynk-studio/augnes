@@ -57,6 +57,12 @@ const suites = {
       // The complete success and fail-closed contract measured 18.9s locally.
       timeoutMs: 45_000,
     },
+    {
+      label: "bounded local project-root verification adapter",
+      ...rootNode("scripts/test-local-project-verification-adapter.ts"),
+      // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.
+      timeoutMs: 30_000,
+    },
   ],
   integration: [
     {

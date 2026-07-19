@@ -6,6 +6,12 @@ import { useEffect, useState } from "react";
 import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
 import type { ProjectControlActionV01 } from "@/types/vnext/project-controls";
 
+type AutomationCycleActionV01 =
+  | "queue_current_task_for_automation"
+  | "run_one_bounded_cycle"
+  | "cancel_bounded_cycle"
+  | "retry_bounded_cycle";
+
 export function ProjectControls({
   projection,
   kind,
@@ -14,7 +20,9 @@ export function ProjectControls({
   kind: "automation" | "personal_perspective";
 }) {
   const router = useRouter();
-  const [pending, setPending] = useState<ProjectControlActionV01 | null>(null);
+  const [pending, setPending] = useState<
+    ProjectControlActionV01 | AutomationCycleActionV01 | null
+  >(null);
   const [message, setMessage] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const active = projection.project_summary.is_active;
@@ -60,6 +68,49 @@ export function ProjectControls({
     }
   }
 
+  async function mutateCycle(action: AutomationCycleActionV01) {
+    setPending(action);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/vnext/operator/automation-cycle", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ...(action === "run_one_bounded_cycle"
+            ? {
+                expected_control_revision:
+                  projection.automation.control_revision,
+              }
+            : {}),
+        }),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error_code?: string;
+      };
+      if (!response.ok || !payload.ok) {
+        setMessage(cycleConflictMessage(payload.error_code));
+        return;
+      }
+      setMessage(
+        action === "cancel_bounded_cycle"
+          ? "Cancellation requested. Terminal status appears only after the owned host settles."
+          : action === "retry_bounded_cycle"
+            ? "Proposal settlement retry admitted without rerunning the host."
+            : action === "queue_current_task_for_automation"
+              ? "Bounded project verification was queued with the current packet retained as source lineage."
+              : "One bounded policy-triggered cycle started.",
+      );
+      router.refresh();
+    } catch {
+      setMessage("The bounded automation action could not be admitted. Try again.");
+    } finally {
+      setPending(null);
+    }
+  }
+
   return (
     <div
       className="project-control-actions"
@@ -85,6 +136,16 @@ export function ProjectControls({
               >
                 {pending === action ? "Saving…" : actionLabel(action)}
               </button>
+              ))}
+              {automationCycleActions(projection).map((action) => (
+                <button
+                  key={action}
+                  type="button"
+                  disabled={!hydrated || pending !== null}
+                  onClick={() => mutateCycle(action)}
+                >
+                  {pending === action ? "Working…" : actionLabel(action)}
+                </button>
               ))}
             </div>
           ) : (
@@ -137,7 +198,30 @@ function personalPerspectiveActions(
   return ["include_personal_perspective", "exclude_personal_perspective"];
 }
 
-function actionLabel(action: ProjectControlActionV01): string {
+function automationCycleActions(
+  projection: ProjectHomeProjectionV01,
+): AutomationCycleActionV01[] {
+  if (projection.automation.cycle.next_action === "run_one_bounded_cycle") {
+    return ["run_one_bounded_cycle"];
+  }
+  if (projection.automation.cycle.next_action === "queue_current_task") {
+    return ["queue_current_task_for_automation"];
+  }
+  if (projection.automation.cycle.next_action === "cancel") {
+    return ["cancel_bounded_cycle"];
+  }
+  if (
+    projection.automation.cycle.next_action ===
+    "retry_proposal_settlement"
+  ) {
+    return ["retry_bounded_cycle"];
+  }
+  return [];
+}
+
+function actionLabel(
+  action: ProjectControlActionV01 | AutomationCycleActionV01,
+): string {
   return {
     enable_automation: "Enable",
     disable_automation: "Disable",
@@ -145,6 +229,10 @@ function actionLabel(action: ProjectControlActionV01): string {
     resume_automation: "Resume",
     include_personal_perspective: "Include Personal Perspective",
     exclude_personal_perspective: "Exclude Personal Perspective",
+    run_one_bounded_cycle: "Run one bounded cycle",
+    queue_current_task_for_automation: "Queue bounded project verification",
+    cancel_bounded_cycle: "Request cancellation",
+    retry_bounded_cycle: "Retry proposal settlement",
   }[action];
 }
 
@@ -165,4 +253,17 @@ function conflictMessage(errorCode?: string): string {
     return "These project controls changed in another view. Refresh and try again.";
   }
   return "Project controls could not be saved. Refresh and try again.";
+}
+
+function cycleConflictMessage(errorCode?: string): string {
+  if (errorCode === "bounded_automation_control_revision_conflict") {
+    return "Automation settings changed in another view. Refresh and try again.";
+  }
+  if (errorCode?.includes("review_needed")) {
+    return "Automation already stopped for human review.";
+  }
+  if (errorCode === "bounded_automation_retry_not_allowed") {
+    return "This failure is not retryable without changing its source or control state.";
+  }
+  return "The bounded automation gate refused this action. Refresh for the current reason.";
 }

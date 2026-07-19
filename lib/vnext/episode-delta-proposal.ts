@@ -2,6 +2,7 @@ import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
   compareProtocolCanonicalV01,
+  compareProtocolCodeUnitsV01,
   createProtocolSha256V01,
   isProtocolRecordV01,
   normalizeExternalRefPrimitiveV01,
@@ -871,7 +872,13 @@ function normalizeSourceAssessmentV01(
           criterion_id: normalizeProtocolTextV01(criterion.criterion_id),
           criterion: normalizeProtocolTextV01(criterion.criterion),
         })),
-      ).sort(compareProtocolCanonicalV01),
+      ).sort(
+        (left, right) =>
+          compareProtocolCodeUnitsV01(
+            left.criterion_id,
+            right.criterion_id,
+          ) || compareProtocolCodeUnitsV01(left.criterion, right.criterion),
+      ),
       required_checks: uniqueProtocolStringsV01(
         input.expected.required_checks,
       ),

@@ -27,6 +27,8 @@ export const VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01 =
   "augnes.vnext.local-semantic-state.v0.1" as const;
 
 export const VNEXT_CORE_RECORD_KINDS_V01 = [
+  "automation_work_item",
+  "capability_grant",
   "episode_delta_proposal",
   "review_decision",
   "semantic_commit_gate",
@@ -160,6 +162,8 @@ export interface VNextSemanticTargetHeadV01 {
 export const VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01 = `
   CREATE TABLE IF NOT EXISTS vnext_core_records (
     record_kind TEXT NOT NULL CHECK (record_kind IN (
+      'automation_work_item',
+      'capability_grant',
       'episode_delta_proposal',
       'review_decision',
       'semantic_commit_gate',
@@ -311,7 +315,7 @@ interface TargetHeadRowV01 {
 }
 
 const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01 =
-  "vnext_core_records_upgrade_v0_1" as const;
+  "vnext_core_records_upgrade_v0_2" as const;
 
 function upgradeVNextCoreRecordKindConstraintV01(
   db: Database.Database,
@@ -321,7 +325,14 @@ function upgradeVNextCoreRecordKindConstraintV01(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
     )
     .get() as { sql: string | null } | undefined;
-  if (!table || table.sql?.includes("'context_use_review'")) return;
+  if (
+    !table ||
+    (table.sql?.includes("'context_use_review'") &&
+      table.sql.includes("'automation_work_item'") &&
+      table.sql.includes("'capability_grant'"))
+  ) {
+    return;
+  }
   if (db.inTransaction) {
     throw new Error("vnext_core_record_kind_upgrade_nested_transaction_forbidden");
   }
@@ -341,6 +352,8 @@ function upgradeVNextCoreRecordKindConstraintV01(
     db.exec(`
       CREATE TABLE ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V01} (
         record_kind TEXT NOT NULL CHECK (record_kind IN (
+          'automation_work_item',
+          'capability_grant',
           'episode_delta_proposal',
           'review_decision',
           'semantic_commit_gate',
@@ -446,9 +459,13 @@ export function assertVNextDurableSemanticStoreSchemaV01(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
     )
     .get() as { sql: string | null } | undefined;
-  if (!coreRecordTable?.sql?.includes("'context_use_review'")) {
+  if (
+    !coreRecordTable?.sql?.includes("'context_use_review'") ||
+    !coreRecordTable.sql.includes("'automation_work_item'") ||
+    !coreRecordTable.sql.includes("'capability_grant'")
+  ) {
     throw new Error(
-      "vnext_durable_semantic_store_schema_uninitialized:table:vnext_core_records:context_use_review",
+      "vnext_durable_semantic_store_schema_uninitialized:table:vnext_core_records:required_record_kinds",
     );
   }
 }

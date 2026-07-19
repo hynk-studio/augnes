@@ -20,7 +20,14 @@ import {
 import { readProposalForExactSourcePurposeV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
-import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import {
+  validateExternalRefV01,
+  validateTaskContextPacketV01,
+} from "@/lib/vnext/task-context-packet";
+import {
+  deriveBoundedAutomationCycleIdV01,
+  validateBoundedAutomationCapabilityGrantV01,
+} from "@/lib/vnext/bounded-automation-cycle";
 import { DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import type {
   AutonomyRunRecord,
@@ -28,6 +35,8 @@ import type {
 } from "@/types/autonomy-runner-execution";
 import type { CriterionAssessmentReadbackV01 } from "@/types/vnext/criterion-assessment";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type { BoundedAutomationCapabilityGrantV01 } from "@/types/vnext/bounded-automation-cycle";
+import type { NativeHostAutomationContextV01 } from "@/types/vnext/native-host-adapter";
 import {
   PROJECT_RUN_RESULT_READ_MODEL_VERSION_V01,
   type ProjectRunResultActionV01,
@@ -187,6 +196,7 @@ export function readProjectRunResultDetailV01(
         },
     criterion_assessment: criterionAssessment,
     proposal: projectProposalReadbackV01(db, binding),
+    automation: projectAutomationLineageV01(binding),
     host: {
       host_ref: receipt.host_ref,
       host_refs: hostRefs,
@@ -222,6 +232,109 @@ export function readProjectRunResultDetailV01(
       semantic_state_changed: false,
     },
   };
+}
+
+function projectAutomationLineageV01(
+  binding: ProjectRunResultSourceBindingV01,
+): ProjectRunResultDetailV01["automation"] {
+  const metadata = binding.run?.metadata;
+  if (
+    metadata?.invocation_origin !== "policy_triggered" ||
+    typeof metadata.bounded_automation_cycle_id !== "string"
+  ) {
+    return null;
+  }
+  if (!binding.packet) {
+    throw new ProjectRunResultReadErrorV01("project_result_packet_conflict");
+  }
+  const policyRef = metadataExternalRefV01(metadata.policy_ref);
+  const grantRef = metadataExternalRefV01(metadata.capability_grant_ref);
+  const grant = boundedGrantMetadataV01(metadata.bounded_automation_grant);
+  const automationContext = nativeAutomationContextMetadataV01(
+    metadata.automation_context,
+  );
+  const cycle = automationContext?.bounded_cycle;
+  if (
+    !policyRef ||
+    !grantRef ||
+    !grant ||
+    !cycle ||
+    cycle.cycle_id !== metadata.bounded_automation_cycle_id ||
+    cycle.cycle_id !==
+      deriveBoundedAutomationCycleIdV01({
+        grant,
+        packet: binding.packet,
+      }) ||
+    canonicalizeProtocolValueV01(cycle.grant) !==
+      canonicalizeProtocolValueV01(grant) ||
+    canonicalizeProtocolValueV01(automationContext.policy_ref) !==
+      canonicalizeProtocolValueV01(policyRef) ||
+    canonicalizeProtocolValueV01(automationContext.capability_grant_ref) !==
+      canonicalizeProtocolValueV01(grantRef) ||
+    binding.packet.capability_grant?.grant_external_ref?.external_id !==
+      grant.grant_id ||
+    binding.packet.capability_grant.grant_external_ref.source_ref !==
+      grant.grant_fingerprint ||
+    (typeof binding.packet.work_ref !== "object" ||
+      binding.packet.work_ref?.external_id !== grant.work_source_ref.external_id ||
+      binding.packet.work_ref.source_ref !== grant.work_source_fingerprint) ||
+    grant.workspace_id !== binding.packet.workspace_id ||
+    grant.project_id !== binding.packet.project_id
+  ) {
+    throw new ProjectRunResultReadErrorV01("project_result_packet_conflict");
+  }
+  return {
+    origin: "policy_triggered",
+    cycle_id: metadata.bounded_automation_cycle_id,
+    attempt:
+      Number.isSafeInteger(metadata.bounded_automation_attempt) &&
+      Number(metadata.bounded_automation_attempt) > 0
+        ? Number(metadata.bounded_automation_attempt)
+        : 1,
+    policy_ref: policyRef,
+    capability_grant_ref: grantRef,
+    budget: grant.budget,
+    stop_reason: binding.run?.stop_reason ?? null,
+    stopped_at_review_needed: binding.run?.status === "needs_review",
+    automatic_retry: false,
+    semantic_authority_granted: false,
+  };
+}
+
+function metadataExternalRefV01(value: unknown): ExternalRefV01 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as ExternalRefV01;
+  return validateExternalRefV01(candidate).status === "valid"
+    ? candidate
+    : null;
+}
+
+function boundedGrantMetadataV01(
+  value: unknown,
+): BoundedAutomationCapabilityGrantV01 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as BoundedAutomationCapabilityGrantV01;
+  return validateBoundedAutomationCapabilityGrantV01(candidate)
+    ? candidate
+    : null;
+}
+
+function nativeAutomationContextMetadataV01(
+  value: unknown,
+): NativeHostAutomationContextV01 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<NativeHostAutomationContextV01>;
+  return candidate.automatic_retry_allowed === false &&
+    candidate.scheduler_started === false &&
+    Number.isSafeInteger(candidate.control_revision) &&
+    metadataExternalRefV01(candidate.policy_ref) &&
+    metadataExternalRefV01(candidate.capability_grant_ref) &&
+    candidate.bounded_cycle?.profile ===
+      "bounded_autohunt_review_needed.v0.1" &&
+    candidate.bounded_cycle.attempt === 1 &&
+    validateBoundedAutomationCapabilityGrantV01(candidate.bounded_cycle.grant)
+    ? (candidate as NativeHostAutomationContextV01)
+    : null;
 }
 
 export function readProjectRunResultSourceBindingV01(

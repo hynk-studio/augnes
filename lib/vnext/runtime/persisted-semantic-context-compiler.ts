@@ -54,8 +54,11 @@ import type {
 import type {
   TaskContextPacketExcludedEntryV01,
   TaskContextPacketSelectedEntryV01,
+  TaskContextPacketBoundedCapabilitySummaryV01,
   TaskContextPacketV01,
 } from "@/types/vnext/task-context-packet";
+import type { BoundedAutomationCapabilityGrantV01 } from "@/types/vnext/bounded-automation-cycle";
+import type { VNextAutomationWorkSourceV01 } from "@/types/vnext/automation-work-item";
 import {
   PERSONAL_PERSPECTIVE_CONTEXT_SELECTION_VERSION_V01,
   PERSONAL_PERSPECTIVE_EFFECTIVE_SCOPE_VERSION_V01,
@@ -66,6 +69,8 @@ import {
 
 export const VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 =
   "vnext_persisted_semantic_context_compiler.v0.1" as const;
+export const VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01 =
+  "vnext_bounded_automation_context_compiler.v0.1" as const;
 
 export type VNextTaskContextPacketExpiryPolicyV01 =
   | { mode: "explicit"; expires_at: string | null }
@@ -95,6 +100,146 @@ export interface CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
   full_chain_relation: TaskContextPacketTransitionRelationResultV01;
   current_state_entries: VNextSemanticStateProjectionEntryV01[];
   personal_perspective_selection: PersonalPerspectiveContextSelectionV01;
+}
+
+export interface CompileBoundedAutomationTaskContextPacketResultV01 {
+  status: VNextCoreRecordWriteResultV01["status"];
+  packet: TaskContextPacketV01;
+}
+
+/**
+ * Compiles an explicit automation work item through the normal persisted packet
+ * builder/writer. The source packet remains selected context; it is never
+ * treated as execution authority or as the work item itself.
+ */
+export function compileBoundedAutomationTaskContextPacketV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    source_packet: TaskContextPacketV01;
+    work: VNextAutomationWorkSourceV01;
+    grant: BoundedAutomationCapabilityGrantV01;
+    work_ref: ExternalRefV01;
+    grant_ref: ExternalRefV01;
+    generated_at: string;
+  },
+): CompileBoundedAutomationTaskContextPacketResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  validatePriorPacket(input.source_packet, input.workspace_id, input.project_id);
+  if (
+    input.work.workspace_id !== input.workspace_id ||
+    input.work.project_id !== input.project_id ||
+    input.grant.workspace_id !== input.workspace_id ||
+    input.grant.project_id !== input.project_id ||
+    input.grant.work_source_ref.external_id !== input.work.work_id ||
+    input.grant.work_source_fingerprint !== input.work.work_fingerprint ||
+    input.grant.work_operation_profile !== input.work.operation_profile ||
+    input.work_ref.external_id !== input.work.work_id ||
+    input.work_ref.source_ref !== input.work.work_fingerprint ||
+    input.grant_ref.external_id !== input.grant.grant_id ||
+    input.grant_ref.source_ref !== input.grant.grant_fingerprint
+  ) {
+    throw new Error("bounded_automation_packet_source_binding_conflict");
+  }
+  const capabilityGrant: TaskContextPacketBoundedCapabilitySummaryV01 = {
+    grant_ref: input.grant.grant_id,
+    grant_external_ref: input.grant_ref,
+    allowed_capabilities: [...input.grant.allowed_capabilities],
+    forbidden_capabilities: [...input.grant.forbidden_capabilities],
+    resource_scope: [...input.grant.resource_scope],
+    stop_conditions: [...input.grant.stop_conditions],
+    coverage: "enforced",
+    expires_at: input.grant.expires_at,
+  };
+  const sourcePacketRef: ExternalRefV01 = {
+    ref_version: "external_ref.v0.1",
+    ref_type: "task_context_packet",
+    external_id: input.source_packet.packet_id,
+    observed_at: input.source_packet.generated_at,
+    source_ref: input.source_packet.integrity.fingerprint,
+    compatibility_namespace: VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
+    trust_class: "direct_local_observation",
+  };
+  const packet = buildTaskContextPacketV01({
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    work_ref: input.work_ref,
+    generated_at: input.generated_at,
+    expires_at: input.grant.expires_at,
+    task: input.work.task,
+    current_projection: input.source_packet.current_projection,
+    selected_context: input.source_packet.selected_context,
+    excluded_context: input.source_packet.excluded_context,
+    tensions: input.source_packet.tensions,
+    risks: input.source_packet.risks,
+    gaps: input.source_packet.gaps,
+    constraints: {
+      ...input.source_packet.constraints,
+      required_checks: input.work.required_checks,
+      forbidden_actions: uniqueStrings([
+        ...input.source_packet.constraints.forbidden_actions,
+        ...input.work.blocked_actions,
+      ]),
+    },
+    capability_grant: capabilityGrant,
+    return_contract: {
+      ...input.source_packet.return_contract,
+      required_checks: input.work.required_checks,
+      expected_artifacts: input.work.expected_outputs,
+    },
+    source_status: input.source_packet.source_status,
+    compatibility: {
+      ...input.source_packet.compatibility,
+      source_contracts: uniqueStrings([
+        ...input.source_packet.compatibility.source_contracts,
+        VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+        VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
+        input.work.operation_profile,
+      ]),
+      source_refs: normalizeRefs([
+        ...input.source_packet.compatibility.source_refs,
+        sourcePacketRef,
+        input.work_ref,
+        input.grant_ref,
+      ]),
+      warnings: uniqueStrings([
+        ...input.source_packet.compatibility.warnings,
+        "This packet was compiled from one explicit queued automation work item and one exact final execution grant.",
+        "The source packet task remains lineage only; this packet executes the server-owned bounded project-root verification profile.",
+      ]),
+    },
+    authority_notes: [
+      ...input.source_packet.authority_summary.notes,
+      "The automation work item and final grant authorize only the bounded host boundary; the packet remains selected working context.",
+    ],
+  });
+  const validation = validateTaskContextPacketV01(packet, {
+    evaluated_at: input.generated_at,
+  });
+  if (validation.status !== "valid") {
+    throw new Error(
+      `bounded_automation_compiled_packet_invalid:${validation.errors
+        .map((issue) => issue.code)
+        .join(",")}`,
+    );
+  }
+  const write = insertVNextCoreRecordV01(db, {
+    record_kind: "task_context_packet",
+    record_id: packet.packet_id,
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    fingerprint: packet.integrity.fingerprint,
+    idempotency_key: null,
+    payload: packet,
+    created_at: packet.generated_at,
+  });
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(write.record, {
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    fingerprint: packet.integrity.fingerprint,
+  });
+  return { status: write.status, packet };
 }
 
 interface ResolvedPresentEffectV01 {

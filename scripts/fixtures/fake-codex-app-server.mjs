@@ -218,12 +218,7 @@ async function handle(message) {
         });
         else if (isSequentialApprovalScenario()) requestSequentialApproval();
         else if (scenario === "concurrent_approval_overflow") {
-          for (let index = 1; index <= 9; index += 1) {
-            requestCommandApproval(
-              { itemId: `fake-concurrent-command-item-${index}` },
-              `fake-server-concurrent-${index}`,
-            );
-          }
+          requestConcurrentApprovalOverflow();
         }
         else if (scenario === "active_duplicate_request") {
           const params = commandApprovalParams();
@@ -395,6 +390,29 @@ function requestSequentialApproval() {
     { itemId: `fake-sequential-command-item-${sequentialApprovalIndex}` },
     `fake-server-sequential-${sequentialApprovalIndex}`,
   );
+}
+
+function requestConcurrentApprovalOverflow() {
+  const messages = [];
+  for (let index = 1; index <= 9; index += 1) {
+    const requestId = `fake-server-concurrent-${index}`;
+    const params = commandApprovalParams({
+      itemId: `fake-concurrent-command-item-${index}`,
+    });
+    pendingApprovalRequestIds.add(requestId);
+    approvalRequestParams.set(requestId, params);
+    const message = {
+      id: requestId,
+      method: "item/commandExecution/requestApproval",
+      params,
+    };
+    trace("sent", minimized(message));
+    messages.push(JSON.stringify(message));
+  }
+  // One bounded pipe write makes the overflow fixture independent of stdout
+  // chunk scheduling. The adapter must observe all nine requests before any
+  // asynchronous approval lifecycle handler can race the ninth-request bound.
+  process.stdout.write(`${messages.join("\n")}\n`);
 }
 
 function isSequentialApprovalScenario() {

@@ -16,6 +16,7 @@ import type {
   ProjectRunResultCurrentRunV01,
   ProjectRunResultSummaryV01,
 } from "./project-run-result";
+import type { BoundedAutomationCycleProjectionV01 } from "./bounded-automation-cycle";
 
 export const PROJECT_HOME_PROJECTION_VERSION_V01 =
   "project_home_projection.v0.1" as const;
@@ -143,7 +144,8 @@ export interface ProjectHomeAutomationSummaryV01 {
   policy_control_eligible: boolean;
   admission_status: ProjectAutomationAdmissionStatusV01;
   admission_reason: string;
-  current_run_summary: null;
+  current_run_summary: BoundedAutomationCycleProjectionV01["run"];
+  cycle: BoundedAutomationCycleProjectionV01;
 }
 
 export interface ProjectHomePersonalPerspectiveSummaryV01 {

@@ -23,11 +23,14 @@ import {
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
+  admitPreparedNativeHostRunClaimInsideTransactionV01,
   admitPersistedHostTaskContextPacketV01,
   DirectNativeHostRoundTripErrorV01,
+  prepareNativeHostRunClaimInsideTransactionV01,
   runDirectNativeHostRoundTripV01,
   type NativeHostTimeoutSchedulerV01,
   type PersistedHostPacketAdmissionV01,
+  type PreparedNativeHostRunClaimV01,
 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import {
   admitVNextLocalOperatorMutationV01,
@@ -60,11 +63,13 @@ import {
   type NativeHostRunModeV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import { validateBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/bounded-automation-cycle";
+import { readBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 
 export const LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01 =
   "live_native_host_run_service.v0.1" as const;
 
-const DEFAULT_LIVE_TIMEOUT_MS = 15 * 60 * 1_000;
+export const DEFAULT_LIVE_TIMEOUT_MS = 15 * 60 * 1_000;
 const DEFAULT_STOP_SETTLE_TIMEOUT_MS = 10_000;
 const MAX_EVENT_FINGERPRINTS = 128;
 
@@ -166,6 +171,86 @@ export class LiveNativeHostRunServiceV01 {
   constructor(private readonly options: LiveNativeHostRunServiceOptionsV01 = {}) {
     this.openDatabase = options.open_database ?? openVNextLocalOperatorDatabaseV01;
     this.now = options.now ?? (() => new Date().toISOString());
+  }
+
+  readCapabilityContractV01(): {
+    adapter_version: string;
+    capability_version: string;
+    timeout_ms: number;
+    execution_profile: NativeHostAdapterV01["execution_profile"];
+    provider_egress: NativeHostAdapterV01["provider_egress"];
+  } {
+    const adapter = this.currentAdapterContract();
+    return {
+      adapter_version: adapter.adapter_version,
+      capability_version: adapter.capability_version,
+      timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+      execution_profile: adapter.execution_profile,
+      provider_egress: adapter.provider_egress,
+    };
+  }
+
+  async preparePolicyTriggeredRunClaimInsideTransactionV01(
+    db: Database.Database,
+    input: {
+      config: VNextLocalOperatorPilotConfigV01;
+      automation_context: NativeHostAutomationContextV01;
+      packet_id: string;
+      packet_fingerprint: string;
+      claimed_at: string;
+    },
+  ) {
+    return prepareNativeHostRunClaimInsideTransactionV01(
+      db,
+      {
+        ...input,
+        mode: "policy_triggered",
+        adapter: this.currentAdapterContract(),
+        timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+      },
+    );
+  }
+
+  admitPolicyTriggeredRunClaimInsideTransactionV01(
+    db: Database.Database,
+    input: {
+      config: VNextLocalOperatorPilotConfigV01;
+      automation_context: NativeHostAutomationContextV01;
+      prepared: Awaited<
+        ReturnType<
+          LiveNativeHostRunServiceV01["preparePolicyTriggeredRunClaimInsideTransactionV01"]
+        >
+      >;
+    },
+  ): void {
+    admitPreparedNativeHostRunClaimInsideTransactionV01(db, {
+      ...input,
+      adapter: this.currentAdapterContract(),
+    });
+  }
+
+  async startAdmittedPolicyTriggeredV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    automation_context: NativeHostAutomationContextV01;
+    claim: PreparedNativeHostRunClaimV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+  }): Promise<LiveNativeHostStartResultV01> {
+    const key = projectKeyV01(input.config);
+    const active = this.controllers.get(key);
+    if (active && !active.completionSettled) {
+      refuseV01("live_host_start_conflict", 409);
+    }
+    return this.launch({
+      config: input.config,
+      mode: "policy_triggered",
+      automation_context: input.automation_context,
+      resume_binding: null,
+      resume_existing: false,
+      pre_admitted_run_claim: {
+        claim: input.claim,
+        session_admission: input.session_admission,
+      },
+    });
   }
 
   async start(input: {
@@ -560,6 +645,10 @@ export class LiveNativeHostRunServiceV01 {
     };
     resume_binding: NativeHostResumeBindingV01 | null;
     resume_existing: boolean;
+    pre_admitted_run_claim?: {
+      claim: PreparedNativeHostRunClaimV01;
+      session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+    };
   }): Promise<LiveNativeHostStartResultV01> {
     const db = this.openDatabase(input.config);
     const delegate =
@@ -594,6 +683,7 @@ export class LiveNativeHostRunServiceV01 {
         resume_binding: input.resume_binding,
         resume_existing_run: input.resume_existing,
         live_host_egress_authorized: input.mode === "interactive",
+        pre_admitted_run_claim: input.pre_admitted_run_claim,
         on_invocation_admitted: ({ request, session_admission }) =>
           controller.admit(request, session_admission),
       },
@@ -925,6 +1015,8 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
     this.adapter = {
       adapter_version: input.delegate.adapter_version,
       capability_version: input.delegate.capability_version,
+      execution_profile: input.delegate.execution_profile,
+      provider_egress: input.delegate.provider_egress,
       invoke: (request, control) => {
         if (!this.request) this.request = request;
         else if (canonicalizeProtocolValueV01(this.request) !== canonicalizeProtocolValueV01(request)) {
@@ -1415,7 +1507,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           refuseV01("live_host_approval_conflict", 409);
         }
         pending = existing;
-        automatic = exactPolicyGrantCoversV01(request, approval);
+        automatic = exactPolicyGrantCoversV01(db, request, approval);
         db.exec("COMMIT");
       } else {
         const revision = numberMetadataV01(run.metadata.control_revision) + 1;
@@ -1424,7 +1516,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           control_revision: revision,
           decision_submitted: false,
         };
-        automatic = exactPolicyGrantCoversV01(request, approval);
+        automatic = exactPolicyGrantCoversV01(db, request, approval);
         updateAutonomyRunLedgerFields(
           run.run_id,
           {
@@ -1465,7 +1557,11 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       throw error;
     }
 
-    if (automatic) {
+    const boundedPolicyDenial =
+      request.mode === "policy_triggered" &&
+      request.automation_context?.bounded_cycle != null &&
+      !automatic;
+    if (automatic || boundedPolicyDenial) {
       const run = requireBoundRunV01(db, request);
       db.exec("BEGIN IMMEDIATE");
       try {
@@ -1476,7 +1572,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           {
             approval_ref: pending.approval_id,
             expected_revision: pending.control_revision,
-            decision: "approve_once",
+            decision: boundedPolicyDenial ? "decline" : "approve_once",
             decision_source: "bounded_capability_grant",
             decided_at: this.input.now(),
           },
@@ -1940,6 +2036,10 @@ function resumeBindingFromRunV01(run: AutonomyRunRecord): NativeHostResumeBindin
 function automationContextFromRunV01(
   run: AutonomyRunRecord,
 ): NativeHostAutomationContextV01 {
+  const exact = nativeHostAutomationContextMetadataV01(
+    run.metadata.automation_context,
+  );
+  if (exact) return exact;
   const policyRef = genericExternalRefMetadataV01(run.metadata.policy_ref);
   const grantRef = genericExternalRefMetadataV01(
     run.metadata.capability_grant_ref,
@@ -1960,6 +2060,46 @@ function automationContextFromRunV01(
     automatic_retry_allowed: false,
     scheduler_started: false,
   };
+}
+
+function nativeHostAutomationContextMetadataV01(
+  value: unknown,
+): NativeHostAutomationContextV01 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<NativeHostAutomationContextV01>;
+  if (
+    candidate.automatic_retry_allowed !== false ||
+    candidate.scheduler_started !== false ||
+    !genericExternalRefMetadataV01(candidate.policy_ref) ||
+    !genericExternalRefMetadataV01(candidate.capability_grant_ref) ||
+    !(
+      candidate.control_revision === null ||
+      (Number.isSafeInteger(candidate.control_revision) &&
+        Number(candidate.control_revision) >= 0)
+    )
+  ) {
+    return null;
+  }
+  if (
+    candidate.bounded_cycle &&
+    (candidate.bounded_cycle.profile !==
+      "bounded_autohunt_review_needed.v0.1" ||
+      candidate.bounded_cycle.attempt !== 1 ||
+      typeof candidate.bounded_cycle.cycle_id !== "string" ||
+      candidate.bounded_cycle.grant?.grant_version !==
+        "bounded_automation_capability_grant.v0.1" ||
+      !validateBoundedAutomationCapabilityGrantV01(
+        candidate.bounded_cycle.grant,
+      ) ||
+      !candidate.bounded_cycle.cycle_id.startsWith("bounded-cycle:") ||
+      candidate.capability_grant_ref?.external_id !==
+        candidate.bounded_cycle.grant.grant_id ||
+      candidate.capability_grant_ref.source_ref !==
+        candidate.bounded_cycle.grant.grant_fingerprint)
+  ) {
+    return null;
+  }
+  return candidate as NativeHostAutomationContextV01;
 }
 
 function automationContextMatchesRunV01(
@@ -1996,6 +2136,7 @@ function startMaterialMatchesRunV01(
 }
 
 function exactPolicyGrantCoversV01(
+  db: Database.Database,
   request: NativeHostRequestV01,
   approval: NativeHostApprovalRequestV01,
 ): boolean {
@@ -2007,6 +2148,34 @@ function exactPolicyGrantCoversV01(
     grant.grant_external_ref?.external_id === automationGrant.external_id ||
     grant.grant_ref === automationGrant.external_id;
   if (!grantIdentityMatches) return false;
+  const boundedGrant = request.automation_context.bounded_cycle?.grant;
+  if (boundedGrant) {
+    const persisted = readBoundedAutomationCapabilityGrantV01(db, {
+      workspace_id: request.workspace_id,
+      project_id: request.project_id,
+      grant_id: boundedGrant.grant_id,
+      grant_fingerprint: boundedGrant.grant_fingerprint,
+    });
+    if (
+      canonicalizeProtocolValueV01(persisted) !==
+        canonicalizeProtocolValueV01(boundedGrant) ||
+      request.execution_grant_ref?.external_id !== boundedGrant.grant_id ||
+      request.execution_grant_ref.source_ref !== boundedGrant.grant_fingerprint ||
+      grant.grant_external_ref?.external_id !== boundedGrant.grant_id ||
+      grant.grant_external_ref.source_ref !== boundedGrant.grant_fingerprint ||
+      boundedGrant.host_execution_profile !== "deterministic_zero_model" ||
+      boundedGrant.host_provider_egress !== "forbidden" ||
+      boundedGrant.forbidden_capabilities.includes(
+        `native_host_approval:${approval.operation_class}`,
+      )
+    ) {
+      return false;
+    }
+    // The conservative v0.1 profile admits no approval-bearing native-host
+    // operation. Generic command text cannot prove that external effects are
+    // absent, and network permission is always denied.
+    return false;
+  }
   if (
     grant.expires_at &&
     Date.parse(grant.expires_at) <= Date.parse(approval.issued_at)
