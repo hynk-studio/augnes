@@ -24,6 +24,7 @@ import {
   LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01,
 } from "@/lib/vnext/automation/local-project-root-verification-profile";
 import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment";
+import { createProtocolSha256V01 } from "@/lib/vnext/protocol-primitives";
 import { admitEpisodeDeltaProposalV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   admitClaimEvidenceRelationV01,
@@ -111,6 +112,14 @@ const PRODUCER = {
   producer_kind: "server_deterministic_evaluator" as const,
   producer_profile: "sr2-project-verify-focused-proof.v0.1",
 };
+const USER_PRODUCER = {
+  producer_kind: "user" as const,
+  producer_profile: "sr2-project-verify-user-candidate.v0.1",
+};
+const MODEL_PRODUCER = {
+  producer_kind: "model" as const,
+  producer_profile: "sr2-project-verify-model-candidate.v0.1",
+};
 
 function refV01(
   refType: string,
@@ -143,17 +152,25 @@ function evidenceV01(input: {
   summary?: string;
   projectId?: string;
   trustClass?: ExternalRefV01["trust_class"];
+  producer?: EvidenceRecordV01["producer"];
 }): EvidenceRecordV01 {
-  const trustClass = input.trustClass ?? "direct_local_observation";
+  const trustClass = input.trustClass ?? "derived_interpretation";
+  const evidenceKind =
+    trustClass === "host_attestation"
+      ? "host_attestation_material"
+      : trustClass === "user_declaration"
+        ? "user_declared_material"
+        : trustClass === "provider_report"
+          ? "provider_report_material"
+          : trustClass === "imported_unverified"
+            ? "imported_unverified_material"
+            : "derived_interpretation_material";
   return buildEvidenceRecordV01({
     identity_namespace: "augnes.test.sr2.evidence.v0.1",
     identity_key: input.identityKey,
     workspace_id: WORKSPACE_ID,
     project_id: input.projectId ?? PROJECT_ID,
-    evidence_kind:
-      trustClass === "host_attestation"
-        ? "host_attestation_material"
-        : "direct_observation_material",
+    evidence_kind: evidenceKind,
     subject_refs: [subjectRef],
     source_refs: [sourceRef],
     source_observed_or_reported_at: CREATED_AT,
@@ -164,7 +181,7 @@ function evidenceV01(input: {
     material_fingerprint: null,
     limitations: ["Support material is not truth or accepted state."],
     uncertainty: [],
-    producer: PRODUCER,
+    producer: input.producer ?? PRODUCER,
   });
 }
 
@@ -177,10 +194,21 @@ function claimV01(input: {
   familySeed?: string;
   projectId?: string;
   scope?: ClaimApplicabilityScopeV01;
+  producer?: ClaimRecordV01["producer"];
+  sourceRefs?: ExternalRefV01[];
 }): ClaimRecordV01 {
+  const producer = input.producer ?? PRODUCER;
+  const priorOrigin = input.prior?.family_origin;
   return buildClaimRecordV01({
-    family_namespace: "augnes.test.sr2.claim-family.v0.1",
-    family_seed: input.familySeed ?? "explicit-family-seed",
+    family_origin: {
+      origin_namespace:
+        priorOrigin?.origin_namespace ?? "augnes.test.sr2.claim-family.v0.1",
+      origin_seed:
+        input.familySeed ?? priorOrigin?.origin_seed ?? "explicit-family-seed",
+      origin_profile: priorOrigin?.origin_profile ?? producer.producer_profile,
+      origin_producer_kind:
+        priorOrigin?.origin_producer_kind ?? producer.producer_kind,
+    },
     workspace_id: WORKSPACE_ID,
     project_id: input.projectId ?? PROJECT_ID,
     revision: input.revision,
@@ -192,10 +220,10 @@ function claimV01(input: {
     proposition: input.proposition,
     subject_refs: [subjectRef],
     applicability_scope: input.scope ?? applicability,
-    source_refs: [sourceRef],
+    source_refs: input.sourceRefs ?? [sourceRef],
     limitations: ["Candidate proposition remains non-applied."],
     uncertainty: ["Truth is not established by record existence."],
-    producer: PRODUCER,
+    producer,
     created_at: new Date(
       Date.parse(CREATED_AT) + input.revision * 1_000,
     ).toISOString(),
@@ -215,11 +243,22 @@ function relationV01(input: {
   trustClass?: ExternalRefV01["trust_class"];
   workspaceId?: string;
   projectId?: string;
+  producer?: ClaimEvidenceRelationV01["producer"];
+  sourceRefs?: ExternalRefV01[];
+  scope?: ClaimApplicabilityScopeV01;
 }): ClaimEvidenceRelationV01 {
   const revision = input.revision ?? 1;
+  const producer = input.producer ?? PRODUCER;
+  const priorOrigin = input.prior?.family_origin;
   return buildClaimEvidenceRelationV01({
-    family_namespace: "augnes.test.sr2.relation-family.v0.1",
-    family_seed: input.familySeed,
+    family_origin: {
+      origin_namespace:
+        priorOrigin?.origin_namespace ?? "augnes.test.sr2.relation-family.v0.1",
+      origin_seed: input.familySeed,
+      origin_profile: priorOrigin?.origin_profile ?? producer.producer_profile,
+      origin_producer_kind:
+        priorOrigin?.origin_producer_kind ?? producer.producer_kind,
+    },
     workspace_id: input.workspaceId ?? WORKSPACE_ID,
     project_id: input.projectId ?? PROJECT_ID,
     revision,
@@ -233,14 +272,14 @@ function relationV01(input: {
     claim_ref: claimRecordReferenceV01(input.claim),
     evidence_ref: evidenceRecordReferenceV01(input.evidence),
     relation_kind: input.kind,
-    applicability_scope: applicability,
-    basis: input.basis ?? "observed",
-    trust_class: input.trustClass ?? "direct_local_observation",
-    source_refs: [sourceRef],
+    applicability_scope: input.scope ?? applicability,
+    basis: input.basis ?? "mixed",
+    trust_class: input.trustClass ?? "derived_interpretation",
+    source_refs: input.sourceRefs ?? [sourceRef],
     limitations: ["Candidate relation does not prove the Claim."],
     uncertainty:
       input.kind === "insufficient" ? ["Material is non-conclusive."] : [],
-    producer: PRODUCER,
+    producer,
     created_at: new Date(
       Date.parse(CREATED_AT) + revision * 2_000,
     ).toISOString(),
@@ -428,8 +467,7 @@ function assertImmutableMaterialStoreV01(): void {
       isStoreErrorV01("claim_revision_not_contiguous"),
     );
     const wrongPrior = buildClaimRecordV01({
-      family_namespace: claim1.family_namespace,
-      family_seed: claim1.family_seed,
+      family_origin: claim1.family_origin,
       workspace_id: WORKSPACE_ID,
       project_id: PROJECT_ID,
       revision: 2,
@@ -467,6 +505,28 @@ function assertImmutableMaterialStoreV01(): void {
       }),
     );
     assertBuilderRefusalV01(() =>
+      buildClaimRecordV01({
+        family_origin: {
+          ...claim1.family_origin,
+          origin_profile: "changed-family-origin.v0.1",
+        },
+        workspace_id: claim1.workspace_id,
+        project_id: claim1.project_id,
+        revision: 2,
+        prior_claim_ref: claimRecordReferenceV01(claim1),
+        operation_intent: "revise",
+        operation_target_claim_ref: null,
+        proposition: "Changing family origin must not preserve lineage.",
+        subject_refs: claim1.subject_refs,
+        applicability_scope: claim1.applicability_scope,
+        source_refs: claim1.source_refs,
+        limitations: claim1.limitations,
+        uncertainty: claim1.uncertainty,
+        producer: claim1.producer,
+        created_at: "2026-07-10T04:00:02.000Z",
+      }),
+    );
+    assertBuilderRefusalV01(() =>
       claimV01({
         revision: 2,
         prior: claim1,
@@ -488,6 +548,14 @@ function assertImmutableMaterialStoreV01(): void {
       prior: claim1,
       operation: "revise",
       proposition: "The bounded property holds under the exact recorded scope.",
+      producer: USER_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "user_claim_revision",
+          "user:claim-revision:2",
+          "user_declaration",
+        ),
+      ],
     });
     const competingSibling = claimV01({
       revision: 2,
@@ -519,23 +587,73 @@ function assertImmutableMaterialStoreV01(): void {
       target: claim2,
       proposition: "Supersession candidate for the exact prior revision.",
     });
+    const claim3Bytes = canonicalizeProjectVerifyMaterialV01(claim3);
+    assert.equal(
+      admitClaimRecordV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim: claim3,
+      }).status,
+      "inserted",
+    );
     const claim4 = claimV01({
       revision: 4,
       prior: claim3,
       operation: "retract",
       target: claim3,
-      proposition: "Retraction candidate for the exact prior revision.",
+      proposition: claim3.proposition,
+      producer: USER_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "user_retraction_candidate",
+          "user:claim-retraction:4",
+          "user_declaration",
+        ),
+      ],
     });
-    for (const claim of [claim3, claim4]) {
-      assert.equal(
+    const changedClaimRetraction = claimV01({
+      revision: 4,
+      prior: claim3,
+      operation: "retract",
+      target: claim3,
+      proposition: "A retract candidate cannot rewrite its target proposition.",
+      producer: USER_PRODUCER,
+    });
+    assert.throws(
+      () =>
         admitClaimRecordV01(db, {
           workspace_id: WORKSPACE_ID,
           project_id: PROJECT_ID,
-          claim,
-        }).status,
-        "inserted",
-      );
-    }
+          claim: changedClaimRetraction,
+        }),
+      isStoreErrorV01("claim_retract_proposition_conflict"),
+    );
+    assertBuilderRefusalV01(() =>
+      claimV01({
+        revision: 4,
+        prior: claim3,
+        operation: "retract",
+        target: claim3,
+        proposition: claim3.proposition,
+        scope: createClaimApplicabilityScopeV01({
+          subject_refs: [subjectRef],
+          condition: {
+            kind: "constant",
+            value: "applicable",
+            context_refs: [],
+          },
+        }),
+      }),
+    );
+    assert.equal(
+      admitClaimRecordV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim: claim4,
+      }).status,
+      "inserted",
+    );
+    assert.equal(canonicalizeProjectVerifyMaterialV01(claim3), claim3Bytes);
     assert.equal(
       canonicalizeProjectVerifyMaterialV01(
         readClaimRecordV01(db, {
@@ -572,6 +690,68 @@ function assertImmutableMaterialStoreV01(): void {
     assert.equal(claimLineage.truth_status, "not_established");
     assert.deepEqual(claimLineage.competing_candidate_revisions, []);
     assert.equal(claimLineage.unresolved_lineage_conflict, false);
+    assert.equal(
+      claim1.producer.producer_kind,
+      "server_deterministic_evaluator",
+    );
+    assert.equal(claim2.producer.producer_kind, "user");
+    assert.equal(claim4.producer.producer_kind, "user");
+    assert.deepEqual(claim2.family_origin, claim1.family_origin);
+    assert.deepEqual(claim4.family_origin, claim1.family_origin);
+
+    const modelClaim1 = claimV01({
+      revision: 1,
+      prior: null,
+      operation: "create",
+      familySeed: "model-origin-family",
+      proposition: "A model proposed this bounded candidate proposition.",
+      producer: MODEL_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "model_candidate_source",
+          "model:candidate:claim:1",
+          "derived_interpretation",
+        ),
+      ],
+    });
+    const userModelCorrection = claimV01({
+      revision: 2,
+      prior: modelClaim1,
+      operation: "revise",
+      familySeed: "model-origin-family",
+      proposition: "A user corrected the model-origin candidate proposition.",
+      producer: USER_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "user_claim_correction",
+          "user:model-claim:correction",
+          "user_declaration",
+        ),
+      ],
+    });
+    for (const claim of [modelClaim1, userModelCorrection]) {
+      admitClaimRecordV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim,
+      });
+    }
+    assert.equal(
+      modelClaim1.claim_family_id,
+      userModelCorrection.claim_family_id,
+    );
+    assert.equal(modelClaim1.producer.producer_kind, "model");
+    assert.equal(userModelCorrection.producer.producer_kind, "user");
+    assert.equal(
+      userModelCorrection.family_origin.origin_producer_kind,
+      "model",
+    );
+    assert.equal(userModelCorrection.lifecycle.review_status, "not_reviewed");
+    assert.equal(
+      userModelCorrection.lifecycle.application_status,
+      "not_applied",
+    );
+    assert.equal(userModelCorrection.lifecycle.truth_status, "not_established");
     assertBuilderRefusalV01(() =>
       claimV01({
         revision: 257,
@@ -638,7 +818,6 @@ function assertImmutableMaterialStoreV01(): void {
         kind: "supports",
       }),
     );
-
     const opposingEvidence = evidenceV01({ identityKey: "opposing-evidence" });
     const contradictionEvidence = evidenceV01({
       identityKey: "contradiction-evidence",
@@ -769,6 +948,14 @@ function assertImmutableMaterialStoreV01(): void {
       claim: claim1,
       evidence,
       kind: "qualifies",
+      producer: USER_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "user_relation_revision",
+          "user:relation-revision:2",
+          "user_declaration",
+        ),
+      ],
     });
     const support3 = relationV01({
       familySeed: "support-family",
@@ -780,6 +967,14 @@ function assertImmutableMaterialStoreV01(): void {
       evidence,
       kind: "contextualizes",
     });
+    const support3Bytes = canonicalizeProjectVerifyMaterialV01(support3);
+    for (const relation of [support2, support3]) {
+      admitClaimEvidenceRelationV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        relation,
+      });
+    }
     const support4 = relationV01({
       familySeed: "support-family",
       revision: 4,
@@ -787,16 +982,146 @@ function assertImmutableMaterialStoreV01(): void {
       operation: "retract",
       claim: claim1,
       evidence,
-      kind: "insufficient",
-      basis: "insufficient",
+      kind: support3.relation_kind,
+      basis: support3.basis,
+      trustClass: support3.trust_class,
+      producer: USER_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "user_relation_retraction",
+          "user:relation-retraction:4",
+          "user_declaration",
+        ),
+      ],
     });
-    for (const relation of [support2, support3, support4]) {
-      admitClaimEvidenceRelationV01(db, {
-        workspace_id: WORKSPACE_ID,
-        project_id: PROJECT_ID,
-        relation,
-      });
-    }
+    const changedKindRetraction = relationV01({
+      familySeed: "support-family",
+      revision: 4,
+      prior: support3,
+      operation: "retract",
+      claim: claim1,
+      evidence,
+      kind: "qualifies",
+      basis: support3.basis,
+      trustClass: support3.trust_class,
+      producer: USER_PRODUCER,
+    });
+    assert.throws(
+      () =>
+        admitClaimEvidenceRelationV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          relation: changedKindRetraction,
+        }),
+      isStoreErrorV01("relation_retract_semantics_conflict"),
+    );
+    const changedBasisRetraction = relationV01({
+      familySeed: "support-family",
+      revision: 4,
+      prior: support3,
+      operation: "retract",
+      claim: claim1,
+      evidence,
+      kind: support3.relation_kind,
+      basis: "insufficient",
+      trustClass: support3.trust_class,
+      producer: USER_PRODUCER,
+    });
+    assert.throws(
+      () =>
+        admitClaimEvidenceRelationV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          relation: changedBasisRetraction,
+        }),
+      isStoreErrorV01("relation_retract_semantics_conflict"),
+    );
+    const changedTrustRetraction = relationV01({
+      familySeed: "support-family",
+      revision: 4,
+      prior: support3,
+      operation: "retract",
+      claim: claim1,
+      evidence,
+      kind: support3.relation_kind,
+      basis: "attested",
+      trustClass: "host_attestation",
+      producer: USER_PRODUCER,
+    });
+    assert.throws(
+      () =>
+        admitClaimEvidenceRelationV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          relation: changedTrustRetraction,
+        }),
+      isStoreErrorV01("relation_evidence_trust_conflict"),
+    );
+    assertBuilderRefusalV01(() =>
+      relationV01({
+        familySeed: "support-family",
+        revision: 4,
+        prior: support3,
+        operation: "retract",
+        claim: claim1,
+        evidence: opposingEvidence,
+        kind: support3.relation_kind,
+        basis: support3.basis,
+        trustClass: support3.trust_class,
+      }),
+    );
+    assertBuilderRefusalV01(() =>
+      relationV01({
+        familySeed: "support-family",
+        revision: 4,
+        prior: support3,
+        operation: "retract",
+        claim: claim1,
+        evidence,
+        kind: support3.relation_kind,
+        basis: support3.basis,
+        trustClass: support3.trust_class,
+        scope: createClaimApplicabilityScopeV01({
+          subject_refs: [subjectRef],
+          condition: {
+            kind: "constant",
+            value: "applicable",
+            context_refs: [],
+          },
+        }),
+      }),
+    );
+    assertBuilderRefusalV01(() =>
+      buildClaimEvidenceRelationV01({
+        family_origin: {
+          ...support3.family_origin,
+          origin_profile: "changed-relation-family-origin.v0.1",
+        },
+        workspace_id: support3.workspace_id,
+        project_id: support3.project_id,
+        revision: 4,
+        prior_relation_ref: claimEvidenceRelationReferenceV01(support3),
+        operation_intent: "retract",
+        supersedes_relation_ref: null,
+        claim_ref: support3.claim_ref,
+        evidence_ref: support3.evidence_ref,
+        relation_kind: support3.relation_kind,
+        applicability_scope: support3.applicability_scope,
+        basis: support3.basis,
+        trust_class: support3.trust_class,
+        source_refs: support3.source_refs,
+        limitations: support3.limitations,
+        uncertainty: support3.uncertainty,
+        producer: USER_PRODUCER,
+        created_at: "2026-07-10T04:00:08.000Z",
+      }),
+    );
+    admitClaimEvidenceRelationV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      relation: support4,
+    });
+    assert.equal(canonicalizeProjectVerifyMaterialV01(support3), support3Bytes);
     assert.deepEqual(
       listClaimEvidenceRelationFamilyRevisionsV01(db, {
         workspace_id: WORKSPACE_ID,
@@ -809,6 +1134,80 @@ function assertImmutableMaterialStoreV01(): void {
         [3, "supersede"],
         [4, "retract"],
       ],
+    );
+    assert.equal(
+      support1.producer.producer_kind,
+      "server_deterministic_evaluator",
+    );
+    assert.equal(support2.producer.producer_kind, "user");
+    assert.equal(support4.producer.producer_kind, "user");
+    assert.deepEqual(support2.family_origin, support1.family_origin);
+    assert.deepEqual(support4.family_origin, support1.family_origin);
+
+    const modelEvidence = evidenceV01({
+      identityKey: "model-origin-relation-evidence",
+      producer: MODEL_PRODUCER,
+    });
+    admitEvidenceRecordV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      evidence: modelEvidence,
+    });
+    const modelRelation1 = relationV01({
+      familySeed: "model-origin-relation-family",
+      claim: modelClaim1,
+      evidence: modelEvidence,
+      kind: "supports",
+      producer: MODEL_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "model_relation_candidate",
+          "model:relation:candidate:1",
+          "derived_interpretation",
+        ),
+      ],
+    });
+    const userRelationCorrection = relationV01({
+      familySeed: "model-origin-relation-family",
+      revision: 2,
+      prior: modelRelation1,
+      operation: "revise",
+      claim: modelClaim1,
+      evidence: modelEvidence,
+      kind: "qualifies",
+      producer: USER_PRODUCER,
+      sourceRefs: [
+        refV01(
+          "user_relation_correction",
+          "user:model-relation:correction",
+          "user_declaration",
+        ),
+      ],
+    });
+    for (const relation of [modelRelation1, userRelationCorrection]) {
+      admitClaimEvidenceRelationV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        relation,
+      });
+    }
+    assert.equal(
+      modelRelation1.relation_family_id,
+      userRelationCorrection.relation_family_id,
+    );
+    assert.equal(modelRelation1.producer.producer_kind, "model");
+    assert.equal(userRelationCorrection.producer.producer_kind, "user");
+    assert.equal(
+      userRelationCorrection.family_origin.origin_producer_kind,
+      "model",
+    );
+    assert.equal(
+      userRelationCorrection.lifecycle.review_status,
+      "not_reviewed",
+    );
+    assert.equal(
+      userRelationCorrection.lifecycle.application_status,
+      "not_applied",
     );
     const relationLineage = readClaimEvidenceRelationFamilyLineageV01(db, {
       workspace_id: WORKSPACE_ID,
@@ -871,8 +1270,12 @@ function assertImmutableMaterialStoreV01(): void {
       isStoreErrorV01("relation_claim_endpoint_missing"),
     );
     const forgedClaimRefRelation = buildClaimEvidenceRelationV01({
-      family_namespace: "augnes.test.sr2.relation-family.v0.1",
-      family_seed: "forged-claim-ref",
+      family_origin: {
+        origin_namespace: "augnes.test.sr2.relation-family.v0.1",
+        origin_seed: "forged-claim-ref",
+        origin_profile: PRODUCER.producer_profile,
+        origin_producer_kind: PRODUCER.producer_kind,
+      },
       workspace_id: WORKSPACE_ID,
       project_id: PROJECT_ID,
       revision: 1,
@@ -1497,7 +1900,7 @@ function assertSerializedCrossConnectionReplayV01(): void {
       operation: "retract",
       target: restoredClaim3,
       familySeed: "backup-restore-claim-family",
-      proposition: "Backup and restore preserve retraction candidates.",
+      proposition: restoredClaim3.proposition,
     });
     for (const claim of [
       restoredClaim1,
@@ -1543,8 +1946,9 @@ function assertSerializedCrossConnectionReplayV01(): void {
       operation: "retract",
       claim: restoredClaim1,
       evidence,
-      kind: "insufficient",
-      basis: "insufficient",
+      kind: restoredRelation3.relation_kind,
+      basis: restoredRelation3.basis,
+      trustClass: restoredRelation3.trust_class,
     });
     for (const relation of [
       restoredRelation1,
@@ -1991,8 +2395,7 @@ function rebuildClaimWithForgedPacketSourceV01(
   assert(packetRef);
   packetRef.source_ref = `sha256:${"c".repeat(64)}`;
   return buildClaimRecordV01({
-    family_namespace: record.family_namespace,
-    family_seed: record.family_seed,
+    family_origin: record.family_origin,
     workspace_id: record.workspace_id,
     project_id: record.project_id,
     revision: record.revision,
@@ -2021,8 +2424,7 @@ function rebuildRelationWithForgedAssessmentSourceV01(
   assessmentRef.external_id = `sha256:${"d".repeat(64)}`;
   assessmentRef.source_ref = `sha256:${"d".repeat(64)}`;
   return buildClaimEvidenceRelationV01({
-    family_namespace: record.family_namespace,
-    family_seed: record.family_seed,
+    family_origin: record.family_origin,
     workspace_id: record.workspace_id,
     project_id: record.project_id,
     revision: record.revision,
@@ -2103,6 +2505,16 @@ function assertSourceBoundAdmissionV01(): void {
     assert.equal(admitted.material.evidence_records.length, 5);
     assert.equal(admitted.material.relations.length, 5);
     assert.equal(
+      admitted.material.evidence_records.every(
+        (evidence) =>
+          evidence.trust_class === "direct_local_observation" &&
+          evidence.producer.producer_profile ===
+            "run_criterion_project_verify_producer.v0.1",
+      ),
+      true,
+      "the registered exact SR-1 source authenticator preserves observed trust",
+    );
+    assert.equal(
       admitted.material.relations.every(
         (relation) => relation.relation_kind === "supports",
       ),
@@ -2152,13 +2564,163 @@ function assertSourceBoundAdmissionV01(): void {
     });
     assert.equal(replay.status, "exact_replay");
     assertCanonicalEqualV01(replay.material, admitted.material);
-    const readOnlyBefore = readOnlyDatabaseSnapshotV01(db);
     const reloaded = readSourceBoundRunCriterionProjectVerifyMaterialV01(db, {
       workspace_id: WORKSPACE_ID,
       project_id: PROJECT_ID,
       receipt_id: source.receipt.receipt_id,
     });
     assertCanonicalEqualV01(reloaded, admitted.material);
+    const sourceClaim1 = admitted.material.claim_records[0]!;
+    const userSourceClaim2 = buildClaimRecordV01({
+      family_origin: sourceClaim1.family_origin,
+      workspace_id: sourceClaim1.workspace_id,
+      project_id: sourceClaim1.project_id,
+      revision: 2,
+      prior_claim_ref: claimRecordReferenceV01(sourceClaim1),
+      operation_intent: "revise",
+      operation_target_claim_ref: null,
+      proposition: `${sourceClaim1.proposition} User-authored candidate correction.`,
+      subject_refs: sourceClaim1.subject_refs,
+      applicability_scope: sourceClaim1.applicability_scope,
+      source_refs: [
+        refV01(
+          "user_claim_revision",
+          "user:source-bound-claim:revision:2",
+          "user_declaration",
+        ),
+      ],
+      limitations: [
+        "This later revision is user-authored candidate material and is not source-bound observation.",
+      ],
+      uncertainty: ["Review and application remain absent."],
+      producer: USER_PRODUCER,
+      created_at: source.receipt.recorded_at,
+    });
+    assert.equal(
+      admitClaimRecordV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim: userSourceClaim2,
+      }).status,
+      "inserted",
+    );
+    assert.equal(
+      userSourceClaim2.claim_family_id,
+      sourceClaim1.claim_family_id,
+    );
+    assert.equal(
+      userSourceClaim2.family_origin.origin_producer_kind,
+      "server_deterministic_evaluator",
+    );
+    assert.equal(userSourceClaim2.producer.producer_kind, "user");
+    assert.equal(userSourceClaim2.lifecycle.review_status, "not_reviewed");
+    assert.equal(userSourceClaim2.lifecycle.application_status, "not_applied");
+    assert.equal(userSourceClaim2.lifecycle.truth_status, "not_established");
+    assertBuilderRefusalV01(() =>
+      buildClaimRecordV01({
+        family_origin: sourceClaim1.family_origin,
+        workspace_id: sourceClaim1.workspace_id,
+        project_id: sourceClaim1.project_id,
+        revision: 2,
+        prior_claim_ref: claimRecordReferenceV01(sourceClaim1),
+        operation_intent: "revise",
+        operation_target_claim_ref: null,
+        proposition: `${sourceClaim1.proposition} Forged server-authored change.`,
+        subject_refs: sourceClaim1.subject_refs,
+        applicability_scope: sourceClaim1.applicability_scope,
+        source_refs: sourceClaim1.source_refs,
+        limitations: sourceClaim1.limitations,
+        uncertainty: sourceClaim1.uncertainty,
+        producer: sourceClaim1.producer,
+        created_at: source.receipt.recorded_at,
+      }),
+    );
+
+    const sourceRelation1 = admitted.material.relations.find(
+      (relation) => relation.claim_ref.record_id === sourceClaim1.claim_id,
+    );
+    assert(sourceRelation1);
+    const userSourceRelation2 = buildClaimEvidenceRelationV01({
+      family_origin: sourceRelation1.family_origin,
+      workspace_id: sourceRelation1.workspace_id,
+      project_id: sourceRelation1.project_id,
+      revision: 2,
+      prior_relation_ref: claimEvidenceRelationReferenceV01(sourceRelation1),
+      operation_intent: "revise",
+      supersedes_relation_ref: null,
+      claim_ref: sourceRelation1.claim_ref,
+      evidence_ref: sourceRelation1.evidence_ref,
+      relation_kind: "qualifies",
+      applicability_scope: sourceRelation1.applicability_scope,
+      basis: sourceRelation1.basis,
+      trust_class: sourceRelation1.trust_class,
+      source_refs: [
+        refV01(
+          "user_relation_revision",
+          "user:source-bound-relation:revision:2",
+          "user_declaration",
+        ),
+      ],
+      limitations: [
+        "This user-authored relation revision remains a candidate over authentic exact endpoints.",
+      ],
+      uncertainty: ["Review and application remain absent."],
+      producer: USER_PRODUCER,
+      created_at: source.receipt.recorded_at,
+    });
+    assert.equal(
+      admitClaimEvidenceRelationV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        relation: userSourceRelation2,
+      }).status,
+      "inserted",
+    );
+    assert.equal(
+      userSourceRelation2.relation_family_id,
+      sourceRelation1.relation_family_id,
+    );
+    assert.equal(
+      userSourceRelation2.family_origin.origin_producer_kind,
+      "server_deterministic_evaluator",
+    );
+    assert.equal(userSourceRelation2.producer.producer_kind, "user");
+    assert.equal(userSourceRelation2.lifecycle.review_status, "not_reviewed");
+    assert.equal(
+      userSourceRelation2.lifecycle.application_status,
+      "not_applied",
+    );
+    assertBuilderRefusalV01(() =>
+      buildClaimEvidenceRelationV01({
+        family_origin: sourceRelation1.family_origin,
+        workspace_id: sourceRelation1.workspace_id,
+        project_id: sourceRelation1.project_id,
+        revision: 2,
+        prior_relation_ref: claimEvidenceRelationReferenceV01(sourceRelation1),
+        operation_intent: "revise",
+        supersedes_relation_ref: null,
+        claim_ref: sourceRelation1.claim_ref,
+        evidence_ref: sourceRelation1.evidence_ref,
+        relation_kind: "qualifies",
+        applicability_scope: sourceRelation1.applicability_scope,
+        basis: sourceRelation1.basis,
+        trust_class: sourceRelation1.trust_class,
+        source_refs: sourceRelation1.source_refs,
+        limitations: sourceRelation1.limitations,
+        uncertainty: sourceRelation1.uncertainty,
+        producer: sourceRelation1.producer,
+        created_at: source.receipt.recorded_at,
+      }),
+    );
+    const readOnlyBefore = readOnlyDatabaseSnapshotV01(db);
+    assertCanonicalEqualV01(
+      readSourceBoundRunCriterionProjectVerifyMaterialV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        receipt_id: source.receipt.receipt_id,
+      }),
+      admitted.material,
+    );
     assert.deepEqual(
       readOnlyDatabaseSnapshotV01(db),
       readOnlyBefore,
@@ -2565,6 +3127,241 @@ function assertSourceClaimDeterminismV01(): void {
   }
 }
 
+function resignForgedEvidenceV01(record: EvidenceRecordV01): EvidenceRecordV01 {
+  const withoutFingerprint = {
+    ...record,
+    integrity: {
+      algorithm: record.integrity.algorithm,
+      canonicalization: record.integrity.canonicalization,
+      fingerprint_scope: record.integrity.fingerprint_scope,
+    },
+  };
+  return {
+    ...withoutFingerprint,
+    integrity: {
+      ...withoutFingerprint.integrity,
+      fingerprint: createProtocolSha256V01(
+        canonicalizeProjectVerifyMaterialV01(withoutFingerprint),
+      ),
+    },
+  };
+}
+
+function assertConclusiveEvidenceSourceAuthenticationV01(): void {
+  assertBuilderRefusalV01(() =>
+    buildEvidenceRecordV01({
+      identity_namespace: "augnes.test.unregistered-local-observation.v0.1",
+      identity_key: "unregistered-local-observation",
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      evidence_kind: "direct_observation_material",
+      subject_refs: [subjectRef],
+      source_refs: [sourceRef],
+      source_observed_or_reported_at: CREATED_AT,
+      recorded_at: CREATED_AT,
+      trust_class: "direct_local_observation",
+      coverage: "complete",
+      bounded_summary:
+        "An arbitrary local adapter cannot mint observation trust.",
+      material_fingerprint: null,
+      limitations: [],
+      uncertainty: [],
+      producer: {
+        producer_kind: "local_adapter",
+        producer_profile: "arbitrary-local-adapter.v0.1",
+      },
+    }),
+  );
+  assertBuilderRefusalV01(() =>
+    buildEvidenceRecordV01({
+      identity_namespace: "augnes.test.unregistered-external-observation.v0.1",
+      identity_key: "unregistered-external-observation",
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      evidence_kind: "verified_external_observation_material",
+      subject_refs: [subjectRef],
+      source_refs: [
+        refV01(
+          "external_observation",
+          "external:unregistered-observation",
+          "verified_external_observation",
+        ),
+      ],
+      source_observed_or_reported_at: CREATED_AT,
+      recorded_at: CREATED_AT,
+      trust_class: "verified_external_observation",
+      coverage: "complete",
+      bounded_summary:
+        "An arbitrary deterministic evaluator cannot mint verified observation trust.",
+      material_fingerprint: null,
+      limitations: [],
+      uncertainty: [],
+      producer: {
+        producer_kind: "server_deterministic_evaluator",
+        producer_profile: "arbitrary-deterministic-evaluator.v0.1",
+      },
+    }),
+  );
+  for (const producer of [
+    USER_PRODUCER,
+    MODEL_PRODUCER,
+    {
+      producer_kind: "provider" as const,
+      producer_profile: "provider-candidate.v0.1",
+    },
+    {
+      producer_kind: "import" as const,
+      producer_profile: "import-candidate.v0.1",
+    },
+  ]) {
+    assertBuilderRefusalV01(() =>
+      buildEvidenceRecordV01({
+        identity_namespace: "augnes.test.observation-laundering.v0.1",
+        identity_key: `observation-laundering:${producer.producer_kind}`,
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        evidence_kind: "direct_observation_material",
+        subject_refs: [subjectRef],
+        source_refs: [sourceRef],
+        source_observed_or_reported_at: CREATED_AT,
+        recorded_at: CREATED_AT,
+        trust_class: "direct_local_observation",
+        coverage: "complete",
+        bounded_summary: "Candidate material cannot be relabeled observed.",
+        material_fingerprint: null,
+        limitations: [],
+        uncertainty: [],
+        producer,
+      }),
+    );
+  }
+
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    const claim = claimV01({
+      revision: 1,
+      prior: null,
+      operation: "create",
+      familySeed: "forged-observation-read-family",
+      proposition: "Forged observation material remains unreadable.",
+    });
+    admitClaimRecordV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      claim,
+    });
+    const candidate = evidenceV01({
+      identityKey: "forged-observation-restored",
+    });
+    const forgedEvidence = resignForgedEvidenceV01({
+      ...candidate,
+      evidence_kind: "direct_observation_material",
+      trust_class: "direct_local_observation",
+      producer: {
+        producer_kind: "local_adapter",
+        producer_profile: "forged-restored-local-adapter.v0.1",
+      },
+    });
+    insertVNextCoreRecordV01(db, {
+      record_kind: "evidence_record",
+      record_id: forgedEvidence.evidence_id,
+      workspace_id: forgedEvidence.workspace_id,
+      project_id: forgedEvidence.project_id,
+      fingerprint: forgedEvidence.integrity.fingerprint,
+      idempotency_key: forgedEvidence.idempotency_key,
+      payload: forgedEvidence,
+      created_at: forgedEvidence.recorded_at,
+    });
+    const forgedRelation = buildClaimEvidenceRelationV01({
+      family_origin: {
+        origin_namespace: "augnes.test.forged-observation-relation.v0.1",
+        origin_seed: "forged-observation-relation",
+        origin_profile: USER_PRODUCER.producer_profile,
+        origin_producer_kind: USER_PRODUCER.producer_kind,
+      },
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      revision: 1,
+      prior_relation_ref: null,
+      operation_intent: "create",
+      supersedes_relation_ref: null,
+      claim_ref: claimRecordReferenceV01(claim),
+      evidence_ref: {
+        record_kind: "evidence_record",
+        record_id: forgedEvidence.evidence_id,
+        record_fingerprint: forgedEvidence.integrity.fingerprint,
+      },
+      relation_kind: "supports",
+      applicability_scope: applicability,
+      basis: "observed",
+      trust_class: "direct_local_observation",
+      source_refs: [
+        refV01(
+          "user_relation_candidate",
+          "user:forged-observation-relation",
+          "user_declaration",
+        ),
+      ],
+      limitations: ["The endpoint source must authenticate before readback."],
+      uncertainty: [],
+      producer: USER_PRODUCER,
+      created_at: CREATED_AT,
+    });
+    insertVNextCoreRecordV01(db, {
+      record_kind: "claim_evidence_relation",
+      record_id: forgedRelation.relation_id,
+      workspace_id: forgedRelation.workspace_id,
+      project_id: forgedRelation.project_id,
+      fingerprint: forgedRelation.integrity.fingerprint,
+      idempotency_key: forgedRelation.idempotency_key,
+      payload: forgedRelation,
+      created_at: forgedRelation.created_at,
+    });
+    for (const read of [
+      () =>
+        readEvidenceRecordV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          evidence_id: forgedEvidence.evidence_id,
+        }),
+      () =>
+        listProjectEvidenceRecordsV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+        }),
+      () =>
+        readClaimEvidenceRelationV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          relation_id: forgedRelation.relation_id,
+        }),
+      () =>
+        readClaimEvidenceRelationFamilyLineageV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          relation_family_id: forgedRelation.relation_family_id,
+        }),
+      () =>
+        listRelationsForExactClaimV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          claim_ref: claimRecordReferenceV01(claim),
+        }),
+      () =>
+        listRelationsForExactEvidenceV01(db, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          evidence_ref: forgedRelation.evidence_ref,
+        }),
+    ]) {
+      assert.throws(read, isStoreErrorV01("persisted_evidence_record_invalid"));
+    }
+  } finally {
+    db.close();
+  }
+}
+
 function assertPrivacyBoundaryV01(): void {
   assertBuilderRefusalV01(() =>
     evidenceV01({
@@ -2626,6 +3423,7 @@ try {
   assertSerializedCrossConnectionReplayV01();
   assertSourceBoundAdmissionV01();
   assertSourceClaimDeterminismV01();
+  assertConclusiveEvidenceSourceAuthenticationV01();
   assertPrivacyBoundaryV01();
   assertLegacyCompatibilityV01();
   assert.equal(unexpectedExternalCalls, 0);
@@ -2638,6 +3436,8 @@ try {
       exported_migration_semantic_projection_preservation_checked: true,
       immutable_replay_conflict_checked: true,
       claim_candidate_lineage_checked: true,
+      family_origin_revision_producer_separation_checked: true,
+      pure_retraction_semantics_checked: true,
       relation_coexistence_and_lineage_checked: true,
       relation_trust_elevation_refused: true,
       insufficient_relation_trust_laundering_refused: true,
@@ -2646,6 +3446,8 @@ try {
       serialized_cross_connection_replay_checked: true,
       bounded_sqlite_busy_concurrency_checked: true,
       source_bound_production_shaped_admission_checked: true,
+      conclusive_observation_source_authentication_checked: true,
+      forged_observation_detail_list_relation_lineage_reads_refused: true,
       reserved_exact_material_generic_admission_refused: true,
       restored_forged_material_generic_read_refused: true,
       source_claim_receipt_and_order_determinism_checked: true,

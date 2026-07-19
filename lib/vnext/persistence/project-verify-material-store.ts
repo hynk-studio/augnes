@@ -1009,11 +1009,9 @@ function assertClaimLineageAppendV01(
     record.claim_family_id !== prior.claim_family_id ||
     record.workspace_id !== prior.workspace_id ||
     record.project_id !== prior.project_id ||
-    record.family_namespace !== prior.family_namespace ||
-    record.family_seed !== prior.family_seed ||
+    !canonicalEqualV01(record.family_origin, prior.family_origin) ||
     !canonicalEqualV01(record.subject_refs, prior.subject_refs) ||
-    !canonicalEqualV01(record.applicability_scope, prior.applicability_scope) ||
-    !producerEqualV01(record.producer, prior.producer)
+    !canonicalEqualV01(record.applicability_scope, prior.applicability_scope)
   ) {
     refuseV01("claim_family_lineage_conflict");
   }
@@ -1029,6 +1027,12 @@ function assertClaimLineageAppendV01(
     )
   ) {
     refuseV01("claim_operation_target_conflict");
+  }
+  if (
+    record.operation_intent === "retract" &&
+    record.proposition !== prior.proposition
+  ) {
+    refuseV01("claim_retract_proposition_conflict");
   }
 }
 
@@ -1070,12 +1074,10 @@ function assertRelationLineageAppendV01(
     record.relation_family_id !== prior.relation_family_id ||
     record.workspace_id !== prior.workspace_id ||
     record.project_id !== prior.project_id ||
-    record.family_namespace !== prior.family_namespace ||
-    record.family_seed !== prior.family_seed ||
+    !canonicalEqualV01(record.family_origin, prior.family_origin) ||
     !recordReferenceEqualV01(record.claim_ref, prior.claim_ref) ||
     !recordReferenceEqualV01(record.evidence_ref, prior.evidence_ref) ||
-    !canonicalEqualV01(record.applicability_scope, prior.applicability_scope) ||
-    !producerEqualV01(record.producer, prior.producer)
+    !canonicalEqualV01(record.applicability_scope, prior.applicability_scope)
   ) {
     refuseV01("relation_family_lineage_conflict");
   }
@@ -1090,6 +1092,14 @@ function assertRelationLineageAppendV01(
     )
   ) {
     refuseV01("relation_supersedes_ref_conflict");
+  }
+  if (
+    record.operation_intent === "retract" &&
+    (record.relation_kind !== prior.relation_kind ||
+      record.basis !== prior.basis ||
+      record.trust_class !== prior.trust_class)
+  ) {
+    refuseV01("relation_retract_semantics_conflict");
   }
 }
 
@@ -1464,13 +1474,6 @@ function recordReferenceEqualV01(
   );
 }
 
-function producerEqualV01(
-  left: ProjectVerifyProducerV01,
-  right: ProjectVerifyProducerV01,
-): boolean {
-  return canonicalEqualV01(left, right);
-}
-
 function assertPersistedSourceAuthenticityV01(
   db: Database.Database,
   scope: ProjectVerifyMaterialScopeV01,
@@ -1592,6 +1595,9 @@ function singleSourceRefV01(
 
 function isReservedRunCriterionEvidenceV01(record: EvidenceRecordV01): boolean {
   return (
+    ["direct_local_observation", "verified_external_observation"].includes(
+      record.trust_class,
+    ) ||
     record.evidence_kind === "exact_criterion_relation_material" ||
     record.identity_namespace ===
       RUN_CRITERION_EVIDENCE_IDENTITY_NAMESPACE_V01 ||
@@ -1601,8 +1607,9 @@ function isReservedRunCriterionEvidenceV01(record: EvidenceRecordV01): boolean {
 
 function isReservedRunCriterionClaimV01(record: ClaimRecordV01): boolean {
   return (
-    record.family_namespace === RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01 ||
-    isReservedRunCriterionProducerV01(record.producer)
+    record.revision === 1 &&
+    record.family_origin.origin_namespace ===
+      RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01
   );
 }
 
@@ -1610,8 +1617,9 @@ function isReservedRunCriterionRelationV01(
   record: ClaimEvidenceRelationV01,
 ): boolean {
   return (
-    record.family_namespace === RUN_CRITERION_RELATION_FAMILY_NAMESPACE_V01 ||
-    isReservedRunCriterionProducerV01(record.producer)
+    record.revision === 1 &&
+    record.family_origin.origin_namespace ===
+      RUN_CRITERION_RELATION_FAMILY_NAMESPACE_V01
   );
 }
 

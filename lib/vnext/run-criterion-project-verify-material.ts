@@ -194,10 +194,14 @@ export function materializeRunCriterionProjectVerifyMaterialV01(
       });
       evidenceRecords.push(evidence);
       const relation = buildClaimEvidenceRelationV01({
-        family_namespace: RUN_CRITERION_RELATION_FAMILY_NAMESPACE_V01,
-        family_seed: createProtocolSha256V01(
-          canonicalizeProtocolValueV01(relationSource.ref.external_id),
-        ),
+        family_origin: {
+          origin_namespace: RUN_CRITERION_RELATION_FAMILY_NAMESPACE_V01,
+          origin_seed: createProtocolSha256V01(
+            canonicalizeProtocolValueV01(relationSource.ref.external_id),
+          ),
+          origin_profile: RUN_CRITERION_PROJECT_VERIFY_PRODUCER_PROFILE_V01,
+          origin_producer_kind: "server_deterministic_evaluator",
+        },
         workspace_id: input.packet.workspace_id,
         project_id: input.packet.project_id,
         revision: 1,
@@ -357,14 +361,18 @@ export function materializeRunCriterionClaimCandidateV01(input: {
     trust_class: "direct_local_observation",
   });
   return buildClaimRecordV01({
-    family_namespace: RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01,
-    family_seed: createProtocolSha256V01(
-      canonicalizeProtocolValueV01({
-        criterion_id: input.criterion.criterion_id,
-        packet_id: input.packet.packet_id,
-        packet_fingerprint: input.packet.integrity.fingerprint,
-      }),
-    ),
+    family_origin: {
+      origin_namespace: RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01,
+      origin_seed: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          criterion_id: input.criterion.criterion_id,
+          packet_id: input.packet.packet_id,
+          packet_fingerprint: input.packet.integrity.fingerprint,
+        }),
+      ),
+      origin_profile: RUN_CRITERION_PROJECT_VERIFY_PRODUCER_PROFILE_V01,
+      origin_producer_kind: "server_deterministic_evaluator",
+    },
     workspace_id: input.packet.workspace_id,
     project_id: input.packet.project_id,
     revision: 1,

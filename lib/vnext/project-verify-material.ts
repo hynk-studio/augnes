@@ -29,21 +29,28 @@ import {
   PROJECT_VERIFY_MATERIAL_MAX_LINEAGE_REVISIONS_V01,
   PROJECT_VERIFY_MATERIAL_MAX_REFS_PER_COLLECTION_V01,
   PROJECT_VERIFY_MATERIAL_MAX_TEXT_CHARACTERS_V01,
+  PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01,
   PROJECT_VERIFY_PRODUCER_KINDS_V01,
   RUN_CRITERION_EVIDENCE_IDENTITY_NAMESPACE_V01,
+  RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01,
   RUN_CRITERION_PROJECT_VERIFY_PRODUCER_PROFILE_V01,
+  RUN_CRITERION_PROJECT_VERIFY_SOURCE_AUTHENTICATOR_V01,
+  RUN_CRITERION_RELATION_FAMILY_NAMESPACE_V01,
   type ClaimApplicabilityScopeV01,
   type ClaimEvidenceRelationBasisV01,
   type ClaimEvidenceRelationReferenceV01,
   type ClaimEvidenceRelationV01,
+  type ClaimEvidenceRelationFamilyOriginV01,
   type ClaimOperationIntentV01,
   type ClaimRecordReferenceV01,
   type ClaimRecordV01,
+  type ClaimFamilyOriginV01,
   type EvidenceRecordReferenceV01,
   type EvidenceRecordV01,
   type ProjectVerifyMaterialBoundaryV01,
   type ProjectVerifyMaterialValidationResultV01,
   type ProjectVerifyProducerV01,
+  type ProjectVerifyFamilyOriginSeedV01,
 } from "@/types/vnext/project-verify-material";
 import {
   EXTERNAL_REF_TRUST_CLASSES_V01,
@@ -64,6 +71,22 @@ const producerKindsV01 = new Set<string>(PROJECT_VERIFY_PRODUCER_KINDS_V01);
 const claimOperationsV01 = new Set<string>(CLAIM_OPERATION_INTENTS_V01);
 const relationKindsV01 = new Set<string>(CLAIM_EVIDENCE_RELATION_KINDS_V01);
 const relationBasesV01 = new Set<string>(CLAIM_EVIDENCE_RELATION_BASES_V01);
+const conclusiveObservationTrustV01 = new Set<ExternalRefTrustClassV01>([
+  "direct_local_observation",
+  "verified_external_observation",
+]);
+
+export const PROJECT_VERIFY_CONCLUSIVE_EVIDENCE_SOURCE_AUTHENTICATORS_V01 = [
+  {
+    authenticator_profile:
+      RUN_CRITERION_PROJECT_VERIFY_SOURCE_AUTHENTICATOR_V01,
+    producer_kind: "server_deterministic_evaluator",
+    producer_profile: RUN_CRITERION_PROJECT_VERIFY_PRODUCER_PROFILE_V01,
+    evidence_kind: "exact_criterion_relation_material",
+    identity_namespace: RUN_CRITERION_EVIDENCE_IDENTITY_NAMESPACE_V01,
+    admitted_trust_classes: ["direct_local_observation"],
+  },
+] as const;
 
 export class ProjectVerifyMaterialErrorV01 extends Error {
   constructor(
@@ -102,8 +125,7 @@ export interface EvidenceRecordBuilderInputV01 {
 }
 
 export interface ClaimRecordBuilderInputV01 {
-  family_namespace: string;
-  family_seed: string;
+  family_origin: ProjectVerifyFamilyOriginSeedV01;
   workspace_id: string;
   project_id: string;
   revision: number;
@@ -121,8 +143,7 @@ export interface ClaimRecordBuilderInputV01 {
 }
 
 export interface ClaimEvidenceRelationBuilderInputV01 {
-  family_namespace: string;
-  family_seed: string;
+  family_origin: ProjectVerifyFamilyOriginSeedV01;
   workspace_id: string;
   project_id: string;
   revision: number;
@@ -254,6 +275,12 @@ export function buildEvidenceRecordV01(
   const producer = normalizeProducerV01(input.producer);
   validateEvidenceKindTrustV01(input.evidence_kind, trustClass);
   validateProducerTrustV01(producer, trustClass);
+  validateConclusiveEvidenceSourceProfileV01({
+    evidence_kind: input.evidence_kind,
+    identity_namespace: identityNamespace,
+    trust_class: trustClass,
+    producer,
+  });
   validateExactCriterionEvidenceV01({
     evidence_kind: input.evidence_kind,
     identity_namespace: identityNamespace,
@@ -345,14 +372,6 @@ export function buildEvidenceRecordV01(
 export function buildClaimRecordV01(
   input: ClaimRecordBuilderInputV01,
 ): ClaimRecordV01 {
-  const familyNamespace = normalizeIdentityTextV01(
-    input.family_namespace,
-    "claim_family_namespace_invalid",
-  );
-  const familySeed = normalizeIdentityTextV01(
-    input.family_seed,
-    "claim_family_seed_invalid",
-  );
   const workspaceId = normalizeIdentityTextV01(
     input.workspace_id,
     "claim_workspace_id_invalid",
@@ -411,17 +430,31 @@ export function buildClaimRecordV01(
     "claim_created_at_invalid",
   );
 
-  const familyMaterial = {
-    claim_version: CLAIM_RECORD_VERSION_V01,
+  const familyOrigin = normalizeClaimFamilyOriginV01(input.family_origin, {
     workspace_id: workspaceId,
     project_id: projectId,
-    family_namespace: familyNamespace,
-    family_seed: familySeed,
     subject_refs: subjectRefs,
     applicability_scope_fingerprint: applicabilityScope.scope_fingerprint,
-    producer,
-  };
-  const claimFamilyId = deriveScopedRecordIdV01("claim-family", familyMaterial);
+  });
+  if (
+    revision === 1 &&
+    (producer.producer_kind !== familyOrigin.origin_producer_kind ||
+      producer.producer_profile !== familyOrigin.origin_profile)
+  ) {
+    failV01("claim_initial_producer_origin_conflict", true);
+  }
+  if (
+    revision > 1 &&
+    familyOrigin.origin_namespace ===
+      RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01 &&
+    isRunCriterionSourceProducerV01(producer)
+  ) {
+    failV01("claim_later_revision_source_producer_invalid", true);
+  }
+  const claimFamilyId = deriveScopedRecordIdV01("claim-family", {
+    claim_version: CLAIM_RECORD_VERSION_V01,
+    family_origin: familyOrigin,
+  });
   if (revision > 1) {
     const expectedPriorId = deriveScopedRecordIdV01("claim", {
       claim_family_id: claimFamilyId,
@@ -455,8 +488,7 @@ export function buildClaimRecordV01(
     claim_id: claimId,
     claim_family_id: claimFamilyId,
     idempotency_key: idempotencyKey,
-    family_namespace: familyNamespace,
-    family_seed: familySeed,
+    family_origin: familyOrigin,
     workspace_id: workspaceId,
     project_id: projectId,
     revision,
@@ -519,14 +551,6 @@ export function buildClaimRecordV01(
 export function buildClaimEvidenceRelationV01(
   input: ClaimEvidenceRelationBuilderInputV01,
 ): ClaimEvidenceRelationV01 {
-  const familyNamespace = normalizeIdentityTextV01(
-    input.family_namespace,
-    "relation_family_namespace_invalid",
-  );
-  const familySeed = normalizeIdentityTextV01(
-    input.family_seed,
-    "relation_family_seed_invalid",
-  );
   const workspaceId = normalizeIdentityTextV01(
     input.workspace_id,
     "relation_workspace_id_invalid",
@@ -594,25 +618,38 @@ export function buildClaimEvidenceRelationV01(
     "relation_uncertainty_invalid",
   );
   const producer = normalizeProducerV01(input.producer);
-  validateProducerTrustV01(producer, trustClass);
   const createdAt = normalizeTimestampV01(
     input.created_at,
     "relation_created_at_invalid",
   );
-  const familyMaterial = {
-    relation_version: CLAIM_EVIDENCE_RELATION_VERSION_V01,
+  const familyOrigin = normalizeRelationFamilyOriginV01(input.family_origin, {
     workspace_id: workspaceId,
     project_id: projectId,
-    family_namespace: familyNamespace,
-    family_seed: familySeed,
     claim_ref: claimRef,
     evidence_ref: evidenceRef,
     applicability_scope_fingerprint: applicabilityScope.scope_fingerprint,
-    producer,
-  };
+  });
+  if (
+    revision === 1 &&
+    (producer.producer_kind !== familyOrigin.origin_producer_kind ||
+      producer.producer_profile !== familyOrigin.origin_profile)
+  ) {
+    failV01("relation_initial_producer_origin_conflict", true);
+  }
+  if (
+    revision > 1 &&
+    familyOrigin.origin_namespace ===
+      RUN_CRITERION_RELATION_FAMILY_NAMESPACE_V01 &&
+    isRunCriterionSourceProducerV01(producer)
+  ) {
+    failV01("relation_later_revision_source_producer_invalid", true);
+  }
   const relationFamilyId = deriveScopedRecordIdV01(
     "claim-evidence-relation-family",
-    familyMaterial,
+    {
+      relation_version: CLAIM_EVIDENCE_RELATION_VERSION_V01,
+      family_origin: familyOrigin,
+    },
   );
   if (revision > 1) {
     const expectedPriorId = deriveScopedRecordIdV01("claim-evidence-relation", {
@@ -647,8 +684,7 @@ export function buildClaimEvidenceRelationV01(
     relation_id: relationId,
     relation_family_id: relationFamilyId,
     idempotency_key: idempotencyKey,
-    family_namespace: familyNamespace,
-    family_seed: familySeed,
+    family_origin: familyOrigin,
     workspace_id: workspaceId,
     project_id: projectId,
     revision,
@@ -855,8 +891,7 @@ function rebuildClaimRecordV01(input: unknown): ClaimRecordV01 {
   }
   const record = input as unknown as ClaimRecordV01;
   return buildClaimRecordV01({
-    family_namespace: record.family_namespace,
-    family_seed: record.family_seed,
+    family_origin: record.family_origin,
     workspace_id: record.workspace_id,
     project_id: record.project_id,
     revision: record.revision,
@@ -886,8 +921,7 @@ function rebuildClaimEvidenceRelationV01(
   }
   const record = input as unknown as ClaimEvidenceRelationV01;
   return buildClaimEvidenceRelationV01({
-    family_namespace: record.family_namespace,
-    family_seed: record.family_seed,
+    family_origin: record.family_origin,
     workspace_id: record.workspace_id,
     project_id: record.project_id,
     revision: record.revision,
@@ -1121,6 +1155,94 @@ function normalizeProducerV01(
   };
 }
 
+function isRunCriterionSourceProducerV01(
+  producer: ProjectVerifyProducerV01,
+): boolean {
+  return (
+    producer.producer_kind === "server_deterministic_evaluator" &&
+    producer.producer_profile ===
+      RUN_CRITERION_PROJECT_VERIFY_PRODUCER_PROFILE_V01
+  );
+}
+
+function normalizeFamilyOriginSeedV01(
+  input: ProjectVerifyFamilyOriginSeedV01,
+  codePrefix: "claim" | "relation",
+): ProjectVerifyFamilyOriginSeedV01 {
+  if (!isProtocolRecordV01(input)) {
+    failV01(`${codePrefix}_family_origin_malformed`, true);
+  }
+  if (
+    "origin_version" in input &&
+    input.origin_version !== PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01
+  ) {
+    failV01(`${codePrefix}_family_origin_version_unsupported`, true);
+  }
+  if (!producerKindsV01.has(input.origin_producer_kind)) {
+    failV01(`${codePrefix}_family_origin_producer_kind_invalid`, true);
+  }
+  return {
+    origin_namespace: normalizeIdentityTextV01(
+      input.origin_namespace,
+      `${codePrefix}_family_origin_namespace_invalid`,
+    ),
+    origin_seed: normalizeIdentityTextV01(
+      input.origin_seed,
+      `${codePrefix}_family_origin_seed_invalid`,
+    ),
+    origin_profile: normalizeIdentityTextV01(
+      input.origin_profile,
+      `${codePrefix}_family_origin_profile_invalid`,
+    ),
+    origin_producer_kind: input.origin_producer_kind,
+  };
+}
+
+function normalizeClaimFamilyOriginV01(
+  input: ProjectVerifyFamilyOriginSeedV01,
+  identity: Omit<
+    ClaimFamilyOriginV01,
+    | "origin_version"
+    | "origin_namespace"
+    | "origin_seed"
+    | "origin_profile"
+    | "origin_producer_kind"
+  >,
+): ClaimFamilyOriginV01 {
+  const seed = normalizeFamilyOriginSeedV01(input, "claim");
+  return {
+    origin_version: PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01,
+    ...seed,
+    workspace_id: identity.workspace_id,
+    project_id: identity.project_id,
+    subject_refs: identity.subject_refs,
+    applicability_scope_fingerprint: identity.applicability_scope_fingerprint,
+  };
+}
+
+function normalizeRelationFamilyOriginV01(
+  input: ProjectVerifyFamilyOriginSeedV01,
+  identity: Omit<
+    ClaimEvidenceRelationFamilyOriginV01,
+    | "origin_version"
+    | "origin_namespace"
+    | "origin_seed"
+    | "origin_profile"
+    | "origin_producer_kind"
+  >,
+): ClaimEvidenceRelationFamilyOriginV01 {
+  const seed = normalizeFamilyOriginSeedV01(input, "relation");
+  return {
+    origin_version: PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01,
+    ...seed,
+    workspace_id: identity.workspace_id,
+    project_id: identity.project_id,
+    claim_ref: identity.claim_ref,
+    evidence_ref: identity.evidence_ref,
+    applicability_scope_fingerprint: identity.applicability_scope_fingerprint,
+  };
+}
+
 function normalizeRecordReferenceV01<
   TKind extends "evidence_record" | "claim_record" | "claim_evidence_relation",
 >(
@@ -1295,6 +1417,29 @@ function validateExactCriterionEvidenceV01(input: {
         : "complete";
   if (input.coverage !== expectedCoverage) {
     failV01("exact_criterion_evidence_coverage_invalid", true);
+  }
+}
+
+function validateConclusiveEvidenceSourceProfileV01(input: {
+  evidence_kind: EvidenceRecordV01["evidence_kind"];
+  identity_namespace: string;
+  trust_class: ExternalRefTrustClassV01;
+  producer: ProjectVerifyProducerV01;
+}): void {
+  if (!conclusiveObservationTrustV01.has(input.trust_class)) return;
+  const registered =
+    PROJECT_VERIFY_CONCLUSIVE_EVIDENCE_SOURCE_AUTHENTICATORS_V01.some(
+      (profile) =>
+        profile.producer_kind === input.producer.producer_kind &&
+        profile.producer_profile === input.producer.producer_profile &&
+        profile.evidence_kind === input.evidence_kind &&
+        profile.identity_namespace === input.identity_namespace &&
+        (profile.admitted_trust_classes as readonly string[]).includes(
+          input.trust_class,
+        ),
+    );
+  if (!registered) {
+    failV01("evidence_conclusive_source_authenticator_unregistered", true);
   }
 }
 

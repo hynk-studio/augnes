@@ -74,8 +74,8 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
   );
   assertValidEvidenceV01(directEvidence);
   assertEvidenceNonAuthorityV01(directEvidence);
-  assert.equal(directEvidence.evidence_kind, "direct_observation_material");
-  assert.equal(directEvidence.trust_class, "direct_local_observation");
+  assert.equal(directEvidence.evidence_kind, "derived_interpretation_material");
+  assert.equal(directEvidence.trust_class, "derived_interpretation");
   assert.equal(directEvidence.coverage, "complete");
 
   const directEvidenceReplay = buildEvidenceRecordV01(
@@ -157,14 +157,24 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
       subject_refs: subjectRefs,
       applicability_scope: applicabilityScope,
       revision: 2,
+      family_origin: claimOne.family_origin,
       prior_claim_ref: claimRecordReferenceV01(claimOne),
       operation_intent: "revise",
       proposition: "The exact project verification proposition is revised.",
+      producer: {
+        producer_kind: "user",
+        producer_profile: "user_candidate_correction.v0.1",
+      },
       created_at: REVISION_AT,
     }),
   );
   assertValidClaimV01(claimTwo);
   assert.equal(claimTwo.claim_family_id, claimOne.claim_family_id);
+  assert.equal(claimTwo.producer.producer_kind, "user");
+  assert.equal(
+    claimOne.producer.producer_kind,
+    "server_deterministic_evaluator",
+  );
   assert.notEqual(claimTwo.claim_id, claimOne.claim_id);
   assert.deepEqual(claimTwo.prior_claim_ref, claimRecordReferenceV01(claimOne));
 
@@ -173,6 +183,7 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
       subject_refs: subjectRefs,
       applicability_scope: applicabilityScope,
       revision: 3,
+      family_origin: claimOne.family_origin,
       prior_claim_ref: claimRecordReferenceV01(claimTwo),
       operation_intent: "supersede",
       operation_target_claim_ref: claimRecordReferenceV01(claimTwo),
@@ -185,10 +196,11 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
       subject_refs: subjectRefs,
       applicability_scope: applicabilityScope,
       revision: 4,
+      family_origin: claimOne.family_origin,
       prior_claim_ref: claimRecordReferenceV01(claimThree),
       operation_intent: "retract",
       operation_target_claim_ref: claimRecordReferenceV01(claimThree),
-      proposition: "A retraction candidate preserves the proposition history.",
+      proposition: claimThree.proposition,
       created_at: RETRACT_AT,
     }),
   );
@@ -226,19 +238,19 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
   );
   const qualifiedEvidence = buildEvidenceRecordV01(
     evidenceInputV01({
-      identity_key: "verified-external-qualification",
-      evidence_kind: "verified_external_observation_material",
+      identity_key: "provider-report-qualification",
+      evidence_kind: "provider_report_material",
       source_refs: [
         externalRefV01(
-          "verified_external_source",
+          "provider_report_source",
           "external:qualification",
-          "verified_external_observation",
+          "provider_report",
         ),
       ],
-      trust_class: "verified_external_observation",
+      trust_class: "provider_report",
       producer: {
-        producer_kind: "server_deterministic_evaluator",
-        producer_profile: "verified_external_material.v0.1",
+        producer_kind: "provider",
+        producer_profile: "provider_report_material.v0.1",
       },
     }),
   );
@@ -267,8 +279,8 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
     claim: claimOne,
     evidence: directEvidence,
     relation_kind: "supports",
-    basis: "observed",
-    trust_class: "direct_local_observation",
+    basis: "mixed",
+    trust_class: "derived_interpretation",
   });
   const oppositionRelation = relationV01({
     family_seed: "opposition",
@@ -287,16 +299,20 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
     claim: claimOne,
     evidence: contradictionEvidence,
     relation_kind: "contradicts",
-    basis: "observed",
-    trust_class: "direct_local_observation",
+    basis: "mixed",
+    trust_class: "derived_interpretation",
   });
   const qualificationRelation = relationV01({
     family_seed: "qualification",
     claim: claimOne,
     evidence: qualifiedEvidence,
     relation_kind: "qualifies",
-    basis: "observed",
-    trust_class: "verified_external_observation",
+    basis: "insufficient",
+    trust_class: "provider_report",
+    producer: {
+      producer_kind: "provider",
+      producer_profile: "provider_report_material.v0.1",
+    },
   });
   const insufficientRelation = relationV01({
     family_seed: "insufficient",
@@ -315,8 +331,12 @@ export function runProjectVerifyMaterialConformanceV01(): ProjectVerifyMaterialC
     claim: claimOne,
     evidence: qualifiedEvidence,
     relation_kind: "contextualizes",
-    basis: "observed",
-    trust_class: "verified_external_observation",
+    basis: "insufficient",
+    trust_class: "provider_report",
+    producer: {
+      producer_kind: "provider",
+      producer_profile: "provider_report_material.v0.1",
+    },
   });
   const coexistingRelations = [
     supportRelation,
@@ -529,9 +549,14 @@ function assertRelationLineageAndTamperRefusalV01(input: {
       claim: input.claim,
       evidence: input.evidence,
       revision: 2,
+      family_origin: input.relationOne.family_origin,
       prior_relation_ref: claimEvidenceRelationReferenceV01(input.relationOne),
       operation_intent: "revise",
       relation_kind: "qualifies",
+      producer: {
+        producer_kind: "user",
+        producer_profile: "user_relation_correction.v0.1",
+      },
       created_at: REVISION_AT,
     }),
   );
@@ -541,6 +566,7 @@ function assertRelationLineageAndTamperRefusalV01(input: {
       claim: input.claim,
       evidence: input.evidence,
       revision: 3,
+      family_origin: input.relationOne.family_origin,
       prior_relation_ref: claimEvidenceRelationReferenceV01(relationTwo),
       operation_intent: "supersede",
       supersedes_relation_ref: claimEvidenceRelationReferenceV01(relationTwo),
@@ -554,10 +580,12 @@ function assertRelationLineageAndTamperRefusalV01(input: {
       claim: input.claim,
       evidence: input.evidence,
       revision: 4,
+      family_origin: input.relationOne.family_origin,
       prior_relation_ref: claimEvidenceRelationReferenceV01(relationThree),
       operation_intent: "retract",
-      relation_kind: "insufficient",
-      basis: "insufficient",
+      relation_kind: relationThree.relation_kind,
+      basis: relationThree.basis,
+      trust_class: relationThree.trust_class,
       created_at: RETRACT_AT,
     }),
   );
@@ -682,6 +710,43 @@ function assertProducerAndTrustBoundariesV01(input: {
         }),
       ),
     "host-produced material presented as direct observation",
+  );
+  assertProjectVerifyErrorV01(
+    () =>
+      buildEvidenceRecordV01(
+        evidenceInputV01({
+          identity_namespace: "arbitrary.local-adapter.observation.v0.1",
+          evidence_kind: "direct_observation_material",
+          trust_class: "direct_local_observation",
+          producer: {
+            producer_kind: "local_adapter",
+            producer_profile: "arbitrary_local_adapter.v0.1",
+          },
+        }),
+      ),
+    "unregistered local adapter direct observation",
+  );
+  assertProjectVerifyErrorV01(
+    () =>
+      buildEvidenceRecordV01(
+        evidenceInputV01({
+          identity_namespace: "arbitrary.external-observation.v0.1",
+          evidence_kind: "verified_external_observation_material",
+          source_refs: [
+            externalRefV01(
+              "external_observation",
+              "external:unregistered",
+              "verified_external_observation",
+            ),
+          ],
+          trust_class: "verified_external_observation",
+          producer: {
+            producer_kind: "server_deterministic_evaluator",
+            producer_profile: "arbitrary_deterministic_evaluator.v0.1",
+          },
+        }),
+      ),
+    "unregistered deterministic evaluator external observation",
   );
 
   const providerEvidence = buildEvidenceRecordV01(
@@ -889,23 +954,23 @@ function evidenceInputV01(
 ): EvidenceRecordBuilderInputV01 {
   return {
     identity_namespace: "project_verify_conformance",
-    identity_key: "direct-observation",
+    identity_key: "derived-candidate",
     workspace_id: WORKSPACE_ID,
     project_id: PROJECT_A_ID,
-    evidence_kind: "direct_observation_material",
+    evidence_kind: "derived_interpretation_material",
     subject_refs: [externalRefV01("project_subject", "subject:primary")],
     source_refs: [externalRefV01("verification_source", "source:primary")],
     source_observed_or_reported_at: RECORDED_AT,
     recorded_at: RECORDED_AT,
-    trust_class: "direct_local_observation",
+    trust_class: "derived_interpretation",
     coverage: "complete",
-    bounded_summary: "A bounded direct observation was recorded.",
+    bounded_summary: "A bounded derived candidate was recorded.",
     material_fingerprint: sha256V01("a"),
     limitations: ["The record establishes support material only."],
     uncertainty: ["Semantic acceptance remains unreviewed."],
     producer: {
-      producer_kind: "local_adapter",
-      producer_profile: "local_adapter_conformance.v0.1",
+      producer_kind: "server_deterministic_evaluator",
+      producer_profile: "project_verify_conformance.v0.1",
     },
     ...overrides,
   };
@@ -915,6 +980,7 @@ function claimInputV01(
   overrides: Partial<ClaimRecordBuilderInputV01> & {
     subject_refs?: ExternalRefV01[];
     applicability_scope?: ClaimApplicabilityScopeV01;
+    family_seed?: string;
   } = {},
 ): ClaimRecordBuilderInputV01 {
   const subjectRefs = overrides.subject_refs ?? [
@@ -923,11 +989,18 @@ function claimInputV01(
   const {
     subject_refs: _subjectRefs,
     applicability_scope: applicabilityScope,
+    family_seed: familySeed,
     ...remainingOverrides
   } = overrides;
   return {
-    family_namespace: "project_verify_conformance",
-    family_seed: "explicit-family-seed-a",
+    family_origin: {
+      origin_namespace: "project_verify_conformance",
+      origin_seed: familySeed ?? "explicit-family-seed-a",
+      origin_profile: (remainingOverrides.producer ?? SERVER_PRODUCER)
+        .producer_profile,
+      origin_producer_kind: (remainingOverrides.producer ?? SERVER_PRODUCER)
+        .producer_kind,
+    },
     workspace_id: WORKSPACE_ID,
     project_id: PROJECT_A_ID,
     revision: 1,
@@ -959,11 +1032,16 @@ function relationInputV01(input: {
   basis?: ClaimEvidenceRelationBuilderInputV01["basis"];
   trust_class?: ClaimEvidenceRelationBuilderInputV01["trust_class"];
   producer?: ProjectVerifyProducerV01;
+  family_origin?: ClaimEvidenceRelationBuilderInputV01["family_origin"];
   created_at?: string;
 }): ClaimEvidenceRelationBuilderInputV01 {
   return {
-    family_namespace: "project_verify_conformance",
-    family_seed: input.family_seed,
+    family_origin: input.family_origin ?? {
+      origin_namespace: "project_verify_conformance",
+      origin_seed: input.family_seed,
+      origin_profile: (input.producer ?? SERVER_PRODUCER).producer_profile,
+      origin_producer_kind: (input.producer ?? SERVER_PRODUCER).producer_kind,
+    },
     workspace_id: input.claim.workspace_id,
     project_id: input.claim.project_id,
     revision: input.revision ?? 1,
@@ -974,8 +1052,8 @@ function relationInputV01(input: {
     evidence_ref: evidenceRecordReferenceV01(input.evidence),
     relation_kind: input.relation_kind ?? "supports",
     applicability_scope: input.claim.applicability_scope,
-    basis: input.basis ?? "observed",
-    trust_class: input.trust_class ?? "direct_local_observation",
+    basis: input.basis ?? "mixed",
+    trust_class: input.trust_class ?? "derived_interpretation",
     source_refs: input.evidence.source_refs,
     limitations: ["The relation remains candidate material."],
     uncertainty: ["The relation does not establish Claim truth."],

@@ -10,6 +10,8 @@ export const CLAIM_EVIDENCE_RELATION_VERSION_V01 =
   "claim_evidence_relation.v0.1" as const;
 export const CLAIM_APPLICABILITY_SCOPE_VERSION_V01 =
   "claim_applicability_scope.v0.1" as const;
+export const PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01 =
+  "project_verify_family_origin.v0.1" as const;
 export const PROJECT_VERIFY_MATERIAL_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
 export const PROJECT_VERIFY_MATERIAL_MAX_TEXT_CHARACTERS_V01 = 2_000 as const;
@@ -20,6 +22,8 @@ export const RUN_CRITERION_PROJECT_VERIFY_MATERIAL_VERSION_V01 =
   "run_criterion_project_verify_material.v0.1" as const;
 export const RUN_CRITERION_PROJECT_VERIFY_PRODUCER_PROFILE_V01 =
   "run_criterion_project_verify_producer.v0.1" as const;
+export const RUN_CRITERION_PROJECT_VERIFY_SOURCE_AUTHENTICATOR_V01 =
+  "run_criterion_project_verify_source_authenticator.v0.1" as const;
 export const RUN_CRITERION_CLAIM_FAMILY_NAMESPACE_V01 =
   "augnes.vnext.criterion-claim-family.v0.1" as const;
 export const RUN_CRITERION_EVIDENCE_IDENTITY_NAMESPACE_V01 =
@@ -118,6 +122,30 @@ export type ClaimEvidenceRelationBasisV01 =
 export interface ProjectVerifyProducerV01 {
   producer_kind: ProjectVerifyProducerKindV01;
   producer_profile: string;
+}
+
+export interface ProjectVerifyFamilyOriginSeedV01 {
+  origin_namespace: string;
+  origin_seed: string;
+  origin_profile: string;
+  origin_producer_kind: ProjectVerifyProducerKindV01;
+}
+
+export interface ClaimFamilyOriginV01 extends ProjectVerifyFamilyOriginSeedV01 {
+  origin_version: typeof PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01;
+  workspace_id: string;
+  project_id: string;
+  subject_refs: ExternalRefV01[];
+  applicability_scope_fingerprint: string;
+}
+
+export interface ClaimEvidenceRelationFamilyOriginV01 extends ProjectVerifyFamilyOriginSeedV01 {
+  origin_version: typeof PROJECT_VERIFY_FAMILY_ORIGIN_VERSION_V01;
+  workspace_id: string;
+  project_id: string;
+  claim_ref: ClaimRecordReferenceV01;
+  evidence_ref: EvidenceRecordReferenceV01;
+  applicability_scope_fingerprint: string;
 }
 
 export interface ProjectVerifyMaterialBoundaryV01 {
@@ -277,8 +305,7 @@ export interface ClaimRecordV01 {
   claim_id: string;
   claim_family_id: string;
   idempotency_key: string;
-  family_namespace: string;
-  family_seed: string;
+  family_origin: ClaimFamilyOriginV01;
   workspace_id: string;
   project_id: string;
   revision: number;
@@ -339,8 +366,7 @@ export interface ClaimEvidenceRelationV01 {
   relation_id: string;
   relation_family_id: string;
   idempotency_key: string;
-  family_namespace: string;
-  family_seed: string;
+  family_origin: ClaimEvidenceRelationFamilyOriginV01;
   workspace_id: string;
   project_id: string;
   revision: number;
