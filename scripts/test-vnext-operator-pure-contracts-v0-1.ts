@@ -4,6 +4,10 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+import {
+  semanticReviewDetailEntryPresentationV01,
+  type SemanticReviewEntryPresentationInputV01,
+} from "../components/workbench/semantic-review/semantic-review-entry-presentation";
 import { publicSafeCommandSummaryV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import {
   MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01,
@@ -166,6 +170,211 @@ assert.equal(lineagePanel.includes("Open exact packet handoff"), false);
 assert.equal(lineagePanel.includes("fetch("), false);
 assert.equal(lineagePanel.includes("<form"), false);
 record("packet_identity_is_absorbed_and_workbench_lineage_is_read_only");
+
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({ decision_count: 0 }),
+  ).state,
+  "pending_proposal",
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decisions: [
+        semanticReviewDecision("candidate:a", "defer", {
+          revisit_at: "2026-07-20T10:00:00Z",
+        }),
+      ],
+      projection_observed_at: "2026-07-20T19:00:00+09:00",
+    }),
+  ).state,
+  "pending_proposal",
+);
+const partiallyAppliedDecision = semanticReviewDecision("candidate:a", "accept");
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      candidates: ["candidate:a", "candidate:b"],
+      decisions: [partiallyAppliedDecision],
+      chain: semanticReviewChain("packet_compiled", partiallyAppliedDecision, {
+        packet_id: "task-context-packet:partial",
+        packet_fingerprint: "packet-fingerprint:partial",
+      }),
+    }),
+  ).state,
+  "pending_proposal",
+);
+const awaitingSecondTransition = semanticReviewDecision("candidate:b", "accept");
+assert.deepEqual(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      candidates: ["candidate:a", "candidate:b"],
+      decisions: [partiallyAppliedDecision, awaitingSecondTransition],
+      chain: semanticReviewChain("packet_compiled", partiallyAppliedDecision, {
+        packet_id: "task-context-packet:partial",
+        packet_fingerprint: "packet-fingerprint:partial",
+      }),
+    }),
+  ),
+  {
+    state: "decided_proposal",
+    label: "Decision recorded · another Transition remains",
+  },
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      candidates: ["candidate:a", "candidate:b"],
+      decisions: [partiallyAppliedDecision, awaitingSecondTransition],
+      blocked_candidates: ["candidate:b"],
+      chain: semanticReviewChain("packet_compiled", partiallyAppliedDecision, {
+        packet_id: "task-context-packet:partial",
+        packet_fingerprint: "packet-fingerprint:partial",
+      }),
+    }),
+  ).state,
+  "transition_blocked",
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({ decision_count: 1 }),
+  ).state,
+  "decided_proposal",
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      candidates: ["candidate:a", "candidate:b"],
+      decisions: [semanticReviewDecision("candidate:a", "accept")],
+    }),
+  ).state,
+  "pending_proposal",
+);
+const acceptedDecision = semanticReviewDecision("candidate:a", "accept");
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decisions: [
+        acceptedDecision,
+        semanticReviewDecision("candidate:a", "retract", {
+          prior: acceptedDecision,
+          decided_at: "2026-07-19T10:01:00.000Z",
+        }),
+      ],
+    }),
+  ).state,
+  "pending_proposal",
+);
+const deferredDecision = semanticReviewDecision("candidate:a", "defer", {
+  revisit_at: "2026-07-20T10:00:00.000Z",
+});
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({ decisions: [deferredDecision] }),
+  ).state,
+  "decided_proposal",
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decisions: [deferredDecision],
+      projection_observed_at: "2026-07-20T10:00:00.000Z",
+    }),
+  ).state,
+  "pending_proposal",
+);
+assert.deepEqual(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decision_count: 1,
+      chain: semanticReviewChain(
+        "applied_awaiting_packet",
+        semanticReviewDecision("candidate:a", "accept"),
+        null,
+      ),
+      receipt: semanticReviewLaterReceipt("task-context-packet:prior", "packet-fingerprint:prior"),
+      review: semanticReviewLaterReview("later-receipt:prior", "later-receipt-fingerprint:prior"),
+    }),
+  ),
+  {
+    state: "transition_applied",
+    label: "Transition applied · later packet pending",
+  },
+);
+const exactPacket = {
+  packet_id: "task-context-packet:current",
+  packet_fingerprint: "packet-fingerprint:current",
+};
+const exactReceipt = semanticReviewLaterReceipt(
+  exactPacket.packet_id,
+  exactPacket.packet_fingerprint,
+);
+const compiledWithoutReview = semanticReviewEntryRead({
+  decision_count: 1,
+  chain: semanticReviewChain(
+    "packet_compiled",
+    semanticReviewDecision("candidate:a", "accept"),
+    exactPacket,
+  ),
+  receipt: exactReceipt,
+});
+assert.deepEqual(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decision_count: 1,
+      chain: semanticReviewChain(
+        "packet_compiled",
+        semanticReviewDecision("candidate:a", "accept"),
+        exactPacket,
+      ),
+    }),
+  ),
+  {
+    state: "transition_applied",
+    label: "Transition applied · later packet compiled",
+  },
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(compiledWithoutReview).state,
+  "feedback_needed",
+);
+assert.equal(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decision_count: 1,
+      chain: semanticReviewChain(
+        "packet_compiled",
+        semanticReviewDecision("candidate:a", "accept"),
+        exactPacket,
+      ),
+      receipt: exactReceipt,
+      review: semanticReviewLaterReview(
+        exactReceipt.receipt_id,
+        "later-receipt-fingerprint:mismatch",
+      ),
+    }),
+  ).state,
+  "feedback_needed",
+);
+assert.deepEqual(
+  semanticReviewDetailEntryPresentationV01(
+    semanticReviewEntryRead({
+      decision_count: 1,
+      chain: semanticReviewChain(
+        "packet_compiled",
+        semanticReviewDecision("candidate:a", "accept"),
+        exactPacket,
+      ),
+      receipt: exactReceipt,
+      review: semanticReviewLaterReview(
+        exactReceipt.receipt_id,
+        exactReceipt.receipt_fingerprint,
+      ),
+    }),
+  ),
+  { state: "transition_applied", label: "Later-context feedback recorded" },
+);
+record("semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage");
 
 const packageScripts = JSON.stringify({
   root: JSON.parse(source("package.json")).scripts,
@@ -342,6 +551,132 @@ function source(relativePath: string): string {
   return readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function semanticReviewEntryRead(
+  input: {
+    decision_count?: number;
+    projection_observed_at?: string;
+    candidates?: string[];
+    decisions?: SemanticReviewEntryPresentationInputV01["decisions"];
+    blocked_candidates?: string[];
+    chain?: SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number] | null;
+    receipt?: SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_receipt"];
+    review?: SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_review_status"];
+    durable_lineage?: SemanticReviewEntryPresentationInputV01["durable_lineage"];
+    project_continuity?: SemanticReviewEntryPresentationInputV01["project_continuity"];
+  } = {},
+): SemanticReviewEntryPresentationInputV01 {
+  const candidates = input.candidates ?? ["candidate:a"];
+  return {
+    projection_observed_at:
+      input.projection_observed_at ?? "2026-07-19T10:00:00.000Z",
+    proposal: {
+      proposed_deltas: candidates.map((candidate_id) => ({ candidate_id })),
+    },
+    decisions:
+      input.decisions ??
+      (input.decision_count
+        ? [semanticReviewDecision(candidates[0]!, "accept")]
+        : []),
+    candidate_admissions: candidates.map((candidate_id) => ({
+      candidate_id,
+      decision_allowed: {
+        accept: !(input.blocked_candidates ?? []).includes(candidate_id),
+      },
+      blocking_reasons: (input.blocked_candidates ?? []).includes(candidate_id)
+        ? ["current_state_drifted"]
+        : [],
+    })),
+    durable_lineage:
+      input.durable_lineage ?? {
+        chains: input.chain ? [input.chain] : [],
+      },
+    project_continuity:
+      input.project_continuity ?? {
+        latest_context_use_receipt: input.receipt ?? null,
+        latest_context_use_review_status: input.review ?? null,
+      },
+  };
+}
+
+function semanticReviewDecision(
+  candidateId: string,
+  decision: SemanticReviewEntryPresentationInputV01["decisions"][number]["decision"],
+  options: {
+    prior?: SemanticReviewEntryPresentationInputV01["decisions"][number];
+    decided_at?: string;
+    revisit_at?: string | null;
+    expires_at?: string | null;
+  } = {},
+): SemanticReviewEntryPresentationInputV01["decisions"][number] {
+  const decisionId = `review-decision:${candidateId}:${decision}:${options.decided_at ?? "base"}`;
+  return {
+    decision_id: decisionId,
+    decision,
+    decided_at: options.decided_at ?? "2026-07-19T09:00:00.000Z",
+    candidate: { candidate_id: candidateId },
+    revisit:
+      decision === "defer"
+        ? {
+            revisit_at: options.revisit_at ?? null,
+            expires_at: options.expires_at ?? null,
+          }
+        : null,
+    lineage: {
+      prior_decisions: options.prior
+        ? [
+            {
+              decision_id: options.prior.decision_id,
+              decision_fingerprint: options.prior.integrity.fingerprint,
+            },
+          ]
+        : [],
+    },
+    integrity: { fingerprint: `fingerprint:${decisionId}` },
+  };
+}
+
+function semanticReviewChain(
+  stageStatus: SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number]["stage_status"],
+  decision: SemanticReviewEntryPresentationInputV01["decisions"][number],
+  packet: SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number]["compiled_packet"],
+): SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number] {
+  return {
+    stage_status: stageStatus,
+    transition: {
+      candidate_id: decision.candidate.candidate_id,
+      decision_id: decision.decision_id,
+      decision_fingerprint: decision.integrity.fingerprint,
+    },
+    compiled_packet: packet,
+  };
+}
+
+function semanticReviewLaterReceipt(
+  packetId: string,
+  packetFingerprint: string,
+): NonNullable<
+  SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_receipt"]
+> {
+  return {
+    receipt_id: "later-receipt:current",
+    receipt_fingerprint: "later-receipt-fingerprint:current",
+    task_context_packet_id: packetId,
+    task_context_packet_fingerprint: packetFingerprint,
+  };
+}
+
+function semanticReviewLaterReview(
+  receiptId: string,
+  receiptFingerprint: string,
+): NonNullable<
+  SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_review_status"]
+> {
+  return {
+    later_task_run_receipt_id: receiptId,
+    later_task_run_receipt_fingerprint: receiptFingerprint,
+  };
+}
+
 function exists(relativePath: string): boolean {
   try {
     readFileSync(path.join(repositoryRoot, relativePath));
@@ -406,6 +741,7 @@ assert.deepEqual(assertions, [
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
+  "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
   "project_home_refresh_exact_projection_replay_is_idempotent",
   "project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run",

@@ -7,6 +7,7 @@ import {
   type OperatorSessionStateV01,
   type OperatorSessionViewV01,
 } from "@/components/workbench/semantic-review/operator-session-panel";
+import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 
 import { RunResultReviewSurface } from "./run-result-review-surface";
@@ -160,17 +161,23 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
   }
   return (
     <main className={styles.page} data-run-result-review="locked">
-      <div className={styles.shell}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Semantic Workbench · read-only result</p>
-            <h1>Review native-host result</h1>
-            <p className={styles.headerCopy}>
-              Private result detail is loaded only after the existing local
-              operator session is validated.
-            </p>
-          </div>
-        </header>
+      <SemanticWorkbenchShell
+        title="Verify run result"
+        description="Private result material is loaded only after the existing local operator session is validated. Opening this entry performs no semantic write."
+        entryState={
+          session.status === "authenticated" || session.status === "checking"
+            ? "loading"
+            : "locked"
+        }
+        entryLabel={
+          session.status === "authenticated"
+            ? "Loading result"
+            : session.status === "checking"
+              ? "Validating local access"
+              : "Private result locked"
+        }
+        projectHref="/"
+      >
         {accessBoundary}
         {session.status === "authenticated" && !errorCode ? (
           <section className={styles.panel} aria-live="polite">
@@ -180,7 +187,7 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
         {errorCode ? (
           <p className={styles.error} role="alert">{errorCode}</p>
         ) : null}
-      </div>
+      </SemanticWorkbenchShell>
     </main>
   );
 }

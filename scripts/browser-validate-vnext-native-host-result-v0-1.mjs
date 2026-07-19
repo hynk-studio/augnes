@@ -150,7 +150,9 @@ const result = {
   live_codex_receipt_persisted: false,
   live_codex_no_internal_id_input: false,
   project_home_latest_result_visible: false,
+  project_home_coordination_visible: false,
   workbench_result_review_read_only: false,
+  shared_semantic_workbench_shell: false,
   workbench_result_reload_durable: false,
   result_inspector_complete: false,
   result_review_semantic_authority_unchanged: false,
@@ -456,6 +458,9 @@ async function main() {
       activity_empty: document.body.textContent.includes('No meaningful project activity has been recorded yet.'),
       automation_not_configured: document.body.textContent.includes('Project automation is not configured.'),
       personal_perspective_not_configured: document.body.textContent.includes('No project-specific choice has been made. Personal Perspective is excluded by default.'),
+      coordination: document.querySelector('[data-project-home-coordination="v0.1"]') !== null,
+      workbench_entry: document.querySelector('[data-primary-workbench-entry="pending_proposal"]')?.getAttribute('href') === '/workbench/semantic-review',
+      personal_task_basis_absent: document.querySelector('[data-personal-perspective-task-basis="absent"]') !== null,
       capability_count: document.querySelectorAll('.project-home-capabilities > li').length,
       next_move_count: document.querySelectorAll('.project-home-next-moves > li').length,
       active: document.querySelector('[data-project-home-active="true"]') !== null,
@@ -471,6 +476,9 @@ async function main() {
       activity_empty: true,
       automation_not_configured: true,
       personal_perspective_not_configured: true,
+      coordination: true,
+      workbench_entry: true,
+      personal_task_basis_absent: true,
       capability_count: 5,
       next_move_count: 3,
       active: true,
@@ -478,6 +486,7 @@ async function main() {
       operator_packet_leaked: false,
     });
     result.minimum_project_home_empty_state = true;
+    result.project_home_coordination_visible = true;
     result.minimum_project_home_project_isolation = true;
     result.project_automation_default_not_configured = true;
     result.personal_perspective_default_excluded = true;
@@ -1924,6 +1933,13 @@ async function main() {
       "read-only proposal settlement refresh",
     );
     assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
+      ),
+      true,
+    );
+    result.shared_semantic_workbench_shell = true;
+    assert.equal(
       responses.slice(resultResponseStart).some(
         (entry) => entry.path === expectedReviewHref && entry.status === 200,
       ),
@@ -2121,6 +2137,12 @@ async function main() {
     await waitForCondition(
       `location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && document.querySelector('[data-vnext-semantic-review-detail="v0.1"] [data-run-assessment-proposal="v0.1"]') !== null`,
       "result-linked run-assessment proposal detail",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="pending_proposal"]') !== null`,
+      ),
+      true,
     );
     assert.equal(
       responses.slice(proposalNavigationStart).some(

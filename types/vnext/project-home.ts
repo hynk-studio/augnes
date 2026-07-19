@@ -17,6 +17,8 @@ import type {
   ProjectRunResultSummaryV01,
 } from "./project-run-result";
 import type { BoundedAutomationCycleProjectionV01 } from "./bounded-automation-cycle";
+import type { ExternalRefTrustClassV01 } from "./external-ref";
+import type { SemanticWorkbenchEntryV01 } from "./semantic-workbench";
 
 export const PROJECT_HOME_PROJECTION_VERSION_V01 =
   "project_home_projection.v0.1" as const;
@@ -96,18 +98,55 @@ export interface ProjectHomeWorkingProjectionSummaryV01 {
   lineage: ProjectHomeLineageAnchorV01[];
 }
 
+export interface ProjectHomeTaskFrameV01 {
+  state: ProjectHomeSectionStateV01;
+  goal: string | null;
+  success_criteria: string[];
+  non_goals: string[];
+  required_checks: string[];
+  forbidden_actions: string[];
+  tensions: string[];
+  risks: string[];
+  gaps: string[];
+  selected_context_count: number;
+  excluded_context_count: number;
+  packet_generated_at: string | null;
+  packet_currentness: "fresh" | "stale" | "partial" | "unknown" | null;
+}
+
+export type ProjectHomeAttentionSignalV01 =
+  | "interactive"
+  | "policy_triggered"
+  | "strategic"
+  | "feedback"
+  | "stale"
+  | "blocked"
+  | "conflict"
+  | "decision_debt";
+
 export interface ProjectHomePendingAttentionItemV01 {
-  proposal_id: string;
+  attention_id: string;
+  proposal_id: string | null;
   summary: string;
   created_at: string;
   pending_candidate_count: number;
+  priority: number;
+  signals: ProjectHomeAttentionSignalV01[];
   reason: string;
+  workbench_entry: SemanticWorkbenchEntryV01 | null;
+  action_href: string | null;
+  action_label: string;
   lineage: ProjectHomeLineageAnchorV01[];
 }
 
 export interface ProjectHomePendingAttentionV01 {
   state: ProjectHomeSectionStateV01;
   total_count: number;
+  decision_debt: {
+    pending_candidate_count: number;
+    accepted_awaiting_transition_count: number;
+    deferred_candidate_count: number;
+  };
   items: ProjectHomePendingAttentionItemV01[];
 }
 
@@ -116,6 +155,7 @@ export interface ProjectHomeActivityItemV01 {
   summary: string;
   occurred_at: string;
   outcome: string;
+  workbench_entry: SemanticWorkbenchEntryV01 | null;
   lineage: ProjectHomeLineageAnchorV01[];
 }
 
@@ -133,6 +173,7 @@ export interface ProjectHomeRunResultsV01 {
     | "empty"
     | "receipt_unavailable"
     | "error";
+  workbench_entry: SemanticWorkbenchEntryV01 | null;
 }
 
 export interface ProjectHomeAutomationSummaryV01 {
@@ -159,7 +200,37 @@ export interface ProjectHomePersonalPerspectiveSummaryV01 {
     | "excluded_by_explicit_choice"
     | "eligible_for_normal_context_selection";
   explanation: string;
-  eligible_selected_count: number;
+  task_selected_count: number;
+  task_basis: null | {
+    packet_generated_at: string;
+    selected_count: number;
+    items: Array<{
+      summary: string | null;
+      why_included: string;
+      currentness: "fresh" | "stale" | "partial" | "unknown";
+      trust_class: ExternalRefTrustClassV01;
+    }>;
+  };
+}
+
+export interface ProjectHomeCoordinationV01 {
+  state: ProjectHomeSectionStateV01;
+  task_frame: ProjectHomeTaskFrameV01;
+  active_work: {
+    current_run_active: boolean;
+    current_run_mode: "interactive" | "policy_triggered" | "unknown" | null;
+    automation_status: BoundedAutomationCycleProjectionV01["status"];
+    automation_work_label: string | null;
+    latest_result_available: boolean;
+  };
+  attention_count: number;
+  decision_debt_count: number;
+  tension_count: number;
+  gap_count: number;
+  personal_perspective_affected_task: boolean;
+  primary_action: SemanticWorkbenchEntryV01 | null;
+  projection_only: true;
+  semantic_authority_granted: false;
 }
 
 export const PROJECT_HOME_CAPABILITIES_V01 = [
@@ -198,6 +269,7 @@ export interface ProjectHomeNextMoveV01 {
     | "configure_automation"
     | "review_paused_automation"
     | "choose_personal_perspective_scope"
+    | "open_workbench"
     | "review_current_state"
     | "return_to_projects";
   label: string;
@@ -214,6 +286,7 @@ export interface ProjectHomeProjectionV01 {
   project_summary: ProjectHomeProjectSummaryV01;
   accepted_state: ProjectHomeAcceptedStateSummaryV01;
   working_projection: ProjectHomeWorkingProjectionSummaryV01;
+  coordination: ProjectHomeCoordinationV01;
   attention: ProjectHomePendingAttentionV01;
   recent_activity: ProjectHomeRecentActivityV01;
   run_results: ProjectHomeRunResultsV01;

@@ -104,6 +104,22 @@
   text-transform: uppercase;
 }
 
+.entryState {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid rgba(18, 112, 82, 0.42);
+  border-radius: 999px;
+  background: #173f35;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
 .panel,
 .lockedPanel,
 .candidate,

@@ -141,7 +141,11 @@ import {
 } from "../lib/vnext/runtime/live-native-host-run-service";
 import { BoundedAutomationCycleServiceV01 } from "../lib/vnext/runtime/bounded-automation-cycle";
 import type { BoundedAutomationCycleProjectionV01 } from "../types/vnext/bounded-automation-cycle";
-import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import {
+  projectVNextOperatorPilotContinuityV01,
+  resolveVNextOperatorPilotPendingContextUseReviewV01,
+} from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import { readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import {
   ProjectRunResultReadErrorV01,
   readProjectRunResultDetailV01,
@@ -2625,6 +2629,65 @@ async function assertR6CProductionVerticalV01(input: {
     throw new Error("r6_c_later_run_proposal_unavailable");
   }
   pass("real_later_interactive_run_receipt_persisted");
+  const interactiveFeedbackRowsBefore = coreRecordCount(input.config.database_path);
+  {
+    const feedbackDb = openVNextLocalOperatorDatabaseV01(input.config);
+    try {
+      const feedbackHome = await readProjectHomeProjectionV01(
+        feedbackDb,
+        {
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+        },
+        {
+          now: () => input.clock.now(),
+          operator_config: input.config,
+        },
+      );
+      const feedbackAttention = feedbackHome.attention.items.find(
+        (item) => item.attention_id === `feedback:${transition.source_proposal.proposal_id}`,
+      );
+      assert(feedbackAttention);
+      assert.deepEqual(feedbackAttention.signals, ["interactive", "feedback"]);
+      assert.equal(
+        feedbackAttention.workbench_entry?.entry_state,
+        "feedback_needed",
+      );
+      assert.equal(
+        feedbackAttention.workbench_entry?.source.record_id,
+        transition.source_proposal.proposal_id,
+      );
+      assert.equal(feedbackHome.automation.cycle.feedback_needed, false);
+
+      const continuity = projectVNextOperatorPilotContinuityV01(feedbackDb, {
+        config: input.config,
+        clock: { now: () => input.clock.now() },
+      });
+      assert.throws(
+        () =>
+          resolveVNextOperatorPilotPendingContextUseReviewV01(feedbackDb, {
+            config: input.config,
+            continuity: {
+              ...continuity,
+              latest_compiled_packet: continuity.latest_compiled_packet
+                ? {
+                    ...continuity.latest_compiled_packet,
+                    packet_id: "task-context-packet:000000000000000000000000",
+                  }
+                : null,
+            },
+          }),
+        /operator_pilot_context_use_packet_binding_conflict/,
+      );
+    } finally {
+      feedbackDb.close();
+    }
+  }
+  assert.equal(
+    coreRecordCount(input.config.database_path),
+    interactiveFeedbackRowsBefore,
+  );
+  pass("project_home_interactive_feedback_attention_uses_exact_packet_transition_lineage");
   await assertOperationAwareProductionOperationsOnClonesV01({
     environment: input.environment,
     clock: input.clock,
@@ -2665,6 +2728,31 @@ async function assertR6CProductionVerticalV01(input: {
   assert.equal(feedbackReview.usage.presented, "yes");
   assert.equal(feedbackReview.usage.actually_used, "yes");
   assert.equal(feedbackReview.assessment, "helpful");
+  {
+    const reviewedFeedbackDb = openVNextLocalOperatorDatabaseV01(input.config);
+    try {
+      const reviewedFeedbackHome = await readProjectHomeProjectionV01(
+        reviewedFeedbackDb,
+        {
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+        },
+        {
+          now: () => input.clock.now(),
+          operator_config: input.config,
+        },
+      );
+      assert.equal(
+        reviewedFeedbackHome.attention.items.some((item) =>
+          item.attention_id.startsWith("feedback:"),
+        ),
+        false,
+      );
+    } finally {
+      reviewedFeedbackDb.close();
+    }
+  }
+  pass("project_home_exact_context_use_review_suppresses_feedback_attention");
   assert.equal(
     feedbackReview.usage_provenance?.presented.basis,
     "direct_local_observation",
@@ -6252,7 +6340,18 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       assert(settled.run?.proposal_id);
       assert(settled.run?.result_href);
       assert(settled.run?.proposal_href);
+      assert.equal(settled.review_proposal_id, settled.run.proposal_id);
       assert.equal(settled.feedback_needed, true);
+      assert(settled.feedback_proposal_id);
+      assert.notEqual(
+        settled.feedback_proposal_id,
+        settled.run.proposal_id,
+        "later-context feedback belongs to the Transition that produced the used packet, not the current run proposal",
+      );
+      assert.equal(
+        settled.feedback_href,
+        `/workbench/semantic-review/${settled.feedback_proposal_id.replace(":", "~")}`,
+      );
       assert.equal(observations.length, 1);
       assert.equal(observations[0]?.request.mode, "policy_triggered");
       assert.deepEqual(
@@ -6414,6 +6513,31 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
         assert.equal(detail.automation?.stopped_at_review_needed, true);
         assert.equal(detail.automation?.budget.max_augnes_model_invocations, 0);
         assert.equal(detail.proposal.status, "available");
+        const policyFeedbackHome = await readProjectHomeProjectionV01(
+          runDb,
+          {
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+          },
+          {
+            now: () => clock.now(),
+            operator_config: config,
+          },
+        );
+        const policyFeedbackAttention = policyFeedbackHome.attention.items.find(
+          (item) =>
+            item.attention_id === `feedback:${settled.feedback_proposal_id}`,
+        );
+        assert(policyFeedbackAttention);
+        assert.deepEqual(policyFeedbackAttention.signals, [
+          "policy_triggered",
+          "feedback",
+        ]);
+        assert.equal(
+          policyFeedbackAttention.workbench_entry?.href,
+          settled.feedback_href,
+        );
+        assert.equal(policyFeedbackHome.automation.state.status, "action_required");
       } finally {
         runDb.close();
       }
@@ -6512,7 +6636,10 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       assert.equal(review.usage_provenance?.presented.basis, "direct_local_observation");
       assert.equal(review.usage_provenance?.actually_used.basis, "user_declaration");
       assert.equal(review.usage_provenance?.assessment.basis, "user_declaration");
-      assert.equal(service.read(config).feedback_needed, false);
+      const afterFeedbackProjection = service.read(config);
+      assert.equal(afterFeedbackProjection.feedback_needed, false);
+      assert.equal(afterFeedbackProjection.feedback_proposal_id, null);
+      assert.equal(afterFeedbackProjection.feedback_href, null);
       const afterFeedback = snapshotR6CSemanticAuthorityCounts(config);
       assert.equal(afterFeedback.context_use_reviews, before.context_use_reviews + 1);
       assert.deepEqual(

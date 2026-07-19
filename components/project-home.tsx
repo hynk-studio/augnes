@@ -102,6 +102,115 @@ export function ProjectHome({
       ) : null}
 
       <section
+        className="project-home-resume"
+        aria-labelledby="project-resume-title"
+        data-project-home-coordination="v0.1"
+      >
+        <div className="project-home-resume-heading">
+          <div>
+            <p className="project-home-kicker">Resume · current coordination</p>
+            <h2 id="project-resume-title">Where this project is now</h2>
+            <p>{projection.coordination.state.message}</p>
+          </div>
+          {active && projection.coordination.primary_action ? (
+            <a
+              className="project-home-primary-action"
+              href={projection.coordination.primary_action.href}
+              data-primary-workbench-entry={
+                projection.coordination.primary_action.entry_state
+              }
+            >
+              {projection.coordination.primary_action.action_label}
+            </a>
+          ) : (
+            <span className="project-home-meta">
+              Make this project active before opening its Workbench.
+            </span>
+          )}
+        </div>
+
+        <dl className="project-home-coordinate-grid">
+          <div>
+            <dt>Active work</dt>
+            <dd>
+              {projection.coordination.active_work.current_run_active
+                ? `${humanize(projection.coordination.active_work.current_run_mode ?? "unknown")} run active`
+                : projection.coordination.active_work.automation_work_label ??
+                  "No run is active"}
+            </dd>
+          </div>
+          <div>
+            <dt>Attention</dt>
+            <dd>{projection.coordination.attention_count} current items</dd>
+          </div>
+          <div>
+            <dt>Decision debt</dt>
+            <dd>{projection.coordination.decision_debt_count} candidates</dd>
+          </div>
+          <div>
+            <dt>Tensions and gaps</dt>
+            <dd>
+              {projection.coordination.tension_count} tensions ·{" "}
+              {projection.coordination.gap_count} gaps
+            </dd>
+          </div>
+          <div>
+            <dt>Automation</dt>
+            <dd>{humanize(projection.coordination.active_work.automation_status)}</dd>
+          </div>
+          <div>
+            <dt>Personal basis</dt>
+            <dd>
+              {projection.coordination.personal_perspective_affected_task
+                ? "Included in this exact task packet"
+                : "Not present in this exact task packet"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="project-home-task-frame">
+          <div>
+            <p className="project-home-kicker">Selected task intent</p>
+            <h3>{projection.coordination.task_frame.goal ?? "No current task goal"}</h3>
+            <p className="project-home-meta">
+              {projection.coordination.task_frame.packet_currentness
+                ? `${humanize(projection.coordination.task_frame.packet_currentness)} packet`
+                : "No current packet"}
+              {projection.coordination.task_frame.packet_generated_at
+                ? ` · ${formatTimestamp(projection.coordination.task_frame.packet_generated_at)}`
+                : ""}
+              {` · ${projection.coordination.task_frame.selected_context_count} selected / ${projection.coordination.task_frame.excluded_context_count} excluded context entries`}
+            </p>
+          </div>
+          <div className="project-home-task-frame-grid">
+            <BoundedList
+              title="Success criteria"
+              items={projection.coordination.task_frame.success_criteria}
+            />
+            <BoundedList
+              title="Required checks"
+              items={projection.coordination.task_frame.required_checks}
+            />
+            <BoundedList
+              title="Constraints and non-goals"
+              items={[
+                ...projection.coordination.task_frame.non_goals,
+                ...projection.coordination.task_frame.forbidden_actions,
+              ]}
+            />
+            <BoundedList
+              title="Tensions, risks, and gaps"
+              items={[
+                ...projection.coordination.task_frame.tensions,
+                ...projection.coordination.task_frame.risks,
+                ...projection.coordination.task_frame.gaps,
+              ]}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section
         className="project-home-panel"
         aria-labelledby="run-results-title"
         data-project-run-results="v0.1"
@@ -170,12 +279,15 @@ export function ProjectHome({
                 )}
               </time>
             </p>
-            {active ? (
+            {active && projection.run_results.workbench_entry ? (
               <a
-                href={projection.run_results.latest_result.review_href}
+                href={projection.run_results.workbench_entry.href}
                 data-review-result-link="true"
+                data-workbench-entry-state={
+                  projection.run_results.workbench_entry.entry_state
+                }
               >
-                Review result
+                {projection.run_results.workbench_entry.action_label}
               </a>
             ) : (
               <p className="project-home-meta">
@@ -195,18 +307,43 @@ export function ProjectHome({
       <section id="attention" className="project-home-primary" aria-labelledby="attention-title">
         <SectionHeading
           id="attention-title"
-          eyebrow="Immediate attention"
-          title="Decisions that need you"
+          eyebrow="Deterministic project attention"
+          title="What needs you next"
           state={projection.attention.state}
         />
+        <p className="project-home-meta project-home-attention-debt">
+          {projection.attention.decision_debt.pending_candidate_count} pending ·{" "}
+          {projection.attention.decision_debt.accepted_awaiting_transition_count} accepted awaiting Transition ·{" "}
+          {projection.attention.decision_debt.deferred_candidate_count} deferred
+        </p>
         {projection.attention.items.length ? (
           <ol className="project-home-list">
             {projection.attention.items.map((item) => (
-              <li key={item.proposal_id}>
+              <li key={item.attention_id} data-attention-priority={item.priority}>
                 <div>
+                  <div className="project-home-signal-list" aria-label="Attention basis">
+                    {item.signals.map((signal) => (
+                      <StatusBadge
+                        key={signal}
+                        tone={attentionSignalTone(signal)}
+                      >
+                        {humanize(signal)}
+                      </StatusBadge>
+                    ))}
+                  </div>
                   <strong>{item.summary}</strong>
                   <p>{item.reason}</p>
                   <time dateTime={item.created_at}>{formatTimestamp(item.created_at)}</time>
+                  {active && (item.workbench_entry || item.action_href) ? (
+                    <p>
+                      <a
+                        className="project-home-inline-action"
+                        href={item.workbench_entry?.href ?? item.action_href ?? "#"}
+                      >
+                        {item.action_label}
+                      </a>
+                    </p>
+                  ) : null}
                 </div>
                 <Lineage anchors={item.lineage} />
               </li>
@@ -262,7 +399,7 @@ export function ProjectHome({
               </p>
               {projection.working_projection.source_perspective_ref ? (
                 <p className="project-home-meta">
-                  Source Perspective {projection.working_projection.source_perspective_ref}
+                  Selected from a source-bound Perspective
                   {projection.working_projection.source_revision === null
                     ? " · revision unavailable"
                     : ` · revision ${projection.working_projection.source_revision}`}
@@ -292,6 +429,14 @@ export function ProjectHome({
                   <p className="project-home-kicker">{activityLabel(item.activity_kind)}</p>
                   <strong>{item.summary}</strong>
                   <p>{item.outcome} · <time dateTime={item.occurred_at}>{formatTimestamp(item.occurred_at)}</time></p>
+                  {active && item.workbench_entry ? (
+                    <a
+                      className="project-home-inline-action"
+                      href={item.workbench_entry.href}
+                    >
+                      {item.workbench_entry.action_label}
+                    </a>
+                  ) : null}
                   <Lineage anchors={item.lineage} />
                 </div>
               </li>
@@ -324,6 +469,13 @@ export function ProjectHome({
             <p className="project-home-meta">
               Cycle {humanize(projection.automation.cycle.status)}
               {` · Stop ${humanize(projection.automation.cycle.stop_reason)}`}
+            </p>
+            <p className="project-home-meta">
+              Next action {humanize(projection.automation.cycle.next_action)} · retry{" "}
+              {projection.automation.cycle.retryable ? "eligible" : "not eligible"} · cancel{" "}
+              {projection.automation.cycle.next_action === "cancel"
+                ? "available"
+                : "not available"}
             </p>
             {projection.automation.cycle.work_source ? (
               <p>
@@ -381,10 +533,42 @@ export function ProjectHome({
             </StatusBadge>
             <p>{projection.personal_perspective.explanation}</p>
             <p className="project-home-meta">
-              Eligible selected material {projection.personal_perspective.eligible_selected_count}
+              Task-selected material {projection.personal_perspective.task_selected_count}
             </p>
+            {projection.personal_perspective.task_basis ? (
+              <div
+                className="project-home-personal-basis"
+                data-personal-perspective-task-basis="present"
+              >
+                <strong>Affected this exact task packet</strong>
+                <p className="project-home-meta">
+                  {projection.personal_perspective.task_basis.selected_count} selected entries · packet{" "}
+                  {formatTimestamp(
+                    projection.personal_perspective.task_basis.packet_generated_at,
+                  )}
+                </p>
+                <ul>
+                  {projection.personal_perspective.task_basis.items.map(
+                    (item, index) => (
+                      <li key={`${item.why_included}:${index}`}>
+                        {item.summary ?? "Selected reviewed material"} ·{" "}
+                        {item.why_included} · {humanize(item.currentness)} ·{" "}
+                        {humanize(item.trust_class)}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            ) : (
+              <p
+                className="project-home-meta"
+                data-personal-perspective-task-basis="absent"
+              >
+                No exact selected packet material proves that Personal Perspective affected the current task.
+              </p>
+            )}
             <small>
-              This setting grants project-scoped selection permission only. It never creates or displays personal content.
+              This setting grants project-scoped selection permission only. The summary above appears only when exact selected packet lineage proves task use.
               {projection.personal_perspective.updated_at
                 ? ` Last updated ${formatTimestamp(projection.personal_perspective.updated_at)}.`
                 : " Nothing is included until you choose explicitly."}
@@ -464,6 +648,23 @@ function EmptySection({ state }: { state: ProjectHomeSectionStateV01 }) {
   return <p className="project-home-empty">{state.message}</p>;
 }
 
+function BoundedList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <h4>{title}</h4>
+      {items.length ? (
+        <ul>
+          {items.map((item, index) => (
+            <li key={`${item}:${index}`}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="project-home-meta">None recorded in the current packet.</p>
+      )}
+    </div>
+  );
+}
+
 function Lineage({ anchors }: { anchors: ProjectHomeLineageAnchorV01[] }) {
   if (!anchors.length) return null;
   return (
@@ -473,7 +674,7 @@ function Lineage({ anchors }: { anchors: ProjectHomeLineageAnchorV01[] }) {
         {anchors.map((anchor) => (
           <li key={`${anchor.record_kind}:${anchor.record_id}:${anchor.role}`}>
             <span>{lineageRole(anchor.role)}</span>
-            <code>{anchor.record_id}</code>
+            <span>{humanize(anchor.record_kind)}</span>
             <time dateTime={anchor.occurred_at}>{formatTimestamp(anchor.occurred_at)}</time>
           </li>
         ))}
@@ -500,6 +701,15 @@ function sectionTone(value: ProjectHomeSectionStateV01["status"]) {
   if (value === "action_required") return "attention" as const;
   if (value === "error") return "danger" as const;
   if (value === "available") return "good" as const;
+  return "neutral" as const;
+}
+
+function attentionSignalTone(
+  value: ProjectHomeProjectionV01["attention"]["items"][number]["signals"][number],
+) {
+  if (value === "blocked" || value === "conflict") return "danger" as const;
+  if (value === "stale" || value === "decision_debt") return "attention" as const;
+  if (value === "feedback") return "good" as const;
   return "neutral" as const;
 }
 

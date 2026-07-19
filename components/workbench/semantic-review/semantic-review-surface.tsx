@@ -4,12 +4,17 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  SemanticWorkbenchShell,
+  type SemanticWorkbenchShellStateV01,
+} from "@/components/workbench/semantic-workbench-shell";
+import {
   OperatorSessionPanel,
   type OperatorSessionStateV01,
   type OperatorSessionViewV01,
 } from "./operator-session-panel";
 import { SemanticReviewProposalDetail } from "./proposal-detail";
 import { SemanticReviewProposalList } from "./proposal-list";
+import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
 import type {
   SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
@@ -408,6 +413,13 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
 
   const privateMaterialVisible =
     sessionState.status === "authenticated" && privateView !== null;
+  const entryPresentation = semanticReviewEntryPresentation(
+    sessionState,
+    privateView,
+  );
+  const projectHref = privateView
+    ? `/projects/${encodeURIComponent(privateView.value.project.project_id)}`
+    : "/";
 
   return (
     <main
@@ -422,34 +434,17 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           : sessionState.status
       }
     >
-      <div className={styles.shell}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Augnes Semantic Workbench / M3D pilot</p>
-            <h1>{proposalId ? "Review proposal" : "Semantic review"}</h1>
-            <p className={styles.headerCopy}>
-              Review bounded project-semantic candidates, record an explicit
-              ReviewDecision, inspect a read-only preview, confirm an exact gate, and
-              atomically close an eligible Transition with later context. This surface is
-              not a general chat, terminal, code editor, Git diff, provider session
-              manager, or scheduler.
-            </p>
-          </div>
-          <nav className={styles.nav} aria-label="Semantic review navigation">
-            {proposalId ? <a href="/workbench/semantic-review">All proposals</a> : null}
-            <a href="/workbench">Agent Workplane</a>
-            <a href="/">Project Home</a>
-          </nav>
-        </header>
-
-        <div className={styles.boundaryBand} aria-label="Semantic review boundaries">
-          <span>proposal is not state</span>
-          <span>decision is not transition</span>
-          <span>local session is not external identity</span>
-          <span>confirmation is gate only</span>
-          <span>later packet is working context, not canonical truth</span>
-        </div>
-
+      <SemanticWorkbenchShell
+        title={proposalId ? "Verify and decide" : "Review project decisions"}
+        description="Compare authenticated project material, review one bounded candidate, and make an explicit decision. Transition eligibility and later context remain separate, server-validated steps."
+        entryState={entryPresentation.state}
+        entryLabel={entryPresentation.label}
+        projectHref={projectHref}
+        inspectorHref={
+          privateView?.kind === "detail" ? "#durable-lineage-title" : undefined
+        }
+        navigation={[{ href: "/workbench", label: "Workplane compatibility" }]}
+      >
         <OperatorSessionPanel
           state={sessionState}
           onAuthenticated={authenticated}
@@ -510,7 +505,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             authenticated, project-scoped local session.
           </p>
         ) : null}
-      </div>
+      </SemanticWorkbenchShell>
     </main>
   );
 }
@@ -592,4 +587,22 @@ function semanticReviewProposalHref(proposalId: string | undefined): string {
   return proposalId && /^episode-delta-proposal:[a-f0-9]{24}$/.test(proposalId)
     ? `/workbench/semantic-review/${proposalId.replace(":", "~")}`
     : "/workbench/semantic-review";
+}
+
+function semanticReviewEntryPresentation(
+  sessionState: OperatorSessionStateV01,
+  privateView: PrivateSemanticReviewViewV01 | null,
+): { state: SemanticWorkbenchShellStateV01; label: string } {
+  if (sessionState.status !== "authenticated") {
+    return sessionState.status === "checking"
+      ? { state: "loading", label: "Validating local access" }
+      : { state: "locked", label: "Private review locked" };
+  }
+  if (!privateView) {
+    return { state: "loading", label: "Loading project review" };
+  }
+  if (privateView.kind === "list") {
+    return { state: "proposal_queue", label: "Project proposal queue" };
+  }
+  return semanticReviewDetailEntryPresentationV01(privateView.value.proposal);
 }

@@ -32,6 +32,7 @@ import { openDatabase } from "../lib/db";
 import {
   PersonalPerspectiveContextSelectionErrorV01,
   buildConservativeProjectAutomationPolicyV01,
+  createPersonalPerspectiveScopeLineageRefV01,
   evaluateProjectAutomationAdmissionV01,
   selectPersonalPerspectiveContextV01,
   validateProjectAutomationPolicyV01,
@@ -59,6 +60,10 @@ import {
 import {
   readProjectHomeProjectionV01,
 } from "../lib/vnext/project-home/project-home-projection";
+import {
+  canonicalizeProtocolValueV01,
+  normalizeExternalRefPrimitiveV01,
+} from "../lib/vnext/protocol-primitives";
 import { buildReviewDecisionV01 } from "../lib/vnext/review-decision";
 import {
   commitVNextSemanticTransitionV01,
@@ -68,6 +73,7 @@ import {
 } from "../lib/vnext/runtime/durable-semantic-transition";
 import {
   compileTaskContextPacketFromPersistedSemanticStateV01,
+  type VNextTaskContextPacketExpiryPolicyV01,
 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
 import type {
@@ -510,10 +516,13 @@ function compilePersonalPerspectiveFixture(
   database: Database.Database,
   fixture: ReturnType<typeof preparePersonalPerspectiveCompilerFixture>,
   candidates: readonly PersonalPerspectiveContextCandidateV01[],
+  expiryPolicy: VNextTaskContextPacketExpiryPolicyV01 = {
+    mode: "reuse_prior",
+  },
 ) {
   return compileTaskContextPacketFromPersistedSemanticStateV01(database, {
     ...fixture,
-    expiry_policy: { mode: "reuse_prior" },
+    expiry_policy: expiryPolicy,
     personal_perspective_candidates: candidates,
     clock: fixedClock(DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT),
   });
@@ -1095,6 +1104,10 @@ async function main() {
       db,
       includedCompilerFixture,
       [candidateA],
+      {
+        mode: "explicit",
+        expires_at: "2026-07-16T00:05:00.000Z",
+      },
     );
     assert.equal(compiled.full_chain_relation.status, "valid");
     assert.equal(
@@ -1115,6 +1128,52 @@ async function main() {
         (ref) => ref.ref_type === "project_personal_perspective_scope",
       ),
     );
+    const selectedPersonalPerspectiveRef =
+      compiled.later_packet.selected_context.find(
+        (entry) =>
+          entry.compatibility_source_ref?.ref_type ===
+          "project_personal_perspective_scope",
+      )?.compatibility_source_ref;
+    const currentPersonalPerspectiveRef =
+      createPersonalPerspectiveScopeLineageRefV01(
+        readPersonalPerspectiveEffectiveScopeV01(db, {
+          workspace_id: workspace.workspace_id,
+          project_id: projectA.project.project_id,
+        }),
+      );
+    assert(selectedPersonalPerspectiveRef);
+    assert(currentPersonalPerspectiveRef);
+    assert.equal(
+      canonicalizeProtocolValueV01(
+        normalizeExternalRefPrimitiveV01(selectedPersonalPerspectiveRef),
+      ),
+      canonicalizeProtocolValueV01(
+        normalizeExternalRefPrimitiveV01(currentPersonalPerspectiveRef),
+      ),
+    );
+    const beforeTaskBasisRead = mutationSideEffectCounts(db);
+    const homeWithTaskBasis = await readProjectHomeProjectionV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: projectA.project.project_id,
+      },
+      {
+        now: () => DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+        read_root_availability: async () => "available",
+      },
+    );
+    assert.equal(homeWithTaskBasis.personal_perspective.task_basis?.selected_count, 1);
+    assert.equal(
+      homeWithTaskBasis.personal_perspective.task_basis?.items[0]?.summary,
+      candidateA.entry.bounded_summary,
+    );
+    assert.equal(
+      homeWithTaskBasis.personal_perspective.task_basis?.items[0]?.why_included,
+      eligibleGate.selected_context[0]?.why_included,
+    );
+    assert.equal(homeWithTaskBasis.coordination.personal_perspective_affected_task, true);
+    assert.deepEqual(mutationSideEffectCounts(db), beforeTaskBasisRead);
     assert.equal(
       JSON.stringify(compiled.later_packet).includes(candidateA.entry.entry_id),
       true,
@@ -1306,6 +1365,39 @@ async function main() {
     assert.equal(excludedGate.eligible_selected_count, 0);
     assert.equal(excludedGate.excluded_count, 0);
     assertNoCandidateMaterial(excludedGate, [candidateA]);
+    const beforeHistoricalTaskBasisRead = mutationSideEffectCounts(db);
+    const homeAfterScopeExclusion = await readProjectHomeProjectionV01(
+      db,
+      {
+        workspace_id: workspace.workspace_id,
+        project_id: projectA.project.project_id,
+      },
+      {
+        now: () => "2026-07-16T00:04:00.000Z",
+        read_root_availability: async () => "available",
+      },
+    );
+    assert.equal(homeAfterScopeExclusion.personal_perspective.status, "excluded");
+    assert.equal(
+      homeAfterScopeExclusion.personal_perspective.effectively_included,
+      false,
+    );
+    assert.equal(
+      homeAfterScopeExclusion.personal_perspective.task_selected_count,
+      1,
+    );
+    assert.equal(
+      homeAfterScopeExclusion.personal_perspective.task_basis?.items[0]?.summary,
+      candidateA.entry.bounded_summary,
+    );
+    assert.equal(
+      homeAfterScopeExclusion.coordination.personal_perspective_affected_task,
+      true,
+    );
+    assert.deepEqual(
+      mutationSideEffectCounts(db),
+      beforeHistoricalTaskBasisRead,
+    );
     const beforeReincludeMutation = mutationSideEffectCounts(db);
     perspective = mutateProjectControlV01(
       db,
@@ -1579,7 +1671,7 @@ async function main() {
     assert.equal(restartedHome.automation.admission_status, "grant_required");
     assert.equal(restartedHome.personal_perspective.status, "included");
     assert.equal(
-      restartedHome.personal_perspective.eligible_selected_count,
+      restartedHome.personal_perspective.task_selected_count,
       0,
       "expired packet material is not reported as currently eligible",
     );

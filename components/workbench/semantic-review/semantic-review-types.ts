@@ -27,6 +27,7 @@ export interface SemanticReviewCandidateReadV01 {
 
 export type SemanticReviewProposalDetailV01 =
   VNextOperatorPilotReviewDetailV01 & {
+    projection_observed_at: string;
     durable_lineage: VNextOperatorPilotProposalDurableLineageV01;
     project_continuity: VNextOperatorPilotProjectContinuityV01;
   };

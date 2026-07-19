@@ -109,6 +109,8 @@
 .project-home-actions button,
 .project-home-callout a,
 .project-home-callout button,
+.project-home-primary-action,
+.project-home-inline-action,
 .project-home-next-moves a {
   min-height: 40px;
   display: inline-flex;
@@ -173,6 +175,7 @@
 }
 
 .project-home-callout,
+.project-home-resume,
 .project-home-primary,
 .project-home-panel,
 .project-home-readiness {
@@ -181,6 +184,98 @@
   border-radius: 14px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.project-home-resume {
+  display: grid;
+  gap: 20px;
+  border-color: rgba(19, 121, 91, .28);
+  background: linear-gradient(145deg, #fff, #f1faf6);
+}
+
+.project-home-resume-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+}
+
+.project-home-resume-heading h2,
+.project-home-task-frame h3 {
+  margin: 4px 0 0;
+}
+
+.project-home-resume-heading p:not(.project-home-kicker),
+.project-home-task-frame p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.project-home-coordinate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel-border);
+}
+
+.project-home-coordinate-grid > div {
+  padding: 13px;
+  background: #fff;
+}
+
+.project-home-coordinate-grid dt {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.project-home-coordinate-grid dd {
+  margin: 4px 0 0;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.project-home-task-frame {
+  display: grid;
+  gap: 16px;
+  padding: 17px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .9);
+}
+
+.project-home-task-frame-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.project-home-task-frame-grid > div {
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.project-home-task-frame-grid h4 {
+  margin: 0 0 7px;
+  font-size: .82rem;
+}
+
+.project-home-task-frame-grid ul,
+.project-home-personal-basis ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.45;
 }
 
 .project-home-callout {
@@ -239,6 +334,25 @@
 .project-home-primary {
   border-color: rgba(40, 93, 159, .2);
   background: linear-gradient(180deg, #fff, #f8fbff);
+}
+
+.project-home-attention-debt {
+  margin: -7px 0 15px;
+}
+
+.project-home-signal-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+
+.project-home-inline-action {
+  width: fit-content;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 6px 11px;
+  font-size: .82rem;
 }
 
 .project-home-current-grid,
@@ -463,6 +577,14 @@
   line-height: 1.45;
 }
 
+.project-home-personal-basis {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel-subtle);
+}
+
 .project-home-capabilities {
   display: grid;
   gap: 10px;
@@ -524,6 +646,7 @@
 
   .project-home-header,
   .project-home-callout,
+  .project-home-resume-heading,
   .project-home-section-heading,
   .project-home-readiness-heading,
   .project-home-next-moves li,
@@ -534,6 +657,11 @@
 
   .project-home-current-grid,
   .project-home-readiness-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-home-coordinate-grid,
+  .project-home-task-frame-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
