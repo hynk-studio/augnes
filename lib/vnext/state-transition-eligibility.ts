@@ -126,13 +126,11 @@ type EligibilityAccumulator = {
   blocked: boolean;
 };
 
-export interface StateTransitionReceiptEligibilityRelationInputV01
-  extends StateTransitionEligibilityEvaluationInputV01 {
+export interface StateTransitionReceiptEligibilityRelationInputV01 extends StateTransitionEligibilityEvaluationInputV01 {
   receipt: unknown;
 }
 
-export interface StateTransitionFullChainValidationInputV01
-  extends StateTransitionEligibilityEvaluationInputV01 {
+export interface StateTransitionFullChainValidationInputV01 extends StateTransitionEligibilityEvaluationInputV01 {
   receipt: unknown;
   prior_packet: unknown;
   later_packet: unknown;
@@ -242,8 +240,16 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     "unknown_eligibility_field",
     true,
   );
-  scanEligibilityMaterial(input.current_state_observations, "$.current_state_observations", accumulator);
-  scanEligibilityMaterial(input.semantic_commit_gate_evaluation, "$.semantic_commit_gate_evaluation", accumulator);
+  scanEligibilityMaterial(
+    input.current_state_observations,
+    "$.current_state_observations",
+    accumulator,
+  );
+  scanEligibilityMaterial(
+    input.semantic_commit_gate_evaluation,
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
   scanEligibilityMaterial(
     priorLineageMaterialForScan(input.prior_review_decisions),
     "$.prior_review_decisions",
@@ -254,10 +260,26 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     "$.prior_state_transition_receipts",
     accumulator,
   );
-  scanAbsoluteLocalPaths(input.current_state_observations, "$.current_state_observations", accumulator);
-  scanAbsoluteLocalPaths(input.semantic_commit_gate_evaluation, "$.semantic_commit_gate_evaluation", accumulator);
-  scanAbsoluteLocalPaths(input.prior_review_decisions, "$.prior_review_decisions", accumulator);
-  scanAbsoluteLocalPaths(input.prior_state_transition_receipts, "$.prior_state_transition_receipts", accumulator);
+  scanAbsoluteLocalPaths(
+    input.current_state_observations,
+    "$.current_state_observations",
+    accumulator,
+  );
+  scanAbsoluteLocalPaths(
+    input.semantic_commit_gate_evaluation,
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
+  scanAbsoluteLocalPaths(
+    input.prior_review_decisions,
+    "$.prior_review_decisions",
+    accumulator,
+  );
+  scanAbsoluteLocalPaths(
+    input.prior_state_transition_receipts,
+    "$.prior_state_transition_receipts",
+    accumulator,
+  );
 
   const evaluatedAt = requireTimestamp(
     input.evaluated_at,
@@ -316,21 +338,21 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
 
   const typedProposal =
     proposalValidation.status === "valid" && isProtocolRecordV01(proposal)
-    ? (proposal as unknown as EpisodeDeltaProposalV01)
-    : null;
+      ? (proposal as unknown as EpisodeDeltaProposalV01)
+      : null;
   const typedDecision =
     decisionValidation.status === "valid" && isProtocolRecordV01(decision)
-    ? (decision as unknown as ReviewDecisionV01)
-    : null;
+      ? (decision as unknown as ReviewDecisionV01)
+      : null;
   const decisionValue = protocolStringValueV01(typedDecision?.decision);
   const boundCandidate =
     typedProposal && typedDecision
-      ? typedProposal.proposed_deltas.find(
+      ? (typedProposal.proposed_deltas.find(
           (candidate) =>
             candidate.candidate_id === typedDecision.candidate.candidate_id &&
             createEpisodeDeltaCandidateFingerprintV01(candidate) ===
               typedDecision.candidate.candidate_fingerprint,
-        ) ?? null
+        ) ?? null)
       : null;
   const historicalStateRelativeAdd =
     decisionValue === "accept" &&
@@ -396,10 +418,7 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
         : decisionValue === "retract"
           ? "semantic_candidate_retract"
           : null;
-  if (
-    expectedKindForDecision &&
-    expectedKind !== expectedKindForDecision
-  ) {
+  if (expectedKindForDecision && expectedKind !== expectedKindForDecision) {
     addError(
       accumulator,
       "transition_kind_not_eligible",
@@ -492,8 +511,7 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
     current_state_observations: input.current_state_observations,
     semantic_commit_gate_evaluation: input.semantic_commit_gate_evaluation,
     prior_review_decisions: input.prior_review_decisions,
-    prior_state_transition_receipts:
-      input.prior_state_transition_receipts,
+    prior_state_transition_receipts: input.prior_state_transition_receipts,
     evaluated_at: input.evaluated_at,
   });
   if (eligibility.status !== "eligible") {
@@ -523,23 +541,89 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
   const decision = input.decision;
   const intent = decision.requested_transition_intent;
   if (!intent) {
-    addRelationError(accumulator, "requested_transition_intent_missing", "$.source_decision", "Related decision lacks transition intent.", true);
+    addRelationError(
+      accumulator,
+      "requested_transition_intent_missing",
+      "$.source_decision",
+      "Related decision lacks transition intent.",
+      true,
+    );
     return buildRelationResult(
       accumulator,
       receiptValidation.normalized_protocol_version,
     );
   }
 
-  exactText(receipt.workspace_id, proposal.workspace_id, "workspace_mismatch", "$.workspace_id", accumulator);
-  exactText(receipt.project_id, proposal.project_id, "project_mismatch", "$.project_id", accumulator);
-  exactText(receipt.source_proposal.proposal_id, proposal.proposal_id, "proposal_id_mismatch", "$.source_proposal.proposal_id", accumulator);
-  exactText(receipt.source_proposal.proposal_fingerprint, proposal.integrity.fingerprint, "proposal_fingerprint_mismatch", "$.source_proposal.proposal_fingerprint", accumulator);
-  exactText(receipt.source_decision.decision_id, decision.decision_id, "decision_id_mismatch", "$.source_decision.decision_id", accumulator);
-  exactText(receipt.source_decision.decision_fingerprint, decision.integrity.fingerprint, "decision_fingerprint_mismatch", "$.source_decision.decision_fingerprint", accumulator);
-  exactText(receipt.source_candidate.candidate_id, decision.candidate.candidate_id, "candidate_id_mismatch", "$.source_candidate.candidate_id", accumulator);
-  exactText(receipt.source_candidate.candidate_fingerprint, decision.candidate.candidate_fingerprint, "candidate_fingerprint_mismatch", "$.source_candidate.candidate_fingerprint", accumulator);
-  exactText(receipt.requested_transition_intent.intent_id, intent.intent_id, "intent_id_mismatch", "$.requested_transition_intent.intent_id", accumulator);
-  exactText(receipt.requested_transition_intent.transition_kind, intent.transition_kind, "transition_kind_mismatch", "$.requested_transition_intent.transition_kind", accumulator);
+  exactText(
+    receipt.workspace_id,
+    proposal.workspace_id,
+    "workspace_mismatch",
+    "$.workspace_id",
+    accumulator,
+  );
+  exactText(
+    receipt.project_id,
+    proposal.project_id,
+    "project_mismatch",
+    "$.project_id",
+    accumulator,
+  );
+  exactText(
+    receipt.source_proposal.proposal_id,
+    proposal.proposal_id,
+    "proposal_id_mismatch",
+    "$.source_proposal.proposal_id",
+    accumulator,
+  );
+  exactText(
+    receipt.source_proposal.proposal_fingerprint,
+    proposal.integrity.fingerprint,
+    "proposal_fingerprint_mismatch",
+    "$.source_proposal.proposal_fingerprint",
+    accumulator,
+  );
+  exactText(
+    receipt.source_decision.decision_id,
+    decision.decision_id,
+    "decision_id_mismatch",
+    "$.source_decision.decision_id",
+    accumulator,
+  );
+  exactText(
+    receipt.source_decision.decision_fingerprint,
+    decision.integrity.fingerprint,
+    "decision_fingerprint_mismatch",
+    "$.source_decision.decision_fingerprint",
+    accumulator,
+  );
+  exactText(
+    receipt.source_candidate.candidate_id,
+    decision.candidate.candidate_id,
+    "candidate_id_mismatch",
+    "$.source_candidate.candidate_id",
+    accumulator,
+  );
+  exactText(
+    receipt.source_candidate.candidate_fingerprint,
+    decision.candidate.candidate_fingerprint,
+    "candidate_fingerprint_mismatch",
+    "$.source_candidate.candidate_fingerprint",
+    accumulator,
+  );
+  exactText(
+    receipt.requested_transition_intent.intent_id,
+    intent.intent_id,
+    "intent_id_mismatch",
+    "$.requested_transition_intent.intent_id",
+    accumulator,
+  );
+  exactText(
+    receipt.requested_transition_intent.transition_kind,
+    intent.transition_kind,
+    "transition_kind_mismatch",
+    "$.requested_transition_intent.transition_kind",
+    accumulator,
+  );
   exactRefSet(
     receipt.requested_transition_intent.target_refs,
     intent.target_refs,
@@ -556,11 +640,35 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
   );
   const gate = input.semantic_commit_gate_evaluation;
   if (protocolStringValueV01(gate.status) !== "authorized") {
-    addRelationError(accumulator, "gate_status_mismatch", "$.semantic_commit_gate.status", "Applied receipt requires the exact authorized gate.", true);
+    addRelationError(
+      accumulator,
+      "gate_status_mismatch",
+      "$.semantic_commit_gate.status",
+      "Applied receipt requires the exact authorized gate.",
+      true,
+    );
   }
-  exactRef(receipt.semantic_commit_gate.evaluation_ref, gate.evaluation_ref, "gate_evaluation_ref_mismatch", "$.semantic_commit_gate.evaluation_ref", accumulator);
-  exactText(receipt.semantic_commit_gate.evaluated_at, gate.evaluated_at, "gate_evaluated_at_mismatch", "$.semantic_commit_gate.evaluated_at", accumulator);
-  exactText(receipt.semantic_commit_gate.expires_at, gate.expires_at, "gate_expires_at_mismatch", "$.semantic_commit_gate.expires_at", accumulator);
+  exactRef(
+    receipt.semantic_commit_gate.evaluation_ref,
+    gate.evaluation_ref,
+    "gate_evaluation_ref_mismatch",
+    "$.semantic_commit_gate.evaluation_ref",
+    accumulator,
+  );
+  exactText(
+    receipt.semantic_commit_gate.evaluated_at,
+    gate.evaluated_at,
+    "gate_evaluated_at_mismatch",
+    "$.semantic_commit_gate.evaluated_at",
+    accumulator,
+  );
+  exactText(
+    receipt.semantic_commit_gate.expires_at,
+    gate.expires_at,
+    "gate_expires_at_mismatch",
+    "$.semantic_commit_gate.expires_at",
+    accumulator,
+  );
   exactRef(
     receipt.applied_by_ref,
     gate.authorized_applier_ref,
@@ -576,22 +684,57 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
     ]),
   );
   if (receipt.effects.length !== eligibility.expected_effects.length) {
-    addRelationError(accumulator, "effect_count_mismatch", "$.effects", "Receipt effects must match all eligible targets exactly.", true);
+    addRelationError(
+      accumulator,
+      "effect_count_mismatch",
+      "$.effects",
+      "Receipt effects must match all eligible targets exactly.",
+      true,
+    );
   }
   for (const [index, effect] of receipt.effects.entries()) {
     const path = `$.effects[${index}]`;
-    const expected = expectedByTarget.get(canonicalExternalRef(effect.target_ref));
+    const expected = expectedByTarget.get(
+      canonicalExternalRef(effect.target_ref),
+    );
     if (!expected) {
-      addRelationError(accumulator, "effect_target_outside_decision", `${path}.target_ref`, "Receipt effect target is outside the eligible decision target set.", true);
+      addRelationError(
+        accumulator,
+        "effect_target_outside_decision",
+        `${path}.target_ref`,
+        "Receipt effect target is outside the eligible decision target set.",
+        true,
+      );
       continue;
     }
     if (effect.operation !== expected.operation) {
-      addRelationError(accumulator, "effect_operation_mismatch", `${path}.operation`, "Receipt effect operation differs from eligibility.", true);
+      addRelationError(
+        accumulator,
+        "effect_operation_mismatch",
+        `${path}.operation`,
+        "Receipt effect operation differs from eligibility.",
+        true,
+      );
     }
-    if (canonicalizeProtocolValueV01(effect.before_state) !== canonicalizeProtocolValueV01(expected.before_state)) {
-      addRelationError(accumulator, "before_state_mismatch", `${path}.before_state`, "Receipt must preserve the exact observed before-state snapshot.", true);
+    if (
+      canonicalizeProtocolValueV01(effect.before_state) !==
+      canonicalizeProtocolValueV01(expected.before_state)
+    ) {
+      addRelationError(
+        accumulator,
+        "before_state_mismatch",
+        `${path}.before_state`,
+        "Receipt must preserve the exact observed before-state snapshot.",
+        true,
+      );
     }
-    exactRef(effect.before_state_observation_ref, expected.before_state_observation_ref, "before_state_observation_mismatch", `${path}.before_state_observation_ref`, accumulator);
+    exactRef(
+      effect.before_state_observation_ref,
+      expected.before_state_observation_ref,
+      "before_state_observation_mismatch",
+      `${path}.before_state_observation_ref`,
+      accumulator,
+    );
     validateReceiptAfterStateRequirement(
       effect.after_state,
       expected.expected_after_state,
@@ -626,21 +769,54 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
   const recordedAt = parseStrictIsoTimestampV01(receipt.recorded_at);
   const expiresAt = parseStrictIsoTimestampV01(gate.expires_at);
   if (decidedAt !== null && appliedAt !== null && appliedAt < decidedAt) {
-    addRelationError(accumulator, "applied_before_decision", "$.applied_at", "Applied transition cannot predate its decision.", true);
+    addRelationError(
+      accumulator,
+      "applied_before_decision",
+      "$.applied_at",
+      "Applied transition cannot predate its decision.",
+      true,
+    );
   }
   if (gateAt !== null && appliedAt !== null && appliedAt < gateAt) {
-    addRelationError(accumulator, "applied_before_gate_evaluation", "$.applied_at", "Applied transition cannot predate gate evaluation.", true);
+    addRelationError(
+      accumulator,
+      "applied_before_gate_evaluation",
+      "$.applied_at",
+      "Applied transition cannot predate gate evaluation.",
+      true,
+    );
   }
   if (appliedAt !== null && expiresAt !== null && appliedAt > expiresAt) {
-    addRelationError(accumulator, "applied_after_gate_expiry", "$.applied_at", "Expired gate cannot support the receipt.", true);
+    addRelationError(
+      accumulator,
+      "applied_after_gate_expiry",
+      "$.applied_at",
+      "Expired gate cannot support the receipt.",
+      true,
+    );
   }
   if (appliedAt !== null && recordedAt !== null && appliedAt > recordedAt) {
-    addRelationError(accumulator, "recorded_before_applied", "$.recorded_at", "recorded_at cannot predate applied_at.", true);
+    addRelationError(
+      accumulator,
+      "recorded_before_applied",
+      "$.recorded_at",
+      "recorded_at cannot predate applied_at.",
+      true,
+    );
   }
-  for (const [index, observation] of input.current_state_observations.entries()) {
+  for (const [
+    index,
+    observation,
+  ] of input.current_state_observations.entries()) {
     const observedAt = parseStrictIsoTimestampV01(observation.observed_at);
     if (observedAt !== null && appliedAt !== null && observedAt > appliedAt) {
-      addRelationError(accumulator, "applied_before_current_state_observation", `$.current_state_observations[${index}].observed_at`, "Applied transition cannot predate current-state observation.", true);
+      addRelationError(
+        accumulator,
+        "applied_before_current_state_observation",
+        `$.current_state_observations[${index}].observed_at`,
+        "Applied transition cannot predate current-state observation.",
+        true,
+      );
     }
   }
 
@@ -663,8 +839,7 @@ export function createStateTransitionReceiptLineageRefV01(
     trust_class: "derived_interpretation",
     observed_at: receipt.recorded_at,
     source_ref: receipt.integrity.fingerprint,
-    compatibility_namespace:
-      STATE_TRANSITION_RECEIPT_LINEAGE_NAMESPACE_V01,
+    compatibility_namespace: STATE_TRANSITION_RECEIPT_LINEAGE_NAMESPACE_V01,
   };
 }
 
@@ -771,10 +946,30 @@ export function validateTaskContextPacketTransitionRelationV01(
   }
 
   for (const [actual, expected, code, path] of [
-    [priorPacket.workspace_id, receipt.workspace_id, "workspace_mismatch", "$.prior_packet.workspace_id"],
-    [laterPacket.workspace_id, receipt.workspace_id, "workspace_mismatch", "$.later_packet.workspace_id"],
-    [priorPacket.project_id, receipt.project_id, "project_mismatch", "$.prior_packet.project_id"],
-    [laterPacket.project_id, receipt.project_id, "project_mismatch", "$.later_packet.project_id"],
+    [
+      priorPacket.workspace_id,
+      receipt.workspace_id,
+      "workspace_mismatch",
+      "$.prior_packet.workspace_id",
+    ],
+    [
+      laterPacket.workspace_id,
+      receipt.workspace_id,
+      "workspace_mismatch",
+      "$.later_packet.workspace_id",
+    ],
+    [
+      priorPacket.project_id,
+      receipt.project_id,
+      "project_mismatch",
+      "$.prior_packet.project_id",
+    ],
+    [
+      laterPacket.project_id,
+      receipt.project_id,
+      "project_mismatch",
+      "$.later_packet.project_id",
+    ],
   ] as const) {
     if (actual !== expected) {
       addPacketRelationError(
@@ -866,25 +1061,20 @@ export function validateTaskContextPacketTransitionRelationV01(
           "Every present after-state must be selected with exact receipt and observation provenance.",
         );
       } else {
-        expectedAfterSelectionKeys.add(
-          selectedStateKey(exactEntry),
-        );
+        expectedAfterSelectionKeys.add(selectedStateKey(exactEntry));
       }
     }
     const beforeState = effect.before_state;
     if (beforeState.presence === "present") {
-      const beforeIdentity = externalRefIdentity(
-        beforeState.state_ref,
-      );
+      const beforeIdentity = externalRefIdentity(beforeState.state_ref);
       const beforeSnapshotKey = `${canonicalExternalRef(beforeState.state_ref)}|${beforeState.state_fingerprint}`;
       affectedBeforeSnapshotKeys.add(beforeSnapshotKey);
-      const retained = acceptedEntries.some(
-        (entry) =>
-          selectedEntryMatchesSnapshot(
-            entry,
-            beforeState.state_ref,
-            beforeState.state_fingerprint,
-          ),
+      const retained = acceptedEntries.some((entry) =>
+        selectedEntryMatchesSnapshot(
+          entry,
+          beforeState.state_ref,
+          beforeState.state_fingerprint,
+        ),
       );
       if (retained) {
         addPacketRelationError(
@@ -911,8 +1101,7 @@ export function validateTaskContextPacketTransitionRelationV01(
       }
       if (effect.operation === "retract") {
         const identityMatches = laterPacket.excluded_context.filter(
-          (entry) =>
-            externalRefIdentity(entry.external_ref) === beforeIdentity,
+          (entry) => externalRefIdentity(entry.external_ref) === beforeIdentity,
         );
         const exactExclusion = identityMatches.some(
           (entry) =>
@@ -973,8 +1162,7 @@ export function validateTaskContextPacketTransitionRelationV01(
   }
 
   const priorUnrelated = priorPacket.selected_context.filter(
-    (entry) =>
-      !affectedBeforeSnapshotKeys.has(selectedStateKey(entry)),
+    (entry) => !affectedBeforeSnapshotKeys.has(selectedStateKey(entry)),
   );
   const laterUnrelated = laterPacket.selected_context.filter((entry) => {
     if (entry.entry_kind !== "accepted_state_ref") return true;
@@ -1046,11 +1234,9 @@ export function validateSemanticTransitionFullChainV01(
     proposal: input.proposal,
     decision: input.decision,
     current_state_observations: input.current_state_observations,
-    semantic_commit_gate_evaluation:
-      input.semantic_commit_gate_evaluation,
+    semantic_commit_gate_evaluation: input.semantic_commit_gate_evaluation,
     prior_review_decisions: input.prior_review_decisions,
-    prior_state_transition_receipts:
-      input.prior_state_transition_receipts,
+    prior_state_transition_receipts: input.prior_state_transition_receipts,
     evaluated_at: input.evaluated_at,
   };
   const eligibility =
@@ -1063,9 +1249,8 @@ export function validateSemanticTransitionFullChainV01(
       "Full-chain validation requires eligible transition preconditions.",
     );
   }
-  const receiptRelation = validateStateTransitionReceiptAgainstEligibilityV01(
-    input,
-  );
+  const receiptRelation =
+    validateStateTransitionReceiptAgainstEligibilityV01(input);
   if (receiptRelation.status !== "valid") {
     addPacketRelationError(
       accumulator,
@@ -1088,12 +1273,7 @@ export function validateSemanticTransitionFullChainV01(
     input.later_packet,
   );
   for (const issue of packetRelation.errors) {
-    addPacketRelationError(
-      accumulator,
-      issue.code,
-      issue.path,
-      issue.message,
-    );
+    addPacketRelationError(accumulator, issue.code, issue.path, issue.message);
   }
   accumulator.warnings.push(...packetRelation.warnings);
   return buildPacketRelationResult(accumulator);
@@ -1280,7 +1460,8 @@ function validatePriorStateTransitionReceipts(
 
 function validateAppliedLineage(
   decisionValue: string | null,
-  requestedOperation: StateTransitionEligibilityExpectedEffectV01["operation"] | null,
+  requestedOperation:
+    StateTransitionEligibilityExpectedEffectV01["operation"] | null,
   proposal: EpisodeDeltaProposalV01 | null,
   decision: ReviewDecisionV01 | null,
   expectedTargets: ExternalRefV01[],
@@ -1289,6 +1470,17 @@ function validateAppliedLineage(
   priorReceipts: StateTransitionReceiptV01[],
   accumulator: EligibilityAccumulator,
 ): ResolvedAppliedLineageV01 | null {
+  if (proposal?.project_verify_lifecycle && decision) {
+    return validateProjectVerifyLifecycleAppliedLineageV01(
+      proposal,
+      decision,
+      expectedTargets,
+      observations,
+      priorDecisions,
+      priorReceipts,
+      accumulator,
+    );
+  }
   if (
     decisionValue === "accept" &&
     (requestedOperation === "supersede" || requestedOperation === "retract")
@@ -1612,7 +1804,9 @@ function validateAppliedLineage(
       priorReceipt.effects.map((effect) => effect.target_ref),
       expectedTargets,
     ) ||
-    priorReceipt.effects.some((effect) => effect.after_state.presence !== "present")
+    priorReceipt.effects.some(
+      (effect) => effect.after_state.presence !== "present",
+    )
   ) {
     addError(
       accumulator,
@@ -1662,7 +1856,11 @@ function validateAppliedLineage(
     const observation = observationsByTarget.get(
       canonicalExternalRef(effect.target_ref),
     );
-    if (!observation || observation.presence !== "present" || !observation.state_ref) {
+    if (
+      !observation ||
+      observation.presence !== "present" ||
+      !observation.state_ref
+    ) {
       continue;
     }
     const sameRef =
@@ -1698,6 +1896,151 @@ function validateAppliedLineage(
         true,
       );
     }
+  }
+  return {
+    prior_decision: priorDecision,
+    prior_receipt: priorReceipt,
+    receipt_ref: createStateTransitionReceiptLineageRefV01(priorReceipt),
+  };
+}
+
+function validateProjectVerifyLifecycleAppliedLineageV01(
+  proposal: EpisodeDeltaProposalV01,
+  decision: ReviewDecisionV01,
+  expectedTargets: ExternalRefV01[],
+  observations: StateTransitionCurrentStateObservationV01[],
+  priorDecisions: ReviewDecisionV01[],
+  priorReceipts: StateTransitionReceiptV01[],
+  accumulator: EligibilityAccumulator,
+): ResolvedAppliedLineageV01 | null {
+  const profile = proposal.project_verify_lifecycle!;
+  const binding = profile.lifecycle_binding;
+  if (binding.selected_record_revision === 1) {
+    if (priorDecisions.length > 0 || priorReceipts.length > 0) {
+      addError(
+        accumulator,
+        "project_verify_lifecycle_initial_lineage_conflict",
+        "$.prior_review_decisions",
+        "An initial lifecycle application cannot carry prior applied lineage.",
+        true,
+      );
+    }
+    return null;
+  }
+  if (priorDecisions.length !== 1 || priorReceipts.length !== 1) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_lineage_missing",
+      priorDecisions.length !== 1
+        ? "$.prior_review_decisions"
+        : "$.prior_state_transition_receipts",
+      "A lifecycle revision requires exactly one prior applied decision and Transition receipt.",
+      true,
+    );
+    return null;
+  }
+  const priorDecision = priorDecisions[0]!;
+  const priorReceipt = priorReceipts[0]!;
+  const declared = decision.lineage.prior_decisions;
+  const head = profile.current_head_expectation;
+  const declarationExact =
+    declared.length === 1 &&
+    declared[0]?.decision_id === priorDecision.decision_id &&
+    declared[0]?.decision_fingerprint === priorDecision.integrity.fingerprint;
+  const retractExact =
+    binding.selected_record_operation_intent !== "retract" ||
+    (decision.lineage.retracted_decision?.decision_id ===
+      priorDecision.decision_id &&
+      decision.lineage.retracted_decision?.decision_fingerprint ===
+        priorDecision.integrity.fingerprint);
+  if (!declarationExact || !retractExact) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_decision_binding_mismatch",
+      "$.decision.lineage.prior_decisions",
+      "Lifecycle decision lineage must name the exact prior applied ReviewDecision.",
+      true,
+    );
+  }
+  if (
+    priorDecision.workspace_id !== proposal.workspace_id ||
+    priorDecision.project_id !== proposal.project_id ||
+    priorReceipt.workspace_id !== proposal.workspace_id ||
+    priorReceipt.project_id !== proposal.project_id ||
+    priorReceipt.source_decision.decision_id !== priorDecision.decision_id ||
+    priorReceipt.source_decision.decision_fingerprint !==
+      priorDecision.integrity.fingerprint ||
+    priorReceipt.source_proposal.proposal_id !==
+      priorDecision.source_proposal.proposal_id ||
+    priorReceipt.source_proposal.proposal_fingerprint !==
+      priorDecision.source_proposal.proposal_fingerprint ||
+    head.presence !== "present" ||
+    head.source_transition_receipt_id !== priorReceipt.transition_receipt_id ||
+    head.source_transition_receipt_fingerprint !==
+      priorReceipt.integrity.fingerprint
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_source_binding_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior lifecycle decision, proposal, receipt, and observed family head must remain exactly bound.",
+      true,
+    );
+  }
+  if (
+    !canonicalRefSetsEqual(expectedTargets, [binding.family_target_ref]) ||
+    !canonicalRefSetsEqual(
+      priorReceipt.effects.map((effect) => effect.target_ref),
+      expectedTargets,
+    )
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_target_mismatch",
+      "$.prior_state_transition_receipts",
+      "Prior lifecycle application must use the exact same family target.",
+      true,
+    );
+  }
+  const effect = priorReceipt.effects.find(
+    (candidate) =>
+      canonicalExternalRef(candidate.target_ref) ===
+      canonicalExternalRef(binding.family_target_ref),
+  );
+  const observation = observations.find(
+    (candidate) =>
+      canonicalExternalRef(candidate.target_ref) ===
+      canonicalExternalRef(binding.family_target_ref),
+  );
+  if (
+    !effect ||
+    effect.after_state.presence !== "present" ||
+    !observation ||
+    observation.presence !== "present" ||
+    !observation.state_ref ||
+    canonicalExternalRef(observation.state_ref) !==
+      canonicalExternalRef(effect.after_state.state_ref) ||
+    observation.state_fingerprint !== effect.after_state.state_fingerprint ||
+    head.state_content_fingerprint !== effect.after_state.state_fingerprint
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_state_not_current",
+      "$.current_state_observations",
+      "The exact prior lifecycle state must remain current before applying its next revision.",
+      true,
+    );
+  }
+  const priorAt = parseStrictIsoTimestampV01(priorReceipt.recorded_at);
+  const currentAt = parseStrictIsoTimestampV01(decision.decided_at);
+  if (priorAt !== null && currentAt !== null && priorAt > currentAt) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_receipt_postdates_decision",
+      "$.prior_state_transition_receipts",
+      "A lifecycle decision cannot predate the applied lineage it changes.",
+      true,
+    );
   }
   return {
     prior_decision: priorDecision,
@@ -1896,28 +2239,89 @@ function validateGateEvaluation(
     accumulator,
   );
   if (!gate) return null;
-  rejectUnknownNestedKeys(gate, allowedGateEvaluationKeys, "$.semantic_commit_gate_evaluation", accumulator);
+  rejectUnknownNestedKeys(
+    gate,
+    allowedGateEvaluationKeys,
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
   const status = protocolStringValueV01(gate.status);
   if (!status || !gateStatuses.has(status)) {
-    addError(accumulator, "gate_status_invalid", "$.semantic_commit_gate_evaluation.status", "Gate status must be authorized, denied, or unknown.", true);
+    addError(
+      accumulator,
+      "gate_status_invalid",
+      "$.semantic_commit_gate_evaluation.status",
+      "Gate status must be authorized, denied, or unknown.",
+      true,
+    );
   } else if (status !== "authorized") {
-    addError(accumulator, status === "denied" ? "semantic_commit_gate_denied" : "semantic_commit_gate_unknown", "$.semantic_commit_gate_evaluation.status", "Denied or unknown gate is ineligible.");
+    addError(
+      accumulator,
+      status === "denied"
+        ? "semantic_commit_gate_denied"
+        : "semantic_commit_gate_unknown",
+      "$.semantic_commit_gate_evaluation.status",
+      "Denied or unknown gate is ineligible.",
+    );
   }
-  requireString(gate, "workspace_id", "$.semantic_commit_gate_evaluation", accumulator);
-  requireString(gate, "project_id", "$.semantic_commit_gate_evaluation", accumulator);
-  requireString(gate, "decision_id", "$.semantic_commit_gate_evaluation", accumulator);
-  validateSha256(gate.decision_fingerprint, "$.semantic_commit_gate_evaluation.decision_fingerprint", "gate_decision_fingerprint_malformed", accumulator);
-  requireString(gate, "intent_id", "$.semantic_commit_gate_evaluation", accumulator);
+  requireString(
+    gate,
+    "workspace_id",
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
+  requireString(
+    gate,
+    "project_id",
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
+  requireString(
+    gate,
+    "decision_id",
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
+  validateSha256(
+    gate.decision_fingerprint,
+    "$.semantic_commit_gate_evaluation.decision_fingerprint",
+    "gate_decision_fingerprint_malformed",
+    accumulator,
+  );
+  requireString(
+    gate,
+    "intent_id",
+    "$.semantic_commit_gate_evaluation",
+    accumulator,
+  );
   const transitionKind = requireString(
     gate,
     "transition_kind",
     "$.semantic_commit_gate_evaluation",
     accumulator,
   );
-  const targetRefs = requireNonEmptyRefArray(gate.target_refs, "$.semantic_commit_gate_evaluation.target_refs", "gate_target_required", accumulator);
-  validateExternalRefStructureV01(gate.decision_actor_ref, "$.semantic_commit_gate_evaluation.decision_actor_ref", issueSink(accumulator));
-  const authorizationRefs = requireNonEmptyRefArray(gate.authorization_basis_refs, "$.semantic_commit_gate_evaluation.authorization_basis_refs", "gate_authorization_basis_required", accumulator);
-  validateExternalRefStructureV01(gate.gate_actor_ref, "$.semantic_commit_gate_evaluation.gate_actor_ref", issueSink(accumulator));
+  const targetRefs = requireNonEmptyRefArray(
+    gate.target_refs,
+    "$.semantic_commit_gate_evaluation.target_refs",
+    "gate_target_required",
+    accumulator,
+  );
+  validateExternalRefStructureV01(
+    gate.decision_actor_ref,
+    "$.semantic_commit_gate_evaluation.decision_actor_ref",
+    issueSink(accumulator),
+  );
+  const authorizationRefs = requireNonEmptyRefArray(
+    gate.authorization_basis_refs,
+    "$.semantic_commit_gate_evaluation.authorization_basis_refs",
+    "gate_authorization_basis_required",
+    accumulator,
+  );
+  validateExternalRefStructureV01(
+    gate.gate_actor_ref,
+    "$.semantic_commit_gate_evaluation.gate_actor_ref",
+    issueSink(accumulator),
+  );
   validateExternalRefStructureV01(
     gate.authorized_applier_ref,
     "$.semantic_commit_gate_evaluation.authorized_applier_ref",
@@ -1937,46 +2341,153 @@ function validateGateEvaluation(
     targetRefs,
     accumulator,
   );
-  validateProofRef(gate.evaluation_ref, "$.semantic_commit_gate_evaluation.evaluation_ref", "semantic_commit_gate", accumulator);
-  const gateEvaluatedAt = requireTimestamp(gate.evaluated_at, "$.semantic_commit_gate_evaluation.evaluated_at", accumulator);
-  const expiresAt = requireTimestamp(gate.expires_at, "$.semantic_commit_gate_evaluation.expires_at", accumulator);
-  requireNonEmptyRefArray(gate.source_refs, "$.semantic_commit_gate_evaluation.source_refs", "semantic_commit_gate_source_ref_required", accumulator);
+  validateProofRef(
+    gate.evaluation_ref,
+    "$.semantic_commit_gate_evaluation.evaluation_ref",
+    "semantic_commit_gate",
+    accumulator,
+  );
+  const gateEvaluatedAt = requireTimestamp(
+    gate.evaluated_at,
+    "$.semantic_commit_gate_evaluation.evaluated_at",
+    accumulator,
+  );
+  const expiresAt = requireTimestamp(
+    gate.expires_at,
+    "$.semantic_commit_gate_evaluation.expires_at",
+    accumulator,
+  );
+  requireNonEmptyRefArray(
+    gate.source_refs,
+    "$.semantic_commit_gate_evaluation.source_refs",
+    "semantic_commit_gate_source_ref_required",
+    accumulator,
+  );
   validateDuplicateExternalRefsPrimitiveV01(gate, issueSink(accumulator));
-  if (gateEvaluatedAt !== null && expiresAt !== null && gateEvaluatedAt >= expiresAt) {
-    addError(accumulator, "gate_expiry_invalid", "$.semantic_commit_gate_evaluation.expires_at", "Gate expiry must be later than evaluation.", true);
+  if (
+    gateEvaluatedAt !== null &&
+    expiresAt !== null &&
+    gateEvaluatedAt >= expiresAt
+  ) {
+    addError(
+      accumulator,
+      "gate_expiry_invalid",
+      "$.semantic_commit_gate_evaluation.expires_at",
+      "Gate expiry must be later than evaluation.",
+      true,
+    );
   }
-  if (evaluatedAt !== null && gateEvaluatedAt !== null && gateEvaluatedAt > evaluatedAt) {
-    addError(accumulator, "timestamp_order_invalid", "$.semantic_commit_gate_evaluation.evaluated_at", "Gate evaluation cannot postdate eligibility evaluation.", true);
+  if (
+    evaluatedAt !== null &&
+    gateEvaluatedAt !== null &&
+    gateEvaluatedAt > evaluatedAt
+  ) {
+    addError(
+      accumulator,
+      "timestamp_order_invalid",
+      "$.semantic_commit_gate_evaluation.evaluated_at",
+      "Gate evaluation cannot postdate eligibility evaluation.",
+      true,
+    );
   }
   if (evaluatedAt !== null && expiresAt !== null && evaluatedAt > expiresAt) {
-    addError(accumulator, "semantic_commit_gate_expired", "$.semantic_commit_gate_evaluation.expires_at", "Expired gate is ineligible.");
+    addError(
+      accumulator,
+      "semantic_commit_gate_expired",
+      "$.semantic_commit_gate_evaluation.expires_at",
+      "Expired gate is ineligible.",
+    );
   }
-  const evaluationRef = isProtocolRecordV01(gate.evaluation_ref) ? gate.evaluation_ref : null;
+  const evaluationRef = isProtocolRecordV01(gate.evaluation_ref)
+    ? gate.evaluation_ref
+    : null;
   if (
     gateEvaluatedAt !== null &&
     parseStrictIsoTimestampV01(evaluationRef?.observed_at) !== gateEvaluatedAt
   ) {
-    addError(accumulator, "gate_evaluation_time_mismatch", "$.semantic_commit_gate_evaluation.evaluation_ref.observed_at", "Gate evaluation ref must preserve evaluated_at exactly.", true);
+    addError(
+      accumulator,
+      "gate_evaluation_time_mismatch",
+      "$.semantic_commit_gate_evaluation.evaluation_ref.observed_at",
+      "Gate evaluation ref must preserve evaluated_at exactly.",
+      true,
+    );
   }
   if (proposal) {
-    exactEligibilityText(gate.workspace_id, proposal.workspace_id, "gate_workspace_mismatch", "$.semantic_commit_gate_evaluation.workspace_id", accumulator);
-    exactEligibilityText(gate.project_id, proposal.project_id, "gate_project_mismatch", "$.semantic_commit_gate_evaluation.project_id", accumulator);
+    exactEligibilityText(
+      gate.workspace_id,
+      proposal.workspace_id,
+      "gate_workspace_mismatch",
+      "$.semantic_commit_gate_evaluation.workspace_id",
+      accumulator,
+    );
+    exactEligibilityText(
+      gate.project_id,
+      proposal.project_id,
+      "gate_project_mismatch",
+      "$.semantic_commit_gate_evaluation.project_id",
+      accumulator,
+    );
   }
   if (decision) {
-    exactEligibilityText(gate.decision_id, decision.decision_id, "gate_decision_id_mismatch", "$.semantic_commit_gate_evaluation.decision_id", accumulator);
-    exactEligibilityText(gate.decision_fingerprint, decision.integrity.fingerprint, "gate_decision_fingerprint_mismatch", "$.semantic_commit_gate_evaluation.decision_fingerprint", accumulator);
-    exactEligibilityRef(gate.decision_actor_ref, decision.actor_ref, "gate_decision_actor_mismatch", "$.semantic_commit_gate_evaluation.decision_actor_ref", accumulator);
-    exactEligibilityRefSet(authorizationRefs, decision.authorization_basis_refs, "gate_authorization_basis_mismatch", "$.semantic_commit_gate_evaluation.authorization_basis_refs", accumulator);
+    exactEligibilityText(
+      gate.decision_id,
+      decision.decision_id,
+      "gate_decision_id_mismatch",
+      "$.semantic_commit_gate_evaluation.decision_id",
+      accumulator,
+    );
+    exactEligibilityText(
+      gate.decision_fingerprint,
+      decision.integrity.fingerprint,
+      "gate_decision_fingerprint_mismatch",
+      "$.semantic_commit_gate_evaluation.decision_fingerprint",
+      accumulator,
+    );
+    exactEligibilityRef(
+      gate.decision_actor_ref,
+      decision.actor_ref,
+      "gate_decision_actor_mismatch",
+      "$.semantic_commit_gate_evaluation.decision_actor_ref",
+      accumulator,
+    );
+    exactEligibilityRefSet(
+      authorizationRefs,
+      decision.authorization_basis_refs,
+      "gate_authorization_basis_mismatch",
+      "$.semantic_commit_gate_evaluation.authorization_basis_refs",
+      accumulator,
+    );
   }
   if (intent) {
-    exactEligibilityText(gate.intent_id, intent.intent_id, "gate_intent_mismatch", "$.semantic_commit_gate_evaluation.intent_id", accumulator);
-    exactEligibilityText(gate.transition_kind, intent.transition_kind, "gate_transition_kind_mismatch", "$.semantic_commit_gate_evaluation.transition_kind", accumulator);
-    exactEligibilityRefSet(targetRefs, intent.target_refs, "gate_target_mismatch", "$.semantic_commit_gate_evaluation.target_refs", accumulator);
+    exactEligibilityText(
+      gate.intent_id,
+      intent.intent_id,
+      "gate_intent_mismatch",
+      "$.semantic_commit_gate_evaluation.intent_id",
+      accumulator,
+    );
+    exactEligibilityText(
+      gate.transition_kind,
+      intent.transition_kind,
+      "gate_transition_kind_mismatch",
+      "$.semantic_commit_gate_evaluation.transition_kind",
+      accumulator,
+    );
+    exactEligibilityRefSet(
+      targetRefs,
+      intent.target_refs,
+      "gate_target_mismatch",
+      "$.semantic_commit_gate_evaluation.target_refs",
+      accumulator,
+    );
   }
   return {
     ...(gate as unknown as StateTransitionSemanticCommitGateEvaluationV01),
-    status: (status ?? gate.status) as StateTransitionSemanticCommitGateEvaluationV01["status"],
-    transition_kind: (transitionKind ?? gate.transition_kind) as StateTransitionSemanticCommitGateEvaluationV01["transition_kind"],
+    status: (status ??
+      gate.status) as StateTransitionSemanticCommitGateEvaluationV01["status"],
+    transition_kind: (transitionKind ??
+      gate.transition_kind) as StateTransitionSemanticCommitGateEvaluationV01["transition_kind"],
     authorized_effects: authorizedEffects,
   };
 }
@@ -2162,7 +2673,11 @@ function validateAuthorizedAfterState(
       true,
     );
   }
-  const rule = recordAt(state.state_ref_rule, `${path}.state_ref_rule`, accumulator);
+  const rule = recordAt(
+    state.state_ref_rule,
+    `${path}.state_ref_rule`,
+    accumulator,
+  );
   if (!rule) return null;
   if (rule.mode === "exact_identity") {
     rejectUnknownNestedKeys(
@@ -2177,7 +2692,10 @@ function validateAuthorizedAfterState(
       issueSink(accumulator),
     );
     if (!isProtocolRecordV01(rule.state_ref)) return null;
-    if (rule.state_ref.observed_at != null || rule.state_ref.source_ref != null) {
+    if (
+      rule.state_ref.observed_at != null ||
+      rule.state_ref.source_ref != null
+    ) {
       addError(
         accumulator,
         "authorized_state_ref_identity_provenance_forbidden",
@@ -2210,15 +2728,38 @@ function validateAuthorizedAfterState(
     const namespace = protocolStringValueV01(rule.compatibility_namespace);
     const trustClass = protocolStringValueV01(rule.trust_class);
     if (!refType) {
-      addError(accumulator, "writer_allocated_ref_type_missing", `${path}.state_ref_rule.ref_type`, "Writer-allocated ref rule requires ref_type.", true);
+      addError(
+        accumulator,
+        "writer_allocated_ref_type_missing",
+        `${path}.state_ref_rule.ref_type`,
+        "Writer-allocated ref rule requires ref_type.",
+        true,
+      );
     }
     if (!namespace) {
-      addError(accumulator, "writer_allocated_namespace_missing", `${path}.state_ref_rule.compatibility_namespace`, "Writer-allocated ref rule requires a compatibility namespace.", true);
+      addError(
+        accumulator,
+        "writer_allocated_namespace_missing",
+        `${path}.state_ref_rule.compatibility_namespace`,
+        "Writer-allocated ref rule requires a compatibility namespace.",
+        true,
+      );
     }
     if (!trustClass || !proofTrustClasses.has(trustClass)) {
-      addError(accumulator, "writer_allocated_trust_invalid", `${path}.state_ref_rule.trust_class`, "Writer-allocated state ref must require direct or verified observation trust.", true);
+      addError(
+        accumulator,
+        "writer_allocated_trust_invalid",
+        `${path}.state_ref_rule.trust_class`,
+        "Writer-allocated state ref must require direct or verified observation trust.",
+        true,
+      );
     }
-    if (!refType || !namespace || !trustClass || !proofTrustClasses.has(trustClass)) {
+    if (
+      !refType ||
+      !namespace ||
+      !trustClass ||
+      !proofTrustClasses.has(trustClass)
+    ) {
       return null;
     }
     return {
@@ -2251,15 +2792,28 @@ function validateCurrentStateObservations(
   evaluatedAt: number | null,
   accumulator: EligibilityAccumulator,
 ): StateTransitionCurrentStateObservationV01[] {
-  const observations = arrayAt(value, "$.current_state_observations", accumulator);
+  const observations = arrayAt(
+    value,
+    "$.current_state_observations",
+    accumulator,
+  );
   if (observations.length > 64) {
-    addError(accumulator, "current_state_collection_bound_exceeded", "$.current_state_observations", "At most 64 target observations are supported.", true);
+    addError(
+      accumulator,
+      "current_state_collection_bound_exceeded",
+      "$.current_state_observations",
+      "At most 64 target observations are supported.",
+      true,
+    );
   }
   const expectedByCanonical = new Map(
     expectedTargets.map((ref) => [canonicalExternalRef(ref), ref]),
   );
   const expectedIdentities = new Map(
-    expectedTargets.map((ref) => [externalRefIdentity(ref), canonicalExternalRef(ref)]),
+    expectedTargets.map((ref) => [
+      externalRefIdentity(ref),
+      canonicalExternalRef(ref),
+    ]),
   );
   const seenCanonical = new Set<string>();
   const seenIdentity = new Map<string, string>();
@@ -2269,8 +2823,17 @@ function validateCurrentStateObservations(
     const path = `$.current_state_observations[${index}]`;
     const observation = recordAt(item, path, accumulator);
     if (!observation) return;
-    rejectUnknownNestedKeys(observation, allowedCurrentStateObservationKeys, path, accumulator);
-    validateExternalRefStructureV01(observation.target_ref, `${path}.target_ref`, issueSink(accumulator));
+    rejectUnknownNestedKeys(
+      observation,
+      allowedCurrentStateObservationKeys,
+      path,
+      accumulator,
+    );
+    validateExternalRefStructureV01(
+      observation.target_ref,
+      `${path}.target_ref`,
+      issueSink(accumulator),
+    );
     const targetRef = isProtocolRecordV01(observation.target_ref)
       ? normalizeEligibilityExternalRef(observation.target_ref)
       : null;
@@ -2278,13 +2841,25 @@ function validateCurrentStateObservations(
     const targetIdentity = externalRefIdentity(targetRef);
     if (targetCanonical) {
       if (seenCanonical.has(targetCanonical)) {
-        addError(accumulator, "duplicate_current_state_target", `${path}.target_ref`, "Each target requires one current-state observation.", true);
+        addError(
+          accumulator,
+          "duplicate_current_state_target",
+          `${path}.target_ref`,
+          "Each target requires one current-state observation.",
+          true,
+        );
         const priorObservation = seenObservationByTarget.get(targetCanonical);
         if (
           priorObservation &&
           priorObservation !== canonicalizeProtocolValueV01(observation)
         ) {
-          addError(accumulator, "conflicting_current_state_snapshot", path, "Duplicate target observations preserve conflicting snapshots.", true);
+          addError(
+            accumulator,
+            "conflicting_current_state_snapshot",
+            path,
+            "Duplicate target observations preserve conflicting snapshots.",
+            true,
+          );
         }
       }
       seenCanonical.add(targetCanonical);
@@ -2296,47 +2871,142 @@ function validateCurrentStateObservations(
         expectedByCanonical.size > 0 &&
         !expectedByCanonical.has(targetCanonical)
       ) {
-        addError(accumulator, "current_state_target_mismatch", `${path}.target_ref`, "Current-state observation target is outside the requested target set.", true);
+        addError(
+          accumulator,
+          "current_state_target_mismatch",
+          `${path}.target_ref`,
+          "Current-state observation target is outside the requested target set.",
+          true,
+        );
       }
     }
     if (targetIdentity && targetCanonical) {
       const prior = seenIdentity.get(targetIdentity);
       if (prior && prior !== targetCanonical) {
-        addError(accumulator, "conflicting_current_state_snapshot", `${path}.target_ref`, "Target identity has conflicting provenance or snapshots.", true);
+        addError(
+          accumulator,
+          "conflicting_current_state_snapshot",
+          `${path}.target_ref`,
+          "Target identity has conflicting provenance or snapshots.",
+          true,
+        );
       }
       seenIdentity.set(targetIdentity, targetCanonical);
       const expectedCanonical = expectedIdentities.get(targetIdentity);
       if (expectedCanonical && expectedCanonical !== targetCanonical) {
-        addError(accumulator, "current_state_target_provenance_mismatch", `${path}.target_ref`, "Target provenance must match the requested target exactly.", true);
+        addError(
+          accumulator,
+          "current_state_target_provenance_mismatch",
+          `${path}.target_ref`,
+          "Target provenance must match the requested target exactly.",
+          true,
+        );
       }
     }
     const presence = protocolStringValueV01(observation.presence);
     if (presence === "unknown") {
-      if (observation.state_ref !== null || observation.state_fingerprint !== null) {
-        addError(accumulator, "current_state_snapshot_invalid", path, "Unknown state cannot carry fabricated state material.", true);
+      if (
+        observation.state_ref !== null ||
+        observation.state_fingerprint !== null
+      ) {
+        addError(
+          accumulator,
+          "current_state_snapshot_invalid",
+          path,
+          "Unknown state cannot carry fabricated state material.",
+          true,
+        );
       }
-      addError(accumulator, "current_state_unknown", `${path}.presence`, "Unknown current state is ineligible.");
+      addError(
+        accumulator,
+        "current_state_unknown",
+        `${path}.presence`,
+        "Unknown current state is ineligible.",
+      );
     } else if (presence === "absent") {
-      if (observation.state_ref !== null || observation.state_fingerprint !== null) {
-        addError(accumulator, "current_state_snapshot_invalid", path, "Absent current state requires null state material.", true);
+      if (
+        observation.state_ref !== null ||
+        observation.state_fingerprint !== null
+      ) {
+        addError(
+          accumulator,
+          "current_state_snapshot_invalid",
+          path,
+          "Absent current state requires null state material.",
+          true,
+        );
       }
     } else if (presence === "present") {
-      if (!isProtocolRecordV01(observation.state_ref) || !protocolStringValueV01(observation.state_fingerprint)) {
-        addError(accumulator, "current_state_snapshot_invalid", path, "Present current state requires state_ref and state_fingerprint.", true);
+      if (
+        !isProtocolRecordV01(observation.state_ref) ||
+        !protocolStringValueV01(observation.state_fingerprint)
+      ) {
+        addError(
+          accumulator,
+          "current_state_snapshot_invalid",
+          path,
+          "Present current state requires state_ref and state_fingerprint.",
+          true,
+        );
       }
-      validateExternalRefStructureV01(observation.state_ref, `${path}.state_ref`, issueSink(accumulator));
-      validateSha256(observation.state_fingerprint, `${path}.state_fingerprint`, "current_state_fingerprint_invalid", accumulator);
+      validateExternalRefStructureV01(
+        observation.state_ref,
+        `${path}.state_ref`,
+        issueSink(accumulator),
+      );
+      validateSha256(
+        observation.state_fingerprint,
+        `${path}.state_fingerprint`,
+        "current_state_fingerprint_invalid",
+        accumulator,
+      );
     } else {
-      addError(accumulator, "current_state_presence_invalid", `${path}.presence`, "Current state presence must be absent, present, or unknown.", true);
+      addError(
+        accumulator,
+        "current_state_presence_invalid",
+        `${path}.presence`,
+        "Current state presence must be absent, present, or unknown.",
+        true,
+      );
     }
-    const observedAt = requireTimestamp(observation.observed_at, `${path}.observed_at`, accumulator);
-    validateProofRef(observation.observation_ref, `${path}.observation_ref`, "current_state_observation", accumulator);
-    const proofRef = isProtocolRecordV01(observation.observation_ref) ? observation.observation_ref : null;
-    if (observedAt !== null && parseStrictIsoTimestampV01(proofRef?.observed_at) !== observedAt) {
-      addError(accumulator, "current_state_observation_time_mismatch", `${path}.observation_ref.observed_at`, "Observation ref must preserve observed_at exactly.", true);
+    const observedAt = requireTimestamp(
+      observation.observed_at,
+      `${path}.observed_at`,
+      accumulator,
+    );
+    validateProofRef(
+      observation.observation_ref,
+      `${path}.observation_ref`,
+      "current_state_observation",
+      accumulator,
+    );
+    const proofRef = isProtocolRecordV01(observation.observation_ref)
+      ? observation.observation_ref
+      : null;
+    if (
+      observedAt !== null &&
+      parseStrictIsoTimestampV01(proofRef?.observed_at) !== observedAt
+    ) {
+      addError(
+        accumulator,
+        "current_state_observation_time_mismatch",
+        `${path}.observation_ref.observed_at`,
+        "Observation ref must preserve observed_at exactly.",
+        true,
+      );
     }
-    if (observedAt !== null && evaluatedAt !== null && observedAt > evaluatedAt) {
-      addError(accumulator, "timestamp_order_invalid", `${path}.observed_at`, "Current-state observation cannot postdate eligibility evaluation.", true);
+    if (
+      observedAt !== null &&
+      evaluatedAt !== null &&
+      observedAt > evaluatedAt
+    ) {
+      addError(
+        accumulator,
+        "timestamp_order_invalid",
+        `${path}.observed_at`,
+        "Current-state observation cannot postdate eligibility evaluation.",
+        true,
+      );
     }
     const sourceRefs = requireNonEmptyRefArray(
       observation.source_refs,
@@ -2344,7 +3014,10 @@ function validateCurrentStateObservations(
       "current_state_source_ref_required",
       accumulator,
     );
-    validateDuplicateExternalRefsPrimitiveV01(observation, issueSink(accumulator));
+    validateDuplicateExternalRefsPrimitiveV01(
+      observation,
+      issueSink(accumulator),
+    );
     const normalizedObservedAt = protocolStringValueV01(
       observation.observed_at,
     );
@@ -2384,9 +3057,7 @@ function validateCurrentStateObservations(
         observed_at: normalizedObservedAt,
         observation_ref: normalizedObservationRef,
         source_refs: uniqueProtocolValuesV01(
-          sourceRefs.map((ref) =>
-            normalizeEligibilityExternalRef(ref),
-          ),
+          sourceRefs.map((ref) => normalizeEligibilityExternalRef(ref)),
         ).sort(compareExternalRefsV01),
       });
     }
@@ -2409,7 +3080,8 @@ function validateCurrentStateObservations(
 }
 
 function deriveExpectedEffects(
-  requestedOperation: StateTransitionEligibilityExpectedEffectV01["operation"] | null,
+  requestedOperation:
+    StateTransitionEligibilityExpectedEffectV01["operation"] | null,
   historicalStateRelativeAdd: boolean,
   expectedTargets: ExternalRefV01[],
   observations: StateTransitionCurrentStateObservationV01[],
@@ -2422,7 +3094,10 @@ function deriveExpectedEffects(
   );
   const effects: StateTransitionEligibilityExpectedEffectV01[] = [];
   const authorizedByTarget = new Map(
-    authorizedEffects.map((item) => [canonicalExternalRef(item.target_ref), item]),
+    authorizedEffects.map((item) => [
+      canonicalExternalRef(item.target_ref),
+      item,
+    ]),
   );
   for (const target of expectedTargets) {
     const observation = byTarget.get(canonicalExternalRef(target));
@@ -2461,11 +3136,24 @@ function deriveExpectedEffects(
         "Candidate revise maps to replace and requires observed present state.",
       );
       operation = null;
-    } else if (operation === "supersede" && observation.presence !== "present") {
-      addError(accumulator, "supersede_requires_present_state", "$.current_state_observations", "Supersede requires observed present state.");
+    } else if (
+      operation === "supersede" &&
+      observation.presence !== "present"
+    ) {
+      addError(
+        accumulator,
+        "supersede_requires_present_state",
+        "$.current_state_observations",
+        "Supersede requires observed present state.",
+      );
       operation = null;
     } else if (operation === "retract" && observation.presence !== "present") {
-      addError(accumulator, "retract_requires_present_state", "$.current_state_observations", "Retract requires observed present state.");
+      addError(
+        accumulator,
+        "retract_requires_present_state",
+        "$.current_state_observations",
+        "Retract requires observed present state.",
+      );
       operation = null;
     }
     if (!operation) continue;
@@ -2538,15 +3226,15 @@ function normalizeCurrentStateObservationsForHash(
       observed_at: protocolStringValueV01(item?.observed_at),
       observation_ref: safeNormalizeRef(item?.observation_ref),
       source_refs: Array.isArray(item?.source_refs)
-        ? item.source_refs.map(safeNormalizeRef).sort(compareProtocolCanonicalV01)
+        ? item.source_refs
+            .map(safeNormalizeRef)
+            .sort(compareProtocolCanonicalV01)
         : [],
     }))
     .sort(compareProtocolCanonicalV01);
 }
 
-function normalizePriorReviewDecisionsForHash(
-  values: ReviewDecisionV01[],
-) {
+function normalizePriorReviewDecisionsForHash(values: ReviewDecisionV01[]) {
   if (!Array.isArray(values)) return [];
   return values
     .map((decision) => ({
@@ -2660,7 +3348,7 @@ function normalizeAuthorizedAfterStateForHash(value: unknown): unknown {
   if (!isProtocolRecordV01(value)) return value ?? null;
   const rule = isProtocolRecordV01(value.state_ref_rule)
     ? value.state_ref_rule
-    : value.state_ref_rule ?? null;
+    : (value.state_ref_rule ?? null);
   return {
     presence: protocolStringValueV01(value.presence),
     state_fingerprint: protocolStringValueV01(value.state_fingerprint),
@@ -2737,10 +3425,14 @@ function scanEligibilityMaterial(
   accumulator: EligibilityAccumulator,
 ) {
   scanForbiddenProtocolMaterialV01(value, path, issueSink(accumulator), {
-    secret_material_message: "Secret-shaped material is forbidden in transition eligibility input.",
-    provider_specific_field_message: "Provider-native identifiers must remain ExternalRef values in transition eligibility input.",
-    additional_forbidden_raw_field_pattern: /^(?:raw_provider_output|raw_terminal_(?:output|log)|terminal_(?:dump|log)|stdout|stderr|environment_dump|credential_dump)$/,
-    additional_provider_identity_pattern: /^(?:(?:github|openai|chatgpt|codex|claude|gemini)(?:_.+)?|(?:response|invocation|workflow|job|commit|pr)_id)$/,
+    secret_material_message:
+      "Secret-shaped material is forbidden in transition eligibility input.",
+    provider_specific_field_message:
+      "Provider-native identifiers must remain ExternalRef values in transition eligibility input.",
+    additional_forbidden_raw_field_pattern:
+      /^(?:raw_provider_output|raw_terminal_(?:output|log)|terminal_(?:dump|log)|stdout|stderr|environment_dump|credential_dump)$/,
+    additional_provider_identity_pattern:
+      /^(?:(?:github|openai|chatgpt|codex|claude|gemini)(?:_.+)?|(?:response|invocation|workflow|job|commit|pr)_id)$/,
   });
 }
 
@@ -2752,15 +3444,33 @@ function validateProofRef(
 ) {
   validateExternalRefStructureV01(value, path, issueSink(accumulator));
   if (!isProtocolRecordV01(value)) {
-    addError(accumulator, `${codePrefix}_ref_required`, path, "A proof-grade ExternalRef is required.", true);
+    addError(
+      accumulator,
+      `${codePrefix}_ref_required`,
+      path,
+      "A proof-grade ExternalRef is required.",
+      true,
+    );
     return;
   }
   const trust = protocolStringValueV01(value.trust_class);
   if (!trust || !proofTrustClasses.has(trust)) {
-    addError(accumulator, `${codePrefix}_trust_insufficient`, `${path}.trust_class`, "Observation requires direct or verified trust.", true);
+    addError(
+      accumulator,
+      `${codePrefix}_trust_insufficient`,
+      `${path}.trust_class`,
+      "Observation requires direct or verified trust.",
+      true,
+    );
   }
   if (parseStrictIsoTimestampV01(value.observed_at) === null) {
-    addError(accumulator, `${codePrefix}_observed_at_required`, `${path}.observed_at`, "Observation ref requires observed_at.", true);
+    addError(
+      accumulator,
+      `${codePrefix}_observed_at_required`,
+      `${path}.observed_at`,
+      "Observation ref requires observed_at.",
+      true,
+    );
   }
 }
 
@@ -2768,9 +3478,7 @@ function normalizeRefs(refs: ExternalRefV01[]): ExternalRefV01[] {
   if (!Array.isArray(refs)) return [];
   return uniqueProtocolValuesV01(
     refs.map((ref) =>
-      normalizeEligibilityExternalRef(
-        ref as unknown as ProtocolJsonRecordV01,
-      ),
+      normalizeEligibilityExternalRef(ref as unknown as ProtocolJsonRecordV01),
     ),
   ).sort(compareExternalRefsV01);
 }
@@ -2912,8 +3620,7 @@ function validateReceiptAfterStateRequirement(
   }
   if (
     actual.state_ref.ref_type !== rule.ref_type ||
-    actual.state_ref.compatibility_namespace !==
-      rule.compatibility_namespace ||
+    actual.state_ref.compatibility_namespace !== rule.compatibility_namespace ||
     actual.state_ref.trust_class !== rule.trust_class ||
     actual.state_ref.provider != null ||
     actual.state_ref.host != null
@@ -2936,7 +3643,13 @@ function exactEligibilityRef(
   accumulator: EligibilityAccumulator,
 ) {
   if (canonicalExternalRef(actual) !== canonicalExternalRef(expected)) {
-    addError(accumulator, code, path, "ExternalRef provenance must match exactly.", true);
+    addError(
+      accumulator,
+      code,
+      path,
+      "ExternalRef provenance must match exactly.",
+      true,
+    );
   }
 }
 
@@ -2950,7 +3663,13 @@ function exactEligibilityRefSet(
   const left = new Set(actual.map(canonicalExternalRef));
   const right = new Set(expected.map(canonicalExternalRef));
   if (left.size !== right.size || [...left].some((item) => !right.has(item))) {
-    addError(accumulator, code, path, "ExternalRef set must preserve exact canonical provenance.", true);
+    addError(
+      accumulator,
+      code,
+      path,
+      "ExternalRef set must preserve exact canonical provenance.",
+      true,
+    );
   }
 }
 
@@ -2962,7 +3681,13 @@ function exactText(
   accumulator: RelationAccumulator,
 ) {
   if (protocolStringValueV01(actual) !== protocolStringValueV01(expected)) {
-    addRelationError(accumulator, code, path, "Cross-contract binding mismatch.", true);
+    addRelationError(
+      accumulator,
+      code,
+      path,
+      "Cross-contract binding mismatch.",
+      true,
+    );
   }
 }
 
@@ -2974,7 +3699,13 @@ function exactRef(
   accumulator: RelationAccumulator,
 ) {
   if (canonicalExternalRef(actual) !== canonicalExternalRef(expected)) {
-    addRelationError(accumulator, code, path, "ExternalRef provenance must match exactly.", true);
+    addRelationError(
+      accumulator,
+      code,
+      path,
+      "ExternalRef provenance must match exactly.",
+      true,
+    );
   }
 }
 
@@ -2988,7 +3719,13 @@ function exactRefSet(
   const left = new Set(actual.map(canonicalExternalRef));
   const right = new Set(expected.map(canonicalExternalRef));
   if (left.size !== right.size || [...left].some((item) => !right.has(item))) {
-    addRelationError(accumulator, code, path, "ExternalRef set must match exactly.", true);
+    addRelationError(
+      accumulator,
+      code,
+      path,
+      "ExternalRef set must match exactly.",
+      true,
+    );
   }
 }
 
@@ -2998,8 +3735,17 @@ function scanAbsoluteLocalPaths(
   accumulator: EligibilityAccumulator,
 ) {
   walk(value, path, (candidate, candidatePath) => {
-    if (typeof candidate === "string" && /^(?:file:\/\/|\/(?!\/)|[A-Za-z]:[\\/])/.test(candidate)) {
-      addError(accumulator, "absolute_local_path_forbidden", candidatePath, "Absolute local paths are forbidden.", true);
+    if (
+      typeof candidate === "string" &&
+      /^(?:file:\/\/|\/(?!\/)|[A-Za-z]:[\\/])/.test(candidate)
+    ) {
+      addError(
+        accumulator,
+        "absolute_local_path_forbidden",
+        candidatePath,
+        "Absolute local paths are forbidden.",
+        true,
+      );
     }
   });
 }
@@ -3011,7 +3757,13 @@ function requireNonEmptyRefArray(
   accumulator: EligibilityAccumulator,
 ): unknown[] {
   const refs = arrayAt(value, path, accumulator);
-  refs.forEach((ref, index) => validateExternalRefStructureV01(ref, `${path}[${index}]`, issueSink(accumulator)));
+  refs.forEach((ref, index) =>
+    validateExternalRefStructureV01(
+      ref,
+      `${path}[${index}]`,
+      issueSink(accumulator),
+    ),
+  );
   if (refs.length === 0) {
     addError(
       accumulator,
@@ -3021,7 +3773,14 @@ function requireNonEmptyRefArray(
       true,
     );
   }
-  if (refs.length > 64) addError(accumulator, "ref_collection_bound_exceeded", path, "Reference collection exceeds 64 items.", true);
+  if (refs.length > 64)
+    addError(
+      accumulator,
+      "ref_collection_bound_exceeded",
+      path,
+      "Reference collection exceeds 64 items.",
+      true,
+    );
   return refs;
 }
 
@@ -3044,7 +3803,14 @@ function requireString(
   accumulator: EligibilityAccumulator,
 ) {
   const value = protocolStringValueV01(record[field]);
-  if (!value) addError(accumulator, `${field}_missing`, `${path}.${field}`, `${field} must be a non-empty string.`, true);
+  if (!value)
+    addError(
+      accumulator,
+      `${field}_missing`,
+      `${path}.${field}`,
+      `${field} must be a non-empty string.`,
+      true,
+    );
   return value;
 }
 
@@ -3054,7 +3820,14 @@ function requireTimestamp(
   accumulator: EligibilityAccumulator,
 ) {
   const parsed = parseStrictIsoTimestampV01(value);
-  if (parsed === null) addError(accumulator, "timestamp_invalid", path, "Expected a valid ISO timestamp.", true);
+  if (parsed === null)
+    addError(
+      accumulator,
+      "timestamp_invalid",
+      path,
+      "Expected a valid ISO timestamp.",
+      true,
+    );
   return parsed;
 }
 
@@ -3084,7 +3857,14 @@ function rejectUnknownNestedKeys(
   path: string,
   accumulator: EligibilityAccumulator,
 ) {
-  rejectUnknownProtocolKeysV01(record, allowed, path, issueSink(accumulator), "unknown_eligibility_nested_field", true);
+  rejectUnknownProtocolKeysV01(
+    record,
+    allowed,
+    path,
+    issueSink(accumulator),
+    "unknown_eligibility_nested_field",
+    true,
+  );
 }
 
 function walk(
@@ -3093,8 +3873,11 @@ function walk(
   visit: (value: unknown, path: string) => void,
 ) {
   visit(value, path);
-  if (Array.isArray(value)) value.forEach((item, index) => walk(item, `${path}[${index}]`, visit));
-  else if (isProtocolRecordV01(value)) for (const [key, child] of Object.entries(value)) walk(child, `${path}.${key}`, visit);
+  if (Array.isArray(value))
+    value.forEach((item, index) => walk(item, `${path}[${index}]`, visit));
+  else if (isProtocolRecordV01(value))
+    for (const [key, child] of Object.entries(value))
+      walk(child, `${path}.${key}`, visit);
 }
 
 function createAccumulator(): EligibilityAccumulator {

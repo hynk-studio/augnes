@@ -49,6 +49,13 @@ export type VNextOperatorPilotRevisionDeltaTargetCompatibilityV01 =
       policy: "strategic_no_transfer_review_only";
       server_selected_delta_type: null;
       target_kind: "accepted_agent_plan_state";
+    }
+  | {
+      status: "incompatible";
+      code: typeof OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01;
+      policy: "project_verify_lifecycle_exact_record";
+      server_selected_delta_type: "validation_delta";
+      target_kind: "project_verify_family";
     };
 
 /**
@@ -56,14 +63,21 @@ export type VNextOperatorPilotRevisionDeltaTargetCompatibilityV01 =
  * define a general target ontology. Historical and non-run-assessment proposal
  * families retain their existing behavior until an explicit policy applies.
  */
-export function evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01(
-  input: {
-    source_proposal: EpisodeDeltaProposalV01;
-    source_candidate: EpisodeDeltaProposalDeltaCandidateV01;
-    revised_delta_type: EpisodeDeltaProposalDeltaTypeV01;
-    revised_target_refs: ExternalRefV01[];
-  },
-): VNextOperatorPilotRevisionDeltaTargetCompatibilityV01 {
+export function evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01(input: {
+  source_proposal: EpisodeDeltaProposalV01;
+  source_candidate: EpisodeDeltaProposalDeltaCandidateV01;
+  revised_delta_type: EpisodeDeltaProposalDeltaTypeV01;
+  revised_target_refs: ExternalRefV01[];
+}): VNextOperatorPilotRevisionDeltaTargetCompatibilityV01 {
+  if (input.source_proposal.project_verify_lifecycle) {
+    return {
+      status: "incompatible",
+      code: OPERATOR_PILOT_REVISION_DELTA_TARGET_INCOMPATIBLE_V01,
+      policy: "project_verify_lifecycle_exact_record",
+      server_selected_delta_type: "validation_delta",
+      target_kind: "project_verify_family",
+    };
+  }
   const isRunAssessmentCriterionValidation =
     input.source_proposal.source_assessment?.admission_profile ===
       RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01 &&
@@ -73,8 +87,7 @@ export function evaluateVNextOperatorPilotRevisionDeltaTargetCompatibilityV01(
       (ref) => ref.ref_type === "criterion_assessment_item",
     );
 
-  const strategicProfile =
-    input.source_proposal.strategic_advantage_transfer;
+  const strategicProfile = input.source_proposal.strategic_advantage_transfer;
   const isMappedStrategicTransferCandidate =
     strategicProfile?.transfer_items.some(
       (transfer) =>

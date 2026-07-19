@@ -10,12 +10,17 @@ import {
   validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-decision";
+import { normalizeProjectVerifyLifecycleBindingV01 } from "@/lib/vnext/project-verify-lifecycle-protocol";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
   EpisodeDeltaProposalDeltaCandidateV01,
   EpisodeDeltaProposalV01,
 } from "@/types/vnext/episode-delta-proposal";
 import { EPISODE_DELTA_PROPOSAL_DELTA_TYPES_V01 } from "@/types/vnext/episode-delta-proposal";
+import {
+  PROJECT_VERIFY_LIFECYCLE_TARGET_NAMESPACE_V01,
+  type ProjectVerifyLifecycleBindingV01,
+} from "@/types/vnext/project-verify-lifecycle";
 
 export const VNEXT_DURABLE_SEMANTIC_STORE_VERSION_V01 =
   "vnext_durable_semantic_store.v0.1" as const;
@@ -74,6 +79,8 @@ export interface VNextSemanticStateContentV01 {
   target_semantic_identity: VNextSemanticTargetIdentityV01;
   delta_type: EpisodeDeltaProposalDeltaCandidateV01["delta_type"];
   proposed_state_summary: string;
+  /** Optional exact SR-2 identity; historical generic states omit it. */
+  project_verify_lifecycle_binding?: ProjectVerifyLifecycleBindingV01;
 }
 
 export interface VNextPersistedSemanticStateVersionV01 {
@@ -325,9 +332,7 @@ const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V02 =
 const VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03 =
   "vnext_core_records_upgrade_v0_3" as const;
 
-function upgradeVNextCoreRecordKindConstraintV01(
-  db: Database.Database,
-): void {
+function upgradeVNextCoreRecordKindConstraintV01(db: Database.Database): void {
   const table = db
     .prepare(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
@@ -356,7 +361,9 @@ function upgradeVNextCoreRecordKindConstraintV01(
     return;
   }
   if (db.inTransaction) {
-    throw new Error("vnext_core_record_kind_upgrade_nested_transaction_forbidden");
+    throw new Error(
+      "vnext_core_record_kind_upgrade_nested_transaction_forbidden",
+    );
   }
   const before = db
     .prepare("SELECT COUNT(*) AS count FROM vnext_core_records")
@@ -407,7 +414,9 @@ function upgradeVNextCoreRecordKindConstraintV01(
       FROM vnext_core_records;
     `);
     const copied = db
-      .prepare(`SELECT COUNT(*) AS count FROM ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03}`)
+      .prepare(
+        `SELECT COUNT(*) AS count FROM ${VNEXT_CORE_RECORDS_UPGRADE_TABLE_V03}`,
+      )
       .get() as { count: number };
     if (copied.count !== before.count) {
       throw new Error("vnext_core_record_kind_upgrade_copy_count_mismatch");
@@ -576,10 +585,17 @@ export function listVNextCoreRecordsV01(
   },
 ): VNextCoreRecordEnvelopeV01[] {
   const recordKinds = [...new Set(input.record_kinds)];
-  if (recordKinds.length < 1 || recordKinds.length > VNEXT_CORE_RECORD_KINDS_V01.length) {
+  if (
+    recordKinds.length < 1 ||
+    recordKinds.length > VNEXT_CORE_RECORD_KINDS_V01.length
+  ) {
     throw new Error("vnext_core_record_list_kinds_invalid");
   }
-  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 256) {
+  if (
+    !Number.isSafeInteger(input.limit) ||
+    input.limit < 1 ||
+    input.limit > 256
+  ) {
     throw new Error("vnext_core_record_list_limit_invalid");
   }
   const rows = db
@@ -648,9 +664,7 @@ export function createVNextSemanticTargetIdentityV01(
   };
 }
 
-export function deriveVNextSemanticTargetKeyV01(
-  ref: ExternalRefV01,
-): string {
+export function deriveVNextSemanticTargetKeyV01(ref: ExternalRefV01): string {
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01(createVNextSemanticTargetIdentityV01(ref)),
   );
@@ -676,24 +690,53 @@ export function buildVNextPersistedSemanticStateV01(input: {
   if (
     !candidate.target_refs.some(
       (item) =>
-        canonicalizeProtocolValueV01(
-          normalizeExternalRefPrimitiveV01(item),
-        ) === targetCanonical,
+        canonicalizeProtocolValueV01(normalizeExternalRefPrimitiveV01(item)) ===
+        targetCanonical,
     )
   ) {
     throw new Error("semantic_state_target_outside_candidate");
+  }
+  if (
+    (targetRef.compatibility_namespace ===
+      PROJECT_VERIFY_LIFECYCLE_TARGET_NAMESPACE_V01) !==
+    Boolean(input.proposal.project_verify_lifecycle)
+  ) {
+    throw new Error("semantic_state_lifecycle_target_authority_conflict");
   }
   const summary = normalizeRequiredText(
     candidate.proposed_state_summary,
     "proposed_state_summary",
   );
-  if (summary.length > 2000) throw new Error("semantic_state_summary_bound_exceeded");
+  if (summary.length > 2000)
+    throw new Error("semantic_state_summary_bound_exceeded");
   const content: VNextSemanticStateContentV01 = {
     state_content_version: VNEXT_SEMANTIC_STATE_CONTENT_VERSION_V01,
     target_semantic_identity: createVNextSemanticTargetIdentityV01(targetRef),
     delta_type: candidate.delta_type,
     proposed_state_summary: summary,
+    ...(input.proposal.project_verify_lifecycle
+      ? {
+          project_verify_lifecycle_binding:
+            normalizeProjectVerifyLifecycleBindingV01(
+              input.proposal.project_verify_lifecycle.lifecycle_binding,
+            ),
+        }
+      : {}),
   };
+  const lifecycleBinding = content.project_verify_lifecycle_binding;
+  if (
+    lifecycleBinding &&
+    (lifecycleBinding.workspace_id !== input.proposal.workspace_id ||
+      lifecycleBinding.project_id !== input.proposal.project_id ||
+      lifecycleBinding.selected_candidate.candidate_id !==
+        candidate.candidate_id ||
+      lifecycleBinding.selected_candidate.candidate_fingerprint !==
+        createEpisodeDeltaCandidateFingerprintV01(candidate) ||
+      canonicalizeProtocolValueV01(lifecycleBinding.family_target_ref) !==
+        canonicalizeProtocolValueV01(targetRef))
+  ) {
+    throw new Error("semantic_state_lifecycle_binding_conflict");
+  }
   const contentFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01(content),
   );
@@ -716,7 +759,10 @@ export function buildVNextPersistedSemanticStateV01(input: {
   const withoutFingerprint = {
     semantic_state_version: VNEXT_PERSISTED_SEMANTIC_STATE_VERSION_V01,
     semantic_state_record_id: recordId,
-    workspace_id: normalizeRequiredText(input.proposal.workspace_id, "workspace_id"),
+    workspace_id: normalizeRequiredText(
+      input.proposal.workspace_id,
+      "workspace_id",
+    ),
     project_id: normalizeRequiredText(input.proposal.project_id, "project_id"),
     target_key: targetKey,
     target_ref: targetRef,
@@ -748,9 +794,8 @@ export function buildVNextPersistedSemanticStateV01(input: {
       fingerprint: "sha256:pending",
     },
   };
-  const fingerprint = createPersistedSemanticStateFingerprintV01(
-    withoutFingerprint,
-  );
+  const fingerprint =
+    createPersistedSemanticStateFingerprintV01(withoutFingerprint);
   return {
     ...withoutFingerprint,
     integrity: { ...withoutFingerprint.integrity, fingerprint },
@@ -773,13 +818,13 @@ export function validateVNextPersistedSemanticStateV01(
         : new VNextPersistedSemanticStateValidationErrorV01(
             "persisted_semantic_state_invalid",
             "$",
-            error instanceof Error ? error.message : "Persisted semantic state is invalid.",
+            error instanceof Error
+              ? error.message
+              : "Persisted semantic state is invalid.",
           );
     return {
       status: "invalid",
-      errors: [
-        { code: issue.code, path: issue.path, message: issue.message },
-      ],
+      errors: [{ code: issue.code, path: issue.path, message: issue.message }],
       normalized_state: null,
     };
   }
@@ -789,7 +834,11 @@ export function rebuildVNextPersistedSemanticStateV01(
   input: unknown,
 ): VNextPersistedSemanticStateVersionV01 {
   if (!isProtocolRecordV01(input)) {
-    failSemanticState("semantic_state_not_object", "$", "Persisted semantic state must be an object.");
+    failSemanticState(
+      "semantic_state_not_object",
+      "$",
+      "Persisted semantic state must be an object.",
+    );
   }
   assertAllowedSemanticStateKeys(
     input,
@@ -832,7 +881,9 @@ export function rebuildVNextPersistedSemanticStateV01(
     "$.target_ref",
   );
   const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
-  if (normalizeSemanticStateSha(input.target_key, "$.target_key") !== targetKey) {
+  if (
+    normalizeSemanticStateSha(input.target_key, "$.target_key") !== targetKey
+  ) {
     failSemanticState(
       "semantic_state_target_key_mismatch",
       "$.target_key",
@@ -855,6 +906,7 @@ export function rebuildVNextPersistedSemanticStateV01(
       "target_semantic_identity",
       "delta_type",
       "proposed_state_summary",
+      "project_verify_lifecycle_binding",
     ]),
     "$.state_content",
   );
@@ -908,7 +960,51 @@ export function rebuildVNextPersistedSemanticStateV01(
     delta_type:
       stateContent.delta_type as EpisodeDeltaProposalDeltaCandidateV01["delta_type"],
     proposed_state_summary: summary,
+    ...(stateContent.project_verify_lifecycle_binding !== undefined
+      ? {
+          project_verify_lifecycle_binding:
+            normalizeProjectVerifyLifecycleBindingV01(
+              stateContent.project_verify_lifecycle_binding as ProjectVerifyLifecycleBindingV01,
+            ),
+        }
+      : {}),
   };
+  if (
+    (targetRef.compatibility_namespace ===
+      PROJECT_VERIFY_LIFECYCLE_TARGET_NAMESPACE_V01) !==
+    Boolean(normalizedContent.project_verify_lifecycle_binding)
+  ) {
+    failSemanticState(
+      "semantic_state_lifecycle_target_authority_conflict",
+      "$.state_content.project_verify_lifecycle_binding",
+      "Reserved Project Verify targets require the exact lifecycle binding, and generic targets cannot carry it.",
+    );
+  }
+  if (
+    normalizedContent.project_verify_lifecycle_binding &&
+    canonicalizeProtocolValueV01(
+      normalizedContent.project_verify_lifecycle_binding.family_target_ref,
+    ) !== canonicalizeProtocolValueV01(targetRef)
+  ) {
+    failSemanticState(
+      "semantic_state_lifecycle_target_mismatch",
+      "$.state_content.project_verify_lifecycle_binding.family_target_ref",
+      "Lifecycle binding target must exactly match the persisted semantic target.",
+    );
+  }
+  if (
+    normalizedContent.project_verify_lifecycle_binding &&
+    (normalizedContent.project_verify_lifecycle_binding.workspace_id !==
+      workspaceId ||
+      normalizedContent.project_verify_lifecycle_binding.project_id !==
+        projectId)
+  ) {
+    failSemanticState(
+      "semantic_state_lifecycle_scope_mismatch",
+      "$.state_content.project_verify_lifecycle_binding",
+      "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope.",
+    );
+  }
   const contentFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01(normalizedContent),
   );
@@ -925,8 +1021,10 @@ export function rebuildVNextPersistedSemanticStateV01(
     );
   }
   if (
-    semanticStateText(input.bounded_state_summary, "$.bounded_state_summary") !==
-    summary
+    semanticStateText(
+      input.bounded_state_summary,
+      "$.bounded_state_summary",
+    ) !== summary
   ) {
     failSemanticState(
       "semantic_state_bounded_summary_mismatch",
@@ -959,6 +1057,19 @@ export function rebuildVNextPersistedSemanticStateV01(
     input.source_decision_fingerprint,
     "$.source_decision_fingerprint",
   );
+  if (
+    normalizedContent.project_verify_lifecycle_binding &&
+    (normalizedContent.project_verify_lifecycle_binding.selected_candidate
+      .candidate_id !== sourceCandidateId ||
+      normalizedContent.project_verify_lifecycle_binding.selected_candidate
+        .candidate_fingerprint !== sourceCandidateFingerprint)
+  ) {
+    failSemanticState(
+      "semantic_state_lifecycle_candidate_mismatch",
+      "$.state_content.project_verify_lifecycle_binding.selected_candidate",
+      "Lifecycle selected candidate must exactly match the persisted semantic-state source candidate.",
+    );
+  }
   const createdAt = semanticStateText(input.created_at, "$.created_at");
   if (parseStrictIsoTimestampV01(createdAt) === null) {
     failSemanticState(
@@ -1140,7 +1251,11 @@ export function listRecentVNextSemanticStateEntriesV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string; limit: number },
 ): VNextSemanticStateProjectionEntryV01[] {
-  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 256) {
+  if (
+    !Number.isSafeInteger(input.limit) ||
+    input.limit < 1 ||
+    input.limit > 256
+  ) {
     throw new Error("semantic_state_entry_list_limit_invalid");
   }
   const rows = db
@@ -1179,8 +1294,9 @@ export function insertVNextSemanticStateEntryV01(
   entry: VNextSemanticStateProjectionEntryV01,
 ): void {
   const normalized = normalizeProjection(entry);
-  const result = db.prepare(
-    `INSERT INTO vnext_semantic_state_entries (
+  const result = db
+    .prepare(
+      `INSERT INTO vnext_semantic_state_entries (
       workspace_id, project_id, presence, target_key, target_ref_json, state_ref_json,
       current_state_fingerprint, bounded_state_summary,
       source_proposal_id, source_proposal_fingerprint,
@@ -1188,7 +1304,8 @@ export function insertVNextSemanticStateEntryV01(
       source_transition_receipt_id, source_transition_receipt_fingerprint,
       revision, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(...projectionValues(normalized));
+    )
+    .run(...projectionValues(normalized));
   if (result.changes !== 1) throw new Error("semantic_state_insert_failed");
 }
 
@@ -1204,8 +1321,9 @@ export function updateVNextSemanticStateEntryCasV01(
   if (next.revision !== input.expected_revision + 1) {
     throw new Error("semantic_state_revision_invalid");
   }
-  const result = db.prepare(
-    `UPDATE vnext_semantic_state_entries SET
+  const result = db
+    .prepare(
+      `UPDATE vnext_semantic_state_entries SET
       target_ref_json = ?, state_ref_json = ?, current_state_fingerprint = ?,
       bounded_state_summary = ?, source_proposal_id = ?,
       source_proposal_fingerprint = ?, source_candidate_id = ?,
@@ -1213,25 +1331,29 @@ export function updateVNextSemanticStateEntryCasV01(
       source_transition_receipt_fingerprint = ?, revision = ?, updated_at = ?
      WHERE workspace_id = ? AND project_id = ? AND target_key = ?
        AND revision = ? AND current_state_fingerprint = ?`,
-  ).run(
-    canonicalizeProtocolValueV01(next.target_ref),
-    canonicalizeProtocolValueV01(next.state_ref),
-    next.state_fingerprint,
-    next.bounded_state_summary,
-    next.source_proposal_id,
-    next.source_proposal_fingerprint,
-    next.source_candidate_id,
-    next.source_candidate_fingerprint,
-    next.source_transition_receipt_id,
-    next.source_transition_receipt_fingerprint,
-    next.revision,
-    next.updated_at,
-    next.workspace_id,
-    next.project_id,
-    next.target_key,
-    input.expected_revision,
-    normalizeSha256(input.expected_state_fingerprint, "expected_state_fingerprint"),
-  );
+    )
+    .run(
+      canonicalizeProtocolValueV01(next.target_ref),
+      canonicalizeProtocolValueV01(next.state_ref),
+      next.state_fingerprint,
+      next.bounded_state_summary,
+      next.source_proposal_id,
+      next.source_proposal_fingerprint,
+      next.source_candidate_id,
+      next.source_candidate_fingerprint,
+      next.source_transition_receipt_id,
+      next.source_transition_receipt_fingerprint,
+      next.revision,
+      next.updated_at,
+      next.workspace_id,
+      next.project_id,
+      next.target_key,
+      input.expected_revision,
+      normalizeSha256(
+        input.expected_state_fingerprint,
+        "expected_state_fingerprint",
+      ),
+    );
   if (result.changes !== 1) throw new Error("semantic_state_cas_conflict");
 }
 
@@ -1245,17 +1367,22 @@ export function deleteVNextSemanticStateEntryCasV01(
     expected_state_fingerprint: string;
   },
 ): void {
-  const result = db.prepare(
-    `DELETE FROM vnext_semantic_state_entries
+  const result = db
+    .prepare(
+      `DELETE FROM vnext_semantic_state_entries
      WHERE workspace_id = ? AND project_id = ? AND target_key = ?
        AND revision = ? AND current_state_fingerprint = ?`,
-  ).run(
-    normalizeRequiredText(input.workspace_id, "workspace_id"),
-    normalizeRequiredText(input.project_id, "project_id"),
-    normalizeSha256(input.target_key, "target_key"),
-    input.expected_revision,
-    normalizeSha256(input.expected_state_fingerprint, "expected_state_fingerprint"),
-  );
+    )
+    .run(
+      normalizeRequiredText(input.workspace_id, "workspace_id"),
+      normalizeRequiredText(input.project_id, "project_id"),
+      normalizeSha256(input.target_key, "target_key"),
+      input.expected_revision,
+      normalizeSha256(
+        input.expected_state_fingerprint,
+        "expected_state_fingerprint",
+      ),
+    );
   if (result.changes !== 1) throw new Error("semantic_state_cas_conflict");
 }
 
@@ -1280,19 +1407,25 @@ export function listVNextSemanticTargetHeadsV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string; limit: number },
 ): VNextSemanticTargetHeadV01[] {
-  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 513) {
+  if (
+    !Number.isSafeInteger(input.limit) ||
+    input.limit < 1 ||
+    input.limit > 513
+  ) {
     throw new Error("semantic_target_head_list_limit_invalid");
   }
-  const rows = db.prepare(
-    `SELECT * FROM vnext_semantic_target_heads
+  const rows = db
+    .prepare(
+      `SELECT * FROM vnext_semantic_target_heads
      WHERE workspace_id = ? AND project_id = ?
      ORDER BY revision DESC, updated_at DESC, target_key
      LIMIT ?`,
-  ).all(
-    normalizeRequiredText(input.workspace_id, "workspace_id"),
-    normalizeRequiredText(input.project_id, "project_id"),
-    input.limit,
-  ) as TargetHeadRowV01[];
+    )
+    .all(
+      normalizeRequiredText(input.workspace_id, "workspace_id"),
+      normalizeRequiredText(input.project_id, "project_id"),
+      input.limit,
+    ) as TargetHeadRowV01[];
   return rows.map(normalizeTargetHead);
 }
 
@@ -1313,7 +1446,8 @@ export function insertVNextSemanticTargetHeadV01(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(...targetHeadValues(normalized));
-  if (result.changes !== 1) throw new Error("semantic_target_head_insert_failed");
+  if (result.changes !== 1)
+    throw new Error("semantic_target_head_insert_failed");
 }
 
 export function updateVNextSemanticTargetHeadCasV01(
@@ -1363,7 +1497,8 @@ export function updateVNextSemanticTargetHeadCasV01(
       expected.source_transition_receipt_fingerprint,
       expected.updated_at,
     );
-  if (result.changes !== 1) throw new Error("semantic_target_head_cas_conflict");
+  if (result.changes !== 1)
+    throw new Error("semantic_target_head_cas_conflict");
 }
 
 function selectCoreRecordByIdentity(
@@ -1415,7 +1550,11 @@ function normalizeCoreRecord(
   if (!VNEXT_CORE_RECORD_KINDS_V01.includes(input.record_kind)) {
     throw new Error("vnext_core_record_kind_invalid");
   }
-  if (!input.payload || typeof input.payload !== "object" || Array.isArray(input.payload)) {
+  if (
+    !input.payload ||
+    typeof input.payload !== "object" ||
+    Array.isArray(input.payload)
+  ) {
     throw new Error("vnext_core_record_payload_invalid");
   }
   return {
@@ -1455,8 +1594,12 @@ function parseCoreRecord(row: CoreRecordRowV01): VNextCoreRecordEnvelopeV01 {
 function normalizeProjection(
   input: VNextSemanticStateProjectionEntryV01,
 ): VNextSemanticStateProjectionEntryV01 {
-  const summary = normalizeRequiredText(input.bounded_state_summary, "bounded_state_summary");
-  if (summary.length > 2000) throw new Error("semantic_state_summary_bound_exceeded");
+  const summary = normalizeRequiredText(
+    input.bounded_state_summary,
+    "bounded_state_summary",
+  );
+  if (summary.length > 2000)
+    throw new Error("semantic_state_summary_bound_exceeded");
   if (!Number.isSafeInteger(input.revision) || input.revision < 1) {
     throw new Error("semantic_state_revision_invalid");
   }
@@ -1467,20 +1610,43 @@ function normalizeProjection(
     target_key: normalizeSha256(input.target_key, "target_key"),
     target_ref: normalizeExternalRefPrimitiveV01(input.target_ref),
     state_ref: normalizeExternalRefPrimitiveV01(input.state_ref),
-    state_fingerprint: normalizeSha256(input.state_fingerprint, "state_fingerprint"),
+    state_fingerprint: normalizeSha256(
+      input.state_fingerprint,
+      "state_fingerprint",
+    ),
     bounded_state_summary: summary,
-    source_proposal_id: normalizeRequiredText(input.source_proposal_id, "source_proposal_id"),
-    source_proposal_fingerprint: normalizeSha256(input.source_proposal_fingerprint, "source_proposal_fingerprint"),
-    source_candidate_id: normalizeRequiredText(input.source_candidate_id, "source_candidate_id"),
-    source_candidate_fingerprint: normalizeSha256(input.source_candidate_fingerprint, "source_candidate_fingerprint"),
-    source_transition_receipt_id: normalizeRequiredText(input.source_transition_receipt_id, "source_transition_receipt_id"),
-    source_transition_receipt_fingerprint: normalizeSha256(input.source_transition_receipt_fingerprint, "source_transition_receipt_fingerprint"),
+    source_proposal_id: normalizeRequiredText(
+      input.source_proposal_id,
+      "source_proposal_id",
+    ),
+    source_proposal_fingerprint: normalizeSha256(
+      input.source_proposal_fingerprint,
+      "source_proposal_fingerprint",
+    ),
+    source_candidate_id: normalizeRequiredText(
+      input.source_candidate_id,
+      "source_candidate_id",
+    ),
+    source_candidate_fingerprint: normalizeSha256(
+      input.source_candidate_fingerprint,
+      "source_candidate_fingerprint",
+    ),
+    source_transition_receipt_id: normalizeRequiredText(
+      input.source_transition_receipt_id,
+      "source_transition_receipt_id",
+    ),
+    source_transition_receipt_fingerprint: normalizeSha256(
+      input.source_transition_receipt_fingerprint,
+      "source_transition_receipt_fingerprint",
+    ),
     revision: input.revision,
     updated_at: normalizeRequiredText(input.updated_at, "updated_at"),
   };
 }
 
-function projectionValues(entry: VNextSemanticStateProjectionEntryV01): unknown[] {
+function projectionValues(
+  entry: VNextSemanticStateProjectionEntryV01,
+): unknown[] {
   return [
     entry.workspace_id,
     entry.project_id,
@@ -1501,7 +1667,9 @@ function projectionValues(entry: VNextSemanticStateProjectionEntryV01): unknown[
   ];
 }
 
-function parseProjection(row: ProjectionRowV01): VNextSemanticStateProjectionEntryV01 {
+function parseProjection(
+  row: ProjectionRowV01,
+): VNextSemanticStateProjectionEntryV01 {
   let targetRef: ExternalRefV01;
   let stateRef: ExternalRefV01;
   try {
@@ -1524,7 +1692,8 @@ function parseProjection(row: ProjectionRowV01): VNextSemanticStateProjectionEnt
     source_candidate_id: row.source_candidate_id,
     source_candidate_fingerprint: row.source_candidate_fingerprint,
     source_transition_receipt_id: row.source_transition_receipt_id,
-    source_transition_receipt_fingerprint: row.source_transition_receipt_fingerprint,
+    source_transition_receipt_fingerprint:
+      row.source_transition_receipt_fingerprint,
     revision: row.revision,
     updated_at: row.updated_at,
   });
@@ -1721,11 +1890,7 @@ function normalizeSemanticStateSha(value: unknown, path: string): string {
   return normalized;
 }
 
-function failSemanticState(
-  code: string,
-  path: string,
-  message: string,
-): never {
+function failSemanticState(code: string, path: string, message: string): never {
   throw new VNextPersistedSemanticStateValidationErrorV01(code, path, message);
 }
 
