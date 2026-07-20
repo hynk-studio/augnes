@@ -937,15 +937,24 @@ async function main() {
         `document.querySelector('[data-project-home-active="false"]') !== null`,
       )
     ) {
-      await delay(750);
+      await waitForCondition(
+        `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 &&
+          Array.from(document.querySelectorAll('button')).some(
+          (candidate) => candidate.textContent?.trim() === 'Make active' &&
+            candidate instanceof HTMLButtonElement &&
+            !candidate.disabled
+        )`,
+        "hydrated strategic source project activation control",
+      );
       const activationResponseStart = responses.length;
       assert.equal(
         await evaluateBoolean(`(() => {
           const button = Array.from(document.querySelectorAll('button')).find(
             (candidate) => candidate.textContent?.trim() === 'Make active'
           );
-          button?.click();
-          return Boolean(button);
+          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+          button.click();
+          return true;
         })()`),
         true,
       );
