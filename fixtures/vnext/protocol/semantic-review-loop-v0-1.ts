@@ -90,10 +90,18 @@ export interface SemanticReviewLoopMaterialFixtureV01 {
 export function buildSemanticReviewLoopRunReceiptFixture(
   project: SemanticReviewLoopProjectFixtureV01,
   packet: TaskContextPacketV01,
+  options: { timeline_anchor_at?: string } = {},
 ): RunReceiptV01 {
-  const input = clone(
+  let input = clone(
     genericCliDirectObservationInputFixture,
   ) as RunReceiptBuilderInputV01;
+  if (options.timeline_anchor_at) {
+    input = remapTimeline(input, options.timeline_anchor_at, [
+      ["2026-07-10T02:00:00.000Z", 100],
+      ["2026-07-10T02:30:00.000Z", 200],
+      ["2026-07-10T03:00:00.000Z", 300],
+    ]);
+  }
   input.workspace_id = project.workspace_id;
   input.project_id = project.project_id;
   input.run_id = project.run_id;
@@ -111,6 +119,8 @@ export function buildSemanticReviewLoopProposalFixture(
   receipt: RunReceiptV01,
   options: {
     primary_delta_type?: "agent_plan_delta";
+    candidate_namespace?: string;
+    timeline_anchor_at?: string;
   } = {},
 ): EpisodeDeltaProposalV01 {
   const receiptRef: ExternalRefV01 = {
@@ -123,11 +133,17 @@ export function buildSemanticReviewLoopProposalFixture(
     compatibility_namespace: "augnes.vnext.run-receipt.v0.1",
   };
   const packetRef = semanticReviewLoopTaskContextPacketRefFixture(packet);
-  const input = replaceProtocolRefs(
+  let input = replaceProtocolRefs(
     clone(genericCliDirectObservationProposalInputFixture),
     receiptRef,
     packetRef,
   ) as EpisodeDeltaProposalBuilderInputV01;
+  if (options.timeline_anchor_at) {
+    input = remapTimeline(input, options.timeline_anchor_at, [
+      ["2026-07-10T11:50:00.000Z", 400],
+      ["2026-07-10T12:00:00.000Z", 500],
+    ]);
+  }
   input.workspace_id = project.workspace_id;
   input.project_id = project.project_id;
   input.task_context_packet_ref = packetRef;
@@ -149,6 +165,16 @@ export function buildSemanticReviewLoopProposalFixture(
     }),
   );
   input.proposed_deltas.push(secondaryCandidate);
+  if (options.candidate_namespace) {
+    input.proposed_deltas = input.proposed_deltas.map((candidate) => ({
+      ...candidate,
+      candidate_id: `${candidate.candidate_id}:${options.candidate_namespace}`,
+      target_refs: candidate.target_refs.map((target, index) => ({
+        ...target,
+        external_id: `${target.external_id}:${options.candidate_namespace}-${index + 1}`,
+      })),
+    }));
+  }
   input.bounded_summary =
     "A bounded provider-neutral RunReceipt supports reviewable synthetic protocol candidates.";
   input.authority_notes = [
@@ -175,6 +201,28 @@ export function buildSemanticReviewLoopMaterialFixture(
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function remapTimeline<T>(
+  value: T,
+  anchorAt: string,
+  replacements: Array<[source: string, offsetMs: number]>,
+): T {
+  const anchorMs = Date.parse(anchorAt);
+  if (!Number.isFinite(anchorMs)) {
+    throw new Error("Semantic review fixture timeline anchor must be ISO-8601.");
+  }
+  const mapped = new Map(
+    replacements.map(([source, offsetMs]) => [
+      source,
+      new Date(anchorMs + offsetMs).toISOString(),
+    ]),
+  );
+  return JSON.parse(
+    JSON.stringify(value, (_key, entry) =>
+      typeof entry === "string" ? (mapped.get(entry) ?? entry) : entry,
+    ),
+  ) as T;
 }
 
 function replaceProtocolRefs<T>(

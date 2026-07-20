@@ -27,7 +27,7 @@ export function SemanticReviewProposalList({
             Choose one exact semantic candidate review
           </h2>
           <p className={styles.copy}>
-            {continuity.pending_proposal_count} proposal(s) await a decision and {continuity.pending_accepted_decision_count} accepted decision(s) await Transition closure. Recording order does not select current state.
+            {continuity.pending_proposal_count} proposal(s) await a decision and {continuity.pending_accepted_decision_count} applying decision(s) await Transition closure. Recording order does not select current state.
           </p>
         </div>
 

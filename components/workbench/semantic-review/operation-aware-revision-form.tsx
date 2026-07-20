@@ -118,6 +118,7 @@ export function OperationAwareRevisionForm({
     <form
       className={styles.form}
       data-vnext-operation-revision-form="v0.1"
+      data-vnext-proposal-local-controls-busy={String(busy)}
       onSubmit={submit}
     >
       <strong>Create immutable operation-aware revision</strong>
@@ -129,6 +130,7 @@ export function OperationAwareRevisionForm({
         Semantic operation
         <select
           value={operation}
+          disabled={busy}
           onChange={(event) =>
             setOperation(
               event.target.value as SemanticReviewRevisionRequestV01["operation"],
@@ -159,6 +161,7 @@ export function OperationAwareRevisionForm({
         ) : (
           <select
             value={deltaType}
+            disabled={busy}
             onChange={(event) =>
               setDeltaType(
                 event.target.value as SemanticReviewRevisionRequestV01["delta_type"],
@@ -187,15 +190,15 @@ export function OperationAwareRevisionForm({
       ) : null}
       <label>
         Candidate title
-        <input maxLength={2000} value={title} onChange={(event) => setTitle(event.target.value)} />
+        <input disabled={busy} maxLength={2000} value={title} onChange={(event) => setTitle(event.target.value)} />
       </label>
       <label>
         Proposed state summary
-        <textarea maxLength={2000} value={stateSummary} onChange={(event) => setStateSummary(event.target.value)} />
+        <textarea disabled={busy} maxLength={2000} value={stateSummary} onChange={(event) => setStateSummary(event.target.value)} />
       </label>
       <label>
         Bounded revision rationale
-        <textarea required maxLength={2000} value={rationale} onChange={(event) => setRationale(event.target.value)} />
+        <textarea disabled={busy} required maxLength={2000} value={rationale} onChange={(event) => setRationale(event.target.value)} />
       </label>
       <p className={styles.notice}>
         This revision remains pending candidate material. It creates no decision,

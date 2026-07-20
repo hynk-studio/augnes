@@ -667,7 +667,9 @@ export function recordVNextOperatorPilotReviewDecisionV01(
         unmapped_fields: [],
         warnings: [
           "Local session verification proves possession of a locally issued secret, not external or legal identity.",
-          "The decision does not apply state; accept carries intent for a separately recomputed gate and Transition path.",
+          applyingDecision
+            ? "The applying ReviewDecision carries intent for a separately recomputed gate and Transition path; the decision itself applies no state."
+            : "This ReviewDecision carries no Transition intent and applies no state.",
         ],
         external_refs: [sessionBasisRef],
       },

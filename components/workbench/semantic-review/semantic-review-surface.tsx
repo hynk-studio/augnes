@@ -46,11 +46,18 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
   const [privateError, setPrivateError] = useState<string | null>(null);
   const [decisionStatus, setDecisionStatus] = useState<string | null>(null);
   const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
+  const [selectedCandidateBinding, setSelectedCandidateBinding] = useState<{
+    proposal_id: string;
+    candidate_id: string;
+  } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const operatorMutationInFlight = useRef(false);
 
-  const loadPrivateView = useCallback(async () => {
-    setLoadingPrivateView(true);
+  const loadPrivateView = useCallback(async (options?: {
+    announceLoading?: boolean;
+  }) => {
+    const announceLoading = options?.announceLoading ?? true;
+    if (announceLoading) setLoadingPrivateView(true);
     setPrivateError(null);
     try {
       const url = proposalId
@@ -99,7 +106,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           : "semantic_review_request_failed",
       );
     } finally {
-      setLoadingPrivateView(false);
+      if (announceLoading) setLoadingPrivateView(false);
     }
   }, [proposalId]);
 
@@ -158,6 +165,10 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
       return;
     }
     operatorMutationInFlight.current = true;
+    setSelectedCandidateBinding({
+      proposal_id: request.proposal_id,
+      candidate_id: request.candidate_id,
+    });
     setBusyCandidateId(request.candidate_id);
     setDecisionStatus(null);
     setPrivateError(null);
@@ -194,11 +205,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             ? "ReviewDecision recorded with transition intent only. No state transition occurred."
             : "ReviewDecision recorded with no transition intent. No state transition occurred.",
       );
-      router.replace(
-        semanticReviewProposalHref(proposalId),
-      );
-      router.refresh();
-      await loadPrivateView();
+      await loadPrivateView({ announceLoading: false });
     } catch {
       setPrivateError("semantic_review_decision_request_failed");
     } finally {
@@ -404,11 +411,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
   }
 
   async function refreshPrivateMaterial(): Promise<void> {
-    router.replace(
-      semanticReviewProposalHref(proposalId),
-    );
-    router.refresh();
-    await loadPrivateView();
+    await loadPrivateView({ announceLoading: false });
   }
 
   const privateMaterialVisible =
@@ -482,6 +485,19 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           <DecisionCenteredProposalDetail
             project={privateView.value.project}
             read={privateView.value.proposal}
+            selectedCandidateId={
+              selectedCandidateBinding?.proposal_id ===
+              privateView.value.proposal.proposal.proposal_id
+                ? selectedCandidateBinding.candidate_id
+                : null
+            }
+            onSelectedCandidateChange={(candidateId) =>
+              setSelectedCandidateBinding({
+                proposal_id:
+                  privateView.value.proposal.proposal.proposal_id,
+                candidate_id: candidateId,
+              })
+            }
             busyCandidateId={busyCandidateId}
             onDecision={recordDecision}
             onRevision={recordRevision}

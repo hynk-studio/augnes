@@ -23,7 +23,12 @@ import {
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
   genericCliBuilderInputFixture,
 } from "../fixtures/vnext/protocol/task-context-packet-v0-1.ts";
+import {
+  buildSemanticReviewLoopProposalFixture,
+  buildSemanticReviewLoopRunReceiptFixture,
+} from "../fixtures/vnext/protocol/semantic-review-loop-v0-1.ts";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store.ts";
+import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission.ts";
 import {
   CANONICAL_TEST_STRATEGIC_TRANSPORT_COUNTER_FILE_V01,
   CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_FILE_V01,
@@ -114,6 +119,7 @@ let bootstrapToken = null;
 let currentPhase = "setup";
 let lastRequestAt = Date.now();
 let serverLog = "";
+let pausedSemanticTransitionRequest = null;
 const requests = [];
 const responses = [];
 const requestMethods = new Map();
@@ -183,6 +189,10 @@ const result = {
   semantic_transition_applied: false,
   later_packet_compiled: false,
   semantic_transition_reload_idempotent: false,
+  multi_candidate_transition_scope: false,
+  candidate_switch_mutation_locking: false,
+  late_preview_response_discarded: false,
+  applying_decision_wording_truthful: false,
   context_use_feedback_waits_for_real_later_run: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
@@ -1269,7 +1279,7 @@ async function main() {
       "strategic defer decision response",
     );
     await waitForCondition(
-      `document.querySelector('[data-vnext-decision-history="v0.1"] li')?.textContent?.includes('defer') === true && document.querySelector('[data-vnext-transition-actions-status="awaiting_accept"]') !== null`,
+      `document.querySelector('[data-vnext-decision-history="v0.1"] li')?.textContent?.includes('defer') === true && document.querySelector('[data-vnext-transition-actions-status="awaiting_applying_decision"]') !== null`,
       "strategic defer decision without transition",
     );
     const afterStrategicDecision = readDirectHostBrowserState(
@@ -2948,6 +2958,305 @@ async function main() {
     record("policy_triggered_later_receipt_uses_explicit_non_authoritative_feedback");
   });
 
+  await runPhase("multi_candidate_transition_scope", async () => {
+    const currentPacket = database
+      .prepare(
+        `SELECT payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'task_context_packet'
+           AND project_id = ?
+         ORDER BY created_at DESC, record_id DESC`,
+      )
+      .all(manifest.project_id)
+      .map((row) => JSON.parse(row.payload_json))
+      .find((packet) =>
+        packet.selected_context?.some(
+          (entry) => entry.entry_kind === "accepted_state_ref",
+        ),
+      );
+    assert(currentPacket, "current accepted-state packet fixture missing");
+    const currentMultiCandidateProject = {
+      fixture_id: "semantic-review-loop-current-multi-candidate",
+      workspace_id: manifest.workspace_id,
+      project_id: manifest.project_id,
+      run_id: "run:operator-browser-current-multi-candidate-scope",
+    };
+    const currentMultiCandidateReceipt =
+      buildSemanticReviewLoopRunReceiptFixture(
+        currentMultiCandidateProject,
+        currentPacket,
+        { timeline_anchor_at: currentPacket.generated_at },
+      );
+    const currentMultiCandidateProposal =
+      buildSemanticReviewLoopProposalFixture(
+        currentMultiCandidateProject,
+        currentPacket,
+        currentMultiCandidateReceipt,
+        {
+          primary_delta_type: "agent_plan_delta",
+          candidate_namespace: "browser-current-transition-scope",
+          timeline_anchor_at: currentPacket.generated_at,
+        },
+      );
+    const writableMultiCandidateDatabase = new Database(databasePath);
+    try {
+      writableMultiCandidateDatabase.pragma("foreign_keys = ON");
+      writableMultiCandidateDatabase.transaction(() => {
+        admitStructuredRunReceiptV01(
+          writableMultiCandidateDatabase,
+          currentMultiCandidateReceipt,
+        );
+        insertVNextCoreRecordV01(writableMultiCandidateDatabase, {
+          record_kind: "episode_delta_proposal",
+          record_id: currentMultiCandidateProposal.proposal_id,
+          workspace_id: currentMultiCandidateProposal.workspace_id,
+          project_id: currentMultiCandidateProposal.project_id,
+          fingerprint: currentMultiCandidateProposal.integrity.fingerprint,
+          idempotency_key: null,
+          payload: currentMultiCandidateProposal,
+          created_at: currentMultiCandidateProposal.created_at,
+        });
+      })();
+    } finally {
+      writableMultiCandidateDatabase.close();
+    }
+    const path = `/workbench/semantic-review/${currentMultiCandidateProposal.proposal_id.replace(":", "~")}`;
+    const beforeMultiCandidate = readDirectHostBrowserState(manifest.project_id);
+    await navigate(`${appOrigin}${path}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.querySelectorAll('option').length === 2`,
+      "two-candidate decision-centered Workbench",
+    );
+    const candidateIds = await evaluateJson(`(() => {
+      const select = document.querySelector('[data-vnext-candidate-selector="v0.1"]');
+      if (!(select instanceof HTMLSelectElement)) return [];
+      return Array.from(select.options).map((option) => option.value);
+    })()`);
+    assert.equal(candidateIds.length, 2);
+    assert.notEqual(candidateIds[0], candidateIds[1]);
+    const [candidateA, candidateB] = candidateIds;
+
+    const recordSelectedAcceptDecision = async (candidateId, rationale) => {
+      await setFormControlValue(
+        '[data-vnext-operator-decision-form="v0.1"] select',
+        0,
+        "accept",
+      );
+      await setFormControlValue(
+        '[data-vnext-operator-decision-form="v0.1"] textarea',
+        0,
+        rationale,
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = document.querySelector('[data-vnext-operator-decision-form="v0.1"] button[type="submit"]');
+          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+          button.click();
+          return true;
+        })()`),
+        true,
+        `selected candidate ${candidateId} accept decision must be submit-ready`,
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateId)} && document.querySelector('[data-vnext-transition-applying-decision-count="1"]') !== null && document.querySelector('[data-vnext-decision-history="v0.1"] li strong')?.textContent?.trim() === 'accept'`,
+        `persisted exact accept decision for ${candidateId}`,
+      );
+    };
+    const selectCandidate = async (candidateId) => {
+      await setFormControlValue(
+        '[data-vnext-candidate-selector="v0.1"]',
+        0,
+        candidateId,
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateId)} && document.querySelector('[data-vnext-operator-decision-form="v0.1"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)}`,
+        `selected candidate ${candidateId}`,
+      );
+    };
+    const clickTransitionAction = async (action) => {
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = document.querySelector('[data-vnext-transition-action="${action}"]');
+          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+          button.click();
+          return true;
+        })()`),
+        true,
+        `selected candidate ${action} Transition action must be enabled`,
+      );
+    };
+    const reviewTransitionCheckbox = async (step) => {
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const checkbox = document.querySelector('[data-vnext-transition-step="${step}"] input[type="checkbox"]');
+          if (!(checkbox instanceof HTMLInputElement) || checkbox.disabled) return false;
+          checkbox.click();
+          return checkbox.checked;
+        })()`),
+        true,
+        `selected candidate ${step} review checkbox must be enabled`,
+      );
+    };
+
+    await recordSelectedAcceptDecision(
+      candidateA,
+      "Accept candidate A for a separately previewed and authorized transition interaction-scope proof.",
+    );
+    await selectCandidate(candidateB);
+    await recordSelectedAcceptDecision(
+      candidateB,
+      "Accept candidate B independently so candidate-local decisions and persisted receipts can be distinguished.",
+    );
+
+    await selectCandidate(candidateA);
+    const beforeLatePreview = databaseSnapshot(database);
+    pauseNextSemanticTransitionRequest("preview");
+    await clickTransitionAction("preview");
+    await waitForPausedSemanticTransitionRequest("preview");
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
+      ),
+      true,
+      "read-only preview permits safe candidate switching while its response is discarded by exact scope",
+    );
+    await selectCandidate(candidateB);
+    const candidateBShapeBeforeLateResponse = await evaluateJson(`(() => {
+      const transition = document.querySelector('[data-vnext-semantic-transition-actions="v0.1"]');
+      const preview = transition?.querySelector('[data-vnext-transition-step="preview"]');
+      const confirmation = transition?.querySelector('[data-vnext-transition-step="confirmation"]');
+      const apply = transition?.querySelector('[data-vnext-transition-step="apply"]');
+      const later = transition?.querySelector('[data-vnext-transition-step="later-packet"]');
+      const confirmButton = transition?.querySelector('[data-vnext-transition-action="confirm"]');
+      const applyButton = transition?.querySelector('[data-vnext-transition-action="apply"]');
+      return {
+        applying_decisions: transition?.getAttribute('data-vnext-transition-applying-decision-count'),
+        persisted_receipts: transition?.getAttribute('data-vnext-transition-persisted-receipt-count'),
+        preview: preview?.getAttribute('data-vnext-transition-step-status'),
+        confirmation: confirmation?.getAttribute('data-vnext-transition-step-status'),
+        apply: apply?.getAttribute('data-vnext-transition-step-status'),
+        later_packet: later?.getAttribute('data-vnext-transition-step-status'),
+        checkbox_count: transition?.querySelectorAll('input[type="checkbox"]').length ?? -1,
+        error_or_status_count: transition?.querySelectorAll('[role="alert"], [role="status"]').length ?? -1,
+        confirm_disabled: confirmButton instanceof HTMLButtonElement && confirmButton.disabled,
+        apply_disabled: applyButton instanceof HTMLButtonElement && applyButton.disabled,
+        exact_decision_value: transition?.querySelector('select option:checked')?.textContent?.trim().split(' ')[0] ?? null,
+        accepted_wording_present: /exact accepted decision|accept carries intent/i.test(transition?.textContent ?? ''),
+      };
+    })()`);
+    assert.deepEqual(candidateBShapeBeforeLateResponse, {
+      applying_decisions: "1",
+      persisted_receipts: "0",
+      preview: "not_prepared",
+      confirmation: "not_recorded",
+      apply: "not_applied",
+      later_packet: "not_compiled",
+      checkbox_count: 0,
+      error_or_status_count: 0,
+      confirm_disabled: true,
+      apply_disabled: true,
+      exact_decision_value: "accept",
+      accepted_wording_present: false,
+    });
+    await releasePausedSemanticTransitionRequest("preview");
+    await waitForRequestQuiet();
+    assert.deepEqual(databaseSnapshot(database), beforeLatePreview);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const transition = document.querySelector('[data-vnext-semantic-transition-actions="v0.1"]');
+        return transition?.querySelector('[data-vnext-transition-step="preview"]')?.getAttribute('data-vnext-transition-step-status') === 'not_prepared' &&
+          transition.querySelectorAll('input[type="checkbox"]').length === 0 &&
+          transition.querySelectorAll('[role="alert"], [role="status"]').length === 0 &&
+          transition.getAttribute('data-vnext-transition-persisted-receipt-count') === '0';
+      })()`),
+      true,
+      "candidate A's late preview response must not populate candidate B",
+    );
+
+    await selectCandidate(candidateA);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const transition = document.querySelector('[data-vnext-semantic-transition-actions="v0.1"]');
+        return transition?.querySelector('[data-vnext-transition-step="preview"]')?.getAttribute('data-vnext-transition-step-status') === 'not_prepared' &&
+          transition.getAttribute('data-vnext-transition-persisted-receipt-count') === '0' &&
+          transition.querySelectorAll('input[type="checkbox"]').length === 0 &&
+          transition.querySelectorAll('[role="alert"], [role="status"]').length === 0;
+      })()`),
+      true,
+      "switching back must not resurrect candidate A ephemeral preview state",
+    );
+    await clickTransitionAction("preview");
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]') !== null`,
+      "fresh candidate A preview after switch-back",
+    );
+    await reviewTransitionCheckbox("preview");
+
+    pauseNextSemanticTransitionRequest("confirm");
+    await clickTransitionAction("confirm");
+    await waitForPausedSemanticTransitionRequest("confirm");
+    await waitForCondition(
+      `document.querySelector('[data-vnext-candidate-selector="v0.1"][disabled][data-vnext-transition-mutation-busy="true"]') !== null`,
+      "candidate selector locked during gate confirmation",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="true"]');
+        const controls = Array.from(form?.querySelectorAll('select, textarea, button') ?? []);
+        return controls.length > 0 && controls.every((control) => control.disabled === true);
+      })()`),
+      true,
+      "all candidate A decision-form controls must render disabled during gate confirmation",
+    );
+    await releasePausedSemanticTransitionRequest("confirm");
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-step="confirmation"][data-vnext-transition-step-status="recorded"]') !== null && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
+      "candidate A gate completion unlocks selector",
+    );
+    await reviewTransitionCheckbox("confirmation");
+
+    pauseNextSemanticTransitionRequest("apply");
+    await clickTransitionAction("apply");
+    await waitForPausedSemanticTransitionRequest("apply");
+    await waitForCondition(
+      `document.querySelector('[data-vnext-candidate-selector="v0.1"][disabled][data-vnext-transition-mutation-busy="true"]') !== null`,
+      "candidate selector locked during Transition application",
+    );
+    assert.equal(
+      await evaluateBoolean(`document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="true"] button:disabled') !== null`),
+      true,
+      "candidate A decision submission must render disabled during Transition apply",
+    );
+    await releasePausedSemanticTransitionRequest("apply");
+    await waitForCondition(
+      `document.querySelector('[data-vnext-transition-step="apply"][data-vnext-transition-step-status="applied"]') !== null && document.querySelector('[data-vnext-transition-persisted-receipt-count="1"]') !== null && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
+      "candidate A Transition completion unlocks selector",
+    );
+
+    const afterMultiCandidate = readDirectHostBrowserState(manifest.project_id);
+    assert.deepEqual(afterMultiCandidate.semantic_authority_counts, {
+      ...beforeMultiCandidate.semantic_authority_counts,
+      semantic_state:
+        beforeMultiCandidate.semantic_authority_counts.semantic_state + 1,
+      decisions: beforeMultiCandidate.semantic_authority_counts.decisions + 2,
+      commit_gates:
+        beforeMultiCandidate.semantic_authority_counts.commit_gates + 1,
+      transitions:
+        beforeMultiCandidate.semantic_authority_counts.transitions + 1,
+      packets: beforeMultiCandidate.semantic_authority_counts.packets + 1,
+    });
+    result.review_decisions_created += 2;
+    result.semantic_transitions_created += 1;
+    result.multi_candidate_transition_scope = true;
+    result.candidate_switch_mutation_locking = true;
+    result.late_preview_response_discarded = true;
+    result.applying_decision_wording_truthful = true;
+    record("multi_candidate_transition_state_is_bound_to_exact_candidate_and_decision");
+    record("late_preview_response_is_discarded_after_candidate_switch");
+    record("gate_and_apply_mutations_lock_candidate_and_proposal_local_controls");
+    record("applying_decision_wording_and_exact_values_remain_truthful");
+  });
+
   const unexpectedConsoleErrors = consoleErrors.filter(
     (entry) =>
       !(
@@ -3034,6 +3343,11 @@ async function main() {
         request.phase === "strategic_proposal_review" &&
         (request.path === "/api/vnext/projects" ||
           request.path === "/api/vnext/operator/semantic-review")
+      ) &&
+      !(
+        request.phase === "multi_candidate_transition_scope" &&
+        (request.path === "/api/vnext/operator/semantic-review" ||
+          request.path === "/api/vnext/operator/semantic-transition")
       ) &&
       !(
         request.phase === "retired_routes" &&
@@ -3378,6 +3692,14 @@ function attachCdpObservers() {
           requestId: event.params.requestId,
           errorReason: "BlockedByClient",
         }).catch(() => undefined);
+      } else if (
+        pausedSemanticTransitionRequest &&
+        !pausedSemanticTransitionRequest.request_id &&
+        classification.path === "/api/vnext/operator/semantic-transition" &&
+        semanticTransitionRequestAction(event.params?.request) ===
+          pausedSemanticTransitionRequest.action
+      ) {
+        pausedSemanticTransitionRequest.request_id = event.params.requestId;
       } else {
         void cdp.send("Fetch.continueRequest", {
           requestId: event.params.requestId,
@@ -3460,6 +3782,44 @@ function attachCdpObservers() {
       });
     }
   });
+}
+
+function semanticTransitionRequestAction(request) {
+  const method = String(request?.method ?? "GET").toUpperCase();
+  if (method === "GET") return "preview";
+  try {
+    const body = JSON.parse(String(request?.postData ?? "{}"));
+    return body.action === "confirm" || body.action === "apply"
+      ? body.action
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function pauseNextSemanticTransitionRequest(action) {
+  assert.equal(pausedSemanticTransitionRequest, null);
+  pausedSemanticTransitionRequest = { action, request_id: null };
+}
+
+async function waitForPausedSemanticTransitionRequest(action) {
+  await waitForHostCondition(
+    () =>
+      pausedSemanticTransitionRequest?.action === action &&
+      typeof pausedSemanticTransitionRequest.request_id === "string",
+    `paused semantic Transition ${action} request`,
+  );
+}
+
+async function releasePausedSemanticTransitionRequest(action) {
+  assert.equal(pausedSemanticTransitionRequest?.action, action);
+  assert.equal(
+    typeof pausedSemanticTransitionRequest?.request_id,
+    "string",
+  );
+  const requestId = pausedSemanticTransitionRequest.request_id;
+  pausedSemanticTransitionRequest = null;
+  await cdp.send("Fetch.continueRequest", { requestId });
 }
 
 function classifyUrl(value) {

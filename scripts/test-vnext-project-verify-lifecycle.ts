@@ -1546,6 +1546,27 @@ function assertOperatorPilotProjectVerifyDecisionAdapterV01(): void {
       assert.equal(recorded.status, "inserted");
       assert.equal(recorded.decision.decision, expectedDecision);
       assert.equal(
+        recorded.decision.compatibility.warnings.includes(
+          "The applying ReviewDecision carries intent for a separately recomputed gate and Transition path; the decision itself applies no state.",
+        ),
+        true,
+      );
+      assert.equal(
+        recorded.decision.compatibility.warnings.some((warning) =>
+          /accept carries intent|accepted decision/iu.test(warning),
+        ),
+        false,
+      );
+      if (expectedDecision === "supersede" || expectedDecision === "retract") {
+        assert.equal(
+          recorded.decision.compatibility.warnings.some((warning) =>
+            /\baccept(?:ed)?\b/iu.test(warning),
+          ),
+          false,
+          `${expectedDecision} compatibility metadata must not describe an accept decision`,
+        );
+      }
+      assert.equal(
         recorded.decision.requested_transition_intent?.transition_kind,
         applying.transition_kind,
       );

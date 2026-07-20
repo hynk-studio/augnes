@@ -25,6 +25,8 @@ import styles from "./semantic-review.module.css";
 export function DecisionCenteredProposalDetail({
   project,
   read,
+  selectedCandidateId,
+  onSelectedCandidateChange,
   busyCandidateId,
   onDecision,
   onRevision,
@@ -38,6 +40,8 @@ export function DecisionCenteredProposalDetail({
 }: {
   project: SemanticReviewProjectV01;
   read: SemanticReviewProposalDetailV01;
+  selectedCandidateId: string | null;
+  onSelectedCandidateChange: (candidateId: string) => void;
   busyCandidateId: string | null;
   onDecision: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
   onRevision: (request: SemanticReviewRevisionRequestV01) => Promise<void>;
@@ -54,9 +58,7 @@ export function DecisionCenteredProposalDetail({
   endOperatorMutation: () => void;
 }) {
   const proposal = read.proposal;
-  const [selectedCandidateId, setSelectedCandidateId] = useState(
-    read.candidates[0]?.candidate.candidate_id ?? "",
-  );
+  const [transitionMutationBusy, setTransitionMutationBusy] = useState(false);
   const selected =
     read.candidates.find(
       (candidate) => candidate.candidate.candidate_id === selectedCandidateId,
@@ -74,6 +76,8 @@ export function DecisionCenteredProposalDetail({
   const applyingDecision = selected
     ? selectedApplyingDecisionV01(read, selected.candidate.candidate_id)
     : "accept";
+  const proposalLocalBusy =
+    busyCandidateId !== null || transitionMutationBusy;
   const strategicActionsAvailable =
     !proposal.strategic_advantage_transfer ||
     read.strategic_analysis.status === "available";
@@ -127,7 +131,7 @@ export function DecisionCenteredProposalDetail({
             value={String(read.project_continuity.pending_proposal_count)}
           />
           <DataPoint
-            label="Accepted decisions awaiting Transition"
+            label="Applying decisions awaiting Transition"
             value={String(
               read.project_continuity.pending_accepted_decision_count,
             )}
@@ -181,7 +185,7 @@ export function DecisionCenteredProposalDetail({
       <StrategicAdvantageTransferPanel
         proposal={proposal}
         readback={read.strategic_analysis}
-        busy={strategicAnalysisBusy}
+        busy={strategicAnalysisBusy || transitionMutationBusy}
         onRequest={onStrategicAnalysis}
       />
 
@@ -207,9 +211,15 @@ export function DecisionCenteredProposalDetail({
             Candidate to review
             <select
               className={styles.selectControl}
+              data-vnext-candidate-selector="v0.1"
+              data-vnext-transition-mutation-busy={String(
+                transitionMutationBusy,
+              )}
               value={selected?.candidate.candidate_id ?? ""}
-              disabled={busyCandidateId !== null}
-              onChange={(event) => setSelectedCandidateId(event.target.value)}
+              disabled={proposalLocalBusy}
+              onChange={(event) =>
+                onSelectedCandidateChange(event.target.value)
+              }
             >
               {read.candidates.map((candidate) => (
                 <option
@@ -325,7 +335,7 @@ export function DecisionCenteredProposalDetail({
                 proposalFingerprint={proposal.integrity.fingerprint}
                 candidateRead={selected}
                 applyingDecision={applyingDecision}
-                busy={busyCandidateId !== null}
+                busy={proposalLocalBusy}
                 onSubmit={onDecision}
               />
             ) : (
@@ -353,7 +363,7 @@ export function DecisionCenteredProposalDetail({
                 sourceAssessment={proposal.source_assessment}
                 strategicAdvantageTransfer={proposal.strategic_advantage_transfer}
                 candidateRead={selected}
-                busy={busyCandidateId !== null}
+                busy={proposalLocalBusy}
                 onSubmit={onRevision}
               />
             ) : null}
@@ -367,9 +377,16 @@ export function DecisionCenteredProposalDetail({
 
       {selected ? (
         <SemanticTransitionActions
+          key={[
+            proposal.proposal_id,
+            proposal.integrity.fingerprint,
+            selected.candidate.candidate_id,
+            selected.candidate_fingerprint,
+          ].join("|")}
           proposalId={proposal.proposal_id}
           proposalFingerprint={proposal.integrity.fingerprint}
           selectedCandidateId={selected.candidate.candidate_id}
+          selectedCandidateFingerprint={selected.candidate_fingerprint}
           decisions={read.decision_history
             .filter((item) => item.pilot_actionable)
             .map((item) => item.decision)}
@@ -379,13 +396,14 @@ export function DecisionCenteredProposalDetail({
           onPrivateMaterialChanged={onPrivateMaterialChanged}
           tryBeginOperatorMutation={tryBeginOperatorMutation}
           endOperatorMutation={endOperatorMutation}
+          onApplyingMutationBusyChange={setTransitionMutationBusy}
         />
       ) : null}
 
       <LaterContextFeedback
         read={read}
         proposalId={proposal.proposal_id}
-        busy={busyCandidateId !== null}
+        busy={proposalLocalBusy}
         onContextUseReview={onContextUseReview}
       />
 

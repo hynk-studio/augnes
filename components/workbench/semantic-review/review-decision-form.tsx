@@ -62,6 +62,7 @@ export function ReviewDecisionForm({
       className={styles.form}
       data-vnext-operator-decision-form="v0.1"
       data-vnext-operator-decision-candidate={candidateRead.candidate.candidate_id}
+      data-vnext-proposal-local-controls-busy={String(busy)}
       onSubmit={submitDecision}
     >
       <label htmlFor={`decision-${candidateRead.candidate.candidate_id}`}>
@@ -70,6 +71,7 @@ export function ReviewDecisionForm({
       <select
         id={`decision-${candidateRead.candidate.candidate_id}`}
         value={decision}
+        disabled={busy}
         onChange={(event) => setDecision(event.target.value as SupportedDecision)}
       >
         <option value="defer">Defer for later review</option>
@@ -91,6 +93,7 @@ export function ReviewDecisionForm({
         maxLength={2000}
         required
         value={rationaleSummary}
+        disabled={busy}
         onChange={(event) => setRationaleSummary(event.target.value)}
       />
 
@@ -104,6 +107,7 @@ export function ReviewDecisionForm({
             maxLength={2000}
             required
             value={revisitCondition}
+            disabled={busy}
             onChange={(event) => setRevisitCondition(event.target.value)}
             placeholder="Describe what new information should trigger another review."
           />

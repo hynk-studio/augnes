@@ -18,6 +18,8 @@ const SEMANTIC_TRANSITION_ROUTE =
 
 type TransitionStepV01 = "preview" | "confirm" | "apply";
 
+const ignoreApplyingMutationBusyChange = (_busy: boolean): void => undefined;
+
 export interface SemanticTransitionPriorPacketBindingV01 {
   packet_id: string;
   packet_fingerprint: string;
@@ -27,6 +29,7 @@ export function SemanticTransitionActions({
   proposalId,
   proposalFingerprint,
   selectedCandidateId,
+  selectedCandidateFingerprint,
   decisions,
   persistedReceipts,
   priorPacket,
@@ -34,10 +37,12 @@ export function SemanticTransitionActions({
   onPrivateMaterialChanged,
   tryBeginOperatorMutation,
   endOperatorMutation,
+  onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
 }: {
   proposalId: string;
   proposalFingerprint: string;
   selectedCandidateId?: string;
+  selectedCandidateFingerprint?: string;
   decisions: ReviewDecisionV01[];
   persistedReceipts: StateTransitionReceiptV01[];
   priorPacket: SemanticTransitionPriorPacketBindingV01 | null;
@@ -45,20 +50,40 @@ export function SemanticTransitionActions({
   onPrivateMaterialChanged: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
+  onApplyingMutationBusyChange?: (busy: boolean) => void;
 }) {
   const applyingDecisions = useMemo(
     () =>
       decisions.filter(
         (decision) =>
           (!selectedCandidateId ||
-            decision.candidate.candidate_id === selectedCandidateId) &&
+            (decision.candidate.candidate_id === selectedCandidateId &&
+              (!selectedCandidateFingerprint ||
+                decision.candidate.candidate_fingerprint ===
+                  selectedCandidateFingerprint))) &&
           (decision.decision === "accept" ||
             decision.decision === "supersede" ||
             decision.decision === "retract") &&
           decision.requested_transition_intent !== null &&
           decision.requested_transition_intent.applied === false,
       ),
-    [decisions, selectedCandidateId],
+    [decisions, selectedCandidateFingerprint, selectedCandidateId],
+  );
+  const candidatePersistedReceipts = useMemo(
+    () =>
+      persistedReceipts.filter(
+        (receipt) =>
+          !selectedCandidateId ||
+          (receipt.source_candidate.candidate_id === selectedCandidateId &&
+            (!selectedCandidateFingerprint ||
+              receipt.source_candidate.candidate_fingerprint ===
+                selectedCandidateFingerprint)),
+      ),
+    [
+      persistedReceipts,
+      selectedCandidateFingerprint,
+      selectedCandidateId,
+    ],
   );
   const [selectedDecisionId, setSelectedDecisionId] = useState(
     applyingDecisions.at(-1)?.decision_id ?? "",
@@ -68,7 +93,7 @@ export function SemanticTransitionActions({
       (decision) => decision.decision_id === selectedDecisionId,
     ) ?? applyingDecisions.at(-1) ?? null;
   const persistedReceiptForSelectedDecision = selectedDecision
-    ? persistedReceipts
+    ? candidatePersistedReceipts
         .filter(
           (receipt) =>
             receipt.source_decision.decision_id === selectedDecision.decision_id &&
@@ -77,6 +102,8 @@ export function SemanticTransitionActions({
         )
         .at(-1) ?? null
     : null;
+  const persistedReceiptForSelectedCandidate =
+    candidatePersistedReceipts.at(-1) ?? null;
   const [previewResponse, setPreviewResponse] =
     useState<SemanticTransitionPreviewRouteResponseV01 | null>(null);
   const [confirmationResponse, setConfirmationResponse] =
@@ -89,6 +116,40 @@ export function SemanticTransitionActions({
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const requestInFlight = useRef(false);
+  const mounted = useRef(true);
+  const requestGeneration = useRef(0);
+  const selectedDecisionScope = selectedDecision
+    ? [
+        proposalId,
+        proposalFingerprint,
+        selectedDecision.candidate.candidate_id,
+        selectedDecision.candidate.candidate_fingerprint,
+        selectedDecision.decision_id,
+        selectedDecision.integrity.fingerprint,
+      ].join("|")
+    : [
+        proposalId,
+        proposalFingerprint,
+        selectedCandidateId ?? "all-candidates",
+        selectedCandidateFingerprint ?? "unknown-candidate-fingerprint",
+        "no-applying-decision",
+      ].join("|");
+  const previousSelectedDecisionScope = useRef(selectedDecisionScope);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      requestGeneration.current += 1;
+      onApplyingMutationBusyChange(false);
+    };
+  }, [onApplyingMutationBusyChange]);
+
+  useEffect(() => {
+    if (previousSelectedDecisionScope.current === selectedDecisionScope) return;
+    previousSelectedDecisionScope.current = selectedDecisionScope;
+    resetDerivedSteps();
+  }, [selectedDecisionScope]);
 
   useEffect(() => {
     if (!selectedDecision && applyingDecisions.length > 0) {
@@ -97,19 +158,49 @@ export function SemanticTransitionActions({
   }, [applyingDecisions, selectedDecision]);
 
   function resetDerivedSteps(): void {
+    requestGeneration.current += 1;
+    requestInFlight.current = false;
     setPreviewResponse(null);
     setConfirmationResponse(null);
     setApplyResponse(null);
     setPreviewReviewed(false);
     setGateReviewed(false);
+    setBusyStep(null);
     setErrorCode(null);
     setStatusMessage(null);
   }
 
+  function beginRequest(step: TransitionStepV01): number {
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    requestInFlight.current = true;
+    setBusyStep(step);
+    if (step === "confirm" || step === "apply") {
+      onApplyingMutationBusyChange(true);
+    }
+    return generation;
+  }
+
+  function requestIsCurrent(generation: number): boolean {
+    return mounted.current && requestGeneration.current === generation;
+  }
+
+  function finishRequest(
+    generation: number,
+    step: TransitionStepV01,
+  ): void {
+    requestInFlight.current = false;
+    if (step === "confirm" || step === "apply") {
+      onApplyingMutationBusyChange(false);
+    }
+    if (requestIsCurrent(generation)) {
+      setBusyStep(null);
+    }
+  }
+
   async function preparePreview(): Promise<void> {
     if (!selectedDecision || requestInFlight.current) return;
-    requestInFlight.current = true;
-    setBusyStep("preview");
+    const requestGeneration = beginRequest("preview");
     setErrorCode(null);
     setStatusMessage(null);
     setPreviewReviewed(false);
@@ -131,6 +222,7 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionPreviewRouteResponseV01
         | SemanticTransitionRouteErrorV01;
+      if (!requestIsCurrent(requestGeneration)) return;
       if (!response.ok) {
         handleRouteError(response.status, body);
         return;
@@ -182,10 +274,11 @@ export function SemanticTransitionActions({
         "Fresh preview prepared from persisted state. The preview wrote nothing.",
       );
     } catch {
-      setErrorCode("semantic_transition_preview_request_failed");
+      if (requestIsCurrent(requestGeneration)) {
+        setErrorCode("semantic_transition_preview_request_failed");
+      }
     } finally {
-      requestInFlight.current = false;
-      setBusyStep(null);
+      finishRequest(requestGeneration, "preview");
     }
   }
 
@@ -199,8 +292,7 @@ export function SemanticTransitionActions({
     ) {
       return;
     }
-    requestInFlight.current = true;
-    setBusyStep("confirm");
+    const requestGeneration = beginRequest("confirm");
     setErrorCode(null);
     setStatusMessage(null);
     setConfirmationResponse(null);
@@ -224,6 +316,7 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionConfirmationRouteResponseV01
         | SemanticTransitionRouteErrorV01;
+      if (!requestIsCurrent(requestGeneration)) return;
       if (!response.ok) {
         handleRouteError(response.status, body);
         return;
@@ -257,11 +350,12 @@ export function SemanticTransitionActions({
       );
       await onPrivateMaterialChanged();
     } catch {
-      setErrorCode("semantic_transition_confirmation_request_failed");
+      if (requestIsCurrent(requestGeneration)) {
+        setErrorCode("semantic_transition_confirmation_request_failed");
+      }
     } finally {
-      requestInFlight.current = false;
       endOperatorMutation();
-      setBusyStep(null);
+      finishRequest(requestGeneration, "confirm");
     }
   }
 
@@ -276,8 +370,7 @@ export function SemanticTransitionActions({
     ) {
       return;
     }
-    requestInFlight.current = true;
-    setBusyStep("apply");
+    const requestGeneration = beginRequest("apply");
     setErrorCode(null);
     setStatusMessage(null);
     setApplyResponse(null);
@@ -303,6 +396,7 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionApplyRouteResponseV01
         | SemanticTransitionRouteErrorV01;
+      if (!requestIsCurrent(requestGeneration)) return;
       if (!response.ok) {
         handleRouteError(response.status, body);
         return;
@@ -340,11 +434,12 @@ export function SemanticTransitionActions({
       );
       await onPrivateMaterialChanged();
     } catch {
-      setErrorCode("semantic_transition_apply_request_failed");
+      if (requestIsCurrent(requestGeneration)) {
+        setErrorCode("semantic_transition_apply_request_failed");
+      }
     } finally {
-      requestInFlight.current = false;
       endOperatorMutation();
-      setBusyStep(null);
+      finishRequest(requestGeneration, "apply");
     }
   }
 
@@ -367,7 +462,9 @@ export function SemanticTransitionActions({
   const preview = previewResponse?.preview ?? null;
   const gate = confirmationResponse?.gate_record ?? null;
   const receipt =
-    applyResponse?.transition_receipt ?? persistedReceiptForSelectedDecision;
+    applyResponse?.transition_receipt ??
+    persistedReceiptForSelectedDecision ??
+    (selectedDecision ? null : persistedReceiptForSelectedCandidate);
   const laterPacket = applyResponse?.later_packet ?? null;
   const allBusy = busyStep !== null;
 
@@ -375,6 +472,10 @@ export function SemanticTransitionActions({
     <section
       className={styles.panel}
       data-vnext-semantic-transition-actions="v0.1"
+      data-vnext-transition-applying-decision-count={applyingDecisions.length}
+      data-vnext-transition-persisted-receipt-count={
+        candidatePersistedReceipts.length
+      }
       data-vnext-local-authentication="secret-possession-not-external-identity"
       aria-labelledby="semantic-transition-actions-title"
     >
@@ -384,7 +485,7 @@ export function SemanticTransitionActions({
           Preview consequence, authorize the gate, then apply
         </h2>
         <p className={styles.copy}>
-          These controls act only on the selected candidate and its exact accepted
+          These controls act only on the selected candidate and its exact applying
           decision. Preview writes nothing. Gate authorization still applies no state.
           Only the final successful Transition changes durable semantic state and
           compiles later context.
@@ -401,7 +502,7 @@ export function SemanticTransitionActions({
       </p>
 
       {applyingDecisions.length === 0 ? (
-        <p className={styles.empty} data-vnext-transition-actions-status="awaiting_accept">
+        <p className={styles.empty} data-vnext-transition-actions-status="awaiting_applying_decision">
           Record the eligible applying ReviewDecision before preparing a transition preview.
           Reject and defer decisions do not enter this commit path.
         </p>
@@ -431,7 +532,11 @@ export function SemanticTransitionActions({
 
       {selectedDecision ? (
         <details className={styles.disclosure}>
-          <summary>Exact accepted decision and intent binding</summary>
+          <summary>Exact applying decision and intent binding</summary>
+          <DataPoint
+            label="Canonical ReviewDecision"
+            value={selectedDecision.decision}
+          />
           <span className={styles.identifier}>{selectedDecision.decision_id}</span>
           <span className={styles.identifier}>{selectedDecision.integrity.fingerprint}</span>
           <span className={styles.identifier}>
