@@ -163,18 +163,19 @@ const taskContextSource = source("lib/vnext/task-context-packet.ts");
 const lineageSource = source(
   "lib/vnext/runtime/operator-pilot-workbench-lineage.ts",
 );
-const lineagePanel = source(
-  "components/workbench/semantic-review/durable-lineage-panel.tsx",
+const sharedInspectorSurface = source(
+  "components/workbench/inspector/shared-project-inspector-surface.tsx",
 );
 assert.equal(taskContextSource.includes("isTaskContextPacketIdV01"), true);
 assert.equal(taskContextSource.includes("TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01"), true);
 assert.equal(lineageSource.includes("packet_compiled"), true);
 assert.equal(lineageSource.includes("later_result"), false);
 assert.equal(lineageSource.includes("context_use_review"), false);
-assert.equal(lineagePanel.includes("Open exact packet handoff"), false);
-assert.equal(lineagePanel.includes("fetch("), false);
-assert.equal(lineagePanel.includes("<form"), false);
-record("packet_identity_is_absorbed_and_workbench_lineage_is_read_only");
+assert.equal(sharedInspectorSurface.includes("Open exact packet handoff"), false);
+assert.equal(sharedInspectorSurface.includes("fetch("), false);
+assert.equal(sharedInspectorSurface.includes("<form"), false);
+assert.equal(sharedInspectorSurface.includes("semantic mutation"), false);
+record("packet_identity_is_absorbed_and_shared_inspector_is_read_only");
 
 assert.equal(
   semanticReviewDetailEntryPresentationV01(
@@ -592,7 +593,7 @@ for (const marker of [
 const credentialSafeSources = [
   session,
   source("components/workbench/semantic-review/semantic-transition-actions.tsx"),
-  lineagePanel,
+  sharedInspectorSurface,
 ].join("\n");
 for (const forbidden of [
   "localStorage",
@@ -800,7 +801,7 @@ assert.deepEqual(assertions, [
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
-  "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
+  "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
   "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",
   "semantic_workbench_entry_source_and_state_are_consistent",
   "package_and_canonical_graph_have_no_retired_manual_aliases",

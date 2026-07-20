@@ -187,6 +187,7 @@ export interface ProjectHomeAutomationSummaryV01 {
   admission_reason: string;
   current_run_summary: BoundedAutomationCycleProjectionV01["run"];
   cycle: BoundedAutomationCycleProjectionV01;
+  inspector_href: string;
 }
 
 export interface ProjectHomePersonalPerspectiveSummaryV01 {
@@ -202,7 +203,10 @@ export interface ProjectHomePersonalPerspectiveSummaryV01 {
   explanation: string;
   task_selected_count: number;
   task_basis: null | {
+    packet_id: string;
+    packet_fingerprint: string;
     packet_generated_at: string;
+    inspector_href: string;
     selected_count: number;
     items: Array<{
       summary: string | null;
@@ -229,6 +233,7 @@ export interface ProjectHomeCoordinationV01 {
   gap_count: number;
   personal_perspective_affected_task: boolean;
   primary_action: SemanticWorkbenchEntryV01 | null;
+  inspector_href: string;
   projection_only: true;
   semantic_authority_granted: false;
 }

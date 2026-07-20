@@ -5,10 +5,8 @@ import { useState } from "react";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 
 import { ContextUseReviewForm } from "./context-use-review-form";
-import { DurableLineagePanel } from "./durable-lineage-panel";
 import { OperationAwareRevisionForm } from "./operation-aware-revision-form";
 import { ProjectVerificationWorkbench } from "./project-verification-workbench";
-import { RunAssessmentSnapshot } from "./proposal-detail";
 import { ReviewDecisionForm } from "./review-decision-form";
 import { SemanticTransitionActions } from "./semantic-transition-actions";
 import { StrategicAdvantageTransferPanel } from "./strategic-advantage-transfer-panel";
@@ -16,14 +14,13 @@ import type {
   SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
   SemanticReviewProposalDetailV01,
-  SemanticReviewProjectV01,
   SemanticReviewRevisionRequestV01,
   SemanticReviewStrategicAnalysisRequestV01,
 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 
 export function DecisionCenteredProposalDetail({
-  project,
   read,
   selectedCandidateId,
   onSelectedCandidateChange,
@@ -38,7 +35,6 @@ export function DecisionCenteredProposalDetail({
   tryBeginOperatorMutation,
   endOperatorMutation,
 }: {
-  project: SemanticReviewProjectV01;
   read: SemanticReviewProposalDetailV01;
   selectedCandidateId: string | null;
   onSelectedCandidateChange: (candidateId: string) => void;
@@ -91,6 +87,11 @@ export function DecisionCenteredProposalDetail({
           packet_fingerprint: packetRef.source_ref,
         }
       : null;
+  const proposalInspectorHref = createSharedInspectorHrefV01({
+    target_kind: "episode_delta_proposal",
+    record_id: proposal.proposal_id,
+    expected_fingerprint: proposal.integrity.fingerprint,
+  });
 
   return (
     <section
@@ -145,18 +146,18 @@ export function DecisionCenteredProposalDetail({
             value={String(read.project_continuity.current_accepted_state_count)}
           />
         </dl>
-        <details className={styles.disclosure}>
-          <summary>Exact proposal identity and compatibility lineage</summary>
-          <span className={styles.identifier}>{project.workspace_id}</span>
-          <span className={styles.identifier}>{project.project_id}</span>
-          <span className={styles.identifier}>{proposal.proposal_id}</span>
-          <span className={styles.identifier}>{proposal.integrity.fingerprint}</span>
-          <span className={styles.muted}>Created {proposal.created_at}</span>
-        </details>
+        <div className={styles.buttonRow}>
+          <a
+            className={styles.linkButton}
+            href={proposalInspectorHref}
+            data-proposal-to-shared-inspector="true"
+          >
+            Inspect exact proposal and source lineage
+          </a>
+        </div>
       </section>
 
       <ProjectVerificationWorkbench
-        project={project}
         reconciliation={read.project_verify_reconciliation}
         lineage={read.project_verify_lineage}
         sourceAssessment={proposal.source_assessment}
@@ -165,26 +166,10 @@ export function DecisionCenteredProposalDetail({
         packetRef={proposal.task_context_packet_ref}
       />
 
-      {proposal.source_assessment ? (
-        <details className={styles.inspectionDisclosure}>
-          <summary>Retained exact assessment compatibility detail</summary>
-          <p className={styles.muted}>
-            The canonical reasoning sequence above is the active Verify view.
-            This exact historical assessment read remains available until PR C
-            completes the shared Inspector audit.
-          </p>
-          <RunAssessmentSnapshot
-            source={proposal.source_assessment}
-            criterionRelationsSourceBound={
-              read.criterion_specific_relations_source_bound
-            }
-          />
-        </details>
-      ) : null}
-
       <StrategicAdvantageTransferPanel
         proposal={proposal}
         readback={read.strategic_analysis}
+        inspectorHref={proposalInspectorHref}
         busy={strategicAnalysisBusy || transitionMutationBusy}
         onRequest={onStrategicAnalysis}
       />
@@ -295,16 +280,19 @@ export function DecisionCenteredProposalDetail({
               title="Transition blockers"
               items={selected.pilot_admission.blocking_reasons.map(humanize)}
             />
-            <details className={styles.disclosure}>
-              <summary>Exact selected candidate and target bindings</summary>
-              <span className={styles.identifier}>{selected.candidate.candidate_id}</span>
-              <span className={styles.identifier}>{selected.candidate_fingerprint}</span>
-              {selected.candidate.target_refs.map((ref) => (
-                <span className={styles.identifier} key={externalRefKey(ref)}>
-                  {ref.ref_type} · {ref.external_id} · {ref.source_ref ?? "no source fingerprint"}
-                </span>
-              ))}
-            </details>
+            <a
+              className={styles.linkButton}
+              href={createSharedInspectorHrefV01({
+                target_kind: "proposal_candidate",
+                proposal_id: proposal.proposal_id,
+                proposal_fingerprint: proposal.integrity.fingerprint,
+                candidate_id: selected.candidate.candidate_id,
+                candidate_fingerprint: selected.candidate_fingerprint,
+              })}
+              data-candidate-to-shared-inspector="true"
+            >
+              Inspect exact candidate and target bindings
+            </a>
 
             {proposal.operation_revision ? (
               <section
@@ -407,14 +395,25 @@ export function DecisionCenteredProposalDetail({
         onContextUseReview={onContextUseReview}
       />
 
-      <details className={styles.inspectionDisclosure}>
-        <summary>Retained exact R6 lineage inspection</summary>
-        <p className={styles.muted}>
-          This read-only compatibility detail remains available until PR C
-          attaches the shared Inspector. It contains no mutation controls.
+      <section className={styles.panel} data-shared-inspector-handoff="true">
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Exact read-heavy drill-down</p>
+          <h2>Shared Inspector</h2>
+        </div>
+        <p className={styles.copy}>
+          Exact source, immutable revision, decision, gate, Transition, current
+          head, later-packet, and feedback lineage share one read-only
+          destination. All ReviewDecision and Transition mutations remain here
+          in the Semantic Workbench.
         </p>
-        <DurableLineagePanel lineage={read.durable_lineage} />
-      </details>
+        <a
+          className={styles.linkButton}
+          href={proposalInspectorHref}
+          data-workbench-to-shared-inspector="true"
+        >
+          Open exact proposal lineage
+        </a>
+      </section>
     </section>
   );
 }
@@ -719,22 +718,6 @@ function DataPoint({ label, value }: { label: string; value: string }) {
       <dd>{value}</dd>
     </div>
   );
-}
-
-function externalRefKey(ref: {
-  compatibility_namespace?: string | null;
-  ref_type: string;
-  external_id: string;
-  trust_class: string;
-  source_ref?: string | null;
-}): string {
-  return [
-    ref.compatibility_namespace ?? "",
-    ref.ref_type,
-    ref.external_id,
-    ref.trust_class,
-    ref.source_ref ?? "",
-  ].join("|");
 }
 
 function humanize(value: string): string {

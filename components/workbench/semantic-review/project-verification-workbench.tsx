@@ -3,16 +3,13 @@ import type { CriterionAssessmentTrustV01 } from "@/types/vnext/criterion-assess
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
   ProjectVerifyClaimFamilyProjectionV01,
-  ProjectVerifyClaimRevisionProjectionV01,
-  ProjectVerifyExactProtocolRefV01,
   ProjectVerifyReconciliationV01,
   ProjectVerifyRelationFamilyProjectionV01,
-  ProjectVerifyRelationRevisionProjectionV01,
 } from "@/types/vnext/project-verify-reconciliation";
 import type { ProjectVerifyLineageV01 } from "@/types/vnext/project-verify-lineage";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 
-import type { SemanticReviewProjectV01 } from "./semantic-review-types";
 import {
   boundedProjectVerifyDisplayTextV01,
   findExactClaimRevisionV01,
@@ -23,7 +20,6 @@ import {
 import styles from "./semantic-review.module.css";
 
 export function ProjectVerificationWorkbench({
-  project,
   reconciliation,
   lineage,
   sourceAssessment,
@@ -31,7 +27,6 @@ export function ProjectVerificationWorkbench({
   sourceCurrentness,
   packetRef,
 }: {
-  project: SemanticReviewProjectV01;
   reconciliation: ProjectVerifyReconciliationV01;
   lineage?: ProjectVerifyLineageV01;
   sourceAssessment?: EpisodeDeltaProposalSourceAssessmentV01;
@@ -76,11 +71,6 @@ export function ProjectVerificationWorkbench({
           />
           <DataPoint label="Observed" value={reconciliation.observed_at} />
         </dl>
-        <details className={styles.disclosure}>
-          <summary>Exact workspace and project scope</summary>
-          <span className={styles.identifier}>{project.workspace_id}</span>
-          <span className={styles.identifier}>{project.project_id}</span>
-        </details>
         {reconciliation.completeness.status !== "complete" ? (
           <p className={styles.notice} data-vnext-bounded-read-incomplete="true">
             This bounded Core read is {humanize(reconciliation.completeness.status)}.
@@ -138,13 +128,22 @@ export function ProjectVerificationWorkbench({
                 Context authority: selected working context, not project truth
               </span>
               {packetRef ? (
-                <details className={styles.disclosure}>
-                  <summary>Exact source packet binding</summary>
-                  <ExactExternalRefs
-                    title="Exact source packet"
-                    refs={[packetRef]}
-                  />
-                </details>
+                packetRef.ref_type === "task_context_packet" &&
+                packetRef.source_ref?.startsWith("sha256:") ? (
+                  <a
+                    className={styles.linkButton}
+                    href={createSharedInspectorHrefV01({
+                      target_kind: "task_context_packet",
+                      record_id: packetRef.external_id,
+                      expected_fingerprint: packetRef.source_ref,
+                    })}
+                    data-context-to-shared-inspector="true"
+                  >
+                    Inspect exact selected context
+                  </a>
+                ) : (
+                  <p className={styles.empty}>Exact packet binding is unavailable.</p>
+                )
               ) : (
                 <p className={styles.empty}>No exact source packet is bound.</p>
               )}
@@ -220,17 +219,17 @@ export function ProjectVerificationWorkbench({
                   </dl>
                   <CheckList receipt={receipt} />
                   <TrustSummary receipt={receipt} />
-                  <details className={styles.disclosure}>
-                    <summary>Exact receipt and artifact lineage</summary>
-                    <span className={styles.identifier}>{receipt.receipt_id}</span>
-                    <span className={styles.identifier}>
-                      {receipt.integrity.fingerprint}
-                    </span>
-                    <ExactExternalRefs
-                      title="Artifacts"
-                      refs={receipt.artifact_refs}
-                    />
-                  </details>
+                  <a
+                    className={styles.linkButton}
+                    href={createSharedInspectorHrefV01({
+                      target_kind: "run_receipt",
+                      record_id: receipt.receipt_id,
+                      expected_fingerprint: receipt.integrity.fingerprint,
+                    })}
+                    data-receipt-to-shared-inspector="true"
+                  >
+                    Inspect receipt, artifacts, and provenance
+                  </a>
                 </li>
               ))}
             </ol>
@@ -295,29 +294,22 @@ export function ProjectVerificationWorkbench({
                     )}
                   />
                   <TextList title="Uncertainty" items={criterion.uncertainty} />
-                  <details className={styles.disclosure}>
-                    <summary>Exact criterion source relations</summary>
-                    <ExactExternalRefs
-                      title="Supporting refs"
-                      refs={criterion.supporting_refs}
-                    />
-                    <ExactExternalRefs
-                      title="Opposing refs"
-                      refs={criterion.opposing_refs}
-                    />
-                    <ExactExternalRefs
-                      title="Missing refs"
-                      refs={criterion.missing_refs}
-                    />
-                    <ExactProtocolRefs
-                      title="Packet, receipt, and assessment"
-                      refs={[
-                        entry.packet_ref,
-                        entry.receipt_ref,
-                        entry.assessment_ref,
-                      ]}
-                    />
-                  </details>
+                  <a
+                    className={styles.linkButton}
+                    href={createSharedInspectorHrefV01({
+                      target_kind: "criterion",
+                      criterion_id: criterion.criterion_id,
+                      packet_id: entry.packet_ref.record_id,
+                      packet_fingerprint: entry.packet_ref.record_fingerprint,
+                      receipt_id: entry.receipt_ref.record_id,
+                      receipt_fingerprint: entry.receipt_ref.record_fingerprint,
+                      assessment_id: entry.assessment_ref.record_id,
+                      assessment_fingerprint: entry.assessment_ref.record_fingerprint,
+                    })}
+                    data-criterion-to-shared-inspector="true"
+                  >
+                    Inspect exact criterion lineage
+                  </a>
                 </li>
               );
             })}
@@ -366,11 +358,11 @@ export function ProjectVerificationWorkbench({
               <li key={`${conflict.conflict_kind}:${conflict.code}:${index}`}>
                 <strong>{humanize(conflict.conflict_kind)}</strong>
                 <span>{humanize(conflict.code)}</span>
-                <details className={styles.disclosure}>
-                  <summary>Exact conflict records and sources</summary>
-                  <ExactProtocolRefs title="Exact records" refs={conflict.exact_refs} />
-                  <ExactExternalRefs title="Exact sources" refs={conflict.source_refs} />
-                </details>
+                <span>
+                  Exact conflict records and sources remain unresolved in the
+                  canonical read. The shared Inspector exposes their bounded
+                  source lineage without changing this status.
+                </span>
               </li>
             ))}
           </ol>
@@ -403,19 +395,18 @@ export function ProjectVerificationWorkbench({
                   Transition applied: yes · later packet: {entry.later_packet_ref ? "recorded" : "pending"}
                   {` · feedback: ${entry.context_use_review_ref ? "recorded" : "pending"}`}
                 </span>
-                <details className={styles.disclosure}>
-                  <summary>Exact applied and later-context lineage</summary>
-                  <ExactProtocolRefs
-                    title="Exact applied lineage"
-                    refs={[
-                      entry.source_transition_receipt_ref,
-                      ...(entry.later_packet_ref ? [entry.later_packet_ref] : []),
-                      ...(entry.context_use_review_ref
-                        ? [entry.context_use_review_ref]
-                        : []),
-                    ]}
-                  />
-                </details>
+                <a
+                  className={styles.linkButton}
+                  href={createSharedInspectorHrefV01({
+                    target_kind: "state_transition_receipt",
+                    record_id: entry.source_transition_receipt_ref.record_id,
+                    expected_fingerprint:
+                      entry.source_transition_receipt_ref.record_fingerprint,
+                  })}
+                  data-transition-to-shared-inspector="true"
+                >
+                  Inspect Transition, later packet, and feedback
+                </a>
               </li>
             ))}
           </ol>
@@ -460,11 +451,17 @@ function EvidenceList({
               <span>Acceptance: not accepted by record existence</span>
               <TextList title="Limitations" items={entry.limitations} />
               <TextList title="Uncertainty" items={entry.uncertainty} />
-              <details className={styles.disclosure}>
-                <summary>Exact Evidence record and sources</summary>
-                <ExactProtocolRefs title="Exact Evidence record" refs={[toExactRef(entry.evidence_ref)]} />
-                <ExactExternalRefs title="Exact sources" refs={entry.source_refs} />
-              </details>
+              <a
+                className={styles.linkButton}
+                href={createSharedInspectorHrefV01({
+                  target_kind: "evidence_record",
+                  record_id: entry.evidence_ref.record_id,
+                  expected_fingerprint: entry.evidence_ref.record_fingerprint,
+                })}
+                data-evidence-to-shared-inspector="true"
+              >
+                Inspect exact Evidence and relations
+              </a>
             </li>
           ))}
         </ol>
@@ -554,43 +551,25 @@ function ClaimFamilyList({
                     omitted revisions are not treated as absent.
                   </p>
                 ) : null}
-                <details className={styles.disclosure}>
-                  <summary>Revision history and exact family lineage</summary>
-                  <ol className={styles.plainList}>
-                    {family.revisions.map((revision) => (
-                      <ClaimRevision key={revision.claim_ref.record_id} revision={revision} />
-                    ))}
-                  </ol>
-                  <span className={styles.identifier}>{family.claim_family_id}</span>
-                </details>
+                <a
+                  className={styles.linkButton}
+                  href={createSharedInspectorHrefV01({
+                    target_kind: "claim_family",
+                    family_id: family.claim_family_id,
+                    family_origin_fingerprint: family.family_origin_fingerprint,
+                    applicability_scope_fingerprint:
+                      family.applicability_scope_fingerprint,
+                  })}
+                  data-claim-family-to-shared-inspector="true"
+                >
+                  Inspect immutable Claim revisions
+                </a>
               </li>
             );
           })}
         </ol>
       )}
     </section>
-  );
-}
-
-function ClaimRevision({
-  revision,
-}: {
-  revision: ProjectVerifyClaimRevisionProjectionV01;
-}) {
-  return (
-    <li data-claim-application={revision.lifecycle.application.status}>
-      <strong>
-        Revision {revision.claim.revision} · {humanize(revision.claim.operation_intent)}
-      </strong>
-      <span>
-        {boundedProjectVerifyDisplayTextV01(revision.claim.proposition)}
-      </span>
-      <span>
-        Review {humanize(revision.lifecycle.review.status)} · decision {humanize(revision.lifecycle.decision.status)} · gate {humanize(revision.lifecycle.gate.status)} · Transition {humanize(revision.lifecycle.transition.status)} · application {humanize(revision.lifecycle.application.status)}
-      </span>
-      <span>Claim truth: not established</span>
-      <ExactProtocolRefs title="Exact Claim revision" refs={[toExactRef(revision.claim_ref)]} />
-    </li>
   );
 }
 
@@ -649,55 +628,25 @@ function RelationFamilyList({
                     The latest recorded relation is not the applied current relation.
                   </p>
                 ) : null}
-                <details className={styles.disclosure}>
-                  <summary>Relation revisions and exact endpoints</summary>
-                  <ol className={styles.plainList}>
-                    {family.revisions.map((revision) => (
-                      <RelationRevision
-                        key={revision.relation_ref.record_id}
-                        revision={revision}
-                      />
-                    ))}
-                  </ol>
-                  <ExactProtocolRefs
-                    title="Exact endpoints"
-                    refs={[
-                      toExactRef(family.claim_ref),
-                      toExactRef(family.evidence_ref),
-                    ]}
-                  />
-                </details>
+                <a
+                  className={styles.linkButton}
+                  href={createSharedInspectorHrefV01({
+                    target_kind: "relation_family",
+                    family_id: family.relation_family_id,
+                    family_origin_fingerprint: family.family_origin_fingerprint,
+                    applicability_scope_fingerprint:
+                      family.applicability_scope_fingerprint,
+                  })}
+                  data-relation-family-to-shared-inspector="true"
+                >
+                  Inspect relation revisions and endpoints
+                </a>
               </li>
             );
           })}
         </ol>
       )}
     </section>
-  );
-}
-
-function RelationRevision({
-  revision,
-}: {
-  revision: ProjectVerifyRelationRevisionProjectionV01;
-}) {
-  return (
-    <li data-relation-application={revision.lifecycle.application.status}>
-      <strong>
-        Revision {revision.relation.revision} · {humanize(revision.relation.relation_kind)}
-      </strong>
-      <span>
-        {humanize(revision.relation.basis)} basis · {humanize(revision.relation.trust_class)} trust
-      </span>
-      <span>
-        Review {humanize(revision.lifecycle.review.status)} · decision {humanize(revision.lifecycle.decision.status)} · gate {humanize(revision.lifecycle.gate.status)} · Transition {humanize(revision.lifecycle.transition.status)} · application {humanize(revision.lifecycle.application.status)}
-      </span>
-      <span>Relation proves Claim: no</span>
-      <ExactProtocolRefs
-        title="Exact relation revision"
-        refs={[toExactRef(revision.relation_ref)]}
-      />
-    </li>
   );
 }
 
@@ -725,20 +674,11 @@ function LineageStop({ lineage }: { lineage: ProjectVerifyLineageV01 }) {
           />
         ))}
       </div>
-      <details className={styles.disclosure}>
-        <summary>Exact lineage nodes and edges</summary>
-        <ol className={styles.plainList}>
-          {lineage.nodes.map((node) => (
-            <li key={node.node_id}>
-              <strong>{humanize(node.node_kind)} · {humanize(node.status)}</strong>
-              <span>{humanize(node.authority_boundary)}</span>
-              {node.exact_ref ? (
-                <ExactProtocolRefs title="Exact record" refs={[node.exact_ref]} />
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      </details>
+      <p className={styles.muted}>
+        Exact nodes, edges, source refs, and fingerprints are available through
+        the shared Inspector. This Workbench keeps the user-readable stop and
+        lifecycle status needed for a decision.
+      </p>
     </section>
   );
 }
@@ -819,40 +759,6 @@ function TextList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function ExactExternalRefs({ title, refs }: { title: string; refs: ExternalRefV01[] }) {
-  if (refs.length === 0) return <p className={styles.muted}>{title}: none</p>;
-  return (
-    <section className={styles.exactRefs} aria-label={title}>
-      <strong>{title}</strong>
-      {refs.map((ref, index) => (
-        <span className={styles.identifier} key={`${externalRefKey(ref)}:${index}`}>
-          {ref.ref_type} · {ref.external_id} · {ref.trust_class} · {ref.source_ref ?? "no source fingerprint"}
-        </span>
-      ))}
-    </section>
-  );
-}
-
-function ExactProtocolRefs({
-  title,
-  refs,
-}: {
-  title: string;
-  refs: ProjectVerifyExactProtocolRefV01[];
-}) {
-  if (refs.length === 0) return <p className={styles.muted}>{title}: none</p>;
-  return (
-    <section className={styles.exactRefs} aria-label={title}>
-      <strong>{title}</strong>
-      {refs.map((ref) => (
-        <span className={styles.identifier} key={`${ref.record_kind}:${ref.record_id}:${ref.record_fingerprint}`}>
-          {ref.record_kind} · {ref.record_id} · {ref.record_fingerprint}
-        </span>
-      ))}
-    </section>
-  );
-}
-
 function DataPoint({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -869,26 +775,6 @@ function Count({ label, value }: { label: string; value: string | number }) {
       <strong>{value}</strong>
     </div>
   );
-}
-
-function toExactRef(
-  ref: {
-    record_kind: "evidence_record" | "claim_record" | "claim_evidence_relation";
-    record_id: string;
-    record_fingerprint: string;
-  },
-): ProjectVerifyExactProtocolRefV01 {
-  return ref;
-}
-
-function externalRefKey(ref: ExternalRefV01): string {
-  return [
-    ref.compatibility_namespace ?? "",
-    ref.ref_type,
-    ref.external_id,
-    ref.trust_class,
-    ref.source_ref ?? "",
-  ].join("|");
 }
 
 function humanize(value: string): string {

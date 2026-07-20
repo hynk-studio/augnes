@@ -370,7 +370,7 @@ const movedResponsibilities = [
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
-  "packet_identity_is_absorbed_and_workbench_lineage_is_read_only",
+  "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
   "project_home_refresh_exact_projection_replay_is_idempotent",
   "project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run",

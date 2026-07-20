@@ -694,9 +694,8 @@ Augnes Project Home, Semantic Workbench 또는 상세 Inspector를 대체하지 
 
 ### 11.2 Augnes Project Home
 
-현재 Blank State는 목표 Project Home의 runtime predecessor이며 목표 책임의
-일부를 현재 수행한다. Project Home은 Resume을 위한 인간 소유 front door로서
-다음을 소유하거나 조합한다. 목표 Project Home이 완전히 구현됐다는 뜻은 아니다.
+Project Home은 `/`와 project-scoped route에서 Resume을 위한 인간 소유 front
+door로 동작하며 다음 coordination 책임을 소유하거나 조합한다.
 
 ```text
 current project coordinates와 Current Working Perspective
@@ -711,17 +710,15 @@ bounded resume context
 
 Project Home은 empty start screen, card warehouse, passive readback directory,
 workflow-stage panel collection, duplicate execution console 또는 긴 authority
-copy page가 아니다. 상세 provenance 탐색은 Inspector에 맡긴다. 전환 중에는
-`Blank State` 이름과 `/` route를 유지할 수 있으며, 목표 구현이 이미 완성된
-것으로 주장하지 않는다.
+copy page가 아니다. 상세 provenance 탐색은 shared Inspector에 맡기고, active
+semantic review와 결정은 Semantic Workbench에 맡긴다.
 
 ### 11.3 Augnes Semantic Workbench
 
-현재 Agent Workplane/Workbench는 목표 Semantic Workbench의 runtime
-predecessor이며 목표 책임의 일부를 현재 수행한다. 목표 Semantic Workbench가
-완전히 구현됐다는 뜻은 아니다. Workbench는 특정 host가 아직 못 하는 기능의
-잔여 집합이 아니라, 어느 단일 provider나 native host도 canonical project
-semantics로 소유해서는 안 되는 cross-host·cross-time 책임으로 정의한다.
+`/workbench/semantic-review`는 canonical Semantic Workbench이며
+`/workbench`는 작은 compatibility entry다. Workbench는 특정 host가 아직 못
+하는 기능의 잔여 집합이 아니라, 어느 단일 provider나 native host도 canonical
+project semantics로 소유해서는 안 되는 cross-host·cross-time 책임으로 정의한다.
 
 ```text
 cross-host result와 plan-versus-result 비교
@@ -764,6 +761,11 @@ Inspector는 상세 explorer, audit/lineage surface, shared drill-down system과
 projection composition layer다. 채팅·코드 편집·실행 shell이 아니며, sole
 front door, Blank State나 Workplane의 유일한 대체재, source of truth, durable
 authority surface 또는 active proposal/decision work의 대체재도 아니다.
+`shared_project_inspector.v0.1`은 `/workbench/inspector`에서 기존 canonical
+reader를 조합하는 non-durable projection이다. project scope는 authenticated
+server configuration에서만 오며, Inspector GET/render는 record, decision,
+gate, Transition, packet, feedback, automation, Perspective 또는 memory를
+만들거나 고르지 않고 model/provider/external action도 호출하지 않는다.
 
 ### 11.5 Product Compass와 surface 책임
 
@@ -789,10 +791,10 @@ ReviewDecision, Perspective/reviewed-memory 검토와 명시적 Core gate가 주
 지원한다. Inspector는 세 compass 모두를 drill-down으로 지원하지만 Home이나
 Workbench의 능동 interaction을 대체하지 않는다.
 
-현재 Blank State와 Agent Workplane의 유용한 기능은 각각 Project Home과
-Semantic Workbench로 전문화한다. 과거 Cockpit과 passive readback 중 중복되는
-부분은 shared projection과 Inspector composition으로 정리하되, parity와
-migration evidence 없이 유용한 기능을 `흡수`라는 말로 제거하지 않는다.
+Project Home, Semantic Workbench와 shared Inspector는 각각 Resume,
+Verify·Decide, exact read-only drill-down으로 전문화한다. compatibility entry와
+historical reader는 유지하고, passive readback 중 중복되는 부분은 parity와
+migration evidence가 있을 때만 shared Inspector composition으로 흡수한다.
 
 ---
 

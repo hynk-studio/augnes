@@ -32,6 +32,9 @@ The vNext commitments that remain active are:
 - later `ContextUseReview` feedback that traces whether accepted context or
   strategic transfers were helpful, stale, or misleading
 - Project Home, Semantic Workbench, and shared Inspector
+- Project Home owns Resume/current coordination; Semantic Workbench owns Verify
+  and Decide; the shared Inspector owns exact authenticated read-only drill-down
+  and gains no mutation or semantic authority from its name
 - a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
 - migration, backup, restore, update, recovery, and automated-run reconciliation
 
@@ -55,6 +58,9 @@ R8 Packaging, Update, Backup, Restore, Recovery, and run reconciliation
 Alpha: short interactive, automated, and available perspective-assisted verification
 Post-Alpha: usefulness and product-fit validation
 ```
+
+R7 completion is claimed only after the user merges its final shared-Inspector
+PR. R8 is a separate phase and does not begin as part of that final R7 vertical.
 
 ## Active versus deferred scope
 

@@ -67,6 +67,7 @@ export interface ProjectRunResultSummaryV01 {
   trust_label: "observed" | "mixed" | "host_attested" | "unknown";
   review_attention: ProjectRunResultAttentionV01;
   review_href: string;
+  inspector_href: string;
   mode: "interactive" | "policy_triggered" | "unknown";
 }
 

@@ -35,6 +35,18 @@ import {
   CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01,
 } from "../lib/vnext/model-gateway/canonical-test-strategic-transport.ts";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet.ts";
+import { commitVNextSemanticTransitionV01 } from "../lib/vnext/runtime/durable-semantic-transition.ts";
+import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler.ts";
+import { selectPersonalPerspectiveContextV01 } from "../lib/vnext/project-controls/project-controls.ts";
+import { readPersonalPerspectiveEffectiveScopeV01 } from "../lib/vnext/persistence/project-control-store.ts";
+import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "../lib/vnext/protocol-primitives.ts";
+import { evaluateCriterionAssessmentV01 } from "../lib/vnext/criterion-assessment.ts";
+import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal.ts";
+import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission.ts";
+import { createSharedInspectorHrefV01 } from "../lib/vnext/shared-project-inspector-href.ts";
 import {
   issueVNextLocalOperatorBootstrapV01,
   openVNextLocalOperatorDatabaseV01,
@@ -161,12 +173,17 @@ const result = {
   shared_semantic_workbench_shell: false,
   workbench_result_reload_durable: false,
   result_inspector_complete: false,
+  shared_inspector_read_only: false,
+  shared_inspector_server_scoped: false,
+  shared_inspector_reload_idempotent: false,
+  shared_inspector_narrow_viewport_no_overflow: false,
+  applied_inspector_lineage_complete: false,
   result_review_semantic_authority_unchanged: false,
   task_success_criterion_assessment: false,
   execution_task_success_separated: false,
   workbench_result_narrow_viewport_no_overflow: false,
   result_to_proposal_navigation: false,
-  proposal_assessment_snapshot: false,
+  proposal_verify_summary: false,
   decision_centered_workbench: false,
   canonical_reconciliation_visible: false,
   protocol_details_progressively_disclosed: false,
@@ -180,6 +197,7 @@ const result = {
   strategic_source_to_proposal_navigation: false,
   strategic_proposal_pending_unknown_non_authoritative: false,
   strategic_proposal_material_visible: false,
+  strategic_shared_inspector_complete: false,
   strategic_candidate_defer_no_transition: false,
   strategic_proposal_reload_idempotent: false,
   operation_aware_revision_created: false,
@@ -219,9 +237,11 @@ const result = {
   bounded_automation_review_needed: false,
   bounded_automation_reload_idempotent: false,
   bounded_automation_exact_relation_readback: false,
+  bounded_automation_shared_inspector_complete: false,
   bounded_automation_context_feedback_recorded: false,
   personal_perspective_default_excluded: false,
   personal_perspective_included: false,
+  personal_perspective_shared_inspector_exact: false,
   personal_perspective_project_b_excluded: false,
   project_controls_two_project_isolation: false,
   project_controls_restart_persisted: false,
@@ -1305,7 +1325,19 @@ async function main() {
       true,
     );
     const beforeReload = databaseSnapshot(database);
+    const strategicReloadResponseStart = responses.length;
     await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForHostCondition(
+      () =>
+        responses.slice(strategicReloadResponseStart).some(
+          (entry) =>
+            entry.path === "/api/vnext/operator/semantic-review" &&
+            entry.type === "Fetch" &&
+            entry.method === "GET" &&
+            entry.status === 200,
+        ),
+      "reloaded strategic Semantic Workbench response",
+    );
     await waitForCondition(
       `location.pathname === ${JSON.stringify(strategicPath)} && document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"] [data-vnext-strategic-transfer-items="true"]') !== null`,
       "strategic proposal after reload",
@@ -1319,6 +1351,56 @@ async function main() {
       JSON.parse(readFileSync(strategicTransportCounterPath, "utf8"))
         .transport_calls,
       1,
+    );
+    const beforeStrategicInspector = databaseSnapshot(database);
+    const strategicInspectorHref = await evaluateString(
+      `document.querySelector('[data-strategic-to-shared-inspector="true"]')?.getAttribute('href') ?? ''`,
+    );
+    assert.match(
+      strategicInspectorHref,
+      /^\/workbench\/inspector\?target=episode_delta_proposal&record_id=[^&]+&fingerprint=sha256%3A[a-f0-9]{64}$/u,
+    );
+    await navigate(new URL(strategicInspectorHref, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="episode_delta_proposal"] [data-inspector-section="strategic_perspective"]') !== null`,
+      "source-bound strategic shared Inspector",
+    );
+    const strategicInspectorShape = await evaluateJson(`(() => {
+      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+      const section = inspector?.querySelector('[data-inspector-section="strategic_perspective"]');
+      const text = section?.textContent ?? '';
+      return {
+        base_and_frame: text.includes('Exact accepted base strategy and fixed working frame'),
+        within_frame: text.includes('Within-frame source-bound transfer'),
+        frame_challenge: text.includes('Frame challenge material'),
+        model_receipt:
+          text.includes('Model invocation receipt') &&
+          text.includes('recorded provenance only'),
+        no_promotion:
+          text.includes('Automatic promotion') && text.includes('false'),
+        mutation_controls:
+          inspector?.querySelectorAll('form, [data-vnext-operator-decision-form], [data-vnext-transition-action]').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(strategicInspectorShape, {
+      base_and_frame: true,
+      within_frame: true,
+      frame_challenge: true,
+      model_receipt: true,
+      no_promotion: true,
+      mutation_controls: 0,
+    });
+    assert.deepEqual(databaseSnapshot(database), beforeStrategicInspector);
+    assert.equal(
+      JSON.parse(readFileSync(strategicTransportCounterPath, "utf8"))
+        .transport_calls,
+      1,
+    );
+    result.strategic_shared_inspector_complete = true;
+    await navigate(new URL(strategicPath, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(strategicPath)} && document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"]') !== null`,
+      "returned to strategic Semantic Workbench",
     );
     result.strategic_profile_explicit_request = true;
     result.strategic_model_gateway_fake_transport_calls = 1;
@@ -1970,27 +2052,17 @@ async function main() {
     );
     assert.equal(
       await evaluateBoolean(`(() => {
-        const inspector = document.querySelector('[data-run-result-inspector="v0.1"]');
-        if (!(inspector instanceof HTMLDetailsElement)) return false;
-        inspector.open = true;
-        return inspector.open;
+        const forwarding = document.querySelector('[data-run-result-inspector-forwarding="v0.1"]');
+        const link = forwarding?.querySelector('[data-result-to-shared-inspector="true"]');
+        return forwarding !== null && link?.getAttribute('href')?.startsWith('/workbench/inspector?target=run_receipt') === true;
       })()`),
       true,
     );
     const resultReviewShape = await evaluateJson(`(() => {
       const review = document.querySelector('[data-run-result-review="v0.1"]');
-      const inspector = document.querySelector('[data-run-result-inspector="v0.1"]');
+      const forwarding = document.querySelector('[data-run-result-inspector-forwarding="v0.1"]');
       const assessment = review?.querySelector('[data-task-success-criteria="available"]');
       const proposal = review?.querySelector('[data-run-result-proposal="available"]');
-      const criterionItems = assessment
-        ? Array.from(assessment.querySelectorAll('[data-criterion-status]'))
-        : [];
-      const criterionDrilldowns = assessment
-        ? Array.from(assessment.querySelectorAll('[data-criterion-source-drilldown="true"]'))
-        : [];
-      for (const drilldown of criterionDrilldowns) {
-        if (drilldown instanceof HTMLDetailsElement) drilldown.open = true;
-      }
       const text = review?.textContent ?? '';
       const assessmentText = assessment?.textContent ?? '';
       return {
@@ -2002,64 +2074,26 @@ async function main() {
               /proposal|decision|accept|commit|transition|evidence|close work/i.test(button.textContent ?? '')
             ).length
           : -1,
-        inspector_open: inspector instanceof HTMLDetailsElement && inspector.open,
-        lineage: text.includes('Identity and lineage') && text.includes('Packet fingerprint'),
-        changes: text.includes('src/live-result.ts') && text.includes('Bounded fake result artifact.'),
-        actions: text.includes('fake_app_server_turn_completed'),
-        checks: text.includes('fake-live-check') && text.includes('validated_packet_delivery'),
-        approvals: text.includes('Native host and approvals') && text.includes('explicit local operator'),
-        model_coverage: text.includes('native host internal outside coverage'),
-        trust_privacy: text.includes('Trust, coverage, and privacy') && text.includes('Raw prompt: not persisted'),
+        inspector_forwarding: forwarding !== null && forwarding.querySelector('[data-result-to-shared-inspector="true"]') !== null,
+        duplicate_lineage_absent: !text.includes('Identity and lineage') && !text.includes('Packet fingerprint'),
+        duplicate_artifacts_absent: !text.includes('src/live-result.ts') && !text.includes('Bounded fake result artifact.'),
+        duplicate_actions_absent: !text.includes('fake_app_server_turn_completed'),
+        duplicate_checks_absent: !text.includes('fake-live-check') && !text.includes('validated_packet_delivery'),
+        duplicate_approvals_absent: !text.includes('Native host and approvals') && !text.includes('explicit local operator'),
+        duplicate_model_coverage_absent: !text.includes('native host internal outside coverage'),
+        duplicate_trust_privacy_absent: !text.includes('Trust, coverage, and privacy') && !text.includes('Raw prompt: not persisted'),
         authority_boundary: text.includes('No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance, semantic state change, or work closure was created'),
         criterion_assessment_available: assessment !== null,
         execution_task_success_separated:
           assessment?.getAttribute('data-task-success-status') === 'unknown' &&
           assessmentText.includes('Execution completed / task success unknown'),
-        criterion_count: criterionItems.length,
-        criteria_unknown_insufficient: criterionItems.every(
-          (item) =>
-            item.getAttribute('data-criterion-status') === 'unknown' &&
-            item.getAttribute('data-criterion-basis') === 'insufficient',
-        ),
-        criterion_source_counts: criterionItems.every((item) => {
-          const sourceCountText = item.querySelector('small')?.textContent ?? '';
-          return (
-            sourceCountText.includes('0 supporting refs') &&
-            sourceCountText.includes('0 opposing refs') &&
-            sourceCountText.includes('0 criterion-specific missing refs')
-          );
-        }),
-        criterion_source_drilldown:
-          criterionDrilldowns.length === criterionItems.length &&
-          criterionDrilldowns.every(
-            (entry) => entry instanceof HTMLDetailsElement && entry.open,
-          ),
-        criterion_trust_scope: criterionItems.every(
-          (item) =>
-            item.querySelector('[data-criterion-trust-scope="task_wide_receipt"]') !== null &&
-            item.textContent?.includes('Task-wide receipt residue trust') === true,
-        ),
-        skipped_not_passed:
-          assessmentText.includes('was skipped') &&
-          !assessmentText.includes('skipped · passed'),
-        task_wide_residue_visible:
-          text.includes('Checks and skipped checks') &&
-          text.includes('required · skipped') &&
-          text.includes('Limitations and next steps') &&
-          text.includes('No live provider was called') &&
-          text.includes('Trust, coverage, and privacy') &&
-          text.includes('native host internal outside coverage') &&
-          assessmentText.includes('Task-wide receipt residue trust classes') &&
-          assessmentText.includes('Task-wide operation coverage') &&
-          assessmentText.includes('Task-wide receipt uncertainty'),
-        unsupported_unavailable:
-          assessment?.querySelector('[data-coverage-level="outside_coverage"]')?.textContent?.includes('unsupported / unavailable') === true,
-        criterion_trust_distinct:
-          assessmentText.includes('direct local observation') &&
-          assessmentText.includes('verified external observation') &&
-          assessmentText.includes('host attestation') &&
-          assessmentText.includes('provider report') &&
-          assessmentText.includes('derived interpretation'),
+        criterion_count: assessment?.querySelectorAll('[data-criterion-status]').length ?? -1,
+        compact_criterion_summary: assessment?.querySelector('[data-result-criterion-summary="compact"]') !== null,
+        skipped_not_passed: !assessmentText.includes('skipped · passed'),
+        duplicate_task_wide_residue_absent:
+          !text.includes('Checks and skipped checks') &&
+          !text.includes('Limitations and next steps') &&
+          !assessmentText.includes('Task-wide receipt residue trust classes'),
         criterion_authority_boundary:
           assessment?.getAttribute('data-assessment-authoritative') === 'false' &&
           assessmentText.includes('derived and non-authoritative') &&
@@ -2079,26 +2113,21 @@ async function main() {
       semantic_mutation: "false",
       form_field_count: 0,
       semantic_mutation_button_count: 0,
-      inspector_open: true,
-      lineage: true,
-      changes: true,
-      actions: true,
-      checks: true,
-      approvals: true,
-      model_coverage: true,
-      trust_privacy: true,
+      inspector_forwarding: true,
+      duplicate_lineage_absent: true,
+      duplicate_artifacts_absent: true,
+      duplicate_actions_absent: true,
+      duplicate_checks_absent: true,
+      duplicate_approvals_absent: true,
+      duplicate_model_coverage_absent: true,
+      duplicate_trust_privacy_absent: true,
       authority_boundary: true,
       criterion_assessment_available: true,
       execution_task_success_separated: true,
-      criterion_count: packet.task.success_criteria.length,
-      criteria_unknown_insufficient: true,
-      criterion_source_counts: true,
-      criterion_source_drilldown: true,
-      criterion_trust_scope: true,
+      criterion_count: 0,
+      compact_criterion_summary: true,
       skipped_not_passed: true,
-      task_wide_residue_visible: true,
-      unsupported_unavailable: true,
-      criterion_trust_distinct: true,
+      duplicate_task_wide_residue_absent: true,
       criterion_authority_boundary: true,
       proposal_available: true,
       private_root_visible: false,
@@ -2106,6 +2135,146 @@ async function main() {
       raw_protocol_visible: false,
     });
     await validateWorkbenchResultViewports();
+    const inspectorHref = await evaluateJson(`(() => {
+      const link = document.querySelector('[data-result-to-shared-inspector="true"]');
+      return link?.getAttribute('href') ?? '';
+    })()`);
+    assert.equal(
+      typeof inspectorHref === "string" &&
+        inspectorHref.startsWith("/workbench/inspector?target=run_receipt") &&
+        !/[?&](?:workspace_id|project_id|database|path|json)=/u.test(inspectorHref),
+      true,
+    );
+    const beforeInspectorRead = databaseSnapshot(database);
+    const inspectorResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector('[data-result-to-shared-inspector="true"]');
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-read-only="true"][data-inspector-semantic-mutation="false"][data-inspector-target-kind="run_receipt"]') !== null`,
+      "shared receipt-focused Inspector",
+    );
+    assert.equal(
+      responses.slice(inspectorResponseStart).some(
+        (entry) =>
+          entry.path === "/api/vnext/operator/inspector" &&
+          entry.method === "GET" &&
+          entry.status === 200,
+      ),
+      true,
+    );
+    const inspectorShape = await evaluateJson(`(() => {
+      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+      const text = inspector?.textContent ?? '';
+      const sections = Array.from(inspector?.querySelectorAll('[data-inspector-section]') ?? []);
+      const identities = Array.from(inspector?.querySelectorAll('details') ?? []);
+      return {
+        read_only: inspector?.getAttribute('data-inspector-read-only'),
+        semantic_mutation: inspector?.getAttribute('data-inspector-semantic-mutation'),
+        target_kind: inspector?.getAttribute('data-inspector-target-kind'),
+        section_count: sections.length,
+        section_kinds: sections.map((entry) => entry.getAttribute('data-inspector-section')),
+        forms: inspector?.querySelectorAll('form').length ?? -1,
+        semantic_controls: inspector
+          ? Array.from(inspector.querySelectorAll('button, input, textarea, select')).filter((entry) =>
+              /decision|accept|reject|defer|supersede|retract|gate|transition|apply|evidence/i.test(
+                entry.getAttribute('aria-label') ?? entry.textContent ?? ''
+              )
+            ).length
+          : -1,
+        exact_identity_collapsed: identities.length > 0 && identities.every((entry) => !entry.open),
+        server_scope: text.includes('Exact project scope comes from the authenticated server'),
+        context: text.includes('Selected context and work') && text.includes('selected working context, not truth'),
+        receipt: text.includes('Run and receipt') && text.includes('Host completion remains distinct from task success'),
+        residue:
+          text.includes('fake-live-check') &&
+          text.includes('validated_packet_delivery') &&
+          text.includes('src/live-result.ts') &&
+          text.includes('fake_app_server_turn_completed') &&
+          text.includes('explicit local operator'),
+        criterion: text.includes('Criterion basis') && text.includes('skipped checks do not satisfy a criterion'),
+        material_boundary:
+          text.includes('Claim truth') &&
+          text.includes('not established') &&
+          text.includes('relation existence is not proof'),
+        privacy:
+          text.includes('Integration health and capability coverage') &&
+          text.includes('Raw prompt persisted') &&
+          text.includes('false') &&
+          text.includes('Raw diff rendered'),
+        authority:
+          text.includes('This read created no Evidence') &&
+          text.includes('It invoked no model/provider and performed no external action.'),
+        private_root_visible: text.includes(${JSON.stringify(liveAfter.normalized_root)}),
+        raw_secret_visible: /OPENAI_API_KEY|sk-proj-|raw diff must never be persisted|jsonrpc/i.test(text),
+      };
+    })()`);
+    assert.deepEqual(inspectorShape, {
+      read_only: "true",
+      semantic_mutation: "false",
+      target_kind: "run_receipt",
+      section_count: 13,
+      section_kinds: [
+        "target_authority",
+        "timeline",
+        "selected_context_work",
+        "run_receipt",
+        "criterion_basis",
+        "evidence_claims_relations",
+        "proposal_candidate",
+        "decision_gate",
+        "transition_current_head",
+        "later_context_feedback",
+        "automation",
+        "strategic_perspective",
+        "integration_capability",
+      ],
+      forms: 0,
+      semantic_controls: 0,
+      exact_identity_collapsed: true,
+      server_scope: true,
+      context: true,
+      receipt: true,
+      residue: true,
+      criterion: true,
+      material_boundary: true,
+      privacy: true,
+      authority: true,
+      private_root_visible: false,
+      raw_secret_visible: false,
+    });
+    await validateSharedInspectorViewports();
+    const inspectorReloadStart = responses.length;
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForHostCondition(
+      () =>
+        responses.slice(inspectorReloadStart).some(
+          (entry) =>
+            entry.path === "/workbench/inspector" &&
+            entry.type === "Document" &&
+            entry.status === 200,
+        ),
+      "reloaded shared Inspector response",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="run_receipt"]') !== null`,
+      "reloaded shared receipt Inspector",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeInspectorRead);
+    result.shared_inspector_read_only = true;
+    result.shared_inspector_server_scoped = true;
+    result.shared_inspector_reload_idempotent = true;
+    result.shared_inspector_narrow_viewport_no_overflow = true;
+    await navigate(new URL(expectedReviewHref, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-run-result-review="v0.1"]') !== null`,
+      "returned from shared Inspector to result entry",
+    );
     result.workbench_result_review_read_only = true;
     result.result_inspector_complete = true;
     result.task_success_criterion_assessment = true;
@@ -2164,7 +2333,7 @@ async function main() {
       true,
     );
     await waitForCondition(
-      `location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && document.querySelector('[data-vnext-semantic-review-detail="v0.1"] [data-run-assessment-proposal="v0.1"]') !== null`,
+      `location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && document.querySelector('[data-vnext-semantic-review-detail="v0.1"] [data-vnext-decision-workbench="v0.1"]') !== null`,
       "result-linked run-assessment proposal detail",
     );
     assert.equal(
@@ -2185,12 +2354,8 @@ async function main() {
       const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const snapshot = detail?.querySelector('[data-run-assessment-proposal="v0.1"]');
       const strategic = detail?.querySelector('[data-vnext-strategic-advantage-transfer="unavailable"]');
-      const criteria = snapshot
-        ? Array.from(snapshot.querySelectorAll('[data-criterion-status]'))
-        : [];
       const text = detail?.textContent ?? '';
       const visibleText = detail?.innerText ?? '';
-      const snapshotText = snapshot?.textContent ?? '';
       const strategicText = strategic?.textContent ?? '';
       const canonical = detail?.querySelector('[data-vnext-decision-workbench="v0.1"]');
       const canonicalCriteria = canonical
@@ -2238,43 +2403,37 @@ async function main() {
           !visibleText.includes('Gate record ID'),
         pending_review: text.includes('pending_review'),
         execution_task_success:
-          snapshot?.getAttribute('data-task-success-status') === 'unknown' &&
-          snapshotText.includes('Execution completed / task success unknown'),
-        criteria_unknown_insufficient:
-          criteria.length === ${packet.task.success_criteria.length} &&
-          criteria.every((item) =>
+          canonical?.querySelector('[data-host-completion-not-task-success="true"]') !== null &&
+          canonical?.querySelector('[data-run-receipt-outcome="completed"]') !== null &&
+          canonicalCriteria.some((item) =>
             item.getAttribute('data-criterion-status') === 'unknown' &&
             item.getAttribute('data-criterion-basis') === 'insufficient'
           ),
-        criterion_refs_empty:
-          criteria.every((item) => {
-            const value = item.querySelector('small')?.textContent ?? '';
-            return value.includes('0 supporting refs') &&
-              value.includes('0 opposing refs') &&
-              value.includes('0 criterion-specific missing refs');
-          }),
+        retained_assessment_duplicate_absent: snapshot === null,
         checks_and_skips:
-          snapshotText.includes('fake-live-check') &&
-          snapshotText.includes('skipped') &&
-          !snapshotText.includes('skipped · passed'),
-        artifacts: snapshotText.includes('src/live-result.ts'),
+          canonical?.querySelector('[aria-label="Receipt checks and skips"] [data-check-status]') !== null &&
+          canonical?.textContent?.includes('unrelated passed checks') &&
+          !canonical?.textContent?.includes('skipped · passed'),
+        exact_result_detail_moved:
+          !text.includes('src/live-result.ts') &&
+          detail?.querySelector('[data-proposal-to-shared-inspector="true"]') !== null,
         coverage:
-          snapshot?.querySelector('[data-coverage-level="outside_coverage"]')?.textContent?.includes('unsupported / unavailable') === true,
+          canonical?.textContent?.includes('outside coverage') === true,
         trust:
-          snapshotText.includes('Direct observations') &&
-          snapshotText.includes('Host attestations') &&
-          snapshotText.includes('Derived interpretations'),
-        exact_lineage:
-          snapshotText.includes('Exact packet') &&
-          snapshotText.includes('Exact receipt') &&
-          snapshotText.includes('Exact run'),
+          canonical?.textContent?.includes('direct observations') &&
+          canonical?.textContent?.includes('host attestations') &&
+          canonical?.textContent?.includes('derived interpretations'),
+        exact_lineage_handoff:
+          detail?.querySelector('[data-workbench-to-shared-inspector="true"]') !== null &&
+          detail?.querySelector('[data-receipt-to-shared-inspector="true"]') !== null,
         no_decision_or_transition:
           text.includes('No ReviewDecision is persisted for this proposal') &&
           text.includes('not_applied'),
         non_authoritative:
-          snapshot?.getAttribute('data-assessment-authoritative') === 'false' &&
-          snapshotText.includes('creates no Evidence acceptance') &&
-          snapshotText.includes('later-context change'),
+          canonical?.textContent?.includes('non-authoritative comparison') &&
+          canonical?.textContent?.includes('relation is not proof') &&
+          canonical?.textContent?.includes('Candidate, decision-only, gate-only') &&
+          canonical?.textContent?.includes('did not change context'),
         strategic_optional_unavailable:
           strategic?.getAttribute('data-vnext-strategic-optional') === 'true' &&
           strategic?.getAttribute('data-vnext-strategic-authoritative') === 'false' &&
@@ -2311,13 +2470,12 @@ async function main() {
       protocol_details_not_visible_by_default: true,
       pending_review: true,
       execution_task_success: true,
-      criteria_unknown_insufficient: true,
-      criterion_refs_empty: true,
+      retained_assessment_duplicate_absent: true,
       checks_and_skips: true,
-      artifacts: true,
+      exact_result_detail_moved: true,
       coverage: true,
       trust: true,
-      exact_lineage: true,
+      exact_lineage_handoff: true,
       no_decision_or_transition: true,
       non_authoritative: true,
       strategic_optional_unavailable: true,
@@ -2339,7 +2497,7 @@ async function main() {
       false,
     );
     result.result_to_proposal_navigation = true;
-    result.proposal_assessment_snapshot = true;
+    result.proposal_verify_summary = true;
     result.decision_centered_workbench = true;
     result.canonical_reconciliation_visible = true;
     result.protocol_details_progressively_disclosed = true;
@@ -2561,7 +2719,7 @@ async function main() {
     const beforeClosureReload = databaseSnapshot(database);
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-vnext-durable-lineage="v0.1"][data-vnext-lineage-status="packet_compiled"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
+      `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-shared-inspector-handoff="true"] [data-workbench-to-shared-inspector="true"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
       "durable Transition and packet lineage after reload",
     );
     assert.deepEqual(databaseSnapshot(database), beforeClosureReload);
@@ -2584,6 +2742,48 @@ async function main() {
     assert.equal(result.semantic_transitions_created, 1);
     assert.equal(result.internal_id_entry_actions, 0);
     record("workbench_reload_reads_durable_lineage_without_duplicate_writes");
+
+    const beforeAppliedInspector = databaseSnapshot(database);
+    const appliedInspectorHref = await evaluateString(
+      `document.querySelector('[data-semantic-workbench-inspector="true"], [data-workbench-to-shared-inspector="true"]')?.getAttribute('href') ?? ''`,
+    );
+    assert.match(appliedInspectorHref, /^\/workbench\/inspector\?target=episode_delta_proposal&/u);
+    await navigate(new URL(appliedInspectorHref, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="episode_delta_proposal"]') !== null`,
+      "applied proposal-focused shared Inspector",
+    );
+    const appliedInspectorShape = await evaluateJson(`(() => {
+      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+      const decision = inspector?.querySelector('[data-inspector-section="decision_gate"]');
+      const transition = inspector?.querySelector('[data-inspector-section="transition_current_head"]');
+      const later = inspector?.querySelector('[data-inspector-section="later_context_feedback"]');
+      const text = inspector?.textContent ?? '';
+      return {
+        decision_gate: decision?.textContent?.includes('ReviewDecision: accept') === true && decision.textContent.includes('Semantic commit gate'),
+        applied_transition: transition?.textContent?.includes('Applied StateTransitionReceipt') === true && transition.textContent.includes('Head presence'),
+        later_packet: later?.textContent?.includes('Compiler-produced TaskContextPacket') === true,
+        separation:
+          text.includes('decision itself applies no state') &&
+          text.includes('authorization is not application') &&
+          text.includes('Only successfully applied StateTransitionReceipts change durable semantic state'),
+        mutation_controls: inspector?.querySelectorAll('form, [data-vnext-operator-decision-form], [data-vnext-transition-action]').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(appliedInspectorShape, {
+      decision_gate: true,
+      applied_transition: true,
+      later_packet: true,
+      separation: true,
+      mutation_controls: 0,
+    });
+    assert.deepEqual(databaseSnapshot(database), beforeAppliedInspector);
+    result.applied_inspector_lineage_complete = true;
+    await navigate(new URL(revisionPath, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
+      "returned to applied Semantic Workbench",
+    );
 
     await navigate(
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
@@ -2754,6 +2954,50 @@ async function main() {
     assert.deepEqual(databaseSnapshot(database), beforeBoundedReload);
     result.bounded_automation_reload_idempotent = true;
 
+    const beforeAutomationInspector = databaseSnapshot(database);
+    const automationInspectorHref = await evaluateString(
+      `document.querySelector('[data-project-automation-inspector="true"]')?.getAttribute('href') ?? ''`,
+    );
+    assert.match(automationInspectorHref, /^\/workbench\/inspector\?target=automation_run&/u);
+    await navigate(new URL(automationInspectorHref, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="automation_run"] [data-inspector-section="automation"]') !== null`,
+      "bounded automation shared Inspector",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+        const automation = inspector?.querySelector('[data-inspector-section="automation"]');
+        const text = automation?.textContent ?? '';
+        return (
+          text.includes('Policy control revision') &&
+          text.includes('Bounded CapabilityGrant') &&
+          text.includes('Bounded automation cycle') &&
+          text.includes('Bounded automation run') &&
+          text.includes('Bounded RunReceipt') &&
+          text.includes('Decision created') &&
+          text.includes('Transition created') &&
+          text.includes('false') &&
+          text.includes('no automatic decision, gate, Transition, Evidence acceptance, or Perspective promotion') &&
+          inspector?.querySelectorAll('form, [data-vnext-operator-decision-form], [data-vnext-transition-action]').length === 0
+        );
+      })()`),
+      true,
+    );
+    assert.deepEqual(databaseSnapshot(database), beforeAutomationInspector);
+    assert.deepEqual(
+      readDirectHostBrowserState(manifest.project_id).semantic_authority_counts,
+      afterBoundedCycle.semantic_authority_counts,
+    );
+    result.bounded_automation_shared_inspector_complete = true;
+    await navigate(
+      `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Cycle review needed') && document.querySelector('[data-project-automation-inspector="true"]') !== null`,
+      "returned to bounded automation Project Home",
+    );
+
     const contextUseFeedbackHref = await evaluateString(`(() => {
         const link = Array.from(document.querySelectorAll('a')).find(
           (candidate) => candidate.textContent?.trim() === 'Provide context-use feedback'
@@ -2787,39 +3031,24 @@ async function main() {
       const assessment = review?.querySelector(
         '[data-task-success-criteria="available"][data-task-success-status="satisfied"]'
       );
-      const criteria = Array.from(
-        assessment?.querySelectorAll('[data-criterion-assessment-items="true"] > [data-criterion-status]') ?? []
-      );
       return {
         read_only: review?.getAttribute('data-result-review-read-only') === 'true',
         semantic_mutation: review?.getAttribute('data-semantic-mutation') ?? null,
         form_field_count: review?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
-        criterion_count: criteria.length,
-        criteria_satisfied_observed: criteria.every(
-          (criterion) =>
-            criterion.getAttribute('data-criterion-status') === 'satisfied' &&
-            criterion.getAttribute('data-criterion-basis') === 'observed'
-        ),
-        exact_relation_trust: criteria.every(
-          (criterion) =>
-            criterion.querySelector('[data-criterion-trust-scope="exact_relation"]') !== null &&
-            criterion.textContent?.includes('Exact criterion relation trust') === true
-        ),
-        exact_relation_refs: criteria.every(
-          (criterion) =>
-            criterion.textContent?.includes('criterion_check_support') === true &&
-            criterion.textContent?.includes(${JSON.stringify(afterBoundedCycle.latest_receipt.integrity.fingerprint)}) === true
-        ),
+        compact_criterion_summary:
+          assessment?.querySelector('[data-result-criterion-summary="compact"]') !== null &&
+          assessment?.textContent?.includes('Satisfied4') === true,
+        duplicate_criterion_details: assessment?.querySelectorAll('[data-criterion-status]').length ?? -1,
+        shared_inspector_link: review?.querySelector('[data-result-to-shared-inspector="true"]') !== null,
       };
     })()`);
     assert.deepEqual(exactResultRelationReadback, {
       read_only: true,
       semantic_mutation: "false",
       form_field_count: 0,
-      criterion_count: 4,
-      criteria_satisfied_observed: true,
-      exact_relation_trust: true,
-      exact_relation_refs: true,
+      compact_criterion_summary: true,
+      duplicate_criterion_details: 0,
+      shared_inspector_link: true,
     });
     assert.deepEqual(databaseSnapshot(database), beforeBoundedResultRead);
     assert.equal(
@@ -2828,10 +3057,50 @@ async function main() {
         .some((request) => request.method !== "GET"),
       false,
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector('[data-result-to-shared-inspector="true"]');
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="run_receipt"] [data-inspector-section="criterion_basis"]') !== null`,
+      "policy-triggered receipt Inspector exact criterion basis",
+    );
+    const exactInspectorCriteria = await evaluateJson(`(() => {
+      const section = document.querySelector('[data-inspector-section="criterion_basis"]');
+      for (const details of section?.querySelectorAll('details') ?? []) details.open = true;
+      const criteria = Array.from(section?.querySelectorAll('[data-inspector-item-status]') ?? []);
+      const text = section?.textContent ?? '';
+      return {
+        criterion_count: criteria.length,
+        all_satisfied: criteria.every((entry) => entry.getAttribute('data-inspector-item-status') === 'satisfied'),
+        observed_basis: criteria.every((entry) => entry.textContent?.includes('observed') === true),
+        exact_support_refs:
+          text.includes('criterion assessment') &&
+          text.includes(${JSON.stringify(afterBoundedCycle.latest_receipt.integrity.fingerprint)}),
+        read_only: document.querySelector('[data-shared-project-inspector="v0.1"]')?.getAttribute('data-inspector-read-only'),
+      };
+    })()`);
+    assert.deepEqual(exactInspectorCriteria, {
+      criterion_count: 4,
+      all_satisfied: true,
+      observed_basis: true,
+      exact_support_refs: true,
+      read_only: "true",
+    });
+    assert.deepEqual(databaseSnapshot(database), beforeBoundedResultRead);
+    await navigate(new URL(boundedResultHref, appOrigin).toString());
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(boundedResultHref)} && document.querySelector('[data-result-criterion-summary="compact"]') !== null`,
+      "returned to compact policy-triggered result",
+    );
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `document.querySelectorAll('[data-task-success-criteria="available"] [data-criterion-trust-scope="exact_relation"]').length === 4`,
-      "policy-triggered exact criterion result reload",
+      `document.querySelector('[data-task-success-criteria="available"][data-task-success-status="satisfied"] [data-result-criterion-summary="compact"]') !== null`,
+      "policy-triggered compact criterion result reload",
     );
     assert.deepEqual(databaseSnapshot(database), beforeBoundedResultRead);
     assert.equal(
@@ -2844,48 +3113,51 @@ async function main() {
     const boundedProposalRequestStart = requests.length;
     await navigate(new URL(boundedReviewProposalHref, appOrigin).toString());
     await waitForCondition(
-      `document.querySelector('[data-run-assessment-proposal="v0.1"][data-criterion-relations-available="true"]') !== null`,
-      "policy-triggered exact criterion proposal detail",
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"] [data-vnext-decision-workbench="v0.1"]') !== null`,
+      "policy-triggered canonical proposal detail",
+    );
+    const proposalInspectorHref = await evaluateString(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      if (detail?.querySelector('[data-run-assessment-proposal="v0.1"]') !== null) return '';
+      return detail?.querySelector('[data-proposal-to-shared-inspector="true"]')?.getAttribute('href') ?? '';
+    })()`);
+    assert.match(
+      proposalInspectorHref,
+      /^\/workbench\/inspector\?target=episode_delta_proposal&record_id=[^&]+&fingerprint=sha256%3A[a-f0-9]{64}$/u,
+    );
+    await navigate(new URL(proposalInspectorHref, appOrigin).toString());
+    await waitForCondition(
+      `document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="episode_delta_proposal"] [data-inspector-section="criterion_basis"]') !== null`,
+      "policy-triggered proposal-focused criterion Inspector",
     );
     const exactRelationReadback = await evaluateJson(`(() => {
-      const assessment = document.querySelector(
-        '[data-run-assessment-proposal="v0.1"][data-criterion-relations-available="true"]'
-      );
+      const assessment = document.querySelector('[data-inspector-section="criterion_basis"]');
+      for (const details of assessment?.querySelectorAll('details') ?? []) details.open = true;
       const criteria = Array.from(
-        assessment?.querySelectorAll('[data-proposal-criterion-items="true"] > [data-criterion-status]') ?? []
+        assessment?.querySelectorAll('[data-inspector-item-status]') ?? []
       );
+      const text = assessment?.textContent ?? '';
       return {
         present: assessment !== null,
-        task_success: assessment?.getAttribute('data-task-success-status') ?? null,
-        relation_copy: assessment?.textContent?.includes('exact typed relations available') ?? false,
         criterion_count: criteria.length,
         criteria_satisfied_observed: criteria.every(
           (criterion) =>
-            criterion.getAttribute('data-criterion-status') === 'satisfied' &&
-            criterion.getAttribute('data-criterion-basis') === 'observed'
+            criterion.getAttribute('data-inspector-item-status') === 'satisfied' &&
+            criterion.textContent?.includes('observed') === true
         ),
-        exact_relation_trust: criteria.every(
-          (criterion) =>
-            criterion.querySelector('[data-criterion-trust-scope="exact_relation"]') !== null
-        ),
-        exact_relation_refs: criteria.every((criterion) => {
-          const relations = criterion.querySelector('[data-criterion-relation-refs="true"]');
-          return (
-            relations !== null &&
-            relations.textContent?.includes('criterion_check_support') === true &&
-            relations.textContent?.includes('source fingerprint sha256:') === true
-          );
-        }),
+        exact_relation_refs:
+          text.includes('criterion assessment') &&
+          text.includes(${JSON.stringify(afterBoundedCycle.latest_receipt.integrity.fingerprint)}),
+        read_only:
+          document.querySelector('[data-shared-project-inspector="v0.1"]')?.getAttribute('data-inspector-read-only'),
       };
     })()`);
     assert.deepEqual(exactRelationReadback, {
       present: true,
-      task_success: "satisfied",
-      relation_copy: true,
       criterion_count: 4,
       criteria_satisfied_observed: true,
-      exact_relation_trust: true,
       exact_relation_refs: true,
+      read_only: "true",
     });
     assert.deepEqual(databaseSnapshot(database), beforeBoundedProposalRead);
     assert.equal(
@@ -2896,8 +3168,8 @@ async function main() {
     );
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `document.querySelector('[data-run-assessment-proposal="v0.1"][data-criterion-relations-available="true"] [data-criterion-trust-scope="exact_relation"]') !== null`,
-      "policy-triggered exact criterion relation reload",
+      `document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="episode_delta_proposal"] [data-inspector-section="criterion_basis"] [data-inspector-item-status="satisfied"]') !== null`,
+      "policy-triggered proposal Inspector relation reload",
     );
     assert.deepEqual(databaseSnapshot(database), beforeBoundedProposalRead);
     assert.equal(
@@ -3266,6 +3538,588 @@ async function main() {
     record("applying_decision_wording_and_exact_values_remain_truthful");
   });
 
+  await runPhase("personal_perspective_inspector", async () => {
+    await navigate(
+      `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      "active Personal Perspective source Project Home",
+    );
+    if (
+      await evaluateBoolean(
+        `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Include Personal Perspective' && button instanceof HTMLButtonElement && !button.disabled)`,
+      )
+    ) {
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === 'Include Personal Perspective' &&
+              candidate instanceof HTMLButtonElement && !candidate.disabled
+          );
+          button?.click();
+          return Boolean(button);
+        })()`),
+        true,
+      );
+      await waitForCondition(
+        `document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Exclude Personal Perspective')`,
+        "included Personal Perspective scope for exact source project",
+      );
+    } else {
+      assert.equal(
+        await evaluateBoolean(
+          `document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
+        ),
+        true,
+        "Personal Perspective source project must already be explicitly included",
+      );
+    }
+    const currentPacket = database
+      .prepare(
+        `SELECT payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'task_context_packet'
+           AND workspace_id = ?
+           AND project_id = ?
+         ORDER BY created_at DESC, record_id DESC`,
+      )
+      .all(manifest.workspace_id, manifest.project_id)
+      .map((row) => JSON.parse(row.payload_json))
+      .find((packet) =>
+        packet.selected_context?.some(
+          (entry) => entry.entry_kind === "accepted_state_ref",
+        ),
+      );
+    assert(currentPacket, "current accepted-state packet fixture missing");
+    const beforePersonalPerspective = readDirectHostBrowserState(
+      manifest.project_id,
+    );
+    const personalPerspectiveSummary =
+      "Reviewed task preference selected only for the exact R7-C browser packet.";
+    const unrelatedProjectSummary =
+      "UNRELATED PROJECT PERSONAL PERSPECTIVE MUST REMAIN EXCLUDED";
+    const sourcePacketGeneratedAt = new Date().toISOString();
+    const personalPerspectiveCandidate = {
+      candidate_scope: {
+        scope_kind: "canonical_project",
+        workspace_id: manifest.workspace_id,
+        project_id: manifest.project_id,
+      },
+      review_status: "reviewed",
+      trust_policy_status: "eligible",
+      entry: {
+        entry_id: "personal-perspective:r7c-browser-exact-task",
+        entry_kind: "memory_ref",
+        source_ref: "personal-perspective-source:r7c-browser-exact-task",
+        external_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "reviewed_memory",
+          external_id: "reviewed-memory:r7c-browser-exact-task",
+          observed_at: sourcePacketGeneratedAt,
+          trust_class: "direct_local_observation",
+        },
+        why_included:
+          "The reviewed preference was selected for this exact task packet.",
+        currentness: {
+          status: "fresh",
+          as_of: sourcePacketGeneratedAt,
+          basis:
+            "Exact reviewed candidate supplied to normal project context selection.",
+          source_ref: {
+            ref_version: "external_ref.v0.1",
+            ref_type: "reviewed_memory_currentness",
+            external_id: "reviewed-memory-currentness:r7c-browser-exact-task",
+            observed_at: sourcePacketGeneratedAt,
+            trust_class: "direct_local_observation",
+          },
+        },
+        trust_class: "direct_local_observation",
+        compatibility_source_ref: {
+          ref_version: "external_ref.v0.1",
+          ref_type: "reviewed_memory_compatibility",
+          external_id: "reviewed-memory-compatibility:r7c-browser-exact-task",
+          observed_at: sourcePacketGeneratedAt,
+          trust_class: "direct_local_observation",
+        },
+        bounded_summary: personalPerspectiveSummary,
+      },
+    };
+    const personalPerspectiveScopeDatabase = new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    let personalPerspectiveSelection;
+    try {
+      const scope = readPersonalPerspectiveEffectiveScopeV01(
+        personalPerspectiveScopeDatabase,
+        {
+          workspace_id: manifest.workspace_id,
+          project_id: manifest.project_id,
+        },
+      );
+      personalPerspectiveSelection = selectPersonalPerspectiveContextV01({
+        workspace_id: manifest.workspace_id,
+        project_id: manifest.project_id,
+        scope,
+        candidates: [personalPerspectiveCandidate],
+      });
+    } finally {
+      personalPerspectiveScopeDatabase.close();
+    }
+    assert.equal(
+      personalPerspectiveSelection.eligible_selected_count,
+      1,
+      "exact Personal Perspective candidate must pass the existing project scope gate",
+    );
+    const personalPerspectiveSourcePacket = buildTaskContextPacketV01({
+      workspace_id: currentPacket.workspace_id,
+      project_id: currentPacket.project_id,
+      work_ref: currentPacket.work_ref,
+      generated_at: sourcePacketGeneratedAt,
+      expires_at: new Date(
+        Date.parse(sourcePacketGeneratedAt) + 30 * 60_000,
+      ).toISOString(),
+      task: currentPacket.task,
+      current_projection: currentPacket.current_projection,
+      selected_context: [
+        ...currentPacket.selected_context.filter(
+          (entry) =>
+            entry.compatibility_source_ref?.ref_type !==
+            "project_personal_perspective_scope",
+        ),
+        ...personalPerspectiveSelection.selected_context,
+      ],
+      excluded_context: currentPacket.excluded_context,
+      tensions: currentPacket.tensions,
+      risks: currentPacket.risks,
+      gaps: currentPacket.gaps,
+      constraints: currentPacket.constraints,
+      capability_grant: currentPacket.capability_grant,
+      criterion_verification_plan:
+        currentPacket.criterion_verification_plan,
+      return_contract: currentPacket.return_contract,
+      source_status: currentPacket.source_status,
+      compatibility: {
+        ...currentPacket.compatibility,
+        source_refs: [
+          ...currentPacket.compatibility.source_refs,
+          ...(personalPerspectiveSelection.scope_lineage_ref
+            ? [personalPerspectiveSelection.scope_lineage_ref]
+            : []),
+        ],
+        warnings: [
+          ...currentPacket.compatibility.warnings,
+          "Personal Perspective material passed explicit project scope, review, currentness, trust, and normal context selection.",
+        ],
+      },
+      authority_notes: [
+        ...currentPacket.authority_summary.notes,
+        "Personal Perspective selection changes task context only; it grants no semantic or execution authority.",
+      ],
+    });
+    const personalPerspectiveProject = {
+      fixture_id: "semantic-review-loop-personal-perspective-inspector",
+      workspace_id: manifest.workspace_id,
+      project_id: manifest.project_id,
+      run_id: "run:operator-browser-personal-perspective-inspector",
+    };
+    const personalPerspectiveReceipt = buildSemanticReviewLoopRunReceiptFixture(
+      personalPerspectiveProject,
+      personalPerspectiveSourcePacket,
+      { timeline_anchor_at: personalPerspectiveSourcePacket.generated_at },
+    );
+    const personalPerspectiveAssessment = evaluateCriterionAssessmentV01({
+      packet: personalPerspectiveSourcePacket,
+      receipt: personalPerspectiveReceipt,
+    });
+    const personalPerspectiveProposalMaterial =
+      materializeRunAssessmentProposalV01({
+        packet: personalPerspectiveSourcePacket,
+        receipt: personalPerspectiveReceipt,
+        assessment: personalPerspectiveAssessment,
+      });
+    const sourceProposal = personalPerspectiveProposalMaterial.proposal;
+    const sourceCandidate = sourceProposal.proposed_deltas[0];
+    assert(sourceCandidate, "Personal Perspective source candidate missing");
+    const writableDatabase = new Database(databasePath);
+    try {
+      writableDatabase.pragma("foreign_keys = ON");
+      writableDatabase.transaction(() => {
+        insertVNextCoreRecordV01(writableDatabase, {
+          record_kind: "task_context_packet",
+          record_id: personalPerspectiveSourcePacket.packet_id,
+          workspace_id: personalPerspectiveSourcePacket.workspace_id,
+          project_id: personalPerspectiveSourcePacket.project_id,
+          fingerprint: personalPerspectiveSourcePacket.integrity.fingerprint,
+          idempotency_key: null,
+          payload: personalPerspectiveSourcePacket,
+          created_at: personalPerspectiveSourcePacket.generated_at,
+        });
+        admitStructuredRunReceiptV01(
+          writableDatabase,
+          personalPerspectiveReceipt,
+        );
+        const admitted = admitEpisodeDeltaProposalV01(writableDatabase, {
+          expected: personalPerspectiveProposalMaterial,
+          source: {
+            packet: personalPerspectiveSourcePacket,
+            receipt: personalPerspectiveReceipt,
+            assessment: personalPerspectiveAssessment,
+          },
+        });
+        assert.equal(admitted.status, "inserted");
+      })();
+    } finally {
+      writableDatabase.close();
+    }
+
+    const sourceCandidateFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(sourceCandidate),
+    );
+    const revisionRequest = {
+      action: "revise",
+      proposal_id: sourceProposal.proposal_id,
+      proposal_fingerprint: sourceProposal.integrity.fingerprint,
+      candidate_id: sourceCandidate.candidate_id,
+      candidate_fingerprint: sourceCandidateFingerprint,
+      delta_type: "validation_delta",
+      operation: "add",
+      title: "Apply one bounded browser-proof coordination candidate",
+      proposed_state_summary:
+        "Record the reviewed coordination candidate while preserving exact Personal Perspective task context.",
+      rationale_summary:
+        "The immutable revision supplies the explicit operation required by the existing Transition path.",
+      uncertainties: [
+        "Personal Perspective remains selected working context, not truth or semantic authority.",
+      ],
+      limitations: [
+        "This candidate grants no authority until a separate ReviewDecision, gate, and successful Transition.",
+      ],
+    };
+    const revisionResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(${JSON.stringify(revisionRequest)})
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(
+      revisionResponse.status,
+      201,
+      `Personal Perspective revision failed: ${JSON.stringify(revisionResponse.body)}`,
+    );
+    assert.equal(revisionResponse.body.status, "inserted");
+    assert.equal(revisionResponse.body.source_proposal_unchanged, true);
+    assert.equal(revisionResponse.body.transition_applied, false);
+    const personalPerspectiveProposal = revisionResponse.body.proposal;
+    const selectedCandidate = personalPerspectiveProposal.proposed_deltas[0];
+    assert(selectedCandidate, "Personal Perspective revised candidate missing");
+    const selectedCandidateFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(selectedCandidate),
+    );
+    const decisionRequest = {
+      proposal_id: personalPerspectiveProposal.proposal_id,
+      proposal_fingerprint: personalPerspectiveProposal.integrity.fingerprint,
+      candidate_id: selectedCandidate.candidate_id,
+      candidate_fingerprint: selectedCandidateFingerprint,
+      decision: "accept",
+      rationale_summary:
+        "Accept the exact candidate so a later compiler-produced packet can prove task-scoped Personal Perspective inclusion.",
+      revisit: null,
+    };
+    const decisionResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(${JSON.stringify(decisionRequest)})
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(
+      decisionResponse.status,
+      201,
+      `Personal Perspective decision failed: ${JSON.stringify(decisionResponse.body)}`,
+    );
+    assert.equal(decisionResponse.body.status, "inserted");
+    assert.equal(decisionResponse.body.transition_requested, true);
+    assert.equal(decisionResponse.body.transition_applied, false);
+    const decision = decisionResponse.body.decision;
+    assert.equal(decision.decision, "accept");
+    assert.equal(decision.candidate.candidate_id, selectedCandidate.candidate_id);
+    const previewQuery = new URLSearchParams({
+      proposal_id: personalPerspectiveProposal.proposal_id,
+      proposal_fingerprint: personalPerspectiveProposal.integrity.fingerprint,
+      decision_id: decision.decision_id,
+      decision_fingerprint: decision.integrity.fingerprint,
+    }).toString();
+    const previewResponse = await evaluateJson(`(async () => {
+      const response = await fetch(${JSON.stringify(`/api/vnext/operator/semantic-transition?${previewQuery}`)}, {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(previewResponse.status, 200);
+    assert.equal(previewResponse.body.status, "preview");
+    assert.equal(previewResponse.body.preview_is_write, false);
+    assert.equal(
+      previewResponse.body.preview.candidate_fingerprint,
+      selectedCandidateFingerprint,
+    );
+    const confirmationRequest = {
+      action: "confirm",
+      proposal_id: personalPerspectiveProposal.proposal_id,
+      proposal_fingerprint: personalPerspectiveProposal.integrity.fingerprint,
+      decision_id: decision.decision_id,
+      decision_fingerprint: decision.integrity.fingerprint,
+      confirmation_digest:
+        previewResponse.body.preview.confirmation_digest,
+    };
+    const confirmationResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-transition', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(${JSON.stringify(confirmationRequest)})
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(confirmationResponse.status, 201);
+    assert.equal(confirmationResponse.body.status, "inserted");
+    assert.equal(confirmationResponse.body.state_applied, false);
+    assert.equal(
+      confirmationResponse.body.gate_record.candidate_fingerprint,
+      selectedCandidateFingerprint,
+    );
+
+    let compiledPacket;
+    const transitionDatabase = new Database(databasePath);
+    try {
+      transitionDatabase.pragma("foreign_keys = ON");
+      const decisions = transitionDatabase
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'review_decision'
+             AND workspace_id = ?
+             AND project_id = ?
+           ORDER BY created_at, record_id`,
+        )
+        .all(manifest.workspace_id, manifest.project_id)
+        .map((row) => JSON.parse(row.payload_json));
+      const decision = decisions.find(
+        (entry) =>
+          entry.source_proposal?.proposal_id ===
+            personalPerspectiveProposal.proposal_id &&
+          entry.candidate?.candidate_id === selectedCandidate.candidate_id,
+      );
+      assert(decision, "exact Personal Perspective source decision missing");
+      const gates = transitionDatabase
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'semantic_commit_gate'
+             AND workspace_id = ?
+             AND project_id = ?
+           ORDER BY created_at, record_id`,
+        )
+        .all(manifest.workspace_id, manifest.project_id)
+        .map((row) => JSON.parse(row.payload_json));
+      const gate = gates.find(
+        (entry) =>
+          entry.proposal_id === personalPerspectiveProposal.proposal_id &&
+          entry.decision_id === decision.decision_id &&
+          entry.candidate_id === selectedCandidate.candidate_id,
+      );
+      assert(gate, "exact Personal Perspective source gate missing");
+      const gateEvaluatedAt = Date.parse(
+        gate.semantic_commit_gate_evaluation.evaluated_at,
+      );
+      const gateExpiresAt = Date.parse(
+        gate.semantic_commit_gate_evaluation.expires_at,
+      );
+      const appliedAtMs = Math.max(Date.now(), gateEvaluatedAt) + 10;
+      assert.equal(
+        appliedAtMs + 30 < gateExpiresAt,
+        true,
+        "Personal Perspective source gate must remain live for bounded application",
+      );
+      const transitionTimes = [
+        new Date(appliedAtMs).toISOString(),
+        new Date(appliedAtMs + 10).toISOString(),
+      ];
+      let transitionTimeIndex = 0;
+      const transition = commitVNextSemanticTransitionV01(
+        transitionDatabase,
+        {
+          workspace_id: manifest.workspace_id,
+          project_id: manifest.project_id,
+          proposal_id: personalPerspectiveProposal.proposal_id,
+          proposal_fingerprint:
+            personalPerspectiveProposal.integrity.fingerprint,
+          decision_id: decision.decision_id,
+          decision_fingerprint: decision.integrity.fingerprint,
+          gate_record_id: gate.gate_record_id,
+          gate_record_fingerprint: gate.integrity.fingerprint,
+          clock: {
+            now: () =>
+              transitionTimes[
+                Math.min(transitionTimeIndex++, transitionTimes.length - 1)
+              ],
+          },
+        },
+      );
+      assert.equal(transition.status, "applied");
+      const packetGeneratedAt = new Date(appliedAtMs + 20).toISOString();
+      const compiled = compileTaskContextPacketFromPersistedSemanticStateV01(
+        transitionDatabase,
+        {
+          workspace_id: manifest.workspace_id,
+          project_id: manifest.project_id,
+          prior_packet: personalPerspectiveSourcePacket,
+          transition_receipt_id:
+            transition.receipt.transition_receipt_id,
+          transition_receipt_fingerprint:
+            transition.receipt.integrity.fingerprint,
+          expiry_policy: {
+            mode: "explicit",
+            expires_at: new Date(appliedAtMs + 30 * 60_000).toISOString(),
+          },
+          personal_perspective_candidates: [personalPerspectiveCandidate],
+          clock: { now: () => packetGeneratedAt },
+        },
+      );
+      assert.equal(compiled.status, "inserted");
+      assert.equal(
+        compiled.personal_perspective_selection.selected_context.length,
+        1,
+      );
+      compiledPacket = compiled.later_packet;
+    } finally {
+      transitionDatabase.close();
+    }
+
+    const afterPersonalPerspective = readDirectHostBrowserState(
+      manifest.project_id,
+    );
+    assert.deepEqual(afterPersonalPerspective.semantic_authority_counts, {
+      ...beforePersonalPerspective.semantic_authority_counts,
+      semantic_state:
+        beforePersonalPerspective.semantic_authority_counts.semantic_state + 1,
+      proposals:
+        beforePersonalPerspective.semantic_authority_counts.proposals + 2,
+      decisions:
+        beforePersonalPerspective.semantic_authority_counts.decisions + 1,
+      commit_gates:
+        beforePersonalPerspective.semantic_authority_counts.commit_gates + 1,
+      transitions:
+        beforePersonalPerspective.semantic_authority_counts.transitions + 1,
+      packets:
+        beforePersonalPerspective.semantic_authority_counts.packets + 2,
+    });
+    result.semantic_proposals_created += 2;
+    result.review_decisions_created += 1;
+    result.semantic_transitions_created += 1;
+    const beforePersonalPerspectiveReads = databaseSnapshot(database);
+    const personalPerspectiveInspectorRequestStart = requests.length;
+    const personalPerspectiveHref = createSharedInspectorHrefV01({
+      target_kind: "personal_perspective_inclusion",
+      packet_id: compiledPacket.packet_id,
+      packet_fingerprint: compiledPacket.integrity.fingerprint,
+    });
+    assert.match(
+      personalPerspectiveHref,
+      /^\/workbench\/inspector\?target=personal_perspective_inclusion&packet_id=[^&]+&packet_fingerprint=sha256%3A[a-f0-9]{64}$/u,
+    );
+    assert.equal(
+      personalPerspectiveHref.includes(
+        encodeURIComponent(compiledPacket.packet_id),
+      ),
+      true,
+    );
+    await navigate(new URL(personalPerspectiveHref, appOrigin).toString());
+    await waitForCondition(
+      `document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="personal_perspective_inclusion"] [data-inspector-section="strategic_perspective"] [data-inspector-item-status="exact_packet_inclusion"]') !== null`,
+      "exact Personal Perspective shared Inspector",
+    );
+    const personalPerspectiveInspector = await evaluateJson(`(() => {
+      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+      const perspective = inspector?.querySelector('[data-inspector-section="strategic_perspective"]');
+      return {
+        target: inspector?.getAttribute('data-inspector-target-kind') ?? null,
+        read_only: inspector?.getAttribute('data-inspector-read-only') ?? null,
+        semantic_mutation: inspector?.getAttribute('data-inspector-semantic-mutation') ?? null,
+        exact_inclusion_count: perspective?.querySelectorAll('[data-inspector-item-status="exact_packet_inclusion"]').length ?? -1,
+        exact_summary: perspective?.textContent?.includes(${JSON.stringify(personalPerspectiveSummary)}) ?? false,
+        automatic_promotion_false: perspective?.textContent?.includes('Automatic promotion') === true && perspective?.textContent?.includes('false') === true,
+        unrelated_project_absent: !document.body.textContent.includes(${JSON.stringify(unrelatedProjectSummary)}),
+        mutation_controls:
+          inspector
+            ? Array.from(
+                inspector.querySelectorAll(
+                  'form, button, input, textarea, select, [data-vnext-operator-decision-form], [data-vnext-transition-action]',
+                ),
+              ).filter(
+                (control) =>
+                  control.closest('[data-vnext-operator-session]') === null,
+              ).length
+            : -1,
+        session_controls:
+          inspector?.querySelectorAll(
+            '[data-vnext-operator-session] form, [data-vnext-operator-session] button, [data-vnext-operator-session] input',
+          ).length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(personalPerspectiveInspector, {
+      target: "personal_perspective_inclusion",
+      read_only: "true",
+      semantic_mutation: "false",
+      exact_inclusion_count: 1,
+      exact_summary: true,
+      automatic_promotion_false: true,
+      unrelated_project_absent: true,
+      mutation_controls: 0,
+      session_controls: 1,
+    });
+    assert.deepEqual(databaseSnapshot(database), beforePersonalPerspectiveReads);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="personal_perspective_inclusion"] [data-inspector-item-status="exact_packet_inclusion"]') !== null`,
+      "Personal Perspective Inspector reload",
+    );
+    assert.deepEqual(databaseSnapshot(database), beforePersonalPerspectiveReads);
+    const personalPerspectiveInspectorRequests = requests.slice(
+      personalPerspectiveInspectorRequestStart,
+    );
+    assert.equal(
+      personalPerspectiveInspectorRequests.some(
+        (request) =>
+          request.method === "GET" &&
+          request.path === "/api/vnext/operator/inspector",
+      ),
+      true,
+      "exact Personal Perspective Inspector GET was not observed",
+    );
+    assert.equal(
+      personalPerspectiveInspectorRequests.some((request) =>
+        ["POST", "PUT", "PATCH", "DELETE"].includes(request.method),
+      ),
+      false,
+      `Inspector navigation emitted a mutating request: ${JSON.stringify(personalPerspectiveInspectorRequests)}`,
+    );
+    result.personal_perspective_shared_inspector_exact = true;
+    record("personal_perspective_appears_only_through_exact_compiler_packet_inclusion");
+    record("personal_perspective_shared_inspector_is_read_only_and_project_scoped");
+  });
+
   const unexpectedConsoleErrors = consoleErrors.filter(
     (entry) =>
       !(
@@ -3356,6 +4210,12 @@ async function main() {
       !(
         request.phase === "multi_candidate_transition_scope" &&
         (request.path === "/api/vnext/operator/semantic-review" ||
+          request.path === "/api/vnext/operator/semantic-transition")
+      ) &&
+      !(
+        request.phase === "personal_perspective_inspector" &&
+        (request.path === "/api/vnext/project-controls" ||
+          request.path === "/api/vnext/operator/semantic-review" ||
           request.path === "/api/vnext/operator/semantic-transition")
       ) &&
       !(
@@ -3609,6 +4469,41 @@ async function validateWorkbenchResultViewports() {
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
+  }
+}
+
+async function validateSharedInspectorViewports() {
+  for (const width of [390, 768, 1440]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await delay(100);
+    const metrics = await evaluateJson(`(() => {
+      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+      const rect = inspector?.getBoundingClientRect();
+      return {
+        surface: 'shared_project_inspector',
+        width: window.innerWidth,
+        document_scroll_width: document.documentElement.scrollWidth,
+        document_client_width: document.documentElement.clientWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        inspector_scroll_width: inspector?.scrollWidth ?? -1,
+        inspector_client_width: inspector?.clientWidth ?? -1,
+        inspector_horizontal_overflow:
+          (inspector?.scrollWidth ?? 0) > (inspector?.clientWidth ?? 0) + 1,
+        inspector_inside_viewport:
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+      };
+    })()`);
+    result.viewport_results.push(metrics);
+    assert.equal(metrics.width, width);
+    assert.equal(metrics.document_horizontal_overflow, false);
+    assert.equal(metrics.inspector_horizontal_overflow, false);
+    assert.equal(metrics.inspector_inside_viewport, true);
   }
 }
 
@@ -4493,9 +5388,12 @@ function record(id) {
 }
 
 function safeError(error) {
-  return error instanceof Error
-    ? `${error.name}: ${error.message}`.slice(0, 500)
-    : "unknown_browser_validation_failure";
+  if (!(error instanceof Error)) return "unknown_browser_validation_failure";
+  const frame = error.stack
+    ?.split("\n")
+    .find((line) => line.includes("browser-validate-vnext-native-host-result-v0-1.mjs:"))
+    ?.replace(/^.*?(scripts\/browser-validate-vnext-native-host-result-v0-1\.mjs:\d+:\d+).*$/u, "$1");
+  return `${currentPhase}:${error.name}: ${error.message}${frame ? ` (${frame})` : ""}`.slice(0, 500);
 }
 
 function delay(milliseconds) {

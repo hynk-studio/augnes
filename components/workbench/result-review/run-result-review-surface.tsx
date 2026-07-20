@@ -1,6 +1,4 @@
-import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
-import { CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 } from "@/types/vnext/criterion-verification-plan";
 import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
@@ -27,7 +25,7 @@ export function RunResultReviewSurface({
         entryState={entryPresentation.state}
         entryLabel={entryPresentation.label}
         projectHref={`/projects/${encodeURIComponent(result.project_id)}`}
-        inspectorHref="#run-result-inspector"
+        inspectorHref={summary.inspector_href}
       >
         {accessBoundary}
 
@@ -84,300 +82,30 @@ export function RunResultReviewSurface({
         <TaskSuccessCriteria result={result} />
         <ReviewableProposal result={result} />
 
-        <div className={styles.twoColumnGrid}>
-          <ResultList
-            title="Changes and artifacts"
-            empty="No changed file or artifact residue was recorded."
-            items={result.artifacts.map((artifact) => ({
-              id: refLabel(artifact.artifact_ref),
-              primary:
-                artifact.summary ??
-                (artifact.change_kind
-                  ? `${humanize(artifact.change_kind)} repository artifact`
-                  : "Artifact summary not recorded."),
-              secondary: `${artifact.change_kind ?? "artifact"} · ${artifact.basis}`,
-            }))}
-          />
-          <ResultList
-            title="Commands and actions"
-            empty="No bounded command or action summary was recorded."
-            items={[
-              ...result.commands.map((command) => ({
-                id: command.command_id,
-                primary: command.summary,
-                secondary: `${command.status} · ${command.basis} · raw output excluded`,
-              })),
-              ...result.actions.map((action) => ({
-                id: action.action_id,
-                primary: action.summary,
-                secondary: action.basis,
-              })),
-            ]}
-          />
-          <ResultList
-            title="Checks and skipped checks"
-            empty="No check residue was recorded."
-            items={[
-              ...result.checks.map((check) => ({
-                id: check.check_id,
-                primary: check.summary,
-                secondary: `${check.required ? "required" : "optional"} · ${check.status} · ${check.basis}`,
-              })),
-              ...result.skipped_checks.map((check) => ({
-                id: check.check_id,
-                primary: check.reason,
-                secondary: `${check.required ? "required" : "optional"} · skipped · ${check.basis}`,
-              })),
-            ]}
-          />
-          <ResultList
-            title="Limitations and next steps"
-            empty="No blockers, gaps, uncertainty, or proposed next steps were recorded."
-            items={[
-              ...result.blockers.map((issue) => ({
-                id: issue.code,
-                primary: issue.summary,
-                secondary: "blocker",
-              })),
-              ...result.warnings
-                .filter(
-                  (issue) => !issue.code.startsWith("native_host_uncertainty_"),
-                )
-                .map((issue) => ({
-                id: issue.code,
-                primary: issue.summary,
-                secondary: "warning",
-                })),
-              ...result.gaps.map((issue) => ({
-                id: issue.code,
-                primary: issue.summary,
-                secondary: "gap",
-              })),
-              ...result.uncertainty.map((summary, index) => ({
-                id: `uncertainty:${index}`,
-                primary: summary,
-                secondary: "uncertainty",
-              })),
-              ...result.proposed_next_steps.map((item) => ({
-                id: item.action_id,
-                primary: item.summary,
-                secondary: "advisory proposal, not fact",
-              })),
-            ]}
-          />
-        </div>
-
-        <details
+        <section
           id="run-result-inspector"
           className={styles.panel}
-          data-run-result-inspector="v0.1"
+          data-run-result-inspector-forwarding="v0.1"
         >
-          <summary><strong>Inspector · provenance and lineage</strong></summary>
-          <div className={styles.provenanceGrid}>
-            <InspectorCard title="Identity and lineage">
-              <Exact label="Receipt" value={result.identity.receipt_ref} />
-              <Exact label="Receipt fingerprint" value={result.identity.receipt_fingerprint} />
-              <Exact label="Run" value={result.identity.run_ref} />
-              <Exact label="Packet status" value={result.packet.status} />
-              <Exact label="Packet fingerprint" value={result.packet.packet_fingerprint ?? "not recorded"} />
-              <Exact label="Selected context entries" value={result.packet.selected_context_count === null ? "not recorded" : String(result.packet.selected_context_count)} />
-              <Exact label="Packet source refs" value={result.packet.source_ref_count === null ? "not recorded" : String(result.packet.source_ref_count)} />
-              <RefList refs={[
-                result.identity.work_ref,
-                result.identity.packet_ref,
-                result.identity.source_transition_ref,
-                result.identity.root_scope_ref,
-                result.identity.repository_ref,
-                result.identity.selected_worktree_ref,
-                ...result.packet.selected_context_refs,
-                ...result.identity.source_refs,
-              ]} />
-              {result.automation ? (
-                <>
-                  <Exact label="Automation cycle" value={result.automation.cycle_id} />
-                  <RefList refs={[
-                    result.automation.policy_ref,
-                    result.automation.capability_grant_ref,
-                  ]} />
-                </>
-              ) : null}
-            </InspectorCard>
-
-            <InspectorCard title="Native host and approvals">
-              <RefList refs={[
-                result.identity.adapter_ref,
-                result.identity.capability_ref,
-                ...result.host.host_refs,
-              ]} />
-              {result.host.approvals.length ? (
-                <ul className={styles.plainList}>
-                  {result.host.approvals.map((approval) => (
-                    <li key={approval.approval_ref.external_id}>
-                      <strong>{humanize(approval.operation_class)}</strong>
-                      <span>{approval.resource_summary}</span>
-                      <span>
-                        {approval.decision
-                          ? `${humanize(approval.decision)} · ${humanize(approval.decision_source ?? "unknown source")}`
-                          : "Decision not recorded"}
-                      </span>
-                      <small>Semantic approval created: no</small>
-                      <RefList refs={[
-                        approval.approval_ref,
-                        approval.host_thread_ref,
-                        approval.host_turn_ref,
-                        approval.host_item_ref,
-                        approval.host_request_ref,
-                        ...approval.resource_refs,
-                      ]} />
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className={styles.empty}>Approval residue was not recorded.</p>}
-            </InspectorCard>
-
-            <InspectorCard title="Changes and artifacts">
-              <ul className={styles.plainList}>
-                {result.artifacts.map((artifact) => (
-                  <li key={refLabel(artifact.artifact_ref)}>
-                    <code className={styles.identifier}>{refLabel(artifact.artifact_ref)}</code>
-                    <span>{artifact.summary ?? "Summary not recorded."}</span>
-                    <small>{artifact.change_kind ?? "opaque artifact"} · {artifact.basis} · no raw diff</small>
-                    <RefList refs={artifact.source_refs} />
-                  </li>
-                ))}
-              </ul>
-            </InspectorCard>
-
-            <InspectorCard title="Commands and actions">
-              <ul className={styles.plainList}>
-                {result.commands.map((command) => (
-                  <li key={command.command_id}>
-                    <strong>{command.summary}</strong>
-                    <span>{command.status} · {command.basis}</span>
-                    <small>Fingerprint {command.command_fingerprint ?? "not recorded"} · raw output included: no</small>
-                    <RefList refs={command.source_refs} />
-                  </li>
-                ))}
-                {result.actions.map((action) => (
-                  <li key={action.action_id}>
-                    <strong>{action.summary}</strong>
-                    <span>{action.basis}</span>
-                    <RefList refs={action.source_refs} />
-                  </li>
-                ))}
-              </ul>
-            </InspectorCard>
-
-            <InspectorCard title="Verification">
-              <Exact label="Overall" value={summary.verification_status} />
-              <ul className={styles.plainList}>
-                {result.checks.map((check) => (
-                  <li key={`check:${check.check_id}`}>
-                    <strong>{check.check_id}</strong>
-                    <span>{check.status} · {check.basis} · {check.required ? "required" : "optional"}</span>
-                    <small>{check.summary}</small>
-                    <RefList refs={check.source_refs} />
-                  </li>
-                ))}
-                {result.skipped_checks.map((check) => (
-                  <li key={`skip:${check.check_id}`}>
-                    <strong>{check.check_id}</strong>
-                    <span>skipped · {check.basis} · {check.required ? "required" : "optional"}</span>
-                    <small>{check.reason}</small>
-                    <RefList refs={check.source_refs} />
-                  </li>
-                ))}
-              </ul>
-            </InspectorCard>
-
-            <InspectorCard title="Model invocations">
-              <ul className={styles.plainList} data-model-invocation-state="true">
-                {result.model_invocations.map((model, index) => (
-                  <li key={`${model.state}:${model.invocation_ref?.external_id ?? index}`}>
-                    <strong>{humanize(model.state)}</strong>
-                    <span>
-                      {model.status ?? "No invocation status recorded"}
-                      {model.outcome ? ` · ${humanize(model.outcome)}` : ""}
-                    </span>
-                    <small>
-                      {[
-                        model.purpose ? humanize(model.purpose) : null,
-                        model.usage_summary,
-                        model.latency_ms === null
-                          ? null
-                          : `${model.latency_ms} ms`,
-                        model.egress_status
-                          ? `egress ${humanize(model.egress_status)}`
-                          : null,
-                        model.cancellation_disposition
-                          ? humanize(model.cancellation_disposition)
-                          : null,
-                        model.failure_code
-                          ? humanize(model.failure_code)
-                          : null,
-                        model.coverage,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </small>
-                    {model.cost_summary ? (
-                      <small>{model.cost_summary}</small>
-                    ) : null}
-                    {model.budget_summary ? (
-                      <small>{humanize(model.budget_summary)}</small>
-                    ) : null}
-                    <RefList
-                      refs={[
-                        model.invocation_ref,
-                        model.provider_ref,
-                        model.model_ref,
-                        ...model.source_refs,
-                      ]}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </InspectorCard>
-
-            <InspectorCard title="Trust, coverage, and privacy">
-              <Exact label="Direct observations" value={String(result.trust_summary.direct_observations)} />
-              <Exact label="Host attestations" value={String(result.trust_summary.host_attestations)} />
-              <Exact label="Derived interpretations" value={String(result.trust_summary.derived_interpretations)} />
-              <Exact label="Egress" value={result.privacy_egress.egress_status} />
-              <Exact label="Retention" value={result.privacy_egress.retention_class ?? "not recorded"} />
-              <p className={styles.muted}>
-                Raw prompt: not persisted · raw output: not persisted · transcript: not persisted · secret material: not persisted
-              </p>
-              <ul className={styles.plainList}>
-                {result.capability_coverage.map((entry) => (
-                  <li key={entry.capability}>
-                    <strong>{entry.capability}</strong>
-                    <span>{entry.coverage_level}</span>
-                    <RefList refs={[entry.source_ref]} />
-                  </li>
-                ))}
-              </ul>
-            </InspectorCard>
-
-            <InspectorCard title="Limitations and compatibility">
-              <ResultListBody
-                items={[
-                  ...result.blockers.map((issue) => ({ id: issue.code, primary: issue.summary, secondary: "blocker" })),
-                  ...result.warnings
-                    .filter((issue) => !issue.code.startsWith("native_host_uncertainty_"))
-                    .map((issue) => ({ id: issue.code, primary: issue.summary, secondary: "warning" })),
-                  ...result.gaps.map((issue) => ({ id: issue.code, primary: issue.summary, secondary: "gap" })),
-                  ...result.uncertainty.map((summary, index) => ({ id: `uncertainty:${index}`, primary: summary, secondary: "uncertainty" })),
-                  ...result.proposed_next_steps.map((item) => ({ id: item.action_id, primary: item.summary, secondary: "advisory next step" })),
-                ]}
-                empty="No limitation residue was recorded."
-              />
-              <p className={styles.muted}>
-                Source contracts: {result.compatibility.source_contracts.join(", ") || "not recorded"}
-              </p>
-            </InspectorCard>
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Exact read-heavy drill-down</p>
+            <h2>Shared Inspector</h2>
           </div>
-        </details>
+          <p className={styles.copy}>
+            Provenance, approvals, artifacts, commands, checks, trust, privacy,
+            model-invocation state, capability coverage, and packet/receipt
+            lineage now share one authenticated Inspector destination.
+          </p>
+          <div className={styles.buttonRow}>
+            <a
+              className={styles.linkButton}
+              href={summary.inspector_href}
+              data-result-to-shared-inspector="true"
+            >
+              Inspect exact RunReceipt lineage
+            </a>
+          </div>
+        </section>
 
         <section className={styles.notice} data-result-authority-boundary="true">
           No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance,
@@ -460,82 +188,10 @@ function TaskSuccessCriteria({
         <Metric label="Unknown" value={String(assessment.summary.unknown)} />
         <Metric label="Not applicable" value={String(assessment.summary.not_applicable)} />
       </dl>
-      {assessment.criteria.length ? (
-        <ul className={styles.plainList} data-criterion-assessment-items="true">
-          {assessment.criteria.map((item) => (
-            <li
-              key={item.criterion_id}
-              data-criterion-status={item.status}
-              data-criterion-basis={item.basis}
-            >
-              <strong>{item.criterion}</strong>
-              <span>{humanize(item.status)} · {humanize(item.basis)} basis</span>
-              <small>
-                {item.supporting_refs.length} supporting refs · {item.opposing_refs.length} opposing refs · {item.missing_refs.length} criterion-specific missing refs
-              </small>
-              <details data-criterion-source-drilldown="true">
-                <summary>Sources, trust, coverage, and uncertainty</summary>
-                <h4>Supporting refs ({item.supporting_refs.length})</h4>
-                <RefList refs={item.supporting_refs} />
-                <h4>Opposing refs ({item.opposing_refs.length})</h4>
-                <RefList refs={item.opposing_refs} />
-                <h4>Criterion-specific missing refs ({item.missing_refs.length})</h4>
-                <RefList refs={item.missing_refs} />
-                <h4>{criterionTrustHeadingV01(
-                  item,
-                  readback.criterion_specific_relations_available,
-                )}</h4>
-                <ul
-                  className={styles.plainList}
-                  data-criterion-trust="true"
-                  data-criterion-trust-scope={criterionTrustScopeV01(
-                    item,
-                    readback.criterion_specific_relations_available,
-                  )}
-                >
-                  {Object.entries(item.trust).map(([trustClass, count]) => (
-                    <li key={trustClass}>
-                      <strong>{humanize(trustClass)}</strong>
-                      <span>{count}</span>
-                    </li>
-                  ))}
-                </ul>
-                <h4>{criterionCoverageHeadingV01(
-                  item,
-                  readback.criterion_specific_relations_available,
-                )}</h4>
-                {item.operation_coverage.length ? (
-                  <ul className={styles.plainList} data-criterion-operation-coverage="true">
-                    {item.operation_coverage.map((entry) => (
-                      <li
-                        key={entry.capability}
-                        data-coverage-level={entry.coverage_level}
-                      >
-                        <strong>{humanize(entry.capability)}</strong>
-                        <span>{coverageLabelV01(entry.coverage_level)}</span>
-                        {entry.notes.map((note) => <small key={note}>{note}</small>)}
-                        <RefList refs={[entry.source_ref]} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className={styles.empty}>Operation coverage was not recorded.</p>}
-                <h4>{criterionUncertaintyHeadingV01(
-                  item,
-                  readback.criterion_specific_relations_available,
-                )}</h4>
-                <ResultListBody
-                  items={item.uncertainty.map((uncertainty) => ({
-                    id: uncertainty,
-                    primary: uncertainty,
-                    secondary: "uncertainty",
-                  }))}
-                  empty="No criterion uncertainty was recorded."
-                />
-              </details>
-            </li>
-          ))}
-        </ul>
-      ) : <p className={styles.empty}>The packet recorded no success criteria.</p>}
+      <p className={styles.muted} data-result-criterion-summary="compact">
+        {assessment.criteria.length} exact criteria are available in the Semantic
+        Workbench for Verify and in the shared Inspector for source lineage.
+      </p>
       <p className={styles.muted} data-criterion-authority-boundary="true">
         This assessment is derived and non-authoritative. It creates no Evidence,
         validates no Claim, creates no proposal or decision, applies no Transition,
@@ -543,72 +199,6 @@ function TaskSuccessCriteria({
       </p>
     </section>
   );
-}
-
-function criterionTrustScopeV01(item: {
-  supporting_refs: ExternalRefV01[];
-  opposing_refs: ExternalRefV01[];
-  missing_refs: ExternalRefV01[];
-}, sourceBoundRelationsAvailable: boolean):
-  | "exact_relation"
-  | "criterion_specific_reference"
-  | "task_wide_receipt" {
-  const refs = [
-    ...item.supporting_refs,
-    ...item.opposing_refs,
-    ...item.missing_refs,
-  ];
-  if (refs.length === 0) return "task_wide_receipt";
-  return sourceBoundRelationsAvailable && refs.every(
-    (ref) =>
-      ref.compatibility_namespace ===
-        CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 &&
-      [
-        "criterion_check_support",
-        "criterion_check_opposition",
-        "criterion_check_missing",
-        "criterion_applicability",
-      ].includes(ref.ref_type),
-  )
-    ? "exact_relation"
-    : "criterion_specific_reference";
-}
-
-function criterionTrustHeadingV01(item: {
-  supporting_refs: ExternalRefV01[];
-  opposing_refs: ExternalRefV01[];
-  missing_refs: ExternalRefV01[];
-}, sourceBoundRelationsAvailable: boolean): string {
-  switch (criterionTrustScopeV01(item, sourceBoundRelationsAvailable)) {
-    case "exact_relation":
-      return "Exact criterion relation trust";
-    case "criterion_specific_reference":
-      return "Criterion-specific reference trust";
-    case "task_wide_receipt":
-      return "Task-wide receipt residue trust classes";
-  }
-}
-
-function criterionCoverageHeadingV01(item: {
-  supporting_refs: ExternalRefV01[];
-  opposing_refs: ExternalRefV01[];
-  missing_refs: ExternalRefV01[];
-}, sourceBoundRelationsAvailable: boolean): string {
-  return criterionTrustScopeV01(item, sourceBoundRelationsAvailable) ===
-    "task_wide_receipt"
-    ? "Task-wide operation coverage"
-    : "Recorded operation coverage";
-}
-
-function criterionUncertaintyHeadingV01(item: {
-  supporting_refs: ExternalRefV01[];
-  opposing_refs: ExternalRefV01[];
-  missing_refs: ExternalRefV01[];
-}, sourceBoundRelationsAvailable: boolean): string {
-  return criterionTrustScopeV01(item, sourceBoundRelationsAvailable) ===
-    "task_wide_receipt"
-    ? "Task-wide receipt uncertainty"
-    : "Assessment uncertainty";
 }
 
 function ReviewableProposal({
@@ -640,8 +230,6 @@ function ReviewableProposal({
             <Metric label="Transition" value="not applied" />
             <Metric label="Semantic state" value="unchanged" />
           </dl>
-          <span className={styles.identifier}>{proposal.proposal_id}</span>
-          <span className={styles.identifier}>{proposal.proposal_fingerprint}</span>
           <div className={styles.buttonRow}>
             <a
               className={styles.linkButton}
@@ -679,97 +267,8 @@ function ReviewableProposal({
   );
 }
 
-function coverageLabelV01(value: string): string {
-  return value === "outside_coverage"
-    ? "unsupported / unavailable"
-    : humanize(value);
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
   return <div><dt>{label}</dt><dd>{humanize(value)}</dd></div>;
-}
-
-function ResultList({
-  title,
-  items,
-  empty,
-}: {
-  title: string;
-  items: Array<{ id: string; primary: string; secondary: string }>;
-  empty: string;
-}) {
-  return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}><h2>{title}</h2></div>
-      <ResultListBody items={items} empty={empty} />
-    </section>
-  );
-}
-
-function ResultListBody({
-  items,
-  empty,
-}: {
-  items: Array<{ id: string; primary: string; secondary: string }>;
-  empty: string;
-}) {
-  if (!items.length) return <p className={styles.empty}>{empty}</p>;
-  return (
-    <ul className={styles.plainList}>
-      {items.map((item) => (
-        <li key={item.id}>
-          <strong>{item.primary}</strong>
-          <small>{humanize(item.secondary)}</small>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function InspectorCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className={styles.materialCard}><h3>{title}</h3>{children}</section>;
-}
-
-function Exact({ label, value }: { label: string; value: string }) {
-  return <div className={styles.exactValue}><strong>{label}</strong><code className={styles.identifier}>{value}</code></div>;
-}
-
-function RefList({ refs }: { refs: Array<ExternalRefV01 | null> }) {
-  const present = [
-    ...new Map(
-      refs
-        .filter((ref): ref is ExternalRefV01 => Boolean(ref))
-        .map((ref) => [refKey(ref), ref]),
-    ).values(),
-  ];
-  if (!present.length) return <p className={styles.empty}>Reference not recorded.</p>;
-  return (
-    <ul className={styles.plainList}>
-      {present.map((ref) => (
-        <li key={refKey(ref)}>
-          <code className={styles.identifier}>{refLabel(ref)}</code>
-          <small>
-            {humanize(ref.trust_class)}
-            {ref.source_ref ? ` · source ${ref.source_ref}` : ""}
-          </small>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function refLabel(ref: ExternalRefV01): string {
-  return `${ref.ref_type}:${ref.external_id}`;
-}
-
-function refKey(ref: ExternalRefV01): string {
-  return [
-    ref.compatibility_namespace ?? "",
-    ref.provider ?? "",
-    ref.host ?? "",
-    ref.ref_type,
-    ref.external_id,
-  ].join(":");
 }
 
 function humanize(value: string): string {

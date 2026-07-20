@@ -23,6 +23,7 @@ import {
 } from "@/lib/vnext/run-assessment-proposal";
 import { readProposalForExactSourcePurposeV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import {
   validateExternalRefV01,
@@ -721,6 +722,11 @@ function projectReceiptSummaryV01(
     trust_label: trustLabel,
     review_attention: reviewAttentionV01(receipt),
     review_href: `/workbench/results/${receipt.receipt_id.replace(":", "~")}`,
+    inspector_href: createSharedInspectorHrefV01({
+      target_kind: "run_receipt",
+      record_id: receipt.receipt_id,
+      expected_fingerprint: receipt.integrity.fingerprint,
+    }),
     mode: runModeV01(
       receipt.execution_environment.runtime_labels.find((label) =>
         ["interactive", "policy_triggered"].includes(label),

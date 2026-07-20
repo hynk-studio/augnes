@@ -75,6 +75,11 @@ import {
   compileTaskContextPacketFromPersistedSemanticStateV01,
   type VNextTaskContextPacketExpiryPolicyV01,
 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
+import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
+import {
+  createSharedInspectorHrefV01,
+  parseSharedInspectorTargetV01,
+} from "../lib/vnext/shared-project-inspector-href";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
 import type {
   PersonalPerspectiveContextCandidateV01,
@@ -1173,6 +1178,48 @@ async function main() {
       eligibleGate.selected_context[0]?.why_included,
     );
     assert.equal(homeWithTaskBasis.coordination.personal_perspective_affected_task, true);
+    const personalInspectorTarget = {
+      target_kind: "personal_perspective_inclusion" as const,
+      packet_id: compiled.later_packet.packet_id,
+      packet_fingerprint: compiled.later_packet.integrity.fingerprint,
+    };
+    const personalInspectorHref = createSharedInspectorHrefV01(
+      personalInspectorTarget,
+    );
+    assert.equal(
+      homeWithTaskBasis.personal_perspective.task_basis?.inspector_href,
+      personalInspectorHref,
+    );
+    assert.deepEqual(
+      parseSharedInspectorTargetV01(
+        new URL(personalInspectorHref, "http://127.0.0.1:3000"),
+      ),
+      personalInspectorTarget,
+    );
+    const personalInspector = readSharedProjectInspectorV01(db, {
+      config: {
+        enabled: true,
+        workspace_id: workspace.workspace_id,
+        project_id: projectA.project.project_id,
+        operator_id: "synthetic-operator:canonical-project-controls-included",
+        database_path: dbPath,
+      },
+      authenticated_session_id: "read-only-project-controls-fixture",
+      observed_at: DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+      target: personalInspectorTarget,
+    });
+    assert.equal(personalInspector.authority.read_only, true);
+    assert.equal(personalInspector.authority.promotes_perspective_or_memory, false);
+    assert.equal(
+      personalInspector.sections.find(
+        (section) => section.section_kind === "strategic_perspective",
+      )?.items.some(
+        (item) =>
+          item.status === "exact_packet_inclusion" &&
+          item.title === candidateA.entry.bounded_summary,
+      ),
+      true,
+    );
     assert.deepEqual(mutationSideEffectCounts(db), beforeTaskBasisRead);
     assert.equal(
       JSON.stringify(compiled.later_packet).includes(candidateA.entry.entry_id),
