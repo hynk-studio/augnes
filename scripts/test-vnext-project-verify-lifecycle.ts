@@ -367,30 +367,6 @@ function decisionV01(input: {
       : operation === "retract"
         ? "retract"
         : "accept";
-  const operatorApplying = resolveVNextOperatorPilotApplyingDecisionV01(
-    proposal,
-    candidate,
-  );
-  assert.deepEqual(
-    {
-      decision: operatorApplying.decision,
-      transition_kind: operatorApplying.transition_kind,
-      target_refs: operatorApplying.target_refs,
-      project_verify_lifecycle: operatorApplying.project_verify_lifecycle,
-    },
-    {
-      decision: applyingDecision,
-      transition_kind:
-        operation === "supersede"
-          ? "semantic_candidate_supersede"
-          : operation === "retract"
-            ? "semantic_candidate_retract"
-            : "semantic_candidate_apply",
-      target_refs: [profile.lifecycle_binding.family_target_ref],
-      project_verify_lifecycle: true,
-    },
-    "the local Workbench adapter preserves SR-3 operation-aware decision and target semantics",
-  );
   const decision = input.decision ?? applyingDecision;
   const isApplying = decision === applyingDecision;
   const candidateBinding = {
@@ -5219,11 +5195,36 @@ globalThis.fetch = (async () => {
   throw new Error("sr3_project_verify_unexpected_external_call");
 }) as typeof globalThis.fetch;
 
+const operatorAdapterOnly = process.argv
+  .slice(2)
+  .includes("--operator-adapter-only");
+
 try {
-  assertStructuralSourceImportBoundaryV01();
-  assertClaimLifecycleV01();
-  assertOperatorPilotProjectVerifyDecisionAdapterV01();
-  assertRelationLifecycleV01();
+  if (operatorAdapterOnly) {
+    assertOperatorPilotProjectVerifyDecisionAdapterV01();
+    assert.equal(unexpectedExternalCalls, 0);
+    process.stdout.write(
+      `${JSON.stringify({
+        suite: "vnext-project-verify-operator-adapter-v0.1",
+        status: "passed",
+        operator_workbench_lifecycle_decision_adapter_checked: [
+          "accept_create",
+          "accept_revise",
+          "supersede",
+          "retract",
+          "wrong_applying_decision_refused",
+          "exact_replay",
+        ],
+        exact_prior_decision_lineage_checked: true,
+        transition_application_separate_checked: true,
+        immutable_retraction_history_checked: true,
+        unexpected_network_or_provider_calls: unexpectedExternalCalls,
+      })}\n`,
+    );
+  } else {
+    assertStructuralSourceImportBoundaryV01();
+    assertClaimLifecycleV01();
+    assertRelationLifecycleV01();
   assertIndependentRelationMaterialCoexistenceV01();
   assertApplicabilityGroupingV01();
   assertBoundedReadIncompletenessV01();
@@ -5247,14 +5248,6 @@ try {
       exact_lifecycle_proposal_admission_replay_checked: true,
       reject_defer_and_gate_non_actuation_checked: true,
       claim_create_revise_supersede_retract_checked: true,
-      operator_workbench_lifecycle_decision_adapter_checked: [
-        "accept_create",
-        "accept_revise",
-        "supersede",
-        "retract",
-        "wrong_applying_decision_refused",
-        "exact_replay",
-      ],
       relation_create_revise_supersede_retract_checked: true,
       independent_applied_relation_coexistence_checked: [
         "supports",
@@ -5316,8 +5309,9 @@ try {
       claim_truth_not_established_checked: true,
       relation_existence_non_proof_checked: true,
       unexpected_network_or_provider_calls: unexpectedExternalCalls,
-    })}\n`,
-  );
+      })}\n`,
+    );
+  }
 } finally {
   globalThis.fetch = originalFetch;
 }

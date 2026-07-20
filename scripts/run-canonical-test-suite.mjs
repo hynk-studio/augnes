@@ -110,6 +110,20 @@ const suites = {
       timeoutMs: 75_000,
     },
     {
+      id: "project-verify-operator-adapter",
+      group: "supporting-serial",
+      requirements: ["database", "migrations"],
+      label:
+        "authenticated Workbench decision adapter and exact SR-3 operation lineage",
+      ...rootNode(
+        "scripts/test-vnext-project-verify-lifecycle.ts",
+        "--operator-adapter-only",
+      ),
+      // The isolated authenticated four-operation adapter chain measured under
+      // one second locally after being split from the 39.18s CI lifecycle proof.
+      timeoutMs: 30_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],
