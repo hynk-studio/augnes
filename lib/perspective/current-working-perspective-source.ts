@@ -6,6 +6,11 @@ import {
 } from "@/lib/augnes-delta/source-collector";
 import { getDatabasePath } from "@/lib/db";
 import {
+  createRecoveryPrivateMaterialReadBoundary,
+  isRecoveryPrivateMaterialExcludedFromAuthoritativeRead,
+  projectRecoveryPrivateMaterialStateEntryForAuthoritativeRead,
+} from "@/lib/db/recovery-private-material-contract.mjs";
+import {
   buildCurrentWorkingPerspective,
   createCurrentWorkingPerspectiveGap,
 } from "@/lib/perspective/current-working-perspective";
@@ -144,6 +149,7 @@ type ReadonlySqliteDatabase = {
   pragma: (source: string) => unknown;
   prepare: (source: string) => {
     all: (...params: unknown[]) => unknown[];
+    get: (...params: unknown[]) => unknown;
   };
 };
 
@@ -357,8 +363,20 @@ function collectPerspectiveSnapshotInput({
   }
 
   try {
-    const stateEntries = collectStateEntries(db, scope, gaps);
-    const pendingProposals = collectPendingProposals(db, scope, gaps);
+    const authoritativeReadBoundary =
+      createRecoveryPrivateMaterialReadBoundary(db, { scope });
+    const stateEntries = collectStateEntries(
+      db,
+      scope,
+      gaps,
+      authoritativeReadBoundary,
+    );
+    const pendingProposals = collectPendingProposals(
+      db,
+      scope,
+      gaps,
+      authoritativeReadBoundary,
+    );
     const evidenceRecords = collectEvidenceRecords(db, scope, gaps);
     const workItems = collectWorkItems(db, scope, gaps);
     const workEvents = collectWorkEvents(db, scope, gaps);
@@ -413,6 +431,9 @@ function collectStateEntries(
   db: ReadonlySqliteDatabase,
   scope: string,
   gaps: CurrentWorkingPerspectiveGap[],
+  authoritativeReadBoundary: ReturnType<
+    typeof createRecoveryPrivateMaterialReadBoundary
+  >,
 ): StateEntryRow[] {
   return selectRows<StateEntryRow>({
     db,
@@ -437,13 +458,23 @@ function collectStateEntries(
       LIMIT ?
     `,
     limit: STATE_ENTRY_LIMIT * 4,
-  });
+  })
+    .map((row) =>
+      projectRecoveryPrivateMaterialStateEntryForAuthoritativeRead(
+        row,
+        authoritativeReadBoundary,
+      ),
+    )
+    .filter((row): row is StateEntryRow => row !== null);
 }
 
 function collectPendingProposals(
   db: ReadonlySqliteDatabase,
   scope: string,
   gaps: CurrentWorkingPerspectiveGap[],
+  authoritativeReadBoundary: ReturnType<
+    typeof createRecoveryPrivateMaterialReadBoundary
+  >,
 ): ProposalRow[] {
   return selectRows<ProposalRow>({
     db,
@@ -464,7 +495,14 @@ function collectPendingProposals(
       LIMIT ?
     `,
     limit: PROPOSAL_LIMIT,
-  });
+  }).filter(
+    (row) =>
+      !isRecoveryPrivateMaterialExcludedFromAuthoritativeRead(
+        "state_delta_proposals",
+        row,
+        authoritativeReadBoundary,
+      ),
+  );
 }
 
 function collectEvidenceRecords(

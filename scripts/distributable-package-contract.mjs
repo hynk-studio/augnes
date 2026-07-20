@@ -9,13 +9,33 @@ import {
 import path from "node:path";
 
 export const DISTRIBUTABLE_PACKAGE_CONTRACT = "augnes.distributable.v1";
-export const DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION = 1;
+export const DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION = 2;
 export const DISTRIBUTABLE_MANIFEST_FILE = "augnes-package.json";
 export const DISTRIBUTABLE_NODE_MINIMUM = "20.9.0";
 export const DISTRIBUTABLE_RUNTIME_CONTRACT =
   "augnes-local-runtime-supervisor-v1";
 export const DISTRIBUTABLE_RUNTIME_SCHEMA_VERSION = 2;
 export const DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY = "current";
+export const DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT =
+  "augnes.sqlite.structural-schema.v1";
+export const DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT =
+  "augnes.canonical-database-migrations.v1";
+export const DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION = 1;
+export const DISTRIBUTABLE_DATABASE_MIGRATION_IDS = Object.freeze([
+  "0001_r8_recovery_contract",
+]);
+export const DISTRIBUTABLE_DATABASE_RECORD_CONTRACT =
+  "augnes.vnext-canonical-records.v1";
+export const DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION = 1;
+export const DISTRIBUTABLE_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
+  Object.freeze([
+    "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
+  ]);
+export const DISTRIBUTABLE_DATABASE_READER_CONTRACTS = Object.freeze([
+  "project_home.v0.1",
+  "decision_centered_semantic_workbench.v0.1",
+  "shared_project_inspector.v0.1",
+]);
 export const DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS = Object.freeze([
   "darwin",
   "linux",
@@ -27,6 +47,7 @@ export const DISTRIBUTABLE_APPLICATION_SCOPE_FINGERPRINT = createHash("sha256")
 export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "scripts/augnes-local-paths.mjs",
   "scripts/augnes-runtime-supervisor.mjs",
+  "scripts/augnes-runtime-supervisor-core.mjs",
   "scripts/canonical-database-migrations.mjs",
   "scripts/canonical-test-environment.mjs",
   "scripts/db-migrations.mjs",
@@ -37,6 +58,17 @@ export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "scripts/runtime-child-launcher.mjs",
   "scripts/runtime-database-bootstrap.mjs",
   "scripts/runtime-reconciliation.mjs",
+  "scripts/recovery-backup.mjs",
+  "scripts/recovery-canonical-record-validator.mjs",
+]);
+
+export const DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE =
+  "scripts/augnes-runtime-supervisor.bundle.cjs";
+export const DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE =
+  "scripts/recovery-canonical-record-validator.bundle.cjs";
+export const DISTRIBUTABLE_COMPILED_RUNTIME_FILES = Object.freeze([
+  DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
+  DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE,
 ]);
 
 export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
@@ -45,11 +77,13 @@ export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
   "bridge/dist/server.mjs",
   "bridge/public/console-widget.html",
   "lib/db/proposal-scoring-schema.json",
+  "lib/db/recovery-private-material-contract.mjs",
   "lib/db/schema.sql",
   "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
   "package.json",
   "server.js",
   ...DISTRIBUTABLE_RUNTIME_SCRIPTS,
+  ...DISTRIBUTABLE_COMPILED_RUNTIME_FILES,
 ]);
 
 const ROOT_RUNTIME_FILES = new Set([
@@ -73,9 +107,13 @@ const BRIDGE_RUNTIME_FILES = new Set([
 ]);
 const DATABASE_RUNTIME_FILES = new Set([
   "lib/db/proposal-scoring-schema.json",
+  "lib/db/recovery-private-material-contract.mjs",
   "lib/db/schema.sql",
 ]);
 const RUNTIME_SCRIPT_SET = new Set(DISTRIBUTABLE_RUNTIME_SCRIPTS);
+const COMPILED_RUNTIME_FILE_SET = new Set(
+  DISTRIBUTABLE_COMPILED_RUNTIME_FILES,
+);
 const FORBIDDEN_FILE_SUFFIXES = [
   ".db",
   ".env",
@@ -109,9 +147,7 @@ export function createDistributableManifest({
     runtime_contract: DISTRIBUTABLE_RUNTIME_CONTRACT,
     runtime_schema_version: DISTRIBUTABLE_RUNTIME_SCHEMA_VERSION,
   },
-  database = {
-    schema_compatibility: DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY,
-  },
+  database,
   files,
 } = {}) {
   const manifestWithoutIdentity = {
@@ -205,10 +241,45 @@ export function validateDistributableManifest(manifest) {
     }
 
     assertPlainRecord(manifest.database);
-    assertExactKeys(manifest.database, ["schema_compatibility"]);
+    assertExactKeys(manifest.database, [
+      "migration_contract",
+      "migration_contract_version",
+      "migration_ids",
+      "reader_contracts",
+      "record_contract",
+      "record_contract_version",
+      "schema_compatibility",
+      "schema_contract",
+      "schema_signature",
+      "supported_source_schema_signatures",
+      "supported_source_schema_states",
+    ]);
     if (
       manifest.database.schema_compatibility !==
-      DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY
+        DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY ||
+      manifest.database.schema_contract !==
+        DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT ||
+      !/^[a-f0-9]{64}$/u.test(manifest.database.schema_signature ?? "") ||
+      manifest.database.migration_contract !==
+        DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT ||
+      manifest.database.migration_contract_version !==
+        DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION ||
+      JSON.stringify(manifest.database.migration_ids) !==
+        JSON.stringify(DISTRIBUTABLE_DATABASE_MIGRATION_IDS) ||
+      manifest.database.record_contract !==
+        DISTRIBUTABLE_DATABASE_RECORD_CONTRACT ||
+      manifest.database.record_contract_version !==
+        DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION ||
+      JSON.stringify(manifest.database.reader_contracts) !==
+        JSON.stringify(DISTRIBUTABLE_DATABASE_READER_CONTRACTS) ||
+      JSON.stringify(
+        manifest.database.supported_source_schema_signatures,
+      ) !==
+        JSON.stringify(
+          DISTRIBUTABLE_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
+        ) ||
+      JSON.stringify(manifest.database.supported_source_schema_states) !==
+        JSON.stringify(["current", "old"])
     ) {
       throw new Error("invalid database compatibility");
     }
@@ -371,7 +442,7 @@ export function assertSafeDistributablePath(candidate) {
     segments.some(
       (segment) => segment.length === 0 || segment === "." || segment === "..",
     ) ||
-    segments.some((segment) => segment.startsWith("-")) ||
+    candidate.startsWith("-") ||
     path.posix.normalize(candidate) !== candidate
   ) {
     throw new PublicDistributablePackageError("package_path_unsafe");
@@ -414,7 +485,8 @@ export function assertAllowedDistributablePayloadPath(candidate) {
     candidate.startsWith("node_modules/") ||
     BRIDGE_RUNTIME_FILES.has(candidate) ||
     DATABASE_RUNTIME_FILES.has(candidate) ||
-    RUNTIME_SCRIPT_SET.has(candidate)
+    RUNTIME_SCRIPT_SET.has(candidate) ||
+    COMPILED_RUNTIME_FILE_SET.has(candidate)
   ) {
     return candidate;
   }

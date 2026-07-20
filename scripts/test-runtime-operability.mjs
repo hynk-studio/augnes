@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { EventEmitter } from "node:events";
 import { spawn, spawnSync } from "node:child_process";
 import {
   appendFileSync,
@@ -24,6 +25,7 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 
 import Database from "better-sqlite3";
 
@@ -33,20 +35,36 @@ import {
   RUNTIME_CONTRACT,
   RUNTIME_SCHEMA_VERSION,
   buildSupervisorChildValues,
+  classifyRuntimeUpdate,
   ensureRuntimeDirectory,
+  handleRecoveryControlRequest,
+  paginateRecoveryInventory,
+  recoveryProtectionDecision,
+  requestShutdownAfterResponse,
   resolvePhysicalRuntimeStateDestination,
   resolveRuntimeDistribution,
   resolveRuntimePaths,
   runtimeOwnsPort,
-} from "./augnes-runtime-supervisor.mjs";
+} from "./augnes-runtime-supervisor-core.mjs";
 import {
   buildRuntimeChildEnvironment,
   findForbiddenRuntimeChildEnvironmentKeys,
 } from "./runtime-child-environment.mjs";
 import {
+  DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT,
+  DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION,
+  DISTRIBUTABLE_DATABASE_MIGRATION_IDS,
+  DISTRIBUTABLE_DATABASE_READER_CONTRACTS,
+  DISTRIBUTABLE_DATABASE_RECORD_CONTRACT,
+  DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION,
+  DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY,
+  DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT,
+  DISTRIBUTABLE_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
+  DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION,
   detectDistributablePlatform,
   formatDistributablePlatformLabel,
 } from "./distributable-package-contract.mjs";
+import { canonicalStructuralSchemaContractSignature } from "./runtime-database-bootstrap.mjs";
 import {
   cleanupOwnedProcesses,
   closeTrackedServer,
@@ -118,6 +136,9 @@ let cleanupError = null;
 try {
   initializeDisposableDatabase(databasePath);
   assertRuntimeDistributionContract();
+  assertRuntimeUpdateDecisionContract();
+  await assertRecoveryControlDecisionContract();
+  await assertConcurrentRecoveryRequestRefusal();
   assertRuntimeEnvironmentIsolation();
   await testRuntimeStatePathSafety();
 
@@ -185,6 +206,12 @@ try {
     required_child_failure_observed: true,
     unverified_pid_never_signaled: true,
     environment_isolation_verified: true,
+    update_decision_contract_verified: true,
+    update_source_provenance_verified: true,
+    semver_prerelease_precedence_verified: true,
+    recovery_inventory_status_verified: true,
+    recovery_response_close_shutdown_verified: true,
+    concurrent_recovery_request_refusal_verified: true,
     reviewed_ui_provider_environment_verified: true,
     bridge_core_mode: "mock",
     public_mcp_mock_tool_verified: mcpBehaviorVerified,
@@ -218,6 +245,18 @@ try {
         parent_signal_cleanup: summary.parent_signal_cleanup,
         required_child_failure_observed: summary.required_child_failure_observed,
         unverified_pid_never_signaled: summary.unverified_pid_never_signaled,
+        update_decision_contract_verified:
+          summary.update_decision_contract_verified,
+        update_source_provenance_verified:
+          summary.update_source_provenance_verified,
+        semver_prerelease_precedence_verified:
+          summary.semver_prerelease_precedence_verified,
+        recovery_inventory_status_verified:
+          summary.recovery_inventory_status_verified,
+        recovery_response_close_shutdown_verified:
+          summary.recovery_response_close_shutdown_verified,
+        concurrent_recovery_request_refusal_verified:
+          summary.concurrent_recovery_request_refusal_verified,
         reviewed_ui_provider_environment_verified:
           summary.reviewed_ui_provider_environment_verified,
         bridge_core_mode: summary.bridge_core_mode,
@@ -1183,7 +1222,7 @@ function assertRuntimeDistributionContract() {
   const packagePlatform = detectDistributablePlatform();
   const manifest = {
     contract: "augnes.distributable.v1",
-    package_contract_version: 1,
+    package_contract_version: DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION,
     application_version: applicationVersion,
     build_identity: buildIdentity,
     application_scope_fingerprint: applicationScopeFingerprint,
@@ -1195,7 +1234,23 @@ function assertRuntimeDistributionContract() {
       runtime_contract: RUNTIME_CONTRACT,
       runtime_schema_version: RUNTIME_SCHEMA_VERSION,
     },
-    database: { schema_compatibility: "current" },
+    database: {
+      schema_compatibility: DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY,
+      schema_contract: DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT,
+      schema_signature: canonicalStructuralSchemaContractSignature(),
+      migration_contract: DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT,
+      migration_contract_version:
+        DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION,
+      migration_ids: [...DISTRIBUTABLE_DATABASE_MIGRATION_IDS],
+      record_contract: DISTRIBUTABLE_DATABASE_RECORD_CONTRACT,
+      record_contract_version:
+        DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION,
+      reader_contracts: [...DISTRIBUTABLE_DATABASE_READER_CONTRACTS],
+      supported_source_schema_signatures: [
+        ...DISTRIBUTABLE_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
+      ],
+      supported_source_schema_states: ["current", "old"],
+    },
   };
 
   for (const name of ["first", "second"]) {
@@ -1214,7 +1269,10 @@ function assertRuntimeDistributionContract() {
     assert.equal(distribution.mode, "packaged");
     assert.equal(distribution.applicationVersion, applicationVersion);
     assert.equal(distribution.packageContract, "augnes.distributable.v1");
-    assert.equal(distribution.packageContractVersion, 1);
+    assert.equal(
+      distribution.packageContractVersion,
+      DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION,
+    );
     assert.equal(distribution.buildIdentity, buildIdentity);
     assert.equal(
       distribution.applicationScopeFingerprint,
@@ -1240,6 +1298,317 @@ function assertRuntimeDistributionContract() {
   assert.equal(runtimeOwnsPort(runtime, 41_002), true);
   assert.equal(runtimeOwnsPort(runtime, 41_003), true);
   assert.equal(runtimeOwnsPort(runtime, 41_004), false);
+}
+
+function assertRuntimeUpdateDecisionContract() {
+  const databaseSchemaSignature = canonicalStructuralSchemaContractSignature();
+  const target = Object.freeze({
+    mode: "packaged",
+    applicationVersion: "2.0.0",
+    buildIdentity: `sha256:${"2".repeat(64)}`,
+    applicationScopeFingerprint: "a".repeat(64),
+    packageContract: "augnes.distributable.v1",
+    packageContractVersion: DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION,
+    packagePlatform: "darwin-arm64",
+    runtimeContract: RUNTIME_CONTRACT,
+    runtimeSchemaVersion: RUNTIME_SCHEMA_VERSION,
+    databaseSchemaContract: DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT,
+    databaseSchemaSignature,
+    databaseMigrationContract: DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT,
+    databaseMigrationContractVersion:
+      DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION,
+    databaseMigrationIds: [...DISTRIBUTABLE_DATABASE_MIGRATION_IDS],
+    databaseRecordContract: DISTRIBUTABLE_DATABASE_RECORD_CONTRACT,
+    databaseRecordContractVersion:
+      DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION,
+    databaseReaderContracts: [...DISTRIBUTABLE_DATABASE_READER_CONTRACTS],
+  });
+  const existing = Object.freeze({
+    application_version: "1.9.0",
+    build_identity: `sha256:${"1".repeat(64)}`,
+    application_scope_fingerprint: target.applicationScopeFingerprint,
+    package_contract: target.packageContract,
+    package_contract_version: target.packageContractVersion,
+    package_platform: target.packagePlatform,
+    runtime_contract: target.runtimeContract,
+    runtime_schema_version: target.runtimeSchemaVersion,
+    database_schema_contract: target.databaseSchemaContract,
+    database_schema_signature: target.databaseSchemaSignature,
+    database_migration_contract: target.databaseMigrationContract,
+    database_migration_contract_version:
+      target.databaseMigrationContractVersion,
+    database_migration_ids: [...target.databaseMigrationIds],
+    database_record_contract: target.databaseRecordContract,
+    database_record_contract_version: target.databaseRecordContractVersion,
+    database_reader_contracts: [...target.databaseReaderContracts],
+  });
+
+  assert.deepEqual(
+    classifyRuntimeUpdate(
+      {
+        ...existing,
+        application_version: target.applicationVersion,
+        build_identity: target.buildIdentity,
+      },
+      target,
+    ),
+    { outcome: "no_update_required" },
+    "the same verified build and contracts must be an idempotent no-op",
+  );
+
+  assert.deepEqual(classifyRuntimeUpdate(existing, target), {
+    outcome: "update_ready",
+    source_application_version: existing.application_version,
+    source_build_identity: existing.build_identity,
+    package_contract: existing.package_contract,
+    package_contract_version: existing.package_contract_version,
+    runtime_contract: existing.runtime_contract,
+    runtime_schema_version: existing.runtime_schema_version,
+    target_application_version: target.applicationVersion,
+    target_build_identity: target.buildIdentity,
+  });
+  assert.equal(
+    classifyRuntimeUpdate(
+      { ...existing, package_contract_version: 1 },
+      target,
+    ).outcome,
+    "update_ready",
+    "the strict #1118 v1 package manifest must have one explicit handoff to the v2 recovery contract",
+  );
+  assert.equal(
+    classifyRuntimeUpdate(
+      { ...existing, application_version: target.applicationVersion },
+      target,
+    ).outcome,
+    "incompatible_package",
+    "an unordered different build of the same application version must fail closed",
+  );
+  assert.equal(
+    classifyRuntimeUpdate(
+      {
+        ...existing,
+        database_schema_signature: "0".repeat(64),
+        database_reader_contracts: ["project_home.previous"],
+      },
+      {
+        ...target,
+        databaseMigrationIds: [
+          ...target.databaseMigrationIds,
+          "0002_additive_fixture",
+        ],
+      },
+    ).outcome,
+    "update_ready",
+    "an additive target must hand off an exact-owned older schema so the real database inspector can stage its supported migration",
+  );
+
+  assert.deepEqual(
+    classifyRuntimeUpdate(
+      { ...existing, application_version: "2.1.0" },
+      target,
+    ),
+    { outcome: "unsupported_downgrade" },
+  );
+  assert.deepEqual(
+    classifyRuntimeUpdate(
+      { ...existing, application_version: "2.0.0" },
+      { ...target, applicationVersion: "2.0.0-rc.1" },
+    ),
+    { outcome: "unsupported_downgrade" },
+    "a stable release must not be replaced by its prerelease",
+  );
+  assert.equal(
+    classifyRuntimeUpdate(
+      { ...existing, application_version: "2.0.0-rc.2" },
+      { ...target, applicationVersion: "2.0.0-rc.10" },
+    ).outcome,
+    "update_ready",
+    "numeric prerelease identifiers must use SemVer numeric precedence",
+  );
+  assert.equal(
+    classifyRuntimeUpdate(
+      { ...existing, application_version: "2.0.0-alpha" },
+      { ...target, applicationVersion: "2.0.0-alpha.1" },
+    ).outcome,
+    "update_ready",
+    "a longer equal-prefix prerelease must sort after its prefix",
+  );
+
+  for (const [label, existingOverride, targetOverride] of [
+    ["application scope", { application_scope_fingerprint: "b".repeat(64) }, {}],
+    ["package contract", { package_contract: "augnes.distributable.v0" }, {}],
+    ["package contract version", { package_contract_version: 999 }, {}],
+    ["runtime contract", { runtime_contract: "augnes.runtime.v0" }, {}],
+    ["runtime schema", { runtime_schema_version: 999 }, {}],
+    ["database schema contract", { database_schema_contract: "invalid" }, {}],
+    ["database migration contract", { database_migration_contract: "invalid" }, {}],
+    ["database migration version", { database_migration_contract_version: 999 }, {}],
+    ["database migration IDs", { database_migration_ids: ["unexpected"] }, {}],
+    ["database record contract", { database_record_contract: "invalid" }, {}],
+    ["database record version", { database_record_contract_version: 999 }, {}],
+    ["invalid source version", { application_version: "2" }, {}],
+    ["invalid target version", {}, { applicationVersion: "2" }],
+  ]) {
+    assert.deepEqual(
+      classifyRuntimeUpdate(
+        { ...existing, ...existingOverride },
+        { ...target, ...targetOverride },
+      ),
+      { outcome: "incompatible_package" },
+      `${label} mismatch must fail closed`,
+    );
+  }
+}
+
+async function assertRecoveryControlDecisionContract() {
+  const recoveryBackups = Array.from({ length: 205 }, (_, index) => ({
+    backup_id: `backup-${String(index + 1).padStart(3, "0")}`,
+  }));
+  assert.deepEqual(paginateRecoveryInventory(recoveryBackups, 1), {
+    page: 1,
+    page_count: 3,
+    items: recoveryBackups.slice(0, 100),
+  });
+  assert.deepEqual(paginateRecoveryInventory(recoveryBackups, 3), {
+    page: 3,
+    page_count: 3,
+    items: recoveryBackups.slice(200),
+  });
+  assert.deepEqual(
+    paginateRecoveryInventory(recoveryBackups, 100),
+    {
+      page: 3,
+      page_count: 3,
+      items: recoveryBackups.slice(200),
+    },
+    "an out-of-range but bounded page must clamp to the last selectable recovery page",
+  );
+  assert.deepEqual(
+    recoveryProtectionDecision({
+      inventoryState: "available",
+      verifiedBackupCount: 1,
+    }),
+    {
+      backupVerified: true,
+      restoreAvailable: true,
+      nextAction: "restore_latest_verified_backup",
+    },
+  );
+  assert.deepEqual(
+    recoveryProtectionDecision({
+      inventoryState: "available",
+      verifiedBackupCount: 0,
+    }),
+    {
+      backupVerified: false,
+      restoreAvailable: false,
+      nextAction: "retry_update_or_continue_current_data",
+    },
+  );
+  assert.deepEqual(
+    recoveryProtectionDecision({
+      inventoryState: "unavailable",
+      verifiedBackupCount: 4,
+    }),
+    {
+      backupVerified: false,
+      restoreAvailable: false,
+      nextAction: "review_recovery_backup_inventory",
+    },
+    "an unavailable inventory must never inherit a stale verified count",
+  );
+
+  for (const firstCompletion of ["finish", "close"]) {
+    const response = new EventEmitter();
+    let shutdownCount = 0;
+    const runtime = {
+      shutdownRequested: false,
+      shutdownReason: null,
+      exitCode: 2,
+      lifecycleState: "failed",
+      failure: null,
+      lastTransitionAt: new Date(0).toISOString(),
+      manifestCreated: false,
+      resolveShutdown() {
+        shutdownCount += 1;
+      },
+    };
+    requestShutdownAfterResponse(runtime, response);
+    response.emit(firstCompletion);
+    response.emit(firstCompletion === "finish" ? "close" : "finish");
+    await new Promise((resolve) => queueMicrotask(resolve));
+    assert.equal(shutdownCount, 1);
+    assert.equal(runtime.shutdownRequested, true);
+    assert.equal(runtime.shutdownReason, "recovery_action_requested");
+    assert.equal(runtime.lifecycleState, "stopping");
+    assert.equal(runtime.exitCode, 0);
+  }
+}
+
+async function assertConcurrentRecoveryRequestRefusal() {
+  const runtime = {
+    instanceId: "runtime-concurrent-recovery-test",
+    childOwnershipToken: "a".repeat(64),
+    recoveryRequest: null,
+    shutdownRequested: false,
+    runtimeDistribution: { mode: "source" },
+  };
+  const requestUrl = new URL("http://127.0.0.1/v1/recovery");
+  const firstRequest = recoveryRequestStream(runtime);
+  const firstResponse = recoveryResponseRecorder();
+  const firstCompletion = handleRecoveryControlRequest(
+    runtime,
+    firstRequest,
+    firstResponse,
+    requestUrl,
+  );
+
+  assert.equal(runtime.recoveryRequest?.action, "request_pending");
+
+  const secondRequest = recoveryRequestStream(runtime);
+  secondRequest.end('{"action":"create_backup"}');
+  const secondResponse = recoveryResponseRecorder();
+  await handleRecoveryControlRequest(
+    runtime,
+    secondRequest,
+    secondResponse,
+    requestUrl,
+  );
+  assert.equal(secondResponse.statusCode, 409);
+  assert.equal(
+    JSON.parse(secondResponse.body).reason_code,
+    "recovery_action_in_progress",
+  );
+  assert.equal(runtime.recoveryRequest?.action, "request_pending");
+
+  firstRequest.end("{}");
+  await firstCompletion;
+  assert.equal(firstResponse.statusCode, 400);
+  assert.equal(runtime.recoveryRequest, null);
+}
+
+function recoveryRequestStream(runtime) {
+  const request = new PassThrough();
+  request.method = "POST";
+  request.headers = {
+    "x-augnes-child-ownership": runtime.childOwnershipToken,
+    "x-augnes-runtime-instance": runtime.instanceId,
+  };
+  return request;
+}
+
+function recoveryResponseRecorder() {
+  const response = new EventEmitter();
+  response.statusCode = null;
+  response.body = null;
+  response.writeHead = (statusCode) => {
+    response.statusCode = statusCode;
+  };
+  response.end = (body) => {
+    response.body = body;
+    response.emit("finish");
+  };
+  return response;
 }
 
 function assertRuntimeEnvironmentIsolation() {
@@ -1446,7 +1815,7 @@ function assertRuntimeEnvironmentIsolation() {
     mode: "packaged",
     applicationVersion,
     packageContract: "augnes.distributable.v1",
-    packageContractVersion: 1,
+    packageContractVersion: DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION,
     buildIdentity: `sha256:${"a".repeat(64)}`,
     applicationScopeFingerprint: "b".repeat(64),
     packagePlatform: formatDistributablePlatformLabel(
@@ -1476,7 +1845,10 @@ function assertRuntimeEnvironmentIsolation() {
       childEnvironment.AUGNES_PACKAGE_CONTRACT,
       "augnes.distributable.v1",
     );
-    assert.equal(childEnvironment.AUGNES_PACKAGE_CONTRACT_VERSION, "1");
+    assert.equal(
+      childEnvironment.AUGNES_PACKAGE_CONTRACT_VERSION,
+      String(DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION),
+    );
     assert.equal(
       childEnvironment.AUGNES_BUILD_IDENTITY,
       packagedDistribution.buildIdentity,

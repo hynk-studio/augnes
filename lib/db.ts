@@ -5,6 +5,12 @@ import {
 } from "@/lib/runtime/candidate-scoring";
 import proposalScoringSchema from "@/lib/db/proposal-scoring-schema.json";
 import {
+  createRecoveryPrivateMaterialReadBoundary,
+  isRecoveryPrivateMaterialExcludedFromAuthoritativeRead,
+  projectRecoveryPrivateMaterialStateEntryForAuthoritativeRead,
+  RECOVERY_PRIVATE_MATERIAL_MARKER,
+} from "@/lib/db/recovery-private-material-contract.mjs";
+import {
   ensureVNextProjectIdentityRegistrySchemaV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { ensureVNextProjectLifecycleSchemaV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
@@ -346,7 +352,10 @@ export function insertMessage(message: MessageRecord) {
           @created_at
         )
       `,
-    ).run(message);
+    ).run({
+      ...message,
+      content: RECOVERY_PRIVATE_MATERIAL_MARKER,
+    });
   } finally {
     db.close();
   }
@@ -506,7 +515,11 @@ export function insertPendingStateDeltaProposals(
         .all(...proposals.map((proposal) => proposal.id)) as ProposalRow[];
     })();
 
-    return savedRows.map(parseProposalRow);
+    return filterAuthoritativeRows(
+      db,
+      "state_delta_proposals",
+      savedRows,
+    ).map(parseProposalRow);
   } finally {
     db.close();
   }
@@ -588,7 +601,12 @@ export function listStateDeltaProposals({
       )
       .all(...params) as ProposalRow[];
 
-    return rows.map(parseProposalRow);
+    return filterAuthoritativeRows(
+      db,
+      "state_delta_proposals",
+      rows,
+      scope,
+    ).map(parseProposalRow);
   } finally {
     db.close();
   }
@@ -673,7 +691,11 @@ export function updateStateDeltaProposalScoring(
         .all(...updates.map((update) => update.id)) as ProposalRow[];
     })();
 
-    return rows.map(parseProposalRow);
+    return filterAuthoritativeRows(
+      db,
+      "state_delta_proposals",
+      rows,
+    ).map(parseProposalRow);
   } finally {
     db.close();
   }
@@ -702,29 +724,11 @@ export function commitStateDeltaProposal(id: string): ProposalCommitResult {
       const now = new Date().toISOString();
       const transitionId = `transition:${randomUUID()}`;
       const entryId = `entry:${proposal.scope}:${proposal.state_key}`;
-      const currentEntryRow = db
-        .prepare(
-          `
-            SELECT
-              id,
-              scope,
-              state_key,
-              value,
-              temporal_scope,
-              valid_from,
-              valid_until,
-              stability,
-              change_type,
-              source_agent_id,
-              source_session_id,
-              source_transition_id,
-              created_at,
-              updated_at
-            FROM state_entries
-            WHERE scope = ? AND state_key = ?
-          `,
-        )
-        .get(proposal.scope, proposal.state_key) as EntryRow | undefined;
+      const currentEntryRow = selectStateEntryRow(
+        db,
+        proposal.scope,
+        proposal.state_key,
+      );
       const actualBeforeValue = currentEntryRow
         ? parseStateValue(currentEntryRow.value)
         : proposal.before_value;
@@ -1058,29 +1062,11 @@ export function commitStateUpdate(input: CompletedStateInput) {
   try {
     return db.transaction(() => {
       const now = input.committed_at ?? new Date().toISOString();
-      const currentEntryRow = db
-        .prepare(
-          `
-            SELECT
-              id,
-              scope,
-              state_key,
-              value,
-              temporal_scope,
-              valid_from,
-              valid_until,
-              stability,
-              change_type,
-              source_agent_id,
-              source_session_id,
-              source_transition_id,
-              created_at,
-              updated_at
-            FROM state_entries
-            WHERE scope = ? AND state_key = ?
-          `,
-        )
-        .get(input.scope, input.state_key) as EntryRow | undefined;
+      const currentEntryRow = selectStateEntryRow(
+        db,
+        input.scope,
+        input.state_key,
+      );
       const beforeValue = serializeStateValue(
         currentEntryRow ? parseStateValue(currentEntryRow.value) : input.before_value ?? null,
       );
@@ -1264,32 +1250,7 @@ export function listStateEntries(scope: string): StateEntry[] {
   const db = openDatabase();
 
   try {
-    const rows = db
-      .prepare(
-        `
-          SELECT
-            id,
-            scope,
-            state_key,
-            value,
-            temporal_scope,
-            valid_from,
-            valid_until,
-            stability,
-            change_type,
-            source_agent_id,
-            source_session_id,
-            source_transition_id,
-            created_at,
-            updated_at
-          FROM state_entries
-          WHERE scope = ?
-          ORDER BY state_key ASC
-        `,
-      )
-      .all(scope) as EntryRow[];
-
-    return rows.map(parseEntryRow);
+    return selectStateEntryRows(db, scope).map(parseEntryRow);
   } finally {
     db.close();
   }
@@ -1354,7 +1315,12 @@ export function listStateTransitions(scope: string): StateTransition[] {
       )
       .all(scope) as TransitionRow[];
 
-    return rows.map(parseTransitionRow);
+    return filterAuthoritativeRows(
+      db,
+      "state_transitions",
+      rows,
+      scope,
+    ).map(parseTransitionRow);
   } finally {
     db.close();
   }
@@ -1440,7 +1406,7 @@ function parseTransitionRow(row: TransitionRow): StateTransition {
 }
 
 function selectProposalRow(db: Database.Database, id: string) {
-  return db
+  const row = db
     .prepare(
       `
         SELECT
@@ -1478,10 +1444,17 @@ function selectProposalRow(db: Database.Database, id: string) {
       `,
     )
     .get(id) as ProposalRow | undefined;
+  if (!row) return undefined;
+  return filterAuthoritativeRows(
+    db,
+    "state_delta_proposals",
+    [row],
+    row.scope,
+  )[0];
 }
 
 function selectStateEntryRows(db: Database.Database, scope: string) {
-  return db
+  const rows = db
     .prepare(
       `
         SELECT
@@ -1505,6 +1478,76 @@ function selectStateEntryRows(db: Database.Database, scope: string) {
       `,
     )
     .all(scope) as EntryRow[];
+  return projectAuthoritativeStateEntryRows(db, rows, scope);
+}
+
+function selectStateEntryRow(
+  db: Database.Database,
+  scope: string,
+  stateKey: string,
+) {
+  const row = db
+    .prepare(
+      `
+        SELECT
+          id,
+          scope,
+          state_key,
+          value,
+          temporal_scope,
+          valid_from,
+          valid_until,
+          stability,
+          change_type,
+          source_agent_id,
+          source_session_id,
+          source_transition_id,
+          created_at,
+          updated_at
+        FROM state_entries
+        WHERE scope = ? AND state_key = ?
+      `,
+    )
+    .get(scope, stateKey) as EntryRow | undefined;
+  if (!row) return undefined;
+  return projectAuthoritativeStateEntryRows(db, [row], scope)[0];
+}
+
+function projectAuthoritativeStateEntryRows(
+  db: Database.Database,
+  rows: EntryRow[],
+  scope: string,
+) {
+  const boundary = createRecoveryPrivateMaterialReadBoundary(db, { scope });
+  return rows
+    .map((row) =>
+      projectRecoveryPrivateMaterialStateEntryForAuthoritativeRead(
+        row,
+        boundary,
+      ),
+    )
+    .filter((row): row is EntryRow => row !== null);
+}
+
+function filterAuthoritativeRows<Row extends { id: string }>(
+  db: Database.Database,
+  tableName:
+    | "state_delta_proposals"
+    | "state_transitions",
+  rows: Row[],
+  scope?: string,
+) {
+  const boundary = createRecoveryPrivateMaterialReadBoundary(db, {
+    scope: scope ?? null,
+  });
+  return rows.filter(
+    (row) =>
+      !isRecoveryPrivateMaterialExcludedFromAuthoritativeRead(
+        tableName,
+        row,
+        boundary,
+      ),
+  );
 }
 
 function migrateStateDeltaProposalScoringColumns(db: Database.Database) {

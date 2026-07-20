@@ -285,71 +285,61 @@ export function readProjectHomeEntryDestinationV01(
   return project ? projectDestination(project.project_id) : "/projects";
 }
 
-export async function readProjectHomeProjectionV01(
-  db: Database.Database,
-  input: { workspace_id: string; project_id: string },
-  dependencies: ProjectHomeProjectionDependenciesV01 = {},
-): Promise<ProjectHomeProjectionV01> {
-  const evaluationTimestamp = (
-    dependencies.now ?? (() => new Date().toISOString())
-  )();
-  const evaluationMilliseconds = parseStrictIsoTimestampV01(
-    evaluationTimestamp,
-  );
-  if (evaluationMilliseconds === null) {
+function projectHomeEvaluationV01(now: (() => string) | undefined): {
+  timestamp: string;
+  milliseconds: number;
+} {
+  const timestamp = (now ?? (() => new Date().toISOString()))();
+  const milliseconds = parseStrictIsoTimestampV01(timestamp);
+  if (milliseconds === null) {
     throw new Error("project_home_evaluation_timestamp_invalid");
   }
-  const evaluation = {
-    timestamp: evaluationTimestamp,
-    milliseconds: evaluationMilliseconds,
-  };
+  return { timestamp, milliseconds };
+}
 
+function readProjectHomeDatabaseCoreV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  dependencies: ProjectHomeProjectionDependenciesV01,
+  options: { strict: boolean },
+) {
+  const evaluation = projectHomeEvaluationV01(dependencies.now);
   const registration = readCanonicalProjectWithRootV01(db, input);
   if (!registration) throw new ProjectHomeProjectionErrorV01("project_not_found");
   if (registration.project.workspace_id !== input.workspace_id) {
     throw new ProjectHomeProjectionErrorV01("project_scope_conflict");
   }
 
+  const readSection = <Value>(
+    reader: () => Value,
+    fallback: () => Value,
+  ): Value => options.strict ? reader() : readSectionSafely(reader, fallback);
   const activeSelection = readActiveProjectSelectionV01(db, input.workspace_id);
-  const rootAvailability = await (
-    dependencies.read_root_availability ?? readRootAvailabilityV01
-  )(registration.root_binding.local_root.normalized_path);
   const repository = readRepositorySummary(db, input);
-  const acceptedState = readSectionSafely(
+  const acceptedState = readSection(
     () => readAcceptedState(db, input),
     acceptedStateError,
   );
-  const workingProjection = readSectionSafely(
+  const workingProjection = readSection(
     () => readWorkingProjection(db, input, evaluation.timestamp),
     workingProjectionError,
   );
-  const taskFrame = readSectionSafely(
+  const taskFrame = readSection(
     () => readTaskFrame(db, input, evaluation.timestamp),
     taskFrameError,
   );
-  const proposalAttention = readSectionSafely(
+  const proposalAttention = readSection(
     () => readPendingAttention(db, input, evaluation),
     attentionError,
   );
-  const recentActivity = readSectionSafely(
+  const recentActivity = readSection(
     () => readRecentActivity(db, input),
     activityError,
   );
-  const runResults = readSectionSafely(
+  const runResults = readSection(
     () => projectHomeRunResultsV01(db, input),
     runResultsError,
   );
-  const capabilities = await readCapabilitiesSafely(
-    dependencies.read_capability_statuses,
-  );
-  const projectSummary = {
-    project: registration.project,
-    root_binding: registration.root_binding,
-    root_availability: rootAvailability,
-    repository,
-    is_active: activeSelection?.project_id === input.project_id,
-    active_selection: activeSelection,
-  } satisfies ProjectHomeProjectionV01["project_summary"];
   const effectiveAutomation = readProjectAutomationEffectiveStatusV01(
     db,
     input,
@@ -369,6 +359,106 @@ export async function readProjectHomeProjectionV01(
           },
         })
       : boundedAutomationUnavailableV01(input, effectiveAutomation);
+  const effectivePersonalPerspective =
+    readPersonalPerspectiveEffectiveScopeV01(db, input);
+  const personalPerspectiveTaskBasis = readSection(
+    () => readPersonalPerspectiveTaskBasis(db, input, evaluation.timestamp),
+    () => null,
+  );
+
+  return {
+    evaluation,
+    registration,
+    activeSelection,
+    repository,
+    acceptedState,
+    workingProjection,
+    taskFrame,
+    proposalAttention,
+    recentActivity,
+    runResults,
+    effectiveAutomation,
+    automationCycle,
+    effectivePersonalPerspective,
+    personalPerspectiveTaskBasis,
+  };
+}
+
+/**
+ * Synchronous, filesystem-free compatibility pass over the exact database
+ * readers used by Project Home. Production keeps its bounded section
+ * fallbacks; update and recovery staging use strict mode so a derived-reader
+ * mismatch is refused before the database can become authoritative.
+ */
+export function readProjectHomeDatabaseCompatibilityV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  dependencies: Pick<
+    ProjectHomeProjectionDependenciesV01,
+    "now" | "operator_config" | "automation_host_contract"
+  > = {},
+): {
+  workspace_id: string;
+  project_id: string;
+  read_compatible: true;
+  projection_only: true;
+} {
+  const core = readProjectHomeDatabaseCoreV01(
+    db,
+    input,
+    dependencies,
+    { strict: true },
+  );
+  if (
+    core.registration.project.workspace_id !== input.workspace_id ||
+    core.registration.project.project_id !== input.project_id
+  ) {
+    throw new ProjectHomeProjectionErrorV01("project_scope_conflict");
+  }
+  return {
+    ...input,
+    read_compatible: true,
+    projection_only: true,
+  };
+}
+
+export async function readProjectHomeProjectionV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  dependencies: ProjectHomeProjectionDependenciesV01 = {},
+): Promise<ProjectHomeProjectionV01> {
+  const {
+    evaluation,
+    registration,
+    activeSelection,
+    repository,
+    acceptedState,
+    workingProjection,
+    taskFrame,
+    proposalAttention,
+    recentActivity,
+    runResults,
+    effectiveAutomation,
+    automationCycle,
+    effectivePersonalPerspective,
+    personalPerspectiveTaskBasis,
+  } = readProjectHomeDatabaseCoreV01(db, input, dependencies, {
+    strict: false,
+  });
+  const rootAvailability = await (
+    dependencies.read_root_availability ?? readRootAvailabilityV01
+  )(registration.root_binding.local_root.normalized_path);
+  const capabilities = await readCapabilitiesSafely(
+    dependencies.read_capability_statuses,
+  );
+  const projectSummary = {
+    project: registration.project,
+    root_binding: registration.root_binding,
+    root_availability: rootAvailability,
+    repository,
+    is_active: activeSelection?.project_id === input.project_id,
+    active_selection: activeSelection,
+  } satisfies ProjectHomeProjectionV01["project_summary"];
   const automationAdmission = automationAdmissionFromCycle(automationCycle);
   const automation = {
     state: automationSectionStateV01(effectiveAutomation, automationCycle),
@@ -395,17 +485,6 @@ export async function readProjectHomeProjectionV01(
           })
         : createSharedInspectorHrefV01({ target_kind: "project_coordination" }),
   } satisfies ProjectHomeProjectionV01["automation"];
-  const effectivePersonalPerspective =
-    readPersonalPerspectiveEffectiveScopeV01(db, input);
-  const personalPerspectiveTaskBasis = readSectionSafely(
-    () =>
-      readPersonalPerspectiveTaskBasis(
-        db,
-        input,
-        evaluation.timestamp,
-      ),
-    () => null,
-  );
   const personalPerspective = {
     state: sectionState(
       effectivePersonalPerspective.status === "not_configured"

@@ -34,15 +34,24 @@ import {
   RUNTIME_GENERATION_VERSION,
   RUNTIME_SCHEMA_VERSION,
   resolveRuntimePaths,
-} from "./augnes-runtime-supervisor.mjs";
+} from "./augnes-runtime-supervisor-core.mjs";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import {
   DATABASE_BOOTSTRAP_CONTRACT,
   bootstrapJournalPath,
   inspectDatabaseReconciliation,
+  inspectRecoveryDatabaseFile,
   prepareRuntimeDatabase,
+  reconcileInterruptedDatabaseBootstrap,
+  restoreRuntimeDatabase,
   verifyDatabaseFile,
 } from "./runtime-database-bootstrap.mjs";
+import {
+  completePendingRecoveryAction,
+  createRecoveryBackup,
+  readRecoveryOperationResults,
+  writePendingRecoveryAction,
+} from "./recovery-backup.mjs";
 import {
   acquireRuntimeReconciliationLease,
   classifyRuntimeState,
@@ -149,6 +158,12 @@ async function runReconciliationSuite() {
       selectedPorts,
     });
     activeWalSkipReason = databaseResults.activeWalSkipReason;
+    await testExplicitRestoreCrashPhases({
+      temporaryRoot,
+      proxyPort,
+      managed,
+      selectedPorts,
+    });
     await testRestoreFailureAndLegacyJournal({
       temporaryRoot,
       proxyPort,
@@ -192,12 +207,15 @@ async function runReconciliationSuite() {
       reconciliation_lease_reused_pid_rejected: true,
       crashed_database_owner_reconciled: true,
       database_journal_reused_pid_rejected: true,
+      database_backup_ready_recovered: true,
+      database_staging_file_created_recovered: true,
       database_staging_ready_recovered: true,
       database_move_intent_recovered: true,
       database_original_moved_recovered: true,
       database_publish_intent_recovered: true,
       database_staging_published_recovered: true,
       database_published_verified_recovered: true,
+      explicit_restore_crash_phases_recovered: true,
       database_restore_failure_retried: true,
       active_wal_recovered: process.platform !== "win32",
       legacy_journal_refused: true,
@@ -757,7 +775,225 @@ async function testDatabaseCrashPhases({
   managed,
   selectedPorts,
 }) {
+  await testLegacyV3JournalRecovery({ temporaryRoot, proxyPort });
+
+  const unrecordedBackupScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "database-recovery-staging-unrecorded",
+    proxyPort,
+  );
+  const unrecordedBackupMarker =
+    "agent:reconciliation-recovery-staging-unrecorded";
+  createOldDatabase(
+    unrecordedBackupScenario.databasePath,
+    unrecordedBackupMarker,
+  );
+  await crashBootstrapAtPhase(
+    unrecordedBackupScenario,
+    "recovery_staging_created",
+  );
+  const unrecordedInspection = await inspectDatabaseReconciliation({
+    databasePath: unrecordedBackupScenario.databasePath,
+    backupDirectory: unrecordedBackupScenario.localPaths.backup_directory,
+    repositoryFingerprint,
+  });
+  assert.equal(unrecordedInspection.state, "recoverable");
+  assert.equal(unrecordedInspection.phase, "acquired");
+  assert.equal(
+    readdirSync(unrecordedBackupScenario.localPaths.backup_directory).filter(
+      (name) => name.startsWith(".augnes-recovery-incomplete-"),
+    ).length,
+    1,
+  );
+  const unrecordedRuntime = await startSupervisor(
+    unrecordedBackupScenario,
+    managed,
+  );
+  selectedPorts.push(
+    portSummary(unrecordedBackupScenario.name, unrecordedRuntime.ready),
+  );
+  assertMarker(unrecordedBackupScenario.databasePath, unrecordedBackupMarker);
+  assert.equal(
+    readdirSync(unrecordedBackupScenario.localPaths.backup_directory).filter(
+      (name) => name.startsWith(".augnes-recovery-incomplete-"),
+    ).length,
+    0,
+  );
+  assert.equal(
+    recoveryBackupDirectories(
+      unrecordedBackupScenario.localPaths.backup_directory,
+    ).length,
+    1,
+  );
+  await stopSupervisor(unrecordedBackupScenario, unrecordedRuntime, managed);
+  assertRuntimeStateClean(unrecordedBackupScenario.paths);
+
+  const publishedBackupScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "database-recovery-backup-published-unrecorded",
+    proxyPort,
+  );
+  const publishedBackupMarker =
+    "agent:reconciliation-recovery-backup-published-unrecorded";
+  createOldDatabase(publishedBackupScenario.databasePath, publishedBackupMarker);
+  await crashBootstrapAtPhase(
+    publishedBackupScenario,
+    "recovery_backup_published",
+  );
+  const publishedBackupInspection = await inspectDatabaseReconciliation({
+    databasePath: publishedBackupScenario.databasePath,
+    backupDirectory: publishedBackupScenario.localPaths.backup_directory,
+    repositoryFingerprint,
+  });
+  assert.equal(publishedBackupInspection.state, "recoverable");
+  assert.equal(publishedBackupInspection.phase, "acquired");
+  assert.equal(
+    recoveryBackupDirectories(
+      publishedBackupScenario.localPaths.backup_directory,
+    ).length,
+    1,
+  );
+  const publishedBackupRuntime = await startSupervisor(
+    publishedBackupScenario,
+    managed,
+  );
+  selectedPorts.push(
+    portSummary(publishedBackupScenario.name, publishedBackupRuntime.ready),
+  );
+  assertMarker(publishedBackupScenario.databasePath, publishedBackupMarker);
+  assert.equal(
+    recoveryBackupDirectories(
+      publishedBackupScenario.localPaths.backup_directory,
+    ).length,
+    1,
+    "a published verified backup must be journal-adopted and reused",
+  );
+  await stopSupervisor(
+    publishedBackupScenario,
+    publishedBackupRuntime,
+    managed,
+  );
+  assertRuntimeStateClean(publishedBackupScenario.paths);
+
+  const unrecordedStageScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "database-staging-file-unrecorded",
+    proxyPort,
+  );
+  const unrecordedStageMarker =
+    "agent:reconciliation-staging-file-unrecorded";
+  createOldDatabase(
+    unrecordedStageScenario.databasePath,
+    unrecordedStageMarker,
+  );
+  await crashBootstrapAtPhase(
+    unrecordedStageScenario,
+    "staging_file_created",
+  );
+  const unrecordedStageInspection = await inspectDatabaseReconciliation({
+    databasePath: unrecordedStageScenario.databasePath,
+    backupDirectory: unrecordedStageScenario.localPaths.backup_directory,
+    repositoryFingerprint,
+  });
+  assert.equal(unrecordedStageInspection.state, "recoverable");
+  assert.equal(unrecordedStageInspection.phase, "backup_ready");
+  const unrecordedStageRuntime = await startSupervisor(
+    unrecordedStageScenario,
+    managed,
+  );
+  selectedPorts.push(
+    portSummary(unrecordedStageScenario.name, unrecordedStageRuntime.ready),
+  );
+  assertMarker(unrecordedStageScenario.databasePath, unrecordedStageMarker);
+  assert.equal(
+    listOperationResidue(path.dirname(unrecordedStageScenario.databasePath))
+      .length,
+    0,
+  );
+  assert.equal(
+    recoveryBackupDirectories(
+      unrecordedStageScenario.localPaths.backup_directory,
+    ).length,
+    1,
+  );
+  await stopSupervisor(
+    unrecordedStageScenario,
+    unrecordedStageRuntime,
+    managed,
+  );
+  assertRuntimeStateClean(unrecordedStageScenario.paths);
+
+  const replacedSourceScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "database-backup-ready-source-replaced",
+    proxyPort,
+  );
+  createOldDatabase(
+    replacedSourceScenario.databasePath,
+    "agent:reconciliation-source-original",
+  );
+  await crashBootstrapAtPhase(replacedSourceScenario, "backup_ready");
+  for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+    const candidate = `${replacedSourceScenario.databasePath}${suffix}`;
+    if (existsSync(candidate)) unlinkSync(candidate);
+  }
+  createOldDatabase(
+    replacedSourceScenario.databasePath,
+    "agent:reconciliation-source-replacement",
+  );
+  await assert.rejects(
+    reconcileInterruptedDatabaseBootstrap({
+      databasePath: replacedSourceScenario.databasePath,
+      backupDirectory:
+        replacedSourceScenario.localPaths.backup_directory,
+      repositoryFingerprint,
+      reconciliationLeaseOwned: true,
+    }),
+    (error) => error?.code === "database_reconciliation_failed",
+  );
+  assert.equal(
+    existsSync(bootstrapJournalPath(replacedSourceScenario.databasePath)),
+    true,
+    "a replaced authoritative family must retain its exact recovery journal",
+  );
+  rmSync(replacedSourceScenario.root, { recursive: true, force: true });
+
+  const missingBackupScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "database-journal-bound-backup-missing",
+    proxyPort,
+  );
+  const missingBackupMarker = "agent:reconciliation-backup-missing";
+  createOldDatabase(missingBackupScenario.databasePath, missingBackupMarker);
+  await crashBootstrapAtPhase(missingBackupScenario, "backup_ready");
+  const [missingBackupBasename] = recoveryBackupDirectories(
+    missingBackupScenario.localPaths.backup_directory,
+  );
+  rmSync(
+    path.join(
+      missingBackupScenario.localPaths.backup_directory,
+      missingBackupBasename,
+    ),
+    { recursive: true, force: true },
+  );
+  await assert.rejects(
+    reconcileInterruptedDatabaseBootstrap({
+      databasePath: missingBackupScenario.databasePath,
+      backupDirectory: missingBackupScenario.localPaths.backup_directory,
+      repositoryFingerprint,
+      reconciliationLeaseOwned: true,
+    }),
+    (error) => error?.code === "database_reconciliation_failed",
+  );
+  assertMarker(missingBackupScenario.databasePath, missingBackupMarker);
+  assert.equal(
+    existsSync(bootstrapJournalPath(missingBackupScenario.databasePath)),
+    true,
+  );
+  rmSync(missingBackupScenario.root, { recursive: true, force: true });
+
   const phases = [
+    "backup_ready",
     "staging_ready",
     "moving_original",
     "original_moved",
@@ -817,15 +1053,23 @@ async function testDatabaseCrashPhases({
     verifyDatabaseFile(scenario.databasePath);
     assert.equal(existsSync(bootstrapJournalPath(scenario.databasePath)), false);
     assert.equal(listOperationResidue(path.dirname(scenario.databasePath)).length, 0);
-    const backups = regularFiles(scenario.localPaths.backup_directory).filter(
-      (name) => name.endsWith(".db"),
+    const backups = recoveryBackupDirectories(
+      scenario.localPaths.backup_directory,
     );
-    assert(backups.length >= 1, "recovery backup must be retained");
+    assert.equal(
+      backups.length,
+      1,
+      "crash reconciliation must reuse the journal-bound verified backup",
+    );
     for (const backup of backups) {
-      verifyDatabaseFile(path.join(scenario.localPaths.backup_directory, backup));
-    }
-    if (phase === "published_verified") {
-      assert.equal(backups.length, 1, "verified publish must not create a second backup");
+      verifyDatabaseFile(
+        path.join(
+          scenario.localPaths.backup_directory,
+          backup,
+          "state",
+          "augnes.db",
+        ),
+      );
     }
     await stopSupervisor(scenario, runtime, managed);
     assertRuntimeStateClean(scenario.paths);
@@ -853,6 +1097,539 @@ async function testDatabaseCrashPhases({
   verifyDatabaseFile(walScenario.databasePath);
   await stopSupervisor(walScenario, walRuntime, managed);
   return { activeWalSkipReason: null };
+}
+
+async function testLegacyV3JournalRecovery({ temporaryRoot, proxyPort }) {
+  const partialStageScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "legacy-v3-partial-stage",
+    proxyPort,
+  );
+  const partialMarker = "agent:legacy-v3-partial-stage";
+  createOldDatabase(partialStageScenario.databasePath, partialMarker);
+  await crashBootstrapAtPhase(partialStageScenario, "backup_ready");
+  const partialLockPath = bootstrapJournalPath(
+    partialStageScenario.databasePath,
+  );
+  const partialJournal = JSON.parse(readFileSync(partialLockPath, "utf8"));
+  const partialBackupPath = path.join(
+    partialStageScenario.localPaths.backup_directory,
+    partialJournal.recovery_backup_basename,
+  );
+  const legacyBackupBasename = "augnes-pre-migration-v3-partial-stage.db";
+  writeFileSync(
+    path.join(
+      partialStageScenario.localPaths.backup_directory,
+      legacyBackupBasename,
+    ),
+    readFileSync(path.join(partialBackupPath, "state", "augnes.db")),
+    { mode: 0o600 },
+  );
+  rmSync(partialBackupPath, { recursive: true, force: true });
+  const partialStagePath = path.join(
+    path.dirname(partialStageScenario.databasePath),
+    partialJournal.stage_basename,
+  );
+  writeFileSync(
+    partialStagePath,
+    readFileSync(partialStageScenario.databasePath),
+    { mode: 0o600 },
+  );
+  writeRestrictedJson(
+    partialLockPath,
+    toLegacyV3BootstrapJournal(partialJournal, {
+      recoveryBackupBasename: legacyBackupBasename,
+    }),
+    true,
+  );
+  const partialReconciled = await reconcileInterruptedDatabaseBootstrap({
+    databasePath: partialStageScenario.databasePath,
+    backupDirectory: partialStageScenario.localPaths.backup_directory,
+    repositoryFingerprint,
+    reconciliationLeaseOwned: true,
+  });
+  assert.equal(partialReconciled.result, "database_rollback_restored");
+  assert.equal(existsSync(partialStagePath), false);
+  assertMarker(partialStageScenario.databasePath, partialMarker);
+  assert.equal(existsSync(partialLockPath), false);
+  rmSync(partialStageScenario.root, { recursive: true, force: true });
+
+  for (const phase of ["published_verified", "cleanup_complete"]) {
+    const scenario = await createRuntimeScenario(
+      temporaryRoot,
+      `legacy-v3-${phase}`,
+      proxyPort,
+    );
+    await crashBootstrapAtPhase(scenario, phase);
+    const lockPath = bootstrapJournalPath(scenario.databasePath);
+    const journal = JSON.parse(readFileSync(lockPath, "utf8"));
+    for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+      const candidate = `${scenario.databasePath}${suffix}`;
+      if (existsSync(candidate)) unlinkSync(candidate);
+    }
+    const marker = `agent:legacy-v3-${phase}`;
+    createOldDatabase(scenario.databasePath, marker);
+    const publishedFamily = readTestDatabaseFamilyIdentity(
+      scenario.databasePath,
+    );
+    journal.phase = phase;
+    journal.staged_family = publishedFamily;
+    journal.published_family = publishedFamily;
+    writeRestrictedJson(
+      lockPath,
+      toLegacyV3BootstrapJournal(journal, {
+        recoveryBackupBasename: null,
+      }),
+      true,
+    );
+    const reconciled = await reconcileInterruptedDatabaseBootstrap({
+      databasePath: scenario.databasePath,
+      backupDirectory: scenario.localPaths.backup_directory,
+      repositoryFingerprint,
+      reconciliationLeaseOwned: true,
+    });
+    assert.equal(reconciled.result, "database_verified_publish_committed");
+    assert.equal(existsSync(lockPath), false);
+    assert.equal(
+      inspectRecoveryDatabaseFile(scenario.databasePath).schema_classification,
+      "old",
+    );
+    const migrated = await prepareRuntimeDatabase({
+      databasePath: scenario.databasePath,
+      backupDirectory: scenario.localPaths.backup_directory,
+      repositoryRoot,
+      repositoryFingerprint,
+      instanceId: `legacy-v3-migrate-${phase}`,
+      databaseOverrideActive: true,
+    });
+    assert.equal(migrated.databaseState, "migrated");
+    assertMarker(scenario.databasePath, marker);
+    assert.equal(existsSync(bootstrapJournalPath(scenario.databasePath)), false);
+    rmSync(scenario.root, { recursive: true, force: true });
+  }
+}
+
+function toLegacyV3BootstrapJournal(
+  journal,
+  { recoveryBackupBasename },
+) {
+  return {
+    schema_version: 3,
+    contract: journal.contract,
+    repository_fingerprint: journal.repository_fingerprint,
+    runtime_instance_id: journal.runtime_instance_id,
+    runtime_ownership_generation: journal.runtime_ownership_generation,
+    supervisor_pid: journal.supervisor_pid,
+    owner_process_identity: journal.owner_process_identity,
+    owner_probe_port: journal.owner_probe_port,
+    owner_probe_token: journal.owner_probe_token,
+    owner_probe_binding: journal.owner_probe_binding,
+    operation_id: journal.operation_id,
+    ownership_nonce: journal.ownership_nonce,
+    database_identity_hash: journal.database_identity_hash,
+    phase: journal.phase,
+    stage_basename: journal.stage_basename,
+    rollback_basename: journal.rollback_basename,
+    journal_temp_basename: journal.journal_temp_basename,
+    recovery_backup_basename: recoveryBackupBasename,
+    source_was_missing: journal.source_was_missing,
+    original_family: journal.original_family,
+    staged_family: journal.staged_family,
+    rollback_family: journal.rollback_family,
+    published_family: journal.published_family,
+    restored_family: journal.restored_family,
+    created_at: journal.created_at,
+    last_transition_at: journal.last_transition_at,
+  };
+}
+
+function readTestDatabaseFamilyIdentity(databasePath) {
+  const family = [];
+  for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+    const candidate = `${databasePath}${suffix}`;
+    if (!existsSync(candidate)) continue;
+    const stats = lstatSync(candidate, { bigint: true });
+    assert.equal(stats.isFile(), true);
+    assert.equal(stats.isSymbolicLink(), false);
+    family.push({
+      suffix,
+      dev: stats.dev.toString(),
+      ino: stats.ino.toString(),
+      size: stats.size.toString(),
+      sha256: createHash("sha256")
+        .update(readFileSync(candidate))
+        .digest("hex"),
+    });
+  }
+  return family;
+}
+
+async function testExplicitRestoreCrashPhases({
+  temporaryRoot,
+  proxyPort,
+  managed,
+  selectedPorts,
+}) {
+  const acquiredScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "explicit-restore-acquired-incompatible-current",
+    proxyPort,
+  );
+  const acquiredSelectedSource = path.join(
+    acquiredScenario.root,
+    "selected-source.db",
+  );
+  createCurrentDatabase(acquiredSelectedSource);
+  insertMarker(
+    acquiredSelectedSource,
+    "agent:restore-acquired-selected",
+  );
+  const acquiredSelected = await createRecoveryBackup({
+    databasePath: acquiredSelectedSource,
+    backupDirectory: acquiredScenario.localPaths.backup_directory,
+    applicationScopeFingerprint: repositoryFingerprint,
+    sourceApplication: {
+      application_version: null,
+      build_identity: null,
+      package_contract: null,
+      package_contract_version: null,
+      runtime_contract: null,
+      runtime_schema_version: null,
+    },
+    reason: "manual_recovery",
+    inspectDatabase: inspectRecoveryDatabaseFile,
+  });
+  unlinkSync(acquiredSelectedSource);
+  mkdirSync(path.dirname(acquiredScenario.databasePath), {
+    recursive: true,
+    mode: 0o700,
+  });
+  const incompatibleBytes = Buffer.from("not-a-sqlite-database\n");
+  writeFileSync(acquiredScenario.databasePath, incompatibleBytes, {
+    mode: 0o600,
+  });
+  await crashBootstrapAtPhase(acquiredScenario, "acquired", {
+    operationKind: "restore",
+    selectedBackupId: acquiredSelected.manifest.backup_id,
+    selectedBackupIdentity: acquiredSelected.manifest.backup_identity,
+    selectedBackupDirectoryIdentity:
+      acquiredSelected.backupDirectoryIdentity,
+  });
+  const acquiredReconciled = await reconcileInterruptedDatabaseBootstrap({
+    databasePath: acquiredScenario.databasePath,
+    backupDirectory: acquiredScenario.localPaths.backup_directory,
+    repositoryFingerprint,
+    reconciliationLeaseOwned: true,
+  });
+  assert.equal(acquiredReconciled.databaseStateReconciled, true);
+  assert.equal(
+    acquiredReconciled.reconciliationOperation.operationKind,
+    "restore",
+  );
+  assert.equal(
+    acquiredReconciled.reconciliationOperation.selectedBackupId,
+    null,
+  );
+  assert.deepEqual(readFileSync(acquiredScenario.databasePath), incompatibleBytes);
+  assert.equal(existsSync(bootstrapJournalPath(acquiredScenario.databasePath)), false);
+  assert.equal(
+    listOperationResidue(path.dirname(acquiredScenario.databasePath)).length,
+    0,
+  );
+  rmSync(acquiredScenario.root, { recursive: true, force: true });
+
+  const settlementScenario = await createRuntimeScenario(
+    temporaryRoot,
+    "explicit-restore-published-settlement",
+    proxyPort,
+  );
+  const settlementSelectedSource = path.join(
+    settlementScenario.root,
+    "selected-source.db",
+  );
+  const settlementSelectedMarker =
+    "agent:restore-published-settlement-selected";
+  const settlementCurrentMarker =
+    "agent:restore-published-settlement-current";
+  const settlementActionId = "11111111-1111-4111-8111-111111111111";
+  createCurrentDatabase(settlementSelectedSource);
+  insertMarker(settlementSelectedSource, settlementSelectedMarker);
+  const settlementSelected = await createRecoveryBackup({
+    databasePath: settlementSelectedSource,
+    backupDirectory: settlementScenario.localPaths.backup_directory,
+    applicationScopeFingerprint: repositoryFingerprint,
+    sourceApplication: {
+      application_version: null,
+      build_identity: null,
+      package_contract: null,
+      package_contract_version: null,
+      runtime_contract: null,
+      runtime_schema_version: null,
+    },
+    reason: "manual_recovery",
+    inspectDatabase: inspectRecoveryDatabaseFile,
+  });
+  unlinkSync(settlementSelectedSource);
+  createCurrentDatabase(settlementScenario.databasePath);
+  insertMarker(settlementScenario.databasePath, settlementCurrentMarker);
+  writePendingRecoveryAction({
+    backupDirectory: settlementScenario.localPaths.backup_directory,
+    action: {
+      action_id: settlementActionId,
+      action: "restore_backup",
+      accepted_at: "2026-07-20T00:00:00.000Z",
+      application_scope_fingerprint: repositoryFingerprint,
+      target_application_version: "0.1.1",
+      target_build_identity: `sha256:${"7".repeat(64)}`,
+      target_package_contract: "augnes.distributable.v1",
+      target_package_contract_version: 2,
+      target_runtime_contract: "augnes-local-runtime-supervisor-v1",
+      target_runtime_schema_version: 2,
+      requesting_runtime_instance_id:
+        "22222222-2222-4222-8222-222222222222",
+      requesting_runtime_generation_id:
+        "33333333-3333-4333-8333-333333333333",
+      selected_backup_id: settlementSelected.manifest.backup_id,
+      selected_backup_identity:
+        settlementSelected.manifest.backup_identity,
+      selected_backup_directory_identity:
+        settlementSelected.backupDirectoryIdentity,
+      selected_backup_state_directory_identity:
+        settlementSelected.stateDirectoryIdentity,
+      selected_backup_manifest_file_identity:
+        settlementSelected.manifestFileIdentity,
+      selected_backup_payload_file_identity:
+        settlementSelected.payloadFileIdentity,
+    },
+  });
+  await crashBootstrapAtPhase(settlementScenario, "published_verified", {
+    operationKind: "restore",
+    recoveryActionId: settlementActionId,
+    selectedBackupId: settlementSelected.manifest.backup_id,
+    selectedBackupIdentity: settlementSelected.manifest.backup_identity,
+    selectedBackupDirectoryIdentity:
+      settlementSelected.backupDirectoryIdentity,
+  });
+  assertMarker(settlementScenario.databasePath, settlementSelectedMarker);
+  await assert.rejects(
+    reconcileInterruptedDatabaseBootstrap({
+      databasePath: settlementScenario.databasePath,
+      backupDirectory: settlementScenario.localPaths.backup_directory,
+      repositoryFingerprint,
+      reconciliationLeaseOwned: true,
+    }),
+    (error) => error?.code === "database_reconciliation_required",
+  );
+  assertMarker(settlementScenario.databasePath, settlementSelectedMarker);
+  assert.equal(
+    JSON.parse(
+      readFileSync(
+        bootstrapJournalPath(settlementScenario.databasePath),
+        "utf8",
+      ),
+    ).phase,
+    "published_verified",
+  );
+  let refusedSettlement = null;
+  let firstCompletedEvent = null;
+  await assert.rejects(
+    reconcileInterruptedDatabaseBootstrap({
+      databasePath: settlementScenario.databasePath,
+      backupDirectory: settlementScenario.localPaths.backup_directory,
+      repositoryFingerprint,
+      reconciliationLeaseOwned: true,
+      completeRecoveryAction: (operation) => {
+        refusedSettlement = operation;
+        firstCompletedEvent = completePendingRecoveryAction({
+          backupDirectory: settlementScenario.localPaths.backup_directory,
+          expectedActionId: operation.recoveryActionId,
+          event: restoreSettlementEvent(operation, {
+            finishedAt: "2026-07-20T00:01:00.000Z",
+          }),
+        });
+        return false;
+      },
+    }),
+    (error) => error?.code === "database_reconciliation_required",
+  );
+  assert.equal(refusedSettlement.recoveryActionId, settlementActionId);
+  assert.equal(refusedSettlement.result, "database_rollback_restored");
+  assert.equal(
+    readRecoveryOperationResults(
+      settlementScenario.localPaths.backup_directory,
+    ).pending_action,
+    null,
+  );
+  assert.deepEqual(
+    readRecoveryOperationResults(
+      settlementScenario.localPaths.backup_directory,
+    ).completed_action,
+    {
+      action_id: settlementActionId,
+      event: firstCompletedEvent,
+    },
+  );
+  assertMarker(settlementScenario.databasePath, settlementCurrentMarker);
+  assert.equal(
+    hasMarker(settlementScenario.databasePath, settlementSelectedMarker),
+    false,
+  );
+  assert.equal(
+    JSON.parse(
+      readFileSync(
+        bootstrapJournalPath(settlementScenario.databasePath),
+        "utf8",
+      ),
+    ).phase,
+    "original_restored",
+  );
+  let acceptedSettlement = null;
+  const settled = await reconcileInterruptedDatabaseBootstrap({
+    databasePath: settlementScenario.databasePath,
+    backupDirectory: settlementScenario.localPaths.backup_directory,
+    repositoryFingerprint,
+    reconciliationLeaseOwned: true,
+    completeRecoveryAction: (operation) => {
+      acceptedSettlement = operation;
+      const replayed = completePendingRecoveryAction({
+        backupDirectory: settlementScenario.localPaths.backup_directory,
+        expectedActionId: operation.recoveryActionId,
+        event: restoreSettlementEvent(operation, {
+          finishedAt: "2026-07-20T00:02:00.000Z",
+        }),
+      });
+      assert.deepEqual(
+        replayed,
+        firstCompletedEvent,
+        "a crash after atomic action completion must replay the first terminal event",
+      );
+      return true;
+    },
+  });
+  assert.equal(acceptedSettlement.recoveryActionId, settlementActionId);
+  assert.equal(acceptedSettlement.result, "database_rollback_restored");
+  assert.equal(settled.result, "database_rollback_restored");
+  assert.equal(
+    existsSync(bootstrapJournalPath(settlementScenario.databasePath)),
+    false,
+  );
+  assert.equal(
+    listOperationResidue(path.dirname(settlementScenario.databasePath)).length,
+    0,
+  );
+  rmSync(settlementScenario.root, { recursive: true, force: true });
+
+  for (const phase of [
+    "backup_ready",
+    "original_moved",
+    "staging_published",
+    "published_verified",
+  ]) {
+    const scenario = await createRuntimeScenario(
+      temporaryRoot,
+      `explicit-restore-${phase}`,
+      proxyPort,
+    );
+    const selectedMarker = `agent:restore-selected-${phase}`;
+    const currentMarker = `agent:restore-current-${phase}`;
+    const selectedSourcePath = path.join(
+      scenario.root,
+      "selected-source.db",
+    );
+    createCurrentDatabase(selectedSourcePath);
+    insertMarker(selectedSourcePath, selectedMarker);
+    const selected = await createRecoveryBackup({
+      databasePath: selectedSourcePath,
+      backupDirectory: scenario.localPaths.backup_directory,
+      applicationScopeFingerprint: repositoryFingerprint,
+      sourceApplication: {
+        application_version: null,
+        build_identity: null,
+        package_contract: null,
+        package_contract_version: null,
+        runtime_contract: null,
+        runtime_schema_version: null,
+      },
+      reason: "manual_recovery",
+      inspectDatabase: inspectRecoveryDatabaseFile,
+    });
+    unlinkSync(selectedSourcePath);
+    createCurrentDatabase(scenario.databasePath);
+    insertMarker(scenario.databasePath, currentMarker);
+
+    const helper = await crashBootstrapAtPhase(scenario, phase, {
+      operationKind: "restore",
+      selectedBackupId: selected.manifest.backup_id,
+      selectedBackupIdentity: selected.manifest.backup_identity,
+      selectedBackupDirectoryIdentity: selected.backupDirectoryIdentity,
+    });
+    assert.equal(helper.phase, phase);
+    const inspected = await inspectDatabaseReconciliation({
+      databasePath: scenario.databasePath,
+      backupDirectory: scenario.localPaths.backup_directory,
+      repositoryFingerprint,
+    });
+    assert.equal(inspected.state, "recoverable");
+    assert.equal(inspected.phase, phase);
+
+    const runtime = await startSupervisor(scenario, managed);
+    selectedPorts.push(portSummary(scenario.name, runtime.ready));
+    assertMarker(scenario.databasePath, currentMarker);
+    assert.equal(hasMarker(scenario.databasePath, selectedMarker), false);
+    const operation = readRecoveryOperationResults(
+      scenario.localPaths.backup_directory,
+    ).events[0];
+    assert.equal(operation.operation_kind, "restore");
+    assert.equal(operation.safety_backup_created, true);
+    assert.match(operation.protected_backup_id, /^recovery:/u);
+    assert.match(operation.protected_backup_identity, /^sha256:/u);
+    assert.notEqual(
+      operation.protected_backup_id,
+      selected.manifest.backup_id,
+      "the selected restore source and current-state safety backup must remain distinct",
+    );
+    assert.equal(
+      recoveryBackupDirectories(scenario.localPaths.backup_directory).length,
+      2,
+      "the selected backup and verified safety backup must both survive reconciliation",
+    );
+    assert.equal(existsSync(bootstrapJournalPath(scenario.databasePath)), false);
+    assert.equal(
+      listOperationResidue(path.dirname(scenario.databasePath)).length,
+      0,
+    );
+    await stopSupervisor(scenario, runtime, managed);
+    assertRuntimeStateClean(scenario.paths);
+  }
+}
+
+function restoreSettlementEvent(operation, { finishedAt }) {
+  const committed =
+    operation.result === "database_verified_publish_committed";
+  return {
+    operation_kind: "restore",
+    outcome: committed
+      ? "restore_published_restart_pending"
+      : "restore_failed_preserved_current_state",
+    reason_code: committed
+      ? "interrupted_restore_restart_pending"
+      : "interrupted_restore_reconciled",
+    finished_at: finishedAt,
+    application_version: null,
+    target_application_version: "0.1.1",
+    target_build_identity: `sha256:${"7".repeat(64)}`,
+    database_state: committed ? "restored" : "recovery_required",
+    protected_backup_id: operation.protectedBackupId,
+    protected_backup_identity: operation.protectedBackupIdentity,
+    backup_verified:
+      operation.protectedBackupId !== null &&
+      operation.protectedBackupIdentity !== null,
+    safety_backup_created: operation.protectedBackupId !== null,
+    data_preserved: true,
+    next_action: committed
+      ? "retry_packaged_restart"
+      : "retry_restore_or_choose_another_verified_backup",
+  };
 }
 
 async function testRestoreFailureAndLegacyJournal({
@@ -936,7 +1713,11 @@ async function runBootstrapCrashHelper(encodedConfiguration) {
     );
   }
   try {
-    await prepareRuntimeDatabase({
+    const databaseOperation =
+      configuration.operationKind === "restore"
+        ? restoreRuntimeDatabase
+        : prepareRuntimeDatabase;
+    await databaseOperation({
       databasePath: configuration.databasePath,
       backupDirectory: configuration.backupDirectory,
       repositoryRoot,
@@ -944,6 +1725,18 @@ async function runBootstrapCrashHelper(encodedConfiguration) {
       instanceId: configuration.instanceId,
       runtimeOwnershipGeneration: configuration.generationId,
       databaseOverrideActive: true,
+      targetCompatibility: configuration.recoveryActionId
+        ? { recoveryActionId: configuration.recoveryActionId }
+        : null,
+      ...(configuration.operationKind === "restore"
+        ? {
+            selectedBackupId: configuration.selectedBackupId,
+            expectedSelectedBackupIdentity:
+              configuration.selectedBackupIdentity,
+            expectedSelectedBackupDirectoryIdentity:
+              configuration.selectedBackupDirectoryIdentity,
+          }
+        : {}),
       dependencies: configuration.holdDuringBackup
         ? {
             async backupDatabase() {
@@ -963,6 +1756,47 @@ async function runBootstrapCrashHelper(encodedConfiguration) {
             },
           }
         : {
+            beforeRecoveryBackupStagingRecorded() {
+              if (
+                configuration.targetPhase !==
+                "recovery_staging_created"
+              ) {
+                return;
+              }
+              process.stdout.write(
+                `${JSON.stringify({
+                  kind: "phase",
+                  phase: "recovery_staging_created",
+                })}\n`,
+              );
+              Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+            },
+            beforeStagingFileIdentityRecorded() {
+              if (configuration.targetPhase !== "staging_file_created") {
+                return;
+              }
+              process.stdout.write(
+                `${JSON.stringify({
+                  kind: "phase",
+                  phase: "staging_file_created",
+                })}\n`,
+              );
+              Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+            },
+            afterRecoveryBackupPublished() {
+              if (
+                configuration.targetPhase !== "recovery_backup_published"
+              ) {
+                return;
+              }
+              process.stdout.write(
+                `${JSON.stringify({
+                  kind: "phase",
+                  phase: "recovery_backup_published",
+                })}\n`,
+              );
+              Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+            },
             afterJournalPhase({ phase }) {
               if (phase !== configuration.targetPhase) return;
               process.stdout.write(
@@ -1002,12 +1836,17 @@ async function runReconciliationLeaseHelper() {
 async function crashBootstrapAtPhase(
   scenario,
   phase,
-  { createOldWalFixture = false, marker = null } = {},
+  {
+    createOldWalFixture = false,
+    marker = null,
+    ...helperOptions
+  } = {},
 ) {
   const helper = spawnBootstrapHelper(scenario, {
     targetPhase: phase,
     createOldWalFixture,
     marker,
+    ...helperOptions,
   });
   const event = await waitForHelperEvent(
     helper,
@@ -1245,7 +2084,10 @@ function createOldDatabase(databasePath, marker, { wal = false } = {}) {
     database
       .prepare("INSERT INTO agents (id, name, created_at) VALUES (?, ?, ?)")
       .run(marker, "runtime reconciliation marker", "2000-01-01T00:00:00.000Z");
-    database.exec("DROP TABLE perspective_memory_items");
+    database.exec(
+      "DROP TABLE augnes_schema_migrations;" +
+        "DROP TABLE augnes_package_identity_guard;",
+    );
   } finally {
     database.close();
   }
@@ -1271,6 +2113,20 @@ function assertMarker(databasePath, marker) {
       { id: marker, name: "runtime reconciliation marker" },
     );
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+  } finally {
+    database.close();
+  }
+}
+
+function hasMarker(databasePath, marker) {
+  const database = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    return Boolean(
+      database.prepare("SELECT 1 FROM agents WHERE id = ?").get(marker),
+    );
   } finally {
     database.close();
   }
@@ -1544,6 +2400,18 @@ function regularFiles(directory) {
   return readdirSync(directory).filter((name) => {
     const stats = lstatSync(path.join(directory, name));
     return stats.isFile() && !stats.isSymbolicLink();
+  });
+}
+
+function recoveryBackupDirectories(directory) {
+  if (!directory || !existsSync(directory)) return [];
+  return readdirSync(directory).filter((name) => {
+    const stats = lstatSync(path.join(directory, name));
+    return (
+      stats.isDirectory() &&
+      !stats.isSymbolicLink() &&
+      /^augnes-recovery-\d{8}T\d{6}-[0-9a-f]{8}\.backup$/u.test(name)
+    );
   });
 }
 
