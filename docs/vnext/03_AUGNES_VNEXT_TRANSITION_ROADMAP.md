@@ -378,6 +378,10 @@ R6 overall completion:
 
 ### R7 — Semantic Workbench and Inspector Consolidation
 
+Status: R7-A Project Home and R7-B decision-centered Workbench are merged. The
+final R7-C shared Inspector, compatibility reduction, and integrated golden path
+must be user-merged before Phase R7 is complete. R8 remains a separate phase.
+
 Scope:
 
 - Semantic Workbench is decision-centered, not ontology-centered; it owns active
@@ -393,6 +397,11 @@ Scope:
   from within-frame strategy challenge
 - Inspector owns typed-record, source-map, epistemic-basis, authority, provenance,
   and lineage drill-down
+- one `/workbench/inspector` destination and
+  `shared_project_inspector.v0.1` rebuildable read composition serve generated
+  exact links from Project Home, results, Workbench, automation, strategic, and
+  task-scoped Personal Perspective material; the Inspector has no mutation,
+  model/provider, external-action, or current-head-selection authority
 - Project Home shows strategic attention and pending-decision summary only;
   protocol IDs, fingerprints, and exact bindings belong in Inspector drill-down
 - show automation queue, active run, pause, cancel, retry eligibility, stop reason, and review-needed state

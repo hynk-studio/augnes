@@ -65,6 +65,7 @@ import {
   createRunResultWorkbenchEntryV01,
 } from "@/lib/vnext/runtime/semantic-workbench-entry";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
@@ -381,6 +382,18 @@ export async function readProjectHomeProjectionV01(
     admission_reason: automationAdmission.reason,
     current_run_summary: automationCycle.run,
     cycle: automationCycle,
+    inspector_href: automationCycle.run
+      ? createSharedInspectorHrefV01({
+          target_kind: "automation_run",
+          run_id: automationCycle.run.run_id,
+        })
+      : automationCycle.work_source
+        ? createSharedInspectorHrefV01({
+            target_kind: "automation_work_item",
+            record_id: automationCycle.work_source.work_id,
+            expected_fingerprint: automationCycle.work_source.work_fingerprint,
+          })
+        : createSharedInspectorHrefV01({ target_kind: "project_coordination" }),
   } satisfies ProjectHomeProjectionV01["automation"];
   const effectivePersonalPerspective =
     readPersonalPerspectiveEffectiveScopeV01(db, input);
@@ -468,6 +481,9 @@ export async function readProjectHomeProjectionV01(
     gap_count: taskFrame.gaps.length,
     personal_perspective_affected_task: personalPerspective.task_basis !== null,
     primary_action: primaryAction,
+    inspector_href: createSharedInspectorHrefV01({
+      target_kind: "project_coordination",
+    }),
     projection_only: true,
     semantic_authority_granted: false,
   } satisfies ProjectHomeProjectionV01["coordination"];
@@ -1787,7 +1803,14 @@ function readPersonalPerspectiveTaskBasis(
   );
   if (selected.length === 0) return null;
   return {
+    packet_id: packetResult.packet.packet_id,
+    packet_fingerprint: packetResult.packet.integrity.fingerprint,
     packet_generated_at: packetResult.packet.generated_at,
+    inspector_href: createSharedInspectorHrefV01({
+      target_kind: "personal_perspective_inclusion",
+      packet_id: packetResult.packet.packet_id,
+      packet_fingerprint: packetResult.packet.integrity.fingerprint,
+    }),
     selected_count: selected.length,
     items: selected.slice(0, PERSONAL_BASIS_LIMIT).map((entry) => ({
       summary:

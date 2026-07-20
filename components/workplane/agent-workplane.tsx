@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 
 const surfaceStyle: CSSProperties = {
   minHeight: "100vh",
@@ -42,7 +43,9 @@ export function AgentWorkplane() {
           Start from the active Project Home. Augnes admits the exact persisted
           task context, supervises the native-host lifecycle, and returns one
           structured result automatically. The Semantic Workbench and shared
-          Inspector remain read-only review surfaces.
+          Inspector then separate responsibility: Workbench owns explicit
+          ReviewDecision and Transition actions; Inspector is exact read-only
+          drill-down.
         </p>
         <div style={linkRowStyle}>
           <Link href="/" style={linkStyle}>
@@ -50,6 +53,14 @@ export function AgentWorkplane() {
           </Link>
           <Link href="/workbench/semantic-review" style={linkStyle}>
             Open Semantic Workbench
+          </Link>
+          <Link
+            href={createSharedInspectorHrefV01({
+              target_kind: "project_coordination",
+            })}
+            style={linkStyle}
+          >
+            Open shared Inspector
           </Link>
         </div>
       </section>

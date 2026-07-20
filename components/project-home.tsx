@@ -127,6 +127,14 @@ export function ProjectHome({
               Make this project active before opening its Workbench.
             </span>
           )}
+          {active ? (
+            <a
+              href={projection.coordination.inspector_href}
+              data-project-coordination-inspector="true"
+            >
+              Inspect exact coordination sources
+            </a>
+          ) : null}
         </div>
 
         <dl className="project-home-coordinate-grid">
@@ -280,15 +288,23 @@ export function ProjectHome({
               </time>
             </p>
             {active && projection.run_results.workbench_entry ? (
-              <a
-                href={projection.run_results.workbench_entry.href}
-                data-review-result-link="true"
-                data-workbench-entry-state={
-                  projection.run_results.workbench_entry.entry_state
-                }
-              >
-                {projection.run_results.workbench_entry.action_label}
-              </a>
+              <div className="project-home-actions">
+                <a
+                  href={projection.run_results.workbench_entry.href}
+                  data-review-result-link="true"
+                  data-workbench-entry-state={
+                    projection.run_results.workbench_entry.entry_state
+                  }
+                >
+                  {projection.run_results.workbench_entry.action_label}
+                </a>
+                <a
+                  href={projection.run_results.latest_result.inspector_href}
+                  data-project-result-inspector="true"
+                >
+                  Inspect exact receipt
+                </a>
+              </div>
             ) : (
               <p className="project-home-meta">
                 Make this project active to open its scoped result review.
@@ -423,7 +439,9 @@ export function ProjectHome({
         {projection.recent_activity.items.length ? (
           <ol className="project-home-timeline">
             {projection.recent_activity.items.map((item) => (
-              <li key={`${item.activity_kind}:${item.lineage[0]?.record_id}`}>
+              <li
+                key={`${item.activity_kind}:${item.lineage.at(-1)?.record_kind}:${item.lineage.at(-1)?.record_id}`}
+              >
                 <div className="project-home-timeline-marker" aria-hidden="true" />
                 <div>
                   <p className="project-home-kicker">{activityLabel(item.activity_kind)}</p>
@@ -504,6 +522,14 @@ export function ProjectHome({
             {projection.automation.cycle.run?.proposal_href ? (
               <a href={projection.automation.cycle.run.proposal_href}>Open review-needed proposal</a>
             ) : null}
+            {active ? (
+              <a
+                href={projection.automation.inspector_href}
+                data-project-automation-inspector="true"
+              >
+                Inspect automation lineage
+              </a>
+            ) : null}
             {projection.automation.cycle.feedback_needed ? (
               <p>
                 <strong>Later-context feedback is ready for an explicit user assessment.</strong>
@@ -558,6 +584,14 @@ export function ProjectHome({
                     ),
                   )}
                 </ul>
+                {active ? (
+                  <a
+                    href={projection.personal_perspective.task_basis.inspector_href}
+                    data-personal-perspective-inspector="true"
+                  >
+                    Inspect exact packet inclusion
+                  </a>
+                ) : null}
               </div>
             ) : (
               <p

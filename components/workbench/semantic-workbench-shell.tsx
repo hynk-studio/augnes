@@ -49,7 +49,11 @@ export function SemanticWorkbenchShell({
         <nav className={styles.nav} aria-label="Semantic Workbench navigation">
           <a href={projectHref}>Project Home</a>
           <a href="/workbench/semantic-review">Proposal queue</a>
-          {inspectorHref ? <a href={inspectorHref}>Open Inspector</a> : null}
+          {inspectorHref ? (
+            <a href={inspectorHref} data-semantic-workbench-inspector="true">
+              Open Inspector
+            </a>
+          ) : null}
           {navigation.map((item) => (
             <a href={item.href} key={`${item.href}:${item.label}`}>
               {item.label}

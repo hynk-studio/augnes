@@ -207,6 +207,12 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   explicit packet compilation remain separate actions. GET performs no
   decision or write, confirmation records only the gate, commit does not
   compile context, and packet compilation performs no transition.
+- The shared product Inspector is an authenticated, server-project-scoped,
+  rebuildable read composition. It exposes no proposal edit, ReviewDecision,
+  gate, Transition, packet, feedback, automation, Perspective, or memory
+  mutation and does not choose current state, establish Claim truth, invoke a
+  model/provider, or perform an external action. Exact generated links carry a
+  target identity but never client-controlled workspace or project scope.
 - The real-pilot product policy admits only one enrolled project, one candidate,
   one target, `accept/create`, and observed absent current state. It does not
   expose replace, supersede, retract, multi-target apply, or a route-level bypass

@@ -45,9 +45,18 @@ The active sequence is defined in
 
 ## What works today
 
-- `/` provides the current human-facing entry surface.
-- `/workbench` provides the current operator/AI work surface.
-- `/workbench/semantic-review` provides the current semantic review path.
+- `/` and `/projects/[project_id]` provide Project Home for Resume, current
+  coordination, attention, automation state, and the next meaningful action.
+- `/workbench` remains a small compatibility landing page rather than a second
+  review product.
+- `/workbench/semantic-review` provides the canonical Semantic Workbench for
+  Verify and Decide, including explicit decision and Transition interactions.
+- Existing result deep links remain concise result entries into Workbench and
+  the exact receipt-focused shared Inspector.
+- `/workbench/inspector` is reached through generated exact links and provides
+  authenticated, project-scoped, read-only drill-down. It creates no semantic
+  record, decision, gate, Transition, packet, feedback, or automation work and
+  invokes no model, provider, or external action.
 - `/perspective` provides Perspective and lineage views.
 - local SQLite persistence stores durable vNext semantic records and projections.
 - deterministic mock paths allow local development without an OpenAI key.

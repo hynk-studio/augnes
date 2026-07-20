@@ -444,7 +444,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
         entryLabel={entryPresentation.label}
         projectHref={projectHref}
         inspectorHref={
-          privateView?.kind === "detail" ? "#durable-lineage-title" : undefined
+          privateView?.value.inspector_href
         }
         navigation={[{ href: "/workbench", label: "Workplane compatibility" }]}
       >
@@ -474,7 +474,6 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
 
         {privateMaterialVisible && privateView.kind === "list" ? (
           <SemanticReviewProposalList
-            project={privateView.value.project}
             proposals={privateView.value.proposals}
             reconciliation={privateView.value.project_verify_reconciliation}
             continuity={privateView.value.project_continuity}
@@ -483,7 +482,6 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
 
         {privateMaterialVisible && privateView.kind === "detail" ? (
           <DecisionCenteredProposalDetail
-            project={privateView.value.project}
             read={privateView.value.proposal}
             selectedCandidateId={
               selectedCandidateBinding?.proposal_id ===

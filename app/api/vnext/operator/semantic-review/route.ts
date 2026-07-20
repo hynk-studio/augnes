@@ -48,6 +48,7 @@ import {
   ProjectVerifyLineageReadErrorV01,
   readProjectVerifyLineageV01,
 } from "@/lib/vnext/runtime/project-verify-lineage";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -162,6 +163,11 @@ export function createVNextOperatorSemanticReviewHandlersV01(
               },
             }),
           },
+          inspector_href: createSharedInspectorHrefV01({
+            target_kind: "episode_delta_proposal",
+            record_id: proposal.proposal.proposal_id,
+            expected_fingerprint: proposal.proposal.integrity.fingerprint,
+          }),
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
           semantic_authority_granted: false,
@@ -186,6 +192,9 @@ export function createVNextOperatorSemanticReviewHandlersV01(
         project_continuity: projectVNextOperatorPilotContinuityV01(db, {
           config,
           clock: options.clock,
+        }),
+        inspector_href: createSharedInspectorHrefV01({
+          target_kind: "project_coordination",
         }),
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",

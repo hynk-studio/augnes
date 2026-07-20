@@ -97,19 +97,24 @@ Integration Health
 ```
 
 Project Home은 work를 frame/resume하고 durable current coordination을 보여 주는
-인간 front door다. 현재
-Blank State는 이 목표의 predecessor이며, route나 구현이 이미 전환됐다는 뜻은
-아니다. Semantic Workbench는 cross-host result comparison, Evidence/Claim
+인간 front door다. Semantic Workbench는 cross-host result comparison, Evidence/Claim
 reconciliation, reviewable semantic delta와 decision consequence composition,
 ReviewDecision 준비와 next-context composition을 위한 능동 semantic work
-surface다. 현재 Agent Workplane은 이 목표의 predecessor다. Workbench의 책임은
-provider 제품의 일시적 기능 공백이 아니라 cross-host·cross-time canonical project
+surface다. `/workbench`는 compatibility entry이고
+`/workbench/semantic-review`가 canonical Workbench다. Workbench의 책임은 provider
+제품의 일시적 기능 공백이 아니라 cross-host·cross-time canonical project
 semantics로 정의한다.
 
 Inspector는 Home과 Workbench가 공유하는 read-heavy source map, epistemic basis,
-authority lineage, audit와 drill-down surface다. host-native compact card는 bounded
-context와 review intent를 native UX에 표시한다. compact card와 Inspector 어느
-것도 Home과 Workbench를 단독 대체하지 않는다.
+authority lineage, audit와 drill-down surface다. 현재 shared route는
+`/workbench/inspector`, authenticated read route는
+`GET /api/vnext/operator/inspector`, rebuildable composition contract는
+`shared_project_inspector.v0.1`이다. 이 contract는 Core record, table, current-head
+selector 또는 durable authority가 아니며 project scope를 client에서 받지 않는다.
+Inspector GET/render는 semantic/control write, model/provider call, external action,
+filesystem mutation 또는 historical repair를 수행하지 않는다. host-native compact
+card는 bounded context와 review intent를 native UX에 표시한다. compact card와
+Inspector 어느 것도 Home과 Workbench를 단독 대체하지 않는다.
 
 모든 surface는 Core record를 소비하는 projection 또는 client다. UI 이름은
 authority를 부여하지 않으며, surface가 낸 review/decision intent도 explicit Core

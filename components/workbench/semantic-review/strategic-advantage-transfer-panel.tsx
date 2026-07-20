@@ -9,11 +9,13 @@ import styles from "./semantic-review.module.css";
 export function StrategicAdvantageTransferPanel({
   proposal,
   readback,
+  inspectorHref,
   busy,
   onRequest,
 }: {
   proposal: EpisodeDeltaProposalV01;
   readback: VNextOperatorStrategicAdvantageTransferReadbackV01;
+  inspectorHref: string;
   busy: boolean;
   onRequest: (
     request: SemanticReviewStrategicAnalysisRequestV01,
@@ -59,6 +61,15 @@ export function StrategicAdvantageTransferPanel({
           change; it remains an unresolved research, validation, or existing
           candidate-lane need unless an exact current contract admits it.
         </p>
+        <div className={styles.buttonRow}>
+          <a
+            className={styles.linkButton}
+            href={inspectorHref}
+            data-strategic-to-shared-inspector="true"
+          >
+            Inspect exact strategic lineage
+          </a>
+        </div>
       </div>
 
       {profile ? (

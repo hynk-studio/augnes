@@ -48,6 +48,7 @@ export interface SemanticReviewListRouteResponseV01 {
   proposals: SemanticReviewProposalListItemV01[];
   project_verify_reconciliation: ProjectVerifyReconciliationV01;
   project_continuity: VNextOperatorPilotProjectContinuityV01;
+  inspector_href: string;
 }
 
 export interface SemanticReviewDetailRouteResponseV01 {
@@ -55,6 +56,7 @@ export interface SemanticReviewDetailRouteResponseV01 {
   status: "proposal_detail";
   project: SemanticReviewProjectV01;
   proposal: SemanticReviewProposalDetailV01;
+  inspector_href: string;
 }
 
 export interface SemanticReviewDecisionRequestV01 {

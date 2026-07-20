@@ -126,6 +126,13 @@ Remove after destination behavior exists:
 - manual-controls migration rows
 - preview-of-preview panels
 
+The R7 replacement destination is the generated, project-scoped
+`/workbench/inspector` read surface. Result and proposal deep links remain valid;
+large inline result diagnostics and duplicated Workbench durable-lineage detail
+may be absorbed only after their assertions are present in the shared Inspector
+and canonical tests. `/workbench` remains a bounded compatibility entry rather
+than a competing diagnostic surface.
+
 ### Automation and Personal Perspective
 
 Do not delete shared roadmap foundations. Delete only duplicated or advanced subsystems after replacement or an explicit later product decision:
