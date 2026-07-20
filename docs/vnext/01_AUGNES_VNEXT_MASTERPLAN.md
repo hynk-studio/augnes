@@ -838,23 +838,7 @@ Augnes의 최소 유효 제품 루프는 다음이다.
 
 ## 13. Development Posture and Complexity Budget
 
-### 13.1 PR-centered workflow
-
-```text
-ChatGPT
-= 목표, context, 설계와 PR review
-
-Codex 또는 다른 worker
-= 코드 수정, 테스트와 PR 생성
-
-사용자
-= merge와 semantic decision
-
-Augnes
-= receipt, evidence, delta, decision과 Perspective lineage
-```
-
-### 13.2 vertical slice 우선
+### 13.1 vertical slice 우선
 
 좋은 작업 단위:
 
@@ -877,7 +861,7 @@ real input
 → 실제 consumer와 outcome 없음
 ```
 
-### 13.3 complexity budget
+### 13.2 complexity budget
 
 - 새 top-level 계약은 기존 계약을 흡수하거나 종료해야 한다.
 - 새 장기 table은 독립 lifecycle과 query 무결성이 필요한 aggregate일 때만 허용한다.

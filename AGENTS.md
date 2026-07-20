@@ -2,7 +2,9 @@
 
 ## Role
 
-Codex implements, tests, and opens pull requests for Augnes. ChatGPT and the user set product direction and review scope. Codex does not merge pull requests or claim user decisions.
+The role split in this file is a temporary and replaceable repository-development convention. It is not an Augnes product, Core, protocol, UX, provider, host, or long-term development principle.
+
+For the current repository workflow, Codex implements, tests, and opens pull requests for Augnes. ChatGPT and the user set product direction and review scope. Codex does not merge pull requests or claim user decisions. Roles and delivery mechanics may change as tools and project conditions change.
 
 ## Active product path
 
