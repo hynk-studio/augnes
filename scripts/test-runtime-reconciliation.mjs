@@ -1272,7 +1272,7 @@ async function testExplicitRestoreCrashPhases({
 }) {
   const acquiredScenario = await createRuntimeScenario(
     temporaryRoot,
-    "explicit-restore-acquired-incompatible-current",
+    "explicit-restore-acquired-current",
     proxyPort,
   );
   const acquiredSelectedSource = path.join(
@@ -1300,14 +1300,12 @@ async function testExplicitRestoreCrashPhases({
     inspectDatabase: inspectRecoveryDatabaseFile,
   });
   unlinkSync(acquiredSelectedSource);
-  mkdirSync(path.dirname(acquiredScenario.databasePath), {
-    recursive: true,
-    mode: 0o700,
-  });
-  const incompatibleBytes = Buffer.from("not-a-sqlite-database\n");
-  writeFileSync(acquiredScenario.databasePath, incompatibleBytes, {
-    mode: 0o600,
-  });
+  const acquiredCurrentMarker = "agent:restore-acquired-current";
+  createCurrentDatabase(acquiredScenario.databasePath);
+  insertMarker(acquiredScenario.databasePath, acquiredCurrentMarker);
+  const acquiredCurrentFamily = snapshotDatabaseFamily(
+    acquiredScenario.databasePath,
+  );
   await crashBootstrapAtPhase(acquiredScenario, "acquired", {
     operationKind: "restore",
     selectedBackupId: acquiredSelected.manifest.backup_id,
@@ -1330,7 +1328,11 @@ async function testExplicitRestoreCrashPhases({
     acquiredReconciled.reconciliationOperation.selectedBackupId,
     null,
   );
-  assert.deepEqual(readFileSync(acquiredScenario.databasePath), incompatibleBytes);
+  assert.deepEqual(
+    snapshotDatabaseFamily(acquiredScenario.databasePath),
+    acquiredCurrentFamily,
+  );
+  assertMarker(acquiredScenario.databasePath, acquiredCurrentMarker);
   assert.equal(existsSync(bootstrapJournalPath(acquiredScenario.databasePath)), false);
   assert.equal(
     listOperationResidue(path.dirname(acquiredScenario.databasePath)).length,
