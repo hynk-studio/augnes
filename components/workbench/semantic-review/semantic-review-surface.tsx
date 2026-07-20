@@ -12,7 +12,7 @@ import {
   type OperatorSessionStateV01,
   type OperatorSessionViewV01,
 } from "./operator-session-panel";
-import { SemanticReviewProposalDetail } from "./proposal-detail";
+import { DecisionCenteredProposalDetail } from "./decision-centered-proposal-detail";
 import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
 import type {
@@ -473,11 +473,13 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           <SemanticReviewProposalList
             project={privateView.value.project}
             proposals={privateView.value.proposals}
+            reconciliation={privateView.value.project_verify_reconciliation}
+            continuity={privateView.value.project_continuity}
           />
         ) : null}
 
         {privateMaterialVisible && privateView.kind === "detail" ? (
-          <SemanticReviewProposalDetail
+          <DecisionCenteredProposalDetail
             project={privateView.value.project}
             read={privateView.value.proposal}
             busyCandidateId={busyCandidateId}

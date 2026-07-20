@@ -63,6 +63,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "decision-centered Semantic Workbench presentation contract",
+      ...rootNode("scripts/test-vnext-decision-centered-workbench.tsx"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded local project-root verification adapter",
       ...rootNode("scripts/test-local-project-verification-adapter.ts"),
       // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.

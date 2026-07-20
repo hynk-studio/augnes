@@ -547,7 +547,7 @@ export function SemanticReviewProposalDetail({
   );
 }
 
-function RunAssessmentSnapshot({
+export function RunAssessmentSnapshot({
   source,
   criterionRelationsSourceBound,
 }: {

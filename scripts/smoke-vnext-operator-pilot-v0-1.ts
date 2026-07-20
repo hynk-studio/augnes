@@ -1023,6 +1023,8 @@ async function assertFullOperatorLoop(input: {
   })();
   pass("provider_neutral_review_material_persisted");
 
+  const workbenchReadBefore = semanticWorkbenchReadSnapshotV01(config);
+
   await expectRouteError(
     await reviewHandlers.GET(
       routeRequest("/api/vnext/operator/semantic-review", { method: "GET" }),
@@ -1041,6 +1043,37 @@ async function assertFullOperatorLoop(input: {
   assert.equal(listResponse.status, 200);
   assert.equal(listBody.status, "proposal_list");
   assert.equal((listBody.proposals as unknown[]).length, 1);
+  const listReconciliation = listBody.project_verify_reconciliation as {
+    reconciliation_version: string;
+    workspace_id: string;
+    project_id: string;
+    completeness: { status: string };
+    authority: {
+      writes_database: boolean;
+      establishes_truth: boolean;
+      performs_network_or_external_action: boolean;
+    };
+  };
+  assert.equal(
+    listBody.workbench_composition_version,
+    "decision_centered_semantic_workbench.v0.1",
+  );
+  assert.equal(
+    listReconciliation.reconciliation_version,
+    "project_verify_reconciliation.v0.1",
+  );
+  assert.equal(listReconciliation.workspace_id, config.workspace_id);
+  assert.equal(listReconciliation.project_id, config.project_id);
+  assert.equal(listReconciliation.authority.writes_database, false);
+  assert.equal(listReconciliation.authority.establishes_truth, false);
+  assert.equal(
+    listReconciliation.authority.performs_network_or_external_action,
+    false,
+  );
+  assert.equal(
+    (listBody.project_continuity as { project_id: string }).project_id,
+    config.project_id,
+  );
   pass("semantic_workbench_proposal_list_read");
 
   const detailResponse = await reviewHandlers.GET(
@@ -1061,7 +1094,37 @@ async function assertFullOperatorLoop(input: {
     }>;
     decisions: unknown[];
     durable_lineage: WorkbenchDurableLineageReadV01;
+    project_verify_reconciliation: typeof listReconciliation;
+    project_verify_lineage: {
+      lineage_version: string;
+      workspace_id: string;
+      project_id: string;
+      lookup: {
+        lookup_kind: string;
+        proposal_id: string;
+        expected_fingerprint: string;
+      };
+      stop: { reason: string };
+      authority: { writes_database: boolean; establishes_truth: boolean };
+    };
   };
+  assert.equal(
+    detail.project_verify_reconciliation.reconciliation_version,
+    "project_verify_reconciliation.v0.1",
+  );
+  assert.equal(
+    detail.project_verify_lineage.lineage_version,
+    "project_verify_lineage.v0.1",
+  );
+  assert.equal(detail.project_verify_lineage.workspace_id, config.workspace_id);
+  assert.equal(detail.project_verify_lineage.project_id, config.project_id);
+  assert.deepEqual(detail.project_verify_lineage.lookup, {
+    lookup_kind: "proposal",
+    proposal_id: prepared.proposal.proposal_id,
+    expected_fingerprint: prepared.proposal.integrity.fingerprint,
+  });
+  assert.equal(detail.project_verify_lineage.authority.writes_database, false);
+  assert.equal(detail.project_verify_lineage.authority.establishes_truth, false);
   assertWorkbenchDurableLineageRead({
     detail,
     proposal: prepared.proposal,
@@ -1077,6 +1140,12 @@ async function assertFullOperatorLoop(input: {
     createEpisodeDeltaCandidateFingerprintV01(selected.candidate),
   );
   pass("semantic_workbench_exact_candidate_detail_read");
+  assert.deepEqual(
+    semanticWorkbenchReadSnapshotV01(config),
+    workbenchReadBefore,
+    "Workbench list and detail reads must perform no semantic or control writes",
+  );
+  pass("decision_centered_workbench_reads_are_write_free");
 
   const decisionRequest = {
     proposal_id: prepared.proposal.proposal_id,
@@ -1110,9 +1179,9 @@ async function assertFullOperatorLoop(input: {
           body: { ...decisionRequest, decision: forbiddenDecision },
         }),
       ),
-      400,
-      "operator_pilot_decision_value_invalid",
-      `pilot_${forbiddenDecision}_direct_post_rejected`,
+      409,
+      "operator_pilot_decision_operation_mismatch",
+      `pilot_${forbiddenDecision}_wrong_operation_rejected`,
     );
   }
   const decisionResponse = await reviewHandlers.POST(
@@ -11480,6 +11549,29 @@ function countRowsByKind(db: Database.Database, recordKind: string): number {
       )
       .get(recordKind) as { count: number }
   ).count;
+}
+
+function semanticWorkbenchReadSnapshotV01(
+  config: VNextLocalOperatorPilotConfigV01,
+): Record<string, number> {
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    const tables = db
+      .prepare(
+        `SELECT name FROM sqlite_master
+          WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+          ORDER BY name`,
+      )
+      .all() as Array<{ name: string }>;
+    return Object.fromEntries(
+      tables.map(({ name }) => {
+        assert.match(name, /^[a-z0-9_]+$/u);
+        return [name, countTableRows(db, name)];
+      }),
+    );
+  } finally {
+    db.close();
+  }
 }
 
 function countTableRows(db: Database.Database, table: string): number {

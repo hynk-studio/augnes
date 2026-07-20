@@ -161,6 +161,9 @@ const result = {
   workbench_result_narrow_viewport_no_overflow: false,
   result_to_proposal_navigation: false,
   proposal_assessment_snapshot: false,
+  decision_centered_workbench: false,
+  canonical_reconciliation_visible: false,
+  protocol_details_progressively_disclosed: false,
   proposal_review_narrow_viewport_no_overflow: false,
   strategic_profile_optional_unavailable: false,
   strategic_profile_no_analysis_on_load: false,
@@ -2167,9 +2170,53 @@ async function main() {
         ? Array.from(snapshot.querySelectorAll('[data-criterion-status]'))
         : [];
       const text = detail?.textContent ?? '';
+      const visibleText = detail?.innerText ?? '';
       const snapshotText = snapshot?.textContent ?? '';
       const strategicText = strategic?.textContent ?? '';
+      const canonical = detail?.querySelector('[data-vnext-decision-workbench="v0.1"]');
+      const canonicalCriteria = canonical
+        ? Array.from(canonical.querySelectorAll('[data-criterion-status]'))
+        : [];
       return {
+        decision_centered_sequence:
+          Boolean(canonical) &&
+          canonical?.getAttribute('data-project-verify-reconciliation-version') === 'project_verify_reconciliation.v0.1' &&
+          canonical?.getAttribute('data-project-verify-claim-truth') === 'not_established' &&
+          canonical?.textContent?.includes('What was intended and which context was selected') &&
+          canonical?.textContent?.includes('What happened, and what was observed versus reported') &&
+          canonical?.textContent?.includes('Success criteria and their exact basis') &&
+          canonical?.textContent?.includes('Evidence, Claims, contradiction, qualification, and uncertainty'),
+        canonical_reconciliation:
+          canonicalCriteria.length > 0 &&
+          canonicalCriteria.some((item) =>
+            item.getAttribute('data-criterion-status') === 'satisfied' &&
+            item.getAttribute('data-criterion-basis') === 'observed'
+          ) &&
+          canonicalCriteria.some((item) =>
+            item.getAttribute('data-criterion-status') === 'unknown' &&
+            item.getAttribute('data-criterion-basis') === 'insufficient'
+          ) &&
+          canonicalCriteria.every((item) =>
+            ['satisfied', 'unsatisfied', 'not_applicable', 'unknown'].includes(
+              item.getAttribute('data-criterion-status')
+            ) &&
+            ['observed', 'attested', 'mixed', 'insufficient'].includes(
+              item.getAttribute('data-criterion-basis')
+            )
+          ) &&
+          canonical?.querySelector('[data-evidence-authentication="verified"]') !== null &&
+          canonical?.querySelector('[data-relation-kind="supports"]') !== null &&
+          canonical?.textContent?.includes('Acceptance: not accepted by record existence') &&
+          canonical?.textContent?.includes('truth not established') &&
+          canonical?.textContent?.includes('relation is not proof'),
+        canonical_no_local_truth_or_current_inference:
+          canonical?.textContent?.includes('The latest recorded candidate is not the applied current head') &&
+          canonical?.textContent?.includes('Recording order did not change project state') &&
+          !canonical?.textContent?.includes('Claim truth established'),
+        protocol_details_not_visible_by_default:
+          !visibleText.includes('sha256:') &&
+          !visibleText.includes('Confirmation digest') &&
+          !visibleText.includes('Gate record ID'),
         pending_review: text.includes('pending_review'),
         execution_task_success:
           snapshot?.getAttribute('data-task-success-status') === 'unknown' &&
@@ -2239,6 +2286,10 @@ async function main() {
       };
     })()`);
     assert.deepEqual(proposalReviewShape, {
+      decision_centered_sequence: true,
+      canonical_reconciliation: true,
+      canonical_no_local_truth_or_current_inference: true,
+      protocol_details_not_visible_by_default: true,
       pending_review: true,
       execution_task_success: true,
       criteria_unknown_insufficient: true,
@@ -2270,6 +2321,9 @@ async function main() {
     );
     result.result_to_proposal_navigation = true;
     result.proposal_assessment_snapshot = true;
+    result.decision_centered_workbench = true;
+    result.canonical_reconciliation_visible = true;
+    result.protocol_details_progressively_disclosed = true;
     result.proposal_review_narrow_viewport_no_overflow = true;
     result.strategic_profile_optional_unavailable = true;
     result.strategic_profile_no_analysis_on_load = true;
@@ -2393,7 +2447,11 @@ async function main() {
       await evaluateBoolean(`(() => {
         const step = document.querySelector('[data-vnext-transition-step="preview"]');
         const text = step?.textContent ?? '';
-        return text.includes('create') && text.includes('Before presence absent') && text.includes('Authorized after fingerprint');
+        return text.includes('create') &&
+          text.includes('current absent') &&
+          text.includes('intended present') &&
+          text.includes('State changed') &&
+          text.includes('no');
       })()`),
       true,
     );

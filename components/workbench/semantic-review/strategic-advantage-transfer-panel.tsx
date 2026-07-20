@@ -52,6 +52,13 @@ export function StrategicAdvantageTransferPanel({
           semantic-state, later-context, execution, or external-action
           authority.
         </p>
+        <p className={styles.muted} data-vnext-strategic-frame-boundary="true">
+          A source-bound transfer keeps the recorded working frame fixed and is
+          a within-frame challenge. A dispute about that frame is a frame
+          challenge and is not silently converted into a strategy or Perspective
+          change; it remains an unresolved research, validation, or existing
+          candidate-lane need unless an exact current contract admits it.
+        </p>
       </div>
 
       {profile ? (
@@ -343,6 +350,7 @@ function StrategicProposalMaterial({
       <section
         className={styles.materialCard}
         data-vnext-strategic-frame="v0.1"
+        data-vnext-strategic-challenge-kind="within_frame"
       >
         <h3>Exact working frame</h3>
         <strong>{profile.working_frame.task_goal}</strong>
@@ -361,6 +369,11 @@ function StrategicProposalMaterial({
           Built server-side from the exact packet, receipt, assessment, source
           proposal, selected accepted state, constraints, exclusions, trust, and
           coverage.
+        </p>
+        <p className={styles.notice}>
+          Challenge type: within-frame. This profile can propose a local
+          transfer or patch while the exact frame stays fixed. It does not
+          represent or resolve a frame challenge.
         </p>
       </section>
 
@@ -536,11 +549,14 @@ function StrategicProposalMaterial({
           ]}
         />
       </div>
-      <p className={styles.muted}>
-        Working frame {profile.working_frame.working_frame_fingerprint}; source
-        catalog {profile.source_catalog.source_catalog_fingerprint}; model
-        invocation receipt {profile.model_invocation.receipt_fingerprint}.
-      </p>
+      <details className={styles.disclosure}>
+        <summary>Exact strategic frame and model lineage</summary>
+        <p className={styles.muted}>
+          Working frame {profile.working_frame.working_frame_fingerprint}; source
+          catalog {profile.source_catalog.source_catalog_fingerprint}; model
+          invocation receipt {profile.model_invocation.receipt_fingerprint}.
+        </p>
+      </details>
       <p
         className={styles.notice}
         data-vnext-strategic-authority-boundary="true"
@@ -584,8 +600,8 @@ function StrategicRefs({
     ...new Map(refs.map((ref) => [externalRefKey(ref), ref])).values(),
   ];
   return (
-    <section className={styles.materialCard} aria-label={title}>
-      <h3>{title}</h3>
+    <details className={styles.disclosure} aria-label={title}>
+      <summary>{title}</summary>
       <ul className={styles.plainList}>
         {uniqueRefs.map((ref) => (
           <li key={externalRefKey(ref)}>
@@ -597,7 +613,7 @@ function StrategicRefs({
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }
 

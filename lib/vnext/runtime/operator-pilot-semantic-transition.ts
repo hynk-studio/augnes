@@ -62,6 +62,7 @@ import {
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import {
   readVNextOperatorPilotSemanticReviewV01,
+  resolveVNextOperatorPilotApplyingDecisionV01,
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
   type VNextOperatorPilotReviewDetailV01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
@@ -747,15 +748,6 @@ function requirePilotAcceptedOperationMaterial(
   ) {
     throw transitionError("operator_pilot_decision_session_mismatch", 409);
   }
-  if (
-    decision.decision !== "accept" ||
-    !decision.requested_transition_intent ||
-    decision.requested_transition_intent.transition_kind !==
-      "semantic_candidate_apply" ||
-    decision.requested_transition_intent.target_refs.length === 0
-  ) {
-    throw transitionError("operator_pilot_accept_operation_required", 409);
-  }
   const candidate = detail.candidates.find(
     (item) =>
       item.candidate.candidate_id === decision.candidate.candidate_id &&
@@ -763,6 +755,21 @@ function requirePilotAcceptedOperationMaterial(
   );
   if (!candidate || candidate.candidate.target_refs.length === 0) {
     throw transitionError("operator_pilot_transition_target_required", 409);
+  }
+  const applying = resolveVNextOperatorPilotApplyingDecisionV01(
+    detail.proposal,
+    candidate.candidate,
+  );
+  if (
+    decision.decision !== applying.decision ||
+    !decision.requested_transition_intent ||
+    decision.requested_transition_intent.transition_kind !==
+      applying.transition_kind ||
+    canonicalizeProtocolValueV01(
+      decision.requested_transition_intent.target_refs,
+    ) !== canonicalizeProtocolValueV01(applying.target_refs)
+  ) {
+    throw transitionError("operator_pilot_applying_operation_required", 409);
   }
   if (
     options.require_current_admission &&
@@ -800,8 +807,12 @@ function assertPilotPreview(
   reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): void {
   const expectedOperation = material.admission.mapped_operation;
+  const applying = resolveVNextOperatorPilotApplyingDecisionV01(
+    material.proposal,
+    material.candidate.candidate,
+  );
   if (
-    material.decision.decision !== "accept" ||
+    material.decision.decision !== applying.decision ||
     !expectedOperation ||
     preview.intended_effects.length !== material.candidate.candidate.target_refs.length ||
     preview.current_state_observations.length !== material.candidate.candidate.target_refs.length ||
@@ -1315,10 +1326,17 @@ function requirePilotAppliedOperation(
             ? "retract"
             : null
     : null;
+  const applying = candidate
+    ? resolveVNextOperatorPilotApplyingDecisionV01(
+        transition.proposal,
+        candidate,
+      )
+    : null;
   if (
     provenance.status !== "valid" ||
     gateProvenance.status !== "valid" ||
-    transition.decision.decision !== "accept" ||
+    !applying ||
+    transition.decision.decision !== applying.decision ||
     !mappedOperation ||
     transition.receipt.effects.length === 0 ||
     transition.receipt.effects.some(

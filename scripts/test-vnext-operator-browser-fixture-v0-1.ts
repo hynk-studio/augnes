@@ -139,6 +139,8 @@ try {
     "semantic_transition_route",
     "strategic_analysis_route",
     "project_identity_registry",
+    "project_verify_material_admission",
+    "project_verify_reconciliation_read",
   ]);
   assert.equal(JSON.stringify(summary).length < 2_048, true);
   record("fixture_builder_uses_bounded_production_seams_without_provider_egress");
