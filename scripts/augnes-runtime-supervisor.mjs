@@ -26,6 +26,11 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
+import { isPathInsideOrEqual } from "./canonical-test-environment.mjs";
+import {
+  detectDistributablePlatform,
+  formatDistributablePlatformLabel,
+} from "./distributable-package-contract.mjs";
 import {
   ensureApplicationDirectory,
   resolveAugnesLocalPaths,
@@ -62,6 +67,8 @@ export const LOOPBACK_HOST = "127.0.0.1";
 export const DEFAULT_UI_PORT = 3000;
 export const DEFAULT_BRIDGE_PORT = 8787;
 export const PORT_SEARCH_SIZE = 20;
+export const DISTRIBUTABLE_PACKAGE_CONTRACT = "augnes.distributable.v1";
+export const DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION = 1;
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const OWNERSHIP_REQUEST_TIMEOUT_MS = 1_500;
@@ -118,7 +125,20 @@ export async function runRuntimeSupervisorCli(
     return 2;
   }
 
-  const repositoryFingerprint = fingerprint(repositoryRoot);
+  let runtimeDistribution;
+  try {
+    runtimeDistribution = resolveRuntimeDistribution();
+  } catch (error) {
+    emitResult({
+      command: options.command,
+      result: "failed",
+      state: "unavailable",
+      reason: publicErrorCode(error, "package_contract_invalid"),
+    });
+    return 2;
+  }
+
+  const repositoryFingerprint = runtimeDistribution.applicationScopeFingerprint;
   let paths;
   try {
     paths = resolveRuntimePaths({
@@ -136,7 +156,11 @@ export async function runRuntimeSupervisorCli(
   }
 
   if (options.command === "diagnostics") {
-    return runDiagnosticsCommand({ paths, repositoryFingerprint });
+    return runDiagnosticsCommand({
+      paths,
+      repositoryFingerprint,
+      runtimeDistribution,
+    });
   }
   if (options.command === "status") {
     return runStatusCommand({ paths, repositoryFingerprint });
@@ -149,7 +173,49 @@ export async function runRuntimeSupervisorCli(
     options,
     paths,
     repositoryFingerprint,
+    runtimeDistribution,
     dependencies,
+  });
+}
+
+export function resolveRuntimeDistribution({
+  repositoryRootPath = repositoryRoot,
+} = {}) {
+  const manifestPath = path.join(repositoryRootPath, "augnes-package.json");
+  if (!existsSync(manifestPath)) {
+    return sourceRuntimeDistribution(repositoryRootPath);
+  }
+
+  const manifest = readPackageManifest(manifestPath);
+  validatePackageManifest(manifest);
+  const uiServer = path.join(repositoryRootPath, "server.js");
+  const bridgeServerPath = path.join(
+    repositoryRootPath,
+    "bridge",
+    "dist",
+    "server.mjs",
+  );
+  assertPackagedRuntimeEntry(repositoryRootPath, uiServer);
+  assertPackagedRuntimeEntry(repositoryRootPath, bridgeServerPath);
+
+  return Object.freeze({
+    mode: "packaged",
+    applicationVersion: manifest.application_version,
+    packageContract: manifest.contract,
+    packageContractVersion: manifest.package_contract_version,
+    buildIdentity: manifest.build_identity,
+    applicationScopeFingerprint: manifest.application_scope_fingerprint,
+    packagePlatform: formatDistributablePlatformLabel(
+      manifest.platform,
+      manifest.runtime.node_modules_abi,
+    ),
+    runtimeContract: manifest.runtime.runtime_contract,
+    runtimeSchemaVersion: manifest.runtime.runtime_schema_version,
+    databaseSchemaCompatibility: manifest.database.schema_compatibility,
+    uiServer,
+    uiWorkingDirectory: repositoryRootPath,
+    bridgeServer: bridgeServerPath,
+    bridgeWorkingDirectory: path.join(repositoryRootPath, "bridge"),
   });
 }
 
@@ -220,7 +286,11 @@ export async function readVerifiedRuntimeStatus({
   };
 }
 
-async function runDiagnosticsCommand({ paths, repositoryFingerprint }) {
+async function runDiagnosticsCommand({
+  paths,
+  repositoryFingerprint,
+  runtimeDistribution,
+}) {
   const runtime = await classifyRuntimeState({ paths, repositoryFingerprint });
   const databaseReconciliation = await inspectDatabaseReconciliation({
     databasePath: paths.local.database_path,
@@ -244,6 +314,11 @@ async function runDiagnosticsCommand({ paths, repositoryFingerprint }) {
     command: "diagnostics",
     result: "observed",
     state: "diagnostics",
+    ...publicRuntimeDiagnostics(runtimeDistribution, {
+      databaseSchemaCompatibility:
+        database.schema_version ??
+        runtimeDistribution.databaseSchemaCompatibility,
+    }),
     path_layout_version: paths.local.layout_version,
     checkout_scope: paths.local.checkout_scope,
     paths: {
@@ -474,8 +549,23 @@ async function runStartCommand({
   options,
   paths,
   repositoryFingerprint,
+  runtimeDistribution,
   dependencies = {},
 }) {
+  let canonicalNodeOptions;
+  try {
+    canonicalNodeOptions = canonicalTestNodeOptions(environment);
+  } catch (error) {
+    emitResult({
+      command: "start",
+      result: "failed",
+      state: "unavailable",
+      verified: false,
+      reason: publicErrorCode(error, "canonical_test_node_import_invalid"),
+      effective_url: null,
+    });
+    return 2;
+  }
   try {
     ensureRuntimeDirectory({ directory: paths.directory });
   } catch (error) {
@@ -603,6 +693,8 @@ async function runStartCommand({
     paths,
     environment,
     uiNextArguments: options.uiNextArguments,
+    runtimeDistribution,
+    canonicalNodeOptions,
     repositoryFingerprint,
     generationId: generation.generationId,
     childOwnershipToken: generation.childOwnershipToken,
@@ -815,6 +907,7 @@ async function launchWithPortSelection({
 
     const port = preferredPort + offset;
     if (port > 65_535) break;
+    if (runtimeOwnsPort(runtime, port)) continue;
     const record = spawnRuntimeChild({ runtime, role, port });
     runtime.children.set(role, record);
     writeRuntimeManifest(runtime);
@@ -847,18 +940,35 @@ async function launchWithPortSelection({
   throw new PublicRuntimeError(`${role}_port_range_exhausted`);
 }
 
+export function runtimeOwnsPort(runtime, port) {
+  if (
+    runtime.controlPort === port ||
+    runtime.uiPort === port ||
+    runtime.bridgePort === port
+  ) {
+    return true;
+  }
+  return [...runtime.children.values()].some(
+    (record) => record.port === port || record.ownershipPort === port,
+  );
+}
+
 export function buildSupervisorChildValues({
   role,
   environment = process.env,
   paths,
   instanceId,
+  runtimeDistribution = sourceRuntimeDistribution(repositoryRoot),
   repositoryFingerprint = null,
   generationId = null,
   childOwnershipToken = null,
   effectiveUrl = null,
   port = null,
   databasePath = nonEmptyString(environment.AUGNES_DB_PATH),
+  databaseSchemaCompatibility = null,
+  canonicalNodeOptions = canonicalTestNodeOptions(environment),
 }) {
+  const packaged = runtimeDistribution.mode === "packaged";
   const ownershipValues = {
     AUGNES_RUNTIME_INSTANCE_ID: instanceId,
     AUGNES_RUNTIME_CONTRACT: RUNTIME_CONTRACT,
@@ -870,12 +980,20 @@ export function buildSupervisorChildValues({
     AUGNES_RUNTIME_CHILD_PORT: port === null ? null : String(port),
     AUGNES_RUNTIME_OWNERSHIP_TOKEN: childOwnershipToken,
   };
+  const diagnosticValues = runtimeDiagnosticEnvironmentValues(
+    runtimeDistribution,
+    databaseSchemaCompatibility,
+  );
   if (role === "ui") {
     return {
-      NODE_ENV: "development",
+      NODE_ENV: packaged ? "production" : "development",
+      NODE_OPTIONS: canonicalNodeOptions,
+      HOSTNAME: packaged ? LOOPBACK_HOST : null,
+      PORT: packaged ? String(port) : null,
       NEXT_TELEMETRY_DISABLED: "1",
       AUGNES_DB_PATH: databasePath,
       ...ownershipValues,
+      ...diagnosticValues,
       OPENAI_API_KEY: nonEmptyString(environment.OPENAI_API_KEY),
       OPENAI_MODEL: nonEmptyString(environment.OPENAI_MODEL),
       CODEX_HOME: nonEmptyString(environment.CODEX_HOME),
@@ -922,13 +1040,15 @@ export function buildSupervisorChildValues({
 
   if (role === "bridge") {
     return {
-      NODE_ENV: "development",
+      NODE_ENV: packaged ? "production" : "development",
+      NODE_OPTIONS: canonicalNodeOptions,
       PORT: String(port),
       DOTENV_CONFIG_PATH: paths.bridgeEnvironment,
       AUGNES_CORE_MODE: "mock",
       AUGNES_API_BASE_URL: effectiveUrl,
       AUGNES_ENABLE_AGENT_BRIDGE: "true",
       ...ownershipValues,
+      ...diagnosticValues,
       AUGNES_APP_PROFILE: nonEmptyString(environment.AUGNES_APP_PROFILE),
       AUGNES_APP_TOOL_SURFACE: nonEmptyString(
         environment.AUGNES_APP_TOOL_SURFACE,
@@ -948,20 +1068,27 @@ function spawnRuntimeChild({ runtime, role, port }) {
     environment: runtime.environment,
     paths: runtime.paths,
     instanceId: runtime.instanceId,
+    runtimeDistribution: runtime.runtimeDistribution,
     repositoryFingerprint: runtime.repositoryFingerprint,
     generationId: runtime.generationId,
     childOwnershipToken: runtime.childOwnershipToken,
     effectiveUrl: runtime.effectiveUrl,
     port,
     databasePath: runtime.databasePath,
+    databaseSchemaCompatibility: runtime.databaseSchemaVersion,
+    canonicalNodeOptions: runtime.canonicalNodeOptions,
   });
   const childEnvironment = buildRuntimeChildEnvironment({
     role,
     ambientEnvironment: runtime.environment,
     values: authoredValues,
   });
-  const childArguments =
-    role === "ui"
+  const packaged = runtime.runtimeDistribution.mode === "packaged";
+  const childArguments = packaged
+    ? role === "ui"
+      ? [runtime.runtimeDistribution.uiServer]
+      : [runtime.runtimeDistribution.bridgeServer]
+    : role === "ui"
       ? [
           nextBin,
           "dev",
@@ -974,7 +1101,13 @@ function spawnRuntimeChild({ runtime, role, port }) {
       : ["--import", "tsx", bridgeServer];
   const args = [runtimeChildLauncher, ...childArguments];
   const child = spawn(process.execPath, args, {
-    cwd: role === "ui" ? repositoryRoot : bridgeRoot,
+    cwd: packaged
+      ? role === "ui"
+        ? runtime.runtimeDistribution.uiWorkingDirectory
+        : runtime.runtimeDistribution.bridgeWorkingDirectory
+      : role === "ui"
+        ? repositoryRoot
+        : bridgeRoot,
     env: childEnvironment,
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -1036,7 +1169,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
 }
 
 async function waitForChildReadiness({ runtime, record, url, isReady }) {
-  const deadline = Date.now() + STARTUP_TIMEOUT_MS;
+  const deadline = Date.now() + runtimeStartupTimeoutMs(runtime);
   while (Date.now() < deadline) {
     if (runtime.shutdownRequested) return "shutdown";
     if (runtime.startupFailure) return "required_child_exit";
@@ -1044,6 +1177,11 @@ async function waitForChildReadiness({ runtime, record, url, isReady }) {
     if (isPortCollisionOutput(record.outputTail)) return "collision";
     if (record.exit) {
       return isPortCollisionOutput(record.outputTail) ? "collision" : "child_exit";
+    }
+
+    if (canonicalTestStallsReadiness(runtime, record.role)) {
+      await delay(50);
+      continue;
     }
 
     try {
@@ -1057,6 +1195,25 @@ async function waitForChildReadiness({ runtime, record, url, isReady }) {
     await delay(150);
   }
   return "timeout";
+}
+
+function runtimeStartupTimeoutMs(runtime) {
+  if (runtime.environment.AUGNES_CANONICAL_TEST_MODE !== "1") {
+    return STARTUP_TIMEOUT_MS;
+  }
+  const candidate = Number(
+    runtime.environment.AUGNES_TEST_RUNTIME_STARTUP_TIMEOUT_MS,
+  );
+  return Number.isInteger(candidate) && candidate >= 250 && candidate <= 5_000
+    ? candidate
+    : STARTUP_TIMEOUT_MS;
+}
+
+function canonicalTestStallsReadiness(runtime, role) {
+  return (
+    runtime.environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+    runtime.environment.AUGNES_TEST_RUNTIME_STALL_READINESS_ROLE === role
+  );
 }
 
 async function failRuntime(runtime, failure) {
@@ -1190,29 +1347,40 @@ async function stopOwnedChild(record) {
     return;
   }
 
-  signalOwnedProcessTree(record, "SIGTERM");
+  await signalOwnedProcessTree(record, "SIGTERM");
   if (await waitForProcessTreeExit(record, GRACEFUL_CHILD_STOP_MS)) return;
 
-  signalOwnedProcessTree(record, "SIGKILL");
+  await signalOwnedProcessTree(record, "SIGKILL");
   if (await waitForProcessTreeExit(record, FORCED_CHILD_STOP_MS)) return;
   throw new PublicRuntimeError("owned_child_stop_timeout");
 }
 
-function signalOwnedProcessTree(record, signal) {
+async function signalOwnedProcessTree(record, signal) {
   try {
     if (process.platform === "win32") {
       const args = ["/PID", String(record.pid), "/T"];
       if (signal === "SIGKILL") args.push("/F");
-      spawnSync("taskkill", args, {
+      const result = spawnSync("taskkill", args, {
         stdio: "ignore",
         timeout: 3_000,
         windowsHide: true,
       });
+      if (result.error || result.status !== 0) {
+        if (await waitForProcessTreeExit(record, EXITED_CHILD_DRAIN_MS)) return;
+        throw new PublicRuntimeError("owned_child_signal_failed");
+      }
     } else {
       process.kill(-record.pid, signal);
     }
   } catch (error) {
-    if (error?.code !== "ESRCH") throw error;
+    if (error?.code === "ESRCH") return;
+    if (
+      error?.code === "EPERM" &&
+      (await waitForProcessTreeExit(record, EXITED_CHILD_DRAIN_MS))
+    ) {
+      return;
+    }
+    throw new PublicRuntimeError("owned_child_signal_failed");
   }
 }
 
@@ -1296,6 +1464,9 @@ function buildControlIdentity(runtime) {
     database_state: runtime.databaseState,
     database_schema_version: runtime.databaseSchemaVersion,
     recovery_backup_created: runtime.recoveryBackupCreated,
+    ...publicRuntimeDiagnostics(runtime.runtimeDistribution, {
+      databaseSchemaCompatibility: runtime.databaseSchemaVersion,
+    }),
     children: publicChildren(runtime),
     started_at: runtime.startedAt,
     last_transition_at: runtime.lastTransitionAt,
@@ -1342,6 +1513,19 @@ function publicStatusResult(command, result, identity) {
     database_state: identity.database_state ?? null,
     database_schema_version: identity.database_schema_version ?? null,
     recovery_backup_created: identity.recovery_backup_created === true,
+    distribution_mode: identity.distribution_mode ?? null,
+    application_version: identity.application_version ?? null,
+    package_contract: identity.package_contract ?? null,
+    package_contract_version: identity.package_contract_version ?? null,
+    build_identity: identity.build_identity ?? null,
+    package_platform: identity.package_platform ?? null,
+    runtime_contract: identity.runtime_contract ?? RUNTIME_CONTRACT,
+    runtime_schema_version:
+      identity.runtime_schema_version ?? RUNTIME_SCHEMA_VERSION,
+    database_schema_compatibility:
+      identity.database_schema_compatibility ??
+      identity.database_schema_version ??
+      null,
     children: Array.isArray(identity.children) ? identity.children : [],
     started_at: identity.started_at,
     last_transition_at: identity.last_transition_at,
@@ -1854,6 +2038,182 @@ function parsePreferredPort(value, fallback, errorCode) {
   return port;
 }
 
+function sourceRuntimeDistribution(repositoryRootPath) {
+  return Object.freeze({
+    mode: "source",
+    applicationVersion: readSourceApplicationVersion(repositoryRootPath),
+    packageContract: null,
+    packageContractVersion: null,
+    buildIdentity: null,
+    applicationScopeFingerprint: fingerprint(realpathSync(repositoryRootPath)),
+    packagePlatform: null,
+    runtimeContract: RUNTIME_CONTRACT,
+    runtimeSchemaVersion: RUNTIME_SCHEMA_VERSION,
+    databaseSchemaCompatibility: null,
+    uiServer: null,
+    uiWorkingDirectory: repositoryRootPath,
+    bridgeServer: null,
+    bridgeWorkingDirectory: path.join(repositoryRootPath, "apps", "augnes_apps"),
+  });
+}
+
+function readSourceApplicationVersion(repositoryRootPath) {
+  try {
+    const value = JSON.parse(
+      readFileSync(path.join(repositoryRootPath, "package.json"), "utf8"),
+    );
+    return validDiagnosticString(value?.version) ? value.version : null;
+  } catch {
+    return null;
+  }
+}
+
+function readPackageManifest(manifestPath) {
+  try {
+    const stats = lstatSync(manifestPath);
+    if (!stats.isFile() || stats.isSymbolicLink() || stats.size > 16 * 1024 * 1024) {
+      throw new PublicRuntimeError("package_manifest_invalid");
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    if (!isObject(manifest)) {
+      throw new PublicRuntimeError("package_manifest_invalid");
+    }
+    return manifest;
+  } catch (error) {
+    if (error instanceof PublicRuntimeError) throw error;
+    throw new PublicRuntimeError("package_manifest_invalid");
+  }
+}
+
+function validatePackageManifest(manifest) {
+  if (
+    manifest.contract !== DISTRIBUTABLE_PACKAGE_CONTRACT ||
+    manifest.package_contract_version !==
+      DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION ||
+    !validDiagnosticString(manifest.application_version) ||
+    !validDiagnosticString(manifest.build_identity) ||
+    !/^[a-f0-9]{64}$/.test(manifest.application_scope_fingerprint ?? "") ||
+    !isObject(manifest.platform) ||
+    !isObject(manifest.runtime) ||
+    !isObject(manifest.database) ||
+    !numericVersion(manifest.runtime.node_minimum) ||
+    !/^\d+$/.test(String(manifest.runtime.node_modules_abi ?? "")) ||
+    !/^\d+$/.test(String(manifest.runtime.node_napi ?? "")) ||
+    !validDiagnosticString(manifest.database.schema_compatibility)
+  ) {
+    throw new PublicRuntimeError("package_contract_invalid");
+  }
+  if (
+    manifest.runtime.runtime_contract !== RUNTIME_CONTRACT ||
+    manifest.runtime.runtime_schema_version !== RUNTIME_SCHEMA_VERSION
+  ) {
+    throw new PublicRuntimeError("package_runtime_contract_unsupported");
+  }
+  const currentPlatform = detectDistributablePlatform();
+  if (
+    manifest.platform.os !== currentPlatform.os ||
+    manifest.platform.arch !== currentPlatform.arch ||
+    manifest.platform.libc !== currentPlatform.libc
+  ) {
+    throw new PublicRuntimeError("package_platform_unsupported");
+  }
+  if (String(manifest.runtime.node_modules_abi) !== process.versions.modules) {
+    throw new PublicRuntimeError("package_node_abi_unsupported");
+  }
+  if (Number(process.versions.napi) < Number(manifest.runtime.node_napi)) {
+    throw new PublicRuntimeError("package_node_napi_unsupported");
+  }
+  if (!runtimeMeetsMinimum(process.versions.node, manifest.runtime.node_minimum)) {
+    throw new PublicRuntimeError("package_node_version_unsupported");
+  }
+}
+
+function assertPackagedRuntimeEntry(repositoryRootPath, candidate) {
+  try {
+    const stats = lstatSync(candidate);
+    if (!stats.isFile() || stats.isSymbolicLink()) {
+      throw new PublicRuntimeError("package_runtime_entry_invalid");
+    }
+    const physicalRoot = realpathSync(repositoryRootPath);
+    const physicalCandidate = realpathSync(candidate);
+    const relative = path.relative(physicalRoot, physicalCandidate);
+    if (relative === "" || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new PublicRuntimeError("package_runtime_entry_invalid");
+    }
+  } catch (error) {
+    if (error instanceof PublicRuntimeError) throw error;
+    throw new PublicRuntimeError("package_runtime_entry_missing");
+  }
+}
+
+function runtimeMeetsMinimum(runtimeVersion, minimumVersion) {
+  const runtime = numericVersion(runtimeVersion);
+  const minimum = numericVersion(minimumVersion);
+  if (!runtime || !minimum) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (runtime[index] > minimum[index]) return true;
+    if (runtime[index] < minimum[index]) return false;
+  }
+  return true;
+}
+
+function numericVersion(value) {
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(/^(?:>=\s*)?(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2] ?? 0), Number(match[3] ?? 0)];
+}
+
+function validDiagnosticString(value) {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 256 &&
+    /^[A-Za-z0-9][A-Za-z0-9._:+\-/]*$/.test(value)
+  );
+}
+
+function publicRuntimeDiagnostics(
+  runtimeDistribution,
+  { databaseSchemaCompatibility = null } = {},
+) {
+  return {
+    distribution_mode: runtimeDistribution.mode,
+    application_version: runtimeDistribution.applicationVersion,
+    package_contract: runtimeDistribution.packageContract,
+    package_contract_version: runtimeDistribution.packageContractVersion,
+    build_identity: runtimeDistribution.buildIdentity,
+    package_platform: runtimeDistribution.packagePlatform,
+    runtime_contract: runtimeDistribution.runtimeContract,
+    runtime_schema_version: runtimeDistribution.runtimeSchemaVersion,
+    database_schema_compatibility:
+      databaseSchemaCompatibility ??
+      runtimeDistribution.databaseSchemaCompatibility,
+  };
+}
+
+function runtimeDiagnosticEnvironmentValues(
+  runtimeDistribution,
+  databaseSchemaCompatibility,
+) {
+  const diagnostics = publicRuntimeDiagnostics(runtimeDistribution, {
+    databaseSchemaCompatibility,
+  });
+  return {
+    AUGNES_DISTRIBUTION_MODE: diagnostics.distribution_mode,
+    AUGNES_APPLICATION_VERSION: diagnostics.application_version,
+    AUGNES_PACKAGE_CONTRACT: diagnostics.package_contract,
+    AUGNES_PACKAGE_CONTRACT_VERSION:
+      diagnostics.package_contract_version === null
+        ? null
+        : String(diagnostics.package_contract_version),
+    AUGNES_BUILD_IDENTITY: diagnostics.build_identity,
+    AUGNES_PACKAGE_PLATFORM: diagnostics.package_platform,
+    AUGNES_DATABASE_SCHEMA_COMPATIBILITY:
+      diagnostics.database_schema_compatibility,
+  };
+}
+
 function fingerprint(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -1914,6 +2274,40 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function canonicalTestNodeOptions(environment) {
+  if (environment.AUGNES_CANONICAL_TEST_MODE !== "1") return null;
+  const configuredImport = nonEmptyString(
+    environment.AUGNES_CANONICAL_TEST_NODE_IMPORT,
+  );
+  if (configuredImport === null) return null;
+  const configuredRoot = nonEmptyString(environment.AUGNES_CANONICAL_TEMP_ROOT);
+  try {
+    if (
+      configuredRoot === null ||
+      !path.isAbsolute(configuredRoot) ||
+      !path.isAbsolute(configuredImport)
+    ) {
+      throw new Error("canonical test paths must be absolute");
+    }
+    const physicalRoot = realpathSync(configuredRoot);
+    const physicalImport = realpathSync(configuredImport);
+    const importStats = lstatSync(configuredImport);
+    if (
+      !importStats.isFile() ||
+      importStats.isSymbolicLink() ||
+      !isPathInsideOrEqual(physicalRoot, physicalImport)
+    ) {
+      throw new Error("canonical test import must be an owned regular file");
+    }
+    return `--import=${pathToFileURL(physicalImport).href}`;
+  } catch (error) {
+    throw new PublicRuntimeError(
+      "canonical_test_node_import_invalid",
+      error instanceof Error ? error.message : undefined,
+    );
+  }
+}
+
 function integerOrNull(value) {
   return Number.isInteger(value) ? value : null;
 }
@@ -1940,6 +2334,30 @@ function isDirectExecution() {
   return Boolean(process.argv[1]) && pathToFileURL(process.argv[1]).href === import.meta.url;
 }
 
+function sourceCheckoutLayoutPresent(root) {
+  try {
+    return [
+      "next.config.ts",
+      "scripts/build-with-isolated-db.mjs",
+      "apps/augnes_apps/src/server.ts",
+    ].every((relativePath) => {
+      const stats = lstatSync(path.join(root, relativePath));
+      return stats.isFile() && !stats.isSymbolicLink();
+    });
+  } catch {
+    return false;
+  }
+}
+
 if (isDirectExecution()) {
-  process.exitCode = await runRuntimeSupervisorCli();
+  if (!sourceCheckoutLayoutPresent(repositoryRoot)) {
+    const { runDistributableLauncher } = await import(
+      "./distributable-package-launcher.mjs"
+    );
+    process.exitCode = await runDistributableLauncher(process.argv.slice(2), {
+      importSupervisor: async () => ({ runRuntimeSupervisorCli }),
+    });
+  } else {
+    process.exitCode = await runRuntimeSupervisorCli();
+  }
 }

@@ -274,6 +274,14 @@ const suites = {
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
       timeoutMs: 180_000,
     },
+    {
+      label: "distributable package and packaged runtime operability",
+      ...rootNode("scripts/test-distributable-package.mjs"),
+      // The complete packaged lifecycle measured ~85 seconds on darwin-arm64;
+      // this bound retains native-build CI margin while remaining below the
+      // operability job's measured outer timeout.
+      timeoutMs: 300_000,
+    },
   ],
   e2e: [
     {

@@ -42,6 +42,7 @@ export function GET(request: Request) {
       schema_version: 1,
       status: "ready",
       runtime_instance_id: process.env.AUGNES_RUNTIME_INSTANCE_ID ?? null,
+      ...publicRuntimeDiagnostics(),
     },
     {
       headers: {
@@ -49,6 +50,26 @@ export function GET(request: Request) {
       },
     },
   );
+}
+
+function publicRuntimeDiagnostics() {
+  if (!process.env.AUGNES_DISTRIBUTION_MODE) return {};
+  return {
+    distribution_mode: process.env.AUGNES_DISTRIBUTION_MODE,
+    application_version: process.env.AUGNES_APPLICATION_VERSION ?? null,
+    package_contract: process.env.AUGNES_PACKAGE_CONTRACT ?? null,
+    package_contract_version: integerEnvironment(
+      "AUGNES_PACKAGE_CONTRACT_VERSION",
+    ),
+    build_identity: process.env.AUGNES_BUILD_IDENTITY ?? null,
+    package_platform: process.env.AUGNES_PACKAGE_PLATFORM ?? null,
+    runtime_contract: process.env.AUGNES_RUNTIME_CONTRACT ?? null,
+    runtime_schema_version: integerEnvironment(
+      "AUGNES_RUNTIME_SCHEMA_VERSION",
+    ),
+    database_schema_compatibility:
+      process.env.AUGNES_DATABASE_SCHEMA_COMPATIBILITY ?? null,
+  };
 }
 
 function integerEnvironment(name: string): number | null {

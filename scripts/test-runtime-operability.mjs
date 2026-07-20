@@ -35,12 +35,18 @@ import {
   buildSupervisorChildValues,
   ensureRuntimeDirectory,
   resolvePhysicalRuntimeStateDestination,
+  resolveRuntimeDistribution,
   resolveRuntimePaths,
+  runtimeOwnsPort,
 } from "./augnes-runtime-supervisor.mjs";
 import {
   buildRuntimeChildEnvironment,
   findForbiddenRuntimeChildEnvironmentKeys,
 } from "./runtime-child-environment.mjs";
+import {
+  detectDistributablePlatform,
+  formatDistributablePlatformLabel,
+} from "./distributable-package-contract.mjs";
 import {
   cleanupOwnedProcesses,
   closeTrackedServer,
@@ -50,6 +56,9 @@ import {
 } from "./test-harness-process-lifecycle.mjs";
 
 const repoRoot = process.cwd();
+const applicationVersion = JSON.parse(
+  readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+).version;
 const requireMcpSdk = createRequire(
   path.join(repoRoot, "apps", "augnes_apps", "package.json"),
 );
@@ -108,6 +117,7 @@ let cleanupError = null;
 
 try {
   initializeDisposableDatabase(databasePath);
+  assertRuntimeDistributionContract();
   assertRuntimeEnvironmentIsolation();
   await testRuntimeStatePathSafety();
 
@@ -960,6 +970,7 @@ async function assertReadyEndpoints(ready, environment, scenario, managed) {
   assert.equal(uiHealth.statusCode, 200);
   assert.equal(uiHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(uiHealth.body.status, "ready");
+  assertSourceRuntimeDiagnostics(uiHealth.body);
 
   const rootResponse = await fetch(`${ready.effective_url}/`, {
     signal: AbortSignal.timeout(15_000),
@@ -972,6 +983,7 @@ async function assertReadyEndpoints(ready, environment, scenario, managed) {
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.ok, true);
   assert.equal(bridgeHealth.body.mode, "mock");
+  assertSourceRuntimeDiagnostics(bridgeHealth.body);
   assertPublicSafe(JSON.stringify(uiHealth.body), "UI health response");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "bridge health response");
   await assertSupervisedMcpAdapterSplit({ environment, ready, scenario, managed });
@@ -1165,6 +1177,71 @@ function assertNoRuntimeStateFiles(stateDirectory) {
   assert.deepEqual(files, [], `runtime state must be empty after cleanup: ${files.join(", ")}`);
 }
 
+function assertRuntimeDistributionContract() {
+  const applicationScopeFingerprint = "b".repeat(64);
+  const buildIdentity = `sha256:${"a".repeat(64)}`;
+  const packagePlatform = detectDistributablePlatform();
+  const manifest = {
+    contract: "augnes.distributable.v1",
+    package_contract_version: 1,
+    application_version: applicationVersion,
+    build_identity: buildIdentity,
+    application_scope_fingerprint: applicationScopeFingerprint,
+    platform: packagePlatform,
+    runtime: {
+      node_minimum: process.versions.node,
+      node_modules_abi: process.versions.modules,
+      node_napi: process.versions.napi,
+      runtime_contract: RUNTIME_CONTRACT,
+      runtime_schema_version: RUNTIME_SCHEMA_VERSION,
+    },
+    database: { schema_compatibility: "current" },
+  };
+
+  for (const name of ["first", "second"]) {
+    const root = path.join(temporaryRoot, `packaged-runtime-${name}`);
+    mkdirSync(path.join(root, "bridge", "dist"), { recursive: true });
+    writeFileSync(path.join(root, "server.js"), "// packaged UI fixture\n");
+    writeFileSync(
+      path.join(root, "bridge", "dist", "server.mjs"),
+      "// packaged bridge fixture\n",
+    );
+    writeFileSync(
+      path.join(root, "augnes-package.json"),
+      `${JSON.stringify(manifest)}\n`,
+    );
+    const distribution = resolveRuntimeDistribution({ repositoryRootPath: root });
+    assert.equal(distribution.mode, "packaged");
+    assert.equal(distribution.applicationVersion, applicationVersion);
+    assert.equal(distribution.packageContract, "augnes.distributable.v1");
+    assert.equal(distribution.packageContractVersion, 1);
+    assert.equal(distribution.buildIdentity, buildIdentity);
+    assert.equal(
+      distribution.applicationScopeFingerprint,
+      applicationScopeFingerprint,
+      "the same package must keep one application scope across unpack roots",
+    );
+    assert.equal(
+      distribution.packagePlatform,
+      formatDistributablePlatformLabel(packagePlatform),
+    );
+    assert.equal(distribution.databaseSchemaCompatibility, "current");
+  }
+
+  const runtime = {
+    controlPort: 41_001,
+    uiPort: 41_002,
+    bridgePort: null,
+    children: new Map([
+      ["ui", { port: 41_002, ownershipPort: 41_003 }],
+    ]),
+  };
+  assert.equal(runtimeOwnsPort(runtime, 41_001), true);
+  assert.equal(runtimeOwnsPort(runtime, 41_002), true);
+  assert.equal(runtimeOwnsPort(runtime, 41_003), true);
+  assert.equal(runtimeOwnsPort(runtime, 41_004), false);
+}
+
 function assertRuntimeEnvironmentIsolation() {
   const bridgeEnvironmentPath = path.join(temporaryRoot, "environment-isolation.env");
   writeFileSync(bridgeEnvironmentPath, "", { mode: 0o600 });
@@ -1188,6 +1265,7 @@ function assertRuntimeEnvironmentIsolation() {
     HTTPS_PROXY: "http://127.0.0.1:9",
     ALL_PROXY: "http://127.0.0.1:9",
     NO_PROXY: "poisoned",
+    NODE_OPTIONS: `--require=${path.join(tempRoot, "unreviewed-preload.cjs")}`,
     AUGNES_UNRELATED_PARENT_VALUE: publicSecretSentinel,
     AUGNES_CORE_MODE: "file",
     AUGNES_USE_MOCK: "false",
@@ -1241,6 +1319,12 @@ function assertRuntimeEnvironmentIsolation() {
     path.join(tempRoot, "codex-sqlite-home"),
   );
   assert.equal(uiValues.AUGNES_DB_PATH, databasePath);
+  assert.equal(uiValues.NODE_ENV, "development");
+  assert.equal(uiValues.NODE_OPTIONS, null);
+  assert.equal(uiValues.HOSTNAME, null);
+  assert.equal(uiValues.PORT, null);
+  assert.equal(uiValues.AUGNES_DISTRIBUTION_MODE, "source");
+  assert.equal(uiValues.AUGNES_APPLICATION_VERSION, applicationVersion);
   const uiEnvironment = buildRuntimeChildEnvironment({
     role: "ui",
     ambientEnvironment,
@@ -1259,6 +1343,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_ID, "reviewed-operator");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS, "45000");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS, "60000");
+  assert.equal(Object.hasOwn(uiEnvironment, "NODE_OPTIONS"), false);
 
   const bridgeValues = buildSupervisorChildValues({
     role: "bridge",
@@ -1268,6 +1353,10 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(bridgeValues.AUGNES_CORE_MODE, "mock");
   assert.equal(bridgeValues.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeValues.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  assert.equal(bridgeValues.NODE_ENV, "development");
+  assert.equal(bridgeValues.NODE_OPTIONS, null);
+  assert.equal(bridgeValues.AUGNES_DISTRIBUTION_MODE, "source");
+  assert.equal(bridgeValues.AUGNES_APPLICATION_VERSION, applicationVersion);
   for (const [key, value] of Object.entries(reviewedBridgeCompatibilityEnvironment)) {
     assert.equal(bridgeValues[key], value);
   }
@@ -1283,6 +1372,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_MODEL"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "CODEX_HOME"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "CODEX_SQLITE_HOME"), false);
+  assert.equal(Object.hasOwn(bridgeEnvironment, "NODE_OPTIONS"), false);
   for (const uiOnlyKey of [
     "AUGNES_DB_PATH",
     "AUGNES_VNEXT_OPERATOR_PILOT_ENABLED",
@@ -1352,9 +1442,79 @@ function assertRuntimeEnvironmentIsolation() {
     );
   }
 
+  const packagedDistribution = {
+    mode: "packaged",
+    applicationVersion,
+    packageContract: "augnes.distributable.v1",
+    packageContractVersion: 1,
+    buildIdentity: `sha256:${"a".repeat(64)}`,
+    applicationScopeFingerprint: "b".repeat(64),
+    packagePlatform: formatDistributablePlatformLabel(
+      detectDistributablePlatform(),
+    ),
+    runtimeContract: RUNTIME_CONTRACT,
+    runtimeSchemaVersion: RUNTIME_SCHEMA_VERSION,
+    databaseSchemaCompatibility: "current",
+  };
+  for (const role of ["ui", "bridge"]) {
+    const values = buildSupervisorChildValues({
+      role,
+      environment: ambientEnvironment,
+      ...sharedArguments,
+      runtimeDistribution: packagedDistribution,
+      databaseSchemaCompatibility: "current",
+    });
+    const childEnvironment = buildRuntimeChildEnvironment({
+      role,
+      ambientEnvironment,
+      values,
+    });
+    assert.equal(childEnvironment.NODE_ENV, "production");
+    assert.equal(childEnvironment.AUGNES_DISTRIBUTION_MODE, "packaged");
+    assert.equal(childEnvironment.AUGNES_APPLICATION_VERSION, applicationVersion);
+    assert.equal(
+      childEnvironment.AUGNES_PACKAGE_CONTRACT,
+      "augnes.distributable.v1",
+    );
+    assert.equal(childEnvironment.AUGNES_PACKAGE_CONTRACT_VERSION, "1");
+    assert.equal(
+      childEnvironment.AUGNES_BUILD_IDENTITY,
+      packagedDistribution.buildIdentity,
+    );
+    assert.equal(
+      childEnvironment.AUGNES_PACKAGE_PLATFORM,
+      packagedDistribution.packagePlatform,
+    );
+    assert.equal(childEnvironment.AUGNES_DATABASE_SCHEMA_COMPATIBILITY, "current");
+    if (role === "ui") {
+      assert.equal(childEnvironment.HOSTNAME, "127.0.0.1");
+      assert.equal(childEnvironment.PORT, String(sharedArguments.port));
+    }
+    assert.deepEqual(
+      findForbiddenRuntimeChildEnvironmentKeys({
+        role,
+        childEnvironment,
+        authoredValues: values,
+      }),
+      [],
+    );
+  }
+
   function roleEnvironment(role) {
     return role === "ui" ? uiEnvironment : bridgeEnvironment;
   }
+}
+
+function assertSourceRuntimeDiagnostics(payload) {
+  assert.equal(payload.distribution_mode, "source");
+  assert.equal(payload.application_version, applicationVersion);
+  assert.equal(payload.package_contract, null);
+  assert.equal(payload.package_contract_version, null);
+  assert.equal(payload.build_identity, null);
+  assert.equal(payload.package_platform, null);
+  assert.equal(payload.runtime_contract, RUNTIME_CONTRACT);
+  assert.equal(payload.runtime_schema_version, RUNTIME_SCHEMA_VERSION);
+  assert.equal(payload.database_schema_compatibility, "current");
 }
 
 function assertPublicSafe(value, label) {

@@ -28,6 +28,8 @@ import {
   resolvePhysicalLocalDestination,
 } from "./augnes-local-paths.mjs";
 import {
+  RUNTIME_CONTRACT,
+  RUNTIME_SCHEMA_VERSION,
   buildSupervisorChildValues,
   runRuntimeSupervisorCli,
 } from "./augnes-runtime-supervisor.mjs";
@@ -50,6 +52,9 @@ import {
 } from "./test-harness-process-lifecycle.mjs";
 
 const repositoryRoot = process.cwd();
+const applicationVersion = JSON.parse(
+  readFileSync(path.join(repositoryRoot, "package.json"), "utf8"),
+).version;
 const supervisorScript = path.join(repositoryRoot, "scripts", "augnes-runtime-supervisor.mjs");
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "augnes-database-bootstrap-"));
 const repositoryDatabasePath = path.join(repositoryRoot, "data", "augnes.db");
@@ -497,6 +502,15 @@ async function testDiagnosticsAreReadOnly() {
   assert.equal(diagnostics.database.exists, false);
   assert.equal(diagnostics.database.state, "missing");
   assert.equal(diagnostics.database.override_active, false);
+  assert.equal(diagnostics.distribution_mode, "source");
+  assert.equal(diagnostics.application_version, applicationVersion);
+  assert.equal(diagnostics.package_contract, null);
+  assert.equal(diagnostics.package_contract_version, null);
+  assert.equal(diagnostics.build_identity, null);
+  assert.equal(diagnostics.package_platform, null);
+  assert.equal(diagnostics.runtime_contract, RUNTIME_CONTRACT);
+  assert.equal(diagnostics.runtime_schema_version, RUNTIME_SCHEMA_VERSION);
+  assert.equal(diagnostics.database_schema_compatibility, null);
   assert.equal(diagnostics.paths.database_path, resolved.database_path);
   assert.equal(diagnostics.paths.backup_directory, resolved.backup_directory);
   assert.deepEqual(listRelativeEntries(root), before, "diagnostics must create no paths");
@@ -528,6 +542,10 @@ async function testDiagnosticsAreReadOnly() {
   const currentDiagnostics = runSupervisorCliSync(["diagnostics"], overrideEnvironment);
   assert.equal(currentDiagnostics.status, 0);
   assert.equal(lastJsonLine(currentDiagnostics.stdout).database.state, "current");
+  assert.equal(
+    lastJsonLine(currentDiagnostics.stdout).database_schema_compatibility,
+    "current",
+  );
   assert.deepEqual(snapshotDatabaseFamily(explicitDatabasePath), databaseBefore);
   assertPublicSafe(currentDiagnostics.stdout, "current database diagnostics output");
 }

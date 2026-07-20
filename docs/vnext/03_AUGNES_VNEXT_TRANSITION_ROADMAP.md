@@ -378,9 +378,9 @@ R6 overall completion:
 
 ### R7 — Semantic Workbench and Inspector Consolidation
 
-Status: R7-A Project Home and R7-B decision-centered Workbench are merged. The
-final R7-C shared Inspector, compatibility reduction, and integrated golden path
-must be user-merged before Phase R7 is complete. R8 remains a separate phase.
+Status: R7-A Project Home, R7-B decision-centered Workbench, and R7-C shared
+Inspector, compatibility reduction, and integrated golden path are merged.
+Phase R7 is complete at merge `2a16d4ed`; R8 remains a separate phase.
 
 Scope:
 

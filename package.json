@@ -13,6 +13,7 @@
     "@types/node": "25.6.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "esbuild": "0.28.1",
     "tsx": "^4.20.6",
     "typescript": "6.0.3"
   },
@@ -20,6 +21,7 @@
     "dev": "node scripts/augnes-runtime-supervisor.mjs start",
     "augnes": "node scripts/augnes-runtime-supervisor.mjs",
     "build": "node scripts/build-with-isolated-db.mjs",
+    "package": "node scripts/build-distributable-package.mjs",
     "start": "next start",
     "db:init": "node scripts/db-init.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",

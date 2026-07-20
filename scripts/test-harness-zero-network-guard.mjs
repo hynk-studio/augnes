@@ -28,6 +28,7 @@ export const ZERO_NETWORK_GUARD_METHODS = Object.freeze([
 export function installZeroNetworkGuard({
   allowLoopback = false,
   errorPrefix = "test_external_network_forbidden",
+  onBlockedAttempt = null,
 } = {}) {
   const attempts = [];
   const restores = [];
@@ -83,7 +84,9 @@ export function installZeroNetworkGuard({
       if (allowLoopback && isExactLoopbackCall(label, args)) {
         return Reflect.apply(original, target, args);
       }
-      attempts.push(Object.freeze({ method: label }));
+      const attempt = Object.freeze({ method: label });
+      attempts.push(attempt);
+      onBlockedAttempt?.(attempt);
       const error = new Error(`${errorPrefix}:${label}`);
       error.code = "test_external_network_forbidden";
       error.network_method = label;
@@ -96,6 +99,25 @@ export function installZeroNetworkGuard({
 }
 
 function isExactLoopbackCall(label, args) {
+  if (label === "fetch") {
+    const first = args[0];
+    if (first instanceof URL) return isLoopbackHost(first.hostname);
+    if (typeof first === "string") {
+      try {
+        return isLoopbackHost(new URL(first).hostname);
+      } catch {
+        return false;
+      }
+    }
+    if (first && typeof first === "object" && typeof first.url === "string") {
+      try {
+        return isLoopbackHost(new URL(first.url).hostname);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
   if (label.startsWith("dns.")) {
     return isLoopbackHost(args[0]);
   }

@@ -13,10 +13,17 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import {
+  registerOwnedChild,
+  terminateOwnedProcessTree,
+  waitForOwnedProcessExit,
+} from "./test-harness-process-lifecycle.mjs";
 
+const DATABASE_BUILD_STEP_TIMEOUT_MS = 30_000;
+const NEXT_BUILD_STEP_TIMEOUT_MS = 120_000;
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const temporaryDirectory = mkdtempSync(
   path.join(tmpdir(), "augnes-production-build-"),
@@ -54,9 +61,9 @@ try {
     AUGNES_BUILD_DEFAULT_DB_GUARD_PATH: defaultDatabaseGuardPath,
     NEXT_TELEMETRY_DISABLED: "1",
   };
-  runNodeScript("scripts/db-reset.mjs", buildEnvironment);
+  await runNodeScript("scripts/db-reset.mjs", buildEnvironment);
   seedStaticBakeSentinel(buildDatabasePath, staticBakeSentinel);
-  runNodeScript("node_modules/next/dist/bin/next", buildEnvironment, ["build"]);
+  await runNodeScript("node_modules/next/dist/bin/next", buildEnvironment, ["build"]);
   assertStaticBuildDoesNotContainSentinel(staticBakeSentinel);
   assertDefaultDatabaseGuardUnchanged(
     defaultDatabaseGuardPath,
@@ -84,20 +91,45 @@ for (const filePath of ownedDatabaseFiles) {
   );
 }
 
-function runNodeScript(relativeScriptPath, environment, args = []) {
-  const result = spawnSync(
+async function runNodeScript(relativeScriptPath, environment, args = []) {
+  const timeoutMs = relativeScriptPath.includes("/next/")
+    ? NEXT_BUILD_STEP_TIMEOUT_MS
+    : DATABASE_BUILD_STEP_TIMEOUT_MS;
+  const owned = new Set();
+  const child = spawn(
     process.execPath,
     [path.join(rootDir, relativeScriptPath), ...args],
     {
       cwd: rootDir,
       env: environment,
       stdio: "inherit",
+      detached: process.platform !== "win32",
+      windowsHide: true,
     },
   );
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
+  const record = registerOwnedChild(owned, child, {
+    label: `isolated build ${relativeScriptPath}`,
+  });
+  let result;
+  try {
+    result = await waitForOwnedProcessExit(record, timeoutMs, {
+      termGraceMs: 5_000,
+      killGraceMs: 5_000,
+    });
+    await terminateOwnedProcessTree(record, {
+      termGraceMs: 2_000,
+      killGraceMs: 2_000,
+    });
+  } catch (error) {
+    await terminateOwnedProcessTree(record, {
+      termGraceMs: 2_000,
+      killGraceMs: 2_000,
+    });
+    throw error;
+  }
+  if (result.code !== 0) {
     throw new Error(
-      `isolated_build_command_failed:${relativeScriptPath}:${String(result.status)}`,
+      `isolated_build_command_failed:${relativeScriptPath}:${String(result.code)}`,
     );
   }
 }
