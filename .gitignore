@@ -8,6 +8,7 @@ out/
 
 # production
 build/
+/dist/
 
 # local environment
 .env

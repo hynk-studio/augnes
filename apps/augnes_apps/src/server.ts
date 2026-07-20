@@ -44,7 +44,7 @@ import type { AugnesCoreAdapter, SearchScope } from "./lib/types.js";
 const widgetHtml = readFileSync(new URL("../public/console-widget.html", import.meta.url), "utf8");
 export const WIDGET_URI = "ui://widget/augnes-console.v2.html";
 export const APP_NAME = "augnes-console";
-export const APP_VERSION = "0.1.0";
+export const APP_VERSION = config.applicationVersion ?? "0.1.0";
 const DEFAULT_STATE_RUNTIME_SCOPE = "project:augnes";
 export const LEGACY_PUBLIC_TOOL_NAMES = [
   "search",
@@ -221,6 +221,20 @@ export function buildHealthPayload() {
     profile: config.appProfile,
     ...(config.runtimeInstanceId
       ? { runtime_instance_id: config.runtimeInstanceId }
+      : {}),
+    ...(config.distributionMode
+      ? {
+          distribution_mode: config.distributionMode,
+          application_version: config.applicationVersion ?? null,
+          package_contract: config.packageContract ?? null,
+          package_contract_version: config.packageContractVersion,
+          build_identity: config.buildIdentity ?? null,
+          package_platform: config.packagePlatform ?? null,
+          runtime_contract: config.runtimeContract ?? null,
+          runtime_schema_version: config.runtimeSchemaVersion,
+          database_schema_compatibility:
+            config.databaseSchemaCompatibility ?? null,
+        }
       : {}),
   };
 }

@@ -4,6 +4,13 @@ export type AugnesCoreMode = "mock" | "http" | "file";
 export type AugnesAppProfile = "public" | "chrono_lab";
 export type AugnesAppToolSurface = "public" | "work_loop_readonly";
 
+function optionalIntegerEnv(name: string): number | null {
+  const value = process.env[name];
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
 function requiredEnv(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
   if (!value) throw new Error(`Missing environment variable: ${name}`);
@@ -80,6 +87,16 @@ export const config = {
     process.env.AUGNES_RUNTIME_CHILD_ROOT_PID ?? "0",
   ),
   runtimeOwnershipToken: process.env.AUGNES_RUNTIME_OWNERSHIP_TOKEN,
+  distributionMode: process.env.AUGNES_DISTRIBUTION_MODE,
+  applicationVersion: process.env.AUGNES_APPLICATION_VERSION,
+  packageContract: process.env.AUGNES_PACKAGE_CONTRACT,
+  packageContractVersion: optionalIntegerEnv(
+    "AUGNES_PACKAGE_CONTRACT_VERSION",
+  ),
+  buildIdentity: process.env.AUGNES_BUILD_IDENTITY,
+  packagePlatform: process.env.AUGNES_PACKAGE_PLATFORM,
+  databaseSchemaCompatibility:
+    process.env.AUGNES_DATABASE_SCHEMA_COMPATIBILITY,
   coreMode,
   appProfile,
   appToolSurface,

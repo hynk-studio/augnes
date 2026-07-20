@@ -322,6 +322,7 @@ for (const [pathName, timeout] of [
   ["scripts/test-runtime-database-bootstrap.mjs", "120_000"],
   ["scripts/test-runtime-operability.mjs", "120_000"],
   ["scripts/test-runtime-reconciliation.mjs", "180_000"],
+  ["scripts/test-distributable-package.mjs", "300_000"],
   ["scripts/browser-validate-vnext-native-host-result-v0-1.mjs", "480_000"],
 ]) {
   assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);
@@ -475,7 +476,8 @@ assert.doesNotMatch(
   "fixture egress and default-database claims must be derived from observations",
 );
 for (const fragment of [
-  `attempts.push(Object.freeze({ method: label }))`,
+  `const attempt = Object.freeze({ method: label })`,
+  `attempts.push(attempt)`,
   `error.code = "test_external_network_forbidden"`,
   `allowLoopback && isExactLoopbackCall`,
   `restores.reverse().forEach`,

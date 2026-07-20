@@ -102,6 +102,41 @@ destructive developer operation and must only be used with an absolute
 
 `OPENAI_API_KEY` is optional. Without it, supported flows use deterministic local fallbacks.
 
+## Distributable package
+
+Maintainers produce the platform-native Augnes artifact with one command:
+
+```bash
+npm run package
+```
+
+The command prints the exact artifact and package-root names and writes
+`dist/augnes-<version>-<os>-<architecture>-node<abi>[-<libc>].tar.gz`. The
+archive contains one matching versioned top-level directory with a production
+standalone UI, a compiled bridge, the supervised runtime, and a versioned
+integrity manifest. After receiving the artifact, an ordinary Unix user runs:
+
+```bash
+tar -xzf <artifact>
+cd <package-root>
+./augnes
+```
+
+Package production and startup are supported on Linux and macOS build hosts.
+`Ctrl-C` performs the normal foreground shutdown; the same launcher also
+accepts the optional `status`, `stop`, and `diagnostics` actions. Startup
+creates or validates the application-owned database, chooses available
+loopback UI and bridge ports, and preserves missing provider or host
+capabilities as lazy, non-blocking status.
+
+Each artifact is intentionally native to the operating system, architecture,
+Linux C library where applicable, and Node module ABI recorded in
+`augnes-package.json`. The launcher verifies those prerequisites and every
+packaged file before creating runtime or data state. The current artifact
+contract requires Node.js 20.9 or newer with the recorded native module ABI; it
+does not claim cross-platform, cross-libc, or cross-ABI portability, bundled
+Node, code signing, or a remote update channel.
+
 ## Canonical verification
 
 The supported public verification surface is:
