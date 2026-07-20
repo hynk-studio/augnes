@@ -330,9 +330,7 @@ export function createEpisodeDeltaCandidateFingerprintV01(
   return createProtocolSha256V01(canonicalizeProtocolValueV01(candidate));
 }
 
-export function deriveReviewDecisionIdV01(
-  decision: ReviewDecisionV01,
-): string {
+export function deriveReviewDecisionIdV01(decision: ReviewDecisionV01): string {
   const identityHash = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       ...withoutFingerprint(decision),
@@ -521,7 +519,9 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
   const candidateBinding = isProtocolRecordV01(decisionInput.candidate)
     ? decisionInput.candidate
     : null;
-  if (protocolStringValueV01(decisionInput.workspace_id) !== proposal.workspace_id) {
+  if (
+    protocolStringValueV01(decisionInput.workspace_id) !== proposal.workspace_id
+  ) {
     addError(
       accumulator,
       "workspace_mismatch",
@@ -530,7 +530,9 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
       true,
     );
   }
-  if (protocolStringValueV01(decisionInput.project_id) !== proposal.project_id) {
+  if (
+    protocolStringValueV01(decisionInput.project_id) !== proposal.project_id
+  ) {
     addError(
       accumulator,
       "project_mismatch",
@@ -609,7 +611,9 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
 
   const proposalRefIdentities = collectExternalRefIdentities(proposal);
   const proposalCanonicalRefs = collectCanonicalExternalRefs(proposal);
-  for (const [index, ref] of arrayValues(decisionInput.decision_basis_refs).entries()) {
+  for (const [index, ref] of arrayValues(
+    decisionInput.decision_basis_refs,
+  ).entries()) {
     const identity = refIdentity(ref);
     if (!identity || !proposalRefIdentities.has(identity)) {
       addError(
@@ -645,7 +649,8 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
     );
     if (
       protocolStringValueV01(lineage.superseding_candidate.candidate_id) ===
-      candidateId
+        candidateId &&
+      !proposal.project_verify_lifecycle
     ) {
       addError(
         accumulator,
@@ -669,11 +674,11 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
     : null;
   const transitionTargetCandidate =
     decisionValue === "supersede"
-      ? proposal.proposed_deltas.find(
+      ? (proposal.proposed_deltas.find(
           (item) => item.candidate_id === supersedingCandidateId,
-        ) ?? null
+        ) ?? null)
       : decisionValue === "accept" || decisionValue === "retract"
-        ? candidate ?? null
+        ? (candidate ?? null)
         : null;
   if (requestedTransition && transitionTargetCandidate) {
     const requestedTargets = canonicalExternalRefSet(
@@ -708,10 +713,125 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
     );
   }
 
+  validateProjectVerifyLifecycleDecisionRelationV01(
+    decisionInput,
+    proposal,
+    accumulator,
+  );
+
   return buildValidationResult(
     accumulator,
     decisionValidation.normalized_protocol_version,
   );
+}
+
+function validateProjectVerifyLifecycleDecisionRelationV01(
+  decision: ProtocolJsonRecordV01,
+  proposal: EpisodeDeltaProposalV01,
+  accumulator: ValidationAccumulator,
+): void {
+  const profile = proposal.project_verify_lifecycle;
+  if (!profile) return;
+  const binding = profile.lifecycle_binding;
+  const decisionValue = protocolStringValueV01(decision.decision);
+  const applyingDecision =
+    binding.selected_record_operation_intent === "supersede"
+      ? "supersede"
+      : binding.selected_record_operation_intent === "retract"
+        ? "retract"
+        : "accept";
+  if (
+    decisionValue !== "reject" &&
+    decisionValue !== "defer" &&
+    decisionValue !== applyingDecision
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_decision_operation_mismatch",
+      "$.decision",
+      "Applying lifecycle decisions must exactly match the selected SR-2 operation intent.",
+      true,
+    );
+  }
+  const candidate = isProtocolRecordV01(decision.candidate)
+    ? decision.candidate
+    : null;
+  if (
+    candidate?.candidate_id !== binding.decision_candidate.candidate_id ||
+    candidate?.candidate_fingerprint !==
+      binding.decision_candidate.candidate_fingerprint
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_decision_candidate_mismatch",
+      "$.candidate",
+      "Lifecycle ReviewDecision must bind the profile's exact selected candidate.",
+      true,
+    );
+  }
+  const intent = isProtocolRecordV01(decision.requested_transition_intent)
+    ? decision.requested_transition_intent
+    : null;
+  const expectedTransitionKind =
+    applyingDecision === "accept"
+      ? "semantic_candidate_apply"
+      : applyingDecision === "supersede"
+        ? "semantic_candidate_supersede"
+        : "semantic_candidate_retract";
+  if (decisionValue === applyingDecision) {
+    if (
+      !intent ||
+      intent.transition_kind !== expectedTransitionKind ||
+      !Array.isArray(intent.target_refs) ||
+      intent.target_refs.length !== 1 ||
+      canonicalizeProtocolValueV01(intent.target_refs[0]) !==
+        canonicalizeProtocolValueV01(binding.family_target_ref)
+    ) {
+      addError(
+        accumulator,
+        "project_verify_lifecycle_transition_intent_mismatch",
+        "$.requested_transition_intent",
+        "Lifecycle transition intent must preserve the exact decision-specific kind and family target.",
+        true,
+      );
+    }
+  }
+  const lineage = isProtocolRecordV01(decision.lineage)
+    ? decision.lineage
+    : null;
+  const priorDecisions = Array.isArray(lineage?.prior_decisions)
+    ? lineage.prior_decisions
+    : [];
+  if (
+    decisionValue === applyingDecision &&
+    (binding.selected_record_revision === 1
+      ? priorDecisions.length !== 0
+      : priorDecisions.length !== 1)
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_prior_decision_lineage_mismatch",
+      "$.lineage.prior_decisions",
+      "Applying lifecycle revisions must carry exactly the prior applied decision lineage; initial creation carries none.",
+      true,
+    );
+  }
+  if (
+    decisionValue === "supersede" &&
+    (!isProtocolRecordV01(lineage?.superseding_candidate) ||
+      lineage.superseding_candidate.candidate_id !==
+        binding.selected_candidate.candidate_id ||
+      lineage.superseding_candidate.candidate_fingerprint !==
+        binding.selected_candidate.candidate_fingerprint)
+  ) {
+    addError(
+      accumulator,
+      "project_verify_lifecycle_superseding_candidate_mismatch",
+      "$.lineage.superseding_candidate",
+      "A lifecycle supersede decision must name the exact selected immutable SR-2 candidate.",
+      true,
+    );
+  }
 }
 
 function withoutFingerprint(decision: ReviewDecisionV01) {
@@ -741,9 +861,7 @@ function normalizePriorDecisionBinding(
 ): ReviewDecisionPriorDecisionBindingV01 {
   return {
     decision_id: normalizeProtocolTextV01(value.decision_id),
-    decision_fingerprint: normalizeProtocolTextV01(
-      value.decision_fingerprint,
-    ),
+    decision_fingerprint: normalizeProtocolTextV01(value.decision_fingerprint),
   };
 }
 
@@ -777,7 +895,9 @@ function normalizeRequestedTransition(
     : null;
 }
 
-function normalizeLineage(value: ReviewDecisionLineageV01): ReviewDecisionLineageV01 {
+function normalizeLineage(
+  value: ReviewDecisionLineageV01,
+): ReviewDecisionLineageV01 {
   return {
     prior_decisions: uniqueProtocolValuesV01(
       value.prior_decisions.map(normalizePriorDecisionBinding),
@@ -920,7 +1040,12 @@ function validateRevisit(
   }
   const revisit = recordAt(value, "$.revisit", accumulator);
   if (!revisit) return;
-  rejectUnknownNestedKeys(revisit, allowedRevisitKeys, "$.revisit", accumulator);
+  rejectUnknownNestedKeys(
+    revisit,
+    allowedRevisitKeys,
+    "$.revisit",
+    accumulator,
+  );
   const revisitAt = optionalTimestamp(
     revisit.revisit_at,
     "$.revisit.revisit_at",
@@ -961,11 +1086,7 @@ function validateRevisit(
       );
     }
   }
-  if (
-    revisitAt !== null &&
-    expiresAt !== null &&
-    revisitAt > expiresAt
-  ) {
+  if (revisitAt !== null && expiresAt !== null && revisitAt > expiresAt) {
     addError(
       accumulator,
       "revisit_after_expiry",
@@ -1080,7 +1201,12 @@ function validateLineage(
 ) {
   const lineage = recordAt(value, "$.lineage", accumulator);
   if (!lineage) return;
-  rejectUnknownNestedKeys(lineage, allowedLineageKeys, "$.lineage", accumulator);
+  rejectUnknownNestedKeys(
+    lineage,
+    allowedLineageKeys,
+    "$.lineage",
+    accumulator,
+  );
   const priorDecisions = arrayAt(
     lineage.prior_decisions,
     "$.lineage.prior_decisions",
@@ -1195,11 +1321,7 @@ function validateCompatibility(
     "$.compatibility.source_contracts",
     accumulator,
   );
-  stringArray(
-    compatibility.warnings,
-    "$.compatibility.warnings",
-    accumulator,
-  );
+  stringArray(compatibility.warnings, "$.compatibility.warnings", accumulator);
   validateRefArray(
     compatibility.external_refs,
     "$.compatibility.external_refs",
@@ -1250,10 +1372,7 @@ function validateMaterialBoundary(
   }
 }
 
-function validateAuthority(
-  value: unknown,
-  accumulator: ValidationAccumulator,
-) {
+function validateAuthority(value: unknown, accumulator: ValidationAccumulator) {
   const authority = recordAt(value, "$.authority_summary", accumulator);
   if (!authority) return;
   rejectUnknownNestedKeys(
@@ -1265,12 +1384,14 @@ function validateAuthority(
   stringArray(authority.notes, "$.authority_summary.notes", accumulator);
   const expected = createReviewDecisionAuthoritySummaryV01(
     Array.isArray(authority.notes)
-      ? authority.notes.filter((item): item is string => typeof item === "string")
+      ? authority.notes.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
   );
-  for (const key of Object.keys(
-    expected,
-  ) as Array<keyof ReviewDecisionAuthoritySummaryV01>) {
+  for (const key of Object.keys(expected) as Array<
+    keyof ReviewDecisionAuthoritySummaryV01
+  >) {
     if (key === "notes") continue;
     if (authority[key] !== false) {
       addError(
@@ -1428,7 +1549,12 @@ function requireNonEmptyStringArray(
 ) {
   const values = stringArray(value, path, accumulator);
   if (values.length === 0) {
-    addError(accumulator, code, path, "Expected at least one non-empty string.");
+    addError(
+      accumulator,
+      code,
+      path,
+      "Expected at least one non-empty string.",
+    );
   }
 }
 
@@ -1731,7 +1857,12 @@ function rejectUnknownNestedKeys(
 }
 
 function lastPathKey(path: string) {
-  return path.replace(/\[\d+\]$/, "").split(".").at(-1) ?? "";
+  return (
+    path
+      .replace(/\[\d+\]$/, "")
+      .split(".")
+      .at(-1) ?? ""
+  );
 }
 
 function createAccumulator(): ValidationAccumulator {
@@ -1740,12 +1871,7 @@ function createAccumulator(): ValidationAccumulator {
 
 function issueSink(accumulator: ValidationAccumulator) {
   return {
-    error(
-      code: string,
-      path: string | null,
-      message: string,
-      blocked = false,
-    ) {
+    error(code: string, path: string | null, message: string, blocked = false) {
       addError(accumulator, code, path, message, blocked);
     },
     warning(code: string, path: string | null, message: string) {

@@ -65,6 +65,182 @@ export interface ProjectVerifyMaterialScopeV01 {
   project_id: string;
 }
 
+declare const PROJECT_VERIFY_MATERIAL_READ_SESSION_OPAQUE_V01: unique symbol;
+
+/** Creator-issued opaque handle for one synchronous project-scoped read. */
+export interface ProjectVerifyMaterialReadSessionV01 {
+  readonly [PROJECT_VERIFY_MATERIAL_READ_SESSION_OPAQUE_V01]: true;
+}
+
+/**
+ * Private state behind the opaque read-session handle. It memoizes only
+ * successful authentication of immutable Core material. Public standalone
+ * reads create a fresh session unless explicitly given a creator-issued
+ * handle; every new reconciliation creates a fresh session. Mutable heads,
+ * lifecycle projections, missing material, and conflicts are never stored.
+ */
+class ProjectVerifyMaterialReadSessionStateV01 {
+  private readonly authenticatedRecords = new Set<string>();
+  private readonly claimFamilies = new Map<string, ClaimRecordV01[]>();
+  private readonly relationFamilies = new Map<
+    string,
+    ClaimEvidenceRelationV01[]
+  >();
+  private readonly expectedMaterialByReceipt = new Map<
+    string,
+    RunCriterionProjectVerifyMaterialV01
+  >();
+
+  constructor(
+    private readonly db: Database.Database,
+    readonly workspace_id: string,
+    readonly project_id: string,
+  ) {}
+
+  assertScope(
+    db: Database.Database,
+    scope: ProjectVerifyMaterialScopeV01,
+  ): void {
+    if (
+      db !== this.db ||
+      scope.workspace_id !== this.workspace_id ||
+      scope.project_id !== this.project_id
+    ) {
+      refuseV01("project_verify_material_read_session_scope_conflict");
+    }
+  }
+
+  hasAuthenticatedRecord(
+    record: EvidenceRecordV01 | ClaimRecordV01 | ClaimEvidenceRelationV01,
+  ): boolean {
+    return this.authenticatedRecords.has(readRecordCacheKeyV01(record));
+  }
+
+  rememberAuthenticatedRecord(
+    record: EvidenceRecordV01 | ClaimRecordV01 | ClaimEvidenceRelationV01,
+  ): void {
+    if (
+      this.authenticatedRecords.size <
+      PROJECT_VERIFY_RECORD_LIST_LIMIT_V01 * 3
+    ) {
+      this.authenticatedRecords.add(readRecordCacheKeyV01(record));
+    }
+  }
+
+  readClaimFamily(
+    familyId: string,
+    snapshotFingerprint: string,
+  ): ClaimRecordV01[] | null {
+    const cached = this.claimFamilies.get(
+      `${familyId}\0${snapshotFingerprint}`,
+    );
+    return cached ? structuredClone(cached) : null;
+  }
+
+  rememberClaimFamily(
+    familyId: string,
+    snapshotFingerprint: string,
+    records: ClaimRecordV01[],
+  ): void {
+    if (this.claimFamilies.size < PROJECT_VERIFY_RECORD_LIST_LIMIT_V01) {
+      this.claimFamilies.set(
+        `${familyId}\0${snapshotFingerprint}`,
+        structuredClone(records),
+      );
+    }
+  }
+
+  readRelationFamily(
+    familyId: string,
+    snapshotFingerprint: string,
+  ): ClaimEvidenceRelationV01[] | null {
+    const cached = this.relationFamilies.get(
+      `${familyId}\0${snapshotFingerprint}`,
+    );
+    return cached ? structuredClone(cached) : null;
+  }
+
+  rememberRelationFamily(
+    familyId: string,
+    snapshotFingerprint: string,
+    records: ClaimEvidenceRelationV01[],
+  ): void {
+    if (this.relationFamilies.size < PROJECT_VERIFY_RECORD_LIST_LIMIT_V01) {
+      this.relationFamilies.set(
+        `${familyId}\0${snapshotFingerprint}`,
+        structuredClone(records),
+      );
+    }
+  }
+
+  resolveExpectedMaterial(
+    db: Database.Database,
+    scope: ProjectVerifyMaterialScopeV01,
+    refs: ExternalRefV01[],
+  ): RunCriterionProjectVerifyMaterialV01 {
+    this.assertScope(db, scope);
+    const receiptRef = singleSourceRefV01(
+      refs,
+      "run_receipt",
+      "source_bound_receipt_ref_invalid",
+    );
+    if (
+      !receiptRef.source_ref ||
+      !SHA256_PATTERN_V01.test(receiptRef.source_ref)
+    ) {
+      refuseV01("source_bound_receipt_ref_invalid");
+    }
+    const key = canonicalizeProjectVerifyMaterialV01({
+      workspace_id: scope.workspace_id,
+      project_id: scope.project_id,
+      receipt_id: receiptRef.external_id,
+      receipt_fingerprint: receiptRef.source_ref,
+    });
+    const cached = this.expectedMaterialByReceipt.get(key);
+    if (cached) return structuredClone(cached);
+    const expected = resolveExpectedRunCriterionProjectVerifyMaterialV01(db, {
+      ...scope,
+      receipt_id: receiptRef.external_id,
+    });
+    if (
+      expected.source.receipt.receipt_id !== receiptRef.external_id ||
+      expected.source.receipt.receipt_fingerprint !== receiptRef.source_ref
+    ) {
+      refuseV01("source_bound_receipt_ref_invalid");
+    }
+    if (
+      this.expectedMaterialByReceipt.size <
+      PROJECT_VERIFY_RECORD_LIST_LIMIT_V01
+    ) {
+      this.expectedMaterialByReceipt.set(key, structuredClone(expected));
+    }
+    return structuredClone(expected);
+  }
+}
+
+// This is an ownership registry for opaque call-local handles, not a reusable
+// source cache. The handle is the only strong reference to its private state.
+const projectVerifyMaterialReadSessionStatesV01 = new WeakMap<
+  ProjectVerifyMaterialReadSessionV01,
+  ProjectVerifyMaterialReadSessionStateV01
+>();
+
+export function createProjectVerifyMaterialReadSessionV01(
+  db: Database.Database,
+  input: ProjectVerifyMaterialScopeV01,
+): ProjectVerifyMaterialReadSessionV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  const scope = scopeV01(input);
+  const state = new ProjectVerifyMaterialReadSessionStateV01(
+    db,
+    scope.workspace_id,
+    scope.project_id,
+  );
+  const session = Object.freeze({}) as ProjectVerifyMaterialReadSessionV01;
+  projectVerifyMaterialReadSessionStatesV01.set(session, state);
+  return session;
+}
+
 export interface ProjectVerifyMaterialBatchInputV01 extends ProjectVerifyMaterialScopeV01 {
   evidence_records: EvidenceRecordV01[];
   claim_records: ClaimRecordV01[];
@@ -233,9 +409,9 @@ export function admitProjectVerifyMaterialBatchV01(
 export function readEvidenceRecordV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { evidence_id: string },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): EvidenceRecordV01 | null {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, cache } = materialReadScopeV01(db, input, readSession);
   const record = readVNextCoreRecordV01(db, {
     ...scope,
     record_kind: "evidence_record",
@@ -243,23 +419,23 @@ export function readEvidenceRecordV01(
   });
   if (!record) return null;
   const evidence = evidenceFromEnvelopeV01(record, scope);
-  assertPersistedSourceAuthenticityV01(db, scope, evidence);
+  assertPersistedSourceAuthenticityV01(db, scope, evidence, cache);
   return evidence;
 }
 
 export function listProjectEvidenceRecordsV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { limit?: number },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): EvidenceRecordV01[] {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, cache } = materialReadScopeV01(db, input, readSession);
   const records = listVNextCoreRecordsV01(db, {
     ...scope,
     record_kinds: ["evidence_record"],
     limit: listLimitV01(input.limit),
   }).map((record) => evidenceFromEnvelopeV01(record, scope));
   for (const record of records) {
-    assertPersistedSourceAuthenticityV01(db, scope, record);
+    assertPersistedSourceAuthenticityV01(db, scope, record, cache);
   }
   return records;
 }
@@ -267,35 +443,47 @@ export function listProjectEvidenceRecordsV01(
 export function readClaimRecordV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { claim_id: string },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimRecordV01 | null {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, session, cache } = materialReadScopeV01(
+    db,
+    input,
+    readSession,
+  );
   const claim = readClaimRecordEnvelopeOnlyV01(
     db,
     scope,
     lookupTextV01(input.claim_id, "claim_id_invalid"),
   );
   if (!claim) return null;
-  const history = listClaimFamilyRevisionsV01(db, {
-    ...scope,
-    claim_family_id: claim.claim_family_id,
-  });
+  const history = listClaimFamilyRevisionsV01(
+    db,
+    {
+      ...scope,
+      claim_family_id: claim.claim_family_id,
+    },
+    session,
+  );
   const fromHistory = history.find(
     (candidate) => candidate.claim_id === claim.claim_id,
   );
   if (!fromHistory || !canonicalEqualV01(fromHistory, claim)) {
     refuseV01("claim_family_record_conflict");
   }
-  assertPersistedSourceAuthenticityV01(db, scope, fromHistory);
+  assertPersistedSourceAuthenticityV01(db, scope, fromHistory, cache);
   return fromHistory;
 }
 
 export function listProjectClaimRecordsV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { limit?: number },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimRecordV01[] {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, session, cache } = materialReadScopeV01(
+    db,
+    input,
+    readSession,
+  );
   const records = listVNextCoreRecordsV01(db, {
     ...scope,
     record_kinds: ["claim_record"],
@@ -304,13 +492,17 @@ export function listProjectClaimRecordsV01(
   for (const familyId of new Set(
     records.map((record) => record.claim_family_id),
   )) {
-    listClaimFamilyRevisionsV01(db, {
-      ...scope,
-      claim_family_id: familyId,
-    });
+    listClaimFamilyRevisionsV01(
+      db,
+      {
+        ...scope,
+        claim_family_id: familyId,
+      },
+      session,
+    );
   }
   for (const record of records) {
-    assertPersistedSourceAuthenticityV01(db, scope, record);
+    assertPersistedSourceAuthenticityV01(db, scope, record, cache);
   }
   return records;
 }
@@ -318,16 +510,16 @@ export function listProjectClaimRecordsV01(
 export function listClaimFamilyRevisionsV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { claim_family_id: string },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimRecordV01[] {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, cache } = materialReadScopeV01(db, input, readSession);
   const familyId = lookupTextV01(
     input.claim_family_id,
     "claim_family_id_invalid",
   );
-  const ids = boundedRecordIdsV01(
+  const identities = boundedRecordIdentitiesV01(
     db,
-    `SELECT record_id
+    `SELECT record_id, fingerprint
        FROM vnext_core_records
        WHERE workspace_id = ? AND project_id = ?
          AND record_kind = 'claim_record'
@@ -343,7 +535,10 @@ export function listClaimFamilyRevisionsV01(
     ],
     "claim_family_history_bound_exceeded",
   );
-  const revisions = ids.map((claimId) => {
+  const snapshotFingerprint = canonicalizeProjectVerifyMaterialV01(identities);
+  const cached = cache.readClaimFamily(familyId, snapshotFingerprint);
+  if (cached) return cached;
+  const revisions = identities.map(({ record_id: claimId }) => {
     const claim = readClaimRecordEnvelopeOnlyV01(db, scope, claimId);
     if (!claim || claim.claim_family_id !== familyId) {
       refuseV01("claim_family_record_conflict");
@@ -352,9 +547,10 @@ export function listClaimFamilyRevisionsV01(
   });
   assertClaimHistoryV01(revisions);
   for (const revision of revisions) {
-    assertPersistedSourceAuthenticityV01(db, scope, revision);
+    assertPersistedSourceAuthenticityV01(db, scope, revision, cache);
   }
-  return revisions;
+  cache.rememberClaimFamily(familyId, snapshotFingerprint, revisions);
+  return structuredClone(revisions);
 }
 
 export function readClaimFamilyLineageV01(
@@ -398,19 +594,23 @@ export function readClaimFamilyLineageV01(
 export function readClaimEvidenceRelationV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { relation_id: string },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimEvidenceRelationV01 | null {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, session } = materialReadScopeV01(db, input, readSession);
   const relation = readRelationEnvelopeOnlyV01(
     db,
     scope,
     lookupTextV01(input.relation_id, "relation_id_invalid"),
   );
   if (!relation) return null;
-  const history = listClaimEvidenceRelationFamilyRevisionsV01(db, {
-    ...scope,
-    relation_family_id: relation.relation_family_id,
-  });
+  const history = listClaimEvidenceRelationFamilyRevisionsV01(
+    db,
+    {
+      ...scope,
+      relation_family_id: relation.relation_family_id,
+    },
+    session,
+  );
   const fromHistory = history.find(
     (candidate) => candidate.relation_id === relation.relation_id,
   );
@@ -423,16 +623,20 @@ export function readClaimEvidenceRelationV01(
 export function listClaimEvidenceRelationFamilyRevisionsV01(
   db: Database.Database,
   input: ProjectVerifyMaterialScopeV01 & { relation_family_id: string },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimEvidenceRelationV01[] {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, session, cache } = materialReadScopeV01(
+    db,
+    input,
+    readSession,
+  );
   const familyId = lookupTextV01(
     input.relation_family_id,
     "relation_family_id_invalid",
   );
-  const ids = boundedRecordIdsV01(
+  const identities = boundedRecordIdentitiesV01(
     db,
-    `SELECT record_id
+    `SELECT record_id, fingerprint
        FROM vnext_core_records
        WHERE workspace_id = ? AND project_id = ?
          AND record_kind = 'claim_evidence_relation'
@@ -448,7 +652,10 @@ export function listClaimEvidenceRelationFamilyRevisionsV01(
     ],
     "relation_family_history_bound_exceeded",
   );
-  const revisions = ids.map((relationId) => {
+  const snapshotFingerprint = canonicalizeProjectVerifyMaterialV01(identities);
+  const cached = cache.readRelationFamily(familyId, snapshotFingerprint);
+  if (cached) return cached;
+  const revisions = identities.map(({ record_id: relationId }) => {
     const relation = readRelationEnvelopeOnlyV01(db, scope, relationId);
     if (!relation || relation.relation_family_id !== familyId) {
       refuseV01("relation_family_record_conflict");
@@ -457,19 +664,27 @@ export function listClaimEvidenceRelationFamilyRevisionsV01(
   });
   assertRelationHistoryV01(revisions);
   for (const relation of revisions) {
-    assertClaimEndpointV01(db, scope, relation.claim_ref, new Map());
+    assertClaimEndpointV01(
+      db,
+      scope,
+      relation.claim_ref,
+      new Map(),
+      session,
+    );
     const evidence = assertEvidenceEndpointV01(
       db,
       scope,
       relation.evidence_ref,
       new Map(),
+      session,
     );
     if (relation.trust_class !== evidence.trust_class) {
       refuseV01("relation_evidence_trust_conflict");
     }
-    assertPersistedSourceAuthenticityV01(db, scope, relation);
+    assertPersistedSourceAuthenticityV01(db, scope, relation, cache);
   }
-  return revisions;
+  cache.rememberRelationFamily(familyId, snapshotFingerprint, revisions);
+  return structuredClone(revisions);
 }
 
 export function readClaimEvidenceRelationFamilyLineageV01(
@@ -518,18 +733,23 @@ export function listRelationsForExactClaimV01(
     claim_ref: ClaimRecordReferenceV01;
     limit?: number;
   },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimEvidenceRelationV01[] {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, session } = materialReadScopeV01(db, input, readSession);
   const claimRef = exactClaimRefV01(input.claim_ref);
-  assertClaimEndpointV01(db, scope, claimRef, new Map());
-  return listRelationsByEndpointV01(db, scope, {
-    id_path: "$.claim_ref.record_id",
-    fingerprint_path: "$.claim_ref.record_fingerprint",
-    record_id: claimRef.record_id,
-    record_fingerprint: claimRef.record_fingerprint,
-    limit: listLimitV01(input.limit),
-  });
+  assertClaimEndpointV01(db, scope, claimRef, new Map(), session);
+  return listRelationsByEndpointV01(
+    db,
+    scope,
+    {
+      id_path: "$.claim_ref.record_id",
+      fingerprint_path: "$.claim_ref.record_fingerprint",
+      record_id: claimRef.record_id,
+      record_fingerprint: claimRef.record_fingerprint,
+      limit: listLimitV01(input.limit),
+    },
+    session,
+  );
 }
 
 export function listRelationsForExactEvidenceV01(
@@ -538,18 +758,23 @@ export function listRelationsForExactEvidenceV01(
     evidence_ref: EvidenceRecordReferenceV01;
     limit?: number;
   },
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimEvidenceRelationV01[] {
-  assertVNextDurableSemanticStoreSchemaV01(db);
-  const scope = scopeV01(input);
+  const { scope, session } = materialReadScopeV01(db, input, readSession);
   const evidenceRef = exactEvidenceRefV01(input.evidence_ref);
-  assertEvidenceEndpointV01(db, scope, evidenceRef, new Map());
-  return listRelationsByEndpointV01(db, scope, {
-    id_path: "$.evidence_ref.record_id",
-    fingerprint_path: "$.evidence_ref.record_fingerprint",
-    record_id: evidenceRef.record_id,
-    record_fingerprint: evidenceRef.record_fingerprint,
-    limit: listLimitV01(input.limit),
-  });
+  assertEvidenceEndpointV01(db, scope, evidenceRef, new Map(), session);
+  return listRelationsByEndpointV01(
+    db,
+    scope,
+    {
+      id_path: "$.evidence_ref.record_id",
+      fingerprint_path: "$.evidence_ref.record_fingerprint",
+      record_id: evidenceRef.record_id,
+      record_fingerprint: evidenceRef.record_fingerprint,
+      limit: listLimitV01(input.limit),
+    },
+    session,
+  );
 }
 
 interface BatchPreflightV01 {
@@ -936,11 +1161,16 @@ function assertClaimEndpointV01(
   scope: ProjectVerifyMaterialScopeV01,
   ref: ClaimRecordReferenceV01,
   batch: Map<string, ClaimRecordV01>,
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): ClaimRecordV01 {
   const exactRef = exactClaimRefV01(ref);
   const record =
     batch.get(exactRef.record_id) ??
-    readClaimRecordV01(db, { ...scope, claim_id: exactRef.record_id });
+    readClaimRecordV01(
+      db,
+      { ...scope, claim_id: exactRef.record_id },
+      readSession,
+    );
   if (!record) refuseV01("relation_claim_endpoint_missing");
   if (record.integrity.fingerprint !== exactRef.record_fingerprint) {
     refuseV01("relation_claim_endpoint_fingerprint_conflict");
@@ -954,11 +1184,16 @@ function assertEvidenceEndpointV01(
   scope: ProjectVerifyMaterialScopeV01,
   ref: EvidenceRecordReferenceV01,
   batch: Map<string, EvidenceRecordV01>,
+  readSession?: ProjectVerifyMaterialReadSessionV01,
 ): EvidenceRecordV01 {
   const exactRef = exactEvidenceRefV01(ref);
   const record =
     batch.get(exactRef.record_id) ??
-    readEvidenceRecordV01(db, { ...scope, evidence_id: exactRef.record_id });
+    readEvidenceRecordV01(
+      db,
+      { ...scope, evidence_id: exactRef.record_id },
+      readSession,
+    );
   if (!record) refuseV01("relation_evidence_endpoint_missing");
   if (record.integrity.fingerprint !== exactRef.record_fingerprint) {
     refuseV01("relation_evidence_endpoint_fingerprint_conflict");
@@ -1315,6 +1550,7 @@ function listRelationsByEndpointV01(
     record_fingerprint: string;
     limit: number;
   },
+  readSession: ProjectVerifyMaterialReadSessionV01,
 ): ClaimEvidenceRelationV01[] {
   const rows = db
     .prepare(
@@ -1337,28 +1573,33 @@ function listRelationsByEndpointV01(
       input.limit,
     ) as Array<{ record_id: string }>;
   return rows.map(({ record_id: relationId }) => {
-    const relation = readClaimEvidenceRelationV01(db, {
-      ...scope,
-      relation_id: relationId,
-    });
+    const relation = readClaimEvidenceRelationV01(
+      db,
+      {
+        ...scope,
+        relation_id: relationId,
+      },
+      readSession,
+    );
     if (!relation) refuseV01("claim_evidence_relation_record_missing");
     return relation;
   });
 }
 
-function boundedRecordIdsV01(
+function boundedRecordIdentitiesV01(
   db: Database.Database,
   sql: string,
   parameters: Array<string | number>,
   boundCode: string,
-): string[] {
+): Array<{ record_id: string; fingerprint: string }> {
   const rows = db.prepare(sql).all(...parameters) as Array<{
     record_id: string;
+    fingerprint: string;
   }>;
   if (rows.length > PROJECT_VERIFY_RECORD_LIST_LIMIT_V01) {
     refuseV01(boundCode);
   }
-  return rows.map((row) => row.record_id);
+  return rows;
 }
 
 function withAtomicWriteV01<T>(
@@ -1478,35 +1719,35 @@ function assertPersistedSourceAuthenticityV01(
   db: Database.Database,
   scope: ProjectVerifyMaterialScopeV01,
   record: EvidenceRecordV01 | ClaimRecordV01 | ClaimEvidenceRelationV01,
+  readSession: ProjectVerifyMaterialReadSessionStateV01,
 ): void {
+  if (readSession.hasAuthenticatedRecord(record)) return;
   if ("evidence_version" in record) {
-    if (!isReservedRunCriterionEvidenceV01(record)) return;
-    const expected = resolveExpectedMaterialForReceiptRefV01(
-      db,
-      scope,
-      record.source_refs,
-    ).evidence_records.find(
-      (candidate) => candidate.evidence_id === record.evidence_id,
-    );
-    if (!expected || !canonicalEqualV01(expected, record)) {
-      refuseV01("source_bound_evidence_material_conflict");
+    if (isReservedRunCriterionEvidenceV01(record)) {
+      const expected = readSession
+        .resolveExpectedMaterial(db, scope, record.source_refs)
+        .evidence_records.find(
+          (candidate) => candidate.evidence_id === record.evidence_id,
+        );
+      if (!expected || !canonicalEqualV01(expected, record)) {
+        refuseV01("source_bound_evidence_material_conflict");
+      }
     }
-    return;
+  } else if ("claim_version" in record) {
+    if (isReservedRunCriterionClaimV01(record)) {
+      assertSourceBoundRunCriterionClaimV01(db, scope, record);
+    }
+  } else if (isReservedRunCriterionRelationV01(record)) {
+    const expected = readSession
+      .resolveExpectedMaterial(db, scope, record.source_refs)
+      .relations.find(
+        (candidate) => candidate.relation_id === record.relation_id,
+      );
+    if (!expected || !canonicalEqualV01(expected, record)) {
+      refuseV01("source_bound_relation_material_conflict");
+    }
   }
-  if ("claim_version" in record) {
-    if (!isReservedRunCriterionClaimV01(record)) return;
-    assertSourceBoundRunCriterionClaimV01(db, scope, record);
-    return;
-  }
-  if (!isReservedRunCriterionRelationV01(record)) return;
-  const expected = resolveExpectedMaterialForReceiptRefV01(
-    db,
-    scope,
-    record.source_refs,
-  ).relations.find((candidate) => candidate.relation_id === record.relation_id);
-  if (!expected || !canonicalEqualV01(expected, record)) {
-    refuseV01("source_bound_relation_material_conflict");
-  }
+  readSession.rememberAuthenticatedRecord(record);
 }
 
 function assertSourceBoundRunCriterionClaimV01(
@@ -1565,22 +1806,6 @@ function assertSourceBoundRunCriterionClaimV01(
   if (!canonicalEqualV01(expected, record)) {
     refuseV01("source_bound_claim_material_conflict");
   }
-}
-
-function resolveExpectedMaterialForReceiptRefV01(
-  db: Database.Database,
-  scope: ProjectVerifyMaterialScopeV01,
-  refs: ExternalRefV01[],
-): RunCriterionProjectVerifyMaterialV01 {
-  const receiptRef = singleSourceRefV01(
-    refs,
-    "run_receipt",
-    "source_bound_receipt_ref_invalid",
-  );
-  return resolveExpectedRunCriterionProjectVerifyMaterialV01(db, {
-    ...scope,
-    receipt_id: receiptRef.external_id,
-  });
 }
 
 function singleSourceRefV01(
@@ -1663,6 +1888,48 @@ function listLimitV01(value: number | undefined): number {
     refuseV01("project_verify_material_list_limit_invalid");
   }
   return limit;
+}
+
+function materialReadScopeV01(
+  db: Database.Database,
+  input: ProjectVerifyMaterialScopeV01,
+  readSession?: ProjectVerifyMaterialReadSessionV01,
+): {
+  scope: ProjectVerifyMaterialScopeV01;
+  session: ProjectVerifyMaterialReadSessionV01;
+  cache: ProjectVerifyMaterialReadSessionStateV01;
+} {
+  const scope = scopeV01(input);
+  const session =
+    readSession ?? createProjectVerifyMaterialReadSessionV01(db, scope);
+  const cache = projectVerifyMaterialReadSessionStatesV01.get(session);
+  if (!cache) refuseV01("project_verify_material_read_session_invalid");
+  cache.assertScope(db, scope);
+  return { scope, session, cache };
+}
+
+function readRecordCacheKeyV01(
+  record: EvidenceRecordV01 | ClaimRecordV01 | ClaimEvidenceRelationV01,
+): string {
+  if ("evidence_version" in record) {
+    return canonicalizeProjectVerifyMaterialV01({
+      record_kind: "evidence_record",
+      record_id: record.evidence_id,
+      record_fingerprint: record.integrity.fingerprint,
+    });
+  }
+  if ("claim_version" in record) {
+    return canonicalizeProjectVerifyMaterialV01({
+      record_kind: "claim_record",
+      record_id: record.claim_id,
+      record_fingerprint: record.integrity.fingerprint,
+    });
+  }
+  return canonicalizeProjectVerifyMaterialV01({
+    record_kind: "claim_evidence_relation",
+    record_id: record.relation_id,
+    record_fingerprint: record.integrity.fingerprint,
+  });
 }
 
 function scopeV01(

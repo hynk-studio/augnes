@@ -27,7 +27,13 @@ import {
   normalizeStrategicAdvantageTransferProfileV01,
   validateStrategicAdvantageTransferProfileV01,
 } from "@/lib/vnext/strategic-advantage-transfer-protocol";
+import {
+  mapProjectVerifyOperationToProposalOperationV01,
+  normalizeProjectVerifyLifecycleProposalProfileV01,
+  validateProjectVerifyLifecycleProposalProfileV01,
+} from "@/lib/vnext/project-verify-lifecycle-protocol";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import { PROJECT_VERIFY_LIFECYCLE_TARGET_NAMESPACE_V01 } from "@/types/vnext/project-verify-lifecycle";
 import {
   EPISODE_DELTA_PROPOSAL_ATTESTATION_TRUST_CLASSES_V01,
   EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01,
@@ -67,15 +73,9 @@ import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 const PENDING_PROPOSAL_ID = "episode-delta-proposal:pending";
 const PENDING_FINGERPRINT = "sha256:pending";
 
-const proposalStatuses = new Set<string>(
-  EPISODE_DELTA_PROPOSAL_STATUSES_V01,
-);
-const deltaTypes = new Set<string>(
-  EPISODE_DELTA_PROPOSAL_DELTA_TYPES_V01,
-);
-const operations = new Set<string>(
-  EPISODE_DELTA_PROPOSAL_OPERATIONS_V01,
-);
+const proposalStatuses = new Set<string>(EPISODE_DELTA_PROPOSAL_STATUSES_V01);
+const deltaTypes = new Set<string>(EPISODE_DELTA_PROPOSAL_DELTA_TYPES_V01);
+const operations = new Set<string>(EPISODE_DELTA_PROPOSAL_OPERATIONS_V01);
 const observationTrustClasses = new Set<string>(
   EPISODE_DELTA_PROPOSAL_OBSERVATION_TRUST_CLASSES_V01,
 );
@@ -96,6 +96,7 @@ const allowedRootKeys = new Set([
   "source_assessment",
   "operation_revision",
   "strategic_advantage_transfer",
+  "project_verify_lifecycle",
   "observations",
   "attestations",
   "inferences",
@@ -487,14 +488,20 @@ export function buildEpisodeDeltaProposalV01(
             ),
         }
       : {}),
+    ...(input.project_verify_lifecycle
+      ? {
+          project_verify_lifecycle:
+            normalizeProjectVerifyLifecycleProposalProfileV01(
+              input.project_verify_lifecycle,
+            ),
+        }
+      : {}),
     observations,
     attestations,
     inferences,
     proposed_deltas: normalizeDeltas(input.proposed_deltas),
     conflicts: normalizeConflicts(input.conflicts),
-    missing_information: normalizeMissingInformation(
-      input.missing_information,
-    ),
+    missing_information: normalizeMissingInformation(input.missing_information),
     uncertainties: normalizeUncertainties(input.uncertainties),
     limitations: uniqueProtocolStringsV01(input.limitations),
     source_status: {
@@ -542,13 +549,11 @@ export function buildEpisodeDeltaProposalV01(
   return proposal;
 }
 
-export function criterionSpecificRelationsAvailableV01(
-  input: {
-    packet: TaskContextPacketV01;
-    receipt: RunReceiptV01;
-    assessment: CriterionAssessmentV01;
-  },
-): boolean {
+export function criterionSpecificRelationsAvailableV01(input: {
+  packet: TaskContextPacketV01;
+  receipt: RunReceiptV01;
+  assessment: CriterionAssessmentV01;
+}): boolean {
   if (validateCriterionAssessmentAgainstSourcesV01(input).status !== "valid") {
     return false;
   }
@@ -569,13 +574,11 @@ export function criterionSpecificRelationsStructurallyValidV01(
   return refs.length > 0 && refs.every(isExactCriterionRelationRefV01);
 }
 
-export function criterionAssessmentTaskSuccessStatusV01(
-  input: {
-    packet: TaskContextPacketV01;
-    receipt: RunReceiptV01;
-    assessment: CriterionAssessmentV01;
-  },
-): CriterionAssessmentStatusV01 {
+export function criterionAssessmentTaskSuccessStatusV01(input: {
+  packet: TaskContextPacketV01;
+  receipt: RunReceiptV01;
+  assessment: CriterionAssessmentV01;
+}): CriterionAssessmentStatusV01 {
   if (!criterionSpecificRelationsAvailableV01(input)) return "unknown";
   return criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
     input.assessment,
@@ -601,10 +604,14 @@ function criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
   ) {
     return "unknown";
   }
-  if (assessment.criteria.some((criterion) => criterion.status === "unsatisfied")) {
+  if (
+    assessment.criteria.some((criterion) => criterion.status === "unsatisfied")
+  ) {
     return "unsatisfied";
   }
-  if (assessment.criteria.some((criterion) => criterion.status === "satisfied")) {
+  if (
+    assessment.criteria.some((criterion) => criterion.status === "satisfied")
+  ) {
     return "satisfied";
   }
   return assessment.criteria.every(
@@ -881,9 +888,14 @@ export function validateEpisodeDeltaProposalV01(
 
   validateAllExternalRefs(input, accumulator);
   validateTaskContextPacketRef(input.task_context_packet_ref, accumulator);
+  const lifecycleProfileValid = validateProjectVerifyLifecycleV01(
+    input,
+    accumulator,
+  );
   const runReceiptIdentities = validateRunReceiptRefs(
     input.run_receipt_refs,
     accumulator,
+    lifecycleProfileValid,
   );
   validateSourceAssessmentV01(input, accumulator);
   validateOperationRevisionV01(input, accumulator);
@@ -891,9 +903,25 @@ export function validateEpisodeDeltaProposalV01(
   validateRefArray(input.source_refs, "$.source_refs", accumulator);
   validateDuplicateExternalRefsPrimitiveV01(input, sink);
 
-  validateObservations(input.observations, createdAt, runReceiptIdentities, accumulator);
-  validateAttestations(input.attestations, createdAt, runReceiptIdentities, accumulator);
-  validateInferences(input.inferences, createdAt, runReceiptIdentities, accumulator);
+  validateObservations(
+    input.observations,
+    createdAt,
+    runReceiptIdentities,
+    lifecycleProfileValid,
+    accumulator,
+  );
+  validateAttestations(
+    input.attestations,
+    createdAt,
+    runReceiptIdentities,
+    accumulator,
+  );
+  validateInferences(
+    input.inferences,
+    createdAt,
+    runReceiptIdentities,
+    accumulator,
+  );
   validateDeltas(input.proposed_deltas, accumulator);
   validateConflicts(input.conflicts, accumulator);
   validateMissingInformation(input.missing_information, accumulator);
@@ -921,7 +949,9 @@ function withoutFingerprint(proposal: EpisodeDeltaProposalV01) {
   return { ...proposal, integrity };
 }
 
-function normalizeNullableRef(ref: ExternalRefV01 | null): ExternalRefV01 | null {
+function normalizeNullableRef(
+  ref: ExternalRefV01 | null,
+): ExternalRefV01 | null {
   return ref ? normalizeExternalRefPrimitiveV01(ref) : null;
 }
 
@@ -958,14 +988,10 @@ function normalizeSourceAssessmentV01(
         })),
       ).sort(
         (left, right) =>
-          compareProtocolCodeUnitsV01(
-            left.criterion_id,
-            right.criterion_id,
-          ) || compareProtocolCodeUnitsV01(left.criterion, right.criterion),
+          compareProtocolCodeUnitsV01(left.criterion_id, right.criterion_id) ||
+          compareProtocolCodeUnitsV01(left.criterion, right.criterion),
       ),
-      required_checks: uniqueProtocolStringsV01(
-        input.expected.required_checks,
-      ),
+      required_checks: uniqueProtocolStringsV01(input.expected.required_checks),
       expected_artifacts: uniqueProtocolStringsV01(
         input.expected.expected_artifacts,
       ),
@@ -981,9 +1007,10 @@ function normalizeSourceAssessmentV01(
       relation_policy: "explicit_protocol_relations_only",
       criterion_specific_relations_available:
         criterionSpecificRelationsAvailable,
-      task_success_status: criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
-        cloned.assessment,
-      ),
+      task_success_status:
+        criterionAssessmentTaskSuccessStatusFromStructuralRelationsV01(
+          cloned.assessment,
+        ),
       execution_status_is_task_success: false,
       gaps: uniqueProtocolStringsV01(input.comparison.gaps),
     },
@@ -1003,8 +1030,7 @@ function normalizeOperationRevisionV01(
   input: EpisodeDeltaProposalOperationRevisionV01,
 ): EpisodeDeltaProposalOperationRevisionV01 {
   return {
-    revision_profile:
-      OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
+    revision_profile: OPERATION_AWARE_PROPOSAL_REVISION_PROFILE_VERSION_V01,
     admission_idempotency_key: normalizeProtocolTextV01(
       input.admission_idempotency_key,
     ),
@@ -1172,9 +1198,7 @@ function normalizeMissingInformation(
       knowledge_status: item.knowledge_status,
       code: normalizeProtocolTextV01(item.code),
       bounded_summary: normalizeProtocolTextV01(item.bounded_summary),
-      related_material_ids: uniqueProtocolStringsV01(
-        item.related_material_ids,
-      ),
+      related_material_ids: uniqueProtocolStringsV01(item.related_material_ids),
       related_delta_ids: uniqueProtocolStringsV01(item.related_delta_ids),
       source_refs: normalizeRefs(item.source_refs),
       review_required: true as const,
@@ -1189,9 +1213,7 @@ function normalizeUncertainties(
     values.map((item) => ({
       uncertainty_id: normalizeProtocolTextV01(item.uncertainty_id),
       bounded_summary: normalizeProtocolTextV01(item.bounded_summary),
-      related_material_ids: uniqueProtocolStringsV01(
-        item.related_material_ids,
-      ),
+      related_material_ids: uniqueProtocolStringsV01(item.related_material_ids),
       related_delta_ids: uniqueProtocolStringsV01(item.related_delta_ids),
       source_refs: normalizeRefs(item.source_refs),
     })),
@@ -1236,7 +1258,9 @@ function validateSourceAssessmentV01(
     path,
     accumulator,
   );
-  if (source.admission_profile !== RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01) {
+  if (
+    source.admission_profile !== RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01
+  ) {
     addError(
       accumulator,
       "run_assessment_proposal_profile_unsupported",
@@ -1645,10 +1669,9 @@ function validateOperationRevisionV01(
     );
     if (
       !isProtocolRecordV01(ref) ||
-      ![
-        "direct_local_observation",
-        "verified_external_observation",
-      ].includes(protocolStringValueV01(ref.trust_class) ?? "") ||
+      !["direct_local_observation", "verified_external_observation"].includes(
+        protocolStringValueV01(ref.trust_class) ?? "",
+      ) ||
       ref.observed_at !== proposal.created_at
     ) {
       addError(
@@ -1673,9 +1696,7 @@ function validateOperationRevisionV01(
       true,
     );
   }
-  const selectedOperation = protocolStringValueV01(
-    revision.selected_operation,
-  );
+  const selectedOperation = protocolStringValueV01(revision.selected_operation);
   if (
     !selectedOperation ||
     !operations.has(selectedOperation) ||
@@ -1816,9 +1837,8 @@ function validateOperationRevisionV01(
     );
     if (
       !/^sha256:[a-f0-9]{64}$/u.test(
-        protocolStringValueV01(
-          revisedCandidateBinding.candidate_fingerprint,
-        ) ?? "",
+        protocolStringValueV01(revisedCandidateBinding.candidate_fingerprint) ??
+          "",
       )
     ) {
       addError(
@@ -1836,14 +1856,13 @@ function validateOperationRevisionV01(
     accumulator,
   );
   const delta = revisedCandidateBinding
-    ? deltas
-        .filter(
-          (item): item is ProtocolJsonRecordV01 => isProtocolRecordV01(item),
+    ? (deltas
+        .filter((item): item is ProtocolJsonRecordV01 =>
+          isProtocolRecordV01(item),
         )
         .find(
-          (item) =>
-            item.candidate_id === revisedCandidateBinding.candidate_id,
-        ) ?? null
+          (item) => item.candidate_id === revisedCandidateBinding.candidate_id,
+        ) ?? null)
     : null;
   if (!delta) {
     addError(
@@ -1959,8 +1978,8 @@ function validateStrategicAdvantageTransferV01(
   ) {
     return;
   }
-  const profile = proposal.strategic_advantage_transfer as unknown as
-    StrategicAdvantageTransferProfileV01;
+  const profile =
+    proposal.strategic_advantage_transfer as unknown as StrategicAdvantageTransferProfileV01;
   if (
     proposal.source_assessment !== undefined ||
     proposal.status !== "pending_review"
@@ -1992,9 +2011,7 @@ function validateStrategicAdvantageTransferV01(
   const deltas = Array.isArray(proposal.proposed_deltas)
     ? proposal.proposed_deltas.filter(isProtocolRecordV01)
     : [];
-  const hasOperationRevision = isProtocolRecordV01(
-    proposal.operation_revision,
-  );
+  const hasOperationRevision = isProtocolRecordV01(proposal.operation_revision);
   if (profile.transfer_items.length === 0) {
     const expectedCandidateId = `strategic-candidate:no-transfer-${profile.analysis_identity.slice(7, 31)}`;
     const candidate = deltas[0];
@@ -2068,9 +2085,7 @@ function validateStrategicAdvantageTransferV01(
     !Array.isArray(proposal.compatibility) &&
     isProtocolRecordV01(proposal.compatibility) &&
     Array.isArray(proposal.compatibility.source_contracts) &&
-    !proposal.compatibility.source_contracts.includes(
-      profile.profile_version,
-    )
+    !proposal.compatibility.source_contracts.includes(profile.profile_version)
   ) {
     addError(
       accumulator,
@@ -2080,6 +2095,145 @@ function validateStrategicAdvantageTransferV01(
       true,
     );
   }
+}
+
+function validateProjectVerifyLifecycleV01(
+  proposal: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+): boolean {
+  const usesReservedFamilyTarget = Array.isArray(proposal.proposed_deltas)
+    ? proposal.proposed_deltas.some(
+        (candidate) =>
+          isProtocolRecordV01(candidate) &&
+          Array.isArray(candidate.target_refs) &&
+          candidate.target_refs.some(
+            (ref) =>
+              isProtocolRecordV01(ref) &&
+              ref.compatibility_namespace ===
+                PROJECT_VERIFY_LIFECYCLE_TARGET_NAMESPACE_V01,
+          ),
+      )
+    : false;
+  if (proposal.project_verify_lifecycle === undefined) {
+    if (usesReservedFamilyTarget) {
+      addError(
+        accumulator,
+        "project_verify_lifecycle_reserved_target_without_profile",
+        "$.proposed_deltas",
+        "Project Verify family targets require the exact source-bound lifecycle proposal profile.",
+        true,
+      );
+    }
+    return false;
+  }
+  const path = "$.project_verify_lifecycle";
+  const validation = validateProjectVerifyLifecycleProposalProfileV01(
+    proposal.project_verify_lifecycle,
+  );
+  for (const issue of validation.errors) {
+    addError(accumulator, issue.code, issue.path, issue.message, true);
+  }
+  if (
+    validation.status !== "valid" ||
+    !isProtocolRecordV01(proposal.project_verify_lifecycle)
+  ) {
+    return false;
+  }
+  const profile =
+    proposal.project_verify_lifecycle as unknown as EpisodeDeltaProposalV01["project_verify_lifecycle"];
+  if (!profile) return false;
+  let exact = true;
+  const conflict = (code: string, issuePath: string, message: string) => {
+    exact = false;
+    addError(accumulator, code, issuePath, message, true);
+  };
+  const binding = profile.lifecycle_binding;
+  if (
+    proposal.source_assessment !== undefined ||
+    proposal.operation_revision !== undefined ||
+    proposal.strategic_advantage_transfer !== undefined ||
+    proposal.status !== "pending_review"
+  ) {
+    conflict(
+      "project_verify_lifecycle_profile_collision",
+      path,
+      "Project Verify lifecycle material is one distinct pending-review proposal profile.",
+    );
+  }
+  if (
+    proposal.workspace_id !== binding.workspace_id ||
+    proposal.project_id !== binding.project_id
+  ) {
+    conflict(
+      "project_verify_lifecycle_scope_conflict",
+      path,
+      "Lifecycle binding scope must exactly match the proposal scope.",
+    );
+  }
+  const candidates = Array.isArray(proposal.proposed_deltas)
+    ? proposal.proposed_deltas.filter(isProtocolRecordV01)
+    : [];
+  const candidate = candidates[0];
+  const candidateFingerprint = candidate
+    ? createProtocolSha256V01(canonicalizeProtocolValueV01(candidate))
+    : null;
+  if (
+    candidates.length !== 1 ||
+    !candidate ||
+    candidate.candidate_id !== binding.selected_candidate.candidate_id ||
+    candidateFingerprint !== binding.selected_candidate.candidate_fingerprint ||
+    canonicalizeProtocolValueV01(binding.decision_candidate) !==
+      canonicalizeProtocolValueV01(binding.selected_candidate) ||
+    candidate.delta_type !== "validation_delta" ||
+    candidate.operation !==
+      mapProjectVerifyOperationToProposalOperationV01(
+        binding.selected_record_operation_intent,
+      ) ||
+    !Array.isArray(candidate.target_refs) ||
+    candidate.target_refs.length !== 1 ||
+    !sameRefV01(candidate.target_refs[0], binding.family_target_ref) ||
+    candidate.review_required !== true
+  ) {
+    conflict(
+      "project_verify_lifecycle_candidate_conflict",
+      "$.proposed_deltas",
+      "The lifecycle profile must map to one exact review-required validation candidate for the selected SR-2 record and family target.",
+    );
+  }
+  const selectedRefPresent = (value: unknown) =>
+    Array.isArray(value) &&
+    value.some(
+      (ref) =>
+        isProtocolRecordV01(ref) &&
+        ref.ref_type === binding.selected_record_ref.record_kind &&
+        ref.external_id === binding.selected_record_ref.record_id &&
+        ref.source_ref === binding.selected_record_ref.record_fingerprint,
+    );
+  if (
+    !selectedRefPresent(proposal.source_refs) ||
+    !selectedRefPresent(candidate?.source_refs)
+  ) {
+    conflict(
+      "project_verify_lifecycle_selected_record_ref_missing",
+      "$.source_refs",
+      "Proposal and candidate source refs must preserve the exact selected SR-2 record identity and fingerprint.",
+    );
+  }
+  if (
+    !isProtocolRecordV01(proposal.compatibility) ||
+    !Array.isArray(proposal.compatibility.source_contracts) ||
+    !proposal.compatibility.source_contracts.includes(
+      profile.proposal_profile,
+    ) ||
+    !proposal.compatibility.source_contracts.includes(binding.binding_version)
+  ) {
+    conflict(
+      "project_verify_lifecycle_compatibility_contract_missing",
+      "$.compatibility.source_contracts",
+      "Lifecycle proposals must declare both lifecycle binding contracts.",
+    );
+  }
+  return exact;
 }
 
 function sameRefV01(left: unknown, right: unknown): boolean {
@@ -2100,9 +2254,10 @@ function refArrayContainsV01(value: unknown, expected: unknown): boolean {
 function validateRunReceiptRefs(
   value: unknown,
   accumulator: ValidationAccumulator,
+  allowEmpty: boolean,
 ): Set<string> {
   const refs = arrayAt(value, "$.run_receipt_refs", accumulator);
-  if (refs.length === 0) {
+  if (refs.length === 0 && !allowEmpty) {
     addError(
       accumulator,
       "source_run_receipt_required",
@@ -2132,6 +2287,7 @@ function validateObservations(
   value: unknown,
   createdAt: number | null,
   runReceiptIdentities: ReadonlySet<string>,
+  allowEmptyRunReceiptRefs: boolean,
   accumulator: ValidationAccumulator,
 ) {
   arrayAt(value, "$.observations", accumulator).forEach((candidate, index) => {
@@ -2179,6 +2335,7 @@ function validateObservations(
       item.source_run_receipt_refs,
       `${path}.source_run_receipt_refs`,
       runReceiptIdentities,
+      allowEmptyRunReceiptRefs,
       accumulator,
     );
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
@@ -2237,6 +2394,7 @@ function validateAttestations(
       item.source_run_receipt_refs,
       `${path}.source_run_receipt_refs`,
       runReceiptIdentities,
+      false,
       accumulator,
     );
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
@@ -2300,6 +2458,7 @@ function validateInferences(
       item.source_run_receipt_refs,
       `${path}.source_run_receipt_refs`,
       runReceiptIdentities,
+      false,
       accumulator,
     );
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
@@ -2339,7 +2498,11 @@ function validateDeltas(value: unknown, accumulator: ValidationAccumulator) {
       accumulator,
     );
     requireString(item, "title", path, accumulator);
-    validateCurrentState(item.current_state, `${path}.current_state`, accumulator);
+    validateCurrentState(
+      item.current_state,
+      `${path}.current_state`,
+      accumulator,
+    );
     requireString(item, "proposed_state_summary", path, accumulator);
     requireNonEmptyRefArray(
       item.target_refs,
@@ -2398,7 +2561,11 @@ function validateCurrentState(
     `${path}.source_material_ids`,
     accumulator,
   );
-  validateRefArray(currentState.source_refs, `${path}.source_refs`, accumulator);
+  validateRefArray(
+    currentState.source_refs,
+    `${path}.source_refs`,
+    accumulator,
+  );
   if (knowledgeStatus === "known") {
     if (!protocolStringValueV01(currentState.bounded_summary)) {
       addError(
@@ -2536,8 +2703,16 @@ function validateUncertainties(
     rejectUnknownNestedKeys(item, allowedUncertaintyKeys, path, accumulator);
     requireString(item, "uncertainty_id", path, accumulator);
     requireString(item, "bounded_summary", path, accumulator);
-    stringArray(item.related_material_ids, `${path}.related_material_ids`, accumulator);
-    stringArray(item.related_delta_ids, `${path}.related_delta_ids`, accumulator);
+    stringArray(
+      item.related_material_ids,
+      `${path}.related_material_ids`,
+      accumulator,
+    );
+    stringArray(
+      item.related_delta_ids,
+      `${path}.related_delta_ids`,
+      accumulator,
+    );
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
   });
 }
@@ -2636,11 +2811,7 @@ function validateCompatibility(
     "$.compatibility.source_contracts",
     accumulator,
   );
-  stringArray(
-    compatibility.warnings,
-    "$.compatibility.warnings",
-    accumulator,
-  );
+  stringArray(compatibility.warnings, "$.compatibility.warnings", accumulator);
   validateRefArray(
     compatibility.external_refs,
     "$.compatibility.external_refs",
@@ -2701,10 +2872,7 @@ function validateRelations(
       accumulator,
     );
     const ownId = protocolStringValueV01(item.material_id);
-    if (
-      ownId &&
-      stringValues(item.basis_material_ids).includes(ownId)
-    ) {
+    if (ownId && stringValues(item.basis_material_ids).includes(ownId)) {
       addError(
         accumulator,
         "inference_self_relation",
@@ -2813,9 +2981,7 @@ function validateInferenceDependencyCycles(
       path: `$.inferences[${index}]`,
     }))
     .filter(
-      (
-        entry,
-      ): entry is { item: ProtocolJsonRecordV01; path: string } =>
+      (entry): entry is { item: ProtocolJsonRecordV01; path: string } =>
         entry.item !== null,
     );
   const inferenceIds = new Set(
@@ -2836,8 +3002,7 @@ function validateInferenceDependencyCycles(
             .slice(0, boundary.max_refs_per_collection)
             .filter(
               (dependencyId) =>
-                dependencyId !== inferenceId &&
-                inferenceIds.has(dependencyId),
+                dependencyId !== inferenceId && inferenceIds.has(dependencyId),
             ),
         ),
       ].sort(),
@@ -2864,10 +3029,9 @@ function validateInferenceDependencyCycles(
             accumulator,
             "inference_basis_cycle",
             paths.get(inferenceId) ?? "$.inferences",
-            `Inference basis cycle detected: ${[
-              ...cycleIds,
-              dependencyId,
-            ].join(" -> ")}.`,
+            `Inference basis cycle detected: ${[...cycleIds, dependencyId].join(
+              " -> ",
+            )}.`,
             true,
           );
         }
@@ -2975,10 +3139,7 @@ function validateRunAssessmentProposalSourceMaterialBoundaryV01(
   }
 }
 
-function validateAuthority(
-  value: unknown,
-  accumulator: ValidationAccumulator,
-) {
+function validateAuthority(value: unknown, accumulator: ValidationAccumulator) {
   const authority = recordAt(value, "$.authority_summary", accumulator);
   if (!authority) return;
   rejectUnknownNestedKeys(
@@ -3003,9 +3164,9 @@ function validateAuthority(
     "authority_boundary_violation",
     true,
   );
-  for (const key of Object.keys(
-    expected,
-  ) as Array<keyof EpisodeDeltaProposalAuthoritySummaryV01>) {
+  for (const key of Object.keys(expected) as Array<
+    keyof EpisodeDeltaProposalAuthoritySummaryV01
+  >) {
     if (key === "notes") continue;
     if (authority[key] !== false) {
       addError(
@@ -3058,8 +3219,7 @@ function validateIntegrity(
     integrity.algorithm !== "sha256" ||
     integrity.canonicalization !==
       EPISODE_DELTA_PROPOSAL_CANONICALIZATION_V01 ||
-    integrity.fingerprint_scope !==
-      "proposal_without_integrity_fingerprint"
+    integrity.fingerprint_scope !== "proposal_without_integrity_fingerprint"
   ) {
     addError(
       accumulator,
@@ -3074,10 +3234,11 @@ function validateSourceRunReceiptRefs(
   value: unknown,
   path: string,
   allowedIdentities: ReadonlySet<string>,
+  allowEmpty: boolean,
   accumulator: ValidationAccumulator,
 ) {
   const refs = arrayAt(value, path, accumulator);
-  if (refs.length === 0) {
+  if (refs.length === 0 && !allowEmpty) {
     addError(
       accumulator,
       "material_source_run_receipt_required",
@@ -3155,14 +3316,16 @@ function requireNonEmptyStringArray(
 ) {
   const values = stringArray(value, path, accumulator);
   if (values.length === 0) {
-    addError(accumulator, code, path, "Expected at least one non-empty string.");
+    addError(
+      accumulator,
+      code,
+      path,
+      "Expected at least one non-empty string.",
+    );
   }
 }
 
-function validateBounds(
-  input: unknown,
-  accumulator: ValidationAccumulator,
-) {
+function validateBounds(input: unknown, accumulator: ValidationAccumulator) {
   for (const violation of collectBoundViolations(input)) {
     addError(
       accumulator,
@@ -3223,7 +3386,12 @@ function isRunAssessmentSourceTextPathV01(path: string): boolean {
 }
 
 function lastPathKey(path: string) {
-  return path.replace(/\[\d+\]$/, "").split(".").at(-1) ?? "";
+  return (
+    path
+      .replace(/\[\d+\]$/, "")
+      .split(".")
+      .at(-1) ?? ""
+  );
 }
 
 function scanAbsoluteLocalPaths(
@@ -3403,9 +3571,7 @@ function hasExplicitMissingRelation(
 
 function idEntries(value: unknown, field: string, path: string) {
   return (Array.isArray(value) ? value : []).map((item, index) => ({
-    id: isProtocolRecordV01(item)
-      ? protocolStringValueV01(item[field])
-      : null,
+    id: isProtocolRecordV01(item) ? protocolStringValueV01(item[field]) : null,
     path: `${path}[${index}].${field}`,
   }));
 }
@@ -3445,7 +3611,9 @@ function refIdentity(value: unknown): string | null {
   });
 }
 
-function typedObservations(value: unknown): EpisodeDeltaProposalObservationV01[] {
+function typedObservations(
+  value: unknown,
+): EpisodeDeltaProposalObservationV01[] {
   return (Array.isArray(value) ? value : []).filter(
     (item): item is EpisodeDeltaProposalObservationV01 =>
       isProtocolRecordV01(item) &&
@@ -3455,7 +3623,9 @@ function typedObservations(value: unknown): EpisodeDeltaProposalObservationV01[]
   );
 }
 
-function typedAttestations(value: unknown): EpisodeDeltaProposalAttestationV01[] {
+function typedAttestations(
+  value: unknown,
+): EpisodeDeltaProposalAttestationV01[] {
   return (Array.isArray(value) ? value : []).filter(
     (item): item is EpisodeDeltaProposalAttestationV01 =>
       isProtocolRecordV01(item) &&
@@ -3549,12 +3719,7 @@ function createAccumulator(): ValidationAccumulator {
 
 function issueSink(accumulator: ValidationAccumulator) {
   return {
-    error(
-      code: string,
-      path: string | null,
-      message: string,
-      blocked = false,
-    ) {
+    error(code: string, path: string | null, message: string, blocked = false) {
       addError(accumulator, code, path, message, blocked);
     },
     warning(code: string, path: string | null, message: string) {

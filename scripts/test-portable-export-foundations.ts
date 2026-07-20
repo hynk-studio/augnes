@@ -27,36 +27,53 @@ globalThis.fetch = async () => {
 };
 
 try {
-  const multiCategoryInput = manifestFixture.safe_multi_category_input as Parameters<
-    typeof buildLocalDataExportManifestCandidateV01
-  >[0];
+  const multiCategoryInput =
+    manifestFixture.safe_multi_category_input as Parameters<
+      typeof buildLocalDataExportManifestCandidateV01
+    >[0];
   const first = buildLocalDataExportManifestCandidateV01(multiCategoryInput);
   const replay = buildLocalDataExportManifestCandidateV01(multiCategoryInput);
 
   assert.equal(first.ok, true);
   assert.equal(first.status, "candidate_only");
-  assert.deepEqual(replay, first, "portable manifest candidates are deterministic");
+  assert.deepEqual(
+    replay,
+    first,
+    "portable manifest candidates are deterministic",
+  );
   const firstManifest = first.manifest;
   assert.ok(firstManifest, "successful candidate build returns a manifest");
   assert.equal(firstManifest.scope, "project:augnes");
   assert.equal(firstManifest.export_file_written, false);
   assert.equal(firstManifest.import_apply_executed, false);
-  assert.equal(firstManifest.authority_boundary.local_data_export_manifest_is_export_file, false);
-  assert.equal(firstManifest.authority_boundary.local_data_export_manifest_is_import_approval, false);
+  assert.equal(
+    firstManifest.authority_boundary.local_data_export_manifest_is_export_file,
+    false,
+  );
+  assert.equal(
+    firstManifest.authority_boundary
+      .local_data_export_manifest_is_import_approval,
+    false,
+  );
   for (const item of firstManifest.export_item_summaries) {
     assert.equal(item.raw_data_included, false);
     assert.equal(item.canonical_source_body_included, false);
     assert.equal(item.proof_or_evidence_created, false);
   }
 
-  const dryRunRequest = localExportFixture.safe_dry_run_request_example as JsonRecord;
+  const dryRunRequest =
+    localExportFixture.safe_dry_run_request_example as JsonRecord;
   const validation = validateLocalGitLedgerExportRequestV01(dryRunRequest);
   const manifest = buildLocalGitLedgerExportManifestV01(dryRunRequest);
   const repeatedManifest = buildLocalGitLedgerExportManifestV01(dryRunRequest);
 
   assert.equal(validation.passed, true);
   assert.equal(validation.status, "dry_run_manifest_created");
-  assert.deepEqual(repeatedManifest, manifest, "export manifests are deterministic");
+  assert.deepEqual(
+    repeatedManifest,
+    manifest,
+    "export manifests are deterministic",
+  );
   assert.equal(manifest.scope, "project:augnes");
   assert.equal(manifest.authority_boundary.local_file_export_now, false);
   assert.equal(manifest.authority_boundary.dry_run_manifest_only, true);
@@ -70,16 +87,27 @@ try {
   });
   assert.equal(dryRunResult.written, false);
   assert.deepEqual(dryRunResult.artifact_paths, []);
-  assert.equal(existsSync(dryRunOutput), false, "dry-run creates no repository artifact");
+  assert.equal(
+    existsSync(dryRunOutput),
+    false,
+    "dry-run creates no repository artifact",
+  );
 
   const foreignProject = validateLocalGitLedgerExportRequestV01({
     ...dryRunRequest,
     scope: "project:foreign",
   });
-  assert.equal(foreignProject.passed, false, "foreign project scope fails closed");
+  assert.equal(
+    foreignProject.passed,
+    false,
+    "foreign project scope fails closed",
+  );
   assert.notEqual(foreignProject.status, "dry_run_manifest_created");
 
-  assert.equal(isSafeLocalGitLedgerExportOutputDirV01("tmp/git-ledger-export/example"), true);
+  assert.equal(
+    isSafeLocalGitLedgerExportOutputDirV01("tmp/git-ledger-export/example"),
+    true,
+  );
   assert.equal(isSafeLocalGitLedgerExportOutputDirV01("/tmp/escape"), false);
   assert.deepEqual(
     PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.import_authority,
@@ -115,6 +143,35 @@ try {
     ),
     true,
   );
+  for (const canonicalFragment of [
+    "project_verify_lifecycle_proposal.v0.1",
+    "ReviewDecisionV01",
+    "StateTransitionReceiptV01",
+    "semantic target-head lineage",
+    "ContextUseReview",
+  ]) {
+    assert.equal(
+      PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.canonical_lifecycle_material.some(
+        (item) => item.includes(canonicalFragment),
+      ),
+      true,
+      `${canonicalFragment} remains canonical lifecycle material`,
+    );
+  }
+  for (const rebuildableFragment of [
+    "lifecycle status",
+    "applicability overlap grouping",
+    "project_verify_reconciliation.v0.1",
+    "project_verify_lineage.v0.1",
+  ]) {
+    assert.equal(
+      PROJECT_VERIFY_PORTABLE_EXPORT_CLASSIFICATION_V01.rebuildable_material.some(
+        (item) => item.includes(rebuildableFragment),
+      ),
+      true,
+      `${rebuildableFragment} remains rebuildable read material`,
+    );
+  }
   assert.equal(fetchCalls, 0);
 
   console.log(

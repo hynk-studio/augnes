@@ -44,6 +44,7 @@ import {
 } from "@/lib/vnext/project-controls/project-controls";
 import { readPersonalPerspectiveEffectiveScopeV01 } from "@/lib/vnext/persistence/project-control-store";
 import {
+  assertProjectVerifyLifecyclePersistedStateSourceBoundV01,
   loadValidatedVNextSemanticTransitionRelationV01,
   type ValidatedVNextSemanticTransitionRelationV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
@@ -75,8 +76,7 @@ export const VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01 =
   "vnext_bounded_automation_context_compiler.v0.1" as const;
 
 export type VNextTaskContextPacketExpiryPolicyV01 =
-  | { mode: "explicit"; expires_at: string | null }
-  | { mode: "reuse_prior" };
+  { mode: "explicit"; expires_at: string | null } | { mode: "reuse_prior" };
 
 export interface CompileTaskContextPacketFromPersistedSemanticStateInputV01 {
   workspace_id: string;
@@ -128,7 +128,11 @@ export function compileBoundedAutomationTaskContextPacketV01(
   },
 ): CompileBoundedAutomationTaskContextPacketResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
-  validatePriorPacket(input.source_packet, input.workspace_id, input.project_id);
+  validatePriorPacket(
+    input.source_packet,
+    input.workspace_id,
+    input.project_id,
+  );
   if (!validateVNextAutomationWorkSourceV01(input.work)) {
     throw new Error("bounded_automation_packet_work_profile_invalid");
   }
@@ -163,7 +167,8 @@ export function compileBoundedAutomationTaskContextPacketV01(
     external_id: input.source_packet.packet_id,
     observed_at: input.source_packet.generated_at,
     source_ref: input.source_packet.integrity.fingerprint,
-    compatibility_namespace: VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
+    compatibility_namespace:
+      VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
     trust_class: "direct_local_observation",
   };
   const packet = buildTaskContextPacketV01({
@@ -360,9 +365,8 @@ function compileTaskContextPacketInternalV01(
     prior_packet: input.prior_packet,
     later_packet: laterPacket,
   };
-  const fullChainRelation = validateSemanticTransitionFullChainV01(
-    fullChainInput,
-  );
+  const fullChainRelation =
+    validateSemanticTransitionFullChainV01(fullChainInput);
   if (fullChainRelation.status !== "valid") {
     throw new Error(
       `semantic_transition_full_chain_invalid:${fullChainRelation.errors
@@ -439,11 +443,7 @@ function resolvePersistedEffectStates(
       transition.receipt.project_id,
       targetKey,
     );
-    assertTargetHeadMatchesReceiptEffect(
-      head,
-      transition.receipt,
-      effect,
-    );
+    assertTargetHeadMatchesReceiptEffect(head, transition.receipt, effect);
     const intendedEffect = transition.gate_record.intended_effects.find(
       (intended) => intended.target_key === targetKey,
     );
@@ -460,7 +460,8 @@ function resolvePersistedEffectStates(
       }
       continue;
     }
-    if (!projection) throw new Error("applied_semantic_state_projection_missing");
+    if (!projection)
+      throw new Error("applied_semantic_state_projection_missing");
     if (
       projection.revision !== intendedEffect.expected_revision ||
       projection.updated_at !== transition.receipt.recorded_at ||
@@ -576,9 +577,7 @@ function validateUnrelatedPersistedStateSelections(
       !affectedBeforeSnapshots.has(key) &&
       !currentProjectionSnapshots.has(key)
     ) {
-      throw new Error(
-        "prior_packet_stale_local_semantic_state_selection",
-      );
+      throw new Error("prior_packet_stale_local_semantic_state_selection");
     }
   }
 }
@@ -620,6 +619,28 @@ function loadValidatedProjectionState(
       projection.source_candidate_fingerprint
   ) {
     throw new Error("applied_semantic_state_record_drift");
+  }
+  if (state.state_content.project_verify_lifecycle_binding) {
+    const binding = state.state_content.project_verify_lifecycle_binding;
+    const authenticated =
+      assertProjectVerifyLifecyclePersistedStateSourceBoundV01(db, {
+        state,
+        transition_receipt_id: projection.source_transition_receipt_id,
+        transition_receipt_fingerprint:
+          projection.source_transition_receipt_fingerprint,
+      });
+    const intended = authenticated.gate_record.intended_effects.filter(
+      (effect) =>
+        canonicalizeProtocolValueV01(effect.target_ref) ===
+        canonicalizeProtocolValueV01(binding.family_target_ref),
+    );
+    if (
+      intended.length !== 1 ||
+      intended[0]?.expected_revision !== projection.revision ||
+      projection.revision !== binding.selected_record_revision
+    ) {
+      throw new Error("applied_semantic_state_lifecycle_revision_drift");
+    }
   }
   return state;
 }
@@ -696,7 +717,9 @@ function assertProjectionHeadAndReceipt(
     fingerprint: receipt.integrity.fingerprint,
   });
   const effect = receipt.effects.find(
-    (item) => deriveVNextSemanticTargetKeyV01(item.target_ref) === projection.target_key,
+    (item) =>
+      deriveVNextSemanticTargetKeyV01(item.target_ref) ===
+      projection.target_key,
   );
   if (
     record.record_id !== receipt.transition_receipt_id ||
@@ -749,7 +772,8 @@ function buildLaterPacket(
         "Selected from the exact persisted semantic-state projection after the bound transition.",
       currentness: {
         status: "fresh" as const,
-        as_of: effect.after_application_observation_ref.observed_at ??
+        as_of:
+          effect.after_application_observation_ref.observed_at ??
           transition.receipt.applied_at,
         basis:
           "Bound to the exact local after-application observation recorded by the transition receipt.",
@@ -810,8 +834,7 @@ function buildLaterPacket(
     gaps: input.prior_packet.gaps,
     constraints: input.prior_packet.constraints,
     capability_grant: input.prior_packet.capability_grant,
-    criterion_verification_plan:
-      input.prior_packet.criterion_verification_plan,
+    criterion_verification_plan: input.prior_packet.criterion_verification_plan,
     return_contract: input.prior_packet.return_contract,
     source_status: input.prior_packet.source_status,
     compatibility: {
@@ -853,7 +876,9 @@ function buildLaterPacket(
   });
 }
 
-function createPriorPacketLineageRef(packet: TaskContextPacketV01): ExternalRefV01 {
+function createPriorPacketLineageRef(
+  packet: TaskContextPacketV01,
+): ExternalRefV01 {
   return {
     ref_version: "external_ref.v0.1",
     ref_type: "task_context_packet",
@@ -886,7 +911,9 @@ function resolveExpiryPolicy(
   return policy.expires_at;
 }
 
-function selectedEntrySnapshotKey(entry: TaskContextPacketSelectedEntryV01): string {
+function selectedEntrySnapshotKey(
+  entry: TaskContextPacketSelectedEntryV01,
+): string {
   return entry.external_ref && entry.source_ref
     ? snapshotKey(entry.external_ref, entry.source_ref)
     : "";
@@ -903,7 +930,9 @@ function normalizeRefs(refs: ExternalRefV01[]): ExternalRefV01[] {
 }
 
 function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+  return [
+    ...new Set(values.map((value) => value.trim()).filter(Boolean)),
+  ].sort();
 }
 
 function assertCompilerInputKeys(
@@ -958,8 +987,7 @@ function readCompilerPersonalPerspectiveScope(
   return {
     canonical_project_scope: false,
     scope: {
-      effective_scope_version:
-        PERSONAL_PERSPECTIVE_EFFECTIVE_SCOPE_VERSION_V01,
+      effective_scope_version: PERSONAL_PERSPECTIVE_EFFECTIVE_SCOPE_VERSION_V01,
       workspace_id: input.workspace_id,
       project_id: input.project_id,
       status: "not_configured",

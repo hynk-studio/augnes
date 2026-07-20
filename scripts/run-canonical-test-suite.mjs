@@ -16,7 +16,10 @@ import {
   findForbiddenAmbientKeysForwarded,
 } from "./canonical-test-environment.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const temporaryRoot = realpathSync(
@@ -44,7 +47,9 @@ const suites = {
     },
     {
       label: "operator review-window policy",
-      ...rootNode("scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts"),
+      ...rootNode(
+        "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
+      ),
     },
     {
       label: "operator deterministic and static pure contracts",
@@ -75,17 +80,44 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "project-verify-lifecycle",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "backup-restore"],
+      label:
+        "project Verify lifecycle, exact Transition, reconciliation, and lineage",
+      ...rootNode("scripts/test-vnext-project-verify-lifecycle.ts"),
+      // Current-head exact lifecycle, rollback, bounded-read, source-chain, and
+      // restore coverage measured 43.55s locally; bound it with a 60s margin.
+      timeoutMs: 60_000,
+    },
+    {
+      id: "project-verify-production-lifecycle",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "backup-restore"],
+      label:
+        "production local-root Verify candidate, Transition, later-context, and feedback lineage",
+      ...rootNode(
+        "scripts/test-local-project-verification-adapter.ts",
+        "--sr3-lifecycle",
+      ),
+      // The complete real-adapter SR-1 -> SR-2 -> SR-3 lifecycle proof measured
+      // 50.63s before call-local validation deduplication; bound it at 75s.
+      timeoutMs: 75_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],
-      label: "project automation, Personal Perspective scope, admission, CAS, and isolation",
+      label:
+        "project automation, Personal Perspective scope, admission, CAS, and isolation",
       ...rootNode("scripts/test-vnext-project-controls.ts"),
     },
     {
       id: "policy-triggered-model-run",
       group: "supporting-serial",
       requirements: ["database", "migrations", "deterministic-fake-transport"],
-      label: "policy-triggered Planner grant, Model Gateway, and RunReceipt lifecycle",
+      label:
+        "policy-triggered Planner grant, Model Gateway, and RunReceipt lifecycle",
       ...rootNode("scripts/test-policy-triggered-model-run.ts"),
       timeoutMs: 30_000,
     },
@@ -93,14 +125,16 @@ const suites = {
       id: "project-home",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],
-      label: "Minimum Project Home projection, lineage, isolation, and read-only routing",
+      label:
+        "Minimum Project Home projection, lineage, isolation, and read-only routing",
       ...rootNode("scripts/test-vnext-project-home.ts"),
     },
     {
       id: "project-onboarding",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "project-root"],
-      label: "folder onboarding, recent projects, active selection, and recovery",
+      label:
+        "folder onboarding, recent projects, active selection, and recovery",
       ...rootNode("scripts/test-vnext-project-onboarding.ts"),
     },
     {
@@ -120,7 +154,11 @@ const suites = {
     {
       id: "cross-session-read",
       group: "supporting-serial",
-      requirements: ["database", "listener-port-owning", "mutable-module-state"],
+      requirements: [
+        "database",
+        "listener-port-owning",
+        "mutable-module-state",
+      ],
       label: "cross-session read integration",
       ...nestedNode("scripts/smoke-cross-session-read-tools.ts"),
     },
@@ -186,7 +224,8 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
-      label: "project-scoped Model Gateway and all production model transport authority",
+      label:
+        "project-scoped Model Gateway and all production model transport authority",
       ...rootNode("scripts/test-model-gateway.ts"),
     },
     {
@@ -200,12 +239,14 @@ const suites = {
   ],
   operability: [
     {
-      label: "platform local paths, first-run database, migration, and recovery",
+      label:
+        "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
       timeoutMs: 120_000,
     },
     {
-      label: "canonical supervisor lifecycle, ownership, collision, and cleanup",
+      label:
+        "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
       timeoutMs: 120_000,
     },
@@ -283,11 +324,14 @@ try {
     };
   });
   if (
-    new Set(preparedSteps.map((step) => step.id)).size !== preparedSteps.length ||
+    new Set(preparedSteps.map((step) => step.id)).size !==
+      preparedSteps.length ||
     new Set(preparedSteps.map((step) => step.resourceRoot)).size !==
       preparedSteps.length
   ) {
-    throw new Error("canonical child ownership or resource isolation is duplicated");
+    throw new Error(
+      "canonical child ownership or resource isolation is duplicated",
+    );
   }
 
   let completedResults;
@@ -298,8 +342,13 @@ try {
     const supporting = preparedSteps.filter(
       (step) => step.group === "supporting-serial",
     );
-    if (operator.length !== 1 || supporting.length !== preparedSteps.length - 1) {
-      throw new Error("integration concurrent ownership inventory is incomplete");
+    if (
+      operator.length !== 1 ||
+      supporting.length !== preparedSteps.length - 1
+    ) {
+      throw new Error(
+        "integration concurrent ownership inventory is incomplete",
+      );
     }
     completedResults = await runCanonicalChildGroups({
       suite: suiteName,
@@ -315,7 +364,11 @@ try {
       console.log();
       const result = await runCanonicalChild(step);
       completedResults.push(result);
-      if (result.timed_out || result.spawn_error_code || result.exit_code !== 0) {
+      if (
+        result.timed_out ||
+        result.spawn_error_code ||
+        result.exit_code !== 0
+      ) {
         throw canonicalChildFailure(result, {
           suite: suiteName,
           timeoutMs: step.timeoutMs,
@@ -340,10 +393,8 @@ try {
       {
         suite: suiteName,
         status: "pass",
-        environment_isolation_verified:
-          forbiddenEnvironmentKeysForwarded === 0,
-        forbidden_environment_keys_forwarded:
-          forbiddenEnvironmentKeysForwarded,
+        environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,
+        forbidden_environment_keys_forwarded: forbiddenEnvironmentKeysForwarded,
         canonical_children_checked: canonicalChildrenChecked,
         ...(suiteName === "integration"
           ? {

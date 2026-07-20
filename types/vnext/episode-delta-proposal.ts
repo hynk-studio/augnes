@@ -1,7 +1,4 @@
-import type {
-  ExternalRefTrustClassV01,
-  ExternalRefV01,
-} from "./external-ref";
+import type { ExternalRefTrustClassV01, ExternalRefV01 } from "./external-ref";
 import type {
   CriterionAssessmentStatusV01,
   CriterionAssessmentV01,
@@ -22,6 +19,7 @@ import type {
 } from "./run-receipt";
 import type { TaskContextPacketDataClassificationV01 } from "./task-context-packet";
 import type { StrategicAdvantageTransferProfileV01 } from "./strategic-advantage-transfer";
+import type { ProjectVerifyLifecycleProposalProfileV01 } from "./project-verify-lifecycle";
 
 export const EPISODE_DELTA_PROPOSAL_VERSION_V01 =
   "episode_delta_proposal.v0.1" as const;
@@ -86,21 +84,16 @@ export type EpisodeDeltaProposalObservationTrustClassV01 =
   (typeof EPISODE_DELTA_PROPOSAL_OBSERVATION_TRUST_CLASSES_V01)[number];
 export type EpisodeDeltaProposalAttestationTrustClassV01 =
   (typeof EPISODE_DELTA_PROPOSAL_ATTESTATION_TRUST_CLASSES_V01)[number];
-export type EpisodeDeltaProposalInferenceTrustClassV01 =
-  Extract<ExternalRefTrustClassV01, "derived_interpretation">;
+export type EpisodeDeltaProposalInferenceTrustClassV01 = Extract<
+  ExternalRefTrustClassV01,
+  "derived_interpretation"
+>;
 export type EpisodeDeltaProposalKnowledgeStatusV01 =
-  | "known"
-  | "unknown"
-  | "missing";
+  "known" | "unknown" | "missing";
 export type EpisodeDeltaProposalSourceCoverageV01 =
-  | "complete"
-  | "partial"
-  | "unknown";
+  "complete" | "partial" | "unknown";
 export type EpisodeDeltaProposalSourceCurrentnessV01 =
-  | "fresh"
-  | "stale"
-  | "partial"
-  | "unknown";
+  "fresh" | "stale" | "partial" | "unknown";
 
 export interface EpisodeDeltaProposalSourceStatusV01 {
   coverage: EpisodeDeltaProposalSourceCoverageV01;
@@ -417,6 +410,13 @@ export interface EpisodeDeltaProposalV01 {
   source_assessment?: EpisodeDeltaProposalSourceAssessmentV01;
   operation_revision?: EpisodeDeltaProposalOperationRevisionV01;
   strategic_advantage_transfer?: StrategicAdvantageTransferProfileV01;
+  /**
+   * Optional additive v0.1 profile for applying one exact immutable SR-2
+   * Claim or Claim-Evidence relation candidate through the existing review,
+   * semantic-gate, and Transition authority chain. Historical proposals omit
+   * this field and preserve their prior canonical identity.
+   */
+  project_verify_lifecycle?: ProjectVerifyLifecycleProposalProfileV01;
   observations: EpisodeDeltaProposalObservationV01[];
   attestations: EpisodeDeltaProposalAttestationV01[];
   inferences: EpisodeDeltaProposalInferenceV01[];
@@ -443,9 +443,7 @@ export interface EpisodeDeltaProposalValidationIssueV01 {
 
 export interface EpisodeDeltaProposalValidationResultV01 {
   status: "valid" | "invalid" | "blocked";
-  normalized_protocol_version:
-    | typeof EPISODE_DELTA_PROPOSAL_VERSION_V01
-    | null;
+  normalized_protocol_version: typeof EPISODE_DELTA_PROPOSAL_VERSION_V01 | null;
   errors: EpisodeDeltaProposalValidationIssueV01[];
   warnings: EpisodeDeltaProposalValidationIssueV01[];
 }

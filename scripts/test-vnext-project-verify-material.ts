@@ -31,6 +31,7 @@ import {
   admitClaimRecordV01,
   admitEvidenceRecordV01,
   admitProjectVerifyMaterialBatchV01,
+  createProjectVerifyMaterialReadSessionV01,
   listClaimEvidenceRelationFamilyRevisionsV01,
   listClaimFamilyRevisionsV01,
   listProjectClaimRecordsV01,
@@ -354,6 +355,128 @@ function assertCanonicalEqualV01(actual: unknown, expected: unknown): void {
     canonicalizeProjectVerifyMaterialV01(actual),
     canonicalizeProjectVerifyMaterialV01(expected),
   );
+}
+
+function assertMaterialReadSessionBoundaryV01(): void {
+  const db = new Database(":memory:");
+  const otherDb = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    ensureVNextDurableSemanticStoreSchemaV01(otherDb);
+    const claim1 = claimV01({
+      revision: 1,
+      prior: null,
+      operation: "create",
+      proposition: "A read session authenticates one exact family snapshot.",
+      familySeed: "material-read-session",
+    });
+    admitClaimRecordV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      claim: claim1,
+    });
+    const session = createProjectVerifyMaterialReadSessionV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+    });
+    const first = listClaimFamilyRevisionsV01(
+      db,
+      {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim_family_id: claim1.claim_family_id,
+      },
+      session,
+    );
+    assert.equal(first.length, 1);
+    first[0]!.limitations.push("caller-local mutation");
+    assertCanonicalEqualV01(
+      listClaimFamilyRevisionsV01(
+        db,
+        {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          claim_family_id: claim1.claim_family_id,
+        },
+        session,
+      ),
+      [claim1],
+    );
+
+    const claim2 = claimV01({
+      revision: 2,
+      prior: claim1,
+      operation: "revise",
+      proposition: "A changed exact family snapshot is reloaded.",
+      familySeed: "material-read-session",
+      producer: USER_PRODUCER,
+    });
+    admitClaimRecordV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      claim: claim2,
+    });
+    assertCanonicalEqualV01(
+      listClaimFamilyRevisionsV01(
+        db,
+        {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          claim_family_id: claim1.claim_family_id,
+        },
+        session,
+      ),
+      [claim1, claim2],
+    );
+
+    assert.throws(
+      () =>
+        listClaimFamilyRevisionsV01(
+          db,
+          {
+            workspace_id: WORKSPACE_ID,
+            project_id: PROJECT_ID,
+            claim_family_id: claim1.claim_family_id,
+          },
+          Object.freeze({}) as ReturnType<
+            typeof createProjectVerifyMaterialReadSessionV01
+          >,
+        ),
+      isStoreErrorV01("project_verify_material_read_session_invalid"),
+      "only a creator-issued opaque read session may reuse authentication",
+    );
+
+    for (const readWithWrongSessionScope of [
+      () =>
+        listClaimFamilyRevisionsV01(
+          db,
+          {
+            workspace_id: WORKSPACE_ID,
+            project_id: OTHER_PROJECT_ID,
+            claim_family_id: claim1.claim_family_id,
+          },
+          session,
+        ),
+      () =>
+        listClaimFamilyRevisionsV01(
+          otherDb,
+          {
+            workspace_id: WORKSPACE_ID,
+            project_id: PROJECT_ID,
+            claim_family_id: claim1.claim_family_id,
+          },
+          session,
+        ),
+    ]) {
+      assert.throws(
+        readWithWrongSessionScope,
+        isStoreErrorV01("project_verify_material_read_session_scope_conflict"),
+      );
+    }
+  } finally {
+    otherDb.close();
+    db.close();
+  }
 }
 
 function assertImmutableMaterialStoreV01(): void {
@@ -3419,6 +3542,7 @@ globalThis.fetch = (async () => {
 try {
   assertPreSr2SchemaUpgradeV01();
   assertExportedDatabaseMigrationV01();
+  assertMaterialReadSessionBoundaryV01();
   assertImmutableMaterialStoreV01();
   assertSerializedCrossConnectionReplayV01();
   assertSourceBoundAdmissionV01();
@@ -3434,6 +3558,7 @@ try {
       status: "passed",
       pre_sr2_upgrade_preservation_rollback_orphan_checked: true,
       exported_migration_semantic_projection_preservation_checked: true,
+      call_local_material_read_session_boundaries_checked: true,
       immutable_replay_conflict_checked: true,
       claim_candidate_lineage_checked: true,
       family_origin_revision_producer_separation_checked: true,
