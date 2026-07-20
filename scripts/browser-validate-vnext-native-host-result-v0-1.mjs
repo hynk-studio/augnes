@@ -1371,8 +1371,12 @@ async function main() {
       const text = section?.textContent ?? '';
       return {
         base_and_frame: text.includes('Exact accepted base strategy and fixed working frame'),
-        within_frame: text.includes('Within-frame source-bound transfer'),
-        frame_challenge: text.includes('Frame challenge material'),
+        within_frame:
+          text.includes('Within-frame source-bound transfer') &&
+          text.includes('exact source bound'),
+        frame_challenge_unknown:
+          text.includes('Frame challenge classification') &&
+          text.includes('not explicitly recorded'),
         model_receipt:
           text.includes('Model invocation receipt') &&
           text.includes('recorded provenance only'),
@@ -1385,7 +1389,7 @@ async function main() {
     assert.deepEqual(strategicInspectorShape, {
       base_and_frame: true,
       within_frame: true,
-      frame_challenge: true,
+      frame_challenge_unknown: true,
       model_receipt: true,
       no_promotion: true,
       mutation_controls: 0,

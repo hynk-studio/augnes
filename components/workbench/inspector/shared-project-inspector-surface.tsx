@@ -107,6 +107,27 @@ function InspectorSection({
       <p className={section.status === "missing" ? styles.empty : styles.copy}>
         {section.summary}
       </p>
+      {section.bounds.presentation_omitted ? (
+        <div
+          className={styles.notice}
+          role="status"
+          data-inspector-section-omission="true"
+          data-inspector-section-returned-items={section.bounds.items.returned_count}
+          data-inspector-section-total-items={section.bounds.items.total_count}
+          data-inspector-section-presentation-bound={section.bounds.items.presentation_bound}
+        >
+          <strong>Bounded presentation</strong>
+          <span>
+            Facts {section.bounds.facts.returned_count}/{section.bounds.facts.total_count}
+            {" · "}items {section.bounds.items.returned_count}/{section.bounds.items.total_count}
+            {" · "}exact refs {section.bounds.exact_refs.returned_count}/{section.bounds.exact_refs.total_count}.
+          </span>
+          <span>
+            Omitted material remains unknown here; it is not treated as absent,
+            resolved, false, non-current, or irrelevant.
+          </span>
+        </div>
+      ) : null}
       {section.facts.length > 0 ? (
         <dl className={styles.statusGrid}>
           {section.facts.map((fact) => (

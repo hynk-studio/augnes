@@ -91,6 +91,7 @@ import {
   type SharedProjectInspectorExactRefV01,
   type SharedProjectInspectorFactV01,
   type SharedProjectInspectorItemV01,
+  type SharedProjectInspectorCollectionBoundV01,
   type SharedProjectInspectorProjectionV01,
   type SharedProjectInspectorSectionKindV01,
   type SharedProjectInspectorSectionV01,
@@ -277,29 +278,29 @@ export function readSharedProjectInspectorV01(
     gate_history: gateHistory,
     target_heads: targetHeads,
   });
-  const completeness = [
-    reconciliation?.completeness.status,
-    lineage?.completeness.status,
-  ].includes("bounded_incomplete") ||
-    reconciliation === null ||
-    continuity === null ||
-    gateHistory.bounded_incomplete
-    ? "bounded_incomplete"
-    : reconciliation.conflicts.length > 0 || (lineage?.conflicts.length ?? 0) > 0
-      ? "conflict"
-      : reconciliation.completeness.status;
+  const completeness = resolveSharedProjectInspectorCompletenessV01({
+    sections,
+    upstream_bounded_incomplete:
+      [
+        reconciliation?.completeness.status,
+        lineage?.completeness.status,
+      ].includes("bounded_incomplete") ||
+      reconciliation === null ||
+      continuity === null ||
+      gateHistory.bounded_incomplete,
+    upstream_conflict:
+      (reconciliation?.conflicts.length ?? 0) > 0 ||
+      (lineage?.conflicts.length ?? 0) > 0,
+    upstream_completeness:
+      reconciliation?.completeness.status ?? "bounded_incomplete",
+  });
   return {
     inspector_version: SHARED_PROJECT_INSPECTOR_VERSION_V01,
     workspace_id: input.config.workspace_id,
     project_id: input.config.project_id,
     observed_at: input.observed_at,
     target: structuredClone(input.target),
-    target_status:
-      completeness === "bounded_incomplete"
-        ? "bounded_incomplete"
-        : completeness === "conflict"
-          ? "conflict"
-          : "present",
+    target_status: resolveSharedProjectInspectorTargetStatusV01(completeness),
     target_title: focus.title,
     target_summary: focus.summary,
     target_trust: focus.trust,
@@ -1147,6 +1148,11 @@ function materialSectionV01(
       ...claims,
       ...relations,
     ],
+    [],
+    {
+      upstream_bounded_incomplete:
+        reconciliation.completeness.status === "bounded_incomplete",
+    },
   );
 }
 
@@ -1252,6 +1258,8 @@ function decisionSectionV01(
         [recordRefV01(entry.envelope)],
       );}),
     ],
+    [],
+    { upstream_bounded_incomplete: input.gate_history.bounded_incomplete },
   );
 }
 
@@ -1438,21 +1446,22 @@ function strategicPerspectiveSectionV01(
   const selectedPersonal = input.focus.packet?.selected_context.filter(
     isPersonalPerspectiveSelectedEntryV01,
   ) ?? [];
-  const frameChallenge = input.proposal?.proposal.proposed_deltas.some(
-    (candidate) =>
-      candidate.delta_type === "research_delta" ||
-      candidate.delta_type === "validation_delta" ||
-      candidate.delta_type === "perspective_delta",
-  ) ?? false;
+  const strategicClassification = classifySharedProjectInspectorStrategicMaterialV01(
+    input.proposal?.proposal ?? null,
+  );
   return sectionV01(
     "strategic_perspective",
     "Strategic and Perspective lineage",
     strategic || selectedPersonal.length ? "available" : "missing",
-    "Strategic material stays source-bound and candidate-level. A frame challenge is not silently converted into a within-frame patch or Perspective change.",
+    "Strategic material stays source-bound and candidate-level. No current protocol field explicitly records a frame challenge; generic research, validation, and Perspective lanes remain unclassified and are never inferred from prose or model output.",
     [
       factV01("Strategic status", strategic?.status ?? "not available"),
-      factV01("Within-frame source-bound transfer", String(Boolean(profile))),
-      factV01("Frame challenge material", String(frameChallenge)),
+      factV01("Within-frame source-bound transfer", strategicClassification.within_frame_transfer),
+      factV01("Frame challenge classification", strategicClassification.frame_challenge),
+      factV01(
+        "Unclassified research, validation, or Perspective lanes",
+        strategicClassification.unclassified_candidate_lanes.join(", ") || "none",
+      ),
       factV01("Exact source catalog entries", String(profile?.source_catalog.items.length ?? 0)),
       factV01("Model invocation receipt", profile ? "recorded provenance only" : "not available"),
       factV01("Personal Perspective selected entries", String(selectedPersonal.length)),
@@ -1880,6 +1889,65 @@ function exactRefMatchesV01(
   return ref.record_id === id && ref.record_fingerprint === fingerprint;
 }
 
+export function classifySharedProjectInspectorStrategicMaterialV01(
+  proposal: Pick<
+    EpisodeDeltaProposalV01,
+    "strategic_advantage_transfer" | "proposed_deltas"
+  > | null,
+): {
+  within_frame_transfer: "exact_source_bound" | "not_recorded";
+  frame_challenge: "not_explicitly_recorded";
+  unclassified_candidate_lanes: Array<
+    "research_delta" | "validation_delta" | "perspective_delta"
+  >;
+} {
+  const unclassifiedCandidateLanes = proposal?.proposed_deltas
+    .map((candidate) => candidate.delta_type)
+    .filter(
+      (
+        deltaType,
+      ): deltaType is "research_delta" | "validation_delta" | "perspective_delta" =>
+        deltaType === "research_delta" ||
+        deltaType === "validation_delta" ||
+        deltaType === "perspective_delta",
+    ) ?? [];
+  return {
+    within_frame_transfer: proposal?.strategic_advantage_transfer
+      ? "exact_source_bound"
+      : "not_recorded",
+    // The current source protocol has no explicit frame-challenge field. A
+    // generic candidate lane, its prose, or model material cannot supply one.
+    frame_challenge: "not_explicitly_recorded",
+    unclassified_candidate_lanes: unclassifiedCandidateLanes,
+  };
+}
+
+export function resolveSharedProjectInspectorCompletenessV01(input: {
+  sections: SharedProjectInspectorSectionV01[];
+  upstream_bounded_incomplete: boolean;
+  upstream_conflict: boolean;
+  upstream_completeness: SharedProjectInspectorProjectionV01["completeness"];
+}): SharedProjectInspectorProjectionV01["completeness"] {
+  if (
+    input.upstream_bounded_incomplete ||
+    input.sections.some((section) => section.bounds.presentation_omitted)
+  ) {
+    return "bounded_incomplete";
+  }
+  if (input.upstream_conflict) return "conflict";
+  return input.upstream_completeness;
+}
+
+export function resolveSharedProjectInspectorTargetStatusV01(
+  completeness: SharedProjectInspectorProjectionV01["completeness"],
+): SharedProjectInspectorProjectionV01["target_status"] {
+  return completeness === "bounded_incomplete"
+    ? "bounded_incomplete"
+    : completeness === "conflict"
+      ? "conflict"
+      : "present";
+}
+
 function sectionV01(
   sectionKind: SharedProjectInspectorSectionKindV01,
   title: string,
@@ -1888,15 +1956,108 @@ function sectionV01(
   facts: SharedProjectInspectorFactV01[] = [],
   items: SharedProjectInspectorItemV01[] = [],
   exactRefs: SharedProjectInspectorExactRefV01[] = [],
+  options: { upstream_bounded_incomplete?: boolean } = {},
 ): SharedProjectInspectorSectionV01 {
-  return {
-    section_kind: sectionKind,
+  return buildBoundedSharedProjectInspectorSectionV01(
+    sectionKind,
     title,
     status,
     summary,
-    facts: facts.slice(0, MAX_SECTION_ITEMS_V01),
-    items: items.slice(0, MAX_SECTION_ITEMS_V01),
-    exact_refs: exactRefs.slice(0, MAX_SECTION_ITEMS_V01),
+    facts,
+    items,
+    exactRefs,
+    options,
+  );
+}
+
+export function buildBoundedSharedProjectInspectorSectionV01(
+  sectionKind: SharedProjectInspectorSectionKindV01,
+  title: string,
+  status: SharedProjectInspectorSectionV01["status"],
+  summary: string,
+  facts: SharedProjectInspectorFactV01[] = [],
+  items: SharedProjectInspectorItemV01[] = [],
+  exactRefs: SharedProjectInspectorExactRefV01[] = [],
+  options: { upstream_bounded_incomplete?: boolean } = {},
+): SharedProjectInspectorSectionV01 {
+  const returnedFacts = facts.slice(0, MAX_SECTION_ITEMS_V01);
+  const returnedItems = items
+    .slice(0, MAX_SECTION_ITEMS_V01)
+    .map((item) => ({ ...item, exact_refs: [] as SharedProjectInspectorExactRefV01[] }));
+
+  // Section-level identity is retained before related item refs. The one exact
+  // ref budget then follows item order, so the bounded result is deterministic.
+  let remainingExactRefs = MAX_SECTION_ITEMS_V01;
+  const returnedExactRefs = exactRefs.slice(0, remainingExactRefs);
+  remainingExactRefs -= returnedExactRefs.length;
+  for (let index = 0; index < returnedItems.length; index += 1) {
+    const sourceItem = items[index]!;
+    const boundedRefs = sourceItem.exact_refs.slice(0, remainingExactRefs);
+    returnedItems[index] = { ...returnedItems[index]!, exact_refs: boundedRefs };
+    remainingExactRefs -= boundedRefs.length;
+  }
+
+  const totalExactRefs =
+    exactRefs.length +
+    items.reduce((total, item) => total + item.exact_refs.length, 0);
+  const returnedExactRefCount =
+    returnedExactRefs.length +
+    returnedItems.reduce((total, item) => total + item.exact_refs.length, 0);
+  const bounds: SharedProjectInspectorSectionV01["bounds"] = {
+    facts: collectionBoundV01(facts.length, returnedFacts.length),
+    items: collectionBoundV01(items.length, returnedItems.length),
+    exact_refs: collectionBoundV01(totalExactRefs, returnedExactRefCount),
+    presentation_omitted: false,
+    upstream_bounded_incomplete:
+      status === "bounded_incomplete" ||
+      options.upstream_bounded_incomplete === true,
+    incompleteness_reasons: [],
+  };
+  bounds.presentation_omitted =
+    bounds.facts.omitted || bounds.items.omitted || bounds.exact_refs.omitted;
+  if (bounds.upstream_bounded_incomplete) {
+    bounds.incompleteness_reasons.push("upstream_reader_bounded_incomplete");
+  }
+  if (bounds.presentation_omitted) {
+    bounds.incompleteness_reasons.push("inspector_presentation_bound_exceeded");
+  }
+  const boundedStatus =
+    status === "conflict"
+      ? "conflict"
+      : bounds.presentation_omitted
+        ? "bounded_incomplete"
+        : status;
+  const upstreamSummary = bounds.upstream_bounded_incomplete
+    ? `${summary} The upstream canonical reader is bounded incomplete; material outside its returned source window is not treated as absent or resolved.`
+    : summary;
+  const boundedSummary = bounds.presentation_omitted
+    ? `${upstreamSummary} Inspector presentation returned ${bounds.facts.returned_count}/${bounds.facts.total_count} facts, ${bounds.items.returned_count}/${bounds.items.total_count} items, and ${bounds.exact_refs.returned_count}/${bounds.exact_refs.total_count} exact refs at the fixed bound of ${MAX_SECTION_ITEMS_V01}. Omitted material is not treated as absent, resolved, false, non-current, or irrelevant.`
+    : upstreamSummary;
+  return {
+    section_kind: sectionKind,
+    title,
+    status: boundedStatus,
+    summary: boundedSummary,
+    facts: returnedFacts,
+    items: returnedItems,
+    exact_refs: returnedExactRefs,
+    bounds,
+  };
+}
+
+function collectionBoundV01(
+  totalCount: number,
+  returnedCount: number,
+): SharedProjectInspectorCollectionBoundV01 {
+  const omittedCount = totalCount - returnedCount;
+  return {
+    total_count: totalCount,
+    returned_count: returnedCount,
+    presentation_bound: MAX_SECTION_ITEMS_V01,
+    omitted_count: omittedCount,
+    omitted: omittedCount > 0,
+    omission_reason:
+      omittedCount > 0 ? "inspector_presentation_bound_exceeded" : null,
   };
 }
 

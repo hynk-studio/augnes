@@ -32,13 +32,21 @@ import {
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session";
-import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
+import {
+  buildBoundedSharedProjectInspectorSectionV01,
+  classifySharedProjectInspectorStrategicMaterialV01,
+  readSharedProjectInspectorV01,
+  resolveSharedProjectInspectorCompletenessV01,
+  resolveSharedProjectInspectorTargetStatusV01,
+} from "../lib/vnext/runtime/shared-project-inspector";
 import {
   SharedProjectInspectorTargetErrorV01,
   createSharedInspectorHrefV01,
   parseSharedInspectorTargetV01,
 } from "../lib/vnext/shared-project-inspector-href";
 import { readProjectVerifyReconciliationV01 } from "../lib/vnext/runtime/project-verify-reconciliation";
+import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
+import type { SharedProjectInspectorItemV01 } from "../types/vnext/shared-project-inspector";
 
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-operator-browser-fixture-contract-v0-1-"),
@@ -271,6 +279,210 @@ try {
   assert(relationFamily);
   const beforeInspectorRead = snapshotAllUserTables(inspectorDb);
 
+  const completeItems = inspectorItemsV01("timeline", 64);
+  const exactlyBoundedSection = buildBoundedSharedProjectInspectorSectionV01(
+    "timeline",
+    "Timeline",
+    "available",
+    "Exact complete source.",
+    [],
+    completeItems,
+  );
+  assert.equal(exactlyBoundedSection.status, "available");
+  assert.equal(exactlyBoundedSection.bounds.items.total_count, 64);
+  assert.equal(exactlyBoundedSection.bounds.items.returned_count, 64);
+  assert.equal(exactlyBoundedSection.bounds.items.omitted, false);
+  assert.equal(exactlyBoundedSection.bounds.presentation_omitted, false);
+  const boundedFacts = buildBoundedSharedProjectInspectorSectionV01(
+    "run_receipt",
+    "Run and receipt",
+    "available",
+    "Production-shaped facts.",
+    Array.from({ length: 65 }, (_, index) => ({
+      label: `Fact ${index}`,
+      value: String(index),
+      tone: "neutral" as const,
+    })),
+  );
+  assert.equal(boundedFacts.bounds.facts.total_count, 65);
+  assert.equal(boundedFacts.bounds.facts.returned_count, 64);
+  assert.equal(boundedFacts.status, "bounded_incomplete");
+
+  const boundedTimeline = buildBoundedSharedProjectInspectorSectionV01(
+    "timeline",
+    "Timeline",
+    "available",
+    "Production-shaped exact lineage nodes.",
+    [],
+    inspectorItemsV01("lineage", 65),
+  );
+  assert.equal(boundedTimeline.items.length, 64);
+  assert.equal(boundedTimeline.status, "bounded_incomplete");
+  assert.deepEqual(boundedTimeline.bounds.items, {
+    total_count: 65,
+    returned_count: 64,
+    presentation_bound: 64,
+    omitted_count: 1,
+    omitted: true,
+    omission_reason: "inspector_presentation_bound_exceeded",
+  });
+  assert.equal(
+    boundedTimeline.summary.includes(
+      "Omitted material is not treated as absent, resolved, false, non-current, or irrelevant.",
+    ),
+    true,
+  );
+  const boundedProjectionCompleteness =
+    resolveSharedProjectInspectorCompletenessV01({
+      sections: [boundedTimeline],
+      upstream_bounded_incomplete: false,
+      upstream_conflict: false,
+      upstream_completeness: "complete",
+    });
+  assert.equal(boundedProjectionCompleteness, "bounded_incomplete");
+  assert.equal(
+    resolveSharedProjectInspectorTargetStatusV01(
+      boundedProjectionCompleteness,
+    ),
+    "bounded_incomplete",
+  );
+
+  for (const materialKind of ["evidence", "claim", "relation"] as const) {
+    const boundedMaterial = buildBoundedSharedProjectInspectorSectionV01(
+      "evidence_claims_relations",
+      "Evidence, Claims, and relations",
+      "available",
+      "Exact source material.",
+      [],
+      inspectorItemsV01(materialKind, 65),
+    );
+    assert.equal(boundedMaterial.status, "bounded_incomplete");
+    assert.equal(boundedMaterial.bounds.items.total_count, 65);
+    assert.equal(boundedMaterial.bounds.items.returned_count, 64);
+  }
+  const mixedMaterial = buildBoundedSharedProjectInspectorSectionV01(
+    "evidence_claims_relations",
+    "Evidence, Claims, and relations",
+    "available",
+    "Mixed exact source material.",
+    [],
+    [
+      ...inspectorItemsV01("evidence", 22),
+      ...inspectorItemsV01("claim", 22),
+      ...inspectorItemsV01("relation", 21),
+    ],
+  );
+  assert.equal(mixedMaterial.bounds.items.total_count, 65);
+  assert.equal(mixedMaterial.bounds.items.returned_count, 64);
+  assert.equal(mixedMaterial.status, "bounded_incomplete");
+
+  for (const [sectionKind, prefix] of [
+    ["run_receipt", "result-residue"],
+    ["decision_gate", "gate-history"],
+    ["strategic_perspective", "strategic-transfer"],
+    ["strategic_perspective", "personal-perspective"],
+  ] as const) {
+    const boundedSection = buildBoundedSharedProjectInspectorSectionV01(
+      sectionKind,
+      prefix,
+      "available",
+      "Production-shaped related material.",
+      [],
+      inspectorItemsV01(prefix, 65),
+    );
+    assert.equal(boundedSection.status, "bounded_incomplete");
+    assert.equal(boundedSection.bounds.items.omitted_count, 1);
+  }
+  const exactRefBound = buildBoundedSharedProjectInspectorSectionV01(
+    "strategic_perspective",
+    "Strategic and Perspective lineage",
+    "available",
+    "Exact source refs.",
+    [],
+    inspectorItemsV01("strategic-transfer", 1, 65),
+  );
+  assert.equal(exactRefBound.bounds.exact_refs.total_count, 65);
+  assert.equal(exactRefBound.bounds.exact_refs.returned_count, 64);
+  assert.equal(exactRefBound.bounds.exact_refs.omitted_count, 1);
+  assert.equal(exactRefBound.status, "bounded_incomplete");
+  const sectionExactRefBound = buildBoundedSharedProjectInspectorSectionV01(
+    "target_authority",
+    "Target identity and authority",
+    "available",
+    "Exact authenticated refs.",
+    [],
+    [],
+    Array.from({ length: 65 }, (_, index) => ({
+      record_kind: "exact_source",
+      record_id: `exact-source:${index}`,
+      record_fingerprint: `sha256:${String(index).padStart(64, "0")}`,
+    })),
+  );
+  assert.equal(sectionExactRefBound.exact_refs.length, 64);
+  assert.equal(sectionExactRefBound.bounds.exact_refs.total_count, 65);
+  assert.equal(sectionExactRefBound.bounds.exact_refs.returned_count, 64);
+  assert.equal(sectionExactRefBound.status, "bounded_incomplete");
+  const conflictingBoundedSection =
+    buildBoundedSharedProjectInspectorSectionV01(
+      "decision_gate",
+      "Decision and gate",
+      "conflict",
+      "Exact source conflict.",
+      [],
+      inspectorItemsV01("gate", 65),
+      [],
+      { upstream_bounded_incomplete: true },
+    );
+  assert.equal(conflictingBoundedSection.status, "conflict");
+  assert.deepEqual(conflictingBoundedSection.bounds.incompleteness_reasons, [
+    "upstream_reader_bounded_incomplete",
+    "inspector_presentation_bound_exceeded",
+  ]);
+  assert.equal(
+    conflictingBoundedSection.summary.includes(
+      "The upstream canonical reader is bounded incomplete",
+    ),
+    true,
+  );
+  record("shared_inspector_section_bounds_never_silently_truncate_material");
+
+  const proposalPayloadRow = inspectorDb
+    .prepare(
+      `SELECT payload_json
+       FROM vnext_core_records
+       WHERE workspace_id = ? AND project_id = ?
+         AND record_kind = 'episode_delta_proposal' AND record_id = ?`,
+    )
+    .get(
+      typedManifest.workspace_id,
+      typedManifest.project_id,
+      typedManifest.proposal_id,
+    ) as { payload_json: string };
+  const sourceOwnedProposal = JSON.parse(
+    proposalPayloadRow.payload_json,
+  ) as EpisodeDeltaProposalV01;
+  for (const deltaType of [
+    "validation_delta",
+    "research_delta",
+    "perspective_delta",
+  ] as const) {
+    const sourceCandidate = sourceOwnedProposal.proposed_deltas[0];
+    assert(sourceCandidate);
+    const classification = classifySharedProjectInspectorStrategicMaterialV01({
+      proposed_deltas: [{
+        ...sourceCandidate,
+        delta_type: deltaType,
+        title: "Model text calls this a frame challenge",
+        proposed_state_summary: "Prose must not establish frame challenge.",
+        uncertainties: ["Perspective terminology remains non-authoritative."],
+      }],
+    });
+    assert.equal(classification.within_frame_transfer, "not_recorded");
+    assert.equal(classification.frame_challenge, "not_explicitly_recorded");
+    assert.deepEqual(classification.unclassified_candidate_lanes, [deltaType]);
+  }
+  record("shared_inspector_uses_only_source_owned_strategic_classification");
+
   const href = createSharedInspectorHrefV01(receiptTarget);
   assert.equal(href.startsWith("/workbench/inspector?target=run_receipt"), true);
   assert.deepEqual(
@@ -307,6 +519,7 @@ try {
     });
     assert.equal(receiptInspector.inspector_version, "shared_project_inspector.v0.1");
     assert.equal(receiptInspector.project_id, typedManifest.project_id);
+    assert.deepEqual(receiptInspector.target, receiptTarget);
     assert.equal(receiptInspector.authority.read_only, true);
     assert.equal(receiptInspector.authority.writes_database, false);
     assert.equal(receiptInspector.authority.creates_review_decision, false);
@@ -593,6 +806,25 @@ void main();
 function record(assertion: string): void {
   assert.equal(assertions.includes(assertion), false, `duplicate assertion: ${assertion}`);
   assertions.push(assertion);
+}
+
+function inspectorItemsV01(
+  prefix: string,
+  count: number,
+  exactRefsPerItem = 0,
+): SharedProjectInspectorItemV01[] {
+  return Array.from({ length: count }, (_, index) => ({
+    item_id: `${prefix}:${String(index).padStart(3, "0")}`,
+    title: `${prefix} ${index}`,
+    summary: "Production-shaped bounded Inspector material.",
+    status: "recorded",
+    recorded_at: "2026-07-17T12:00:00.000Z",
+    exact_refs: Array.from({ length: exactRefsPerItem }, (__, refIndex) => ({
+      record_kind: `${prefix}_source`,
+      record_id: `${prefix}:${index}:ref:${refIndex}`,
+      record_fingerprint: `sha256:${String(refIndex).padStart(64, "0")}`,
+    })),
+  }));
 }
 
 function snapshotAllUserTables(db: Database.Database): string {

@@ -116,6 +116,33 @@ export interface SharedProjectInspectorItemV01 {
   exact_refs: SharedProjectInspectorExactRefV01[];
 }
 
+export type SharedProjectInspectorOmissionReasonV01 =
+  | "inspector_presentation_bound_exceeded"
+  | "upstream_reader_bounded_incomplete";
+
+export interface SharedProjectInspectorCollectionBoundV01 {
+  total_count: number;
+  returned_count: number;
+  presentation_bound: number;
+  omitted_count: number;
+  omitted: boolean;
+  omission_reason: "inspector_presentation_bound_exceeded" | null;
+}
+
+export interface SharedProjectInspectorSectionBoundsV01 {
+  facts: SharedProjectInspectorCollectionBoundV01;
+  items: SharedProjectInspectorCollectionBoundV01;
+  /**
+   * Aggregate of section-level refs and refs nested under section items. The
+   * one presentation budget is allocated to section-level identity first,
+   * then to returned items in deterministic order.
+   */
+  exact_refs: SharedProjectInspectorCollectionBoundV01;
+  presentation_omitted: boolean;
+  upstream_bounded_incomplete: boolean;
+  incompleteness_reasons: SharedProjectInspectorOmissionReasonV01[];
+}
+
 export interface SharedProjectInspectorSectionV01 {
   section_kind: SharedProjectInspectorSectionKindV01;
   title: string;
@@ -130,6 +157,7 @@ export interface SharedProjectInspectorSectionV01 {
   facts: SharedProjectInspectorFactV01[];
   items: SharedProjectInspectorItemV01[];
   exact_refs: SharedProjectInspectorExactRefV01[];
+  bounds: SharedProjectInspectorSectionBoundsV01;
 }
 
 export interface SharedProjectInspectorProjectionV01 {
