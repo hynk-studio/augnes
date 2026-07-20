@@ -63,6 +63,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "decision-centered Semantic Workbench presentation contract",
+      ...rootNode("scripts/test-vnext-decision-centered-workbench.tsx"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded local project-root verification adapter",
       ...rootNode("scripts/test-local-project-verification-adapter.ts"),
       // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.
@@ -103,6 +108,20 @@ const suites = {
       // The complete real-adapter SR-1 -> SR-2 -> SR-3 lifecycle proof measured
       // 50.63s before call-local validation deduplication; bound it at 75s.
       timeoutMs: 75_000,
+    },
+    {
+      id: "project-verify-operator-adapter",
+      group: "supporting-serial",
+      requirements: ["database", "migrations"],
+      label:
+        "authenticated Workbench decision adapter and exact SR-3 operation lineage",
+      ...rootNode(
+        "scripts/test-vnext-project-verify-lifecycle.ts",
+        "--operator-adapter-only",
+      ),
+      // The isolated authenticated four-operation adapter chain measured under
+      // one second locally after being split from the 39.18s CI lifecycle proof.
+      timeoutMs: 30_000,
     },
     {
       id: "project-controls",

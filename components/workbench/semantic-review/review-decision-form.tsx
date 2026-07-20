@@ -15,12 +15,14 @@ export function ReviewDecisionForm({
   proposalId,
   proposalFingerprint,
   candidateRead,
+  applyingDecision = "accept",
   busy,
   onSubmit,
 }: {
   proposalId: string;
   proposalFingerprint: string;
   candidateRead: SemanticReviewCandidateReadV01;
+  applyingDecision?: "accept" | "supersede" | "retract";
   busy: boolean;
   onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
 }) {
@@ -28,8 +30,9 @@ export function ReviewDecisionForm({
   const [rationaleSummary, setRationaleSummary] = useState("");
   const [revisitCondition, setRevisitCondition] = useState("");
 
-  const acceptAllowed = candidateRead.pilot_admission.decision_allowed.accept;
-  const selectedDecisionAllowed = decision !== "accept" || acceptAllowed;
+  const applyAllowed = candidateRead.pilot_admission.decision_allowed.accept;
+  const selectedDecisionAllowed =
+    decision !== applyingDecision || applyAllowed;
   const canSubmit =
     !busy &&
     selectedDecisionAllowed &&
@@ -59,6 +62,7 @@ export function ReviewDecisionForm({
       className={styles.form}
       data-vnext-operator-decision-form="v0.1"
       data-vnext-operator-decision-candidate={candidateRead.candidate.candidate_id}
+      data-vnext-proposal-local-controls-busy={String(busy)}
       onSubmit={submitDecision}
     >
       <label htmlFor={`decision-${candidateRead.candidate.candidate_id}`}>
@@ -67,12 +71,17 @@ export function ReviewDecisionForm({
       <select
         id={`decision-${candidateRead.candidate.candidate_id}`}
         value={decision}
+        disabled={busy}
         onChange={(event) => setDecision(event.target.value as SupportedDecision)}
       >
         <option value="defer">Defer for later review</option>
         <option value="reject">Reject this candidate</option>
-        <option value="accept" disabled={!acceptAllowed}>
-          Accept for {candidateRead.pilot_admission.accept_operation ?? "eligible operation"} intent
+        <option value={applyingDecision} disabled={!applyAllowed}>
+          {applyingDecision === "accept"
+            ? "Accept"
+            : applyingDecision === "supersede"
+              ? "Supersede"
+              : "Retract"} for {candidateRead.pilot_admission.accept_operation ?? "eligible operation"} intent
         </option>
       </select>
 
@@ -84,6 +93,7 @@ export function ReviewDecisionForm({
         maxLength={2000}
         required
         value={rationaleSummary}
+        disabled={busy}
         onChange={(event) => setRationaleSummary(event.target.value)}
       />
 
@@ -97,6 +107,7 @@ export function ReviewDecisionForm({
             maxLength={2000}
             required
             value={revisitCondition}
+            disabled={busy}
             onChange={(event) => setRevisitCondition(event.target.value)}
             placeholder="Describe what new information should trigger another review."
           />
@@ -107,9 +118,13 @@ export function ReviewDecisionForm({
         </>
       ) : null}
 
-      {decision === "accept" ? (
+      {decision === applyingDecision ? (
         <p className={styles.notice}>
-          Accept records a ReviewDecision and an exact transition intent. It does not
+          {applyingDecision === "accept"
+            ? "Accept"
+            : applyingDecision === "supersede"
+              ? "Supersede"
+              : "Retract"} records a ReviewDecision and an exact transition intent. It does not
           confirm a gate, apply semantic state, create a StateTransitionReceipt, or
           compile later context.
         </p>
@@ -119,9 +134,9 @@ export function ReviewDecisionForm({
         </p>
       )}
 
-      {!acceptAllowed ? (
+      {!applyAllowed ? (
         <p className={styles.muted}>
-          Accept is unavailable under the real-pilot policy: this selected candidate
+          The applying decision is unavailable under the real-pilot policy: this selected candidate
           must declare an explicit add, revise, supersede, or retract operation whose
           exact target state satisfies its current-state precondition. Unknown and
           no-change candidates require a separate immutable operation-aware revision.

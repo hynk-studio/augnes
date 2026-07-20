@@ -28,6 +28,7 @@ import {
   buildSemanticReviewLoopRunReceiptFixture,
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
+import { buildProjectVerifyWorkbenchFixtureV01 } from "../fixtures/vnext/protocol/project-verify-workbench-v0-1";
 import { validateEpisodeDeltaProposalV01 } from "../lib/vnext/episode-delta-proposal";
 import {
   insertVNextCoreRecordV01,
@@ -57,6 +58,8 @@ import {
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
+import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
+import { admitRunCriterionProjectVerifyMaterialV01 } from "../lib/vnext/persistence/run-criterion-project-verify-material-admission";
 import { runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
@@ -121,6 +124,8 @@ export interface VNextOperatorBrowserFixtureSummaryV01 {
     "semantic_transition_route",
     "strategic_analysis_route",
     "project_identity_registry",
+    "project_verify_material_admission",
+    "project_verify_reconciliation_read",
   ];
   persisted_lineage_status: "packet_compiled";
   external_network_calls: number;
@@ -325,6 +330,11 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       fixtureReceipt,
       { primary_delta_type: "agent_plan_delta" },
     );
+    const projectVerifyFixture = buildProjectVerifyWorkbenchFixtureV01({
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      run_id: "run:operator-browser-project-verify",
+    });
     const config = readVNextLocalOperatorPilotConfigV01(environment);
     const prepared = withDatabase(config, (db) => {
       insertVNextCoreRecordV01(db, {
@@ -348,6 +358,35 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
         payload: fixtureProposal,
         created_at: fixtureProposal.created_at,
       });
+      insertVNextCoreRecordV01(db, {
+        record_kind: "task_context_packet",
+        record_id: projectVerifyFixture.packet.packet_id,
+        workspace_id: projectVerifyFixture.packet.workspace_id,
+        project_id: projectVerifyFixture.packet.project_id,
+        fingerprint: projectVerifyFixture.packet.integrity.fingerprint,
+        idempotency_key: null,
+        payload: projectVerifyFixture.packet,
+        created_at: projectVerifyFixture.packet.generated_at,
+      });
+      admitStructuredRunReceiptV01(db, projectVerifyFixture.receipt);
+      const verifyProposal = admitEpisodeDeltaProposalV01(db, {
+        expected: projectVerifyFixture.proposal_material,
+        source: {
+          packet: projectVerifyFixture.packet,
+          receipt: projectVerifyFixture.receipt,
+          assessment: projectVerifyFixture.assessment,
+        },
+      });
+      assert.equal(verifyProposal.status, "inserted");
+      const verifyMaterial = admitRunCriterionProjectVerifyMaterialV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        receipt_id: projectVerifyFixture.receipt.receipt_id,
+      });
+      assert.equal(verifyMaterial.status, "inserted");
+      assert.equal(verifyMaterial.material.evidence_records.length > 0, true);
+      assert.equal(verifyMaterial.material.claim_records.length > 0, true);
+      assert.equal(verifyMaterial.material.relations.length > 0, true);
       return { proposal: fixtureProposal };
     });
     const detailResponse = await reviewHandlers.GET(
@@ -581,6 +620,8 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
         "semantic_transition_route",
         "strategic_analysis_route",
         "project_identity_registry",
+        "project_verify_material_admission",
+        "project_verify_reconciliation_read",
       ],
       external_network_calls: externalNetworkCalls,
       provider_calls: providerCalls,

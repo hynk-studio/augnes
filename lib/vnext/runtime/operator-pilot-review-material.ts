@@ -161,9 +161,65 @@ export interface VNextOperatorPilotDecisionRequestV01 {
   proposal_fingerprint: string;
   candidate_id: string;
   candidate_fingerprint: string;
-  decision: "accept" | "reject" | "defer";
+  decision: ReviewDecisionV01["decision"];
   rationale_summary: string;
   revisit?: { condition_summary: string } | null;
+}
+
+export interface VNextOperatorPilotApplyingDecisionV01 {
+  decision: "accept" | "supersede" | "retract";
+  transition_kind:
+    | "semantic_candidate_apply"
+    | "semantic_candidate_supersede"
+    | "semantic_candidate_retract";
+  target_refs: ExternalRefV01[];
+  project_verify_lifecycle: boolean;
+}
+
+/**
+ * Pure adapter mapping over an exact proposal candidate. Generic R6 proposals
+ * preserve their accept-based operation path; SR-3 lifecycle proposals use
+ * the canonical decision required by the selected immutable record operation.
+ */
+export function resolveVNextOperatorPilotApplyingDecisionV01(
+  proposal: EpisodeDeltaProposalV01,
+  candidate: EpisodeDeltaProposalDeltaCandidateV01,
+): VNextOperatorPilotApplyingDecisionV01 {
+  const profile = proposal.project_verify_lifecycle;
+  if (
+    profile &&
+    profile.lifecycle_binding.selected_candidate.candidate_id ===
+      candidate.candidate_id &&
+    profile.lifecycle_binding.selected_candidate.candidate_fingerprint ===
+      createEpisodeDeltaCandidateFingerprintV01(candidate)
+  ) {
+    const operation =
+      profile.lifecycle_binding.selected_record_operation_intent;
+    return {
+      decision:
+        operation === "supersede"
+          ? "supersede"
+          : operation === "retract"
+            ? "retract"
+            : "accept",
+      transition_kind:
+        operation === "supersede"
+          ? "semantic_candidate_supersede"
+          : operation === "retract"
+            ? "semantic_candidate_retract"
+            : "semantic_candidate_apply",
+      target_refs: [
+        structuredClone(profile.lifecycle_binding.family_target_ref),
+      ],
+      project_verify_lifecycle: true,
+    };
+  }
+  return {
+    decision: "accept",
+    transition_kind: "semantic_candidate_apply",
+    target_refs: structuredClone(candidate.target_refs),
+    project_verify_lifecycle: false,
+  };
 }
 
 export interface VNextOperatorPilotDecisionResultV01 {
@@ -412,9 +468,21 @@ export function recordVNextOperatorPilotReviewDecisionV01(
     authentication.session.session_id,
     request,
   );
+  const prevalidatedApplying =
+    resolveVNextOperatorPilotApplyingDecisionV01(
+      prevalidated.proposal,
+      prevalidated.candidate,
+    );
   if (
     !prevalidatedReplay &&
-    request.decision === "accept" &&
+    isApplyingDecisionV01(request.decision) &&
+    request.decision !== prevalidatedApplying.decision
+  ) {
+    throw reviewError("operator_pilot_decision_operation_mismatch", 409);
+  }
+  if (
+    !prevalidatedReplay &&
+    request.decision === prevalidatedApplying.decision &&
     !prevalidated.admission.decision_allowed.accept
   ) {
     throw reviewError(
@@ -459,8 +527,18 @@ export function recordVNextOperatorPilotReviewDecisionV01(
         session_cookie: admissionCookie(nonceAdmission),
       };
     }
+    const applying = resolveVNextOperatorPilotApplyingDecisionV01(
+      material.proposal,
+      material.candidate,
+    );
     if (
-      request.decision === "accept" &&
+      isApplyingDecisionV01(request.decision) &&
+      request.decision !== applying.decision
+    ) {
+      throw reviewError("operator_pilot_decision_operation_mismatch", 409);
+    }
+    if (
+      request.decision === applying.decision &&
       !material.admission.decision_allowed.accept
     ) {
       throw reviewError(
@@ -490,6 +568,18 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       observed_at: decidedAt,
       source_ref: sessionBasisRef.source_ref,
       compatibility_namespace: "augnes.vnext.local-operator-pilot.v0.1",
+    };
+    const applyingDecision = request.decision === applying.decision;
+    const priorDecisionBinding = applyingDecision
+      ? resolveProjectVerifyPriorDecisionBindingV01(
+          db,
+          input.config,
+          material.proposal,
+        )
+      : null;
+    const selectedCandidateBinding = {
+      candidate_id: material.candidate.candidate_id,
+      candidate_fingerprint: material.candidate_fingerprint,
     };
     const decision = buildReviewDecisionV01({
       workspace_id: material.proposal.workspace_id,
@@ -528,27 +618,37 @@ export function recordVNextOperatorPilotReviewDecisionV01(
             }
           : null,
       requested_transition_intent:
-        request.decision === "accept"
+        applyingDecision
           ? {
               intent_id: deriveIntentId(
                 material.proposal.proposal_id,
                 material.candidate.candidate_id,
                 input.config.operator_id,
                 decidedAt,
+                applying.transition_kind,
               ),
-              transition_kind: "semantic_candidate_apply",
+              transition_kind: applying.transition_kind,
               bounded_summary:
                 `Request one later independently previewed and gate-authorized ${material.admission.accept_operation} semantic transition for the selected candidate.`,
-              target_refs: [...material.candidate.target_refs],
+              target_refs: structuredClone(applying.target_refs),
               intent_only: true,
               applied: false,
               state_transition_receipt_ref: null,
             }
           : null,
       lineage: {
-        prior_decisions: [],
-        superseding_candidate: null,
-        retracted_decision: null,
+        prior_decisions:
+          applyingDecision && priorDecisionBinding
+            ? [priorDecisionBinding]
+            : [],
+        superseding_candidate:
+          applyingDecision && applying.decision === "supersede"
+            ? selectedCandidateBinding
+            : null,
+        retracted_decision:
+          applyingDecision && applying.decision === "retract"
+            ? priorDecisionBinding
+            : null,
       },
       compatibility: {
         source_contracts: [
@@ -556,11 +656,20 @@ export function recordVNextOperatorPilotReviewDecisionV01(
           VNEXT_OPERATOR_PILOT_REVIEW_MATERIAL_VERSION_V01,
           VNEXT_OPERATOR_PILOT_POLICY_VERSION_V01,
           VNEXT_OPERATOR_PILOT_DECISION_REQUEST_VERSION_V01,
+          ...(material.proposal.project_verify_lifecycle
+            ? [
+                material.proposal.project_verify_lifecycle.proposal_profile,
+                material.proposal.project_verify_lifecycle.lifecycle_binding
+                  .binding_version,
+              ]
+            : []),
         ],
         unmapped_fields: [],
         warnings: [
           "Local session verification proves possession of a locally issued secret, not external or legal identity.",
-          "The decision does not apply state; accept carries intent for a separately recomputed gate and Transition path.",
+          applyingDecision
+            ? "The applying ReviewDecision carries intent for a separately recomputed gate and Transition path; the decision itself applies no state."
+            : "This ReviewDecision carries no Transition intent and applies no state.",
         ],
         external_refs: [sessionBasisRef],
       },
@@ -609,6 +718,70 @@ interface ResolvedDecisionRequestMaterialV01 {
   candidate: EpisodeDeltaProposalDeltaCandidateV01;
   candidate_fingerprint: string;
   admission: VNextOperatorPilotCandidateAdmissionV01;
+}
+
+function isApplyingDecisionV01(
+  decision: ReviewDecisionV01["decision"],
+): decision is "accept" | "supersede" | "retract" {
+  return (
+    decision === "accept" ||
+    decision === "supersede" ||
+    decision === "retract"
+  );
+}
+
+function resolveProjectVerifyPriorDecisionBindingV01(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  proposal: EpisodeDeltaProposalV01,
+): { decision_id: string; decision_fingerprint: string } | null {
+  const profile = proposal.project_verify_lifecycle;
+  if (!profile || profile.current_head_expectation.presence === "absent") {
+    return null;
+  }
+  const expectation = profile.current_head_expectation;
+  if (
+    !expectation.source_transition_receipt_id ||
+    !expectation.source_transition_receipt_fingerprint ||
+    !expectation.selected_record_ref
+  ) {
+    throw reviewError(
+      "operator_pilot_project_verify_prior_transition_binding_missing",
+      409,
+    );
+  }
+  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+    transition_receipt_id: expectation.source_transition_receipt_id,
+    transition_receipt_fingerprint:
+      expectation.source_transition_receipt_fingerprint,
+  });
+  const priorProfile = transition.proposal.project_verify_lifecycle;
+  if (
+    transition.receipt.transition_receipt_id !==
+      expectation.source_transition_receipt_id ||
+    transition.receipt.integrity.fingerprint !==
+      expectation.source_transition_receipt_fingerprint ||
+    !priorProfile ||
+    priorProfile.lifecycle_binding.family_id !==
+      profile.lifecycle_binding.family_id ||
+    canonicalizeProtocolValueV01(
+      priorProfile.lifecycle_binding.selected_record_ref,
+    ) !== canonicalizeProtocolValueV01(expectation.selected_record_ref) ||
+    canonicalizeProtocolValueV01(
+      profile.lifecycle_binding.prior_record_ref,
+    ) !== canonicalizeProtocolValueV01(expectation.selected_record_ref)
+  ) {
+    throw reviewError(
+      "operator_pilot_project_verify_prior_decision_binding_conflict",
+      409,
+    );
+  }
+  return {
+    decision_id: transition.decision.decision_id,
+    decision_fingerprint: transition.decision.integrity.fingerprint,
+  };
 }
 
 function resolveDecisionRequestMaterial(
@@ -869,7 +1042,11 @@ function parseDecisionRequest(value: unknown): VNextOperatorPilotDecisionRequest
   const candidateId = requiredText(record.candidate_id, "candidate_id");
   const candidateFingerprint = sha256(record.candidate_fingerprint, "candidate_fingerprint");
   const decision = normalizeProtocolTextV01(record.decision);
-  if (!(["accept", "reject", "defer"] as const).includes(decision as never)) {
+  if (
+    !(
+      ["accept", "reject", "defer", "supersede", "retract"] as const
+    ).includes(decision as never)
+  ) {
     throw reviewError("operator_pilot_decision_value_invalid");
   }
   const rationale = boundedText(record.rationale_summary, "rationale_summary");
@@ -901,7 +1078,7 @@ function parseDecisionRequest(value: unknown): VNextOperatorPilotDecisionRequest
     proposal_fingerprint: proposalFingerprint,
     candidate_id: candidateId,
     candidate_fingerprint: candidateFingerprint,
-    decision: decision as "accept" | "reject" | "defer",
+    decision: decision as ReviewDecisionV01["decision"],
     rationale_summary: rationale,
     revisit,
   };
@@ -1143,31 +1320,78 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
         decision.candidate.candidate_fingerprint,
   );
   if (!candidate) add("operator_pilot_decision_candidate_binding_invalid");
-  if (decision.decision === "accept") {
+  let applying: VNextOperatorPilotApplyingDecisionV01 | null = null;
+  let priorDecisionBinding: {
+    decision_id: string;
+    decision_fingerprint: string;
+  } | null = null;
+  if (candidate) {
+    try {
+      applying = resolveVNextOperatorPilotApplyingDecisionV01(
+        proposal,
+        candidate,
+      );
+      priorDecisionBinding = resolveProjectVerifyPriorDecisionBindingV01(
+        db,
+        config,
+        proposal,
+      );
+    } catch {
+      add("operator_pilot_decision_project_verify_lineage_invalid");
+    }
+  }
+  const applyingDecision =
+    applying !== null && decision.decision === applying.decision;
+  if (isApplyingDecisionV01(decision.decision) && !applyingDecision) {
+    add("operator_pilot_decision_operation_mismatch");
+  }
+  if (applyingDecision && applying) {
     const intent = decision.requested_transition_intent;
     if (
       !intent ||
-      intent.transition_kind !== "semantic_candidate_apply" ||
-      intent.target_refs.length !== 1 ||
+      intent.transition_kind !== applying.transition_kind ||
+      intent.target_refs.length !== applying.target_refs.length ||
       intent.intent_only !== true ||
       intent.applied !== false ||
       intent.state_transition_receipt_ref !== null ||
-      !candidate ||
-      candidate.target_refs.length !== 1 ||
       canonicalizeProtocolValueV01(intent.target_refs) !==
-        canonicalizeProtocolValueV01(candidate.target_refs) ||
+        canonicalizeProtocolValueV01(applying.target_refs) ||
       intent.intent_id !==
         deriveIntentId(
           proposal.proposal_id,
           decision.candidate.candidate_id,
           config.operator_id,
           decision.decided_at,
+          applying.transition_kind,
         )
     ) {
       add("operator_pilot_decision_transition_intent_invalid");
     }
   } else if (decision.requested_transition_intent !== null) {
     add("operator_pilot_decision_transition_intent_forbidden");
+  }
+  const expectedLineage = {
+    prior_decisions:
+      applyingDecision && priorDecisionBinding
+        ? [priorDecisionBinding]
+        : [],
+    superseding_candidate:
+      applyingDecision && applying?.decision === "supersede"
+        ? {
+            candidate_id: decision.candidate.candidate_id,
+            candidate_fingerprint: decision.candidate.candidate_fingerprint,
+          }
+        : null,
+    retracted_decision:
+      applyingDecision && applying?.decision === "retract"
+        ? priorDecisionBinding
+        : null,
+  };
+  if (
+    canonicalizeProtocolValueV01(decision.lineage) !==
+    canonicalizeProtocolValueV01(expectedLineage)
+  ) {
+    add("operator_pilot_decision_lineage_mismatch");
   }
   if (decision.decision === "defer") {
     if (
@@ -1215,7 +1439,7 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
     pilot_session_bound: valid,
     pilot_actionable:
       valid &&
-      decision.decision === "accept" &&
+      applyingDecision &&
       sessionId === input.authenticated_session_id,
     session_id: valid ? sessionId : null,
     request_fingerprint: valid ? requestFingerprint : null,
@@ -1227,8 +1451,10 @@ function decisionRequestFromPersistedDecision(
   decision: ReviewDecisionV01,
 ): VNextOperatorPilotDecisionRequestV01 | null {
   if (
-    !(["accept", "reject", "defer"] as const).includes(
-      decision.decision as "accept" | "reject" | "defer",
+    !(
+      ["accept", "reject", "defer", "supersede", "retract"] as const
+    ).includes(
+      decision.decision,
     )
   ) {
     return null;
@@ -1244,7 +1470,7 @@ function decisionRequestFromPersistedDecision(
     proposal_fingerprint: decision.source_proposal.proposal_fingerprint,
     candidate_id: decision.candidate.candidate_id,
     candidate_fingerprint: decision.candidate.candidate_fingerprint,
-    decision: decision.decision as "accept" | "reject" | "defer",
+    decision: decision.decision,
     rationale_summary: decision.rationale_summary,
     revisit:
       decision.decision === "defer"
@@ -1301,6 +1527,8 @@ function deriveIntentId(
   candidateId: string,
   operatorId: string,
   decidedAt: string,
+  transitionKind:
+    VNextOperatorPilotApplyingDecisionV01["transition_kind"],
 ): string {
   const hash = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
@@ -1308,7 +1536,7 @@ function deriveIntentId(
       candidate_id: candidateId,
       operator_id: operatorId,
       decided_at: decidedAt,
-      transition_kind: "semantic_candidate_apply",
+      transition_kind: transitionKind,
     }),
   );
   return `transition-intent:${hash.slice(7, 31)}`;

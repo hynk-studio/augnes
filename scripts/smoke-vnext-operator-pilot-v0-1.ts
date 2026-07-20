@@ -229,24 +229,24 @@ const OPERATOR_WORKSPACE_ID = `workspace:${OPERATOR_WORKSPACE_UUID}`;
 const OPERATOR_PROJECT_ID = `project:${OPERATOR_PROJECT_UUID}`;
 const FOREIGN_PROJECT_ID = "project:33333333-3333-4333-8333-333333333333";
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:28a6f5f4ceb0ecd35c898653",
+  review_decision_id: "review-decision:bd118b1caeaeed2b1d61e893",
   review_decision_fingerprint:
-    "sha256:86565d140fae8254c5817391f6e2b652e4a54c23d2c5bedff7437464ece29305",
+    "sha256:601e179c9cc9f552ee2711289bbe4f3f7bbf1e443f1559079a4472d7880db092",
   confirmation_digest:
-    "sha256:2979cb42b906ade1ad05ae8df9d02c67e14a81432fa02f8917fa4610e766d6f5",
-  gate_id: "semantic-commit-gate:2c7c91a5a64793c9b255c7c5",
+    "sha256:141dd6940cd1cfcbcca73062f97ba14e7209a2a9108350ac1cebeded69ab8aa8",
+  gate_id: "semantic-commit-gate:eb857d907ce64c601e92736d",
   gate_fingerprint:
-    "sha256:72643c1c5d10805794d35d3bcdfa62a1d27c0512a813a13e0e9795a6096ef2f4",
-  transition_receipt_id: "state-transition-receipt:6821c1e7c985cbb689db2c54",
+    "sha256:5c1674a4905d72b16d536089ed9eb847e04e3057fe81024fd8a43c9f178f8dd5",
+  transition_receipt_id: "state-transition-receipt:3f7544f82b8d16a61663be83",
   transition_receipt_idempotency_key:
-    "sha256:19e3719b4d92dcac46a48457427fe8d5a32a9ef00e1d5d6b82f7a4b6c029b5bb",
+    "sha256:4963355b67edcdc610eeb8ce3b317a6d530f39a2e39797a6c4f88071f3423042",
   transition_receipt_fingerprint:
-    "sha256:4a9633851d40979eb3b741f60fb34b4670d0a56db12a17d0b703be1aa06c545f",
-  later_packet_id: "task-context-packet:bd514b01ca59252530639c8",
+    "sha256:107e3d5017eccf82f3735775bf7efc9691eb761e99702ecc78b73c883105a54d",
+  later_packet_id: "task-context-packet:c837ebe022057fa444b7e8f",
   later_packet_fingerprint:
-    "sha256:ff7c163e402bf4af6cb71871969843ba19fa4730cbbff92f13e3e155e4f801af",
+    "sha256:0316fdb225280490122010c70661ce4397a659f861ab92305ccd475c80cfd31c",
   full_loop_fingerprint:
-    "sha256:94b72a6fe25f27368b23efc599abf52e406a118be8f349d4a888bd733c003119",
+    "sha256:28dafe55f8271e3d14213a8d79f4dfb3d10361520ece6d594867f0960c9ac691",
 } as const;
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
@@ -1023,6 +1023,8 @@ async function assertFullOperatorLoop(input: {
   })();
   pass("provider_neutral_review_material_persisted");
 
+  const workbenchReadBefore = semanticWorkbenchReadSnapshotV01(config);
+
   await expectRouteError(
     await reviewHandlers.GET(
       routeRequest("/api/vnext/operator/semantic-review", { method: "GET" }),
@@ -1041,6 +1043,37 @@ async function assertFullOperatorLoop(input: {
   assert.equal(listResponse.status, 200);
   assert.equal(listBody.status, "proposal_list");
   assert.equal((listBody.proposals as unknown[]).length, 1);
+  const listReconciliation = listBody.project_verify_reconciliation as {
+    reconciliation_version: string;
+    workspace_id: string;
+    project_id: string;
+    completeness: { status: string };
+    authority: {
+      writes_database: boolean;
+      establishes_truth: boolean;
+      performs_network_or_external_action: boolean;
+    };
+  };
+  assert.equal(
+    listBody.workbench_composition_version,
+    "decision_centered_semantic_workbench.v0.1",
+  );
+  assert.equal(
+    listReconciliation.reconciliation_version,
+    "project_verify_reconciliation.v0.1",
+  );
+  assert.equal(listReconciliation.workspace_id, config.workspace_id);
+  assert.equal(listReconciliation.project_id, config.project_id);
+  assert.equal(listReconciliation.authority.writes_database, false);
+  assert.equal(listReconciliation.authority.establishes_truth, false);
+  assert.equal(
+    listReconciliation.authority.performs_network_or_external_action,
+    false,
+  );
+  assert.equal(
+    (listBody.project_continuity as { project_id: string }).project_id,
+    config.project_id,
+  );
   pass("semantic_workbench_proposal_list_read");
 
   const detailResponse = await reviewHandlers.GET(
@@ -1061,7 +1094,37 @@ async function assertFullOperatorLoop(input: {
     }>;
     decisions: unknown[];
     durable_lineage: WorkbenchDurableLineageReadV01;
+    project_verify_reconciliation: typeof listReconciliation;
+    project_verify_lineage: {
+      lineage_version: string;
+      workspace_id: string;
+      project_id: string;
+      lookup: {
+        lookup_kind: string;
+        proposal_id: string;
+        expected_fingerprint: string;
+      };
+      stop: { reason: string };
+      authority: { writes_database: boolean; establishes_truth: boolean };
+    };
   };
+  assert.equal(
+    detail.project_verify_reconciliation.reconciliation_version,
+    "project_verify_reconciliation.v0.1",
+  );
+  assert.equal(
+    detail.project_verify_lineage.lineage_version,
+    "project_verify_lineage.v0.1",
+  );
+  assert.equal(detail.project_verify_lineage.workspace_id, config.workspace_id);
+  assert.equal(detail.project_verify_lineage.project_id, config.project_id);
+  assert.deepEqual(detail.project_verify_lineage.lookup, {
+    lookup_kind: "proposal",
+    proposal_id: prepared.proposal.proposal_id,
+    expected_fingerprint: prepared.proposal.integrity.fingerprint,
+  });
+  assert.equal(detail.project_verify_lineage.authority.writes_database, false);
+  assert.equal(detail.project_verify_lineage.authority.establishes_truth, false);
   assertWorkbenchDurableLineageRead({
     detail,
     proposal: prepared.proposal,
@@ -1077,6 +1140,12 @@ async function assertFullOperatorLoop(input: {
     createEpisodeDeltaCandidateFingerprintV01(selected.candidate),
   );
   pass("semantic_workbench_exact_candidate_detail_read");
+  assert.deepEqual(
+    semanticWorkbenchReadSnapshotV01(config),
+    workbenchReadBefore,
+    "Workbench list and detail reads must perform no semantic or control writes",
+  );
+  pass("decision_centered_workbench_reads_are_write_free");
 
   const decisionRequest = {
     proposal_id: prepared.proposal.proposal_id,
@@ -1110,9 +1179,9 @@ async function assertFullOperatorLoop(input: {
           body: { ...decisionRequest, decision: forbiddenDecision },
         }),
       ),
-      400,
-      "operator_pilot_decision_value_invalid",
-      `pilot_${forbiddenDecision}_direct_post_rejected`,
+      409,
+      "operator_pilot_decision_operation_mismatch",
+      `pilot_${forbiddenDecision}_wrong_operation_rejected`,
     );
   }
   const decisionResponse = await reviewHandlers.POST(
@@ -11480,6 +11549,29 @@ function countRowsByKind(db: Database.Database, recordKind: string): number {
       )
       .get(recordKind) as { count: number }
   ).count;
+}
+
+function semanticWorkbenchReadSnapshotV01(
+  config: VNextLocalOperatorPilotConfigV01,
+): Record<string, number> {
+  const db = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    const tables = db
+      .prepare(
+        `SELECT name FROM sqlite_master
+          WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+          ORDER BY name`,
+      )
+      .all() as Array<{ name: string }>;
+    return Object.fromEntries(
+      tables.map(({ name }) => {
+        assert.match(name, /^[a-z0-9_]+$/u);
+        return [name, countTableRows(db, name)];
+      }),
+    );
+  } finally {
+    db.close();
+  }
 }
 
 function countTableRows(db: Database.Database, table: string): number {

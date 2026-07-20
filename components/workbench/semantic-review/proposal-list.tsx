@@ -2,88 +2,78 @@ import type {
   SemanticReviewProjectV01,
   SemanticReviewProposalListItemV01,
 } from "./semantic-review-types";
+import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verify-reconciliation";
+import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import { ProjectVerificationWorkbench } from "./project-verification-workbench";
 import styles from "./semantic-review.module.css";
 
 export function SemanticReviewProposalList({
   project,
   proposals,
+  reconciliation,
+  continuity,
 }: {
   project: SemanticReviewProjectV01;
   proposals: SemanticReviewProposalListItemV01[];
+  reconciliation: ProjectVerifyReconciliationV01;
+  continuity: VNextOperatorPilotProjectContinuityV01;
 }) {
   return (
-    <section
-      className={styles.panel}
-      aria-labelledby="vnext-semantic-review-proposal-list-title"
-      data-vnext-semantic-review-list="v0.1"
-    >
-      <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Episode delta proposals</p>
-        <h2 id="vnext-semantic-review-proposal-list-title">
-          Review project-semantic change candidates
-        </h2>
-        <p className={styles.copy}>
-          Workspace {project.workspace_id}; project {project.project_id}. A proposal is
-          review material, not canonical project state, a decision, or an applied
-          transition.
-        </p>
-      </div>
+    <div className={styles.workbenchSequence} data-vnext-semantic-review-list="v0.2">
+      <section className={styles.panel} aria-labelledby="vnext-semantic-review-proposal-list-title">
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Project review queue</p>
+          <h2 id="vnext-semantic-review-proposal-list-title">
+            Choose one exact semantic candidate review
+          </h2>
+          <p className={styles.copy}>
+            {continuity.pending_proposal_count} proposal(s) await a decision and {continuity.pending_accepted_decision_count} applying decision(s) await Transition closure. Recording order does not select current state.
+          </p>
+        </div>
 
-      {proposals.length === 0 ? (
-        <p className={styles.empty}>
-          No persisted EpisodeDeltaProposal records are available for this configured
-          project. No proposal was fabricated by this surface.
-        </p>
-      ) : (
-        <ol className={styles.proposalList}>
-          {proposals.map((proposal) => (
-            <li
-              className={styles.proposalCard}
-              data-vnext-proposal-id={proposal.proposal_id}
-              key={`${proposal.proposal_id}:${proposal.proposal_fingerprint}`}
-            >
-              <div className={styles.proposalCardBody}>
-                <div className={styles.rowBetween}>
-                  <strong>{proposal.bounded_summary}</strong>
-                  <span className={styles.badge}>{proposal.status}</span>
-                </div>
-                <span className={styles.identifier}>{proposal.proposal_id}</span>
-                <span className={styles.identifier}>{proposal.proposal_fingerprint}</span>
-                <div className={styles.metricGrid}>
-                  <div>
-                    <span>Candidates</span>
-                    <strong>{proposal.candidate_count}</strong>
-                  </div>
-                  <div>
-                    <span>Decisions</span>
-                    <strong>{proposal.decision_count}</strong>
-                  </div>
-                  <div>
-                    <span>Current state</span>
-                    <strong>{proposal.current_state_status}</strong>
-                  </div>
-                  <div>
-                    <span>Transition</span>
-                    <strong>{proposal.transition_status}</strong>
-                  </div>
-                </div>
-                <span className={styles.muted}>
-                  Source currentness {proposal.source_currentness}. Open the proposal
-                  for exact coverage, basis, and review-required status.
-                </span>
-                <span className={styles.muted}>Created {proposal.created_at}</span>
-              </div>
-              <a
-                className={styles.linkButton}
-                href={semanticReviewProposalHref(proposal.proposal_id)}
+        {proposals.length === 0 ? (
+          <p className={styles.empty}>
+            No persisted EpisodeDeltaProposal is available. Canonical Claim candidates without a proposal remain visible in Verify material below, but no ReviewDecision is fabricated.
+          </p>
+        ) : (
+          <ol className={styles.proposalList}>
+            {proposals.map((proposal) => (
+              <li
+                className={styles.proposalCard}
+                key={`${proposal.proposal_id}:${proposal.proposal_fingerprint}`}
               >
-                Review proposal
-              </a>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
+                <div className={styles.proposalCardBody}>
+                  <div className={styles.rowBetween}>
+                    <strong>{proposal.bounded_summary}</strong>
+                    <span className={styles.badge}>{proposal.status}</span>
+                  </div>
+                  <div className={styles.metricGrid}>
+                    <div><span>Candidates</span><strong>{proposal.candidate_count}</strong></div>
+                    <div><span>Decisions</span><strong>{proposal.decision_count}</strong></div>
+                    <div><span>Current-state read</span><strong>{proposal.current_state_status.replaceAll("_", " ")}</strong></div>
+                    <div><span>Transition</span><strong>{proposal.transition_status.replaceAll("_", " ")}</strong></div>
+                  </div>
+                  <span className={styles.muted}>Source {proposal.source_currentness.replaceAll("_", " ")} · created {proposal.created_at}</span>
+                  <details className={styles.disclosure}>
+                    <summary>Exact proposal identity</summary>
+                    <span className={styles.identifier}>{proposal.proposal_id}</span>
+                    <span className={styles.identifier}>{proposal.proposal_fingerprint}</span>
+                  </details>
+                </div>
+                <a className={styles.linkButton} href={semanticReviewProposalHref(proposal.proposal_id)}>
+                  Verify and decide
+                </a>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <ProjectVerificationWorkbench
+        project={project}
+        reconciliation={reconciliation}
+      />
+    </div>
   );
 }
 

@@ -15,6 +15,8 @@ import type {
   StateTransitionReceiptV01,
 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verify-reconciliation";
+import type { ProjectVerifyLineageV01 } from "@/types/vnext/project-verify-lineage";
 
 export type SemanticReviewProposalListItemV01 =
   VNextOperatorPilotReviewListItemV01;
@@ -30,6 +32,8 @@ export type SemanticReviewProposalDetailV01 =
     projection_observed_at: string;
     durable_lineage: VNextOperatorPilotProposalDurableLineageV01;
     project_continuity: VNextOperatorPilotProjectContinuityV01;
+    project_verify_reconciliation: ProjectVerifyReconciliationV01;
+    project_verify_lineage: ProjectVerifyLineageV01;
   };
 
 export interface SemanticReviewProjectV01 {
@@ -42,6 +46,8 @@ export interface SemanticReviewListRouteResponseV01 {
   status: "proposal_list";
   project: SemanticReviewProjectV01;
   proposals: SemanticReviewProposalListItemV01[];
+  project_verify_reconciliation: ProjectVerifyReconciliationV01;
+  project_continuity: VNextOperatorPilotProjectContinuityV01;
 }
 
 export interface SemanticReviewDetailRouteResponseV01 {
@@ -56,7 +62,7 @@ export interface SemanticReviewDecisionRequestV01 {
   proposal_fingerprint: string;
   candidate_id: string;
   candidate_fingerprint: string;
-  decision: "accept" | "reject" | "defer";
+  decision: "accept" | "reject" | "defer" | "supersede" | "retract";
   rationale_summary: string;
   revisit?: {
     condition_summary: string;

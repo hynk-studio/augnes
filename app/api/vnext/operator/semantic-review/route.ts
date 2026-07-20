@@ -40,11 +40,21 @@ import {
 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
 import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
 import { createCanonicalTestStrategicTransportDependenciesV01 } from "@/lib/vnext/model-gateway/canonical-test-strategic-transport";
+import {
+  ProjectVerifyReconciliationReadErrorV01,
+  readProjectVerifyReconciliationV01,
+} from "@/lib/vnext/runtime/project-verify-reconciliation";
+import {
+  ProjectVerifyLineageReadErrorV01,
+  readProjectVerifyLineageV01,
+} from "@/lib/vnext/runtime/project-verify-lineage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE_VERSION = "vnext_operator_semantic_review_route.v0.1" as const;
+const WORKBENCH_COMPOSITION_VERSION =
+  "decision_centered_semantic_workbench.v0.1" as const;
 const SECURITY_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
   Pragma: "no-cache",
@@ -103,6 +113,12 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           read_cost_budget:
             options.strategic_dependencies?.read_cost_budget,
         });
+      const projectVerifyReconciliation =
+        readProjectVerifyReconciliationV01(db, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+          observed_at: projectionObservedAt,
+        });
       if (proposalId) {
         const proposal = readVNextOperatorPilotSemanticReviewV01(db, {
           config,
@@ -114,6 +130,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
         return jsonResponse({
           ok: true,
           route_version: ROUTE_VERSION,
+          workbench_composition_version: WORKBENCH_COMPOSITION_VERSION,
           status: "proposal_detail",
           project: {
             workspace_id: config.workspace_id,
@@ -132,6 +149,18 @@ export function createVNextOperatorSemanticReviewHandlersV01(
               config,
               clock: options.clock,
             }),
+            project_verify_reconciliation: projectVerifyReconciliation,
+            project_verify_lineage: readProjectVerifyLineageV01(db, {
+              workspace_id: config.workspace_id,
+              project_id: config.project_id,
+              observed_at: projectionObservedAt,
+              lookup: {
+                lookup_kind: "proposal",
+                proposal_id: proposal.proposal.proposal_id,
+                expected_fingerprint:
+                  proposal.proposal.integrity.fingerprint,
+              },
+            }),
           },
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
@@ -141,6 +170,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
       return jsonResponse({
         ok: true,
         route_version: ROUTE_VERSION,
+        workbench_composition_version: WORKBENCH_COMPOSITION_VERSION,
         status: "proposal_list",
         project: {
           workspace_id: config.workspace_id,
@@ -151,6 +181,11 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           authenticated_session_id: authentication.session.session_id,
           model_capability: modelCapability,
           strategic_cost_availability: strategicCostAvailability,
+        }),
+        project_verify_reconciliation: projectVerifyReconciliation,
+        project_continuity: projectVNextOperatorPilotContinuityV01(db, {
+          config,
+          clock: options.clock,
         }),
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",
@@ -388,6 +423,23 @@ function routeErrorResponse(error: unknown): NextResponse {
         semantic_authority_granted: false,
       },
       error.status,
+    );
+  }
+  if (
+    error instanceof ProjectVerifyReconciliationReadErrorV01 ||
+    error instanceof ProjectVerifyLineageReadErrorV01
+  ) {
+    return jsonResponse(
+      {
+        ok: false,
+        route_version: ROUTE_VERSION,
+        workbench_composition_version: WORKBENCH_COMPOSITION_VERSION,
+        status: "error",
+        error_code: error.code,
+        source_conflict: true,
+        semantic_authority_granted: false,
+      },
+      409,
     );
   }
   return jsonResponse(

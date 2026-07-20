@@ -464,6 +464,132 @@
   line-height: 1.4;
 }
 
+.workbenchSequence,
+.reconciliationGroup,
+.exactRefs,
+.inspectionDisclosure {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.receiptGrid,
+.criterionList,
+.reconciliationCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.criterionCard {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-left: 4px solid #607083;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.criterionCard[data-criterion-status="satisfied"] {
+  border-left-color: #15805f;
+}
+
+.criterionCard[data-criterion-status="unsatisfied"] {
+  border-left-color: #be3455;
+}
+
+.criterionCard[data-criterion-status="not_applicable"] {
+  border-left-color: #657184;
+}
+
+.criterionCard[data-criterion-status="unknown"] {
+  border-left-color: #b7791f;
+}
+
+.relationCounts,
+.relationMatrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.relationCounts > div,
+.relationMatrix > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.relationCounts span,
+.relationMatrix span {
+  color: #647184;
+  font-size: 0.67rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.relationCounts strong,
+.relationMatrix strong {
+  color: #172033;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.disclosure,
+.inspectionDisclosure {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 9px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #425269;
+  font-size: 0.76rem;
+}
+
+.disclosure summary,
+.inspectionDisclosure summary {
+  color: #334155;
+  font-weight: 800;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.disclosure[open],
+.inspectionDisclosure[open] {
+  gap: 8px;
+}
+
+.disclosure > :not(summary),
+.inspectionDisclosure > :not(summary) {
+  margin-top: 8px;
+}
+
+.exactRefs {
+  padding: 8px;
+  border-left: 2px solid rgba(31, 41, 55, 0.16);
+}
+
+.inspectionDisclosure {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .transitionSteps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -647,6 +773,12 @@
     grid-template-columns: 1fr;
   }
 
+  .receiptGrid,
+  .criterionList,
+  .reconciliationCards {
+    grid-template-columns: 1fr;
+  }
+
   .nav {
     justify-content: flex-start;
   }
@@ -667,6 +799,11 @@
   .statusGrid,
   .metricGrid,
   .reviewMetricGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .relationCounts,
+  .relationMatrix {
     grid-template-columns: 1fr;
   }
 

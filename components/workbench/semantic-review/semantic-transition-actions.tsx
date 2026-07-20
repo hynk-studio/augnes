@@ -18,6 +18,8 @@ const SEMANTIC_TRANSITION_ROUTE =
 
 type TransitionStepV01 = "preview" | "confirm" | "apply";
 
+const ignoreApplyingMutationBusyChange = (_busy: boolean): void => undefined;
+
 export interface SemanticTransitionPriorPacketBindingV01 {
   packet_id: string;
   packet_fingerprint: string;
@@ -26,6 +28,8 @@ export interface SemanticTransitionPriorPacketBindingV01 {
 export function SemanticTransitionActions({
   proposalId,
   proposalFingerprint,
+  selectedCandidateId,
+  selectedCandidateFingerprint,
   decisions,
   persistedReceipts,
   priorPacket,
@@ -33,9 +37,12 @@ export function SemanticTransitionActions({
   onPrivateMaterialChanged,
   tryBeginOperatorMutation,
   endOperatorMutation,
+  onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
 }: {
   proposalId: string;
   proposalFingerprint: string;
+  selectedCandidateId?: string;
+  selectedCandidateFingerprint?: string;
   decisions: ReviewDecisionV01[];
   persistedReceipts: StateTransitionReceiptV01[];
   priorPacket: SemanticTransitionPriorPacketBindingV01 | null;
@@ -43,26 +50,50 @@ export function SemanticTransitionActions({
   onPrivateMaterialChanged: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
+  onApplyingMutationBusyChange?: (busy: boolean) => void;
 }) {
-  const acceptDecisions = useMemo(
+  const applyingDecisions = useMemo(
     () =>
       decisions.filter(
         (decision) =>
-          decision.decision === "accept" &&
+          (!selectedCandidateId ||
+            (decision.candidate.candidate_id === selectedCandidateId &&
+              (!selectedCandidateFingerprint ||
+                decision.candidate.candidate_fingerprint ===
+                  selectedCandidateFingerprint))) &&
+          (decision.decision === "accept" ||
+            decision.decision === "supersede" ||
+            decision.decision === "retract") &&
           decision.requested_transition_intent !== null &&
           decision.requested_transition_intent.applied === false,
       ),
-    [decisions],
+    [decisions, selectedCandidateFingerprint, selectedCandidateId],
+  );
+  const candidatePersistedReceipts = useMemo(
+    () =>
+      persistedReceipts.filter(
+        (receipt) =>
+          !selectedCandidateId ||
+          (receipt.source_candidate.candidate_id === selectedCandidateId &&
+            (!selectedCandidateFingerprint ||
+              receipt.source_candidate.candidate_fingerprint ===
+                selectedCandidateFingerprint)),
+      ),
+    [
+      persistedReceipts,
+      selectedCandidateFingerprint,
+      selectedCandidateId,
+    ],
   );
   const [selectedDecisionId, setSelectedDecisionId] = useState(
-    acceptDecisions.at(-1)?.decision_id ?? "",
+    applyingDecisions.at(-1)?.decision_id ?? "",
   );
   const selectedDecision =
-    acceptDecisions.find(
+    applyingDecisions.find(
       (decision) => decision.decision_id === selectedDecisionId,
-    ) ?? acceptDecisions.at(-1) ?? null;
+    ) ?? applyingDecisions.at(-1) ?? null;
   const persistedReceiptForSelectedDecision = selectedDecision
-    ? persistedReceipts
+    ? candidatePersistedReceipts
         .filter(
           (receipt) =>
             receipt.source_decision.decision_id === selectedDecision.decision_id &&
@@ -71,6 +102,8 @@ export function SemanticTransitionActions({
         )
         .at(-1) ?? null
     : null;
+  const persistedReceiptForSelectedCandidate =
+    candidatePersistedReceipts.at(-1) ?? null;
   const [previewResponse, setPreviewResponse] =
     useState<SemanticTransitionPreviewRouteResponseV01 | null>(null);
   const [confirmationResponse, setConfirmationResponse] =
@@ -83,27 +116,91 @@ export function SemanticTransitionActions({
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const requestInFlight = useRef(false);
+  const mounted = useRef(true);
+  const requestGeneration = useRef(0);
+  const selectedDecisionScope = selectedDecision
+    ? [
+        proposalId,
+        proposalFingerprint,
+        selectedDecision.candidate.candidate_id,
+        selectedDecision.candidate.candidate_fingerprint,
+        selectedDecision.decision_id,
+        selectedDecision.integrity.fingerprint,
+      ].join("|")
+    : [
+        proposalId,
+        proposalFingerprint,
+        selectedCandidateId ?? "all-candidates",
+        selectedCandidateFingerprint ?? "unknown-candidate-fingerprint",
+        "no-applying-decision",
+      ].join("|");
+  const previousSelectedDecisionScope = useRef(selectedDecisionScope);
 
   useEffect(() => {
-    if (!selectedDecision && acceptDecisions.length > 0) {
-      setSelectedDecisionId(acceptDecisions.at(-1)?.decision_id ?? "");
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      requestGeneration.current += 1;
+      onApplyingMutationBusyChange(false);
+    };
+  }, [onApplyingMutationBusyChange]);
+
+  useEffect(() => {
+    if (previousSelectedDecisionScope.current === selectedDecisionScope) return;
+    previousSelectedDecisionScope.current = selectedDecisionScope;
+    resetDerivedSteps();
+  }, [selectedDecisionScope]);
+
+  useEffect(() => {
+    if (!selectedDecision && applyingDecisions.length > 0) {
+      setSelectedDecisionId(applyingDecisions.at(-1)?.decision_id ?? "");
     }
-  }, [acceptDecisions, selectedDecision]);
+  }, [applyingDecisions, selectedDecision]);
 
   function resetDerivedSteps(): void {
+    requestGeneration.current += 1;
+    requestInFlight.current = false;
     setPreviewResponse(null);
     setConfirmationResponse(null);
     setApplyResponse(null);
     setPreviewReviewed(false);
     setGateReviewed(false);
+    setBusyStep(null);
     setErrorCode(null);
     setStatusMessage(null);
   }
 
+  function beginRequest(step: TransitionStepV01): number {
+    const generation = requestGeneration.current + 1;
+    requestGeneration.current = generation;
+    requestInFlight.current = true;
+    setBusyStep(step);
+    if (step === "confirm" || step === "apply") {
+      onApplyingMutationBusyChange(true);
+    }
+    return generation;
+  }
+
+  function requestIsCurrent(generation: number): boolean {
+    return mounted.current && requestGeneration.current === generation;
+  }
+
+  function finishRequest(
+    generation: number,
+    step: TransitionStepV01,
+  ): void {
+    requestInFlight.current = false;
+    if (step === "confirm" || step === "apply") {
+      onApplyingMutationBusyChange(false);
+    }
+    if (requestIsCurrent(generation)) {
+      setBusyStep(null);
+    }
+  }
+
   async function preparePreview(): Promise<void> {
     if (!selectedDecision || requestInFlight.current) return;
-    requestInFlight.current = true;
-    setBusyStep("preview");
+    const requestGeneration = beginRequest("preview");
     setErrorCode(null);
     setStatusMessage(null);
     setPreviewReviewed(false);
@@ -125,6 +222,7 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionPreviewRouteResponseV01
         | SemanticTransitionRouteErrorV01;
+      if (!requestIsCurrent(requestGeneration)) return;
       if (!response.ok) {
         handleRouteError(response.status, body);
         return;
@@ -176,10 +274,11 @@ export function SemanticTransitionActions({
         "Fresh preview prepared from persisted state. The preview wrote nothing.",
       );
     } catch {
-      setErrorCode("semantic_transition_preview_request_failed");
+      if (requestIsCurrent(requestGeneration)) {
+        setErrorCode("semantic_transition_preview_request_failed");
+      }
     } finally {
-      requestInFlight.current = false;
-      setBusyStep(null);
+      finishRequest(requestGeneration, "preview");
     }
   }
 
@@ -193,8 +292,7 @@ export function SemanticTransitionActions({
     ) {
       return;
     }
-    requestInFlight.current = true;
-    setBusyStep("confirm");
+    const requestGeneration = beginRequest("confirm");
     setErrorCode(null);
     setStatusMessage(null);
     setConfirmationResponse(null);
@@ -218,6 +316,7 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionConfirmationRouteResponseV01
         | SemanticTransitionRouteErrorV01;
+      if (!requestIsCurrent(requestGeneration)) return;
       if (!response.ok) {
         handleRouteError(response.status, body);
         return;
@@ -251,11 +350,12 @@ export function SemanticTransitionActions({
       );
       await onPrivateMaterialChanged();
     } catch {
-      setErrorCode("semantic_transition_confirmation_request_failed");
+      if (requestIsCurrent(requestGeneration)) {
+        setErrorCode("semantic_transition_confirmation_request_failed");
+      }
     } finally {
-      requestInFlight.current = false;
       endOperatorMutation();
-      setBusyStep(null);
+      finishRequest(requestGeneration, "confirm");
     }
   }
 
@@ -270,8 +370,7 @@ export function SemanticTransitionActions({
     ) {
       return;
     }
-    requestInFlight.current = true;
-    setBusyStep("apply");
+    const requestGeneration = beginRequest("apply");
     setErrorCode(null);
     setStatusMessage(null);
     setApplyResponse(null);
@@ -297,6 +396,7 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionApplyRouteResponseV01
         | SemanticTransitionRouteErrorV01;
+      if (!requestIsCurrent(requestGeneration)) return;
       if (!response.ok) {
         handleRouteError(response.status, body);
         return;
@@ -334,11 +434,12 @@ export function SemanticTransitionActions({
       );
       await onPrivateMaterialChanged();
     } catch {
-      setErrorCode("semantic_transition_apply_request_failed");
+      if (requestIsCurrent(requestGeneration)) {
+        setErrorCode("semantic_transition_apply_request_failed");
+      }
     } finally {
-      requestInFlight.current = false;
       endOperatorMutation();
-      setBusyStep(null);
+      finishRequest(requestGeneration, "apply");
     }
   }
 
@@ -361,7 +462,9 @@ export function SemanticTransitionActions({
   const preview = previewResponse?.preview ?? null;
   const gate = confirmationResponse?.gate_record ?? null;
   const receipt =
-    applyResponse?.transition_receipt ?? persistedReceiptForSelectedDecision;
+    applyResponse?.transition_receipt ??
+    persistedReceiptForSelectedDecision ??
+    (selectedDecision ? null : persistedReceiptForSelectedCandidate);
   const laterPacket = applyResponse?.later_packet ?? null;
   const allBusy = busyStep !== null;
 
@@ -369,18 +472,23 @@ export function SemanticTransitionActions({
     <section
       className={styles.panel}
       data-vnext-semantic-transition-actions="v0.1"
+      data-vnext-transition-applying-decision-count={applyingDecisions.length}
+      data-vnext-transition-persisted-receipt-count={
+        candidatePersistedReceipts.length
+      }
       data-vnext-local-authentication="secret-possession-not-external-identity"
       aria-labelledby="semantic-transition-actions-title"
     >
       <div className={styles.panelHeader}>
         <p className={styles.kicker}>Explicit semantic transition boundary</p>
         <h2 id="semantic-transition-actions-title">
-          Preview, confirm, then atomically apply and compile context
+          Preview consequence, authorize the gate, then apply
         </h2>
         <p className={styles.copy}>
-          Each step is a separate authenticated local action. Local secret possession
-          binds this browser session to the configured operator scope; it does not prove
-          legal, operating-system, organization, or external-provider identity.
+          These controls act only on the selected candidate and its exact applying
+          decision. Preview writes nothing. Gate authorization still applies no state.
+          Only the final successful Transition changes durable semantic state and
+          compiles later context.
         </p>
       </div>
 
@@ -388,20 +496,19 @@ export function SemanticTransitionActions({
         className={styles.notice}
         data-vnext-transition-pilot-policy="operation_aware_atomic_transition_packet"
       >
-        This product path maps explicit add, revise, supersede, and retract candidates
-        to create, replace, supersede, and retract effects. Unknown and no-change remain
-        blocked. The server rechecks the exact state, lineage, gate, effect set, and
-        applier inside the write transaction.
+        Add, revise, supersede, and retract candidates map to bounded existing
+        effects. Unknown and no-change remain blocked. The server rechecks current
+        head, lineage, authorization, and consequence inside the write transaction.
       </p>
 
-      {acceptDecisions.length === 0 ? (
-        <p className={styles.empty} data-vnext-transition-actions-status="awaiting_accept">
-          Record an eligible accept ReviewDecision before preparing a transition preview.
+      {applyingDecisions.length === 0 ? (
+        <p className={styles.empty} data-vnext-transition-actions-status="awaiting_applying_decision">
+          Record the eligible applying ReviewDecision before preparing a transition preview.
           Reject and defer decisions do not enter this commit path.
         </p>
       ) : (
         <label className={styles.fieldLabel}>
-          Exact accepted decision
+          Applying decision for the selected candidate
           <select
             className={styles.selectControl}
             value={selectedDecision?.decision_id ?? ""}
@@ -411,12 +518,12 @@ export function SemanticTransitionActions({
               resetDerivedSteps();
             }}
           >
-            {acceptDecisions.map((decision) => (
+            {applyingDecisions.map((decision) => (
               <option
                 key={`${decision.decision_id}:${decision.integrity.fingerprint}`}
                 value={decision.decision_id}
               >
-                {decision.decision_id} / {decision.candidate.candidate_id}
+                {decision.decision.replaceAll("_", " ")} recorded {decision.decided_at}
               </option>
             ))}
           </select>
@@ -424,16 +531,21 @@ export function SemanticTransitionActions({
       )}
 
       {selectedDecision ? (
-        <div className={styles.identifierStack}>
+        <details className={styles.disclosure}>
+          <summary>Exact applying decision and intent binding</summary>
+          <DataPoint
+            label="Canonical ReviewDecision"
+            value={selectedDecision.decision}
+          />
           <span className={styles.identifier}>{selectedDecision.decision_id}</span>
+          <span className={styles.identifier}>{selectedDecision.integrity.fingerprint}</span>
           <span className={styles.identifier}>
-            {selectedDecision.integrity.fingerprint}
+            {selectedDecision.requested_transition_intent?.intent_id}
           </span>
           <span className={styles.muted}>
-            Intent {selectedDecision.requested_transition_intent?.intent_id}; exact target
-            count {selectedDecision.requested_transition_intent?.target_refs.length ?? 0}
+            Exact target count {selectedDecision.requested_transition_intent?.target_refs.length ?? 0}
           </span>
-        </div>
+        </details>
       ) : null}
 
       {errorCode ? (
@@ -456,9 +568,9 @@ export function SemanticTransitionActions({
         >
           <StepHeader number="1" title="Read-only preview" />
           <p className={styles.copy}>
-            The server reloads the persisted proposal, decision, target head, and state.
-            It derives the exact operation, after-state fingerprint, applier, TTL, and
-            digest. This action writes nothing.
+            The server reloads the selected proposal, decision, current head, and
+            state to describe the intended consequence and any blockers. This
+            action writes nothing.
           </p>
           <button
             className={styles.secondaryButton}
@@ -475,28 +587,24 @@ export function SemanticTransitionActions({
                 <DataPoint label="Previewed" value={preview.previewed_at} />
                 <DataPoint label="Transition kind" value={preview.transition_kind} />
                 <DataPoint
-                  label="Authorized applier"
-                  value={`${preview.authorized_applier_identity.ref_type}:${preview.authorized_applier_identity.external_id}`}
-                />
-                <DataPoint
-                  label="Preview validity"
-                  value={`${previewResponse?.pilot_policy.preview_max_age_ms ?? 0} ms (${previewResponse?.pilot_policy.preview_source ?? "unknown"})`}
-                />
-                <DataPoint
-                  label="Preview binding expires"
+                  label="Preview valid until"
                   value={
                     previewResponse?.pilot_policy.preview_binding_expires_at ??
                     "unknown"
                   }
                 />
-                <DataPoint label="Gate TTL" value={`${preview.gate_ttl_ms} ms`} />
-                <DataPoint
-                  label="Gate TTL source"
-                  value={previewResponse?.pilot_policy.gate_source ?? "unknown"}
-                />
+                <DataPoint label="State changed" value="no" />
               </dl>
-              <ExactValue label="Confirmation digest" value={preview.confirmation_digest} />
               <EffectList effects={preview.intended_effects} />
+              <details className={styles.disclosure}>
+                <summary>Exact preview authorization binding</summary>
+                <ExactValue label="Confirmation digest" value={preview.confirmation_digest} />
+                <ExactValue
+                  label="Authorized applier"
+                  value={`${preview.authorized_applier_identity.ref_type}:${preview.authorized_applier_identity.external_id}`}
+                />
+                <ExactValue label="Gate TTL" value={`${preview.gate_ttl_ms} ms`} />
+              </details>
               <label className={styles.checkRow}>
                 <input
                   type="checkbox"
@@ -505,8 +613,9 @@ export function SemanticTransitionActions({
                   onChange={(event) => setPreviewReviewed(event.target.checked)}
                 />
                 <span>
-                  I inspected the exact target, operation, before and after fingerprints,
-                  expected revision, authorized applier, TTL, and confirmation digest.
+                  I reviewed the selected target, current-state expectation,
+                  intended operation, and user-visible consequence. I understand
+                  this preview changed nothing.
                 </span>
               </label>
             </>
@@ -521,9 +630,9 @@ export function SemanticTransitionActions({
         >
           <StepHeader number="2" title="Confirm gate only" />
           <p className={styles.copy}>
-            Confirmation submits only the exact proposal, decision, and digest bindings.
-            The server supplies the applier, TTL, clock, state observations, and effects.
-            A successful confirmation persists a gate; it does not apply semantic state.
+            Confirmation authorizes only the exact previewed consequence. A
+            successful confirmation persists a bounded gate; it does not apply
+            semantic state or later context.
           </p>
           <button
             className={styles.button}
@@ -536,8 +645,6 @@ export function SemanticTransitionActions({
           </button>
           {gate ? (
             <>
-              <ExactValue label="Gate record ID" value={gate.gate_record_id} />
-              <ExactValue label="Gate fingerprint" value={gate.integrity.fingerprint} />
               <dl className={styles.statusGrid}>
                 <DataPoint label="Confirmed" value={gate.confirmed_at} />
                 <DataPoint
@@ -549,10 +656,19 @@ export function SemanticTransitionActions({
                   value={confirmationResponse?.eligibility_status ?? "unknown"}
                 />
                 <DataPoint
-                  label="Precondition"
-                  value={gate.eligibility_precondition_fingerprint}
+                  label="State changed"
+                  value="no"
                 />
               </dl>
+              <details className={styles.disclosure}>
+                <summary>Exact gate and precondition binding</summary>
+                <ExactValue label="Gate record ID" value={gate.gate_record_id} />
+                <ExactValue label="Gate fingerprint" value={gate.integrity.fingerprint} />
+                <ExactValue
+                  label="Eligibility precondition"
+                  value={gate.eligibility_precondition_fingerprint}
+                />
+              </details>
               <label className={styles.checkRow}>
                 <input
                   type="checkbox"
@@ -577,11 +693,10 @@ export function SemanticTransitionActions({
         >
           <StepHeader number="3" title="Apply Transition and compile later context" />
           <p className={styles.copy}>
-            This single product mutation submits exact persisted bindings only. The
-            server reloads current state, recomputes eligibility, applies every effect,
-            records the immutable StateTransitionReceipt, and compiles the exact later
-            TaskContextPacket in one immediate transaction. Any failure rolls all of
-            those writes back while the ReviewDecision and gate remain visible.
+            The server reloads current state and authorization, applies the
+            bounded effect, records the immutable Transition receipt, and compiles
+            later context atomically. Failure leaves the decision and gate visible
+            but does not partially apply state.
           </p>
           {!priorPacket ? (
             <p className={styles.empty}>
@@ -600,15 +715,6 @@ export function SemanticTransitionActions({
           </button>
           {receipt ? (
             <>
-              <ExactValue
-                label="StateTransitionReceipt ID"
-                value={receipt.transition_receipt_id}
-              />
-              <ExactValue
-                label="Receipt fingerprint"
-                value={receipt.integrity.fingerprint}
-              />
-              <ExactValue label="Idempotency key" value={receipt.idempotency_key} />
               <dl className={styles.statusGrid}>
                 <DataPoint label="Status" value={receipt.receipt_status} />
                 <DataPoint label="Applied" value={receipt.applied_at} />
@@ -616,6 +722,15 @@ export function SemanticTransitionActions({
                 <DataPoint label="Effects" value={String(receipt.effects.length)} />
               </dl>
               <ReceiptEffectList receipt={receipt} />
+              <details className={styles.disclosure}>
+                <summary>Exact applied Transition receipt</summary>
+                <ExactValue
+                  label="StateTransitionReceipt ID"
+                  value={receipt.transition_receipt_id}
+                />
+                <ExactValue label="Receipt fingerprint" value={receipt.integrity.fingerprint} />
+                <ExactValue label="Idempotency key" value={receipt.idempotency_key} />
+              </details>
             </>
           ) : null}
         </section>
@@ -637,27 +752,9 @@ export function SemanticTransitionActions({
               This proposal has no exact prior TaskContextPacket ID/fingerprint binding,
               so Transition closure is unavailable.
             </p>
-          ) : (
-            <div className={styles.identifierStack}>
-              <span className={styles.identifier}>{priorPacket.packet_id}</span>
-              <span className={styles.identifier}>{priorPacket.packet_fingerprint}</span>
-            </div>
-          )}
+          ) : null}
           {laterPacket ? (
             <>
-              <ExactValue label="Later packet ID" value={laterPacket.packet_id} />
-              <ExactValue
-                label="Later packet fingerprint"
-                value={laterPacket.integrity.fingerprint}
-              />
-              <ExactValue
-                label="Receipt lineage ID"
-                value={receipt?.transition_receipt_id ?? "missing"}
-              />
-              <ExactValue
-                label="Receipt lineage fingerprint"
-                value={receipt?.integrity.fingerprint ?? "missing"}
-              />
               <dl className={styles.statusGrid}>
                 <DataPoint label="Generated" value={laterPacket.generated_at} />
                 <DataPoint
@@ -675,6 +772,15 @@ export function SemanticTransitionActions({
                 <DataPoint label="Transition applied" value="true" />
               </dl>
               <AcceptedStateSelectionList packet={laterPacket} />
+              <details className={styles.disclosure}>
+                <summary>Exact prior packet, later packet, and Transition lineage</summary>
+                <ExactValue label="Prior packet ID" value={priorPacket?.packet_id ?? "missing"} />
+                <ExactValue label="Prior packet fingerprint" value={priorPacket?.packet_fingerprint ?? "missing"} />
+                <ExactValue label="Later packet ID" value={laterPacket.packet_id} />
+                <ExactValue label="Later packet fingerprint" value={laterPacket.integrity.fingerprint} />
+                <ExactValue label="Receipt lineage ID" value={receipt?.transition_receipt_id ?? "missing"} />
+                <ExactValue label="Receipt lineage fingerprint" value={receipt?.integrity.fingerprint ?? "missing"} />
+              </details>
             </>
           ) : null}
         </section>
@@ -727,22 +833,18 @@ function EffectList({
       {effects.map((effect) => (
         <li key={`${effect.target_key}:${effect.operation}`}>
           <strong>
-            {effect.operation} / expected revision {effect.expected_revision}
+            {effect.operation} · current {effect.before_presence} → intended {effect.expected_after_state_fingerprint ? "present" : "absent"}
           </strong>
-          <span className={styles.identifier}>{effect.target_ref.external_id}</span>
           <span>
-            Target type {effect.target_ref.ref_type}; trust {effect.target_ref.trust_class}
+            Target {effect.target_ref.ref_type.replaceAll("_", " ")} · expected revision {effect.expected_revision}
           </span>
-          <span>
-            Target source fingerprint {effect.target_ref.source_ref ?? "none"}
-          </span>
-          <span>Before presence {effect.before_presence}</span>
-          <span>
-            Before fingerprint {effect.before_state_fingerprint ?? "absent"}
-          </span>
-          <span>
-            Authorized after fingerprint {effect.expected_after_state_fingerprint ?? "absent"}
-          </span>
+          <details className={styles.disclosure}>
+            <summary>Exact target and before/after binding</summary>
+            <span className={styles.identifier}>{effect.target_ref.external_id}</span>
+            <span className={styles.identifier}>{effect.target_ref.source_ref ?? "no source fingerprint"}</span>
+            <span className={styles.identifier}>{effect.before_state_fingerprint ?? "absent"}</span>
+            <span className={styles.identifier}>{effect.expected_after_state_fingerprint ?? "absent"}</span>
+          </details>
         </li>
       ))}
     </ol>
@@ -761,14 +863,14 @@ function AcceptedStateSelectionList({
     <ol className={styles.plainList} aria-label="Selected accepted semantic state">
       {entries.map((entry) => (
         <li key={entry.entry_id}>
-          <strong>{entry.entry_kind}</strong>
-          <span className={styles.identifier}>{entry.entry_id}</span>
-          <span className={styles.identifier}>
-            {entry.external_ref?.external_id ?? "missing external ref"}
-          </span>
-          <span>
-            State fingerprint {entry.source_ref ?? "missing"}; trust {entry.trust_class}
-          </span>
+          <strong>Accepted state included in later working context</strong>
+          <span>{entry.external_ref?.ref_type.replaceAll("_", " ") ?? "unknown target"} · trust {entry.trust_class.replaceAll("_", " ")}</span>
+          <details className={styles.disclosure}>
+            <summary>Exact accepted-state selection</summary>
+            <span className={styles.identifier}>{entry.entry_id}</span>
+            <span className={styles.identifier}>{entry.external_ref?.external_id ?? "missing external ref"}</span>
+            <span className={styles.identifier}>{entry.source_ref ?? "missing"}</span>
+          </details>
         </li>
       ))}
     </ol>
@@ -780,15 +882,15 @@ function ReceiptEffectList({ receipt }: { receipt: StateTransitionReceiptV01 }) 
     <ol className={styles.plainList} aria-label="Applied receipt effects">
       {receipt.effects.map((effect) => (
         <li key={effect.effect_id}>
-          <strong>{effect.operation}</strong>
-          <span className={styles.identifier}>{effect.effect_id}</span>
-          <span className={styles.identifier}>{effect.target_ref.external_id}</span>
-          <span>
-            Before {effect.before_state.presence} / {effect.before_state.state_fingerprint ?? "absent"}
-          </span>
-          <span>
-            After {effect.after_state.presence} / {effect.after_state.state_fingerprint ?? "absent"}
-          </span>
+          <strong>{effect.operation} applied</strong>
+          <span>Before {effect.before_state.presence} · After {effect.after_state.presence}</span>
+          <details className={styles.disclosure}>
+            <summary>Exact applied effect</summary>
+            <span className={styles.identifier}>{effect.effect_id}</span>
+            <span className={styles.identifier}>{effect.target_ref.external_id}</span>
+            <span className={styles.identifier}>{effect.before_state.state_fingerprint ?? "absent"}</span>
+            <span className={styles.identifier}>{effect.after_state.state_fingerprint ?? "absent"}</span>
+          </details>
         </li>
       ))}
     </ol>

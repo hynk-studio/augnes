@@ -81,11 +81,25 @@ import {
   type VNextSemanticCommitPreviewV01,
   type VNextSemanticTransitionCommitResultV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
+import {
+  VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
+  VNEXT_LOCAL_OPERATOR_SESSION_SCHEMA_SQL_V01,
+  consumeVNextLocalOperatorBootstrapV01,
+  issueVNextLocalOperatorBootstrapV01,
+  readVNextLocalOperatorCredentialFromRequestV01,
+  type VNextLocalOperatorPilotConfigV01,
+  type VNextLocalOperatorSecretSourceV01,
+  type VNextLocalOperatorSessionCredentialV01,
+} from "@/lib/vnext/runtime/local-operator-session";
 import { readProjectVerifyLineageV01 } from "@/lib/vnext/runtime/project-verify-lineage";
 import {
   readProjectVerifyReconciliationForLineageV01,
   readProjectVerifyReconciliationV01,
 } from "@/lib/vnext/runtime/project-verify-reconciliation";
+import {
+  recordVNextOperatorPilotReviewDecisionV01,
+  resolveVNextOperatorPilotApplyingDecisionV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -791,6 +805,86 @@ function applyLifecycleV01(input: {
   return { proposal: input.proposal, decision, preview, authorization, commit };
 }
 
+function commitRecordedLifecycleDecisionV01(input: {
+  db: Database.Database;
+  proposal: EpisodeDeltaProposalV01;
+  decision: ReviewDecisionV01;
+  cycle: number;
+}): VNextSemanticTransitionCommitResultV01 {
+  const preview = prepareVNextSemanticCommitPreviewV01(input.db, {
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    proposal_id: input.proposal.proposal_id,
+    proposal_fingerprint: input.proposal.integrity.fingerprint,
+    decision_id: input.decision.decision_id,
+    decision_fingerprint: input.decision.integrity.fingerprint,
+    authorized_applier_identity: {
+      ref_type: "semantic_transition_applier",
+      external_id: `local-core-applier:r7b-operator:${input.cycle}`,
+    },
+    gate_ttl_ms: 30_000,
+    clock: fixedClockV01(
+      cycleTimestampV01(input.cycle, 1),
+      cycleTimestampV01(input.cycle, 2),
+    ),
+  });
+  const authorization = recordVNextSemanticCommitAuthorizationV01(input.db, {
+    preview,
+    confirmation_digest: preview.confirmation_digest,
+    operator_actor_ref: input.decision.actor_ref,
+    clock: fixedClockV01(
+      cycleTimestampV01(input.cycle, 3),
+      cycleTimestampV01(input.cycle, 4),
+      cycleTimestampV01(input.cycle, 5),
+    ),
+  });
+  assert.equal(authorization.status, "inserted");
+  assert.equal(authorization.eligibility.status, "eligible");
+  const commit = commitVNextSemanticTransitionV01(input.db, {
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    proposal_id: input.proposal.proposal_id,
+    proposal_fingerprint: input.proposal.integrity.fingerprint,
+    decision_id: input.decision.decision_id,
+    decision_fingerprint: input.decision.integrity.fingerprint,
+    gate_record_id: authorization.gate_record.gate_record_id,
+    gate_record_fingerprint: authorization.gate_record.integrity.fingerprint,
+    clock: fixedClockV01(
+      cycleTimestampV01(input.cycle, 6),
+      cycleTimestampV01(input.cycle, 7),
+    ),
+  });
+  assert.equal(commit.status, "applied");
+  return commit;
+}
+
+class ProjectVerifyOperatorSecretSourceV01
+  implements VNextLocalOperatorSecretSourceV01
+{
+  private sequence = 1;
+
+  bytes(size: number): Uint8Array {
+    const value = this.sequence;
+    this.sequence += 1;
+    return Uint8Array.from(
+      { length: size },
+      (_, index) => ((value * 31 + index * 17) % 251) + 1,
+    );
+  }
+}
+
+function credentialFromCookieV01(
+  cookieValue: string,
+): VNextLocalOperatorSessionCredentialV01 {
+  return readVNextLocalOperatorCredentialFromRequestV01(
+    new Request("http://127.0.0.1/api/vnext/operator/semantic-review", {
+      headers: {
+        cookie: `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${cookieValue}`,
+      },
+    }),
+  );
+}
+
 function authorizeLifecycleGateV01(input: {
   db: Database.Database;
   proposal: EpisodeDeltaProposalV01;
@@ -1319,6 +1413,236 @@ function assertClaimLifecycleV01(): void {
     assert.equal(reconciliation.summary.retracted, true);
     assert.equal(reconciliation.authority.writes_database, false);
     assert.equal(reconciliation.authority.establishes_truth, false);
+  } finally {
+    db.close();
+  }
+}
+
+function assertOperatorPilotProjectVerifyDecisionAdapterV01(): void {
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    db.exec(VNEXT_LOCAL_OPERATOR_SESSION_SCHEMA_SQL_V01);
+    const config: VNextLocalOperatorPilotConfigV01 = {
+      enabled: true,
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      operator_id: "operator:r7b-project-verify-focused-proof",
+      database_path: ":memory:",
+    };
+    const secretSource = new ProjectVerifyOperatorSecretSourceV01();
+    let sessionNow = cycleTimestampV01(100, 0);
+    const sessionClock = { now: () => sessionNow };
+    const issued = issueVNextLocalOperatorBootstrapV01(db, {
+      config,
+      clock: sessionClock,
+      secret_source: secretSource,
+    });
+    const consumed = consumeVNextLocalOperatorBootstrapV01(db, {
+      config,
+      bootstrap_token: issued.bootstrap_token,
+      clock: sessionClock,
+      secret_source: secretSource,
+    });
+    let credential = consumed.credential;
+
+    const claims = [
+      claimV01({
+        revision: 1,
+        prior: null,
+        operation: "create",
+        proposition: "The Workbench adapter applies an exact create decision.",
+        familySeed: "operator-adapter-lifecycle",
+      }),
+    ];
+    claims.push(
+      claimV01({
+        revision: 2,
+        prior: claims[0]!,
+        operation: "revise",
+        proposition: "The Workbench adapter applies an exact revised candidate.",
+        familySeed: "operator-adapter-lifecycle",
+      }),
+    );
+    claims.push(
+      claimV01({
+        revision: 3,
+        prior: claims[1]!,
+        operation: "supersede",
+        proposition: "The Workbench adapter explicitly supersedes the current head.",
+        familySeed: "operator-adapter-lifecycle",
+      }),
+    );
+    claims.push(
+      claimV01({
+        revision: 4,
+        prior: claims[2]!,
+        operation: "retract",
+        proposition: claims[2]!.proposition,
+        familySeed: "operator-adapter-lifecycle",
+      }),
+    );
+    for (const claim of claims) {
+      admitClaimRecordV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim,
+      });
+    }
+
+    let priorDecision: ReviewDecisionV01 | null = null;
+    let lastProposal: EpisodeDeltaProposalV01 | null = null;
+    for (const [index, claim] of claims.entries()) {
+      const material = materializeProjectVerifyClaimLifecycleProposalV01(db, {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        claim_id: claim.claim_id,
+      });
+      admitProjectVerifyLifecycleProposalV01(db, material);
+      const candidate = assertPresentV01(material.proposal.proposed_deltas[0]);
+      const applying = resolveVNextOperatorPilotApplyingDecisionV01(
+        material.proposal,
+        candidate,
+      );
+      const expectedDecision =
+        claim.operation_intent === "supersede"
+          ? "supersede"
+          : claim.operation_intent === "retract"
+            ? "retract"
+            : "accept";
+      assert.equal(applying.decision, expectedDecision);
+      sessionNow = cycleTimestampV01(110 + index * 10, 0);
+      const request = {
+        proposal_id: material.proposal.proposal_id,
+        proposal_fingerprint: material.proposal.integrity.fingerprint,
+        candidate_id: candidate.candidate_id,
+        candidate_fingerprint:
+          createEpisodeDeltaCandidateFingerprintV01(candidate),
+        decision: expectedDecision,
+        rationale_summary:
+          `Record the exact ${claim.operation_intent} lifecycle decision without implying application.`,
+      };
+      if (expectedDecision !== "accept") {
+        assert.throws(
+          () =>
+            recordVNextOperatorPilotReviewDecisionV01(db, {
+              config,
+              credential,
+              request: { ...request, decision: "accept" },
+              clock: sessionClock,
+              secret_source: secretSource,
+            }),
+          /operator_pilot_decision_operation_mismatch/,
+          "a canonical lifecycle proposal refuses the wrong applying decision before consuming the action nonce",
+        );
+      }
+      const recorded = recordVNextOperatorPilotReviewDecisionV01(db, {
+        config,
+        credential,
+        request,
+        clock: sessionClock,
+        secret_source: secretSource,
+      });
+      assert.equal(recorded.status, "inserted");
+      assert.equal(recorded.decision.decision, expectedDecision);
+      assert.equal(
+        recorded.decision.compatibility.warnings.includes(
+          "The applying ReviewDecision carries intent for a separately recomputed gate and Transition path; the decision itself applies no state.",
+        ),
+        true,
+      );
+      assert.equal(
+        recorded.decision.compatibility.warnings.some((warning) =>
+          /accept carries intent|accepted decision/iu.test(warning),
+        ),
+        false,
+      );
+      if (expectedDecision === "supersede" || expectedDecision === "retract") {
+        assert.equal(
+          recorded.decision.compatibility.warnings.some((warning) =>
+            /\baccept(?:ed)?\b/iu.test(warning),
+          ),
+          false,
+          `${expectedDecision} compatibility metadata must not describe an accept decision`,
+        );
+      }
+      assert.equal(
+        recorded.decision.requested_transition_intent?.transition_kind,
+        applying.transition_kind,
+      );
+      assert.deepEqual(
+        recorded.decision.lineage.prior_decisions,
+        priorDecision
+          ? [
+              {
+                decision_id: priorDecision.decision_id,
+                decision_fingerprint: priorDecision.integrity.fingerprint,
+              },
+            ]
+          : [],
+      );
+      assert.deepEqual(
+        recorded.decision.lineage.superseding_candidate,
+        expectedDecision === "supersede"
+          ? {
+              candidate_id: candidate.candidate_id,
+              candidate_fingerprint:
+                createEpisodeDeltaCandidateFingerprintV01(candidate),
+            }
+          : null,
+      );
+      assert.deepEqual(
+        recorded.decision.lineage.retracted_decision,
+        expectedDecision === "retract" && priorDecision
+          ? {
+              decision_id: priorDecision.decision_id,
+              decision_fingerprint: priorDecision.integrity.fingerprint,
+            }
+          : null,
+      );
+      credential = credentialFromCookieV01(recorded.session_cookie.value);
+      if (index === 0) {
+        const replay = recordVNextOperatorPilotReviewDecisionV01(db, {
+          config,
+          credential,
+          request,
+          clock: sessionClock,
+          secret_source: secretSource,
+        });
+        assert.equal(replay.status, "exact_replay");
+        assert.equal(replay.decision.decision_id, recorded.decision.decision_id);
+        credential = credentialFromCookieV01(replay.session_cookie.value);
+      }
+      const commit = commitRecordedLifecycleDecisionV01({
+        db,
+        proposal: material.proposal,
+        decision: recorded.decision,
+        cycle: 110 + index * 10,
+      });
+      assert.equal(commit.status, "applied");
+      priorDecision = recorded.decision;
+      lastProposal = material.proposal;
+    }
+
+    assertCurrentBindingV01({
+      db,
+      proposal: assertPresentV01(lastProposal),
+      expectedRevision: 4,
+      expectedPresence: "absent",
+    });
+    assert.equal(
+      claims.every(
+        (claim) =>
+          readVNextCoreRecordV01(db, {
+            record_kind: "claim_record",
+            record_id: claim.claim_id,
+            workspace_id: WORKSPACE_ID,
+            project_id: PROJECT_ID,
+          }) !== null,
+      ),
+      true,
+      "retraction preserves immutable Claim history",
+    );
   } finally {
     db.close();
   }
@@ -4892,10 +5216,36 @@ globalThis.fetch = (async () => {
   throw new Error("sr3_project_verify_unexpected_external_call");
 }) as typeof globalThis.fetch;
 
+const operatorAdapterOnly = process.argv
+  .slice(2)
+  .includes("--operator-adapter-only");
+
 try {
-  assertStructuralSourceImportBoundaryV01();
-  assertClaimLifecycleV01();
-  assertRelationLifecycleV01();
+  if (operatorAdapterOnly) {
+    assertOperatorPilotProjectVerifyDecisionAdapterV01();
+    assert.equal(unexpectedExternalCalls, 0);
+    process.stdout.write(
+      `${JSON.stringify({
+        suite: "vnext-project-verify-operator-adapter-v0.1",
+        status: "passed",
+        operator_workbench_lifecycle_decision_adapter_checked: [
+          "accept_create",
+          "accept_revise",
+          "supersede",
+          "retract",
+          "wrong_applying_decision_refused",
+          "exact_replay",
+        ],
+        exact_prior_decision_lineage_checked: true,
+        transition_application_separate_checked: true,
+        immutable_retraction_history_checked: true,
+        unexpected_network_or_provider_calls: unexpectedExternalCalls,
+      })}\n`,
+    );
+  } else {
+    assertStructuralSourceImportBoundaryV01();
+    assertClaimLifecycleV01();
+    assertRelationLifecycleV01();
   assertIndependentRelationMaterialCoexistenceV01();
   assertApplicabilityGroupingV01();
   assertBoundedReadIncompletenessV01();
@@ -4980,8 +5330,9 @@ try {
       claim_truth_not_established_checked: true,
       relation_existence_non_proof_checked: true,
       unexpected_network_or_provider_calls: unexpectedExternalCalls,
-    })}\n`,
-  );
+      })}\n`,
+    );
+  }
 } finally {
   globalThis.fetch = originalFetch;
 }
