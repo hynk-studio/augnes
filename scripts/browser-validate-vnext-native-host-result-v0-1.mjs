@@ -4217,16 +4217,14 @@ async function main() {
     });
     await navigate(`${appOrigin}/portability`);
     await waitForCondition(
-      `document.querySelector('[data-portability-surface="v1"]') !== null && document.body.textContent.includes('Review exact scope before export') && document.querySelector('input[type="checkbox"]:not(:checked)') !== null`,
+      `document.querySelector('[data-portability-surface="v1"]') !== null && document.querySelector('[data-portability-personal-consent="true"]:not(:checked)') !== null && document.querySelector('[data-portability-export-action="true"]:not(:disabled)') !== null`,
       "portable active-project preview with Personal Perspective excluded",
     );
     result.portable_export_preview_visible = true;
     const portableExportRequestStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Export portable project'
-        );
+        const button = document.querySelector('[data-portability-export-action="true"]');
         button?.click();
         return Boolean(button);
       })()`),

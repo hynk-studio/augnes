@@ -155,13 +155,18 @@ export default function PortabilityPage() {
             <label className={styles.consent}>
               <input
                 type="checkbox"
+                data-portability-personal-consent="true"
                 checked={includePersonal}
                 disabled={!preview.personal_perspective.consent_available || busy !== null}
                 onChange={(event) => setIncludePersonal(event.target.checked)}
               />
               Include only Personal Perspective material already admitted under this exact project scope
             </label>
-            <button disabled={busy !== null || !preview.export_available} onClick={() => void exportProject()}>
+            <button
+              data-portability-export-action="true"
+              disabled={busy !== null || !preview.export_available}
+              onClick={() => void exportProject()}
+            >
               {busy === "export" ? "Creating package…" : "Export project"}
             </button>
           </>
