@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ProductShell } from "@/components/product-shell";
 import type { PortableProjectPreviewV01 } from "@/types/vnext/portable-project";
 import styles from "./portability.module.css";
 
@@ -105,41 +106,46 @@ export default function PortabilityPage() {
   }
 
   return (
-    <main className={styles.shell} data-portability-surface="v1">
-      <header className={styles.hero}>
-        <div>
-          <p className={styles.eyebrow}>Augnes · Project continuity</p>
-          <h1>Portable project export and import</h1>
-          <p>Move one active project through a provider-neutral, integrity-verified local package.</p>
-        </div>
-        <a href="/" className={styles.secondary}>Back to Project Home</a>
-      </header>
+    <ProductShell surface="portability" projectContext={preview?.project_display_name}>
+      <main className={styles.shell} data-portability-surface="v1">
+        <header className={styles.hero}>
+          <div>
+            <p className={styles.eyebrow}>Project continuity</p>
+            <h1>Move a project safely</h1>
+            <p>Export one active project as a provider-neutral, integrity-verified local package, or validate a package before importing it.</p>
+          </div>
+          <span className={styles.localBadge}>Local files only</span>
+        </header>
 
-      {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
+        {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
 
-      <section className={styles.panel} aria-labelledby="portable-preview-title">
+        <div className={styles.workspace}>
+          <section className={`${styles.panel} ${styles.exportPanel}`} aria-labelledby="portable-preview-title">
         <p className={styles.eyebrow}>Export preview</p>
-        <h2 id="portable-preview-title">Review exact scope before export</h2>
+        <h2 id="portable-preview-title">Create a portable project</h2>
+        <p className={styles.intro}>Review exact scope before export, including what will travel and what always stays local.</p>
         {preview ? (
           <>
             <dl className={styles.grid}>
               <div><dt>Project</dt><dd>{preview.project_display_name ?? "Unnamed project"}</dd></div>
-              <div><dt>Compatibility</dt><dd>Portable project v{preview.compatibility_version}</dd></div>
-              <div><dt>Canonical records</dt><dd>{preview.record_count}</dd></div>
-              <div><dt>Source-lineage coverage</dt><dd>{preview.source_lineage_record_count} records</dd></div>
-              <div><dt>Personal Perspective</dt><dd>Excluded by default · source scope {humanize(preview.personal_perspective.source_scope)}</dd></div>
-              <div><dt>Bound personal records</dt><dd>{preview.personal_perspective.bound_record_count}</dd></div>
+              <div><dt>Canonical scope</dt><dd>{preview.record_count} records</dd></div>
+              <div><dt>Source lineage</dt><dd>{preview.source_lineage_record_count} records</dd></div>
+              <div><dt>Personal Perspective</dt><dd>Excluded by default</dd></div>
             </dl>
-            <h3>Included record kinds</h3>
-            <ul className={styles.list}>
-              {preview.record_kinds.map((kind) => (
-                <li key={kind}>{humanize(kind)} · {preview.record_counts[kind] ?? 0}</li>
-              ))}
-            </ul>
-            <h3>Always excluded</h3>
-            <ul className={styles.list}>
-              {preview.excluded_categories.map((item) => <li key={item}>{humanize(item)}</li>)}
-            </ul>
+            <details className={styles.scopeDetails}>
+              <summary>Inspect included records and exclusions</summary>
+              <p>Portable project v{preview.compatibility_version} · Personal Perspective source scope {humanize(preview.personal_perspective.source_scope)} · {preview.personal_perspective.bound_record_count} bound personal records</p>
+              <h3>Included record kinds</h3>
+              <ul className={styles.list}>
+                {preview.record_kinds.map((kind) => (
+                  <li key={kind}>{humanize(kind)} · {preview.record_counts[kind] ?? 0}</li>
+                ))}
+              </ul>
+              <h3>Always excluded</h3>
+              <ul className={styles.list}>
+                {preview.excluded_categories.map((item) => <li key={item}>{humanize(item)}</li>)}
+              </ul>
+            </details>
             {preview.warnings.map((warning) => <p className={styles.warning} key={warning}>{warning}</p>)}
             <label className={styles.consent}>
               <input
@@ -155,27 +161,41 @@ export default function PortabilityPage() {
             </button>
           </>
         ) : <p>Loading active project scope…</p>}
-      </section>
+          </section>
 
-      <section className={styles.panel} aria-labelledby="portable-import-title">
+          <section className={`${styles.panel} ${styles.importPanel}`} aria-labelledby="portable-import-title">
         <p className={styles.eyebrow}>Local import</p>
-        <h2 id="portable-import-title">Validate before authoritative admission</h2>
-        <p>The complete local file is checked for compatibility, scope, references, private material, ordering, and integrity before any project write.</p>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".json,.augnes-project.json,application/vnd.augnes.portable-project+json"
-          disabled={busy !== null}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void importProject(file);
-          }}
-        />
-        {importResult?.project_home_href ? (
-          <p><a href={importResult.project_home_href}>Open imported Project Home</a></p>
+        <h2 id="portable-import-title">Import a portable project</h2>
+        <p className={styles.intro}>Augnes checks compatibility, scope, references, private material, ordering, and integrity before any project write.</p>
+        <div className={styles.validationList} aria-label="Import safety checks">
+          <span>Integrity checked</span><span>Private material refused</span><span>Atomic admission</span>
+        </div>
+        <label className={styles.fileControl}>
+          <span>Choose a portable project file</span>
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".json,.augnes-project.json,application/vnd.augnes.portable-project+json"
+            disabled={busy !== null}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importProject(file);
+            }}
+          />
+        </label>
+        {busy === "import" ? <p className={styles.importState} role="status">Validating the selected package…</p> : null}
+        {importResult ? (
+          <div className={`${styles.result} ${importResult.outcome === "refused" ? styles.resultRefused : styles.resultSuccess}`}>
+            <strong>{importResult.outcome === "refused" ? "Import refused" : importResult.status === "exact_replay" ? "Exact package already imported" : "Import verified"}</strong>
+            <p>{importResult.next_action}</p>
+            {importResult.record_count !== undefined ? <small>{importResult.record_count} verified canonical records</small> : null}
+            {importResult.project_home_href ? <a href={importResult.project_home_href}>Open imported Project Home</a> : null}
+          </div>
         ) : null}
-      </section>
-    </main>
+          </section>
+        </div>
+      </main>
+    </ProductShell>
   );
 }
 

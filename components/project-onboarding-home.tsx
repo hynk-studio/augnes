@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ProductShell } from "@/components/product-shell";
 import type { LocalFolderPickerOutcomeV01, RecentProjectEntryV01 } from "@/types/vnext/project-onboarding";
+
+type SelectedFolder = Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>;
 
 export function ProjectOnboardingHome({ initialRecent }: { initialRecent: RecentProjectEntryV01[] }) {
   const [recent, setRecent] = useState(initialRecent);
@@ -9,6 +13,11 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [pendingRebind, setPendingRebind] = useState<{
+    entry: RecentProjectEntryV01;
+    chosen: SelectedFolder;
+  } | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<RecentProjectEntryV01 | null>(null);
 
   useEffect(() => { setHydrated(true); }, []);
 
@@ -58,7 +67,9 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
     } catch { setMessage("The active project changed. Refresh and try again."); }
     finally { setBusy(false); }
   }
-  async function remove(entry: RecentProjectEntryV01) {
+  async function confirmRemoval() {
+    if (!pendingRemoval) return;
+    const entry = pendingRemoval;
     setBusy(true);
     try {
       await mutate({
@@ -73,6 +84,7 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
           ? { ...item, is_active: false, active_project_id: null, active_selection_revision: null }
           : item));
       setMessage("Removed from recent projects. Project data remains stored.");
+      setPendingRemoval(null);
     }
     catch (error) { setMessage(error instanceof Error && error.message === "active_selection_conflict" ? "The active project changed. Refresh and try again." : "The project could not be removed from recents."); }
     finally { setBusy(false); }
@@ -82,7 +94,17 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
     try {
       const chosen = (await mutate({ action: "choose_folder" })).picker as LocalFolderPickerOutcomeV01;
       if (chosen.status !== "selected") { setMessage(chosen.status === "cancelled" ? "Folder selection was cancelled. Nothing changed." : "A replacement folder could not be selected."); return; }
-      if (!window.confirm(`Move ${entry.project.display_name ?? "this project"} from\n${entry.local_root.normalized_path}\nto\n${chosen.inspection.local_root.normalized_path}?\nRepository found: ${chosen.inspection.repository_display ?? "none"}\nExisting repository bindings will not be changed. This project will become active.`)) return;
+      setPendingRebind({ entry, chosen });
+    } catch {
+      setMessage("The replacement folder could not be inspected.");
+    }
+    finally { setBusy(false); }
+  }
+  async function confirmRebind() {
+    if (!pendingRebind) return;
+    const { entry, chosen } = pendingRebind;
+    setBusy(true); setMessage(null);
+    try {
       const value = await mutate({ action: "confirm_rebind", project_id: entry.project.project_id, selection_token: chosen.selection_token, inspection_fingerprint: chosen.inspection.inspection_fingerprint });
       window.location.assign(value.result.destination);
     } catch (error) {
@@ -93,27 +115,56 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
     finally { setBusy(false); }
   }
 
-  return <main className="project-selector-shell" data-project-onboarding-hydrated={hydrated ? "true" : "false"}>
-    <header><p className="project-selector-eyebrow">Augnes · Local projects</p><h1>Choose a project</h1><p>Select a folder, review what Augnes found locally, then confirm. No provider connection is required.</p></header>
-    <section className="project-selector-card" aria-labelledby="add-project-title">
-      <h2 id="add-project-title">Add a local project</h2>
-      <button type="button" onClick={choose} disabled={busy}>Choose folder</button>
-      {message && <p role="status">{message}</p>}
-      {picker?.status === "selected" && <div className="project-inspection" aria-live="polite">
-        <h3>{picker.inspection.display_name}</h3>
-        <dl><div><dt>Folder</dt><dd>{picker.inspection.local_root.normalized_path}</dd></div><div><dt>Type</dt><dd>{picker.inspection.folder_kind === "git_repository" ? "Git repository" : "Plain folder"}</dd></div><div><dt>Repository</dt><dd>{picker.inspection.repository_display ?? (picker.inspection.folder_kind === "git_repository" ? "No remote configured" : "Not a repository")}</dd></div></dl>
-        {picker.inspection.already_added && <p>This folder is already added. Confirming will reopen the same project.</p>}
-        <p>Confirming will make this project active.</p>
-        <div className="project-actions"><button type="button" onClick={confirm} disabled={busy}>Confirm project</button><button type="button" className="secondary" onClick={() => setPicker(null)} disabled={busy}>Cancel</button></div>
-      </div>}
-    </section>
-    <section id="recent-projects" className="project-selector-card" aria-labelledby="recent-projects-title"><h2 id="recent-projects-title">Recent projects</h2>
-      {recent.length === 0 ? <p>No recent projects yet. Choose a folder to begin.</p> : <ul className="recent-project-list">{recent.map((entry) => <li key={entry.project.project_id}>
-        <div><strong>{entry.project.display_name ?? "Unnamed project"}</strong>{entry.is_active && <span className="active-project-badge">Active</span>}<p>{entry.local_root.normalized_path}</p><p className={`root-status root-status--${entry.root_availability}`}>{entry.root_availability === "available" ? "Folder available" : `Folder ${entry.root_availability.replace("_", " ")}`}</p></div>
-        <div className="project-actions">{entry.root_availability === "available" ? <button type="button" onClick={() => open(entry)} disabled={busy}>{entry.is_active ? "Open" : "Switch and open"}</button> : <button type="button" onClick={() => locate(entry)} disabled={busy}>Locate folder</button>}<button type="button" className="secondary" onClick={() => remove(entry)} disabled={busy}>Remove from recent</button></div>
-      </li>)}</ul>}
-    </section>
-    <p><a href="/recovery">Open update and recovery</a></p>
-    <p><a href="/overview">Open the previous Augnes overview</a></p>
-  </main>;
+  const activeProject = recent.find((entry) => entry.is_active)?.project.display_name;
+
+  return <ProductShell surface="projects" projectContext={activeProject}>
+    <main className="project-selector-shell" data-project-onboarding-hydrated={hydrated ? "true" : "false"}>
+      <header className="project-selector-header"><p className="project-selector-eyebrow">Projects</p><h1>Choose where to continue</h1><p>Open a recent project or select a local folder. Augnes inspects the folder before anything becomes active, and no provider connection is required.</p></header>
+      <div className="project-selector-grid">
+        <section className="project-selector-card project-selector-card--add" aria-labelledby="add-project-title" aria-busy={busy}>
+          <p className="project-selector-section-label">New or existing folder</p>
+          <h2 id="add-project-title">Add a local project</h2>
+          <p className="project-selector-card-intro">Choose a folder to see its type, repository connection, and whether Augnes already knows it.</p>
+          <button type="button" onClick={choose} disabled={busy}>{busy ? "Opening folder picker…" : "Choose folder"}</button>
+          {message && <p className="project-selector-message" role="status">{message}</p>}
+          {picker?.status === "selected" && <div className="project-inspection" aria-live="polite">
+            <p className="project-selector-section-label">Folder inspection</p>
+            <h3>{picker.inspection.display_name}</h3>
+            <dl><div><dt>Folder</dt><dd>{picker.inspection.local_root.normalized_path}</dd></div><div><dt>Type</dt><dd>{picker.inspection.folder_kind === "git_repository" ? "Git repository" : "Plain folder"}</dd></div><div><dt>Repository</dt><dd>{picker.inspection.repository_display ?? (picker.inspection.folder_kind === "git_repository" ? "No remote configured" : "Not a repository")}</dd></div></dl>
+            {picker.inspection.already_added && <p className="project-selector-notice">This folder is already added. Confirming will reopen the same project.</p>}
+            <p>Confirming makes this the active local project.</p>
+            <div className="project-actions"><button type="button" onClick={confirm} disabled={busy}>Confirm project</button><button type="button" className="secondary" onClick={() => setPicker(null)} disabled={busy}>Cancel</button></div>
+          </div>}
+        </section>
+        <section id="recent-projects" className="project-selector-card project-selector-card--recent" aria-labelledby="recent-projects-title" aria-busy={busy}><p className="project-selector-section-label">Continue locally</p><h2 id="recent-projects-title">Recent projects</h2>
+          {recent.length === 0 ? <div className="project-selector-empty"><strong>No recent projects yet</strong><p>Choose a folder to begin. It will appear here for quick access next time.</p></div> : <ul className="recent-project-list">{recent.map((entry) => <li key={entry.project.project_id} className={entry.is_active ? "is-active" : undefined}>
+            <div><strong>{entry.project.display_name ?? "Unnamed project"}</strong>{entry.is_active && <span className="active-project-badge">Current</span>}<p>{entry.local_root.normalized_path}</p><p className={`root-status root-status--${entry.root_availability}`}>{entry.root_availability === "available" ? "Folder available" : `Folder ${entry.root_availability.replace("_", " ")}`}</p></div>
+            <div className="project-actions">{entry.root_availability === "available" ? <button type="button" onClick={() => open(entry)} disabled={busy}>{entry.is_active ? "Open project" : "Switch and open"}</button> : <button type="button" onClick={() => locate(entry)} disabled={busy}>Locate folder</button>}<button type="button" className="secondary" onClick={() => setPendingRemoval(entry)} disabled={busy}>Remove from recents</button></div>
+          </li>)}</ul>}
+        </section>
+      </div>
+      <details className="project-selector-compatibility"><summary>Compatibility and recovery</summary><p><a href="/recovery">Open update and recovery</a></p><p><a href="/overview">Open the previous Augnes overview</a></p></details>
+    </main>
+    <ConfirmationDialog
+      open={pendingRebind !== null}
+      title={`Move ${pendingRebind?.entry.project.display_name ?? "this project"}?`}
+      description="Use the selected folder as this project's local root. Existing repository bindings will not change, and the project will become active."
+      confirmLabel="Use this folder"
+      busy={busy}
+      onCancel={() => setPendingRebind(null)}
+      onConfirm={confirmRebind}
+    >
+      {pendingRebind ? <dl><div><dt>Previous folder</dt><dd>{pendingRebind.entry.local_root.normalized_path}</dd></div><div><dt>Selected folder</dt><dd>{pendingRebind.chosen.inspection.local_root.normalized_path}</dd></div><div><dt>Repository found</dt><dd>{pendingRebind.chosen.inspection.repository_display ?? "None"}</dd></div></dl> : null}
+    </ConfirmationDialog>
+    <ConfirmationDialog
+      open={pendingRemoval !== null}
+      title={`Remove ${pendingRemoval?.project.display_name ?? "this project"} from recents?`}
+      description="This removes the shortcut only. Stored project data and local files are not deleted."
+      confirmLabel="Remove from recents"
+      tone="attention"
+      busy={busy}
+      onCancel={() => setPendingRemoval(null)}
+      onConfirm={confirmRemoval}
+    />
+  </ProductShell>;
 }

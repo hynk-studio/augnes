@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { ProductShell } from "@/components/product-shell";
 import styles from "./recovery.module.css";
 
 interface RecoveryStatus {
@@ -132,6 +134,7 @@ export default function RecoveryPage() {
   const [unavailable, setUnavailable] = useState(false);
   const [supportPreview, setSupportPreview] =
     useState<SupportReportPreview | null>(null);
+  const [restoreConfirmationOpen, setRestoreConfirmationOpen] = useState(false);
 
   const backups = useMemo(
     () => sortBackups(status?.backups ?? []),
@@ -247,11 +250,13 @@ export default function RecoveryPage() {
       (backup) => backup.backup_id === selectedBackupId,
     );
     if (!selected?.verified) return;
-    const confirmed = window.confirm(
-      `Restore “${selected.label}” from ${formatTimestamp(selected.created_at)}? Augnes will protect the current database before replacing it.`,
-    );
-    if (!confirmed) return;
-    void runAction("restore_backup", selected.backup_id);
+    setRestoreConfirmationOpen(true);
+  }
+
+  function confirmRestoreBackup() {
+    if (!selectedBackup?.verified) return;
+    setRestoreConfirmationOpen(false);
+    void runAction("restore_backup", selectedBackup.backup_id);
   }
 
   async function previewSupportReport() {
@@ -304,22 +309,19 @@ export default function RecoveryPage() {
       : backups.find((backup) => backup.backup_id === selectedBackupId) ?? null;
 
   return (
-    <main className={styles.shell}>
-      <header className={styles.hero}>
-        <div>
-          <p className={styles.eyebrow}>Augnes · Recovery</p>
-          <h1>Update and data recovery</h1>
-          <p>
-            Review the current application and database state, then choose only
-            a verified recovery action.
-          </p>
-        </div>
-        {status?.recovery_mode === false && (
-          <a href="/projects" className={styles.secondaryAction}>
-            Back to projects
-          </a>
-        )}
-      </header>
+    <ProductShell surface="recovery">
+      <main className={styles.shell}>
+        <header className={styles.hero}>
+          <div>
+            <p className={styles.eyebrow}>Application safety</p>
+            <h1>Update and data recovery</h1>
+            <p>
+              Check local application and data health, create verified recovery
+              points, or take an explicitly authorized recovery action.
+            </p>
+          </div>
+          <span className={styles.localBadge}>Local data protection</span>
+        </header>
 
       {notice && (
         <p className={styles.notice} role="status">
@@ -350,6 +352,36 @@ export default function RecoveryPage() {
         </section>
       ) : status ? (
         <>
+          <section
+            className={`${styles.safetySummary} ${status.recovery_mode ? styles.safetyAttention : styles.safetyReady}`}
+            aria-labelledby="recovery-safety-title"
+          >
+            <div>
+              <p className={styles.kicker}>Overall safety state</p>
+              <h2 id="recovery-safety-title">
+                {status.recovery_mode
+                  ? "Recovery mode needs your attention"
+                  : status.database.schema_classification === "current"
+                    ? "Local data is ready"
+                    : "Review database compatibility"}
+              </h2>
+              <p>{humanize(latest?.next_action ?? "review_the_available_recovery_actions")}</p>
+              <a href="#recovery-actions">Review available recovery actions</a>
+            </div>
+            <dl className={styles.safetyFacts}>
+              <div><dt>Application</dt><dd>{status.application.version} · {humanize(status.application.compatibility)}</dd></div>
+              <div><dt>Database</dt><dd>{humanize(status.database.state)} · schema {humanize(status.database.schema_classification)}</dd></div>
+              <div><dt>Runtime</dt><dd>{humanize(status.runtime.bridge_health)} bridge · {humanize(status.runtime.capability_availability)}</dd></div>
+              <div><dt>Verified backups</dt><dd>{backups.filter((backup) => backup.verified).length} shown</dd></div>
+            </dl>
+          </section>
+
+          <details className={styles.advancedDiagnostics}>
+            <summary>
+              <span><strong>Health, continuity, and support diagnostics</strong><small>Exact build, database, bridge, portability, reconciliation, and report details</small></span>
+              <span>Inspect details</span>
+            </summary>
+            <div className={styles.advancedBody}>
           <section className={styles.summaryGrid} aria-label="Recovery summary">
             <article className={styles.panel}>
               <p className={styles.kicker}>Application</p>
@@ -469,6 +501,9 @@ export default function RecoveryPage() {
             </article>
           </section>
 
+            </div>
+          </details>
+
           <section className={styles.panel} aria-labelledby="recovery-backups-title">
             <div className={styles.sectionHeading}>
               <div>
@@ -561,7 +596,7 @@ export default function RecoveryPage() {
             ) : null}
           </section>
 
-          <section className={`${styles.panel} ${styles.nextAction}`} aria-labelledby="recovery-next-action-title">
+          <section id="recovery-actions" className={`${styles.panel} ${styles.nextAction}`} aria-labelledby="recovery-next-action-title">
             <div>
               <p className={styles.kicker}>Next safe action</p>
               <h2 id="recovery-next-action-title">
@@ -627,7 +662,20 @@ export default function RecoveryPage() {
           </p>
         </>
       ) : null}
-    </main>
+      </main>
+      <ConfirmationDialog
+        open={restoreConfirmationOpen}
+        title={`Restore ${selectedBackup?.label ?? "the selected backup"}?`}
+        description="Augnes will protect the current state before replacing the database. Continuing explicitly authorizes this restore action."
+        confirmLabel="Authorize restore"
+        tone="danger"
+        busy={busyAction === "restore_backup"}
+        onCancel={() => setRestoreConfirmationOpen(false)}
+        onConfirm={confirmRestoreBackup}
+      >
+        {selectedBackup ? <dl><div><dt>Verified backup</dt><dd>{selectedBackup.label}</dd></div><div><dt>Created</dt><dd>{formatTimestamp(selectedBackup.created_at)}</dd></div><div><dt>Protection</dt><dd>Current state protected before replacement</dd></div></dl> : null}
+      </ConfirmationDialog>
+    </ProductShell>
   );
 }
 

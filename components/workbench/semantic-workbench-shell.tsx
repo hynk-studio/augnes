@@ -46,7 +46,7 @@ export function SemanticWorkbenchShell({
           <h1>{title}</h1>
           <p className={styles.headerCopy}>{description}</p>
         </div>
-        <nav className={styles.nav} aria-label="Semantic Workbench navigation">
+        <nav className={styles.nav} aria-label="Current review destinations">
           <a href={projectHref}>Project Home</a>
           <a href="/workbench/semantic-review">Proposal queue</a>
           {inspectorHref ? (
@@ -54,26 +54,39 @@ export function SemanticWorkbenchShell({
               Open Inspector
             </a>
           ) : null}
-          {navigation.map((item) => (
-            <a href={item.href} key={`${item.href}:${item.label}`}>
-              {item.label}
-            </a>
-          ))}
         </nav>
       </header>
 
-      <div
-        className={styles.boundaryBand}
-        aria-label="Semantic Workbench authority boundary"
-      >
-        <strong className={styles.entryState}>{entryLabel}</strong>
-        <span>Receipt is not accepted Evidence</span>
-        <span>Assessment and proposal are not project truth</span>
-        <span>Decision is not Transition</span>
-        <span>Only an applied authorized Transition changes later context</span>
-      </div>
+      <details className={styles.boundaryDisclosure}>
+        <summary>
+          <strong className={styles.entryState}>{entryLabel}</strong>
+          <span>Review authority boundary</span>
+        </summary>
+        <div
+          className={styles.boundaryBand}
+          aria-label="Semantic Workbench authority boundary"
+        >
+          <span>Receipt is not accepted Evidence</span>
+          <span>Assessment and proposal are not project truth</span>
+          <span>Decision is not Transition</span>
+          <span>Only an applied authorized Transition changes later context</span>
+        </div>
+      </details>
 
       {children}
+
+      {navigation.length > 0 ? (
+        <details className={styles.compatibilityDisclosure}>
+          <summary>Compatibility surfaces</summary>
+          <nav aria-label="Compatibility destinations">
+            {navigation.map((item) => (
+              <a href={item.href} key={`${item.href}:${item.label}`}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </details>
+      ) : null}
     </div>
   );
 }

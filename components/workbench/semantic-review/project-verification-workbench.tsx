@@ -242,6 +242,8 @@ export function ProjectVerificationWorkbench({
         </p>
       </section>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary><span className={styles.sequenceNumber}>5</span><span><strong>Success criteria and exact basis</strong><small>Supported, contradicted, unknown, and incomplete status</small></span></summary>
       <section className={styles.panel} aria-labelledby="verify-criteria-title">
         <SequenceHeading
           step="5"
@@ -316,7 +318,10 @@ export function ProjectVerificationWorkbench({
           </ol>
         )}
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary><span className={styles.sequenceNumber}>6</span><span><strong>Evidence and Claim reconciliation</strong><small>Support, contradiction, qualification, and uncertainty</small></span></summary>
       <section className={styles.panel} aria-labelledby="verify-reconciliation-title">
         <SequenceHeading
           step="6"
@@ -340,7 +345,10 @@ export function ProjectVerificationWorkbench({
         <ClaimFamilyList families={reconciliation.claim_families} />
         <RelationFamilyList families={reconciliation.relation_families} />
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary><span className={styles.sequenceNumber}>8</span><span><strong>Uncertain, opposed, or blocked material</strong><small>Nothing unresolved is hidden or treated as absent</small></span></summary>
       <section className={styles.panel} aria-labelledby="verify-conflicts-title">
         <SequenceHeading
           step="8"
@@ -369,7 +377,10 @@ export function ProjectVerificationWorkbench({
         )}
         {lineage ? <LineageStop lineage={lineage} /> : null}
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary><span className={styles.sequenceNumber}>12–13</span><span><strong>Transition and later-context consequence</strong><small>Applied Transition, later packet, and feedback lineage</small></span></summary>
       <section className={styles.panel} aria-labelledby="verify-later-context-title">
         <SequenceHeading
           step="12–13"
@@ -412,6 +423,7 @@ export function ProjectVerificationWorkbench({
           </ol>
         )}
       </section>
+      </details>
     </div>
   );
 }

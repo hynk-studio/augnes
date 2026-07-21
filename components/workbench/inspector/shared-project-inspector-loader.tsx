@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ProductShell } from "@/components/product-shell";
 
 import {
   OperatorSessionPanel,
@@ -127,10 +128,11 @@ export function SharedProjectInspectorLoader() {
     );
   }
   return (
-    <main
-      className={styles.page}
-      data-shared-project-inspector={session.status === "authenticated" ? "error" : "locked"}
-    >
+    <ProductShell surface="inspector">
+      <main
+        className={styles.page}
+        data-shared-project-inspector={session.status === "authenticated" ? "error" : "locked"}
+      >
       <div className={styles.shell}>
         <header className={styles.header}>
           <div>
@@ -141,10 +143,6 @@ export function SharedProjectInspectorLoader() {
               session and server-owned project scope are validated.
             </p>
           </div>
-          <nav className={styles.nav} aria-label="Shared Inspector navigation">
-            <a href="/">Project Home</a>
-            <a href="/workbench/semantic-review">Semantic Workbench</a>
-          </nav>
         </header>
         {accessBoundary}
         {errorCode ? (
@@ -154,7 +152,8 @@ export function SharedProjectInspectorLoader() {
           </section>
         ) : null}
       </div>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 

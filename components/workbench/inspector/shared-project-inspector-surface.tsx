@@ -2,6 +2,7 @@ import type {
   SharedProjectInspectorProjectionV01,
   SharedProjectInspectorSectionV01,
 } from "@/types/vnext/shared-project-inspector";
+import { ProductShell } from "@/components/product-shell";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
@@ -13,14 +14,15 @@ export function SharedProjectInspectorSurface({
   accessBoundary?: React.ReactNode;
 }) {
   return (
-    <main
-      className={styles.page}
-      data-shared-project-inspector="v0.1"
-      data-inspector-read-only="true"
-      data-inspector-semantic-mutation="false"
-      data-inspector-target-kind={inspector.target.target_kind}
-      data-inspector-completeness={inspector.completeness}
-    >
+    <ProductShell surface="inspector">
+      <main
+        className={styles.page}
+        data-shared-project-inspector="v0.1"
+        data-inspector-read-only="true"
+        data-inspector-semantic-mutation="false"
+        data-inspector-target-kind={inspector.target.target_kind}
+        data-inspector-completeness={inspector.completeness}
+      >
       <div className={styles.shell}>
         <header className={styles.header}>
           <div>
@@ -28,22 +30,17 @@ export function SharedProjectInspectorSurface({
             <h1>{inspector.target_title}</h1>
             <p className={styles.headerCopy}>{inspector.target_summary}</p>
           </div>
-          <nav className={styles.nav} aria-label="Shared Inspector navigation">
-            <a href="/">Project Home</a>
-            <a href="/workbench/semantic-review">Semantic Workbench</a>
-          </nav>
         </header>
 
-        <div
-          className={styles.boundaryBand}
-          aria-label="Shared Inspector authority boundary"
-        >
-          <strong className={styles.entryState}>{humanizeV01(inspector.target_status)}</strong>
-          <span>Exact project scope comes from the authenticated server</span>
-          <span>Evidence supports; it does not establish Claim truth</span>
-          <span>Decision and gate are not Transition application</span>
-          <span>Inspector reads never mutate semantic state</span>
-        </div>
+        <details className={styles.boundaryDisclosure}>
+          <summary><strong className={styles.entryState}>{humanizeV01(inspector.target_status)}</strong><span>Read-only boundary</span></summary>
+          <div className={styles.boundaryBand} aria-label="Shared Inspector authority boundary">
+            <span>Exact project scope comes from the authenticated server</span>
+            <span>Evidence supports; it does not establish Claim truth</span>
+            <span>Decision and gate are not Transition application</span>
+            <span>Inspector reads never mutate semantic state</span>
+          </div>
+        </details>
 
         {accessBoundary}
 
@@ -83,7 +80,8 @@ export function SharedProjectInspectorSurface({
           It invoked no model/provider and performed no external action.
         </section>
       </div>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 
@@ -93,20 +91,19 @@ function InspectorSection({
   section: SharedProjectInspectorSectionV01;
 }) {
   return (
-    <section
-      className={styles.panel}
+    <details
+      className={styles.inspectorSection}
       data-inspector-section={section.section_kind}
       data-inspector-section-status={section.status}
     >
-      <div className={styles.panelHeader}>
-        <div className={styles.rowBetween}>
-          <h2>{section.title}</h2>
-          <span className={styles.badge}>{humanizeV01(section.status)}</span>
+      <summary>
+        <div>
+          <span className={styles.inspectorSectionTitle} role="heading" aria-level={2}>{section.title}</span>
+          <small>{section.summary}</small>
         </div>
-      </div>
-      <p className={section.status === "missing" ? styles.empty : styles.copy}>
-        {section.summary}
-      </p>
+          <span className={styles.badge}>{humanizeV01(section.status)}</span>
+      </summary>
+      <div className={styles.inspectorSectionBody}>
       {section.bounds.presentation_omitted ? (
         <div
           className={styles.notice}
@@ -166,7 +163,8 @@ function InspectorSection({
       {section.exact_refs.length > 0 ? (
         <ExactRefs refs={section.exact_refs} />
       ) : null}
-    </section>
+      </div>
+    </details>
   );
 }
 

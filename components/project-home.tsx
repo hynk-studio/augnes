@@ -4,6 +4,7 @@ import {
 } from "@/components/project-destination-actions";
 import { ProjectControls } from "@/components/project-controls";
 import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
+import { ProductShell } from "@/components/product-shell";
 import type {
   ProjectHomeLineageAnchorV01,
   ProjectHomeProjectionV01,
@@ -22,14 +23,15 @@ export function ProjectHome({
   const active = summary.is_active;
 
   return (
-    <main
-      className="project-home-shell"
-      data-project-home="v0.1"
-      data-project-home-active={active ? "true" : "false"}
-    >
+    <ProductShell surface="home" projectContext={projectName}>
+      <main
+        className="project-home-shell"
+        data-project-home="v0.1"
+        data-project-home-active={active ? "true" : "false"}
+      >
       <header className="project-home-header">
         <div>
-          <p className="project-selector-eyebrow">Augnes · Project Home</p>
+          <p className="project-selector-eyebrow">Project Home</p>
           <h1>{projectName}</h1>
           <p className="project-home-root">
             Root bound locally · {humanize(summary.root_binding.local_root.path_flavor)} path
@@ -52,9 +54,6 @@ export function ProjectHome({
           </div>
         </div>
         <div className="project-home-actions" aria-label="Project Home actions">
-          <a href="/projects">Project selection</a>
-          {active ? <a href="/portability">Export or import project</a> : null}
-          <a href="/recovery">Update &amp; recovery</a>
           <ProjectHomeRefreshAction />
         </div>
       </header>
@@ -652,9 +651,13 @@ export function ProjectHome({
 
       <footer className="project-home-footer">
         <span>Generated from local project-scoped records at {formatTimestamp(projection.generated_at)}</span>
-        <a href="/overview">Previous Augnes overview</a>
+        <details>
+          <summary>Compatibility</summary>
+          <a href="/overview">Previous Augnes overview</a>
+        </details>
       </footer>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 

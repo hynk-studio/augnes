@@ -8,6 +8,7 @@ import {
   type OperatorSessionViewV01,
 } from "@/components/workbench/semantic-review/operator-session-panel";
 import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
+import { ProductShell } from "@/components/product-shell";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 
 import { RunResultReviewSurface } from "./run-result-review-surface";
@@ -160,7 +161,8 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
     );
   }
   return (
-    <main className={styles.page} data-run-result-review="locked">
+    <ProductShell surface="workbench">
+      <main className={styles.page} data-run-result-review="locked">
       <SemanticWorkbenchShell
         title="Verify run result"
         description="Private result material is loaded only after the existing local operator session is validated. Opening this entry performs no semantic write."
@@ -188,7 +190,8 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
           <p className={styles.error} role="alert">{errorCode}</p>
         ) : null}
       </SemanticWorkbenchShell>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 
