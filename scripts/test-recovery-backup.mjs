@@ -1437,7 +1437,11 @@ async function testSelectedBackupReplacementRefusal({ selectedBackup }) {
     selectedBackup.manifest.backup_id,
   );
   const selectedPath = accepted.backupPath;
-  rmSync(selectedPath, { recursive: true, force: true });
+  const retainedAcceptedPath = path.join(
+    scenario.root,
+    "accepted-backup-before-replacement",
+  );
+  renameSync(selectedPath, retainedAcceptedPath);
   copyRecoveryBackup(selectedBackup, scenario.backupDirectory);
   mutateManifest(
     selectedPath,
