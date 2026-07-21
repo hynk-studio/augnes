@@ -53,6 +53,7 @@ export function ProjectHome({
         </div>
         <div className="project-home-actions" aria-label="Project Home actions">
           <a href="/projects">Project selection</a>
+          {active ? <a href="/portability">Export or import project</a> : null}
           <a href="/recovery">Update &amp; recovery</a>
           <ProjectHomeRefreshAction />
         </div>

@@ -217,6 +217,23 @@ const suites = {
       label: "portable-export foundations and project scope",
       ...rootNode("scripts/test-portable-export-foundations.ts"),
     },
+    {
+      id: "portable-project-continuity",
+      group: "supporting-serial",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "backup-restore",
+        "mutable-module-state",
+      ],
+      label:
+        "portable project contract, atomic round trip, reader fidelity, and authority isolation",
+      ...rootNode("scripts/test-portable-project-continuity.ts"),
+      // Production-equivalent fixture, validation, round trip, replay, and
+      // adversarial cases measured 13.41s locally.
+      timeoutMs: 45_000,
+    },
   ],
   authority: [
     {

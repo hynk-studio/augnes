@@ -78,6 +78,13 @@ export interface ProjectExternalRefBindingWriteResultV01 {
   binding: ProjectExternalRefBindingV01;
 }
 
+export interface PortableProjectIdentityAdmissionV01 {
+  status: "inserted" | "exact_replay";
+  workspace: WorkspaceIdentityV01;
+  project: ProjectIdentityV01;
+  root_binding: ProjectLocalRootBindingV01;
+}
+
 export const VNEXT_PROJECT_IDENTITY_REGISTRY_SCHEMA_SQL_V01 = `
   CREATE TABLE IF NOT EXISTS vnext_workspace_identities (
     workspace_id TEXT PRIMARY KEY CHECK (
@@ -398,6 +405,139 @@ export function getOrCreateCanonicalProjectForLocalRootV01(
     }
     return { status: "inserted", project, root_binding: rootBinding };
   });
+}
+
+/**
+ * Transaction-aware admission for a validated portable project. Portable
+ * continuity preserves canonical identity but never transports a source
+ * machine's absolute root. The caller supplies an application-owned local
+ * destination root and owns the surrounding atomic import transaction.
+ */
+export function admitPortableProjectIdentityInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    workspace: WorkspaceIdentityV01;
+    project: ProjectIdentityV01;
+    local_root: LocalProjectRootRefV01;
+    bound_at: string;
+  },
+): PortableProjectIdentityAdmissionV01 {
+  assertVNextProjectIdentityRegistrySchemaV01(db);
+  if (!db.inTransaction) {
+    fail("project_identity_scope_mismatch", "transaction");
+  }
+  const workspaceId = normalizeWorkspaceId(input.workspace.workspace_id);
+  const projectId = normalizeProjectId(input.project.project_id);
+  const localRoot = normalizeStoredLocalRoot(input.local_root);
+  const workspace: WorkspaceIdentityV01 = {
+    workspace_identity_version: WORKSPACE_IDENTITY_VERSION_V01,
+    identity_kind: "canonical",
+    identity_source: "canonical_registry",
+    workspace_id: workspaceId,
+    workspace_role: DEFAULT_LOCAL_WORKSPACE_ROLE_V01,
+    created_at: normalizeTimestamp(input.workspace.created_at),
+  };
+  const project: ProjectIdentityV01 = {
+    project_identity_version: PROJECT_IDENTITY_VERSION_V01,
+    identity_kind: "canonical",
+    identity_source: "canonical_registry",
+    workspace_id: workspaceId,
+    project_id: projectId,
+    display_name: normalizeDisplayName(input.project.display_name),
+    created_at: normalizeTimestamp(input.project.created_at),
+  };
+  if (
+    input.workspace.workspace_identity_version !== WORKSPACE_IDENTITY_VERSION_V01 ||
+    input.workspace.identity_kind !== "canonical" ||
+    input.workspace.identity_source !== "canonical_registry" ||
+    input.workspace.workspace_role !== DEFAULT_LOCAL_WORKSPACE_ROLE_V01 ||
+    input.project.project_identity_version !== PROJECT_IDENTITY_VERSION_V01 ||
+    input.project.identity_kind !== "canonical" ||
+    input.project.identity_source !== "canonical_registry" ||
+    input.project.workspace_id !== workspaceId
+  ) {
+    fail("project_identity_invalid", "portable_identity");
+  }
+  const rootBinding: ProjectLocalRootBindingV01 = {
+    binding_version: PROJECT_LOCAL_ROOT_BINDING_VERSION_V01,
+    workspace_id: workspaceId,
+    project_id: projectId,
+    local_root: localRoot,
+    bound_at: normalizeTimestamp(input.bound_at),
+  };
+
+  const existingWorkspace = selectWorkspaceByRole(
+    db,
+    DEFAULT_LOCAL_WORKSPACE_ROLE_V01,
+  );
+  if (existingWorkspace) {
+    if (
+      canonicalizeProtocolValueV01(parseWorkspace(existingWorkspace)) !==
+      canonicalizeProtocolValueV01(workspace)
+    ) {
+      fail("project_identity_replay_conflict", "workspace");
+    }
+  } else {
+    try {
+      db.prepare(
+        `INSERT INTO vnext_workspace_identities (
+          workspace_id, workspace_identity_version, identity_kind,
+          identity_source, workspace_role, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(
+        workspace.workspace_id,
+        workspace.workspace_identity_version,
+        workspace.identity_kind,
+        workspace.identity_source,
+        workspace.workspace_role,
+        workspace.created_at,
+      );
+    } catch (error) {
+      if (isSqliteConstraint(error)) {
+        fail("project_identity_replay_conflict", "workspace");
+      }
+      throw error;
+    }
+  }
+
+  const existingProject = selectProjectByScope(db, workspaceId, projectId);
+  if (existingProject) {
+    const registration = readCanonicalProjectWithRootV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+    });
+    if (
+      !registration ||
+      canonicalizeProtocolValueV01(registration.project) !==
+        canonicalizeProtocolValueV01(project)
+    ) {
+      fail("project_identity_replay_conflict", "project");
+    }
+    return {
+      status: "exact_replay",
+      workspace,
+      project,
+      root_binding: registration.root_binding,
+    };
+  }
+
+  const occupied = selectRegistrationByRoot(db, workspaceId, localRoot);
+  if (occupied) fail("project_identity_replay_conflict", "local_root");
+  try {
+    insertProject(db, project);
+    insertRootBinding(db, rootBinding);
+  } catch (error) {
+    if (isSqliteConstraint(error)) {
+      fail("project_identity_replay_conflict", "project");
+    }
+    throw error;
+  }
+  return {
+    status: "inserted",
+    workspace,
+    project,
+    root_binding: rootBinding,
+  };
 }
 
 export function readCanonicalProjectIdentityV01(
