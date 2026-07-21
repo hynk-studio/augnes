@@ -31,6 +31,14 @@
   line-height: 1.55;
 }
 
+.reportPreview {
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel-subtle);
+  overflow-wrap: anywhere;
+}
+
 .eyebrow,
 .kicker {
   margin: 0;

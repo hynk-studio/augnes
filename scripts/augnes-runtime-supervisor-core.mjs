@@ -91,6 +91,7 @@ import {
   stopVerifiedOrphanChildren,
   withRuntimeReconciliationPath,
 } from "./runtime-reconciliation.mjs";
+import { reconcileDurableRunsAtStartup } from "./runtime-run-reconciliation.mjs";
 
 export {
   RUNTIME_CONTRACT,
@@ -1427,6 +1428,7 @@ async function runStartCommand({
     await commitPreparedDatabasePublication(databaseResult);
     finalizePublishedOperation(runtime);
     recordInstalledPackage(runtime);
+    reconcileDurableRunsAtStartup({ databasePath: runtime.databasePath });
     transitionRuntime(runtime, "ready");
     recordSuccessfulRecoveryOperation(runtime, databaseResult);
     emitResult(publicStatusResult("start", "ready", buildControlIdentity(runtime)));
@@ -3323,18 +3325,33 @@ function buildRecoveryProductStatus(runtime, { backupPage = 1 } = {}) {
   let schemaClassification = "unavailable";
   let migrationState =
     runtime.databaseSchemaVersion === "current" ? "current" : "unknown";
-  try {
-    if (existsSync(runtime.databasePath)) {
-      const database = inspectRecoverySourceDatabaseFile(runtime.databasePath);
-      databaseState = database.schema_classification;
-      schemaContract = database.schema_contract;
-      schemaClassification = database.schema_classification;
-      migrationState =
-        database.schema_classification === "current" ? "current" : "update_ready";
+  const verifiedReadyDatabase =
+    runtime.lifecycleState === "ready" &&
+    runtime.recoveryMode === false &&
+    runtime.databaseState === "current" &&
+    runtime.databaseSchemaVersion === "current" &&
+    existsSync(runtime.databasePath);
+  if (verifiedReadyDatabase) {
+    databaseState = "current";
+    schemaContract =
+      runtime.runtimeDistribution.databaseSchemaContract ??
+      DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT;
+    schemaClassification = "current";
+    migrationState = "current";
+  } else {
+    try {
+      if (existsSync(runtime.databasePath)) {
+        const database = inspectRecoverySourceDatabaseFile(runtime.databasePath);
+        databaseState = database.schema_classification;
+        schemaContract = database.schema_contract;
+        schemaClassification = database.schema_classification;
+        migrationState =
+          database.schema_classification === "current" ? "current" : "update_ready";
+      }
+    } catch {
+      databaseState = "recovery_required";
+      migrationState = "incompatible_or_unavailable";
     }
-  } catch {
-    databaseState = "recovery_required";
-    migrationState = "incompatible_or_unavailable";
   }
   let inventory = { verified: [], rejected: [] };
   let inventoryState = "available";
@@ -3430,6 +3447,9 @@ function buildRecoveryProductStatus(runtime, { backupPage = 1 } = {}) {
       version: runtime.runtimeDistribution.applicationVersion ?? "unknown",
       build_identity:
         runtime.runtimeDistribution.buildIdentity ?? "source_runtime",
+      package_contract: runtime.runtimeDistribution.packageContract ?? null,
+      package_contract_version:
+        runtime.runtimeDistribution.packageContractVersion ?? null,
       compatibility:
         runtime.runtimeDistribution.mode === "packaged"
           ? "verified_package"
@@ -3440,6 +3460,15 @@ function buildRecoveryProductStatus(runtime, { backupPage = 1 } = {}) {
       schema_contract: schemaContract,
       schema_classification: schemaClassification,
       migration_state: migrationState,
+    },
+    runtime: {
+      runtime_contract: runtime.runtimeDistribution.runtimeContract ?? null,
+      runtime_schema_version:
+        runtime.runtimeDistribution.runtimeSchemaVersion ?? null,
+      lifecycle_state: runtime.lifecycleState,
+      bridge_health: runtime.bridgePort === null ? "unavailable" : "ready",
+      capability_availability:
+        runtime.bridgePort === null ? "runtime_only" : "runtime_and_bridge",
     },
     latest_operation: latestOperation,
     backup_inventory_state: inventoryState,

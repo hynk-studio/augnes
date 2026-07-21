@@ -178,6 +178,7 @@ export interface PortableProjectImportResultV01 {
   project_id: string;
   project_home_href: string;
   record_count: number;
+  personal_perspective_included: boolean;
   projection_reader_verification: "verified";
   semantic_authority_created: false;
   automation_authority_created: false;
@@ -614,6 +615,8 @@ export function importPortableProjectV01(
       project_id: portablePackage.manifest.project.project_id,
       project_home_href: `/projects/${encodeURIComponent(portablePackage.manifest.project.project_id)}`,
       record_count: portablePackage.records.length,
+      personal_perspective_included:
+        portablePackage.manifest.personal_perspective.included,
       projection_reader_verification: "verified",
       semantic_authority_created: false,
       automation_authority_created: false,
@@ -1023,44 +1026,46 @@ function readPortableOperatorProvenanceSessionsV01(
     }
     ids.add(refs[0]!.external_id!);
   }
-  return [...ids].sort().map((sessionId) => {
-    const row = db.prepare(
-      `SELECT session_id, workspace_id, project_id, operator_id,
-              issued_at, expires_at, bootstrap_consumed_at, revoked_at,
-              action_nonce_expires_at
-         FROM vnext_local_operator_sessions WHERE session_id = ?`,
-    ).get(sessionId) as {
-      session_id: string;
-      workspace_id: string;
-      project_id: string;
-      operator_id: string;
-      issued_at: string;
-      expires_at: string;
-      bootstrap_consumed_at: string | null;
-      revoked_at: string | null;
-      action_nonce_expires_at: string | null;
-    } | undefined;
-    if (
-      !row ||
-      row.workspace_id !== scope.workspace_id ||
-      row.project_id !== scope.project_id ||
-      row.bootstrap_consumed_at === null ||
-      row.action_nonce_expires_at === null
-    ) {
-      refuseV01("portable_project_provenance_invalid");
-    }
-    return {
-      session_id: row.session_id,
-      workspace_id: row.workspace_id,
-      project_id: row.project_id,
-      operator_id: row.operator_id,
-      issued_at: row.issued_at,
-      expires_at: row.expires_at,
-      bootstrap_consumed_at: row.bootstrap_consumed_at,
-      source_revoked_at: row.revoked_at,
-      action_nonce_expires_at: row.action_nonce_expires_at,
-    };
-  });
+  return [...ids]
+    .sort((left, right) => left.localeCompare(right))
+    .map((sessionId) => {
+      const row = db.prepare(
+        `SELECT session_id, workspace_id, project_id, operator_id,
+                issued_at, expires_at, bootstrap_consumed_at, revoked_at,
+                action_nonce_expires_at
+           FROM vnext_local_operator_sessions WHERE session_id = ?`,
+      ).get(sessionId) as {
+        session_id: string;
+        workspace_id: string;
+        project_id: string;
+        operator_id: string;
+        issued_at: string;
+        expires_at: string;
+        bootstrap_consumed_at: string | null;
+        revoked_at: string | null;
+        action_nonce_expires_at: string | null;
+      } | undefined;
+      if (
+        !row ||
+        row.workspace_id !== scope.workspace_id ||
+        row.project_id !== scope.project_id ||
+        row.bootstrap_consumed_at === null ||
+        row.action_nonce_expires_at === null
+      ) {
+        refuseV01("portable_project_provenance_invalid");
+      }
+      return {
+        session_id: row.session_id,
+        workspace_id: row.workspace_id,
+        project_id: row.project_id,
+        operator_id: row.operator_id,
+        issued_at: row.issued_at,
+        expires_at: row.expires_at,
+        bootstrap_consumed_at: row.bootstrap_consumed_at,
+        source_revoked_at: row.revoked_at,
+        action_nonce_expires_at: row.action_nonce_expires_at,
+      };
+    });
 }
 
 function admitPortableOperatorProvenanceSessionsV01(

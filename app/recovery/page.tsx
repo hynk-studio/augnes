@@ -11,6 +11,8 @@ interface RecoveryStatus {
   application: {
     version: string;
     build_identity: string;
+    package_contract: string | null;
+    package_contract_version: number | null;
     compatibility: "verified_package" | "source_runtime";
   };
   database: {
@@ -19,6 +21,14 @@ interface RecoveryStatus {
     schema_classification: "current" | "old" | "incompatible" | "unavailable";
     migration_state: string;
   };
+  runtime: {
+    runtime_contract: string | null;
+    runtime_schema_version: number | null;
+    lifecycle_state: string;
+    bridge_health: string;
+    capability_availability: string;
+  };
+  continuity: ContinuityStatus;
   latest_operation: {
     outcome: string;
     reason_code: string;
@@ -53,6 +63,50 @@ interface RecoveryStatus {
   };
 }
 
+interface ContinuityStatus {
+  contract: "augnes.continuity-operations.v1";
+  status_available: boolean;
+  public_reason_code: string;
+  portability: null | {
+    operation: "preview" | "export" | "import";
+    outcome: "available" | "completed" | "exact_replay" | "refused";
+    reason_code: string;
+    record_count: number;
+    reader_verification: "not_applicable" | "verified" | "refused";
+    next_safe_action: string;
+  };
+  reconciliation: null | {
+    outcome: "reconciled" | "review_needed" | "conflict_refused";
+    total_runs_considered: number;
+    counts: Record<string, number>;
+    exact_replays_reused: number;
+    conflicts_refused: number;
+    waiting_for_approval_count: number;
+    orphaned_review_needed_count: number;
+    unsupported_host_coverage_count: number;
+    no_retry_count: number;
+    reason_codes: string[];
+    next_safe_action: string;
+    automatic_retry_started: false;
+    semantic_authority_created: false;
+    external_action_created: false;
+  };
+}
+
+interface SupportReportPreview {
+  contract: "augnes.support-report-preview.v1";
+  previewed: true;
+  byte_count: number;
+  report: Record<string, unknown> & {
+    contract: "augnes.redacted-support-report.v1";
+    generated_at: string;
+    redacted: true;
+    read_only: true;
+    authoritative: false;
+    exclusions: string[];
+  };
+}
+
 interface RecoveryActionResult {
   accepted?: boolean;
   outcome:
@@ -69,18 +123,29 @@ export default function RecoveryPage() {
   const [status, setStatus] = useState<RecoveryStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<
-    "create_backup" | "restore_backup" | "retry_update" | null
+    "create_backup" | "restore_backup" | "retry_update" | "preview_support_report" | null
   >(null);
   const [selectedBackupId, setSelectedBackupId] = useState<string | null>(
     null,
   );
   const [notice, setNotice] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [supportPreview, setSupportPreview] =
+    useState<SupportReportPreview | null>(null);
 
   const backups = useMemo(
     () => sortBackups(status?.backups ?? []),
     [status?.backups],
   );
+  const reconciliationCounts = status?.continuity.reconciliation?.counts;
+  const activeRunCount = reconciliationCounts
+    ? reconciliationCounts.queued + reconciliationCounts.starting +
+      reconciliationCounts.running + reconciliationCounts.cancelling
+    : 0;
+  const terminalRunCount = reconciliationCounts
+    ? reconciliationCounts.completed + reconciliationCounts.failed +
+      reconciliationCounts.timed_out + reconciliationCounts.cancelled
+    : 0;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -189,6 +254,49 @@ export default function RecoveryPage() {
     void runAction("restore_backup", selected.backup_id);
   }
 
+  async function previewSupportReport() {
+    setBusyAction("preview_support_report");
+    setSupportPreview(null);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "preview_support_report" }),
+      });
+      const value = (await response.json()) as SupportReportPreview;
+      if (
+        !response.ok ||
+        value.contract !== "augnes.support-report-preview.v1" ||
+        value.previewed !== true ||
+        value.report?.contract !== "augnes.redacted-support-report.v1"
+      ) {
+        throw new Error("support_report_preview_unavailable");
+      }
+      setSupportPreview(value);
+      setNotice("Redacted support report preview is ready. No database contents or private provider material were collected.");
+    } catch {
+      setNotice("The redacted support report could not be previewed. No report was created.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function exportSupportReport() {
+    if (supportPreview === null) return;
+    const blob = new Blob(
+      [`${JSON.stringify(supportPreview.report, null, 2)}\n`],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "augnes-redacted-support-report.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setNotice("Redacted support report exported locally from the reviewed preview.");
+  }
+
   const latest = status?.latest_operation ?? null;
   const selectedBackup =
     selectedBackupId === null
@@ -249,7 +357,11 @@ export default function RecoveryPage() {
               <dl className={styles.facts}>
                 <div><dt>Version</dt><dd>{status.application.version}</dd></div>
                 <div><dt>Build</dt><dd>{status.application.build_identity}</dd></div>
+                <div><dt>Package contract</dt><dd>{status.application.package_contract ?? "Source runtime"}</dd></div>
                 <div><dt>Compatibility</dt><dd>{humanize(status.application.compatibility)}</dd></div>
+                <div><dt>Runtime</dt><dd>{status.runtime.runtime_contract ?? "Unavailable"}</dd></div>
+                <div><dt>Bridge</dt><dd>{humanize(status.runtime.bridge_health)}</dd></div>
+                <div><dt>Capabilities</dt><dd>{humanize(status.runtime.capability_availability)}</dd></div>
               </dl>
             </article>
 
@@ -291,6 +403,69 @@ export default function RecoveryPage() {
               ) : (
                 <p>No update or restore operation has been recorded.</p>
               )}
+            </article>
+          </section>
+
+          <section
+            className={styles.summaryGrid}
+            aria-label="Portable continuity and run reconciliation"
+            data-continuity-diagnostics="v1"
+          >
+            <article className={styles.panel}>
+              <p className={styles.kicker}>Portable continuity</p>
+              <h2>{humanize(status.continuity.portability?.outcome ?? "no_portable_operation")}</h2>
+              <dl className={styles.facts}>
+                <div><dt>Operation</dt><dd>{humanize(status.continuity.portability?.operation ?? "none")}</dd></div>
+                <div><dt>Reason</dt><dd>{humanize(status.continuity.portability?.reason_code ?? status.continuity.public_reason_code)}</dd></div>
+                <div><dt>Records</dt><dd>{status.continuity.portability?.record_count ?? 0}</dd></div>
+                <div><dt>Readers</dt><dd>{humanize(status.continuity.portability?.reader_verification ?? "not_verified")}</dd></div>
+              </dl>
+              <p><a href="/portability">Open project portability</a></p>
+            </article>
+
+            <article className={styles.panel} data-run-reconciliation-status="v1">
+              <p className={styles.kicker}>Restart reconciliation</p>
+              <h2>{humanize(status.continuity.reconciliation?.outcome ?? "no_reconciliation_result")}</h2>
+              <dl className={styles.facts}>
+                <div><dt>Runs reviewed</dt><dd>{status.continuity.reconciliation?.total_runs_considered ?? 0}</dd></div>
+                <div><dt>Active</dt><dd>{activeRunCount}</dd></div>
+                <div><dt>Terminal</dt><dd>{terminalRunCount}</dd></div>
+                <div><dt>Waiting approval</dt><dd>{status.continuity.reconciliation?.waiting_for_approval_count ?? 0}</dd></div>
+                <div><dt>Review needed</dt><dd>{status.continuity.reconciliation?.orphaned_review_needed_count ?? 0}</dd></div>
+                <div><dt>Unsupported host</dt><dd>{status.continuity.reconciliation?.unsupported_host_coverage_count ?? 0}</dd></div>
+                <div><dt>Exact replay</dt><dd>{status.continuity.reconciliation?.exact_replays_reused ?? 0}</dd></div>
+                <div><dt>Conflicts</dt><dd>{status.continuity.reconciliation?.conflicts_refused ?? 0}</dd></div>
+                <div><dt>Automatic retry</dt><dd>{status.continuity.reconciliation?.automatic_retry_started === false ? "Not started" : "Unavailable"}</dd></div>
+              </dl>
+            </article>
+
+            <article className={styles.panel} data-support-report-surface="v1">
+              <p className={styles.kicker}>Public-safe support report</p>
+              <h2>{supportPreview ? "Preview reviewed" : "Preview before export"}</h2>
+              <p>Uses only the bounded recovery, portability, runtime, and reconciliation status shown here.</p>
+              {supportPreview ? (
+                <div className={styles.reportPreview} data-support-report-preview="ready">
+                  <p>{supportPreview.byte_count} bytes · redacted · read-only · non-authoritative</p>
+                  <p>Excludes {supportPreview.report.exclusions.map(humanize).join(", ")}.</p>
+                </div>
+              ) : null}
+              <div className={styles.actions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => void previewSupportReport()}
+                  disabled={busyAction !== null}
+                >
+                  {busyAction === "preview_support_report" ? "Building preview…" : "Preview support report"}
+                </button>
+                <button
+                  type="button"
+                  onClick={exportSupportReport}
+                  disabled={supportPreview === null || busyAction !== null}
+                >
+                  Export redacted report
+                </button>
+              </div>
             </article>
           </section>
 

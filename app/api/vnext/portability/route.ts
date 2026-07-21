@@ -9,6 +9,7 @@ import {
   importPortableProjectV01,
   previewActivePortableProjectV01,
 } from "@/lib/vnext/portability/portable-project";
+import { recordPortableOperationResult } from "@/scripts/continuity-operational-status.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +29,18 @@ export function GET(request: Request): Response {
     assertLocalRequestV01(request);
     const db = openDatabase();
     try {
-      return jsonResponseV01(previewActivePortableProjectV01(db), 200);
+      const preview = previewActivePortableProjectV01(db);
+      recordPortableResultBestEffortV01({
+        operation: "preview",
+        outcome: "available",
+        reason_code: "portable_project_preview_available",
+        record_count: preview.record_count,
+        personal_perspective_included: false,
+        reader_verification: "not_applicable",
+        data_preserved: true,
+        next_safe_action: "review_scope_and_export",
+      });
+      return jsonResponseV01(preview, 200);
     } finally {
       db.close();
     }
@@ -56,6 +68,17 @@ export async function POST(request: Request): Promise<Response> {
         const result = exportActivePortableProjectV01(db, {
           include_personal_perspective: body.include_personal_perspective,
         });
+        recordPortableResultBestEffortV01({
+          operation: "export",
+          outcome: "completed",
+          reason_code: "portable_project_export_completed",
+          record_count: result.package.manifest.record_count,
+          personal_perspective_included:
+            result.package.manifest.personal_perspective.included,
+          reader_verification: "not_applicable",
+          data_preserved: true,
+          next_safe_action: "store_or_import_local_package",
+        });
         return new Response(result.bytes.buffer as ArrayBuffer, {
           status: 200,
           headers: {
@@ -82,18 +105,51 @@ export async function POST(request: Request): Promise<Response> {
     mkdirSync(destinationRootBase, { recursive: true, mode: 0o700 });
     const db = openDatabase();
     try {
-      return jsonResponseV01(
-        importPortableProjectV01(db, {
+      const result = importPortableProjectV01(db, {
           bytes,
           destination_root_base: destinationRootBase,
-        }),
-        200,
-      );
+        });
+      recordPortableResultBestEffortV01({
+        operation: "import",
+        outcome: result.status === "exact_replay" ? "exact_replay" : "completed",
+        reason_code: result.reason_code,
+        record_count: result.record_count,
+        personal_perspective_included:
+          result.personal_perspective_included === true,
+        reader_verification: "verified",
+        data_preserved: true,
+        next_safe_action: result.next_action,
+      });
+      return jsonResponseV01(result, 200);
     } finally {
       db.close();
     }
   } catch (error) {
     return portableErrorResponseV01(error);
+  }
+}
+
+function recordPortableResultBestEffortV01(event: {
+  operation: "preview" | "export" | "import";
+  outcome: "available" | "completed" | "exact_replay" | "refused";
+  reason_code: string;
+  record_count: number;
+  personal_perspective_included: boolean;
+  reader_verification: "not_applicable" | "verified" | "refused";
+  data_preserved: boolean;
+  next_safe_action: string;
+}): void {
+  try {
+    recordPortableOperationResult({
+      databasePath: path.resolve(getDatabasePath()),
+      event: {
+        contract: "augnes.portable-operation-result.v1",
+        observed_at: new Date().toISOString(),
+        ...event,
+      },
+    });
+  } catch {
+    // The sidecar is public operational evidence, not canonical project state.
   }
 }
 

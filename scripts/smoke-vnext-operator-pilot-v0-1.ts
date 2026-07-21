@@ -4457,6 +4457,53 @@ async function assertR6DProductionVerticalV01(input: {
   );
   pass("strategic_read_side_cost_failures_are_bounded_and_write_free");
 
+  await withOperatorDatabaseCloneV01(
+    "r8-portable-strategic-read-without-operational-run",
+    input.environment,
+    async ({ config }) => {
+      const portableReadDb = openVNextLocalOperatorDatabaseV01(config);
+      try {
+        portableReadDb
+          .prepare("DELETE FROM autonomy_run_events WHERE run_id = ?")
+          .run(profile.assessment.run_id);
+        portableReadDb
+          .prepare("DELETE FROM autonomy_run_steps WHERE run_id = ?")
+          .run(profile.assessment.run_id);
+        portableReadDb
+          .prepare("DELETE FROM autonomy_run_delta_batches WHERE run_id = ?")
+          .run(profile.assessment.run_id);
+        portableReadDb
+          .prepare("DELETE FROM autonomy_runs WHERE run_id = ?")
+          .run(profile.assessment.run_id);
+        const portableRead = readVNextOperatorStrategicAdvantageTransferV01(
+          portableReadDb,
+          {
+            config,
+            proposal: strategicProposal,
+            current_cost_availability: {
+              status: "available",
+              budget: strategicCostBudget,
+            },
+            model_capability: {
+              status: "available",
+              summary: "Portable canonical history remains readable without host state.",
+              verification: "trusted_local_status",
+            },
+          },
+        );
+        assert.equal(portableRead.status, "unavailable");
+        assert.equal(
+          portableRead.reason,
+          "strategic_advantage_transfer_source_run_unavailable",
+        );
+        assert.equal(portableRead.existing_proposal, null);
+      } finally {
+        portableReadDb.close();
+      }
+    },
+  );
+  pass("strategic_portable_history_is_readable_but_operationally_unavailable");
+
   await assertStrategicHistoricalBudgetTamperingRefusedOnClonesV01({
     environment: input.environment,
     proposal: strategicProposal,

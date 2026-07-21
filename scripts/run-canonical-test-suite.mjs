@@ -275,6 +275,12 @@ const suites = {
   ],
   operability: [
     {
+      label:
+        "startup durable-run reconciliation, exact replay, and redacted diagnostics",
+      ...rootNode("scripts/test-runtime-run-reconciliation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded public recovery action transport",
       ...rootNode("scripts/test-recovery-product-route.ts"),
       timeoutMs: 30_000,
