@@ -310,7 +310,10 @@ export default function RecoveryPage() {
 
   return (
     <ProductShell surface="recovery">
-      <main className={styles.shell}>
+      <main
+        className={styles.shell}
+        data-recovery-product-surface="v0.1"
+      >
         <header className={styles.hero}>
           <div>
             <p className={styles.eyebrow}>Application safety</p>
