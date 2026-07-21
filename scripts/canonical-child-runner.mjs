@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 import {
   registerOwnedChild,
+  settleOwnedProcessAfterExit,
   terminateOwnedProcessTree,
 } from "./test-harness-process-lifecycle.mjs";
 
@@ -43,6 +44,9 @@ export async function runCanonicalChild({
   });
   const record = registerOwnedChild(owner, child, { label: safeLabel });
   onSpawn(record.pid);
+  log(
+    `[canonical:${safeSuite}] child_spawn label=${JSON.stringify(safeLabel)} pid=${record.pid ?? "unavailable"} wait=process_exit`,
+  );
   child.stdout.on("data", (chunk) => stdout.write(chunk));
   child.stderr.on("data", (chunk) => stderr.write(chunk));
 
@@ -55,27 +59,81 @@ export async function runCanonicalChild({
   if (heartbeatMs > 0) {
     heartbeat = setInterval(() => {
       log(
-        `[canonical:${safeSuite}] child_active label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} timeout_ms=${timeoutMs}`,
+        `[canonical:${safeSuite}] child_active label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} timeout_ms=${timeoutMs} exit_observed=${record.exited} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed} wait=${record.exited ? "stream_close_or_cleanup" : "process_exit"}`,
       );
     }, heartbeatMs);
   }
 
   let outcome;
+  let cleanupResult = {
+    term_sent: false,
+    kill_sent: false,
+    closed_during_drain: false,
+    stdout_closed: false,
+    stderr_closed: false,
+    remaining_owned_processes: null,
+  };
+  let terminationReason = "natural_exit";
   try {
     outcome = await Promise.race([
+      record.exitPromise.then((value) => ({ kind: "exited", value })),
       record.closePromise.then((value) => ({ kind: "closed", value })),
       timeoutOutcome,
     ]);
     if (outcome.kind === "timeout") {
       timedOut = true;
+      terminationReason = "bounded_timeout";
+      log(
+        `[canonical:${safeSuite}] child_cleanup_start label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=bounded_timeout exit_observed=${record.exited} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed}`,
+      );
       await terminateOwnedProcessTree(record, { termGraceMs, killGraceMs });
       outcome = { kind: "closed", value: await record.closePromise };
-    } else if (
-      record.spawnErrorCode ||
-      outcome.value.code !== 0 ||
-      outcome.value.signal !== null
-    ) {
-      await terminateOwnedProcessTree(record, { termGraceMs, killGraceMs });
+      cleanupResult = {
+        term_sent: true,
+        kill_sent: outcome.value.signal === "SIGKILL",
+        closed_during_drain: false,
+        stdout_closed: record.stdoutClosed,
+        stderr_closed: record.stderrClosed,
+        remaining_owned_processes: 0,
+      };
+      log(
+        `[canonical:${safeSuite}] child_cleanup_result label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=bounded_timeout streams_closed=${record.stdoutClosed && record.stderrClosed} remaining_owned_processes=0`,
+      );
+    } else if (outcome.kind === "exited") {
+      log(
+        `[canonical:${safeSuite}] child_exit label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} exit_code=${outcome.value.code ?? "null"} signal=${outcome.value.signal ?? "null"} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed}`,
+      );
+      log(
+        `[canonical:${safeSuite}] child_cleanup_start label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=post_exit_settlement exit_observed=true stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed}`,
+      );
+      cleanupResult = await settleOwnedProcessAfterExit(record, {
+        termGraceMs,
+        killGraceMs,
+      });
+      outcome = {
+        kind: "closed",
+        value: record.closeResult ?? outcome.value,
+      };
+      terminationReason = cleanupResult.term_sent
+        ? "exited_with_owned_descendant_cleanup"
+        : "natural_exit";
+      log(
+        `[canonical:${safeSuite}] child_cleanup_result label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=post_exit_settlement term_sent=${cleanupResult.term_sent} kill_sent=${cleanupResult.kill_sent} streams_closed=${cleanupResult.stdout_closed && cleanupResult.stderr_closed} remaining_owned_processes=${cleanupResult.remaining_owned_processes}`,
+      );
+    } else {
+      log(
+        `[canonical:${safeSuite}] child_cleanup_start label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=post_close_settlement exit_observed=${record.exited} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed}`,
+      );
+      cleanupResult = await settleOwnedProcessAfterExit(record, {
+        termGraceMs,
+        killGraceMs,
+      });
+      terminationReason = cleanupResult.term_sent
+        ? "closed_with_owned_descendant_cleanup"
+        : "natural_exit";
+      log(
+        `[canonical:${safeSuite}] child_cleanup_result label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=post_close_settlement term_sent=${cleanupResult.term_sent} kill_sent=${cleanupResult.kill_sent} streams_closed=${cleanupResult.stdout_closed && cleanupResult.stderr_closed} remaining_owned_processes=${cleanupResult.remaining_owned_processes}`,
+      );
     }
   } finally {
     clearTimeout(timeout);
@@ -92,9 +150,15 @@ export async function runCanonicalChild({
     timed_out: timedOut,
     duration_ms: durationMs,
     spawn_error_code: record.spawnErrorCode,
+    exit_observed: record.exited,
+    streams_closed: record.stdoutClosed && record.stderrClosed,
+    cleanup_started: timedOut || outcome.kind === "closed",
+    cleanup_completed: record.closed,
+    remaining_owned_processes: cleanupResult.remaining_owned_processes,
+    termination_reason: terminationReason,
   };
   log(
-    `[canonical:${safeSuite}] child_result label=${JSON.stringify(safeLabel)} duration_ms=${durationMs} exit_code=${result.exit_code ?? "null"} signal=${result.signal ?? "null"} timed_out=${timedOut}`,
+    `[canonical:${safeSuite}] child_result label=${JSON.stringify(safeLabel)} duration_ms=${durationMs} exit_code=${result.exit_code ?? "null"} signal=${result.signal ?? "null"} timed_out=${timedOut} exit_observed=${result.exit_observed} streams_closed=${result.streams_closed} cleanup_completed=${result.cleanup_completed} remaining_owned_processes=${result.remaining_owned_processes ?? "unknown"} termination_reason=${result.termination_reason}`,
   );
   return result;
 }
