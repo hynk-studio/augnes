@@ -187,6 +187,10 @@ function inspectorSectionReviewBoundaryV01(
       return "Insufficient remains unknown; skipped checks do not satisfy a criterion.";
     case "evidence_claims_relations":
       return "Claim truth is not established; relation existence is not proof.";
+    case "decision_gate":
+      return "A decision itself applies no state; authorization is not application.";
+    case "transition_current_head":
+      return "Only successfully applied StateTransitionReceipts change durable semantic state.";
     default:
       return null;
   }
