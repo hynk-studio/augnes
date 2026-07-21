@@ -106,7 +106,12 @@ export default function PortabilityPage() {
   }
 
   return (
-    <ProductShell surface="portability" projectContext={preview?.project_display_name}>
+    <ProductShell
+      surface="portability"
+      projectContext={preview?.project_display_name
+        ? { label: "Current project", name: preview.project_display_name }
+        : null}
+    >
       <main className={styles.shell} data-portability-surface="v1">
         <header className={styles.hero}>
           <div>

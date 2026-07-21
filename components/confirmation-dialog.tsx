@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 export function ConfirmationDialog({
   open,
@@ -10,6 +10,7 @@ export function ConfirmationDialog({
   cancelLabel = "Cancel",
   tone = "attention",
   busy = false,
+  error = null,
   onConfirm,
   onCancel,
   children,
@@ -21,12 +22,16 @@ export function ConfirmationDialog({
   cancelLabel?: string;
   tone?: "attention" | "danger";
   busy?: boolean;
+  error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const errorId = useId();
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const busyRef = useRef(busy);
   const onCancelRef = useRef(onCancel);
@@ -38,6 +43,20 @@ export function ConfirmationDialog({
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     cancelRef.current?.focus();
+    const backgroundRegions = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        ".product-shell-header, .product-shell-content > :not(.product-dialog-backdrop)",
+      ),
+    ).filter((region) => !region.contains(dialogRef.current));
+    const priorInertState = backgroundRegions.map((region) => ({
+      region,
+      inert: region.inert,
+    }));
+    backgroundRegions.forEach((region) => { region.inert = true; });
+    let pageIsLeaving = false;
+    function handlePageHide() {
+      pageIsLeaving = true;
+    }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !busyRef.current) {
         event.preventDefault();
@@ -52,7 +71,11 @@ export function ConfirmationDialog({
       );
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
+      if (!first || !last) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -61,12 +84,49 @@ export function ConfirmationDialog({
         first.focus();
       }
     }
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        dialogRef.current &&
+        !dialogRef.current.contains(target)
+      ) {
+        cancelRef.current?.focus();
+      }
+    }
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("focusin", handleFocusIn);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      previousFocusRef.current?.focus();
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("focusin", handleFocusIn);
+      priorInertState.forEach(({ region, inert }) => { region.inert = inert; });
+      const previousFocus = previousFocusRef.current;
+      if (
+        !pageIsLeaving &&
+        previousFocus?.isConnected &&
+        !previousFocus.matches(":disabled, [aria-disabled=\"true\"]")
+      ) {
+        previousFocus.focus();
+      }
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (busy) {
+      dialogRef.current?.focus();
+      return;
+    }
+    if (
+      error &&
+      (document.activeElement === dialogRef.current ||
+        !dialogRef.current?.contains(document.activeElement))
+    ) {
+      cancelRef.current?.focus();
+    }
+  }, [busy, error, open]);
 
   if (!open) return null;
 
@@ -79,12 +139,14 @@ export function ConfirmationDialog({
     >
       <section
         ref={dialogRef}
+        tabIndex={-1}
         className="product-dialog"
         data-dialog-tone={tone}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="product-confirmation-title"
-        aria-describedby="product-confirmation-description"
+        aria-busy={busy}
+        aria-labelledby={titleId}
+        aria-describedby={error ? `${descriptionId} ${errorId}` : descriptionId}
       >
         <div className="product-dialog-heading">
           <span className="product-dialog-symbol" aria-hidden="true">
@@ -92,11 +154,16 @@ export function ConfirmationDialog({
           </span>
           <div>
             <p>{tone === "danger" ? "Consequential action" : "Confirm change"}</p>
-            <h2 id="product-confirmation-title">{title}</h2>
+            <h2 id={titleId}>{title}</h2>
           </div>
         </div>
-        <p id="product-confirmation-description">{description}</p>
+        <p id={descriptionId}>{description}</p>
         {children ? <div className="product-dialog-detail">{children}</div> : null}
+        {error ? (
+          <p id={errorId} className="product-dialog-error" role="alert" aria-live="assertive">
+            <strong>Action not completed.</strong> {error}
+          </p>
+        ) : null}
         <div className="product-dialog-actions">
           <button
             ref={cancelRef}

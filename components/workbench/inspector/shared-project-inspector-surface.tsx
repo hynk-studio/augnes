@@ -100,6 +100,12 @@ function InspectorSection({
         <div>
           <span className={styles.inspectorSectionTitle} role="heading" aria-level={2}>{section.title}</span>
           <small>{section.summary}</small>
+          <span
+            className={styles.inspectorSectionMeta}
+            data-inspector-summary-status={section.status}
+          >
+            {inspectorSectionSummaryV01(section)}
+          </span>
         </div>
           <span className={styles.badge}>{humanizeV01(section.status)}</span>
       </summary>
@@ -208,4 +214,36 @@ function formatTimestampV01(value: string): string {
         timeStyle: "short",
         timeZone: "UTC",
       }).format(parsed);
+}
+
+function inspectorSectionSummaryV01(
+  section: SharedProjectInspectorSectionV01,
+): string {
+  const status = section.status === "available"
+    ? "Exact read"
+    : section.status === "missing"
+      ? "Target missing"
+      : humanizeV01(section.status);
+  const counts: string[] = [];
+  const itemCount = section.bounds.items.total_count;
+  const factCount = section.bounds.facts.total_count;
+  const exactRefCount = section.bounds.exact_refs.total_count;
+
+  if (itemCount > 0) {
+    counts.push(`${itemCount} ${itemCount === 1 ? "entry" : "entries"}`);
+  }
+  if (exactRefCount > 0) {
+    counts.push(`${exactRefCount} exact record ${exactRefCount === 1 ? "reference" : "references"}`);
+  }
+  if (factCount > 0 && itemCount === 0 && exactRefCount === 0) {
+    counts.push(`${factCount} exact ${factCount === 1 ? "fact" : "facts"}`);
+  }
+  if (counts.length === 0) {
+    counts.push("no section records returned");
+  }
+  if (section.bounds.presentation_omitted) {
+    counts.push("bounded view");
+  }
+
+  return `${status} · ${counts.join(" · ")}`;
 }

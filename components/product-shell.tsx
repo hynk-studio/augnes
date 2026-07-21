@@ -8,6 +8,11 @@ export type ProductSurface =
   | "portability"
   | "recovery";
 
+export interface ProductProjectContext {
+  label: "Current project" | "Viewed project";
+  name: string;
+}
+
 const NAVIGATION: Array<{
   href: string;
   label: string;
@@ -35,7 +40,7 @@ export function ProductShell({
   children,
 }: {
   surface: ProductSurface;
-  projectContext?: string | null;
+  projectContext?: ProductProjectContext | null;
   children: ReactNode;
 }) {
   return (
@@ -53,9 +58,13 @@ export function ProductShell({
             </span>
           </a>
           {projectContext ? (
-            <p className="product-project-context" title={projectContext}>
-              <span>Current project</span>
-              <strong>{projectContext}</strong>
+            <p
+              className="product-project-context"
+              title={projectContext.name}
+              data-project-context-label={projectContext.label}
+            >
+              <span>{projectContext.label}</span>
+              <strong>{projectContext.name}</strong>
             </p>
           ) : (
             <p className="product-project-context product-project-context--neutral">

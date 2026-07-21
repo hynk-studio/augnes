@@ -822,6 +822,18 @@ async function main() {
     assert.equal(await evaluateBoolean(`document.body.textContent.includes('This is not the active project')`), true);
     assert.equal(
       await evaluateBoolean(
+        `document.querySelector('[data-project-context-label="Viewed project"]')?.textContent.includes('Browser Onboarding Project') === true`,
+      ),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-project-context-label="Current project"]')?.textContent.includes('Browser Onboarding Project') === true`,
+      ),
+      false,
+    );
+    assert.equal(
+      await evaluateBoolean(
         `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && document.body.textContent.includes('Make this project active before changing its controls.')`,
       ),
       true,
@@ -2755,6 +2767,30 @@ async function main() {
       `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-shared-inspector-handoff="true"] [data-workbench-to-shared-inspector="true"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
       "durable Transition and packet lineage after reload",
     );
+    const collapsedVerificationSummaries = await evaluateJson(`(() => {
+      const selectors = [
+        '[data-workbench-criteria-summary="true"]',
+        '[data-workbench-reconciliation-summary="true"]',
+        '[data-workbench-conflict-summary="true"]',
+        '[data-workbench-later-context-summary="true"]'
+      ];
+      const summaries = selectors.map((selector) => document.querySelector(selector));
+      return {
+        all_present: summaries.every((summary) => summary !== null),
+        all_closed: summaries.every((summary) => summary?.closest('details')?.open === false),
+        criteria: summaries[0]?.textContent?.trim() ?? '',
+        reconciliation: summaries[1]?.textContent?.trim() ?? '',
+        conflict: summaries[2]?.textContent?.trim() ?? '',
+        later_context: summaries[3]?.textContent?.trim() ?? ''
+      };
+    })()`);
+    assert.equal(collapsedVerificationSummaries.all_present, true);
+    assert.equal(collapsedVerificationSummaries.all_closed, true);
+    assert.match(collapsedVerificationSummaries.criteria, /\d+ satisfied · \d+ unknown · \d+ unsatisfied/u);
+    assert.match(collapsedVerificationSummaries.reconciliation, /\d+ Evidence records · \d+ Claim families/u);
+    assert.match(collapsedVerificationSummaries.conflict, /project conflicts?/u);
+    assert.match(collapsedVerificationSummaries.later_context, /Transition/u);
+    assert.match(collapsedVerificationSummaries.later_context, /feedback/u);
     assert.deepEqual(databaseSnapshot(database), beforeClosureReload);
     assert.deepEqual(
       readDirectHostBrowserState(manifest.project_id).semantic_authority_counts,
@@ -2786,6 +2822,21 @@ async function main() {
       `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="episode_delta_proposal"]') !== null`,
       "applied proposal-focused shared Inspector",
     );
+    const inspectorDisclosureSummaries = await evaluateJson(`(() => {
+      const sections = Array.from(document.querySelectorAll('[data-inspector-section]'));
+      return {
+        section_count: sections.length,
+        all_closed: sections.every((section) => section.open === false),
+        all_summarized: sections.every((section) => {
+          const text = section.querySelector('[data-inspector-summary-status]')?.textContent?.trim() ?? '';
+          return /Exact read|pending|missing|unavailable|incomplete|conflict/u.test(text) &&
+            /entr(?:y|ies)|record|fact|bounded view|no section records returned/u.test(text);
+        })
+      };
+    })()`);
+    assert.equal(inspectorDisclosureSummaries.section_count, 13);
+    assert.equal(inspectorDisclosureSummaries.all_closed, true);
+    assert.equal(inspectorDisclosureSummaries.all_summarized, true);
     const appliedInspectorShape = await evaluateJson(`(() => {
       const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
       const decision = inspector?.querySelector('[data-inspector-section="decision_gate"]');

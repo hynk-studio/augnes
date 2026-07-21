@@ -479,6 +479,24 @@
   line-height: 1.4;
 }
 
+.inspectorSectionMeta {
+  color: #4d6259;
+  font-size: 0.73rem;
+  font-weight: 680;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.inspectorSectionMeta[data-inspector-summary-status="pending"],
+.inspectorSectionMeta[data-inspector-summary-status="bounded_incomplete"] {
+  color: #8a5a13;
+}
+
+.inspectorSectionMeta[data-inspector-summary-status="conflict"],
+.inspectorSectionMeta[data-inspector-summary-status="missing"] {
+  color: #963b40;
+}
+
 .inspectorSectionBody {
   display: grid;
   gap: 12px;
@@ -610,6 +628,20 @@
 .sequenceDisclosure > summary small {
   margin-top: 2px;
   color: var(--muted);
+}
+
+.sequenceDisclosureStatus {
+  font-weight: 680;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.sequenceDisclosureStatus[data-summary-tone="attention"] {
+  color: #8a5a13;
+}
+
+.sequenceDisclosureStatus[data-summary-tone="critical"] {
+  color: #963b40;
 }
 
 .sequenceNumber {

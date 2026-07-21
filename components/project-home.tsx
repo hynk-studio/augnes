@@ -23,7 +23,13 @@ export function ProjectHome({
   const active = summary.is_active;
 
   return (
-    <ProductShell surface="home" projectContext={projectName}>
+    <ProductShell
+      surface="home"
+      projectContext={{
+        label: active ? "Current project" : "Viewed project",
+        name: projectName,
+      }}
+    >
       <main
         className="project-home-shell"
         data-project-home="v0.1"

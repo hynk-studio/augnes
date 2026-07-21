@@ -41,6 +41,10 @@ export function ProjectVerificationWorkbench({
   );
   const relationCounts = presentation.relation_counts;
   const receiptComparison = runReceiptComparisonPresentationV01(receipts);
+  const criteriaDisclosure = criterionDisclosureSummaryV01(reconciliation);
+  const relationDisclosure = relationDisclosureSummaryV01(reconciliation);
+  const conflictDisclosure = conflictDisclosureSummaryV01(reconciliation, lineage);
+  const laterContextDisclosure = laterContextDisclosureSummaryV01(reconciliation);
 
   return (
     <div
@@ -243,7 +247,19 @@ export function ProjectVerificationWorkbench({
       </section>
 
       <details className={styles.sequenceDisclosure}>
-        <summary><span className={styles.sequenceNumber}>5</span><span><strong>Success criteria and exact basis</strong><small>Supported, contradicted, unknown, and incomplete status</small></span></summary>
+        <summary>
+          <span className={styles.sequenceNumber}>5</span>
+          <span>
+            <strong>Success criteria and exact basis</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={criteriaDisclosure.tone}
+              data-workbench-criteria-summary="true"
+            >
+              {criteriaDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-criteria-title">
         <SequenceHeading
           step="5"
@@ -321,7 +337,19 @@ export function ProjectVerificationWorkbench({
       </details>
 
       <details className={styles.sequenceDisclosure}>
-        <summary><span className={styles.sequenceNumber}>6</span><span><strong>Evidence and Claim reconciliation</strong><small>Support, contradiction, qualification, and uncertainty</small></span></summary>
+        <summary>
+          <span className={styles.sequenceNumber}>6</span>
+          <span>
+            <strong>Evidence and Claim reconciliation</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={relationDisclosure.tone}
+              data-workbench-reconciliation-summary="true"
+            >
+              {relationDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-reconciliation-title">
         <SequenceHeading
           step="6"
@@ -348,7 +376,19 @@ export function ProjectVerificationWorkbench({
       </details>
 
       <details className={styles.sequenceDisclosure}>
-        <summary><span className={styles.sequenceNumber}>8</span><span><strong>Uncertain, opposed, or blocked material</strong><small>Nothing unresolved is hidden or treated as absent</small></span></summary>
+        <summary>
+          <span className={styles.sequenceNumber}>8</span>
+          <span>
+            <strong>Uncertain, opposed, or blocked material</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={conflictDisclosure.tone}
+              data-workbench-conflict-summary="true"
+            >
+              {conflictDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-conflicts-title">
         <SequenceHeading
           step="8"
@@ -380,7 +420,19 @@ export function ProjectVerificationWorkbench({
       </details>
 
       <details className={styles.sequenceDisclosure}>
-        <summary><span className={styles.sequenceNumber}>12–13</span><span><strong>Transition and later-context consequence</strong><small>Applied Transition, later packet, and feedback lineage</small></span></summary>
+        <summary>
+          <span className={styles.sequenceNumber}>12–13</span>
+          <span>
+            <strong>Transition and later-context consequence</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={laterContextDisclosure.tone}
+              data-workbench-later-context-summary="true"
+            >
+              {laterContextDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-later-context-title">
         <SequenceHeading
           step="12–13"
@@ -791,4 +843,152 @@ function Count({ label, value }: { label: string; value: string | number }) {
 
 function humanize(value: string): string {
   return value.replaceAll("_", " ");
+}
+
+type DisclosureSummaryV01 = {
+  text: string;
+  tone: "neutral" | "attention" | "critical";
+};
+
+function criterionDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+): DisclosureSummaryV01 {
+  if (reconciliation.criteria.length === 0) {
+    return {
+      text: reconciliation.source_assessments.length === 0
+        ? "Exact assessment unavailable · criterion status unknown"
+        : `Exact assessment present · 0 criteria returned · criterion status unavailable${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+      tone: "attention",
+    };
+  }
+  const counts = {
+    satisfied: 0,
+    unsatisfied: 0,
+    unknown: 0,
+    not_applicable: 0,
+  };
+  reconciliation.criteria.forEach(({ criterion }) => {
+    counts[criterion.status] += 1;
+  });
+  return {
+    text: `${counts.satisfied} satisfied · ${counts.unknown} unknown · ${counts.unsatisfied} unsatisfied · ${counts.not_applicable} not applicable${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    tone: counts.unsatisfied > 0
+      ? "critical"
+      : counts.unknown > 0
+        ? "attention"
+        : "neutral",
+  };
+}
+
+function relationDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+): DisclosureSummaryV01 {
+  const opposing =
+    reconciliation.pending_relation_material.opposes.length +
+    reconciliation.applied_relation_material.opposes.length;
+  const contradictory =
+    reconciliation.pending_relation_material.contradicts.length +
+    reconciliation.applied_relation_material.contradicts.length;
+  const unresolved = opposing + contradictory;
+  return {
+    text: `${reconciliation.evidence.length} Evidence records · ${reconciliation.claim_families.length} Claim families · ${unresolved} opposing or contradictory relations${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    tone: contradictory > 0
+      ? "critical"
+      : unresolved > 0 || reconciliation.summary.insufficient_material_present
+        ? "attention"
+        : "neutral",
+  };
+}
+
+function conflictDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+  lineage?: ProjectVerifyLineageV01,
+): DisclosureSummaryV01 {
+  const conflictCount = reconciliation.conflicts.length;
+  if (conflictCount > 0) {
+    return {
+      text: `${conflictCount} project ${conflictCount === 1 ? "conflict" : "conflicts"} returned · exact review remains unresolved${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+      tone: "critical",
+    };
+  }
+  if (reconciliation.completeness.status !== "complete") {
+    return {
+      text: `0 project conflicts returned · ${humanize(reconciliation.completeness.status)} read`,
+      tone: "attention",
+    };
+  }
+  if (!lineage) {
+    return {
+      text: "0 project conflicts · selected lineage unavailable",
+      tone: "attention",
+    };
+  }
+  if (lineage.stop.reason !== "chain_complete") {
+    return {
+      text: `0 project conflicts · lineage stopped: ${humanize(lineage.stop.reason)}`,
+      tone: "attention",
+    };
+  }
+  return {
+    text: "0 project conflicts · selected lineage chain complete",
+    tone: "neutral",
+  };
+}
+
+function laterContextDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+): DisclosureSummaryV01 {
+  const transitionRefs = new Set<string>();
+  const conflictRefs = new Set<string>();
+  const revisions = [
+    ...reconciliation.claim_families.flatMap((family) => family.revisions),
+    ...reconciliation.relation_families.flatMap((family) => family.revisions),
+  ];
+  revisions.forEach(({ lifecycle }) => {
+    const ref = lifecycle.transition.transition_receipt_ref;
+    if (!ref) return;
+    const key = `${ref.record_id}:${ref.record_fingerprint}`;
+    if (lifecycle.transition.status === "applied") transitionRefs.add(key);
+    if (lifecycle.transition.status === "source_conflict") conflictRefs.add(key);
+  });
+  reconciliation.later_context.forEach((entry) => {
+    const ref = entry.source_transition_receipt_ref;
+    const key = `${ref.record_id}:${ref.record_fingerprint}`;
+    if (entry.status === "conflict") conflictRefs.add(key);
+    else transitionRefs.add(key);
+  });
+
+  const transitionCount = transitionRefs.size;
+  if (transitionCount === 0) {
+    if (conflictRefs.size > 0) {
+      return {
+        text: `Applied Transition not confirmed · ${conflictRefs.size} transition ${conflictRefs.size === 1 ? "conflict" : "conflicts"} · later context unavailable`,
+        tone: "critical",
+      };
+    }
+    return {
+      text: `${reconciliation.completeness.status === "complete" ? "No applied Transition" : "No applied Transition in returned read"} · later packet unavailable · feedback unavailable`,
+      tone: "attention",
+    };
+  }
+
+  const packetCount = reconciliation.later_context.filter(
+    (entry) => entry.status !== "conflict" && entry.later_packet_ref !== null,
+  ).length;
+  const feedbackCount = reconciliation.later_context.filter(
+    (entry) => entry.status !== "conflict" && entry.context_use_review_ref !== null,
+  ).length;
+  const pendingPacketCount = Math.max(transitionCount - packetCount, 0);
+  const pendingFeedbackCount = Math.max(transitionCount - feedbackCount, 0);
+  transitionRefs.forEach((key) => { conflictRefs.delete(key); });
+  const conflictCount = conflictRefs.size;
+
+  return {
+    text: `${transitionCount} applied ${transitionCount === 1 ? "Transition" : "Transitions"} · ${packetCount} later ${packetCount === 1 ? "packet" : "packets"} recorded · ${pendingPacketCount} pending · ${feedbackCount} feedback recorded · ${pendingFeedbackCount} pending${conflictCount > 0 ? ` · ${conflictCount} conflict${conflictCount === 1 ? "" : "s"}` : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    tone: conflictCount > 0
+      ? "critical"
+      : pendingPacketCount > 0 || pendingFeedbackCount > 0
+        ? "attention"
+        : "neutral",
+  };
 }
