@@ -58,6 +58,8 @@ export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "scripts/runtime-child-launcher.mjs",
   "scripts/runtime-database-bootstrap.mjs",
   "scripts/runtime-reconciliation.mjs",
+  "scripts/runtime-run-reconciliation.mjs",
+  "scripts/continuity-operational-status.mjs",
   "scripts/recovery-backup.mjs",
   "scripts/recovery-canonical-record-validator.mjs",
 ]);

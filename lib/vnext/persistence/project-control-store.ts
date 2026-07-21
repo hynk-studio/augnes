@@ -267,6 +267,49 @@ export function readPersonalPerspectiveEffectiveScopeV01(
   };
 }
 
+/** Preserve an explicitly consented, already-admitted project sharing scope. */
+export function admitPortablePersonalPerspectiveScopeInsideTransactionV01(
+  db: Database.Database,
+  scope: PersonalPerspectiveProjectScopeV01,
+): "inserted" | "exact_replay" {
+  if (!db.inTransaction) fail("project_control_scope_conflict");
+  requireCanonicalProject(db, scope);
+  if (
+    scope.scope_version !== PERSONAL_PERSPECTIVE_PROJECT_SCOPE_VERSION_V01 ||
+    !["included", "excluded"].includes(scope.selection) ||
+    !Number.isSafeInteger(scope.revision) ||
+    scope.revision < 1 ||
+    parseStrictIsoTimestampV01(scope.created_at) === null ||
+    parseStrictIsoTimestampV01(scope.updated_at) === null ||
+    Date.parse(scope.updated_at) < Date.parse(scope.created_at)
+  ) {
+    fail("personal_perspective_transition_invalid");
+  }
+  const current = selectPersonalPerspectiveRow(db, scope);
+  if (current) {
+    const parsed = parsePersonalPerspectiveScopeRow(current);
+    if (canonicalizeProtocolValueV01(parsed) !== canonicalizeProtocolValueV01(scope)) {
+      fail("personal_perspective_revision_conflict");
+    }
+    return "exact_replay";
+  }
+  db.prepare(
+    `INSERT INTO vnext_project_personal_perspective_scopes (
+      workspace_id, project_id, scope_version, selection,
+      revision, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    scope.workspace_id,
+    scope.project_id,
+    scope.scope_version,
+    scope.selection,
+    scope.revision,
+    scope.created_at,
+    scope.updated_at,
+  );
+  return "inserted";
+}
+
 export function mutateProjectControlV01(
   db: Database.Database,
   input: ProjectControlMutationInputV01,

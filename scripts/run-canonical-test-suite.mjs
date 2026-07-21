@@ -217,6 +217,23 @@ const suites = {
       label: "portable-export foundations and project scope",
       ...rootNode("scripts/test-portable-export-foundations.ts"),
     },
+    {
+      id: "portable-project-continuity",
+      group: "supporting-serial",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "backup-restore",
+        "mutable-module-state",
+      ],
+      label:
+        "portable project contract, atomic round trip, reader fidelity, and authority isolation",
+      ...rootNode("scripts/test-portable-project-continuity.ts"),
+      // Production-equivalent fixture, validation, round trip, replay, and
+      // adversarial cases measured 13.41s locally.
+      timeoutMs: 45_000,
+    },
   ],
   authority: [
     {
@@ -257,6 +274,12 @@ const suites = {
     },
   ],
   operability: [
+    {
+      label:
+        "startup durable-run reconciliation, exact replay, and redacted diagnostics",
+      ...rootNode("scripts/test-runtime-run-reconciliation.ts"),
+      timeoutMs: 30_000,
+    },
     {
       label: "bounded public recovery action transport",
       ...rootNode("scripts/test-recovery-product-route.ts"),

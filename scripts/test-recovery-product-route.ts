@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import { NextRequest } from "next/server";
 
-import { POST } from "../app/api/recovery/route";
+import { GET, POST } from "../app/api/recovery/route";
 import { proxy } from "../proxy";
+import {
+  recordPortableOperationResult,
+  recordRunReconciliationResult,
+} from "./continuity-operational-status.mjs";
+
+const routeRoot = mkdtempSync(path.join(tmpdir(), "augnes-recovery-route-"));
+const routeDatabasePath = path.join(routeRoot, "augnes.db");
 
 const environment = {
   AUGNES_CANONICAL_TEST_MODE: "1",
@@ -14,6 +24,7 @@ const environment = {
   AUGNES_RUNTIME_INSTANCE_ID: "instance-recovery-route-timeout",
   AUGNES_RUNTIME_OWNERSHIP_TOKEN: "ownership-recovery-route-timeout",
   AUGNES_RECOVERY_MODE: "1",
+  AUGNES_DB_PATH: routeDatabasePath,
 };
 const requestHeaders = {
   host: "127.0.0.1:3000",
@@ -109,6 +120,91 @@ async function main() {
       "invalid or oversized product requests must be refused before supervisor contact",
     );
 
+    recordPortableOperationResult({
+      databasePath: routeDatabasePath,
+      event: {
+        contract: "augnes.portable-operation-result.v1",
+        observed_at: "2026-07-21T05:10:00.000Z",
+        operation: "import",
+        outcome: "completed",
+        reason_code: "portable_project_imported",
+        record_count: 27,
+        personal_perspective_included: false,
+        reader_verification: "verified",
+        data_preserved: true,
+        next_safe_action: "open_imported_project_home",
+      },
+    });
+    recordRunReconciliationResult({
+      databasePath: routeDatabasePath,
+      result: {
+        contract: "augnes.run-reconciliation-result.v1",
+        schema_version: 1,
+        observed_at: "2026-07-21T05:11:00.000Z",
+        outcome: "review_needed",
+        total_runs_available: 3,
+        total_runs_considered: 3,
+        counts: {
+          queued: 0,
+          starting: 0,
+          running: 0,
+          waiting_for_approval: 1,
+          cancelling: 0,
+          completed: 1,
+          failed: 0,
+          timed_out: 0,
+          cancelled: 0,
+          orphaned_or_indeterminate: 1,
+        },
+        exact_replays_reused: 1,
+        conflicts_refused: 0,
+        waiting_for_approval_count: 1,
+        orphaned_review_needed_count: 1,
+        unsupported_host_coverage_count: 1,
+        no_retry_count: 3,
+        reconciliation_events_created: 1,
+        reason_codes: ["approval_remains_pending", "host_observation_unsupported_after_restart"],
+        next_safe_action: "review_orphaned_runs",
+        automatic_retry_started: false,
+        semantic_authority_created: false,
+        external_action_created: false,
+      },
+    });
+    globalThis.fetch = async () => Response.json(recoveryStatusFixture());
+    const diagnosticResponse = await GET(new Request(
+      "http://127.0.0.1:3000/api/recovery",
+      { headers: { host: "127.0.0.1:3000" } },
+    ));
+    assert.equal(diagnosticResponse.status, 200);
+    const diagnostics = await diagnosticResponse.json();
+    assert.equal(diagnostics.continuity.portability.reason_code, "portable_project_imported");
+    assert.equal(diagnostics.continuity.reconciliation.waiting_for_approval_count, 1);
+    assert.equal(diagnostics.runtime.bridge_health, "ready");
+
+    const reportResponse = await POST(recoveryRequest({
+      action: "preview_support_report",
+    }));
+    assert.equal(reportResponse.status, 200);
+    const preview = await reportResponse.json();
+    assert.equal(preview.contract, "augnes.support-report-preview.v1");
+    assert.equal(preview.previewed, true);
+    assert.equal(preview.report.redacted, true);
+    assert.equal(preview.report.read_only, true);
+    assert.equal(preview.report.authoritative, false);
+    assert.equal(preview.report.actions_created.recovery, false);
+    assert.equal(preview.report.actions_created.semantic, false);
+    assert.equal(preview.report.actions_created.host, false);
+    assert.equal(preview.report.actions_created.external, false);
+    const reportText = JSON.stringify(preview.report);
+    for (const forbidden of [
+      routeDatabasePath,
+      "sk-proj-route-secret",
+      "raw prompt route sentinel",
+      "project:private-route-sentinel",
+    ]) {
+      assert.equal(reportText.includes(forbidden), false);
+    }
+
     const writeRefusal = proxy(
       new NextRequest("http://127.0.0.1:3000/api/product-write", {
         method: "POST",
@@ -152,6 +248,9 @@ async function main() {
           recovery_mode_write_barrier_verified: true,
           recovery_product_action_allowed: true,
           recovery_navigation_no_store_verified: true,
+          portability_and_reconciliation_diagnostics_verified: true,
+          redacted_support_report_preview_verified: true,
+          report_private_material_leaks: 0,
           false_no_mutation_claims: 0,
         },
         null,
@@ -164,7 +263,51 @@ async function main() {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+    rmSync(routeRoot, { recursive: true, force: true });
+    assert.equal(existsSync(routeRoot), false);
   }
+}
+
+function recoveryStatusFixture() {
+  return {
+    contract: "augnes.recovery-product.v1",
+    schema_version: 1,
+    recovery_mode: false,
+    application: {
+      version: "0.1.0",
+      build_identity: `sha256:${"a".repeat(64)}`,
+      package_contract: "augnes.distributable.v1",
+      package_contract_version: 2,
+      compatibility: "verified_package",
+    },
+    database: {
+      state: "current",
+      schema_contract: "augnes.sqlite.structural-schema.v1",
+      schema_classification: "current",
+      migration_state: "current",
+    },
+    runtime: {
+      runtime_contract: "augnes-local-runtime-supervisor-v1",
+      runtime_schema_version: 2,
+      lifecycle_state: "ready",
+      bridge_health: "ready",
+      capability_availability: "runtime_and_bridge",
+    },
+    latest_operation: null,
+    backup_inventory_state: "available",
+    backup_count: 0,
+    legacy_backup_count: 0,
+    legacy_backup_unavailable_count: 0,
+    backup_inventory_truncated: false,
+    backup_page: 1,
+    backup_page_count: 1,
+    backups: [],
+    actions: {
+      create_backup: true,
+      retry_update: false,
+      restore_backup: false,
+    },
+  };
 }
 
 function recoveryRequest(

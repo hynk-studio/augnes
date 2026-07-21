@@ -10,6 +10,7 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -47,12 +48,21 @@ import { evaluateCriterionAssessmentV01 } from "../lib/vnext/criterion-assessmen
 import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal.ts";
 import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission.ts";
 import { createSharedInspectorHrefV01 } from "../lib/vnext/shared-project-inspector-href.ts";
+import { DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
+import { insertAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger.ts";
+import {
+  buildDefaultRunnerAuthorityBoundary,
+  buildDefaultRunnerBudgetSnapshot,
+  buildDefaultRunnerSourceRefs,
+} from "../lib/autonomy/runner-state.ts";
 import {
   issueVNextLocalOperatorBootstrapV01,
   openVNextLocalOperatorDatabaseV01,
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
+import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
+import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -86,6 +96,8 @@ const manifestPath = path.join(
   "operator-pilot-browser-fixture.json",
 );
 const databasePath = path.join(fixtureDir, "operator-pilot.db");
+const importedDatabasePath = path.join(tempRoot, "imported", "augnes.db");
+const downloadDirectory = path.join(tempRoot, "downloads");
 const strategicTransportFixturePath = path.join(
   tempRoot,
   CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_FILE_V01,
@@ -246,6 +258,17 @@ const result = {
   personal_perspective_included: false,
   personal_perspective_shared_inspector_exact: false,
   personal_perspective_project_b_excluded: false,
+  portable_export_preview_visible: false,
+  portable_export_created: false,
+  portable_import_clean_destination: false,
+  imported_project_home_reader_verified: false,
+  imported_workbench_reader_verified: false,
+  imported_inspector_reader_verified: false,
+  restart_run_reconciliation_review_needed: false,
+  restart_terminal_receipt_exact_replay: false,
+  continuity_diagnostics_visible: false,
+  support_report_previewed: false,
+  support_report_exported_after_preview: false,
   project_controls_two_project_isolation: false,
   project_controls_restart_persisted: false,
   control_mutation_grants_created: null,
@@ -279,6 +302,7 @@ const result = {
   temporary_profile_removed: false,
   temporary_fixture_removed: false,
   temporary_database_removed: false,
+  temporary_imported_database_removed: false,
   temporary_manifest_removed: false,
   supervisor_exit_diagnostic: null,
   failure: null,
@@ -372,6 +396,7 @@ try {
   result.temporary_profile_removed = !existsSync(chromeProfileDir);
   result.temporary_fixture_removed = !existsSync(fixtureDir);
   result.temporary_database_removed = !existsSync(databasePath);
+  result.temporary_imported_database_removed = !existsSync(importedDatabasePath);
   result.temporary_manifest_removed = !existsSync(manifestPath);
   process.umask(originalUmask);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -4128,6 +4153,336 @@ async function main() {
     record("personal_perspective_shared_inspector_is_read_only_and_project_scoped");
   });
 
+  await runPhase("final_r8_portability_reconciliation", async () => {
+    mkdirSync(downloadDirectory, { recursive: true, mode: 0o700 });
+    await cdp.send("Browser.setDownloadBehavior", {
+      behavior: "allow",
+      downloadPath: downloadDirectory,
+      eventsEnabled: true,
+    });
+    await navigate(`${appOrigin}/portability`);
+    await waitForCondition(
+      `document.querySelector('[data-portability-surface="v1"]') !== null && document.body.textContent.includes('Review exact scope before export') && document.querySelector('input[type="checkbox"]:not(:checked)') !== null`,
+      "portable active-project preview with Personal Perspective excluded",
+    );
+    result.portable_export_preview_visible = true;
+    const portableExportRequestStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Export portable project'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () => responses.slice(portableExportRequestStart).some(
+        (entry) => entry.path === "/api/vnext/portability" && entry.status === 200,
+      ),
+      "portable export response",
+    );
+    const portablePackagePath = await waitForDownloadedFile(
+      (name) => name.endsWith(".augnes-project.json"),
+      "portable project download",
+    );
+    assert.equal(lstatSync(portablePackagePath).isFile(), true);
+    result.portable_export_created = true;
+
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    const importedRuntimeEnvironment = {
+      ...runtimeEnvironment,
+      AUGNES_DB_PATH: importedDatabasePath,
+    };
+    startDevServer(importedRuntimeEnvironment);
+    await waitForHttp(`${appOrigin}/portability`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/portability`);
+    await waitForCondition(
+      `document.querySelector('[data-portability-surface="v1"] input[type="file"]') !== null`,
+      "clean-destination local import control",
+    );
+    const documentNode = await cdp.send("DOM.getDocument", {
+      depth: -1,
+      pierce: true,
+    });
+    const fileInputNode = await cdp.send("DOM.querySelector", {
+      nodeId: documentNode.root.nodeId,
+      selector: '[data-portability-surface="v1"] input[type="file"]',
+    });
+    assert.equal(Number(fileInputNode.nodeId) > 0, true);
+    await cdp.send("DOM.setFileInputFiles", {
+      nodeId: fileInputNode.nodeId,
+      files: [portablePackagePath],
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const input = document.querySelector('[data-portability-surface="v1"] input[type="file"]');
+        if (!(input instanceof HTMLInputElement) || input.files?.length !== 1) return false;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`),
+      true,
+    );
+    const portablePackageBase64 = readFileSync(portablePackagePath).toString("base64");
+    const portableImport = await evaluateJson(`(async () => {
+      const binary = atob(${JSON.stringify(portablePackageBase64)});
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      const response = await fetch('/api/vnext/portability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/vnd.augnes.portable-project+json' },
+        body: bytes
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(
+      portableImport.status,
+      200,
+      `Clean-destination import refused: ${portableImport.body?.reason_code ?? "unknown"}`,
+    );
+    assert.equal(portableImport.body.status, "imported");
+    assert.equal(portableImport.body.projection_reader_verification, "verified");
+    result.portable_import_clean_destination = true;
+
+    await navigate(
+      `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null`,
+      "imported Project Home reader",
+    );
+    result.imported_project_home_reader_verified = true;
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review="v0.1"]') !== null && document.body.textContent.includes('Review')`,
+      "imported Semantic Workbench reader",
+    );
+    result.imported_workbench_reader_verified = true;
+    await waitForCondition(
+      `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
+      "locked imported-destination local operator session",
+    );
+    bootstrapToken = await issueBootstrap(importedRuntimeEnvironment);
+    await setBootstrapInput(bootstrapToken);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('#vnext-operator-bootstrap-token')?.closest('form');
+        if (!form) return false;
+        form.requestSubmit();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null`,
+      "explicit imported-destination local operator session",
+    );
+    const importedWorkbenchProbe = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review', {
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      const body = await response.json();
+      return { status: response.status, result: body.status ?? null, error_code: body.error_code ?? null };
+    })()`);
+    assert.equal(
+      importedWorkbenchProbe.status,
+      200,
+      `Imported Workbench route refused: ${importedWorkbenchProbe.error_code ?? "unknown"}`,
+    );
+    assert.equal(importedWorkbenchProbe.result, "proposal_list");
+    const importedInspectorHref = createSharedInspectorHrefV01({
+      target_kind: "episode_delta_proposal",
+      record_id: manifest.proposal_id,
+      expected_fingerprint: manifest.proposal_fingerprint,
+    });
+    const importedInspectorProbe = await evaluateJson(`(async () => {
+      const href = new URL(${JSON.stringify(importedInspectorHref)}, location.origin);
+      href.pathname = '/api/vnext/operator/inspector';
+      const response = await fetch(href, { cache: 'no-store', credentials: 'same-origin' });
+      const body = await response.json();
+      return { status: response.status, result: body.status ?? null, error_code: body.error_code ?? null };
+    })()`);
+    assert.equal(
+      importedInspectorProbe.status,
+      200,
+      `Imported Inspector route refused: ${importedInspectorProbe.error_code ?? "unknown"}`,
+    );
+    assert.equal(importedInspectorProbe.result, "inspector_read");
+    await navigate(new URL(importedInspectorHref, appOrigin).toString());
+    await waitForCondition(
+      `document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-read-only="true"][data-inspector-semantic-mutation="false"][data-inspector-target-kind="episode_delta_proposal"]') !== null`,
+      "imported shared Inspector reader",
+    );
+    result.imported_inspector_reader_verified = true;
+
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    seedFinalR8RestartRuns({
+      databasePath: importedDatabasePath,
+      workspaceId: manifest.workspace_id,
+      projectId: manifest.project_id,
+      packetId: manifest.packet_id,
+      packetFingerprint: manifest.packet_fingerprint,
+    });
+    startDevServer(importedRuntimeEnvironment);
+    await waitForHttp(`${appOrigin}/recovery`, DEFAULT_TIMEOUT_MS);
+    await waitForHostCondition(
+      () => {
+        const db = new Database(importedDatabasePath, {
+          readonly: true,
+          fileMustExist: true,
+        });
+        try {
+          const row = db.prepare(
+            "SELECT status, metadata_json FROM autonomy_runs WHERE run_id = 'run:final-r8-restart-review'",
+          ).get();
+          if (!row) return false;
+          const metadata = JSON.parse(row.metadata_json);
+          return row.status === "paused" &&
+            metadata.reconciliation_required === true &&
+            metadata.automatic_retry === false;
+        } finally {
+          db.close();
+        }
+      },
+      "startup run reconciliation publication",
+    );
+    await waitForHostCondition(
+      () => {
+        const status = readContinuityOperationalStatus({
+          databasePath: importedDatabasePath,
+        });
+        return status.reconciliation?.orphaned_review_needed_count === 1 &&
+          status.reconciliation?.exact_replays_reused === 1 &&
+          status.reconciliation?.automatic_retry_started === false;
+      },
+      "public restart reconciliation result publication",
+    );
+    await waitForHostCondition(
+      () => {
+        try {
+          const runtime = JSON.parse(readFileSync(
+            path.join(importedRuntimeEnvironment.AUGNES_RUNTIME_STATE_DIR, "runtime.json"),
+            "utf8",
+          ));
+          return runtime.lifecycle_state === "ready" &&
+            runtime.database_state === "current";
+        } catch {
+          return false;
+        }
+      },
+      "reconciled runtime ready publication",
+    );
+    await navigate(`${appOrigin}/recovery`);
+    const recoveryDiagnosticsProbe = await evaluateJson(`(async () => {
+      const response = await fetch('/api/recovery', { cache: 'no-store' });
+      const body = await response.json();
+      return {
+        status: response.status,
+        error_code: body.error_code ?? null,
+        reconciliation: body.continuity?.reconciliation
+          ? {
+              review_needed: body.continuity.reconciliation.orphaned_review_needed_count,
+              exact_replays: body.continuity.reconciliation.exact_replays_reused,
+              automatic_retry: body.continuity.reconciliation.automatic_retry_started
+            }
+          : null
+      };
+    })()`);
+    assert.equal(
+      recoveryDiagnosticsProbe.status,
+      200,
+      `Recovery diagnostics route refused: ${recoveryDiagnosticsProbe.error_code ?? "unknown"}`,
+    );
+    assert.deepEqual(recoveryDiagnosticsProbe.reconciliation, {
+      review_needed: 1,
+      exact_replays: 1,
+      automatic_retry: false,
+    });
+    await waitForCondition(
+      `document.querySelector('[data-continuity-diagnostics="v1"]') !== null && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Review needed') === true && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Exact replay') === true`,
+      "public restart reconciliation diagnostics",
+    );
+    const reconciliationText = await evaluateString(
+      `document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent ?? ''`,
+    );
+    assert.match(reconciliationText, /Review needed[\s\S]*1/u);
+    assert.match(reconciliationText, /Exact replay[\s\S]*1/u);
+    assert.match(reconciliationText, /Automatic retry[\s\S]*Not started/u);
+    result.restart_run_reconciliation_review_needed = true;
+    result.restart_terminal_receipt_exact_replay = true;
+    result.continuity_diagnostics_visible = true;
+
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Preview support report'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-support-report-preview="ready"]') !== null && document.body.textContent.includes('redacted') && document.body.textContent.includes('non-authoritative') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Export redacted report' && !button.disabled)`,
+      "redacted support report preview before export",
+    );
+    result.support_report_previewed = true;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Export redacted report' &&
+            candidate instanceof HTMLButtonElement && !candidate.disabled
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    const supportReportPath = await waitForDownloadedFile(
+      (name) => name === "augnes-redacted-support-report.json",
+      "redacted support report download",
+    );
+    const supportReportText = readFileSync(supportReportPath, "utf8");
+    assert.equal(supportReportText.includes(importedDatabasePath), false);
+    assert.equal(supportReportText.includes("sk-proj-"), false);
+    assert.equal(supportReportText.includes("raw_prompt"), false);
+    result.support_report_exported_after_preview = true;
+    const importedDatabase = new Database(importedDatabasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      assert.equal(importedDatabase.pragma("integrity_check", { simple: true }), "ok");
+    } finally {
+      importedDatabase.close();
+    }
+    record("final_r8_portable_project_round_trip_uses_clean_isolated_destination");
+    record("final_r8_imported_home_workbench_and_inspector_readers_agree");
+    record("final_r8_restart_reconciliation_reuses_exact_receipt_without_retry");
+    record("final_r8_public_diagnostics_preview_before_redacted_report_export");
+  });
+
+  const isExpectedImportedDestinationSessionRefusal = (entry) =>
+    entry.phase === "final_r8_portability_reconciliation" &&
+    (entry.path === "/api/vnext/operator/session" ||
+      entry.path === "/api/vnext/operator/semantic-review") &&
+    /401 \(Unauthorized\)/i.test(entry.text) &&
+    responses.some(
+      (response) =>
+        response.phase === entry.phase &&
+        response.path === entry.path &&
+        response.method === "GET" &&
+        response.status === 401,
+    );
   const unexpectedConsoleErrors = consoleErrors.filter(
     (entry) =>
       !(
@@ -4136,6 +4491,7 @@ async function main() {
         (entry.phase === "locked_workbench" &&
           entry.path?.startsWith("/api/vnext/operator/") &&
           /401/i.test(entry.text)) ||
+        isExpectedImportedDestinationSessionRefusal(entry) ||
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/projects" &&
           /409/i.test(entry.text)) ||
@@ -4225,6 +4581,12 @@ async function main() {
         (request.path === "/api/vnext/project-controls" ||
           request.path === "/api/vnext/operator/semantic-review" ||
           request.path === "/api/vnext/operator/semantic-transition")
+      ) &&
+      !(
+        request.phase === "final_r8_portability_reconciliation" &&
+        (request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery" ||
+          request.path === "/api/vnext/operator/session")
       ) &&
       !(
         request.phase === "retired_routes" &&
@@ -4891,6 +5253,23 @@ async function waitForRequestQuiet() {
   throw new Error("Timed out waiting for browser request quiet.");
 }
 
+async function waitForDownloadedFile(predicate, label) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
+    const names = existsSync(downloadDirectory)
+      ? readdirSync(downloadDirectory).filter(
+          (name) => !name.endsWith(".crdownload") && predicate(name),
+        )
+      : [];
+    if (names.length === 1) return path.join(downloadDirectory, names[0]);
+    if (names.length > 1) {
+      throw new Error(`${label} produced an ambiguous file set.`);
+    }
+    await delay(100);
+  }
+  throw new Error(`Timed out waiting for ${label}.`);
+}
+
 function documentStatusSince(startIndex, pathname) {
   return (
     responses
@@ -4949,6 +5328,179 @@ function seedExpiredProjectHomePacket({ projectId, marker }) {
       payload: packet,
       created_at: packet.generated_at,
     });
+  } finally {
+    writableDatabase.close();
+  }
+}
+
+function seedFinalR8RestartRuns({
+  databasePath,
+  workspaceId,
+  projectId,
+  packetId,
+  packetFingerprint,
+}) {
+  const writableDatabase = new Database(databasePath, { fileMustExist: true });
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const receiptRow = writableDatabase.prepare(
+      `SELECT record_id, fingerprint, payload_json
+         FROM vnext_core_records
+        WHERE record_kind = 'run_receipt'
+          AND workspace_id = ?
+          AND project_id = ?
+        ORDER BY created_at ASC, record_id ASC
+        LIMIT 1`,
+    ).get(workspaceId, projectId);
+    assert(receiptRow, "Imported terminal receipt fixture missing.");
+    const receipt = JSON.parse(receiptRow.payload_json);
+    assert.equal(typeof receipt.run_id, "string");
+    const authority = buildDefaultRunnerAuthorityBoundary();
+    const budget = buildDefaultRunnerBudgetSnapshot({
+      budget_id: "budget:final-r8-restart",
+    });
+    const sourceRefs = buildDefaultRunnerSourceRefs({
+      runner_refs: [packetId],
+    });
+    const terminalStartedAt = receipt.started_at ?? "2026-07-21T05:40:00.000Z";
+    const terminalFinishedAt = receipt.finished_at ?? "2026-07-21T05:41:00.000Z";
+    const receiptPacketRef = receipt.task_context_packet_ref;
+    insertAutonomyRunLedgerRecord(
+      {
+        run_id: receipt.run_id,
+        scope: projectId,
+        autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
+        title: "Imported terminal receipt exact replay",
+        status: "completed",
+        scheduled_for: null,
+        started_at: terminalStartedAt,
+        finished_at: terminalFinishedAt,
+        created_at: terminalStartedAt,
+        updated_at: terminalFinishedAt,
+        stop_reason: null,
+        source_refs: sourceRefs,
+        authority_boundary: authority,
+        budget_snapshot: budget,
+        metadata: {
+          workspace_id: workspaceId,
+          project_id: projectId,
+          ...(receiptPacketRef
+            ? {
+                packet_id: receiptPacketRef.external_id,
+                packet_fingerprint: receiptPacketRef.source_ref,
+              }
+            : {}),
+          lifecycle_mode: "deterministic_local",
+          run_receipt_id: receiptRow.record_id,
+          run_receipt_fingerprint: receiptRow.fingerprint,
+          terminal_receipt_persisted: true,
+          reconciliation_required: false,
+          automatic_retry: false,
+        },
+      },
+      [{
+        step_id: `${receipt.run_id}.step.receipt`,
+        run_id: receipt.run_id,
+        step_index: 1,
+        action_kind: "invoke_project_scoped_host_adapter",
+        status: "completed",
+        title: "Preserved terminal host result",
+        summary: "The imported canonical receipt remains terminal and is not replayed as work.",
+        started_at: terminalStartedAt,
+        finished_at: terminalFinishedAt,
+        output: {},
+        error_message: null,
+        created_at: terminalStartedAt,
+        updated_at: terminalFinishedAt,
+      }],
+      [{
+        event_id: `${receipt.run_id}.event.completed`,
+        run_id: receipt.run_id,
+        step_id: null,
+        event_type: "run_completed",
+        status: "completed",
+        message: "Terminal receipt fixture admitted through the canonical run ledger.",
+        payload: { automatic_retry_started: false },
+        created_at: terminalFinishedAt,
+      }],
+      { db: writableDatabase },
+    );
+    const activeRunId = "run:final-r8-restart-review";
+    const activeAt = new Date(
+      Date.parse(terminalFinishedAt) + 10 * 60_000,
+    ).toISOString();
+    insertAutonomyRunLedgerRecord(
+      {
+        run_id: activeRunId,
+        scope: projectId,
+        autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
+        title: "Unobservable host run after restart",
+        status: "running",
+        scheduled_for: null,
+        started_at: activeAt,
+        finished_at: null,
+        created_at: activeAt,
+        updated_at: activeAt,
+        stop_reason: null,
+        source_refs: sourceRefs,
+        authority_boundary: authority,
+        budget_snapshot: budget,
+        metadata: {
+          workspace_id: workspaceId,
+          project_id: projectId,
+          work_id: "work:final-r8-restart",
+          packet_id: packetId,
+          packet_fingerprint: packetFingerprint,
+          lifecycle_mode: "deterministic_local",
+          host_external_ref: {
+            ref_version: "external_ref.v0.1",
+            ref_type: "native_host_run",
+            external_id: "host:final-r8-restart-review",
+          },
+          policy_id: "policy:final-r8-restart",
+          grant_id: "grant:final-r8-restart",
+          budget_id: "budget:final-r8-restart",
+          capability_scope: "local_project_only",
+          operation_scope: "exact_run_only",
+          automatic_retry: false,
+        },
+      },
+      [{
+        step_id: `${activeRunId}.step.host`,
+        run_id: activeRunId,
+        step_index: 1,
+        action_kind: "invoke_project_scoped_host_adapter",
+        status: "running",
+        title: "Observe project-scoped host operation",
+        summary: "The prior host operation has no supported restart observer.",
+        started_at: activeAt,
+        finished_at: null,
+        output: {},
+        error_message: null,
+        created_at: activeAt,
+        updated_at: activeAt,
+      }],
+      [{
+        event_id: `${activeRunId}.event.started`,
+        run_id: activeRunId,
+        step_id: null,
+        event_type: "run_started",
+        status: "running",
+        message: "Nonterminal fixture admitted through the canonical run ledger.",
+        payload: { automatic_retry_started: false },
+        created_at: activeAt,
+      }],
+      { db: writableDatabase },
+    );
+    const canonicalValidation = validateRecoveryCanonicalDatabaseV01(
+      writableDatabase,
+    );
+    assert.equal(
+      canonicalValidation.status,
+      "valid",
+      `Restart fixture canonical validation refused: ${canonicalValidation.code}`,
+    );
+    assert.equal(canonicalValidation.code, "canonical_records_valid");
   } finally {
     writableDatabase.close();
   }

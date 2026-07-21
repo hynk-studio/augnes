@@ -1486,8 +1486,13 @@ function prepareStrategicSource(
       422,
     );
   }
+  if (!binding.run) {
+    throw strategicError(
+      "strategic_advantage_transfer_source_run_unavailable",
+      422,
+    );
+  }
   if (
-    !binding.run ||
     !isTerminalRunnerStatus(binding.run.status) ||
     binding.run.scope !== input.config.project_id ||
     binding.run.metadata.workspace_id !== input.config.workspace_id ||
@@ -3544,6 +3549,7 @@ function isCurrentBaseStaleError(code: string): boolean {
 
 function isSourceMaterialUnavailableError(code: string): boolean {
   return [
+    "strategic_advantage_transfer_source_run_unavailable",
     "strategic_advantage_transfer_source_catalog_bound_exceeded",
     "strategic_advantage_transfer_source_catalog_text_bound_exceeded",
     "strategic_advantage_transfer_source_material_bound_exceeded",

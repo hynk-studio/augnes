@@ -1,3 +1,9 @@
+import { getDatabasePath } from "@/lib/db";
+import {
+  buildRedactedSupportReport,
+  readContinuityOperationalStatus,
+} from "@/scripts/continuity-operational-status.mjs";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,7 +21,11 @@ const RESPONSE_HEADERS = {
   "Content-Security-Policy": "frame-ancestors 'none'",
 } as const;
 
-type RecoveryAction = "create_backup" | "restore_backup" | "retry_update";
+type RecoveryAction =
+  | "create_backup"
+  | "restore_backup"
+  | "retry_update"
+  | "preview_support_report";
 
 interface RecoveryActionRequest {
   action: RecoveryAction;
@@ -46,7 +56,16 @@ export async function GET(request: Request): Promise<Response> {
     return unavailableResponse("recovery_control_refused");
   }
   try {
-    return jsonResponse(normalizeRecoveryStatus(upstream.value), upstream.status);
+    const status = normalizeRecoveryStatus(upstream.value);
+    return jsonResponse(
+      {
+        ...status,
+        continuity: readContinuityOperationalStatus({
+          databasePath: getDatabasePath(),
+        }),
+      },
+      upstream.status,
+    );
   } catch {
     return unavailableResponse("recovery_status_invalid");
   }
@@ -56,6 +75,37 @@ export async function POST(request: Request): Promise<Response> {
   try {
     assertRequestBoundary(request);
     const body = await readRecoveryAction(request);
+    if (body.action === "preview_support_report") {
+      try {
+        const upstream = await requestSupervisor("GET");
+        if (!upstream.ok) return unavailableResponse("recovery_control_refused");
+        const recoveryStatus = normalizeRecoveryStatus(upstream.value);
+        const report = (buildRedactedSupportReport as (input: {
+          recoveryStatus: unknown;
+          continuityStatus: unknown;
+          generatedAt?: string;
+        }) => Record<string, unknown>)({
+          recoveryStatus,
+          continuityStatus: readContinuityOperationalStatus({
+            databasePath: getDatabasePath(),
+          }),
+        });
+        const byteCount = Buffer.byteLength(JSON.stringify(report), "utf8");
+        if (byteCount > 64 * 1_024) {
+          return unavailableResponse("support_report_too_large");
+        }
+        return jsonResponse({
+          contract: "augnes.support-report-preview.v1",
+          schema_version: 1,
+          previewed: true,
+          export_format: "application/json",
+          byte_count: byteCount,
+          report,
+        });
+      } catch {
+        return unavailableResponse("support_report_unavailable");
+      }
+    }
     const upstream = await requestSupervisor("POST", body);
     const result = normalizeRecoveryActionResult(upstream.value);
 
@@ -200,7 +250,8 @@ async function readRecoveryAction(request: Request): Promise<RecoveryActionReque
   if (
     value.action !== "create_backup" &&
     value.action !== "restore_backup" &&
-    value.action !== "retry_update"
+    value.action !== "retry_update" &&
+    value.action !== "preview_support_report"
   ) {
     throw new RecoveryRequestError();
   }
@@ -301,6 +352,13 @@ function normalizeRecoveryStatus(value: unknown) {
     application: {
       version: boundedPublicString(application.version, 80),
       build_identity: publicBuildIdentity(application.build_identity),
+      package_contract: nullableBoundedPublicString(
+        application.package_contract,
+        160,
+      ),
+      package_contract_version: nullableIntegerValue(
+        application.package_contract_version,
+      ),
       compatibility: boundedEnum(
         application.compatibility,
         ["verified_package", "source_runtime"] as const,
@@ -318,6 +376,7 @@ function normalizeRecoveryStatus(value: unknown) {
       ),
       migration_state: boundedPublicCode(database.migration_state, 80),
     },
+    runtime: normalizeRuntimeStatus(root.runtime),
     latest_operation:
       root.latest_operation === null
         ? null
@@ -342,6 +401,25 @@ function normalizeRecoveryStatus(value: unknown) {
       retry_update: booleanValue(actions.retry_update),
       restore_backup: booleanValue(actions.restore_backup),
     },
+  };
+}
+
+function normalizeRuntimeStatus(value: unknown) {
+  const runtimeStatus = recordValue(value);
+  return {
+    runtime_contract: nullableBoundedPublicString(
+      runtimeStatus.runtime_contract,
+      160,
+    ),
+    runtime_schema_version: nullableIntegerValue(
+      runtimeStatus.runtime_schema_version,
+    ),
+    lifecycle_state: boundedPublicCode(runtimeStatus.lifecycle_state, 80),
+    bridge_health: boundedPublicCode(runtimeStatus.bridge_health, 80),
+    capability_availability: boundedPublicCode(
+      runtimeStatus.capability_availability,
+      80,
+    ),
   };
 }
 
@@ -495,6 +573,10 @@ function integerValue(value: unknown): number {
     throw new Error("recovery_value_invalid");
   }
   return value as number;
+}
+
+function nullableIntegerValue(value: unknown): number | null {
+  return value === null ? null : integerValue(value);
 }
 
 function boundedPageValue(value: unknown): number {
