@@ -2780,6 +2780,8 @@ async function main() {
         all_closed: summaries.every((summary) => summary?.closest('details')?.open === false),
         criteria: summaries[0]?.textContent?.trim() ?? '',
         reconciliation: summaries[1]?.textContent?.trim() ?? '',
+        insufficient_material_present:
+          summaries[1]?.getAttribute('data-insufficient-material-present') ?? '',
         conflict: summaries[2]?.textContent?.trim() ?? '',
         later_context: summaries[3]?.textContent?.trim() ?? ''
       };
@@ -2788,7 +2790,8 @@ async function main() {
     assert.equal(collapsedVerificationSummaries.all_closed, true);
     assert.match(collapsedVerificationSummaries.criteria, /\d+ satisfied · \d+ unknown · \d+ unsatisfied/u);
     assert.match(collapsedVerificationSummaries.reconciliation, /\d+ Evidence records · \d+ Claim families/u);
-    assert.match(collapsedVerificationSummaries.reconciliation, /Insufficient material present/u);
+    assert.equal(collapsedVerificationSummaries.insufficient_material_present, 'false');
+    assert.doesNotMatch(collapsedVerificationSummaries.reconciliation, /Insufficient material present/u);
     assert.match(collapsedVerificationSummaries.conflict, /project conflicts?/u);
     assert.match(collapsedVerificationSummaries.later_context, /Transition/u);
     assert.match(collapsedVerificationSummaries.later_context, /feedback/u);

@@ -14,6 +14,7 @@ import {
   boundedProjectVerifyDisplayTextV01,
   findExactClaimRevisionV01,
   findExactRelationRevisionV01,
+  projectVerificationRelationDisclosureSummaryV01,
   projectVerificationWorkbenchPresentationV01,
   runReceiptComparisonPresentationV01,
 } from "./project-verification-presentation";
@@ -42,7 +43,7 @@ export function ProjectVerificationWorkbench({
   const relationCounts = presentation.relation_counts;
   const receiptComparison = runReceiptComparisonPresentationV01(receipts);
   const criteriaDisclosure = criterionDisclosureSummaryV01(reconciliation);
-  const relationDisclosure = relationDisclosureSummaryV01(reconciliation);
+  const relationDisclosure = projectVerificationRelationDisclosureSummaryV01(reconciliation);
   const conflictDisclosure = conflictDisclosureSummaryV01(reconciliation, lineage);
   const laterContextDisclosure = laterContextDisclosureSummaryV01(reconciliation);
 
@@ -366,6 +367,9 @@ export function ProjectVerificationWorkbench({
               className={styles.sequenceDisclosureStatus}
               data-summary-tone={relationDisclosure.tone}
               data-workbench-reconciliation-summary="true"
+              data-insufficient-material-present={String(
+                reconciliation.summary.insufficient_material_present,
+              )}
             >
               {relationDisclosure.text}
             </small>
@@ -896,26 +900,6 @@ function criterionDisclosureSummaryV01(
     tone: counts.unsatisfied > 0
       ? "critical"
       : counts.unknown > 0
-        ? "attention"
-        : "neutral",
-  };
-}
-
-function relationDisclosureSummaryV01(
-  reconciliation: ProjectVerifyReconciliationV01,
-): DisclosureSummaryV01 {
-  const opposing =
-    reconciliation.pending_relation_material.opposes.length +
-    reconciliation.applied_relation_material.opposes.length;
-  const contradictory =
-    reconciliation.pending_relation_material.contradicts.length +
-    reconciliation.applied_relation_material.contradicts.length;
-  const unresolved = opposing + contradictory;
-  return {
-    text: `${reconciliation.evidence.length} Evidence records · ${reconciliation.claim_families.length} Claim families · ${unresolved} opposing or contradictory relations${reconciliation.summary.insufficient_material_present ? " · Insufficient material present" : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
-    tone: contradictory > 0
-      ? "critical"
-      : unresolved > 0 || reconciliation.summary.insufficient_material_present
         ? "attention"
         : "neutral",
   };
