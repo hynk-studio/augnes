@@ -132,11 +132,11 @@ export function OperatorSessionPanel({
 
   if (state.status === "authenticated") {
     return (
-      <section className={styles.panel} data-vnext-operator-session="authenticated">
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Local operator session</p>
-          <h2>Possession-authenticated for this project</h2>
-        </div>
+      <details className={styles.sessionDisclosure} data-vnext-operator-session="authenticated">
+        <summary>
+          <span><strong>Local review access established</strong><small>Possession-authenticated for this project</small></span>
+          <span>Session details</span>
+        </summary>
         <dl className={styles.statusGrid}>
           <div>
             <dt>Workspace</dt>
@@ -175,7 +175,7 @@ export function OperatorSessionPanel({
             {statusMessage}
           </p>
         ) : null}
-      </section>
+      </details>
     );
   }
 

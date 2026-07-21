@@ -7,6 +7,7 @@ import {
   SemanticWorkbenchShell,
   type SemanticWorkbenchShellStateV01,
 } from "@/components/workbench/semantic-workbench-shell";
+import { ProductShell } from "@/components/product-shell";
 import {
   OperatorSessionPanel,
   type OperatorSessionStateV01,
@@ -425,21 +426,22 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
     : "/";
 
   return (
-    <main
-      className={styles.page}
-      data-vnext-semantic-review="v0.1"
-      data-vnext-private-material-rendered={String(privateMaterialVisible)}
-      data-vnext-semantic-review-state={
-        sessionState.status === "authenticated"
-          ? privateView
-            ? "authenticated_loaded"
-            : "authenticated_loading"
-          : sessionState.status
-      }
-    >
+    <ProductShell surface="workbench">
+      <main
+        className={styles.page}
+        data-vnext-semantic-review="v0.1"
+        data-vnext-private-material-rendered={String(privateMaterialVisible)}
+        data-vnext-semantic-review-state={
+          sessionState.status === "authenticated"
+            ? privateView
+              ? "authenticated_loaded"
+              : "authenticated_loading"
+            : sessionState.status
+        }
+      >
       <SemanticWorkbenchShell
         title={proposalId ? "Verify and decide" : "Review project decisions"}
-        description="Compare authenticated project material, review one bounded candidate, and make an explicit decision. Transition eligibility and later context remain separate, server-validated steps."
+        description="Trace exact evidence to one explicit decision; an applied Transition remains a separate step."
         entryState={entryPresentation.state}
         entryLabel={entryPresentation.label}
         projectHref={projectHref}
@@ -522,7 +524,8 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           </p>
         ) : null}
       </SemanticWorkbenchShell>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 

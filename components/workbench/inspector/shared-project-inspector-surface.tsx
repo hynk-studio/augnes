@@ -2,6 +2,7 @@ import type {
   SharedProjectInspectorProjectionV01,
   SharedProjectInspectorSectionV01,
 } from "@/types/vnext/shared-project-inspector";
+import { ProductShell } from "@/components/product-shell";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
@@ -13,14 +14,15 @@ export function SharedProjectInspectorSurface({
   accessBoundary?: React.ReactNode;
 }) {
   return (
-    <main
-      className={styles.page}
-      data-shared-project-inspector="v0.1"
-      data-inspector-read-only="true"
-      data-inspector-semantic-mutation="false"
-      data-inspector-target-kind={inspector.target.target_kind}
-      data-inspector-completeness={inspector.completeness}
-    >
+    <ProductShell surface="inspector">
+      <main
+        className={styles.page}
+        data-shared-project-inspector="v0.1"
+        data-inspector-read-only="true"
+        data-inspector-semantic-mutation="false"
+        data-inspector-target-kind={inspector.target.target_kind}
+        data-inspector-completeness={inspector.completeness}
+      >
       <div className={styles.shell}>
         <header className={styles.header}>
           <div>
@@ -28,22 +30,17 @@ export function SharedProjectInspectorSurface({
             <h1>{inspector.target_title}</h1>
             <p className={styles.headerCopy}>{inspector.target_summary}</p>
           </div>
-          <nav className={styles.nav} aria-label="Shared Inspector navigation">
-            <a href="/">Project Home</a>
-            <a href="/workbench/semantic-review">Semantic Workbench</a>
-          </nav>
         </header>
 
-        <div
-          className={styles.boundaryBand}
-          aria-label="Shared Inspector authority boundary"
-        >
-          <strong className={styles.entryState}>{humanizeV01(inspector.target_status)}</strong>
-          <span>Exact project scope comes from the authenticated server</span>
-          <span>Evidence supports; it does not establish Claim truth</span>
-          <span>Decision and gate are not Transition application</span>
-          <span>Inspector reads never mutate semantic state</span>
-        </div>
+        <details className={styles.boundaryDisclosure}>
+          <summary><strong className={styles.entryState}>{humanizeV01(inspector.target_status)}</strong><span>Read-only boundary</span></summary>
+          <div className={styles.boundaryBand} aria-label="Shared Inspector authority boundary">
+            <span>Exact project scope comes from the authenticated server</span>
+            <span>Evidence supports; it does not establish Claim truth</span>
+            <span>Decision and gate are not Transition application</span>
+            <span>Inspector reads never mutate semantic state</span>
+          </div>
+        </details>
 
         {accessBoundary}
 
@@ -60,11 +57,7 @@ export function SharedProjectInspectorSurface({
             <DataPoint label="Observed" value={formatTimestampV01(inspector.observed_at)} />
             <DataPoint label="Projection" value={inspector.inspector_version} />
           </dl>
-          <p className={styles.muted}>
-            Workspace and project identity are authenticated server-side. The URL
-            carries only the exact target refs emitted by Augnes; there is no ID,
-            fingerprint, database, path, or JSON entry procedure.
-          </p>
+          <p className={styles.muted}>Server-authenticated project scope · exact target refs only.</p>
         </section>
 
         <div className={styles.twoColumnGrid} data-inspector-sections="true">
@@ -77,13 +70,13 @@ export function SharedProjectInspectorSurface({
           className={styles.notice}
           data-inspector-authority-proof="true"
         >
-          This read created no Evidence, Claim, relation, proposal, revision,
-          ReviewDecision, gate, Transition, packet, ContextUseReview,
-          automation cycle, grant, current head, Perspective, or reviewed memory.
+          This read created no Evidence, Claim, proposal, ReviewDecision,
+          Transition, packet, ContextUseReview, or project state.
           It invoked no model/provider and performed no external action.
         </section>
       </div>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 
@@ -92,21 +85,32 @@ function InspectorSection({
 }: {
   section: SharedProjectInspectorSectionV01;
 }) {
+  const reviewBoundary = inspectorSectionReviewBoundaryV01(section);
+
   return (
-    <section
-      className={styles.panel}
+    <details
+      className={styles.inspectorSection}
       data-inspector-section={section.section_kind}
       data-inspector-section-status={section.status}
     >
-      <div className={styles.panelHeader}>
-        <div className={styles.rowBetween}>
-          <h2>{section.title}</h2>
-          <span className={styles.badge}>{humanizeV01(section.status)}</span>
+      <summary>
+        <div>
+          <span className={styles.inspectorSectionTitle} role="heading" aria-level={2}>{section.title}</span>
+          <span
+            className={styles.inspectorSectionMeta}
+            data-inspector-summary-status={section.status}
+          >
+            {inspectorSectionSummaryV01(section)}
+          </span>
+          {reviewBoundary ? (
+            <small data-inspector-summary-boundary={section.section_kind}>
+              {reviewBoundary}
+            </small>
+          ) : null}
         </div>
-      </div>
-      <p className={section.status === "missing" ? styles.empty : styles.copy}>
-        {section.summary}
-      </p>
+          <span className={styles.badge}>{humanizeV01(section.status)}</span>
+      </summary>
+      <div className={styles.inspectorSectionBody}>
       {section.bounds.presentation_omitted ? (
         <div
           className={styles.notice}
@@ -166,8 +170,30 @@ function InspectorSection({
       {section.exact_refs.length > 0 ? (
         <ExactRefs refs={section.exact_refs} />
       ) : null}
-    </section>
+      </div>
+    </details>
   );
+}
+
+function inspectorSectionReviewBoundaryV01(
+  section: SharedProjectInspectorSectionV01,
+): string | null {
+  switch (section.section_kind) {
+    case "selected_context_work":
+      return "This is selected working context, not truth.";
+    case "run_receipt":
+      return "Host completion remains distinct from task success.";
+    case "criterion_basis":
+      return "Insufficient remains unknown; skipped checks do not satisfy a criterion.";
+    case "evidence_claims_relations":
+      return "Claim truth is not established; relation existence is not proof.";
+    case "decision_gate":
+      return "A decision itself applies no state; authorization is not application.";
+    case "transition_current_head":
+      return "Only successfully applied StateTransitionReceipts change durable semantic state.";
+    default:
+      return null;
+  }
 }
 
 function ExactRefs({
@@ -210,4 +236,36 @@ function formatTimestampV01(value: string): string {
         timeStyle: "short",
         timeZone: "UTC",
       }).format(parsed);
+}
+
+function inspectorSectionSummaryV01(
+  section: SharedProjectInspectorSectionV01,
+): string {
+  const status = section.status === "available"
+    ? "Exact read"
+    : section.status === "missing"
+      ? "Target missing"
+      : humanizeV01(section.status);
+  const counts: string[] = [];
+  const itemCount = section.bounds.items.total_count;
+  const factCount = section.bounds.facts.total_count;
+  const exactRefCount = section.bounds.exact_refs.total_count;
+
+  if (itemCount > 0) {
+    counts.push(`${itemCount} ${itemCount === 1 ? "entry" : "entries"}`);
+  }
+  if (exactRefCount > 0) {
+    counts.push(`${exactRefCount} exact record ${exactRefCount === 1 ? "reference" : "references"}`);
+  }
+  if (factCount > 0 && itemCount === 0 && exactRefCount === 0) {
+    counts.push(`${factCount} exact ${factCount === 1 ? "fact" : "facts"}`);
+  }
+  if (counts.length === 0) {
+    counts.push("no section records returned");
+  }
+  if (section.bounds.presentation_omitted) {
+    counts.push("bounded view");
+  }
+
+  return `${status} · ${counts.join(" · ")}`;
 }

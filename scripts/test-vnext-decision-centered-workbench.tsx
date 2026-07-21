@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   boundedProjectVerifyDisplayTextV01,
+  projectVerificationRelationDisclosureSummaryV01,
   projectVerificationWorkbenchPresentationV01,
   runReceiptComparisonPresentationV01,
 } from "@/components/workbench/semantic-review/project-verification-presentation";
@@ -50,6 +51,10 @@ try {
     observed_at: OBSERVED_AT,
   });
   assert.equal(presentation.completeness.status, "bounded_incomplete");
+  assert.match(
+    projectVerificationRelationDisclosureSummaryV01(reconciliation).text,
+    /Insufficient material present/u,
+  );
   assert.deepEqual(
     presentation.criteria.map((criterion) => [criterion.status, criterion.basis]),
     [
@@ -203,6 +208,12 @@ try {
   assert.deepEqual(emptyPresentation.relation_families, []);
   assert.deepEqual(emptyPresentation.later_context, []);
   assert.equal(emptyPresentation.summary.claim_truth, "not_established");
+  assert.doesNotMatch(
+    projectVerificationRelationDisclosureSummaryV01(
+      emptyReconciliationFixtureV01(),
+    ).text,
+    /Insufficient material present/u,
+  );
   assert.equal(emptyPresentation.selected_lineage, null);
   assert.equal(networkGuard.attempts.length, 0);
 

@@ -1,5 +1,6 @@
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
+import { ProductShell } from "@/components/product-shell";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
@@ -13,12 +14,13 @@ export function RunResultReviewSurface({
   const summary = result.summary;
   const entryPresentation = resultEntryPresentation(result);
   return (
-    <main
-      className={styles.page}
-      data-run-result-review="v0.1"
-      data-result-review-read-only="true"
-      data-semantic-mutation="false"
-    >
+    <ProductShell surface="workbench">
+      <main
+        className={styles.page}
+        data-run-result-review="v0.1"
+        data-result-review-read-only="true"
+        data-semantic-mutation="false"
+      >
       <SemanticWorkbenchShell
         title="Verify run result"
         description="Compare one immutable, project-scoped RunReceipt with its selected context, verification residue, criterion assessment, and admitted candidate material. Opening this entry performs no semantic write."
@@ -112,7 +114,8 @@ export function RunResultReviewSurface({
           semantic state change, or work closure was created by opening this result.
         </section>
       </SemanticWorkbenchShell>
-    </main>
+      </main>
+    </ProductShell>
   );
 }
 

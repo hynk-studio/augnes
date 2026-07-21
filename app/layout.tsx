@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Augnes",
-  description: "Temporal state runtime cockpit",
+  description: "Local project continuity, evidence, and review",
 };
 
 export default function RootLayout({

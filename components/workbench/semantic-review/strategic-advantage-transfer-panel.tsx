@@ -29,16 +29,25 @@ export function StrategicAdvantageTransferPanel({
     : readback.status;
 
   return (
-    <section
-      className={styles.panel}
+    <details
+      className={styles.sequenceDisclosure}
       data-vnext-strategic-advantage-transfer={
         profile ? "proposal" : readback.status
       }
       data-vnext-strategic-readback-status={readback.status}
       data-vnext-strategic-optional="true"
       data-vnext-strategic-authoritative="false"
-      aria-labelledby="strategic-advantage-transfer-title"
     >
+      <summary>
+        <span className={styles.sequenceNumber}>Optional</span>
+        <span>
+          <strong>Strategic transfer</strong>
+          <small className={styles.sequenceDisclosureStatus} data-summary-tone={readback.status === "stale" ? "attention" : "neutral"}>
+            {profile ? `Profile present · ${displayStatus}` : `Profile ${displayStatus}`}
+          </small>
+        </span>
+      </summary>
+      <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div className={styles.rowBetween}>
           <p className={styles.kicker}>Optional R6 strategic profile</p>
@@ -82,7 +91,8 @@ export function StrategicAdvantageTransferPanel({
           onRequest={onRequest}
         />
       )}
-    </section>
+      </section>
+    </details>
   );
 }
 

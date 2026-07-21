@@ -1562,7 +1562,10 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     downgradeRecovery.effective_url,
   );
   assert.equal(downgradeRecoveryPage.status, 200);
-  assert.match(downgradeRecoveryPage.body, /Update and data recovery/);
+  assert.match(
+    downgradeRecoveryPage.body,
+    /data-recovery-product-surface="v0\.1"/u,
+  );
   const stoppedDowngradeState = readRecoveryOperationResults(
     localPaths.backup_directory,
   );
@@ -2627,7 +2630,10 @@ async function testPackagedMigrationAndRestore(root, manifest) {
     `${currentForRestore.effective_url}/recovery`,
   );
   assert.equal(recoveryPage.status, 200);
-  assert.match(recoveryPage.body, /Update and data recovery/);
+  assert.match(
+    recoveryPage.body,
+    /data-recovery-product-surface="v0\.1"/u,
+  );
   assert.match(recoveryPage.headers.get("cache-control") ?? "", /no-store/u);
   assert.equal(recoveryPage.headers.get("referrer-policy"), "no-referrer");
   assert.equal(recoveryPage.headers.get("x-content-type-options"), "nosniff");
@@ -3124,7 +3130,7 @@ async function testStartupTimeoutRecoverySurface(root, manifest) {
   const origin = new URL(recovery.effective_url).origin;
   const page = await fetchText(recovery.effective_url);
   assert.equal(page.status, 200);
-  assert.match(page.body, /Update and data recovery/);
+  assert.match(page.body, /data-recovery-product-surface="v0\.1"/u);
   const status = await fetchJson(`${origin}/api/recovery`);
   assert.equal(status.status, 200);
   assert.equal(status.body.latest_operation.outcome, "update_recovered");

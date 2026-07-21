@@ -107,11 +107,7 @@ export function DecisionCenteredProposalDetail({
             <span className={styles.badge}>{proposal.status}</span>
           </div>
           <h2 id="selected-review-title">{proposal.bounded_summary}</h2>
-          <p className={styles.copy}>
-            Verify the exact source chain first, then review one selected
-            candidate. Proposal presence and recording order do not make it
-            current or true.
-          </p>
+          <p className={styles.copy}>Proposal presence and recording order do not make it current or true.</p>
         </div>
         <dl className={styles.statusGrid}>
           <DataPoint label="Project scope" value="selected and server-validated" />
@@ -184,11 +180,7 @@ export function DecisionCenteredProposalDetail({
           <h2 id="candidate-decision-title">
             Proposed change, uncertainty, revision, and ReviewDecision
           </h2>
-          <p className={styles.copy}>
-            Select one immutable candidate. Editing creates a separate revision;
-            it is never a ReviewDecision. The decision form sends only the
-            selected candidate and supported canonical decision value.
-          </p>
+          <p className={styles.copy}>Select one immutable candidate. A revision is not a ReviewDecision.</p>
         </div>
 
         {read.candidates.length > 1 ? (
@@ -400,12 +392,7 @@ export function DecisionCenteredProposalDetail({
           <p className={styles.kicker}>Exact read-heavy drill-down</p>
           <h2>Shared Inspector</h2>
         </div>
-        <p className={styles.copy}>
-          Exact source, immutable revision, decision, gate, Transition, current
-          head, later-packet, and feedback lineage share one read-only
-          destination. All ReviewDecision and Transition mutations remain here
-          in the Semantic Workbench.
-        </p>
+        <p className={styles.copy}>Exact source, decision, Transition, later-packet, and feedback lineage.</p>
         <a
           className={styles.linkButton}
           href={proposalInspectorHref}
@@ -527,7 +514,12 @@ function LaterContextFeedback({
 
   if (!belongsToProposal || !receipt) {
     return (
-      <section className={styles.panel} data-vnext-context-use-feedback="not_yet_available">
+      <details className={styles.sequenceDisclosure} data-vnext-context-use-feedback="not_yet_available">
+        <summary>
+          <span className={styles.sequenceNumber}>13</span>
+          <span><strong>Later feedback</strong><small className={styles.sequenceDisclosureStatus} data-summary-tone="attention">ContextUseReview unavailable</small></span>
+        </summary>
+      <section className={styles.panel}>
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Reasoning step 13</p>
           <h2>Later ContextUseReview is not yet available</h2>
@@ -538,6 +530,7 @@ function LaterContextFeedback({
           of those stages.
         </p>
       </section>
+      </details>
     );
   }
 

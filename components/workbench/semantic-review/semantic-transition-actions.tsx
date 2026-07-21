@@ -467,18 +467,48 @@ export function SemanticTransitionActions({
     (selectedDecision ? null : persistedReceiptForSelectedCandidate);
   const laterPacket = applyResponse?.later_packet ?? null;
   const allBusy = busyStep !== null;
+  const transitionNeedsAction = applyingDecisions.length > 0 && !receipt;
+  const [transitionDisclosureOpen, setTransitionDisclosureOpen] = useState(
+    transitionNeedsAction,
+  );
+
+  useEffect(() => {
+    if (transitionNeedsAction) {
+      setTransitionDisclosureOpen(true);
+    }
+  }, [transitionNeedsAction]);
 
   return (
-    <section
-      className={styles.panel}
+    <details
+      className={styles.sequenceDisclosure}
+      open={transitionDisclosureOpen}
+      onToggle={(event) => {
+        setTransitionDisclosureOpen(event.currentTarget.open);
+      }}
       data-vnext-semantic-transition-actions="v0.1"
       data-vnext-transition-applying-decision-count={applyingDecisions.length}
       data-vnext-transition-persisted-receipt-count={
         candidatePersistedReceipts.length
       }
       data-vnext-local-authentication="secret-possession-not-external-identity"
-      aria-labelledby="semantic-transition-actions-title"
     >
+      <summary>
+        <span className={styles.sequenceNumber}>11–12</span>
+        <span>
+          <strong>Authorized Transition</strong>
+          <small
+            className={styles.sequenceDisclosureStatus}
+            data-summary-tone={receipt ? "neutral" : applyingDecisions.length > 0 ? "attention" : "neutral"}
+          >
+            {receipt
+              ? `Transition applied · ${laterPacket ? "later packet compiled" : "later packet unavailable"}`
+              : applyingDecisions.length > 0
+                ? `${applyingDecisions.length} applying ${applyingDecisions.length === 1 ? "decision" : "decisions"} · Transition not applied`
+                : "No applying decision · Transition not applied"}
+          </small>
+        </span>
+      </summary>
+      <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <p className={styles.kicker}>Explicit semantic transition boundary</p>
         <h2 id="semantic-transition-actions-title">
@@ -787,12 +817,10 @@ export function SemanticTransitionActions({
       </div>
 
       <p className={styles.muted}>
-        These controls use client-side fetch with an in-flight mutex. Browser refresh,
-        back navigation, or resubmission cannot repeat a native form POST; server-side
-        nonce rotation, exact replay, expiry, current-head, and idempotency checks remain
-        authoritative.
+        Exact replay, expiry, current-head, and idempotency checks remain server-owned.
       </p>
-    </section>
+      </section>
+    </details>
   );
 }
 

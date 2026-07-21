@@ -14,6 +14,7 @@ import {
   boundedProjectVerifyDisplayTextV01,
   findExactClaimRevisionV01,
   findExactRelationRevisionV01,
+  projectVerificationRelationDisclosureSummaryV01,
   projectVerificationWorkbenchPresentationV01,
   runReceiptComparisonPresentationV01,
 } from "./project-verification-presentation";
@@ -41,6 +42,10 @@ export function ProjectVerificationWorkbench({
   );
   const relationCounts = presentation.relation_counts;
   const receiptComparison = runReceiptComparisonPresentationV01(receipts);
+  const criteriaDisclosure = criterionDisclosureSummaryV01(reconciliation);
+  const relationDisclosure = projectVerificationRelationDisclosureSummaryV01(reconciliation);
+  const conflictDisclosure = conflictDisclosureSummaryV01(reconciliation, lineage);
+  const laterContextDisclosure = laterContextDisclosureSummaryV01(reconciliation);
 
   return (
     <div
@@ -58,10 +63,6 @@ export function ProjectVerificationWorkbench({
           title="Current project and review scope"
           id="verify-scope-title"
         />
-        <p className={styles.copy}>
-          This Workbench is reading the selected project only. Return to Project
-          Home to change projects or resume another task.
-        </p>
         <dl className={styles.statusGrid}>
           <DataPoint label="Workspace scope" value="validated" />
           <DataPoint label="Selected project" value="current route scope" />
@@ -83,6 +84,18 @@ export function ProjectVerificationWorkbench({
         ) : null}
       </section>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>1–2</span>
+          <span>
+            <strong>Intent and selected context</strong>
+            <small className={styles.sequenceDisclosureStatus} data-summary-tone={sourceAssessment ? "neutral" : "attention"}>
+              {sourceAssessment
+                ? `${boundedProjectVerifyDisplayTextV01(sourceAssessment.expected.task_goal)} · context ${humanize(sourceCurrentness ?? "unknown")}`
+                : "Exact source assessment unavailable"}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-intent-title">
         <SequenceHeading
           step="1–2"
@@ -157,7 +170,20 @@ export function ProjectVerificationWorkbench({
           </p>
         )}
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>3–4</span>
+          <span>
+            <strong>Execution residue</strong>
+            <small className={styles.sequenceDisclosureStatus} data-summary-tone={receipts.length === 0 ? "attention" : "neutral"}>
+              {receipts.length === 0
+                ? "Exact RunReceipt unavailable · outcome unknown"
+                : `${receipts.length} exact ${receipts.length === 1 ? "RunReceipt" : "RunReceipts"} · ${receipts.map((receipt) => humanize(receipt.verification.status)).join(" · ")}`}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-receipts-title">
         <SequenceHeading
           step="3–4"
@@ -235,13 +261,27 @@ export function ProjectVerificationWorkbench({
             </ol>
           </>
         )}
-        <p className={styles.notice} data-host-completion-not-task-success="true">
-          Host completion, changed files, unrelated passed checks, and provider
-          confidence are not task success. Criterion status below comes only from
-          the exact Core assessment.
-        </p>
       </section>
+      </details>
+      <p className={styles.notice} data-host-completion-not-task-success="true">
+        Host completion and unrelated passed checks are not task success; skipped
+        checks remain incomplete. Criterion status comes only from the exact Core assessment.
+      </p>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>5</span>
+          <span>
+            <strong>Success criteria and exact basis</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={criteriaDisclosure.tone}
+              data-workbench-criteria-summary="true"
+            >
+              {criteriaDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-criteria-title">
         <SequenceHeading
           step="5"
@@ -316,7 +356,25 @@ export function ProjectVerificationWorkbench({
           </ol>
         )}
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>6</span>
+          <span>
+            <strong>Evidence and Claim reconciliation</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={relationDisclosure.tone}
+              data-workbench-reconciliation-summary="true"
+              data-insufficient-material-present={String(
+                reconciliation.summary.insufficient_material_present,
+              )}
+            >
+              {relationDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-reconciliation-title">
         <SequenceHeading
           step="6"
@@ -340,7 +398,22 @@ export function ProjectVerificationWorkbench({
         <ClaimFamilyList families={reconciliation.claim_families} />
         <RelationFamilyList families={reconciliation.relation_families} />
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>8</span>
+          <span>
+            <strong>Uncertain, opposed, or blocked material</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={conflictDisclosure.tone}
+              data-workbench-conflict-summary="true"
+            >
+              {conflictDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-conflicts-title">
         <SequenceHeading
           step="8"
@@ -369,7 +442,22 @@ export function ProjectVerificationWorkbench({
         )}
         {lineage ? <LineageStop lineage={lineage} /> : null}
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>12–13</span>
+          <span>
+            <strong>Project-level Transition and later context</strong>
+            <small
+              className={styles.sequenceDisclosureStatus}
+              data-summary-tone={laterContextDisclosure.tone}
+              data-workbench-later-context-summary="true"
+            >
+              {laterContextDisclosure.text}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-later-context-title">
         <SequenceHeading
           step="12–13"
@@ -412,6 +500,7 @@ export function ProjectVerificationWorkbench({
           </ol>
         )}
       </section>
+      </details>
     </div>
   );
 }
@@ -779,4 +868,132 @@ function Count({ label, value }: { label: string; value: string | number }) {
 
 function humanize(value: string): string {
   return value.replaceAll("_", " ");
+}
+
+type DisclosureSummaryV01 = {
+  text: string;
+  tone: "neutral" | "attention" | "critical";
+};
+
+function criterionDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+): DisclosureSummaryV01 {
+  if (reconciliation.criteria.length === 0) {
+    return {
+      text: reconciliation.source_assessments.length === 0
+        ? "Exact assessment unavailable · criterion status unknown"
+        : `Exact assessment present · 0 criteria returned · criterion status unavailable${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+      tone: "attention",
+    };
+  }
+  const counts = {
+    satisfied: 0,
+    unsatisfied: 0,
+    unknown: 0,
+    not_applicable: 0,
+  };
+  reconciliation.criteria.forEach(({ criterion }) => {
+    counts[criterion.status] += 1;
+  });
+  return {
+    text: `${counts.satisfied} satisfied · ${counts.unknown} unknown · ${counts.unsatisfied} unsatisfied · ${counts.not_applicable} not applicable${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    tone: counts.unsatisfied > 0
+      ? "critical"
+      : counts.unknown > 0
+        ? "attention"
+        : "neutral",
+  };
+}
+
+function conflictDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+  lineage?: ProjectVerifyLineageV01,
+): DisclosureSummaryV01 {
+  const conflictCount = reconciliation.conflicts.length;
+  if (conflictCount > 0) {
+    return {
+      text: `${conflictCount} project ${conflictCount === 1 ? "conflict" : "conflicts"} returned · exact review remains unresolved${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+      tone: "critical",
+    };
+  }
+  if (reconciliation.completeness.status !== "complete") {
+    return {
+      text: `0 project conflicts returned · ${humanize(reconciliation.completeness.status)} read`,
+      tone: "attention",
+    };
+  }
+  if (!lineage) {
+    return {
+      text: "0 project conflicts · selected lineage unavailable",
+      tone: "attention",
+    };
+  }
+  if (lineage.stop.reason !== "chain_complete") {
+    return {
+      text: `0 project conflicts · lineage stopped: ${humanize(lineage.stop.reason)}`,
+      tone: "attention",
+    };
+  }
+  return {
+    text: "0 project conflicts · selected lineage chain complete",
+    tone: "neutral",
+  };
+}
+
+function laterContextDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+): DisclosureSummaryV01 {
+  const transitionRefs = new Set<string>();
+  const conflictRefs = new Set<string>();
+  const revisions = [
+    ...reconciliation.claim_families.flatMap((family) => family.revisions),
+    ...reconciliation.relation_families.flatMap((family) => family.revisions),
+  ];
+  revisions.forEach(({ lifecycle }) => {
+    const ref = lifecycle.transition.transition_receipt_ref;
+    if (!ref) return;
+    const key = `${ref.record_id}:${ref.record_fingerprint}`;
+    if (lifecycle.transition.status === "applied") transitionRefs.add(key);
+    if (lifecycle.transition.status === "source_conflict") conflictRefs.add(key);
+  });
+  reconciliation.later_context.forEach((entry) => {
+    const ref = entry.source_transition_receipt_ref;
+    const key = `${ref.record_id}:${ref.record_fingerprint}`;
+    if (entry.status === "conflict") conflictRefs.add(key);
+    else transitionRefs.add(key);
+  });
+
+  const transitionCount = transitionRefs.size;
+  if (transitionCount === 0) {
+    if (conflictRefs.size > 0) {
+      return {
+        text: `Project reconciliation · applied Transition not confirmed · ${conflictRefs.size} transition ${conflictRefs.size === 1 ? "conflict" : "conflicts"} · later context unavailable`,
+        tone: "critical",
+      };
+    }
+    return {
+      text: `Project reconciliation · ${reconciliation.completeness.status === "complete" ? "no applied Transition returned" : "no applied Transition in returned read"} · later packet unavailable · feedback unavailable`,
+      tone: "attention",
+    };
+  }
+
+  const packetCount = reconciliation.later_context.filter(
+    (entry) => entry.status !== "conflict" && entry.later_packet_ref !== null,
+  ).length;
+  const feedbackCount = reconciliation.later_context.filter(
+    (entry) => entry.status !== "conflict" && entry.context_use_review_ref !== null,
+  ).length;
+  const pendingPacketCount = Math.max(transitionCount - packetCount, 0);
+  const pendingFeedbackCount = Math.max(transitionCount - feedbackCount, 0);
+  transitionRefs.forEach((key) => { conflictRefs.delete(key); });
+  const conflictCount = conflictRefs.size;
+
+  return {
+    text: `Project reconciliation · ${transitionCount} applied ${transitionCount === 1 ? "Transition" : "Transitions"} · ${packetCount} later ${packetCount === 1 ? "packet" : "packets"} recorded · ${pendingPacketCount} pending · ${feedbackCount} feedback recorded · ${pendingFeedbackCount} pending${conflictCount > 0 ? ` · ${conflictCount} conflict${conflictCount === 1 ? "" : "s"}` : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    tone: conflictCount > 0
+      ? "critical"
+      : pendingPacketCount > 0 || pendingFeedbackCount > 0
+        ? "attention"
+        : "neutral",
+  };
 }

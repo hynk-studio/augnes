@@ -25,6 +25,29 @@ export function boundedProjectVerifyDisplayTextV01(value: string): string {
   );
 }
 
+export function projectVerificationRelationDisclosureSummaryV01(
+  reconciliation: ProjectVerifyReconciliationV01,
+): {
+  text: string;
+  tone: "neutral" | "attention" | "critical";
+} {
+  const opposing =
+    reconciliation.pending_relation_material.opposes.length +
+    reconciliation.applied_relation_material.opposes.length;
+  const contradictory =
+    reconciliation.pending_relation_material.contradicts.length +
+    reconciliation.applied_relation_material.contradicts.length;
+  const unresolved = opposing + contradictory;
+  return {
+    text: `${reconciliation.evidence.length} Evidence records · ${reconciliation.claim_families.length} Claim families · ${unresolved} opposing or contradictory relations${reconciliation.summary.insufficient_material_present ? " · Insufficient material present" : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${reconciliation.completeness.status.replaceAll("_", " ")} read`}`,
+    tone: contradictory > 0
+      ? "critical"
+      : unresolved > 0 || reconciliation.summary.insufficient_material_present
+        ? "attention"
+        : "neutral",
+  };
+}
+
 /**
  * Structural presentation mapping over canonical Core reads. It does not
  * derive criterion meaning, choose a lifecycle source, select a current head,
