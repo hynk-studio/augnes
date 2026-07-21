@@ -155,6 +155,7 @@
 .boundaryBand span,
 .badge {
   display: inline-flex;
+  flex: 0 0 auto;
   width: fit-content;
   max-width: 100%;
   padding: 5px 8px;
@@ -164,8 +165,9 @@
   color: var(--accent-strong);
   font-size: 0.7rem;
   font-weight: 800;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .entryState {
