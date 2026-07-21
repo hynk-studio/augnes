@@ -85,6 +85,8 @@ function InspectorSection({
 }: {
   section: SharedProjectInspectorSectionV01;
 }) {
+  const reviewBoundary = inspectorSectionReviewBoundaryV01(section);
+
   return (
     <details
       className={styles.inspectorSection}
@@ -100,6 +102,11 @@ function InspectorSection({
           >
             {inspectorSectionSummaryV01(section)}
           </span>
+          {reviewBoundary ? (
+            <small data-inspector-summary-boundary={section.section_kind}>
+              {reviewBoundary}
+            </small>
+          ) : null}
         </div>
           <span className={styles.badge}>{humanizeV01(section.status)}</span>
       </summary>
@@ -166,6 +173,23 @@ function InspectorSection({
       </div>
     </details>
   );
+}
+
+function inspectorSectionReviewBoundaryV01(
+  section: SharedProjectInspectorSectionV01,
+): string | null {
+  switch (section.section_kind) {
+    case "selected_context_work":
+      return "This is selected working context, not truth.";
+    case "run_receipt":
+      return "Host completion remains distinct from task success.";
+    case "criterion_basis":
+      return "Insufficient remains unknown; skipped checks do not satisfy a criterion.";
+    case "evidence_claims_relations":
+      return "Claim truth is not established; relation existence is not proof.";
+    default:
+      return null;
+  }
 }
 
 function ExactRefs({
