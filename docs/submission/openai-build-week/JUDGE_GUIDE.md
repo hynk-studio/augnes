@@ -10,13 +10,13 @@ user-facing workspace.
 - Node.js 20.9 or newer
 - npm (the repository does not declare a separate minimum npm version)
 - Linux or macOS for the currently supported source and package path
-- no private credentials for the deterministic path
+- no private credentials for fresh-checkout startup
 
 The distributable artifact is native to its operating system, architecture,
 Linux C library where applicable, and Node module ABI. Windows packaging is not
 currently supported.
 
-## Start Augnes from source
+## A. Fresh-checkout evaluation
 
 ```bash
 npm install
@@ -31,14 +31,19 @@ loopback port.
 
 Normal startup does not seed or reset operator data. With fresh local data,
 open the printed URL, choose a local folder, inspect it, and confirm it as the
-active project.
+active project. This path covers installation, onboarding, Project Home, and
+supervised runtime behavior. It does not create the packet, receipt, proposal,
+decision, Transition, and later-context history described below.
 
-## Deterministic continuity walkthrough
+No supported public command currently creates the complete Build Week
+evaluation workspace. The repository's canonical fixture builders validate the
+full flow with disposable data, but they are internal test harnesses rather than
+public setup commands.
 
-The complete walkthrough uses the prepared Build Week evaluation workspace. It
-contains an explicit local workspace, project, operator, and database binding,
-which makes the round-trip and review controls available without granting them
-global authority.
+## B. Prepared Build Week demonstration
+
+The submission video and gallery use a separately prepared local workspace,
+project, operator, and database binding to show this sequence:
 
 1. Open the prepared project in Project Home.
 2. Select **Run deterministic host round trip**. The zero-model local adapter
@@ -53,9 +58,11 @@ global authority.
 7. Open Inspector from the result or review surface. Trace the exact packet,
    receipt, source, decision, Transition, and later-context lineage.
 
-The prepared binding is evaluation configuration, not a credential. A clean
-checkout with a new database can demonstrate onboarding and Project Home, but it
-will not fabricate or seed this review history during normal startup.
+This sequence is not currently reproducible from the three source-start commands
+on a clean checkout. A final Build Week release will include it as a judge path
+only if that release also includes a reproducible evaluation workspace and
+instructions. Until then, Augnes does not claim a credential-free full
+deterministic demo.
 
 ## Optional OpenAI and live Codex paths
 
@@ -65,8 +72,9 @@ criterion assessment, proposal review, or Core transitions when unavailable.
 
 **Start live Codex work** is a separate optional path. It requires a locally
 installed and authenticated Codex CLI that supports `codex app-server --stdio`.
-Codex manages that native-host session; the deterministic walkthrough does not
-require Codex installation, an OpenAI API key, or any other private credential.
+Codex manages that native-host session. Fresh-checkout startup and supported
+deterministic local fallbacks do not require Codex installation or an OpenAI API
+key.
 
 ## Runtime controls
 

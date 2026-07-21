@@ -11,8 +11,8 @@ reviews the project context around that work so that later tasks can begin from
 an explicit, source-linked state.
 
 This repository demonstrates the operational Core and a reference operator
-interface. It proves the full continuity loop; a simpler user-facing workspace
-will be developed on top of this engine.
+interface. It demonstrates the full continuity loop; a simpler user-facing
+workspace will be developed on top of this engine.
 
 ```text
 Project context
@@ -45,9 +45,18 @@ Augnes prepares its application-owned local database, starts the supervised UI
 and bridge, waits for both to become ready, and prints the effective loopback UI
 URL. No private credentials are required for this startup path.
 
-On fresh local data, choose a folder and confirm it to create the first project.
-Normal startup does not seed or reset operator data. For the prepared Build Week
-evaluation workspace, use this walkthrough:
+### Fresh-checkout evaluation
+
+Open the printed URL, choose a folder, inspect it, and confirm it to create the
+first project. This path demonstrates installation, project onboarding, Project
+Home, and supervised local runtime behavior. Normal startup does not seed or
+reset operator data, and it does not create the review history needed for the
+full continuity walkthrough.
+
+### Prepared Build Week demonstration
+
+The submission video and gallery show this sequence in a separately prepared
+evaluation workspace:
 
 1. Open the prepared local project in Project Home.
 2. Select **Run deterministic host round trip**.
@@ -61,9 +70,14 @@ evaluation workspace, use this walkthrough:
 7. Open Inspector to trace the packet, receipt, sources, decision, and later
    context lineage.
 
-The prepared walkthrough uses an explicit local workspace, project, operator,
-and database binding. The deterministic host uses a zero-model local adapter and
-does not require `OPENAI_API_KEY`. Supported flows use deterministic local
+The repository does not currently provide a supported public command that
+creates this complete workspace from a clean checkout. A final Build Week
+release will include the prepared walkthrough only if it also includes a
+reproducible evaluation workspace and instructions. Until then, the three
+startup commands above should not be read as a credential-free full continuity
+demo.
+
+`OPENAI_API_KEY` remains optional, and supported flows use deterministic local
 fallbacks when no API key is present. A locally installed and authenticated
 Codex CLI with App Server support is required only for **Start live Codex work**.
 
