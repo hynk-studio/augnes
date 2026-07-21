@@ -263,7 +263,8 @@ export function ProjectVerificationWorkbench({
       </section>
       </details>
       <p className={styles.notice} data-host-completion-not-task-success="true">
-        Host completion is not task success. Criterion status comes only from the exact Core assessment.
+        Host completion and unrelated passed checks are not task success; skipped
+        checks remain incomplete. Criterion status comes only from the exact Core assessment.
       </p>
 
       <details className={styles.sequenceDisclosure}>
