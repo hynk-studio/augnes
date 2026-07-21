@@ -12,9 +12,29 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import { openDatabase, type StateEntry } from "../lib/db";
+import {
+  RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+  RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+  RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS,
+  RECOVERY_PRIVATE_MATERIAL_MARKER,
+  RECOVERY_PRIVATE_OBSERVATION_STATE_KEY,
+  RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+} from "../lib/db/recovery-private-material-contract.mjs";
+
+import {
+  listStateDeltaProposals,
+  listStateEntries,
+  listStateTransitions,
+  openDatabase,
+  type StateEntry,
+} from "../lib/db";
+import { collectAugnesDeltaProjectionInput } from "../lib/augnes-delta/source-collector";
 import { buildMockProposals } from "../lib/observe/delta-compiler";
 import { createObservePostHandlerV01 } from "../lib/observe/observe-route-handler";
+import {
+  buildCurrentWorkingPerspectiveRuntimeReadModel,
+  collectCurrentWorkingPerspectiveInput,
+} from "../lib/perspective/current-working-perspective-source";
 import { buildMockRecommendations } from "../lib/planner/planner";
 import { createPlannerPostHandlerV01 } from "../lib/planner/planner-route-handler";
 import { buildStateBrief } from "../lib/state/brief";
@@ -83,6 +103,18 @@ const UNKNOWN_PROJECT_ID = "project:44444444-4444-4444-8444-444444444444";
 const UNKNOWN_WORKSPACE_ID = "workspace:55555555-5555-4555-8555-555555555555";
 const HOSTILE_SENTINEL = "gateway-hostile-material-7dcf9c";
 const CREDENTIAL_SENTINEL = "gateway-test-credential-must-not-escape";
+const TRANSIENT_OBSERVE_SENTINEL =
+  "opaque-observe-input-gateway-persistence-4d79bc2e";
+const TOKEN_SHAPED_OBSERVE_SENTINEL =
+  "sk-proj-gateway-persistence-refusal-95a32e6c";
+const LEGACY_RECOVERY_READER_SCOPE = "project:augnes" as const;
+const LEGACY_RECOVERY_READER_CONTROL_KEY = "product.reader_control";
+const LEGACY_RECOVERY_READER_CONTROL_VALUE = "visible-reader-control";
+const LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY = "implementation.stack";
+const LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE =
+  "TypeScript and SQLite with explicit review boundaries.";
+const LEGACY_RECOVERY_SAFE_PREDECESSOR_REASON =
+  "Reviewed implementation stack predecessor.";
 const TARGETED_LIFECYCLE_TIMEOUT_MS = 500;
 const TEST_STAGE_OBSERVATION_TIMEOUT_MS = 2_000;
 const root = mkdtempSync(path.join(tmpdir(), "augnes-model-gateway-"));
@@ -167,6 +199,7 @@ async function main() {
     assert.equal(livePayload.max_output_tokens, 2_048);
     assert.equal(JSON.stringify(livePayload).includes(CREDENTIAL_SENTINEL), false);
     assertNoPrivateMaterial(live.model_invocation_receipt);
+    assertPersistedObserveMessageIsMarker(live.message_id);
     const semanticReceiptContradictions =
       assertModelInvocationReceiptSemanticMatrix(
         live.model_invocation_receipt,
@@ -196,6 +229,74 @@ async function main() {
     assert.equal(noCredential.model_invocation_receipt.execution_mode, "deterministic");
     assert.equal(noCredential.model_invocation_receipt.selection_reason, "provider_unavailable");
     assert.equal(noCredential.model_invocation_receipt.egress_attempted, false);
+    assertPersistedObserveMessageIsMarker(noCredential.message_id);
+
+    const beforeTransientObserve = openDatabase();
+    const beforeTransientObserveCounts = rowCounts(beforeTransientObserve);
+    beforeTransientObserve.close();
+    const transientObserveResponse = await createObservePostHandlerV01()(
+      observeRequest(fixture, {
+        message: TRANSIENT_OBSERVE_SENTINEL,
+        execution_mode: "deterministic",
+      }),
+    );
+    assert.equal(transientObserveResponse.status, 201);
+    const transientObserve = await transientObserveResponse.json();
+    assert.deepEqual(transientObserve.proposals, []);
+    assertPersistedObserveMessageIsMarker(transientObserve.message_id);
+    const afterTransientObserve = openDatabase();
+    assert.deepEqual(rowCounts(afterTransientObserve), {
+      ...beforeTransientObserveCounts,
+      messages: beforeTransientObserveCounts.messages + 1,
+    });
+    const persistedTransientProposalCount = afterTransientObserve
+        .prepare(
+          `SELECT COUNT(*) AS count
+             FROM state_delta_proposals
+            WHERE state_key = ?
+               OR instr(COALESCE(before_value, ''), ?) > 0
+               OR instr(after_value, ?) > 0`,
+        )
+        .get(
+          RECOVERY_PRIVATE_OBSERVATION_STATE_KEY,
+          TRANSIENT_OBSERVE_SENTINEL,
+          TRANSIENT_OBSERVE_SENTINEL,
+        ) as { count: number };
+    assert.equal(
+      persistedTransientProposalCount.count,
+      0,
+    );
+    afterTransientObserve.close();
+    assert.equal(readFileSync(databasePath).includes(TRANSIENT_OBSERVE_SENTINEL), false);
+
+    const beforeTokenShapedObserve = openDatabase();
+    const beforeTokenShapedObserveCounts = rowCounts(beforeTokenShapedObserve);
+    beforeTokenShapedObserve.close();
+    const tokenShapedObserveResponse = await createObservePostHandlerV01()(
+      observeRequest(fixture, {
+        message: TOKEN_SHAPED_OBSERVE_SENTINEL,
+        execution_mode: "deterministic",
+      }),
+    );
+    assert.equal(tokenShapedObserveResponse.status, 400);
+    assert.equal(
+      (await tokenShapedObserveResponse.text()).includes(
+        TOKEN_SHAPED_OBSERVE_SENTINEL,
+      ),
+      false,
+    );
+    const afterTokenShapedObserve = openDatabase();
+    assert.deepEqual(
+      rowCounts(afterTokenShapedObserve),
+      beforeTokenShapedObserveCounts,
+    );
+    afterTokenShapedObserve.close();
+    assert.equal(
+      readFileSync(databasePath).includes(TOKEN_SHAPED_OBSERVE_SENTINEL),
+      false,
+    );
+    const legacyRecoveryReaderBoundary =
+      assertSanitizedLegacyFallbackExcludedFromReaders();
 
     const explicitDeterministic = await invokeObserveModelGatewayV01(
       envelope(fixture, { mode: "deterministic", message: "README remains required." }),
@@ -849,6 +950,7 @@ async function main() {
         live,
         noCredential,
         explicitDeterministic,
+        transientObserve,
         boundedFailure,
         tinyBudgetFailure,
         preCancelledFailure,
@@ -886,6 +988,17 @@ async function main() {
           ],
           live_transport_calls: metrics.live_transport_calls,
           deterministic_transport_calls: metrics.zero_model_transport_calls,
+          raw_observe_rows_persisted: 0,
+          token_shaped_observe_rows_persisted: 0,
+          unclassified_observe_proposals_persisted: 0,
+          sanitized_legacy_fallback_rows_persisted:
+            legacyRecoveryReaderBoundary.persisted_rows,
+          sanitized_legacy_fallback_rows_admitted_by_readers: 0,
+          sanitized_legacy_fallback_product_readers_checked:
+            legacyRecoveryReaderBoundary.readers_checked,
+          sanitized_legacy_safe_predecessor_projected: true,
+          sanitized_legacy_no_predecessor_rows_admitted: 0,
+          reader_projection_semantic_rows_created: 0,
           blocked_transport_calls: metrics.blocked_transport_calls,
           timeout_transport_calls: metrics.timeout_transport_calls,
           cancellation_transport_calls: metrics.cancellation_transport_calls,
@@ -2517,6 +2630,538 @@ function assertModelInvocationReceiptSemanticMatrix(input: unknown) {
   return cases.length;
 }
 
+function assertSanitizedLegacyFallbackExcludedFromReaders() {
+  const createdAt = "2026-07-15T00:00:00.000Z";
+  const sourceSessionId = "session:recovery-private:reader-boundary";
+  const controlAgentId = "agent:reader-control";
+  const controlSessionId = "session:reader-control";
+  const controlProposalId = "proposal:reader-control";
+  const controlTransitionId = "transition:reader-control";
+  const controlEntryId = "entry:reader-control";
+  const safeAgentId = "agent:reader-safe-predecessor";
+  const safeSessionId = "session:reader-safe-predecessor";
+  const safeProposalId = "proposal:reader-safe-predecessor";
+  const safeTransitionId = "transition:reader-safe-predecessor";
+  const proposalIds: string[] = [];
+  const transitionIds: string[] = [];
+  const entryIds: string[] = [];
+  let projectedPrivateEntryId = "";
+  const database = openDatabase();
+  try {
+    database.transaction(() => {
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO agents (id, name, kind, created_at)
+           VALUES (?, 'Temporal Delta Compiler', 'compiler', ?)`,
+        )
+        .run(RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID, createdAt);
+      database
+        .prepare(
+          `INSERT INTO sessions (
+             id, agent_id, scope, title, started_at, surface, actor, summary
+           ) VALUES (?, ?, ?, 'Legacy Observe reader boundary', ?,
+                     'local_runtime', 'operator:reader-boundary',
+                     'Legacy lineage retained without raw input.')`,
+        )
+        .run(
+          sourceSessionId,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+          LEGACY_RECOVERY_READER_SCOPE,
+          createdAt,
+        );
+      database
+        .prepare(
+          `INSERT INTO messages (
+             id, session_id, role, content, created_at
+           ) VALUES ('message:recovery-private:reader-boundary', ?, 'user', ?, ?)`,
+        )
+        .run(sourceSessionId, RECOVERY_PRIVATE_MATERIAL_MARKER, createdAt);
+
+      const insertProposal = database.prepare(
+        `INSERT INTO state_delta_proposals (
+           id, scope, state_key, before_value, after_value, operation,
+           temporal_scope, stability, change_type, source_agent_id,
+           source_session_id, reason, status, proposed_at, decided_at,
+           consolidation_status
+         ) VALUES (
+           ?, ?, ?, ?, ?, 'update', 'current_task', 'tentative', 'refinement',
+           ?, ?, ?, 'committed', ?, ?, 'committed'
+         )`,
+      );
+      const insertTransition = database.prepare(
+        `INSERT INTO state_transitions (
+           id, scope, state_key, before_value, after_value, temporal_scope,
+           stability, change_type, source_agent_id, source_session_id,
+           source_proposal_id, reason, committed_at
+         ) VALUES (
+           ?, ?, ?, ?, ?, 'current_task', 'tentative', 'refinement',
+           ?, ?, ?, ?, ?
+         )`,
+      );
+      const insertEntry = database.prepare(
+        `INSERT OR REPLACE INTO state_entries (
+           id, scope, state_key, value, temporal_scope, stability, change_type,
+           source_agent_id, source_session_id, source_transition_id,
+           created_at, updated_at
+         ) VALUES (
+           ?, ?, ?, ?, 'current_task', 'tentative', 'refinement',
+           ?, ?, ?, ?, ?
+         )`,
+      );
+
+      database
+        .prepare(
+          `INSERT INTO agents (id, name, kind, created_at)
+           VALUES (?, 'Reader Safe Predecessor', 'runtime', ?)`,
+        )
+        .run(safeAgentId, createdAt);
+      database
+        .prepare(
+          `INSERT INTO sessions (
+             id, agent_id, scope, title, started_at, surface, actor
+           ) VALUES (?, ?, ?, 'Reader safe predecessor', ?, 'local_runtime',
+                     'operator:reader-safe-predecessor')`,
+        )
+        .run(
+          safeSessionId,
+          safeAgentId,
+          LEGACY_RECOVERY_READER_SCOPE,
+          createdAt,
+        );
+      insertProposal.run(
+        safeProposalId,
+        LEGACY_RECOVERY_READER_SCOPE,
+        LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+        null,
+        JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE),
+        safeAgentId,
+        safeSessionId,
+        LEGACY_RECOVERY_SAFE_PREDECESSOR_REASON,
+        "2026-07-14T23:59:00.000Z",
+        "2026-07-14T23:59:01.000Z",
+      );
+      insertTransition.run(
+        safeTransitionId,
+        LEGACY_RECOVERY_READER_SCOPE,
+        LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+        null,
+        JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE),
+        safeAgentId,
+        safeSessionId,
+        safeProposalId,
+        LEGACY_RECOVERY_SAFE_PREDECESSOR_REASON,
+        "2026-07-14T23:59:02.000Z",
+      );
+      insertEntry.run(
+        "entry:reader-safe-predecessor",
+        LEGACY_RECOVERY_READER_SCOPE,
+        LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+        JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE),
+        safeAgentId,
+        safeSessionId,
+        safeTransitionId,
+        "2026-07-14T23:59:02.000Z",
+        "2026-07-14T23:59:03.000Z",
+      );
+
+      for (const [index, stateKey] of RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS.entries()) {
+        const suffix = stateKey.replaceAll(".", "-");
+        const proposalId = `proposal:recovery-private:reader-boundary:${suffix}`;
+        const transitionId = `transition:recovery-private:reader-boundary:${suffix}`;
+        const entryId = `entry:recovery-private:reader-boundary:${suffix}`;
+        proposalIds.push(proposalId);
+        transitionIds.push(transitionId);
+        entryIds.push(entryId);
+        if (stateKey === LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY) {
+          projectedPrivateEntryId = entryId;
+        }
+        insertProposal.run(
+          proposalId,
+          LEGACY_RECOVERY_READER_SCOPE,
+          stateKey,
+          stateKey === LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY
+            ? JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE)
+            : RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+          RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+          sourceSessionId,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+          createdAt,
+          `2026-07-15T00:00:0${index + 1}.000Z`,
+        );
+        insertTransition.run(
+          transitionId,
+          LEGACY_RECOVERY_READER_SCOPE,
+          stateKey,
+          stateKey === LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY
+            ? JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE)
+            : RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+          RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+          sourceSessionId,
+          proposalId,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+          `2026-07-15T00:00:1${index}.000Z`,
+        );
+        insertEntry.run(
+          entryId,
+          LEGACY_RECOVERY_READER_SCOPE,
+          stateKey,
+          RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+          sourceSessionId,
+          transitionId,
+          `2026-07-15T00:00:1${index}.000Z`,
+          `2026-07-15T00:00:2${index}.000Z`,
+        );
+      }
+
+      database
+        .prepare(
+          `INSERT INTO agents (id, name, kind, created_at)
+           VALUES (?, 'Reader Control', 'runtime', ?)`,
+        )
+        .run(controlAgentId, createdAt);
+      database
+        .prepare(
+          `INSERT INTO sessions (
+             id, agent_id, scope, title, started_at, surface, actor
+           ) VALUES (?, ?, ?, 'Reader control', ?, 'local_runtime',
+                     'operator:reader-control')`,
+        )
+        .run(
+          controlSessionId,
+          controlAgentId,
+          LEGACY_RECOVERY_READER_SCOPE,
+          createdAt,
+        );
+      insertProposal.run(
+        controlProposalId,
+        LEGACY_RECOVERY_READER_SCOPE,
+        LEGACY_RECOVERY_READER_CONTROL_KEY,
+        null,
+        JSON.stringify(LEGACY_RECOVERY_READER_CONTROL_VALUE),
+        controlAgentId,
+        controlSessionId,
+        "Deterministic reader control.",
+        createdAt,
+        "2026-07-15T00:00:30.000Z",
+      );
+      insertTransition.run(
+        controlTransitionId,
+        LEGACY_RECOVERY_READER_SCOPE,
+        LEGACY_RECOVERY_READER_CONTROL_KEY,
+        null,
+        JSON.stringify(LEGACY_RECOVERY_READER_CONTROL_VALUE),
+        controlAgentId,
+        controlSessionId,
+        controlProposalId,
+        "Deterministic reader control.",
+        "2026-07-15T00:00:31.000Z",
+      );
+      insertEntry.run(
+        controlEntryId,
+        LEGACY_RECOVERY_READER_SCOPE,
+        LEGACY_RECOVERY_READER_CONTROL_KEY,
+        JSON.stringify(LEGACY_RECOVERY_READER_CONTROL_VALUE),
+        controlAgentId,
+        controlSessionId,
+        controlTransitionId,
+        "2026-07-15T00:00:31.000Z",
+        "2026-07-15T00:00:32.000Z",
+      );
+    })();
+
+    const placeholders = RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS.map(
+      () => "?",
+    ).join(", ");
+    const rawProposals = database
+      .prepare(
+        `SELECT id, state_key, before_value, after_value, source_agent_id,
+                source_session_id, reason, status, consolidation_status
+           FROM state_delta_proposals
+          WHERE scope = ? AND source_session_id = ?
+            AND state_key IN (${placeholders})`,
+      )
+      .all(
+        LEGACY_RECOVERY_READER_SCOPE,
+        sourceSessionId,
+        ...RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS,
+      ) as Array<Record<string, unknown>>;
+    const rawTransitions = database
+      .prepare(
+        `SELECT id, state_key, before_value, after_value, source_agent_id,
+                source_session_id, source_proposal_id, reason
+           FROM state_transitions
+          WHERE scope = ? AND source_session_id = ?
+            AND state_key IN (${placeholders})`,
+      )
+      .all(
+        LEGACY_RECOVERY_READER_SCOPE,
+        sourceSessionId,
+        ...RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS,
+      ) as Array<Record<string, unknown>>;
+    const rawEntries = database
+      .prepare(
+        `SELECT id, state_key, value, source_agent_id, source_session_id,
+                source_transition_id
+           FROM state_entries
+          WHERE scope = ? AND source_session_id = ?
+            AND state_key IN (${placeholders})`,
+      )
+      .all(
+        LEGACY_RECOVERY_READER_SCOPE,
+        sourceSessionId,
+        ...RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS,
+      ) as Array<Record<string, unknown>>;
+    assert.equal(rawProposals.length, 3);
+    assert.equal(rawTransitions.length, 3);
+    assert.equal(rawEntries.length, 3);
+    assert.equal(
+      rawProposals.every(
+        (row) =>
+          row.before_value ===
+            (row.state_key === LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY
+              ? JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE)
+              : RECOVERY_PRIVATE_STATE_VALUE_MARKER) &&
+          row.after_value === RECOVERY_PRIVATE_STATE_VALUE_MARKER &&
+          row.source_agent_id ===
+            RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID &&
+          row.source_session_id === sourceSessionId &&
+          row.reason === RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON &&
+          row.status === "committed" &&
+          row.consolidation_status === "committed",
+      ),
+      true,
+    );
+    assert.equal(
+      rawTransitions.every(
+        (row) =>
+          row.before_value ===
+            (row.state_key === LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY
+              ? JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE)
+              : RECOVERY_PRIVATE_STATE_VALUE_MARKER) &&
+          row.after_value === RECOVERY_PRIVATE_STATE_VALUE_MARKER &&
+          row.source_agent_id ===
+            RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID &&
+          row.source_session_id === sourceSessionId &&
+          row.reason === RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON &&
+          proposalIds.includes(String(row.source_proposal_id)),
+      ),
+      true,
+    );
+    assert.equal(
+      rawEntries.every(
+        (row) =>
+          row.value === RECOVERY_PRIVATE_STATE_VALUE_MARKER &&
+          row.source_agent_id ===
+            RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID &&
+          row.source_session_id === sourceSessionId &&
+          transitionIds.includes(String(row.source_transition_id)),
+      ),
+      true,
+    );
+    assert.deepEqual(
+      database
+        .prepare(
+          `SELECT id, state_key, before_value, after_value,
+                  source_proposal_id, reason
+             FROM state_transitions
+            WHERE id = ?`,
+        )
+        .get(safeTransitionId),
+      {
+        id: safeTransitionId,
+        state_key: LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+        before_value: null,
+        after_value: JSON.stringify(LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE),
+        source_proposal_id: safeProposalId,
+        reason: LEGACY_RECOVERY_SAFE_PREDECESSOR_REASON,
+      },
+    );
+    assert.deepEqual(
+      database
+        .prepare(
+          `SELECT
+             (SELECT COUNT(*) FROM state_delta_proposals WHERE scope = ?) AS proposals,
+             (SELECT COUNT(*) FROM state_transitions WHERE scope = ?) AS transitions,
+             (SELECT COUNT(*) FROM state_entries WHERE scope = ?) AS entries`,
+        )
+        .get(
+          LEGACY_RECOVERY_READER_SCOPE,
+          LEGACY_RECOVERY_READER_SCOPE,
+          LEGACY_RECOVERY_READER_SCOPE,
+        ),
+      { proposals: 5, transitions: 5, entries: 4 },
+      "reader projection must not create a new transition, decision, or state row",
+    );
+  } finally {
+    database.close();
+  }
+
+  const stateEntries = listStateEntries(LEGACY_RECOVERY_READER_SCOPE);
+  const proposals = listStateDeltaProposals({
+    scope: LEGACY_RECOVERY_READER_SCOPE,
+    include_expired: true,
+  });
+  const transitions = listStateTransitions(LEGACY_RECOVERY_READER_SCOPE);
+  assert.equal(stateEntries.some((row) => row.id === controlEntryId), true);
+  assert.equal(proposals.some((row) => row.id === controlProposalId), true);
+  assert.equal(
+    transitions.some((row) => row.id === controlTransitionId),
+    true,
+  );
+  const projectedSafeEntry = stateEntries.find(
+    (row) => row.state_key === LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+  );
+  assert(projectedSafeEntry);
+  assert.equal(
+    projectedSafeEntry.value,
+    LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE,
+  );
+  assert.equal(projectedSafeEntry.id, projectedPrivateEntryId);
+  assert.equal(projectedSafeEntry.source_transition_id, safeTransitionId);
+  assert.equal(projectedSafeEntry.source_agent_id, safeAgentId);
+  assert.equal(proposals.some((row) => row.id === safeProposalId), true);
+  assert.equal(transitions.some((row) => row.id === safeTransitionId), true);
+  assertReaderExcludesLegacyFallback(
+    "listStateEntries",
+    stateEntries,
+    entryIds.filter((id) => id !== projectedPrivateEntryId),
+    [LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY],
+  );
+  assertReaderExcludesLegacyFallback(
+    "listStateDeltaProposals",
+    proposals,
+    proposalIds,
+    [LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY],
+  );
+  assertReaderExcludesLegacyFallback(
+    "listStateTransitions",
+    transitions,
+    transitionIds,
+    [LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY],
+  );
+
+  const stateBrief = buildStateBrief(LEGACY_RECOVERY_READER_SCOPE);
+  const temporalContext = buildTemporalPreviewContext(
+    LEGACY_RECOVERY_READER_SCOPE,
+  );
+  const deltaProjection = collectAugnesDeltaProjectionInput({
+    scope: LEGACY_RECOVERY_READER_SCOPE,
+    asOf: "2026-07-15T00:01:00.000Z",
+  });
+  const perspectiveInput = collectCurrentWorkingPerspectiveInput({
+    scope: LEGACY_RECOVERY_READER_SCOPE,
+    asOf: "2026-07-15T00:01:00.000Z",
+  });
+  const perspectiveReadModel = buildCurrentWorkingPerspectiveRuntimeReadModel({
+    scope: LEGACY_RECOVERY_READER_SCOPE,
+  });
+  assert.equal(
+    JSON.stringify(stateBrief).includes(LEGACY_RECOVERY_READER_CONTROL_KEY),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(temporalContext).includes(LEGACY_RECOVERY_READER_CONTROL_KEY),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(deltaProjection).includes(controlProposalId),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(perspectiveInput).includes(LEGACY_RECOVERY_READER_CONTROL_KEY),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(stateBrief).includes(
+      LEGACY_RECOVERY_SAFE_PREDECESSOR_VALUE,
+    ),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(temporalContext).includes(
+      LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+    ),
+    true,
+  );
+  assert.equal(JSON.stringify(deltaProjection).includes(safeProposalId), true);
+  assert.equal(
+    JSON.stringify(perspectiveInput).includes(
+      LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+    ),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(perspectiveInput).includes(projectedPrivateEntryId),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(perspectiveReadModel).includes(
+      LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY,
+    ),
+    true,
+  );
+  for (const [name, value] of [
+    ["buildStateBrief", stateBrief],
+    ["buildTemporalPreviewContext", temporalContext],
+    ["collectAugnesDeltaProjectionInput", deltaProjection],
+    ["collectCurrentWorkingPerspectiveInput", perspectiveInput],
+    ["buildCurrentWorkingPerspectiveRuntimeReadModel", perspectiveReadModel],
+  ] as const) {
+    assertReaderExcludesLegacyFallback(
+      name,
+      value,
+      [
+        ...proposalIds,
+        ...transitionIds,
+        ...entryIds.filter((id) => id !== projectedPrivateEntryId),
+      ],
+      [LEGACY_RECOVERY_SAFE_PREDECESSOR_KEY],
+    );
+  }
+
+  return {
+    persisted_rows: proposalIds.length + transitionIds.length + entryIds.length,
+    readers_checked: 8,
+  };
+}
+
+function assertReaderExcludesLegacyFallback(
+  readerName: string,
+  value: unknown,
+  lineageIds: string[],
+  allowedStateKeys: readonly string[] = [],
+) {
+  const serialized = JSON.stringify(value);
+  assert.equal(
+    serialized.includes(RECOVERY_PRIVATE_MATERIAL_MARKER),
+    false,
+    `${readerName} must not admit the private-material marker`,
+  );
+  assert.equal(
+    serialized.includes(RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON),
+    false,
+    `${readerName} must not admit the legacy fallback reason`,
+  );
+  for (const stateKey of RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS) {
+    if (allowedStateKeys.includes(stateKey)) continue;
+    assert.equal(
+      serialized.includes(stateKey),
+      false,
+      `${readerName} must not admit legacy fallback state key ${stateKey}`,
+    );
+  }
+  for (const lineageId of lineageIds) {
+    assert.equal(
+      serialized.includes(lineageId),
+      false,
+      `${readerName} must not admit legacy fallback lineage ${lineageId}`,
+    );
+  }
+}
+
 function initializeDatabase() {
   const database = new Database(databasePath);
   database.exec(readFileSync(path.join(process.cwd(), "lib", "db", "schema.sql"), "utf8"));
@@ -2955,6 +3600,34 @@ function rowCounts(db: Database.Database) {
     messages: count("messages"),
     proposals: count("state_delta_proposals"),
   };
+}
+
+function assertPersistedObserveMessageIsMarker(messageId: unknown) {
+  assert.equal(typeof messageId, "string");
+  const database = openDatabase();
+  try {
+    const row = database
+      .prepare("SELECT id, session_id, agent_id, role, content, created_at FROM messages WHERE id = ?")
+      .get(messageId) as
+      | {
+          id: string;
+          session_id: string;
+          agent_id: string | null;
+          role: string;
+          content: string;
+          created_at: string;
+        }
+      | undefined;
+    assert(row, "successful Observe must retain its bounded message metadata");
+    assert.equal(row.id, messageId);
+    assert.equal(row.role, "user");
+    assert.equal(row.agent_id, null);
+    assert.equal(row.content, RECOVERY_PRIVATE_MATERIAL_MARKER);
+    assert.equal(typeof row.session_id, "string");
+    assert.equal(typeof row.created_at, "string");
+  } finally {
+    database.close();
+  }
 }
 
 function assertNoPrivateMaterial(value: unknown) {

@@ -23,6 +23,13 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import {
+  RECOVERY_PRIVATE_MATERIAL_MARKER,
+  RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+  RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+  RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS,
+  RECOVERY_PRIVATE_STATE_VALUE_MARKER,
+} from "../lib/db/recovery-private-material-contract.mjs";
+import {
   ensureApplicationDirectory,
   resolveAugnesLocalPaths,
   resolvePhysicalLocalDestination,
@@ -32,17 +39,23 @@ import {
   RUNTIME_SCHEMA_VERSION,
   buildSupervisorChildValues,
   runRuntimeSupervisorCli,
-} from "./augnes-runtime-supervisor.mjs";
+} from "./augnes-runtime-supervisor-core.mjs";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import {
   canonicalStructuralSchemaContractSignature,
+  bootstrapJournalPath,
+  inspectDatabaseReconciliation,
+  inspectRecoveryDatabaseFile,
   PublicDatabaseBootstrapError,
   inspectRuntimeDatabase,
   prepareRuntimeDatabase,
+  reconcileInterruptedDatabaseBootstrap,
+  restoreRuntimeDatabase,
   structuralSchemaContractSignature,
   verifyDatabaseFile,
 } from "./runtime-database-bootstrap.mjs";
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
+import { listRecoveryBackups } from "./recovery-backup.mjs";
 import {
   cleanupOwnedProcesses,
   closeTrackedServer,
@@ -62,6 +75,12 @@ const credentialSentinel = "db-bootstrap-provider-sentinel-must-not-escape";
 const modelSentinel = "db-bootstrap-model-sentinel-must-not-escape";
 const durableMarkerId = "agent:database-bootstrap-durable-marker";
 const oldMarkerId = "agent:database-bootstrap-old-marker";
+const rawObserveInputSentinel =
+  "Legacy bootstrap Observe input sk-proj-bootstrap-private-7b6c42f1";
+const rawObserveBeforeSentinel =
+  "Earlier bootstrap Observe input sk-proj-bootstrap-before-1f90d5a3";
+const concurrentRawObserveInputSentinel =
+  "Concurrent Observe input sk-proj-bootstrap-race-4e18a0cd";
 const firstStartMarkerScope = "project:database-bootstrap-first-start";
 const firstStartMarkerKey = "database_bootstrap.first_start_marker";
 const firstStartMarkerValue = "disposable-default-database-marker-v0-1";
@@ -112,6 +131,11 @@ try {
     current_database_state: "current",
     old_database_state: "migrated",
     recovery_backup_verified: true,
+    recovery_backup_private_material_bytes: 0,
+    staged_private_material_normalization_verified: true,
+    private_material_metadata_and_lineage_preserved: true,
+    exact_raw_source_rollback_verified: true,
+    backup_verification_failure_original_preserved: true,
     canonical_schema_contract_verified: true,
     unrelated_schema_rejection_verified: true,
     forward_schema_rejection_verified: true,
@@ -123,6 +147,7 @@ try {
     no_reset_or_seed: true,
     diagnostics_read_only: true,
     explicit_override_verified: true,
+    orphan_sqlite_side_files_refused: true,
     provider_or_external_requests: providerOrExternalRequests,
     repository_database_unchanged: true,
     owned_processes_after: 0,
@@ -449,7 +474,10 @@ async function testDirectDatabaseBootstrap() {
   assert.equal(existsSync(explicitPath), true);
   assert.equal(databasePath === explicitPath, false);
   const explicitDatabase = new Database(explicitPath, { fileMustExist: true });
-  explicitDatabase.exec("DROP TABLE perspective_memory_items");
+  explicitDatabase.exec(
+    "DROP TABLE augnes_schema_migrations;" +
+      "DROP TABLE augnes_package_identity_guard;",
+  );
   explicitDatabase.close();
   insertDurableMarker(explicitPath, "agent:explicit-override-marker");
   const explicitMigrated = await prepareRuntimeDatabase({
@@ -465,6 +493,140 @@ async function testDirectDatabaseBootstrap() {
     name: "database bootstrap marker",
   });
 
+  const deferredRollbackPath = path.join(
+    root,
+    "deferred-rollback",
+    "augnes.db",
+  );
+  const deferredRollbackBackups = path.join(root, "deferred-rollback-backups");
+  const deferredRollbackMarker = "agent:deferred-publication-rollback";
+  createOldDatabaseFixture(deferredRollbackPath, deferredRollbackMarker);
+  const deferredRollbackBefore = snapshotDatabaseFamily(deferredRollbackPath);
+  const deferredRollbackPrivateBefore = readLegacyPrivateMaterialFixture(
+    deferredRollbackPath,
+  );
+  const deferredRollback = await prepareRuntimeDatabase({
+    databasePath: deferredRollbackPath,
+    backupDirectory: deferredRollbackBackups,
+    repositoryRoot,
+    instanceId: "direct-deferred-rollback",
+    dependencies: { deferPublicationCleanup: true },
+  });
+  assert.equal(deferredRollback.databaseState, "migrated");
+  assert.equal(
+    JSON.parse(
+      readFileSync(bootstrapJournalPath(deferredRollbackPath), "utf8"),
+    ).phase,
+    "restart_verification_pending",
+  );
+  assert.equal(
+    inspectRecoveryDatabaseFile(deferredRollbackPath).schema_classification,
+    "current",
+  );
+  assertLegacyPrivateMaterialNormalized(deferredRollbackPath);
+  assertNoRawPrivateMaterialBytes(deferredRollbackPath);
+  assert.equal(typeof deferredRollback.publicationControl?.rollback, "function");
+  const rolledBack = await deferredRollback.publicationControl.rollback();
+  deferredRollback.publicationControl = null;
+  assert.equal(rolledBack.result, "database_rollback_restored");
+  assert.deepEqual(
+    snapshotDatabaseFamily(deferredRollbackPath),
+    deferredRollbackBefore,
+  );
+  assert.deepEqual(
+    readLegacyPrivateMaterialFixture(deferredRollbackPath),
+    deferredRollbackPrivateBefore,
+    "publication rollback must restore the exact raw legacy rows and metadata",
+  );
+  assertLegacyPrivateMaterialRaw(deferredRollbackPath);
+  assert.equal(existsSync(bootstrapJournalPath(deferredRollbackPath)), false);
+  const deferredRollbackInventory = listRecoveryBackups({
+    backupDirectory: deferredRollbackBackups,
+    applicationScopeFingerprint: createHash("sha256")
+      .update(repositoryRoot)
+      .digest("hex"),
+    inspectDatabase: inspectRecoveryDatabaseFile,
+  });
+  assert.equal(deferredRollbackInventory.verified.length, 1);
+  const reusable = deferredRollbackInventory.verified[0];
+  assertLegacyPrivateMaterialNormalized(reusable.payloadPath);
+  assertNoRawPrivateMaterialBytes(reusable.backupPath);
+  const reusedPublication = await prepareRuntimeDatabase({
+    databasePath: deferredRollbackPath,
+    backupDirectory: deferredRollbackBackups,
+    repositoryRoot,
+    instanceId: "direct-deferred-reuse",
+    reusableRecoveryBackup: {
+      backupPath: reusable.backupPath,
+      backupId: reusable.manifest.backup_id,
+      backupIdentity: reusable.manifest.backup_identity,
+      backupDirectoryIdentity: reusable.backupDirectoryIdentity,
+      stateDirectoryIdentity: reusable.stateDirectoryIdentity,
+      manifestFileIdentity: reusable.manifestFileIdentity,
+      payloadFileIdentity: reusable.payloadFileIdentity,
+      sourceFamily: null,
+    },
+    dependencies: { deferPublicationCleanup: true },
+  });
+  const reusedJournal = JSON.parse(
+    readFileSync(bootstrapJournalPath(deferredRollbackPath), "utf8"),
+  );
+  assert.deepEqual(
+    reusedJournal.recovery_backup_staging_identity,
+    reusable.backupDirectoryIdentity,
+  );
+  await reusedPublication.publicationControl.commit();
+  reusedPublication.publicationControl = null;
+  assert.equal(
+    listRecoveryBackups({
+      backupDirectory: deferredRollbackBackups,
+      applicationScopeFingerprint: createHash("sha256")
+        .update(repositoryRoot)
+        .digest("hex"),
+      inspectDatabase: inspectRecoveryDatabaseFile,
+    }).verified.length,
+    1,
+  );
+
+  const deferredCommitPath = path.join(root, "deferred-commit", "augnes.db");
+  const deferredCommitBackups = path.join(root, "deferred-commit-backups");
+  const deferredCommitMarker = "agent:deferred-publication-commit";
+  createOldDatabaseFixture(deferredCommitPath, deferredCommitMarker);
+  const deferredCommitPrivateBefore = readLegacyPrivateMaterialFixture(
+    deferredCommitPath,
+  );
+  const deferredCommit = await prepareRuntimeDatabase({
+    databasePath: deferredCommitPath,
+    backupDirectory: deferredCommitBackups,
+    repositoryRoot,
+    instanceId: "direct-deferred-commit",
+    dependencies: { deferPublicationCleanup: true },
+  });
+  assert.equal(
+    JSON.parse(
+      readFileSync(bootstrapJournalPath(deferredCommitPath), "utf8"),
+    ).phase,
+    "restart_verification_pending",
+  );
+  assert.deepEqual(
+    readLegacyPrivateMaterialFixture(deferredCommitPath),
+    normalizedLegacyPrivateMaterialSnapshot(deferredCommitPrivateBefore),
+  );
+  assertLegacyPrivateMaterialNormalized(deferredCommitPath);
+  assertNoRawPrivateMaterialBytes(deferredCommitPath);
+  const committed = await deferredCommit.publicationControl.commit();
+  deferredCommit.publicationControl = null;
+  assert.equal(committed.result, "database_verified_publish_committed");
+  assert.equal(
+    inspectRecoveryDatabaseFile(deferredCommitPath).schema_classification,
+    "current",
+  );
+  assert.deepEqual(readDurableMarker(deferredCommitPath, deferredCommitMarker), {
+    id: deferredCommitMarker,
+    name: "database bootstrap marker",
+  });
+  assert.equal(existsSync(bootstrapJournalPath(deferredCommitPath)), false);
+
   const fakeRepository = path.join(root, "explicit-repository-compatibility");
   mkdirSync(fakeRepository, { recursive: true });
   const repositoryCompatibilityPath = path.join(fakeRepository, "data", "compatibility.db");
@@ -477,6 +639,41 @@ async function testDirectDatabaseBootstrap() {
   });
   assert.equal(repositoryCompatibility.databaseState, "created");
   assert.equal(existsSync(repositoryCompatibilityPath), true);
+
+  const orphanDatabasePath = path.join(root, "orphan-side", "augnes.db");
+  mkdirSync(path.dirname(orphanDatabasePath), {
+    recursive: true,
+    mode: 0o700,
+  });
+  writeFileSync(`${orphanDatabasePath}-wal`, "orphan-wal", { mode: 0o600 });
+  const orphanFamilyBefore = snapshotDatabaseFamily(orphanDatabasePath);
+  await assert.rejects(
+    prepareRuntimeDatabase({
+      databasePath: orphanDatabasePath,
+      backupDirectory: path.join(root, "orphan-side-backups"),
+      repositoryRoot,
+      instanceId: "direct-orphan-side-create",
+      databaseOverrideActive: true,
+    }),
+    (error) => error?.code === "database_reconciliation_required",
+  );
+  await assert.rejects(
+    restoreRuntimeDatabase({
+      databasePath: orphanDatabasePath,
+      backupDirectory: path.join(root, "orphan-side-backups"),
+      repositoryRoot,
+      instanceId: "direct-orphan-side-restore",
+      databaseOverrideActive: true,
+      selectedBackupId: "latest",
+    }),
+    (error) => error?.code === "database_reconciliation_required",
+  );
+  assert.deepEqual(
+    snapshotDatabaseFamily(orphanDatabasePath),
+    orphanFamilyBefore,
+  );
+  assert.equal(existsSync(bootstrapJournalPath(orphanDatabasePath)), false);
+  rmSync(path.dirname(orphanDatabasePath), { recursive: true, force: true });
 
   for (const candidate of listDatabaseOperationResidue(root)) {
     assert.fail(`unexpected database operation residue: ${candidate}`);
@@ -662,6 +859,10 @@ async function testRealOldSchemaStart() {
   const walReader = createOldDatabaseFixture(paths.database_path, oldMarkerId, {
     wal: useWalFixture,
   });
+  const privateMaterialBefore = readLegacyPrivateMaterialFixture(
+    paths.database_path,
+  );
+  assertLegacyPrivateMaterialRaw(paths.database_path);
   if (useWalFixture) assert.equal(existsSync(`${paths.database_path}-wal`), true);
   assert.equal((await inspectRuntimeDatabase({ databasePath: paths.database_path })).database_state, "old");
 
@@ -681,16 +882,26 @@ async function testRealOldSchemaStart() {
     id: oldMarkerId,
     name: "database bootstrap marker",
   });
+  assert.deepEqual(
+    readLegacyPrivateMaterialFixture(paths.database_path),
+    normalizedLegacyPrivateMaterialSnapshot(privateMaterialBefore),
+  );
+  assertLegacyPrivateMaterialNormalized(paths.database_path);
+  assertNoRawPrivateMaterialBytes(paths.database_path);
   assertFreshDatabaseHasNoDemoSeed(paths.database_path);
-  const backups = listRegularFiles(paths.backup_directory).filter((name) => name.endsWith(".db"));
+  const backups = listRecoveryBackupDirectories(paths.backup_directory);
   assert.equal(existsSync(paths.config_directory), false);
   assert.equal(backups.length, 1, "one pre-migration recovery backup must be retained");
-  const backupPath = path.join(paths.backup_directory, backups[0]);
+  const backupPath = recoveryBackupDatabasePath(paths.backup_directory, backups[0]);
   if (process.platform !== "win32") {
     assert.equal(statSync(paths.backup_directory).mode & 0o777, 0o700);
     assert.equal(statSync(backupPath).mode & 0o777, 0o600);
   }
   verifyDatabaseFile(backupPath);
+  assertLegacyPrivateMaterialNormalized(backupPath);
+  assertNoRawPrivateMaterialBytes(
+    path.join(paths.backup_directory, backups[0]),
+  );
   assert.deepEqual(readDurableMarker(backupPath, oldMarkerId), {
     id: oldMarkerId,
     name: "database bootstrap marker",
@@ -707,7 +918,7 @@ async function testRealOldSchemaStart() {
   assert.equal(idempotent.databaseState, "current");
   assert.equal(idempotent.recoveryBackupCreated, false);
   assert.equal(
-    listRegularFiles(paths.backup_directory).filter((name) => name.endsWith(".db")).length,
+    listRecoveryBackupDirectories(paths.backup_directory).length,
     1,
     "idempotent preparation must not create a second backup",
   );
@@ -745,11 +956,55 @@ async function testFailurePreservation() {
     expectBackup: false,
   });
   await assertInjectedFailure({
+    name: "backup-verification-failure",
+    expectedCode: "database_backup_verification_failed",
+    dependencies: {
+      backupDatabase: async ({ targetPath }) => {
+        const invalidBackup = new Database(targetPath);
+        try {
+          invalidBackup.exec(
+            "CREATE TABLE incompatible_backup_fixture (id TEXT PRIMARY KEY)",
+          );
+        } finally {
+          invalidBackup.close();
+        }
+      },
+    },
+    expectBackup: false,
+  });
+  await assertInjectedFailure({
     name: "migration-failure",
     expectedCode: "database_migration_failed",
     dependencies: {
       migrateDatabase: () => {
         throw new Error("fixture migration failure");
+      },
+    },
+    expectBackup: true,
+  });
+  await assertInjectedFailure({
+    name: "post-migration-semantic-verification-failure",
+    expectedCode: "post_migration_verification_failed",
+    dependencies: {
+      migrateDatabase: (database) => {
+        applyCanonicalDatabaseMigrations(database);
+        database
+          .prepare(
+            `INSERT INTO vnext_core_records (
+               record_kind, record_id, workspace_id, project_id, fingerprint,
+               idempotency_key, payload_json, created_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            "run_receipt",
+            "receipt:invalid-post-migration",
+            "workspace:invalid-post-migration",
+            "project:invalid-post-migration",
+            `sha256:${"a".repeat(64)}`,
+            `sha256:${"b".repeat(64)}`,
+            "{}",
+            "2026-07-20T00:00:00.000Z",
+          );
       },
     },
     expectBackup: true,
@@ -765,11 +1020,35 @@ async function testFailurePreservation() {
     expectBackup: true,
   });
   await assertInjectedFailure({
+    name: "reader-failure",
+    expectedCode: "database_reader_incompatible",
+    dependencies: {
+      verifyRequiredReaders: () => {
+        throw new Error("fixture Home/Workbench/Inspector reader failure");
+      },
+    },
+    expectBackup: true,
+  });
+  await assertInjectedFailure({
     name: "replacement-failure",
     expectedCode: "database_bootstrap_failed",
     dependencies: {
       beforeReplacement: () => {
         throw new Error("fixture replacement failure");
+      },
+    },
+    expectBackup: true,
+  });
+  await assertInjectedFailure({
+    name: "post-publication-integrity-failure",
+    expectedCode: "database_bootstrap_failed",
+    dependencies: {
+      afterStagingPublished: ({ databasePath }) => {
+        const before = lstatSync(databasePath, { bigint: true });
+        writeFileSync(databasePath, "not a sqlite database\n", { mode: 0o600 });
+        const after = lstatSync(databasePath, { bigint: true });
+        assert.equal(after.dev, before.dev);
+        assert.equal(after.ino, before.ino);
       },
     },
     expectBackup: true,
@@ -885,10 +1164,173 @@ async function testFailurePreservation() {
   releaseBackup();
   assert.equal((await firstPreparation).databaseState, "migrated");
   assertNoDatabaseOperationResidue(concurrentRoot);
+
+  const concurrentWriteRoot = path.join(
+    temporaryRoot,
+    "concurrent-write-during-backup",
+  );
+  const concurrentWritePath = path.join(
+    concurrentWriteRoot,
+    "data",
+    "augnes.db",
+  );
+  const concurrentWriteBackups = path.join(concurrentWriteRoot, "backups");
+  mkdirSync(path.dirname(concurrentWritePath), { recursive: true });
+  createOldDatabaseFixture(concurrentWritePath, oldMarkerId);
+  let releaseConcurrentWriteBackup;
+  let reportConcurrentWriteBackupEntered;
+  const concurrentWriteBackupEntered = new Promise((resolve) => {
+    reportConcurrentWriteBackupEntered = resolve;
+  });
+  const concurrentWriteBackupGate = new Promise((resolve) => {
+    releaseConcurrentWriteBackup = resolve;
+  });
+  const refusedConcurrentWrite = prepareRuntimeDatabase({
+    databasePath: concurrentWritePath,
+    backupDirectory: concurrentWriteBackups,
+    repositoryRoot,
+    instanceId: "concurrent-write-owner",
+    dependencies: {
+      backupDatabase: async ({ sourcePath, targetPath }) => {
+        reportConcurrentWriteBackupEntered();
+        await concurrentWriteBackupGate;
+        const source = new Database(sourcePath, {
+          readonly: true,
+          fileMustExist: true,
+        });
+        try {
+          await source.backup(targetPath);
+        } finally {
+          source.close();
+        }
+      },
+    },
+  });
+  await concurrentWriteBackupEntered;
+  const concurrentWriter = new Database(concurrentWritePath, {
+    fileMustExist: true,
+  });
+  try {
+    concurrentWriter
+      .prepare("INSERT INTO agents (id, name, created_at) VALUES (?, ?, ?)")
+      .run(
+        "agent:concurrent-write-during-backup",
+        "uncoordinated concurrent writer",
+        "2026-07-20T00:00:00.000Z",
+      );
+  } finally {
+    concurrentWriter.close();
+  }
+  releaseConcurrentWriteBackup();
+  await assert.rejects(
+    refusedConcurrentWrite,
+    (error) => error?.code === "update_ownership_conflict",
+  );
+  assert.deepEqual(
+    readDurableMarker(concurrentWritePath, oldMarkerId),
+    { id: oldMarkerId, name: "database bootstrap marker" },
+  );
+  assert.deepEqual(
+    readDurableMarker(
+      concurrentWritePath,
+      "agent:concurrent-write-during-backup",
+    ),
+    {
+      id: "agent:concurrent-write-during-backup",
+      name: "uncoordinated concurrent writer",
+    },
+  );
+  assert.equal(
+    readdirSync(concurrentWriteBackups).filter((name) =>
+      name.endsWith(".backup"),
+    ).length,
+    1,
+    "the verified recovery backup remains available after ownership refusal",
+  );
+  assertNoDatabaseOperationResidue(concurrentWriteRoot);
+
+  const privateWriteRoot = path.join(
+    temporaryRoot,
+    "private-write-during-backup",
+  );
+  const privateWritePath = path.join(privateWriteRoot, "data", "augnes.db");
+  const privateWriteBackups = path.join(privateWriteRoot, "backups");
+  mkdirSync(path.dirname(privateWritePath), { recursive: true });
+  createOldDatabaseFixture(privateWritePath, `${oldMarkerId}:private-race`);
+  const privateWriteFamilyBefore = snapshotDatabaseFamily(privateWritePath);
+  let releasePrivateWriteBackup;
+  let reportPrivateWriteBackupEntered;
+  const privateWriteBackupEntered = new Promise((resolve) => {
+    reportPrivateWriteBackupEntered = resolve;
+  });
+  const privateWriteBackupGate = new Promise((resolve) => {
+    releasePrivateWriteBackup = resolve;
+  });
+  const refusedPrivateWrite = prepareRuntimeDatabase({
+    databasePath: privateWritePath,
+    backupDirectory: privateWriteBackups,
+    repositoryRoot,
+    instanceId: "private-concurrent-write-owner",
+    dependencies: {
+      backupDatabase: async ({ sourcePath, targetPath }) => {
+        reportPrivateWriteBackupEntered();
+        await privateWriteBackupGate;
+        const source = new Database(sourcePath, {
+          readonly: true,
+          fileMustExist: true,
+        });
+        try {
+          await source.backup(targetPath);
+        } finally {
+          source.close();
+        }
+      },
+    },
+  });
+  await privateWriteBackupEntered;
+  rewriteLegacyPrivateMaterial(
+    privateWritePath,
+    concurrentRawObserveInputSentinel,
+  );
+  assert.notDeepEqual(
+    snapshotDatabaseFamily(privateWritePath),
+    privateWriteFamilyBefore,
+    "the race fixture must change the exact physical source family in place",
+  );
+  releasePrivateWriteBackup();
+  await assert.rejects(
+    refusedPrivateWrite,
+    (error) => error?.code === "update_ownership_conflict",
+    "a concurrent private-field-only write must be refused even when both logical identities normalize to the same marker",
+  );
+  assertLegacyPrivateMaterialRaw(privateWritePath, {
+    expectedInput: concurrentRawObserveInputSentinel,
+  });
+  const privateWriteInventory = listRecoveryBackups({
+    backupDirectory: privateWriteBackups,
+    applicationScopeFingerprint: createHash("sha256")
+      .update(repositoryRoot)
+      .digest("hex"),
+    inspectDatabase: inspectRecoveryDatabaseFile,
+  });
+  assert.equal(privateWriteInventory.rejected.length, 0);
+  assert.equal(privateWriteInventory.verified.length, 1);
+  assertLegacyPrivateMaterialNormalized(
+    privateWriteInventory.verified[0].payloadPath,
+  );
+  assertNoRawPrivateMaterialBytes(
+    privateWriteInventory.verified[0].backupPath,
+    [concurrentRawObserveInputSentinel],
+  );
+  assertNoDatabaseOperationResidue(privateWriteRoot);
 }
 
 async function testDatabaseRecognitionContract() {
   const unrelatedCases = [
+    {
+      name: "empty-sqlite",
+      setup: () => {},
+    },
     {
       name: "agents-only",
       setup: (database) =>
@@ -955,6 +1397,16 @@ async function testDatabaseRecognitionContract() {
 
   const forwardCases = [
     {
+      name: "missing-current-migration-ledger-row",
+      setup: (database) =>
+        database.exec("DELETE FROM augnes_schema_migrations"),
+    },
+    {
+      name: "missing-current-package-identity-guard-row",
+      setup: (database) =>
+        database.exec("DELETE FROM augnes_package_identity_guard"),
+    },
+    {
       name: "unknown-table",
       setup: (database) =>
         database.exec(
@@ -1019,17 +1471,6 @@ async function testDatabaseRecognitionContract() {
   assert.equal(migrated.databaseState, "migrated");
   assert.equal(readStructuralSignature(oldPath), canonicalStructuralSchemaContractSignature());
 
-  const emptyPath = path.join(positiveRoot, "empty.db");
-  new Database(emptyPath).close();
-  assert.equal((await inspectRuntimeDatabase({ databasePath: emptyPath })).database_state, "old");
-  const emptyPrepared = await prepareRuntimeDatabase({
-    databasePath: emptyPath,
-    backupDirectory: path.join(positiveRoot, "empty-backups"),
-    repositoryRoot,
-    instanceId: "schema-contract-empty",
-  });
-  assert.equal(emptyPrepared.databaseState, "migrated");
-  assert.equal(readStructuralSignature(emptyPath), canonicalStructuralSchemaContractSignature());
   assertNoDatabaseOperationResidue(positiveRoot);
 }
 
@@ -1201,6 +1642,44 @@ async function testRealReplacementRollback() {
   assert.equal(existsSync(`${retainedPath}.augnes-bootstrap.lock`), true);
   assert.equal(listFilesRecursively(retainedRoot).some((entry) => entry.includes(".augnes-stage-")), false);
   assert.equal(JSON.stringify(failure).includes(retainedPath), false);
+  const retainedJournal = JSON.parse(
+    readFileSync(`${retainedPath}.augnes-bootstrap.lock`, "utf8"),
+  );
+  const recoveryOwner = {
+    supervisorPid: process.pid,
+    runtimeInstanceId: retainedJournal.runtime_instance_id,
+    runtimeOwnershipGeneration:
+      retainedJournal.runtime_ownership_generation,
+  };
+  const retainedInspection = await inspectDatabaseReconciliation({
+    databasePath: retainedPath,
+    backupDirectory: retainedBackups,
+    repositoryFingerprint: retainedJournal.repository_fingerprint,
+    recoveryOwner,
+  });
+  assert.equal(retainedInspection.state, "recoverable");
+  const retainedReconciliation =
+    await reconcileInterruptedDatabaseBootstrap({
+      databasePath: retainedPath,
+      backupDirectory: retainedBackups,
+      repositoryFingerprint: retainedJournal.repository_fingerprint,
+      reconciliationLeaseOwned: true,
+      recoveryOwner,
+    });
+  assert.equal(retainedReconciliation.databaseStateReconciled, true);
+  assert.deepEqual(readDurableMarker(retainedPath, retainedMarker), {
+    id: retainedMarker,
+    name: "database bootstrap marker",
+  });
+  assert.equal(existsSync(`${retainedPath}.augnes-bootstrap.lock`), false);
+  const retainedRetry = await prepareRuntimeDatabase({
+    databasePath: retainedPath,
+    backupDirectory: retainedBackups,
+    repositoryRoot,
+    instanceId: "rollback-restoration-retry",
+  });
+  assert.equal(retainedRetry.databaseState, "migrated");
+  assertNoDatabaseOperationResidue(retainedRoot);
 }
 
 async function assertRealReplacementRollback({ name, hookName, observe }) {
@@ -1309,7 +1788,7 @@ async function testSupervisorMigrationFailure() {
     name: "database bootstrap marker",
   });
   assert.equal(
-    listRegularFiles(paths.backup_directory).filter((name) => name.endsWith(".db")).length,
+    listRecoveryBackupDirectories(paths.backup_directory).length,
     1,
   );
   assertRuntimeStateClean(paths.runtime_directory);
@@ -1444,11 +1923,11 @@ async function assertSupervisorBootstrapFailure({
     assert.equal(await canConnect(ports.bridge), false);
     assert.deepEqual(snapshotDatabaseFamily(paths.database_path), originalBefore);
     verifyDatabaseFile(paths.database_path);
-    const backups = existsSync(paths.backup_directory)
-      ? listRegularFiles(paths.backup_directory).filter((entry) => entry.endsWith(".db"))
-      : [];
+    const backups = listRecoveryBackupDirectories(paths.backup_directory);
     assert.equal(backups.length, expectedBackupCount);
-    for (const backup of backups) verifyDatabaseFile(path.join(paths.backup_directory, backup));
+    for (const backup of backups) {
+      verifyDatabaseFile(recoveryBackupDatabasePath(paths.backup_directory, backup));
+    }
     assertRuntimeStateClean(paths.runtime_directory);
     assertNoDatabaseOperationResidue(root);
     const publicOutput = output.join("\n");
@@ -1484,6 +1963,8 @@ async function assertInjectedFailure({
   mkdirSync(path.dirname(databasePath), { recursive: true });
   createOldDatabaseFixture(databasePath, oldMarkerId);
   const originalBefore = snapshotDatabaseFamily(databasePath);
+  const privateMaterialBefore = readLegacyPrivateMaterialFixture(databasePath);
+  assertLegacyPrivateMaterialRaw(databasePath);
   let failure;
   try {
     await prepareRuntimeDatabase({
@@ -1500,17 +1981,25 @@ async function assertInjectedFailure({
   assert.equal(failure?.code, expectedCode);
   assert.equal(failure?.message, expectedCode);
   assert.deepEqual(snapshotDatabaseFamily(databasePath), originalBefore);
+  assert.deepEqual(
+    readLegacyPrivateMaterialFixture(databasePath),
+    privateMaterialBefore,
+    `${name} must preserve the exact raw pre-update rows when publication does not commit`,
+  );
+  assertLegacyPrivateMaterialRaw(databasePath);
   assert.deepEqual(readDurableMarker(databasePath, oldMarkerId), {
     id: oldMarkerId,
     name: "database bootstrap marker",
   });
-  const backups = existsSync(backupDirectory)
-    ? listRegularFiles(backupDirectory).filter((entry) => entry.endsWith(".db"))
-    : [];
+  const backups = listRecoveryBackupDirectories(backupDirectory);
   assert.equal(backups.length, expectBackup ? 1 : 0);
   if (expectBackup) {
-    const backupPath = path.join(backupDirectory, backups[0]);
+    const backupPath = recoveryBackupDatabasePath(backupDirectory, backups[0]);
     verifyDatabaseFile(backupPath);
+    assertLegacyPrivateMaterialNormalized(backupPath);
+    assertNoRawPrivateMaterialBytes(
+      path.join(backupDirectory, backups[0]),
+    );
     assert.deepEqual(readDurableMarker(backupPath, oldMarkerId), {
       id: oldMarkerId,
       name: "database bootstrap marker",
@@ -1793,11 +2282,293 @@ function createOldDatabaseFixture(databasePath, markerId, { wal = false } = {}) 
     database
       .prepare("INSERT INTO agents (id, name, created_at) VALUES (?, ?, ?)")
       .run(markerId, "database bootstrap marker", "2000-01-01T00:00:00.000Z");
-    database.exec("DROP TABLE perspective_memory_items");
+    insertLegacyPrivateMaterialFixture(database, markerId);
+    database.exec(
+      "DROP TABLE augnes_schema_migrations;" +
+        "DROP TABLE augnes_package_identity_guard;",
+    );
   } finally {
     database.close();
   }
   return walReader;
+}
+
+function insertLegacyPrivateMaterialFixture(database, markerId) {
+  const sessionId = `session:bootstrap-private:${markerId}`;
+  const scope = `project:bootstrap-private:${markerId}`;
+  const createdAt = "1999-12-31T23:59:00.000Z";
+  database
+    .prepare(
+      `INSERT OR IGNORE INTO agents (id, name, kind, created_at)
+       VALUES (?, 'Temporal Delta Compiler', 'compiler', ?)`,
+    )
+    .run(RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID, createdAt);
+  database
+    .prepare(
+      `INSERT INTO sessions (id, agent_id, scope, title, started_at, surface, actor)
+       VALUES (?, ?, ?, ?, ?, 'local_runtime', 'operator:bootstrap-private')`,
+    )
+    .run(
+      sessionId,
+      RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+      scope,
+      "Observe user message",
+      createdAt,
+    );
+  database
+    .prepare(
+      `INSERT INTO messages (id, session_id, agent_id, role, content, created_at)
+       VALUES (?, ?, NULL, 'user', ?, ?)`,
+    )
+    .run(
+      `message:bootstrap-private:${markerId}`,
+      sessionId,
+      rawObserveInputSentinel,
+      createdAt,
+    );
+  const proposalStatement = database.prepare(
+      `INSERT INTO state_delta_proposals (
+         id, scope, state_key, before_value, after_value, operation,
+         temporal_scope, stability, change_type, source_agent_id,
+         source_session_id, reason, status, proposed_at, decided_at,
+         consolidation_status
+       ) VALUES (
+         ?, ?, ?, ?, ?, 'update', 'current_task', 'tentative', 'refinement',
+         ?, ?, ?, 'committed', ?, ?,
+         'committed'
+       )`,
+    );
+  const transitionStatement = database.prepare(
+      `INSERT INTO state_transitions (
+         id, scope, state_key, before_value, after_value, temporal_scope,
+         stability, change_type, source_agent_id, source_session_id,
+         source_proposal_id, reason, committed_at
+       ) VALUES (
+         ?, ?, ?, ?, ?, 'current_task', 'tentative', 'refinement', ?, ?, ?,
+         ?, ?
+       )`,
+    );
+  const entryStatement = database.prepare(
+      `INSERT INTO state_entries (
+         id, scope, state_key, value, temporal_scope, stability, change_type,
+         source_agent_id, source_session_id, source_transition_id, created_at,
+         updated_at
+       ) VALUES (
+         ?, ?, ?, ?, 'current_task', 'tentative', 'refinement', ?, ?, ?, ?, ?
+       )`,
+    );
+  for (const [index, stateKey] of RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS.entries()) {
+    const suffix = stateKey.replaceAll(".", "-");
+    const proposalId = `proposal:bootstrap-private:${suffix}:${markerId}`;
+    const transitionId = `transition:bootstrap-private:${suffix}:${markerId}`;
+    proposalStatement.run(
+      proposalId,
+      scope,
+      stateKey,
+      JSON.stringify(rawObserveBeforeSentinel),
+      JSON.stringify(rawObserveInputSentinel),
+      RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+      sessionId,
+      RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+      createdAt,
+      `1999-12-31T23:59:0${index + 1}.000Z`,
+    );
+    transitionStatement.run(
+      transitionId,
+      scope,
+      stateKey,
+      JSON.stringify(rawObserveBeforeSentinel),
+      JSON.stringify(rawObserveInputSentinel),
+      RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+      sessionId,
+      proposalId,
+      RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+      `1999-12-31T23:59:1${index}.000Z`,
+    );
+    entryStatement.run(
+      `entry:bootstrap-private:${suffix}:${markerId}`,
+      scope,
+      stateKey,
+      JSON.stringify(rawObserveInputSentinel),
+      RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+      sessionId,
+      transitionId,
+      `1999-12-31T23:59:1${index}.000Z`,
+      `1999-12-31T23:59:2${index}.000Z`,
+    );
+  }
+}
+
+function readLegacyPrivateMaterialFixture(databasePath) {
+  const database = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const sessionPrefix = "session:bootstrap-private:%";
+    return {
+      messages: database
+        .prepare(
+          `SELECT * FROM messages
+            WHERE session_id LIKE ?
+            ORDER BY id`,
+        )
+        .all(sessionPrefix),
+      proposals: database
+        .prepare(
+          `SELECT * FROM state_delta_proposals
+            WHERE source_agent_id = ? AND reason = ? AND source_session_id LIKE ?
+            ORDER BY id`,
+        )
+        .all(
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+          sessionPrefix,
+        ),
+      entries: database
+        .prepare(
+          `SELECT * FROM state_entries
+            WHERE source_session_id LIKE ?
+            ORDER BY id`,
+        )
+        .all(sessionPrefix),
+      transitions: database
+        .prepare(
+          `SELECT * FROM state_transitions
+            WHERE source_agent_id = ? AND reason = ? AND source_session_id LIKE ?
+            ORDER BY id`,
+        )
+        .all(
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_SOURCE_AGENT_ID,
+          RECOVERY_PRIVATE_LEGACY_OBSERVE_REASON,
+          sessionPrefix,
+        ),
+    };
+  } finally {
+    database.close();
+  }
+}
+
+function normalizedLegacyPrivateMaterialSnapshot(snapshot) {
+  const normalized = structuredClone(snapshot);
+  for (const row of normalized.messages) {
+    row.content = RECOVERY_PRIVATE_MATERIAL_MARKER;
+  }
+  for (const row of normalized.proposals) {
+    row.before_value = RECOVERY_PRIVATE_STATE_VALUE_MARKER;
+    row.after_value = RECOVERY_PRIVATE_STATE_VALUE_MARKER;
+  }
+  for (const row of normalized.entries) {
+    row.value = RECOVERY_PRIVATE_STATE_VALUE_MARKER;
+  }
+  for (const row of normalized.transitions) {
+    row.before_value = RECOVERY_PRIVATE_STATE_VALUE_MARKER;
+    row.after_value = RECOVERY_PRIVATE_STATE_VALUE_MARKER;
+  }
+  return normalized;
+}
+
+function assertLegacyPrivateMaterialRaw(
+  databasePath,
+  { expectedInput = rawObserveInputSentinel } = {},
+) {
+  const snapshot = readLegacyPrivateMaterialFixture(databasePath);
+  assert.equal(snapshot.messages.length, 1);
+  assert.equal(snapshot.messages[0].content, expectedInput);
+  assert.deepEqual(
+    snapshot.proposals.map((row) => row.state_key).sort(),
+    [...RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS].sort(),
+  );
+  assert.equal(snapshot.entries.length, 3);
+  assert.equal(snapshot.transitions.length, 3);
+  for (const row of snapshot.proposals) {
+    assert.equal(row.before_value, JSON.stringify(rawObserveBeforeSentinel));
+    assert.equal(row.after_value, JSON.stringify(expectedInput));
+  }
+  for (const row of snapshot.entries) {
+    assert.equal(row.value, JSON.stringify(expectedInput));
+  }
+  for (const row of snapshot.transitions) {
+    assert.equal(row.before_value, JSON.stringify(rawObserveBeforeSentinel));
+    assert.equal(row.after_value, JSON.stringify(expectedInput));
+  }
+}
+
+function assertLegacyPrivateMaterialNormalized(databasePath) {
+  const snapshot = readLegacyPrivateMaterialFixture(databasePath);
+  assert.equal(snapshot.messages.length, 1);
+  assert.equal(snapshot.messages[0].content, RECOVERY_PRIVATE_MATERIAL_MARKER);
+  assert.deepEqual(
+    snapshot.proposals.map((row) => row.state_key).sort(),
+    [...RECOVERY_PRIVATE_LEGACY_OBSERVE_STATE_KEYS].sort(),
+  );
+  assert.equal(snapshot.entries.length, 3);
+  assert.equal(snapshot.transitions.length, 3);
+  for (const row of snapshot.proposals) {
+    assert.equal(row.before_value, RECOVERY_PRIVATE_STATE_VALUE_MARKER);
+    assert.equal(row.after_value, RECOVERY_PRIVATE_STATE_VALUE_MARKER);
+  }
+  for (const row of snapshot.entries) {
+    assert.equal(row.value, RECOVERY_PRIVATE_STATE_VALUE_MARKER);
+  }
+  for (const row of snapshot.transitions) {
+    assert.equal(row.before_value, RECOVERY_PRIVATE_STATE_VALUE_MARKER);
+    assert.equal(row.after_value, RECOVERY_PRIVATE_STATE_VALUE_MARKER);
+  }
+}
+
+function rewriteLegacyPrivateMaterial(databasePath, replacement) {
+  const database = new Database(databasePath, { fileMustExist: true });
+  try {
+    database.pragma("journal_mode = DELETE");
+    database
+      .prepare(
+        `UPDATE messages SET content = ?
+          WHERE session_id LIKE 'session:bootstrap-private:%'`,
+      )
+      .run(replacement);
+    database
+      .prepare(
+        `UPDATE state_delta_proposals SET after_value = ?
+          WHERE source_session_id LIKE 'session:bootstrap-private:%'`,
+      )
+      .run(JSON.stringify(replacement));
+    database
+      .prepare(
+        `UPDATE state_entries SET value = ?
+          WHERE source_session_id LIKE 'session:bootstrap-private:%'`,
+      )
+      .run(JSON.stringify(replacement));
+    database
+      .prepare(
+        `UPDATE state_transitions SET after_value = ?
+          WHERE source_session_id LIKE 'session:bootstrap-private:%'`,
+      )
+      .run(JSON.stringify(replacement));
+  } finally {
+    database.close();
+  }
+}
+
+function assertNoRawPrivateMaterialBytes(rootPath, additionalSentinels = []) {
+  const stats = lstatSync(rootPath);
+  const files = stats.isDirectory() ? listFilesRecursively(rootPath) : [rootPath];
+  for (const filePath of files) {
+    const fileStats = lstatSync(filePath);
+    if (!fileStats.isFile() || fileStats.isSymbolicLink()) continue;
+    const bytes = readFileSync(filePath);
+    for (const sentinel of [
+      rawObserveInputSentinel,
+      rawObserveBeforeSentinel,
+      ...additionalSentinels,
+    ]) {
+      assert.equal(
+        bytes.includes(Buffer.from(sentinel)),
+        false,
+        `${path.relative(temporaryRoot, filePath)} retained raw Observe bytes`,
+      );
+    }
+  }
 }
 
 function createCanonicalDatabaseFixture(databasePath) {
@@ -1821,9 +2592,28 @@ function readStructuralSignature(databasePath) {
 }
 
 function onlyRecoveryBackup(backupDirectory) {
-  const backups = listRegularFiles(backupDirectory).filter((entry) => entry.endsWith(".db"));
+  const backups = listRecoveryBackupDirectories(backupDirectory);
   assert.equal(backups.length, 1, "exactly one recovery backup must exist");
-  return path.join(backupDirectory, backups[0]);
+  return recoveryBackupDatabasePath(backupDirectory, backups[0]);
+}
+
+function listRecoveryBackupDirectories(backupDirectory) {
+  if (!existsSync(backupDirectory)) return [];
+  return readdirSync(backupDirectory)
+    .filter((name) => {
+      const target = path.join(backupDirectory, name);
+      const stats = lstatSync(target);
+      return (
+        stats.isDirectory() &&
+        !stats.isSymbolicLink() &&
+        /^augnes-recovery-\d{8}T\d{6}-[0-9a-f]{8}\.backup$/u.test(name)
+      );
+    })
+    .sort();
+}
+
+function recoveryBackupDatabasePath(backupDirectory, backupBasename) {
+  return path.join(backupDirectory, backupBasename, "state", "augnes.db");
 }
 
 function insertDurableMarker(databasePath, markerId) {

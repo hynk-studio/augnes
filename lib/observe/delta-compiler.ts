@@ -195,16 +195,9 @@ export function buildMockProposals(
   const canonicalProposals = buildCanonicalMockProposals(message, currentState);
   if (canonicalProposals.length > 0) return canonicalProposals;
 
-  return [
-    buildMockProposal({
-      stateKey: selectMockStateKey(message),
-      afterValue: message,
-      temporalScope: selectMockTemporalScope(message),
-      stability: "tentative",
-      currentState,
-      reason: "Deterministic no-model Observe proposal.",
-    }),
-  ];
+  // Unclassified Observe text is intentionally transient. Persisting it as a
+  // proposal value would turn the raw user input into durable semantic state.
+  return [];
 }
 
 function buildCanonicalMockProposals(
@@ -333,25 +326,6 @@ function buildMockProposal({
     change_type: changeType ?? (currentEntry ? "refinement" : "new_state"),
     reason,
   };
-}
-
-function selectMockStateKey(message: string) {
-  const lower = message.toLowerCase();
-  if (lower.includes("api key") || lower.includes("secret")) {
-    return "security.no_api_keys_in_repo";
-  }
-  if (lower.includes("deadline")) return "timeline.deadline_note";
-  if (lower.includes("stack") || lower.includes("sqlite")) {
-    return "implementation.stack";
-  }
-  return "observations.latest_user_message";
-}
-
-function selectMockTemporalScope(message: string) {
-  const lower = message.toLowerCase();
-  if (lower.includes("later") || lower.includes("future")) return "future_phase";
-  if (lower.includes("session")) return "current_session";
-  return "current_task";
 }
 
 function validateProjectRoot(value: unknown): ObserveRequest["project_root"] {

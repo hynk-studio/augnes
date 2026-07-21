@@ -53,6 +53,7 @@ export function ProjectHome({
         </div>
         <div className="project-home-actions" aria-label="Project Home actions">
           <a href="/projects">Project selection</a>
+          <a href="/recovery">Update &amp; recovery</a>
           <ProjectHomeRefreshAction />
         </div>
       </header>

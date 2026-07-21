@@ -258,6 +258,29 @@ const suites = {
   ],
   operability: [
     {
+      label: "bounded public recovery action transport",
+      ...rootNode("scripts/test-recovery-product-route.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "production canonical record recovery validation",
+      ...rootNode("scripts/test-recovery-canonical-record-validator.ts"),
+      // The production 30-record backup/restore fixture, real product readers,
+      // and adversarial mutations measured 83.72s locally after the recovery
+      // privacy boundary. Comparable canonical process children have measured
+      // up to 1.87x local duration in CI, so retain a bounded 180s limit.
+      timeoutMs: 180_000,
+    },
+    {
+      label: "versioned recovery backup and atomic restore contract",
+      ...rootNode("scripts/test-recovery-backup.mjs"),
+      // The complete backup, hard-crash ownership, adoption, and restore matrix
+      // measured 37.62s locally. Comparable canonical process children have
+      // measured up to 1.87x locally observed duration in CI, so retain a
+      // bounded 75s child limit without retrying.
+      timeoutMs: 75_000,
+    },
+    {
       label:
         "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
@@ -272,15 +295,19 @@ const suites = {
     {
       label: "runtime crash, orphan, stale-state, and database reconciliation",
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
-      timeoutMs: 180_000,
+      // The complete update/restore journal, legacy-v3, active-WAL, and crash
+      // reconciliation matrix measured 234.45s locally. Existing canonical CI
+      // process suites have measured up to 1.87x local duration, so keep a
+      // bounded 480s child limit with a small scheduling margin.
+      timeoutMs: 480_000,
     },
     {
       label: "distributable package and packaged runtime operability",
       ...rootNode("scripts/test-distributable-package.mjs"),
-      // The complete packaged lifecycle measured ~85 seconds on darwin-arm64;
-      // this bound retains native-build CI margin while remaining below the
-      // operability job's measured outer timeout.
-      timeoutMs: 300_000,
+      // The complete packaged update/restore, restart-failure, and crash
+      // lifecycle measured 265.37s on darwin-arm64. The bounded 480s limit
+      // retains measured CI scheduling/native-build margin without retrying.
+      timeoutMs: 480_000,
     },
   ],
   e2e: [

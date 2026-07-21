@@ -52,6 +52,7 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
+import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -124,6 +125,8 @@ let appPort = null;
 let debugPort = null;
 let appOrigin = null;
 let serverProcess = null;
+let serverClosePromise = null;
+let serverPublicDiagnosticCapture = null;
 let chromeProcess = null;
 let cdp = null;
 let database = null;
@@ -277,6 +280,7 @@ const result = {
   temporary_fixture_removed: false,
   temporary_database_removed: false,
   temporary_manifest_removed: false,
+  supervisor_exit_diagnostic: null,
   failure: null,
 };
 
@@ -4309,6 +4313,9 @@ function minimalProcessEnvironment() {
 }
 
 function startDevServer(environment) {
+  const publicDiagnosticCapture =
+    createBrowserSupervisorPublicDiagnosticCapture();
+  serverPublicDiagnosticCapture = publicDiagnosticCapture;
   serverProcess = spawn(
     process.execPath,
     [
@@ -4327,11 +4334,20 @@ function startDevServer(environment) {
       detached: true,
     },
   );
-  for (const stream of [serverProcess.stdout, serverProcess.stderr]) {
-    stream.on("data", (chunk) => {
-      serverLog = `${serverLog}${chunk.toString("utf8")}`.slice(-128 * 1024);
+  serverClosePromise = new Promise((resolve) => {
+    serverProcess.once("close", (code, signal) => {
+      publicDiagnosticCapture.flush();
+      resolve({ code, signal });
     });
-  }
+  });
+  serverProcess.stdout.on("data", (chunk) => {
+    const output = chunk.toString("utf8");
+    serverLog = `${serverLog}${output}`.slice(-128 * 1024);
+    publicDiagnosticCapture.append(output);
+  });
+  serverProcess.stderr.on("data", (chunk) => {
+    serverLog = `${serverLog}${chunk.toString("utf8")}`.slice(-128 * 1024);
+  });
 }
 
 function startChrome(executable) {
@@ -5273,9 +5289,19 @@ async function canConnectToListener(host, port) {
 async function waitForHttp(url, timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (serverProcess?.exitCode !== null && serverProcess?.exitCode !== undefined) {
+    if (serverProcess && childHasExited(serverProcess)) {
+      const closed = await Promise.race([
+        serverClosePromise ?? Promise.resolve(null),
+        delay(1_000).then(() => null),
+      ]);
+      result.supervisor_exit_diagnostic =
+        serverPublicDiagnosticCapture?.diagnostic({
+          supervisorExitCode: closed?.code ?? serverProcess.exitCode,
+          supervisorSignal: closed?.signal ?? serverProcess.signalCode,
+        }) ?? null;
+      const diagnostic = result.supervisor_exit_diagnostic;
       throw new Error(
-        `Next runtime exited early with code ${serverProcess.exitCode}: ${serverLog.slice(-4_000)}`,
+        `Next runtime exited early: result=${diagnostic?.last_supervisor_result_code ?? "unknown"} reason=${diagnostic?.last_public_reason_code ?? "unknown"} database_state=${diagnostic?.database_state ?? "unknown"} phase=${diagnostic?.bootstrap_recovery_phase ?? "unknown"} exit_code=${diagnostic?.supervisor_exit_code ?? "null"} signal=${diagnostic?.supervisor_signal ?? "null"}`,
       );
     }
     try {
@@ -5340,6 +5366,8 @@ async function cleanup() {
   await terminateProcess(serverProcess, 15_000);
   chromeProcess = null;
   serverProcess = null;
+  serverClosePromise = null;
+  serverPublicDiagnosticCapture = null;
   serverLog = "";
   await removeTemporaryRoots([tempRoot, processTempRoot]);
 }

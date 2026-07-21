@@ -113,6 +113,7 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
         <div className="project-actions">{entry.root_availability === "available" ? <button type="button" onClick={() => open(entry)} disabled={busy}>{entry.is_active ? "Open" : "Switch and open"}</button> : <button type="button" onClick={() => locate(entry)} disabled={busy}>Locate folder</button>}<button type="button" className="secondary" onClick={() => remove(entry)} disabled={busy}>Remove from recent</button></div>
       </li>)}</ul>}
     </section>
+    <p><a href="/recovery">Open update and recovery</a></p>
     <p><a href="/overview">Open the previous Augnes overview</a></p>
   </main>;
 }

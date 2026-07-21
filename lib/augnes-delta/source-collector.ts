@@ -4,6 +4,10 @@ import { createProjectionGap } from "@/lib/augnes-delta/projector";
 import { buildAugnesDeltaProjectionReadModel } from "@/lib/augnes-delta/projector";
 import { getDatabasePath } from "@/lib/db";
 import {
+  createRecoveryPrivateMaterialReadBoundary,
+  isRecoveryPrivateMaterialExcludedFromAuthoritativeRead,
+} from "@/lib/db/recovery-private-material-contract.mjs";
+import {
   READONLY_LOCAL_HOSTS,
   validateReadonlyApiLocalAccess,
   type ReadonlyApiAccessErrorCode,
@@ -326,7 +330,14 @@ export function collectAugnesDeltaProjectionInput({
   }
 
   try {
-    const stateDeltaProposals = collectStateDeltaProposals(db, scope, gaps);
+    const authoritativeReadBoundary =
+      createRecoveryPrivateMaterialReadBoundary(db, { scope });
+    const stateDeltaProposals = collectStateDeltaProposals(
+      db,
+      scope,
+      gaps,
+      authoritativeReadBoundary,
+    );
     const workEvents = collectWorkEvents(db, scope, gaps);
     const coordinationEvents = collectCoordinationEvents(db, scope, gaps);
     const actionRecords = collectActionRecords(db, scope, gaps);
@@ -463,6 +474,9 @@ function collectStateDeltaProposals(
   db: ReadonlySqliteDatabase,
   scope: string,
   gaps: AugnesDeltaProjectionGap[],
+  authoritativeReadBoundary: ReturnType<
+    typeof createRecoveryPrivateMaterialReadBoundary
+  >,
 ): AugnesDeltaProjectionStateDeltaProposalInput[] {
   const rows = selectProjectionRows<StateDeltaProposalRow>({
     db,
@@ -492,6 +506,14 @@ function collectStateDeltaProposals(
   });
 
   return rows
+    .filter(
+      (row) =>
+        !isRecoveryPrivateMaterialExcludedFromAuthoritativeRead(
+          "state_delta_proposals",
+          row,
+          authoritativeReadBoundary,
+        ),
+    )
     .map((row) => {
       const id = safeRef(row.id);
       if (!id) return null;

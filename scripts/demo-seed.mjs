@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { RECOVERY_PRIVATE_MATERIAL_MARKER } from "../lib/db/recovery-private-material-contract.mjs";
 import { encodeValue, initializeDatabase } from "./db-common.mjs";
 
 const scope = "project:augnes";
@@ -490,7 +491,7 @@ const seed = db.transaction(() => {
     sessionId,
     agentId,
     role: "system",
-    content: "Seeded state for Augnes temporal runtime API verification.",
+    content: RECOVERY_PRIVATE_MATERIAL_MARKER,
     createdAt: timestamp,
   });
 

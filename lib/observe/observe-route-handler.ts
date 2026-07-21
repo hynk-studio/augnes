@@ -10,6 +10,7 @@ import {
   listStateEntries,
   type PendingStateDeltaProposalInput,
 } from "@/lib/db";
+import { RECOVERY_PRIVATE_MATERIAL_MARKER } from "@/lib/db/recovery-private-material-contract.mjs";
 import {
   compileTemporalDeltaProposals,
   validateObserveRequest,
@@ -87,7 +88,7 @@ export function createObservePostHandlerV01(
         session_id: sessionId,
         agent_id: null,
         role: "user",
-        content: observeRequest.message,
+        content: RECOVERY_PRIVATE_MATERIAL_MARKER,
         created_at: now,
       });
 

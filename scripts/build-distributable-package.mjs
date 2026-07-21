@@ -23,7 +23,15 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
+  DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT,
+  DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION,
+  DISTRIBUTABLE_DATABASE_MIGRATION_IDS,
+  DISTRIBUTABLE_DATABASE_READER_CONTRACTS,
+  DISTRIBUTABLE_DATABASE_RECORD_CONTRACT,
+  DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION,
+  DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT,
   DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY,
+  DISTRIBUTABLE_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
   DISTRIBUTABLE_MANIFEST_FILE,
   DISTRIBUTABLE_NODE_MINIMUM,
   DISTRIBUTABLE_PACKAGE_CONTRACT,
@@ -31,6 +39,8 @@ import {
   DISTRIBUTABLE_RUNTIME_CONTRACT,
   DISTRIBUTABLE_RUNTIME_SCHEMA_VERSION,
   DISTRIBUTABLE_RUNTIME_SCRIPTS,
+  DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE,
+  DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
   DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS,
   PublicDistributablePackageError,
   assertAllowedDistributablePayloadPath,
@@ -42,6 +52,7 @@ import {
   formatDistributablePlatformLabel,
   verifyDistributableFileEntries,
 } from "./distributable-package-contract.mjs";
+import { canonicalStructuralSchemaContractSignature } from "./runtime-database-bootstrap.mjs";
 import {
   registerOwnedChild,
   terminateOwnedProcessTree,
@@ -123,6 +134,8 @@ export async function buildDistributablePackage({
     await runProductionBuild(sourceRoot, toolEnvironment);
     stageStandaloneRuntime(sourceRoot, stagingRoot);
     buildBridgeBundle(sourceRoot, stagingRoot);
+    await buildSupervisorBundle(sourceRoot, stagingRoot);
+    buildRecoveryCanonicalValidatorBundle(sourceRoot, stagingRoot);
     stageRuntimeSupport(sourceRoot, stagingRoot, sourcePackage);
     sanitizePrivateBuildPaths(stagingRoot, sourceRoot, environment);
     normalizePackageMetadata(stagingRoot);
@@ -142,6 +155,20 @@ export async function buildDistributablePackage({
       database: {
         schema_compatibility:
           DISTRIBUTABLE_DATABASE_SCHEMA_COMPATIBILITY,
+        schema_contract: DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT,
+        schema_signature: canonicalStructuralSchemaContractSignature(),
+        migration_contract: DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT,
+        migration_contract_version:
+          DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT_VERSION,
+        migration_ids: [...DISTRIBUTABLE_DATABASE_MIGRATION_IDS],
+        record_contract: DISTRIBUTABLE_DATABASE_RECORD_CONTRACT,
+        record_contract_version:
+          DISTRIBUTABLE_DATABASE_RECORD_CONTRACT_VERSION,
+        reader_contracts: [...DISTRIBUTABLE_DATABASE_READER_CONTRACTS],
+        supported_source_schema_signatures: [
+          ...DISTRIBUTABLE_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
+        ],
+        supported_source_schema_states: ["current", "old"],
       },
       files,
     });
@@ -274,6 +301,126 @@ function buildBridgeBundle(sourceRoot, stagingRoot) {
   }
 }
 
+function buildRecoveryCanonicalValidatorBundle(sourceRoot, stagingRoot) {
+  const validatorEntry = path.join(
+    sourceRoot,
+    "scripts",
+    "recovery-canonical-record-validator.ts",
+  );
+  const validatorOutput = packagePath(
+    stagingRoot,
+    DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE,
+  );
+  assertSafeSourceFile(sourceRoot, validatorEntry);
+  mkdirSync(path.dirname(validatorOutput), { recursive: true, mode: 0o755 });
+  try {
+    const sourceRequire = createRequire(path.join(sourceRoot, "package.json"));
+    const { buildSync } = sourceRequire("esbuild");
+    buildSync({
+      absWorkingDir: sourceRoot,
+      entryPoints: [validatorEntry],
+      bundle: true,
+      external: ["better-sqlite3"],
+      platform: "node",
+      format: "cjs",
+      target: "node20.9",
+      charset: "utf8",
+      legalComments: "none",
+      logLevel: "warning",
+      outfile: validatorOutput,
+      tsconfig: path.join(sourceRoot, "tsconfig.json"),
+      define: {
+        "process.env.NODE_ENV": JSON.stringify("production"),
+      },
+    });
+  } catch (error) {
+    throw new PublicDistributablePackageError(
+      "package_recovery_validator_build_failed",
+      error,
+    );
+  }
+}
+
+async function buildSupervisorBundle(sourceRoot, stagingRoot) {
+  const supervisorEntry = path.join(
+    sourceRoot,
+    "scripts",
+    "augnes-runtime-supervisor-core.mjs",
+  );
+  const supervisorOutput = packagePath(
+    stagingRoot,
+    DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
+  );
+  const validatorEntry = path.join(
+    sourceRoot,
+    "scripts",
+    "recovery-canonical-record-validator.ts",
+  );
+  const schemaEntry = path.join(sourceRoot, "lib", "db", "schema.sql");
+  assertSafeSourceFile(sourceRoot, supervisorEntry);
+  assertSafeSourceFile(sourceRoot, validatorEntry);
+  assertSafeSourceFile(sourceRoot, schemaEntry);
+  const bundledSchema = readFileSync(schemaEntry, "utf8");
+  mkdirSync(path.dirname(supervisorOutput), { recursive: true, mode: 0o755 });
+  try {
+    const sourceRequire = createRequire(path.join(sourceRoot, "package.json"));
+    const { build } = sourceRequire("esbuild");
+    await build({
+      absWorkingDir: sourceRoot,
+      entryPoints: [supervisorEntry],
+      bundle: true,
+      plugins: [
+        {
+          name: "augnes-verified-recovery-validator",
+          setup(build) {
+            build.onResolve(
+              { filter: /recovery-canonical-record-validator\.mjs$/ },
+              () => ({ path: validatorEntry }),
+            );
+          },
+        },
+        {
+          name: "augnes-verified-sqlite-addon",
+          setup(build) {
+            build.onResolve({ filter: /^bindings$/ }, () => ({
+              path: "verified-sqlite-addon",
+              namespace: "augnes-native",
+            }));
+            build.onLoad(
+              { filter: /.*/, namespace: "augnes-native" },
+              () => ({
+                contents:
+                  "module.exports = () => __augnesVerifiedSqliteAddon;",
+                loader: "js",
+              }),
+            );
+          },
+        },
+      ],
+      platform: "node",
+      format: "cjs",
+      target: "node20.9",
+      charset: "utf8",
+      legalComments: "none",
+      logLevel: "warning",
+      outfile: supervisorOutput,
+      banner: {
+        js: 'const __augnesImportMetaUrl = require("node:url").pathToFileURL(__filename).href; const __augnesVerifiedSqliteAddon = globalThis[Symbol.for("augnes.verified-sqlite-addon.v1")]; if (!__augnesVerifiedSqliteAddon) throw new Error("verified sqlite addon missing");',
+      },
+      define: {
+        __AUGNES_BUNDLED_SCHEMA_SQL__: JSON.stringify(bundledSchema),
+        "import.meta.url": "__augnesImportMetaUrl",
+        "process.env.NODE_ENV": JSON.stringify("production"),
+      },
+    });
+  } catch (error) {
+    throw new PublicDistributablePackageError(
+      "package_supervisor_bundle_build_failed",
+      error,
+    );
+  }
+}
+
 function stageRuntimeSupport(sourceRoot, stagingRoot, sourcePackage) {
   for (const relativePath of DISTRIBUTABLE_RUNTIME_SCRIPTS) {
     copyRuntimeFile(
@@ -286,6 +433,7 @@ function stageRuntimeSupport(sourceRoot, stagingRoot, sourcePackage) {
   for (const relativePath of [
     "lib/db/schema.sql",
     "lib/db/proposal-scoring-schema.json",
+    "lib/db/recovery-private-material-contract.mjs",
     "apps/augnes_apps/public/console-widget.html",
   ]) {
     const destination =

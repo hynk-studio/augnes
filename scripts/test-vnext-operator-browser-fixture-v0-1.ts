@@ -19,6 +19,9 @@ import {
   installZeroNetworkGuard,
   ZERO_NETWORK_GUARD_METHODS,
 } from "./test-harness-zero-network-guard.mjs";
+import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
+import { CANONICAL_DATABASE_MIGRATION_IDS } from "./canonical-database-migrations.mjs";
+import { inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
 
 import {
   buildVNextOperatorBrowserFixtureV01,
@@ -167,6 +170,71 @@ try {
   ]);
   assert.equal(JSON.stringify(summary).length < 2_048, true);
   record("fixture_builder_uses_bounded_production_seams_without_provider_egress");
+
+  const recoveryInspection = inspectRecoveryDatabaseFile(
+    path.join(fixtureDirectory, summary.database_file),
+  );
+  assert.equal(recoveryInspection.schema_classification, "current");
+  assert.deepEqual(
+    recoveryInspection.migration_ids,
+    CANONICAL_DATABASE_MIGRATION_IDS,
+  );
+  for (const suffix of ["-wal", "-shm", "-journal"]) {
+    assert.equal(
+      existsSync(path.join(fixtureDirectory, `${summary.database_file}${suffix}`)),
+      false,
+    );
+  }
+  record("fixture_builder_publishes_exact_current_canonical_database_family");
+
+  const diagnosticCapture = createBrowserSupervisorPublicDiagnosticCapture({
+    maxLines: 3,
+    maxCharacters: 1_024,
+  });
+  diagnosticCapture.append(
+    '{"contract":"augnes-local-runtime-supervisor-v1","result":"start',
+  );
+  diagnosticCapture.append(
+    'ing","state":"starting","database_state":"preparing"}\nnot-json\n',
+  );
+  diagnosticCapture.append(
+    '{"contract":"augnes-local-runtime-supervisor-v1","result":"failed","state":"failed","reason":"database_schema_unsupported","database_state":"failed","child_exit_code":null,"child_signal":null}\n',
+  );
+  const supervisorDiagnostic = diagnosticCapture.diagnostic({
+    supervisorExitCode: 1,
+    supervisorSignal: null,
+  });
+  assert.deepEqual(
+    {
+      result: supervisorDiagnostic.last_supervisor_result_code,
+      reason: supervisorDiagnostic.last_public_reason_code,
+      database_state: supervisorDiagnostic.database_state,
+      phase: supervisorDiagnostic.bootstrap_recovery_phase,
+      child_exit_code: supervisorDiagnostic.child_exit_code,
+      child_signal: supervisorDiagnostic.child_signal,
+      supervisor_exit_code: supervisorDiagnostic.supervisor_exit_code,
+      supervisor_signal: supervisorDiagnostic.supervisor_signal,
+    },
+    {
+      result: "failed",
+      reason: "database_schema_unsupported",
+      database_state: "failed",
+      phase: "database_bootstrap",
+      child_exit_code: null,
+      child_signal: null,
+      supervisor_exit_code: 1,
+      supervisor_signal: null,
+    },
+  );
+  assert.equal(
+    supervisorDiagnostic.public_supervisor_output_tail.includes("not-json"),
+    false,
+  );
+  assert.equal(
+    supervisorDiagnostic.public_supervisor_output_tail.length <= 1_024,
+    true,
+  );
+  record("browser_harness_reports_bounded_public_early_supervisor_failure");
 
   const manifestSource = readFileSync(manifestPath, "utf8");
   const manifest = JSON.parse(manifestSource) as Record<string, unknown>;

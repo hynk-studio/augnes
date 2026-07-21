@@ -95,6 +95,12 @@ for (const jobName of requiredExecutionJobs) {
   );
 }
 
+requireText(
+  jobs.get("operability"),
+  `fetch-depth: 0`,
+  "operability must retain the merged #1118 package source needed by the pinned handoff proof",
+);
+
 assert.equal(
   Number(yamlScalar(jobs.get("integration"), "timeout-minutes")),
   20,
@@ -102,8 +108,8 @@ assert.equal(
 );
 assert.equal(
   Number(yamlScalar(jobs.get("operability"), "timeout-minutes")),
-  15,
-  "operability must retain its bounded workflow timeout",
+  30,
+  "operability must retain its measured bounded workflow timeout",
 );
 assert.equal(
   Number(yamlScalar(jobs.get("e2e"), "timeout-minutes")),
@@ -319,10 +325,12 @@ for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
+  ["scripts/test-recovery-canonical-record-validator.ts", "180_000"],
+  ["scripts/test-recovery-backup.mjs", "75_000"],
   ["scripts/test-runtime-database-bootstrap.mjs", "120_000"],
   ["scripts/test-runtime-operability.mjs", "120_000"],
-  ["scripts/test-runtime-reconciliation.mjs", "180_000"],
-  ["scripts/test-distributable-package.mjs", "300_000"],
+  ["scripts/test-runtime-reconciliation.mjs", "480_000"],
+  ["scripts/test-distributable-package.mjs", "480_000"],
   ["scripts/browser-validate-vnext-native-host-result-v0-1.mjs", "480_000"],
 ]) {
   assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);

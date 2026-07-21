@@ -50,10 +50,14 @@ jobs:
 
   operability:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Seven bounded disposable lifecycle children measure ~12.7 minutes in
+    # aggregate locally; retain the repository's observed CI multiplier.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup canonical dependencies
         uses: ./.github/actions/setup-canonical

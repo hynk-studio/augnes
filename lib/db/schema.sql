@@ -4154,6 +4154,41 @@ CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
   )
 );
 
+-- Operational schema lineage for packaged update/recovery compatibility.
+-- This ledger describes database migrations only; it is not semantic state and
+-- grants no authority to records restored or migrated through it.
+CREATE TABLE IF NOT EXISTS augnes_schema_migrations (
+  migration_id TEXT PRIMARY KEY CHECK (
+    length(trim(migration_id)) > 0 AND length(migration_id) <= 160
+  ),
+  migration_contract TEXT NOT NULL CHECK (
+    migration_contract = 'augnes.canonical-database-migrations.v1'
+  ),
+  migration_contract_version INTEGER NOT NULL CHECK (
+    migration_contract_version = 1
+  ),
+  applied_at TEXT NOT NULL CHECK (
+    length(trim(applied_at)) > 0 AND length(applied_at) <= 64
+  )
+);
+
+-- A one-row operational guard distinguishes a legitimate first package
+-- adoption from loss of the application-owned installed-package identity.
+-- It carries no semantic state or authority.
+CREATE TABLE IF NOT EXISTS augnes_package_identity_guard (
+  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+  identity_state TEXT NOT NULL CHECK (
+    identity_state IN ('legacy_unadopted', 'package_identity_required')
+  ),
+  updated_at TEXT NOT NULL CHECK (
+    length(trim(updated_at)) > 0 AND length(updated_at) <= 64
+  )
+);
+
+INSERT OR IGNORE INTO augnes_package_identity_guard (
+  singleton, identity_state, updated_at
+) VALUES (1, 'legacy_unadopted', '1970-01-01T00:00:00.000Z');
+
 CREATE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_scope_expiry
   ON vnext_local_operator_sessions(
     workspace_id, project_id, operator_id, revoked_at, expires_at, session_id

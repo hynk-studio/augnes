@@ -65,10 +65,7 @@ import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/ru
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
-import {
-  migrateVNextDurableSemanticStoreV01,
-  migrateVNextLocalOperatorSessionsV01,
-} from "./db-migrations.mjs";
+import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import {
   installZeroNetworkGuard,
   ZERO_NETWORK_GUARD_METHODS,
@@ -780,10 +777,9 @@ export function validateVNextOperatorBrowserFixtureV01(input: {
 function initializeDatabase(databasePath: string): void {
   const db = new Database(databasePath);
   try {
+    db.pragma("journal_mode = DELETE");
     db.pragma("foreign_keys = ON");
-    db.exec(readFileSync(path.join(process.cwd(), "lib/db/schema.sql"), "utf8"));
-    migrateVNextDurableSemanticStoreV01(db);
-    migrateVNextLocalOperatorSessionsV01(db);
+    applyCanonicalDatabaseMigrations(db);
   } finally {
     db.close();
   }
