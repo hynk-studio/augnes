@@ -128,7 +128,7 @@ export default function PortabilityPage() {
           <section className={`${styles.panel} ${styles.exportPanel}`} aria-labelledby="portable-preview-title">
         <p className={styles.eyebrow}>Export preview</p>
         <h2 id="portable-preview-title">Export current project</h2>
-        <p className={styles.intro}>Canonical state travels; runtime and private material stay local.</p>
+        <p className={styles.intro}>Review exact scope before export. Canonical state travels; runtime and private material stay local.</p>
         {preview ? (
           <>
             <dl className={styles.grid}>
@@ -167,7 +167,7 @@ export default function PortabilityPage() {
               disabled={busy !== null || !preview.export_available}
               onClick={() => void exportProject()}
             >
-              {busy === "export" ? "Creating package…" : "Export project"}
+              {busy === "export" ? "Creating package…" : "Export portable project"}
             </button>
           </>
         ) : <p>Loading active project scope…</p>}
