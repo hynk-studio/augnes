@@ -44,6 +44,8 @@ export const CANONICAL_STEP_ENVIRONMENT_ALLOWLIST = Object.freeze({
     "injects a non-path picker outcome inside a suite-owned runtime",
   AUGNES_RUNTIME_STATE_DIR:
     "binds runtime state to a child-owned disposable directory",
+  AUGNES_BROWSER_E2E_SCOPE:
+    "selects one repository-owned browser lifecycle lane without changing product state",
 });
 
 const CANONICAL_STEP_PATH_KEYS = new Set([
