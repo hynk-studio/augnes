@@ -16,22 +16,25 @@ export interface ProductProjectContext {
 const NAVIGATION: Array<{
   href: string;
   label: string;
+  role: string;
   surface: ProductSurface;
 }> = [
-  { href: "/projects", label: "Projects", surface: "projects" },
-  { href: "/", label: "Home", surface: "home" },
+  { href: "/projects", label: "Projects", role: "Open work", surface: "projects" },
+  { href: "/", label: "Home", role: "Resume", surface: "home" },
   {
     href: "/workbench/semantic-review",
     label: "Workbench",
+    role: "Verify · Decide",
     surface: "workbench",
   },
   {
     href: "/workbench/inspector?target=project_coordination",
     label: "Inspector",
+    role: "Exact lineage",
     surface: "inspector",
   },
-  { href: "/portability", label: "Portability", surface: "portability" },
-  { href: "/recovery", label: "Recovery", surface: "recovery" },
+  { href: "/portability", label: "Portability", role: "Transfer", surface: "portability" },
+  { href: "/recovery", label: "Recovery", role: "Protect", surface: "recovery" },
 ];
 
 export function ProductShell({
@@ -51,7 +54,15 @@ export function ProductShell({
       <header className="product-shell-header">
         <div className="product-shell-bar">
           <a className="product-brand" href="/" aria-label="Augnes home">
-            <span className="product-brand-mark" aria-hidden="true">A</span>
+            <span className="product-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" focusable="false">
+                <path d="M7 24V9l9-4 9 4v14" />
+                <path d="m7 13 9 4 9-4M16 17v10" />
+                <circle cx="7" cy="24" r="2.25" />
+                <circle cx="16" cy="27" r="2.25" />
+                <circle cx="25" cy="23" r="2.25" />
+              </svg>
+            </span>
             <span>
               <strong>Augnes</strong>
               <small>Local project continuity</small>
@@ -80,7 +91,11 @@ export function ProductShell({
               key={item.surface}
               aria-current={item.surface === surface ? "page" : undefined}
             >
-              {item.label}
+              <span aria-hidden="true" className="product-navigation-node" />
+              <span>
+                <strong>{item.label}</strong>
+                <small>{item.role}</small>
+              </span>
             </a>
           ))}
         </nav>

@@ -62,10 +62,6 @@ export function ProjectVerificationWorkbench({
           title="Current project and review scope"
           id="verify-scope-title"
         />
-        <p className={styles.copy}>
-          This Workbench is reading the selected project only. Return to Project
-          Home to change projects or resume another task.
-        </p>
         <dl className={styles.statusGrid}>
           <DataPoint label="Workspace scope" value="validated" />
           <DataPoint label="Selected project" value="current route scope" />
@@ -87,6 +83,18 @@ export function ProjectVerificationWorkbench({
         ) : null}
       </section>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>1–2</span>
+          <span>
+            <strong>Intent and selected context</strong>
+            <small className={styles.sequenceDisclosureStatus} data-summary-tone={sourceAssessment ? "neutral" : "attention"}>
+              {sourceAssessment
+                ? `${boundedProjectVerifyDisplayTextV01(sourceAssessment.expected.task_goal)} · context ${humanize(sourceCurrentness ?? "unknown")}`
+                : "Exact source assessment unavailable"}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-intent-title">
         <SequenceHeading
           step="1–2"
@@ -161,7 +169,20 @@ export function ProjectVerificationWorkbench({
           </p>
         )}
       </section>
+      </details>
 
+      <details className={styles.sequenceDisclosure}>
+        <summary>
+          <span className={styles.sequenceNumber}>3–4</span>
+          <span>
+            <strong>Execution residue</strong>
+            <small className={styles.sequenceDisclosureStatus} data-summary-tone={receipts.length === 0 ? "attention" : "neutral"}>
+              {receipts.length === 0
+                ? "Exact RunReceipt unavailable · outcome unknown"
+                : `${receipts.length} exact ${receipts.length === 1 ? "RunReceipt" : "RunReceipts"} · ${receipts.map((receipt) => humanize(receipt.verification.status)).join(" · ")}`}
+            </small>
+          </span>
+        </summary>
       <section className={styles.panel} aria-labelledby="verify-receipts-title">
         <SequenceHeading
           step="3–4"
@@ -239,12 +260,11 @@ export function ProjectVerificationWorkbench({
             </ol>
           </>
         )}
-        <p className={styles.notice} data-host-completion-not-task-success="true">
-          Host completion, changed files, unrelated passed checks, and provider
-          confidence are not task success. Criterion status below comes only from
-          the exact Core assessment.
-        </p>
       </section>
+      </details>
+      <p className={styles.notice} data-host-completion-not-task-success="true">
+        Host completion is not task success. Criterion status comes only from the exact Core assessment.
+      </p>
 
       <details className={styles.sequenceDisclosure}>
         <summary>
@@ -423,7 +443,7 @@ export function ProjectVerificationWorkbench({
         <summary>
           <span className={styles.sequenceNumber}>12–13</span>
           <span>
-            <strong>Transition and later-context consequence</strong>
+            <strong>Project-level Transition and later context</strong>
             <small
               className={styles.sequenceDisclosureStatus}
               data-summary-tone={laterContextDisclosure.tone}
@@ -891,7 +911,7 @@ function relationDisclosureSummaryV01(
     reconciliation.applied_relation_material.contradicts.length;
   const unresolved = opposing + contradictory;
   return {
-    text: `${reconciliation.evidence.length} Evidence records · ${reconciliation.claim_families.length} Claim families · ${unresolved} opposing or contradictory relations${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    text: `${reconciliation.evidence.length} Evidence records · ${reconciliation.claim_families.length} Claim families · ${unresolved} opposing or contradictory relations${reconciliation.summary.insufficient_material_present ? " · Insufficient material present" : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
     tone: contradictory > 0
       ? "critical"
       : unresolved > 0 || reconciliation.summary.insufficient_material_present
@@ -962,12 +982,12 @@ function laterContextDisclosureSummaryV01(
   if (transitionCount === 0) {
     if (conflictRefs.size > 0) {
       return {
-        text: `Applied Transition not confirmed · ${conflictRefs.size} transition ${conflictRefs.size === 1 ? "conflict" : "conflicts"} · later context unavailable`,
+        text: `Project reconciliation · applied Transition not confirmed · ${conflictRefs.size} transition ${conflictRefs.size === 1 ? "conflict" : "conflicts"} · later context unavailable`,
         tone: "critical",
       };
     }
     return {
-      text: `${reconciliation.completeness.status === "complete" ? "No applied Transition" : "No applied Transition in returned read"} · later packet unavailable · feedback unavailable`,
+      text: `Project reconciliation · ${reconciliation.completeness.status === "complete" ? "no applied Transition returned" : "no applied Transition in returned read"} · later packet unavailable · feedback unavailable`,
       tone: "attention",
     };
   }
@@ -984,7 +1004,7 @@ function laterContextDisclosureSummaryV01(
   const conflictCount = conflictRefs.size;
 
   return {
-    text: `${transitionCount} applied ${transitionCount === 1 ? "Transition" : "Transitions"} · ${packetCount} later ${packetCount === 1 ? "packet" : "packets"} recorded · ${pendingPacketCount} pending · ${feedbackCount} feedback recorded · ${pendingFeedbackCount} pending${conflictCount > 0 ? ` · ${conflictCount} conflict${conflictCount === 1 ? "" : "s"}` : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
+    text: `Project reconciliation · ${transitionCount} applied ${transitionCount === 1 ? "Transition" : "Transitions"} · ${packetCount} later ${packetCount === 1 ? "packet" : "packets"} recorded · ${pendingPacketCount} pending · ${feedbackCount} feedback recorded · ${pendingFeedbackCount} pending${conflictCount > 0 ? ` · ${conflictCount} conflict${conflictCount === 1 ? "" : "s"}` : ""}${reconciliation.completeness.status === "complete" ? "" : ` · ${humanize(reconciliation.completeness.status)} read`}`,
     tone: conflictCount > 0
       ? "critical"
       : pendingPacketCount > 0 || pendingFeedbackCount > 0

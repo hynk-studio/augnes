@@ -57,11 +57,7 @@ export function SharedProjectInspectorSurface({
             <DataPoint label="Observed" value={formatTimestampV01(inspector.observed_at)} />
             <DataPoint label="Projection" value={inspector.inspector_version} />
           </dl>
-          <p className={styles.muted}>
-            Workspace and project identity are authenticated server-side. The URL
-            carries only the exact target refs emitted by Augnes; there is no ID,
-            fingerprint, database, path, or JSON entry procedure.
-          </p>
+          <p className={styles.muted}>Server-authenticated project scope · exact target refs only.</p>
         </section>
 
         <div className={styles.twoColumnGrid} data-inspector-sections="true">
@@ -74,9 +70,8 @@ export function SharedProjectInspectorSurface({
           className={styles.notice}
           data-inspector-authority-proof="true"
         >
-          This read created no Evidence, Claim, relation, proposal, revision,
-          ReviewDecision, gate, Transition, packet, ContextUseReview,
-          automation cycle, grant, current head, Perspective, or reviewed memory.
+          This read created no Evidence, Claim, proposal, ReviewDecision,
+          Transition, packet, ContextUseReview, or project state.
           It invoked no model/provider and performed no external action.
         </section>
       </div>
@@ -99,7 +94,6 @@ function InspectorSection({
       <summary>
         <div>
           <span className={styles.inspectorSectionTitle} role="heading" aria-level={2}>{section.title}</span>
-          <small>{section.summary}</small>
           <span
             className={styles.inspectorSectionMeta}
             data-inspector-summary-status={section.status}

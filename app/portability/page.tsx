@@ -116,8 +116,8 @@ export default function PortabilityPage() {
         <header className={styles.hero}>
           <div>
             <p className={styles.eyebrow}>Project continuity</p>
-            <h1>Move a project safely</h1>
-            <p>Export one active project as a provider-neutral, integrity-verified local package, or validate a package before importing it.</p>
+            <h1>Transfer project continuity</h1>
+            <p>Move verified local project state between Augnes installations.</p>
           </div>
           <span className={styles.localBadge}>Local files only</span>
         </header>
@@ -127,8 +127,8 @@ export default function PortabilityPage() {
         <div className={styles.workspace}>
           <section className={`${styles.panel} ${styles.exportPanel}`} aria-labelledby="portable-preview-title">
         <p className={styles.eyebrow}>Export preview</p>
-        <h2 id="portable-preview-title">Create a portable project</h2>
-        <p className={styles.intro}>Review exact scope before export, including what will travel and what always stays local.</p>
+        <h2 id="portable-preview-title">Export current project</h2>
+        <p className={styles.intro}>Canonical state travels; runtime and private material stay local.</p>
         {preview ? (
           <>
             <dl className={styles.grid}>
@@ -162,7 +162,7 @@ export default function PortabilityPage() {
               Include only Personal Perspective material already admitted under this exact project scope
             </label>
             <button disabled={busy !== null || !preview.export_available} onClick={() => void exportProject()}>
-              {busy === "export" ? "Creating package…" : "Export portable project"}
+              {busy === "export" ? "Creating package…" : "Export project"}
             </button>
           </>
         ) : <p>Loading active project scope…</p>}
@@ -170,8 +170,8 @@ export default function PortabilityPage() {
 
           <section className={`${styles.panel} ${styles.importPanel}`} aria-labelledby="portable-import-title">
         <p className={styles.eyebrow}>Local import</p>
-        <h2 id="portable-import-title">Import a portable project</h2>
-        <p className={styles.intro}>Augnes checks compatibility, scope, references, private material, ordering, and integrity before any project write.</p>
+        <h2 id="portable-import-title">Import project</h2>
+        <p className={styles.intro}>Validation completes before any project write.</p>
         <div className={styles.validationList} aria-label="Import safety checks">
           <span>Integrity checked</span><span>Private material refused</span><span>Atomic admission</span>
         </div>

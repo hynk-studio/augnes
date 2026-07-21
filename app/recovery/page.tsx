@@ -314,11 +314,8 @@ export default function RecoveryPage() {
         <header className={styles.hero}>
           <div>
             <p className={styles.eyebrow}>Application safety</p>
-            <h1>Update and data recovery</h1>
-            <p>
-              Check local application and data health, create verified recovery
-              points, or take an explicitly authorized recovery action.
-            </p>
+            <h1>Protect local continuity</h1>
+            <p>Verify the application, database, and recovery points.</p>
           </div>
           <span className={styles.localBadge}>Local data protection</span>
         </header>
@@ -338,10 +335,7 @@ export default function RecoveryPage() {
         <section className={`${styles.panel} ${styles.attention}`} role="alert">
           <p className={styles.kicker}>Status unavailable</p>
           <h2>Recovery status could not be read</h2>
-          <p>
-            This read did not change your data. Keep Augnes open and try the
-            status check again.
-          </p>
+          <p>No data changed. Keep Augnes open and try again.</p>
           <button
             type="button"
             onClick={() => void loadStatus()}
@@ -378,8 +372,8 @@ export default function RecoveryPage() {
 
           <details className={styles.advancedDiagnostics}>
             <summary>
-              <span><strong>Health, continuity, and support diagnostics</strong><small>Exact build, database, bridge, portability, reconciliation, and report details</small></span>
-              <span>Inspect details</span>
+              <span><strong>Advanced diagnostics</strong><small>Build, database, bridge, continuity, and support</small></span>
+              <span>Inspect</span>
             </summary>
             <div className={styles.advancedBody}>
           <section className={styles.summaryGrid} aria-label="Recovery summary">
@@ -474,7 +468,7 @@ export default function RecoveryPage() {
             <article className={styles.panel} data-support-report-surface="v1">
               <p className={styles.kicker}>Public-safe support report</p>
               <h2>{supportPreview ? "Preview reviewed" : "Preview before export"}</h2>
-              <p>Uses only the bounded recovery, portability, runtime, and reconciliation status shown here.</p>
+              <p>Bounded, redacted, and local.</p>
               {supportPreview ? (
                 <div className={styles.reportPreview} data-support-report-preview="ready">
                   <p>{supportPreview.byte_count} bytes · redacted · read-only · non-authoritative</p>
@@ -504,6 +498,7 @@ export default function RecoveryPage() {
             </div>
           </details>
 
+          <div className={styles.recoveryWorkspace}>
           <section className={styles.panel} aria-labelledby="recovery-backups-title">
             <div className={styles.sectionHeading}>
               <div>
@@ -602,12 +597,7 @@ export default function RecoveryPage() {
               <h2 id="recovery-next-action-title">
                 {humanize(latest?.next_action ?? "review_the_available_recovery_actions")}
               </h2>
-              <p>
-                Create backup makes a verified full recovery copy. Retry
-                continues the verified update path. Restore replaces the
-                database only with the backup selected above and protects the
-                current copy first.
-              </p>
+              <p>Restore protects the current copy before replacement.</p>
             </div>
             <div className={styles.actions}>
               <button
@@ -618,7 +608,7 @@ export default function RecoveryPage() {
               >
                 {busyAction === "create_backup"
                   ? "Creating verified backup…"
-                  : "Create recovery backup"}
+                  : "Create backup"}
               </button>
               <button
                 type="button"
@@ -654,6 +644,7 @@ export default function RecoveryPage() {
               </button>
             </div>
           </section>
+          </div>
 
           <p className={styles.boundary}>
             Recovery changes application or database copies only. It does not

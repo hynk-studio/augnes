@@ -126,12 +126,11 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
       : null}
   >
     <main className="project-selector-shell" data-project-onboarding-hydrated={hydrated ? "true" : "false"}>
-      <header className="project-selector-header"><p className="project-selector-eyebrow">Projects</p><h1>Choose where to continue</h1><p>Open a recent project or select a local folder. Augnes inspects the folder before anything becomes active, and no provider connection is required.</p></header>
+      <header className="project-selector-header"><p className="project-selector-eyebrow">Projects</p><h1>Continue your work</h1><p>Open a recent project or choose a local folder.</p></header>
       <div className="project-selector-grid">
         <section className="project-selector-card project-selector-card--add" aria-labelledby="add-project-title" aria-busy={busy}>
-          <p className="project-selector-section-label">New or existing folder</p>
           <h2 id="add-project-title">Add a local project</h2>
-          <p className="project-selector-card-intro">Choose a folder to see its type, repository connection, and whether Augnes already knows it.</p>
+          <p className="project-selector-card-intro">Augnes inspects the folder before it becomes active.</p>
           <button type="button" onClick={choose} disabled={busy}>{busy ? "Opening folder picker…" : "Choose folder"}</button>
           {message && <p className="project-selector-message" role="status">{message}</p>}
           {picker?.status === "selected" && <div className="project-inspection" aria-live="polite">
@@ -143,14 +142,14 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
             <div className="project-actions"><button type="button" onClick={confirm} disabled={busy}>Confirm project</button><button type="button" className="secondary" onClick={() => setPicker(null)} disabled={busy}>Cancel</button></div>
           </div>}
         </section>
-        <section id="recent-projects" className="project-selector-card project-selector-card--recent" aria-labelledby="recent-projects-title" aria-busy={busy}><p className="project-selector-section-label">Continue locally</p><h2 id="recent-projects-title">Recent projects</h2>
-          {recent.length === 0 ? <div className="project-selector-empty"><strong>No recent projects yet</strong><p>Choose a folder to begin. It will appear here for quick access next time.</p></div> : <ul className="recent-project-list">{recent.map((entry) => <li key={entry.project.project_id} className={entry.is_active ? "is-active" : undefined}>
+        <section id="recent-projects" className="project-selector-card project-selector-card--recent" aria-labelledby="recent-projects-title" aria-busy={busy}><h2 id="recent-projects-title">Recent projects</h2>
+          {recent.length === 0 ? <div className="project-selector-empty"><strong>No recent projects yet</strong><p>Choose a folder to begin.</p></div> : <ul className="recent-project-list">{recent.map((entry) => <li key={entry.project.project_id} className={entry.is_active ? "is-active" : undefined}>
             <div><strong>{entry.project.display_name ?? "Unnamed project"}</strong>{entry.is_active && <span className="active-project-badge">Current</span>}<p>{entry.local_root.normalized_path}</p><p className={`root-status root-status--${entry.root_availability}`}>{entry.root_availability === "available" ? "Folder available" : `Folder ${entry.root_availability.replace("_", " ")}`}</p></div>
             <div className="project-actions">{entry.root_availability === "available" ? <button type="button" onClick={() => open(entry)} disabled={busy}>{entry.is_active ? "Open project" : "Switch and open"}</button> : <button type="button" onClick={() => locate(entry)} disabled={busy}>Locate folder</button>}<button type="button" className="secondary" onClick={() => { setMessage(null); setDialogError(null); setPendingRemoval(entry); }} disabled={busy}>Remove from recents</button></div>
           </li>)}</ul>}
         </section>
       </div>
-      <details className="project-selector-compatibility"><summary>Compatibility and recovery</summary><p><a href="/recovery">Open update and recovery</a></p><p><a href="/overview">Open the previous Augnes overview</a></p></details>
+      <details className="project-selector-compatibility"><summary>Recovery and compatibility</summary><p><a href="/recovery">Open Recovery</a></p></details>
     </main>
     <ConfirmationDialog
       open={pendingRebind !== null}

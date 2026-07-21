@@ -21,8 +21,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   align-items: start;
-  padding: 8px 0 18px;
+  padding: 8px 0 24px 24px;
   border-bottom: 1px solid var(--panel-border);
+  border-left: 2px solid var(--accent);
 }
 
 .eyebrow,
@@ -204,6 +205,51 @@
   box-shadow: 0 10px 28px rgba(36, 48, 42, .05);
 }
 
+.workbenchSequence {
+  position: relative;
+  gap: 0;
+  padding-left: 22px;
+}
+
+.workbenchSequence::before {
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 8px;
+  width: 1px;
+  background: linear-gradient(var(--accent), rgba(40, 107, 85, 0.13) 78%, transparent);
+  content: "";
+}
+
+.workbenchSequence > .panel {
+  margin-bottom: 12px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child {
+  padding: 24px 26px;
+  border: 0;
+  border-radius: 16px;
+  background: #173f34;
+  box-shadow: 0 18px 42px rgba(23, 63, 52, 0.14);
+}
+
+.workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child :is(h2, dt, dd, .copy) {
+  color: #f8f5eb;
+}
+
+.workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child .kicker {
+  color: #efc56e;
+}
+
+.workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child .statusGrid div {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+}
+
 .lockedPanel {
   max-width: 720px;
   margin: 18px auto 0;
@@ -364,9 +410,10 @@
   gap: 3px;
   min-width: 0;
   padding: 9px;
-  border: 1px solid rgba(31, 41, 55, 0.1);
-  border-radius: 8px;
-  background: #f8fafc;
+  border: 0;
+  border-left: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 0;
+  background: transparent;
 }
 
 .statusGrid dt,
@@ -446,14 +493,15 @@
 .inspectorSection {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-medium);
-  background: var(--panel);
-  box-shadow: 0 8px 24px rgba(36, 48, 42, .035);
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .inspectorSection > summary {
-  min-height: 86px;
+  min-height: 68px;
   display: flex;
   justify-content: space-between;
   gap: 14px;
@@ -501,12 +549,13 @@
   display: grid;
   gap: 12px;
   padding: 0 15px 15px;
-  border-top: 1px solid var(--panel-border);
+  border-top: 1px dashed var(--panel-border);
   padding-top: 15px;
 }
 
 .inspectorSection[open] {
-  box-shadow: var(--shadow);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: none;
 }
 
 .provenanceGrid {
@@ -604,19 +653,21 @@
 }
 
 .sequenceDisclosure {
+  position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-medium);
-  background: rgba(253, 252, 248, .82);
+  border: 0;
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .sequenceDisclosure > summary {
-  min-height: 64px;
+  min-height: 70px;
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 11px 15px;
+  padding: 12px 10px 12px 0;
   cursor: pointer;
 }
 
@@ -645,22 +696,25 @@
 }
 
 .sequenceNumber {
-  min-width: 32px;
-  height: 32px;
+  min-width: 38px;
+  height: 26px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
   padding: 0 6px;
+  border: 1px solid rgba(40, 107, 85, 0.28);
   border-radius: 999px;
-  color: #fff;
-  background: var(--accent-strong);
+  color: var(--accent-strong);
+  background: #f6f5ef;
   font-size: .72rem;
   font-weight: 800;
 }
 
 .sequenceDisclosure > .panel {
-  margin: 0 12px 12px;
-  border-color: var(--panel-border);
+  margin: 0 0 14px;
+  border-color: rgba(82, 99, 90, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
   box-shadow: none;
 }
 

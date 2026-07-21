@@ -441,7 +441,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
       >
       <SemanticWorkbenchShell
         title={proposalId ? "Verify and decide" : "Review project decisions"}
-        description="Compare authenticated project material, review one bounded candidate, and make an explicit decision. Transition eligibility and later context remain separate, server-validated steps."
+        description="Trace exact evidence to one explicit decision; an applied Transition remains a separate step."
         entryState={entryPresentation.state}
         entryLabel={entryPresentation.label}
         projectHref={projectHref}

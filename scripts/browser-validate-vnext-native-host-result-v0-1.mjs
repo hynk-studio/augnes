@@ -2788,6 +2788,7 @@ async function main() {
     assert.equal(collapsedVerificationSummaries.all_closed, true);
     assert.match(collapsedVerificationSummaries.criteria, /\d+ satisfied · \d+ unknown · \d+ unsatisfied/u);
     assert.match(collapsedVerificationSummaries.reconciliation, /\d+ Evidence records · \d+ Claim families/u);
+    assert.match(collapsedVerificationSummaries.reconciliation, /Insufficient material present/u);
     assert.match(collapsedVerificationSummaries.conflict, /project conflicts?/u);
     assert.match(collapsedVerificationSummaries.later_context, /Transition/u);
     assert.match(collapsedVerificationSummaries.later_context, /feedback/u);

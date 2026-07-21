@@ -40,12 +40,12 @@ export function ProjectHome({
           <p className="project-selector-eyebrow">Project Home</p>
           <h1>{projectName}</h1>
           <p className="project-home-root">
-            Root bound locally · {humanize(summary.root_binding.local_root.path_flavor)} path
+            Local root · {humanize(summary.root_binding.local_root.path_flavor)} path
           </p>
           <p className="project-home-repository">
             {summary.repository
               ? `Repository ${summary.repository.display}`
-              : "No project-scoped repository remote is available."}
+              : "No repository remote"}
           </p>
           <div className="project-home-badges" aria-label="Project status">
             <StatusBadge tone={rootTone(summary.root_availability)}>
@@ -90,24 +90,6 @@ export function ProjectHome({
         </section>
       ) : null}
 
-      {directHostRoundTripAvailable ? (
-        <section
-          className="project-home-callout project-home-callout--host"
-          aria-labelledby="direct-host-round-trip-title"
-        >
-          <div>
-            <p className="project-home-kicker">Selected work · direct return</p>
-            <h2 id="direct-host-round-trip-title">Run the current persisted packet</h2>
-            <p>
-              Resolve the latest project packet and root server-side, run the
-              deterministic Codex-shaped adapter, and persist its structured
-              RunReceipt without copy or paste.
-            </p>
-          </div>
-          <DirectHostRoundTripAction />
-        </section>
-      ) : null}
-
       <section
         className="project-home-resume"
         aria-labelledby="project-resume-title"
@@ -115,8 +97,8 @@ export function ProjectHome({
       >
         <div className="project-home-resume-heading">
           <div>
-            <p className="project-home-kicker">Resume · current coordination</p>
-            <h2 id="project-resume-title">Where this project is now</h2>
+            <p className="project-home-kicker">Resume</p>
+            <h2 id="project-resume-title">Pick up where you left off</h2>
             <p>{projection.coordination.state.message}</p>
           </div>
           {active && projection.coordination.primary_action ? (
@@ -139,7 +121,7 @@ export function ProjectHome({
               href={projection.coordination.inspector_href}
               data-project-coordination-inspector="true"
             >
-              Inspect exact coordination sources
+              Exact coordination
             </a>
           ) : null}
         </div>
@@ -183,11 +165,13 @@ export function ProjectHome({
           </div>
         </dl>
 
-        <div className="project-home-task-frame">
-          <div>
-            <p className="project-home-kicker">Selected task intent</p>
-            <h3>{projection.coordination.task_frame.goal ?? "No current task goal"}</h3>
-            <p className="project-home-meta">
+        <details className="project-home-task-frame">
+          <summary>
+            <span>
+              <span className="project-home-kicker">Selected task intent</span>
+              <strong>{projection.coordination.task_frame.goal ?? "No current task goal"}</strong>
+            </span>
+            <span className="project-home-meta">
               {projection.coordination.task_frame.packet_currentness
                 ? `${humanize(projection.coordination.task_frame.packet_currentness)} packet`
                 : "No current packet"}
@@ -195,8 +179,8 @@ export function ProjectHome({
                 ? ` · ${formatTimestamp(projection.coordination.task_frame.packet_generated_at)}`
                 : ""}
               {` · ${projection.coordination.task_frame.selected_context_count} selected / ${projection.coordination.task_frame.excluded_context_count} excluded context entries`}
-            </p>
-          </div>
+            </span>
+          </summary>
           <div className="project-home-task-frame-grid">
             <BoundedList
               title="Success criteria"
@@ -222,8 +206,22 @@ export function ProjectHome({
               ]}
             />
           </div>
-        </div>
+        </details>
       </section>
+
+      {directHostRoundTripAvailable ? (
+        <section
+          className="project-home-callout project-home-callout--host"
+          aria-labelledby="direct-host-round-trip-title"
+        >
+          <div>
+            <p className="project-home-kicker">Run selected work</p>
+            <h2 id="direct-host-round-trip-title">Run the current packet</h2>
+            <p>A bounded host run returns a structured RunReceipt.</p>
+          </div>
+          <DirectHostRoundTripAction />
+        </section>
+      ) : null}
 
       <section
         className="project-home-panel"
@@ -377,6 +375,11 @@ export function ProjectHome({
         )}
       </section>
 
+      <details className="project-home-disclosure">
+        <summary>
+          <span><strong>Accepted state and selected context</strong><small>Current project basis</small></span>
+          <span>{projection.accepted_state.items.length} accepted · {projection.working_projection.summary ? "projection available" : "projection unavailable"}</span>
+        </summary>
       <div className="project-home-current-grid">
         <section id="accepted-state" className="project-home-panel" aria-labelledby="accepted-state-title">
           <SectionHeading
@@ -435,7 +438,13 @@ export function ProjectHome({
           )}
         </section>
       </div>
+      </details>
 
+      <details className="project-home-disclosure">
+        <summary>
+          <span><strong>Recent meaningful activity</strong><small>Durable project history</small></span>
+          <span>{projection.recent_activity.items.length} {projection.recent_activity.items.length === 1 ? "event" : "events"}</span>
+        </summary>
       <section className="project-home-panel" aria-labelledby="activity-title">
         <SectionHeading
           id="activity-title"
@@ -471,8 +480,14 @@ export function ProjectHome({
           <EmptySection state={projection.recent_activity.state} />
         )}
       </section>
+      </details>
 
-      <section id="project-controls" className="project-home-readiness" aria-labelledby="readiness-title">
+      <details className="project-home-disclosure" id="project-controls">
+        <summary>
+          <span><strong>Controls and capabilities</strong><small>Local operating boundaries</small></span>
+          <span>{humanize(projection.automation.status)} · Personal Perspective {humanize(projection.personal_perspective.status)}</span>
+        </summary>
+      <section className="project-home-readiness" aria-labelledby="readiness-title">
         <div className="project-home-readiness-heading">
           <div>
             <p className="project-home-kicker">Operational readiness</p>
@@ -630,7 +645,13 @@ export function ProjectHome({
           </article>
         </div>
       </section>
+      </details>
 
+      <details className="project-home-disclosure">
+        <summary>
+          <span><strong>Other ways to continue</strong><small>Deterministic navigation</small></span>
+          <span>{projection.next_moves.length} {projection.next_moves.length === 1 ? "option" : "options"}</span>
+        </summary>
       <section className="project-home-panel" aria-labelledby="next-moves-title">
         <SectionHeading
           id="next-moves-title"
@@ -654,13 +675,10 @@ export function ProjectHome({
           ))}
         </ol>
       </section>
+      </details>
 
       <footer className="project-home-footer">
         <span>Generated from local project-scoped records at {formatTimestamp(projection.generated_at)}</span>
-        <details>
-          <summary>Compatibility</summary>
-          <a href="/overview">Previous Augnes overview</a>
-        </details>
       </footer>
       </main>
     </ProductShell>

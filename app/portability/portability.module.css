@@ -51,26 +51,50 @@
 }
 
 .workspace {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
-  gap: 18px;
+  gap: 54px;
   align-items: start;
 }
 
+.workspace::before {
+  position: absolute;
+  top: 35px;
+  left: calc(60% - 31px);
+  width: 30px;
+  height: 1px;
+  background: var(--panel-border);
+  content: "";
+}
+
+.workspace::after {
+  position: absolute;
+  top: 31px;
+  left: calc(60% - 5px);
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid var(--muted);
+  border-right: 1px solid var(--muted);
+  content: "";
+  transform: rotate(45deg);
+}
+
 .panel {
-  padding: 26px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-large);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  padding: 18px 0 18px 28px;
+  border: 0;
+  border-left: 2px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .exportPanel {
-  border-top: 4px solid var(--accent);
+  border-left-color: var(--accent);
 }
 
 .importPanel {
-  border-top: 4px solid var(--blue);
+  border-left-color: var(--blue);
 }
 
 .panel h2 {
@@ -95,14 +119,15 @@
   gap: 1px;
   margin: 18px 0;
   overflow: hidden;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-medium);
-  background: var(--panel-border);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .grid div {
-  padding: 13px;
-  background: #fff;
+  padding: 11px 13px;
+  border-left: 1px solid var(--panel-border);
+  background: transparent;
 }
 
 .grid dt {
@@ -122,9 +147,11 @@
 .scopeDetails {
   margin: 14px 0 18px;
   padding: 13px 15px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-medium);
-  background: var(--panel-subtle);
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .scopeDetails summary {
@@ -275,6 +302,11 @@
   .workspace {
     grid-template-columns: 1fr;
   }
+
+  .workspace::before,
+  .workspace::after {
+    display: none;
+  }
 }
 
 @media (max-width: 680px) {
@@ -293,7 +325,7 @@
   }
 
   .panel {
-    padding: 19px;
+    padding: 18px 0 18px 18px;
   }
 
   .grid {
