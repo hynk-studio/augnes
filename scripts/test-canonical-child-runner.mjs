@@ -50,6 +50,36 @@ try {
   assert.equal(success.timed_out, false);
   assert(success.duration_ms >= 0);
 
+  const inheritedStreamState = path.join(
+    temporaryRoot,
+    "exit-with-inherited-stream.json",
+  );
+  const inheritedStream = await runFixture("exit-with-inherited-stream", {
+    statePath: inheritedStreamState,
+    timeoutMs: 2_000,
+  });
+  assert.equal(inheritedStream.exit_code, 0);
+  assert.equal(inheritedStream.timed_out, false);
+  assert.equal(inheritedStream.exit_observed, true);
+  assert.equal(inheritedStream.streams_closed, true);
+  assert.equal(inheritedStream.cleanup_completed, true);
+  assert.equal(inheritedStream.remaining_owned_processes, 0);
+  assert.equal(
+    inheritedStream.termination_reason,
+    process.platform === "win32"
+      ? "natural_exit"
+      : "exited_with_owned_descendant_cleanup",
+  );
+  const inheritedStreamIdentity = JSON.parse(
+    readFileSync(inheritedStreamState, "utf8"),
+  );
+  observedPids.add(inheritedStreamIdentity.child_pid);
+  if (Number.isInteger(inheritedStreamIdentity.grandchild_pid)) {
+    observedPids.add(inheritedStreamIdentity.grandchild_pid);
+  }
+  await assertProcessGone(inheritedStreamIdentity.child_pid);
+  await assertProcessGone(inheritedStreamIdentity.grandchild_pid);
+
   const nonzero = await runFixture("nonzero", { timeoutMs: 2_000 });
   assert.equal(nonzero.exit_code, 7);
   assert.equal(nonzero.timed_out, false);
@@ -278,6 +308,7 @@ try {
   assert.deepEqual(snapshotFile(repositoryDatabasePath), repositoryDatabaseBefore);
   summaries.push(
     success,
+    inheritedStream,
     nonzero,
     direct,
     tree,
@@ -299,6 +330,7 @@ console.log(
       test: "canonical-child-runner",
       status: "pass",
       fast_success: true,
+      exited_child_inherited_stream_reaped_without_timeout: true,
       nonzero_failure_normalized: true,
       hanging_direct_child_terminated: true,
       hanging_process_tree_terminated: true,

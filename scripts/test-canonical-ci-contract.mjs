@@ -66,7 +66,8 @@ const requiredExecutionJobs = [
   "static-authority",
   "integration",
   "operability",
-  "e2e",
+  "e2e-core",
+  "e2e-continuity",
 ];
 const jobs = new Map(
   [...requiredExecutionJobs, "canonical-tests"].map((jobName) => [
@@ -112,9 +113,14 @@ assert.equal(
   "operability must retain its measured bounded workflow timeout",
 );
 assert.equal(
-  Number(yamlScalar(jobs.get("e2e"), "timeout-minutes")),
+  Number(yamlScalar(jobs.get("e2e-core"), "timeout-minutes")),
   10,
-  "E2E must retain its bounded workflow timeout",
+  "core E2E must retain its bounded workflow timeout",
+);
+assert.equal(
+  Number(yamlScalar(jobs.get("e2e-continuity"), "timeout-minutes")),
+  10,
+  "continuity E2E must retain its bounded workflow timeout",
 );
 
 for (const fragment of [
@@ -141,7 +147,8 @@ const canonicalCommandOwners = new Map([
   ["npm run test:authority", "static-authority"],
   ["npm run test:integration", "integration"],
   ["npm run test:operability", "operability"],
-  ["npm run test:e2e", "e2e"],
+  ["npm run test:e2e:core", "e2e-core"],
+  ["npm run test:e2e:continuity", "e2e-continuity"],
 ]);
 
 for (const [command, intendedJob] of canonicalCommandOwners) {
@@ -194,7 +201,8 @@ for (const [jobName, environmentName] of [
   ["static-authority", "STATIC_AUTHORITY_RESULT"],
   ["integration", "INTEGRATION_RESULT"],
   ["operability", "OPERABILITY_RESULT"],
-  ["e2e", "E2E_RESULT"],
+  ["e2e-core", "E2E_CORE_RESULT"],
+  ["e2e-continuity", "E2E_CONTINUITY_RESULT"],
 ]) {
   requireText(
     aggregator,
@@ -290,6 +298,11 @@ for (const variable of [
   );
 }
 requireText(
+  canonicalEnvironment,
+  `AUGNES_BROWSER_E2E_SCOPE:`,
+  "the split browser scope must be suite-authored rather than ambient",
+);
+requireText(
   canonicalSuite,
   `new Set(preparedSteps.map((step) => step.resourceRoot)).size`,
   "canonical children must fail closed on duplicate resource ownership",
@@ -341,6 +354,10 @@ for (const fragment of [
   `DEFAULT_CANONICAL_HEARTBEAT_MS = 30_000`,
   `terminateOwnedProcessTree(record`,
   `child_start label=`,
+  `child_spawn label=`,
+  `child_exit label=`,
+  `child_cleanup_start label=`,
+  `child_cleanup_result label=`,
   `child_active label=`,
   `child_result label=`,
   `group_start group=`,
@@ -350,7 +367,7 @@ for (const fragment of [
   `child_result_conflicting_label`,
   `child_result_duplicate`,
   `child_result_incomplete`,
-  `outcome.value.code !== 0`,
+  `settleOwnedProcessAfterExit(record`,
 ]) {
   requireText(
     canonicalRunner,
@@ -365,6 +382,8 @@ for (const fragment of [
   `concurrent_incomplete_conflicting_and_duplicate_results_refused`,
   `concurrent-after-failure`,
   `concurrent-after-timeout`,
+  `exited_child_inherited_stream_reaped_without_timeout`,
+  `exit-with-inherited-stream`,
 ]) {
   requireText(
     canonicalRunnerContract,
@@ -421,6 +440,31 @@ requireText(
   `fixture_generation_duration_ms`,
   "E2E must report fixture-generation duration separately",
 );
+for (const fragment of [
+  `AUGNES_BROWSER_E2E_SCOPE`,
+  `RUN_CORE_SCOPE`,
+  `RUN_CONTINUITY_SCOPE`,
+  `[browser-e2e] phase_start`,
+  `[browser-e2e] phase_result`,
+  `[browser-e2e] cleanup_start`,
+  `[browser-e2e] cleanup_result`,
+]) {
+  requireText(
+    browserE2e,
+    fragment,
+    `split E2E lifecycle diagnostics are missing: ${fragment}`,
+  );
+}
+for (const [script, command] of [
+  ["test:e2e", "node scripts/run-canonical-test-suite.mjs e2e"],
+  ["test:e2e:core", "node scripts/run-canonical-test-suite.mjs e2e-core"],
+  [
+    "test:e2e:continuity",
+    "node scripts/run-canonical-test-suite.mjs e2e-continuity",
+  ],
+]) {
+  assert.equal(packageJson.scripts[script], command);
+}
 const liveCompletionBarrier = browserE2e.indexOf(
   `await waitForLiveRunStatus(\n      manifest.project_id,\n      "completed",`,
 );
@@ -531,6 +575,8 @@ assert.equal(
 for (const fragment of [
   `registerOwnedChild`,
   `terminateOwnedProcessTree`,
+  `settleOwnedProcessAfterExit`,
+  `exitPromise`,
   `discoverOwnedProcessGroup`,
   `cleanupOwnedProcesses`,
   `closeTrackedServer`,
@@ -579,6 +625,7 @@ console.log(
       child_heartbeat_required: true,
       process_tree_cleanup_required: true,
       integration_concurrency_bound: 2,
+      e2e_workflow_lanes: ["e2e-core", "e2e-continuity"],
       integration_children_uniquely_owned: integrationChildren,
       child_resource_isolation_required: true,
       moved_responsibilities_execute_once: movedResponsibilities,

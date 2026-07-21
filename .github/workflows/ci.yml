@@ -65,7 +65,7 @@ jobs:
       - name: Runtime operability tests
         run: npm run test:operability
 
-  e2e:
+  e2e-core:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -75,12 +75,25 @@ jobs:
       - name: Setup canonical dependencies
         uses: ./.github/actions/setup-canonical
 
-      - name: Automated golden-path E2E
-        run: npm run test:e2e
+      - name: Resume, Verify, and Decide browser E2E
+        run: npm run test:e2e:core
+
+  e2e-continuity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup canonical dependencies
+        uses: ./.github/actions/setup-canonical
+
+      - name: Portable continuity and restart reconciliation browser E2E
+        run: npm run test:e2e:continuity
 
   canonical-tests:
     name: canonical-tests
-    needs: [static-authority, integration, operability, e2e]
+    needs: [static-authority, integration, operability, e2e-core, e2e-continuity]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -90,10 +103,12 @@ jobs:
           STATIC_AUTHORITY_RESULT: ${{ needs.static-authority.result }}
           INTEGRATION_RESULT: ${{ needs.integration.result }}
           OPERABILITY_RESULT: ${{ needs.operability.result }}
-          E2E_RESULT: ${{ needs.e2e.result }}
+          E2E_CORE_RESULT: ${{ needs.e2e-core.result }}
+          E2E_CONTINUITY_RESULT: ${{ needs.e2e-continuity.result }}
         run: |
           set -eu
           test "$STATIC_AUTHORITY_RESULT" = "success"
           test "$INTEGRATION_RESULT" = "success"
           test "$OPERABILITY_RESULT" = "success"
-          test "$E2E_RESULT" = "success"
+          test "$E2E_CORE_RESULT" = "success"
+          test "$E2E_CONTINUITY_RESULT" = "success"

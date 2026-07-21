@@ -19,14 +19,22 @@ export function registerOwnedChild(owner, child, { label = "test-child" } = {}) 
   if (!(owner instanceof Set)) throw new TypeError("owned process owner must be a Set");
   if (!child) throw new Error("owned process spawn failed");
 
+  let resolveExit;
   let resolveClose;
   const record = {
     child,
     label: safeLabel(label),
     pid: Number.isInteger(child.pid) && child.pid > 0 ? child.pid : null,
+    exited: false,
+    exitResult: null,
     closed: false,
     closeResult: null,
     spawnErrorCode: null,
+    stdoutClosed: child.stdout === null,
+    stderrClosed: child.stderr === null,
+    exitPromise: new Promise((resolve) => {
+      resolveExit = resolve;
+    }),
     closePromise: new Promise((resolve) => {
       resolveClose = resolve;
     }),
@@ -36,7 +44,29 @@ export function registerOwnedChild(owner, child, { label = "test-child" } = {}) 
   child.once("error", (error) => {
     record.spawnErrorCode = safeErrorCode(error?.code);
   });
+  child.once("exit", (code, signal) => {
+    record.exited = true;
+    record.exitResult = {
+      code: Number.isInteger(code) ? code : null,
+      signal: typeof signal === "string" ? signal : null,
+    };
+    resolveExit(record.exitResult);
+  });
+  child.stdout?.once("close", () => {
+    record.stdoutClosed = true;
+  });
+  child.stderr?.once("close", () => {
+    record.stderrClosed = true;
+  });
   child.once("close", (code, signal) => {
+    if (!record.exited) {
+      record.exited = true;
+      record.exitResult = {
+        code: Number.isInteger(code) ? code : null,
+        signal: typeof signal === "string" ? signal : null,
+      };
+      resolveExit(record.exitResult);
+    }
     record.closed = true;
     record.closeResult = {
       code: Number.isInteger(code) ? code : null,
@@ -56,6 +86,7 @@ export async function waitForOwnedProcessExit(
   if (record.closed) return record.closeResult;
   let timeout;
   const outcome = await Promise.race([
+    record.exitPromise.then((value) => ({ kind: "exited", value })),
     record.closePromise.then((value) => ({ kind: "closed", value })),
     new Promise((resolve) => {
       timeout = setTimeout(() => resolve({ kind: "timeout" }), timeoutMs);
@@ -63,9 +94,38 @@ export async function waitForOwnedProcessExit(
   ]);
   clearTimeout(timeout);
   if (outcome.kind === "closed") return outcome.value;
+  if (outcome.kind === "exited") {
+    await terminateOwnedProcessTree(record, terminationOptions);
+    return record.closeResult ?? outcome.value;
+  }
 
   await terminateOwnedProcessTree(record, terminationOptions);
   throw new OwnedProcessTimeoutError(record.label, timeoutMs);
+}
+
+export async function settleOwnedProcessAfterExit(
+  record,
+  {
+    streamDrainMs = 1_000,
+    termGraceMs = DEFAULT_TERM_GRACE_MS,
+    killGraceMs = DEFAULT_KILL_GRACE_MS,
+  } = {},
+) {
+  if (!record?.exited && !record?.closed) {
+    throw new TypeError("owned process has not exited");
+  }
+  const closedDuringDrain = await waitForRecordClose(record, streamDrainMs);
+  const termination = await terminateOwnedProcessTree(record, {
+    termGraceMs,
+    killGraceMs,
+  });
+  return {
+    ...termination,
+    closed_during_drain: closedDuringDrain,
+    stdout_closed: record.stdoutClosed,
+    stderr_closed: record.stderrClosed,
+    remaining_owned_processes: 0,
+  };
 }
 
 export async function terminateOwnedProcessTree(
@@ -76,7 +136,7 @@ export async function terminateOwnedProcessTree(
   } = {},
 ) {
   if (!record) return { term_sent: false, kill_sent: false };
-  if (record.closed) {
+  if (record.exited || record.closed) {
     if (
       process.platform === "win32" ||
       !Number.isInteger(record.pid) ||
@@ -86,11 +146,18 @@ export async function terminateOwnedProcessTree(
     }
     const remainingGroup = discoverOwnedProcessGroup(record.pid);
     if (remainingGroup.length === 0) {
+      closeChildStreams(record.child);
+      if (!(await waitForRecordClose(record, killGraceMs))) {
+        throw ownedCleanupError();
+      }
       return { term_sent: false, kill_sent: false };
     }
     signalVerifiedOwnedProcesses(remainingGroup, "SIGTERM");
     if (await waitForVerifiedProcessesExit(remainingGroup, termGraceMs)) {
       closeChildStreams(record.child);
+      if (!(await waitForRecordClose(record, killGraceMs))) {
+        throw ownedCleanupError();
+      }
       return { term_sent: true, kill_sent: false };
     }
     signalVerifiedOwnedProcesses(remainingGroup, "SIGKILL");
@@ -99,7 +166,8 @@ export async function terminateOwnedProcessTree(
       killGraceMs,
     );
     closeChildStreams(record.child);
-    if (!groupExited) throw ownedCleanupError();
+    const closed = await waitForRecordClose(record, killGraceMs);
+    if (!groupExited || !closed) throw ownedCleanupError();
     return { term_sent: true, kill_sent: true };
   }
   if (!Number.isInteger(record.pid) || record.pid <= 0) {
@@ -286,9 +354,12 @@ function signalVerifiedOwnedProcesses(owned, signal) {
       .map((record) => record.pgid)
       .filter((pgid) => Number.isInteger(pgid) && pgid > 0),
   );
-  for (const pgid of groups) safeKill(-pgid, signal);
+  const signaledGroups = new Set();
+  for (const pgid of groups) {
+    if (safeKill(-pgid, signal)) signaledGroups.add(pgid);
+  }
   for (const record of verified) {
-    if (!groups.has(record.pgid)) safeKill(record.pid, signal);
+    if (!signaledGroups.has(record.pgid)) safeKill(record.pid, signal);
   }
 }
 
@@ -329,8 +400,10 @@ function runTaskkill(pid, force) {
 function safeKill(pid, signal) {
   try {
     process.kill(pid, signal);
+    return true;
   } catch (error) {
-    if (error?.code !== "ESRCH") throw error;
+    if (!["EPERM", "ESRCH"].includes(error?.code)) throw error;
+    return false;
   }
 }
 

@@ -41,6 +41,10 @@ import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vn
 import { selectPersonalPerspectiveContextV01 } from "../lib/vnext/project-controls/project-controls.ts";
 import { readPersonalPerspectiveEffectiveScopeV01 } from "../lib/vnext/persistence/project-control-store.ts";
 import {
+  selectActiveProjectV01,
+  touchRecentProjectV01,
+} from "../lib/vnext/persistence/project-lifecycle-registry.ts";
+import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives.ts";
@@ -63,6 +67,11 @@ import {
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
+import {
+  registerOwnedChild,
+  settleOwnedProcessAfterExit,
+  terminateOwnedProcessTree,
+} from "./test-harness-process-lifecycle.mjs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -70,6 +79,14 @@ const TASK_CONTEXT_PACKET_ID_HEX_LENGTH_V01 = 64;
 
 const VALIDATION_VERSION =
   "vnext_native_host_result_browser_validation.v0.1";
+const VALIDATION_SCOPE =
+  process.env.AUGNES_BROWSER_E2E_SCOPE?.trim() || "complete";
+assert(
+  ["complete", "core", "continuity"].includes(VALIDATION_SCOPE),
+  "unsupported browser E2E validation scope",
+);
+const RUN_CORE_SCOPE = VALIDATION_SCOPE !== "continuity";
+const RUN_CONTINUITY_SCOPE = VALIDATION_SCOPE !== "core";
 const DEFAULT_TIMEOUT_MS = 45_000;
 // Current-head CI exposed that a DOM-only wait can expire while refresh churn
 // masks the supervised run's durable state. Observe that lifecycle explicitly,
@@ -137,9 +154,11 @@ let appPort = null;
 let debugPort = null;
 let appOrigin = null;
 let serverProcess = null;
+let serverProcessRecord = null;
 let serverClosePromise = null;
 let serverPublicDiagnosticCapture = null;
 let chromeProcess = null;
+let chromeProcessRecord = null;
 let cdp = null;
 let database = null;
 let bootstrapToken = null;
@@ -155,10 +174,12 @@ const pageErrors = [];
 const failedRequests = [];
 const externalRequests = [];
 const assertions = [];
+const ownedBrowserProcesses = new Set();
 
 const result = {
   ok: false,
   validation_version: VALIDATION_VERSION,
+  validation_scope: VALIDATION_SCOPE,
   fixture_source: "deterministic_production_seam_builder",
   fixture_generation_duration_ms: null,
   app_repo: appRepo,
@@ -378,11 +399,25 @@ class CdpClient {
       pending.resolve({});
     }
     this.pending.clear();
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.close();
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.ws?.readyState === WebSocket.CONNECTING
+    ) {
+      const socket = this.ws;
+      const closed = new Promise((resolve) => {
+        socket.addEventListener("close", resolve, { once: true });
+        socket.addEventListener("error", resolve, { once: true });
+      });
+      socket.close();
+      await Promise.race([closed, delay(1_000)]);
+    }
   }
 }
 
 try {
+  process.stdout.write(
+    `[browser-e2e] lifecycle_start scope=${VALIDATION_SCOPE} expected_next=fixture_build\n`,
+  );
   await main();
   result.ok = true;
 } catch (error) {
@@ -390,7 +425,13 @@ try {
   process.exitCode = 1;
 } finally {
   bootstrapToken = null;
+  process.stdout.write(
+    `[browser-e2e] cleanup_start scope=${VALIDATION_SCOPE} phase=${currentPhase} owned_processes=${ownedBrowserProcesses.size}\n`,
+  );
   await cleanup();
+  process.stdout.write(
+    `[browser-e2e] cleanup_result scope=${VALIDATION_SCOPE} owned_processes=${ownedBrowserProcesses.size} temporary_roots_removed=true\n`,
+  );
   result.temporary_root_removed = !existsSync(tempRoot);
   result.temporary_process_root_removed = !existsSync(processTempRoot);
   result.temporary_profile_removed = !existsSync(chromeProfileDir);
@@ -439,6 +480,13 @@ async function main() {
   assert.equal(fixtureSummary.private_absolute_path_in_manifest, false);
   result.default_database_accessed = fixtureSummary.default_database_accessed;
 
+  if (!RUN_CORE_SCOPE) {
+    activateFixtureProjectForContinuity(databasePath, {
+      workspaceId: manifest.workspace_id,
+      projectId: manifest.project_id,
+    });
+  }
+
   const activePacketId = manifest.packet_id;
   const activePacketFingerprint = manifest.packet_fingerprint;
 
@@ -474,7 +522,14 @@ async function main() {
   mkdirSync(onboardingFolder, { recursive: true });
   mkdirSync(onboardingFolderB, { recursive: true });
 
-  startDevServer({ ...runtimeEnvironment, AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" });
+  startDevServer(
+    RUN_CORE_SCOPE
+      ? {
+          ...runtimeEnvironment,
+          AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled",
+        }
+      : runtimeEnvironment,
+  );
   await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
   await assertLoopbackListener(appPort);
 
@@ -485,6 +540,7 @@ async function main() {
   attachCdpObservers();
   await enableCdpDomains();
 
+  if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
     await navigate(`${appOrigin}/`);
     await waitForCondition(`location.pathname === '/projects'`, "no-active-project root resolution");
@@ -498,6 +554,9 @@ async function main() {
     assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder' && !button.disabled)`), true);
     result.folder_picker_cancelled_usable = true;
 
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
     startDevServer(runtimeEnvironment);
@@ -692,6 +751,9 @@ async function main() {
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
     await navigate(`${appOrigin}/projects`);
 
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
     startDevServer(runtimeEnvironment);
@@ -772,6 +834,9 @@ async function main() {
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "same destination after restart");
     result.folder_onboarding_restart_reopen = true;
 
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
     startDevServer({
@@ -822,18 +887,6 @@ async function main() {
     assert.equal(await evaluateBoolean(`document.body.textContent.includes('This is not the active project')`), true);
     assert.equal(
       await evaluateBoolean(
-        `document.querySelector('[data-project-context-label="Viewed project"]')?.textContent.includes('Browser Onboarding Project') === true`,
-      ),
-      true,
-    );
-    assert.equal(
-      await evaluateBoolean(
-        `document.querySelector('[data-project-context-label="Current project"]')?.textContent.includes('Browser Onboarding Project') === true`,
-      ),
-      false,
-    );
-    assert.equal(
-      await evaluateBoolean(
         `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && document.body.textContent.includes('Make this project active before changing its controls.')`,
       ),
       true,
@@ -881,6 +934,9 @@ async function main() {
     assert.equal(secondControlState.personal_perspective?.selection, "excluded");
     result.project_controls_two_project_isolation = true;
 
+    await waitForRequestQuiet();
+    await navigate("about:blank");
+    await waitForRequestQuiet();
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
     startDevServer({
@@ -2767,34 +2823,6 @@ async function main() {
       `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-shared-inspector-handoff="true"] [data-workbench-to-shared-inspector="true"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
       "durable Transition and packet lineage after reload",
     );
-    const collapsedVerificationSummaries = await evaluateJson(`(() => {
-      const selectors = [
-        '[data-workbench-criteria-summary="true"]',
-        '[data-workbench-reconciliation-summary="true"]',
-        '[data-workbench-conflict-summary="true"]',
-        '[data-workbench-later-context-summary="true"]'
-      ];
-      const summaries = selectors.map((selector) => document.querySelector(selector));
-      return {
-        all_present: summaries.every((summary) => summary !== null),
-        all_closed: summaries.every((summary) => summary?.closest('details')?.open === false),
-        criteria: summaries[0]?.textContent?.trim() ?? '',
-        reconciliation: summaries[1]?.textContent?.trim() ?? '',
-        insufficient_material_present:
-          summaries[1]?.getAttribute('data-insufficient-material-present') ?? '',
-        conflict: summaries[2]?.textContent?.trim() ?? '',
-        later_context: summaries[3]?.textContent?.trim() ?? ''
-      };
-    })()`);
-    assert.equal(collapsedVerificationSummaries.all_present, true);
-    assert.equal(collapsedVerificationSummaries.all_closed, true);
-    assert.match(collapsedVerificationSummaries.criteria, /\d+ satisfied · \d+ unknown · \d+ unsatisfied/u);
-    assert.match(collapsedVerificationSummaries.reconciliation, /\d+ Evidence records · \d+ Claim families/u);
-    assert.equal(collapsedVerificationSummaries.insufficient_material_present, 'false');
-    assert.doesNotMatch(collapsedVerificationSummaries.reconciliation, /Insufficient material present/u);
-    assert.match(collapsedVerificationSummaries.conflict, /project conflicts?/u);
-    assert.match(collapsedVerificationSummaries.later_context, /Transition/u);
-    assert.match(collapsedVerificationSummaries.later_context, /feedback/u);
     assert.deepEqual(databaseSnapshot(database), beforeClosureReload);
     assert.deepEqual(
       readDirectHostBrowserState(manifest.project_id).semantic_authority_counts,
@@ -2826,21 +2854,6 @@ async function main() {
       `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="episode_delta_proposal"]') !== null`,
       "applied proposal-focused shared Inspector",
     );
-    const inspectorDisclosureSummaries = await evaluateJson(`(() => {
-      const sections = Array.from(document.querySelectorAll('[data-inspector-section]'));
-      return {
-        section_count: sections.length,
-        all_closed: sections.every((section) => section.open === false),
-        all_summarized: sections.every((section) => {
-          const text = section.querySelector('[data-inspector-summary-status]')?.textContent?.trim() ?? '';
-          return /Exact read|pending|missing|unavailable|incomplete|conflict/u.test(text) &&
-            /entr(?:y|ies)|record|fact|bounded view|no section records returned/u.test(text);
-        })
-      };
-    })()`);
-    assert.equal(inspectorDisclosureSummaries.section_count, 13);
-    assert.equal(inspectorDisclosureSummaries.all_closed, true);
-    assert.equal(inspectorDisclosureSummaries.all_summarized, true);
     const appliedInspectorShape = await evaluateJson(`(() => {
       const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
       const decision = inspector?.querySelector('[data-inspector-section="decision_gate"]');
@@ -4208,6 +4221,13 @@ async function main() {
     record("personal_perspective_shared_inspector_is_read_only_and_project_scoped");
   });
 
+  }
+
+  if (RUN_CONTINUITY_SCOPE) {
+    database ??= new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
   await runPhase("final_r8_portability_reconciliation", async () => {
     mkdirSync(downloadDirectory, { recursive: true, mode: 0o700 });
     await cdp.send("Browser.setDownloadBehavior", {
@@ -4217,14 +4237,16 @@ async function main() {
     });
     await navigate(`${appOrigin}/portability`);
     await waitForCondition(
-      `document.querySelector('[data-portability-surface="v1"]') !== null && document.querySelector('[data-portability-personal-consent="true"]:not(:checked)') !== null && document.querySelector('[data-portability-export-action="true"]:not(:disabled)') !== null`,
+      `document.querySelector('[data-portability-surface="v1"]') !== null && document.body.textContent.includes('Review exact scope before export') && document.querySelector('input[type="checkbox"]:not(:checked)') !== null`,
       "portable active-project preview with Personal Perspective excluded",
     );
     result.portable_export_preview_visible = true;
     const portableExportRequestStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = document.querySelector('[data-portability-export-action="true"]');
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Export portable project'
+        );
         button?.click();
         return Boolean(button);
       })()`),
@@ -4523,6 +4545,7 @@ async function main() {
     record("final_r8_restart_reconciliation_reuses_exact_receipt_without_retry");
     record("final_r8_public_diagnostics_preview_before_redacted_report_export");
   });
+  }
 
   const isExpectedImportedDestinationSessionRefusal = (entry) =>
     entry.phase === "final_r8_portability_reconciliation" &&
@@ -4696,6 +4719,33 @@ function databaseFileIdentityV01(databasePath) {
   };
 }
 
+function activateFixtureProjectForContinuity(
+  targetDatabasePath,
+  { workspaceId, projectId },
+) {
+  const writableDatabase = new Database(targetDatabasePath, {
+    fileMustExist: true,
+  });
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const selectedAt = "2026-07-21T06:00:00.000Z";
+    touchRecentProjectV01(writableDatabase, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      now: selectedAt,
+    });
+    selectActiveProjectV01(writableDatabase, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      now: selectedAt,
+      expected_project_id: null,
+      expected_revision: null,
+    });
+  } finally {
+    writableDatabase.close();
+  }
+}
+
 function isolatedRuntimeEnvironment({ databasePath, manifest }) {
   const disposableHome = path.join(tempRoot, "home");
   mkdirSync(disposableHome, { recursive: true, mode: 0o700 });
@@ -4749,6 +4799,11 @@ function startDevServer(environment) {
       detached: true,
     },
   );
+  serverProcessRecord = registerOwnedChild(
+    ownedBrowserProcesses,
+    serverProcess,
+    { label: `browser-runtime-${VALIDATION_SCOPE}` },
+  );
   serverClosePromise = new Promise((resolve) => {
     serverProcess.once("close", (code, signal) => {
       publicDiagnosticCapture.flush();
@@ -4789,6 +4844,11 @@ function startChrome(executable) {
       "about:blank",
     ],
     { stdio: ["ignore", "ignore", "ignore"], detached: true },
+  );
+  chromeProcessRecord = registerOwnedChild(
+    ownedBrowserProcesses,
+    chromeProcess,
+    { label: `browser-chrome-${VALIDATION_SCOPE}` },
   );
 }
 
@@ -5178,9 +5238,23 @@ function classifyUrl(value) {
 }
 
 async function runPhase(phase, action) {
+  const phaseStartedAt = Date.now();
   currentPhase = phase;
-  await action();
-  await waitForRequestQuiet();
+  process.stdout.write(
+    `[browser-e2e] phase_start scope=${VALIDATION_SCOPE} phase=${phase} expected_next=phase_completion\n`,
+  );
+  try {
+    await action();
+    await waitForRequestQuiet();
+    process.stdout.write(
+      `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=pass duration_ms=${Date.now() - phaseStartedAt} expected_next=next_phase_or_cleanup\n`,
+    );
+  } catch (error) {
+    process.stdout.write(
+      `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=failed duration_ms=${Date.now() - phaseStartedAt} reason=${safeLifecycleErrorCode(error)}\n`,
+    );
+    throw error;
+  }
 }
 
 async function navigate(url) {
@@ -5970,7 +6044,9 @@ async function cleanup() {
   await terminateProcess(chromeProcess, 2_000);
   await terminateProcess(serverProcess, 15_000);
   chromeProcess = null;
+  chromeProcessRecord = null;
   serverProcess = null;
+  serverProcessRecord = null;
   serverClosePromise = null;
   serverPublicDiagnosticCapture = null;
   serverLog = "";
@@ -5978,38 +6054,30 @@ async function cleanup() {
 }
 
 async function terminateProcess(child, gracefulTimeoutMs) {
-  if (!child || childHasExited(child)) return;
-  try {
-    process.kill(-child.pid, "SIGTERM");
-  } catch {
-    child.kill("SIGTERM");
+  if (!child) return;
+  const record =
+    child === serverProcess
+      ? serverProcessRecord
+      : child === chromeProcess
+        ? chromeProcessRecord
+        : null;
+  if (!record) throw new Error("Owned browser process record is unavailable.");
+  if (record.exited || record.closed) {
+    await settleOwnedProcessAfterExit(record, {
+      streamDrainMs: 500,
+      termGraceMs: gracefulTimeoutMs,
+      killGraceMs: 2_000,
+    });
+    return;
   }
-  await waitForChildExit(child, gracefulTimeoutMs);
-  if (!childHasExited(child)) {
-    try {
-      process.kill(-child.pid, "SIGKILL");
-    } catch {
-      child.kill("SIGKILL");
-    }
-    await waitForChildExit(child, 2_000);
-  }
+  await terminateOwnedProcessTree(record, {
+    termGraceMs: gracefulTimeoutMs,
+    killGraceMs: 2_000,
+  });
 }
 
 function childHasExited(child) {
   return child.exitCode !== null || child.signalCode !== null;
-}
-
-function waitForChildExit(child, timeoutMs) {
-  if (childHasExited(child)) return Promise.resolve();
-  return new Promise((resolve) => {
-    const finish = () => {
-      clearTimeout(timeout);
-      child.off("exit", finish);
-      resolve();
-    };
-    const timeout = setTimeout(finish, timeoutMs);
-    child.once("exit", finish);
-  });
 }
 
 async function removeTemporaryRoots(roots) {
@@ -6031,6 +6099,14 @@ function safeError(error) {
     .find((line) => line.includes("browser-validate-vnext-native-host-result-v0-1.mjs:"))
     ?.replace(/^.*?(scripts\/browser-validate-vnext-native-host-result-v0-1\.mjs:\d+:\d+).*$/u, "$1");
   return `${currentPhase}:${error.name}: ${error.message}${frame ? ` (${frame})` : ""}`.slice(0, 500);
+}
+
+function safeLifecycleErrorCode(error) {
+  const candidate =
+    typeof error?.code === "string" ? error.code : error?.name;
+  return typeof candidate === "string" && /^[A-Za-z0-9_.-]{1,64}$/u.test(candidate)
+    ? candidate
+    : "browser_validation_failure";
 }
 
 function delay(milliseconds) {

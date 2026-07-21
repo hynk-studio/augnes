@@ -335,8 +335,31 @@ const suites = {
   ],
   e2e: [
     {
-      label: "TaskContextPacket to Workbench golden path",
+      label: "Resume, Verify, and Decide browser golden path",
       ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
+      env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
+      timeoutMs: 480_000,
+    },
+    {
+      label: "portable continuity and restart reconciliation browser path",
+      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
+      env: { AUGNES_BROWSER_E2E_SCOPE: "continuity" },
+      timeoutMs: 480_000,
+    },
+  ],
+  "e2e-core": [
+    {
+      label: "Resume, Verify, and Decide browser golden path",
+      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
+      env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
+      timeoutMs: 480_000,
+    },
+  ],
+  "e2e-continuity": [
+    {
+      label: "portable continuity and restart reconciliation browser path",
+      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
+      env: { AUGNES_BROWSER_E2E_SCOPE: "continuity" },
       timeoutMs: 480_000,
     },
   ],
@@ -462,6 +485,11 @@ try {
       signal: result.signal,
       timed_out: result.timed_out,
       duration_ms: result.duration_ms,
+      exit_observed: result.exit_observed,
+      streams_closed: result.streams_closed,
+      cleanup_completed: result.cleanup_completed,
+      remaining_owned_processes: result.remaining_owned_processes,
+      termination_reason: result.termination_reason,
     });
   }
 
