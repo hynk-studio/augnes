@@ -3,7 +3,7 @@ description: Install clean Node dependencies for one isolated Canonical CI job.
 
 inputs:
   profile:
-    description: Exact clean-install profile: root-only or full.
+    description: "Exact clean-install profile: root-only or full."
     required: true
 
 runs:

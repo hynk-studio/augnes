@@ -56,6 +56,10 @@ const documentationValidator = readRepositoryFile(
 );
 const parsedWorkflow = parseCanonicalYaml(workflow);
 const parsedSetupAction = parseCanonicalYaml(setupAction);
+assert.throws(
+  () => parseCanonicalYaml("description: invalid: plain scalar\n"),
+  /unquoted canonical YAML scalar contains a mapping separator/u,
+);
 const jobs = parsedWorkflow.jobs;
 const requiredExecutionJobs = ["static", "integration", "operability", "e2e"];
 

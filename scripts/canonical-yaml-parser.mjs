@@ -149,6 +149,12 @@ function collectBlockScalar(lines, start, parentIndent, blockStyle) {
 
 function parseScalar(raw) {
   const value = raw.trim();
+  const quoted =
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"));
+  if (!quoted && /:\s/u.test(value)) {
+    throw new Error(`unquoted canonical YAML scalar contains a mapping separator: ${value}`);
+  }
   if (/^\[.*\]$/u.test(value)) {
     const inner = value.slice(1, -1).trim();
     return inner ? inner.split(",").map((entry) => parseScalar(entry)) : [];
