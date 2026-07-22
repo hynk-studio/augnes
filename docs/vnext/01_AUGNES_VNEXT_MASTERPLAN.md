@@ -47,12 +47,18 @@ Augnes는 의미와 계보를 보존한다.
 
 이 Core 정의 아래의 제품 경험은 다음과 같다.
 
-> **Augnes는 native AI host가 가장 강한 환경에서 실행하게 하면서, 사용자 소유 Project Home과 Semantic Workbench가 cross-host continuity를 보존하고 Evidence와 Claim을 조정하며 제안된 변화를 지속 가능한 인간의 결정으로 바꾼다. Inspector는 두 surface에 공통 drill-down과 lineage 탐색을 제공한다.**
+> **Augnes는 native AI host가 가장 강한 환경에서 실행하게 하면서, Blank State가 인간의 의도와 resumption을 단순하게 투영하고, GuideBrief가 cross-surface 상황을 설명하며, AI Workplane이 cross-host continuity·verification·semantic coordination을 수행하게 한다. Inspector는 필요한 순간에만 exact read-only drill-down을 제공한다.**
 
-범용 실행 shell을 만들지 않는다는 결정은 Augnes가 자체 Project Home이나
-Semantic Workbench를 포기한다는 뜻이 아니다. Augnes는 Resume을 위한 인간
-front door, cross-host Verify·Decide를 위한 능동 semantic work surface, 그리고
-공통 provenance explorer를 직접 소유한다.
+Target default top-level navigation은 Blank State와 AI Workplane 두 destination으로
+제한한다. GuideBrief는 Browser, ChatGPT, Codex, Blank State와 AI Workplane에
+embedded되는 non-authoritative interpretation layer이며 peer page가 아니다.
+Inspector도 normal peer destination이 아니라 contextual audit surface다.
+
+현재 runtime의 Project Home, Semantic Workbench, Shared Inspector, Portability와
+Recovery는 operational Core를 보여 주는 reference operator implementation이다.
+Post-Build Week correction은 이 engine을 폐기하지 않고 target surface 아래로
+reproject, absorb 또는 demote한다. 해당 runtime migration은 아직 구현되지 않았으며,
+현재 code가 이후 correction PR 전까지 implemented behavior의 source of truth다.
 
 ---
 
@@ -74,6 +80,10 @@ Augnes는 다음 작업자가 현재 프로젝트의 좌표를 빠르게 회복�
 
 Resume의 품질은 저장량이 아니라 첫 올바른 행동까지의 시간, 잘못된 문맥 수정 횟수, 반복 설명량으로 평가한다.
 
+Target product에서 Resume은 Blank State와 embedded GuideBrief를 통해 first correct
+action까지의 시간을 최소화한다. 사용자가 project taxonomy나 protocol sequence를
+먼저 해석하게 해서는 안 된다.
+
 ### 1.2 Verify
 
 Augnes는 관찰, 보고, 해석과 근거를 분리해야 한다.
@@ -88,6 +98,10 @@ Augnes는 관찰, 보고, 해석과 근거를 분리해야 한다.
 
 Verify의 품질은 provenance completeness, source-less accepted state의 부재, stale·contradiction 탐지율, receipt 신뢰 유형의 명확성으로 평가한다.
 
+Verify의 정밀 작업은 engine과 AI Workplane이 수행하고, default human projection은
+결과, verification outcome, remaining uncertainty와 risk를 ordinary language로
+요약한다. exact basis와 lineage는 contextual Inspector에서 연다.
+
 ### 1.3 Decide
 
 Augnes는 후보와 durable state 사이의 의미적 경계를 관리해야 한다.
@@ -100,6 +114,10 @@ Augnes는 후보와 durable state 사이의 의미적 경계를 관리해야 한
 ```
 
 Decide의 품질은 review burden, decision debt, 무승인 durable write와 외부 행동의 부재, 결정 계보의 설명 가능성으로 평가한다.
+
+Decide는 raw review protocol을 사용자에게 운영하게 하지 않는다. Blank State 또는
+AI Workplane은 실제로 필요한 한 가지 human decision과 consequences를 우선
+surface하고, exact decision lineage는 Inspector로 progressively disclose한다.
 
 새 기능이 Resume, Verify, Decide 중 어느 것도 실질적으로 개선하지 않으면 Augnes의 핵심 기능이 아닐 가능성이 높다.
 
@@ -152,6 +170,13 @@ expected vs observed 차이
 ### 2.5 Source anchors over generated views
 
 요약, GuideBrief, Current Working Perspective와 Inspector 화면은 View다. View는 source와 decision lineage로 역추적할 수 있어야 하며 자체 권위를 만들지 않는다.
+
+GuideBrief는 이 non-authoritative 원칙을 유지하면서 active cross-surface product
+responsibility를 맡는다. observed fact, bounded inference와 caveat, suggested next
+action, unresolved judgment, risk, gap, staleness와 meaningful change를 Browser,
+ChatGPT, Codex, Blank State와 AI Workplane에 일관되게 설명한다. GuideBrief는
+`TaskContextPacket`을 대체하지 않는다. 전자는 human-readable interpretation이고,
+후자는 specific task/run을 위한 exact bounded execution contract다.
 
 ### 2.6 Context is selected working material, not truth
 
@@ -304,40 +329,38 @@ Augnes
 ## 5. 목표 제품 구조
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│ Native Agent and Execution Homes                         │
-│ ChatGPT Work · Codex · Claude/Cowork/Claude Code         │
-│ Gemini/Gemini CLI · Local/IDE/CI Agents · Pipelines      │
-└──────────────────────────↕───────────────────────────────┘
-                TaskContextPacket / RunReceipt
-┌──────────────────────────↕───────────────────────────────┐
-│ Augnes Integration Kit and Protocol                      │
-│ Adapters · Model Gateway · MCP/Hooks/HTTP/File transport │
-│ TaskContextPacket · RunReceipt · Proposal · Decision     │
-└──────────────────────────↕───────────────────────────────┘
-┌──────────────────────────↕───────────────────────────────┐
-│ Temporal Evidence · Claim · Work · Run · Delta Core      │
-│ Decisions · Grants · Perspective · Memory · Gaps         │
-└──────────────────────────↕───────────────────────────────┘
-┌──────────────────────────↕───────────────────────────────┐
-│ Augnes Project Home + Augnes Semantic Workbench          │
-│ Resume and coordination · cross-host Verify and Decide   │
-└──────────────────────────↕───────────────────────────────┘
-                    shared drill-down
-┌──────────────────────────↕───────────────────────────────┐
-│ Inspector and shared projections                         │
-│ CWP · Attention · Timeline · Evidence · Runs · Lineage   │
-└──────────────────────────────────────────────────────────┘
+Default human navigation
+┌──────────────────────────────┐  ┌──────────────────────────────┐
+│ Blank State                  │  │ AI Workplane                 │
+│ intent · resume · attention  │↔ │ execute · verify · prepare   │
+│ result · next decision       │  │ reconcile · automate         │
+└──────────────↕───────────────┘  └──────────────↕───────────────┘
+               embedded GuideBrief
+      observed · inferred · suggested · judgment · risk
+                              ↘ contextual exact drill-down
+                         ┌──────────────────────────────┐
+                         │ Inspector                    │
+                         │ source · lineage · audit     │
+                         └──────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────┐
-│ Augnes Lab                                              │
-│ PE · EES · Sidecar · Meta-WM · BSL · CompIndex          │
-│ loopness · Constellation · residual experiments         │
-│ 항상 non-authoritative                                 │
-└─────────────────────────────────────────────────────────┘
+Provider / Runner / Tool Layer
+ChatGPT · Codex · OpenAI API · MCP/App · GitHub · native hosts
+local bridges · schedulers · runners · terminal/browser/diff/PR tools
+
+Augnes Core and Integration Kit
+Temporal Evidence · Claim · Work · Run · Delta · Decisions · Grants
+Perspective · Memory · Gaps · adapters · gateway · protocol transports
 ```
 
-물리적으로 처음부터 저장소나 서비스 다섯 개로 나눌 필요는 없다. 그러나 코드, 데이터, 권한과 의존성은 이 경계를 따라야 한다.
+Blank State와 AI Workplane만 target default top-level destination이다. GuideBrief는
+embedded interpretation layer이고 Inspector는 contextual read-only surface다.
+Provider, runner와 native tool은 execution power를 제공하지만 user-facing IA를
+정의하지 않는다. 물리적으로 처음부터 별도 서비스로 나눌 필요는 없지만 surface,
+Core, execution과 authority 책임은 이 경계를 따라야 한다.
+
+현재 Project Home, Semantic Workbench와 Shared Inspector topology는 Build Week
+reference operator implementation의 runtime truth다. 위 diagram은 planned target이며
+existing route rename이나 migration 완료를 주장하지 않는다.
 
 ---
 
@@ -353,13 +376,15 @@ default_worker       = Codex
 default_reasoning    = OpenAI API
 default_plugin       = Augnes OpenAI Integration
 default_scheduler    = ChatGPT Scheduled Tasks when applicable
-default_review_ui    = host-native compact review card
-                     + Augnes Semantic Workbench
-                     + Inspector drill-down
-                     + Project Home attention/decision entry points
+default_review_ui    = Blank State result/decision projection
+                     + AI Workplane verification and preparation
+                     + embedded GuideBrief interpretation
+                     + contextual Inspector drill-down
 ```
 
-이 기본값은 사용자 경험과 reference implementation을 정한다. Core의 의미와 schema를 OpenAI 전용으로 만들지는 않는다.
+이 기본값은 target post-Build Week 사용자 경험을 정한다. 현재 reference operator
+runtime의 Project Home과 Semantic Workbench route가 이미 변경됐다는 뜻은 아니며,
+Core의 의미와 schema를 OpenAI 전용으로 만들지도 않는다.
 
 ### 6.2 provider-neutral 약속
 
@@ -690,111 +715,128 @@ Accept / Reject / Defer / Supersede
 ```
 
 compact card는 bounded context와 judgment entry를 native UX 안에 제공하지만
-Augnes Project Home, Semantic Workbench 또는 상세 Inspector를 대체하지 않는다.
+Augnes의 human entry나 semantic coordination을 대체하지 않는다. target product에서는
+GuideBrief와 함께 Blank State 또는 AI Workplane projection으로 연결하고, exact
+detail이 필요할 때만 Inspector를 연다.
 
-### 11.2 Augnes Project Home
+### 11.2 Blank State
 
-Project Home은 `/`와 project-scoped route에서 Resume을 위한 인간 소유 front
-door로 동작하며 다음 coordination 책임을 소유하거나 조합한다.
-
-```text
-current project coordinates와 Current Working Perspective
-goals, constraints와 active work portfolio
-agent/run activity와 current attention
-unresolved tensions, risks, gaps와 decision debt
-pending proposals와 decisions
-recent meaningful changes와 recommended next moves
-native host와 Semantic Workbench 진입점
-bounded resume context
-```
-
-Project Home은 empty start screen, card warehouse, passive readback directory,
-workflow-stage panel collection, duplicate execution console 또는 긴 authority
-copy page가 아니다. 상세 provenance 탐색은 shared Inspector에 맡기고, active
-semantic review와 결정은 Semantic Workbench에 맡긴다.
-
-### 11.3 Augnes Semantic Workbench
-
-`/workbench/semantic-review`는 canonical Semantic Workbench이며
-`/workbench`는 작은 compatibility entry다. Workbench는 특정 host가 아직 못
-하는 기능의 잔여 집합이 아니라, 어느 단일 provider나 native host도 canonical
-project semantics로 소유해서는 안 되는 cross-host·cross-time 책임으로 정의한다.
+Blank State는 target default human-facing entry와 resumption surface다. internal
+project-state taxonomy가 아니라 user intent에서 시작하고 ordinary language로 다음을
+보여 준다.
 
 ```text
-cross-host result와 plan-versus-result 비교
-multiple RunReceipt와 observation-versus-attestation 비교
-criterion assessment와 base-versus-challenger 비교
-condition-bound advantage transfer ledger와 rejected transfer
-strategy patch, cost, falsifier와 regression review
-candidate-level decision와 frame challenge-versus-within-frame strategy challenge
-Evidence/Claim reconciliation, contradiction와 uncertainty review
-expected-versus-observed analysis
-EpisodeDeltaProposal review/edit와 ReviewDecision 준비·제출
-Perspective change와 reviewed-memory promotion 후보 검토
-residual work, dependency와 next TaskContextPacket context composition
-cross-host handoff, lineage와 user-governed semantic decisions
+What am I trying to do?
+What is happening now?
+What changed since I last looked?
+Is anything blocked or waiting for me?
+What is the one most meaningful next action?
 ```
 
-Semantic Workbench는 general chat, code/document editor, terminal, browser,
-Git diff/PR review, worktree, generic scheduler 또는 provider-native session
-manager를 복제하지 않는다. 목표 진화는 Workplane 제거가 아니라
-execution-oriented Agent Workplane에서 cross-host semantic coordination과
-decision surface로의 전문화다.
+Blank State는 project selection, recent projects, project switching, current-project
+resumption, delegated-work status, returned results, attention과 next meaningful
+decision을 흡수한다. “Blank”는 passive empty screen이 아니라 사용자가 engine의
+internal model을 배우지 않고 intent에서 시작한다는 뜻이다. default state에는 한
+가지 primary action만 둔다.
 
-### 11.4 Augnes Inspector
+현재 Project Home은 이 책임의 일부를 구현한 reference operator surface다. Project
+Home capability의 Blank State absorption은 planned correction이며 아직 runtime에
+적용되지 않았다.
 
-Inspector는 Project Home과 Semantic Workbench가 함께 사용하는 read-heavy
-drill-down과 provenance exploration surface다.
+### 11.3 GuideBrief
+
+GuideBrief는 Browser, ChatGPT, Codex, Blank State, AI Workplane과 future agent
+surface를 연결하는 active cross-surface interpretation and guidance layer다.
 
 ```text
-Timeline
-Evidence & Claims
-Work & Runs
-Artifacts & Source References
-Decisions & Grants
-Perspective Lineage
-Integration Health & Capability Coverage
-Lab diagnostics when explicitly separated
+current project coordinates
+observed facts
+bounded inferences with caveats
+suggested next actions
+unresolved user judgment
+risks · gaps · staleness · meaningful changes
+relevant source anchors
 ```
 
-Inspector는 상세 explorer, audit/lineage surface, shared drill-down system과
-projection composition layer다. 채팅·코드 편집·실행 shell이 아니며, sole
-front door, Blank State나 Workplane의 유일한 대체재, source of truth, durable
-authority surface 또는 active proposal/decision work의 대체재도 아니다.
-`shared_project_inspector.v0.1`은 `/workbench/inspector`에서 기존 canonical
-reader를 조합하는 non-durable projection이다. project scope는 authenticated
-server configuration에서만 오며, Inspector GET/render는 record, decision,
-gate, Transition, packet, feedback, automation, Perspective 또는 memory를
-만들거나 고르지 않고 model/provider/external action도 호출하지 않는다.
+GuideBrief는 non-authoritative View이며 action, truth, accepted state, semantic
+change, external approval 또는 automation expansion을 만들지 않는다. top-level page가
+아니라 surface에 embedded되거나 소비된다. fully autonomous conversational agent로
+주장하지 않는다.
 
-### 11.5 Product Compass와 surface 책임
+GuideBrief는 현재 상황과 그 의미를 human-readable하게 설명한다.
+`TaskContextPacket`은 specific task/run의 exact bounded execution contract다. 서로
+대체하거나 competing authority protocol이 되어서는 안 된다.
 
-| 책임 | Native Host | Project Home | Semantic Workbench | Inspector |
-|---|---|---|---|---|
-| 일반 대화와 연구 | 주 실행·작성 | 좌표와 진입점 | cross-host 결과 검토 | source drill-down |
-| 코드·테스트·diff·PR | 주 실행·검토 | activity/next move | 결과·receipt 비교 | artifact lineage |
-| 현재 project coordinates | context 소비 | **주 책임: Resume** | 작업 context 소비 | 상세 시점·source |
-| Perspective·goals·attention | bounded context 소비 | **주 조정 책임** | 변경 후보 검토 | lineage 탐색 |
-| native execution | **주 책임** | 실행 진입점 | receipt 소비 | run 상세 |
-| result comparison | 결과 생산 | attention 요약 | **주 책임: Verify** | 근거 drill-down |
-| Evidence·Claim reconciliation | source 제공 | tension/gap 요약 | **주 책임: Verify** | 상세 관계 탐색 |
-| EpisodeDeltaProposal review | compact card 가능 | pending entry | **주 책임: Decide 준비** | basis drill-down |
-| ReviewDecision | intent entry 가능 | pending/debt entry | **주 책임: Decide** | decision lineage |
-| next-context composition | packet 소비 | resume frame | **주 composition 책임** | source 선택 근거 |
-| 장기 lineage와 audit | external refs 제공 | recent change 요약 | active lineage 소비 | **주 drill-down 책임** |
+### 11.4 AI Workplane
 
-Resume은 Project Home, Context Compiler, Current Working Perspective와
-attention/work portfolio projection이 주로 지원한다. Verify는 Semantic
-Workbench의 비교·reconciliation과 Inspector의 Evidence, RunReceipt, Timeline,
-artifact lineage가 주로 지원한다. Decide는 Semantic Workbench의 proposal,
-ReviewDecision, Perspective/reviewed-memory 검토와 명시적 Core gate가 주로
-지원한다. Inspector는 세 compass 모두를 drill-down으로 지원하지만 Home이나
-Workbench의 능동 interaction을 대체하지 않는다.
+AI Workplane은 complex AI/operator work layer이며 다음을 소유하거나 조정한다.
 
-Project Home, Semantic Workbench와 shared Inspector는 각각 Resume,
-Verify·Decide, exact read-only drill-down으로 전문화한다. compatibility entry와
-historical reader는 유지하고, passive readback 중 중복되는 부분은 parity와
-migration evidence가 있을 때만 shared Inspector composition으로 흡수한다.
+```text
+task and intent interpretation · context compilation
+native-host and Codex delegation · active work/run state
+result ingestion · verification · criterion evaluation
+Evidence/Claim reconciliation · uncertainty/conflict handling
+proposal generation · candidate review preparation
+automation state · semantic processing
+decision consequence · later-context/feedback preparation
+```
+
+historical Agent Workplane과 current Semantic Workbench는 implementation ancestry다.
+현재 runtime rename이나 migration이 완료됐다고 주장하지 않는다. 현재 engine과
+operator projection 대부분은 AI Workplane 아래로 planned absorption되지만 raw engine
+structure를 default user에게 dump하지 않는다.
+
+AI Workplane의 default human projection은 requested work, current meaningful stage,
+result, verification outcome, remaining uncertainty/risk와 실제 필요한 user decision을
+요약한다. general chat, code editor, terminal, browser, diff/PR, worktree 또는 generic
+scheduler를 복제하지 않는다.
+
+### 11.5 Contextual Inspector
+
+Inspector는 concrete work item, run, result, criterion, source, Evidence, Claim,
+proposal, decision, Transition, warning, automation event 또는 diagnostic failure에서
+여는 exact read-only audit and drill-down surface다.
+
+현재 `/workbench/inspector`와 `shared_project_inspector.v0.1`은 구현된 reference
+surface다. authenticated project scope, read-only projection과 no-authority invariant는
+그대로 보존한다. Inspector GET/render는 record, decision, gate, Transition, packet,
+feedback, automation, Perspective 또는 memory를 만들거나 고르지 않고
+model/provider/external action도 호출하지 않는다.
+
+Normal delegation, progress, result review와 important decision은 Inspector 없이
+완료되어야 한다. Inspector는 audit, research, regulated review, developer debugging과
+advanced provenance inspection을 위해 direct addressability를 유지할 수 있지만 Blank
+State와 AI Workplane 옆의 peer default destination은 아니다.
+
+### 11.6 Product Compass와 surface 책임
+
+| 책임 | Blank State | GuideBrief | AI Workplane | Inspector | Provider / Runner / Tool |
+|---|---|---|---|---|---|
+| intent와 Resume | **human front door** | coordinates와 change 설명 | context compile | exact source | native context 소비 |
+| work execution | status와 entry | meaningful stage 설명 | coordinate/delegate | run detail | **native execution** |
+| Verify | outcome 요약 | basis·risk 번역 | **검증·reconciliation** | exact evidence/lineage | result와 telemetry 생산 |
+| Decide | next decision | judgment와 consequence 설명 | **decision preparation** | exact decision lineage | scoped intent entry |
+| audit | attention만 요약 | relevant anchor | audit target 생성 | **contextual drill-down** | external refs 제공 |
+
+Resume / Verify / Decide는 full protocol sequence를 human UI에 그대로 나열해야
+한다는 뜻이 아니다. Resume은 first correct action까지의 시간을 줄이고, Verify는
+engine과 AI Workplane이 수행한 뒤 user에게 요약하며, Decide는 meaningful human
+decision과 consequence만 우선 surface한다. Inspector는 exact auditability를
+보존하지만 default experience가 아니다.
+
+Current-to-target disposition은 다음과 같다.
+
+- Project Home capability는 Blank State로 planned absorption된다.
+- Semantic Workbench와 현재 engine projection 대부분은 AI Workplane 아래로
+  planned absorption된다.
+- Shared Inspector는 contextual exact read-only drill-down으로 유지된다.
+- Portability와 Recovery는 project management, safety, settings 또는
+  condition-triggered path로 planned relocation된다.
+- Projects와 Home은 competing peer top-level destination으로 남지 않는다.
+
+이 migration은 C0에서 수행하지 않는다. replacement PR은 parity와 current behavior를
+검증하고 superseded surface를 remove, absorb, redirect, hide 또는 explicitly demote해야
+하며, silent additive navigation으로 대체해서는 안 된다.
 
 ---
 
@@ -867,8 +909,9 @@ real input
 
 - 새 top-level 계약은 기존 계약을 흡수하거나 종료해야 한다.
 - 새 장기 table은 독립 lifecycle과 query 무결성이 필요한 aggregate일 때만 허용한다.
-- 새 workflow-stage surface보다 Project Home·Semantic Workbench·Inspector의
-  기존 책임 안에서 projection composition을 우선한다.
+- 새 workflow-stage surface보다 Blank State 또는 AI Workplane의 target 책임 안에서
+  projection composition을 우선한다. GuideBrief는 cross-surface translation을,
+  Inspector는 contextual exact detail을 맡는다.
 - 새 상태 enum은 canonical lifecycle로 표현할 수 없는 경우에만 추가한다.
 - strategic material은 기존 proposal material lane, `material_kind`,
   `basis_material_ids`, delta type, ReviewDecision, Transition과 feedback을 먼저

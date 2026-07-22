@@ -57,6 +57,14 @@ Reduction must not remove or collapse:
 - bounded Personal Perspective work that reuses existing candidate, review, scoped-state, context-selection, lineage, receipt, and feedback contracts
 - migration, backup, restore, provider-neutral portable export, update, and recovery
 
+Project Home, Semantic Workbench, Shared Inspector, Portability와 Recovery에 대한 이
+보호는 현재 implemented runtime behavior, user data, authority와 compatibility를
+tested replacement 전까지 보존한다는 뜻이다. final user-facing topology 권한은
+`vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`가 소유한다.
+그 charter에 따른 Blank State 또는 AI Workplane absorption, contextual Inspector
+demotion, management/safety relocation은 behavior parity와 replacement proof가 있는
+later correction PR에서 이 보호를 충족하면서 수행할 수 있다.
+
 `TaskContextPacket` is selected working context, not project truth. Automation may create tasks, runs, receipts, and proposals, but does not gain semantic authority or collapse Evidence, Claim, state, memory, Perspective, decision, and transition into one generic record.
 
 ## Active implementation destinations
@@ -119,19 +127,26 @@ Remove with a working `TaskContextPacket → host → RunReceipt` path:
 
 Remove after destination behavior exists:
 
-- Blank State cards duplicated by Project Home
+- Project Home navigation and cards whose user-facing capability is absorbed
+  into Blank State
+- Semantic Workbench default projections whose capability is absorbed beneath
+  AI Workplane
 - passive workflow-stage Workplane panels
 - repeated boundary cards
 - duplicate diagnostics and lineage surfaces
 - manual-controls migration rows
 - preview-of-preview panels
+- top-level Portability and Recovery entries after their capability is relocated
+  to project management, safety, settings, or condition-triggered paths
 
-The R7 replacement destination is the generated, project-scoped
+For the current reference operator implementation, the R7 replacement
+destination is the generated, project-scoped
 `/workbench/inspector` read surface. Result and proposal deep links remain valid;
 large inline result diagnostics and duplicated Workbench durable-lineage detail
 may be absorbed only after their assertions are present in the shared Inspector
 and canonical tests. `/workbench` remains a bounded compatibility entry rather
-than a competing diagnostic surface.
+than a competing diagnostic surface. This current compatibility rule does not
+make Inspector a target peer navigation destination.
 
 ### Automation and Personal Perspective
 
