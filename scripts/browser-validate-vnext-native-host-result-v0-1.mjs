@@ -574,19 +574,26 @@ async function main() {
     { encoding: "utf8", flag: "wx", mode: 0o600 },
   );
 
-  startDevServer(runtimeEnvironment);
-  await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
-  timing.milestone("initial route ready");
-  await assertLoopbackListener(appPort);
-
   const chromeExecutable = chromeCandidates.find((candidate) => existsSync(candidate));
   assert(chromeExecutable, "No usable local Chrome/Chromium executable was found.");
+  startDevServer(runtimeEnvironment);
   const finishChromeTiming = timing.start("chrome_startup", "Chrome and CDP readiness");
   startChrome(chromeExecutable);
-  cdp = await openCdpPage();
-  attachCdpObservers();
-  await enableCdpDomains();
-  finishChromeTiming();
+  const runtimeReadiness = waitForHttp(
+    `${appOrigin}/workbench/semantic-review`,
+    DEFAULT_TIMEOUT_MS,
+  );
+  const chromeReadiness = (async () => {
+    cdp = await openCdpPage();
+    attachCdpObservers();
+    await enableCdpDomains();
+    finishChromeTiming();
+  })();
+  // Chrome/CDP does not consume runtime state before the first navigation, so
+  // its independently bounded startup can safely overlap initial compilation.
+  await Promise.all([runtimeReadiness, chromeReadiness]);
+  timing.milestone("initial route ready");
+  await assertLoopbackListener(appPort);
 
   if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
@@ -789,29 +796,10 @@ async function main() {
     await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
-    await navigate(`${appOrigin}/projects`);
-
-    // about:blank document readiness is the exact lifecycle barrier: it aborts
-    // the old document before the owned runtime process is terminated.
-    await navigate("about:blank");
-    await terminateProcess(serverProcess, 15_000);
-    serverProcess = null;
-    startDevServer(runtimeEnvironment);
-    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
-    await navigate(`${appOrigin}/`);
-    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "active Project Home after restart");
-    assert.equal(
-      await evaluateBoolean(
-        `document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume')`,
-      ),
-      true,
-    );
-    result.project_automation_restart_persisted = true;
-    result.minimum_project_home_restart_root_resolution = true;
 
     await waitForCondition(
       `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
-      "hydrated project controls after restart",
+      "hydrated project controls before project switch",
     );
 
     assert.equal(
@@ -846,33 +834,6 @@ async function main() {
       true,
     );
     result.personal_perspective_included = true;
-    const recentAfterRestart = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/projects');
-      return await response.json();
-    })()`);
-    const reopened = recentAfterRestart.recent_projects.find((entry) => entry.project.display_name === 'Browser Onboarding Project');
-    assert(reopened);
-    const openResponse = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/projects', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
-      });
-      return await response.json();
-    })()`);
-    assert.equal(openResponse.result.destination, destination);
-    const staleOpenResponse = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/projects', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
-      });
-      return { status: response.status, body: await response.json() };
-    })()`);
-    assert.equal(staleOpenResponse.status, 409);
-    assert.equal(staleOpenResponse.body.error_code, "active_selection_conflict");
-    result.folder_onboarding_stale_active_conflict = true;
-    await navigate(`${appOrigin}${destination}`);
-    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "same destination after restart");
-    result.folder_onboarding_restart_reopen = true;
 
     await navigate(`${appOrigin}/projects`);
     await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "second-project onboarding surface");
@@ -929,9 +890,15 @@ async function main() {
     result.minimum_project_home_non_active_deep_link_read_only = true;
     await validateProjectHomeViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
-    await delay(750);
+    // Viewport sampling can overlap the server-component refresh that exposed
+    // this control. Network quiescence is the exact barrier before activation.
+    await waitForRequestQuiet();
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Make active' && !button.disabled)`,
+      "explicit first-project activation ready",
+    );
     const activationResponseStart = responses.length;
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Make active'); button?.click(); return Boolean(button); })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Make active'); if (!(button instanceof HTMLButtonElement) || button.disabled) return false; button.click(); return true; })()`), true);
     await waitForHostCondition(
       () => responses.slice(activationResponseStart).some(
         (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
@@ -964,6 +931,29 @@ async function main() {
     assert.equal(secondControlState.personal_perspective?.selection, "excluded");
     result.project_controls_two_project_isolation = true;
 
+    const persistencePauseResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Pause');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () => responses.slice(persistencePauseResponseStart).some(
+        (entry) =>
+          entry.path === "/api/vnext/project-controls" &&
+          entry.type === "Fetch" &&
+          entry.status === 200,
+      ),
+      "project automation persistence pause response",
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume')`,
+      "paused project automation before retained restart",
+    );
+
     // The old document is detached before shutdown; no cosmetic network-settle
     // delay is needed once the about:blank document is ready.
     await navigate("about:blank");
@@ -973,10 +963,51 @@ async function main() {
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
     await waitForCondition(
-      `location.pathname === ${JSON.stringify(destination)} && document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
-      "project controls after final restart",
+      `location.pathname === ${JSON.stringify(destination)} && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
+      "project and control persistence after retained restart",
     );
+    result.project_automation_restart_persisted = true;
+    result.minimum_project_home_restart_root_resolution = true;
     result.project_controls_restart_persisted = true;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Resume');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Control layer eligible') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Pause')`,
+      "resumed project automation after retained restart",
+    );
+    const recentAfterRestart = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    const reopened = recentAfterRestart.recent_projects.find((entry) => entry.project.display_name === 'Browser Onboarding Project');
+    assert(reopened);
+    const openResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
+      });
+      return await response.json();
+    })()`);
+    assert.equal(openResponse.result.destination, destination);
+    const staleOpenResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open', project_id: ${JSON.stringify(reopened.project.project_id)}, expected_project_id: ${JSON.stringify(reopened.active_project_id)}, expected_revision: ${JSON.stringify(reopened.active_selection_revision)} })
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(staleOpenResponse.status, 409);
+    assert.equal(staleOpenResponse.body.error_code, "active_selection_conflict");
+    result.folder_onboarding_stale_active_conflict = true;
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "same destination after retained restart");
+    result.folder_onboarding_restart_reopen = true;
     const controlAuthorityAfter = readControlAuthorityCounts();
     result.control_mutation_grants_created =
       controlAuthorityAfter.grants - controlAuthorityBaseline.grants;
@@ -6047,6 +6078,7 @@ async function canConnectToListener(host, port) {
 
 async function waitForHttp(url, timeoutMs) {
   waitCount += 1;
+  const waitNumber = waitCount;
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (serverProcess && childHasExited(serverProcess)) {
@@ -6070,7 +6102,7 @@ async function waitForHttp(url, timeoutMs) {
         const durationMs = Date.now() - startedAt;
         timing.duration(
           "wait_for_http",
-          `wait for http ${String(waitCount).padStart(2, "0")}`,
+          `wait for http ${String(waitNumber).padStart(2, "0")}`,
           durationMs,
         );
         if (pendingServerStartupFinish) {
