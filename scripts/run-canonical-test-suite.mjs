@@ -73,6 +73,18 @@ const suites = {
       // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.
       timeoutMs: 30_000,
     },
+    {
+      label: "browser E2E timing and lifecycle contracts",
+      ...rootNode("scripts/test-browser-e2e-timing.mjs"),
+    },
+    {
+      label: "race-safe browser file-signal observation",
+      ...rootNode("scripts/test-bounded-file-signal.mjs"),
+    },
+    {
+      label: "browser E2E responsibility and quiet-policy contract",
+      ...rootNode("scripts/test-browser-e2e-harness-contract.mjs"),
+    },
   ],
   integration: [
     {

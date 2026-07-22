@@ -9,6 +9,8 @@ import path from "node:path";
 import readline from "node:readline";
 import tls from "node:tls";
 
+import { waitForBoundedFileSignal } from "../bounded-file-signal.mjs";
+
 const root = process.cwd();
 const canonicalTestRoot = process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null;
 const scenario =
@@ -27,7 +29,11 @@ const sequentialApprovalCount = 20;
 // 90-second durable approval bound while remaining independently fail-closed.
 const browserReleaseTimeoutMs = 30_000;
 const statePath = process.env.FAKE_CODEX_STATE_PATH ?? null;
-const tracePath = process.env.FAKE_CODEX_TRACE_PATH ?? null;
+const tracePath =
+  process.env.FAKE_CODEX_TRACE_PATH ??
+  (scenario === "browser_two_sequential_approvals" && canonicalTestRoot
+    ? path.join(canonicalTestRoot, "browser-approval-barriers.jsonl")
+    : null);
 const cleanupMarkerPath = process.env.FAKE_CODEX_CLEANUP_MARKER_PATH ?? null;
 const releasePath = process.env.FAKE_CODEX_RELEASE_PATH ?? null;
 const approvalResolutionBarrierPath =
@@ -284,6 +290,9 @@ async function handle(message) {
     pendingApprovalRequestIds.has(String(message.id))
   ) {
     const resolvedRequestId = String(message.id);
+    trace("approval_decision_received", {
+      approval_index: sequentialApprovalIndex,
+    });
     pendingApprovalRequestIds.delete(resolvedRequestId);
     const resolvedParams = approvalRequestParams.get(resolvedRequestId);
     const accepted =
@@ -386,6 +395,7 @@ function requestCommandApprovalWithParams(requestId, params) {
 
 function requestSequentialApproval() {
   sequentialApprovalIndex += 1;
+  trace("approval_emitted", { approval_index: sequentialApprovalIndex });
   requestCommandApproval(
     { itemId: `fake-sequential-command-item-${sequentialApprovalIndex}` },
     `fake-server-sequential-${sequentialApprovalIndex}`,
@@ -500,6 +510,7 @@ function completeSuccess() {
   completed = true;
   turnActive = false;
   persistState({ threadId, sessionId, turnId, status: "completed" });
+  trace("terminal_state_emitted", {});
   notify("turn/completed", {
     threadId,
     turn: turn("completed", [agentMessage(structuredResult())]),
@@ -857,30 +868,22 @@ function waitForApprovalResolutionObservation(expectedCount) {
   }
 }
 
-function waitForBrowserRelease(releaseFile, label) {
+async function waitForBrowserRelease(releaseFile, label) {
   if (!releaseFile) {
-    return Promise.reject(new Error(`${label}_barrier_missing`));
+    throw new Error(`${label}_barrier_missing`);
   }
-  if (existsSync(releaseFile)) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    let poll = null;
-    const finish = (error = null) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      if (poll !== null) clearInterval(poll);
-      if (error) reject(error);
-      else resolve();
-    };
-    const timeout = setTimeout(() => {
-      finish(new Error(`${label}_barrier_timeout`));
-    }, browserReleaseTimeoutMs);
-    poll = setInterval(() => {
-      if (existsSync(releaseFile)) finish();
-    }, 10);
-    if (existsSync(releaseFile)) finish();
-  });
+  trace("browser_release_requested", { label });
+  try {
+    const observed = await waitForBoundedFileSignal(releaseFile, {
+      timeoutMs: browserReleaseTimeoutMs,
+    });
+    trace("browser_release_observed", {
+      label,
+      observation: observed.observation,
+    });
+  } catch {
+    throw new Error(`${label}_barrier_timeout`);
+  }
 }
 
 function installZeroNetworkGuard() {

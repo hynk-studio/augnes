@@ -1726,6 +1726,10 @@ export function buildSupervisorChildValues({
         environment.AUGNES_CANONICAL_TEST_MODE === "1"
           ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME)
           : null,
+      AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1"
+          ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH)
+          : null,
       AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER:
         environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
         environment.AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER === "1"

@@ -1,6 +1,15 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
+import {
+  constants,
+  existsSync,
+  lstatSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { access, open as openFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -46,6 +55,8 @@ const MAX_GIT_CONFIG_BYTES = 64 * 1024;
 const SELECTION_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_SELECTIONS = 64;
 const SYSTEM_LOCAL_PROJECT_FILESYSTEM = { stat, access };
+const CANONICAL_PICKER_SEQUENCE_VERSION =
+  "augnes_canonical_folder_picker_sequence.v0.1";
 
 export interface LocalProjectMetadataFileHandleV01 {
   read(buffer: Buffer, offset: number, length: number, position: number | null): Promise<{ bytesRead: number }>;
@@ -105,6 +116,10 @@ export async function chooseLocalProjectFolderV01(options: {
   const canonicalTestRoot = environment.AUGNES_CANONICAL_TEST_MODE === "1" && canonicalTempRoot
     ? canonicalTempRoot
     : null;
+  const sequencePath = environment.AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH;
+  if (canonicalTestRoot && sequencePath) {
+    return consumeCanonicalFolderPickerSequence(sequencePath, canonicalTestRoot);
+  }
   if (canonicalTestRoot && environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME === "cancelled") {
     return { status: "cancelled" };
   }
@@ -150,6 +165,136 @@ export async function chooseLocalProjectFolderV01(options: {
     }
   }
   return { status: "unavailable", reason: "picker_not_installed" };
+}
+
+function consumeCanonicalFolderPickerSequence(
+  configuredPath: string,
+  configuredRoot: string,
+): { status: "selected"; absolute_path: string } | Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }> {
+  const sequencePath = path.resolve(configuredPath);
+  const claimPath = `${sequencePath}.claim`;
+  const nextPath = `${sequencePath}.next-${process.pid}`;
+  try {
+    const physicalRoot = realpathSync(configuredRoot);
+    assertCanonicalOwnedRegularFile(sequencePath, physicalRoot);
+    if (existsSync(claimPath) || existsSync(nextPath)) {
+      throw new Error("sequence_claim_ambiguous");
+    }
+    renameSync(sequencePath, claimPath);
+    try {
+      const sequence = parseCanonicalFolderPickerSequence(
+        readFileSync(claimPath, "utf8"),
+        physicalRoot,
+      );
+      if (sequence.next_index >= sequence.entries.length) {
+        throw new Error("sequence_exhausted");
+      }
+      const entry = sequence.entries[sequence.next_index];
+      writeFileSync(
+        nextPath,
+        `${JSON.stringify({ ...sequence, next_index: sequence.next_index + 1 })}\n`,
+        { encoding: "utf8", flag: "wx", mode: 0o600 },
+      );
+      renameSync(nextPath, sequencePath);
+      unlinkSync(claimPath);
+      return entry.outcome === "cancelled"
+        ? { status: "cancelled" }
+        : { status: "selected", absolute_path: entry.absolute_path };
+    } catch (error) {
+      if (existsSync(nextPath)) unlinkSync(nextPath);
+      if (!existsSync(sequencePath) && existsSync(claimPath)) {
+        renameSync(claimPath, sequencePath);
+      }
+      throw error;
+    }
+  } catch {
+    return { status: "error", error_code: "picker_failed" };
+  }
+}
+
+function parseCanonicalFolderPickerSequence(serialized: string, physicalRoot: string): {
+  sequence_version: typeof CANONICAL_PICKER_SEQUENCE_VERSION;
+  next_index: number;
+  entries: Array<
+    | { id: string; outcome: "cancelled" }
+    | { id: string; outcome: "selected"; absolute_path: string }
+  >;
+} {
+  const value = JSON.parse(serialized) as Record<string, unknown>;
+  if (
+    value?.sequence_version !== CANONICAL_PICKER_SEQUENCE_VERSION ||
+    !Number.isSafeInteger(value.next_index) ||
+    Number(value.next_index) < 0 ||
+    !Array.isArray(value.entries) ||
+    value.entries.length < 1 ||
+    value.entries.length > 16
+  ) {
+    throw new Error("sequence_invalid");
+  }
+  const ids = new Set<string>();
+  const entries = value.entries.map((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      throw new Error("sequence_entry_invalid");
+    }
+    const entry = candidate as Record<string, unknown>;
+    if (
+      typeof entry.id !== "string" ||
+      !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(entry.id) ||
+      ids.has(entry.id)
+    ) {
+      throw new Error("sequence_entry_id_invalid");
+    }
+    ids.add(entry.id);
+    if (entry.outcome === "cancelled" && Object.keys(entry).length === 2) {
+      return { id: entry.id, outcome: "cancelled" as const };
+    }
+    if (
+      entry.outcome !== "selected" ||
+      typeof entry.absolute_path !== "string" ||
+      Object.keys(entry).length !== 3
+    ) {
+      throw new Error("sequence_entry_invalid");
+    }
+    const selected = path.resolve(entry.absolute_path);
+    if (!path.isAbsolute(entry.absolute_path)) throw new Error("sequence_path_invalid");
+    const selectedEntry = lstatSync(selected);
+    const physicalSelected = realpathSync(selected);
+    if (
+      selectedEntry.isSymbolicLink() ||
+      !selectedEntry.isDirectory() ||
+      !isPathInsideOrEqual(physicalRoot, physicalSelected)
+    ) {
+      throw new Error("sequence_path_invalid");
+    }
+    return {
+      id: entry.id,
+      outcome: "selected" as const,
+      absolute_path: selected,
+    };
+  });
+  return {
+    sequence_version: CANONICAL_PICKER_SEQUENCE_VERSION,
+    next_index: Number(value.next_index),
+    entries,
+  };
+}
+
+function assertCanonicalOwnedRegularFile(file: string, physicalRoot: string): void {
+  if (!path.isAbsolute(file)) throw new Error("sequence_path_invalid");
+  const entry = lstatSync(file);
+  const physicalFile = realpathSync(file);
+  if (
+    entry.isSymbolicLink() ||
+    !entry.isFile() ||
+    !isPathInsideOrEqual(physicalRoot, physicalFile)
+  ) {
+    throw new Error("sequence_path_invalid");
+  }
+}
+
+function isPathInsideOrEqual(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
 }
 
 export async function inspectLocalProjectRootV01(absolutePath: string, options: {

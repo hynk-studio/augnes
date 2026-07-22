@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync, symlinkSync, unlinkSync } from "node:fs";
 import { open as openFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -103,6 +103,42 @@ try {
   assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "production", AUGNES_TEST_FOLDER_PICKER_PATH: folderA } })).status, "unavailable");
   assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "production", AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" } })).status, "unavailable");
   assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "test", AUGNES_CANONICAL_TEST_MODE: "1", AUGNES_CANONICAL_TEMP_ROOT: root, AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled" } })).status, "cancelled");
+  const pickerSequencePath = path.join(root, "folder-picker-sequence.json");
+  const pickerSequenceEnvironment: NodeJS.ProcessEnv = {
+    NODE_ENV: "test",
+    AUGNES_CANONICAL_TEST_MODE: "1",
+    AUGNES_CANONICAL_TEMP_ROOT: root,
+    AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH: pickerSequencePath,
+  };
+  writeFileSync(pickerSequencePath, JSON.stringify({
+    sequence_version: "augnes_canonical_folder_picker_sequence.v0.1",
+    next_index: 0,
+    entries: [
+      { id: "cancel", outcome: "cancelled" },
+      { id: "first", outcome: "selected", absolute_path: folderA },
+      { id: "second", outcome: "selected", absolute_path: folderB },
+    ],
+  }));
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "cancelled" });
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "selected", absolute_path: folderA });
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "selected", absolute_path: folderB });
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
+  assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "production", AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH: pickerSequencePath } })).status, "unavailable", "the sequence seam must be inaccessible outside canonical mode");
+  writeFileSync(pickerSequencePath, "{malformed");
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
+  writeFileSync(pickerSequencePath, JSON.stringify({ sequence_version: "augnes_canonical_folder_picker_sequence.v0.1", next_index: 0, entries: [{ id: "escape", outcome: "selected", absolute_path: tmpdir() }] }));
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
+  writeFileSync(pickerSequencePath, JSON.stringify({ sequence_version: "augnes_canonical_folder_picker_sequence.v0.1", next_index: 0, entries: [{ id: "duplicate", outcome: "cancelled" }, { id: "duplicate", outcome: "cancelled" }] }));
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
+  const symlinkedSelection = path.join(root, "symlinked-picker-selection");
+  symlinkSync(folderA, symlinkedSelection);
+  writeFileSync(pickerSequencePath, JSON.stringify({ sequence_version: "augnes_canonical_folder_picker_sequence.v0.1", next_index: 0, entries: [{ id: "symlinked-selection", outcome: "selected", absolute_path: symlinkedSelection }] }));
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
+  const realSequencePath = path.join(root, "real-folder-picker-sequence.json");
+  writeFileSync(realSequencePath, JSON.stringify({ sequence_version: "augnes_canonical_folder_picker_sequence.v0.1", next_index: 0, entries: [{ id: "cancel-via-symlink", outcome: "cancelled" }] }));
+  unlinkSync(pickerSequencePath);
+  symlinkSync(realSequencePath, pickerSequencePath);
+  assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
   assert.equal((await chooseLocalProjectFolderV01({ platform: "linux", process: { async run() { const error = new Error("cancelled") as Error & { code: number }; error.code = 1; throw error; } } })).status, "cancelled");
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = new Error("timeout") as Error & { code: string }; error.code = "ETIMEDOUT"; throw error; } } }), { status: "error", error_code: "picker_timeout" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = Object.assign(new Error("killed"), { code: null, killed: true, signal: "SIGKILL" }); throw error; } } }), { status: "error", error_code: "picker_timeout" });

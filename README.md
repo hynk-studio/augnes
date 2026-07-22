@@ -1,3 +1,20 @@
+# Augnes Perspective Lab
+
+This is the private Augnes perspective research lab for raw experiments,
+private notes, failed trials, and research logs. It is an independent private
+repository, not a GitHub fork, and it is not the canonical public Augnes product
+repository.
+
+Canonical public repo: `git@github.com:hynk-studio/augnes.git`
+
+Public Augnes changes must be promoted only through clean, redacted pull
+requests against the canonical repository. Do not copy private conversation
+logs, personal context, or raw lab notes directly into the public repository.
+
+Every experiment should record the upstream Augnes commit SHA it was based on.
+
+## Upstream Project README
+
 # Augnes
 
 *Continuous perspective for AI-assisted projects.*

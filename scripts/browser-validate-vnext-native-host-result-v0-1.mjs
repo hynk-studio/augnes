@@ -66,6 +66,7 @@ import {
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
+import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
 import {
   registerOwnedChild,
@@ -133,6 +134,14 @@ const browserTerminalReleasePath = path.join(
 );
 const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
+const folderPickerSequencePath = path.join(
+  tempRoot,
+  "canonical-folder-picker-sequence.json",
+);
+const browserApprovalBarrierTracePath = path.join(
+  tempRoot,
+  "browser-approval-barriers.jsonl",
+);
 const appRepo = realpathSync(process.cwd());
 const runtimeSupervisor = path.join(
   appRepo,
@@ -175,6 +184,13 @@ const failedRequests = [];
 const externalRequests = [];
 const assertions = [];
 const ownedBrowserProcesses = new Set();
+const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
+let navigationCount = 0;
+let serverStartCount = 0;
+let serverShutdownCount = 0;
+let waitCount = 0;
+let requestQuietCount = 0;
+let pendingServerStartupFinish = null;
 
 const result = {
   ok: false,
@@ -201,6 +217,7 @@ const result = {
   live_codex_approved_once: false,
   live_codex_second_approval: false,
   project_home_approval_refresh_count: 0,
+  approval_barrier_timing: null,
   live_codex_receipt_persisted: false,
   live_codex_no_internal_id_input: false,
   project_home_latest_result_visible: false,
@@ -325,7 +342,9 @@ const result = {
   temporary_database_removed: false,
   temporary_imported_database_removed: false,
   temporary_manifest_removed: false,
+  temporary_picker_sequence_removed: false,
   supervisor_exit_diagnostic: null,
+  e2e_timing_summary: null,
   failure: null,
 };
 
@@ -428,7 +447,9 @@ try {
   process.stdout.write(
     `[browser-e2e] cleanup_start scope=${VALIDATION_SCOPE} phase=${currentPhase} owned_processes=${ownedBrowserProcesses.size}\n`,
   );
+  const finishCleanupTiming = timing.start("cleanup", "global cleanup");
   await cleanup();
+  finishCleanupTiming();
   process.stdout.write(
     `[browser-e2e] cleanup_result scope=${VALIDATION_SCOPE} owned_processes=${ownedBrowserProcesses.size} temporary_roots_removed=true\n`,
   );
@@ -439,11 +460,14 @@ try {
   result.temporary_database_removed = !existsSync(databasePath);
   result.temporary_imported_database_removed = !existsSync(importedDatabasePath);
   result.temporary_manifest_removed = !existsSync(manifestPath);
+  result.temporary_picker_sequence_removed = !existsSync(folderPickerSequencePath);
+  result.e2e_timing_summary = timing.summary();
   process.umask(originalUmask);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 async function main() {
+  timing.milestone("harness started");
   assert.equal(path.isAbsolute(appRepo), true);
   assert.equal(existsSync(path.join(appRepo, "package.json")), true);
   assert.equal(
@@ -454,7 +478,9 @@ async function main() {
   );
 
   const fixtureStartedAt = Date.now();
+  const finishFixtureTiming = timing.start("fixture", "fixture construction");
   const fixtureSummary = await buildActualCompiledPacketFixture();
+  finishFixtureTiming();
   result.fixture_generation_duration_ms = Date.now() - fixtureStartedAt;
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.fixture_version, "vnext_operator_pilot_browser_fixture.v0.1");
@@ -521,24 +547,46 @@ async function main() {
   );
   mkdirSync(onboardingFolder, { recursive: true });
   mkdirSync(onboardingFolderB, { recursive: true });
-
-  startDevServer(
-    RUN_CORE_SCOPE
-      ? {
-          ...runtimeEnvironment,
-          AUGNES_TEST_FOLDER_PICKER_OUTCOME: "cancelled",
-        }
-      : runtimeEnvironment,
+  writeFileSync(
+    folderPickerSequencePath,
+    `${JSON.stringify({
+      sequence_version: "augnes_canonical_folder_picker_sequence.v0.1",
+      next_index: 0,
+      entries: [
+        { id: "cancelled-selection", outcome: "cancelled" },
+        {
+          id: "first-project",
+          outcome: "selected",
+          absolute_path: onboardingFolder,
+        },
+        {
+          id: "duplicate-first-project",
+          outcome: "selected",
+          absolute_path: onboardingFolder,
+        },
+        {
+          id: "second-project",
+          outcome: "selected",
+          absolute_path: onboardingFolderB,
+        },
+      ],
+    })}\n`,
+    { encoding: "utf8", flag: "wx", mode: 0o600 },
   );
+
+  startDevServer(runtimeEnvironment);
   await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
+  timing.milestone("initial route ready");
   await assertLoopbackListener(appPort);
 
   const chromeExecutable = chromeCandidates.find((candidate) => existsSync(candidate));
   assert(chromeExecutable, "No usable local Chrome/Chromium executable was found.");
+  const finishChromeTiming = timing.start("chrome_startup", "Chrome and CDP readiness");
   startChrome(chromeExecutable);
   cdp = await openCdpPage();
   attachCdpObservers();
   await enableCdpDomains();
+  finishChromeTiming();
 
   if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
@@ -554,15 +602,7 @@ async function main() {
     assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder' && !button.disabled)`), true);
     result.folder_picker_cancelled_usable = true;
 
-    await waitForRequestQuiet();
-    await navigate("about:blank");
-    await waitForRequestQuiet();
-    await terminateProcess(serverProcess, 15_000);
-    serverProcess = null;
-    startDevServer(runtimeEnvironment);
-    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
-    await navigate(`${appOrigin}/`);
-    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated project onboarding surface");
+    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated project onboarding surface after cancellation");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
@@ -751,9 +791,9 @@ async function main() {
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
     await navigate(`${appOrigin}/projects`);
 
-    await waitForRequestQuiet();
+    // about:blank document readiness is the exact lifecycle barrier: it aborts
+    // the old document before the owned runtime process is terminated.
     await navigate("about:blank");
-    await waitForRequestQuiet();
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
     startDevServer(runtimeEnvironment);
@@ -834,16 +874,6 @@ async function main() {
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "same destination after restart");
     result.folder_onboarding_restart_reopen = true;
 
-    await waitForRequestQuiet();
-    await navigate("about:blank");
-    await waitForRequestQuiet();
-    await terminateProcess(serverProcess, 15_000);
-    serverProcess = null;
-    startDevServer({
-      ...runtimeEnvironment,
-      AUGNES_TEST_FOLDER_PICKER_PATH: onboardingFolderB,
-    });
-    await waitForHttp(`${appOrigin}/projects`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/projects`);
     await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "second-project onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
@@ -934,15 +964,12 @@ async function main() {
     assert.equal(secondControlState.personal_perspective?.selection, "excluded");
     result.project_controls_two_project_isolation = true;
 
-    await waitForRequestQuiet();
+    // The old document is detached before shutdown; no cosmetic network-settle
+    // delay is needed once the about:blank document is ready.
     await navigate("about:blank");
-    await waitForRequestQuiet();
     await terminateProcess(serverProcess, 15_000);
     serverProcess = null;
-    startDevServer({
-      ...runtimeEnvironment,
-      AUGNES_TEST_FOLDER_PICKER_PATH: onboardingFolderB,
-    });
+    startDevServer(runtimeEnvironment);
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
     await waitForCondition(
@@ -1515,17 +1542,10 @@ async function main() {
     record("strategic_candidate_defer_records_decision_without_transition_or_packet_change");
     record("strategic_proposal_reload_creates_no_model_or_semantic_write");
 
-    // Let the completed Next navigation and its read-only refresh settle before
-    // the deliberate server restart used to prove model-unavailable behavior.
-    // Otherwise CDP observes our owned shutdown as a product request failure.
-    await waitForRequestQuiet();
-    await navigate("about:blank");
-    await waitForRequestQuiet();
-    await terminateProcess(serverProcess, 15_000);
-    serverProcess = null;
+    // The canonical strategic transport resolves fixture availability on each
+    // request. Removing its owned fixture changes only the next test request;
+    // no restart persistence behavior is involved in this boundary.
     rmSync(strategicTransportFixturePath, { force: true });
-    startDevServer(runtimeEnvironment);
-    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
   });
 
@@ -1621,6 +1641,9 @@ async function main() {
     assert.deepEqual(databaseSnapshot(database), beforeRetiredRequests);
     result.retired_routes_non_mutating = true;
     record("retired_native_host_transport_routes_return_non_mutating_404");
+  }, {
+    terminalRequestQuiet: false,
+    quietProof: "all retired fetch responses and bodies were awaited",
   });
 
   await runPhase("direct_host_round_trip", async () => {
@@ -1852,6 +1875,7 @@ async function main() {
       "waiting_for_approval",
       LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
+    timing.milestone("first approval durable state observed");
     assert(firstApprovalState.pending_approval);
     assert.equal(firstApprovalState.pending_approval.decision_submitted, false);
     await waitForCondition(
@@ -1872,6 +1896,7 @@ async function main() {
         ),
       "Project Home first approval server refresh",
     );
+    timing.milestone("first Project Home approval refresh observed");
     result.live_codex_waiting_for_approval = true;
     result.project_home_current_run_visible = true;
     const pendingShape = await evaluateJson(`(() => {
@@ -1910,6 +1935,7 @@ async function main() {
       ),
       "live Codex first one-shot approval response",
     );
+    timing.milestone("first approval response observed");
     const runningAfterFirstApproval = await waitForLiveRunStatus(
       manifest.project_id,
       "running",
@@ -1921,11 +1947,13 @@ async function main() {
       runningAfterFirstApproval.control_revision >
         firstApprovalState.control_revision,
     );
+    timing.milestone("first approval transitioned to running");
 
     const secondApprovalRefreshStart = responses.length;
     writeFileSync(browserSecondApprovalReleasePath, "released\n", {
       mode: 0o600,
     });
+    timing.milestone("second approval release requested");
     const secondApprovalState = await waitForLiveRunProjection(
       manifest.project_id,
       (state) =>
@@ -1936,6 +1964,7 @@ async function main() {
       "second distinct approval",
       LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
+    timing.milestone("second approval durable state observed");
     assert(secondApprovalState.pending_approval);
     assert.equal(secondApprovalState.run_ref, firstApprovalState.run_ref);
     assert.notEqual(
@@ -1964,6 +1993,7 @@ async function main() {
         ),
       "Project Home second approval server refresh",
     );
+    timing.milestone("second Project Home approval refresh observed");
     result.live_codex_second_approval = true;
     result.project_home_approval_refresh_count = 2;
 
@@ -1987,6 +2017,7 @@ async function main() {
         ),
       "live Codex second one-shot approval response",
     );
+    timing.milestone("second approval response observed");
     const runningAfterSecondApproval = await waitForLiveRunStatus(
       manifest.project_id,
       "running",
@@ -1998,6 +2029,7 @@ async function main() {
       runningAfterSecondApproval.control_revision >
         secondApprovalState.control_revision,
     );
+    timing.milestone("second approval transitioned to running");
     const latestApprovalIssuedAtMs = assertLiveApprovalReceiptBindings({
       projectId: manifest.project_id,
       workspaceId: manifest.workspace_id,
@@ -2011,15 +2043,19 @@ async function main() {
       "receipt clock after both durable approval requests",
     );
     writeFileSync(browserTerminalReleasePath, "released\n", { mode: 0o600 });
+    timing.milestone("terminal release requested");
     await waitForLiveRunStatus(
       manifest.project_id,
       "completed",
       LIVE_HOST_APPROVAL_TIMEOUT_MS,
     );
+    timing.milestone("completed durable state observed");
+    result.approval_barrier_timing = readApprovalBarrierTiming();
     await waitForCondition(
       `document.querySelector('[data-live-host-status="completed"] [data-live-host-receipt="persisted"]') !== null`,
       "live Codex terminal receipt after approval",
     );
+    timing.milestone("terminal Project Home refresh observed");
     result.live_codex_status = "completed";
     result.live_codex_approved_once = true;
 
@@ -2138,6 +2174,7 @@ async function main() {
       `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null`,
       "read-only proposal settlement refresh",
     );
+    timing.milestone("proposal settlement and result review ready");
     assert.equal(
       await evaluateBoolean(
         `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
@@ -4547,6 +4584,8 @@ async function main() {
   });
   }
 
+  await waitForRequestQuiet();
+  timing.milestone("final global request quiet observed");
   const isExpectedImportedDestinationSessionRefusal = (entry) =>
     entry.phase === "final_r8_portability_reconciliation" &&
     (entry.path === "/api/vnext/operator/session" ||
@@ -4761,7 +4800,7 @@ function isolatedRuntimeEnvironment({ databasePath, manifest }) {
     AUGNES_DB_PATH: databasePath,
     AUGNES_CANONICAL_TEST_MODE: "1",
     AUGNES_CANONICAL_TEMP_ROOT: tempRoot,
-    AUGNES_TEST_FOLDER_PICKER_PATH: onboardingFolder,
+    AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH: folderPickerSequencePath,
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: manifest.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: manifest.project_id,
@@ -4778,6 +4817,11 @@ function minimalProcessEnvironment() {
 }
 
 function startDevServer(environment) {
+  serverStartCount += 1;
+  pendingServerStartupFinish = timing.start(
+    "runtime_startup",
+    `runtime startup ${String(serverStartCount).padStart(2, "0")}`,
+  );
   const publicDiagnosticCapture =
     createBrowserSupervisorPublicDiagnosticCapture();
   serverPublicDiagnosticCapture = publicDiagnosticCapture;
@@ -5237,7 +5281,15 @@ function classifyUrl(value) {
   }
 }
 
-async function runPhase(phase, action) {
+async function runPhase(phase, action, options = {}) {
+  const terminalRequestQuiet = options.terminalRequestQuiet !== false;
+  if (!terminalRequestQuiet) {
+    assert.match(
+      options.quietProof ?? "",
+      /^[a-z0-9][a-z0-9 _-]{1,120}$/iu,
+      "a phase may skip terminal request quiet only with a bounded proof",
+    );
+  }
   const phaseStartedAt = Date.now();
   currentPhase = phase;
   process.stdout.write(
@@ -5245,7 +5297,8 @@ async function runPhase(phase, action) {
   );
   try {
     await action();
-    await waitForRequestQuiet();
+    if (terminalRequestQuiet) await waitForRequestQuiet();
+    timing.duration("phase", phase, Date.now() - phaseStartedAt);
     process.stdout.write(
       `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=pass duration_ms=${Date.now() - phaseStartedAt} expected_next=next_phase_or_cleanup\n`,
     );
@@ -5258,10 +5311,17 @@ async function runPhase(phase, action) {
 }
 
 async function navigate(url) {
+  navigationCount += 1;
+  const startedAt = Date.now();
   await cdp.send("Page.navigate", { url });
   await waitForCondition(
     `["interactive", "complete"].includes(document.readyState)`,
     `document readiness for ${new URL(url).pathname}`,
+  );
+  timing.duration(
+    "navigation",
+    `navigation ${String(navigationCount).padStart(2, "0")}`,
+    Date.now() - startedAt,
   );
 }
 
@@ -5295,7 +5355,10 @@ async function evaluateJson(expression) {
 async function waitForCondition(expression, label, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (await evaluateBoolean(expression).catch(() => false)) return;
+    if (await evaluateBoolean(expression).catch(() => false)) {
+      recordLongWait("wait_for_condition", label, startedAt);
+      return;
+    }
     await delay(100);
   }
   throw new Error(`Timed out waiting for ${label}.`);
@@ -5304,7 +5367,10 @@ async function waitForCondition(expression, label, timeoutMs = DEFAULT_TIMEOUT_M
 async function waitForHostCondition(predicate, label, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (predicate()) return;
+    if (predicate()) {
+      recordLongWait("wait_for_host_condition", label, startedAt);
+      return;
+    }
     await delay(100);
   }
   throw new Error(`Timed out waiting for ${label}.`);
@@ -5333,7 +5399,10 @@ async function waitForLiveRunProjection(
       const state = readLatestManagedLiveRunState(projectId);
       lastStatus = state?.status ?? "not_recorded";
       lastReason = state?.public_reason ?? "not_recorded";
-      if (predicate(state)) return state;
+      if (predicate(state)) {
+        recordLongWait("wait_for_live_run_projection", label, startedAt);
+        return state;
+      }
       if (
         state?.reconciliation_required === true ||
         [
@@ -5372,9 +5441,17 @@ async function waitForLiveRunProjection(
 }
 
 async function waitForRequestQuiet() {
+  requestQuietCount += 1;
   const startedAt = Date.now();
   while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
-    if (Date.now() - lastRequestAt >= REQUEST_QUIET_MS) return;
+    if (Date.now() - lastRequestAt >= REQUEST_QUIET_MS) {
+      timing.duration(
+        "request_quiet",
+        `request quiet ${String(requestQuietCount).padStart(2, "0")}`,
+        Date.now() - startedAt,
+      );
+      return;
+    }
     await delay(100);
   }
   throw new Error("Timed out waiting for browser request quiet.");
@@ -5388,7 +5465,10 @@ async function waitForDownloadedFile(predicate, label) {
           (name) => !name.endsWith(".crdownload") && predicate(name),
         )
       : [];
-    if (names.length === 1) return path.join(downloadDirectory, names[0]);
+    if (names.length === 1) {
+      recordLongWait("wait_for_downloaded_file", label, startedAt);
+      return path.join(downloadDirectory, names[0]);
+    }
     if (names.length > 1) {
       throw new Error(`${label} produced an ambiguous file set.`);
     }
@@ -5966,6 +6046,7 @@ async function canConnectToListener(host, port) {
 }
 
 async function waitForHttp(url, timeoutMs) {
+  waitCount += 1;
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (serverProcess && childHasExited(serverProcess)) {
@@ -5985,7 +6066,19 @@ async function waitForHttp(url, timeoutMs) {
     }
     try {
       const response = await fetch(url, { redirect: "manual" });
-      if (response.status < 500) return response;
+      if (response.status < 500) {
+        const durationMs = Date.now() - startedAt;
+        timing.duration(
+          "wait_for_http",
+          `wait for http ${String(waitCount).padStart(2, "0")}`,
+          durationMs,
+        );
+        if (pendingServerStartupFinish) {
+          pendingServerStartupFinish();
+          pendingServerStartupFinish = null;
+        }
+        return response;
+      }
     } catch {
       // The loopback runtime may still be compiling.
     }
@@ -6055,6 +6148,8 @@ async function cleanup() {
 
 async function terminateProcess(child, gracefulTimeoutMs) {
   if (!child) return;
+  const isServer = child === serverProcess;
+  const shutdownStartedAt = Date.now();
   const record =
     child === serverProcess
       ? serverProcessRecord
@@ -6068,12 +6163,97 @@ async function terminateProcess(child, gracefulTimeoutMs) {
       termGraceMs: gracefulTimeoutMs,
       killGraceMs: 2_000,
     });
+    if (isServer) recordServerShutdown(shutdownStartedAt);
     return;
   }
   await terminateOwnedProcessTree(record, {
     termGraceMs: gracefulTimeoutMs,
     killGraceMs: 2_000,
   });
+  if (isServer) recordServerShutdown(shutdownStartedAt);
+}
+
+function recordServerShutdown(startedAt) {
+  serverShutdownCount += 1;
+  timing.duration(
+    "runtime_shutdown",
+    `runtime shutdown ${String(serverShutdownCount).padStart(2, "0")}`,
+    Date.now() - startedAt,
+  );
+}
+
+function recordLongWait(kind, label, startedAt) {
+  const durationMs = Date.now() - startedAt;
+  if (durationMs <= 500) return;
+  waitCount += 1;
+  timing.duration(
+    kind,
+    `${String(label)} [${String(waitCount).padStart(3, "0")}]`,
+    durationMs,
+  );
+}
+
+function readApprovalBarrierTiming() {
+  assert.equal(existsSync(browserApprovalBarrierTracePath), true);
+  const allowedKinds = new Set([
+    "approval_emitted",
+    "approval_decision_received",
+    "browser_release_requested",
+    "browser_release_observed",
+    "terminal_state_emitted",
+  ]);
+  const entries = readFileSync(browserApprovalBarrierTracePath, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const fixtureStartedAt = Date.parse(
+    entries.find((entry) => entry.kind === "fixture_started")?.at ?? "",
+  );
+  assert.equal(Number.isFinite(fixtureStartedAt), true);
+  const publicEntries = entries
+    .filter((entry) => allowedKinds.has(entry.kind))
+    .map((entry) => ({
+      event: entry.kind,
+      elapsed_ms: Math.max(0, Date.parse(entry.at) - fixtureStartedAt),
+      approval_index: Number.isSafeInteger(entry.value?.approval_index)
+        ? entry.value.approval_index
+        : null,
+      label:
+        ["browser_second_approval", "browser_terminal"].includes(
+          entry.value?.label,
+        )
+          ? entry.value.label
+          : null,
+      observation:
+        ["preexisting", "post_registration", "watcher", "poll_fallback"].includes(
+          entry.value?.observation,
+        )
+          ? entry.value.observation
+          : null,
+    }));
+  assert.equal(
+    publicEntries.filter((entry) => entry.event === "approval_emitted").length,
+    2,
+  );
+  assert.equal(
+    publicEntries.filter((entry) => entry.event === "approval_decision_received")
+      .length,
+    2,
+  );
+  assert.equal(
+    publicEntries.filter((entry) => entry.event === "browser_release_observed")
+      .length,
+    2,
+  );
+  assert.equal(
+    publicEntries.filter((entry) => entry.event === "terminal_state_emitted")
+      .length,
+    1,
+  );
+  return {
+    timing_version: "browser_approval_barriers.v0.1",
+    events: publicEntries,
+  };
 }
 
 function childHasExited(child) {
