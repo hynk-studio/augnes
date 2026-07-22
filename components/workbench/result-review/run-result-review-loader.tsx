@@ -161,7 +161,7 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
     );
   }
   return (
-    <ProductShell surface="workbench">
+    <ProductShell primaryZone="ai-workplane">
       <main className={styles.page} data-run-result-review="locked">
       <SemanticWorkbenchShell
         title="Verify run result"

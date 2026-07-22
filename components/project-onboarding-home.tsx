@@ -120,7 +120,8 @@ export function ProjectOnboardingHome({ initialRecent }: { initialRecent: Recent
   const activeProject = recent.find((entry) => entry.is_active)?.project.display_name;
 
   return <ProductShell
-    surface="projects"
+    primaryZone="blank-state"
+    utilityContext="project-management"
     projectContext={activeProject
       ? { label: "Current project", name: activeProject }
       : null}

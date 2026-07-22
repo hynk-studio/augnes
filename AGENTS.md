@@ -70,8 +70,9 @@ It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
 interface. Project Home, Semantic Workbench, Shared Inspector, Portability, and
-Recovery are implemented current surfaces. The target topology is not yet
-implemented and consists of:
+Recovery are implemented current surfaces. C0 is merged. The C1 implementation
+reduces the shared shell to two primary product zones while preserving those
+current routes and contents:
 
 - **Blank State** — default simple human entry and resumption surface
 - **GuideBrief** — embedded cross-surface interpretation and guidance layer
@@ -79,10 +80,15 @@ implemented and consists of:
 - **Inspector** — contextual, optional, exact read-only drill-down
 - **Provider / Runner / Tool Layer** — execution power without user-facing IA authority
 
-Target default top-level navigation is limited to **Blank State** and **AI
-Workplane**. GuideBrief is not a peer destination. Inspector is not a normal
-peer destination and must not be required for normal use. Current code remains
-authoritative for implemented behavior until later correction PRs change it.
+Default top-level navigation is limited to **Blank State** and **AI Workplane**.
+Project selection, Portability, and Recovery are secondary Project tools;
+Inspector is contextual beneath AI Workplane and is not a Project tool.
+GuideBrief is not a peer destination. C1 changes shell classification only:
+Project Home and onboarding content await C2, GuideBrief active-path work awaits
+C3, Workbench reprojection awaits C4, and C5–C9 remain pending. Current code
+remains authoritative for implemented behavior until those correction PRs
+change it. C1 is complete only after its implementation PR is reviewed and
+merged; C2 remains blocked until then.
 
 ### Hard UX invariants
 
@@ -147,9 +153,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C1 top-level IA reduction is the next
-runtime step only after C0 user review and merge; do not start C1–C9 or broad
-visual polish from this documentation change.
+An unsatisfactory answer blocks the PR. C1 top-level IA reduction is the active
+authorized correction after merged C0. Do not start C2–C9 or broad visual polish
+before C1 user review and merge.
 
 ## Development defaults
 

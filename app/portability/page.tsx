@@ -107,7 +107,8 @@ export default function PortabilityPage() {
 
   return (
     <ProductShell
-      surface="portability"
+      primaryZone={null}
+      utilityContext="portability"
       projectContext={preview?.project_display_name
         ? { label: "Current project", name: preview.project_display_name }
         : null}

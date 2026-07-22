@@ -15,7 +15,7 @@ export const metadata = {
 
 export default function SharedProjectInspectorPage() {
   return (
-    <Suspense fallback={<ProductShell surface="inspector"><main className="product-route-state" aria-live="polite">Validating exact Inspector target…</main></ProductShell>}>
+    <Suspense fallback={<ProductShell primaryZone="ai-workplane"><main className="product-route-state" aria-live="polite">Validating exact Inspector target…</main></ProductShell>}>
       <SharedProjectInspectorLoader />
     </Suspense>
   );

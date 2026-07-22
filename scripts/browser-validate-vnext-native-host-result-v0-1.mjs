@@ -313,6 +313,9 @@ const result = {
   control_mutation_runs_created: null,
   control_mutation_semantic_rows_created: null,
   control_mutation_personal_content_created: null,
+  product_shell_route_classifications: [],
+  product_shell_responsive_results: [],
+  product_tools_keyboard_navigation: false,
   viewport_results: [],
   viewport_warnings: [],
   packet_copy_actions: 0,
@@ -664,6 +667,12 @@ async function main() {
       `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
       "hydrated project controls",
     );
+    await validateProductShell({
+      route: "/projects/[projectId]",
+      expectedPrimaryZone: "blank-state",
+      expectedUtilityContext: null,
+      projectContextRequired: true,
+    });
 
     const controlAuthorityBaseline = readControlAuthorityCounts();
     const enableResponseStart = responses.length;
@@ -1043,6 +1052,16 @@ async function main() {
       return await response.json();
     })()`);
     assert.equal(activeAfterUnknown.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Onboarding Project");
+    await navigate(`${appOrigin}/projects`);
+    await waitForCondition(
+      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`,
+      "hydrated Project tools verification surface",
+    );
+    await validateProductShell({
+      route: "/projects",
+      expectedPrimaryZone: "blank-state",
+      expectedUtilityContext: "project-management",
+    });
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
     record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
     record("project_controls_enable_pause_resume_scope_restart_conflict_and_isolation");
@@ -1055,6 +1074,12 @@ async function main() {
       `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
       "locked Semantic Workbench",
     );
+    await validateProductShell({
+      route: "/workbench/semantic-review",
+      expectedPrimaryZone: "ai-workplane",
+      expectedUtilityContext: null,
+    });
+    await validateProductShellResponsive("/workbench/semantic-review");
     assert.equal(
       await evaluateBoolean(
         `document.querySelector('main')?.getAttribute('data-vnext-private-material-rendered') === 'false'`,
@@ -2328,6 +2353,11 @@ async function main() {
       `location.pathname === '/workbench/inspector' && document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-read-only="true"][data-inspector-semantic-mutation="false"][data-inspector-target-kind="run_receipt"]') !== null`,
       "shared receipt-focused Inspector",
     );
+    await validateProductShell({
+      route: "/workbench/inspector?target=run_receipt",
+      expectedPrimaryZone: "ai-workplane",
+      expectedUtilityContext: null,
+    });
     assert.equal(
       responses.slice(inspectorResponseStart).some(
         (entry) =>
@@ -4289,6 +4319,24 @@ async function main() {
     record("personal_perspective_shared_inspector_is_read_only_and_project_scoped");
   });
 
+  await runPhase("product_shell_responsive", async () => {
+    await validateProductShellResponsive("/workbench/inspector");
+    await navigate(`${appOrigin}${result.folder_onboarding_destination}`);
+    await waitForCondition(
+      `document.querySelector('[data-project-home="v0.1"]') !== null`,
+      "Project Home shell viewport surface",
+    );
+    await validateProductShellResponsive("/projects/[projectId]");
+    await navigate(`${appOrigin}/projects`);
+    await waitForCondition(
+      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`,
+      "project management shell viewport surface",
+    );
+    await validateProductShellResponsive("/projects");
+    await validateProjectToolsKeyboardNavigation();
+    result.product_tools_keyboard_navigation = true;
+  });
+
   }
 
   if (RUN_CONTINUITY_SCOPE) {
@@ -4308,6 +4356,12 @@ async function main() {
       `document.querySelector('[data-portability-surface="v1"]') !== null && document.body.textContent.includes('Review exact scope before export') && document.querySelector('input[type="checkbox"]:not(:checked)') !== null`,
       "portable active-project preview with Personal Perspective excluded",
     );
+    await validateProductShell({
+      route: "/portability",
+      expectedPrimaryZone: null,
+      expectedUtilityContext: "portability",
+      projectContextRequired: true,
+    });
     result.portable_export_preview_visible = true;
     const portableExportRequestStart = responses.length;
     assert.equal(
@@ -4554,6 +4608,11 @@ async function main() {
       `document.querySelector('[data-continuity-diagnostics="v1"]') !== null && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Review needed') === true && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Exact replay') === true`,
       "public restart reconciliation diagnostics",
     );
+    await validateProductShell({
+      route: "/recovery",
+      expectedPrimaryZone: null,
+      expectedUtilityContext: "recovery",
+    });
     const reconciliationText = await evaluateString(
       `document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent ?? ''`,
     );
@@ -4612,6 +4671,13 @@ async function main() {
     record("final_r8_imported_home_workbench_and_inspector_readers_agree");
     record("final_r8_restart_reconciliation_reuses_exact_receipt_without_retry");
     record("final_r8_public_diagnostics_preview_before_redacted_report_export");
+    await validateProductShellResponsive("/recovery");
+    await navigate(`${appOrigin}/portability`);
+    await waitForCondition(
+      `document.querySelector('[data-portability-surface="v1"]') !== null`,
+      "portability shell viewport surface",
+    );
+    await validateProductShellResponsive("/portability");
   });
   }
 
@@ -4970,6 +5036,237 @@ async function setFormControlValue(selector, index, value) {
     return true;
   })()`);
   assert.equal(changed, true, `failed to set ${selector}[${index}]`);
+}
+
+async function validateProductShell({
+  route,
+  expectedPrimaryZone,
+  expectedUtilityContext,
+  projectContextRequired = false,
+}) {
+  await waitForCondition(
+    `Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] > a')).filter((link) => { const rect = link.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; }).length === 2`,
+    `two visible primary destinations for ${route}`,
+  );
+  await waitForCondition(
+    `Array.from(document.querySelectorAll('.product-shell')).some((candidate) => candidate.getAttribute('data-primary-product-zone') === ${JSON.stringify(expectedPrimaryZone ?? "none")} && candidate.getAttribute('data-product-utility-context') === ${JSON.stringify(expectedUtilityContext ?? "none")} && ${projectContextRequired ? "['Current project', 'Viewed project'].includes(candidate.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label'))" : "true"})`,
+    `classified ProductShell for ${route}`,
+  );
+  const shell = await evaluateJson(`(() => {
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const expectedPrimaryZone = ${JSON.stringify(expectedPrimaryZone ?? "none")};
+    const expectedUtilityContext = ${JSON.stringify(expectedUtilityContext ?? "none")};
+    const roots = Array.from(document.querySelectorAll('.product-shell'));
+    const root = roots.find((candidate) =>
+      candidate.getAttribute('data-primary-product-zone') === expectedPrimaryZone &&
+      candidate.getAttribute('data-product-utility-context') === expectedUtilityContext &&
+      ${projectContextRequired ? "candidate.querySelector('[data-project-context-label]') !== null" : "true"}
+    ) ?? null;
+    const primary = root?.querySelector('nav[aria-label="Primary navigation"]');
+    const projectTools = root?.querySelector('details.product-project-tools');
+    const utility = projectTools?.querySelector('nav[aria-label="Project tools"]');
+    const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
+    const utilityLinks = Array.from(utility?.querySelectorAll(':scope > a') ?? []);
+    return {
+      route: ${JSON.stringify(route)},
+      primary_zone: root?.getAttribute('data-primary-product-zone') ?? null,
+      utility_context: root?.getAttribute('data-product-utility-context') ?? null,
+      brand_href: root?.querySelector('.product-brand')?.getAttribute('href') ?? null,
+      primary_label: primary?.getAttribute('aria-label') ?? null,
+      primary_links: primaryLinks.map((link) => ({
+        label: link.querySelector('strong')?.textContent?.trim() ?? '',
+        href: link.getAttribute('href'),
+        current: link.getAttribute('aria-current')
+      })),
+      project_tools_label: utility?.getAttribute('aria-label') ?? null,
+      project_tools_summary: projectTools?.querySelector(':scope > summary > span')?.textContent?.trim() ?? null,
+      project_tools_open: projectTools instanceof HTMLDetailsElement ? projectTools.open : null,
+      visible_primary_link_count: Array.from(
+        document.querySelectorAll('nav[aria-label="Primary navigation"] > a')
+      ).filter(visible).length,
+      project_tools_links: utilityLinks.map((link) => ({
+        label: link.textContent?.trim() ?? '',
+        href: link.getAttribute('href'),
+        current: link.getAttribute('aria-current')
+      })),
+      inspector_in_project_tools: utilityLinks.some((link) =>
+        link.textContent?.includes('Inspector') || link.getAttribute('href')?.includes('/workbench/inspector')
+      ),
+      project_context_label:
+        root?.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label') ?? null
+    };
+  })()`);
+  assert.equal(shell.primary_zone, expectedPrimaryZone ?? "none");
+  assert.equal(shell.utility_context, expectedUtilityContext ?? "none");
+  assert.equal(shell.brand_href, "/");
+  assert.equal(shell.primary_label, "Primary navigation");
+  assert.deepEqual(shell.primary_links, [
+    {
+      label: "Blank State",
+      href: "/",
+      current: expectedPrimaryZone === "blank-state" ? "page" : null,
+    },
+    {
+      label: "AI Workplane",
+      href: "/workbench/semantic-review",
+      current: expectedPrimaryZone === "ai-workplane" ? "page" : null,
+    },
+  ]);
+  assert.equal(shell.project_tools_label, "Project tools");
+  assert.equal(shell.project_tools_summary, "Project tools");
+  assert.equal(shell.project_tools_open, false);
+  assert.equal(shell.visible_primary_link_count, 2);
+  assert.deepEqual(shell.project_tools_links, [
+    {
+      label: "Switch or add project",
+      href: "/projects",
+      current: expectedUtilityContext === "project-management" ? "page" : null,
+    },
+    {
+      label: "Transfer project",
+      href: "/portability",
+      current: expectedUtilityContext === "portability" ? "page" : null,
+    },
+    {
+      label: "Recovery",
+      href: "/recovery",
+      current: expectedUtilityContext === "recovery" ? "page" : null,
+    },
+  ]);
+  assert.equal(shell.inspector_in_project_tools, false);
+  result.product_shell_route_classifications.push(shell);
+  if (projectContextRequired) {
+    assert.equal(
+      ["Current project", "Viewed project"].includes(shell.project_context_label),
+      true,
+      `missing current/viewed project shell context for ${route}: ${String(shell.project_context_label)}`,
+    );
+  }
+}
+
+async function validateProductShellResponsive(route) {
+  for (const width of [390, 430]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const details = document.querySelector('details.product-project-tools');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        return details.open;
+      })()`),
+      true,
+    );
+    await delay(50);
+    const metrics = await evaluateJson(`(() => {
+      const primary = document.querySelector('nav[aria-label="Primary navigation"]');
+      const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
+      const details = document.querySelector('details.product-project-tools');
+      const summary = details?.querySelector(':scope > summary');
+      const utilityLinks = Array.from(details?.querySelectorAll('nav[aria-label="Project tools"] > a') ?? []);
+      const insideViewport = (element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height >= 40 && rect.left >= -1 && rect.right <= window.innerWidth + 1;
+      };
+      return {
+        route: ${JSON.stringify(route)},
+        width: window.innerWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        primary_link_count: primaryLinks.length,
+        primary_links_visible: primaryLinks.every((link) => insideViewport(link)),
+        project_tools_summary_visible: summary ? insideViewport(summary) : false,
+        project_tools_links_visible: utilityLinks.length === 3 && utilityLinks.every((link) => insideViewport(link)),
+        primary_labels: primaryLinks.map((link) => link.querySelector('strong')?.textContent?.trim() ?? '')
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      route,
+      width,
+      document_horizontal_overflow: false,
+      primary_link_count: 2,
+      primary_links_visible: true,
+      project_tools_summary_visible: true,
+      project_tools_links_visible: true,
+      primary_labels: ["Blank State", "AI Workplane"],
+    });
+    result.product_shell_responsive_results.push(metrics);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const details = document.querySelector('details.product-project-tools');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = false;
+        return !details.open;
+      })()`),
+      true,
+    );
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+}
+
+async function validateProjectToolsKeyboardNavigation() {
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const summary = document.querySelector('details.product-project-tools > summary');
+      if (!(summary instanceof HTMLElement)) return false;
+      summary.focus();
+      return document.activeElement === summary;
+    })()`),
+    true,
+  );
+  await dispatchKeyboardKey(" ", "Space", 32);
+  await waitForCondition(
+    `document.querySelector('details.product-project-tools')?.open === true`,
+    "keyboard-opened Project tools",
+  );
+  await dispatchKeyboardKey("Tab", "Tab", 9);
+  assert.equal(
+    await evaluateString("document.activeElement?.getAttribute('href') ?? ''"),
+    "/projects",
+  );
+  await dispatchKeyboardKey("Tab", "Tab", 9, 8);
+  assert.equal(
+    await evaluateBoolean(
+      "document.activeElement === document.querySelector('details.product-project-tools > summary')",
+    ),
+    true,
+  );
+  await dispatchKeyboardKey(" ", "Space", 32);
+  await waitForCondition(
+    `document.querySelector('details.product-project-tools')?.open === false`,
+    "keyboard-closed Project tools",
+  );
+}
+
+async function dispatchKeyboardKey(key, code, keyCode, modifiers = 0) {
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key,
+    code,
+    windowsVirtualKeyCode: keyCode,
+    nativeVirtualKeyCode: keyCode,
+    modifiers,
+  });
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key,
+    code,
+    windowsVirtualKeyCode: keyCode,
+    nativeVirtualKeyCode: keyCode,
+    modifiers,
+  });
 }
 
 async function validateProjectHomeViewports() {

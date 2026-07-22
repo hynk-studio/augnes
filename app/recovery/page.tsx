@@ -309,7 +309,7 @@ export default function RecoveryPage() {
       : backups.find((backup) => backup.backup_id === selectedBackupId) ?? null;
 
   return (
-    <ProductShell surface="recovery">
+    <ProductShell primaryZone={null} utilityContext="recovery">
       <main
         className={styles.shell}
         data-recovery-product-surface="v0.1"

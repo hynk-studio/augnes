@@ -3,7 +3,10 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
+import { ProductShell } from "../components/product-shell";
 import {
   semanticReviewDetailEntryPresentationV01,
   type SemanticReviewEntryPresentationInputV01,
@@ -133,6 +136,108 @@ for (const forbidden of [
   assert.equal(productionSources.includes(forbidden), false, forbidden);
 }
 record("production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols");
+
+const blankStateShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: "blank-state",
+      utilityContext: "project-management",
+      projectContext: { label: "Current project", name: "Shell contract project" },
+      children: createElement("main", null, "Blank State route"),
+    },
+  ),
+);
+const aiWorkplaneShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: "ai-workplane",
+      children: createElement("main", null, "AI Workplane route"),
+    },
+  ),
+);
+const portabilityShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: null,
+      utilityContext: "portability",
+      children: createElement("main", null, "Portability route"),
+    },
+  ),
+);
+const blankPrimaryNavigation = labeledNavigationMarkup(
+  blankStateShell,
+  "Primary navigation",
+);
+const blankProjectTools = labeledNavigationMarkup(blankStateShell, "Project tools");
+const aiPrimaryNavigation = labeledNavigationMarkup(
+  aiWorkplaneShell,
+  "Primary navigation",
+);
+const portabilityPrimaryNavigation = labeledNavigationMarkup(
+  portabilityShell,
+  "Primary navigation",
+);
+const portabilityProjectTools = labeledNavigationMarkup(
+  portabilityShell,
+  "Project tools",
+);
+for (const primaryNavigation of [
+  blankPrimaryNavigation,
+  aiPrimaryNavigation,
+  portabilityPrimaryNavigation,
+]) {
+  assert.equal(count(primaryNavigation, /<a /gu), 2);
+  assert.equal(primaryNavigation.includes("<strong>Blank State</strong>"), true);
+  assert.equal(primaryNavigation.includes("<strong>AI Workplane</strong>"), true);
+  assert.equal(primaryNavigation.includes('href="/"'), true);
+  assert.equal(
+    primaryNavigation.includes('href="/workbench/semantic-review"'),
+    true,
+  );
+  for (const rejectedPeer of [
+    "Projects",
+    "Home",
+    "Workbench",
+    "Inspector",
+    "Portability",
+    "Recovery",
+  ]) {
+    assert.equal(
+      primaryNavigation.includes(`<strong>${rejectedPeer}</strong>`),
+      false,
+    );
+  }
+}
+assert.equal(count(blankPrimaryNavigation, /aria-current="page"/gu), 1);
+assert.match(blankPrimaryNavigation, /href="\/" aria-current="page"/u);
+assert.equal(count(aiPrimaryNavigation, /aria-current="page"/gu), 1);
+assert.match(
+  aiPrimaryNavigation,
+  /href="\/workbench\/semantic-review" aria-current="page"/u,
+);
+assert.equal(count(portabilityPrimaryNavigation, /aria-current="page"/gu), 0);
+for (const projectTools of [blankProjectTools, portabilityProjectTools]) {
+  assert.equal(count(projectTools, /<a /gu), 3);
+  assert.equal(projectTools.includes('href="/projects"'), true);
+  assert.equal(projectTools.includes('href="/portability"'), true);
+  assert.equal(projectTools.includes('href="/recovery"'), true);
+  assert.equal(projectTools.includes("Inspector"), false);
+}
+assert.match(blankProjectTools, /href="\/projects" aria-current="page"/u);
+assert.match(
+  portabilityProjectTools,
+  /href="\/portability" aria-current="page"/u,
+);
+assert.match(blankStateShell, /data-primary-product-zone="blank-state"/u);
+assert.match(blankStateShell, /data-product-utility-context="project-management"/u);
+assert.match(aiWorkplaneShell, /data-primary-product-zone="ai-workplane"/u);
+assert.match(portabilityShell, /data-primary-product-zone="none"/u);
+assert.match(portabilityShell, /data-product-utility-context="portability"/u);
+assert.equal(blankStateShell.includes("<summary><span>Project tools</span>"), true);
+record("product_shell_has_two_primary_zones_and_secondary_project_tools");
 
 const directSource = source("lib/vnext/runtime/direct-native-host-round-trip.ts");
 const routeSource = source("app/api/vnext/operator/host-round-trip/route.ts");
@@ -773,6 +878,15 @@ function count(value: string, pattern: RegExp): number {
   return [...value.matchAll(pattern)].length;
 }
 
+function labeledNavigationMarkup(markup: string, label: string): string {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = markup.match(
+    new RegExp(`<nav(?: class="[^"]+")? aria-label="${escapedLabel}">([\\s\\S]*?)<\\/nav>`, "u"),
+  );
+  assert(match, `missing ${label}`);
+  return match[1];
+}
+
 function refreshProjection(
   overrides: Partial<ProjectHomeRefreshProjectionV01> = {},
 ): ProjectHomeRefreshProjectionV01 {
@@ -800,6 +914,7 @@ assert.deepEqual(assertions, [
   "live_codex_public_command_summary_preserves_safe_relative_commands",
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
+  "product_shell_has_two_primary_zones_and_secondary_project_tools",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
   "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",

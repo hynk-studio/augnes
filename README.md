@@ -107,7 +107,12 @@ Home, Semantic Workbench, Shared Inspector, Portability, and Recovery remain
 implemented reference operator surfaces until later correction work changes
 their runtime behavior. The target topology is documented in the
 [post-Build Week product UX correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md);
-C0 does not implement the later navigation or surface migrations.
+C0 established the product authority, and the C1 implementation reduces the
+shared shell to **Blank State** and **AI Workplane** as its only primary
+destinations. Existing project selection, transfer, and recovery routes remain
+available through secondary **Project tools**. This is a shell classification
+change, not the final Blank State, GuideBrief, AI Workplane, Inspector, or
+utility-content redesign; C2–C9 remain pending.
 
 The repository now supports:
 

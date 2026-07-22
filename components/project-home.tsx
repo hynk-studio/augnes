@@ -24,7 +24,7 @@ export function ProjectHome({
 
   return (
     <ProductShell
-      surface="home"
+      primaryZone="blank-state"
       projectContext={{
         label: active ? "Current project" : "Viewed project",
         name: projectName,

@@ -426,7 +426,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
     : "/";
 
   return (
-    <ProductShell surface="workbench">
+    <ProductShell primaryZone="ai-workplane">
       <main
         className={styles.page}
         data-vnext-semantic-review="v0.1"

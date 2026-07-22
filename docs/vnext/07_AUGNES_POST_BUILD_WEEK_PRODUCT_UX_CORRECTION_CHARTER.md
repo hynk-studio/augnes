@@ -15,8 +15,9 @@ user-facing surface topology가 이전 active planning과 충돌하면 이 문�
 제품 정체성과 전략 불변식을, [`02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)는
 Core와 protocol 의미를 계속 소유한다.
 
-현재 code와 runtime은 구현된 behavior의 source of truth다. 이 문서는 runtime
-migration이 이미 일어났다고 주장하지 않는다.
+현재 code와 runtime은 구현된 behavior의 source of truth다. C0는 merge되었고 C1
+implementation은 shared shell navigation과 route classification만 교정한다. 이
+문서는 이후 content migration이 이미 일어났다고 주장하지 않는다.
 
 ## 2. Why correction is required
 
@@ -33,18 +34,21 @@ verification, reconciliation, automation, semantic processing, portability와 re
 
 ### Current reference operator implementation
 
-현재 runtime에는 다음이 구현되어 있다.
+현재 runtime에는 다음 reference content가 구현되어 있다.
 
 - Project Home
 - Semantic Workbench
 - Shared Inspector
 - Portability
 - Recovery
-- current Build Week navigation and product shell
+- C1 shared shell classification with two primary zones and secondary Project tools
 
 이 surface들은 operational Core를 평가하고 정확한 state, lineage, verification과
-recovery behavior를 드러내는 현재 구현이다. 현재 route와 behavior는 이후 correction
-PR이 실제로 변경할 때까지 authoritative runtime truth다.
+recovery behavior를 드러내는 현재 구현이다. C1 implementation은 shared ProductShell을
+Blank State와 AI Workplane 두 primary zone으로 줄이고 project selection, Portability,
+Recovery를 secondary Project tools로 분류한다. Inspector route는 AI Workplane zone
+아래에서 contextual/direct access를 유지한다. 현재 route content와 behavior는 이후
+correction PR이 실제로 변경할 때까지 authoritative runtime truth다.
 
 ### Target post-Build Week product topology
 
@@ -60,8 +64,10 @@ Provider / Runner / Tool Layer
 = execution power beneath and beside these surfaces
 ```
 
-이 topology는 아직 runtime에 구현되지 않았다. C0는 documentation authority만
-변경한다.
+C1은 이 topology의 top-level shell slice만 구현한다. final Blank State content,
+GuideBrief active path, AI Workplane content reprojection, delegated-work timeline,
+deeper Inspector demotion, utility relocation, visual system과 compatibility reduction은
+아직 runtime에 구현되지 않았다.
 
 ## 4. Target product topology
 
@@ -311,11 +317,18 @@ C0는 이 runtime migration을 수행하지 않는다. later correction PR은 cu
 behavior를 보존하면서 replacement parity를 입증하고, superseded surface를 같은
 program 안에서 명시적으로 absorb, redirect, hide, demote 또는 remove해야 한다.
 
+C1 implementation은 이 disposition의 navigation classification만 수행한다. Project
+Home와 onboarding은 Blank State primary zone, current Workbench/result/Inspector route는
+AI Workplane primary zone으로 분류된다. Portability와 Recovery는 primary selection이
+없는 secondary Project tools context로 남는다. content absorption과 final relocation은
+각각 C2, C4, C6, C7의 책임이다.
+
 ## 14. C0–C9 correction sequence
 
-- **C0 — Product UX charter and hard invariants:** documentation authority only
-- **C1 — Top-level IA reduction:** next runtime step after C0 user review and merge
-- **C2 — Blank State restoration and Project Home absorption**
+- **C0 — Product UX charter and hard invariants:** merged documentation authority
+- **C1 — Top-level IA reduction:** implementation reduces the shared shell to two
+  primary zones; complete only after user review and merge
+- **C2 — Blank State restoration and Project Home absorption:** next after C1 merge
 - **C3 — GuideBrief active-path restoration**
 - **C4 — AI Workplane reprojection of current Semantic Workbench and engine complexity**
 - **C5 — Delegated Codex work timeline and resumption**
@@ -324,9 +337,10 @@ program 안에서 명시적으로 absorb, redirect, hide, demote 또는 remove�
 - **C8 — Visual system after IA correction**
 - **C9 — Compatibility and obsolete-surface reduction**
 
-C1–C9는 implemented, complete 또는 runtime-active가 아니다. C0 review와 merge 전에
-C1을 시작하지 않는다. user가 correction program을 명시적으로 override하지 않는 한
-broad visual polish나 unrelated feature phase가 C1보다 먼저 오지 않는다.
+C2–C9는 implemented, complete 또는 runtime-active가 아니다. C1은 shell navigation과
+classification만 구현하며 review와 merge 전에는 complete가 아니다. user가 correction
+program을 명시적으로 override하지 않는 한 broad visual polish나 unrelated feature
+phase가 C2보다 먼저 오지 않는다.
 
 ## 15. Non-goals
 
@@ -355,5 +369,6 @@ C0의 완료 조건은 다음뿐이다.
 - Evaluation & Maturity가 basic UX correctness를 Alpha 이후로 미루지 않는다.
 - Roadmap이 C1을 다음 runtime step으로 기록하고 C1–C9를 미구현 상태로 유지한다.
 
-C0 이후 남는 blocker는 user review와 merge다. C0 자체는 runtime behavior를
-변경하거나 C1을 시작하지 않는다.
+C0는 review와 merge를 마쳤다. C1 implementation은 별도 user review와 merge를
+기다리며, 그 전에는 C2를 시작하지 않는다. C0 자체가 runtime behavior를 변경하지
+않았다는 historical boundary는 그대로 유지된다.
