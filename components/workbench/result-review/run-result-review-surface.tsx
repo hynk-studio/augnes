@@ -14,7 +14,7 @@ export function RunResultReviewSurface({
   const summary = result.summary;
   const entryPresentation = resultEntryPresentation(result);
   return (
-    <ProductShell surface="workbench">
+    <ProductShell primaryZone="ai-workplane">
       <main
         className={styles.page}
         data-run-result-review="v0.1"

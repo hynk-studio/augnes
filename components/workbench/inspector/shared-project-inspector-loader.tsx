@@ -128,7 +128,7 @@ export function SharedProjectInspectorLoader() {
     );
   }
   return (
-    <ProductShell surface="inspector">
+    <ProductShell primaryZone="ai-workplane">
       <main
         className={styles.page}
         data-shared-project-inspector={session.status === "authenticated" ? "error" : "locked"}

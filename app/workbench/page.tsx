@@ -1,4 +1,5 @@
 import { AgentWorkplane } from "@/components/workplane/agent-workplane";
+import { ProductShell } from "@/components/product-shell";
 
 export const metadata = {
   title: "Augnes Agent Workplane",
@@ -7,5 +8,9 @@ export const metadata = {
 };
 
 export default function WorkbenchPage() {
-  return <AgentWorkplane />;
+  return (
+    <ProductShell primaryZone="ai-workplane">
+      <AgentWorkplane />
+    </ProductShell>
+  );
 }

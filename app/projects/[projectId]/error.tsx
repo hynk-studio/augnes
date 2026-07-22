@@ -4,7 +4,7 @@ import { ProductShell } from "@/components/product-shell";
 
 export default function ProjectHomeError({ reset }: { reset: () => void }) {
   return (
-    <ProductShell surface="home">
+    <ProductShell primaryZone="blank-state">
       <main className="project-home-shell product-route-state product-route-state--danger" role="alert">
         <p className="project-selector-eyebrow">Project Home</p>
         <h1>Project Home could not be read</h1>

@@ -17,11 +17,11 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 153);
+assert.equal(resultKeys.length, 156);
 assert.equal(recordNames.length, 40);
 assert.equal(
   hashInventory(resultKeys),
-  "8bc88c566ec6514531b8e4b92b29a131b453a63a4cd0bbed724b9cda9c5b90c9",
+  "cbc99de45296ef6e39476cd9dd8b76c9904017761508ba8769de6a7d56adfc2c",
 );
 assert.equal(
   hashInventory(recordNames),
@@ -54,6 +54,30 @@ assert.match(
 assert.match(
   source,
   /await validateProjectHomeViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
+);
+assert.equal(
+  [...source.matchAll(/await validateProductShell\(\{/gu)].length,
+  6,
+);
+assert.match(
+  source,
+  /route: "\/projects"[\s\S]*expectedPrimaryZone: "blank-state"[\s\S]*expectedUtilityContext: "project-management"/u,
+);
+assert.match(
+  source,
+  /route: "\/workbench\/inspector\?target=run_receipt"[\s\S]*expectedPrimaryZone: "ai-workplane"/u,
+);
+assert.match(
+  source,
+  /route: "\/portability"[\s\S]*expectedPrimaryZone: null[\s\S]*expectedUtilityContext: "portability"/u,
+);
+assert.match(
+  source,
+  /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2/u,
+);
+assert.match(
+  source,
+  /async function validateProjectToolsKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Tab", "Tab", 9, 8\)/u,
 );
 assert.match(
   source,

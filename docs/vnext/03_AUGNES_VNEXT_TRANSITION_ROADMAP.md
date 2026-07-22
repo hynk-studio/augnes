@@ -101,11 +101,13 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
 
 ## Post-Build Week product correction sequence
 
-- **C0 — Product UX charter and hard invariants:** documentation authority only;
-  no runtime, route, navigation, UI, protocol, schema or behavior change
-- **C1 — Top-level IA reduction:** immediate next runtime step after user review
-  and merge of C0
-- **C2 — Blank State restoration and Project Home absorption**
+- **C0 — Product UX charter and hard invariants:** merged documentation
+  authority; no runtime, protocol, schema or behavior change
+- **C1 — Top-level IA reduction:** the implementation in this change reduces
+  the shared shell to Blank State and AI Workplane as its two primary zones;
+  C1 is complete only after user review and merge
+- **C2 — Blank State restoration and Project Home absorption:** next runtime
+  correction after C1 merge
 - **C3 — GuideBrief active-path restoration**
 - **C4 — AI Workplane reprojection of current Semantic Workbench and engine complexity**
 - **C5 — Delegated Codex work timeline and resumption**
@@ -114,14 +116,18 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
 - **C8 — Visual system after IA correction**
 - **C9 — Compatibility and obsolete-surface reduction**
 
-C1–C9 are planned, not implemented, complete, or runtime-active. Current code
-remains authoritative for Project Home, Semantic Workbench, Shared Inspector,
-Portability, Recovery and the Build Week product shell until each later
-correction PR changes it. C0 does not start C1.
+C1 changes shell navigation and route classification only. Current Project Home
+and onboarding content remain reference surfaces pending C2; GuideBrief
+active-path restoration remains pending C3; current Semantic Workbench and
+Agent Workplane reprojection remains pending C4; C5 delegated-work timeline,
+C6 deeper Inspector demotion, C7 final Portability/Recovery relocation, C8
+visual system, and C9 compatibility reduction remain unimplemented. Current
+code remains authoritative for each existing behavior until its later
+correction PR changes it.
 
-No broad visual-polish or unrelated new-feature phase precedes C1 unless the
-user explicitly overrides this correction program. Replacement work must
-account for the superseded surface through absorption, redirect, hiding,
+No broad visual-polish or unrelated new-feature phase precedes C2 after C1
+unless the user explicitly overrides this correction program. Replacement work
+must account for the superseded surface through absorption, redirect, hiding,
 explicit demotion or removal; it must not silently add another destination.
 
 ## Operational Core implementation sequence

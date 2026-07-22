@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 
-export type ProductSurface =
-  | "projects"
-  | "home"
-  | "workbench"
-  | "inspector"
+export type PrimaryProductZone = "blank-state" | "ai-workplane";
+
+export type ProductUtilityContext =
+  | "project-management"
   | "portability"
   | "recovery";
 
@@ -13,41 +12,63 @@ export interface ProductProjectContext {
   name: string;
 }
 
-const NAVIGATION: Array<{
+const PRIMARY_NAVIGATION: Array<{
   href: string;
   label: string;
   role: string;
-  surface: ProductSurface;
+  zone: PrimaryProductZone;
 }> = [
-  { href: "/projects", label: "Projects", role: "Open work", surface: "projects" },
-  { href: "/", label: "Home", role: "Resume", surface: "home" },
+  {
+    href: "/",
+    label: "Blank State",
+    role: "Start · Resume",
+    zone: "blank-state",
+  },
   {
     href: "/workbench/semantic-review",
-    label: "Workbench",
-    role: "Verify · Decide",
-    surface: "workbench",
+    label: "AI Workplane",
+    role: "Work · Review",
+    zone: "ai-workplane",
   },
-  {
-    href: "/workbench/inspector?target=project_coordination",
-    label: "Inspector",
-    role: "Exact lineage",
-    surface: "inspector",
-  },
-  { href: "/portability", label: "Portability", role: "Transfer", surface: "portability" },
-  { href: "/recovery", label: "Recovery", role: "Protect", surface: "recovery" },
 ];
 
+const PROJECT_TOOLS: Array<{
+  href: string;
+  label: string;
+  context: ProductUtilityContext;
+}> = [
+  {
+    href: "/projects",
+    label: "Switch or add project",
+    context: "project-management",
+  },
+  { href: "/portability", label: "Transfer project", context: "portability" },
+  { href: "/recovery", label: "Recovery", context: "recovery" },
+];
+
+const UTILITY_CONTEXT_LABELS: Record<ProductUtilityContext, string> = {
+  "project-management": "Switch or add project",
+  portability: "Transfer project",
+  recovery: "Recovery",
+};
+
 export function ProductShell({
-  surface,
+  primaryZone,
+  utilityContext = null,
   projectContext,
   children,
 }: {
-  surface: ProductSurface;
+  primaryZone: PrimaryProductZone | null;
+  utilityContext?: ProductUtilityContext | null;
   projectContext?: ProductProjectContext | null;
   children: ReactNode;
 }) {
   return (
-    <div className="product-shell" data-product-surface={surface}>
+    <div
+      className="product-shell"
+      data-primary-product-zone={primaryZone ?? "none"}
+      data-product-utility-context={utilityContext ?? "none"}
+    >
       <a className="product-skip-link" href="#augnes-main-content">
         Skip to content
       </a>
@@ -84,12 +105,12 @@ export function ProductShell({
             </p>
           )}
         </div>
-        <nav className="product-navigation" aria-label="Augnes navigation">
-          {NAVIGATION.map((item) => (
+        <nav className="product-navigation" aria-label="Primary navigation">
+          {PRIMARY_NAVIGATION.map((item) => (
             <a
               href={item.href}
-              key={item.surface}
-              aria-current={item.surface === surface ? "page" : undefined}
+              key={item.zone}
+              aria-current={item.zone === primaryZone ? "page" : undefined}
             >
               <span aria-hidden="true" className="product-navigation-node" />
               <span>
@@ -99,6 +120,26 @@ export function ProductShell({
             </a>
           ))}
         </nav>
+        <details
+          className="product-project-tools"
+          data-project-tools-context={utilityContext ?? "none"}
+        >
+          <summary>
+            <span>Project tools</span>
+            {utilityContext ? <small>{UTILITY_CONTEXT_LABELS[utilityContext]}</small> : null}
+          </summary>
+          <nav aria-label="Project tools">
+            {PROJECT_TOOLS.map((item) => (
+              <a
+                href={item.href}
+                key={item.context}
+                aria-current={item.context === utilityContext ? "page" : undefined}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </details>
       </header>
       <div id="augnes-main-content" className="product-shell-content" tabIndex={-1}>
         {children}
