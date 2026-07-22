@@ -69,10 +69,10 @@ GuideBrief product responsibility, UX merge gates, and replacement discipline.
 It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
-interface. Project Home, Semantic Workbench, Shared Inspector, Portability, and
-Recovery are implemented current surfaces. C0 is merged. The C1 implementation
-reduces the shared shell to two primary product zones while preserving those
-current routes and contents:
+interface. C0 and C1 are merged. The C2 implementation in this change makes
+Blank State the shared human entry and resumption surface while preserving the
+existing project, host, control, result, Portability, Recovery, and exact-detail
+capabilities beneath it:
 
 - **Blank State** — default simple human entry and resumption surface
 - **GuideBrief** — embedded cross-surface interpretation and guidance layer
@@ -83,12 +83,16 @@ current routes and contents:
 Default top-level navigation is limited to **Blank State** and **AI Workplane**.
 Project selection, Portability, and Recovery are secondary Project tools;
 Inspector is contextual beneath AI Workplane and is not a Project tool.
-GuideBrief is not a peer destination. C1 changes shell classification only:
-Project Home and onboarding content await C2, GuideBrief active-path work awaits
-C3, Workbench reprojection awaits C4, and C5–C9 remain pending. Current code
-remains authoritative for implemented behavior until those correction PRs
-change it. C1 is complete only after its implementation PR is reviewed and
-merged; C2 remains blocked until then.
+GuideBrief is not a peer destination. C1 established the two-zone shell. C2 in
+this change renders `/` as the canonical Blank State; `/projects` and
+`/projects/[projectId]` are compatible views of the same surface, while
+`/overview` redirects to `/`. The `ProjectHomeProjectionV01` name may remain as
+an internal source-model term, but Project Home and standalone onboarding are
+not parallel user-facing products. C2 becomes complete only when this PR is
+reviewed and merged. GuideBrief active-path work remains pending C3, Workbench
+reprojection remains pending C4, and C5–C9 remain pending. Current code remains
+authoritative for implemented behavior until each later correction PR changes
+it.
 
 ### Hard UX invariants
 
@@ -153,9 +157,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C1 top-level IA reduction is the active
-authorized correction after merged C0. Do not start C2–C9 or broad visual polish
-before C1 user review and merge.
+An unsatisfactory answer blocks the PR. C2 Blank State restoration is the
+active authorized correction after merged C0 and C1. Do not start C3–C9 or
+broad visual polish before C2 user review and merge.
 
 ## Development defaults
 

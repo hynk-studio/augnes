@@ -1,17 +1,9 @@
-import { redirect } from "next/navigation";
-
-import { openDatabase } from "@/lib/db";
-import { readProjectHomeEntryDestinationV01 } from "@/lib/vnext/project-home/project-home-projection";
+import { BlankStateSurface } from "@/components/blank-state/blank-state-surface";
+import { loadBlankStateSourceV01 } from "@/lib/vnext/blank-state/blank-state-source";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const db = openDatabase();
-  let destination: string;
-  try {
-    destination = readProjectHomeEntryDestinationV01(db);
-  } finally {
-    db.close();
-  }
-  redirect(destination);
+  const source = await loadBlankStateSourceV01({ route_mode: "canonical" });
+  return <BlankStateSurface source={source} />;
 }

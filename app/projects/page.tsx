@@ -1,14 +1,9 @@
-import { ProjectOnboardingHome } from "@/components/project-onboarding-home";
-import { openDatabase } from "@/lib/db";
-import { listRecentProjectsV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
+import { BlankStateSurface } from "@/components/blank-state/blank-state-surface";
+import { loadBlankStateSourceV01 } from "@/lib/vnext/blank-state/blank-state-source";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  const db = openDatabase();
-  try {
-    return <ProjectOnboardingHome initialRecent={await listRecentProjectsV01(db)} />;
-  } finally {
-    db.close();
-  }
+  const source = await loadBlankStateSourceV01({ route_mode: "project_management" });
+  return <BlankStateSurface source={source} />;
 }

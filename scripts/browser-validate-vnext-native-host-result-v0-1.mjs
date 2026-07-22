@@ -11,6 +11,7 @@ import {
   readFileSync,
   realpathSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -134,6 +135,8 @@ const browserTerminalReleasePath = path.join(
 );
 const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
+const onboardingFolderBRecovered = path.join(tempRoot, "Browser Second Project recovered");
+const onboardingFolderBMissingResidue = path.join(tempRoot, "Browser Second Project moved away");
 const folderPickerSequencePath = path.join(
   tempRoot,
   "canonical-folder-picker-sequence.json",
@@ -160,6 +163,7 @@ const chromeCandidates = [
 ].filter(Boolean);
 
 let appPort = null;
+let bridgePort = null;
 let debugPort = null;
 let appOrigin = null;
 let serverProcess = null;
@@ -528,7 +532,10 @@ async function main() {
   record("actual_compile_result_uses_canonical_packet_identity");
 
   appPort = await chooseAvailablePort();
-  debugPort = await chooseAvailablePort();
+  do bridgePort = await chooseAvailablePort(); while (bridgePort === appPort);
+  do debugPort = await chooseAvailablePort(); while (
+    debugPort === appPort || debugPort === bridgePort
+  );
   appOrigin = `http://127.0.0.1:${appPort}`;
   const runtimeEnvironment = isolatedRuntimeEnvironment({
     databasePath,
@@ -550,6 +557,7 @@ async function main() {
   );
   mkdirSync(onboardingFolder, { recursive: true });
   mkdirSync(onboardingFolderB, { recursive: true });
+  mkdirSync(onboardingFolderBRecovered, { recursive: true });
   writeFileSync(
     folderPickerSequencePath,
     `${JSON.stringify({
@@ -601,58 +609,64 @@ async function main() {
   if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
     await navigate(`${appOrigin}/`);
-    await waitForCondition(`location.pathname === '/projects'`, "no-active-project root resolution");
+    await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="no_projects"]') !== null`, "no-project Blank State");
     await waitForCondition(
-      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder')`,
-      "Choose folder action",
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelectorAll('[data-blank-state-primary-action]').length === 1`,
+      "single project-selection action",
     );
+    await validateBlankStateViewports(false);
     assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    const cancelledPickerResponseStart = responses.length;
+    assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
+    await waitForHostCondition(
+      () => responses.slice(cancelledPickerResponseStart).some(
+        (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch" && entry.method === "POST",
+      ),
+      "cancelled picker response",
+    );
+    const cancelledPickerResponse = responses.slice(cancelledPickerResponseStart).find(
+      (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch" && entry.method === "POST",
+    );
+    assert.equal(cancelledPickerResponse?.status, 200);
+    const cancelledPickerBody = await cdp.send("Network.getResponseBody", {
+      requestId: cancelledPickerResponse.request_id,
+    });
+    assert.equal(JSON.parse(cancelledPickerBody.body).picker.status, "cancelled");
     await waitForCondition(`document.body.textContent.includes('Folder selection was cancelled. Nothing changed.')`, "cancelled picker status");
-    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Choose folder' && !button.disabled)`), true);
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-blank-state-primary-action="choose_folder"]:not(:disabled)') !== null`), true);
     result.folder_picker_cancelled_usable = true;
 
-    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated project onboarding surface after cancellation");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated project onboarding surface after cancellation");
+    assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
     const destination = await evaluateString("location.pathname");
     result.folder_onboarding_destination = destination;
-    await waitForCondition(`document.querySelector('[data-project-home="v0.1"]') !== null`, "Minimum Project Home destination");
-    const emptyProjectHome = await evaluateJson(`(() => ({
-      name: document.body.textContent.includes('Browser Onboarding Project'),
-      root: document.body.textContent.includes(${JSON.stringify(onboardingFolder)}),
-      accepted_empty: document.body.textContent.includes('No approved project state has been committed for this project.'),
-      perspective_empty: document.body.textContent.includes('No canonical project-scoped Perspective or selected working projection exists yet.'),
-      attention_empty: document.body.textContent.includes('No project-scoped decisions currently need attention.'),
-      activity_empty: document.body.textContent.includes('No meaningful project activity has been recorded yet.'),
-      automation_not_configured: document.body.textContent.includes('Project automation is not configured.'),
-      personal_perspective_not_configured: document.body.textContent.includes('No project-specific choice has been made. Personal Perspective is excluded by default.'),
-      coordination: document.querySelector('[data-project-home-coordination="v0.1"]') !== null,
-      workbench_entry: document.querySelector('[data-primary-workbench-entry="project_review"]')?.getAttribute('href') === '/workbench/semantic-review',
-      personal_task_basis_absent: document.querySelector('[data-personal-perspective-task-basis="absent"]') !== null,
-      capability_count: document.querySelectorAll('.project-home-capabilities > li').length,
-      next_move_count: document.querySelectorAll('.project-home-next-moves > li').length,
-      active: document.querySelector('[data-project-home-active="true"]') !== null,
-      operator_proposal_leaked: document.body.textContent.includes(${JSON.stringify(manifest.proposal_id)}),
-      operator_packet_leaked: document.body.textContent.includes(${JSON.stringify(manifest.packet_id)})
-    }))()`);
+    await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-focus="ready_to_continue"]') !== null`, "active Blank State destination");
+    const emptyProjectHome = await evaluateJson(`(() => {
+      const surface = document.querySelector('[data-blank-state="v0.1"]');
+      const visibleText = surface?.innerText ?? '';
+      return {
+        name: visibleText.includes('Browser Onboarding Project'),
+        heading: surface?.querySelector('h1')?.textContent?.trim(),
+        primary_action_count: surface?.querySelectorAll('[data-blank-state-primary-action]').length,
+        project_home_absent: !visibleText.includes('Project Home'),
+        metric_grid_absent: surface?.querySelector('.project-home-coordinate-grid') === null,
+        internal_vocabulary_absent: !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|Decision debt|Accepted state|Working projection|Exact coordination|Inspector lineage|packet fingerprint)/i.test(visibleText),
+        active: surface?.getAttribute('data-blank-state-active') === 'true',
+        operator_proposal_leaked: visibleText.includes(${JSON.stringify(manifest.proposal_id)}),
+        operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)})
+      };
+    })()`);
     assert.deepEqual(emptyProjectHome, {
       name: true,
-      root: true,
-      accepted_empty: true,
-      perspective_empty: true,
-      attention_empty: true,
-      activity_empty: true,
-      automation_not_configured: true,
-      personal_perspective_not_configured: true,
-      coordination: true,
-      workbench_entry: true,
-      personal_task_basis_absent: true,
-      capability_count: 5,
-      next_move_count: 3,
+      heading: "What would you like to do next?",
+      primary_action_count: 1,
+      project_home_absent: true,
+      metric_grid_absent: true,
+      internal_vocabulary_absent: true,
       active: true,
       operator_proposal_leaked: false,
       operator_packet_leaked: false,
@@ -663,6 +677,7 @@ async function main() {
     result.project_automation_default_not_configured = true;
     result.personal_perspective_default_excluded = true;
 
+    await openBlankStateProjectOptions();
     await waitForCondition(
       `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
       "hydrated project controls",
@@ -753,7 +768,7 @@ async function main() {
     result.project_automation_stale_conflict_visible = true;
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"]') !== null && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume')`,
+      `document.querySelector('[data-blank-state="v0.1"]') !== null && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume')`,
       "paused automation after stale-page refresh",
     );
     result.project_automation_paused = true;
@@ -775,7 +790,7 @@ async function main() {
     });
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"]') !== null && document.body.textContent.includes('The latest selected working context has expired.')`,
+      `document.querySelector('[data-blank-state="v0.1"]') !== null && document.body.textContent.includes('The latest selected working context has expired.')`,
       "expired selected working context unavailable state",
     );
     assert.equal(
@@ -790,22 +805,23 @@ async function main() {
     const beforeProjectHomeRefresh = databaseSnapshot(projectHomeDatabase);
     const refreshRequestStart = requests.length;
     await cdp.send("Page.reload", { ignoreCache: true });
-    await waitForCondition(`document.querySelector('[data-project-home="v0.1"]') !== null`, "refreshed Minimum Project Home");
+    await waitForCondition(`document.querySelector('[data-blank-state="v0.1"]') !== null`, "refreshed Minimum Project Home");
     assert.deepEqual(databaseSnapshot(projectHomeDatabase), beforeProjectHomeRefresh);
     assert.equal(requests.slice(refreshRequestStart).some((request) => request.method === "POST"), false);
     projectHomeDatabase.close();
     result.minimum_project_home_refresh_read_only = true;
 
     await navigate(`${appOrigin}/`);
-    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "active project root resolution");
+    await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null`, "active project canonical Blank State");
     await navigate(`${appOrigin}/projects`);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project')`, "recent project after return");
-    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose another folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
-    await waitForCondition(`location.pathname === ${JSON.stringify(destination)}`, "duplicate root stable destination");
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-blank-state="v0.1"]') !== null`, "duplicate root stable destination");
 
+    await openBlankStateProjectOptions();
     await waitForCondition(
       `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
       "hydrated project controls before project switch",
@@ -845,13 +861,14 @@ async function main() {
     result.personal_perspective_included = true;
 
     await navigate(`${appOrigin}/projects`);
-    await waitForCondition(`document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`, "second-project onboarding surface");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose folder'); button?.click(); return Boolean(button); })()`), true);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "second-project onboarding surface");
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose another folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Second Project') && document.body.textContent.includes('Plain folder')`, "second-project inspection");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
-    await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.body.textContent.includes('Browser Second Project')`, "second active Project Home");
+    await waitForCondition(`location.pathname.startsWith('/projects/project%3A') && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelector('[data-project-context-label]')?.parentElement?.textContent?.includes('Browser Second Project')`, "second active Project Home");
     const secondDestination = await evaluateString("location.pathname");
     assert.notEqual(secondDestination, destination);
+    await openBlankStateProjectOptions();
     assert.equal(
       await evaluateBoolean(
         `document.body.textContent.includes('Project automation is not configured.') && document.body.textContent.includes('No project-specific choice has been made. Personal Perspective is excluded by default.')`,
@@ -883,8 +900,8 @@ async function main() {
     assert.equal(activeSecond?.project.display_name, "Browser Second Project");
 
     await navigate(`${appOrigin}${destination}`);
-    await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="false"]') !== null`, "non-active first-project deep link");
-    assert.equal(await evaluateBoolean(`document.body.textContent.includes('This is not the active project')`), true);
+    await waitForCondition(`Array.from(document.querySelectorAll('[data-blank-state="v0.1"][data-blank-state-active="false"]')).some((element) => element.getBoundingClientRect().width > 0)`, "non-active first-project deep link");
+    assert.equal(await evaluateBoolean(`document.body.textContent.includes('Opening this link did not switch your current project.')`), true);
     assert.equal(
       await evaluateBoolean(
         `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && document.body.textContent.includes('Make this project active before changing its controls.')`,
@@ -897,7 +914,7 @@ async function main() {
     })()`);
     assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
     result.minimum_project_home_non_active_deep_link_read_only = true;
-    await validateProjectHomeViewports();
+    await validateBlankStateViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
     // Viewport sampling can overlap the server-component refresh that exposed
     // this control. Require both request quiet and the controls' own hydration
@@ -923,8 +940,9 @@ async function main() {
       (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
     );
     assert.equal(activationResponse?.status, 200);
-    await waitForCondition(`document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.body.textContent.includes('Browser Onboarding Project')`, "explicit first-project activation");
+    await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Browser Onboarding Project')`, "explicit first-project activation");
     result.minimum_project_home_explicit_activation = true;
+    await openBlankStateProjectOptions();
     await waitForCondition(
       `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
       "hydrated first-project controls after activation",
@@ -945,11 +963,119 @@ async function main() {
     assert.equal(secondControlState.personal_perspective?.selection, "excluded");
     result.project_controls_two_project_isolation = true;
 
+    renameSync(onboardingFolderB, onboardingFolderBMissingResidue);
+    renameSync(folderPickerSequencePath, `${folderPickerSequencePath}.onboarding-consumed`);
+    writeFileSync(
+      folderPickerSequencePath,
+      `${JSON.stringify({
+        sequence_version: "augnes_canonical_folder_picker_sequence.v0.1",
+        next_index: 0,
+        entries: [
+          {
+            id: "reconnect-second-project",
+            outcome: "selected",
+            absolute_path: onboardingFolderBRecovered,
+          },
+        ],
+      })}\n`,
+      { encoding: "utf8", flag: "wx", mode: 0o600 },
+    );
+    await navigate(`${appOrigin}${secondDestination}`);
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-blank-state-focus="project_root_unavailable"] [data-blank-state-primary-action="locate_folder"]')).some((element) => element.getBoundingClientRect().width > 0) && document.body.innerText.includes('The project record is safe')`,
+      "missing-root Blank State recovery focus",
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-blank-state-project-management-hydrated="true"]')).some((element) => element.getBoundingClientRect().width > 0)`,
+      "hydrated missing-root recovery controls",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelectorAll('[data-blank-state-primary-action]').length === 1 && document.body.innerText.includes('Browser Second Project')`,
+      ),
+      true,
+    );
+    const rebindPickerResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('[data-blank-state-primary-action="locate_folder"]')).find((candidate) => candidate.getBoundingClientRect().width > 0);
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () => responses.slice(rebindPickerResponseStart).some(
+        (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+      ),
+      "missing-root folder picker response",
+    );
+    const rebindPickerResponse = responses.slice(rebindPickerResponseStart).find(
+      (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+    );
+    assert.equal(rebindPickerResponse?.status, 200);
+    await waitForCondition(
+      `document.querySelector('[role="dialog"]') !== null || document.body.innerText.includes('replacement folder') || document.body.innerText.includes('Folder selection was cancelled')`,
+      "missing-root rebind confirmation",
+    );
+    assert.equal(
+      await evaluateBoolean(`document.querySelector('[role="dialog"]') !== null`),
+      true,
+      await evaluateString(`document.body.innerText`),
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[role="dialog"]')?.textContent.includes(${JSON.stringify(onboardingFolderBRecovered)}) === true`,
+      ),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(`document.querySelector('[role="dialog"]')?.contains(document.activeElement) === true`),
+      true,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('[role="dialog"] button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder');
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(secondDestination)} && document.querySelector('[data-blank-state-active="true"]') !== null`,
+      "reconnected second-project Blank State",
+    );
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-blank-state-active="false"] [data-blank-state-primary-action="make_active"]')).some((element) => element.getBoundingClientRect().width > 0)`,
+      "first project activation after rebind",
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-blank-state-project-management-hydrated="true"]')).some((element) => element.getBoundingClientRect().width > 0)`,
+      "hydrated first-project activation after rebind",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('[data-blank-state-primary-action="make_active"]')).find((candidate) => candidate.getBoundingClientRect().width > 0);
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-blank-state-active="true"]')).some((element) => element.getBoundingClientRect().width > 0) && Array.from(document.querySelectorAll('[data-project-controls-hydrated="true"]')).filter((element) => element.getBoundingClientRect().width > 0).length === 2 && document.body.textContent.includes('Browser Onboarding Project')`,
+      "first project restored after rebind",
+    );
+    await openBlankStateProjectOptions();
+
     const persistencePauseResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Pause');
-        button?.click();
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Pause' && candidate.getBoundingClientRect().width > 0);
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
         return Boolean(button);
       })()`),
       true,
@@ -977,7 +1103,7 @@ async function main() {
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/`);
     await waitForCondition(
-      `location.pathname === ${JSON.stringify(destination)} && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
+      `location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
       "project and control persistence after retained restart",
     );
     result.project_automation_restart_persisted = true;
@@ -985,8 +1111,9 @@ async function main() {
     result.project_controls_restart_persisted = true;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Resume');
-        button?.click();
+        const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Resume' && candidate.getBoundingClientRect().width > 0);
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
         return Boolean(button);
       })()`),
       true,
@@ -1020,8 +1147,10 @@ async function main() {
     assert.equal(staleOpenResponse.body.error_code, "active_selection_conflict");
     result.folder_onboarding_stale_active_conflict = true;
     await navigate(`${appOrigin}${destination}`);
-    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-project-home="v0.1"]') !== null`, "same destination after retained restart");
+    await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-blank-state="v0.1"]') !== null`, "same destination after retained restart");
     result.folder_onboarding_restart_reopen = true;
+    await navigate(`${appOrigin}/overview`);
+    await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"]') !== null`, "overview compatibility redirect to Blank State");
     const controlAuthorityAfter = readControlAuthorityCounts();
     result.control_mutation_grants_created =
       controlAuthorityAfter.grants - controlAuthorityBaseline.grants;
@@ -1048,7 +1177,7 @@ async function main() {
       "/projects/project%3Aunknown-project-home",
     );
     await waitForCondition(
-      `document.body.textContent.includes('This page could not be found') && document.querySelector('[data-project-home="v0.1"]') === null`,
+      `document.body.textContent.includes('This page could not be found') && document.querySelector('[data-blank-state="v0.1"]') === null`,
       "unknown Project Home safe not-found state",
     );
     result.minimum_project_home_unknown_project_safe_not_found = true;
@@ -1059,7 +1188,7 @@ async function main() {
     assert.equal(activeAfterUnknown.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Onboarding Project");
     await navigate(`${appOrigin}/projects`);
     await waitForCondition(
-      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`,
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
       "hydrated Project tools verification surface",
     );
     await validateProductShell({
@@ -1134,12 +1263,12 @@ async function main() {
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
     );
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"]') !== null`,
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
       "strategic source Project Home",
     );
     if (
       await evaluateBoolean(
-        `document.querySelector('[data-project-home-active="false"]') !== null`,
+        `document.querySelector('[data-blank-state-active="false"]') !== null`,
       )
     ) {
       await waitForCondition(
@@ -1181,7 +1310,7 @@ async function main() {
       assert.equal(activationResponse?.status, 200);
     }
     await waitForCondition(
-      `document.querySelector('[data-project-home-active="true"]') !== null`,
+      `document.querySelector('[data-blank-state-active="true"]') !== null`,
       "active strategic source Project Home",
     );
     const beforeStrategicRead = databaseSnapshot(database);
@@ -1712,12 +1841,12 @@ async function main() {
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
     );
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"]') !== null`,
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
       "operator Project Home",
     );
     if (
       await evaluateBoolean(
-        `document.querySelector('[data-project-home-active="false"]') !== null`,
+        `document.querySelector('[data-blank-state-active="false"]') !== null`,
       )
     ) {
       await delay(750);
@@ -1744,9 +1873,10 @@ async function main() {
       );
     }
     await waitForCondition(
-      `document.querySelector('[data-project-home-active="true"]') !== null`,
+      `document.querySelector('[data-blank-state-active="true"]') !== null`,
       "active operator Project Home",
     );
+    await openBlankStateProjectOptions();
     await waitForCondition(
       `document.querySelector('[data-direct-host-round-trip="v0.2"][data-direct-host-round-trip-hydrated="true"]') !== null`,
       "operator Project Home direct-host action",
@@ -1821,7 +1951,7 @@ async function main() {
       );
     }
     await waitForCondition(
-      `document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null && document.body.textContent.includes('RunReceipt persisted')`,
+      `document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null && document.body.textContent.includes('Result saved')`,
       "completed direct-host round trip",
     );
     const hostRequest = requests
@@ -2182,6 +2312,7 @@ async function main() {
     result.live_codex_receipt_persisted = true;
     record("active_project_live_codex_refreshes_two_approval_boundaries_and_persists_one_receipt");
     record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
+    await closeBlankStateProjectOptions();
 
     const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
     await waitForCondition(
@@ -2197,11 +2328,14 @@ async function main() {
     const latestResultShape = await evaluateJson(`(() => {
       const result = document.querySelector('[data-latest-run-result="completed"]');
       const link = result?.querySelector('[data-review-result-link="true"]');
+      const visibleText = document.querySelector('[data-blank-state="v0.1"]')?.innerText ?? '';
       return {
         present: Boolean(result),
         href: link?.getAttribute('href') ?? '',
         has_summary: result?.textContent?.includes('The deterministic fake App Server completed the bounded live lifecycle.') ?? false,
         form_field_count: result?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
+        primary_action_count: document.querySelectorAll('[data-blank-state-primary-action]').length,
+        protocol_vocabulary_absent: !/(Project Home|TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|Decision debt|Accepted state|Working projection|Exact coordination|Inspector lineage|packet fingerprint)/i.test(visibleText),
       };
     })()`);
     assert.deepEqual(latestResultShape, {
@@ -2209,6 +2343,8 @@ async function main() {
       href: expectedReviewHref,
       has_summary: true,
       form_field_count: 0,
+      primary_action_count: 1,
+      protocol_vocabulary_absent: true,
     });
     result.project_home_latest_result_visible = true;
     record("project_home_distinguishes_latest_terminal_result_with_server_generated_review_link");
@@ -2993,40 +3129,56 @@ async function main() {
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
     );
     await waitForCondition(
-      `document.querySelector('[data-project-home-active="true"]') !== null`,
+      `document.querySelector('[data-blank-state-active="true"]') !== null`,
       "operator Project Home for bounded later-packet cycle",
     );
+    await openBlankStateProjectOptions();
     await waitForCondition(
-      `document.querySelector('[data-project-control-kind="automation"][data-project-controls-hydrated="true"]') !== null`,
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"][data-project-controls-hydrated="true"]')).some((element) => element.getBoundingClientRect().width > 0)`,
       "hydrated bounded automation controls",
     );
     assert.equal(
       await evaluateBoolean(`(() => {
-        const controls = document.querySelector('[data-project-control-kind="automation"]');
+        const controls = Array.from(document.querySelectorAll('[data-project-control-kind="automation"]')).find((element) => element.getBoundingClientRect().width > 0);
         const button = controls
           ? Array.from(controls.querySelectorAll('button')).find(
               (candidate) => candidate.textContent?.trim() === 'Enable'
             )
           : null;
-        button?.click();
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
         return Boolean(button);
       })()`),
       true,
     );
     await waitForCondition(
-      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Queue bounded project verification') && document.body.textContent.includes('bounded read-only local verification host') && document.body.textContent.includes('model and network denied')`,
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Queue bounded project verification')`,
+      "automation work-source projection refresh",
+    );
+    await waitForCondition(
+      `(() => {
+        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.textContent?.includes('Queue bounded project verification'));
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        return details.open;
+      })()`,
+      "hydrated automation work-source project options",
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Queue bounded project verification' && button.getBoundingClientRect().width > 0)`,
       "explicit automation work-source action",
     );
     const queueResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const controls = document.querySelector('[data-project-control-kind="automation"]');
+        const controls = Array.from(document.querySelectorAll('[data-project-control-kind="automation"]')).find((element) => element.getBoundingClientRect().width > 0);
         const button = controls
           ? Array.from(controls.querySelectorAll('button')).find(
               (candidate) => candidate.textContent?.trim() === 'Queue bounded project verification'
             )
           : null;
-        button?.click();
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
         return Boolean(button);
       })()`),
       true,
@@ -3044,10 +3196,23 @@ async function main() {
     );
     await waitForCondition(
       `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Run one bounded cycle')`,
+      "bounded automation eligibility refresh",
+    );
+    await waitForCondition(
+      `(() => {
+        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.textContent?.includes('Run one bounded cycle'));
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        return details.open;
+      })()`,
+      "hydrated bounded-cycle project options",
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-project-control-kind="automation"] button')).some((button) => button.textContent?.trim() === 'Run one bounded cycle' && button.getBoundingClientRect().width > 0)`,
       "eligible bounded automation cycle",
     );
     const boundedCycleControlShape = await evaluateJson(`(() => {
-      const controls = document.querySelector('[data-project-control-kind="automation"]');
+      const controls = Array.from(document.querySelectorAll('[data-project-control-kind="automation"]')).find((element) => element.getBoundingClientRect().width > 0) ?? null;
       return {
         field_count: controls?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
         bounded_action_count: Array.from(controls?.querySelectorAll('button') ?? []).filter(
@@ -3063,13 +3228,14 @@ async function main() {
     const boundedCycleResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const controls = document.querySelector('[data-project-control-kind="automation"]');
+        const controls = Array.from(document.querySelectorAll('[data-project-control-kind="automation"]')).find((element) => element.getBoundingClientRect().width > 0);
         const button = controls
           ? Array.from(controls.querySelectorAll('button')).find(
               (candidate) => candidate.textContent?.trim() === 'Run one bounded cycle'
             )
           : null;
-        button?.click();
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
         return Boolean(button);
       })()`),
       true,
@@ -3120,9 +3286,29 @@ async function main() {
         run: boundedCycleRead?.body?.automation_cycle?.run,
       })}`,
     );
+    const boundedReviewReloadStart = responses.length;
     await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForHostCondition(
+      () => responses.slice(boundedReviewReloadStart).some(
+        (entry) => entry.type === "Document" && entry.status === 200,
+      ),
+      "bounded automation review document reload",
+    );
     await waitForCondition(
-      `document.body.textContent.includes('Cycle review needed') && document.body.textContent.includes('Stop review needed') && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Open review-needed proposal') && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Provide context-use feedback')`,
+      `document.querySelector('[data-blank-state-automation-run="review_needed"]') !== null && document.querySelector('[data-blank-state-automation-stop="review_needed"]') !== null`,
+      "bounded automation review projection reload",
+    );
+    await waitForCondition(
+      `(() => {
+        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.querySelector('[data-blank-state-automation-run="review_needed"]'));
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        return details.open;
+      })()`,
+      "hydrated automation review project options",
+    );
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('[data-blank-state-automation-run="review_needed"]')).some((element) => element.getBoundingClientRect().width > 0) && Array.from(document.querySelectorAll('[data-blank-state-automation-stop="review_needed"]')).some((element) => element.getBoundingClientRect().width > 0) && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Review suggested change' && link.getBoundingClientRect().width > 0) && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Share outcome' && link.getBoundingClientRect().width > 0)`,
       "bounded automation review-needed stop",
     );
     const afterBoundedCycle = readDirectHostBrowserState(manifest.project_id);
@@ -3150,9 +3336,16 @@ async function main() {
     record("bounded_policy_cycle_stops_at_one_pending_review_proposal");
 
     const beforeBoundedReload = databaseSnapshot(database);
+    const boundedDurabilityReloadStart = responses.length;
     await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForHostCondition(
+      () => responses.slice(boundedDurabilityReloadStart).some(
+        (entry) => entry.type === "Document" && entry.status === 200,
+      ),
+      "bounded automation durability document reload",
+    );
     await waitForCondition(
-      `document.body.textContent.includes('Cycle review needed')`,
+      `document.querySelector('[data-blank-state-automation-run="review_needed"]') !== null && Array.from(document.querySelectorAll('[data-project-automation-inspector="true"]')).some((link) => link.closest('[data-blank-state-project-management-hydrated="true"]') && link.getAttribute('href')?.startsWith('/workbench/inspector?target=automation_run&'))`,
       "bounded automation durable review-needed reload",
     );
     assert.deepEqual(databaseSnapshot(database), beforeBoundedReload);
@@ -3160,7 +3353,7 @@ async function main() {
 
     const beforeAutomationInspector = databaseSnapshot(database);
     const automationInspectorHref = await evaluateString(
-      `document.querySelector('[data-project-automation-inspector="true"]')?.getAttribute('href') ?? ''`,
+      `Array.from(document.querySelectorAll('[data-project-automation-inspector="true"]')).find((link) => link.closest('[data-blank-state-project-management-hydrated="true"]') && link.getAttribute('href')?.startsWith('/workbench/inspector?target=automation_run&'))?.getAttribute('href') ?? ''`,
     );
     assert.match(automationInspectorHref, /^\/workbench\/inspector\?target=automation_run&/u);
     await navigate(new URL(automationInspectorHref, appOrigin).toString());
@@ -3198,13 +3391,13 @@ async function main() {
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
     );
     await waitForCondition(
-      `document.body.textContent.includes('Cycle review needed') && document.querySelector('[data-project-automation-inspector="true"]') !== null`,
+      `document.querySelector('[data-blank-state-automation-run="review_needed"]') !== null && document.querySelector('[data-project-automation-inspector="true"]') !== null`,
       "returned to bounded automation Project Home",
     );
 
     const contextUseFeedbackHref = await evaluateString(`(() => {
         const link = Array.from(document.querySelectorAll('a')).find(
-          (candidate) => candidate.textContent?.trim() === 'Provide context-use feedback'
+          (candidate) => candidate.textContent?.trim() === 'Share outcome'
         );
         return link?.getAttribute('href') ?? '';
       })()`);
@@ -3214,7 +3407,7 @@ async function main() {
     );
     const boundedReviewProposalHref = await evaluateString(`(() => {
         const link = Array.from(document.querySelectorAll('a')).find(
-          (candidate) => candidate.textContent?.trim() === 'Open review-needed proposal'
+          (candidate) => candidate.textContent?.trim() === 'Review suggested change'
         );
         return link?.getAttribute('href') ?? '';
       })()`);
@@ -3747,9 +3940,10 @@ async function main() {
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
     );
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
       "active Personal Perspective source Project Home",
     );
+    await openBlankStateProjectOptions();
     if (
       await evaluateBoolean(
         `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Include Personal Perspective' && button instanceof HTMLButtonElement && !button.disabled)`,
@@ -4328,14 +4522,38 @@ async function main() {
     await validateProductShellResponsive("/workbench/inspector");
     await navigate(`${appOrigin}${result.folder_onboarding_destination}`);
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"]') !== null`,
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
       "Project Home shell viewport surface",
     );
     await validateProductShellResponsive("/projects/[projectId]");
+    const projectManagementDocumentStart = responses.length;
     await navigate(`${appOrigin}/projects`);
+    await waitForHostCondition(
+      () => responses.slice(projectManagementDocumentStart).some(
+        (entry) => entry.path === "/projects" && entry.type === "Document",
+      ),
+      "project management document response",
+    );
+    const projectManagementDocument = responses.slice(projectManagementDocumentStart).find(
+      (entry) => entry.path === "/projects" && entry.type === "Document",
+    );
+    assert.equal(
+      projectManagementDocument?.status,
+      200,
+      "project management document did not render successfully",
+    );
     await waitForCondition(
-      `document.querySelector('[data-project-onboarding-hydrated="true"]') !== null`,
+      `location.pathname === '/projects'`,
+      "project management route navigation",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null || document.body.innerText.includes('Application error')`,
       "project management shell viewport surface",
+    );
+    assert.equal(
+      await evaluateBoolean(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`),
+      true,
+      await evaluateString(`document.body.innerText`),
     );
     await validateProductShellResponsive("/projects");
     await validateProjectToolsKeyboardNavigation();
@@ -4454,7 +4672,7 @@ async function main() {
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
     );
     await waitForCondition(
-      `document.querySelector('[data-project-home="v0.1"][data-project-home-active="true"]') !== null`,
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null`,
       "imported Project Home reader",
     );
     result.imported_project_home_reader_verified = true;
@@ -4937,6 +5155,8 @@ function startDevServer(environment) {
       "127.0.0.1",
       "--port",
       String(appPort),
+      "--bridge-port",
+      String(bridgePort),
     ],
     {
       cwd: appRepo,
@@ -5274,20 +5494,56 @@ async function dispatchKeyboardKey(key, code, keyCode, modifiers = 0) {
   });
 }
 
-async function validateProjectHomeViewports() {
-  for (const width of [390, 768, 1440]) {
+async function openBlankStateProjectOptions() {
+  await waitForCondition(
+    `(() => {
+      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.getBoundingClientRect().width > 0 && candidate.closest('[data-blank-state-project-management-hydrated="true"]'));
+      if (!(details instanceof HTMLDetailsElement)) return false;
+      details.open = true;
+      return details.open;
+    })()`,
+    "visible Blank State project options",
+  );
+}
+
+async function closeBlankStateProjectOptions() {
+  await waitForCondition(
+    `(() => {
+      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.getBoundingClientRect().width > 0 && candidate.closest('[data-blank-state-project-management-hydrated="true"]'));
+      if (!(details instanceof HTMLDetailsElement)) return false;
+      details.open = false;
+      return !details.open;
+    })()`,
+    "visible Blank State project options before closing",
+  );
+}
+
+async function validateBlankStateViewports(projectContextRequired = true) {
+  for (const width of [390, 430, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
       height: 1000,
       deviceScaleFactor: 1,
       mobile: false,
     });
+    await evaluateBoolean(`(() => { window.scrollTo(0, 0); return window.scrollY === 0; })()`);
     await delay(100);
     const metrics = await evaluateJson(`(() => {
-      const home = document.querySelector('[data-project-home="v0.1"]');
+      const visibleElement = (selector) => Array.from(document.querySelectorAll(selector)).find((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      }) ?? null;
+      const home = visibleElement('[data-blank-state="v0.1"]');
       const rect = home?.getBoundingClientRect();
+      const heading = home?.querySelector('h1');
+      const primaryAction = home?.querySelector('[data-blank-state-primary-action]');
+      const projectContext = visibleElement('[data-project-context-label]');
+      const visible = (element) => {
+        const bounds = element?.getBoundingClientRect();
+        return Boolean(bounds && bounds.width > 0 && bounds.height > 0 && bounds.top < window.innerHeight);
+      };
       return {
-        surface: 'minimum_project_home',
+        surface: 'blank_state',
         width: window.innerWidth,
         document_scroll_width: document.documentElement.scrollWidth,
         document_client_width: document.documentElement.clientWidth,
@@ -5298,15 +5554,29 @@ async function validateProjectHomeViewports() {
         home_horizontal_overflow:
           (home?.scrollWidth ?? 0) > (home?.clientWidth ?? 0) + 1,
         home_inside_viewport:
-          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
+        heading_visible: visible(heading),
+        primary_action_visible: visible(primaryAction),
+        primary_action_count: home?.querySelectorAll('[data-blank-state-primary-action]').length ?? 0,
+        project_context_visible: visible(projectContext)
       };
     })()`);
     assert.equal(metrics.width, width);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.home_horizontal_overflow, false);
     assert.equal(metrics.home_inside_viewport, true);
+    assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_count, 1);
+    assert.equal(metrics.project_context_visible, projectContextRequired);
     result.viewport_results.push(metrics);
   }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 }
 
 async function validateWorkbenchResultViewports() {

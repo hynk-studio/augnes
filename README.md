@@ -94,29 +94,35 @@ not claim to be the finished end-user product.
 ## Post-Build Week product direction
 
 The post-Build Week direction preserves the operational Core and reprojects it
-through a simpler product topology. **Blank State** is the future human entry
-and resumption surface. **AI Workplane** is the complex AI/operator layer for
+through a simpler product topology. **Blank State** is the human entry and
+resumption surface. **AI Workplane** is the complex AI/operator layer for
 delegation, verification, reconciliation, automation, semantic processing, and
 result preparation. **GuideBrief** is the restored non-authoritative guidance
 layer shared across Browser, ChatGPT, Codex, Blank State, and AI Workplane.
 **Inspector** remains contextual, optional, exact read-only detail rather than
 a normal peer destination.
 
-The existing engine is being preserved and reprojected, not discarded. Project
-Home, Semantic Workbench, Shared Inspector, Portability, and Recovery remain
-implemented reference operator surfaces until later correction work changes
-their runtime behavior. The target topology is documented in the
+The existing engine is being preserved and reprojected, not discarded. C2 in
+this change renders `/` as the canonical Blank State and absorbs project choice,
+resumption, and the former user-facing Project Home composition into one shared
+surface. `/projects` and `/projects/[projectId]` remain compatible management and
+viewed-project routes into that surface. The internal Project Home projection
+continues to supply read-only source data; it is not a separate product surface.
+Semantic Workbench, Shared Inspector, Portability, and Recovery remain current
+reference operator surfaces until their assigned correction work changes them.
+The target topology is documented in the
 [post-Build Week product UX correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md);
-C0 established the product authority, and the C1 implementation reduces the
-shared shell to **Blank State** and **AI Workplane** as its only primary
-destinations. Existing project selection, transfer, and recovery routes remain
-available through secondary **Project tools**. This is a shell classification
-change, not the final Blank State, GuideBrief, AI Workplane, Inspector, or
-utility-content redesign; C2–C9 remain pending.
+C0 established the product authority and C1 reduced the shared shell to
+**Blank State** and **AI Workplane** as its only primary destinations. Existing
+project selection, transfer, and recovery routes remain available through
+secondary **Project tools**. C2 becomes complete only when this PR is reviewed
+and merged. GuideBrief active-path restoration remains pending C3; C4–C9 also
+remain pending.
 
 The repository now supports:
 
-- local project onboarding and Project Home;
+- a shared Blank State for local project choice, resumption, recovery, and
+  viewed-project deep links;
 - project-scoped deterministic and live Codex/native-host round trips;
 - structured, immutable `RunReceipt` records;
 - source-linked criterion verification that preserves unresolved status;

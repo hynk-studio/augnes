@@ -1312,11 +1312,12 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     assert.equal(managed.child.exitCode, null);
 
     await onboardDisposableProject(ready.effective_url, scenario);
-    const projectHome = await fetchText(`${ready.effective_url}/`);
-    assert.equal(projectHome.status, 200);
-    assert.match(projectHome.body, /Project Home|Choose a project/);
-    assert.match(projectHome.body, /No local OpenAI credential is configured/);
-    assert.match(projectHome.body, /No trusted local Codex or native-host readiness status is available/);
+    const blankState = await fetchText(`${ready.effective_url}/`);
+    assert.equal(blankState.status, 200);
+    assert.match(blankState.body, /Blank State/);
+    assert.match(blankState.body, /data-primary-product-zone="blank-state"/);
+    assert.match(blankState.body, /No local OpenAI credential is configured/);
+    assert.match(blankState.body, /No trusted local Codex or native-host readiness status is available/);
     const workbench = await fetchText(`${ready.effective_url}/workbench/semantic-review`);
     assert.equal(workbench.status, 200);
     assert.match(workbench.body, /Semantic Workbench|Semantic Review Workbench/);
@@ -1350,7 +1351,8 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assertDistributionMetadata(current, manifest);
   const homeAfterRestart = await fetchText(`${current.effective_url}/`);
   assert.equal(homeAfterRestart.status, 200);
-  assert.match(homeAfterRestart.body, /Project Home/);
+  assert.match(homeAfterRestart.body, /Blank State/);
+  assert.match(homeAfterRestart.body, /data-primary-product-zone="blank-state"/);
   const currentLocalPaths = packagedLocalPaths(
     root,
     manifest,
@@ -2132,11 +2134,13 @@ async function testV1ContractMigrationHandoff(root, manifest) {
   const projectSelection = await onboardDisposableProject(
     legacyReady.effective_url,
     scenario,
+    "legacy-project-home",
   );
   await assertProductReaders(
     legacyReady.effective_url,
     scenario,
     projectSelection,
+    "legacy-project-home",
   );
   const marker = "agent:v1-contract-migration-handoff";
   writeAgentMarker(scenario.databasePath, marker);
@@ -3808,7 +3812,11 @@ function assertDistributionMetadata(value, manifest) {
   assert.equal(value.database_schema_compatibility, manifest.database.schema_compatibility);
 }
 
-async function onboardDisposableProject(origin, scenario) {
+async function onboardDisposableProject(
+  origin,
+  scenario,
+  expectedSurface = "blank-state",
+) {
   const headers = {
     "content-type": "application/json",
     origin,
@@ -3843,7 +3851,7 @@ async function onboardDisposableProject(origin, scenario) {
   assert.match(confirmed.result.destination, /^\/projects\//);
   const destination = await fetchText(`${origin}${confirmed.result.destination}`);
   assert.equal(destination.status, 200);
-  assert.match(destination.body, /Project Home/);
+  assertPackagedProjectSurface(destination.body, expectedSurface);
   assert.equal(existsSync(scenario.projectExecutionSentinel), false);
   return {
     destination: confirmed.result.destination,
@@ -3851,16 +3859,21 @@ async function onboardDisposableProject(origin, scenario) {
   };
 }
 
-async function assertProductReaders(origin, scenario, projectSelection = null) {
+async function assertProductReaders(
+  origin,
+  scenario,
+  projectSelection = null,
+  expectedSurface = "blank-state",
+) {
   const home = await fetchText(`${origin}/`);
   assert.equal(home.status, 200);
-  assert.match(home.body, /Project Home/);
+  assertPackagedProjectSurface(home.body, expectedSurface);
   if (projectSelection) {
-    const projectHome = await fetchText(
+    const projectView = await fetchText(
       `${origin}${projectSelection.destination}`,
     );
-    assert.equal(projectHome.status, 200);
-    assert.match(projectHome.body, /Project Home/);
+    assert.equal(projectView.status, 200);
+    assertPackagedProjectSurface(projectView.body, expectedSurface);
     const projectRead = await fetchJson(
       `${origin}/api/vnext/projects?project_id=${encodeURIComponent(projectSelection.projectId)}`,
     );
@@ -3885,6 +3898,16 @@ async function assertProductReaders(origin, scenario, projectSelection = null) {
   assert.equal(inspector.status, 200);
   assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);
   assert.equal(existsSync(scenario.projectExecutionSentinel), false);
+}
+
+function assertPackagedProjectSurface(body, expectedSurface) {
+  if (expectedSurface === "legacy-project-home") {
+    assert.match(body, /Project Home/);
+    return;
+  }
+  assert.equal(expectedSurface, "blank-state");
+  assert.match(body, /Blank State/);
+  assert.match(body, /data-primary-product-zone="blank-state"/);
 }
 
 function packagedLocalPaths(root, manifest, environment) {
