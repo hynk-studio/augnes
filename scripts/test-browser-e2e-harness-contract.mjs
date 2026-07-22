@@ -39,6 +39,26 @@ const finalQuiet = source.indexOf('timing.milestone("final global request quiet 
 const globalAudit = source.indexOf("const isExpectedImportedDestinationSessionRefusal");
 assert(finalQuiet >= 0 && finalQuiet < globalAudit);
 assert.equal(source.includes("AUGNES_BROWSER_E2E_RUNTIME_MODE"), false);
+assert.match(
+  source,
+  /const runtimeReadiness = waitForHttp[\s\S]*const chromeReadiness = \(async \(\) =>[\s\S]*await Promise\.all\(\[runtimeReadiness, chromeReadiness\]\)/u,
+);
+assert.equal(
+  [...source.matchAll(/startDevServer\(runtimeEnvironment\)/gu)].length,
+  2,
+);
+assert.match(
+  source,
+  /"paused project automation before retained restart"[\s\S]*await navigate\("about:blank"\)[\s\S]*"project and control persistence after retained restart"[\s\S]*result\.project_automation_restart_persisted = true;[\s\S]*result\.minimum_project_home_restart_root_resolution = true;[\s\S]*result\.project_controls_restart_persisted = true;[\s\S]*"resumed project automation after retained restart"[\s\S]*"same destination after retained restart"[\s\S]*result\.folder_onboarding_restart_reopen = true;/u,
+);
+assert.match(
+  source,
+  /await validateProjectHomeViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
+);
+assert.match(
+  source,
+  /async function waitForHttp[\s\S]*const waitNumber = waitCount;[\s\S]*String\(waitNumber\)/u,
+);
 
 process.stdout.write(
   `${JSON.stringify({
