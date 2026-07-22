@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parseCanonicalYaml } from "./canonical-yaml-parser.mjs";
+
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -45,176 +47,272 @@ const packageJson = JSON.parse(readRepositoryFile("package.json"));
 const processLifecycle = readRepositoryFile(
   "scripts/test-harness-process-lifecycle.mjs",
 );
-
-requireText(
-  workflow,
-  `pull_request:\n  push:\n    branches: [main]`,
-  "Canonical CI must run for pull requests and pushes to main",
+const plannerSource = readRepositoryFile("scripts/canonical-change-planner.mjs");
+const plannerContract = readRepositoryFile(
+  "scripts/test-canonical-change-planner.mjs",
 );
-requireText(
-  workflow,
-  `concurrency:\n  group: canonical-ci-\${{ github.workflow }}-\${{ github.event.pull_request.number || github.ref }}\n  cancel-in-progress: true`,
-  "Canonical CI must cancel superseded runs for the same PR or ref",
+const documentationValidator = readRepositoryFile(
+  "scripts/validate-canonical-docs-change.mjs",
 );
-requireText(
-  workflow,
-  `permissions:\n  contents: read`,
-  "Canonical CI must retain read-only repository permissions",
-);
+const parsedWorkflow = parseCanonicalYaml(workflow);
+const parsedSetupAction = parseCanonicalYaml(setupAction);
+const jobs = parsedWorkflow.jobs;
+const requiredExecutionJobs = ["static", "integration", "operability", "e2e"];
 
-const requiredExecutionJobs = [
-  "static-authority",
-  "integration",
-  "operability",
-  "e2e-core",
-  "e2e-continuity",
-];
-const jobs = new Map(
-  [...requiredExecutionJobs, "canonical-tests"].map((jobName) => [
-    jobName,
-    extractYamlBlock(workflow, jobName, 2),
-  ]),
-);
-
-for (const jobName of requiredExecutionJobs) {
-  const job = jobs.get(jobName);
-  assert.equal(
-    yamlScalar(job, "runs-on"),
-    "ubuntu-latest",
-    `${jobName} must run on a clean GitHub-hosted Linux runner`,
-  );
-  assertFiniteTimeout(job, jobName);
-  requireText(
-    job,
-    `uses: actions/checkout@v4`,
-    `${jobName} must check out its own clean source tree`,
-  );
-  requireText(
-    job,
-    `uses: ./.github/actions/setup-canonical`,
-    `${jobName} must perform the repository-owned clean dependency setup`,
-  );
-}
-
-requireText(
-  jobs.get("operability"),
-  `fetch-depth: 0`,
-  "operability must retain the merged #1118 package source needed by the pinned handoff proof",
-);
-
+assert.equal(parsedWorkflow.name, "Canonical CI");
+assert.equal(Object.hasOwn(parsedWorkflow.on, "pull_request"), true);
+assert.deepEqual(parsedWorkflow.on.push.branches, ["main"]);
 assert.equal(
-  Number(yamlScalar(jobs.get("integration"), "timeout-minutes")),
-  20,
-  "integration must retain its measured finite workflow bound",
+  parsedWorkflow.concurrency.group,
+  "canonical-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
 );
-assert.equal(
-  Number(yamlScalar(jobs.get("operability"), "timeout-minutes")),
-  30,
-  "operability must retain its measured bounded workflow timeout",
-);
-assert.equal(
-  Number(yamlScalar(jobs.get("e2e-core"), "timeout-minutes")),
-  10,
-  "core E2E must retain its bounded workflow timeout",
-);
-assert.equal(
-  Number(yamlScalar(jobs.get("e2e-continuity"), "timeout-minutes")),
-  10,
-  "continuity E2E must retain its bounded workflow timeout",
-);
-
-for (const fragment of [
-  `using: composite`,
-  `uses: actions/setup-node@v4`,
-  `node-version: 22`,
-  `cache: npm`,
-  `package-lock.json`,
-  `apps/augnes_apps/package-lock.json`,
-  `run: npm ci`,
-  `run: npm --prefix apps/augnes_apps ci`,
-]) {
-  requireText(
-    setupAction,
-    fragment,
-    `canonical setup action is missing: ${fragment}`,
-  );
-}
-
-const canonicalCommandOwners = new Map([
-  ["npm run typecheck", "static-authority"],
-  ["npm run build", "static-authority"],
-  ["npm test", "static-authority"],
-  ["npm run test:authority", "static-authority"],
-  ["npm run test:integration", "integration"],
-  ["npm run test:operability", "operability"],
-  ["npm run test:e2e:core", "e2e-core"],
-  ["npm run test:e2e:continuity", "e2e-continuity"],
-]);
-
-for (const [command, intendedJob] of canonicalCommandOwners) {
-  const owners = [...jobs]
-    .filter(([, job]) => hasRunCommand(job, command))
-    .map(([jobName]) => jobName);
-  assert.deepEqual(
-    owners,
-    [intendedJob],
-    `${command} must appear exactly once in ${intendedJob}`,
-  );
-  assert.equal(
-    countRunCommands(workflow, command),
-    1,
-    `${command} must appear exactly once across the complete workflow`,
-  );
-}
-
-const aggregator = jobs.get("canonical-tests");
-assert.equal(
-  yamlScalar(aggregator, "name"),
-  "canonical-tests",
-  "the stable canonical-tests required-check name must be preserved",
-);
-assert.equal(
-  yamlScalar(aggregator, "if"),
-  "always()",
-  "the final canonical-tests gate must run after success, failure, or cancellation",
-);
+assert.equal(parsedWorkflow.concurrency["cancel-in-progress"], true);
+assert.deepEqual(parsedWorkflow.permissions, { contents: "read" });
 assert.deepEqual(
-  yamlInlineList(aggregator, "needs").sort(),
-  [...requiredExecutionJobs].sort(),
-  "the final canonical-tests gate must depend on every required job",
+  Object.keys(jobs).sort(),
+  [
+    "canonical-tests",
+    "change-plan",
+    "documentation",
+    "e2e",
+    "integration",
+    "operability",
+    "static",
+  ],
+  "Canonical CI must expose only the planner, selected execution graph, and stable aggregator",
 );
-assertFiniteTimeout(aggregator, "canonical-tests");
-requireText(
-  aggregator,
-  `set -eu`,
-  "the final canonical-tests gate must fail closed on the first unsuccessful dependency",
-);
+
+for (const [jobName, job] of Object.entries(jobs)) {
+  assert.equal(
+    job["runs-on"],
+    "ubuntu-latest",
+    `${jobName} must run on a clean GitHub-hosted runner`,
+  );
+  assertFiniteWorkflowTimeout(job, jobName);
+  assert.equal(
+    job.steps.some((step) => step.uses === "actions/checkout@v4"),
+    jobName !== "canonical-tests",
+    `${jobName} checkout ownership is incorrect`,
+  );
+}
+
+const planJob = jobs["change-plan"];
+assert.equal(planJob.steps.at(-1).id, "plan");
+assert.match(planJob.steps.at(-1).run, /canonical-change-planner\.mjs/u);
+assert.match(planJob.steps.at(-1).run, /--write-github-output true/u);
+assert.equal(planJob.steps[0].with["fetch-depth"], 1);
+assert.equal(planJob.outputs.plan, "${{ steps.plan.outputs.plan }}");
+for (const fragment of [
+  `eventName === "push"`,
+  `plan: "full-canonical"`,
+  `reason: "main_push_always_full"`,
+  `eventName !== "pull_request"`,
+  `--name-status`,
+  `--find-renames=50%`,
+  `unsupported canonical diff status`,
+  `mode_change:`,
+]) {
+  requireText(plannerSource, fragment, `planner fail-closed contract is missing: ${fragment}`);
+}
+for (const regression of [
+  "README-only",
+  "docs-only",
+  "research-only",
+  "submission-image-plus-markdown",
+  "AGENTS.md",
+  "workflow",
+  "composite-action",
+  "source-file",
+  "application-CSS",
+  "test-file",
+  "migration",
+  "package-manifest",
+  "nested-lockfile",
+  "docs-to-source-rename",
+  "documentation-deletion",
+  "unknown-path",
+  "malformed-or-missing-base-head",
+]) {
+  requireText(plannerContract, regression, `planner regression is missing: ${regression}`);
+}
+
+const documentationJob = jobs.documentation;
 assert.equal(
-  [...canonicalCommandOwners].some(([command]) =>
-    hasRunCommand(aggregator, command),
+  documentationJob.if,
+  "needs.change-plan.outputs.plan == 'documentation-only'",
+);
+assert.equal(documentationJob.steps[0].with["fetch-depth"], 1);
+assert.match(documentationJob.steps.at(-1).run, /validate-canonical-docs-change\.mjs/u);
+assert.equal(
+  documentationJob.steps.some((step) =>
+    String(step.uses ?? "").includes("setup-canonical"),
   ),
   false,
-  "the final canonical-tests gate must not duplicate a canonical suite",
+  "documentation-only validation must not install dependency trees",
 );
-
-for (const [jobName, environmentName] of [
-  ["static-authority", "STATIC_AUTHORITY_RESULT"],
-  ["integration", "INTEGRATION_RESULT"],
-  ["operability", "OPERABILITY_RESULT"],
-  ["e2e-core", "E2E_CORE_RESULT"],
-  ["e2e-continuity", "E2E_CONTINUITY_RESULT"],
+for (const fragment of [
+  `["diff", "--check"`,
+  `extractMarkdownDestinations`,
+  `unresolved relative Markdown link`,
+  `unresolved local Markdown anchor`,
+  `private absolute filesystem path`,
 ]) {
   requireText(
-    aggregator,
-    `${environmentName}: \${{ needs.${jobName}.result }}`,
-    `canonical-tests must read the ${jobName} conclusion`,
-  );
-  requireText(
-    aggregator,
-    `test "$${environmentName}" = "success"`,
-    `canonical-tests must fail when ${jobName} is not successful`,
+    documentationValidator,
+    fragment,
+    `documentation fast-path validation is missing: ${fragment}`,
   );
 }
+
+const expectedMatrices = {
+  static: [
+    ["typecheck", "npm run typecheck", "root-only"],
+    ["build", "npm run build", "root-only"],
+    ["unit", "npm test", "root-only"],
+    ["authority", "npm run test:authority", "full"],
+  ],
+  integration: [
+    ["operator", "npm run test:integration:operator", "root-only"],
+    ["supporting", "npm run test:integration:supporting", "full"],
+  ],
+  operability: [
+    ["fast", "npm run test:operability:fast", "root-only"],
+    [
+      "recovery-validator",
+      "npm run test:operability:recovery-validator",
+      "root-only",
+    ],
+    [
+      "recovery-storage",
+      "npm run test:operability:recovery-storage",
+      "root-only",
+    ],
+    ["supervisor", "npm run test:operability:supervisor", "root-only"],
+    [
+      "runtime-reconciliation",
+      "npm run test:operability:runtime-reconciliation",
+      "root-only",
+    ],
+    ["package", "npm run test:operability:package", "full"],
+  ],
+  e2e: [
+    ["core", "npm run test:e2e:core", null],
+    ["continuity", "npm run test:e2e:continuity", null],
+  ],
+};
+
+const canonicalCommandOwners = new Map();
+for (const [jobName, expectedEntries] of Object.entries(expectedMatrices)) {
+  const job = jobs[jobName];
+  assert.equal(job.if, "needs.change-plan.outputs.plan == 'full-canonical'");
+  assert.equal(job.strategy["fail-fast"], true);
+  const entries = job.strategy.matrix.include;
+  assert.deepEqual(
+    entries.map((entry) => [entry.id, entry.command, entry.setup_profile ?? null]),
+    expectedEntries,
+    `${jobName} matrix ownership must be exact`,
+  );
+  for (const entry of entries) {
+    assert.equal(
+      Number.isFinite(entry.timeout_minutes ?? job["timeout-minutes"]) &&
+        (entry.timeout_minutes ?? job["timeout-minutes"]) > 0,
+      true,
+      `${jobName}/${entry.id} must have a finite timeout`,
+    );
+    assert.equal(canonicalCommandOwners.has(entry.command), false);
+    canonicalCommandOwners.set(entry.command, `${jobName}/${entry.id}`);
+  }
+  assert.equal(
+    job.steps.some((step) => step.uses === "./.github/actions/setup-canonical"),
+    true,
+  );
+}
+
+const operabilityEntries = jobs.operability.strategy.matrix.include;
+assert.deepEqual(
+  operabilityEntries.map((entry) => [entry.id, entry.fetch_depth]),
+  [
+    ["fast", 1],
+    ["recovery-validator", 1],
+    ["recovery-storage", 1],
+    ["supervisor", 1],
+    ["runtime-reconciliation", 1],
+    ["package", 0],
+  ],
+  "only the package shard may receive complete Git history",
+);
+assert.equal(countScalarValue(parsedWorkflow, "fetch-depth", 0), 0);
+assert.equal(countScalarValue(parsedWorkflow, "fetch_depth", 0), 1);
+
+assert.equal(parsedSetupAction.runs.using, "composite");
+assert.equal(parsedSetupAction.inputs.profile.required, true);
+const setupSteps = parsedSetupAction.runs.steps;
+assert.equal(
+  setupSteps.filter((step) => step.uses === "actions/setup-node@v4").length,
+  2,
+);
+assert.equal(
+  setupSteps.find((step) => step.name === "Install root-only dependencies").if,
+  "inputs.profile == 'root-only'",
+);
+const fullInstallStep = setupSteps.find(
+  (step) => step.name === "Install full dependency trees concurrently",
+);
+assert.equal(fullInstallStep.if,
+  "inputs.profile == 'full'",
+);
+assert.match(fullInstallStep.run, /npm ci --no-audit --no-fund &/u);
+assert.match(
+  fullInstallStep.run,
+  /npm --prefix apps\/augnes_apps ci --no-audit --no-fund &/u,
+);
+assert.match(fullInstallStep.run, /wait "\$root_pid" \|\| root_status=\$\?/u);
+assert.match(fullInstallStep.run, /wait "\$nested_pid" \|\| nested_status=\$\?/u);
+assert.match(fullInstallStep.run, /exit 1/u);
+
+assert.equal(packageJson.scripts["test:integration"], "node scripts/run-canonical-test-suite.mjs integration");
+assert.equal(packageJson.scripts["test:operability"], "node scripts/run-canonical-test-suite.mjs operability");
+for (const [command, owner] of canonicalCommandOwners) {
+  assert.equal(
+    [...canonicalCommandOwners.keys()].filter((candidate) => candidate === command).length,
+    1,
+    `${command} must have one workflow owner (${owner})`,
+  );
+}
+
+const aggregator = jobs["canonical-tests"];
+assert.equal(aggregator.name, "canonical-tests");
+assert.equal(aggregator.if, "always()");
+assert.deepEqual(aggregator.needs, [
+  "change-plan",
+  "documentation",
+  "static",
+  "integration",
+  "operability",
+  "e2e",
+]);
+const aggregatorStep = aggregator.steps[0];
+const aggregatorScript = aggregatorStep.run;
+for (const fragment of [
+  `test "$PLAN_RESULT" = "success"`,
+  `documentation-only)`,
+  `full-canonical)`,
+  `test "$DOCUMENTATION_RESULT" = "success"`,
+  `test "$DOCUMENTATION_RESULT" = "skipped"`,
+  `test "$STATIC_RESULT" = "skipped"`,
+  `test "$STATIC_RESULT" = "success"`,
+  `test "$INTEGRATION_RESULT" = "success"`,
+  `test "$OPERABILITY_RESULT" = "success"`,
+  `test "$E2E_RESULT" = "success"`,
+  `invalid or missing canonical plan`,
+]) {
+  requireText(aggregatorScript, fragment, `canonical aggregator is missing: ${fragment}`);
+}
+assert.doesNotMatch(
+  workflow,
+  /paths-ignore|continue-on-error|self-hosted|\bsleep\b|\bretry\b/iu,
+  "Canonical CI must not hide work behind path filtering, retries, sleeps, or weaker runners",
+);
 
 assert.doesNotMatch(
   canonicalSuite,
@@ -245,6 +343,9 @@ for (const groupId of ["operator-process", "supporting-serial"]) {
 }
 const integrationChildren = [
   "project-verify-material",
+  "project-verify-lifecycle",
+  "project-verify-production-lifecycle",
+  "project-verify-operator-adapter",
   "project-controls",
   "policy-triggered-model-run",
   "project-home",
@@ -255,12 +356,49 @@ const integrationChildren = [
   "durable-semantic-loop",
   "operator-pilot",
   "portable-export",
+  "portable-project-continuity",
 ];
 for (const childId of integrationChildren) {
   assert.equal(
     countOccurrences(canonicalSuite, `id: "${childId}"`),
     1,
     `integration child must have exactly one owner: ${childId}`,
+  );
+}
+const operabilityChildren = [
+  ["durable-run-reconciliation", "operability-fast"],
+  ["public-recovery-action", "operability-fast"],
+  ["recovery-validator", "operability-recovery-validator"],
+  ["recovery-backup", "operability-recovery-storage"],
+  ["runtime-database-bootstrap", "operability-recovery-storage"],
+  ["runtime-supervisor", "operability-supervisor"],
+  ["runtime-reconciliation", "operability-runtime-reconciliation"],
+  ["distributable-package", "operability-package"],
+];
+for (const [childId, shardName] of operabilityChildren) {
+  assert.equal(
+    countOccurrences(canonicalSuite, `id: "${childId}"`),
+    1,
+    `operability child must have exactly one owner: ${childId}`,
+  );
+  requireText(
+    canonicalSuite,
+    `shard: "${shardName}"`,
+    `operability child shard is missing: ${childId}`,
+  );
+}
+for (const shardName of [
+  "operability-fast",
+  "operability-recovery-validator",
+  "operability-recovery-storage",
+  "operability-supervisor",
+  "operability-runtime-reconciliation",
+  "operability-package",
+]) {
+  assert.equal(
+    packageJson.scripts[`test:${shardName.replace("operability-", "operability:")}`],
+    `node scripts/run-canonical-test-suite.mjs ${shardName}`,
+    `focused operability command must own ${shardName}`,
   );
 }
 for (const requirement of [
@@ -616,17 +754,27 @@ console.log(
       final_required_check: "canonical-tests",
       final_required_check_always_runs: true,
       workflow_job_timeout_minutes: Object.fromEntries(
-        [...jobs].map(([jobName, job]) => [
+        Object.entries(jobs).map(([jobName, job]) => [
           jobName,
-          Number(yamlScalar(job, "timeout-minutes")),
+          job.strategy?.matrix?.include
+            ? Object.fromEntries(
+                job.strategy.matrix.include.map((entry) => [
+                  entry.id,
+                  entry.timeout_minutes ?? job["timeout-minutes"],
+                ]),
+              )
+            : job["timeout-minutes"],
         ]),
       ),
       bounded_runner_required: true,
       child_heartbeat_required: true,
       process_tree_cleanup_required: true,
       integration_concurrency_bound: 2,
-      e2e_workflow_lanes: ["e2e-core", "e2e-continuity"],
+      e2e_workflow_lanes: ["core", "continuity"],
       integration_children_uniquely_owned: integrationChildren,
+      operability_children_uniquely_owned: operabilityChildren.map(
+        ([childId]) => childId,
+      ),
       child_resource_isolation_required: true,
       moved_responsibilities_execute_once: movedResponsibilities,
       broad_operator_smoke_rerun_by_e2e: false,
@@ -649,59 +797,36 @@ function readRepositoryFile(relativePath) {
   return readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
-function extractYamlBlock(source, key, indentation) {
-  const lines = source.split(/\r?\n/);
-  const prefix = " ".repeat(indentation);
-  const start = lines.findIndex((line) => line === `${prefix}${key}:`);
-  assert.notEqual(start, -1, `missing YAML mapping: ${key}`);
-
-  let end = lines.length;
-  for (let index = start + 1; index < lines.length; index += 1) {
-    if (lines[index].trim().length === 0) continue;
-    const leadingSpaces = lines[index].match(/^ */)[0].length;
-    if (leadingSpaces <= indentation) {
-      end = index;
-      break;
-    }
-  }
-  return lines.slice(start, end).join("\n");
-}
-
-function yamlScalar(source, key) {
-  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = source.match(new RegExp(`^\\s+${escapedKey}:\\s*(.+?)\\s*$`, "m"));
-  assert.ok(match, `missing YAML scalar: ${key}`);
-  return match[1];
-}
-
-function yamlInlineList(source, key) {
-  const value = yamlScalar(source, key);
-  assert.match(value, /^\[.*\]$/, `${key} must be an inline YAML list`);
-  return value
-    .slice(1, -1)
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-function assertFiniteTimeout(job, jobName) {
-  const timeout = Number(yamlScalar(job, "timeout-minutes"));
+function assertFiniteWorkflowTimeout(job, jobName) {
+  const timeout = job["timeout-minutes"];
+  if (Number.isFinite(timeout) && timeout > 0) return;
   assert.equal(
-    Number.isFinite(timeout) && timeout > 0,
+    timeout,
+    "${{ matrix.timeout_minutes }}",
+    `${jobName} must have a finite timeout or an exact matrix timeout expression`,
+  );
+  assert.equal(
+    job.strategy.matrix.include.every(
+      (entry) => Number.isFinite(entry.timeout_minutes) && entry.timeout_minutes > 0,
+    ),
     true,
-    `${jobName} must have a finite positive job timeout`,
+    `${jobName} matrix shards must each declare a finite timeout`,
   );
 }
 
-function hasRunCommand(job, command) {
-  const escapedCommand = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^\\s+run:\\s*${escapedCommand}\\s*$`, "m").test(job);
-}
-
-function countRunCommands(source, command) {
-  const escapedCommand = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return [...source.matchAll(new RegExp(`^\\s+run:\\s*${escapedCommand}\\s*$`, "gm"))]
-    .length;
+function countScalarValue(value, key, expected) {
+  if (Array.isArray(value)) {
+    return value.reduce(
+      (total, entry) => total + countScalarValue(entry, key, expected),
+      0,
+    );
+  }
+  if (!value || typeof value !== "object") return 0;
+  let total = Object.hasOwn(value, key) && value[key] === expected ? 1 : 0;
+  for (const entryValue of Object.values(value)) {
+    total += countScalarValue(entryValue, key, expected);
+  }
+  return total;
 }
 
 function assertCanonicalChildTimeout(source, pathName, timeout) {

@@ -1,10 +1,35 @@
 name: Setup canonical dependencies
 description: Install clean Node dependencies for one isolated Canonical CI job.
 
+inputs:
+  profile:
+    description: Exact clean-install profile: root-only or full.
+    required: true
+
 runs:
   using: composite
   steps:
-    - name: Setup Node
+    - name: Validate setup profile
+      shell: bash
+      env:
+        SETUP_PROFILE: ${{ inputs.profile }}
+      run: |
+        set -eu
+        case "$SETUP_PROFILE" in
+          root-only|full) ;;
+          *) echo "unsupported canonical setup profile: $SETUP_PROFILE" >&2; exit 2 ;;
+        esac
+
+    - name: Setup Node with root cache
+      if: inputs.profile == 'root-only'
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: package-lock.json
+
+    - name: Setup Node with root and nested caches
+      if: inputs.profile == 'full'
       uses: actions/setup-node@v4
       with:
         node-version: 22
@@ -13,10 +38,25 @@ runs:
           package-lock.json
           apps/augnes_apps/package-lock.json
 
-    - name: Install root dependencies
+    - name: Install root-only dependencies
+      if: inputs.profile == 'root-only'
       shell: bash
-      run: npm ci
+      run: npm ci --no-audit --no-fund
 
-    - name: Install nested app dependencies
+    - name: Install full dependency trees concurrently
+      if: inputs.profile == 'full'
       shell: bash
-      run: npm --prefix apps/augnes_apps ci
+      run: |
+        set -u
+        npm ci --no-audit --no-fund &
+        root_pid=$!
+        npm --prefix apps/augnes_apps ci --no-audit --no-fund &
+        nested_pid=$!
+        root_status=0
+        nested_status=0
+        wait "$root_pid" || root_status=$?
+        wait "$nested_pid" || nested_status=$?
+        if [ "$root_status" -ne 0 ] || [ "$nested_status" -ne 0 ]; then
+          echo "canonical dependency install failed: root=$root_status nested=$nested_status" >&2
+          exit 1
+        fi

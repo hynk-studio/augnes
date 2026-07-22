@@ -13,102 +13,253 @@ permissions:
   contents: read
 
 jobs:
-  static-authority:
+  change-plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+      change-count: ${{ steps.plan.outputs.change_count }}
     steps:
-      - name: Checkout
+      - name: Checkout exact head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
 
-      - name: Setup canonical dependencies
-        uses: ./.github/actions/setup-canonical
+      - name: Fetch exact pull-request base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git fetch --no-tags --depth=1 origin "$BASE_SHA"
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Select fail-closed canonical plan
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          node scripts/canonical-change-planner.mjs
+          --event "$GITHUB_EVENT_NAME"
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --write-github-output true
 
-      - name: Build with an isolated database
-        run: npm run build
-
-      - name: Unit and protocol tests
-        run: npm test
-
-      - name: Authority tests
-        run: npm run test:authority
-
-  integration:
+  documentation:
+    needs: change-plan
+    if: needs.change-plan.outputs.plan == 'documentation-only'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
-      - name: Checkout
+      - name: Checkout exact head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
 
-      - name: Setup canonical dependencies
-        uses: ./.github/actions/setup-canonical
+      - name: Fetch exact pull-request base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git fetch --no-tags --depth=1 origin "$BASE_SHA"
 
-      - name: Runtime, migration, recovery, and export integration tests
-        run: npm run test:integration
+      - name: Validate documentation-only change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          node scripts/validate-canonical-docs-change.mjs
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
 
-  operability:
+  static:
+    needs: change-plan
+    if: needs.change-plan.outputs.plan == 'full-canonical'
+    name: static / ${{ matrix.id }}
     runs-on: ubuntu-latest
-    # Seven bounded disposable lifecycle children measure ~12.7 minutes in
-    # aggregate locally; retain the repository's observed CI multiplier.
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - id: typecheck
+            command: npm run typecheck
+            setup_profile: root-only
+            timeout_minutes: 8
+          - id: build
+            command: npm run build
+            setup_profile: root-only
+            timeout_minutes: 10
+          - id: unit
+            command: npm test
+            setup_profile: root-only
+            timeout_minutes: 8
+          - id: authority
+            command: npm run test:authority
+            setup_profile: full
+            timeout_minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup canonical dependencies
         uses: ./.github/actions/setup-canonical
+        with:
+          profile: ${{ matrix.setup_profile }}
 
-      - name: Runtime operability tests
-        run: npm run test:operability
+      - name: Run static shard
+        run: ${{ matrix.command }}
 
-  e2e-core:
+  integration:
+    needs: change-plan
+    if: needs.change-plan.outputs.plan == 'full-canonical'
+    name: integration / ${{ matrix.id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - id: operator
+            command: npm run test:integration:operator
+            setup_profile: root-only
+            timeout_minutes: 15
+          - id: supporting
+            command: npm run test:integration:supporting
+            setup_profile: full
+            timeout_minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup canonical dependencies
         uses: ./.github/actions/setup-canonical
+        with:
+          profile: ${{ matrix.setup_profile }}
 
-      - name: Resume, Verify, and Decide browser E2E
-        run: npm run test:e2e:core
+      - name: Run integration shard
+        run: ${{ matrix.command }}
 
-  e2e-continuity:
+  operability:
+    needs: change-plan
+    if: needs.change-plan.outputs.plan == 'full-canonical'
+    name: operability / ${{ matrix.id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - id: fast
+            command: npm run test:operability:fast
+            setup_profile: root-only
+            fetch_depth: 1
+            timeout_minutes: 5
+          - id: recovery-validator
+            command: npm run test:operability:recovery-validator
+            setup_profile: root-only
+            fetch_depth: 1
+            timeout_minutes: 5
+          - id: recovery-storage
+            command: npm run test:operability:recovery-storage
+            setup_profile: root-only
+            fetch_depth: 1
+            timeout_minutes: 8
+          - id: supervisor
+            command: npm run test:operability:supervisor
+            setup_profile: root-only
+            fetch_depth: 1
+            timeout_minutes: 5
+          - id: runtime-reconciliation
+            command: npm run test:operability:runtime-reconciliation
+            setup_profile: root-only
+            fetch_depth: 1
+            timeout_minutes: 10
+          - id: package
+            command: npm run test:operability:package
+            setup_profile: full
+            fetch_depth: 0
+            timeout_minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ matrix.fetch_depth }}
 
       - name: Setup canonical dependencies
         uses: ./.github/actions/setup-canonical
+        with:
+          profile: ${{ matrix.setup_profile }}
 
-      - name: Portable continuity and restart reconciliation browser E2E
-        run: npm run test:e2e:continuity
+      - name: Run operability shard
+        run: ${{ matrix.command }}
+
+  e2e:
+    needs: change-plan
+    if: needs.change-plan.outputs.plan == 'full-canonical'
+    name: e2e / ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - id: core
+            command: npm run test:e2e:core
+          - id: continuity
+            command: npm run test:e2e:continuity
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup canonical dependencies
+        uses: ./.github/actions/setup-canonical
+        with:
+          profile: full
+
+      - name: Run browser shard
+        run: ${{ matrix.command }}
 
   canonical-tests:
     name: canonical-tests
-    needs: [static-authority, integration, operability, e2e-core, e2e-continuity]
+    needs: [change-plan, documentation, static, integration, operability, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require every canonical job to succeed
+      - name: Require the selected canonical plan to succeed completely
         env:
-          STATIC_AUTHORITY_RESULT: ${{ needs.static-authority.result }}
+          PLAN: ${{ needs.change-plan.outputs.plan }}
+          PLAN_RESULT: ${{ needs.change-plan.result }}
+          DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
+          STATIC_RESULT: ${{ needs.static.result }}
           INTEGRATION_RESULT: ${{ needs.integration.result }}
           OPERABILITY_RESULT: ${{ needs.operability.result }}
-          E2E_CORE_RESULT: ${{ needs.e2e-core.result }}
-          E2E_CONTINUITY_RESULT: ${{ needs.e2e-continuity.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
         run: |
           set -eu
-          test "$STATIC_AUTHORITY_RESULT" = "success"
-          test "$INTEGRATION_RESULT" = "success"
-          test "$OPERABILITY_RESULT" = "success"
-          test "$E2E_CORE_RESULT" = "success"
-          test "$E2E_CONTINUITY_RESULT" = "success"
+          test "$PLAN_RESULT" = "success"
+          case "$PLAN" in
+            documentation-only)
+              test "$DOCUMENTATION_RESULT" = "success"
+              test "$STATIC_RESULT" = "skipped"
+              test "$INTEGRATION_RESULT" = "skipped"
+              test "$OPERABILITY_RESULT" = "skipped"
+              test "$E2E_RESULT" = "skipped"
+              ;;
+            full-canonical)
+              test "$DOCUMENTATION_RESULT" = "skipped"
+              test "$STATIC_RESULT" = "success"
+              test "$INTEGRATION_RESULT" = "success"
+              test "$OPERABILITY_RESULT" = "success"
+              test "$E2E_RESULT" = "success"
+              ;;
+            *)
+              echo "invalid or missing canonical plan: $PLAN" >&2
+              exit 1
+              ;;
+          esac
