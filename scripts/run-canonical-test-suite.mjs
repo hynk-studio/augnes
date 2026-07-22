@@ -184,7 +184,13 @@ const suites = {
     {
       id: "durable-semantic-loop",
       group: "supporting-serial",
-      requirements: ["database", "migrations", "backup-restore", "filesystem"],
+      requirements: [
+        "database",
+        "migrations",
+        "backup-restore",
+        "filesystem",
+        "nested-app-runtime",
+      ],
       label: "durable semantic loop, replay, isolation, and migration",
       ...rootNode("scripts/smoke-vnext-durable-semantic-loop-v0-1.ts"),
     },
@@ -327,7 +333,12 @@ const suites = {
     {
       id: "runtime-supervisor",
       shard: "operability-supervisor",
-      requirements: ["process-owning", "listener-port-owning", "filesystem"],
+      requirements: [
+        "process-owning",
+        "listener-port-owning",
+        "filesystem",
+        "nested-app-runtime",
+      ],
       label:
         "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
@@ -342,6 +353,7 @@ const suites = {
         "process-owning",
         "listener-port-owning",
         "filesystem",
+        "nested-app-runtime",
       ],
       label: "runtime crash, orphan, stale-state, and database reconciliation",
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
@@ -363,6 +375,7 @@ const suites = {
         "filesystem",
         "git-history",
         "package-build",
+        "nested-app-runtime",
       ],
       label: "distributable package and packaged runtime operability",
       ...rootNode("scripts/test-distributable-package.mjs"),

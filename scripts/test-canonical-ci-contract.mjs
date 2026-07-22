@@ -189,13 +189,13 @@ const expectedMatrices = {
     [
       "recovery-storage",
       "npm run test:operability:recovery-storage",
-      "root-only",
+      "full",
     ],
-    ["supervisor", "npm run test:operability:supervisor", "root-only"],
+    ["supervisor", "npm run test:operability:supervisor", "full"],
     [
       "runtime-reconciliation",
       "npm run test:operability:runtime-reconciliation",
-      "root-only",
+      "full",
     ],
     ["package", "npm run test:operability:package", "full"],
   ],
@@ -391,6 +391,11 @@ for (const [childId, shardName] of operabilityChildren) {
     `operability child shard is missing: ${childId}`,
   );
 }
+assert.equal(
+  countOccurrences(canonicalSuite, `"nested-app-runtime"`),
+  4,
+  "every child that executes or packages the nested application runtime must declare it",
+);
 for (const shardName of [
   "operability-fast",
   "operability-recovery-validator",
@@ -416,6 +421,7 @@ for (const requirement of [
   "listener-port-owning",
   "mutable-module-state",
   "filesystem-fixture-consumer",
+  "nested-app-runtime",
 ]) {
   requireText(
     canonicalSuite,

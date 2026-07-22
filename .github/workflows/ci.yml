@@ -164,17 +164,17 @@ jobs:
             timeout_minutes: 5
           - id: recovery-storage
             command: npm run test:operability:recovery-storage
-            setup_profile: root-only
+            setup_profile: full
             fetch_depth: 1
             timeout_minutes: 8
           - id: supervisor
             command: npm run test:operability:supervisor
-            setup_profile: root-only
+            setup_profile: full
             fetch_depth: 1
             timeout_minutes: 5
           - id: runtime-reconciliation
             command: npm run test:operability:runtime-reconciliation
-            setup_profile: root-only
+            setup_profile: full
             fetch_depth: 1
             timeout_minutes: 10
           - id: package
