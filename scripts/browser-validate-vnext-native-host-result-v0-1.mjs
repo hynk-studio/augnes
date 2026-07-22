@@ -888,11 +888,11 @@ async function main() {
     })()`);
     assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
     result.minimum_project_home_non_active_deep_link_read_only = true;
+    // The server-component refresh must settle before viewport sampling so the
+    // measured Project Home is the definitive response rather than a transient.
+    await waitForRequestQuiet();
     await validateProjectHomeViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
-    // Viewport sampling can overlap the server-component refresh that exposed
-    // this control. Network quiescence is the exact barrier before activation.
-    await waitForRequestQuiet();
     await waitForCondition(
       `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Make active' && !button.disabled)`,
       "explicit first-project activation ready",

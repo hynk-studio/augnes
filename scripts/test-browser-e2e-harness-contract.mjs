@@ -53,7 +53,7 @@ assert.match(
 );
 assert.match(
   source,
-  /await validateProjectHomeViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
+  /definitive response rather than a transient[\s\S]*await waitForRequestQuiet\(\);[\s\S]*await validateProjectHomeViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
 );
 assert.equal(
   [...source.matchAll(/await waitForViewportLayout\(width, '[^']+'\);/gu)].length,
