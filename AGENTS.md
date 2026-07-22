@@ -6,6 +6,30 @@ The role split in this file is a temporary and replaceable repository-developmen
 
 For the current repository workflow, Codex implements, tests, and opens pull requests for Augnes. ChatGPT and the user set product direction and review scope. Codex does not merge pull requests or claim user decisions. Roles and delivery mechanics may change as tools and project conditions change.
 
+## Repository identity and interaction boundary
+
+- This repository is a temporary development location for Augnes. The product,
+  Core, protocols, documentation, schemas, UI, tests, and all development work
+  must use **Augnes** as their name and product frame.
+- Do not create or preserve a separate `Perspective Lab` product identity,
+  terminology, architecture, roadmap, or user-facing concept. The repository
+  name is only a repository location and does not name a separate product.
+- `hynk-studio/augnes-perspective-lab` is the sole repository target for work
+  performed under this policy.
+- Do not interact with `hynk-studio/augnes` in any way. This prohibition
+  includes reading, fetching, searching, cloning, pulling, comparing,
+  inspecting current state, pushing, opening or editing issues or pull
+  requests, commenting, reviewing, merging, tagging, releasing, dispatching
+  workflows, or changing repository settings.
+- Do not configure remotes, automation, CI, scripts, connectors, or other
+  tooling that contacts `hynk-studio/augnes`.
+- Use only the files, history, branches, issues, pull requests, and CI state in
+  this repository as the working development source. Existing textual
+  references to another Augnes repository are historical context only and do
+  not grant permission to access it.
+- This boundary remains in force until this repository policy is explicitly
+  changed.
+
 ## Active product path
 
 Advance this flow:
