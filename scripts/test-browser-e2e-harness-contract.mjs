@@ -53,7 +53,7 @@ assert.match(
 );
 assert.match(
   source,
-  /await validateProjectHomeViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
+  /await validateBlankStateViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
 );
 assert.equal(
   [...source.matchAll(/await validateProductShell\(\{/gu)].length,

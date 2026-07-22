@@ -110,6 +110,9 @@ const removedPaths = [
   "lib/handoff/handoff-capsule-source.ts",
   "scripts/vnext-operator-pilot.ts",
   "scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs",
+  "components/project-home.tsx",
+  "components/project-onboarding-home.tsx",
+  "components/project-destination-actions.tsx",
 ] as const;
 for (const relativePath of removedPaths) {
   assert.equal(exists(relativePath), false, `${relativePath} must be retired`);

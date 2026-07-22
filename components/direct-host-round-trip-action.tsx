@@ -131,7 +131,7 @@ export function DirectHostRoundTripAction() {
         summary:
           typeof receipt?.result_summary?.summary === "string"
             ? receipt.result_summary.summary
-            : "The bounded host round trip returned a durable receipt.",
+            : "The local work completed and its result was saved.",
       });
       router.refresh();
     } catch {
@@ -235,25 +235,25 @@ export function DirectHostRoundTripAction() {
         disabled={!hydrated || deterministic.status === "running" || liveBusy}
       >
         {deterministic.status === "running"
-          ? "Running deterministic host…"
-          : "Run deterministic host round trip"}
+          ? "Running local test work…"
+          : "Run local test work"}
       </button>
       {deterministic.status === "completed" ? (
         <div role="status" className="direct-host-round-trip-result">
           <strong>
             {deterministic.write_status === "exact_replay"
-              ? "Existing receipt resolved"
-              : "RunReceipt persisted"}
+              ? "Existing result reused"
+              : "Result saved"}
           </strong>
           <p>{deterministic.summary}</p>
           <small>
-            Host outcome {deterministic.outcome}. No semantic change was approved.
+            Host outcome {deterministic.outcome}. No project change was accepted automatically.
           </small>
         </div>
       ) : null}
       {deterministic.status === "error" ? (
         <p role="alert" className="direct-host-round-trip-error">
-          Host round trip unavailable: {deterministic.error_code}
+          Local test work unavailable: {deterministic.error_code}
         </p>
       ) : null}
 
@@ -331,7 +331,7 @@ export function DirectHostRoundTripAction() {
         ) : null}
         {live?.receipt ? (
           <p data-live-host-receipt="persisted">
-            RunReceipt persisted after App Server settlement. Outcome {live.receipt.outcome}.
+            Result saved after Codex work settled. Outcome {live.receipt.outcome}.
           </p>
         ) : null}
         {liveError ? (

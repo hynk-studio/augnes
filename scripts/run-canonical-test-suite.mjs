@@ -161,6 +161,15 @@ const suites = {
       ...rootNode("scripts/test-vnext-project-home.ts"),
     },
     {
+      id: "blank-state",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label:
+        "Blank State focus, route source, project choice, and read-only projection",
+      ...rootNode("scripts/test-vnext-blank-state.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "project-onboarding",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "project-root"],

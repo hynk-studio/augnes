@@ -1,3 +1,5 @@
-import { AugnesPublicHomeSurface } from "@/components/augnes-public-home-surface";
+import { redirect } from "next/navigation";
 
-export default function OverviewPage() { return <AugnesPublicHomeSurface />; }
+export default function OverviewPage() {
+  redirect("/");
+}
