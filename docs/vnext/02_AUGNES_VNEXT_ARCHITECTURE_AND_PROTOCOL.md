@@ -81,6 +81,13 @@ Integration Kit는 Core approval을 우회하지 않는다.
 
 ### 1.4 Product Surfaces, Projections and Inspector
 
+이 절의 Project Home, Semantic Workbench와 Inspector는 현재 reference operator
+implementation의 implemented client/projection boundary를 기술한다. target
+post-Build Week user-facing topology와 navigation은
+[`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)가
+소유한다. 이 구분은 아래 Core, protocol, authority 또는 persistence 의미를 변경하지
+않는다.
+
 ```text
 Augnes Project Home
 Augnes Semantic Workbench

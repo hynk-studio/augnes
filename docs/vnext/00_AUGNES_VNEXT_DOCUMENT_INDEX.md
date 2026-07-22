@@ -5,12 +5,18 @@
 Use this order when current documents disagree:
 
 1. `01_AUGNES_VNEXT_MASTERPLAN.md` — product identity and strategic invariants
-2. `02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md` — Core and protocol meaning
-3. `03_AUGNES_VNEXT_TRANSITION_ROADMAP.md` — active implementation order
-4. `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` — development and post-Alpha evaluation
-5. `../REPOSITORY_REDUCTION_SCOPE.md` — repository retention and deletion policy
+2. `07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md` — post-Build Week
+   user-facing topology, navigation, progressive disclosure, GuideBrief product
+   responsibility, UX merge gates, and replacement-versus-addition discipline
+3. `02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md` — Core and protocol meaning
+4. `03_AUGNES_VNEXT_TRANSITION_ROADMAP.md` — active implementation order
+5. `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` — development and post-Alpha evaluation
+6. `../REPOSITORY_REDUCTION_SCOPE.md` — repository retention and deletion policy
 
-Code and current runtime behavior remain the source of truth for what is implemented today.
+The C0 charter takes precedence over older surface-topology planning where it
+conflicts, but it does not redefine Core protocol semantics or durable
+authority. Code and current runtime behavior remain the source of truth for
+what is implemented today until later correction PRs change them.
 
 ## Product commitments
 
@@ -31,36 +37,36 @@ The vNext commitments that remain active are:
   analysis inside that same assessment boundary, never as a separate authority or subsystem
 - later `ContextUseReview` feedback that traces whether accepted context or
   strategic transfers were helpful, stale, or misleading
-- Project Home, Semantic Workbench, and shared Inspector
-- Project Home owns Resume/current coordination; Semantic Workbench owns Verify
-  and Decide; the shared Inspector owns exact authenticated read-only drill-down
-  and gains no mutation or semantic authority from its name
+- target post-Build Week surfaces: Blank State, embedded GuideBrief, AI
+  Workplane, contextual Inspector, and the Provider / Runner / Tool Layer
+- target default top-level navigation limited to Blank State and AI Workplane
+- GuideBrief as an active, non-authoritative cross-surface interpretation and
+  guidance responsibility, distinct from `TaskContextPacket`
+- current Project Home, Semantic Workbench, Shared Inspector, Portability, and
+  Recovery as implemented reference operator surfaces until later correction
+  PRs absorb, demote, relocate, redirect, or remove them with replacement proof
 - a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
 - migration, backup, restore, update, recovery, and automated-run reconciliation
 
-## Active implementation order
+## Active post-Build Week correction order
 
 ```text
-R1 Development Authority and Operability Reset
-R2 Zero-config Runtime Spine + automation lifecycle primitives
-R3 Project Onboarding and Project Home + project automation state
-R4 Minimal Model Gateway + budget/timeout/cancellation
-R5 Codex Host Round Trip + unattended run mode
-R6 Core Closed Loop + first bounded Autohunt
-  R6-A source-linked criterion assessment
-  R6-B production EpisodeDeltaProposal creation
-  R6-C operation-aware review and Transition closure
-  R6-D bounded strategic advantage-transfer profile
-  R6-E bounded automation and later-context feedback
-R6-P Parallel bounded Personal Perspective slice
-R7 Semantic Workbench and Inspector + automation control/readback
-R8 Packaging, Update, Backup, Restore, Recovery, and run reconciliation
-Alpha: short interactive, automated, and available perspective-assisted verification
-Post-Alpha: usefulness and product-fit validation
+C0 Product UX charter and hard invariants — documentation authority only
+C1 Top-level IA reduction — next runtime step after C0 review and merge
+C2 Blank State restoration and Project Home absorption
+C3 GuideBrief active-path restoration
+C4 AI Workplane reprojection
+C5 Delegated Codex work timeline and resumption
+C6 Contextual Inspector demotion
+C7 Portability and Recovery management/safety relocation
+C8 Visual system after IA correction
+C9 Compatibility and obsolete-surface reduction
 ```
 
-R7 completion is claimed only after the user merges its final shared-Inspector
-PR. R8 is a separate phase and does not begin as part of that final R7 vertical.
+C1–C9 are not implemented, complete, or runtime-active. The R1–R8 sequence in
+the Roadmap records the operational Core and reference operator implementation
+that C0 preserves and reprojects; it is not the next user-facing correction
+order.
 
 ## Active versus deferred scope
 

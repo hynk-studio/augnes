@@ -91,6 +91,24 @@ This submission focuses on the continuity Core and its reference operator
 interface. The current UI exposes the engine's behavior for evaluation; it does
 not claim to be the finished end-user product.
 
+## Post-Build Week product direction
+
+The post-Build Week direction preserves the operational Core and reprojects it
+through a simpler product topology. **Blank State** is the future human entry
+and resumption surface. **AI Workplane** is the complex AI/operator layer for
+delegation, verification, reconciliation, automation, semantic processing, and
+result preparation. **GuideBrief** is the restored non-authoritative guidance
+layer shared across Browser, ChatGPT, Codex, Blank State, and AI Workplane.
+**Inspector** remains contextual, optional, exact read-only detail rather than
+a normal peer destination.
+
+The existing engine is being preserved and reprojected, not discarded. Project
+Home, Semantic Workbench, Shared Inspector, Portability, and Recovery remain
+implemented reference operator surfaces until later correction work changes
+their runtime behavior. The target topology is documented in the
+[post-Build Week product UX correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md);
+C0 does not implement the later navigation or surface migrations.
+
 The repository now supports:
 
 - local project onboarding and Project Home;

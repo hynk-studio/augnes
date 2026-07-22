@@ -21,6 +21,10 @@ Start Augnes
 
 The roadmap is provider-neutral at the Core and uses OpenAI/Codex as the default reference path.
 
+The flow above is current operational Core truth. It is not the target default
+human navigation and does not require each protocol stage to appear directly in
+the user interface. Post-Build Week user-facing correction follows C0–C9 below.
+
 ## Transition principles
 
 1. Preserve existing user data, migration history, recovery paths, and working runtime behavior until an explicit replacement is tested.
@@ -37,6 +41,14 @@ The roadmap is provider-neutral at the Core and uses OpenAI/Codex as the default
     share the same non-authoritative R6 boundary. Strategic transfer is not an
     Arena, durable actor system, separate engine, or authority layer.
 12. Delete obsolete residue after reference audit. Git history is the archive.
+13. Target default top-level navigation is limited to Blank State and AI
+    Workplane; GuideBrief is embedded guidance and Inspector is contextual,
+    read-only, and optional for normal use.
+14. The engine and AI Workplane perform verification and semantic coordination;
+    the default human projection summarizes outcome, verification, uncertainty,
+    risk and the next meaningful decision before exact protocol detail.
+15. A replacement correction must absorb, redirect, hide, demote or remove the
+    superseded surface instead of adding another permanent destination.
 
 ## Immediate freeze
 
@@ -87,7 +99,32 @@ Allowed during R2–R8 when the work reuses existing Core contracts:
 
 Do not create a separate persistence, review, context packet, receipt, or outcome subsystem for Personal Perspective. Model-inferred identity, hidden profiles, automatic cross-project injection, Perspective Arena, evolutionary actors, and broad Personal Vault productization remain later work.
 
-## Active implementation sequence
+## Post-Build Week product correction sequence
+
+- **C0 — Product UX charter and hard invariants:** documentation authority only;
+  no runtime, route, navigation, UI, protocol, schema or behavior change
+- **C1 — Top-level IA reduction:** immediate next runtime step after user review
+  and merge of C0
+- **C2 — Blank State restoration and Project Home absorption**
+- **C3 — GuideBrief active-path restoration**
+- **C4 — AI Workplane reprojection of current Semantic Workbench and engine complexity**
+- **C5 — Delegated Codex work timeline and resumption**
+- **C6 — Contextual Inspector demotion**
+- **C7 — Management and safety relocation for Portability and Recovery**
+- **C8 — Visual system after IA correction**
+- **C9 — Compatibility and obsolete-surface reduction**
+
+C1–C9 are planned, not implemented, complete, or runtime-active. Current code
+remains authoritative for Project Home, Semantic Workbench, Shared Inspector,
+Portability, Recovery and the Build Week product shell until each later
+correction PR changes it. C0 does not start C1.
+
+No broad visual-polish or unrelated new-feature phase precedes C1 unless the
+user explicitly overrides this correction program. Replacement work must
+account for the superseded surface through absorption, redirect, hiding,
+explicit demotion or removal; it must not silently add another destination.
+
+## Operational Core implementation sequence
 
 ### R1 — Development Authority and Operability Reset
 
@@ -607,5 +644,12 @@ Every PR should answer:
 - what user effort was removed or what real invariant was preserved
 - what focused tests ran
 - what compatibility was removed or remains
+
+Every user-facing PR must also answer the twelve UX questions in
+[`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md),
+including concrete user intention, one primary action, GuideBrief translation,
+Inspector optionality, protocol-vocabulary exposure, and
+replacement-versus-addition accounting. An unsatisfactory answer is a merge
+blocker even when technical checks pass.
 
 The existence of a type, panel, fixture, document, smoke, or PR is not a maturity increase by itself.

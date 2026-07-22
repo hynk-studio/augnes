@@ -6,6 +6,13 @@ Separate development correctness from post-Alpha usefulness validation.
 
 During R2–R8, Augnes is judged by whether the interactive flow, bounded automation path, and any active Personal Perspective slice are implemented, operable, and mechanically safe. After feature completion, Augnes is judged by whether it is genuinely more useful than coordinating ChatGPT or Codex directly.
 
+Broad real-world usefulness may remain Alpha or post-Alpha work. Basic UX
+correctness does not. Navigation coherence, novice comprehension, one-primary-
+action hierarchy, protocol-vocabulary leakage, contextual Inspector use,
+Blank State / AI Workplane responsibility, GuideBrief consistency and
+replacement-versus-addition accounting are merge gates for the affected
+user-facing PR.
+
 ## Development maturity
 
 | Level | Name | Requirement |
@@ -43,6 +50,46 @@ The following are not ordinary merge gates during R2–R8:
 - multiple-provider or multiple-host proof
 - proof that advanced Autohunt heuristics are useful
 - proof that Personal Perspective improves every task
+
+These deferrals do not waive the product UX merge gates below.
+
+## Product UX merge gates
+
+For an affected user-facing PR, use focused qualitative or automated browser
+checks rather than a new metric framework. The PR is blocked when it violates
+the canonical UX invariants even if protocol, type, build, authority and E2E
+checks pass.
+
+- default primary navigation contains no more than two destinations: Blank State
+  and AI Workplane
+- normal internal-ID entry count is zero
+- normal-path Inspector requirement is zero
+- each default state has one primary action
+- default raw protocol vocabulary is zero unless each term is explicitly
+  justified and explained in ordinary language
+- project selection and project resumption are understandable as Blank State
+  behavior rather than competing peer destinations
+- Blank State owns simple entry/resumption while AI Workplane owns complex
+  execution, verification, reconciliation and preparation
+- user-facing result summary states outcome, verification, remaining
+  uncertainty or risk, and next decision before exact detail
+- delegated Codex work is explained as meaningful user-facing stage, result,
+  blocker and resumption state rather than raw host/protocol telemetry
+- Inspector remains contextual, exact, read-only and optional for delegation,
+  progress, result review and important decision
+- Browser, ChatGPT and Codex GuideBrief projections do not contradict one
+  another on goal, constraints, unresolved judgment, current work state or major
+  blocker
+- a 390px viewport exposes the primary state and primary action without first
+  navigating through technical detail
+- a replacement PR accounts for the superseded surface and does not merely add
+  another route, destination, permanent card or dashboard region
+- a new user can state the current situation and next action within roughly ten
+  seconds in the affected default state
+
+GuideBrief evaluation remains non-authoritative: consistency of explanation
+does not turn a guide projection into truth, execution authority, accepted
+state or a substitute for `TaskContextPacket`.
 
 ## Semantic authority guardrails
 
@@ -163,6 +210,10 @@ Its usefulness can be evaluated as soon as the slice is operable, but lack of ou
 ## Alpha verification
 
 Run after the core R2–R8 flow is feature-complete.
+
+Alpha broadens product-use evidence; it does not introduce basic UX correctness
+for the first time. The product UX merge gates above must already have been
+applied to each affected user-facing change.
 
 Purpose:
 
