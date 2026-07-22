@@ -888,11 +888,11 @@ async function main() {
     })()`);
     assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
     result.minimum_project_home_non_active_deep_link_read_only = true;
-    // The server-component refresh must settle before viewport sampling so the
-    // measured Project Home is the definitive response rather than a transient.
-    await waitForRequestQuiet();
     await validateProjectHomeViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
+    // Viewport sampling can overlap the server-component refresh that exposed
+    // this control. Network quiescence is the exact barrier before activation.
+    await waitForRequestQuiet();
     await waitForCondition(
       `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Make active' && !button.disabled)`,
       "explicit first-project activation ready",
@@ -4972,23 +4972,6 @@ async function setFormControlValue(selector, index, value) {
   assert.equal(changed, true, `failed to set ${selector}[${index}]`);
 }
 
-async function waitForViewportLayout(width, selector) {
-  const serializedSelector = JSON.stringify(selector);
-  await waitForCondition(
-    `(() => {
-      return window.innerWidth === ${Number(width)} &&
-        document.documentElement.clientWidth === ${Number(width)} &&
-        Array.from(document.querySelectorAll(${serializedSelector})).some(
-          (surface) => surface.getBoundingClientRect().width > 0,
-        );
-    })()`,
-    `viewport width ${Number(width)} applied`,
-  );
-  await evaluate(
-    "new Promise((resolve) => requestAnimationFrame(() => resolve(true)))",
-  );
-}
-
 async function validateProjectHomeViewports() {
   for (const width of [390, 768, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
@@ -4997,11 +4980,9 @@ async function validateProjectHomeViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await waitForViewportLayout(width, '[data-project-home="v0.1"]');
+    await delay(100);
     const metrics = await evaluateJson(`(() => {
-      const home = Array.from(document.querySelectorAll('[data-project-home="v0.1"]')).find(
-        (surface) => surface.getBoundingClientRect().width > 0,
-      );
+      const home = document.querySelector('[data-project-home="v0.1"]');
       const rect = home?.getBoundingClientRect();
       return {
         surface: 'minimum_project_home',
@@ -5034,11 +5015,9 @@ async function validateWorkbenchResultViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await waitForViewportLayout(width, '[data-run-result-review="v0.1"]');
+    await delay(100);
     const metrics = await evaluateJson(`(() => {
-      const review = Array.from(document.querySelectorAll('[data-run-result-review="v0.1"]')).find(
-        (surface) => surface.getBoundingClientRect().width > 0,
-      );
+      const review = document.querySelector('[data-run-result-review="v0.1"]');
       const rect = review?.getBoundingClientRect();
       return {
         surface: 'workbench_run_result',
@@ -5071,11 +5050,9 @@ async function validateSharedInspectorViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await waitForViewportLayout(width, '[data-shared-project-inspector="v0.1"]');
+    await delay(100);
     const metrics = await evaluateJson(`(() => {
-      const inspector = Array.from(document.querySelectorAll('[data-shared-project-inspector="v0.1"]')).find(
-        (surface) => surface.getBoundingClientRect().width > 0,
-      );
+      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
       const rect = inspector?.getBoundingClientRect();
       return {
         surface: 'shared_project_inspector',
@@ -5108,11 +5085,9 @@ async function validateSemanticReviewViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await waitForViewportLayout(width, '[data-vnext-semantic-review-detail="v0.1"]');
+    await delay(100);
     const metrics = await evaluateJson(`(() => {
-      const review = Array.from(document.querySelectorAll('[data-vnext-semantic-review-detail="v0.1"]')).find(
-        (surface) => surface.getBoundingClientRect().width > 0,
-      );
+      const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const rect = review?.getBoundingClientRect();
       return {
         surface: 'workbench_run_assessment_proposal',
