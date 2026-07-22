@@ -72,7 +72,6 @@ import {
   registerOwnedChild,
   settleOwnedProcessAfterExit,
   terminateOwnedProcessTree,
-  waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 
 const require = createRequire(import.meta.url);
@@ -199,7 +198,6 @@ const result = {
   validation_scope: VALIDATION_SCOPE,
   fixture_source: "deterministic_production_seam_builder",
   fixture_generation_duration_ms: null,
-  canonical_route_warmup_read_only: false,
   app_repo: appRepo,
   proposal_id: null,
   proposal_fingerprint: null,
@@ -578,7 +576,6 @@ async function main() {
 
   startDevServer(runtimeEnvironment);
   await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
-  if (RUN_CORE_SCOPE) await warmCanonicalCoreRoutes(manifest);
   timing.milestone("initial route ready");
   await assertLoopbackListener(appPort);
 
@@ -6048,82 +6045,6 @@ async function canConnectToListener(host, port) {
   });
 }
 
-async function warmCanonicalCoreRoutes(manifest) {
-  const finishWarmupTiming = timing.start(
-    "route_warmup",
-    "bounded read-only core route warmup",
-  );
-  const readableDatabase = new Database(databasePath, {
-    readonly: true,
-    fileMustExist: true,
-  });
-  let before;
-  try {
-    before = databaseSnapshot(readableDatabase);
-  } finally {
-    readableDatabase.close();
-  }
-  const routes = [
-    { label: "root", path: "/" },
-    { label: "projects", path: "/projects" },
-    {
-      label: "project-home",
-      path: `/projects/${encodeURIComponent(manifest.project_id)}`,
-    },
-    {
-      label: "proposal-review",
-      path: `/workbench/semantic-review/${manifest.proposal_id.replace(":", "~")}`,
-    },
-    {
-      label: "result-review",
-      path: "/workbench/results/run-receipt~canonical-warmup",
-    },
-    {
-      label: "shared-inspector",
-      path: "/workbench/inspector?target=run_receipt&record_id=canonical-warmup",
-    },
-  ];
-  const outcomes = await Promise.allSettled(
-    routes.map(async ({ label, path: routePath }) => {
-      const url = new URL(routePath, appOrigin);
-      assert.equal(LOCAL_HOSTNAMES.has(url.hostname), true);
-      const response = await fetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
-      });
-      await response.arrayBuffer();
-      assert(
-        [200, 307, 401, 404].includes(response.status),
-        `canonical route warmup failed: route=${label} status=${response.status}`,
-      );
-      return { label, status: response.status };
-    }),
-  );
-  const failures = outcomes.flatMap((outcome, index) =>
-    outcome.status === "rejected"
-      ? [{
-          route: routes[index].label,
-          reason:
-            outcome.reason?.name === "TimeoutError"
-              ? "bounded_timeout"
-              : "response_refused",
-        }]
-      : [],
-  );
-  assert.deepEqual(failures, [], "canonical route warmup failed");
-  const afterDatabase = new Database(databasePath, {
-    readonly: true,
-    fileMustExist: true,
-  });
-  try {
-    assert.deepEqual(databaseSnapshot(afterDatabase), before);
-  } finally {
-    afterDatabase.close();
-  }
-  result.canonical_route_warmup_read_only = true;
-  finishWarmupTiming();
-}
-
 async function waitForHttp(url, timeoutMs) {
   waitCount += 1;
   const startedAt = Date.now();
@@ -6181,28 +6102,29 @@ async function chooseAvailablePort() {
 }
 
 async function runCapture(command, args, { cwd, env, timeoutMs }) {
-  const child = spawn(command, args, {
-    cwd,
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: process.platform !== "win32",
+  return await new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout = `${stdout}${chunk.toString("utf8")}`.slice(-512 * 1024);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = `${stderr}${chunk.toString("utf8")}`.slice(-128 * 1024);
+    });
+    const timeout = setTimeout(() => {
+      child.kill("SIGTERM");
+      reject(new Error(`${command} timed out.`));
+    }, timeoutMs);
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+      resolve({ code, stdout, stderr });
+    });
   });
-  const record = registerOwnedChild(ownedBrowserProcesses, child, {
-    label: `browser-capture-${path.basename(command)}`,
-  });
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (chunk) => {
-    stdout = `${stdout}${chunk.toString("utf8")}`.slice(-512 * 1024);
-  });
-  child.stderr.on("data", (chunk) => {
-    stderr = `${stderr}${chunk.toString("utf8")}`.slice(-128 * 1024);
-  });
-  const completed = await waitForOwnedProcessExit(record, timeoutMs, {
-    termGraceMs: 5_000,
-    killGraceMs: 5_000,
-  });
-  return { code: completed.code, stdout, stderr };
 }
 
 async function cleanup() {

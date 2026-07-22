@@ -17,11 +17,11 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 154);
+assert.equal(resultKeys.length, 153);
 assert.equal(recordNames.length, 40);
 assert.equal(
   hashInventory(resultKeys),
-  "e955729f0fe838011712793f07f9e62feb466f18d8a137e52bd1fe2e48d0e908",
+  "8bc88c566ec6514531b8e4b92b29a131b453a63a4cd0bbed724b9cda9c5b90c9",
 );
 assert.equal(
   hashInventory(recordNames),
@@ -39,14 +39,6 @@ const finalQuiet = source.indexOf('timing.milestone("final global request quiet 
 const globalAudit = source.indexOf("const isExpectedImportedDestinationSessionRefusal");
 assert(finalQuiet >= 0 && finalQuiet < globalAudit);
 assert.equal(source.includes("AUGNES_BROWSER_E2E_RUNTIME_MODE"), false);
-assert.match(
-  source,
-  /warmCanonicalCoreRoutes\(manifest\)[\s\S]*Promise\.allSettled[\s\S]*AbortSignal\.timeout\(DEFAULT_TIMEOUT_MS\)/u,
-);
-assert.match(
-  source,
-  /warmCanonicalCoreRoutes[\s\S]*before = databaseSnapshot[\s\S]*assert\.deepEqual\(databaseSnapshot\(afterDatabase\), before\)/u,
-);
 
 process.stdout.write(
   `${JSON.stringify({
