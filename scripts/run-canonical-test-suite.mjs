@@ -184,7 +184,13 @@ const suites = {
     {
       id: "durable-semantic-loop",
       group: "supporting-serial",
-      requirements: ["database", "migrations", "backup-restore", "filesystem"],
+      requirements: [
+        "database",
+        "migrations",
+        "backup-restore",
+        "filesystem",
+        "nested-app-runtime",
+      ],
       label: "durable semantic loop, replay, isolation, and migration",
       ...rootNode("scripts/smoke-vnext-durable-semantic-loop-v0-1.ts"),
     },
@@ -275,17 +281,26 @@ const suites = {
   ],
   operability: [
     {
+      id: "durable-run-reconciliation",
+      shard: "operability-fast",
+      requirements: ["database", "migrations", "filesystem"],
       label:
         "startup durable-run reconciliation, exact replay, and redacted diagnostics",
       ...rootNode("scripts/test-runtime-run-reconciliation.ts"),
       timeoutMs: 30_000,
     },
     {
+      id: "public-recovery-action",
+      shard: "operability-fast",
+      requirements: ["database", "migrations", "route-transport"],
       label: "bounded public recovery action transport",
       ...rootNode("scripts/test-recovery-product-route.ts"),
       timeoutMs: 30_000,
     },
     {
+      id: "recovery-validator",
+      shard: "operability-recovery-validator",
+      requirements: ["database", "backup-restore", "production-readers"],
       label: "production canonical record recovery validation",
       ...rootNode("scripts/test-recovery-canonical-record-validator.ts"),
       // The production 30-record backup/restore fixture, real product readers,
@@ -295,6 +310,9 @@ const suites = {
       timeoutMs: 180_000,
     },
     {
+      id: "recovery-backup",
+      shard: "operability-recovery-storage",
+      requirements: ["database", "backup-restore", "process-owning"],
       label: "versioned recovery backup and atomic restore contract",
       ...rootNode("scripts/test-recovery-backup.mjs"),
       // The complete backup, hard-crash ownership, adoption, and restore matrix
@@ -304,18 +322,39 @@ const suites = {
       timeoutMs: 75_000,
     },
     {
+      id: "runtime-database-bootstrap",
+      shard: "operability-recovery-storage",
+      requirements: ["database", "migrations", "backup-restore", "filesystem"],
       label:
         "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
       timeoutMs: 120_000,
     },
     {
+      id: "runtime-supervisor",
+      shard: "operability-supervisor",
+      requirements: [
+        "process-owning",
+        "listener-port-owning",
+        "filesystem",
+        "nested-app-runtime",
+      ],
       label:
         "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
       timeoutMs: 120_000,
     },
     {
+      id: "runtime-reconciliation",
+      shard: "operability-runtime-reconciliation",
+      requirements: [
+        "database",
+        "backup-restore",
+        "process-owning",
+        "listener-port-owning",
+        "filesystem",
+        "nested-app-runtime",
+      ],
       label: "runtime crash, orphan, stale-state, and database reconciliation",
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
       // The complete update/restore journal, legacy-v3, active-WAL, and crash
@@ -325,6 +364,19 @@ const suites = {
       timeoutMs: 480_000,
     },
     {
+      id: "distributable-package",
+      shard: "operability-package",
+      requirements: [
+        "database",
+        "migrations",
+        "backup-restore",
+        "process-owning",
+        "listener-port-owning",
+        "filesystem",
+        "git-history",
+        "package-build",
+        "nested-app-runtime",
+      ],
       label: "distributable package and packaged runtime operability",
       ...rootNode("scripts/test-distributable-package.mjs"),
       // The complete packaged update/restore, restart-failure, and crash
@@ -364,6 +416,47 @@ const suites = {
     },
   ],
 };
+
+const integrationInventory = suites.integration;
+suites["integration-operator"] = integrationInventory.filter(
+  (step) => step.group === "operator-process",
+);
+suites["integration-supporting"] = integrationInventory.filter(
+  (step) => step.group === "supporting-serial",
+);
+
+const operabilityInventory = suites.operability;
+const operabilityShardNames = [
+  "operability-fast",
+  "operability-recovery-validator",
+  "operability-recovery-storage",
+  "operability-supervisor",
+  "operability-runtime-reconciliation",
+  "operability-package",
+];
+for (const shardName of operabilityShardNames) {
+  suites[shardName] = operabilityInventory.filter(
+    (step) => step.shard === shardName,
+  );
+  if (suites[shardName].length === 0) {
+    throw new Error(`operability shard has no canonical ownership: ${shardName}`);
+  }
+}
+
+if (
+  suites["integration-operator"].length !== 1 ||
+  suites["integration-supporting"].length !== integrationInventory.length - 1
+) {
+  throw new Error("focused integration ownership inventory is incomplete");
+}
+if (
+  new Set(operabilityInventory.map((step) => step.id)).size !==
+    operabilityInventory.length ||
+  operabilityShardNames.flatMap((shardName) => suites[shardName]).length !==
+    operabilityInventory.length
+) {
+  throw new Error("focused operability ownership inventory is incomplete");
+}
 
 if (!(suiteName in suites)) {
   console.error(`Unknown canonical test suite: ${suiteName ?? "<missing>"}`);
@@ -412,6 +505,7 @@ try {
     return {
       id: step.id ?? `canonical-child-${index + 1}`,
       group: step.group ?? "serial",
+      shard: step.shard ?? null,
       requirements: step.requirements ?? [],
       suite: suiteName,
       label: step.label,
@@ -423,6 +517,17 @@ try {
       resourceRoot,
     };
   });
+  const metadataByLabel = new Map(
+    preparedSteps.map((step) => [
+      step.label,
+      {
+        id: step.id,
+        group: step.group,
+        shard: step.shard,
+        requirements: step.requirements,
+      },
+    ]),
+  );
   if (
     new Set(preparedSteps.map((step) => step.id)).size !==
       preparedSteps.length ||
@@ -478,9 +583,16 @@ try {
   }
 
   for (const result of completedResults) {
+    const metadata = metadataByLabel.get(result.label);
+    if (!metadata) {
+      throw new Error(`canonical result metadata is missing: ${result.label}`);
+    }
     results.push({
+      id: metadata.id,
       label: result.label,
-      group: result.group ?? "serial",
+      group: result.group ?? metadata.group,
+      shard: metadata.shard,
+      requirements: metadata.requirements,
       status: result.exit_code ?? 1,
       signal: result.signal,
       timed_out: result.timed_out,
