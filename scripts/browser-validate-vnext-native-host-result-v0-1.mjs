@@ -900,8 +900,13 @@ async function main() {
     await validateProjectHomeViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
     // Viewport sampling can overlap the server-component refresh that exposed
-    // this control. Network quiescence is the exact barrier before activation.
+    // this control. Require both request quiet and the controls' own hydration
+    // signal before activating the retained non-active project.
     await waitForRequestQuiet();
+    await waitForCondition(
+      `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
+      "hydrated non-active first-project controls before activation",
+    );
     await waitForCondition(
       `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Make active' && !button.disabled)`,
       "explicit first-project activation ready",
