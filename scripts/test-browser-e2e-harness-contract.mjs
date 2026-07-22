@@ -55,6 +55,14 @@ assert.match(
   source,
   /await validateProjectHomeViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
 );
+assert.equal(
+  [...source.matchAll(/await waitForViewportLayout\(width, '[^']+'\);/gu)].length,
+  4,
+);
+assert.match(
+  source,
+  /async function waitForViewportLayout\(width, selector\)[\s\S]*window\.innerWidth === \$\{Number\(width\)\}[\s\S]*document\.documentElement\.clientWidth === \$\{Number\(width\)\}[\s\S]*surface\?\.getBoundingClientRect\(\)\.width[\s\S]*requestAnimationFrame/u,
+);
 assert.match(
   source,
   /async function waitForHttp[\s\S]*const waitNumber = waitCount;[\s\S]*String\(waitNumber\)/u,

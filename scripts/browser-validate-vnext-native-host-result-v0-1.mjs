@@ -4972,6 +4972,22 @@ async function setFormControlValue(selector, index, value) {
   assert.equal(changed, true, `failed to set ${selector}[${index}]`);
 }
 
+async function waitForViewportLayout(width, selector) {
+  const serializedSelector = JSON.stringify(selector);
+  await waitForCondition(
+    `(() => {
+      const surface = document.querySelector(${serializedSelector});
+      return window.innerWidth === ${Number(width)} &&
+        document.documentElement.clientWidth === ${Number(width)} &&
+        (surface?.getBoundingClientRect().width ?? 0) > 0;
+    })()`,
+    `viewport width ${Number(width)} applied`,
+  );
+  await evaluate(
+    "new Promise((resolve) => requestAnimationFrame(() => resolve(true)))",
+  );
+}
+
 async function validateProjectHomeViewports() {
   for (const width of [390, 768, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
@@ -4980,7 +4996,7 @@ async function validateProjectHomeViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForViewportLayout(width, '[data-project-home="v0.1"]');
     const metrics = await evaluateJson(`(() => {
       const home = document.querySelector('[data-project-home="v0.1"]');
       const rect = home?.getBoundingClientRect();
@@ -5015,7 +5031,7 @@ async function validateWorkbenchResultViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForViewportLayout(width, '[data-run-result-review="v0.1"]');
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-run-result-review="v0.1"]');
       const rect = review?.getBoundingClientRect();
@@ -5050,7 +5066,7 @@ async function validateSharedInspectorViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForViewportLayout(width, '[data-shared-project-inspector="v0.1"]');
     const metrics = await evaluateJson(`(() => {
       const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
       const rect = inspector?.getBoundingClientRect();
@@ -5085,7 +5101,7 @@ async function validateSemanticReviewViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForViewportLayout(width, '[data-vnext-semantic-review-detail="v0.1"]');
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const rect = review?.getBoundingClientRect();
