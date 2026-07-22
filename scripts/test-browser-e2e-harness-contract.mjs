@@ -61,8 +61,19 @@ assert.equal(
 );
 assert.match(
   source,
-  /async function waitForViewportLayout\(width, selector\)[\s\S]*window\.innerWidth === \$\{Number\(width\)\}[\s\S]*document\.documentElement\.clientWidth === \$\{Number\(width\)\}[\s\S]*surface\?\.getBoundingClientRect\(\)\.width[\s\S]*requestAnimationFrame/u,
+  /async function waitForViewportLayout\(width, selector\)[\s\S]*window\.innerWidth === \$\{Number\(width\)\}[\s\S]*document\.documentElement\.clientWidth === \$\{Number\(width\)\}[\s\S]*document\.querySelectorAll\(\$\{serializedSelector\}\)[\s\S]*surface\.getBoundingClientRect\(\)\.width > 0[\s\S]*requestAnimationFrame/u,
 );
+for (const selector of [
+  '[data-project-home="v0.1"]',
+  '[data-run-result-review="v0.1"]',
+  '[data-shared-project-inspector="v0.1"]',
+  '[data-vnext-semantic-review-detail="v0.1"]',
+]) {
+  assert.equal(
+    source.includes(`Array.from(document.querySelectorAll('${selector}')).find(\n        (surface) => surface.getBoundingClientRect().width > 0,`),
+    true,
+  );
+}
 assert.match(
   source,
   /async function waitForHttp[\s\S]*const waitNumber = waitCount;[\s\S]*String\(waitNumber\)/u,

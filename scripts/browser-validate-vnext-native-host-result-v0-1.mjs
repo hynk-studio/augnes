@@ -4976,10 +4976,11 @@ async function waitForViewportLayout(width, selector) {
   const serializedSelector = JSON.stringify(selector);
   await waitForCondition(
     `(() => {
-      const surface = document.querySelector(${serializedSelector});
       return window.innerWidth === ${Number(width)} &&
         document.documentElement.clientWidth === ${Number(width)} &&
-        (surface?.getBoundingClientRect().width ?? 0) > 0;
+        Array.from(document.querySelectorAll(${serializedSelector})).some(
+          (surface) => surface.getBoundingClientRect().width > 0,
+        );
     })()`,
     `viewport width ${Number(width)} applied`,
   );
@@ -4998,7 +4999,9 @@ async function validateProjectHomeViewports() {
     });
     await waitForViewportLayout(width, '[data-project-home="v0.1"]');
     const metrics = await evaluateJson(`(() => {
-      const home = document.querySelector('[data-project-home="v0.1"]');
+      const home = Array.from(document.querySelectorAll('[data-project-home="v0.1"]')).find(
+        (surface) => surface.getBoundingClientRect().width > 0,
+      );
       const rect = home?.getBoundingClientRect();
       return {
         surface: 'minimum_project_home',
@@ -5033,7 +5036,9 @@ async function validateWorkbenchResultViewports() {
     });
     await waitForViewportLayout(width, '[data-run-result-review="v0.1"]');
     const metrics = await evaluateJson(`(() => {
-      const review = document.querySelector('[data-run-result-review="v0.1"]');
+      const review = Array.from(document.querySelectorAll('[data-run-result-review="v0.1"]')).find(
+        (surface) => surface.getBoundingClientRect().width > 0,
+      );
       const rect = review?.getBoundingClientRect();
       return {
         surface: 'workbench_run_result',
@@ -5068,7 +5073,9 @@ async function validateSharedInspectorViewports() {
     });
     await waitForViewportLayout(width, '[data-shared-project-inspector="v0.1"]');
     const metrics = await evaluateJson(`(() => {
-      const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+      const inspector = Array.from(document.querySelectorAll('[data-shared-project-inspector="v0.1"]')).find(
+        (surface) => surface.getBoundingClientRect().width > 0,
+      );
       const rect = inspector?.getBoundingClientRect();
       return {
         surface: 'shared_project_inspector',
@@ -5103,7 +5110,9 @@ async function validateSemanticReviewViewports() {
     });
     await waitForViewportLayout(width, '[data-vnext-semantic-review-detail="v0.1"]');
     const metrics = await evaluateJson(`(() => {
-      const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const review = Array.from(document.querySelectorAll('[data-vnext-semantic-review-detail="v0.1"]')).find(
+        (surface) => surface.getBoundingClientRect().width > 0,
+      );
       const rect = review?.getBoundingClientRect();
       return {
         surface: 'workbench_run_assessment_proposal',
