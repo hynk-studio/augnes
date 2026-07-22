@@ -10,10 +10,6 @@ ChatGPT, Codex, and other native hosts perform tasks. Augnes preserves and
 reviews the project context around that work so that later tasks can begin from
 an explicit, source-linked state.
 
-This repository demonstrates the operational Core and a reference operator
-interface. It demonstrates the full continuity loop; a simpler user-facing
-workspace will be developed on top of this engine.
-
 ```text
 Project context
 → Codex or another native host
