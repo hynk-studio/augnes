@@ -1,16 +1,10 @@
-import { AgentWorkplane } from "@/components/workplane/agent-workplane";
-import { ProductShell } from "@/components/product-shell";
+import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Augnes Agent Workplane",
-  description:
-    "Read-only entry to project-scoped native-host results and Inspector lineage.",
+  title: "Augnes AI Workplane",
+  description: "Current work, results, suggested changes, and protected project decisions.",
 };
 
 export default function WorkbenchPage() {
-  return (
-    <ProductShell primaryZone="ai-workplane">
-      <AgentWorkplane />
-    </ProductShell>
-  );
+  redirect("/workbench/semantic-review");
 }

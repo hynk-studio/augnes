@@ -63,7 +63,7 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
-      label: "decision-centered Semantic Workbench presentation contract",
+      label: "AI Workplane human projection and exact-detail contract",
       ...rootNode("scripts/test-vnext-decision-centered-workbench.tsx"),
       timeoutMs: 30_000,
     },

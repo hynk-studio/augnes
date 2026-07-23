@@ -242,6 +242,43 @@ assert.match(portabilityShell, /data-product-utility-context="portability"/u);
 assert.equal(blankStateShell.includes("<summary><span>Project tools</span>"), true);
 record("product_shell_has_two_primary_zones_and_secondary_project_tools");
 
+const workbenchRouteSource = source("app/workbench/page.tsx");
+const semanticReviewSurfaceSource = source(
+  "components/workbench/semantic-review/semantic-review-surface.tsx",
+);
+const aiWorkplaneShellSource = source(
+  "components/workbench/ai-workplane/ai-workplane-shell.tsx",
+);
+const changeReviewSource = source(
+  "components/workbench/semantic-review/decision-centered-proposal-detail.tsx",
+);
+const resultReviewSource = source(
+  "components/workbench/result-review/run-result-review-surface.tsx",
+);
+assert.match(
+  workbenchRouteSource,
+  /redirect\("\/workbench\/semantic-review"\)/u,
+);
+assert.equal(workbenchRouteSource.includes("AgentWorkplane"), false);
+assert.equal(semanticReviewSurfaceSource.includes("AIWorkplaneShell"), true);
+assert.equal(semanticReviewSurfaceSource.includes("SemanticWorkbenchShell"), false);
+assert.equal(
+  count(semanticReviewSurfaceSource, /useProjectGuideBriefV02\(/gu),
+  1,
+);
+assert.equal(aiWorkplaneShellSource.includes("AI Workplane"), true);
+assert.equal(aiWorkplaneShellSource.includes("How decisions are protected"), true);
+assert.equal(changeReviewSource.includes("What would change"), true);
+assert.equal(changeReviewSource.includes("What was verified"), true);
+assert.equal(changeReviewSource.includes("What remains uncertain"), true);
+assert.equal(changeReviewSource.includes("Your decision"), true);
+assert.equal(changeReviewSource.includes("Advanced review"), true);
+assert.equal(resultReviewSource.includes("Outcome"), true);
+assert.equal(resultReviewSource.includes("Verification"), true);
+assert.equal(resultReviewSource.includes("What remains unresolved"), true);
+assert.equal(resultReviewSource.includes("data-result-review-read-only"), true);
+record("ai_workplane_replaces_active_agent_and_semantic_workbench_presentations");
+
 const directSource = source("lib/vnext/runtime/direct-native-host-round-trip.ts");
 const routeSource = source("app/api/vnext/operator/host-round-trip/route.ts");
 const normalizerSource = source("lib/vnext/native-host/native-host-result-normalization.ts");
@@ -918,6 +955,7 @@ assert.deepEqual(assertions, [
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
   "product_shell_has_two_primary_zones_and_secondary_project_tools",
+  "ai_workplane_replaces_active_agent_and_semantic_workbench_presentations",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
   "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",

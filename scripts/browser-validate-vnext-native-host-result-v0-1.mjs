@@ -1245,10 +1245,14 @@ async function main() {
 
   await runPhase("locked_workbench", async () => {
     const responseStart = responses.length;
-    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await navigate(`${appOrigin}/workbench`);
+    await waitForCondition(
+      `location.pathname === '/workbench/semantic-review' && document.querySelector('[data-ai-workplane-shell="v0.1"]') !== null`,
+      "workbench compatibility redirect to AI Workplane",
+    );
     await waitForCondition(
       `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
-      "locked Semantic Workbench",
+      "locked AI Workplane",
     );
     await waitForCondition(
       `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
@@ -1269,6 +1273,7 @@ async function main() {
     });
     result.guide_brief_ai_workplane_v0_2 = true;
     result.guide_brief_cross_surface_consistency = true;
+    result.workbench_compatibility_redirect = true;
     await validateProductShell({
       route: "/workbench/semantic-review",
       expectedPrimaryZone: "ai-workplane",
@@ -1576,14 +1581,15 @@ async function main() {
       const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const panel = detail?.querySelector('[data-vnext-strategic-advantage-transfer="proposal"]');
       const transferList = panel?.querySelector('[data-vnext-strategic-transfer-items="true"]');
-      const candidate = detail?.querySelector('[data-vnext-candidate-accept-eligible="false"]');
-      const accept = candidate?.querySelector('[data-vnext-operator-decision-form="v0.1"] option[value="accept"]');
+      const decisionForm = detail?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
+      const candidate = decisionForm?.closest('[data-vnext-candidate-accept-eligible="false"]');
+      const accept = decisionForm?.querySelector('option[value="accept"]');
       const panelText = panel?.textContent ?? '';
       const headingText = Array.from(panel?.querySelectorAll('h1, h2, h3, h4, [role="heading"], button') ?? [])
         .map((entry) => entry.textContent ?? '')
         .join(' ');
       return {
-        pending: panelText.includes('pending review') && detail?.textContent?.includes('pending_review'),
+        pending: panelText.includes('pending review'),
         transfer_count: transferList?.querySelectorAll(':scope > li').length ?? -1,
         candidate_operation_unknown:
           panelText.includes('unknown · human revision required') &&
@@ -2435,7 +2441,7 @@ async function main() {
     timing.milestone("proposal settlement and result review ready");
     assert.equal(
       await evaluateBoolean(
-        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
+        `document.querySelector('[data-ai-workplane-shell="v0.1"][data-ai-workplane-state="result_ready"][data-ai-workplane-guide-request-count="1"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null && document.body.innerText.includes('AI Workplane') && !document.body.innerText.includes('Semantic Workbench')`,
       ),
       true,
     );
@@ -2460,7 +2466,9 @@ async function main() {
       const assessment = review?.querySelector('[data-task-success-criteria="available"]');
       const proposal = review?.querySelector('[data-run-result-proposal="available"]');
       const text = review?.textContent ?? '';
+      const visibleText = review?.innerText ?? '';
       const assessmentText = assessment?.textContent ?? '';
+      const normalizedAssessmentText = assessmentText.replace(/\\s+/g, ' ').trim();
       return {
         read_only: review?.getAttribute('data-result-review-read-only') === 'true',
         semantic_mutation: review?.getAttribute('data-semantic-mutation'),
@@ -2478,7 +2486,17 @@ async function main() {
         duplicate_approvals_absent: !text.includes('Native host and approvals') && !text.includes('explicit local operator'),
         duplicate_model_coverage_absent: !text.includes('native host internal outside coverage'),
         duplicate_trust_privacy_absent: !text.includes('Trust, coverage, and privacy') && !text.includes('Raw prompt: not persisted'),
-        authority_boundary: text.includes('No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance, semantic state change, or work closure was created'),
+        authority_boundary:
+          visibleText.includes('Opening this result is read-only') &&
+          visibleText.includes('saved no decision') &&
+          visibleText.includes('accepted no project change'),
+        human_sections:
+          Array.from(review?.querySelectorAll('[data-ai-workplane-result-section]') ?? [])
+            .map((section) => section.getAttribute('data-ai-workplane-result-section'))
+            .join(',') === 'outcome,verification,unresolved,next-step',
+        primary_action_count: review?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        visible_protocol_absent:
+          !/(Semantic Workbench|Proposal queue|Verify and decide|exact semantic candidate|Reasoning steps|ReviewDecision|Transition|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|StateTransitionReceipt|\bEvidence\b|\bClaim\b|semantic gate|current-head|packet fingerprint|exact lineage)/i.test(visibleText),
         criterion_assessment_available: assessment !== null,
         execution_task_success_separated:
           assessment?.getAttribute('data-task-success-status') === 'unknown' &&
@@ -2492,12 +2510,11 @@ async function main() {
           !assessmentText.includes('Task-wide receipt residue trust classes'),
         criterion_authority_boundary:
           assessment?.getAttribute('data-assessment-authoritative') === 'false' &&
-          assessmentText.includes('derived and non-authoritative') &&
-          assessmentText.includes('creates no Evidence') &&
-          assessmentText.includes('changes neither semantic state nor later context'),
+          normalizedAssessmentText.includes('derived assessment is non-authoritative') &&
+          normalizedAssessmentText.includes('changes neither saved project state nor later work context'),
         proposal_available:
           proposal !== null &&
-          proposal.textContent?.includes('pending review') === true &&
+          proposal.textContent?.includes('suggested change is available') === true &&
           proposal.querySelector('[data-result-to-proposal-link="true"]') !== null,
         private_root_visible: text.includes(${JSON.stringify(liveAfter.normalized_root)}),
         current_goal_summary_visible: text.includes(${JSON.stringify(packet.task.goal)}),
@@ -2523,6 +2540,9 @@ async function main() {
       duplicate_model_coverage_absent: true,
       duplicate_trust_privacy_absent: true,
       authority_boundary: true,
+      human_sections: true,
+      primary_action_count: 1,
+      visible_protocol_absent: true,
       criterion_assessment_available: true,
       execution_task_success_separated: true,
       criterion_count: 0,
@@ -2746,7 +2766,7 @@ async function main() {
     );
     assert.equal(
       await evaluateBoolean(
-        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="pending_proposal"]') !== null`,
+        `document.querySelector('[data-ai-workplane-shell="v0.1"][data-ai-workplane-state="change_decision"]') !== null`,
       ),
       true,
     );
@@ -2809,7 +2829,20 @@ async function main() {
           !visibleText.includes('sha256:') &&
           !visibleText.includes('Confirmation digest') &&
           !visibleText.includes('Gate record ID'),
-        pending_review: text.includes('pending_review'),
+        human_review_order:
+          visibleText.indexOf('What would change') >= 0 &&
+          visibleText.indexOf('Why Augnes suggested it') > visibleText.indexOf('What would change') &&
+          visibleText.indexOf('What was verified') > visibleText.indexOf('Why Augnes suggested it') &&
+          visibleText.indexOf('What remains uncertain') > visibleText.indexOf('What was verified') &&
+          visibleText.indexOf('Your decision') > visibleText.indexOf('What remains uncertain'),
+        primary_action_count: detail?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        advanced_closed:
+          Array.from(detail?.querySelectorAll('details') ?? []).some((item) =>
+            item.querySelector('summary')?.textContent?.includes('Advanced review') === true && item.open === false
+          ),
+        visible_protocol_absent:
+          !/(Semantic Workbench|Proposal queue|Verify and decide|exact semantic candidate|Reasoning steps|ReviewDecision|Transition|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|StateTransitionReceipt|\bEvidence\b|\bClaim\b|semantic gate|current-head|packet fingerprint|exact lineage)/i.test(visibleText),
+        pending_review: detail?.getAttribute('data-vnext-proposal-status') === 'pending_review',
         execution_task_success:
           canonical?.querySelector('[data-host-completion-not-task-success="true"]') !== null &&
           canonical?.querySelector('[data-run-receipt-outcome="completed"]') !== null &&
@@ -2835,8 +2868,8 @@ async function main() {
           detail?.querySelector('[data-workbench-to-shared-inspector="true"]') !== null &&
           detail?.querySelector('[data-receipt-to-shared-inspector="true"]') !== null,
         no_decision_or_transition:
-          text.includes('No ReviewDecision is persisted for this proposal') &&
-          text.includes('not_applied'),
+          detail?.getAttribute('data-vnext-selected-decision-count') === '0' &&
+          detail?.getAttribute('data-vnext-transition-status') === 'not_applied',
         non_authoritative:
           canonical?.textContent?.includes('non-authoritative comparison') &&
           canonical?.textContent?.includes('relation is not proof') &&
@@ -2876,6 +2909,10 @@ async function main() {
       canonical_reconciliation: true,
       canonical_no_local_truth_or_current_inference: true,
       protocol_details_not_visible_by_default: true,
+      human_review_order: true,
+      primary_action_count: 1,
+      advanced_closed: true,
+      visible_protocol_absent: true,
       pending_review: true,
       execution_task_success: true,
       retained_assessment_duplicate_absent: true,
@@ -2922,8 +2959,8 @@ async function main() {
     const sourceProposalPath = await evaluateString("location.pathname");
     const originalOperationShape = await evaluateJson(`(() => {
       const form = document.querySelector('[data-vnext-operation-revision-form="v0.1"]');
-      const candidate = form?.closest('[data-vnext-candidate-id]');
-      const decisionForm = candidate?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
+      const decisionRoot = document.querySelector('[data-vnext-candidate-id="selected-decision"]');
+      const decisionForm = decisionRoot?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
       const accept = decisionForm?.querySelector('option[value="accept"]');
       const lockedLane = form?.querySelector('[data-vnext-server-selected-delta-lane="validation_delta"]');
       const validationTarget = form?.querySelector('[data-vnext-validation-state-target="criterion_assessment_item"]');
@@ -2936,7 +2973,7 @@ async function main() {
           ),
         criterion_target_label_visible:
           (validationTarget?.textContent ?? '').includes(${JSON.stringify(packet.task.success_criteria[0] ?? "")}),
-        original_accept_eligible: candidate?.getAttribute('data-vnext-candidate-accept-eligible'),
+        original_accept_eligible: decisionRoot?.getAttribute('data-vnext-candidate-accept-eligible'),
         original_accept_disabled: accept instanceof HTMLOptionElement ? accept.disabled : null,
         internal_identifier_inputs: form?.querySelectorAll('input[name*="id" i], input[name*="fingerprint" i], input[name*="nonce" i], input[name*="gate" i], input[name*="checksum" i]').length ?? -1,
       };
@@ -3034,9 +3071,7 @@ async function main() {
         const text = step?.textContent ?? '';
         return text.includes('create') &&
           text.includes('current absent') &&
-          text.includes('intended present') &&
-          text.includes('State changed') &&
-          text.includes('no');
+          text.includes('intended present');
       })()`),
       true,
     );
@@ -3097,11 +3132,16 @@ async function main() {
     const appliedShape = await evaluateJson(`(() => {
       const apply = document.querySelector('[data-vnext-transition-step="apply"]');
       const packet = document.querySelector('[data-vnext-transition-step="later-packet"]');
-      const text = (apply?.textContent ?? '') + ' ' + (packet?.textContent ?? '');
+      const safeguards = document.querySelector('[data-vnext-transition-safeguards="exact"]');
+      const text = safeguards?.textContent ?? '';
       return {
-        receipt_visible: text.includes('StateTransitionReceipt ID') && text.includes('Status') && text.includes('applied'),
+        receipt_visible:
+          apply?.textContent?.includes('Project updated') === true &&
+          text.includes('StateTransitionReceipt ID'),
         create_effect_visible: text.includes('Before absent') && text.includes('After present'),
-        later_packet_visible: text.includes('Later packet ID') && text.includes('Accepted state refs'),
+        later_packet_visible:
+          packet?.getAttribute('data-vnext-transition-step-status') === 'compiled' &&
+          text.includes('Later TaskContextPacket ID'),
         feedback_waiting_for_run: document.querySelector('[data-vnext-context-use-feedback="not_yet_available"]') !== null,
       };
     })()`);
@@ -3683,7 +3723,7 @@ async function main() {
       await evaluateBoolean(`(() => {
         const button = Array.from(
           document.querySelectorAll('[data-vnext-context-use-review-form="v0.1"] button')
-        ).find((candidate) => candidate.textContent?.trim() === 'Record context-use review');
+        ).find((candidate) => candidate.textContent?.trim() === 'Save feedback');
         if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
         button.click();
         return true;
@@ -3691,7 +3731,7 @@ async function main() {
       true,
     );
     await waitForCondition(
-      `document.querySelector('[data-vnext-context-use-feedback="available"]')?.textContent?.includes('user_declaration') === true && document.querySelector('[data-vnext-context-use-feedback="available"]')?.textContent?.includes('direct_local_observation') === true`,
+      `document.querySelector('[data-context-use-review-actually-used-basis="user_declaration"][data-context-use-review-presentation-basis="direct_local_observation"]') !== null`,
       "policy-triggered context-use provenance",
     );
     const afterBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
@@ -3783,6 +3823,10 @@ async function main() {
     const [candidateA, candidateB] = candidateIds;
 
     const recordSelectedAcceptDecision = async (candidateId, rationale) => {
+      await waitForCondition(
+        `document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-operator-decision-candidate=${JSON.stringify(candidateId)}][data-vnext-proposal-local-controls-busy="false"]') !== null`,
+        `selected candidate ${candidateId} decision controls ready`,
+      );
       await setFormControlValue(
         '[data-vnext-operator-decision-form="v0.1"] select',
         0,
@@ -3815,7 +3859,7 @@ async function main() {
         candidateId,
       );
       await waitForCondition(
-        `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateId)} && document.querySelector('[data-vnext-operator-decision-form="v0.1"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)}`,
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)')?.value === ${JSON.stringify(candidateId)} && document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="false"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)}`,
         `selected candidate ${candidateId}`,
       );
     };
@@ -3879,14 +3923,15 @@ async function main() {
         applying_decisions: transition?.getAttribute('data-vnext-transition-applying-decision-count'),
         persisted_receipts: transition?.getAttribute('data-vnext-transition-persisted-receipt-count'),
         preview: preview?.getAttribute('data-vnext-transition-step-status'),
-        confirmation: confirmation?.getAttribute('data-vnext-transition-step-status'),
-        apply: apply?.getAttribute('data-vnext-transition-step-status'),
-        later_packet: later?.getAttribute('data-vnext-transition-step-status'),
+        confirmation_absent: confirmation === null,
+        apply_absent: apply === null,
+        later_packet_absent: later === null,
         checkbox_count: transition?.querySelectorAll('input[type="checkbox"]').length ?? -1,
         error_or_status_count: transition?.querySelectorAll('[role="alert"], [role="status"]').length ?? -1,
-        confirm_disabled: confirmButton instanceof HTMLButtonElement && confirmButton.disabled,
-        apply_disabled: applyButton instanceof HTMLButtonElement && applyButton.disabled,
-        exact_decision_value: transition?.querySelector('select option:checked')?.textContent?.trim().split(' ')[0] ?? null,
+        confirm_action_absent: confirmButton === null,
+        apply_action_absent: applyButton === null,
+        primary_action_count: transition?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        exact_decision_value: transition?.getAttribute('data-vnext-transition-selected-decision-kind') ?? null,
         accepted_wording_present: /exact accepted decision|accept carries intent/i.test(transition?.textContent ?? ''),
       };
     })()`);
@@ -3894,13 +3939,14 @@ async function main() {
       applying_decisions: "1",
       persisted_receipts: "0",
       preview: "not_prepared",
-      confirmation: "not_recorded",
-      apply: "not_applied",
-      later_packet: "not_compiled",
+      confirmation_absent: true,
+      apply_absent: true,
+      later_packet_absent: true,
       checkbox_count: 0,
       error_or_status_count: 0,
-      confirm_disabled: true,
-      apply_disabled: true,
+      confirm_action_absent: true,
+      apply_action_absent: true,
+      primary_action_count: 1,
       exact_decision_value: "accept",
       accepted_wording_present: false,
     });
@@ -5648,7 +5694,7 @@ async function validateBlankStateViewports(projectContextRequired = true) {
 }
 
 async function validateWorkbenchResultViewports() {
-  for (const width of [390, 768, 1440]) {
+  for (const width of [390, 430, 768, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
       height: 1000,
@@ -5658,7 +5704,16 @@ async function validateWorkbenchResultViewports() {
     await delay(100);
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-run-result-review="v0.1"]');
+      const shell = review?.querySelector('[data-ai-workplane-shell="v0.1"]');
+      const heading = shell?.querySelector('h1');
+      const primaryAction = review?.querySelector('[data-ai-workplane-primary-action]');
       const rect = review?.getBoundingClientRect();
+      const visible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const style = getComputedStyle(element);
+        const elementRect = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && elementRect.width > 0 && elementRect.height > 0;
+      };
       return {
         surface: 'workbench_run_result',
         width: window.innerWidth,
@@ -5671,7 +5726,12 @@ async function validateWorkbenchResultViewports() {
         review_horizontal_overflow:
           (review?.scrollWidth ?? 0) > (review?.clientWidth ?? 0) + 1,
         review_inside_viewport:
-          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
+        heading_visible: visible(heading),
+        primary_action_visible: visible(primaryAction),
+        primary_action_count: review?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        primary_navigation_visible:
+          Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] a')).filter(visible).length === 2
       };
     })()`);
     result.viewport_results.push(metrics);
@@ -5679,6 +5739,10 @@ async function validateWorkbenchResultViewports() {
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
+    assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.primary_navigation_visible, true, JSON.stringify(metrics));
   }
 }
 
@@ -5718,7 +5782,7 @@ async function validateSharedInspectorViewports() {
 }
 
 async function validateSemanticReviewViewports() {
-  for (const width of [375, 390, 768, 1440]) {
+  for (const width of [390, 430, 768, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
       height: 1000,
@@ -5728,7 +5792,16 @@ async function validateSemanticReviewViewports() {
     await delay(100);
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
+      const heading = shell?.querySelector('h1');
+      const primaryAction = review?.querySelector('[data-ai-workplane-primary-action]');
       const rect = review?.getBoundingClientRect();
+      const visible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const style = getComputedStyle(element);
+        const elementRect = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && elementRect.width > 0 && elementRect.height > 0;
+      };
       return {
         surface: 'workbench_run_assessment_proposal',
         width: window.innerWidth,
@@ -5741,7 +5814,12 @@ async function validateSemanticReviewViewports() {
         review_horizontal_overflow:
           (review?.scrollWidth ?? 0) > (review?.clientWidth ?? 0) + 1,
         review_inside_viewport:
-          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1
+          Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
+        heading_visible: visible(heading),
+        primary_action_visible: visible(primaryAction),
+        primary_action_count: review?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        primary_navigation_visible:
+          Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] a')).filter(visible).length === 2
       };
     })()`);
     result.viewport_results.push(metrics);
@@ -5749,6 +5827,10 @@ async function validateSemanticReviewViewports() {
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
+    assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.primary_navigation_visible, true, JSON.stringify(metrics));
   }
 }
 

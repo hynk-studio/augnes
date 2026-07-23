@@ -1,7 +1,7 @@
 # GuideBrief Contract v0.2
 
-Status: current-project active contract. This change implements C3; C3 becomes
-complete only after review and merge.
+Status: current-project active contract. C3 is merged. C4 in this change keeps
+this contract as the shared coordinate for the human-facing AI Workplane.
 
 GuideBrief v0.2 is Augnes's bounded, project-scoped interpretation View. It
 connects Blank State, AI Workplane, ChatGPT/MCP and a newly started native Codex
@@ -60,9 +60,10 @@ deduplication and stable IDs are deterministic; no model ranks the material.
   primary action, compact current work, additional attention and recent change.
   `BlankStateViewV01` is now a thin Browser projection of this packet.
 - **AI Workplane:** embeds a compact rail with project, goal/coordinate,
-  work/result status, material blocker or judgment and review focus. It adds no
-  mutation and does not perform the C4 Workplane reprojection. The rail consumes
-  the same marker-gated local route client-side, fails closed to a bounded
+  work/result status, material blocker or judgment and review focus. C4 shares
+  one mounted-surface route read between that rail and the human work/result/
+  decision projection, with explicit refresh only after an existing mutation
+  requires current guidance. It adds no mutation, fails closed to a bounded
   unavailable state, and does not duplicate the full Blank State source graph
   in each Workplane route bundle.
 - **ChatGPT/MCP:** returns a public-safe project summary with the four epistemic
@@ -135,5 +136,6 @@ Historical documentation remains accurate to that contract and must not be
 read as current-project runtime authority.
 
 C3 adds no persistence, schema, protocol authority, top-level destination,
-chatbot or autonomous behavior. C4 remains blocked until C3 is reviewed and
-merged.
+chatbot or autonomous behavior. C4 does not change that boundary while
+reprojecting exact review state for humans; C5 remains blocked until C4 is
+reviewed and merged.

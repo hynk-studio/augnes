@@ -1,87 +1,125 @@
-import type { SemanticReviewProposalListItemV01 } from "./semantic-review-types";
 import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verify-reconciliation";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import type { AIWorkplaneHomeViewV01 } from "@/types/vnext/ai-workplane";
+
 import { ProjectVerificationWorkbench } from "./project-verification-workbench";
-import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
+import type { SemanticReviewProposalListItemV01 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
 
 export function SemanticReviewProposalList({
   proposals,
   reconciliation,
   continuity,
+  view,
 }: {
   proposals: SemanticReviewProposalListItemV01[];
   reconciliation: ProjectVerifyReconciliationV01;
   continuity: VNextOperatorPilotProjectContinuityV01;
+  view: AIWorkplaneHomeViewV01;
 }) {
   return (
-    <div className={styles.workbenchSequence} data-vnext-semantic-review-list="v0.2">
-      <section className={styles.panel} aria-labelledby="vnext-semantic-review-proposal-list-title">
+    <div
+      className={styles.workbenchSequence}
+      data-vnext-semantic-review-list="v0.2"
+      data-ai-workplane-home="v0.1"
+      data-ai-workplane-home-state={view.state}
+      data-ai-workplane-presentation={view.presentation_version}
+      data-ai-workplane-semantic-authority="false"
+    >
+      <section
+        className={`${styles.panel} ${styles.workplaneFocus}`}
+        aria-labelledby="ai-workplane-current-focus-title"
+      >
         <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Project review queue</p>
-          <h2 id="vnext-semantic-review-proposal-list-title">
-            Choose one exact semantic candidate review
-          </h2>
-          <p className={styles.copy}>
-            {continuity.pending_proposal_count} proposal(s) await a decision and {continuity.pending_accepted_decision_count} applying decision(s) await Transition closure. Recording order does not select current state.
-          </p>
+          <p className={styles.kicker}>Current work</p>
+          <h2 id="ai-workplane-current-focus-title">{view.heading}</h2>
+          <p className={styles.copy}>{view.situation}</p>
         </div>
+        {view.project_name || view.goal ? (
+          <div className={styles.workplaneCoordinate}>
+            {view.project_name ? (
+              <p><span>Current project</span><strong>{view.project_name}</strong></p>
+            ) : null}
+            {view.goal ? (
+              <p><span>Current goal</span><strong>{view.goal}</strong></p>
+            ) : null}
+          </div>
+        ) : null}
+        {view.material_note ? (
+          <p className={styles.notice}>{view.material_note}</p>
+        ) : null}
+        {view.primary_action?.href ? (
+          <div className={styles.buttonRow}>
+            <a
+              className={styles.button}
+              href={view.primary_action.href}
+              data-ai-workplane-primary-action={view.primary_action.kind}
+            >
+              {view.primary_action.label}
+            </a>
+          </div>
+        ) : null}
+      </section>
 
-        {proposals.length === 0 ? (
-          <p className={styles.empty}>
-            No persisted EpisodeDeltaProposal is available. Canonical Claim candidates without a proposal remain visible in Verify material below, but no ReviewDecision is fabricated.
-          </p>
-        ) : (
+      {view.focused_item ? (
+        <section className={styles.panel} aria-labelledby="ai-workplane-decision-title">
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Needs your decision</p>
+            <h2 id="ai-workplane-decision-title">{view.focused_item.title}</h2>
+          </div>
+          <p className={styles.copy}>{view.focused_item.reason}</p>
+          <p className={styles.humanStatus}>{view.focused_item.status_label}</p>
+        </section>
+      ) : null}
+
+      {view.additional_items.length > 0 ? (
+        <section className={styles.panel} aria-labelledby="ai-workplane-other-review-title">
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Other work to review</p>
+            <h2 id="ai-workplane-other-review-title">More suggested changes</h2>
+          </div>
           <ol className={styles.proposalList}>
-            {proposals.map((proposal) => (
-              <li
-                className={styles.proposalCard}
-                key={`${proposal.proposal_id}:${proposal.proposal_fingerprint}`}
-              >
+            {view.additional_items.map((item) => (
+              <li className={styles.proposalCard} key={item.proposal_id}>
                 <div className={styles.proposalCardBody}>
                   <div className={styles.rowBetween}>
-                    <strong>{proposal.bounded_summary}</strong>
-                    <span className={styles.badge}>{proposal.status}</span>
+                    <strong>{item.title}</strong>
+                    <span className={styles.badge}>{item.status_label}</span>
                   </div>
-                  <div className={styles.metricGrid}>
-                    <div><span>Candidates</span><strong>{proposal.candidate_count}</strong></div>
-                    <div><span>Decisions</span><strong>{proposal.decision_count}</strong></div>
-                    <div><span>Current-state read</span><strong>{proposal.current_state_status.replaceAll("_", " ")}</strong></div>
-                    <div><span>Transition</span><strong>{proposal.transition_status.replaceAll("_", " ")}</strong></div>
-                  </div>
-                  <span className={styles.muted}>Source {proposal.source_currentness.replaceAll("_", " ")} · created {proposal.created_at}</span>
+                  <p className={styles.muted}>{item.reason}</p>
                 </div>
                 <div className={styles.buttonRow}>
-                  <a className={styles.linkButton} href={semanticReviewProposalHref(proposal.proposal_id)}>
-                    Verify and decide
-                  </a>
-                  <a
-                    className={styles.linkButton}
-                    href={createSharedInspectorHrefV01({
-                      target_kind: "episode_delta_proposal",
-                      record_id: proposal.proposal_id,
-                      expected_fingerprint: proposal.proposal_fingerprint,
-                    })}
-                    data-proposal-list-to-shared-inspector="true"
-                  >
-                    Inspect exact lineage
+                  <a className={styles.linkButton} href={item.href}>
+                    Continue review
                   </a>
                 </div>
               </li>
             ))}
           </ol>
-        )}
-      </section>
+        </section>
+      ) : proposals.length === 0 && view.state === "no_current_decision" ? (
+        <section className={styles.panel} aria-labelledby="ai-workplane-empty-title">
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Results and recent outcomes</p>
+            <h2 id="ai-workplane-empty-title">Nothing else is waiting for review</h2>
+          </div>
+          <p className={styles.copy}>
+            No suggested project change currently needs a decision.
+          </p>
+        </section>
+      ) : null}
 
-      <ProjectVerificationWorkbench
-        reconciliation={reconciliation}
-      />
+      <details className={styles.advancedDisclosure}>
+        <summary>Advanced verification</summary>
+        <p className={styles.muted}>
+          Exact supporting, conflicting, missing, and source-history detail is
+          available here for technical review. It is not required for the normal path.
+        </p>
+        <ProjectVerificationWorkbench reconciliation={reconciliation} />
+        <p className={styles.muted}>
+          Pending review {continuity.pending_proposal_count} · saved applying decisions {continuity.pending_accepted_decision_count}
+        </p>
+      </details>
     </div>
   );
-}
-
-function semanticReviewProposalHref(proposalId: string): string {
-  return /^episode-delta-proposal:[a-f0-9]{24}$/.test(proposalId)
-    ? `/workbench/semantic-review/${proposalId.replace(":", "~")}`
-    : "/workbench/semantic-review";
 }

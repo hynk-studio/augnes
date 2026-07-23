@@ -6,9 +6,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata = {
-  title: "Episode Delta Proposal Review | Augnes",
-  description:
-    "Authenticated local EpisodeDeltaProposal detail and ReviewDecision preparation.",
+  title: "Suggested change review | Augnes",
+  description: "Review what would change, verification, uncertainty, and your protected decision.",
 };
 
 export default async function SemanticReviewProposalPage({
