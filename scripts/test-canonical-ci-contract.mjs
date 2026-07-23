@@ -617,7 +617,7 @@ const liveCompletionBarrier = browserE2e.indexOf(
   `await waitForLiveRunStatus(\n      manifest.project_id,\n      "completed",`,
 );
 const liveReceiptDomCheck = browserE2e.indexOf(
-  `[data-live-host-status="completed"] [data-live-host-receipt="persisted"]`,
+  `[data-delegated-work-stage="result_ready"] [data-ai-workplane-primary-action="review-result"]`,
 );
 assert(
   liveCompletionBarrier >= 0 && liveCompletionBarrier < liveReceiptDomCheck,

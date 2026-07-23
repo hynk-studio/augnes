@@ -352,6 +352,37 @@ export function readAutonomyRunLedgerRecord(
   });
 }
 
+export function readLatestManagedLiveAutonomyRunLedgerRecordV01(
+  input: {
+    workspace_id: string;
+    project_id: string;
+  },
+  db: AutonomyRunnerLedgerDb,
+): AutonomyRunRecord | null {
+  const row = db
+    .prepare(
+      `SELECT * FROM autonomy_runs
+       WHERE scope = ?
+         AND json_extract(metadata_json, '$.workspace_id') = ?
+         AND json_extract(metadata_json, '$.project_id') = ?
+         AND json_extract(metadata_json, '$.lifecycle_mode') = 'managed_live'
+       ORDER BY updated_at DESC, run_id DESC
+       LIMIT 1`,
+    )
+    .get(
+      input.project_id,
+      input.workspace_id,
+      input.project_id,
+    ) as RunRow | undefined;
+  if (!row) return null;
+  return {
+    ...parseRun(row),
+    steps: listStepRecords(db, row.run_id),
+    events: listEventRecords(db, row.run_id),
+    delta_batches: listDeltaBatchRecords(db, row.run_id),
+  };
+}
+
 export function listAutonomyRunLedgerRecords(
   options: AutonomyRunListOptions & AutonomyRunnerLedgerDbOptions = {},
 ): AutonomyRunSummary[] {

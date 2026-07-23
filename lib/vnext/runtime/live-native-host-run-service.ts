@@ -3,7 +3,7 @@ import type Database from "better-sqlite3";
 import {
   appendAutonomyRunLedgerEvent,
   buildAutonomyRunEventRecord,
-  ensureAutonomyRunnerLedgerSchemaV01,
+  readLatestManagedLiveAutonomyRunLedgerRecordV01,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
   updateAutonomyRunStepLedgerFields,
@@ -729,21 +729,13 @@ export class LiveNativeHostRunServiceV01 {
   ): AutonomyRunRecord | null {
     const db = this.openDatabase(config);
     try {
-      ensureAutonomyRunnerLedgerSchemaV01(db);
-      const row = db
-        .prepare(
-          `SELECT run_id FROM autonomy_runs
-           WHERE scope = ?
-             AND json_extract(metadata_json, '$.workspace_id') = ?
-             AND json_extract(metadata_json, '$.project_id') = ?
-             AND json_extract(metadata_json, '$.lifecycle_mode') = 'managed_live'
-           ORDER BY updated_at DESC, run_id DESC
-           LIMIT 1`,
-        )
-        .get(config.project_id, config.workspace_id, config.project_id) as
-        | { run_id: string }
-        | undefined;
-      return row ? readAutonomyRunLedgerRecord(row.run_id, { db }) : null;
+      return readLatestManagedLiveAutonomyRunLedgerRecordV01(
+        {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        },
+        db,
+      );
     } finally {
       db.close();
     }
@@ -1331,6 +1323,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
         numberMetadataV01(run.metadata.control_revision) +
         (nextStatus === run.status ? 0 : 1);
       const hostBindings = hostBindingsFromRefsV01(event.host_refs);
+      const checkpointMetadata =
+        event.event_kind === "work_checkpoint"
+          ? checkpointMetadataV01(event.bounded_metadata)
+          : null;
       const capabilityMetadata =
         event.event_kind === "capability_confirmed"
           ? {
@@ -1396,6 +1392,9 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
             event_kind: event.event_kind,
             coverage: event.coverage,
             host_refs: event.host_refs,
+            ...(checkpointMetadata
+              ? { checkpoint: checkpointMetadata }
+              : {}),
             control_revision: revision,
             raw_protocol_persisted: false,
           },
@@ -1761,6 +1760,60 @@ function validateLifecycleEventV01(
     refuseV01("live_host_event_material_forbidden", 422);
   }
   assertPublicTextMaterialV01(event.bounded_metadata, "live_host_event_material_forbidden");
+  if (event.event_kind === "work_checkpoint") {
+    checkpointMetadataV01(event.bounded_metadata);
+  }
+}
+
+function checkpointMetadataV01(
+  metadata: NativeHostLifecycleEventV01["bounded_metadata"],
+): {
+  kind: "command_execution" | "file_change";
+  phase: "started" | "completed";
+  status: "active" | "completed" | "failed" | "blocked" | "unknown";
+  change_count: number | null;
+} {
+  const keys = Object.keys(metadata).sort();
+  const expected = [
+    "change_count",
+    "checkpoint_kind",
+    "phase",
+    "status",
+  ];
+  if (
+    keys.length !== expected.length ||
+    keys.some((key, index) => key !== expected[index])
+  ) {
+    refuseV01("live_host_checkpoint_invalid", 422);
+  }
+  const kind = stringMetadataV01(metadata.checkpoint_kind);
+  const phase = stringMetadataV01(metadata.phase);
+  const status = stringMetadataV01(metadata.status);
+  const count = metadata.change_count;
+  if (
+    !["command_execution", "file_change"].includes(kind ?? "") ||
+    !["started", "completed"].includes(phase ?? "") ||
+    !["active", "completed", "failed", "blocked", "unknown"].includes(
+      status ?? "",
+    ) ||
+    (phase === "started" && status !== "active") ||
+    (phase === "completed" && status === "active") ||
+    (count !== null &&
+      (!Number.isSafeInteger(count) || Number(count) < 0 || Number(count) > 1_000))
+  ) {
+    refuseV01("live_host_checkpoint_invalid", 422);
+  }
+  return {
+    kind: kind as "command_execution" | "file_change",
+    phase: phase as "started" | "completed",
+    status: status as
+      | "active"
+      | "completed"
+      | "failed"
+      | "blocked"
+      | "unknown",
+    change_count: count === null ? null : Number(count),
+  };
 }
 
 function lifecycleStatusV01(

@@ -757,6 +757,21 @@ async function main() {
     "augnes_get_guide_brief should expose current-project source status"
   );
   assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.coordinate.delegated_work.stage,
+    "result_ready",
+    "augnes_get_guide_brief should preserve the bounded delegated-work stage"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSummary.delegated_work.latest_checkpoint,
+    "Result saved",
+    "augnes_get_guide_brief should summarize the latest bounded checkpoint"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.text,
+    /Delegated Codex work: result_ready/i,
+    "augnes_get_guide_brief narrative should include bounded delegated progress"
+  );
+  assert.equal(
     bridgeSnapshot.explicitGuide.identity.project_id,
     "project:00000000-0000-4000-8000-000000000002",
     "augnes_get_guide_brief should preserve an explicitly requested exact project"

@@ -12,11 +12,13 @@ export function SemanticReviewProposalList({
   reconciliation,
   continuity,
   view,
+  showCurrentFocus = true,
 }: {
   proposals: SemanticReviewProposalListItemV01[];
   reconciliation: ProjectVerifyReconciliationV01;
   continuity: VNextOperatorPilotProjectContinuityV01;
   view: AIWorkplaneHomeViewV01;
+  showCurrentFocus?: boolean;
 }) {
   return (
     <div
@@ -27,10 +29,11 @@ export function SemanticReviewProposalList({
       data-ai-workplane-presentation={view.presentation_version}
       data-ai-workplane-semantic-authority="false"
     >
-      <section
-        className={`${styles.panel} ${styles.workplaneFocus}`}
-        aria-labelledby="ai-workplane-current-focus-title"
-      >
+      {showCurrentFocus ? (
+        <section
+          className={`${styles.panel} ${styles.workplaneFocus}`}
+          aria-labelledby="ai-workplane-current-focus-title"
+        >
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Current work</p>
           <h2 id="ai-workplane-current-focus-title">{view.heading}</h2>
@@ -60,7 +63,8 @@ export function SemanticReviewProposalList({
             </a>
           </div>
         ) : null}
-      </section>
+        </section>
+      ) : null}
 
       {view.focused_item ? (
         <section className={styles.panel} aria-labelledby="ai-workplane-decision-title">

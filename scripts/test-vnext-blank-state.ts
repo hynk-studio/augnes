@@ -25,6 +25,10 @@ import {
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import type { BlankStateSourceV01 } from "../types/vnext/blank-state";
+import type {
+  DelegatedWorkProjectionV01,
+  DelegatedWorkStageV01,
+} from "../types/vnext/delegated-work";
 import type { ProjectHomeProjectionV01 } from "../types/vnext/project-home";
 import type { RecentProjectEntryV01 } from "../types/vnext/project-onboarding";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
@@ -55,6 +59,7 @@ function source(
     projection,
     project_resolution: projection ? "resolved" : "none",
     direct_host_round_trip_available: false,
+    delegated_work: null,
     ...overrides,
   };
 }
@@ -119,6 +124,92 @@ function recentEntry(overrides: Partial<RecentProjectEntryV01> = {}): RecentProj
   };
 }
 
+function delegatedWork(
+  stage: DelegatedWorkStageV01,
+): DelegatedWorkProjectionV01 {
+  const resultReady = stage === "result_ready";
+  return {
+    projection_version: "delegated_work_projection.v0.1",
+    workspace_id: "workspace:test",
+    project_id: "project:test",
+    run_ref: "autonomy-run:test",
+    mode: "interactive",
+    source_status: "available",
+    stage,
+    started_at: "2026-07-23T00:00:00.000Z",
+    updated_at: "2026-07-23T00:01:00.000Z",
+    finished_at: resultReady ? "2026-07-23T00:01:00.000Z" : null,
+    current: {
+      goal: "Finish the bounded work",
+      stage_label:
+        stage === "waiting_for_approval"
+          ? "Waiting for your approval"
+          : stage === "resume_required"
+            ? "Interrupted"
+            : resultReady
+              ? "Result ready"
+              : "Working",
+      situation: "The current delegated work state is persisted.",
+      latest_checkpoint: "Running a project command",
+      material_blocker_or_request:
+        stage === "waiting_for_approval"
+          ? "A bounded project command needs review."
+          : null,
+      reconciliation_required: stage === "resume_required",
+      last_observed_at: "2026-07-23T00:01:00.000Z",
+      trusted_result_available: resultReady,
+      needs_user:
+        stage === "waiting_for_approval" ||
+        stage === "resume_required" ||
+        resultReady,
+    },
+    timeline: [],
+    compacted_item_count: 0,
+    gap_notes: [],
+    next_action: {
+      kind:
+        stage === "waiting_for_approval"
+          ? "review_requested_access"
+          : stage === "resume_required"
+            ? "resume_codex_work"
+            : resultReady
+              ? "review_result"
+              : "open_ai_workplane",
+      label: null,
+      href: "/workbench/semantic-review#delegated-work",
+      executes: false,
+    },
+    pending_approval: null,
+    result: resultReady
+      ? {
+          receipt_ref: "run-receipt:test",
+          outcome: "completed",
+          review_href: "/workbench/results/run-receipt~test",
+        }
+      : null,
+    exact_detail_href: null,
+    start_eligible: false,
+    start_blocker: "A delegated run is active.",
+    control_revision: 2,
+    can_cancel: stage === "working" || stage === "waiting_for_approval",
+    authority: {
+      writes_database: false,
+      creates_run: false,
+      starts_codex: false,
+      approves_host_action: false,
+      cancels_run: false,
+      resumes_run: false,
+      creates_result: false,
+      establishes_task_success: false,
+      creates_evidence: false,
+      changes_project_state: false,
+      calls_provider: false,
+      calls_github: false,
+      retries: false,
+    },
+  };
+}
+
 function view(sourceValue: BlankStateSourceV01) {
   const guide = buildProjectGuideBriefV02({
     source: sourceValue,
@@ -178,6 +269,32 @@ async function main() {
   })));
   assert.equal(running.focus, "work_in_progress");
   assert.equal(running.primary_action.kind, "link");
+
+  const delegatedWaiting = view(
+    source(projection(), {
+      delegated_work: delegatedWork("waiting_for_approval"),
+    }),
+  );
+  assert.equal(delegatedWaiting.focus, "work_requires_attention");
+  assert.equal(
+    delegatedWaiting.primary_action.label,
+    "Review requested access",
+  );
+  assert.equal(
+    delegatedWaiting.current_work?.delegated_work?.stage,
+    "waiting_for_approval",
+  );
+  const delegatedResume = view(
+    source(projection(), {
+      delegated_work: delegatedWork("resume_required"),
+    }),
+  );
+  assert.equal(delegatedResume.primary_action.label, "Resume in AI Workplane");
+  const delegatedWorking = view(
+    source(projection(), { delegated_work: delegatedWork("working") }),
+  );
+  assert.equal(delegatedWorking.heading, "Codex is working");
+  assert.equal(delegatedWorking.primary_action.label, "Open delegated work");
 
   const resultEntry = {
     entry_version: "semantic_workbench_entry.v0.1",

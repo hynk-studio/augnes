@@ -238,6 +238,7 @@ export interface NativeHostLifecycleEventV01 {
     | "thread_bound"
     | "thread_status_changed"
     | "turn_started"
+    | "work_checkpoint"
     | "approval_resolved"
     | "stop_requested"
     | "transport_disconnected"

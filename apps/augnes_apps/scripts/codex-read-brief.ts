@@ -33,6 +33,15 @@ const GuideBriefSchema = z.object({
     work_status: z.string(),
     material_blocker_or_uncertainty: z.string().nullable(),
     unresolved_user_judgment: z.string().nullable(),
+    delegated_work: z
+      .object({
+        stage: z.string(),
+        latest_checkpoint: z.string().nullable(),
+        needs_user: z.boolean(),
+        trusted_result_available: z.boolean(),
+        next_action: z.string(),
+      })
+      .nullable(),
   }).passthrough(),
   observed: z.array(z.object({ statement: z.string(), source_refs: StringArraySchema }).passthrough()),
   inferred: z.array(z.object({ statement: z.string(), caveats: StringArraySchema }).passthrough()),
@@ -164,6 +173,12 @@ export function printGuideBriefSummary(brief: GuideBrief) {
   console.log(`- context: ${brief.identity.project_context}`);
   console.log(`- goal: ${brief.coordinate.goal ?? "No current goal"}`);
   console.log(`- status: ${brief.coordinate.work_status}`);
+  if (brief.coordinate.delegated_work) {
+    console.log(`- delegated work: ${brief.coordinate.delegated_work.stage}`);
+    console.log(
+      `- latest checkpoint: ${brief.coordinate.delegated_work.latest_checkpoint ?? "No checkpoint summarized"}`,
+    );
+  }
   printList("Observed", brief.observed.map((item) => item.statement));
   printList("Inferred with caveats", brief.inferred.map((item) => `${item.statement} Caveat: ${item.caveats.join("; ") || "bounded derived interpretation"}`));
   printList("Suggested", brief.suggested.map((item) => `${item.label}: ${item.reason}`));

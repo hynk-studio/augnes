@@ -49,6 +49,10 @@ import type {
   EvidenceRecordReferenceV01,
 } from "@/types/vnext/project-verify-material";
 import type { BlankStateSourceV01 } from "@/types/vnext/blank-state";
+import type {
+  DelegatedWorkProjectionV01,
+  DelegatedWorkStageV01,
+} from "@/types/vnext/delegated-work";
 import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
@@ -378,6 +382,7 @@ try {
         projection: null,
         project_resolution: "none",
         direct_host_round_trip_available: false,
+        delegated_work: null,
       },
       generated_at: OBSERVED_AT,
     }),
@@ -403,6 +408,50 @@ try {
   });
   assert.equal(idle.state, "no_current_decision");
   assert.equal(idle.primary_action?.label, "Return to Blank State");
+
+  const delegatedApprovalHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [reviewListItem],
+    continuity,
+    delegated_work: delegatedWorkV01("waiting_for_approval"),
+  });
+  assert.equal(delegatedApprovalHome.state, "delegated_approval");
+  assert.equal(
+    delegatedApprovalHome.primary_action?.label,
+    "Review requested access",
+  );
+  const delegatedResumeHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [reviewListItem],
+    continuity,
+    delegated_work: delegatedWorkV01("resume_required"),
+  });
+  assert.equal(delegatedResumeHome.state, "delegated_resume");
+  assert.equal(delegatedResumeHome.primary_action?.label, "Resume Codex work");
+  const delegatedWorkingHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [reviewListItem],
+    continuity,
+    delegated_work: delegatedWorkV01("working"),
+  });
+  assert.equal(delegatedWorkingHome.state, "work_in_progress");
+  assert.equal(delegatedWorkingHome.primary_action, null);
+  const delegatedResultHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [reviewListItem],
+    continuity,
+    delegated_work: delegatedWorkV01("result_ready"),
+  });
+  assert.equal(delegatedResultHome.state, "result_ready");
+  assert.equal(delegatedResultHome.primary_action?.label, "Review result");
 
   const queue = buildAIWorkplaneQueueV01([
     {
@@ -903,6 +952,100 @@ function aiWorkplaneGuideSourceV01(): BlankStateSourceV01 {
     projection,
     project_resolution: "resolved",
     direct_host_round_trip_available: false,
+    delegated_work: null,
+  };
+}
+
+function delegatedWorkV01(
+  stage: DelegatedWorkStageV01,
+): DelegatedWorkProjectionV01 {
+  const resultReady = stage === "result_ready";
+  return {
+    projection_version: "delegated_work_projection.v0.1",
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    run_ref: "autonomy-run:ai-workplane-delegated",
+    mode: "interactive",
+    source_status: "available",
+    stage,
+    started_at: OBSERVED_AT,
+    updated_at: OBSERVED_AT,
+    finished_at: resultReady ? OBSERVED_AT : null,
+    current: {
+      goal: "Review the bounded current result",
+      stage_label:
+        stage === "waiting_for_approval"
+          ? "Waiting for your approval"
+          : stage === "resume_required"
+            ? "Interrupted"
+            : resultReady
+              ? "Result ready"
+              : "Working",
+      situation: "Codex work has an exact persisted operational state.",
+      latest_checkpoint: "Running a project command",
+      material_blocker_or_request:
+        stage === "waiting_for_approval"
+          ? "A project command needs review."
+          : null,
+      reconciliation_required: stage === "resume_required",
+      last_observed_at: OBSERVED_AT,
+      trusted_result_available: resultReady,
+      needs_user:
+        stage === "waiting_for_approval" ||
+        stage === "resume_required" ||
+        resultReady,
+    },
+    timeline: [],
+    compacted_item_count: 0,
+    gap_notes: [],
+    next_action: {
+      kind:
+        stage === "waiting_for_approval"
+          ? "review_requested_access"
+          : stage === "resume_required"
+            ? "resume_codex_work"
+            : resultReady
+              ? "review_result"
+              : "none",
+      label:
+        stage === "waiting_for_approval"
+          ? "Review requested access"
+          : stage === "resume_required"
+            ? "Resume Codex work"
+            : resultReady
+              ? "Review result"
+              : null,
+      href: resultReady ? "/workbench/results/run-receipt~test" : null,
+      executes: false,
+    },
+    pending_approval: null,
+    result: resultReady
+      ? {
+          receipt_ref: "run-receipt:test",
+          outcome: "completed",
+          review_href: "/workbench/results/run-receipt~test",
+        }
+      : null,
+    exact_detail_href: null,
+    start_eligible: false,
+    start_blocker: "A delegated run is active.",
+    control_revision: 1,
+    can_cancel: stage === "working" || stage === "waiting_for_approval",
+    authority: {
+      writes_database: false,
+      creates_run: false,
+      starts_codex: false,
+      approves_host_action: false,
+      cancels_run: false,
+      resumes_run: false,
+      creates_result: false,
+      establishes_task_success: false,
+      creates_evidence: false,
+      changes_project_state: false,
+      calls_provider: false,
+      calls_github: false,
+      retries: false,
+    },
   };
 }
 

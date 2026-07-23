@@ -136,6 +136,7 @@ import {
   type OpenAIResponsesTransportRequestV01,
 } from "../lib/vnext/model-gateway/openai/responses-adapter";
 import type { ProjectRunResultDetailV01 } from "../types/vnext/project-run-result";
+import type { DelegatedWorkProjectionV01 } from "../types/vnext/delegated-work";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
@@ -8331,6 +8332,14 @@ async function assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input: {
           }),
         );
         jar.absorb(start);
+        const startBody = await publicJson(start);
+        const startedDelegated =
+          delegatedProjectionFromRouteBodyV01(startBody);
+        assert(
+          ["preparing", "working", "resume_required"].includes(
+            startedDelegated.stage,
+          ),
+        );
         let projection = await waitForLiveProjectionV01(
           harness.service,
           config,
@@ -8467,6 +8476,15 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         jar.absorb(start);
         const startBody = await publicJson(start);
         assert.equal(startBody.path_kind, "live_codex_app_server");
+        assert.equal(
+          startBody.route_version,
+          "vnext_operator_host_round_trip_route.v0.3",
+        );
+        assert(
+          ["preparing", "working", "waiting_for_approval"].includes(
+            delegatedProjectionFromRouteBodyV01(startBody).stage,
+          ),
+        );
         let projection = projectionFromRouteBodyV01(startBody);
         assert.equal(projection.packet_copy_actions, 0);
         assert.equal(projection.handoff_paste_actions, 0);
@@ -8546,8 +8564,13 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           }),
         );
         assert.equal(read.status, 200);
+        const readBody = await publicJson(read);
         assert.equal(
-          projectionFromRouteBodyV01(await publicJson(read)).status,
+          projectionFromRouteBodyV01(readBody).status,
+          "waiting_for_approval",
+        );
+        assert.equal(
+          delegatedProjectionFromRouteBodyV01(readBody).stage,
           "waiting_for_approval",
         );
 
@@ -8592,6 +8615,40 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           ),
           true,
         );
+        const checkpointEvents = run.events.filter(
+          (event) =>
+            event.event_type === "host_event_observed" &&
+            event.payload.event_kind === "work_checkpoint",
+        );
+        assert.equal(checkpointEvents.length >= 2, true);
+        assert.equal(
+          checkpointEvents.every((event) => {
+            const serialized = JSON.stringify(event.payload.checkpoint);
+            return (
+              event.payload.host_refs != null &&
+              !serialized.includes("npm test") &&
+              !serialized.includes(config.database_path) &&
+              !serialized.includes("output")
+            );
+          }),
+          true,
+        );
+        const terminalRead = await get(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "GET",
+            jar,
+          }),
+        );
+        assert.equal(terminalRead.status, 200);
+        const terminalDelegated = delegatedProjectionFromRouteBodyV01(
+          await publicJson(terminalRead),
+        );
+        assert.equal(terminalDelegated.stage, "result_ready");
+        assert.equal(
+          terminalDelegated.current.trusted_result_available,
+          true,
+        );
+        assert.equal(terminalDelegated.next_action.kind, "review_result");
         const receiptId = String(run.metadata.run_receipt_id);
         const receiptDb = openVNextLocalOperatorDatabaseV01(config);
         const record = readVNextCoreRecordV01(receiptDb, {
@@ -9820,6 +9877,13 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         );
         assert.equal(resume.status, 202);
         jar.absorb(resume);
+        const resumeBody = await publicJson(resume);
+        const resumedDelegated =
+          delegatedProjectionFromRouteBodyV01(resumeBody);
+        assert.equal(resumedDelegated.run_ref, projection.run_ref);
+        assert(
+          ["preparing", "working"].includes(resumedDelegated.stage),
+        );
         try {
           projection = await waitForLiveProjectionV01(
             harness.service,
@@ -9839,6 +9903,24 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         assert.equal(countTraceMethodV01(trace, "turn/start"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/read"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/resume"), 1);
+        const turnStart = trace.find(
+          (entry) =>
+            entry.kind === "received" &&
+            entry.value?.method === "turn/start",
+        );
+        assert.equal(turnStart?.value.guide_brief_section, true);
+        assert.equal(turnStart?.value.guide_brief_version_v0_2, true);
+        assert.equal(turnStart?.value.guide_grants_approval, false);
+        const resumedRun = readHostRunStateFromConfigV01(
+          config,
+          projection.run_ref!,
+        );
+        assert.equal(
+          resumedRun.events.some(
+            (event) => event.event_type === "run_resumed",
+          ),
+          true,
+        );
         assertObservedProcessesStoppedV01(harness.observations);
         assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
       } finally {
@@ -10302,6 +10384,18 @@ function projectionFromRouteBodyV01(
   const value = body.live_run;
   assert(value && typeof value === "object" && !Array.isArray(value));
   return value as LiveNativeHostRunProjectionV01;
+}
+
+function delegatedProjectionFromRouteBodyV01(
+  body: Record<string, unknown>,
+): DelegatedWorkProjectionV01 {
+  const value = body.delegated_work;
+  assert(value && typeof value === "object" && !Array.isArray(value));
+  assert.equal(
+    (value as { projection_version?: unknown }).projection_version,
+    "delegated_work_projection.v0.1",
+  );
+  return value as DelegatedWorkProjectionV01;
 }
 
 function cloneRouteCookieJarV01(source: RouteCookieJar): RouteCookieJar {

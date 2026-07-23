@@ -69,10 +69,10 @@ GuideBrief product responsibility, UX merge gates, and replacement discipline.
 It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
-interface. C0, C1, C2, and C3 are merged. The C4 implementation in this change
-reprojects the current result, suggested-change, decision, and project-change
-flows as the human-facing AI Workplane while preserving their exact engine,
-authority, persistence, replay, and exact-detail behavior:
+interface. C0–C4 are merged. The C5 implementation in this change projects the
+existing managed-live native-host lifecycle and durable runner ledger as
+human-facing delegated Codex progress and explicit resumption while preserving
+their exact engine, authority, persistence, replay, and exact-detail behavior:
 
 - **Blank State** — default simple human entry and resumption surface
 - **GuideBrief** — embedded cross-surface interpretation and guidance layer
@@ -90,12 +90,15 @@ renders `/` as the canonical Blank State; `/projects` and
 an internal source-model term, but Project Home and standalone onboarding are
 not parallel user-facing products. C3 made GuideBrief v0.2 the active bounded
 current-project View without replacing `TaskContextPacket` or granting
-authority. C4 in this change makes `/workbench/semantic-review` the canonical
+authority. C4 makes `/workbench/semantic-review` the canonical
 human-facing AI Workplane, redirects `/workbench` there, and moves exact
-protocol detail behind advanced or contextual paths. C4 becomes complete only
-when this PR is reviewed and merged. C5–C9 remain pending. Current code remains
-authoritative for implemented behavior until each later correction PR changes
-it.
+protocol detail behind advanced or contextual paths. C5 in this change makes
+AI Workplane the single live-Codex controller, adds a bounded durable progress
+timeline over the existing ledger, and gives Blank State a compact return path.
+Leaving the page does not cancel admitted local work; lost local-runtime
+ownership requires explicit exact resume. C5 becomes complete only when this PR
+is reviewed and merged. C6–C9 remain pending. Current code remains authoritative
+for implemented behavior until each later correction PR changes it.
 
 ### Hard UX invariants
 
@@ -160,9 +163,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C4 AI Workplane human reprojection is
-the active authorized correction after merged C0–C3. Do not start C5–C9 or
-broad visual polish before C4 user review and merge.
+An unsatisfactory answer blocks the PR. C5 delegated Codex timeline and
+resumption is the active authorized correction after merged C0–C4. Do not start
+C6–C9 or broad visual polish before C5 user review and merge.
 
 ## Development defaults
 

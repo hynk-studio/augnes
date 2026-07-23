@@ -12,6 +12,10 @@ export type AIWorkplaneShellStateV01 =
   | "guidance_unavailable"
   | "no_current_decision"
   | "work_in_progress"
+  | "delegated_approval"
+  | "delegated_resume"
+  | "delegated_cancelling"
+  | "delegated_ready"
   | "result_ready"
   | "change_decision"
   | "change_completion"
@@ -29,6 +33,7 @@ export function AIWorkplaneShell({
   guide,
   guideLoading = false,
   guideRequestCount,
+  priorityContent,
   children,
 }: {
   title: string;
@@ -40,6 +45,7 @@ export function AIWorkplaneShell({
   guide: GuideBriefAIWorkplaneProjectionV02 | null;
   guideLoading?: boolean;
   guideRequestCount?: number;
+  priorityContent?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -67,6 +73,8 @@ export function AIWorkplaneShell({
           ) : null}
         </nav>
       </header>
+
+      {priorityContent}
 
       <ProjectGuideBriefRail guide={guide ?? undefined} loading={guideLoading} />
 

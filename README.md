@@ -115,18 +115,24 @@ The target topology is documented in the
 C0 established the product authority and C1 reduced the shared shell to
 **Blank State** and **AI Workplane** as its only primary destinations. Existing
 project selection, transfer, and recovery routes remain available through
-secondary **Project tools**. C0–C3 are merged. GuideBrief v0.2 is the
+secondary **Project tools**. C0–C4 are merged. GuideBrief v0.2 is the
 deterministic current-project interpretation shared by
 Blank State, a compact AI Workplane rail, the existing
 `augnes_get_guide_brief` MCP tool, `codex:read-brief`, and new native Codex task
 starts. GuideBrief remains a read-only View and is delivered separately from the
 exact `TaskContextPacket`; legacy v0.1 fixtures and Human Surface consumers are
-historical or compatibility-only. C4 in this change reprojects the compatible
+historical or compatibility-only. C4 reprojects the compatible
 `/workbench/semantic-review` route as the human-facing AI Workplane for current
 work, results, suggested changes, decisions, and separately confirmed project
 changes. Exact verification and source history remain available through
-advanced or contextual detail. C4 becomes complete only after this PR is
-reviewed and merged; C5–C9 remain pending.
+advanced or contextual detail. C5 in this change adds one bounded delegated
+Codex timeline over the existing runner ledger, moves live start/approval/
+cancel/resume ownership into AI Workplane, and gives Blank State a compact
+status and return path. Leaving the page does not itself cancel admitted local
+work; a lost local-runtime owner requires explicit resume of the same exact
+run/thread/turn binding. Trusted result status requires persisted receipt/result
+binding. C5 becomes complete only after this PR is reviewed and merged; C6–C9
+remain pending.
 
 The repository now supports:
 

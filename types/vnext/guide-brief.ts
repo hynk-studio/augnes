@@ -4,6 +4,10 @@ import type {
   BlankStateRouteModeV01,
   BlankStateViewV01,
 } from "./blank-state";
+import type {
+  DelegatedWorkNextActionKindV01,
+  DelegatedWorkStageV01,
+} from "./delegated-work";
 
 export const GUIDE_BRIEF_VERSION_V02 = "guide_brief.v0.2" as const;
 export const GUIDE_BRIEF_ROUTE_MARKER_V02 = "guide-brief-v0.2" as const;
@@ -107,6 +111,13 @@ export interface GuideBriefCurrentCoordinateV02 {
   material_blocker_or_uncertainty: string | null;
   unresolved_user_judgment: string | null;
   recent_meaningful_change: string | null;
+  delegated_work: null | {
+    stage: DelegatedWorkStageV01;
+    latest_checkpoint: string | null;
+    needs_user: boolean;
+    trusted_result_available: boolean;
+    next_action: DelegatedWorkNextActionKindV01;
+  };
 }
 
 export interface GuideBriefBlankStateProjectionV02 extends BlankStateViewV01 {
@@ -124,6 +135,7 @@ export interface GuideBriefAIWorkplaneProjectionV02 {
   material_blocker_or_judgment: string | null;
   recommended_review_focus: string;
   exact_detail_href: string | null;
+  delegated_work: GuideBriefCurrentCoordinateV02["delegated_work"];
 }
 
 export interface GuideBriefChatGPTProjectionV02 {
@@ -144,6 +156,7 @@ export interface GuideBriefChatGPTProjectionV02 {
   needs_user_judgment: GuideBriefUserJudgmentItemV02[];
   primary_guidance: GuideBriefPrimaryGuidanceV02;
   source_refs: GuideBriefSourceRefV02[];
+  delegated_work: GuideBriefCurrentCoordinateV02["delegated_work"];
 }
 
 export interface GuideBriefCodexProjectionV02 {

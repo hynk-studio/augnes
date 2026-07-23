@@ -30,11 +30,13 @@ import {
   type LiveNativeHostRunServiceV01,
 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import { VNextOperatorPilotContinuityErrorV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import { readDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-source";
+import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ROUTE_VERSION = "vnext_operator_host_round_trip_route.v0.2" as const;
+const ROUTE_VERSION = "vnext_operator_host_round_trip_route.v0.3" as const;
 const SECURITY_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
   Pragma: "no-cache",
@@ -136,6 +138,12 @@ export function createVNextOperatorHostRoundTripHandlerV01(
         });
         return liveResponseV01(
           result.projection,
+          readDelegatedForResponseV01(
+            openDatabase,
+            config,
+            result.projection,
+            options.clock,
+          ),
           result.status,
           result.status === "accepted" ? 202 : 200,
           cookieFromAdmissionV01(result.session_admission, url),
@@ -160,6 +168,12 @@ export function createVNextOperatorHostRoundTripHandlerV01(
         });
         return liveResponseV01(
           result.projection,
+          readDelegatedForResponseV01(
+            openDatabase,
+            config,
+            result.projection,
+            options.clock,
+          ),
           "decision_admitted",
           200,
           cookieFromAdmissionV01(result.session_admission, url),
@@ -179,6 +193,12 @@ export function createVNextOperatorHostRoundTripHandlerV01(
           const result = await liveService.cancel(common);
           return liveResponseV01(
             result.projection,
+            readDelegatedForResponseV01(
+              openDatabase,
+              config,
+              result.projection,
+              options.clock,
+            ),
             "cancellation_admitted",
             200,
             cookieFromAdmissionV01(result.session_admission, url),
@@ -187,6 +207,12 @@ export function createVNextOperatorHostRoundTripHandlerV01(
         const result = await liveService.resume(common);
         return liveResponseV01(
           result.projection,
+          readDelegatedForResponseV01(
+            openDatabase,
+            config,
+            result.projection,
+            options.clock,
+          ),
           "resume_admitted",
           result.status === "accepted" ? 202 : 200,
           cookieFromAdmissionV01(result.session_admission, url),
@@ -228,7 +254,18 @@ export function createVNextOperatorHostRoundTripReadHandlerV01(
       const projection = (
         options.live_service ?? getLiveNativeHostRunServiceV01()
       ).read(config);
-      return liveResponseV01(projection, "projection", 200, null);
+      const delegatedWork = readDelegatedWorkProjectionV01(db, {
+        config,
+        live_run: projection,
+        now: () => nowV01(options.clock),
+      });
+      return liveResponseV01(
+        projection,
+        delegatedWork,
+        "projection",
+        200,
+        null,
+      );
     } catch (error) {
       return errorResponse(error);
     } finally {
@@ -243,6 +280,7 @@ export const GET = createVNextOperatorHostRoundTripReadHandlerV01();
 
 function liveResponseV01(
   projection: LiveNativeHostRunProjectionV01,
+  delegatedWork: DelegatedWorkProjectionV01,
   status: string,
   httpStatus: number,
   cookie: string | null,
@@ -254,6 +292,7 @@ function liveResponseV01(
       path_kind: "live_codex_app_server",
       status,
       live_run: projection,
+      delegated_work: delegatedWork,
       authentication_boundary:
         "local_secret_possession_only_not_external_identity",
       proposal_created: false,
@@ -262,6 +301,26 @@ function liveResponseV01(
     httpStatus,
     cookie,
   );
+}
+
+function readDelegatedForResponseV01(
+  openDatabase: (
+    config: VNextLocalOperatorPilotConfigV01,
+  ) => Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  liveRun: LiveNativeHostRunProjectionV01,
+  clock?: VNextLocalRuntimeClockV01,
+): DelegatedWorkProjectionV01 {
+  const db = openDatabase(config);
+  try {
+    return readDelegatedWorkProjectionV01(db, {
+      config,
+      live_run: liveRun,
+      now: () => nowV01(clock),
+    });
+  } finally {
+    db.close();
+  }
 }
 
 function noSemanticAuthorityV01() {

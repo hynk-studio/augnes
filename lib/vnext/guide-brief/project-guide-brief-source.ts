@@ -81,6 +81,7 @@ export async function loadProjectGuideBriefAIWorkplaneProjectionV02(): Promise<G
       material_blocker_or_judgment: "Current read sources could not be resolved.",
       recommended_review_focus: "Continue only from verified current project information",
       exact_detail_href: null,
+      delegated_work: null,
     };
   }
 }

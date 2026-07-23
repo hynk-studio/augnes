@@ -648,7 +648,11 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "item/started" || method === "item/completed") {
-      this.observeItem(value.item, method === "item/completed", value);
+      await this.observeItem(
+        value.item,
+        method === "item/completed",
+        value,
+      );
       return;
     }
     if (method === "serverRequest/resolved") {
@@ -991,11 +995,11 @@ class CodexAppServerInvocationV01 {
     return decision;
   }
 
-  private observeItem(
+  private async observeItem(
     itemValue: unknown,
     completed: boolean,
     envelope: Record<string, unknown>,
-  ): void {
+  ): Promise<void> {
     const item = objectV01(itemValue, "codex_item_invalid");
     const itemId = requiredOpaqueIdV01(item.id, "codex_item_id_invalid");
     const fingerprint = createProtocolSha256V01(
@@ -1008,6 +1012,12 @@ class CodexAppServerInvocationV01 {
     }
     if (existing === fingerprint) return;
     this.completedMessageFingerprints.set(key, fingerprint);
+    if (
+      item.type === "commandExecution" ||
+      item.type === "fileChange"
+    ) {
+      await this.reportCheckpointV01(item, completed);
+    }
     if (!completed) return;
 
     if (item.type === "commandExecution") {
@@ -1046,6 +1056,58 @@ class CodexAppServerInvocationV01 {
         });
       }
       this.observedActions.push("host_file_change_item_completed");
+    }
+  }
+
+  private async reportCheckpointV01(
+    item: Record<string, unknown>,
+    completed: boolean,
+  ): Promise<void> {
+    const checkpointKind =
+      item.type === "commandExecution"
+        ? "command_execution"
+        : item.type === "fileChange"
+          ? "file_change"
+          : null;
+    if (!checkpointKind) return;
+    const status =
+      !completed
+        ? "active"
+        : item.status === "completed"
+          ? "completed"
+          : item.status === "failed"
+            ? "failed"
+            : item.status === "declined"
+              ? "blocked"
+              : "unknown";
+    const changeCount =
+      checkpointKind === "file_change" && Array.isArray(item.changes)
+        ? Math.min(
+            item.changes.length,
+            this.request.policy.max_changed_files,
+          )
+        : null;
+    try {
+      await this.reportLifecycle({
+        event_kind: "work_checkpoint",
+        state: "running",
+        coverage: "observed",
+        host_refs: this.currentHostRefs(),
+        bounded_metadata: {
+          checkpoint_kind: checkpointKind,
+          phase: completed ? "completed" : "started",
+          status,
+          change_count: changeCount,
+        },
+      });
+    } catch (error) {
+      const code =
+        error instanceof Error ? `${error.name}:${error.message}` : String(error);
+      if (/conflict|binding|reconciliation|mismatch/u.test(code)) {
+        throw error;
+      }
+      // Timeline checkpoints are optional observations. A transient ledger
+      // failure must not rewrite or invalidate the exact terminal result path.
     }
   }
 

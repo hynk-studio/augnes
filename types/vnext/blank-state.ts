@@ -1,5 +1,6 @@
 import type { RecentProjectEntryV01 } from "./project-onboarding";
 import type { ProjectHomeProjectionV01 } from "./project-home";
+import type { DelegatedWorkProjectionV01 } from "./delegated-work";
 
 export const BLANK_STATE_VIEW_VERSION_V01 = "blank_state_view.v0.1" as const;
 
@@ -44,6 +45,7 @@ export interface BlankStateSourceV01 {
   projection: ProjectHomeProjectionV01 | null;
   project_resolution: "none" | "resolved" | "not_found" | "unavailable";
   direct_host_round_trip_available: boolean;
+  delegated_work: DelegatedWorkProjectionV01 | null;
 }
 
 export interface BlankStateViewV01 {
@@ -67,6 +69,14 @@ export interface BlankStateViewV01 {
       skipped: number;
     };
     exact_detail_href: string | null;
+    delegated_work: null | {
+      stage: DelegatedWorkProjectionV01["stage"];
+      stage_label: string;
+      latest_checkpoint: string | null;
+      last_observed_at: string | null;
+      trusted_result_available: boolean;
+      href: string;
+    };
   };
   additional_attention: Array<{
     id: string;

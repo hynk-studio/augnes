@@ -1,7 +1,8 @@
 # GuideBrief Contract v0.2
 
-Status: current-project active contract. C3 is merged. C4 in this change keeps
-this contract as the shared coordinate for the human-facing AI Workplane.
+Status: current-project active contract. C3 and C4 are merged. C5 in this
+change adds a bounded delegated-work coordinate derived from the existing
+managed-live runner ledger.
 
 GuideBrief v0.2 is Augnes's bounded, project-scoped interpretation View. It
 connects Blank State, AI Workplane, ChatGPT/MCP and a newly started native Codex
@@ -16,6 +17,13 @@ workspace, current or explicitly viewed project, root availability, task goal,
 current run, latest result, verification summary, attention and recent change.
 Missing historical Current Working Perspective or Delta Projection material
 does not block the current-project guide.
+
+C5 adds a compatible bounded `coordinate.delegated_work` summary: current
+stage, latest meaningful checkpoint, whether the user is needed, trusted-result
+availability and the existing next-action kind. The canonical delegated-work
+projection—not raw runner events—is the source. ChatGPT/MCP and
+`codex:read-brief` receive this bounded summary; native task start does not
+receive the full timeline, and resume does not inject another GuideBrief.
 
 At a new native Codex turn, the Codex projection uses the already admitted
 current `TaskContextPacket` plus the same canonical project identity. This is a
@@ -65,12 +73,17 @@ deduplication and stable IDs are deterministic; no model ranks the material.
   decision projection, with explicit refresh only after an existing mutation
   requires current guidance. It adds no mutation, fails closed to a bounded
   unavailable state, and does not duplicate the full Blank State source graph
-  in each Workplane route bundle.
+  in each Workplane route bundle. C5 keeps the rail consistent with the
+  canonical delegated-work stage while one separate host-round-trip hook owns
+  the operational poll.
 - **ChatGPT/MCP:** returns a public-safe project summary with the four epistemic
-  sections, primary guidance, source status/refs and authority boundary through
-  the existing `augnes_get_guide_brief` tool.
+  sections, primary guidance, source status/refs, bounded delegated-work
+  stage/latest checkpoint and authority boundary through the existing
+  `augnes_get_guide_brief` tool.
 - **Codex:** prints bounded guide sections through `codex:read-brief`. A new
   native Codex turn receives a separate guide section before the exact packet.
+  `codex:read-brief` may print current delegated stage and latest checkpoint but
+  never dumps the event ledger.
 
 The projections must not contradict one another about project, goal, work
 status, result availability, material blocker, unresolved judgment, recommended
@@ -137,5 +150,6 @@ read as current-project runtime authority.
 
 C3 adds no persistence, schema, protocol authority, top-level destination,
 chatbot or autonomous behavior. C4 does not change that boundary while
-reprojecting exact review state for humans; C5 remains blocked until C4 is
-reviewed and merged.
+reprojecting exact review state for humans. C5 adds no GuideBrief version,
+persistence, provider call, timeline authority or execution grant; it becomes
+complete only after its PR is reviewed and merged.

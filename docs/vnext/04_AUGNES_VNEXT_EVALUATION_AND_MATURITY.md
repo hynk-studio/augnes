@@ -106,7 +106,18 @@ and compiles later context; exact details remain available but closed or
 contextual; GuideBrief is read at most once per mounted surface absent explicit
 refresh; and the visible default path excludes raw protocol vocabulary at 390px
 and 430px without overflow. This is focused merge evidence, not a new metric
-framework. C4 becomes complete only after its PR is reviewed and merged.
+framework.
+
+C5 evidence additionally checks that route, Blank State, GuideBrief and AI
+Workplane share one bounded projection over the existing managed-live runner
+ledger; command/file checkpoints contain no raw output, reasoning, credentials
+or absolute paths; one mounted controller owns polling; untouched approval,
+resume-required and terminal states stop polling; page leave/remount preserves
+the same admitted run without another turn; explicit resume preserves exact
+run/thread/turn and packet binding; and `Result saved` requires trusted
+receipt/result persistence. It also checks one-primary-action behavior,
+bounded announcements, no retry, cleanup, and 390px/430px overflow. C5 becomes
+complete only after its PR is reviewed and merged.
 
 ## Semantic authority guardrails
 
