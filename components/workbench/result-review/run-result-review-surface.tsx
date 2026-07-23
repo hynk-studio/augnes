@@ -1,192 +1,236 @@
-import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
-import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
-import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
+import type { ReactNode } from "react";
+
+import { AIWorkplaneShell } from "@/components/workbench/ai-workplane/ai-workplane-shell";
 import { ProductShell } from "@/components/product-shell";
+import {
+  buildAIWorkplaneResultViewV01,
+  compareAIWorkplaneGuideProjectV01,
+} from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
+import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
 export function RunResultReviewSurface({
   result,
   accessBoundary,
-  guide,
+  guidePacket,
+  guideLoading = false,
+  guideRequestCount,
 }: {
   result: ProjectRunResultDetailV01;
-  accessBoundary?: React.ReactNode;
-  guide?: GuideBriefAIWorkplaneProjectionV02;
+  accessBoundary?: ReactNode;
+  guidePacket: ProjectGuideBriefV02 | null;
+  guideLoading?: boolean;
+  guideRequestCount?: number;
 }) {
-  const summary = result.summary;
-  const entryPresentation = resultEntryPresentation(result);
+  const view = buildAIWorkplaneResultViewV01(result);
+  const guideConsistency = compareAIWorkplaneGuideProjectV01(
+    guidePacket,
+    result.project_id,
+  );
+  if (guideConsistency.blocks_actions) {
+    return (
+      <ProductShell primaryZone="ai-workplane">
+        <main
+          className={styles.page}
+          data-run-result-review="v0.1"
+          data-ai-workplane-result-review="v0.1"
+          data-result-review-read-only="true"
+          data-semantic-mutation="false"
+        >
+          <AIWorkplaneShell
+            guide={guidePacket?.projections.ai_workplane ?? null}
+            guideLoading={guideLoading}
+            guideRequestCount={guideRequestCount}
+            title="Check the current project before continuing"
+            description={guideConsistency.message ?? "Current project sources do not agree."}
+            state="blocked"
+            stateLabel="Current project sources do not agree"
+            projectHref={`/projects/${encodeURIComponent(result.project_id)}`}
+            exactDetailsHref={result.summary.inspector_href}
+          >
+            {accessBoundary}
+            <section
+              className={`${styles.panel} ${styles.workplaneFocus}`}
+              role="alert"
+              data-ai-workplane-guide-consistency={guideConsistency.status}
+            >
+              <p className={styles.copy}>{guideConsistency.message}</p>
+              <a
+                className={styles.button}
+                href="/"
+                data-ai-workplane-primary-action="open-blank-state"
+              >
+                Open Blank State
+              </a>
+            </section>
+          </AIWorkplaneShell>
+        </main>
+      </ProductShell>
+    );
+  }
   return (
     <ProductShell primaryZone="ai-workplane">
       <main
         className={styles.page}
         data-run-result-review="v0.1"
+        data-ai-workplane-result-review="v0.1"
         data-result-review-read-only="true"
         data-semantic-mutation="false"
+        data-ai-workplane-presentation={view.presentation_version}
       >
-      <SemanticWorkbenchShell
-        guide={guide}
-        title="Verify run result"
-        description="Compare one immutable, project-scoped RunReceipt with its selected context, verification residue, criterion assessment, and admitted candidate material. Opening this entry performs no semantic write."
-        entryState={entryPresentation.state}
-        entryLabel={entryPresentation.label}
-        projectHref={`/projects/${encodeURIComponent(result.project_id)}`}
-        inspectorHref={summary.inspector_href}
-      >
-        {accessBoundary}
+        <AIWorkplaneShell
+          guide={guidePacket?.projections.ai_workplane ?? null}
+          guideLoading={guideLoading}
+          guideRequestCount={guideRequestCount}
+          title={view.heading}
+          description="Review the outcome, verification, remaining uncertainty, and the next meaningful action."
+          state="result_ready"
+          stateLabel={view.verification.label}
+          projectHref={`/projects/${encodeURIComponent(result.project_id)}`}
+          exactDetailsHref={result.summary.inspector_href}
+        >
+          {accessBoundary}
 
-        <section className={styles.panel} aria-labelledby="result-summary-title">
-          <div className={styles.panelHeader}>
-            <p className={styles.kicker}>Terminal result</p>
-            <h2 id="result-summary-title">{humanize(summary.outcome ?? summary.execution_status)}</h2>
-          </div>
-          <p className={styles.copy}>{summary.summary}</p>
-          <dl className={styles.statusGrid}>
-            <Metric label="Execution" value={summary.execution_status} />
-            <Metric label="Verification" value={summary.verification_status} />
-            <Metric label="Trust" value={summary.trust_label} />
-            <Metric label="Run mode" value={summary.mode} />
-          </dl>
-          <p className={styles.muted}>
-            Finished {formatTimestamp(summary.finished_at ?? summary.recorded_at)} ·{" "}
-            {summary.changed_file_count} changed files · {summary.check_counts.passed} checks passed ·{" "}
-            {summary.check_counts.failed} failed · {summary.check_counts.skipped} skipped
-          </p>
-        </section>
-
-        {result.automation ? (
           <section
-            className={styles.panel}
-            aria-labelledby="automation-boundary-title"
-            data-policy-triggered-result="true"
+            className={`${styles.panel} ${styles.workplaneFocus}`}
+            aria-labelledby="result-outcome-title"
+            data-ai-workplane-result-section="outcome"
           >
             <div className={styles.panelHeader}>
-              <p className={styles.kicker}>Bounded automation</p>
-              <h2 id="automation-boundary-title">
-                {result.automation.stopped_at_review_needed
-                  ? "Stopped for human review"
-                  : "Bounded automation settlement"}
-              </h2>
+              <p className={styles.kicker}>Outcome</p>
+              <h2 id="result-outcome-title">{humanize(result.summary.outcome ?? result.summary.execution_status)}</h2>
             </div>
-            <p className={styles.copy}>
-              This policy-triggered run used one bounded CapabilityGrant and the
-              normal native-host and immutable receipt path. A review-needed
-              stop is shown only after the assessment proposal is durably
-              available. The policy and grant create no ReviewDecision or
-              semantic authority.
-            </p>
-            <dl className={styles.statusGrid}>
-              <Metric label="Attempt" value={String(result.automation.attempt)} />
-              <Metric label="Stop reason" value={result.automation.stop_reason ?? "unknown"} />
-              <Metric label="Augnes model calls" value={String(result.automation.budget.max_augnes_model_invocations)} />
-              <Metric label="Native-host model scope" value={result.automation.budget.native_host_model_scope} />
-              <Metric label="Network" value={result.automation.budget.network_access} />
-            </dl>
+            <p className={styles.copy}>{view.outcome}</p>
           </section>
-        ) : null}
 
-        <TaskSuccessCriteria result={result} />
-        <ReviewableProposal result={result} />
+          <section
+            className={styles.panel}
+            aria-labelledby="result-verification-title"
+            data-ai-workplane-verification={view.verification.status}
+            data-ai-workplane-result-section="verification"
+          >
+            <div className={styles.panelHeader}>
+              <p className={styles.kicker}>Verification</p>
+              <h2 id="result-verification-title">{view.verification.label}</h2>
+            </div>
+            <dl className={styles.statusGrid}>
+              <Metric label="Checks passed" value={String(view.verification.passed)} />
+              <Metric label="Checks failed" value={String(view.verification.failed)} />
+              <Metric label="Checks skipped" value={String(view.verification.skipped)} />
+              <Metric label="Requirements satisfied" value={String(view.verification.satisfied)} />
+              <Metric label="Requirements not satisfied" value={String(view.verification.unsatisfied)} />
+              <Metric label="Requirements not confirmed" value={String(view.verification.unknown)} />
+            </dl>
+            {view.verification.blockers.length > 0 ? (
+              <ul className={styles.plainList}>
+                {view.verification.blockers.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            ) : null}
+          </section>
 
-        <section
-          id="run-result-inspector"
-          className={styles.panel}
-          data-run-result-inspector-forwarding="v0.1"
-        >
-          <div className={styles.panelHeader}>
-            <p className={styles.kicker}>Exact read-heavy drill-down</p>
-            <h2>Shared Inspector</h2>
-          </div>
-          <p className={styles.copy}>
-            Provenance, approvals, artifacts, commands, checks, trust, privacy,
-            model-invocation state, capability coverage, and packet/receipt
-            lineage now share one authenticated Inspector destination.
-          </p>
-          <div className={styles.buttonRow}>
+          <section
+            className={styles.panel}
+            aria-labelledby="result-unresolved-title"
+            data-ai-workplane-result-section="unresolved"
+          >
+            <div className={styles.panelHeader}>
+              <p className={styles.kicker}>Risk and open questions</p>
+              <h2 id="result-unresolved-title">What remains unresolved</h2>
+            </div>
+            {view.unresolved.length > 0 ? (
+              <ul className={styles.plainList}>
+                {view.unresolved.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            ) : (
+              <p className={styles.copy}>No additional blocker or open question is reported.</p>
+            )}
+          </section>
+
+          <section
+            className={styles.panel}
+            aria-labelledby="result-next-step-title"
+            data-ai-workplane-result-section="next-step"
+          >
+            <div className={styles.panelHeader}>
+              <p className={styles.kicker}>Suggested next step</p>
+              <h2 id="result-next-step-title">Continue from this result</h2>
+            </div>
             <a
-              className={styles.linkButton}
-              href={summary.inspector_href}
-              data-result-to-shared-inspector="true"
+              className={styles.button}
+              href={view.primary_action.href ?? "/workbench/semantic-review"}
+              data-ai-workplane-primary-action={view.primary_action.kind}
+              data-result-to-proposal-link={result.proposal.status === "available" ? "true" : undefined}
             >
-              Inspect exact RunReceipt lineage
+              {view.primary_action.label}
             </a>
-          </div>
-        </section>
+          </section>
 
-        <section className={styles.notice} data-result-authority-boundary="true">
-          No EpisodeDeltaProposal, ReviewDecision, semantic transition, Evidence acceptance,
-          semantic state change, or work closure was created by opening this result.
-        </section>
-      </SemanticWorkbenchShell>
+          <details className={styles.advancedDisclosure}>
+            <summary>Advanced result details</summary>
+            <TaskSuccessCriteria result={result} />
+            <ReviewableProposal result={result} />
+            {result.automation ? (
+              <section className={styles.panel} data-policy-triggered-result="true">
+                <h2>Automation boundary</h2>
+                <dl className={styles.statusGrid}>
+                  <Metric label="Attempt" value={String(result.automation.attempt)} />
+                  <Metric label="Stop reason" value={result.automation.stop_reason ?? "unknown"} />
+                  <Metric label="Automatic retry" value="false" />
+                  <Metric label="Project authority granted" value="false" />
+                </dl>
+              </section>
+            ) : null}
+            <section
+              id="run-result-inspector"
+              className={styles.panel}
+              data-run-result-inspector-forwarding="v0.1"
+            >
+              <h2>Exact result sources</h2>
+              <a
+                className={styles.linkButton}
+                href={result.summary.inspector_href}
+                data-result-to-shared-inspector="true"
+              >
+                View exact details
+              </a>
+            </section>
+          </details>
+
+          <p className={styles.notice} data-result-authority-boundary="true">
+            Opening this result is read-only. It saved no decision, accepted no
+            project change, and closed no work.
+          </p>
+        </AIWorkplaneShell>
       </main>
     </ProductShell>
   );
 }
 
-function resultEntryPresentation(
-  result: ProjectRunResultDetailV01,
-): {
-  state: "result_only" | "assessment";
-  label: string;
-} {
-  if (result.proposal.status === "available") {
-    return {
-      state: "assessment",
-      label: "Assessment · source-bound proposal available",
-    };
-  }
-  if (result.criterion_assessment.status === "available") {
-    return { state: "assessment", label: "Assessment available" };
-  }
-  return { state: "result_only", label: "Result only" };
-}
-
-function TaskSuccessCriteria({
-  result,
-}: {
-  result: ProjectRunResultDetailV01;
-}) {
+function TaskSuccessCriteria({ result }: { result: ProjectRunResultDetailV01 }) {
   const readback = result.criterion_assessment;
   if (readback.status === "unavailable") {
     return (
-      <section
-        className={styles.panel}
-        aria-labelledby="task-success-criteria-title"
-        data-task-success-criteria="unavailable"
-      >
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Derived criterion assessment</p>
-          <h2 id="task-success-criteria-title">Task success criteria</h2>
-        </div>
+      <section className={styles.panel} data-task-success-criteria="unavailable">
+        <h2>Exact requirement checks</h2>
         <p className={styles.copy} data-execution-task-success="unavailable">
           Execution {humanize(result.summary.execution_status)} / task success unavailable
-        </p>
-        <p className={styles.muted}>
-          Criterion assessment is unavailable for this historical result: {humanize(readback.reason)}.
-          The receipt remains execution residue and no success status was inferred.
         </p>
       </section>
     );
   }
-
   const assessment = readback.assessment;
   const taskSuccess = readback.task_success_status;
   return (
     <section
       className={styles.panel}
-      aria-labelledby="task-success-criteria-title"
       data-task-success-criteria="available"
       data-task-success-status={taskSuccess}
       data-assessment-authoritative="false"
     >
-      <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Derived criterion assessment</p>
-        <h2 id="task-success-criteria-title">Task success criteria</h2>
-      </div>
-      <p
-        className={styles.copy}
-        data-execution-task-success={`${result.summary.execution_status}:${taskSuccess}`}
-      >
+      <h2>Exact requirement checks</h2>
+      <p className={styles.copy} data-execution-task-success={`${result.summary.execution_status}:${taskSuccess}`}>
         Execution {humanize(result.summary.execution_status)} / task success {humanize(taskSuccess)}
       </p>
       <dl className={styles.statusGrid}>
@@ -196,79 +240,39 @@ function TaskSuccessCriteria({
         <Metric label="Not applicable" value={String(assessment.summary.not_applicable)} />
       </dl>
       <p className={styles.muted} data-result-criterion-summary="compact">
-        {assessment.criteria.length} exact criteria are available in the Semantic
-        Workbench for Verify and in the shared Inspector for source lineage.
+        {assessment.criteria.length} exact requirement checks are available here.
       </p>
       <p className={styles.muted} data-criterion-authority-boundary="true">
-        This assessment is derived and non-authoritative. It creates no Evidence,
-        validates no Claim, creates no proposal or decision, applies no Transition,
-        and changes neither semantic state nor later context.
+        This derived assessment is non-authoritative and changes neither saved
+        project state nor later work context.
       </p>
     </section>
   );
 }
 
-function ReviewableProposal({
-  result,
-}: {
-  result: ProjectRunResultDetailV01;
-}) {
+function ReviewableProposal({ result }: { result: ProjectRunResultDetailV01 }) {
   const proposal = result.proposal;
   return (
-    <section
-      className={styles.panel}
-      aria-labelledby="run-result-proposal-title"
-      data-run-result-proposal={proposal.status}
-    >
-      <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Post-receipt candidate material</p>
-        <h2 id="run-result-proposal-title">Reviewable proposal</h2>
-      </div>
+    <section className={styles.panel} data-run-result-proposal={proposal.status}>
+      <h2>Exact suggested-change admission</h2>
       {proposal.status === "available" ? (
         <>
-          <p className={styles.copy}>
-            One exact pending-review EpisodeDeltaProposal was admitted from this
-            persisted result and its criterion assessment. Opening this read-only
-            result did not create or replay it.
-          </p>
-          <dl className={styles.statusGrid}>
-            <Metric label="Proposal status" value={proposal.proposal_status} />
-            <Metric label="ReviewDecision" value="none inferred" />
-            <Metric label="Transition" value="not applied" />
-            <Metric label="Semantic state" value="unchanged" />
-          </dl>
-          <div className={styles.buttonRow}>
-            <a
-              className={styles.linkButton}
-              href={proposal.review_href}
-              data-result-to-proposal-link="true"
-            >
-              Review exact proposal
-            </a>
-          </div>
+          <p className={styles.copy}>A source-bound suggested change is available for separate review.</p>
+          <a
+            className={styles.linkButton}
+            href={proposal.review_href}
+            data-result-to-proposal-link="true"
+          >
+            Open exact suggested-change review
+          </a>
         </>
       ) : proposal.status === "failed" ? (
-        <>
-          <p className={styles.copy}>
-            The immutable receipt remains available and execution status is
-            unchanged, but proposal admission needs a bounded retry.
-          </p>
-          <p className={styles.muted}>
-            {proposal.error_code} · retryable {String(proposal.retryable)}
-          </p>
-        </>
+        <p className={styles.copy}>Suggested-change admission failed: {proposal.error_code}.</p>
       ) : (
-        <p className={styles.muted}>
-          No reviewable proposal is available: {humanize(proposal.reason)}. This
-          read does not repair or create one. For a newly admitted receipt, the
-          result loader performs bounded read-only refreshes while the separate
-          proposal transaction settles.
-        </p>
+        <p className={styles.copy}>No suggested change is available: {humanize(proposal.reason)}.</p>
       )}
       <p className={styles.muted} data-proposal-authority-boundary="true">
-        A pending proposal is candidate material, not accepted Evidence, a
-        validated Claim, a ReviewDecision, a Transition, semantic state, or later
-        context.
+        Candidate material is not a decision or applied project state.
       </p>
     </section>
   );
@@ -280,14 +284,4 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function humanize(value: string): string {
   return value.replaceAll("_", " ");
-}
-
-function formatTimestamp(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Time unavailable";
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(parsed);
 }

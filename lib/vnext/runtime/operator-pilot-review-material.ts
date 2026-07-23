@@ -26,6 +26,7 @@ import {
   validateReviewDecisionV01,
 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
+import { compareEffectiveReviewDecisionsV01 } from "@/lib/vnext/review-decision-lineage";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
 import {
   readVNextOperatorStrategicAdvantageTransferV01,
@@ -113,6 +114,38 @@ export interface VNextOperatorPilotReviewListItemV01 {
   candidate_admissions: VNextOperatorPilotCandidateAdmissionV01[];
   decision_count: number;
   transition_status: "not_applied" | "applied";
+  decision_application_summary: VNextOperatorPilotProposalDecisionApplicationSummaryV01;
+}
+
+export type VNextOperatorPilotProposalDecisionApplicationStatusV01 =
+  | "needs_decision"
+  | "ready_to_complete"
+  | "project_updated"
+  | "rejected"
+  | "deferred"
+  | "needs_more_information"
+  | "continue_review";
+
+export interface VNextOperatorPilotProposalDecisionBindingV01 {
+  decision: ReviewDecisionV01["decision"];
+  decision_id: string;
+  decision_fingerprint: string;
+  candidate_id: string;
+  candidate_fingerprint: string;
+  pilot_actionable: boolean;
+  requested_project_change: boolean;
+  matching_transition_receipt_id: string | null;
+  matching_transition_receipt_fingerprint: string | null;
+}
+
+export interface VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
+  status: VNextOperatorPilotProposalDecisionApplicationStatusV01;
+  effective_decision: VNextOperatorPilotProposalDecisionBindingV01 | null;
+  preferred_candidate_id: string | null;
+  preferred_candidate_fingerprint: string | null;
+  applying_decision_pending: boolean;
+  matching_transition_receipt_present: boolean;
+  exact_lineage_and_receipt_binding: true;
 }
 
 export interface VNextOperatorPilotReviewDetailV01
@@ -281,6 +314,7 @@ export function listVNextOperatorPilotSemanticReviewsV01(
       candidate_admissions: detail.candidate_admissions,
       decision_count: detail.decision_count,
       transition_status: detail.transition_status,
+      decision_application_summary: detail.decision_application_summary,
     };
   });
 }
@@ -381,6 +415,13 @@ export function readVNextOperatorPilotSemanticReviewV01(
     }),
   );
   const currentStateStatus = aggregateAdmissionState(candidateAdmissions);
+  const decisionApplicationSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: proposal.source_status.currentness,
+      candidate_admissions: candidateAdmissions,
+      decision_history: decisionHistory,
+      transition_receipts: transitionReceipts,
+    });
   return {
     proposal_id: proposal.proposal_id,
     proposal_fingerprint: proposal.integrity.fingerprint,
@@ -398,6 +439,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
     decision_count: decisions.length,
     transition_status:
       transitionReceipts.length > 0 ? "applied" : "not_applied",
+    decision_application_summary: decisionApplicationSummary,
     proposal,
     criterion_specific_relations_source_bound:
       criterionSpecificRelationsSourceBound,
@@ -434,6 +476,160 @@ export function readVNextOperatorPilotSemanticReviewV01(
       current_cost_availability: input.strategic_cost_availability,
     }),
   };
+}
+
+export function deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01(
+  input: {
+    source_currentness: EpisodeDeltaProposalV01["source_status"]["currentness"];
+    candidate_admissions: VNextOperatorPilotCandidateAdmissionV01[];
+    decision_history: VNextOperatorPilotDecisionHistoryItemV01[];
+    transition_receipts: StateTransitionReceiptV01[];
+  },
+): VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
+  const exactDecisions = input.decision_history
+    .filter(
+      (entry) =>
+        entry.status === "valid" &&
+        entry.pilot_session_bound &&
+        input.candidate_admissions.some(
+          (candidate) =>
+            candidate.candidate_id === entry.decision.candidate.candidate_id &&
+            candidate.candidate_fingerprint ===
+              entry.decision.candidate.candidate_fingerprint,
+        ),
+    )
+    .sort((left, right) =>
+      compareEffectiveReviewDecisionsV01(
+        left.decision,
+        right.decision,
+      ),
+    );
+  const effective = exactDecisions[0] ?? null;
+  if (effective) {
+    const matchingReceipt =
+      findExactDecisionCandidateTransitionReceiptV01(
+        input.transition_receipts,
+        effective.decision,
+      );
+    if (
+      isApplyingDecisionV01(effective.decision.decision) &&
+      effective.decision.requested_transition_intent !== null
+    ) {
+      if (effective.pilot_actionable && matchingReceipt === null) {
+        return decisionApplicationSummaryV01(
+          "ready_to_complete",
+          effective,
+          null,
+        );
+      }
+      return decisionApplicationSummaryV01(
+        matchingReceipt ? "project_updated" : "continue_review",
+        effective,
+        matchingReceipt,
+      );
+    }
+    if (effective.decision.decision === "reject") {
+      return decisionApplicationSummaryV01("rejected", effective, null);
+    }
+    if (effective.decision.decision === "defer") {
+      return decisionApplicationSummaryV01("deferred", effective, null);
+    }
+    return decisionApplicationSummaryV01("continue_review", effective, null);
+  }
+
+  if (input.decision_history.length > 0) {
+    return unresolvedDecisionApplicationSummaryV01(
+      "continue_review",
+      input.candidate_admissions[0] ?? null,
+    );
+  }
+
+  const exactReviewableCandidate =
+    input.source_currentness === "fresh" &&
+    input.candidate_admissions.find(
+      (candidate) => candidate.decision_allowed.accept,
+    );
+  if (exactReviewableCandidate) {
+    return unresolvedDecisionApplicationSummaryV01(
+      "needs_decision",
+      exactReviewableCandidate,
+    );
+  }
+  return unresolvedDecisionApplicationSummaryV01(
+    "needs_more_information",
+    input.candidate_admissions[0] ?? null,
+  );
+}
+
+function unresolvedDecisionApplicationSummaryV01(
+  status:
+    | "needs_decision"
+    | "needs_more_information"
+    | "continue_review",
+  candidate: VNextOperatorPilotCandidateAdmissionV01 | null,
+): VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
+  return {
+    status,
+    effective_decision: null,
+    preferred_candidate_id: candidate?.candidate_id ?? null,
+    preferred_candidate_fingerprint:
+      candidate?.candidate_fingerprint ?? null,
+    applying_decision_pending: false,
+    matching_transition_receipt_present: false,
+    exact_lineage_and_receipt_binding: true,
+  };
+}
+
+function decisionApplicationSummaryV01(
+  status: VNextOperatorPilotProposalDecisionApplicationStatusV01,
+  entry: VNextOperatorPilotDecisionHistoryItemV01,
+  receipt: StateTransitionReceiptV01 | null,
+): VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
+  const decision = entry.decision;
+  const requestedProjectChange =
+    isApplyingDecisionV01(decision.decision) &&
+    decision.requested_transition_intent !== null;
+  return {
+    status,
+    effective_decision: {
+      decision: decision.decision,
+      decision_id: decision.decision_id,
+      decision_fingerprint: decision.integrity.fingerprint,
+      candidate_id: decision.candidate.candidate_id,
+      candidate_fingerprint: decision.candidate.candidate_fingerprint,
+      pilot_actionable: entry.pilot_actionable,
+      requested_project_change: requestedProjectChange,
+      matching_transition_receipt_id:
+        receipt?.transition_receipt_id ?? null,
+      matching_transition_receipt_fingerprint:
+        receipt?.integrity.fingerprint ?? null,
+    },
+    preferred_candidate_id: decision.candidate.candidate_id,
+    preferred_candidate_fingerprint:
+      decision.candidate.candidate_fingerprint,
+    applying_decision_pending:
+      status === "ready_to_complete",
+    matching_transition_receipt_present: receipt !== null,
+    exact_lineage_and_receipt_binding: true,
+  };
+}
+
+function findExactDecisionCandidateTransitionReceiptV01(
+  receipts: StateTransitionReceiptV01[],
+  decision: ReviewDecisionV01,
+): StateTransitionReceiptV01 | null {
+  return (
+    receipts.find(
+      (receipt) =>
+        receipt.source_decision.decision_id === decision.decision_id &&
+        receipt.source_decision.decision_fingerprint ===
+          decision.integrity.fingerprint &&
+        receipt.source_candidate.candidate_id ===
+          decision.candidate.candidate_id &&
+        receipt.source_candidate.candidate_fingerprint ===
+          decision.candidate.candidate_fingerprint,
+    ) ?? null
+  );
 }
 
 export function recordVNextOperatorPilotReviewDecisionV01(

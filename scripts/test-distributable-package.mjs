@@ -1320,7 +1320,8 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     assert.match(blankState.body, /No trusted local Codex or native-host readiness status is available/);
     const workbench = await fetchText(`${ready.effective_url}/workbench/semantic-review`);
     assert.equal(workbench.status, 200);
-    assert.match(workbench.body, /Semantic Workbench|Semantic Review Workbench/);
+    assert.match(workbench.body, /AI Workplane/);
+    assert.match(workbench.body, /data-primary-product-zone="ai-workplane"/);
     const inspector = await fetchText(`${ready.effective_url}/workbench/inspector`);
     assert.equal(inspector.status, 200);
     assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);
@@ -3893,7 +3894,13 @@ async function assertProductReaders(
     `${origin}/workbench/semantic-review`,
   );
   assert.equal(workbench.status, 200);
-  assert.match(workbench.body, /Semantic Workbench|Semantic Review Workbench/);
+  if (expectedSurface === "legacy-project-home") {
+    assert.match(workbench.body, /Semantic Review Workbench/);
+    assert.match(workbench.body, /data-semantic-workbench-shell/);
+  } else {
+    assert.match(workbench.body, /AI Workplane/);
+    assert.match(workbench.body, /data-primary-product-zone="ai-workplane"/);
+  }
   const inspector = await fetchText(`${origin}/workbench/inspector`);
   assert.equal(inspector.status, 200);
   assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);

@@ -1,4 +1,5 @@
 import type { SemanticWorkbenchShellStateV01 } from "@/components/workbench/semantic-workbench-shell";
+import { compareEffectiveReviewDecisionsV01 } from "@/lib/vnext/review-decision-lineage";
 
 export interface SemanticReviewEntryPresentationInputV01 {
   projection_observed_at: string;
@@ -154,7 +155,7 @@ function proposalReviewStateV01(
       .filter(
         (decision) => decision.candidate.candidate_id === candidate.candidate_id,
       )
-      .sort(compareEffectiveDecisionsV01);
+      .sort(compareEffectiveReviewDecisionsV01);
     const effective = decisions[0];
     if (!effective) return "requires_review";
     if (effective.decision === "accept") {
@@ -199,32 +200,6 @@ function proposalReviewStateV01(
   }
   if (transitionBlocked) return "transition_blocked";
   return acceptedAwaitingTransition ? "accepted_awaiting_transition" : "settled";
-}
-
-function compareEffectiveDecisionsV01(
-  left: SemanticReviewEntryPresentationInputV01["decisions"][number],
-  right: SemanticReviewEntryPresentationInputV01["decisions"][number],
-): number {
-  const leftReferencesRight = decisionReferencesV01(left, right);
-  const rightReferencesLeft = decisionReferencesV01(right, left);
-  if (leftReferencesRight !== rightReferencesLeft) {
-    return leftReferencesRight ? -1 : 1;
-  }
-  return (
-    strictTimestampV01(right.decided_at) - strictTimestampV01(left.decided_at) ||
-    compareCodeUnitsV01(right.decision_id, left.decision_id)
-  );
-}
-
-function decisionReferencesV01(
-  decision: SemanticReviewEntryPresentationInputV01["decisions"][number],
-  possiblePrior: SemanticReviewEntryPresentationInputV01["decisions"][number],
-): boolean {
-  return decision.lineage.prior_decisions.some(
-    (binding) =>
-      binding.decision_id === possiblePrior.decision_id &&
-      binding.decision_fingerprint === possiblePrior.integrity.fingerprint,
-  );
 }
 
 function optionalTimestampV01(value: string | null): number | null {
@@ -278,8 +253,4 @@ function strictTimestampV01(value: string): number {
     throw new Error("semantic_workbench_projection_timestamp_invalid");
   }
   return parsed;
-}
-
-function compareCodeUnitsV01(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
 }

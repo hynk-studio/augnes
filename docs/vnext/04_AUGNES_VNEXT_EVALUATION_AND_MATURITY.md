@@ -96,8 +96,17 @@ projections share project, goal, work/result status, material uncertainty,
 unresolved judgment and primary guidance; the v0.2 route is local, marker-gated,
 read-only and `no-store`; new Codex turns receive a separate GuideBrief before
 the unchanged exact packet; and 390px/430px layouts retain the primary action
-without horizontal overflow. This is focused merge evidence, not a new metric
-framework. C3 becomes complete only after its PR is reviewed and merged.
+without horizontal overflow.
+
+C4 evidence additionally checks that each default AI Workplane state has at
+most one primary action; result and suggested-change review lead with outcome,
+verification, uncertainty and the consequential user action; preview and
+confirmation do not change project state; only final apply changes durable state
+and compiles later context; exact details remain available but closed or
+contextual; GuideBrief is read at most once per mounted surface absent explicit
+refresh; and the visible default path excludes raw protocol vocabulary at 390px
+and 430px without overflow. This is focused merge evidence, not a new metric
+framework. C4 becomes complete only after its PR is reviewed and merged.
 
 ## Semantic authority guardrails
 

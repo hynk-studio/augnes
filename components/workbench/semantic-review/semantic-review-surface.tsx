@@ -4,11 +4,17 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  SemanticWorkbenchShell,
-  type SemanticWorkbenchShellStateV01,
-} from "@/components/workbench/semantic-workbench-shell";
+  AIWorkplaneShell,
+  type AIWorkplaneShellStateV01,
+} from "@/components/workbench/ai-workplane/ai-workplane-shell";
+import { useProjectGuideBriefV02 } from "@/components/guide/use-project-guide-brief-v0-2";
 import { ProductShell } from "@/components/product-shell";
-import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
+import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
+import {
+  buildAIWorkplaneHomeViewV01,
+  compareAIWorkplaneGuideProjectV01,
+} from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
 import {
   OperatorSessionPanel,
   type OperatorSessionStateV01,
@@ -37,12 +43,13 @@ type PrivateSemanticReviewViewV01 =
 
 export function SemanticReviewSurface({
   proposalId,
-  guide,
+  guide: initialGuide,
 }: {
   proposalId?: string;
-  guide?: GuideBriefAIWorkplaneProjectionV02;
+  guide?: ProjectGuideBriefV02;
 }) {
   const router = useRouter();
+  const guideState = useProjectGuideBriefV02(initialGuide);
   const [sessionState, setSessionState] = useState<OperatorSessionStateV01>({
     status: "checking",
     session: null,
@@ -208,12 +215,13 @@ export function SemanticReviewSurface({
       }
       setDecisionStatus(
         body.status === "exact_replay"
-          ? "Exact ReviewDecision replay returned the existing record; no duplicate was written."
+          ? "Existing decision reused. No duplicate was saved."
           : body.transition_requested
-            ? "ReviewDecision recorded with transition intent only. No state transition occurred."
-            : "ReviewDecision recorded with no transition intent. No state transition occurred.",
+            ? "Decision saved. The project has not changed yet."
+            : "Decision saved. No project change was requested.",
       );
       await loadPrivateView({ announceLoading: false });
+      await guideState.refresh();
     } catch {
       setPrivateError("semantic_review_decision_request_failed");
     } finally {
@@ -264,8 +272,8 @@ export function SemanticReviewSurface({
       }
       setDecisionStatus(
         body.status === "exact_replay"
-          ? "Exact operation-aware revision replay returned the immutable existing proposal."
-          : "Immutable operation-aware proposal revision recorded. The source proposal remains unchanged.",
+          ? "Existing clarified change reused."
+          : "A clarified change is ready for separate review. The original suggestion is unchanged.",
       );
       router.push(semanticReviewProposalHref(body.proposal_id));
       router.refresh();
@@ -319,8 +327,8 @@ export function SemanticReviewSurface({
       ) {
         setDecisionStatus(
           body.status === "exact_replay"
-            ? "Exact strategic analysis replay returned the existing pending proposal; no model or proposal duplicate was created."
-            : "Bounded strategic transfer material is available as a separate pending proposal. The source proposal remains unchanged.",
+            ? "Existing strategic review reused; no duplicate was created."
+            : "Strategic implications are ready as a separate suggested change. The source suggestion is unchanged.",
         );
         router.push(semanticReviewProposalHref(body.proposal_id));
         router.refresh();
@@ -387,10 +395,11 @@ export function SemanticReviewSurface({
       }
       setDecisionStatus(
         body.status === "exact_replay"
-          ? "Exact ContextUseReview replay returned the existing bounded review."
-          : "Bounded ContextUseReview recorded. It changed no semantic state or later context.",
+          ? "Existing context feedback reused."
+          : "Context feedback saved. It did not change the project or future work context.",
       );
       await loadPrivateView();
+      await guideState.refresh();
     } catch {
       setPrivateError("context_use_review_request_failed");
     } finally {
@@ -418,15 +427,45 @@ export function SemanticReviewSurface({
     });
   }
 
-  async function refreshPrivateMaterial(): Promise<void> {
+  async function refreshExactReviewMaterial(): Promise<void> {
     await loadPrivateView({ announceLoading: false });
+  }
+
+  async function refreshAfterProjectApplication(): Promise<void> {
+    await refreshAIWorkplaneAfterProjectApplicationV01({
+      refresh_exact_review: refreshExactReviewMaterial,
+      refresh_guide_brief: guideState.refresh,
+    });
   }
 
   const privateMaterialVisible =
     sessionState.status === "authenticated" && privateView !== null;
-  const entryPresentation = semanticReviewEntryPresentation(
+  const guideConsistency = compareAIWorkplaneGuideProjectV01(
+    guideState.guide,
+    privateView?.value.project.project_id ?? null,
+  );
+  const exactReviewAvailable =
+    privateMaterialVisible && !guideConsistency.blocks_actions;
+  const homeView = buildAIWorkplaneHomeViewV01({
+    access: sessionState.status,
+    loading:
+      loadingPrivateView ||
+      (sessionState.status === "authenticated" &&
+        privateView === null &&
+        !privateError),
+    guide: guideState.guide,
+    proposals: privateView?.kind === "list" ? privateView.value.proposals : [],
+    continuity:
+      privateView?.kind === "list"
+        ? privateView.value.project_continuity
+        : privateView?.kind === "detail"
+          ? privateView.value.proposal.project_continuity
+          : null,
+  });
+  const entryPresentation = aiWorkplaneEntryPresentation(
     sessionState,
     privateView,
+    homeView.state,
   );
   const projectHref = privateView
     ? `/projects/${encodeURIComponent(privateView.value.project.project_id)}`
@@ -446,17 +485,24 @@ export function SemanticReviewSurface({
             : sessionState.status
         }
       >
-      <SemanticWorkbenchShell
-        guide={guide}
-        title={proposalId ? "Verify and decide" : "Review project decisions"}
-        description="Trace exact evidence to one explicit decision; an applied Transition remains a separate step."
-        entryState={entryPresentation.state}
-        entryLabel={entryPresentation.label}
-        projectHref={projectHref}
-        inspectorHref={
-          privateView?.value.inspector_href
+      <AIWorkplaneShell
+        guide={guideState.projection}
+        guideLoading={guideState.status === "loading"}
+        guideRequestCount={guideState.requestCountRef.current}
+        title={proposalId ? "Review suggested change" : homeView.heading}
+        description={
+          proposalId
+            ? "Understand what would change, what was verified, what remains uncertain, and the decision that is yours."
+            : homeView.situation
         }
-        navigation={[{ href: "/workbench", label: "Workplane compatibility" }]}
+        state={guideConsistency.blocks_actions ? "blocked" : entryPresentation.state}
+        stateLabel={
+          guideConsistency.blocks_actions
+            ? "Current project sources do not agree"
+            : entryPresentation.label
+        }
+        projectHref={projectHref}
+        exactDetailsHref={privateView?.value.inspector_href}
       >
         <OperatorSessionPanel
           state={sessionState}
@@ -466,7 +512,7 @@ export function SemanticReviewSurface({
 
         {sessionState.status === "authenticated" && loadingPrivateView ? (
           <section className={styles.panel} aria-live="polite">
-            <p className={styles.copy}>Loading authenticated project review material…</p>
+            <p className={styles.copy}>Loading protected project review…</p>
           </section>
         ) : null}
 
@@ -476,21 +522,40 @@ export function SemanticReviewSurface({
           </p>
         ) : null}
 
-        {decisionStatus && privateMaterialVisible ? (
+        {guideConsistency.blocks_actions ? (
+          <section
+            className={`${styles.panel} ${styles.workplaneFocus}`}
+            role="alert"
+            data-ai-workplane-guide-consistency={guideConsistency.status}
+          >
+            <h2>Check the current project before continuing</h2>
+            <p className={styles.copy}>{guideConsistency.message}</p>
+            <a
+              className={styles.button}
+              href="/"
+              data-ai-workplane-primary-action="open-blank-state"
+            >
+              Open Blank State
+            </a>
+          </section>
+        ) : null}
+
+        {decisionStatus && exactReviewAvailable ? (
           <p className={styles.success} role="status">
             {decisionStatus}
           </p>
         ) : null}
 
-        {privateMaterialVisible && privateView.kind === "list" ? (
+        {exactReviewAvailable && privateView.kind === "list" ? (
           <SemanticReviewProposalList
             proposals={privateView.value.proposals}
             reconciliation={privateView.value.project_verify_reconciliation}
             continuity={privateView.value.project_continuity}
+            view={homeView}
           />
         ) : null}
 
-        {privateMaterialVisible && privateView.kind === "detail" ? (
+        {exactReviewAvailable && privateView.kind === "detail" ? (
           <DecisionCenteredProposalDetail
             read={privateView.value.proposal}
             selectedCandidateId={
@@ -513,7 +578,8 @@ export function SemanticReviewSurface({
             strategicAnalysisBusy={strategicAnalysisBusy}
             onContextUseReview={recordContextUseReview}
             onSessionInvalid={(errorCode) => locked(errorCode)}
-            onPrivateMaterialChanged={refreshPrivateMaterial}
+            onExactReviewMaterialChanged={refreshExactReviewMaterial}
+            onProjectApplicationCompleted={refreshAfterProjectApplication}
             tryBeginOperatorMutation={() => {
               if (operatorMutationInFlight.current) return false;
               operatorMutationInFlight.current = true;
@@ -527,11 +593,11 @@ export function SemanticReviewSurface({
 
         {sessionState.status !== "authenticated" ? (
           <p className={styles.muted}>
-            Private proposal and decision material is not rendered without an
-            authenticated, project-scoped local session.
+            Protected project review is not loaded until local review access is
+            established for the current project.
           </p>
         ) : null}
-      </SemanticWorkbenchShell>
+      </AIWorkplaneShell>
       </main>
     </ProductShell>
   );
@@ -616,20 +682,48 @@ function semanticReviewProposalHref(proposalId: string | undefined): string {
     : "/workbench/semantic-review";
 }
 
-function semanticReviewEntryPresentation(
+function aiWorkplaneEntryPresentation(
   sessionState: OperatorSessionStateV01,
   privateView: PrivateSemanticReviewViewV01 | null,
-): { state: SemanticWorkbenchShellStateV01; label: string } {
+  homeState: ReturnType<typeof buildAIWorkplaneHomeViewV01>["state"],
+): { state: AIWorkplaneShellStateV01; label: string } {
   if (sessionState.status !== "authenticated") {
     return sessionState.status === "checking"
-      ? { state: "loading", label: "Validating local access" }
-      : { state: "locked", label: "Private review locked" };
+      ? { state: "loading", label: "Checking local review access" }
+      : { state: "access_required", label: "Local review access required" };
   }
   if (!privateView) {
-    return { state: "loading", label: "Loading project review" };
+    return { state: "loading", label: "Loading current review" };
   }
   if (privateView.kind === "list") {
-    return { state: "proposal_queue", label: "Project proposal queue" };
+    return {
+      state: homeState,
+      label:
+        homeState === "change_completion"
+          ? "Decision saved · project unchanged"
+          : homeState === "change_decision"
+            ? "Needs your decision"
+            : homeState === "result_ready"
+              ? "Result ready"
+              : homeState === "work_in_progress"
+                ? "Work in progress"
+                : homeState === "no_project"
+                  ? "No current project"
+                  : homeState === "guidance_unavailable"
+                    ? "Current guidance unavailable"
+                    : "No current decision",
+    };
   }
-  return semanticReviewDetailEntryPresentationV01(privateView.value.proposal);
+  const exact = semanticReviewDetailEntryPresentationV01(
+    privateView.value.proposal,
+  );
+  return exact.state === "pending_proposal"
+    ? { state: "change_decision", label: "Needs your decision" }
+    : exact.state === "decided_proposal" ||
+        exact.state === "transition_blocked"
+      ? {
+          state: "change_completion",
+          label: "Decision saved · project unchanged",
+        }
+      : { state: "change_applied", label: "Project updated" };
 }

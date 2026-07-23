@@ -53,11 +53,11 @@ Reduction must not remove or collapse:
 - Codex or native-host context and receipt round trip
 - shared Automation Spine: policy, bounded grants, runs, receipts, budgets, stop conditions, reconciliation, and user control
 - first bounded Autohunt path using the shared Core loop
-- Project Home, Semantic Workbench, and shared Inspector
+- Blank State, AI Workplane, and shared Inspector
 - bounded Personal Perspective work that reuses existing candidate, review, scoped-state, context-selection, lineage, receipt, and feedback contracts
 - migration, backup, restore, provider-neutral portable export, update, and recovery
 
-Project Home, Semantic Workbench, Shared Inspector, Portability와 Recovery에 대한 이
+Blank State, AI Workplane, Shared Inspector, Portability와 Recovery에 대한 이
 보호는 현재 implemented runtime behavior, user data, authority와 compatibility를
 tested replacement 전까지 보존한다는 뜻이다. final user-facing topology 권한은
 `vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`가 소유한다.
@@ -129,8 +129,8 @@ Remove after destination behavior exists:
 
 - Project Home navigation and cards whose user-facing capability is absorbed
   into Blank State
-- Semantic Workbench default projections whose capability is absorbed beneath
-  AI Workplane
+- superseded Semantic Workbench default projections after C4 AI Workplane
+  replacement evidence remains canonical
 - passive workflow-stage Workplane panels
 - repeated boundary cards
 - duplicate diagnostics and lineage surfaces
@@ -139,14 +139,14 @@ Remove after destination behavior exists:
 - top-level Portability and Recovery entries after their capability is relocated
   to project management, safety, settings, or condition-triggered paths
 
-For the current reference operator implementation, the R7 replacement
-destination is the generated, project-scoped
-`/workbench/inspector` read surface. Result and proposal deep links remain valid;
-large inline result diagnostics and duplicated Workbench durable-lineage detail
-may be absorbed only after their assertions are present in the shared Inspector
-and canonical tests. `/workbench` remains a bounded compatibility entry rather
-than a competing diagnostic surface. This current compatibility rule does not
-make Inspector a target peer navigation destination.
+For exact R7 detail, the replacement destination remains the generated,
+project-scoped `/workbench/inspector` read surface. Result and suggested-change
+deep links remain valid; C4 moves large diagnostics and durable-lineage detail
+behind advanced or contextual access only where their assertions remain owned
+by the shared Inspector and canonical tests. `/workbench` redirects to the
+compatible canonical AI Workplane route rather than remaining a competing
+landing. This compatibility rule does not make Inspector a target peer
+navigation destination.
 
 ### Automation and Personal Perspective
 

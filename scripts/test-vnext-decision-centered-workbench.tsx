@@ -1,6 +1,35 @@
 import assert from "node:assert/strict";
 
 import {
+  aiWorkplanePresentationAuthorityV01,
+  buildAIWorkplaneChangeReviewViewV01,
+  buildAIWorkplaneHomeViewV01,
+  buildAIWorkplaneQueueV01,
+  buildAIWorkplaneResultViewV01,
+  compareAIWorkplaneGuideProjectV01,
+  selectAIWorkplaneChangeCandidateV01,
+} from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
+import {
+  deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01,
+  type VNextOperatorPilotDecisionHistoryItemV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-material";
+import {
+  buildProjectGuideBriefV02,
+} from "@/lib/vnext/guide-brief/project-guide-brief";
+import {
+  buildReviewDecisionV01,
+  createEpisodeDeltaCandidateFingerprintV01,
+} from "@/lib/vnext/review-decision";
+import { buildStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import {
+  acceptReviewDecisionInputFixture,
+  deferReviewDecisionInputFixture,
+  rejectReviewDecisionInputFixture,
+  reviewDecisionGenericSourceProposal,
+} from "@/fixtures/vnext/protocol/review-decision-v0-1";
+import { genericStateTransitionReceiptInputFixture } from "@/fixtures/vnext/protocol/state-transition-receipt-v0-1";
+import {
   boundedProjectVerifyDisplayTextV01,
   projectVerificationRelationDisclosureSummaryV01,
   projectVerificationWorkbenchPresentationV01,
@@ -19,6 +48,14 @@ import type {
   ClaimRecordReferenceV01,
   EvidenceRecordReferenceV01,
 } from "@/types/vnext/project-verify-material";
+import type { BlankStateSourceV01 } from "@/types/vnext/blank-state";
+import type { ProjectHomeProjectionV01 } from "@/types/vnext/project-home";
+import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
+import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
+import type { VNextOperatorPilotReviewListItemV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
+import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import type { VNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
+import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 
 import {
   installZeroNetworkGuard,
@@ -217,10 +254,527 @@ try {
   assert.equal(emptyPresentation.selected_lineage, null);
   assert.equal(networkGuard.attempts.length, 0);
 
+  const productionSource = buildProjectVerifyWorkbenchFixtureV01({
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    run_id: "run:r7b-ai-workplane-projection",
+  });
+  const guide = buildProjectGuideBriefV02({
+    source: aiWorkplaneGuideSourceV01(),
+    generated_at: OBSERVED_AT,
+  });
+  const admissions = productionSource.proposal_material.proposal.proposed_deltas.map(
+    (candidate) => ({
+      policy_version: "vnext_operator_pilot_policy.v0.1" as const,
+      candidate_id: candidate.candidate_id,
+      candidate_fingerprint: createEpisodeDeltaCandidateFingerprintV01(candidate),
+      target_count: candidate.target_refs.length,
+      current_state_status: "absent" as const,
+      target_states: candidate.target_refs.map((target_ref) => ({
+        target_ref,
+        target_key: `target:${candidate.candidate_id}`,
+        presence: "absent" as const,
+        revision: 0,
+        state_fingerprint: null,
+        head_fingerprint: null,
+        source_transition_receipt_id: null,
+        source_transition_receipt_fingerprint: null,
+      })),
+      decision_allowed: { accept: false, reject: true as const, defer: true as const },
+      mapped_operation: null,
+      accept_operation: null,
+      blocking_reasons: ["pilot_candidate_operation_not_transitionable"],
+      policy_notes: [],
+    }),
+  );
+  const reviewListItem: VNextOperatorPilotReviewListItemV01 = {
+    proposal_id: productionSource.proposal_material.proposal.proposal_id,
+    proposal_fingerprint:
+      productionSource.proposal_material.proposal.integrity.fingerprint,
+    created_at: productionSource.proposal_material.proposal.created_at,
+    status: productionSource.proposal_material.proposal.status,
+    bounded_summary:
+      productionSource.proposal_material.proposal.bounded_summary,
+    source_currentness:
+      productionSource.proposal_material.proposal.source_status.currentness,
+    source_receipts: [
+      {
+        receipt_id: productionSource.receipt.receipt_id,
+        receipt_fingerprint: productionSource.receipt.integrity.fingerprint,
+      },
+    ],
+    candidate_count:
+      productionSource.proposal_material.proposal.proposed_deltas.length,
+    current_state_status: "absent",
+    candidate_admissions: admissions,
+    decision_count: 0,
+    transition_status: "not_applied",
+    decision_application_summary: {
+      status: "needs_more_information",
+      effective_decision: null,
+      preferred_candidate_id: admissions[0]?.candidate_id ?? null,
+      preferred_candidate_fingerprint:
+        admissions[0]?.candidate_fingerprint ?? null,
+      applying_decision_pending: false,
+      matching_transition_receipt_present: false,
+      exact_lineage_and_receipt_binding: true,
+    },
+  };
+  const continuity = aiWorkplaneContinuityV01();
+  const needsDecisionHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [
+      {
+        ...reviewListItem,
+        decision_application_summary: {
+          ...reviewListItem.decision_application_summary,
+          status: "needs_decision",
+        },
+      },
+    ],
+    continuity,
+  });
+  assert.equal(needsDecisionHome.state, "change_decision");
+  assert.equal(needsDecisionHome.primary_action?.label, "Review suggested change");
+  assert.equal(needsDecisionHome.additional_items.length, 0);
+  assert.deepEqual(needsDecisionHome.authority, aiWorkplanePresentationAuthorityV01());
+  assert.deepEqual(compareAIWorkplaneGuideProjectV01(guide, PROJECT_ID), {
+    status: "consistent",
+    blocks_actions: false,
+    message: null,
+  });
+  const guideMismatch = compareAIWorkplaneGuideProjectV01(
+    guide,
+    "project-r7b-other",
+  );
+  assert.equal(guideMismatch.status, "source_mismatch");
+  assert.equal(guideMismatch.blocks_actions, true);
+  assert.match(guideMismatch.message ?? "", /do not fully agree/u);
+  assert.equal(
+    compareAIWorkplaneGuideProjectV01(null, PROJECT_ID).blocks_actions,
+    false,
+  );
+
+  const accessRequired = buildAIWorkplaneHomeViewV01({
+    access: "locked",
+    loading: false,
+    guide,
+    proposals: [],
+    continuity: null,
+  });
+  assert.equal(accessRequired.state, "access_required");
+  assert.equal(accessRequired.primary_action?.kind, "unlock");
+  const noProject = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide: buildProjectGuideBriefV02({
+      source: {
+        route_mode: "canonical",
+        requested_project_id: null,
+        active_project_id: null,
+        recent_projects: [],
+        projection: null,
+        project_resolution: "none",
+        direct_host_round_trip_available: false,
+      },
+      generated_at: OBSERVED_AT,
+    }),
+    proposals: [],
+    continuity: null,
+  });
+  assert.equal(noProject.state, "no_project");
+  assert.equal(noProject.primary_action?.href, "/");
+  const unavailable = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide: null,
+    proposals: [],
+    continuity: null,
+  });
+  assert.equal(unavailable.state, "guidance_unavailable");
+  const idle = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [],
+    continuity,
+  });
+  assert.equal(idle.state, "no_current_decision");
+  assert.equal(idle.primary_action?.label, "Return to Blank State");
+
+  const queue = buildAIWorkplaneQueueV01([
+    {
+      ...reviewListItem,
+      transition_status: "applied",
+      created_at: "2026-07-20T02:00:00.000Z",
+      decision_application_summary: {
+        ...reviewListItem.decision_application_summary,
+        status: "project_updated",
+      },
+    },
+    {
+      ...reviewListItem,
+      decision_application_summary: {
+        ...reviewListItem.decision_application_summary,
+        status: "needs_decision",
+      },
+    },
+    {
+      ...reviewListItem,
+      proposal_id: "episode-delta-proposal:ffffffffffffffffffffffff",
+      decision_count: 1,
+    },
+  ]);
+  assert.deepEqual(queue.map((item) => item.status), [
+    "needs_decision",
+    "needs_more_information",
+    "project_updated",
+  ]);
+  assert.equal(queue.length <= 5, true);
+
+  const exactApplyingDecision = buildReviewDecisionV01(
+    structuredClone(acceptReviewDecisionInputFixture),
+  );
+  const exactRejectDecision = buildReviewDecisionV01(
+    structuredClone(rejectReviewDecisionInputFixture),
+  );
+  const exactDeferDecision = buildReviewDecisionV01(
+    structuredClone(deferReviewDecisionInputFixture),
+  );
+  const exactCandidateAdmission = exactDecisionCandidateAdmissionV01(
+    exactApplyingDecision,
+  );
+  const exactAppliedReceipt = buildStateTransitionReceiptV01(
+    structuredClone(genericStateTransitionReceiptInputFixture),
+  );
+  const readyToCompleteSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        exactDecisionHistoryV01(exactApplyingDecision, true),
+      ],
+      transition_receipts: [],
+    });
+  assert.equal(readyToCompleteSummary.status, "ready_to_complete");
+  assert.equal(
+    readyToCompleteSummary.preferred_candidate_id,
+    exactApplyingDecision.candidate.candidate_id,
+  );
+
+  const newerProposalA = {
+    ...reviewListItem,
+    proposal_id: "episode-delta-proposal:aaaaaaaaaaaaaaaaaaaaaaaa",
+    created_at: "2026-07-20T03:00:00.000Z",
+    decision_application_summary: {
+      ...reviewListItem.decision_application_summary,
+      status: "needs_decision" as const,
+    },
+  };
+  const olderProposalB = {
+    ...reviewListItem,
+    proposal_id: "episode-delta-proposal:bbbbbbbbbbbbbbbbbbbbbbbb",
+    created_at: "2026-07-20T02:00:00.000Z",
+    decision_count: 1,
+    decision_application_summary: readyToCompleteSummary,
+  };
+  const exactCompletionHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [newerProposalA, olderProposalB],
+    continuity: {
+      ...continuity,
+      pending_accepted_decision_count: 1,
+    },
+  });
+  assert.equal(exactCompletionHome.state, "change_completion");
+  assert.equal(
+    exactCompletionHome.focused_item?.proposal_id,
+    olderProposalB.proposal_id,
+  );
+  assert.equal(
+    exactCompletionHome.primary_action?.label,
+    "Continue change review",
+  );
+  assert.equal(
+    exactCompletionHome.primary_action?.href,
+    "/workbench/semantic-review/episode-delta-proposal~bbbbbbbbbbbbbbbbbbbbbbbb",
+  );
+  assert.equal(
+    exactCompletionHome.additional_items[0]?.proposal_id,
+    newerProposalA.proposal_id,
+  );
+  assert.equal(
+    exactCompletionHome.additional_items[0]?.status,
+    "needs_decision",
+  );
+
+  const rejectedSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [exactDecisionHistoryV01(exactRejectDecision, false)],
+      transition_receipts: [],
+    });
+  assert.equal(rejectedSummary.status, "rejected");
+  assert.equal(rejectedSummary.applying_decision_pending, false);
+
+  const laterRejectInput = structuredClone(
+    rejectReviewDecisionInputFixture,
+  );
+  laterRejectInput.decided_at = "2026-07-10T12:20:00.000Z";
+  laterRejectInput.rationale_summary =
+    "Reject the previously accepted change through exact decision lineage.";
+  laterRejectInput.lineage.prior_decisions = [
+    {
+      decision_id: exactApplyingDecision.decision_id,
+      decision_fingerprint:
+        exactApplyingDecision.integrity.fingerprint,
+    },
+  ];
+  const laterRejectDecision = buildReviewDecisionV01(laterRejectInput);
+  const lineageSupersededApplyingSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        exactDecisionHistoryV01(exactApplyingDecision, true),
+        exactDecisionHistoryV01(laterRejectDecision, false),
+      ],
+      transition_receipts: [],
+    });
+  assert.equal(lineageSupersededApplyingSummary.status, "rejected");
+  assert.equal(
+    lineageSupersededApplyingSummary.applying_decision_pending,
+    false,
+  );
+
+  const deferredSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [exactDecisionHistoryV01(exactDeferDecision, false)],
+      transition_receipts: [],
+    });
+  assert.equal(deferredSummary.status, "deferred");
+  assert.equal(deferredSummary.applying_decision_pending, false);
+
+  const ambiguousHistoricalSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        {
+          ...exactDecisionHistoryV01(exactApplyingDecision, true),
+          status: "invalid",
+          pilot_session_bound: false,
+          pilot_actionable: false,
+          session_id: null,
+          request_fingerprint: null,
+          errors: ["operator_pilot_decision_record_provenance_mismatch"],
+        },
+      ],
+      transition_receipts: [],
+    });
+  assert.equal(ambiguousHistoricalSummary.status, "continue_review");
+  assert.equal(ambiguousHistoricalSummary.effective_decision, null);
+  assert.equal(ambiguousHistoricalSummary.applying_decision_pending, false);
+
+  const updatedSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        exactDecisionHistoryV01(exactApplyingDecision, true),
+      ],
+      transition_receipts: [exactAppliedReceipt],
+    });
+  assert.equal(updatedSummary.status, "project_updated");
+  assert.equal(updatedSummary.matching_transition_receipt_present, true);
+
+  const unrelatedApplyingInput = structuredClone(
+    acceptReviewDecisionInputFixture,
+  );
+  unrelatedApplyingInput.decided_at = "2026-07-10T12:16:00.000Z";
+  unrelatedApplyingInput.rationale_summary =
+    "A distinct exact applying decision used to prove unrelated receipt refusal.";
+  const unrelatedApplyingDecision = buildReviewDecisionV01(
+    unrelatedApplyingInput,
+  );
+  const unrelatedReceiptSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [
+        exactDecisionCandidateAdmissionV01(unrelatedApplyingDecision),
+      ],
+      decision_history: [
+        exactDecisionHistoryV01(unrelatedApplyingDecision, true),
+      ],
+      transition_receipts: [exactAppliedReceipt],
+    });
+  assert.equal(unrelatedReceiptSummary.status, "ready_to_complete");
+  assert.equal(
+    unrelatedReceiptSummary.matching_transition_receipt_present,
+    false,
+  );
+
+  const changeRead = {
+    ...reviewListItem,
+    proposal: productionSource.proposal_material.proposal,
+    criterion_specific_relations_source_bound: true,
+    candidates: productionSource.proposal_material.proposal.proposed_deltas.map(
+      (candidate, index) => ({
+        candidate,
+        candidate_fingerprint: admissions[index]!.candidate_fingerprint,
+        pilot_admission: admissions[index]!,
+      }),
+    ),
+    source_run_receipts: [productionSource.receipt],
+    source_lanes: {
+      observations: productionSource.proposal_material.proposal.observations,
+      attestations: productionSource.proposal_material.proposal.attestations,
+      inferences: productionSource.proposal_material.proposal.inferences,
+    },
+    decisions: [],
+    decision_history: [],
+    transition_receipts: [],
+    transition: {
+      status: "not_applied" as const,
+      transition_receipt_id: null,
+      transition_receipt_fingerprint: null,
+      notes: [],
+    },
+    strategic_analysis: { status: "unavailable" } as never,
+    projection_observed_at: OBSERVED_AT,
+    durable_lineage: { chains: [] } as never,
+    project_continuity: continuity,
+    project_verify_reconciliation: reconciliation,
+    project_verify_lineage: lineage,
+  } satisfies SemanticReviewProposalDetailV01;
+  const changeView = buildAIWorkplaneChangeReviewViewV01({
+    read: changeRead,
+    selected_candidate_id: changeRead.candidates[0]!.candidate.candidate_id,
+  });
+  assert.equal(changeView.decision_status, "blocked");
+  assert.equal(changeView.verification.failed, 0);
+  assert.equal(changeView.verification.unknown, 1);
+  assert.equal(changeView.uncertainties.length <= 6, true);
+  assert.deepEqual(changeView.authority, aiWorkplanePresentationAuthorityV01());
+
+  const firstCandidate = changeRead.candidates[0]!;
+  const secondCandidate = {
+    ...structuredClone(firstCandidate),
+    candidate: {
+      ...structuredClone(firstCandidate.candidate),
+      candidate_id: "delta:ai-workplane-exact-pending",
+      title: "Complete the exact saved change",
+    },
+  };
+  secondCandidate.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(secondCandidate.candidate);
+  secondCandidate.pilot_admission = {
+    ...structuredClone(firstCandidate.pilot_admission),
+    candidate_id: secondCandidate.candidate.candidate_id,
+    candidate_fingerprint: secondCandidate.candidate_fingerprint,
+    decision_allowed: {
+      accept: true,
+      reject: true,
+      defer: true,
+    },
+  };
+  const multiCandidateDecisionInput = structuredClone(
+    acceptReviewDecisionInputFixture,
+  );
+  multiCandidateDecisionInput.candidate = {
+    candidate_id: secondCandidate.candidate.candidate_id,
+    candidate_fingerprint: secondCandidate.candidate_fingerprint,
+  };
+  multiCandidateDecisionInput.decided_at = "2026-07-20T03:10:00.000Z";
+  multiCandidateDecisionInput.rationale_summary =
+    "Bind the saved applying decision to the second exact candidate.";
+  const multiCandidateDecision = buildReviewDecisionV01(
+    multiCandidateDecisionInput,
+  );
+  const multiCandidateRead = {
+    ...changeRead,
+    candidates: [firstCandidate, secondCandidate],
+    decision_count: 1,
+    decisions: [multiCandidateDecision],
+    decision_history: [
+      exactDecisionHistoryV01(multiCandidateDecision, true),
+    ],
+    decision_application_summary: {
+      status: "ready_to_complete" as const,
+      effective_decision: {
+        decision: multiCandidateDecision.decision,
+        decision_id: multiCandidateDecision.decision_id,
+        decision_fingerprint:
+          multiCandidateDecision.integrity.fingerprint,
+        candidate_id: multiCandidateDecision.candidate.candidate_id,
+        candidate_fingerprint:
+          multiCandidateDecision.candidate.candidate_fingerprint,
+        pilot_actionable: true,
+        requested_project_change: true,
+        matching_transition_receipt_id: null,
+        matching_transition_receipt_fingerprint: null,
+      },
+      preferred_candidate_id:
+        multiCandidateDecision.candidate.candidate_id,
+      preferred_candidate_fingerprint:
+        multiCandidateDecision.candidate.candidate_fingerprint,
+      applying_decision_pending: true,
+      matching_transition_receipt_present: false,
+      exact_lineage_and_receipt_binding: true as const,
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const automaticallySelectedCandidate =
+    selectAIWorkplaneChangeCandidateV01(multiCandidateRead, null);
+  assert.equal(
+    automaticallySelectedCandidate?.candidate.candidate_id,
+    secondCandidate.candidate.candidate_id,
+  );
+  const multiCandidateView = buildAIWorkplaneChangeReviewViewV01({
+    read: multiCandidateRead,
+    selected_candidate_id: null,
+  });
+  assert.equal(multiCandidateView.decision_status, "decision_saved");
+  assert.equal(multiCandidateView.primary_action?.label, "Review impact");
+
+  let exactRefreshCount = 0;
+  let guideRefreshCount = 0;
+  const refreshContract =
+    refreshAIWorkplaneAfterProjectApplicationV01({
+    refresh_exact_review: async () => {
+      exactRefreshCount += 1;
+    },
+    refresh_guide_brief: async () => {
+      guideRefreshCount += 1;
+    },
+  });
+  assert.equal(exactRefreshCount, 1);
+  assert.equal(guideRefreshCount, 0);
+  void refreshContract.then(() => {
+    assert.equal(exactRefreshCount, 1);
+    assert.equal(guideRefreshCount, 1);
+  });
+
+  const resultView = buildAIWorkplaneResultViewV01(
+    aiWorkplaneResultV01(productionSource),
+  );
+  assert.equal(resultView.heading, "Result ready");
+  assert.equal(resultView.primary_action.label, "Review suggested change");
+  assert.equal(resultView.verification.passed > 0, true);
+  assert.equal(resultView.verification.failed, 0);
+  assert.deepEqual(resultView.authority, aiWorkplanePresentationAuthorityV01());
+  assert.equal(networkGuard.attempts.length, 0);
+
   console.log(
     JSON.stringify(
       {
-        suite: "decision-centered-semantic-workbench-v0.1",
+        suite: "ai-workplane-human-projection-v0.1",
         status: "passed",
         canonical_response_contract_fixture: true,
         production_route_read_proof: "smoke-vnext-operator-pilot-v0-1.ts",
@@ -237,6 +791,18 @@ try {
         embedded_protocol_fingerprints_hidden_from_default_summary: true,
         exact_lineage_structural_mapping: true,
         empty_historical_compatibility: true,
+        human_home_state_priority_checked: true,
+        one_primary_action_mapping_checked: true,
+        bounded_queue_and_deterministic_order_checked: true,
+        exact_ready_to_complete_proposal_binding_checked: true,
+        reject_defer_and_unrelated_receipt_classification_checked: true,
+        lineage_superseded_applying_decision_checked: true,
+        pending_applying_candidate_default_selection_checked: true,
+        post_application_exact_then_guide_refresh_checked: true,
+        change_verification_and_uncertainty_projection_checked: true,
+        result_outcome_verification_next_action_checked: true,
+        presentation_authority_all_false_checked: true,
+        guide_exact_project_mismatch_blocks_actions: true,
         external_network_calls: networkGuard.attempts.length,
         network_guard_methods: ZERO_NETWORK_GUARD_METHODS,
       },
@@ -246,6 +812,225 @@ try {
   );
 } finally {
   networkGuard.restore();
+}
+
+function exactDecisionHistoryV01(
+  decision: ReviewDecisionV01,
+  pilotActionable: boolean,
+): VNextOperatorPilotDecisionHistoryItemV01 {
+  return {
+    decision,
+    status: "valid",
+    pilot_session_bound: true,
+    pilot_actionable: pilotActionable,
+    session_id: "operator-session:ai-workplane-exact-binding",
+    request_fingerprint: `sha256:${"9".repeat(64)}`,
+    errors: [],
+  };
+}
+
+function exactDecisionCandidateAdmissionV01(
+  decision: ReviewDecisionV01,
+): VNextOperatorPilotCandidateAdmissionV01 {
+  const candidate = reviewDecisionGenericSourceProposal.proposed_deltas.find(
+    (entry) =>
+      entry.candidate_id === decision.candidate.candidate_id,
+  );
+  assert(candidate);
+  assert.equal(
+    createEpisodeDeltaCandidateFingerprintV01(candidate),
+    decision.candidate.candidate_fingerprint,
+  );
+  return {
+    policy_version: "vnext_operator_pilot_policy.v0.1",
+    candidate_id: decision.candidate.candidate_id,
+    candidate_fingerprint: decision.candidate.candidate_fingerprint,
+    target_count: candidate.target_refs.length,
+    current_state_status: "absent",
+    target_states: candidate.target_refs.map((target_ref, index) => ({
+      target_ref,
+      target_key: `target:exact-decision:${index}`,
+      presence: "absent",
+      revision: 0,
+      state_fingerprint: null,
+      source_transition_receipt_id: null,
+      source_transition_receipt_fingerprint: null,
+    })),
+    decision_allowed: {
+      accept: true,
+      reject: true,
+      defer: true,
+    },
+    mapped_operation: "create",
+    accept_operation: "create",
+    blocking_reasons: [],
+    policy_notes: [],
+  };
+}
+
+function aiWorkplaneGuideSourceV01(): BlankStateSourceV01 {
+  const projection = {
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    generated_at: OBSERVED_AT,
+    project_summary: {
+      project: { project_id: PROJECT_ID, display_name: "AI Workplane project" },
+      root_availability: "available",
+      is_active: true,
+      active_selection: { project_id: PROJECT_ID, selection_revision: 1 },
+    },
+    coordination: {
+      task_frame: {
+        goal: "Review the bounded current result",
+        success_criteria: ["The current result is reviewed"],
+        non_goals: ["Do not broaden authority"],
+        required_checks: ["npm test"],
+        forbidden_actions: ["Do not apply automatically"],
+        tensions: [],
+        risks: [],
+        gaps: [],
+      },
+    },
+    run_results: { current_run: null, latest_result: null, workbench_entry: null },
+    attention: { items: [] },
+    recent_activity: { items: [] },
+  } as unknown as ProjectHomeProjectionV01;
+  return {
+    route_mode: "canonical",
+    requested_project_id: null,
+    active_project_id: PROJECT_ID,
+    recent_projects: [],
+    projection,
+    project_resolution: "resolved",
+    direct_host_round_trip_available: false,
+  };
+}
+
+function aiWorkplaneContinuityV01(): VNextOperatorPilotProjectContinuityV01 {
+  return {
+    continuity_version: "vnext_operator_pilot_project_continuity.v0.1",
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    pending_proposal_count: 0,
+    pending_accepted_decision_count: 0,
+    latest_applied_transition: null,
+    current_accepted_state_count: 0,
+    latest_target_head_revision: null,
+    latest_compiled_packet: null,
+    packet_currentness: "not_available",
+    latest_context_use_receipt: null,
+    latest_context_use_review_status: null,
+    projection_is_read_only: true,
+    semantic_authority_granted: false,
+  };
+}
+
+function aiWorkplaneResultV01(
+  source: ReturnType<typeof buildProjectVerifyWorkbenchFixtureV01>,
+): ProjectRunResultDetailV01 {
+  const receipt = source.receipt;
+  const proposal = source.proposal_material.proposal;
+  return {
+    read_model_version: "project_run_result_read_model.v0.1",
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    summary: {
+      receipt_ref: receipt.receipt_id,
+      run_ref: receipt.run_id,
+      outcome: receipt.result_summary.outcome,
+      execution_status: receipt.execution.status,
+      verification_status: receipt.verification.status,
+      recorded_at: receipt.recorded_at,
+      started_at: receipt.started_at,
+      finished_at: receipt.finished_at,
+      summary: receipt.result_summary.summary,
+      changed_file_count: receipt.changed_artifacts.length,
+      artifact_count: receipt.artifact_refs.length,
+      command_count: receipt.commands.length,
+      action_count: 0,
+      check_counts: {
+        passed: receipt.checks.filter((entry) => entry.status === "passed").length,
+        failed: receipt.checks.filter((entry) => entry.status === "failed").length,
+        blocked: receipt.checks.filter((entry) => entry.status === "blocked").length,
+        unknown: receipt.checks.filter((entry) => entry.status === "unknown").length,
+        skipped: receipt.skipped_checks.length,
+      },
+      blocker_count: receipt.blockers.length,
+      gap_count: receipt.gaps.length,
+      trust_label: "observed",
+      review_attention: "terminal_result_available",
+      review_href: `/workbench/results/${receipt.receipt_id.replace(":", "~")}`,
+      inspector_href: "/workbench/inspector?target=run_receipt",
+      mode: "interactive",
+    },
+    identity: {
+      receipt_ref: receipt.receipt_id,
+      receipt_fingerprint: receipt.integrity.fingerprint,
+      run_ref: receipt.run_id,
+      work_ref: receipt.work_ref,
+      packet_ref: receipt.task_context_packet_ref,
+      source_transition_ref: null,
+      root_scope_ref: null,
+      repository_ref: null,
+      selected_worktree_ref: null,
+      adapter_ref: null,
+      capability_ref: null,
+      source_refs: [],
+    },
+    packet: {
+      status: "available",
+      generated_at: source.packet.generated_at,
+      packet_fingerprint: source.packet.integrity.fingerprint,
+      selected_context_count: source.packet.selected_context.length,
+      selected_context_refs: [],
+      source_ref_count: 0,
+    },
+    criterion_assessment: {
+      status: "available",
+      assessment: source.assessment,
+      criterion_specific_relations_available: true,
+      task_success_status:
+        source.assessment.summary.unsatisfied > 0
+          ? "unsatisfied"
+          : source.assessment.summary.unknown > 0
+            ? "unknown"
+            : "satisfied",
+      source_validation: "recomputed_from_packet_and_receipt",
+    },
+    proposal: {
+      status: "available",
+      proposal_id: proposal.proposal_id,
+      proposal_fingerprint: proposal.integrity.fingerprint,
+      proposal_status: "pending_review",
+      admission_idempotency_key: source.proposal_material.identity.idempotency_key,
+      review_href: `/workbench/semantic-review/${proposal.proposal_id.replace(":", "~")}`,
+    },
+    automation: null,
+    host: { host_ref: null, host_refs: [], approvals: [] },
+    artifacts: [],
+    commands: [],
+    actions: [],
+    checks: [],
+    skipped_checks: [],
+    blockers: [],
+    warnings: [],
+    gaps: [],
+    uncertainty: [],
+    proposed_next_steps: [],
+    model_invocations: [],
+    capability_coverage: [],
+    trust_summary: receipt.trust_summary,
+    privacy_egress: receipt.privacy_egress,
+    compatibility: { source_contracts: [], unmapped_fields: [], warnings: [] },
+    authority: {
+      proposal_created: false,
+      review_decision_created: false,
+      semantic_transition_created: false,
+      evidence_accepted: false,
+      work_closed: false,
+      semantic_state_changed: false,
+    },
+  };
 }
 
 function reconciliationFixtureV01(): ProjectVerifyReconciliationV01 {

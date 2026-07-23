@@ -382,9 +382,13 @@
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--accent-strong);
   background: var(--accent-strong);
   color: #ffffff;
+  text-decoration: none;
 }
 
 .secondaryButton {
@@ -918,6 +922,77 @@
   margin: 2px 0 0;
 }
 
+.workplaneFocus {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 4vw, 34px);
+  border-color: rgba(18, 112, 82, 0.24);
+  background: linear-gradient(145deg, rgba(245, 251, 248, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.workplaneCoordinate {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workplaneCoordinate p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px;
+  border-left: 2px solid rgba(18, 112, 82, 0.28);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.workplaneCoordinate span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.humanStatus {
+  width: fit-content;
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(18, 112, 82, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.advancedDisclosure {
+  min-width: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-medium);
+  background: rgba(253, 252, 248, 0.72);
+}
+
+.advancedDisclosure > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.advancedDisclosure[open] {
+  display: grid;
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+
+.advancedDisclosure[open] > summary {
+  margin: 0 -12px;
+  padding-inline: 26px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
 .handoffFallback,
 .handoffPreview {
   width: 100%;
@@ -1044,7 +1119,8 @@
   .proposalCard,
   .statusGrid,
   .metricGrid,
-  .reviewMetricGrid {
+  .reviewMetricGrid,
+  .workplaneCoordinate {
     grid-template-columns: 1fr;
   }
 

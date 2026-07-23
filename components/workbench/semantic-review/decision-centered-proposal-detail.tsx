@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+import {
+  buildAIWorkplaneChangeReviewViewV01,
+  selectAIWorkplaneChangeCandidateV01,
+} from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 
 import { ContextUseReviewForm } from "./context-use-review-form";
@@ -18,7 +23,6 @@ import type {
   SemanticReviewStrategicAnalysisRequestV01,
 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
-import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 
 export function DecisionCenteredProposalDetail({
   read,
@@ -31,7 +35,8 @@ export function DecisionCenteredProposalDetail({
   strategicAnalysisBusy,
   onContextUseReview,
   onSessionInvalid,
-  onPrivateMaterialChanged,
+  onExactReviewMaterialChanged,
+  onProjectApplicationCompleted,
   tryBeginOperatorMutation,
   endOperatorMutation,
 }: {
@@ -41,29 +46,28 @@ export function DecisionCenteredProposalDetail({
   busyCandidateId: string | null;
   onDecision: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
   onRevision: (request: SemanticReviewRevisionRequestV01) => Promise<void>;
-  onStrategicAnalysis: (
-    request: SemanticReviewStrategicAnalysisRequestV01,
-  ) => Promise<void>;
+  onStrategicAnalysis: (request: SemanticReviewStrategicAnalysisRequestV01) => Promise<void>;
   strategicAnalysisBusy: boolean;
-  onContextUseReview: (
-    request: SemanticContextUseReviewRequestV01,
-  ) => Promise<void>;
+  onContextUseReview: (request: SemanticContextUseReviewRequestV01) => Promise<void>;
   onSessionInvalid: (errorCode: string) => void;
-  onPrivateMaterialChanged: () => Promise<void>;
+  onExactReviewMaterialChanged: () => Promise<void>;
+  onProjectApplicationCompleted: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
 }) {
   const proposal = read.proposal;
   const [transitionMutationBusy, setTransitionMutationBusy] = useState(false);
-  const selected =
-    read.candidates.find(
-      (candidate) => candidate.candidate.candidate_id === selectedCandidateId,
-    ) ?? read.candidates[0] ?? null;
+  const selected = selectAIWorkplaneChangeCandidateV01(
+    read,
+    selectedCandidateId,
+  );
+  const view = buildAIWorkplaneChangeReviewViewV01({
+    read,
+    selected_candidate_id: selected?.candidate.candidate_id ?? null,
+  });
   const selectedDecisions = selected
     ? read.decision_history.filter(
-        (entry) =>
-          entry.decision.candidate.candidate_id ===
-          selected.candidate.candidate_id,
+        (entry) => entry.decision.candidate.candidate_id === selected.candidate.candidate_id,
       )
     : [];
   const lifecycle = selected
@@ -72,138 +76,59 @@ export function DecisionCenteredProposalDetail({
   const applyingDecision = selected
     ? selectedApplyingDecisionV01(read, selected.candidate.candidate_id)
     : "accept";
-  const proposalLocalBusy =
-    busyCandidateId !== null || transitionMutationBusy;
+  const proposalLocalBusy = busyCandidateId !== null || transitionMutationBusy;
   const strategicActionsAvailable =
-    !proposal.strategic_advantage_transfer ||
-    read.strategic_analysis.status === "available";
+    !proposal.strategic_advantage_transfer || read.strategic_analysis.status === "available";
   const packetRef = proposal.task_context_packet_ref;
   const priorPacket =
     packetRef?.ref_type === "task_context_packet" &&
     typeof packetRef.source_ref === "string" &&
-    /^sha256:[a-f0-9]{64}$/.test(packetRef.source_ref)
-      ? {
-          packet_id: packetRef.external_id,
-          packet_fingerprint: packetRef.source_ref,
-        }
+    /^sha256:[a-f0-9]{64}$/u.test(packetRef.source_ref)
+      ? { packet_id: packetRef.external_id, packet_fingerprint: packetRef.source_ref }
       : null;
   const proposalInspectorHref = createSharedInspectorHrefV01({
     target_kind: "episode_delta_proposal",
     record_id: proposal.proposal_id,
     expected_fingerprint: proposal.integrity.fingerprint,
   });
+  const decisionFormPrimary =
+    view.decision_status !== "decision_saved" &&
+    view.decision_status !== "project_updated";
 
   return (
     <section
       className={styles.workbenchSequence}
       data-vnext-semantic-review-detail="v0.1"
       data-vnext-decision-workbench-detail="v0.1"
+      data-ai-workplane-change-review="v0.1"
+      data-ai-workplane-change-state={view.decision_status}
+      data-ai-workplane-presentation={view.presentation_version}
+      data-ai-workplane-semantic-authority="false"
+      data-vnext-proposal-status={proposal.status}
+      data-vnext-selected-decision-count={selectedDecisions.length}
+      data-vnext-transition-status={read.transition.status}
       data-vnext-selected-candidate={selected ? "present" : "none"}
     >
-      <section className={styles.panel} aria-labelledby="selected-review-title">
+      <section className={`${styles.panel} ${styles.workplaneFocus}`} aria-labelledby="what-would-change-title">
         <div className={styles.panelHeader}>
-          <div className={styles.rowBetween}>
-            <p className={styles.kicker}>Selected review</p>
-            <span className={styles.badge}>{proposal.status}</span>
-          </div>
-          <h2 id="selected-review-title">{proposal.bounded_summary}</h2>
-          <p className={styles.copy}>Proposal presence and recording order do not make it current or true.</p>
-        </div>
-        <dl className={styles.statusGrid}>
-          <DataPoint label="Project scope" value="selected and server-validated" />
-          <DataPoint
-            label="Source currentness"
-            value={humanize(proposal.source_status.currentness)}
-          />
-          <DataPoint
-            label="Candidates"
-            value={String(read.candidates.length)}
-          />
-          <div data-vnext-transition-status={read.transition.status}>
-            <dt>Transition</dt>
-            <dd>{read.transition.status}</dd>
-          </div>
-          <DataPoint
-            label="Pending project reviews"
-            value={String(read.project_continuity.pending_proposal_count)}
-          />
-          <DataPoint
-            label="Applying decisions awaiting Transition"
-            value={String(
-              read.project_continuity.pending_accepted_decision_count,
-            )}
-          />
-          <DataPoint
-            label="Later packet"
-            value={humanize(read.project_continuity.packet_currentness)}
-          />
-          <DataPoint
-            label="Applied current entries"
-            value={String(read.project_continuity.current_accepted_state_count)}
-          />
-        </dl>
-        <div className={styles.buttonRow}>
-          <a
-            className={styles.linkButton}
-            href={proposalInspectorHref}
-            data-proposal-to-shared-inspector="true"
-          >
-            Inspect exact proposal and source lineage
-          </a>
-        </div>
-      </section>
-
-      <ProjectVerificationWorkbench
-        reconciliation={read.project_verify_reconciliation}
-        lineage={read.project_verify_lineage}
-        sourceAssessment={proposal.source_assessment}
-        sourceReceipts={read.source_run_receipts}
-        sourceCurrentness={proposal.source_status.currentness}
-        packetRef={proposal.task_context_packet_ref}
-      />
-
-      <StrategicAdvantageTransferPanel
-        proposal={proposal}
-        readback={read.strategic_analysis}
-        inspectorHref={proposalInspectorHref}
-        busy={strategicAnalysisBusy || transitionMutationBusy}
-        onRequest={onStrategicAnalysis}
-      />
-
-      <section
-        className={styles.panel}
-        data-vnext-operator-step="candidate"
-        aria-labelledby="candidate-decision-title"
-      >
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Reasoning steps 7–10</p>
-          <h2 id="candidate-decision-title">
-            Proposed change, uncertainty, revision, and ReviewDecision
-          </h2>
-          <p className={styles.copy}>Select one immutable candidate. A revision is not a ReviewDecision.</p>
+          <p className={styles.kicker}>Suggested change</p>
+          <h2 id="what-would-change-title">What would change</h2>
         </div>
 
         {read.candidates.length > 1 ? (
           <label className={styles.fieldLabel}>
-            Candidate to review
+            Change to review
             <select
               className={styles.selectControl}
               data-vnext-candidate-selector="v0.1"
-              data-vnext-transition-mutation-busy={String(
-                transitionMutationBusy,
-              )}
+              data-vnext-transition-mutation-busy={String(transitionMutationBusy)}
               value={selected?.candidate.candidate_id ?? ""}
               disabled={proposalLocalBusy}
-              onChange={(event) =>
-                onSelectedCandidateChange(event.target.value)
-              }
+              onChange={(event) => onSelectedCandidateChange(event.target.value)}
             >
               {read.candidates.map((candidate) => (
-                <option
-                  key={candidate.candidate.candidate_id}
-                  value={candidate.candidate.candidate_id}
-                >
-                  {candidate.candidate.title} · {humanize(candidate.candidate.operation)}
+                <option key={candidate.candidate.candidate_id} value={candidate.candidate.candidate_id}>
+                  {candidate.candidate.title} · {operationLabel(candidate.candidate.operation)}
                 </option>
               ))}
             </select>
@@ -214,146 +139,104 @@ export function DecisionCenteredProposalDetail({
           <section
             className={styles.candidate}
             data-vnext-candidate-id="selected"
-            data-vnext-candidate-accept-eligible={String(
-              selected.pilot_admission.decision_allowed.accept,
-            )}
+            data-vnext-candidate-accept-eligible={String(selected.pilot_admission.decision_allowed.accept)}
             data-selected-candidate-operation={selected.candidate.operation}
-            data-selected-candidate-current-state={
-              selected.pilot_admission.current_state_status
-            }
+            data-selected-candidate-current-state={selected.pilot_admission.current_state_status}
           >
             <div className={styles.candidateHeader}>
               <div>
-                <p className={styles.kicker}>{humanize(selected.candidate.delta_type)}</p>
-                <h3>{selected.candidate.title}</h3>
+                <p className={styles.kicker}>{view.operation_label}</p>
+                <h3>{view.title}</h3>
               </div>
-              <span className={styles.badge}>
-                {humanize(selected.candidate.operation)}
-              </span>
+              <span className={styles.badge}>{view.decision_status_label}</span>
             </div>
-            <p className={styles.copy}>{selected.candidate.proposed_state_summary}</p>
-            <dl className={styles.statusGrid}>
-              <DataPoint
-                label="Target family"
-                value={targetFamilyLabelV01(
-                  read,
-                  selected.candidate.candidate_id,
-                  selected.candidate.target_refs.length,
-                )}
-              />
-              <DataPoint
-                label="Current-head expectation"
-                value={currentHeadExpectationV01(
-                  read,
-                  selected.candidate.candidate_id,
-                  selected.pilot_admission.current_state_status,
-                )}
-              />
-              <DataPoint
-                label="Transition effect"
-                value={
-                  selected.pilot_admission.mapped_operation
-                    ? humanize(selected.pilot_admission.mapped_operation)
-                    : "not transitionable"
-                }
-              />
-              <DataPoint
-                label={`${humanize(applyingDecision)} eligibility`}
-                value={
-                  selected.pilot_admission.decision_allowed.accept
-                    ? "eligible"
-                    : "blocked"
-                }
-              />
-            </dl>
-            <TextList title="Uncertainty" items={selected.candidate.uncertainties} />
-            <TextList title="Limitations" items={selected.candidate.limitations} />
-            <TextList
-              title="Transition blockers"
-              items={selected.pilot_admission.blocking_reasons.map(humanize)}
-            />
-            <a
-              className={styles.linkButton}
-              href={createSharedInspectorHrefV01({
-                target_kind: "proposal_candidate",
-                proposal_id: proposal.proposal_id,
-                proposal_fingerprint: proposal.integrity.fingerprint,
-                candidate_id: selected.candidate.candidate_id,
-                candidate_fingerprint: selected.candidate_fingerprint,
-              })}
-              data-candidate-to-shared-inspector="true"
-            >
-              Inspect exact candidate and target bindings
-            </a>
-
-            {proposal.operation_revision ? (
-              <section
-                className={styles.materialCard}
-                data-vnext-operation-revision="v0.1"
-              >
-                <h3>Immutable operation-aware revision</h3>
-                <span>
-                  {humanize(proposal.operation_revision.selected_operation)} · {humanize(proposal.operation_revision.selected_delta_type)}
-                </span>
-                <p className={styles.copy}>
-                  {proposal.operation_revision.rationale_summary}
-                </p>
-                <p className={styles.muted}>
-                  The source proposal and candidate remain unchanged. This
-                  revision is still candidate material.
-                </p>
-              </section>
-            ) : null}
-
-            <SelectedLifecycle lifecycle={lifecycle} />
-            <DecisionHistory decisions={selectedDecisions} />
-
-            {strategicActionsAvailable ? (
-              <ReviewDecisionForm
-                key={selected.candidate.candidate_id}
-                proposalId={proposal.proposal_id}
-                proposalFingerprint={proposal.integrity.fingerprint}
-                candidateRead={selected}
-                applyingDecision={applyingDecision}
-                busy={proposalLocalBusy}
-                onSubmit={onDecision}
-              />
-            ) : (
-              <p className={styles.notice} data-vnext-strategic-candidate-actions="blocked">
-                This strategic candidate remains readable, but action is blocked
-                until its exact source lineage is current and available.
-              </p>
-            )}
-
-            {strategicActionsAvailable &&
-            !proposal.operation_revision &&
-            (selected.candidate.operation === "unknown" ||
-              selected.candidate.operation === "no_change") &&
-            (!proposal.strategic_advantage_transfer ||
-              proposal.strategic_advantage_transfer.transfer_items.some(
-                (transfer) =>
-                  selected.candidate.candidate_id ===
-                  `strategic-candidate:${transfer.transfer_id.slice(
-                    "strategic-transfer:".length,
-                  )}`,
-              )) ? (
-              <OperationAwareRevisionForm
-                proposalId={proposal.proposal_id}
-                proposalFingerprint={proposal.integrity.fingerprint}
-                sourceAssessment={proposal.source_assessment}
-                strategicAdvantageTransfer={proposal.strategic_advantage_transfer}
-                candidateRead={selected}
-                busy={proposalLocalBusy}
-                onSubmit={onRevision}
-              />
-            ) : null}
+            <p className={styles.copy}>{view.effect_summary}</p>
           </section>
         ) : (
-          <p className={styles.empty}>
-            No exact candidate exists in this proposal. No decision is available.
-          </p>
+          <p className={styles.empty}>No reviewable change is available.</p>
         )}
       </section>
+
+      <section className={styles.panel} aria-labelledby="why-suggested-title">
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Current reasoning</p>
+          <h2 id="why-suggested-title">Why Augnes suggested it</h2>
+        </div>
+        <p className={styles.copy}>{view.reason}</p>
+        <p className={styles.muted}>
+          This is a bounded interpretation of the current result and project context,
+          not an accepted project change.
+        </p>
+      </section>
+
+      <section
+        className={styles.panel}
+        aria-labelledby="verified-title"
+        data-ai-workplane-verification={view.verification.status}
+      >
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Verification</p>
+          <h2 id="verified-title">What was verified</h2>
+        </div>
+        <p className={styles.humanStatus}>{view.verification.label}</p>
+        <dl className={styles.statusGrid}>
+          <DataPoint label="Checks passed" value={String(view.verification.passed)} />
+          <DataPoint label="Checks failed" value={String(view.verification.failed)} />
+          <DataPoint label="Checks skipped" value={String(view.verification.skipped)} />
+          <DataPoint label="Requirements satisfied" value={String(view.verification.satisfied)} />
+          <DataPoint label="Requirements not satisfied" value={String(view.verification.unsatisfied)} />
+          <DataPoint label="Requirements not confirmed" value={String(view.verification.unknown)} />
+        </dl>
+        <TextList title="Important blockers" items={view.verification.blockers} />
+      </section>
+
+      <section className={styles.panel} aria-labelledby="uncertain-title">
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Risk and judgment</p>
+          <h2 id="uncertain-title">What remains uncertain</h2>
+        </div>
+        {view.uncertainties.length > 0 ? (
+          <ul className={styles.plainList}>
+            {view.uncertainties.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}
+          </ul>
+        ) : (
+          <p className={styles.copy}>No material uncertainty is reported in the bounded current review.</p>
+        )}
+      </section>
+
+      {selected ? (
+        <section
+          className={styles.panel}
+          aria-labelledby="your-decision-title"
+          data-vnext-candidate-id="selected-decision"
+          data-vnext-candidate-accept-eligible={String(
+            selected.pilot_admission.decision_allowed.accept,
+          )}
+        >
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Needs your decision</p>
+            <h2 id="your-decision-title">Your decision</h2>
+          </div>
+          <p className={styles.copy}>{view.decision_status_label}</p>
+          {strategicActionsAvailable ? (
+            <ReviewDecisionForm
+              key={selected.candidate.candidate_id}
+              proposalId={proposal.proposal_id}
+              proposalFingerprint={proposal.integrity.fingerprint}
+              candidateRead={selected}
+              applyingDecision={applyingDecision}
+              primary={decisionFormPrimary}
+              busy={proposalLocalBusy}
+              onSubmit={onDecision}
+            />
+          ) : (
+            <p className={styles.notice} data-vnext-strategic-candidate-actions="blocked">
+              This change remains readable, but a decision is blocked until its
+              current source can be verified.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {selected ? (
         <SemanticTransitionActions
@@ -367,13 +250,12 @@ export function DecisionCenteredProposalDetail({
           proposalFingerprint={proposal.integrity.fingerprint}
           selectedCandidateId={selected.candidate.candidate_id}
           selectedCandidateFingerprint={selected.candidate_fingerprint}
-          decisions={read.decision_history
-            .filter((item) => item.pilot_actionable)
-            .map((item) => item.decision)}
+          decisions={read.decision_history.filter((item) => item.pilot_actionable).map((item) => item.decision)}
           persistedReceipts={read.transition_receipts}
           priorPacket={priorPacket}
           onSessionInvalid={onSessionInvalid}
-          onPrivateMaterialChanged={onPrivateMaterialChanged}
+          onExactReviewMaterialChanged={onExactReviewMaterialChanged}
+          onProjectApplicationCompleted={onProjectApplicationCompleted}
           tryBeginOperatorMutation={tryBeginOperatorMutation}
           endOperatorMutation={endOperatorMutation}
           onApplyingMutationBusyChange={setTransitionMutationBusy}
@@ -387,109 +269,82 @@ export function DecisionCenteredProposalDetail({
         onContextUseReview={onContextUseReview}
       />
 
-      <section className={styles.panel} data-shared-inspector-handoff="true">
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Exact read-heavy drill-down</p>
-          <h2>Shared Inspector</h2>
-        </div>
-        <p className={styles.copy}>Exact source, decision, Transition, later-packet, and feedback lineage.</p>
-        <a
-          className={styles.linkButton}
-          href={proposalInspectorHref}
-          data-workbench-to-shared-inspector="true"
-        >
-          Open exact proposal lineage
-        </a>
-      </section>
-    </section>
-  );
-}
-
-function SelectedLifecycle({
-  lifecycle,
-}: {
-  lifecycle: ProjectVerifyRevisionLifecycleV01 | null;
-}) {
-  if (!lifecycle) {
-    return (
-      <p className={styles.empty} data-selected-core-lifecycle="historical_generic">
-        This historical or generic semantic candidate has no SR-3 Verify
-        lifecycle profile. Existing R6 decision and Transition lineage below
-        remains authoritative; no Verify lifecycle is reconstructed locally.
-      </p>
-    );
-  }
-  return (
-    <section
-      className={styles.materialCard}
-      data-selected-core-lifecycle={lifecycle.application.status}
-      data-selected-gate-status={lifecycle.gate.status}
-      data-selected-transition-status={lifecycle.transition.status}
-    >
-      <div className={styles.rowBetween}>
-        <h3>Canonical lifecycle for the selected Verify record</h3>
-        <span className={styles.badge}>{humanize(lifecycle.application.status)}</span>
-      </div>
-      <dl className={styles.statusGrid}>
-        <DataPoint label="Proposal review" value={humanize(lifecycle.review.status)} />
-        <DataPoint label="ReviewDecision" value={humanize(lifecycle.decision.status)} />
-        <DataPoint label="Gate" value={humanize(lifecycle.gate.status)} />
-        <DataPoint label="Transition" value={humanize(lifecycle.transition.status)} />
-      </dl>
-      <p className={styles.copy}>
-        Recorded, reviewed, gate-authorized, applied, current, superseded, and
-        retracted are separate states. Claim truth remains not established.
-      </p>
-      {lifecycle.conflicts.length > 0 ? (
-        <TextList
-          title="Exact lifecycle conflicts"
-          items={lifecycle.conflicts.map(
-            (conflict) =>
-              `${humanize(conflict.conflict_kind)}: ${humanize(conflict.code)}`,
-          )}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-function DecisionHistory({
-  decisions,
-}: {
-  decisions: SemanticReviewProposalDetailV01["decision_history"];
-}) {
-  return (
-    <section
-      className={styles.materialCard}
-      data-selected-decision-history="true"
-      data-vnext-decision-history="v0.1"
-    >
-      <h3>ReviewDecision history for this exact candidate</h3>
-      {decisions.length === 0 ? (
-        <p className={styles.empty}>
-          No ReviewDecision is persisted for this proposal and selected
-          candidate. Candidate presence is not a decision.
+      <details className={styles.advancedDisclosure}>
+        <summary>Advanced review</summary>
+        <p className={styles.muted}>
+          Exact verification, decision history, project-change safeguards, and source
+          history are available here. They are not required for the normal review.
         </p>
-      ) : (
-        <ol className={styles.plainList}>
-          {decisions.map((entry) => (
-            <li key={entry.decision.decision_id}>
-              <strong>{humanize(entry.decision.decision)}</strong>
-              <span>{entry.decision.rationale_summary}</span>
-              <span>
-                Transition requested: {entry.decision.requested_transition_intent ? "yes, intent only" : "no"} · applied by decision: no
-              </span>
-              <details className={styles.disclosure}>
-                <summary>Exact decision binding</summary>
-                <span className={styles.identifier}>{entry.decision.decision_id}</span>
-                <span className={styles.identifier}>
-                  {entry.decision.integrity.fingerprint}
-                </span>
-              </details>
-            </li>
-          ))}
-        </ol>
-      )}
+        <ProjectVerificationWorkbench
+          reconciliation={read.project_verify_reconciliation}
+          lineage={read.project_verify_lineage}
+          sourceAssessment={proposal.source_assessment}
+          sourceReceipts={read.source_run_receipts}
+          sourceCurrentness={proposal.source_status.currentness}
+          packetRef={proposal.task_context_packet_ref}
+        />
+        <SelectedLifecycle lifecycle={lifecycle} />
+        <DecisionHistory decisions={selectedDecisions} />
+        <section className={styles.panel} data-shared-inspector-handoff="true">
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Exact detail</p>
+            <h2>Source and project-change history</h2>
+          </div>
+          <a
+            className={styles.linkButton}
+            href={proposalInspectorHref}
+            data-proposal-to-shared-inspector="true"
+            data-workbench-to-shared-inspector="true"
+          >
+            View exact details
+          </a>
+        </section>
+      </details>
+
+      <details className={styles.advancedDisclosure}>
+        <summary>Other review options</summary>
+        <StrategicAdvantageTransferPanel
+          proposal={proposal}
+          readback={read.strategic_analysis}
+          inspectorHref={proposalInspectorHref}
+          busy={strategicAnalysisBusy || transitionMutationBusy}
+          onRequest={onStrategicAnalysis}
+        />
+        {selected &&
+        strategicActionsAvailable &&
+        !proposal.operation_revision &&
+        (selected.candidate.operation === "unknown" || selected.candidate.operation === "no_change") &&
+        (!proposal.strategic_advantage_transfer ||
+          proposal.strategic_advantage_transfer.transfer_items.some(
+            (transfer) =>
+              selected.candidate.candidate_id ===
+              `strategic-candidate:${transfer.transfer_id.slice("strategic-transfer:".length)}`,
+          )) ? (
+          <div
+            data-vnext-candidate-id="selected-options"
+            data-vnext-candidate-accept-eligible={String(
+              selected.pilot_admission.decision_allowed.accept,
+            )}
+          >
+            <OperationAwareRevisionForm
+              proposalId={proposal.proposal_id}
+              proposalFingerprint={proposal.integrity.fingerprint}
+              sourceAssessment={proposal.source_assessment}
+              strategicAdvantageTransfer={proposal.strategic_advantage_transfer}
+              candidateRead={selected}
+              busy={proposalLocalBusy}
+              onSubmit={onRevision}
+            />
+          </div>
+        ) : null}
+        {proposal.operation_revision ? (
+          <section className={styles.materialCard} data-vnext-operation-revision="v0.1">
+            <h3>Clarified change</h3>
+            <p className={styles.copy}>{proposal.operation_revision.rationale_summary}</p>
+            <p className={styles.muted}>The original suggested change remains unchanged.</p>
+          </section>
+        ) : null}
+      </details>
     </section>
   );
 }
@@ -503,103 +358,38 @@ function LaterContextFeedback({
   read: SemanticReviewProposalDetailV01;
   proposalId: string;
   busy: boolean;
-  onContextUseReview: (
-    request: SemanticContextUseReviewRequestV01,
-  ) => Promise<void>;
+  onContextUseReview: (request: SemanticContextUseReviewRequestV01) => Promise<void>;
 }) {
   const receipt = read.project_continuity.latest_context_use_receipt;
   const review = read.project_continuity.latest_context_use_review_status;
-  const belongsToProposal =
-    read.project_continuity.latest_applied_transition?.proposal_id === proposalId;
-
+  const belongsToProposal = read.project_continuity.latest_applied_transition?.proposal_id === proposalId;
   if (!belongsToProposal || !receipt) {
     return (
-      <details className={styles.sequenceDisclosure} data-vnext-context-use-feedback="not_yet_available">
-        <summary>
-          <span className={styles.sequenceNumber}>13</span>
-          <span><strong>Later feedback</strong><small className={styles.sequenceDisclosureStatus} data-summary-tone="attention">ContextUseReview unavailable</small></span>
-        </summary>
-      <section className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Reasoning step 13</p>
-          <h2>Later ContextUseReview is not yet available</h2>
-        </div>
-        <p className={styles.empty}>
-          Feedback requires a successful Transition, its compiler-produced later
-          packet, and a real later RunReceipt. Rendering this page creates none
-          of those stages.
+      <details className={styles.advancedDisclosure} data-vnext-context-use-feedback="not_yet_available">
+        <summary>Optional later feedback</summary>
+        <p className={styles.muted}>
+          Feedback becomes available only after a project change is applied and later work actually uses the updated context.
         </p>
-      </section>
       </details>
     );
   }
-
   const exactReview =
     review?.later_task_run_receipt_id === receipt.receipt_id &&
     review.later_task_run_receipt_fingerprint === receipt.receipt_fingerprint
       ? review
       : null;
   return (
-    <section className={styles.panel} data-vnext-context-use-feedback="available">
-      <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Reasoning step 13</p>
-        <h2>Actual later-context use and feedback</h2>
-      </div>
-      <p className={styles.copy}>
-        Packet presentation, user-declared actual use, and usefulness remain
-        separate classifications. Task-wide receipt trust counts do not upgrade
-        the feedback declaration into observation or attestation.
-      </p>
-      <dl className={styles.statusGrid}>
-        <DataPoint
-          label="Task-wide direct observations"
-          value={String(receipt.trust_summary.direct_observations)}
-        />
-        <DataPoint
-          label="Task-wide verified external observations"
-          value={String(receipt.trust_summary.verified_external_observations)}
-        />
-        <DataPoint
-          label="Task-wide host attestations"
-          value={String(receipt.trust_summary.host_attestations)}
-        />
-        <DataPoint
-          label="Task-wide provider reports"
-          value={String(receipt.trust_summary.provider_reports)}
-        />
-      </dl>
+    <details className={styles.advancedDisclosure} data-vnext-context-use-feedback="available">
+      <summary>Optional context feedback</summary>
+      <h2>Did this project context help?</h2>
       {exactReview ? (
-        <dl className={styles.statusGrid}>
-          <DataPoint label="Presented" value={humanize(exactReview.presented)} />
-          <DataPoint
-            label="Presentation basis"
-            value={
-              exactReview.presentation_basis ??
-              "not recorded (historical)"
-            }
-          />
-          <DataPoint
-            label="Actually used"
-            value={humanize(exactReview.actually_used)}
-          />
-          <DataPoint
-            label="Actual-use basis"
-            value={
-              exactReview.actually_used_basis ??
-              "not recorded (historical)"
-            }
-          />
-          <DataPoint label="Assessment" value={humanize(exactReview.assessment)} />
-          <DataPoint
-            label="Assessment basis"
-            value={
-              exactReview.assessment_basis ??
-              "not recorded (historical)"
-            }
-          />
-          <DataPoint label="Reviewed" value={exactReview.reviewed_at} />
-          <DataPoint label="Authority" value="non-authoritative feedback" />
-        </dl>
+        <p
+          className={styles.copy}
+          data-context-use-review-actually-used-basis={exactReview.actually_used_basis ?? "unknown"}
+          data-context-use-review-presentation-basis={exactReview.presentation_basis ?? "unknown"}
+        >
+          Feedback saved: {humanize(exactReview.actually_used)} · {humanize(exactReview.assessment)}
+        </p>
       ) : (
         <ContextUseReviewForm
           receiptId={receipt.receipt_id}
@@ -607,6 +397,57 @@ function LaterContextFeedback({
           busy={busy}
           onSubmit={onContextUseReview}
         />
+      )}
+    </details>
+  );
+}
+
+function SelectedLifecycle({ lifecycle }: { lifecycle: ProjectVerifyRevisionLifecycleV01 | null }) {
+  if (!lifecycle) {
+    return (
+      <p className={styles.empty} data-selected-core-lifecycle="historical_generic">
+        Exact lifecycle detail is unavailable for this historical review.
+      </p>
+    );
+  }
+  return (
+    <section
+      className={styles.materialCard}
+      data-selected-core-lifecycle={lifecycle.application.status}
+      data-selected-gate-status={lifecycle.gate.status}
+      data-selected-transition-status={lifecycle.transition.status}
+    >
+      <h3>Exact project-change lifecycle</h3>
+      <dl className={styles.statusGrid}>
+        <DataPoint label="Proposal review" value={humanize(lifecycle.review.status)} />
+        <DataPoint label="ReviewDecision" value={humanize(lifecycle.decision.status)} />
+        <DataPoint label="Gate" value={humanize(lifecycle.gate.status)} />
+        <DataPoint label="Transition" value={humanize(lifecycle.transition.status)} />
+      </dl>
+    </section>
+  );
+}
+
+function DecisionHistory({ decisions }: { decisions: SemanticReviewProposalDetailV01["decision_history"] }) {
+  return (
+    <section className={styles.materialCard} data-selected-decision-history="true" data-vnext-decision-history="v0.1">
+      <h3>Exact ReviewDecision history</h3>
+      {decisions.length === 0 ? (
+        <p className={styles.empty}>No exact decision is saved for this change option.</p>
+      ) : (
+        <ol className={styles.plainList}>
+          {decisions.map((entry) => (
+            <li key={entry.decision.decision_id}>
+              <strong>{humanize(entry.decision.decision)}</strong>
+              <span>{entry.decision.rationale_summary}</span>
+              <details className={styles.disclosure}>
+                <summary>Exact decision binding</summary>
+                <span className={styles.identifier}>{entry.decision.decision_id}</span>
+                <span className={styles.identifier}>{entry.decision.integrity.fingerprint}</span>
+              </details>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
@@ -617,37 +458,26 @@ function selectedProjectVerifyLifecycleV01(
   candidateId: string,
 ): ProjectVerifyRevisionLifecycleV01 | null {
   const profile = read.proposal.project_verify_lifecycle;
-  if (
-    !profile ||
-    profile.lifecycle_binding.selected_candidate.candidate_id !== candidateId
-  ) {
-    return null;
-  }
+  if (!profile || profile.lifecycle_binding.selected_candidate.candidate_id !== candidateId) return null;
   const selectedRef = profile.lifecycle_binding.selected_record_ref;
   if (selectedRef.record_kind === "claim_record") {
     const family = read.project_verify_reconciliation.claim_families.find(
+      (entry) => entry.claim_family_id === profile.lifecycle_binding.family_id,
+    );
+    return family?.revisions.find(
       (entry) =>
-        entry.claim_family_id === profile.lifecycle_binding.family_id,
-    );
-    return (
-      family?.revisions.find(
-        (entry) =>
-          entry.claim_ref.record_id === selectedRef.record_id &&
-          entry.claim_ref.record_fingerprint === selectedRef.record_fingerprint,
-      )?.lifecycle ?? null
-    );
+        entry.claim_ref.record_id === selectedRef.record_id &&
+        entry.claim_ref.record_fingerprint === selectedRef.record_fingerprint,
+    )?.lifecycle ?? null;
   }
   const family = read.project_verify_reconciliation.relation_families.find(
+    (entry) => entry.relation_family_id === profile.lifecycle_binding.family_id,
+  );
+  return family?.revisions.find(
     (entry) =>
-      entry.relation_family_id === profile.lifecycle_binding.family_id,
-  );
-  return (
-    family?.revisions.find(
-      (entry) =>
-        entry.relation_ref.record_id === selectedRef.record_id &&
-        entry.relation_ref.record_fingerprint === selectedRef.record_fingerprint,
-    )?.lifecycle ?? null
-  );
+      entry.relation_ref.record_id === selectedRef.record_id &&
+      entry.relation_ref.record_fingerprint === selectedRef.record_fingerprint,
+  )?.lifecycle ?? null;
 }
 
 function selectedApplyingDecisionV01(
@@ -655,39 +485,12 @@ function selectedApplyingDecisionV01(
   candidateId: string,
 ): "accept" | "supersede" | "retract" {
   const binding = read.proposal.project_verify_lifecycle?.lifecycle_binding;
-  if (binding?.selected_candidate.candidate_id !== candidateId) {
-    return "accept";
-  }
+  if (binding?.selected_candidate.candidate_id !== candidateId) return "accept";
   return binding.selected_record_operation_intent === "supersede"
     ? "supersede"
     : binding.selected_record_operation_intent === "retract"
       ? "retract"
       : "accept";
-}
-
-function targetFamilyLabelV01(
-  read: SemanticReviewProposalDetailV01,
-  candidateId: string,
-  targetCount: number,
-): string {
-  const profile = read.proposal.project_verify_lifecycle;
-  return profile?.lifecycle_binding.selected_candidate.candidate_id === candidateId
-    ? `${humanize(profile.lifecycle_binding.entity_kind)} family`
-    : `${targetCount} exact target(s)`;
-}
-
-function currentHeadExpectationV01(
-  read: SemanticReviewProposalDetailV01,
-  candidateId: string,
-  currentStateStatus: string,
-): string {
-  const profile = read.proposal.project_verify_lifecycle;
-  const expectation =
-    profile?.lifecycle_binding.selected_candidate.candidate_id === candidateId
-      ? profile.current_head_expectation
-      : null;
-  if (!expectation) return humanize(currentStateStatus);
-  return `${expectation.presence} at revision ${expectation.revision}`;
 }
 
 function TextList({ title, items }: { title: string; items: string[] }) {
@@ -696,21 +499,26 @@ function TextList({ title, items }: { title: string; items: string[] }) {
     <section>
       <strong>{title}</strong>
       <ul className={styles.plainList}>
-        {items.map((item, index) => (
-          <li key={`${title}:${index}:${item}`}>{item}</li>
-        ))}
+        {items.map((item, index) => <li key={`${title}:${index}:${item}`}>{item}</li>)}
       </ul>
     </section>
   );
 }
 
 function DataPoint({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
+  return <div><dt>{label}</dt><dd>{value}</dd></div>;
+}
+
+function operationLabel(value: string): string {
+  return value === "add"
+    ? "add"
+    : value === "revise"
+      ? "update"
+      : value === "supersede"
+        ? "replace"
+        : value === "retract" || value === "remove"
+          ? "remove"
+          : "clarify";
 }
 
 function humanize(value: string): string {

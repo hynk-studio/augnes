@@ -108,21 +108,25 @@ resumption, and the former user-facing Project Home composition into one shared
 surface. `/projects` and `/projects/[projectId]` remain compatible management and
 viewed-project routes into that surface. The internal Project Home projection
 continues to supply read-only source data; it is not a separate product surface.
-Semantic Workbench, Shared Inspector, Portability, and Recovery remain current
-reference operator surfaces until their assigned correction work changes them.
+Shared Inspector, Portability, and Recovery remain current reference operator
+surfaces until their assigned correction work changes them.
 The target topology is documented in the
 [post-Build Week product UX correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md);
 C0 established the product authority and C1 reduced the shared shell to
 **Blank State** and **AI Workplane** as its only primary destinations. Existing
 project selection, transfer, and recovery routes remain available through
-secondary **Project tools**. C0–C2 are merged. C3 in this change makes
-`guide_brief.v0.2` the deterministic current-project interpretation shared by
+secondary **Project tools**. C0–C3 are merged. GuideBrief v0.2 is the
+deterministic current-project interpretation shared by
 Blank State, a compact AI Workplane rail, the existing
 `augnes_get_guide_brief` MCP tool, `codex:read-brief`, and new native Codex task
 starts. GuideBrief remains a read-only View and is delivered separately from the
 exact `TaskContextPacket`; legacy v0.1 fixtures and Human Surface consumers are
-historical or compatibility-only. C3 becomes complete only after this PR is
-reviewed and merged. C4–C9 remain pending.
+historical or compatibility-only. C4 in this change reprojects the compatible
+`/workbench/semantic-review` route as the human-facing AI Workplane for current
+work, results, suggested changes, decisions, and separately confirmed project
+changes. Exact verification and source history remain available through
+advanced or contextual detail. C4 becomes complete only after this PR is
+reviewed and merged; C5–C9 remain pending.
 
 The repository now supports:
 

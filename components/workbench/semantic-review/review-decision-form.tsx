@@ -16,6 +16,7 @@ export function ReviewDecisionForm({
   proposalFingerprint,
   candidateRead,
   applyingDecision = "accept",
+  primary = true,
   busy,
   onSubmit,
 }: {
@@ -23,6 +24,7 @@ export function ReviewDecisionForm({
   proposalFingerprint: string;
   candidateRead: SemanticReviewCandidateReadV01;
   applyingDecision?: "accept" | "supersede" | "retract";
+  primary?: boolean;
   busy: boolean;
   onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
 }) {
@@ -66,7 +68,7 @@ export function ReviewDecisionForm({
       onSubmit={submitDecision}
     >
       <label htmlFor={`decision-${candidateRead.candidate.candidate_id}`}>
-        Explicit ReviewDecision
+        Decision
       </label>
       <select
         id={`decision-${candidateRead.candidate.candidate_id}`}
@@ -74,19 +76,19 @@ export function ReviewDecisionForm({
         disabled={busy}
         onChange={(event) => setDecision(event.target.value as SupportedDecision)}
       >
-        <option value="defer">Defer for later review</option>
-        <option value="reject">Reject this candidate</option>
+        <option value="defer">Decide later</option>
+        <option value="reject">Reject this change</option>
         <option value={applyingDecision} disabled={!applyAllowed}>
           {applyingDecision === "accept"
-            ? "Accept"
+            ? "Accept this change"
             : applyingDecision === "supersede"
-              ? "Supersede"
-              : "Retract"} for {candidateRead.pilot_admission.accept_operation ?? "eligible operation"} intent
+              ? "Replace the current saved state"
+              : "Remove the current saved state"}
         </option>
       </select>
 
       <label htmlFor={`rationale-${candidateRead.candidate.candidate_id}`}>
-        Bounded rationale
+        Decision note
       </label>
       <textarea
         id={`rationale-${candidateRead.candidate.candidate_id}`}
@@ -100,7 +102,7 @@ export function ReviewDecisionForm({
       {decision === "defer" ? (
         <>
           <label htmlFor={`revisit-${candidateRead.candidate.candidate_id}`}>
-            Required revisit condition
+            Review again when…
           </label>
           <textarea
             id={`revisit-${candidateRead.candidate.candidate_id}`}
@@ -112,46 +114,43 @@ export function ReviewDecisionForm({
             placeholder="Describe what new information should trigger another review."
           />
           <p className={styles.muted}>
-            This form submits only the explicit bounded revisit condition. It does not
-            submit caller-controlled timestamps.
+            Describe what would make another review useful. The system records no
+            caller-provided decision time.
           </p>
         </>
       ) : null}
 
       {decision === applyingDecision ? (
         <p className={styles.notice}>
-          {applyingDecision === "accept"
-            ? "Accept"
-            : applyingDecision === "supersede"
-              ? "Supersede"
-              : "Retract"} records a ReviewDecision and an exact transition intent. It does not
-          confirm a gate, apply semantic state, create a StateTransitionReceipt, or
-          compile later context.
+          Saving this decision does not change the project yet. Applying the
+          reviewed change remains a separate confirmed action.
         </p>
       ) : (
         <p className={styles.copy}>
-          Reject and defer record no transition intent and apply no state.
+          Rejecting or deciding later does not change the project.
         </p>
       )}
 
       {!applyAllowed ? (
         <p className={styles.muted}>
-          The applying decision is unavailable under the real-pilot policy: this selected candidate
-          must declare an explicit add, revise, supersede, or retract operation whose
-          exact target state satisfies its current-state precondition. Unknown and
-          no-change candidates require a separate immutable operation-aware revision.
-          Reject and defer remain available.
+          This suggested change needs clearer change semantics or current project
+          information before it can be accepted. Reject and Decide later remain
+          available.
         </p>
       ) : null}
 
       <p className={styles.muted}>
-        The server binds the actor, authorization and decision basis, target set, and
-        decision time from the authenticated session and persisted proposal. This form
-        does not submit those authority-shaped fields.
+        Augnes binds this decision to the protected current review. This form does
+        not ask you to enter internal identifiers or authority fields.
       </p>
 
-      <button className={styles.button} type="submit" disabled={!canSubmit}>
-        {busy ? "Recording decision…" : `Record ${decision} decision`}
+      <button
+        className={primary ? styles.button : styles.secondaryButton}
+        type="submit"
+        data-ai-workplane-primary-action={primary ? "save-decision" : undefined}
+        disabled={!canSubmit}
+      >
+        {busy ? "Saving decision…" : "Save decision"}
       </button>
     </form>
   );

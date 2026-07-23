@@ -17,15 +17,15 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 159);
-assert.equal(recordNames.length, 40);
+assert.equal(resultKeys.length, 163);
+assert.equal(recordNames.length, 41);
 assert.equal(
   hashInventory(resultKeys),
-  "50bed4c303ac4c6c8eb2fbbc17b9816a8ea83c50ae02af6395c5f74a8c4ed846",
+  "6b380b7fa6ecf01c78052ae4ee7c7002d9a1e0b83621f909bf3309ab6c5d322d",
 );
 assert.equal(
   hashInventory(recordNames),
-  "c7f1ab4825f4dedc89133ec14fd1bb9207eec7e1ce4db7eefe7bc9474139d193",
+  "729ece764ac96c78c6a3beafb5f030382b8a81200de99770c0d98ab8495d3a10",
 );
 assert.match(
   source,
@@ -82,6 +82,59 @@ assert.match(
 assert.match(
   source,
   /guide_brief_cross_surface_consistency = true/u,
+);
+assert.match(
+  source,
+  /guideAfterImpactCount, guideBeforeImpact\.count[\s\S]*guideAfterConfirmationCount, guideBeforeImpact\.count[\s\S]*guideAfterApplication\.count,[\s\S]*guideBeforeImpact\.count \+ 1/u,
+);
+const continuityScopeStart = source.indexOf("if (RUN_CONTINUITY_SCOPE)");
+const multiCandidateTransitionPhase = source.indexOf(
+  'runPhase("multi_candidate_transition_scope"',
+);
+const exactBindingRecord = source.indexOf(
+  'record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate")',
+);
+const personalPerspectivePhase = source.indexOf(
+  'runPhase("personal_perspective_inspector"',
+);
+assert(
+  continuityScopeStart >= 0 &&
+    multiCandidateTransitionPhase > continuityScopeStart,
+);
+assert.equal(
+  [...source.matchAll(/runPhase\("multi_candidate_transition_scope"/gu)]
+    .length,
+  1,
+);
+assert(
+  continuityScopeStart >= 0 &&
+    personalPerspectivePhase > continuityScopeStart,
+);
+assert.equal(
+  [...source.matchAll(/runPhase\("personal_perspective_inspector"/gu)]
+    .length,
+  1,
+);
+assert.match(
+  source,
+  /isExpectedSyntheticSessionRefusal[\s\S]*entry\.phase === "synthetic_session_bootstrap"[\s\S]*entry\.path === "\/api\/vnext\/operator\/session"[\s\S]*response\.method === "GET"[\s\S]*response\.status === 401/u,
+);
+assert.match(
+  source,
+  /VALIDATION_SCOPE === "core"[\s\S]*result\.multi_candidate_transition_scope, false[\s\S]*result\.exact_ready_to_complete_navigation, false[\s\S]*result\.personal_perspective_shared_inspector_exact, false[\s\S]*VALIDATION_SCOPE === "continuity"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, true[\s\S]*result\.personal_perspective_shared_inspector_exact, true/u,
+);
+assert(continuityScopeStart >= 0 && exactBindingRecord > continuityScopeStart);
+assert.match(
+  source,
+  /seedExactBindingBrowserProposals[\s\S]*entry\.entry_kind === "accepted_state_ref"[\s\S]*entry\.entry_kind === "memory_ref"[\s\S]*exact-binding non-Personal-Perspective accepted-state packet fixture missing/u,
+);
+assert.equal(
+  [
+    ...source.matchAll(
+      /record\("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate"\)/gu,
+    ),
+  ].length,
+  1,
 );
 assert.match(
   source,

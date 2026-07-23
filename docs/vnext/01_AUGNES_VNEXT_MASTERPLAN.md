@@ -54,11 +54,13 @@ Target default top-level navigation은 Blank State와 AI Workplane 두 destinati
 embedded되는 non-authoritative interpretation layer이며 peer page가 아니다.
 Inspector도 normal peer destination이 아니라 contextual audit surface다.
 
-현재 runtime의 Project Home, Semantic Workbench, Shared Inspector, Portability와
-Recovery는 operational Core를 보여 주는 reference operator implementation이다.
-Post-Build Week correction은 이 engine을 폐기하지 않고 target surface 아래로
-reproject, absorb 또는 demote한다. 해당 runtime migration은 아직 구현되지 않았으며,
-현재 code가 이후 correction PR 전까지 implemented behavior의 source of truth다.
+현재 runtime은 canonical Blank State, GuideBrief v0.2와 이 change가 구현하는 human-facing
+AI Workplane을 통해 operational Core를 투영한다. Shared Inspector, Portability와 Recovery는
+여전히 reference operator implementation이다. Post-Build Week correction은 이 engine을
+폐기하지 않고 target surface 아래로 reproject, absorb 또는 demote한다. C4는 exact
+verification, proposal, decision, confirmation, application과 lineage semantics를 유지한 채
+default Workbench projection을 ordinary-language AI Workplane으로 바꾼다. 이후 correction
+PR 전까지 현재 code가 implemented behavior의 source of truth다.
 
 ---
 
@@ -765,12 +767,11 @@ change, external approval 또는 automation expansion을 만들지 않는다. to
 
 GuideBrief는 현재 상황과 그 의미를 human-readable하게 설명한다.
 
-C3 implementation의 active contract는
+C3에서 merge된 active contract는
 [`GUIDEBRIEF_CONTRACT_V0_2.md`](../GUIDEBRIEF_CONTRACT_V0_2.md)다. 하나의
 current-project source/builder가 Browser, AI Workplane, ChatGPT/MCP와 Codex
 projection을 만들며, exact `TaskContextPacket`은 별도 execution contract로 유지된다.
-legacy v0.1 contract와 fixture는 historical/compatibility-only다. 이 상태는 C3 PR이
-review와 merge된 뒤에만 complete다.
+legacy v0.1 contract와 fixture는 historical/compatibility-only다.
 `TaskContextPacket`은 specific task/run의 exact bounded execution contract다. 서로
 대체하거나 competing authority protocol이 되어서는 안 된다.
 
@@ -788,10 +789,12 @@ automation state · semantic processing
 decision consequence · later-context/feedback preparation
 ```
 
-historical Agent Workplane과 current Semantic Workbench는 implementation ancestry다.
-현재 runtime rename이나 migration이 완료됐다고 주장하지 않는다. 현재 engine과
-operator projection 대부분은 AI Workplane 아래로 planned absorption되지만 raw engine
-structure를 default user에게 dump하지 않는다.
+historical Agent Workplane과 Semantic Workbench는 implementation ancestry와 internal
+compatibility naming으로 남을 수 있다. C4 implementation은
+`/workbench/semantic-review`를 current compatible canonical AI Workplane route로
+reproject하고 `/workbench`를 그 route로 redirect한다. exact engine structure는 advanced
+review와 contextual Inspector에서 유지되며 default user path를 정의하지 않는다. C4는
+이 PR이 review와 merge된 뒤에만 complete다.
 
 AI Workplane의 default human projection은 requested work, current meaningful stage,
 result, verification outcome, remaining uncertainty/risk와 실제 필요한 user decision을

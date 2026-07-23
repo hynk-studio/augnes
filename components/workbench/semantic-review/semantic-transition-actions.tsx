@@ -34,7 +34,8 @@ export function SemanticTransitionActions({
   persistedReceipts,
   priorPacket,
   onSessionInvalid,
-  onPrivateMaterialChanged,
+  onExactReviewMaterialChanged,
+  onProjectApplicationCompleted,
   tryBeginOperatorMutation,
   endOperatorMutation,
   onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
@@ -47,7 +48,8 @@ export function SemanticTransitionActions({
   persistedReceipts: StateTransitionReceiptV01[];
   priorPacket: SemanticTransitionPriorPacketBindingV01 | null;
   onSessionInvalid: (errorCode: string) => void;
-  onPrivateMaterialChanged: () => Promise<void>;
+  onExactReviewMaterialChanged: () => Promise<void>;
+  onProjectApplicationCompleted: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
   onApplyingMutationBusyChange?: (busy: boolean) => void;
@@ -270,9 +272,7 @@ export function SemanticTransitionActions({
         return;
       }
       setPreviewResponse(body);
-      setStatusMessage(
-        "Fresh preview prepared from persisted state. The preview wrote nothing.",
-      );
+      setStatusMessage("Impact is ready. Reviewing it changed nothing.");
     } catch {
       if (requestIsCurrent(requestGeneration)) {
         setErrorCode("semantic_transition_preview_request_failed");
@@ -345,10 +345,10 @@ export function SemanticTransitionActions({
       setConfirmationResponse(body);
       setStatusMessage(
         body.status === "exact_replay"
-          ? "Exact gate replay returned the existing gate. No semantic state was applied."
-          : "Confirmation persisted the semantic gate only. No semantic state was applied.",
+          ? "Existing confirmation reused. The project has not changed."
+          : "Change confirmed. The project has not changed yet.",
       );
-      await onPrivateMaterialChanged();
+      await onExactReviewMaterialChanged();
     } catch {
       if (requestIsCurrent(requestGeneration)) {
         setErrorCode("semantic_transition_confirmation_request_failed");
@@ -402,6 +402,8 @@ export function SemanticTransitionActions({
         return;
       }
       if (
+        (body.status !== "applied" &&
+          body.status !== "exact_replay") ||
         !("transition_receipt" in body) ||
         !("later_packet" in body) ||
         !("eligibility_status" in body) ||
@@ -429,10 +431,10 @@ export function SemanticTransitionActions({
       setApplyResponse(body);
       setStatusMessage(
         body.status === "exact_replay"
-          ? "Exact replay returned the persisted Transition receipt and later packet."
-          : "The exact semantic effects, StateTransitionReceipt, and later packet were committed atomically.",
+          ? "Existing project update reused; no duplicate change was made."
+          : "Project updated. Future work can use the updated project context.",
       );
-      await onPrivateMaterialChanged();
+      await onProjectApplicationCompleted();
     } catch {
       if (requestIsCurrent(requestGeneration)) {
         setErrorCode("semantic_transition_apply_request_failed");
@@ -467,78 +469,64 @@ export function SemanticTransitionActions({
     (selectedDecision ? null : persistedReceiptForSelectedCandidate);
   const laterPacket = applyResponse?.later_packet ?? null;
   const allBusy = busyStep !== null;
-  const transitionNeedsAction = applyingDecisions.length > 0 && !receipt;
-  const [transitionDisclosureOpen, setTransitionDisclosureOpen] = useState(
-    transitionNeedsAction,
-  );
-
-  useEffect(() => {
-    if (transitionNeedsAction) {
-      setTransitionDisclosureOpen(true);
-    }
-  }, [transitionNeedsAction]);
 
   return (
-    <details
-      className={styles.sequenceDisclosure}
-      open={transitionDisclosureOpen}
-      onToggle={(event) => {
-        setTransitionDisclosureOpen(event.currentTarget.open);
-      }}
+    <section
+      className={styles.panel}
+      aria-labelledby="apply-approved-change-title"
       data-vnext-semantic-transition-actions="v0.1"
       data-vnext-transition-applying-decision-count={applyingDecisions.length}
-      data-vnext-transition-persisted-receipt-count={
-        candidatePersistedReceipts.length
-      }
+      data-vnext-transition-persisted-receipt-count={candidatePersistedReceipts.length}
+      data-vnext-transition-selected-decision-kind={selectedDecision?.decision ?? "none"}
       data-vnext-local-authentication="secret-possession-not-external-identity"
+      data-ai-workplane-change-stage={
+        receipt
+          ? "project_updated"
+          : gate
+            ? "apply_ready"
+            : preview
+              ? "confirmation_ready"
+              : selectedDecision
+                ? "impact_review_ready"
+                : "decision_required"
+      }
     >
-      <summary>
-        <span className={styles.sequenceNumber}>11–12</span>
-        <span>
-          <strong>Authorized Transition</strong>
-          <small
-            className={styles.sequenceDisclosureStatus}
-            data-summary-tone={receipt ? "neutral" : applyingDecisions.length > 0 ? "attention" : "neutral"}
-          >
-            {receipt
-              ? `Transition applied · ${laterPacket ? "later packet compiled" : "later packet unavailable"}`
-              : applyingDecisions.length > 0
-                ? `${applyingDecisions.length} applying ${applyingDecisions.length === 1 ? "decision" : "decisions"} · Transition not applied`
-                : "No applying decision · Transition not applied"}
-          </small>
-        </span>
-      </summary>
-      <section className={styles.panel}>
       <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Explicit semantic transition boundary</p>
-        <h2 id="semantic-transition-actions-title">
-          Preview consequence, authorize the gate, then apply
+        <p className={styles.kicker}>Apply an approved change</p>
+        <h2 id="apply-approved-change-title">
+          {receipt
+            ? "Project updated"
+            : gate
+              ? "Apply to project"
+              : preview
+                ? "Confirm change"
+                : "Review impact"}
         </h2>
         <p className={styles.copy}>
-          These controls act only on the selected candidate and its exact applying
-          decision. Preview writes nothing. Gate authorization still applies no state.
-          Only the final successful Transition changes durable semantic state and
-          compiles later context.
+          {receipt
+            ? "The reviewed change is now reflected in saved project state."
+            : gate
+              ? "This is the step that changes saved project state."
+              : preview
+                ? "Confirmation authorizes only this reviewed change. The project remains unchanged."
+                : selectedDecision
+                  ? "Review what the saved decision would affect. Reviewing impact changes nothing."
+                  : "Save an applying decision before reviewing its project impact."}
         </p>
       </div>
 
-      <p
-        className={styles.notice}
-        data-vnext-transition-pilot-policy="operation_aware_atomic_transition_packet"
-      >
-        Add, revise, supersede, and retract candidates map to bounded existing
-        effects. Unknown and no-change remain blocked. The server rechecks current
-        head, lineage, authorization, and consequence inside the write transaction.
-      </p>
-
-      {applyingDecisions.length === 0 ? (
-        <p className={styles.empty} data-vnext-transition-actions-status="awaiting_applying_decision">
-          Record the eligible applying ReviewDecision before preparing a transition preview.
-          Reject and defer decisions do not enter this commit path.
+      {applyingDecisions.length === 0 && !receipt ? (
+        <p
+          className={styles.empty}
+          data-vnext-transition-actions-status="awaiting_applying_decision"
+        >
+          No approved project change is waiting to be completed.
         </p>
-      ) : (
+      ) : null}
+
+      {applyingDecisions.length > 1 ? (
         <label className={styles.fieldLabel}>
-          Applying decision for the selected candidate
+          Saved decision to complete
           <select
             className={styles.selectControl}
             value={selectedDecision?.decision_id ?? ""}
@@ -553,29 +541,11 @@ export function SemanticTransitionActions({
                 key={`${decision.decision_id}:${decision.integrity.fingerprint}`}
                 value={decision.decision_id}
               >
-                {decision.decision.replaceAll("_", " ")} recorded {decision.decided_at}
+                {humanDecisionLabel(decision.decision)} · saved {decision.decided_at}
               </option>
             ))}
           </select>
         </label>
-      )}
-
-      {selectedDecision ? (
-        <details className={styles.disclosure}>
-          <summary>Exact applying decision and intent binding</summary>
-          <DataPoint
-            label="Canonical ReviewDecision"
-            value={selectedDecision.decision}
-          />
-          <span className={styles.identifier}>{selectedDecision.decision_id}</span>
-          <span className={styles.identifier}>{selectedDecision.integrity.fingerprint}</span>
-          <span className={styles.identifier}>
-            {selectedDecision.requested_transition_intent?.intent_id}
-          </span>
-          <span className={styles.muted}>
-            Exact target count {selectedDecision.requested_transition_intent?.target_refs.length ?? 0}
-          </span>
-        </details>
       ) : null}
 
       {errorCode ? (
@@ -583,262 +553,181 @@ export function SemanticTransitionActions({
           {errorCode}
         </p>
       ) : null}
-      {statusMessage ? (
-        <p className={styles.success} role="status">
-          {statusMessage}
-        </p>
-      ) : null}
+      {statusMessage ? <p className={styles.success} role="status">{statusMessage}</p> : null}
 
-      <div className={styles.transitionSteps}>
+      {selectedDecision && !preview && !receipt ? (
         <section
           className={styles.transitionStep}
           data-vnext-transition-step="preview"
-          data-vnext-transition-step-status={preview ? "prepared" : "not_prepared"}
+          data-vnext-transition-step-status="not_prepared"
           data-vnext-transition-preview-write="false"
         >
-          <StepHeader number="1" title="Read-only preview" />
           <p className={styles.copy}>
-            The server reloads the selected proposal, decision, current head, and
-            state to describe the intended consequence and any blockers. This
-            action writes nothing.
-          </p>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            data-vnext-transition-action="preview"
-            disabled={!selectedDecision || allBusy}
-            onClick={() => void preparePreview()}
-          >
-            {busyStep === "preview" ? "Preparing…" : "Prepare fresh preview"}
-          </button>
-          {preview ? (
-            <>
-              <dl className={styles.statusGrid}>
-                <DataPoint label="Previewed" value={preview.previewed_at} />
-                <DataPoint label="Transition kind" value={preview.transition_kind} />
-                <DataPoint
-                  label="Preview valid until"
-                  value={
-                    previewResponse?.pilot_policy.preview_binding_expires_at ??
-                    "unknown"
-                  }
-                />
-                <DataPoint label="State changed" value="no" />
-              </dl>
-              <EffectList effects={preview.intended_effects} />
-              <details className={styles.disclosure}>
-                <summary>Exact preview authorization binding</summary>
-                <ExactValue label="Confirmation digest" value={preview.confirmation_digest} />
-                <ExactValue
-                  label="Authorized applier"
-                  value={`${preview.authorized_applier_identity.ref_type}:${preview.authorized_applier_identity.external_id}`}
-                />
-                <ExactValue label="Gate TTL" value={`${preview.gate_ttl_ms} ms`} />
-              </details>
-              <label className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={previewReviewed}
-                  disabled={allBusy}
-                  onChange={(event) => setPreviewReviewed(event.target.checked)}
-                />
-                <span>
-                  I reviewed the selected target, current-state expectation,
-                  intended operation, and user-visible consequence. I understand
-                  this preview changed nothing.
-                </span>
-              </label>
-            </>
-          ) : null}
-        </section>
-
-        <section
-          className={styles.transitionStep}
-          data-vnext-transition-step="confirmation"
-          data-vnext-transition-step-status={gate ? "recorded" : "not_recorded"}
-          data-vnext-transition-confirm-state-applied="false"
-        >
-          <StepHeader number="2" title="Confirm gate only" />
-          <p className={styles.copy}>
-            Confirmation authorizes only the exact previewed consequence. A
-            successful confirmation persists a bounded gate; it does not apply
-            semantic state or later context.
+            Augnes will reload the exact saved decision and current project state,
+            then describe the bounded effect and any blocker. This writes nothing.
           </p>
           <button
             className={styles.button}
             type="button"
-            data-vnext-transition-action="confirm"
-            disabled={!preview || !previewReviewed || allBusy}
-            onClick={() => void confirmGate()}
+            data-vnext-transition-action="preview"
+            data-ai-workplane-primary-action="review-impact"
+            disabled={allBusy}
+            onClick={() => void preparePreview()}
           >
-            {busyStep === "confirm" ? "Confirming…" : "Confirm exact gate"}
+            {busyStep === "preview" ? "Reviewing…" : "Review impact"}
           </button>
-          {gate ? (
-            <>
-              <dl className={styles.statusGrid}>
-                <DataPoint label="Confirmed" value={gate.confirmed_at} />
-                <DataPoint
-                  label="Gate expires"
-                  value={gate.semantic_commit_gate_evaluation.expires_at}
-                />
-                <DataPoint
-                  label="Eligibility"
-                  value={confirmationResponse?.eligibility_status ?? "unknown"}
-                />
-                <DataPoint
-                  label="State changed"
-                  value="no"
-                />
-              </dl>
-              <details className={styles.disclosure}>
-                <summary>Exact gate and precondition binding</summary>
-                <ExactValue label="Gate record ID" value={gate.gate_record_id} />
-                <ExactValue label="Gate fingerprint" value={gate.integrity.fingerprint} />
-                <ExactValue
-                  label="Eligibility precondition"
-                  value={gate.eligibility_precondition_fingerprint}
-                />
-              </details>
-              <label className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={gateReviewed}
-                  disabled={allBusy}
-                  onChange={(event) => setGateReviewed(event.target.checked)}
-                />
-                <span>
-                  I reviewed the persisted authorized gate and understand the next action
-                  applies durable local semantic state.
-                </span>
-              </label>
-            </>
+        </section>
+      ) : null}
+
+      {preview ? (
+        <section
+          className={styles.transitionStep}
+          data-vnext-transition-step="preview"
+          data-vnext-transition-step-status="prepared"
+          data-vnext-transition-preview-write="false"
+        >
+          <h3>What the change would affect</h3>
+          <EffectList effects={preview.intended_effects} />
+          <p className={styles.muted}>
+            This impact review is current until {previewResponse?.pilot_policy.preview_binding_expires_at ?? "the displayed review expires"}.
+          </p>
+          {!gate ? (
+            <label className={styles.checkRow}>
+              <input
+                type="checkbox"
+                checked={previewReviewed}
+                disabled={allBusy}
+                onChange={(event) => setPreviewReviewed(event.target.checked)}
+              />
+              <span>I reviewed what this exact change would affect and understand that the project has not changed.</span>
+            </label>
           ) : null}
         </section>
+      ) : null}
 
+      {preview && !gate && !receipt ? (
+        <section
+          className={styles.transitionStep}
+          data-vnext-transition-step="confirmation"
+          data-vnext-transition-step-status="not_recorded"
+          data-vnext-transition-confirm-state-applied="false"
+        >
+          <button
+            className={styles.button}
+            type="button"
+            data-vnext-transition-action="confirm"
+            data-ai-workplane-primary-action="confirm-change"
+            disabled={!previewReviewed || allBusy}
+            onClick={() => void confirmGate()}
+          >
+            {busyStep === "confirm" ? "Confirming…" : "Confirm this change"}
+          </button>
+        </section>
+      ) : null}
+
+      {gate ? (
+        <section
+          className={styles.transitionStep}
+          data-vnext-transition-step="confirmation"
+          data-vnext-transition-step-status="recorded"
+          data-vnext-transition-confirm-state-applied="false"
+        >
+          <p className={styles.copy}>This reviewed change is confirmed. Saved project state is still unchanged.</p>
+          {!receipt ? (
+            <label className={styles.checkRow}>
+              <input
+                type="checkbox"
+                checked={gateReviewed}
+                disabled={allBusy}
+                onChange={(event) => setGateReviewed(event.target.checked)}
+              />
+              <span>I understand the next action changes saved project state.</span>
+            </label>
+          ) : null}
+        </section>
+      ) : null}
+
+      {gate && !receipt ? (
         <section
           className={styles.transitionStep}
           data-vnext-transition-step="apply"
-          data-vnext-transition-step-status={receipt ? "applied" : "not_applied"}
-          data-vnext-transition-commit-packet-compiled={String(Boolean(laterPacket))}
+          data-vnext-transition-step-status="not_applied"
+          data-vnext-transition-commit-packet-compiled="false"
         >
-          <StepHeader number="3" title="Apply Transition and compile later context" />
-          <p className={styles.copy}>
-            The server reloads current state and authorization, applies the
-            bounded effect, records the immutable Transition receipt, and compiles
-            later context atomically. Failure leaves the decision and gate visible
-            but does not partially apply state.
-          </p>
           {!priorPacket ? (
-            <p className={styles.empty}>
-              The exact prior TaskContextPacket binding is unavailable, so atomic
-              Transition closure is blocked.
-            </p>
+            <p className={styles.notice}>Exact prior work context is unavailable, so this change cannot be applied safely.</p>
           ) : null}
           <button
             className={styles.button}
             type="button"
             data-vnext-transition-action="apply"
-            disabled={!gate || !gateReviewed || !priorPacket || allBusy}
+            data-ai-workplane-primary-action="apply-to-project"
+            disabled={!gateReviewed || !priorPacket || allBusy}
             onClick={() => void applyTransitionAndCompile()}
           >
-            {busyStep === "apply" ? "Applying…" : "Apply Transition and compile packet"}
+            {busyStep === "apply" ? "Applying…" : "Apply to project"}
           </button>
-          {receipt ? (
-            <>
-              <dl className={styles.statusGrid}>
-                <DataPoint label="Status" value={receipt.receipt_status} />
-                <DataPoint label="Applied" value={receipt.applied_at} />
-                <DataPoint label="Recorded" value={receipt.recorded_at} />
-                <DataPoint label="Effects" value={String(receipt.effects.length)} />
-              </dl>
-              <ReceiptEffectList receipt={receipt} />
-              <details className={styles.disclosure}>
-                <summary>Exact applied Transition receipt</summary>
-                <ExactValue
-                  label="StateTransitionReceipt ID"
-                  value={receipt.transition_receipt_id}
-                />
-                <ExactValue label="Receipt fingerprint" value={receipt.integrity.fingerprint} />
-                <ExactValue label="Idempotency key" value={receipt.idempotency_key} />
-              </details>
-            </>
-          ) : null}
         </section>
+      ) : null}
 
-        <section
-          className={styles.transitionStep}
-          data-vnext-transition-step="later-packet"
-          data-vnext-transition-step-status={laterPacket ? "compiled" : "not_compiled"}
-          data-vnext-transition-compile-transition-applied={String(Boolean(receipt))}
-        >
-          <StepHeader number="4" title="Persisted later context" />
-          <p className={styles.copy}>
-            The later packet is selected working context from the normal persisted-state
-            compiler. It launches no provider or native host and remains distinct from
-            canonical semantic state.
-          </p>
-          {!priorPacket ? (
-            <p className={styles.empty}>
-              This proposal has no exact prior TaskContextPacket ID/fingerprint binding,
-              so Transition closure is unavailable.
-            </p>
-          ) : null}
-          {laterPacket ? (
-            <>
-              <dl className={styles.statusGrid}>
-                <DataPoint label="Generated" value={laterPacket.generated_at} />
-                <DataPoint
-                  label="Accepted state refs"
-                  value={String(
-                    laterPacket.selected_context.filter(
-                      (entry) => entry.entry_kind === "accepted_state_ref",
-                    ).length,
-                  )}
-                />
-                <DataPoint
-                  label="Selected entries"
-                  value={String(laterPacket.selected_context.length)}
-                />
-                <DataPoint label="Transition applied" value="true" />
-              </dl>
-              <AcceptedStateSelectionList packet={laterPacket} />
-              <details className={styles.disclosure}>
-                <summary>Exact prior packet, later packet, and Transition lineage</summary>
-                <ExactValue label="Prior packet ID" value={priorPacket?.packet_id ?? "missing"} />
-                <ExactValue label="Prior packet fingerprint" value={priorPacket?.packet_fingerprint ?? "missing"} />
-                <ExactValue label="Later packet ID" value={laterPacket.packet_id} />
-                <ExactValue label="Later packet fingerprint" value={laterPacket.integrity.fingerprint} />
-                <ExactValue label="Receipt lineage ID" value={receipt?.transition_receipt_id ?? "missing"} />
-                <ExactValue label="Receipt lineage fingerprint" value={receipt?.integrity.fingerprint ?? "missing"} />
-              </details>
-            </>
-          ) : null}
-        </section>
-      </div>
+      {receipt ? (
+        <>
+          <section
+            className={styles.transitionStep}
+            data-vnext-transition-step="apply"
+            data-vnext-transition-step-status="applied"
+            data-vnext-transition-commit-packet-compiled={String(Boolean(laterPacket))}
+          >
+            <p className={styles.success}>Project updated</p>
+            <p className={styles.copy}>Future work can use the updated project context.</p>
+          </section>
+          <section
+            className={styles.transitionStep}
+            data-vnext-transition-step="later-packet"
+            data-vnext-transition-step-status={laterPacket ? "compiled" : "not_compiled"}
+            data-vnext-transition-compile-transition-applied="true"
+          >
+            <a
+              className={styles.button}
+              href="/workbench/semantic-review"
+              data-ai-workplane-primary-action="return-home"
+            >
+              Return to AI Workplane
+            </a>
+          </section>
+        </>
+      ) : null}
 
-      <p className={styles.muted}>
-        Exact replay, expiry, current-head, and idempotency checks remain server-owned.
-      </p>
-      </section>
-    </details>
-  );
-}
-
-function StepHeader({ number, title }: { number: string; title: string }) {
-  return (
-    <div className={styles.stepHeader}>
-      <span className={styles.stepNumber}>{number}</span>
-      <h3>{title}</h3>
-    </div>
-  );
-}
-
-function DataPoint({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
+      <details
+        className={styles.advancedDisclosure}
+        data-vnext-transition-safeguards="exact"
+      >
+        <summary>Exact project-change safeguards</summary>
+        <p className={styles.muted}>
+          Exact replay, expiry, saved-version, decision, source, and idempotency checks remain server-owned.
+        </p>
+        {selectedDecision ? (
+          <>
+            <ExactValue label="ReviewDecision ID" value={selectedDecision.decision_id} />
+            <ExactValue label="Decision fingerprint" value={selectedDecision.integrity.fingerprint} />
+          </>
+        ) : null}
+        {preview ? <ExactValue label="Confirmation digest" value={preview.confirmation_digest} /> : null}
+        {gate ? <ExactValue label="Gate record ID" value={gate.gate_record_id} /> : null}
+        {receipt ? (
+          <>
+            <ExactValue label="StateTransitionReceipt ID" value={receipt.transition_receipt_id} />
+            <ReceiptEffectList receipt={receipt} />
+          </>
+        ) : null}
+        {laterPacket ? (
+          <>
+            <ExactValue label="Later TaskContextPacket ID" value={laterPacket.packet_id} />
+            <AcceptedStateSelectionList packet={laterPacket} />
+          </>
+        ) : null}
+      </details>
+    </section>
   );
 }
 
@@ -932,6 +821,18 @@ function publicErrorCode(value: unknown): string {
   return /^[a-z0-9_:-]+$/.test(value)
     ? value
     : "semantic_transition_request_failed";
+}
+
+function humanDecisionLabel(value: ReviewDecisionV01["decision"]): string {
+  return value === "accept"
+    ? "Accept this change"
+    : value === "reject"
+      ? "Reject this change"
+      : value === "defer"
+        ? "Decide later"
+        : value === "supersede"
+          ? "Replace the current saved state"
+          : "Remove the current saved state";
 }
 
 function isSha256Fingerprint(value: unknown): value is string {

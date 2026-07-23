@@ -1043,6 +1043,14 @@ async function assertFullOperatorLoop(input: {
   assert.equal(listResponse.status, 200);
   assert.equal(listBody.status, "proposal_list");
   assert.equal((listBody.proposals as unknown[]).length, 1);
+  assert.equal(
+    (
+      listBody.proposals as Array<{
+        decision_application_summary: { status: string };
+      }>
+    )[0]?.decision_application_summary.status,
+    "needs_decision",
+  );
   const listReconciliation = listBody.project_verify_reconciliation as {
     reconciliation_version: string;
     workspace_id: string;
@@ -1253,10 +1261,31 @@ async function assertFullOperatorLoop(input: {
       }),
     );
     assert.equal(refresh.status, 200);
+    const refreshBody = await publicJson(refresh);
     assert.equal(
-      ((await publicJson(refresh)).proposal as { decision_count: number })
-        .decision_count,
+      (refreshBody.proposal as { decision_count: number }).decision_count,
       1,
+    );
+    assert.equal(
+      (
+        refreshBody.proposal as {
+          decision_application_summary: {
+            status: string;
+            preferred_candidate_id: string | null;
+          };
+        }
+      ).decision_application_summary.status,
+      "ready_to_complete",
+    );
+    assert.equal(
+      (
+        refreshBody.proposal as {
+          decision_application_summary: {
+            preferred_candidate_id: string | null;
+          };
+        }
+      ).decision_application_summary.preferred_candidate_id,
+      selected.candidate.candidate_id,
     );
   }
   assert.equal(coreRecordCount(canonicalDbPath), beforeRefresh);
@@ -1578,6 +1607,36 @@ async function assertFullOperatorLoop(input: {
   );
   assert(accepted?.external_ref && accepted.source_ref);
   pass("operator_confirmed_transition_and_packet_applied_atomically");
+  const appliedDetailResponse = await reviewHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar,
+      query: { proposal_id: prepared.proposal.proposal_id },
+    }),
+  );
+  const appliedDetailBody = await publicJson(appliedDetailResponse);
+  assert.equal(appliedDetailResponse.status, 200);
+  assert.equal(
+    (
+      appliedDetailBody.proposal as {
+        decision_application_summary: {
+          status: string;
+          matching_transition_receipt_present: boolean;
+        };
+      }
+    ).decision_application_summary.status,
+    "project_updated",
+  );
+  assert.equal(
+    (
+      appliedDetailBody.proposal as {
+        decision_application_summary: {
+          matching_transition_receipt_present: boolean;
+        };
+      }
+    ).decision_application_summary.matching_transition_receipt_present,
+    true,
+  );
 
   input.clock.set("2026-07-11T09:19:00.000Z");
   const commitReplayResponse = await transitionHandlers.POST(
