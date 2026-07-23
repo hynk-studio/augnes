@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import { readLatestManagedLiveAutonomyRunLedgerRecordV01 } from "@/lib/autonomy/runner-ledger";
+import { readLatestManagedLiveDelegatedWorkLedgerSliceV01 } from "@/lib/autonomy/runner-ledger";
 import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { readVNextCoreRecordV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { buildDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-projection";
@@ -21,13 +21,14 @@ export function readDelegatedWorkProjectionV01(
     now?: () => string;
   },
 ): DelegatedWorkProjectionV01 {
-  const run = readLatestManagedLiveAutonomyRunLedgerRecordV01(
+  const ledger = readLatestManagedLiveDelegatedWorkLedgerSliceV01(
     {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
     },
     db,
   );
+  const run = ledger.run;
   let packet: TaskContextPacketV01 | null = null;
   let projectionRun = run;
   let startEligible = false;
@@ -75,6 +76,9 @@ export function readDelegatedWorkProjectionV01(
     workspace_id: input.config.workspace_id,
     project_id: input.config.project_id,
     run: projectionRun,
+    events: projectionRun ? ledger.events : [],
+    source_omitted_event_count:
+      projectionRun ? ledger.source_omitted_event_count : 0,
     live_run: input.live_run,
     current_goal: packet?.task.goal ?? null,
     start_eligible: startEligible,

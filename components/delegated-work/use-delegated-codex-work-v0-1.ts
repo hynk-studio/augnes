@@ -55,7 +55,7 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
         setError(errorCodeV01(body, "delegated_work_read_failed"));
         return;
       }
-      const next = delegatedProjectionV01(body);
+      const next = delegatedWorkSuccessProjectionV01(body, "read");
       if (!next) {
         if (!mountedRef.current) return;
         setStatus("unavailable");
@@ -63,10 +63,15 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
         return;
       }
       if (!mountedRef.current) return;
-      setProjection(next);
-      setStatus("ready");
-      setError(null);
-      setPollGeneration((value) => value + 1);
+      setProjection(next.projection);
+      if (next.status === "unavailable") {
+        setStatus(next.status);
+        setError(next.error);
+      } else {
+        setStatus("ready");
+        setError(null);
+        setPollGeneration((value) => value + 1);
+      }
     } catch (caught) {
       if (!mountedRef.current || abort.signal.aborted) return;
       setStatus("unavailable");
@@ -106,7 +111,10 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
           setError(errorCodeV01(body, "delegated_work_action_failed"));
           return false;
         }
-        const next = delegatedProjectionV01(body);
+        const next = delegatedWorkSuccessProjectionV01(
+          body,
+          "accepted_action",
+        );
         if (!next) {
           if (!mountedRef.current) return false;
           setStatus("unavailable");
@@ -114,9 +122,15 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
           return false;
         }
         if (!mountedRef.current) return false;
-        setProjection(next);
-        setStatus("ready");
-        setPollGeneration((value) => value + 1);
+        setProjection(next.projection);
+        if (next.status === "unavailable") {
+          setStatus(next.status);
+          setError(next.error);
+        } else {
+          setStatus("ready");
+          setError(null);
+          setPollGeneration((value) => value + 1);
+        }
         return true;
       } catch {
         if (!mountedRef.current || abort.signal.aborted) return false;
@@ -192,6 +206,43 @@ function delegatedProjectionV01(
     return null;
   }
   return value as DelegatedWorkProjectionV01;
+}
+
+export function delegatedProjectionUnavailableV01(
+  body: Record<string, unknown>,
+): boolean {
+  return (
+    body.delegated_work_projection_status === "unavailable" &&
+    body.delegated_work_error_code ===
+      "delegated_work_projection_unavailable"
+  );
+}
+
+export function delegatedWorkSuccessProjectionV01(
+  body: Record<string, unknown>,
+  context: "read" | "accepted_action",
+): {
+  projection: DelegatedWorkProjectionV01;
+  status: "ready" | "unavailable";
+  error: string | null;
+} | null {
+  const projection = delegatedProjectionV01(body);
+  if (!projection) return null;
+  if (delegatedProjectionUnavailableV01(body)) {
+    return {
+      projection,
+      status: "unavailable",
+      error:
+        context === "accepted_action"
+          ? "delegated_work_progress_refresh_unavailable"
+          : "delegated_work_projection_unavailable",
+    };
+  }
+  return {
+    projection,
+    status: "ready",
+    error: null,
+  };
 }
 
 function errorCodeV01(

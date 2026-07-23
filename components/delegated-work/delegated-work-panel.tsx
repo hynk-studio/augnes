@@ -200,9 +200,7 @@ export function DelegatedWorkPanel({
           </ol>
           {projection.compacted_item_count > 0 ? (
             <p className={styles.muted}>
-              {projection.compacted_item_count} earlier progress item
-              {projection.compacted_item_count === 1 ? " was" : "s were"}{" "}
-              compacted.
+              Earlier progress was compacted.
             </p>
           ) : null}
         </div>
@@ -220,7 +218,7 @@ export function DelegatedWorkPanel({
 
       {error ? (
         <p className={styles.error} role="alert">
-          Current Codex work unavailable: {error.replaceAll("_", " ")}
+          {delegatedWorkErrorCopyV01(error)}
         </p>
       ) : null}
       <p
@@ -238,6 +236,16 @@ export function DelegatedWorkPanel({
       </p>
     </section>
   );
+}
+
+function delegatedWorkErrorCopyV01(error: string): string {
+  if (error === "delegated_work_progress_refresh_unavailable") {
+    return "The action was accepted, but current progress could not be refreshed. Reload this page when ready.";
+  }
+  if (error === "delegated_work_projection_unavailable") {
+    return "Current progress could not be read. Reload this page when ready.";
+  }
+  return `Current Codex work unavailable: ${error.replaceAll("_", " ")}`;
 }
 
 function PrimaryDelegatedAction({

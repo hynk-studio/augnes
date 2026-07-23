@@ -31,6 +31,7 @@ import {
 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import { VNextOperatorPilotContinuityErrorV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import { readDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-source";
+import { buildUnavailableDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-projection";
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
 
 export const runtime = "nodejs";
@@ -56,6 +57,13 @@ interface HandlerOptionsV01 {
     config: VNextLocalOperatorPilotConfigV01,
   ) => Database.Database;
   live_service?: LiveNativeHostRunServiceV01;
+  read_delegated_projection?: typeof readDelegatedWorkProjectionV01;
+}
+
+interface DelegatedWorkResponseProjectionV01 {
+  projection: DelegatedWorkProjectionV01;
+  status: "available" | "unavailable";
+  error_code: "delegated_work_projection_unavailable" | null;
 }
 
 export function createVNextOperatorHostRoundTripHandlerV01(
@@ -136,17 +144,21 @@ export function createVNextOperatorHostRoundTripHandlerV01(
             secret_source: options.secret_source,
           },
         });
+        const cookie = cookieFromAdmissionV01(result.session_admission, url);
+        const delegated = readDelegatedForResponseV01(
+          openDatabase,
+          options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
+          config,
+          result.projection,
+          "accepted_action",
+          options.clock,
+        );
         return liveResponseV01(
           result.projection,
-          readDelegatedForResponseV01(
-            openDatabase,
-            config,
-            result.projection,
-            options.clock,
-          ),
+          delegated,
           result.status,
           result.status === "accepted" ? 202 : 200,
-          cookieFromAdmissionV01(result.session_admission, url),
+          cookie,
         );
       }
       if (action === "approve_once" || action === "decline") {
@@ -166,17 +178,21 @@ export function createVNextOperatorHostRoundTripHandlerV01(
           clock: options.clock,
           secret_source: options.secret_source,
         });
+        const cookie = cookieFromAdmissionV01(result.session_admission, url);
+        const delegated = readDelegatedForResponseV01(
+          openDatabase,
+          options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
+          config,
+          result.projection,
+          "accepted_action",
+          options.clock,
+        );
         return liveResponseV01(
           result.projection,
-          readDelegatedForResponseV01(
-            openDatabase,
-            config,
-            result.projection,
-            options.clock,
-          ),
+          delegated,
           "decision_admitted",
           200,
-          cookieFromAdmissionV01(result.session_admission, url),
+          cookie,
         );
       }
       if (action === "cancel" || action === "resume") {
@@ -191,31 +207,43 @@ export function createVNextOperatorHostRoundTripHandlerV01(
         };
         if (action === "cancel") {
           const result = await liveService.cancel(common);
+          const cookie = cookieFromAdmissionV01(
+            result.session_admission,
+            url,
+          );
+          const delegated = readDelegatedForResponseV01(
+            openDatabase,
+            options.read_delegated_projection ??
+              readDelegatedWorkProjectionV01,
+            config,
+            result.projection,
+            "accepted_action",
+            options.clock,
+          );
           return liveResponseV01(
             result.projection,
-            readDelegatedForResponseV01(
-              openDatabase,
-              config,
-              result.projection,
-              options.clock,
-            ),
+            delegated,
             "cancellation_admitted",
             200,
-            cookieFromAdmissionV01(result.session_admission, url),
+            cookie,
           );
         }
         const result = await liveService.resume(common);
+        const cookie = cookieFromAdmissionV01(result.session_admission, url);
+        const delegated = readDelegatedForResponseV01(
+          openDatabase,
+          options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
+          config,
+          result.projection,
+          "accepted_action",
+          options.clock,
+        );
         return liveResponseV01(
           result.projection,
-          readDelegatedForResponseV01(
-            openDatabase,
-            config,
-            result.projection,
-            options.clock,
-          ),
+          delegated,
           "resume_admitted",
           result.status === "accepted" ? 202 : 200,
-          cookieFromAdmissionV01(result.session_admission, url),
+          cookie,
         );
       }
       throw new LiveNativeHostRunServiceErrorV01(
@@ -251,17 +279,22 @@ export function createVNextOperatorHostRoundTripReadHandlerV01(
         credential,
         clock: options.clock,
       });
+      db.close();
+      db = null;
       const projection = (
         options.live_service ?? getLiveNativeHostRunServiceV01()
       ).read(config);
-      const delegatedWork = readDelegatedWorkProjectionV01(db, {
+      const delegated = readDelegatedForResponseV01(
+        openDatabase,
+        options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
         config,
-        live_run: projection,
-        now: () => nowV01(options.clock),
-      });
+        projection,
+        "read",
+        options.clock,
+      );
       return liveResponseV01(
         projection,
-        delegatedWork,
+        delegated,
         "projection",
         200,
         null,
@@ -280,7 +313,7 @@ export const GET = createVNextOperatorHostRoundTripReadHandlerV01();
 
 function liveResponseV01(
   projection: LiveNativeHostRunProjectionV01,
-  delegatedWork: DelegatedWorkProjectionV01,
+  delegatedWork: DelegatedWorkResponseProjectionV01,
   status: string,
   httpStatus: number,
   cookie: string | null,
@@ -292,7 +325,9 @@ function liveResponseV01(
       path_kind: "live_codex_app_server",
       status,
       live_run: projection,
-      delegated_work: delegatedWork,
+      delegated_work: delegatedWork.projection,
+      delegated_work_projection_status: delegatedWork.status,
+      delegated_work_error_code: delegatedWork.error_code,
       authentication_boundary:
         "local_secret_possession_only_not_external_identity",
       proposal_created: false,
@@ -307,19 +342,45 @@ function readDelegatedForResponseV01(
   openDatabase: (
     config: VNextLocalOperatorPilotConfigV01,
   ) => Database.Database,
+  readProjection: typeof readDelegatedWorkProjectionV01,
   config: VNextLocalOperatorPilotConfigV01,
   liveRun: LiveNativeHostRunProjectionV01,
+  context: "read" | "accepted_action",
   clock?: VNextLocalRuntimeClockV01,
-): DelegatedWorkProjectionV01 {
-  const db = openDatabase(config);
+): DelegatedWorkResponseProjectionV01 {
+  let db: Database.Database | null = null;
   try {
-    return readDelegatedWorkProjectionV01(db, {
+    db = openDatabase(config);
+    const projection = readProjection(db, {
       config,
       live_run: liveRun,
       now: () => nowV01(clock),
     });
-  } finally {
     db.close();
+    db = null;
+    return {
+      projection,
+      status: "available",
+      error_code: null,
+    };
+  } catch {
+    if (db) {
+      try {
+        db.close();
+      } catch {
+        // A read-only projection close failure cannot replace an admitted action.
+      }
+    }
+    return {
+      projection: buildUnavailableDelegatedWorkProjectionV01({
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        live_run: liveRun,
+        context,
+      }),
+      status: "unavailable",
+      error_code: "delegated_work_projection_unavailable",
+    };
   }
 }
 

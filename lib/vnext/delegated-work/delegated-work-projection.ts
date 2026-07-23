@@ -4,7 +4,7 @@ import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import type {
   AutonomyRunEventRecord,
-  AutonomyRunRecord,
+  AutonomyRunSummary,
 } from "@/types/autonomy-runner-execution";
 import type {
   DelegatedWorkNextActionV01,
@@ -22,7 +22,9 @@ import type { LiveNativeHostRunProjectionV01 } from "@/lib/vnext/runtime/live-na
 export interface BuildDelegatedWorkProjectionInputV01 {
   workspace_id: string;
   project_id: string;
-  run: AutonomyRunRecord | null;
+  run: AutonomyRunSummary | null;
+  events: AutonomyRunEventRecord[];
+  source_omitted_event_count: number;
   live_run: LiveNativeHostRunProjectionV01;
   current_goal: string | null;
   start_eligible: boolean;
@@ -65,6 +67,53 @@ const MANDATORY_KINDS = new Set<DelegatedWorkTimelineKindV01>([
   "cancelled",
   "timed_out",
 ]);
+
+export function buildUnavailableDelegatedWorkProjectionV01(input: {
+  workspace_id: string;
+  project_id: string;
+  live_run: LiveNativeHostRunProjectionV01;
+  context: "read" | "accepted_action";
+}): DelegatedWorkProjectionV01 {
+  const accepted = input.context === "accepted_action";
+  const situation = accepted
+    ? "The operational action was accepted, but current progress could not be refreshed."
+    : "Current progress could not be read.";
+  return assertProjectionBoundsV01({
+    projection_version: DELEGATED_WORK_PROJECTION_VERSION_V01,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    run_ref: input.live_run.run_ref,
+    mode: input.live_run.mode,
+    source_status: "unavailable",
+    stage: "unavailable",
+    started_at: null,
+    updated_at: null,
+    finished_at: null,
+    current: {
+      goal: null,
+      stage_label: "Current progress is unavailable",
+      situation,
+      latest_checkpoint: null,
+      material_blocker_or_request: situation,
+      reconciliation_required: false,
+      last_observed_at: null,
+      trusted_result_available: false,
+      needs_user: false,
+    },
+    timeline: [],
+    compacted_item_count: 0,
+    gap_notes: [situation],
+    next_action: nextActionV01("none"),
+    pending_approval: null,
+    result: null,
+    exact_detail_href: null,
+    start_eligible: false,
+    start_blocker: situation,
+    control_revision: input.live_run.control_revision,
+    can_cancel: false,
+    authority: AUTHORITY_V01,
+  });
+}
 
 export function buildDelegatedWorkProjectionV01(
   input: BuildDelegatedWorkProjectionInputV01,
@@ -134,7 +183,7 @@ export function buildDelegatedWorkProjectionV01(
     input.live_run.receipt != null &&
     input.live_run.run_ref === run.run_id;
   const stage = stageV01(input.live_run, trustedResult);
-  const mapped = run.events
+  const mapped = input.events
     .map((event) => timelineItemV01(event))
     .filter((item): item is DelegatedWorkTimelineItemV01 => item != null);
   if (trustedResult && input.live_run.receipt) {
@@ -155,7 +204,13 @@ export function buildDelegatedWorkProjectionV01(
     });
   }
   const deduplicated = deduplicateTimelineV01(mapped);
-  const { items, omitted } = compactTimelineV01(deduplicated);
+  const { items, omitted: presentationOmitted } =
+    compactTimelineV01(deduplicated);
+  const sourceOmitted = Math.max(
+    0,
+    Math.floor(input.source_omitted_event_count),
+  );
+  const omitted = sourceOmitted + presentationOmitted;
   const currentKind = currentTimelineKindV01(stage);
   const currentIndex = findCurrentIndexV01(items, currentKind);
   const timeline = items.map((item, index) => ({
@@ -218,7 +273,7 @@ export function buildDelegatedWorkProjectionV01(
     compacted_item_count: omitted,
     gap_notes: [
       ...(omitted > 0
-        ? [`${omitted} earlier progress item${omitted === 1 ? " was" : "s were"} compacted.`]
+        ? ["Earlier progress was compacted."]
         : []),
       ...(isTerminalRunnerStatus(run.status) && !trustedResult
         ? ["The host reached a terminal state without a trusted saved result."]

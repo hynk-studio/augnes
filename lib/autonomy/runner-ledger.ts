@@ -30,6 +30,20 @@ export type AutonomyRunnerLedgerDbOptions = AutonomyRunnerLedgerOptions & {
   db?: AutonomyRunnerLedgerDb;
 };
 
+export const DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01 = 32 as const;
+const DELEGATED_WORK_SOURCE_CHECKPOINT_LIMIT_V01 = 6;
+const DELEGATED_WORK_SOURCE_RECENT_EVENT_LIMIT_V01 = 17;
+
+export interface ManagedLiveDelegatedWorkLedgerSliceV01 {
+  source_version: "managed_live_delegated_work_ledger_slice.v0.1";
+  event_row_limit: typeof DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01;
+  run: AutonomyRunSummary | null;
+  events: AutonomyRunEventRecord[];
+  total_event_count: number;
+  loaded_event_count: number;
+  source_omitted_event_count: number;
+}
+
 type RunRow = {
   run_id: string;
   scope: string;
@@ -352,13 +366,13 @@ export function readAutonomyRunLedgerRecord(
   });
 }
 
-export function readLatestManagedLiveAutonomyRunLedgerRecordV01(
+export function readLatestManagedLiveAutonomyRunSummaryV01(
   input: {
     workspace_id: string;
     project_id: string;
   },
   db: AutonomyRunnerLedgerDb,
-): AutonomyRunRecord | null {
+): AutonomyRunSummary | null {
   const row = db
     .prepare(
       `SELECT * FROM autonomy_runs
@@ -374,12 +388,209 @@ export function readLatestManagedLiveAutonomyRunLedgerRecordV01(
       input.workspace_id,
       input.project_id,
     ) as RunRow | undefined;
-  if (!row) return null;
+  return row ? parseRun(row) : null;
+}
+
+export function readLatestManagedLiveDelegatedWorkLedgerSliceV01(
+  input: {
+    workspace_id: string;
+    project_id: string;
+  },
+  db: AutonomyRunnerLedgerDb,
+): ManagedLiveDelegatedWorkLedgerSliceV01 {
+  const run = readLatestManagedLiveAutonomyRunSummaryV01(input, db);
+  if (!run) {
+    return {
+      source_version: "managed_live_delegated_work_ledger_slice.v0.1",
+      event_row_limit: DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01,
+      run: null,
+      events: [],
+      total_event_count: 0,
+      loaded_event_count: 0,
+      source_omitted_event_count: 0,
+    };
+  }
+
+  const total = db
+    .prepare(
+      `SELECT COUNT(*) AS event_count
+       FROM autonomy_run_events
+       WHERE run_id = ?`,
+    )
+    .get(run.run_id) as { event_count: number };
+  const rows = db
+    .prepare(
+      `WITH
+       target AS (
+         SELECT ? AS run_id
+       ),
+       initial_delegation AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type IN ('run_created', 'run_queued')
+         ORDER BY created_at ASC, event_id ASC
+         LIMIT 1
+       ),
+       codex_started AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type = 'host_event_observed'
+           AND json_extract(payload_json, '$.event_kind') = 'turn_started'
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       checkpoints AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type = 'host_event_observed'
+           AND json_extract(payload_json, '$.event_kind') = 'work_checkpoint'
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT ${DELEGATED_WORK_SOURCE_CHECKPOINT_LIMIT_V01}
+       ),
+       approval_requested AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type = 'approval_requested'
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       approval_decided AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type = 'approval_decided'
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       interrupted AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type IN (
+             'run_reconciliation_required',
+             'run_paused'
+           )
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       resumed AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type = 'run_resumed'
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       cancellation AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND (
+             event_type = 'run_cancelling'
+             OR (
+               event_type = 'approval_decided'
+               AND json_extract(payload_json, '$.decision') = 'cancel_run'
+             )
+           )
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       terminal AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type IN (
+             'run_blocked',
+             'run_needs_review',
+             'run_failed',
+             'run_cancelled',
+             'run_timed_out',
+             'run_completed'
+           )
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       latest_event AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND (
+             event_type IN (
+               'run_created',
+               'run_queued',
+               'run_starting',
+               'approval_requested',
+               'approval_decided',
+               'run_cancelling',
+               'run_reconciliation_required',
+               'run_paused',
+               'run_resumed',
+               'run_blocked',
+               'run_needs_review',
+               'run_failed',
+               'run_cancelled',
+               'run_timed_out',
+               'run_completed'
+             )
+             OR (
+               event_type = 'host_event_observed'
+               AND json_extract(payload_json, '$.event_kind') IN (
+                 'turn_started',
+                 'work_checkpoint'
+               )
+             )
+           )
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT 1
+       ),
+       recent_events AS (
+         SELECT * FROM autonomy_run_events
+         WHERE run_id = (SELECT run_id FROM target)
+           AND event_type IN (
+             'run_created',
+             'run_queued',
+             'run_starting',
+             'approval_requested',
+             'approval_decided',
+             'run_cancelling',
+             'run_reconciliation_required',
+             'run_paused',
+             'run_resumed',
+             'run_blocked',
+             'run_needs_review',
+             'run_failed',
+             'run_cancelled',
+             'run_timed_out',
+             'run_completed'
+             )
+         ORDER BY created_at DESC, event_id DESC
+         LIMIT ${DELEGATED_WORK_SOURCE_RECENT_EVENT_LIMIT_V01}
+       ),
+       selected AS (
+         SELECT * FROM initial_delegation
+         UNION SELECT * FROM codex_started
+         UNION SELECT * FROM checkpoints
+         UNION SELECT * FROM approval_requested
+         UNION SELECT * FROM approval_decided
+         UNION SELECT * FROM interrupted
+         UNION SELECT * FROM resumed
+         UNION SELECT * FROM cancellation
+         UNION SELECT * FROM terminal
+         UNION SELECT * FROM latest_event
+         UNION SELECT * FROM recent_events
+       )
+       SELECT * FROM selected
+       ORDER BY created_at ASC, event_id ASC
+       LIMIT ${DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01}`,
+    )
+    .all(run.run_id) as EventRow[];
+  const events = rows.map(parseEvent);
+  const totalEventCount = total.event_count;
   return {
-    ...parseRun(row),
-    steps: listStepRecords(db, row.run_id),
-    events: listEventRecords(db, row.run_id),
-    delta_batches: listDeltaBatchRecords(db, row.run_id),
+    source_version: "managed_live_delegated_work_ledger_slice.v0.1",
+    event_row_limit: DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01,
+    run,
+    events,
+    total_event_count: totalEventCount,
+    loaded_event_count: events.length,
+    source_omitted_event_count: Math.max(
+      0,
+      totalEventCount - events.length,
+    ),
   };
 }
 

@@ -3,7 +3,7 @@ import type Database from "better-sqlite3";
 import {
   appendAutonomyRunLedgerEvent,
   buildAutonomyRunEventRecord,
-  readLatestManagedLiveAutonomyRunLedgerRecordV01,
+  readLatestManagedLiveAutonomyRunSummaryV01,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
   updateAutonomyRunStepLedgerFields,
@@ -48,7 +48,10 @@ import {
   appendNativeHostApprovalDecisionResidueV01,
   appendNativeHostApprovalRequestResidueV01,
 } from "@/lib/vnext/runtime/native-host-approval-residue";
-import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
+import type {
+  AutonomyRunRecord,
+  AutonomyRunSummary,
+} from "@/types/autonomy-runner-execution";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   type NativeHostAdapterV01,
@@ -373,7 +376,7 @@ export class LiveNativeHostRunServiceV01 {
 
   private async retryTerminalProposalAdmissionV01(
     config: VNextLocalOperatorPilotConfigV01,
-    run: AutonomyRunRecord,
+    run: AutonomyRunSummary,
   ): Promise<void> {
     if (run.metadata.run_assessment_proposal_status === "available") return;
     if (
@@ -726,10 +729,10 @@ export class LiveNativeHostRunServiceV01 {
 
   private readLatestManagedRun(
     config: VNextLocalOperatorPilotConfigV01,
-  ): AutonomyRunRecord | null {
+  ): AutonomyRunSummary | null {
     const db = this.openDatabase(config);
     try {
-      return readLatestManagedLiveAutonomyRunLedgerRecordV01(
+      return readLatestManagedLiveAutonomyRunSummaryV01(
         {
           workspace_id: config.workspace_id,
           project_id: config.project_id,
@@ -765,7 +768,7 @@ export class LiveNativeHostRunServiceV01 {
 
   private async isExactCurrentStartReplay(
     config: VNextLocalOperatorPilotConfigV01,
-    run: AutonomyRunRecord,
+    run: AutonomyRunSummary,
     mode: NativeHostRunModeV01,
     automationContext: NativeHostAutomationContextV01 | null,
   ): Promise<boolean> {
@@ -836,7 +839,7 @@ export class LiveNativeHostRunServiceV01 {
 
   private async assertRunStillBindsCurrentSelection(
     config: VNextLocalOperatorPilotConfigV01,
-    run: AutonomyRunRecord,
+    run: AutonomyRunSummary,
   ): Promise<void> {
     const db = this.openDatabase(config);
     try {
@@ -849,7 +852,7 @@ export class LiveNativeHostRunServiceV01 {
   private async revalidateRunScopeV01(
     db: Database.Database,
     config: VNextLocalOperatorPilotConfigV01,
-    run: AutonomyRunRecord,
+    run: AutonomyRunSummary,
   ): Promise<PersistedHostPacketAdmissionV01> {
     const active = readActiveProjectSelectionV01(db, config.workspace_id);
     if (active?.project_id !== config.project_id) {
@@ -911,7 +914,7 @@ export class LiveNativeHostRunServiceV01 {
 
   private transitionRunV01(
     db: Database.Database,
-    run: AutonomyRunRecord,
+    run: AutonomyRunSummary,
     input: {
       status: AutonomyRunRecord["status"];
       event_type: Parameters<typeof buildAutonomyRunEventRecord>[0]["event_type"];
@@ -957,7 +960,7 @@ export class LiveNativeHostRunServiceV01 {
 
   private pauseUnownedRun(
     config: VNextLocalOperatorPilotConfigV01,
-    run: AutonomyRunRecord,
+    run: AutonomyRunSummary,
   ): void {
     const db = this.openDatabase(config);
     try {
@@ -2087,7 +2090,7 @@ function resumeBindingFromRunV01(run: AutonomyRunRecord): NativeHostResumeBindin
 }
 
 function automationContextFromRunV01(
-  run: AutonomyRunRecord,
+  run: AutonomyRunSummary,
 ): NativeHostAutomationContextV01 {
   const exact = nativeHostAutomationContextMetadataV01(
     run.metadata.automation_context,
@@ -2156,7 +2159,7 @@ function nativeHostAutomationContextMetadataV01(
 }
 
 function automationContextMatchesRunV01(
-  run: AutonomyRunRecord,
+  run: AutonomyRunSummary,
   mode: NativeHostRunModeV01,
   automationContext: NativeHostAutomationContextV01 | null,
 ): boolean {
@@ -2173,7 +2176,7 @@ function automationContextMatchesRunV01(
 }
 
 function startMaterialMatchesRunV01(
-  run: AutonomyRunRecord,
+  run: AutonomyRunSummary,
   mode: NativeHostRunModeV01,
   automationContext: NativeHostAutomationContextV01 | null,
   adapter: NativeHostAdapterV01,
@@ -2259,7 +2262,9 @@ function exactPolicyGrantCoversV01(
   );
 }
 
-function projectionFromRunV01(run: AutonomyRunRecord): LiveNativeHostRunProjectionV01 {
+function projectionFromRunV01(
+  run: AutonomyRunSummary,
+): LiveNativeHostRunProjectionV01 {
   const pending = pendingApprovalFromMetadataV01(run.metadata.pending_approval);
   const reason = stringMetadataV01(run.metadata.public_reason) ?? run.stop_reason;
   const explicitlyUnavailable =

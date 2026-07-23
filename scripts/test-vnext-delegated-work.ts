@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
+import Database from "better-sqlite3";
+
+import {
+  DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01,
+  autonomyRunnerLedgerSchemaSqlV01,
+  readLatestManagedLiveDelegatedWorkLedgerSliceV01,
+  readLatestManagedLiveAutonomyRunSummaryV01,
+} from "../lib/autonomy/runner-ledger";
 import {
   buildDefaultRunnerAuthorityBoundary,
   buildDefaultRunnerBudgetSnapshot,
   buildDefaultRunnerSourceRefs,
 } from "../lib/autonomy/runner-state";
-import { buildDelegatedWorkProjectionV01 } from "../lib/vnext/delegated-work/delegated-work-projection";
+import {
+  buildDelegatedWorkProjectionV01,
+  buildUnavailableDelegatedWorkProjectionV01,
+} from "../lib/vnext/delegated-work/delegated-work-projection";
 import type {
   AutonomyRunEventRecord,
   AutonomyRunRecord,
@@ -13,7 +25,11 @@ import type {
   AutonomyRunnerStatus,
 } from "../types/autonomy-runner-execution";
 import type { LiveNativeHostRunProjectionV01 } from "../lib/vnext/runtime/live-native-host-run-service";
-import { shouldPollDelegatedWorkV01 } from "../components/delegated-work/use-delegated-codex-work-v0-1";
+import {
+  delegatedProjectionUnavailableV01,
+  delegatedWorkSuccessProjectionV01,
+  shouldPollDelegatedWorkV01,
+} from "../components/delegated-work/use-delegated-codex-work-v0-1";
 
 const WORKSPACE_ID = "workspace:delegated-work";
 const PROJECT_ID = "project:delegated-work";
@@ -118,6 +134,8 @@ function projection(
     workspace_id: WORKSPACE_ID,
     project_id: PROJECT_ID,
     run: status ? run(status, events, metadata) : null,
+    events,
+    source_omitted_event_count: 0,
     live_run: liveProjection,
     current_goal: "Ship the exact bounded delegated-work projection",
     start_eligible: status == null,
@@ -129,6 +147,49 @@ const noRun = projection(null, [], live("idle"));
 assert.equal(noRun.stage, "not_started");
 assert.equal(noRun.next_action.kind, "start_codex_work");
 assert.equal(noRun.timeline.length, 0);
+
+const unavailableAfterAction =
+  buildUnavailableDelegatedWorkProjectionV01({
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    live_run: live("running"),
+    context: "accepted_action",
+  });
+assert.equal(unavailableAfterAction.source_status, "unavailable");
+assert.equal(unavailableAfterAction.stage, "unavailable");
+assert.equal(unavailableAfterAction.timeline.length, 0);
+assert.equal(unavailableAfterAction.start_eligible, false);
+assert.equal(unavailableAfterAction.can_cancel, false);
+assert.equal(unavailableAfterAction.next_action.kind, "none");
+assert.equal(unavailableAfterAction.control_revision, 3);
+assert.match(
+  unavailableAfterAction.current.situation,
+  /operational action was accepted.*could not be refreshed/iu,
+);
+assert.deepEqual(
+  Object.values(unavailableAfterAction.authority),
+  Array(13).fill(false),
+);
+const unavailableActionResponse =
+  delegatedWorkSuccessProjectionV01(
+    {
+      delegated_work: unavailableAfterAction,
+      delegated_work_projection_status: "unavailable",
+      delegated_work_error_code:
+        "delegated_work_projection_unavailable",
+    },
+    "accepted_action",
+  );
+assert(unavailableActionResponse);
+assert.equal(unavailableActionResponse.status, "unavailable");
+assert.equal(
+  unavailableActionResponse.error,
+  "delegated_work_progress_refresh_unavailable",
+);
+assert.equal(
+  shouldPollDelegatedWorkV01(unavailableActionResponse.projection),
+  false,
+);
 
 const queued = projection(
   "queued",
@@ -230,6 +291,20 @@ const submitted = {
   },
 };
 assert.equal(shouldPollDelegatedWorkV01(submitted), true);
+assert.equal(
+  delegatedProjectionUnavailableV01({
+    delegated_work_projection_status: "unavailable",
+    delegated_work_error_code: "delegated_work_projection_unavailable",
+  }),
+  true,
+);
+assert.equal(
+  delegatedProjectionUnavailableV01({
+    delegated_work_projection_status: "available",
+    delegated_work_error_code: null,
+  }),
+  false,
+);
 
 for (const [decision, expectedKind] of [
   ["approve_once", "approval_approved"],
@@ -405,6 +480,8 @@ for (const forbidden of [
 }
 assert.ok(Buffer.byteLength(serialized, "utf8") < 48 * 1_024);
 
+const largeHistoryResult = assertFixedBoundLedgerSourceV01();
+
 console.log(
   JSON.stringify({
     status: "ok",
@@ -426,6 +503,352 @@ console.log(
     checkpoint_bound: compacted.timeline.filter((item) =>
       ["checkpoint_started", "checkpoint_completed"].includes(item.kind),
     ).length,
+    large_history: largeHistoryResult,
     authority_false: true,
   }),
 );
+
+function assertFixedBoundLedgerSourceV01() {
+  const db = new Database(":memory:");
+  try {
+    db.exec(autonomyRunnerLedgerSchemaSqlV01);
+    const runId = "autonomy-run:delegated-work-large-history";
+    const projectId = "project:delegated-work-large-history";
+    const workspaceId = "workspace:delegated-work-large-history";
+    const startedAt = "2026-07-23T01:00:00.000Z";
+    const eventRows: AutonomyRunEventRecord[] = [];
+    const append = (
+      eventType: AutonomyRunnerEventType,
+      status: AutonomyRunnerStatus,
+      payload: Record<string, unknown> = {},
+    ) => {
+      const index = eventRows.length;
+      eventRows.push({
+        event_id: `${runId}.event.${String(index).padStart(6, "0")}`,
+        run_id: runId,
+        step_id: null,
+        event_type: eventType,
+        status,
+        message: "Bounded delegated-work source fixture event.",
+        payload,
+        created_at: new Date(
+          Date.parse(startedAt) + index,
+        ).toISOString(),
+      });
+    };
+
+    append("run_created", "queued");
+    append("host_event_observed", "running", {
+      event_kind: "turn_started",
+    });
+    append("host_event_observed", "running", {
+      event_kind: "turn_started",
+    });
+    for (let index = 0; index < 10_000; index += 1) {
+      append("host_event_observed", "running", {
+        event_kind: "work_checkpoint",
+        checkpoint: {
+          kind:
+            index % 2 === 0 ? "command_execution" : "file_change",
+          phase: index % 3 === 0 ? "started" : "completed",
+          status: index % 3 === 0 ? "active" : "completed",
+          change_count: index % 2 === 0 ? null : index % 8,
+        },
+      });
+    }
+    append("approval_requested", "waiting_for_approval");
+    append("approval_decided", "running", {
+      decision: "approve_once",
+    });
+    append("run_reconciliation_required", "paused");
+    append("run_resumed", "starting");
+    append("run_cancelling", "cancelling");
+    append("run_cancelled", "cancelled");
+
+    const summary = run("cancelled", [], {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      lifecycle_mode: "managed_live",
+      control_revision: 9,
+    });
+    db.prepare(
+      `INSERT INTO autonomy_runs (
+        run_id, scope, autonomy_contract_ref, title, status,
+        scheduled_for, started_at, finished_at, created_at, updated_at,
+        stop_reason, source_refs_json, authority_boundary_json,
+        budget_snapshot_json, metadata_json
+      ) VALUES (
+        @run_id, @scope, @autonomy_contract_ref, @title, @status,
+        @scheduled_for, @started_at, @finished_at, @created_at, @updated_at,
+        @stop_reason, @source_refs_json, @authority_boundary_json,
+        @budget_snapshot_json, @metadata_json
+      )`,
+    ).run({
+      run_id: runId,
+      scope: projectId,
+      autonomy_contract_ref: summary.autonomy_contract_ref,
+      title: summary.title,
+      status: "cancelled",
+      scheduled_for: null,
+      started_at: startedAt,
+      finished_at: eventRows.at(-1)!.created_at,
+      created_at: startedAt,
+      updated_at: eventRows.at(-1)!.created_at,
+      stop_reason: "cancelled",
+      source_refs_json: JSON.stringify(summary.source_refs),
+      authority_boundary_json: JSON.stringify(summary.authority_boundary),
+      budget_snapshot_json: JSON.stringify(summary.budget_snapshot),
+      metadata_json: JSON.stringify(summary.metadata),
+    });
+    const insertEvent = db.prepare(
+      `INSERT INTO autonomy_run_events (
+        event_id, run_id, step_id, event_type, status, message,
+        payload_json, created_at
+      ) VALUES (
+        @event_id, @run_id, @step_id, @event_type, @status, @message,
+        @payload_json, @created_at
+      )`,
+    );
+    db.transaction((rows: AutonomyRunEventRecord[]) => {
+      for (const row of rows) {
+        insertEvent.run({
+          ...row,
+          payload_json: JSON.stringify(row.payload),
+        });
+      }
+    })(eventRows);
+
+    db.prepare(
+      `INSERT INTO autonomy_run_steps (
+        step_id, run_id, step_index, action_kind, status, title, summary,
+        started_at, finished_at, output_json, error_message, created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      `${runId}.step.unread`,
+      runId,
+      0,
+      "custom",
+      "completed",
+      "Unread step",
+      "The delegated source must not load this row.",
+      startedAt,
+      startedAt,
+      "{",
+      null,
+      startedAt,
+      startedAt,
+    );
+    db.prepare(
+      `INSERT INTO autonomy_run_delta_batches (
+        batch_id, run_id, batch_version, status, title, summary, created_at,
+        delta_count, deltas_json, source_refs_json, validation_json,
+        authority_boundary_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      `${runId}.delta.unread`,
+      runId,
+      "autonomy_runner_delta_batch.v0.1",
+      "completed",
+      "Unread delta",
+      "The delegated source must not load this row.",
+      startedAt,
+      1,
+      "{",
+      "{",
+      "{",
+      "{",
+    );
+
+    const changesBeforeRead = (
+      db.prepare("SELECT total_changes() AS count").get() as {
+        count: number;
+      }
+    ).count;
+    const lightweight = readLatestManagedLiveAutonomyRunSummaryV01(
+      {
+        workspace_id: workspaceId,
+        project_id: projectId,
+      },
+      db,
+    );
+    assert(lightweight);
+    assert.equal("steps" in lightweight, false);
+    assert.equal("events" in lightweight, false);
+    assert.equal("delta_batches" in lightweight, false);
+    const readSlice = () =>
+      readLatestManagedLiveDelegatedWorkLedgerSliceV01(
+        {
+          workspace_id: workspaceId,
+          project_id: projectId,
+        },
+        db,
+      );
+    const first = readSlice();
+    assert.equal(first.total_event_count, eventRows.length);
+    assert(first.loaded_event_count <= DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01);
+    assert.equal(first.loaded_event_count, first.events.length);
+    assert.equal(
+      first.source_omitted_event_count,
+      eventRows.length - first.events.length,
+    );
+    assert.equal("steps" in first, false);
+    assert.equal("delta_batches" in first, false);
+    assert.equal(
+      first.events.filter(
+        (entry) =>
+          entry.event_type === "host_event_observed" &&
+          entry.payload.event_kind === "turn_started",
+      ).length,
+      1,
+    );
+    assert.equal(first.events[0]?.event_type, "run_created");
+    for (const required of [
+      "approval_requested",
+      "approval_decided",
+      "run_reconciliation_required",
+      "run_resumed",
+      "run_cancelling",
+      "run_cancelled",
+    ]) {
+      assert(
+        first.events.some((entry) => entry.event_type === required),
+        required,
+      );
+    }
+    const checkpointRows = first.events.filter(
+      (entry) =>
+        entry.event_type === "host_event_observed" &&
+        entry.payload.event_kind === "work_checkpoint",
+    );
+    assert(checkpointRows.length <= 6);
+    assert.equal(
+      checkpointRows.at(-1)?.event_id,
+      eventRows
+        .filter(
+          (entry) =>
+            entry.event_type === "host_event_observed" &&
+            entry.payload.event_kind === "work_checkpoint",
+        )
+        .at(-1)?.event_id,
+    );
+    assert.deepEqual(
+      first.events.map((entry) => entry.event_id),
+      [...first.events]
+        .sort(
+          (left, right) =>
+            left.created_at.localeCompare(right.created_at) ||
+            left.event_id.localeCompare(right.event_id),
+        )
+        .map((entry) => entry.event_id),
+    );
+
+    const repeated = [readSlice(), readSlice()];
+    for (const value of repeated) {
+      assert.equal(value.total_event_count, first.total_event_count);
+      assert.equal(value.loaded_event_count, first.loaded_event_count);
+      assert.equal(
+        value.source_omitted_event_count,
+        first.source_omitted_event_count,
+      );
+      assert.deepEqual(
+        value.events.map((entry) => entry.event_id),
+        first.events.map((entry) => entry.event_id),
+      );
+    }
+    assert.equal(
+      (
+        db.prepare("SELECT total_changes() AS count").get() as {
+          count: number;
+        }
+      ).count,
+      changesBeforeRead,
+    );
+    assert.equal(db.inTransaction, false);
+
+    const projected = buildDelegatedWorkProjectionV01({
+      workspace_id: workspaceId,
+      project_id: projectId,
+      run: first.run,
+      events: first.events,
+      source_omitted_event_count: first.source_omitted_event_count,
+      live_run: {
+        ...live("cancelled"),
+        run_ref: runId,
+        control_revision: 9,
+      },
+      current_goal: "Prove fixed-bound delegated history",
+      start_eligible: false,
+      start_blocker: null,
+    });
+    assert(projected.timeline.length <= 12);
+    assert(
+      projected.timeline.filter((item) =>
+        ["checkpoint_started", "checkpoint_completed"].includes(item.kind),
+      ).length <= 6,
+    );
+    assert(projected.timeline.some((item) => item.kind === "delegated"));
+    assert(projected.timeline.some((item) => item.kind === "cancelled"));
+    assert(projected.current.latest_checkpoint);
+    assert(projected.compacted_item_count >= first.source_omitted_event_count);
+    assert(
+      projected.gap_notes.includes("Earlier progress was compacted."),
+    );
+
+    const ledgerSource = readFileSync(
+      new URL("../lib/autonomy/runner-ledger.ts", import.meta.url),
+      "utf8",
+    );
+    const sourceStart = ledgerSource.indexOf(
+      "export function readLatestManagedLiveDelegatedWorkLedgerSliceV01",
+    );
+    const sourceEnd = ledgerSource.indexOf(
+      "\nexport function ",
+      sourceStart + 1,
+    );
+    const boundedReaderSource = ledgerSource.slice(
+      sourceStart,
+      sourceEnd < 0 ? undefined : sourceEnd,
+    );
+    assert(sourceStart >= 0);
+    assert.equal(boundedReaderSource.includes("listEventRecords("), false);
+    assert.equal(boundedReaderSource.includes("ensureAutonomy"), false);
+    assert.equal(boundedReaderSource.includes("BEGIN"), false);
+    assert.equal(boundedReaderSource.includes("UPDATE "), false);
+    assert.equal(boundedReaderSource.includes("INSERT "), false);
+    assert.match(
+      boundedReaderSource,
+      /LIMIT \$\{DELEGATED_WORK_SOURCE_EVENT_LIMIT_V01\}/u,
+    );
+    const summaryStart = ledgerSource.indexOf(
+      "export function readLatestManagedLiveAutonomyRunSummaryV01",
+    );
+    const summaryEnd = ledgerSource.indexOf(
+      "\nexport function ",
+      summaryStart + 1,
+    );
+    const summaryReaderSource = ledgerSource.slice(
+      summaryStart,
+      summaryEnd,
+    );
+    assert(summaryStart >= 0);
+    assert.equal(summaryReaderSource.includes("listEventRecords("), false);
+    assert.equal(summaryReaderSource.includes("listStepRecords("), false);
+    assert.equal(summaryReaderSource.includes("listDeltaBatchRecords("), false);
+
+    return {
+      total_event_count: first.total_event_count,
+      loaded_event_count: first.loaded_event_count,
+      source_omitted_event_count: first.source_omitted_event_count,
+      source_event_limit: first.event_row_limit,
+      timeline_items: projected.timeline.length,
+      checkpoint_items: projected.timeline.filter((item) =>
+        ["checkpoint_started", "checkpoint_completed"].includes(item.kind),
+      ).length,
+      steps_loaded: 0,
+      delta_batches_loaded: 0,
+    };
+  } finally {
+    db.close();
+  }
+}
