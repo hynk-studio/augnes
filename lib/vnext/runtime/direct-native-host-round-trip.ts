@@ -75,10 +75,9 @@ import {
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
 import {
-  bindGuideBriefCodexProjectionToPacketV02,
+  buildTaskStartGuideBriefCodexProjectionV02,
   unavailableGuideBriefCodexProjectionV02,
 } from "@/lib/vnext/guide-brief/project-guide-brief";
-import { readProjectGuideBriefV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 import { VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 } from "@/lib/vnext/runtime/operator-pilot-context-use-contract";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
@@ -616,22 +615,23 @@ export async function runDirectNativeHostRoundTripV01(
       interactive_authorized: dependencies.live_host_egress_authorized === true,
     });
   }
-  let taskStartGuide;
-  try {
-    const { guide } = await readProjectGuideBriefV02(db, {
-      route_mode: "viewed_project",
-      project_id: input.config.project_id,
-      generated_at: prevalidatedAt,
-    });
-    taskStartGuide = bindGuideBriefCodexProjectionToPacketV02(
-      guide.projections.codex,
-      admitted.packet,
-    );
-  } catch {
-    taskStartGuide = unavailableGuideBriefCodexProjectionV02(
-      admitted.packet,
-      "current_project_guide_unavailable",
-    );
+  let taskStartGuide: NativeHostRequestV01["guide_brief"];
+  if (
+    adapter.provider_egress === "native_host_managed" &&
+    dependencies.resume_existing_run !== true
+  ) {
+    try {
+      const registration = readCanonicalProjectWithRootV01(db, input.config);
+      taskStartGuide = buildTaskStartGuideBriefCodexProjectionV02({
+        packet: admitted.packet,
+        project_name: registration?.project.display_name ?? null,
+      });
+    } catch {
+      taskStartGuide = unavailableGuideBriefCodexProjectionV02(
+        admitted.packet,
+        "current_project_guide_unavailable",
+      );
+    }
   }
   const identity = buildRunIdentity({
     config: input.config,

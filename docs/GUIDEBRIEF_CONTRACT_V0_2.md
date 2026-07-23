@@ -17,6 +17,13 @@ current run, latest result, verification summary, attention and recent change.
 Missing historical Current Working Perspective or Delta Projection material
 does not block the current-project guide.
 
+At a new native Codex turn, the Codex projection uses the already admitted
+current `TaskContextPacket` plus the same canonical project identity. This is a
+bounded current-project source, avoids a second full Browser-projection read,
+and keeps goal, constraints, checks, non-goals, risk, unresolved questions and
+source refs bound to the exact packet. Deterministic non-Codex evaluation and
+resume do not create or inject another task-start guide.
+
 The builder is deterministic and read-only. It creates no table, migration,
 record, decision, approval, Transition or execution grant. It makes no model,
 provider, GitHub or external-network call and does not read raw transcripts,

@@ -224,6 +224,78 @@ export function bindGuideBriefCodexProjectionToPacketV02(
   };
 }
 
+/**
+ * Builds the new-turn Codex projection from the already admitted current
+ * project packet. This keeps task start on the same bounded GuideBrief
+ * vocabulary without re-reading the complete Browser projection graph. The
+ * exact packet remains separate and is not changed by this projection.
+ */
+export function buildTaskStartGuideBriefCodexProjectionV02(input: {
+  packet: TaskContextPacketV01;
+  project_name: string | null;
+}): GuideBriefCodexProjectionV02 {
+  const { packet } = input;
+  const unresolved = boundedListV02(
+    (packet.current_projection?.items ?? [])
+      .filter((item) => item.item_kind === "open_question")
+      .map((item) => item.summary),
+    GUIDE_BRIEF_LIMITS_V02.needs_user_judgment,
+  );
+  const risk = boundedTextV02(
+    packet.risks?.[0]?.summary ??
+      packet.gaps?.[0]?.summary ??
+      packet.current_projection?.warnings[0] ??
+      packet.source_status?.warnings?.[0] ??
+      null,
+  );
+  const refs = boundedListV02(
+    [
+      `task_context_packet:${packet.packet_id}`,
+      `task_context_packet_fingerprint:${packet.integrity.fingerprint}`,
+      ...(packet.source_status?.source_refs ?? []),
+      ...(packet.current_projection?.source_refs ?? []),
+      ...(packet.selected_context ?? []).flatMap((entry) =>
+        [entry.source_ref, entry.external_ref?.source_ref].filter(
+          (value): value is string => Boolean(value),
+        ),
+      ),
+    ],
+    GUIDE_BRIEF_LIMITS_V02.source_refs,
+  );
+  return bindGuideBriefCodexProjectionToPacketV02(
+    {
+      guide_version: GUIDE_BRIEF_VERSION_V02,
+      projection_version: "guide_brief_codex_projection.v0.2",
+      status: "available",
+      workspace_id: packet.workspace_id,
+      project_id: packet.project_id,
+      project_name: boundedTextV02(input.project_name),
+      current_goal: boundedTextV02(packet.task.goal),
+      current_coordinate:
+        boundedTextV02(packet.current_projection?.bounded_summary ?? null) ??
+        "Starting the exact requested work",
+      constraints: [],
+      required_checks: [],
+      non_goals: [],
+      unresolved_user_judgments: unresolved,
+      important_risk_or_gap: risk,
+      suggested_next_action:
+        "Follow the exact requested work and its required checks",
+      source_refs: refs,
+      packet_binding: null,
+      task_context_packet_delivered_separately: true,
+      guide_does_not_override_packet: true,
+      suggestions_are_not_commands: true,
+      authority_remains_with_user_and_core: true,
+      can_approve: false,
+      can_execute_codex: false,
+      can_grant_host_permission: false,
+      unavailable_reason: null,
+    },
+    packet,
+  );
+}
+
 export function unavailableGuideBriefCodexProjectionV02(
   packet: TaskContextPacketV01,
   reason: string,

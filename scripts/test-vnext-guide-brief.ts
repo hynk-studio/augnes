@@ -6,6 +6,7 @@ import type Database from "better-sqlite3";
 
 import {
   bindGuideBriefCodexProjectionToPacketV02,
+  buildTaskStartGuideBriefCodexProjectionV02,
   buildProjectGuideBriefV02,
   unavailableGuideBriefCodexProjectionV02,
 } from "../lib/vnext/guide-brief/project-guide-brief";
@@ -190,6 +191,18 @@ async function main() {
   assert.deepEqual(bound.constraints, exactPacket.constraints.forbidden_actions);
   assert.deepEqual(bound.required_checks, exactPacket.constraints.required_checks);
   assert.equal(bound.guide_does_not_override_packet, true);
+  const taskStart = buildTaskStartGuideBriefCodexProjectionV02({
+    packet: exactPacket,
+    project_name: "Current project",
+  });
+  assert.equal(taskStart.status, "available");
+  assert.equal(taskStart.project_name, "Current project");
+  assert.equal(taskStart.current_goal, exactPacket.task.goal);
+  assert.deepEqual(taskStart.constraints, exactPacket.constraints.forbidden_actions);
+  assert.deepEqual(taskStart.required_checks, exactPacket.constraints.required_checks);
+  assert.equal(taskStart.packet_binding?.packet_fingerprint, exactPacket.integrity.fingerprint);
+  assert.equal(taskStart.can_approve, false);
+  assert.equal(JSON.stringify(exactPacket), before);
   const unavailable = unavailableGuideBriefCodexProjectionV02(exactPacket, "bounded failure");
   assert.equal(unavailable.status, "unavailable");
   assert.equal(unavailable.packet_binding?.packet_id, exactPacket.packet_id);
@@ -270,7 +283,7 @@ async function main() {
   assert.equal(closedFailure, 1);
 
   console.log(JSON.stringify({
-    assertions: 122,
+    assertions: 130,
     guide_version: resultGuide.guide_version,
     tested_focuses: states.map(([, focus]) => focus),
     cross_surface_consistency: true,
