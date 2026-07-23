@@ -1,6 +1,7 @@
 import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verify-reconciliation";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { AIWorkplaneHomeViewV01 } from "@/types/vnext/ai-workplane";
+import type { AIWorkplaneQueueItemStatusV01 } from "@/types/vnext/ai-workplane";
 
 import { ProjectVerificationWorkbench } from "./project-verification-workbench";
 import type { SemanticReviewProposalListItemV01 } from "./semantic-review-types";
@@ -64,7 +65,9 @@ export function SemanticReviewProposalList({
       {view.focused_item ? (
         <section className={styles.panel} aria-labelledby="ai-workplane-decision-title">
           <div className={styles.panelHeader}>
-            <p className={styles.kicker}>Needs your decision</p>
+            <p className={styles.kicker}>
+              {focusedItemHeading(view.focused_item.status)}
+            </p>
             <h2 id="ai-workplane-decision-title">{view.focused_item.title}</h2>
           </div>
           <p className={styles.copy}>{view.focused_item.reason}</p>
@@ -122,4 +125,22 @@ export function SemanticReviewProposalList({
       </details>
     </div>
   );
+}
+
+function focusedItemHeading(
+  status: AIWorkplaneQueueItemStatusV01,
+): string {
+  return status === "needs_decision"
+    ? "Needs your decision"
+    : status === "ready_to_complete"
+      ? "Ready to complete"
+      : status === "project_updated"
+        ? "Project updated"
+        : status === "deferred"
+          ? "Review later"
+          : status === "rejected"
+            ? "Rejected"
+            : status === "needs_more_information"
+              ? "Needs more information"
+              : "Continue review";
 }

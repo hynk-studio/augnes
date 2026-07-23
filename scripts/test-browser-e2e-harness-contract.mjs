@@ -17,15 +17,15 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 159);
-assert.equal(recordNames.length, 40);
+assert.equal(resultKeys.length, 163);
+assert.equal(recordNames.length, 41);
 assert.equal(
   hashInventory(resultKeys),
-  "50bed4c303ac4c6c8eb2fbbc17b9816a8ea83c50ae02af6395c5f74a8c4ed846",
+  "6b380b7fa6ecf01c78052ae4ee7c7002d9a1e0b83621f909bf3309ab6c5d322d",
 );
 assert.equal(
   hashInventory(recordNames),
-  "c7f1ab4825f4dedc89133ec14fd1bb9207eec7e1ce4db7eefe7bc9474139d193",
+  "729ece764ac96c78c6a3beafb5f030382b8a81200de99770c0d98ab8495d3a10",
 );
 assert.match(
   source,
@@ -82,6 +82,10 @@ assert.match(
 assert.match(
   source,
   /guide_brief_cross_surface_consistency = true/u,
+);
+assert.match(
+  source,
+  /guideAfterImpactCount, guideBeforeImpact\.count[\s\S]*guideAfterConfirmationCount, guideBeforeImpact\.count[\s\S]*guideAfterApplication\.count,[\s\S]*guideBeforeImpact\.count \+ 1/u,
 );
 assert.match(
   source,

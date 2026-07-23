@@ -1,4 +1,5 @@
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import { compareEffectiveReviewDecisionsV01 } from "@/lib/vnext/review-decision-lineage";
 import type { VNextOperatorPilotReviewListItemV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
@@ -84,16 +85,57 @@ export function buildAIWorkplaneHomeViewV01(input: {
     );
   }
 
-  const completion = input.continuity?.pending_accepted_decision_count ?? 0;
-  if (completion > 0 && queue[0]) {
-    return state(
-      base,
-      "change_completion",
-      "A saved decision still needs completion",
-      "Your decision is saved, but the project has not changed yet.",
-      guide.projections.ai_workplane.material_blocker_or_judgment,
-      { kind: "link", label: "Continue change review", href: queue[0].href },
+  const completionCount =
+    input.continuity?.pending_accepted_decision_count ?? 0;
+  const completionItem = queue.find(
+    (item) => item.status === "ready_to_complete",
+  );
+  if (completionItem) {
+    return {
+      ...state(
+        base,
+        "change_completion",
+        "A saved decision still needs completion",
+        "Your decision is saved, but the project has not changed yet.",
+        guide.projections.ai_workplane.material_blocker_or_judgment,
+        {
+          kind: "link",
+          label: "Continue change review",
+          href: completionItem.href,
+        },
+      ),
+      focused_item: completionItem,
+      additional_items: queue
+        .filter((item) => item.proposal_id !== completionItem.proposal_id)
+        .slice(0, 4),
+    };
+  }
+  if (completionCount > 0) {
+    const conservativeItem = queue.find(
+      (item) =>
+        item.status === "needs_more_information" ||
+        item.status === "continue_review",
     );
+    if (conservativeItem) {
+      return {
+        ...state(
+          base,
+          "other_attention",
+          conservativeItem.status_label,
+          conservativeItem.title,
+          "A saved applying decision was reported, but its exact change binding could not be verified.",
+          {
+            kind: "link",
+            label: "Continue review",
+            href: conservativeItem.href,
+          },
+        ),
+        focused_item: conservativeItem,
+        additional_items: queue
+          .filter((item) => item.proposal_id !== conservativeItem.proposal_id)
+          .slice(0, 4),
+      };
+    }
   }
 
   const decisionItem = queue.find((item) => item.status === "needs_decision");
@@ -188,9 +230,10 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
   selected_candidate_id: string | null;
 }): AIWorkplaneChangeReviewViewV01 {
   const read = input.read;
-  const selected = read.candidates.find(
-    (entry) => entry.candidate.candidate_id === input.selected_candidate_id,
-  ) ?? read.candidates[0] ?? null;
+  const selected = selectAIWorkplaneChangeCandidateV01(
+    read,
+    input.selected_candidate_id,
+  );
   if (!selected) {
     return {
       presentation_version: AI_WORKPLANE_PRESENTATION_VERSION_V01,
@@ -207,9 +250,15 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
     };
   }
   const decisions = read.decision_history
-    .filter((entry) => entry.pilot_actionable && entry.decision.candidate.candidate_id === selected.candidate.candidate_id)
+    .filter(
+      (entry) =>
+        entry.status === "valid" &&
+        entry.pilot_session_bound &&
+        entry.decision.candidate.candidate_id ===
+          selected.candidate.candidate_id,
+    )
     .map((entry) => entry.decision)
-    .sort(compareEffectiveDecisions);
+    .sort(compareEffectiveReviewDecisionsV01);
   const effective = decisions[0] ?? null;
   const receipt = effective
     ? read.transition_receipts.find(
@@ -259,6 +308,27 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
           : null,
     authority: PRESENTATION_AUTHORITY,
   };
+}
+
+export function selectAIWorkplaneChangeCandidateV01(
+  read: SemanticReviewProposalDetailV01,
+  selectedCandidateId: string | null,
+): SemanticReviewProposalDetailV01["candidates"][number] | null {
+  return (
+    read.candidates.find(
+      (entry) =>
+        entry.candidate.candidate_id === selectedCandidateId,
+    ) ??
+    read.candidates.find(
+      (entry) =>
+        entry.candidate.candidate_id ===
+          read.decision_application_summary.preferred_candidate_id &&
+        entry.candidate_fingerprint ===
+          read.decision_application_summary.preferred_candidate_fingerprint,
+    ) ??
+    read.candidates[0] ??
+    null
+  );
 }
 
 export function buildAIWorkplaneResultViewV01(
@@ -378,17 +448,24 @@ function state(
 }
 
 function queueStatus(proposal: VNextOperatorPilotReviewListItemV01): AIWorkplaneQueueItemV01["status"] {
-  if (proposal.transition_status === "applied") return "project_updated";
-  if (proposal.decision_count === 0) return "needs_decision";
-  if (proposal.candidate_admissions.length > 0 && proposal.candidate_admissions.every((entry) => !entry.decision_allowed.accept)) {
-    return "needs_more_information";
-  }
-  return "continue_review";
+  return proposal.decision_application_summary.status;
 }
 
 function queuePriority(proposal: VNextOperatorPilotReviewListItemV01): number {
   const status = queueStatus(proposal);
-  return status === "needs_decision" ? 0 : status === "continue_review" ? 1 : status === "needs_more_information" ? 2 : 3;
+  return status === "ready_to_complete"
+    ? 0
+    : status === "needs_decision"
+      ? 1
+      : status === "needs_more_information"
+        ? 2
+        : status === "continue_review"
+          ? 3
+          : status === "deferred"
+            ? 4
+            : status === "rejected"
+              ? 5
+              : 6;
 }
 
 function queueStatusLabel(status: AIWorkplaneQueueItemV01["status"]): string {
@@ -398,6 +475,10 @@ function queueStatusLabel(status: AIWorkplaneQueueItemV01["status"]): string {
       ? "Ready to complete"
       : status === "project_updated"
         ? "Project updated"
+        : status === "deferred"
+          ? "Review later"
+          : status === "rejected"
+            ? "Rejected"
         : status === "needs_more_information"
           ? "Needs more information"
           : "Continue review";
@@ -410,6 +491,9 @@ function queueReason(
   if (proposal.source_currentness !== "fresh") return "The supporting source may no longer be current.";
   if (status === "needs_decision") return "Augnes has prepared a bounded suggested change for your review.";
   if (status === "project_updated") return "The reviewed change is already reflected in saved project state.";
+  if (status === "ready_to_complete") return "Your saved decision is ready for the separate project-change steps.";
+  if (status === "deferred") return "This review is waiting for the saved revisit condition.";
+  if (status === "rejected") return "The suggested change was rejected and did not change the project.";
   if (status === "needs_more_information") return "The current change cannot be completed from the verified material.";
   return "Open the review to see the exact current decision and project-change status.";
 }
@@ -438,19 +522,6 @@ function operationLabel(operation: string): string {
         : operation === "retract" || operation === "remove"
           ? "Remove the current saved state"
           : "Clarify how this change should apply";
-}
-
-function compareEffectiveDecisions(left: ReviewDecisionV01, right: ReviewDecisionV01): number {
-  const leftReferencesRight = references(left, right);
-  const rightReferencesLeft = references(right, left);
-  if (leftReferencesRight !== rightReferencesLeft) return leftReferencesRight ? -1 : 1;
-  return Date.parse(right.decided_at) - Date.parse(left.decided_at) || compareCodeUnits(right.decision_id, left.decision_id);
-}
-
-function references(decision: ReviewDecisionV01, possiblePrior: ReviewDecisionV01): boolean {
-  return decision.lineage.prior_decisions.some(
-    (entry) => entry.decision_id === possiblePrior.decision_id && entry.decision_fingerprint === possiblePrior.integrity.fingerprint,
-  );
 }
 
 function semanticReviewHref(proposalId: string): string {

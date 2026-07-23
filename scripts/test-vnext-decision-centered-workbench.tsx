@@ -7,13 +7,28 @@ import {
   buildAIWorkplaneQueueV01,
   buildAIWorkplaneResultViewV01,
   compareAIWorkplaneGuideProjectV01,
+  selectAIWorkplaneChangeCandidateV01,
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
+import {
+  deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01,
+  type VNextOperatorPilotDecisionHistoryItemV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-material";
 import {
   buildProjectGuideBriefV02,
 } from "@/lib/vnext/guide-brief/project-guide-brief";
 import {
+  buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
 } from "@/lib/vnext/review-decision";
+import { buildStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import {
+  acceptReviewDecisionInputFixture,
+  deferReviewDecisionInputFixture,
+  rejectReviewDecisionInputFixture,
+  reviewDecisionGenericSourceProposal,
+} from "@/fixtures/vnext/protocol/review-decision-v0-1";
+import { genericStateTransitionReceiptInputFixture } from "@/fixtures/vnext/protocol/state-transition-receipt-v0-1";
 import {
   boundedProjectVerifyDisplayTextV01,
   projectVerificationRelationDisclosureSummaryV01,
@@ -39,6 +54,8 @@ import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
 import type { VNextOperatorPilotReviewListItemV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import type { VNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
+import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 
 import {
   installZeroNetworkGuard,
@@ -292,13 +309,31 @@ try {
     candidate_admissions: admissions,
     decision_count: 0,
     transition_status: "not_applied",
+    decision_application_summary: {
+      status: "needs_more_information",
+      effective_decision: null,
+      preferred_candidate_id: admissions[0]?.candidate_id ?? null,
+      preferred_candidate_fingerprint:
+        admissions[0]?.candidate_fingerprint ?? null,
+      applying_decision_pending: false,
+      matching_transition_receipt_present: false,
+      exact_lineage_and_receipt_binding: true,
+    },
   };
   const continuity = aiWorkplaneContinuityV01();
   const needsDecisionHome = buildAIWorkplaneHomeViewV01({
     access: "authenticated",
     loading: false,
     guide,
-    proposals: [reviewListItem],
+    proposals: [
+      {
+        ...reviewListItem,
+        decision_application_summary: {
+          ...reviewListItem.decision_application_summary,
+          status: "needs_decision",
+        },
+      },
+    ],
     continuity,
   });
   assert.equal(needsDecisionHome.state, "change_decision");
@@ -370,9 +405,27 @@ try {
   assert.equal(idle.primary_action?.label, "Return to Blank State");
 
   const queue = buildAIWorkplaneQueueV01([
-    { ...reviewListItem, transition_status: "applied", created_at: "2026-07-20T02:00:00.000Z" },
-    reviewListItem,
-    { ...reviewListItem, proposal_id: "episode-delta-proposal:ffffffffffffffffffffffff", decision_count: 1 },
+    {
+      ...reviewListItem,
+      transition_status: "applied",
+      created_at: "2026-07-20T02:00:00.000Z",
+      decision_application_summary: {
+        ...reviewListItem.decision_application_summary,
+        status: "project_updated",
+      },
+    },
+    {
+      ...reviewListItem,
+      decision_application_summary: {
+        ...reviewListItem.decision_application_summary,
+        status: "needs_decision",
+      },
+    },
+    {
+      ...reviewListItem,
+      proposal_id: "episode-delta-proposal:ffffffffffffffffffffffff",
+      decision_count: 1,
+    },
   ]);
   assert.deepEqual(queue.map((item) => item.status), [
     "needs_decision",
@@ -380,6 +433,172 @@ try {
     "project_updated",
   ]);
   assert.equal(queue.length <= 5, true);
+
+  const exactApplyingDecision = buildReviewDecisionV01(
+    structuredClone(acceptReviewDecisionInputFixture),
+  );
+  const exactRejectDecision = buildReviewDecisionV01(
+    structuredClone(rejectReviewDecisionInputFixture),
+  );
+  const exactDeferDecision = buildReviewDecisionV01(
+    structuredClone(deferReviewDecisionInputFixture),
+  );
+  const exactCandidateAdmission = exactDecisionCandidateAdmissionV01(
+    exactApplyingDecision,
+  );
+  const exactAppliedReceipt = buildStateTransitionReceiptV01(
+    structuredClone(genericStateTransitionReceiptInputFixture),
+  );
+  const readyToCompleteSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        exactDecisionHistoryV01(exactApplyingDecision, true),
+      ],
+      transition_receipts: [],
+    });
+  assert.equal(readyToCompleteSummary.status, "ready_to_complete");
+  assert.equal(
+    readyToCompleteSummary.preferred_candidate_id,
+    exactApplyingDecision.candidate.candidate_id,
+  );
+
+  const newerProposalA = {
+    ...reviewListItem,
+    proposal_id: "episode-delta-proposal:aaaaaaaaaaaaaaaaaaaaaaaa",
+    created_at: "2026-07-20T03:00:00.000Z",
+    decision_application_summary: {
+      ...reviewListItem.decision_application_summary,
+      status: "needs_decision" as const,
+    },
+  };
+  const olderProposalB = {
+    ...reviewListItem,
+    proposal_id: "episode-delta-proposal:bbbbbbbbbbbbbbbbbbbbbbbb",
+    created_at: "2026-07-20T02:00:00.000Z",
+    decision_count: 1,
+    decision_application_summary: readyToCompleteSummary,
+  };
+  const exactCompletionHome = buildAIWorkplaneHomeViewV01({
+    access: "authenticated",
+    loading: false,
+    guide,
+    proposals: [newerProposalA, olderProposalB],
+    continuity: {
+      ...continuity,
+      pending_accepted_decision_count: 1,
+    },
+  });
+  assert.equal(exactCompletionHome.state, "change_completion");
+  assert.equal(
+    exactCompletionHome.focused_item?.proposal_id,
+    olderProposalB.proposal_id,
+  );
+  assert.equal(
+    exactCompletionHome.primary_action?.label,
+    "Continue change review",
+  );
+  assert.equal(
+    exactCompletionHome.primary_action?.href,
+    "/workbench/semantic-review/episode-delta-proposal~bbbbbbbbbbbbbbbbbbbbbbbb",
+  );
+  assert.equal(
+    exactCompletionHome.additional_items[0]?.proposal_id,
+    newerProposalA.proposal_id,
+  );
+  assert.equal(
+    exactCompletionHome.additional_items[0]?.status,
+    "needs_decision",
+  );
+
+  const rejectedSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [exactDecisionHistoryV01(exactRejectDecision, false)],
+      transition_receipts: [],
+    });
+  assert.equal(rejectedSummary.status, "rejected");
+  assert.equal(rejectedSummary.applying_decision_pending, false);
+
+  const laterRejectInput = structuredClone(
+    rejectReviewDecisionInputFixture,
+  );
+  laterRejectInput.decided_at = "2026-07-10T12:20:00.000Z";
+  laterRejectInput.rationale_summary =
+    "Reject the previously accepted change through exact decision lineage.";
+  laterRejectInput.lineage.prior_decisions = [
+    {
+      decision_id: exactApplyingDecision.decision_id,
+      decision_fingerprint:
+        exactApplyingDecision.integrity.fingerprint,
+    },
+  ];
+  const laterRejectDecision = buildReviewDecisionV01(laterRejectInput);
+  const lineageSupersededApplyingSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        exactDecisionHistoryV01(exactApplyingDecision, true),
+        exactDecisionHistoryV01(laterRejectDecision, false),
+      ],
+      transition_receipts: [],
+    });
+  assert.equal(lineageSupersededApplyingSummary.status, "rejected");
+  assert.equal(
+    lineageSupersededApplyingSummary.applying_decision_pending,
+    false,
+  );
+
+  const deferredSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [exactDecisionHistoryV01(exactDeferDecision, false)],
+      transition_receipts: [],
+    });
+  assert.equal(deferredSummary.status, "deferred");
+  assert.equal(deferredSummary.applying_decision_pending, false);
+
+  const updatedSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        exactDecisionHistoryV01(exactApplyingDecision, true),
+      ],
+      transition_receipts: [exactAppliedReceipt],
+    });
+  assert.equal(updatedSummary.status, "project_updated");
+  assert.equal(updatedSummary.matching_transition_receipt_present, true);
+
+  const unrelatedApplyingInput = structuredClone(
+    acceptReviewDecisionInputFixture,
+  );
+  unrelatedApplyingInput.decided_at = "2026-07-10T12:16:00.000Z";
+  unrelatedApplyingInput.rationale_summary =
+    "A distinct exact applying decision used to prove unrelated receipt refusal.";
+  const unrelatedApplyingDecision = buildReviewDecisionV01(
+    unrelatedApplyingInput,
+  );
+  const unrelatedReceiptSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [
+        exactDecisionCandidateAdmissionV01(unrelatedApplyingDecision),
+      ],
+      decision_history: [
+        exactDecisionHistoryV01(unrelatedApplyingDecision, true),
+      ],
+      transition_receipts: [exactAppliedReceipt],
+    });
+  assert.equal(unrelatedReceiptSummary.status, "ready_to_complete");
+  assert.equal(
+    unrelatedReceiptSummary.matching_transition_receipt_present,
+    false,
+  );
 
   const changeRead = {
     ...reviewListItem,
@@ -424,6 +643,103 @@ try {
   assert.equal(changeView.uncertainties.length <= 6, true);
   assert.deepEqual(changeView.authority, aiWorkplanePresentationAuthorityV01());
 
+  const firstCandidate = changeRead.candidates[0]!;
+  const secondCandidate = {
+    ...structuredClone(firstCandidate),
+    candidate: {
+      ...structuredClone(firstCandidate.candidate),
+      candidate_id: "delta:ai-workplane-exact-pending",
+      title: "Complete the exact saved change",
+    },
+  };
+  secondCandidate.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(secondCandidate.candidate);
+  secondCandidate.pilot_admission = {
+    ...structuredClone(firstCandidate.pilot_admission),
+    candidate_id: secondCandidate.candidate.candidate_id,
+    candidate_fingerprint: secondCandidate.candidate_fingerprint,
+    decision_allowed: {
+      accept: true,
+      reject: true,
+      defer: true,
+    },
+  };
+  const multiCandidateDecisionInput = structuredClone(
+    acceptReviewDecisionInputFixture,
+  );
+  multiCandidateDecisionInput.candidate = {
+    candidate_id: secondCandidate.candidate.candidate_id,
+    candidate_fingerprint: secondCandidate.candidate_fingerprint,
+  };
+  multiCandidateDecisionInput.decided_at = "2026-07-20T03:10:00.000Z";
+  multiCandidateDecisionInput.rationale_summary =
+    "Bind the saved applying decision to the second exact candidate.";
+  const multiCandidateDecision = buildReviewDecisionV01(
+    multiCandidateDecisionInput,
+  );
+  const multiCandidateRead = {
+    ...changeRead,
+    candidates: [firstCandidate, secondCandidate],
+    decision_count: 1,
+    decisions: [multiCandidateDecision],
+    decision_history: [
+      exactDecisionHistoryV01(multiCandidateDecision, true),
+    ],
+    decision_application_summary: {
+      status: "ready_to_complete" as const,
+      effective_decision: {
+        decision: multiCandidateDecision.decision,
+        decision_id: multiCandidateDecision.decision_id,
+        decision_fingerprint:
+          multiCandidateDecision.integrity.fingerprint,
+        candidate_id: multiCandidateDecision.candidate.candidate_id,
+        candidate_fingerprint:
+          multiCandidateDecision.candidate.candidate_fingerprint,
+        pilot_actionable: true,
+        requested_project_change: true,
+        matching_transition_receipt_id: null,
+        matching_transition_receipt_fingerprint: null,
+      },
+      preferred_candidate_id:
+        multiCandidateDecision.candidate.candidate_id,
+      preferred_candidate_fingerprint:
+        multiCandidateDecision.candidate.candidate_fingerprint,
+      applying_decision_pending: true,
+      matching_transition_receipt_present: false,
+      exact_lineage_and_receipt_binding: true as const,
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const automaticallySelectedCandidate =
+    selectAIWorkplaneChangeCandidateV01(multiCandidateRead, null);
+  assert.equal(
+    automaticallySelectedCandidate?.candidate.candidate_id,
+    secondCandidate.candidate.candidate_id,
+  );
+  const multiCandidateView = buildAIWorkplaneChangeReviewViewV01({
+    read: multiCandidateRead,
+    selected_candidate_id: null,
+  });
+  assert.equal(multiCandidateView.decision_status, "decision_saved");
+  assert.equal(multiCandidateView.primary_action?.label, "Review impact");
+
+  let exactRefreshCount = 0;
+  let guideRefreshCount = 0;
+  const refreshContract =
+    refreshAIWorkplaneAfterProjectApplicationV01({
+    refresh_exact_review: async () => {
+      exactRefreshCount += 1;
+    },
+    refresh_guide_brief: async () => {
+      guideRefreshCount += 1;
+    },
+  });
+  assert.equal(exactRefreshCount, 1);
+  assert.equal(guideRefreshCount, 0);
+  void refreshContract.then(() => {
+    assert.equal(exactRefreshCount, 1);
+    assert.equal(guideRefreshCount, 1);
+  });
+
   const resultView = buildAIWorkplaneResultViewV01(
     aiWorkplaneResultV01(productionSource),
   );
@@ -457,6 +773,11 @@ try {
         human_home_state_priority_checked: true,
         one_primary_action_mapping_checked: true,
         bounded_queue_and_deterministic_order_checked: true,
+        exact_ready_to_complete_proposal_binding_checked: true,
+        reject_defer_and_unrelated_receipt_classification_checked: true,
+        lineage_superseded_applying_decision_checked: true,
+        pending_applying_candidate_default_selection_checked: true,
+        post_application_exact_then_guide_refresh_checked: true,
         change_verification_and_uncertainty_projection_checked: true,
         result_outcome_verification_next_action_checked: true,
         presentation_authority_all_false_checked: true,
@@ -470,6 +791,60 @@ try {
   );
 } finally {
   networkGuard.restore();
+}
+
+function exactDecisionHistoryV01(
+  decision: ReviewDecisionV01,
+  pilotActionable: boolean,
+): VNextOperatorPilotDecisionHistoryItemV01 {
+  return {
+    decision,
+    status: "valid",
+    pilot_session_bound: true,
+    pilot_actionable: pilotActionable,
+    session_id: "operator-session:ai-workplane-exact-binding",
+    request_fingerprint: `sha256:${"9".repeat(64)}`,
+    errors: [],
+  };
+}
+
+function exactDecisionCandidateAdmissionV01(
+  decision: ReviewDecisionV01,
+): VNextOperatorPilotCandidateAdmissionV01 {
+  const candidate = reviewDecisionGenericSourceProposal.proposed_deltas.find(
+    (entry) =>
+      entry.candidate_id === decision.candidate.candidate_id,
+  );
+  assert(candidate);
+  assert.equal(
+    createEpisodeDeltaCandidateFingerprintV01(candidate),
+    decision.candidate.candidate_fingerprint,
+  );
+  return {
+    policy_version: "vnext_operator_pilot_policy.v0.1",
+    candidate_id: decision.candidate.candidate_id,
+    candidate_fingerprint: decision.candidate.candidate_fingerprint,
+    target_count: candidate.target_refs.length,
+    current_state_status: "absent",
+    target_states: candidate.target_refs.map((target_ref, index) => ({
+      target_ref,
+      target_key: `target:exact-decision:${index}`,
+      presence: "absent",
+      revision: 0,
+      state_fingerprint: null,
+      source_transition_receipt_id: null,
+      source_transition_receipt_fingerprint: null,
+    })),
+    decision_allowed: {
+      accept: true,
+      reject: true,
+      defer: true,
+    },
+    mapped_operation: "create",
+    accept_operation: "create",
+    blocking_reasons: [],
+    policy_notes: [],
+  };
 }
 
 function aiWorkplaneGuideSourceV01(): BlankStateSourceV01 {

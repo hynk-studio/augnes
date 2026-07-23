@@ -18,7 +18,9 @@ export type AIWorkplaneQueueItemStatusV01 =
   | "continue_review"
   | "ready_to_complete"
   | "project_updated"
-  | "needs_more_information";
+  | "needs_more_information"
+  | "deferred"
+  | "rejected";
 
 export interface AIWorkplanePrimaryActionV01 {
   kind: "link" | "unlock" | "save_decision" | "review_impact" | "confirm" | "apply";

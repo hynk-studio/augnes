@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
-import { buildAIWorkplaneChangeReviewViewV01 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import {
+  buildAIWorkplaneChangeReviewViewV01,
+  selectAIWorkplaneChangeCandidateV01,
+} from "@/lib/vnext/ai-workplane/ai-workplane-view";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 
@@ -32,7 +35,8 @@ export function DecisionCenteredProposalDetail({
   strategicAnalysisBusy,
   onContextUseReview,
   onSessionInvalid,
-  onPrivateMaterialChanged,
+  onExactReviewMaterialChanged,
+  onProjectApplicationCompleted,
   tryBeginOperatorMutation,
   endOperatorMutation,
 }: {
@@ -46,15 +50,17 @@ export function DecisionCenteredProposalDetail({
   strategicAnalysisBusy: boolean;
   onContextUseReview: (request: SemanticContextUseReviewRequestV01) => Promise<void>;
   onSessionInvalid: (errorCode: string) => void;
-  onPrivateMaterialChanged: () => Promise<void>;
+  onExactReviewMaterialChanged: () => Promise<void>;
+  onProjectApplicationCompleted: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
 }) {
   const proposal = read.proposal;
   const [transitionMutationBusy, setTransitionMutationBusy] = useState(false);
-  const selected = read.candidates.find(
-    (candidate) => candidate.candidate.candidate_id === selectedCandidateId,
-  ) ?? read.candidates[0] ?? null;
+  const selected = selectAIWorkplaneChangeCandidateV01(
+    read,
+    selectedCandidateId,
+  );
   const view = buildAIWorkplaneChangeReviewViewV01({
     read,
     selected_candidate_id: selected?.candidate.candidate_id ?? null,
@@ -248,7 +254,8 @@ export function DecisionCenteredProposalDetail({
           persistedReceipts={read.transition_receipts}
           priorPacket={priorPacket}
           onSessionInvalid={onSessionInvalid}
-          onPrivateMaterialChanged={onPrivateMaterialChanged}
+          onExactReviewMaterialChanged={onExactReviewMaterialChanged}
+          onProjectApplicationCompleted={onProjectApplicationCompleted}
           tryBeginOperatorMutation={tryBeginOperatorMutation}
           endOperatorMutation={endOperatorMutation}
           onApplyingMutationBusyChange={setTransitionMutationBusy}

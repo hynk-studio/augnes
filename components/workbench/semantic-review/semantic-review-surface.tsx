@@ -14,6 +14,7 @@ import {
   buildAIWorkplaneHomeViewV01,
   compareAIWorkplaneGuideProjectV01,
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
 import {
   OperatorSessionPanel,
   type OperatorSessionStateV01,
@@ -426,8 +427,15 @@ export function SemanticReviewSurface({
     });
   }
 
-  async function refreshPrivateMaterial(): Promise<void> {
+  async function refreshExactReviewMaterial(): Promise<void> {
     await loadPrivateView({ announceLoading: false });
+  }
+
+  async function refreshAfterProjectApplication(): Promise<void> {
+    await refreshAIWorkplaneAfterProjectApplicationV01({
+      refresh_exact_review: refreshExactReviewMaterial,
+      refresh_guide_brief: guideState.refresh,
+    });
   }
 
   const privateMaterialVisible =
@@ -570,7 +578,8 @@ export function SemanticReviewSurface({
             strategicAnalysisBusy={strategicAnalysisBusy}
             onContextUseReview={recordContextUseReview}
             onSessionInvalid={(errorCode) => locked(errorCode)}
-            onPrivateMaterialChanged={refreshPrivateMaterial}
+            onExactReviewMaterialChanged={refreshExactReviewMaterial}
+            onProjectApplicationCompleted={refreshAfterProjectApplication}
             tryBeginOperatorMutation={() => {
               if (operatorMutationInFlight.current) return false;
               operatorMutationInFlight.current = true;

@@ -34,7 +34,8 @@ export function SemanticTransitionActions({
   persistedReceipts,
   priorPacket,
   onSessionInvalid,
-  onPrivateMaterialChanged,
+  onExactReviewMaterialChanged,
+  onProjectApplicationCompleted,
   tryBeginOperatorMutation,
   endOperatorMutation,
   onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
@@ -47,7 +48,8 @@ export function SemanticTransitionActions({
   persistedReceipts: StateTransitionReceiptV01[];
   priorPacket: SemanticTransitionPriorPacketBindingV01 | null;
   onSessionInvalid: (errorCode: string) => void;
-  onPrivateMaterialChanged: () => Promise<void>;
+  onExactReviewMaterialChanged: () => Promise<void>;
+  onProjectApplicationCompleted: () => Promise<void>;
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
   onApplyingMutationBusyChange?: (busy: boolean) => void;
@@ -346,7 +348,7 @@ export function SemanticTransitionActions({
           ? "Existing confirmation reused. The project has not changed."
           : "Change confirmed. The project has not changed yet.",
       );
-      await onPrivateMaterialChanged();
+      await onExactReviewMaterialChanged();
     } catch {
       if (requestIsCurrent(requestGeneration)) {
         setErrorCode("semantic_transition_confirmation_request_failed");
@@ -400,6 +402,8 @@ export function SemanticTransitionActions({
         return;
       }
       if (
+        (body.status !== "applied" &&
+          body.status !== "exact_replay") ||
         !("transition_receipt" in body) ||
         !("later_packet" in body) ||
         !("eligibility_status" in body) ||
@@ -430,7 +434,7 @@ export function SemanticTransitionActions({
           ? "Existing project update reused; no duplicate change was made."
           : "Project updated. Future work can use the updated project context.",
       );
-      await onPrivateMaterialChanged();
+      await onProjectApplicationCompleted();
     } catch {
       if (requestIsCurrent(requestGeneration)) {
         setErrorCode("semantic_transition_apply_request_failed");

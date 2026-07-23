@@ -252,6 +252,9 @@ const aiWorkplaneShellSource = source(
 const changeReviewSource = source(
   "components/workbench/semantic-review/decision-centered-proposal-detail.tsx",
 );
+const transitionActionsSource = source(
+  "components/workbench/semantic-review/semantic-transition-actions.tsx",
+);
 const resultReviewSource = source(
   "components/workbench/result-review/run-result-review-surface.tsx",
 );
@@ -278,6 +281,55 @@ assert.equal(resultReviewSource.includes("Verification"), true);
 assert.equal(resultReviewSource.includes("What remains unresolved"), true);
 assert.equal(resultReviewSource.includes("data-result-review-read-only"), true);
 record("ai_workplane_replaces_active_agent_and_semantic_workbench_presentations");
+
+const confirmationCallbackSource = transitionActionsSource.slice(
+  transitionActionsSource.indexOf("async function confirmGate"),
+  transitionActionsSource.indexOf(
+    "async function applyTransitionAndCompile",
+  ),
+);
+const applicationCallbackSource = transitionActionsSource.slice(
+  transitionActionsSource.indexOf(
+    "async function applyTransitionAndCompile",
+  ),
+  transitionActionsSource.indexOf("function handleRouteError"),
+);
+assert.equal(
+  confirmationCallbackSource.includes(
+    "await onExactReviewMaterialChanged()",
+  ),
+  true,
+);
+assert.equal(
+  confirmationCallbackSource.includes(
+    "onProjectApplicationCompleted",
+  ),
+  false,
+);
+assert.equal(
+  applicationCallbackSource.includes(
+    "await onProjectApplicationCompleted()",
+  ),
+  true,
+);
+assert.match(
+  applicationCallbackSource,
+  /body\.status !== "applied"[\s\S]*body\.status !== "exact_replay"/u,
+);
+assert.equal(
+  applicationCallbackSource.includes(
+    "onExactReviewMaterialChanged",
+  ),
+  false,
+);
+assert.equal(
+  count(
+    semanticReviewSurfaceSource,
+    /onProjectApplicationCompleted=\{refreshAfterProjectApplication\}/gu,
+  ),
+  1,
+);
+record("ai_workplane_application_refreshes_exact_state_and_guide_once");
 
 const directSource = source("lib/vnext/runtime/direct-native-host-round-trip.ts");
 const routeSource = source("app/api/vnext/operator/host-round-trip/route.ts");
@@ -956,6 +1008,7 @@ assert.deepEqual(assertions, [
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
   "product_shell_has_two_primary_zones_and_secondary_project_tools",
   "ai_workplane_replaces_active_agent_and_semantic_workbench_presentations",
+  "ai_workplane_application_refreshes_exact_state_and_guide_once",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
   "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",

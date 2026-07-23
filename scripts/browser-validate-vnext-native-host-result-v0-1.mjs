@@ -265,9 +265,13 @@ const result = {
   transition_preview_read_only: false,
   semantic_gate_separate_from_transition: false,
   semantic_transition_applied: false,
+  guide_brief_transition_request_counts: null,
+  guide_brief_post_application_consistent: false,
   later_packet_compiled: false,
   semantic_transition_reload_idempotent: false,
   multi_candidate_transition_scope: false,
+  exact_ready_to_complete_navigation: false,
+  pending_applying_candidate_default_selection: false,
   candidate_switch_mutation_locking: false,
   late_preview_response_discarded: false,
   applying_decision_wording_truthful: false,
@@ -3050,6 +3054,24 @@ async function main() {
     result.explicit_review_decision_created = true;
     record("workbench_records_explicit_decision_without_applying_transition");
 
+    await waitForCondition(
+      `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`,
+      "GuideBrief settled before project-change review",
+    );
+    const guideBeforeImpact = await evaluateJson(`(() => {
+      const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
+      const rail = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
+      const reviewFocus = Array.from(rail?.querySelectorAll('div') ?? [])
+        .find((entry) => entry.querySelector('p')?.textContent?.trim() === 'Review focus');
+      return {
+        count: Number(shell?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1'),
+        focus: reviewFocus?.querySelectorAll('p')[1]?.textContent?.trim() ?? '',
+      };
+    })()`);
+    assert.equal(Number.isSafeInteger(guideBeforeImpact.count), true);
+    assert.equal(guideBeforeImpact.count >= 2, true);
+    assert.notEqual(guideBeforeImpact.focus, "");
+
     const beforePreview = databaseSnapshot(database);
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -3076,6 +3098,8 @@ async function main() {
       true,
     );
     result.transition_preview_read_only = true;
+    const guideAfterImpactCount = await evaluateJson(`Number(document.querySelector('[data-ai-workplane-shell="v0.1"]')?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1')`);
+    assert.equal(guideAfterImpactCount, guideBeforeImpact.count);
 
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -3105,6 +3129,8 @@ async function main() {
       commit_gates: afterDecision.semantic_authority_counts.commit_gates + 1,
     });
     result.semantic_gate_separate_from_transition = true;
+    const guideAfterConfirmationCount = await evaluateJson(`Number(document.querySelector('[data-ai-workplane-shell="v0.1"]')?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1')`);
+    assert.equal(guideAfterConfirmationCount, guideBeforeImpact.count);
     record("semantic_gate_persists_without_transition_state_or_packet");
 
     assert.equal(
@@ -3129,6 +3155,38 @@ async function main() {
       `document.querySelector('[data-vnext-transition-step="apply"][data-vnext-transition-step-status="applied"][data-vnext-transition-commit-packet-compiled="true"]') !== null && document.querySelector('[data-vnext-transition-step="later-packet"][data-vnext-transition-step-status="compiled"]') !== null`,
       "atomic semantic Transition and later packet",
     );
+    await waitForCondition(
+      `document.querySelector('[data-ai-workplane-shell="v0.1"]')?.getAttribute('data-ai-workplane-guide-request-count') === ${JSON.stringify(String(guideBeforeImpact.count + 1))} && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`,
+      "GuideBrief refreshed once after project application",
+    );
+    const guideAfterApplication = await evaluateJson(`(() => {
+      const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
+      const rail = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
+      const reviewFocus = Array.from(rail?.querySelectorAll('div') ?? [])
+        .find((entry) => entry.querySelector('p')?.textContent?.trim() === 'Review focus');
+      return {
+        count: Number(shell?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1'),
+        project: rail?.querySelector('strong')?.textContent?.trim() ?? '',
+        focus: reviewFocus?.querySelectorAll('p')[1]?.textContent?.trim() ?? '',
+      };
+    })()`);
+    assert.equal(
+      guideAfterApplication.count,
+      guideBeforeImpact.count + 1,
+    );
+    assert.notEqual(guideAfterApplication.project, "");
+    assert.doesNotMatch(
+      guideAfterApplication.focus,
+      /review impact|continue change review|complete project change/iu,
+    );
+    result.guide_brief_transition_request_counts = {
+      before_impact: guideBeforeImpact.count,
+      after_impact: guideAfterImpactCount,
+      after_confirmation: guideAfterConfirmationCount,
+      after_application: guideAfterApplication.count,
+      application_delta: 1,
+    };
+    result.guide_brief_post_application_consistent = true;
     const appliedShape = await evaluateJson(`(() => {
       const apply = document.querySelector('[data-vnext-transition-step="apply"]');
       const packet = document.querySelector('[data-vnext-transition-step="later-packet"]');
@@ -3167,7 +3225,7 @@ async function main() {
     const beforeClosureReload = databaseSnapshot(database);
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-shared-inspector-handoff="true"] [data-workbench-to-shared-inspector="true"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
+      `location.pathname === ${JSON.stringify(revisionPath)} && document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null && document.querySelector('[data-shared-inspector-handoff="true"] a[data-workbench-to-shared-inspector="true"][href^="/workbench/inspector?target=episode_delta_proposal&"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
       "durable Transition and packet lineage after reload",
     );
     assert.deepEqual(databaseSnapshot(database), beforeClosureReload);
@@ -3192,8 +3250,9 @@ async function main() {
     record("workbench_reload_reads_durable_lineage_without_duplicate_writes");
 
     const beforeAppliedInspector = databaseSnapshot(database);
-    const appliedInspectorHref = await evaluateString(
-      `document.querySelector('[data-semantic-workbench-inspector="true"], [data-workbench-to-shared-inspector="true"]')?.getAttribute('href') ?? ''`,
+    const appliedInspectorHref = await waitForEvaluatedString(
+      `document.querySelector('[data-shared-inspector-handoff="true"] a[data-workbench-to-shared-inspector="true"]')?.getAttribute('href') ?? ''`,
+      "applied proposal Inspector href",
     );
     assert.match(appliedInspectorHref, /^\/workbench\/inspector\?target=episode_delta_proposal&/u);
     await navigate(new URL(appliedInspectorHref, appOrigin).toString());
@@ -3898,6 +3957,100 @@ async function main() {
       "Accept candidate B independently so candidate-local decisions and persisted receipts can be distinguished.",
     );
 
+    const newerUndecidedProject = {
+      fixture_id: "semantic-review-loop-newer-undecided-proposal",
+      workspace_id: manifest.workspace_id,
+      project_id: manifest.project_id,
+      run_id: "run:operator-browser-newer-undecided-proposal",
+    };
+    const newerUndecidedAnchor = new Date(
+      Date.parse(currentMultiCandidateProposal.created_at) + 60_000,
+    ).toISOString();
+    const newerUndecidedReceipt =
+      buildSemanticReviewLoopRunReceiptFixture(
+        newerUndecidedProject,
+        currentPacket,
+        { timeline_anchor_at: newerUndecidedAnchor },
+      );
+    const newerUndecidedProposal =
+      buildSemanticReviewLoopProposalFixture(
+        newerUndecidedProject,
+        currentPacket,
+        newerUndecidedReceipt,
+        {
+          primary_delta_type: "agent_plan_delta",
+          candidate_namespace: "newer-undecided",
+          timeline_anchor_at: newerUndecidedAnchor,
+        },
+      );
+    const newerUndecidedDatabase = new Database(databasePath);
+    try {
+      newerUndecidedDatabase.pragma("foreign_keys = ON");
+      newerUndecidedDatabase.transaction(() => {
+        admitStructuredRunReceiptV01(
+          newerUndecidedDatabase,
+          newerUndecidedReceipt,
+        );
+        insertVNextCoreRecordV01(newerUndecidedDatabase, {
+          record_kind: "episode_delta_proposal",
+          record_id: newerUndecidedProposal.proposal_id,
+          workspace_id: newerUndecidedProposal.workspace_id,
+          project_id: newerUndecidedProposal.project_id,
+          fingerprint: newerUndecidedProposal.integrity.fingerprint,
+          idempotency_key: null,
+          payload: newerUndecidedProposal,
+          created_at: newerUndecidedProposal.created_at,
+        });
+      })();
+    } finally {
+      newerUndecidedDatabase.close();
+    }
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-ai-workplane-home="v0.1"][data-ai-workplane-home-state="change_completion"] [data-ai-workplane-primary-action="link"]')?.getAttribute('href') === ${JSON.stringify(path)}`,
+      "exact older ready-to-complete proposal focused ahead of newer undecided proposal",
+    );
+    const exactProposalStatuses = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      const body = await response.json();
+      return {
+        status: response.status,
+        ready: body.proposals?.find(
+          (entry) => entry.proposal_id === ${JSON.stringify(currentMultiCandidateProposal.proposal_id)}
+        )?.decision_application_summary,
+        newer: body.proposals?.find(
+          (entry) => entry.proposal_id === ${JSON.stringify(newerUndecidedProposal.proposal_id)}
+        )?.decision_application_summary,
+      };
+    })()`);
+    assert.equal(exactProposalStatuses.status, 200);
+    assert.equal(exactProposalStatuses.ready?.status, "ready_to_complete");
+    assert.equal(
+      exactProposalStatuses.ready?.preferred_candidate_id,
+      candidateB,
+    );
+    assert.equal(exactProposalStatuses.newer?.status, "needs_decision");
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector('[data-ai-workplane-home="v0.1"] [data-ai-workplane-primary-action="link"]');
+        if (!(link instanceof HTMLAnchorElement)) return false;
+        link.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateB)} && document.querySelector('[data-vnext-transition-action="preview"]:not([disabled])') !== null`,
+      "pending applying decision selects its exact candidate by default",
+    );
+    result.exact_ready_to_complete_navigation = true;
+    result.pending_applying_candidate_default_selection = true;
+    record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate");
+
     await selectCandidate(candidateA);
     const beforeLatePreview = databaseSnapshot(database);
     pauseNextSemanticTransitionRequest("preview");
@@ -4030,6 +4183,8 @@ async function main() {
       ...beforeMultiCandidate.semantic_authority_counts,
       semantic_state:
         beforeMultiCandidate.semantic_authority_counts.semantic_state + 1,
+      proposals:
+        beforeMultiCandidate.semantic_authority_counts.proposals + 1,
       decisions: beforeMultiCandidate.semantic_authority_counts.decisions + 2,
       commit_gates:
         beforeMultiCandidate.semantic_authority_counts.commit_gates + 1,
@@ -6099,6 +6254,23 @@ async function evaluateBoolean(expression) {
 async function evaluateString(expression) {
   const value = await evaluate(expression);
   return typeof value === "string" ? value : "";
+}
+
+async function waitForEvaluatedString(
+  expression,
+  label,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const value = await evaluateString(expression).catch(() => "");
+    if (value.length > 0) {
+      recordLongWait("wait_for_condition", label, startedAt);
+      return value;
+    }
+    await delay(100);
+  }
+  throw new Error(`Timed out waiting for ${label}.`);
 }
 
 async function evaluateJson(expression) {
