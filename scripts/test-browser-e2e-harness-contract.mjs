@@ -107,6 +107,10 @@ assert.match(
   source,
   /isExpectedSyntheticSessionRefusal[\s\S]*entry\.phase === "synthetic_session_bootstrap"[\s\S]*entry\.path === "\/api\/vnext\/operator\/session"[\s\S]*response\.method === "GET"[\s\S]*response\.status === 401/u,
 );
+assert.match(
+  source,
+  /VALIDATION_SCOPE === "core"[\s\S]*result\.multi_candidate_transition_scope, false[\s\S]*result\.exact_ready_to_complete_navigation, false[\s\S]*VALIDATION_SCOPE === "continuity"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, true/u,
+);
 assert(continuityScopeStart >= 0 && exactBindingRecord > continuityScopeStart);
 assert.equal(
   [

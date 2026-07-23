@@ -5245,6 +5245,20 @@ async function main() {
   });
   }
 
+  if (VALIDATION_SCOPE === "core") {
+    assert.equal(result.multi_candidate_transition_scope, false);
+    assert.equal(result.candidate_switch_mutation_locking, false);
+    assert.equal(result.late_preview_response_discarded, false);
+    assert.equal(result.exact_ready_to_complete_navigation, false);
+    assert.equal(result.pending_applying_candidate_default_selection, false);
+  } else if (VALIDATION_SCOPE === "continuity") {
+    assert.equal(result.multi_candidate_transition_scope, true);
+    assert.equal(result.candidate_switch_mutation_locking, true);
+    assert.equal(result.late_preview_response_discarded, true);
+    assert.equal(result.exact_ready_to_complete_navigation, true);
+    assert.equal(result.pending_applying_candidate_default_selection, true);
+  }
+
   await waitForRequestQuiet();
   timing.milestone("final global request quiet observed");
   const isExpectedSyntheticSessionRefusal = (entry) =>
