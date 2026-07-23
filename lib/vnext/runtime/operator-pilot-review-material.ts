@@ -537,30 +537,43 @@ export function deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01(
     return decisionApplicationSummaryV01("continue_review", effective, null);
   }
 
+  if (input.decision_history.length > 0) {
+    return unresolvedDecisionApplicationSummaryV01(
+      "continue_review",
+      input.candidate_admissions[0] ?? null,
+    );
+  }
+
   const exactReviewableCandidate =
     input.source_currentness === "fresh" &&
     input.candidate_admissions.find(
       (candidate) => candidate.decision_allowed.accept,
     );
   if (exactReviewableCandidate) {
-    return {
-      status: "needs_decision",
-      effective_decision: null,
-      preferred_candidate_id: exactReviewableCandidate.candidate_id,
-      preferred_candidate_fingerprint:
-        exactReviewableCandidate.candidate_fingerprint,
-      applying_decision_pending: false,
-      matching_transition_receipt_present: false,
-      exact_lineage_and_receipt_binding: true,
-    };
+    return unresolvedDecisionApplicationSummaryV01(
+      "needs_decision",
+      exactReviewableCandidate,
+    );
   }
+  return unresolvedDecisionApplicationSummaryV01(
+    "needs_more_information",
+    input.candidate_admissions[0] ?? null,
+  );
+}
+
+function unresolvedDecisionApplicationSummaryV01(
+  status:
+    | "needs_decision"
+    | "needs_more_information"
+    | "continue_review",
+  candidate: VNextOperatorPilotCandidateAdmissionV01 | null,
+): VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
   return {
-    status: "needs_more_information",
+    status,
     effective_decision: null,
-    preferred_candidate_id:
-      input.candidate_admissions[0]?.candidate_id ?? null,
+    preferred_candidate_id: candidate?.candidate_id ?? null,
     preferred_candidate_fingerprint:
-      input.candidate_admissions[0]?.candidate_fingerprint ?? null,
+      candidate?.candidate_fingerprint ?? null,
     applying_decision_pending: false,
     matching_transition_receipt_present: false,
     exact_lineage_and_receipt_binding: true,

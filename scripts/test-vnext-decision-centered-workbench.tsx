@@ -562,6 +562,27 @@ try {
   assert.equal(deferredSummary.status, "deferred");
   assert.equal(deferredSummary.applying_decision_pending, false);
 
+  const ambiguousHistoricalSummary =
+    deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+      source_currentness: "fresh",
+      candidate_admissions: [exactCandidateAdmission],
+      decision_history: [
+        {
+          ...exactDecisionHistoryV01(exactApplyingDecision, true),
+          status: "invalid",
+          pilot_session_bound: false,
+          pilot_actionable: false,
+          session_id: null,
+          request_fingerprint: null,
+          errors: ["operator_pilot_decision_record_provenance_mismatch"],
+        },
+      ],
+      transition_receipts: [],
+    });
+  assert.equal(ambiguousHistoricalSummary.status, "continue_review");
+  assert.equal(ambiguousHistoricalSummary.effective_decision, null);
+  assert.equal(ambiguousHistoricalSummary.applying_decision_pending, false);
+
   const updatedSummary =
     deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
       source_currentness: "fresh",
