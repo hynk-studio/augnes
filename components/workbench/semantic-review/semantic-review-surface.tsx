@@ -40,7 +40,7 @@ export function SemanticReviewSurface({
   guide,
 }: {
   proposalId?: string;
-  guide: GuideBriefAIWorkplaneProjectionV02;
+  guide?: GuideBriefAIWorkplaneProjectionV02;
 }) {
   const router = useRouter();
   const [sessionState, setSessionState] = useState<OperatorSessionStateV01>({

@@ -35,7 +35,7 @@ export function SemanticWorkbenchShell({
   projectHref: string;
   inspectorHref?: string;
   navigation?: SemanticWorkbenchNavigationItemV01[];
-  guide: GuideBriefAIWorkplaneProjectionV02;
+  guide?: GuideBriefAIWorkplaneProjectionV02;
   children: ReactNode;
 }) {
   return (

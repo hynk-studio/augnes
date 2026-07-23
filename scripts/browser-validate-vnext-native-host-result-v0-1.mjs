@@ -1251,7 +1251,7 @@ async function main() {
       "locked Semantic Workbench",
     );
     await waitForCondition(
-      `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]') !== null`,
+      `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
       "AI Workplane current-project GuideBrief",
     );
     const workplaneGuide = await evaluateJson(`(() => {
@@ -2429,13 +2429,13 @@ async function main() {
       "read-only Workbench result review",
     );
     await waitForCondition(
-      `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null`,
-      "read-only proposal settlement refresh",
+      `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
+      "read-only proposal settlement and current-project guide refresh",
     );
     timing.milestone("proposal settlement and result review ready");
     assert.equal(
       await evaluateBoolean(
-        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
+        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
       ),
       true,
     );

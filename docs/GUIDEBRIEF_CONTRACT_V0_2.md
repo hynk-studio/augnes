@@ -61,7 +61,10 @@ deduplication and stable IDs are deterministic; no model ranks the material.
   `BlankStateViewV01` is now a thin Browser projection of this packet.
 - **AI Workplane:** embeds a compact rail with project, goal/coordinate,
   work/result status, material blocker or judgment and review focus. It adds no
-  mutation and does not perform the C4 Workplane reprojection.
+  mutation and does not perform the C4 Workplane reprojection. The rail consumes
+  the same marker-gated local route client-side, fails closed to a bounded
+  unavailable state, and does not duplicate the full Blank State source graph
+  in each Workplane route bundle.
 - **ChatGPT/MCP:** returns a public-safe project summary with the four epistemic
   sections, primary guidance, source status/refs and authority boundary through
   the existing `augnes_get_guide_brief` tool.

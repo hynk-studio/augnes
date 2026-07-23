@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { RunResultReviewLoader } from "@/components/workbench/result-review/run-result-review-loader";
-import { loadProjectGuideBriefAIWorkplaneProjectionV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +19,5 @@ export default async function RunResultReviewPage({
   const { receipt_id: receiptSlug } = await params;
   if (!/^run-receipt~[a-f0-9]{24}$/u.test(receiptSlug)) notFound();
   const receiptId = receiptSlug.replace("~", ":");
-  const guide = await loadProjectGuideBriefAIWorkplaneProjectionV02();
-  return <RunResultReviewLoader receiptId={receiptId} guide={guide} />;
+  return <RunResultReviewLoader receiptId={receiptId} />;
 }

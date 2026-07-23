@@ -33,7 +33,7 @@ const linkStyle: CSSProperties = {
   fontWeight: 750,
 };
 
-export function AgentWorkplane({ guide }: { guide: GuideBriefAIWorkplaneProjectionV02 }) {
+export function AgentWorkplane({ guide }: { guide?: GuideBriefAIWorkplaneProjectionV02 }) {
   return (
     <main aria-label="Agent Workplane" style={surfaceStyle}>
       <section style={cardStyle}>

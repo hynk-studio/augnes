@@ -25,7 +25,7 @@ export function RunResultReviewLoader({
   guide,
 }: {
   receiptId: string;
-  guide: GuideBriefAIWorkplaneProjectionV02;
+  guide?: GuideBriefAIWorkplaneProjectionV02;
 }) {
   const [session, setSession] = useState<OperatorSessionStateV01>({
     status: "checking",

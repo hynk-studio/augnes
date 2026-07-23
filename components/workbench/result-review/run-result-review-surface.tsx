@@ -12,7 +12,7 @@ export function RunResultReviewSurface({
 }: {
   result: ProjectRunResultDetailV01;
   accessBoundary?: React.ReactNode;
-  guide: GuideBriefAIWorkplaneProjectionV02;
+  guide?: GuideBriefAIWorkplaneProjectionV02;
 }) {
   const summary = result.summary;
   const entryPresentation = resultEntryPresentation(result);
