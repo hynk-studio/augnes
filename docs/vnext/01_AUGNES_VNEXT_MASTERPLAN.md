@@ -764,6 +764,13 @@ change, external approval 또는 automation expansion을 만들지 않는다. to
 주장하지 않는다.
 
 GuideBrief는 현재 상황과 그 의미를 human-readable하게 설명한다.
+
+C3 implementation의 active contract는
+[`GUIDEBRIEF_CONTRACT_V0_2.md`](../GUIDEBRIEF_CONTRACT_V0_2.md)다. 하나의
+current-project source/builder가 Browser, AI Workplane, ChatGPT/MCP와 Codex
+projection을 만들며, exact `TaskContextPacket`은 별도 execution contract로 유지된다.
+legacy v0.1 contract와 fixture는 historical/compatibility-only다. 이 상태는 C3 PR이
+review와 merge된 뒤에만 complete다.
 `TaskContextPacket`은 specific task/run의 exact bounded execution contract다. 서로
 대체하거나 competing authority protocol이 되어서는 안 된다.
 

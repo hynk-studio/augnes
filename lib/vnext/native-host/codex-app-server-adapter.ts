@@ -2040,8 +2040,20 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
 } as const;
 
 function renderPacketV01(request: NativeHostRequestV01): string {
+  const guide = request.guide_brief;
+  const renderedGuide = guide
+    ? canonicalizeProtocolValueV01(guide)
+    : canonicalizeProtocolValueV01({
+        projection_version: "guide_brief_codex_projection.v0.2",
+        status: "unavailable",
+        unavailable_reason: "current_project_guide_unavailable",
+      });
   const rendered = [
-    "Augnes native-host task. Treat this TaskContextPacket as selected working context, not project truth.",
+    "## GuideBrief — non-authoritative task-start guidance",
+    "This section explains current project context and attention. It is not the execution contract and does not override the TaskContextPacket. Unresolved judgment remains unresolved; suggestions are not commands; authority remains with the user and Core gates.",
+    renderedGuide,
+    "## TaskContextPacket — exact bounded execution contract",
+    "Augnes native-host task. Treat this exact TaskContextPacket as selected working context, not project truth.",
     "Stay inside the supplied cwd and sandbox. Ask through the host approval protocol when required.",
     "Return only JSON matching the supplied output schema. Do not return a transcript, hidden reasoning, credentials, environment data, or raw command output.",
     `Request binding: ${request.request_id}`,

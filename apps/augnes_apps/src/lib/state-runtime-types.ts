@@ -986,6 +986,7 @@ export const ConstellationPreviewResultSchema = z
 export const GuideBriefToolInputSchema = z
   .object({
     scope: z.string().min(1).optional(),
+    projectId: z.string().regex(/^project:[0-9a-f-]{36}$/iu).optional(),
     compact: z.boolean().optional(),
   })
   .strip();
@@ -999,34 +1000,68 @@ export const GuideBriefAuthorityBoundarySchema = z
     can_update_work: z.literal(false),
     can_mutate_memory: z.literal(false),
     can_apply_project_perspective: z.literal(false),
+    can_approve: z.literal(false),
+    can_transition: z.literal(false),
     can_publish_external: z.literal(false),
     can_merge: z.literal(false),
-    can_retry_replay_deploy: z.literal(false),
+    can_retry: z.literal(false),
     can_call_github: z.literal(false),
     can_call_openai_or_provider: z.literal(false),
     can_execute_codex: z.literal(false),
     can_create_branch_or_pr: z.literal(false),
     can_send_handoff: z.literal(false),
     can_launch_autonomy: z.literal(false),
-    can_create_mcp_tool: z.literal(false),
+    can_write_db: z.literal(false),
     can_create_ui_action: z.literal(false),
+    can_grant_host_permission: z.literal(false),
+    notes: z.array(z.string()),
   })
   .passthrough();
 
 export const GuideBriefResultSchema = z
   .object({
-    runtime: z.literal("augnes"),
-    guide_version: z.string(),
-    scope: z.string(),
-    observed: z.array(z.unknown()),
-    inferred: z.array(z.unknown()),
-    suggested: z.array(z.unknown()),
-    needs_user_judgment: z.array(z.unknown()),
-    authority_boundary: GuideBriefAuthorityBoundarySchema,
-    surface_rendering_notes: z.record(z.unknown()).optional(),
-    source_refs: z.record(z.unknown()).optional(),
-    staleness_warnings: z.array(z.unknown()).optional(),
-    handoff_candidates: z.array(z.unknown()).optional(),
+    runtime: z.literal("augnes_current_project"),
+    guide_version: z.literal("guide_brief.v0.2"),
+    generated_at: z.string(),
+    request: z.object({ scope: z.literal("project:augnes") }).passthrough(),
+    identity: z.object({
+      workspace_id: z.string().nullable(),
+      project_id: z.string().nullable(),
+      project_display_name: z.string().nullable(),
+      project_context: z.enum(["none", "current", "viewed"]),
+      active_project_id: z.string().nullable(),
+      root_resolution: z.enum(["none", "available", "unavailable", "not_found"]),
+    }),
+    source_status: z.enum(["live_current_project", "project_choice", "viewed_project", "partial", "unavailable"]),
+    gaps: z.array(z.string()),
+    coordinate: z.object({
+      focus: z.string(),
+      goal: z.string().nullable(),
+      work_status: z.string(),
+      result_available: z.boolean(),
+      result_summary: z.string().nullable(),
+      verification: z.object({ passed: z.number(), failed: z.number(), skipped: z.number() }).nullable(),
+      material_blocker_or_uncertainty: z.string().nullable(),
+      unresolved_user_judgment: z.string().nullable(),
+      recent_meaningful_change: z.string().nullable(),
+    }),
+    observed: z.array(z.object({ item_id: z.string(), statement: z.string(), source_refs: z.array(z.string()) })),
+    inferred: z.array(z.object({ item_id: z.string(), statement: z.string(), supporting_observation_ids: z.array(z.string()), confidence: z.enum(["high", "medium", "low"]), caveats: z.array(z.string()) })),
+    suggested: z.array(z.object({ item_id: z.string(), label: z.string(), reason: z.string(), href: z.string().nullable(), action_ref: z.string().nullable(), blockers: z.array(z.string()), source_refs: z.array(z.string()), executes: z.literal(false) })),
+    needs_user_judgment: z.array(z.object({ item_id: z.string(), question: z.string(), why_it_matters: z.string(), blocked: z.array(z.string()), source_refs: z.array(z.string()), resolved: z.literal(false) })),
+    primary_guidance: z.object({ label: z.string(), reason: z.string(), href: z.string().nullable(), action_ref: z.string().nullable(), requires_user_judgment: z.boolean(), source_refs: z.array(z.string()), executes: z.literal(false) }).passthrough(),
+    source_refs: z.array(z.object({ ref_id: z.string(), kind: z.string(), label: z.string(), href: z.string().nullable() })),
+    projections: z.object({ chatgpt: z.record(z.unknown()), codex: z.record(z.unknown()) }).passthrough(),
+    authority: GuideBriefAuthorityBoundarySchema,
+    safety: z.object({
+      contains_private_absolute_paths: z.literal(false),
+      contains_credentials: z.literal(false),
+      contains_raw_provider_output: z.literal(false),
+      contains_hidden_reasoning: z.literal(false),
+      contains_raw_transcripts: z.literal(false),
+      provider_or_network_calls: z.literal(false),
+      persisted: z.literal(false),
+    }),
   })
   .passthrough();
 
@@ -1569,7 +1604,7 @@ export interface StateRuntimeWorkEventInput {
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
-  getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult>;
+  getGuideBrief(input: { scope: StateRuntimeScope; projectId?: string }): Promise<GuideBriefResult>;
   getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult>;
   getAutonomyRunnerPreflight(input: StateRuntimeAutonomyRunnerPreflightInput): Promise<AutonomyRunnerPreflightPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;

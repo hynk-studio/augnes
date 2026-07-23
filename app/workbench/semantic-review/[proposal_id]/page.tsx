@@ -1,5 +1,6 @@
 import { SemanticReviewSurface } from "@/components/workbench/semantic-review/semantic-review-surface";
 import { notFound } from "next/navigation";
+import { loadProjectGuideBriefAIWorkplaneProjectionV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,5 +22,6 @@ export default async function SemanticReviewProposalPage({
     notFound();
   }
   const proposalId = proposalSlug.replace("~", ":");
-  return <SemanticReviewSurface proposalId={proposalId} />;
+  const guide = await loadProjectGuideBriefAIWorkplaneProjectionV02();
+  return <SemanticReviewSurface proposalId={proposalId} guide={guide} />;
 }

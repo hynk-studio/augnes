@@ -786,6 +786,16 @@ function minimized(message) {
   }
   if (message?.method === "turn/start") {
     const rendered = message.params?.input?.[0]?.text;
+    const guideHeading = "## GuideBrief — non-authoritative task-start guidance";
+    const packetHeading = "## TaskContextPacket — exact bounded execution contract";
+    const guideIndex = typeof rendered === "string" ? rendered.indexOf(guideHeading) : -1;
+    const packetIndex = typeof rendered === "string" ? rendered.indexOf(packetHeading) : -1;
+    const packetText = typeof rendered === "string"
+      ? rendered.split("\n\n").at(-1) ?? ""
+      : "";
+    const packetFingerprint = typeof rendered === "string"
+      ? rendered.match(/Packet fingerprint: (sha256:[a-f0-9]{64})/u)?.[1] ?? null
+      : null;
     summary.thread_id = message.params?.threadId ?? null;
     summary.cwd = message.params?.cwd ?? null;
     summary.approval_policy = message.params?.approvalPolicy ?? null;
@@ -797,6 +807,18 @@ function minimized(message) {
       typeof rendered === "string"
         ? `sha256:${createHash("sha256").update(rendered).digest("hex")}`
         : null;
+    summary.guide_brief_section = guideIndex >= 0;
+    summary.guide_brief_version_v0_2 = typeof rendered === "string" && rendered.includes("guide_brief.v0.2");
+    summary.task_context_packet_section = packetIndex >= 0;
+    summary.guide_before_task_context_packet = guideIndex >= 0 && packetIndex > guideIndex;
+    summary.guide_non_authority_statement = typeof rendered === "string" && rendered.includes("It is not the execution contract and does not override the TaskContextPacket");
+    summary.unresolved_judgment_remains_unresolved = typeof rendered === "string" && rendered.includes("Unresolved judgment remains unresolved");
+    summary.suggestions_are_not_commands = typeof rendered === "string" && rendered.includes("suggestions are not commands");
+    summary.guide_grants_approval = typeof rendered === "string" && /"can_approve":true/u.test(rendered);
+    summary.packet_fingerprint = packetFingerprint;
+    summary.packet_payload_sha256 = packetText
+      ? `sha256:${createHash("sha256").update(packetText).digest("hex")}`
+      : null;
   }
   return summary;
 }

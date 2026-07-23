@@ -1,4 +1,5 @@
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
+import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
 import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
 import { ProductShell } from "@/components/product-shell";
 
@@ -7,9 +8,11 @@ import styles from "@/components/workbench/semantic-review/semantic-review.modul
 export function RunResultReviewSurface({
   result,
   accessBoundary,
+  guide,
 }: {
   result: ProjectRunResultDetailV01;
   accessBoundary?: React.ReactNode;
+  guide: GuideBriefAIWorkplaneProjectionV02;
 }) {
   const summary = result.summary;
   const entryPresentation = resultEntryPresentation(result);
@@ -22,6 +25,7 @@ export function RunResultReviewSurface({
         data-semantic-mutation="false"
       >
       <SemanticWorkbenchShell
+        guide={guide}
         title="Verify run result"
         description="Compare one immutable, project-scoped RunReceipt with its selected context, verification residue, criterion assessment, and admitted candidate material. Opening this entry performs no semantic write."
         entryState={entryPresentation.state}

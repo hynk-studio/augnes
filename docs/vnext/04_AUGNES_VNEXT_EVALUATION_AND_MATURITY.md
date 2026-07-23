@@ -91,6 +91,14 @@ GuideBrief evaluation remains non-authoritative: consistency of explanation
 does not turn a guide projection into truth, execution authority, accepted
 state or a substitute for `TaskContextPacket`.
 
+C3 evidence additionally checks that the Browser, AI Workplane, MCP and Codex
+projections share project, goal, work/result status, material uncertainty,
+unresolved judgment and primary guidance; the v0.2 route is local, marker-gated,
+read-only and `no-store`; new Codex turns receive a separate GuideBrief before
+the unchanged exact packet; and 390px/430px layouts retain the primary action
+without horizontal overflow. This is focused merge evidence, not a new metric
+framework. C3 becomes complete only after its PR is reviewed and merged.
+
 ## Semantic authority guardrails
 
 The following are zero-tolerance correctness guardrails for any implemented path

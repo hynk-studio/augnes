@@ -74,6 +74,11 @@ import {
   type VNextLocalOperatorSessionMutationAdmissionV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
+import {
+  bindGuideBriefCodexProjectionToPacketV02,
+  unavailableGuideBriefCodexProjectionV02,
+} from "@/lib/vnext/guide-brief/project-guide-brief";
+import { readProjectGuideBriefV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 import { VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 } from "@/lib/vnext/runtime/operator-pilot-context-use-contract";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
@@ -611,6 +616,23 @@ export async function runDirectNativeHostRoundTripV01(
       interactive_authorized: dependencies.live_host_egress_authorized === true,
     });
   }
+  let taskStartGuide;
+  try {
+    const { guide } = await readProjectGuideBriefV02(db, {
+      route_mode: "viewed_project",
+      project_id: input.config.project_id,
+      generated_at: prevalidatedAt,
+    });
+    taskStartGuide = bindGuideBriefCodexProjectionToPacketV02(
+      guide.projections.codex,
+      admitted.packet,
+    );
+  } catch {
+    taskStartGuide = unavailableGuideBriefCodexProjectionV02(
+      admitted.packet,
+      "current_project_guide_unavailable",
+    );
+  }
   const identity = buildRunIdentity({
     config: input.config,
     mode: input.mode,
@@ -739,6 +761,7 @@ export async function runDirectNativeHostRoundTripV01(
     stop_settle_timeout_ms: stopSettleTimeoutMs,
     live_host: managedLive,
     adapter,
+    guide_brief: taskStartGuide,
   });
   dependencies.on_invocation_admitted?.({
     request,
@@ -1296,6 +1319,7 @@ function buildNativeHostRequest(input: {
   stop_settle_timeout_ms: number;
   live_host: boolean;
   adapter: NativeHostAdapterV01;
+  guide_brief: NativeHostRequestV01["guide_brief"];
 }): NativeHostRequestV01 {
   const packet = input.admission.packet;
   return {
@@ -1309,6 +1333,7 @@ function buildNativeHostRequest(input: {
     task_ref: input.admission.task_ref,
     task_context_packet_ref: input.admission.packet_ref,
     packet,
+    guide_brief: input.guide_brief,
     packet_lineage: {
       source_transition_receipt_ref:
         input.admission.source_transition_receipt_ref,

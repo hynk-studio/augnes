@@ -170,6 +170,24 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "guide-brief-current-project",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "route-transport"],
+      label:
+        "GuideBrief v0.2 current-project source, projections, bounds, safety, and packet separation",
+      ...rootNode("scripts/test-vnext-guide-brief.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      id: "codex-read-guide-brief",
+      group: "supporting-serial",
+      requirements: ["route-transport", "deterministic-fake-transport"],
+      label:
+        "Codex current-project GuideBrief marker, bounded sections, and fail-closed parsing",
+      ...rootNode("scripts/test-codex-read-brief.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "project-onboarding",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "project-root"],

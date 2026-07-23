@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { ProjectGuideBriefRail } from "@/components/guide/project-guide-brief-rail";
+import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
 import type { SemanticWorkbenchEntryStateV01 } from "@/types/vnext/semantic-workbench";
 
 import styles from "./semantic-review/semantic-review.module.css";
@@ -23,6 +25,7 @@ export function SemanticWorkbenchShell({
   projectHref,
   inspectorHref,
   navigation = [],
+  guide,
   children,
 }: {
   title: string;
@@ -32,6 +35,7 @@ export function SemanticWorkbenchShell({
   projectHref: string;
   inspectorHref?: string;
   navigation?: SemanticWorkbenchNavigationItemV01[];
+  guide: GuideBriefAIWorkplaneProjectionV02;
   children: ReactNode;
 }) {
   return (
@@ -47,7 +51,7 @@ export function SemanticWorkbenchShell({
           <p className={styles.headerCopy}>{description}</p>
         </div>
         <nav className={styles.nav} aria-label="Current review destinations">
-          <a href={projectHref}>Project Home</a>
+          <a href={projectHref}>Blank State</a>
           <a href="/workbench/semantic-review">Proposal queue</a>
           {inspectorHref ? (
             <a href={inspectorHref} data-semantic-workbench-inspector="true">
@@ -56,6 +60,8 @@ export function SemanticWorkbenchShell({
           ) : null}
         </nav>
       </header>
+
+      <ProjectGuideBriefRail guide={guide} />
 
       <details className={styles.boundaryDisclosure}>
         <summary>

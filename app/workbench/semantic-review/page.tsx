@@ -1,4 +1,5 @@
 import { SemanticReviewSurface } from "@/components/workbench/semantic-review/semantic-review-surface";
+import { loadProjectGuideBriefAIWorkplaneProjectionV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export const metadata = {
     "Opt-in local review of EpisodeDeltaProposal candidates and explicit ReviewDecision preparation.",
 };
 
-export default function SemanticReviewPage() {
-  return <SemanticReviewSurface />;
+export default async function SemanticReviewPage() {
+  const guide = await loadProjectGuideBriefAIWorkplaneProjectionV02();
+  return <SemanticReviewSurface guide={guide} />;
 }

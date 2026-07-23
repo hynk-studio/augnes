@@ -2,7 +2,14 @@
 
 ## 1. Status and Scope
 
-Status: Phase 6E GuideBrief / Cross-Surface Guide Core, GET-only read route,
+Status: historical and compatibility-only after GuideBrief v0.2 current-project
+active-path restoration. This document remains authoritative only for the
+archived v0.1 contract and its legacy fixtures/surfaces; it does not describe
+the active Blank State, AI Workplane, MCP, `codex:read-brief`, or native Codex
+task-start path. The current contract is
+`docs/GUIDEBRIEF_CONTRACT_V0_2.md`.
+
+Historical status: Phase 6E GuideBrief / Cross-Surface Guide Core, GET-only read route,
 Web Guide read-only panel skeleton, ChatGPT App/MCP read-only Guide tool,
 Codex GuideBrief alignment v0.1, GuideBrief Workplane Debug Context v0.1, and
 GuideBrief Intent Projection v0.1.

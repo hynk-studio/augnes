@@ -8833,6 +8833,22 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           String(turnStart.value.rendered_input_sha256),
           /^sha256:[a-f0-9]{64}$/,
         );
+        assert.equal(turnStart.value.guide_brief_section, true);
+        assert.equal(turnStart.value.guide_brief_version_v0_2, true);
+        assert.equal(turnStart.value.task_context_packet_section, true);
+        assert.equal(turnStart.value.guide_before_task_context_packet, true);
+        assert.equal(turnStart.value.guide_non_authority_statement, true);
+        assert.equal(turnStart.value.unresolved_judgment_remains_unresolved, true);
+        assert.equal(turnStart.value.suggestions_are_not_commands, true);
+        assert.equal(turnStart.value.guide_grants_approval, false);
+        assert.equal(
+          turnStart.value.packet_fingerprint,
+          livePacket.integrity.fingerprint,
+        );
+        assert.equal(
+          turnStart.value.packet_payload_sha256,
+          `sha256:${createHash("sha256").update(canonicalizeProtocolValueV01(livePacket)).digest("hex")}`,
+        );
         assert.equal(
           harness.observations.filter((entry) => entry.kind === "spawned")
             .length,

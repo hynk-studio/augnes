@@ -8,6 +8,7 @@ import {
   type SemanticWorkbenchShellStateV01,
 } from "@/components/workbench/semantic-workbench-shell";
 import { ProductShell } from "@/components/product-shell";
+import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
 import {
   OperatorSessionPanel,
   type OperatorSessionStateV01,
@@ -34,7 +35,13 @@ type PrivateSemanticReviewViewV01 =
   | { kind: "list"; value: SemanticReviewListRouteResponseV01 }
   | { kind: "detail"; value: SemanticReviewDetailRouteResponseV01 };
 
-export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
+export function SemanticReviewSurface({
+  proposalId,
+  guide,
+}: {
+  proposalId?: string;
+  guide: GuideBriefAIWorkplaneProjectionV02;
+}) {
   const router = useRouter();
   const [sessionState, setSessionState] = useState<OperatorSessionStateV01>({
     status: "checking",
@@ -440,6 +447,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
         }
       >
       <SemanticWorkbenchShell
+        guide={guide}
         title={proposalId ? "Verify and decide" : "Review project decisions"}
         description="Trace exact evidence to one explicit decision; an applied Transition remains a separate step."
         entryState={entryPresentation.state}

@@ -69,10 +69,11 @@ GuideBrief product responsibility, UX merge gates, and replacement discipline.
 It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
-interface. C0 and C1 are merged. The C2 implementation in this change makes
-Blank State the shared human entry and resumption surface while preserving the
-existing project, host, control, result, Portability, Recovery, and exact-detail
-capabilities beneath it:
+interface. C0, C1, and C2 are merged. The C3 implementation in this change
+restores GuideBrief v0.2 as the shared current-project interpretation path for
+Blank State, AI Workplane, ChatGPT/MCP, `codex:read-brief`, and new native Codex
+task starts while preserving the existing project, host, control, result,
+Portability, Recovery, and exact-detail capabilities beneath it:
 
 - **Blank State** — default simple human entry and resumption surface
 - **GuideBrief** — embedded cross-surface interpretation and guidance layer
@@ -83,14 +84,15 @@ capabilities beneath it:
 Default top-level navigation is limited to **Blank State** and **AI Workplane**.
 Project selection, Portability, and Recovery are secondary Project tools;
 Inspector is contextual beneath AI Workplane and is not a Project tool.
-GuideBrief is not a peer destination. C1 established the two-zone shell. C2 in
-this change renders `/` as the canonical Blank State; `/projects` and
+GuideBrief is not a peer destination. C1 established the two-zone shell. C2
+renders `/` as the canonical Blank State; `/projects` and
 `/projects/[projectId]` are compatible views of the same surface, while
 `/overview` redirects to `/`. The `ProjectHomeProjectionV01` name may remain as
 an internal source-model term, but Project Home and standalone onboarding are
-not parallel user-facing products. C2 becomes complete only when this PR is
-reviewed and merged. GuideBrief active-path work remains pending C3, Workbench
-reprojection remains pending C4, and C5–C9 remain pending. Current code remains
+not parallel user-facing products. C3 in this change makes GuideBrief v0.2 the
+active bounded current-project View; it does not replace `TaskContextPacket`,
+grant authority, add a page, or complete AI Workplane reprojection. C3 becomes
+complete only when this PR is reviewed and merged. C4–C9 remain pending. Current code remains
 authoritative for implemented behavior until each later correction PR changes
 it.
 
@@ -157,9 +159,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C2 Blank State restoration is the
-active authorized correction after merged C0 and C1. Do not start C3–C9 or
-broad visual polish before C2 user review and merge.
+An unsatisfactory answer blocks the PR. C3 GuideBrief active-path restoration
+is the active authorized correction after merged C0, C1, and C2. Do not start
+C4–C9 or broad visual polish before C3 user review and merge.
 
 ## Development defaults
 

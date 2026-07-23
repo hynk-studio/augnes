@@ -13,6 +13,11 @@ Use this order when current documents disagree:
 5. `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` — development and post-Alpha evaluation
 6. `../REPOSITORY_REDUCTION_SCOPE.md` — repository retention and deletion policy
 
+The active GuideBrief implementation contract is
+`../GUIDEBRIEF_CONTRACT_V0_2.md`. It governs the current-project packet,
+surface projections, local route/marker, TaskContextPacket separation, bounds,
+safety and all-false authority boundary without redefining Core semantics.
+
 The C0 charter takes precedence over older surface-topology planning where it
 conflicts, but it does not redefine Core protocol semantics or durable
 authority. Code and current runtime behavior remain the source of truth for
@@ -52,10 +57,10 @@ The vNext commitments that remain active are:
 
 ```text
 C0 Product UX charter and hard invariants — documentation authority only
-C1 Top-level IA reduction — next runtime step after C0 review and merge
-C2 Blank State restoration and Project Home absorption
-C3 GuideBrief active-path restoration
-C4 AI Workplane reprojection
+C1 Top-level IA reduction — merged
+C2 Blank State restoration and Project Home absorption — merged
+C3 GuideBrief active-path restoration — implemented in this change; complete after review and merge
+C4 AI Workplane reprojection — next after C3 merge
 C5 Delegated Codex work timeline and resumption
 C6 Contextual Inspector demotion
 C7 Portability and Recovery management/safety relocation
@@ -63,7 +68,7 @@ C8 Visual system after IA correction
 C9 Compatibility and obsolete-surface reduction
 ```
 
-C1–C9 are not implemented, complete, or runtime-active. The R1–R8 sequence in
+C4–C9 are not implemented, complete, or runtime-active. The R1–R8 sequence in
 the Roadmap records the operational Core and reference operator implementation
 that C0 preserves and reprojects; it is not the next user-facing correction
 order.

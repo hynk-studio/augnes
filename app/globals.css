@@ -170,6 +170,30 @@
 .blank-state-secondary-button:disabled,
 .blank-state-tertiary-button:disabled { cursor: wait; opacity: .6; }
 
+.blank-state-guide-disclosure {
+  max-width: 680px;
+  margin-top: 16px;
+  color: var(--muted);
+}
+
+.blank-state-guide-disclosure > summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.blank-state-guide-disclosure > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-left: 14px;
+  border-left: 2px solid var(--panel-border);
+}
+
+.blank-state-guide-disclosure p { margin: 0; line-height: 1.5; }
+.blank-state-guide-disclosure span { color: var(--muted); }
+
 .blank-state-shell :is(a, button, summary):focus-visible {
   outline: 3px solid #8ccbb8;
   outline-offset: 3px;
