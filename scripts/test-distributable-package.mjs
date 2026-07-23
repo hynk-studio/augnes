@@ -1324,7 +1324,7 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     assert.match(workbench.body, /data-primary-product-zone="ai-workplane"/);
     const inspector = await fetchText(`${ready.effective_url}/workbench/inspector`);
     assert.equal(inspector.status, 200);
-    assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);
+    assert.match(inspector.body, /Exact details|Checking exact details/);
     assert.equal(existsSync(scenario.projectExecutionSentinel), false);
 
     const stop = await runPackagedCli(root, ["stop"], environment, "stop fresh package");
@@ -3903,7 +3903,11 @@ async function assertProductReaders(
   }
   const inspector = await fetchText(`${origin}/workbench/inspector`);
   assert.equal(inspector.status, 200);
-  assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);
+  if (expectedSurface === "legacy-project-home") {
+    assert.match(inspector.body, /Shared Inspector|Validating exact Inspector target/);
+  } else {
+    assert.match(inspector.body, /Exact details|Checking exact details/);
+  }
   assert.equal(existsSync(scenario.projectExecutionSentinel), false);
 }
 

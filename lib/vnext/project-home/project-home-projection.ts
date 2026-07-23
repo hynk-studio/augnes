@@ -20,6 +20,7 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
+  readProjectAutomationControlV01,
   readPersonalPerspectiveEffectiveScopeV01,
   readProjectAutomationEffectiveStatusV01,
 } from "@/lib/vnext/persistence/project-control-store";
@@ -39,6 +40,7 @@ import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local
 import {
   canonicalizeProtocolValueV01,
   compareProtocolCodeUnitsV01,
+  createProtocolSha256V01,
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
@@ -460,6 +462,7 @@ export async function readProjectHomeProjectionV01(
     active_selection: activeSelection,
   } satisfies ProjectHomeProjectionV01["project_summary"];
   const automationAdmission = automationAdmissionFromCycle(automationCycle);
+  const automationControl = readProjectAutomationControlV01(db, input);
   const automation = {
     state: automationSectionStateV01(effectiveAutomation, automationCycle),
     status: effectiveAutomation.status,
@@ -483,7 +486,15 @@ export async function readProjectHomeProjectionV01(
             record_id: automationCycle.work_source.work_id,
             expected_fingerprint: automationCycle.work_source.work_fingerprint,
           })
-        : createSharedInspectorHrefV01({ target_kind: "project_coordination" }),
+        : automationControl
+          ? createSharedInspectorHrefV01({
+              target_kind: "automation_policy",
+              policy_id: `${input.project_id}:${automationControl.revision}`,
+              policy_fingerprint: createProtocolSha256V01(
+                canonicalizeProtocolValueV01(automationControl.policy),
+              ),
+            })
+          : null,
   } satisfies ProjectHomeProjectionV01["automation"];
   const personalPerspective = {
     state: sectionState(

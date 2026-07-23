@@ -8,14 +8,14 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata = {
-  title: "Shared Inspector | Augnes",
+  title: "Exact details | Augnes",
   description:
-    "Authenticated, project-scoped, read-only drill-down over exact Augnes lineage.",
+    "Contextual, project-scoped, read-only detail for an exact Augnes item.",
 };
 
 export default function SharedProjectInspectorPage() {
   return (
-    <Suspense fallback={<ProductShell primaryZone="ai-workplane"><main className="product-route-state" aria-live="polite">Validating exact Inspector target…</main></ProductShell>}>
+    <Suspense fallback={<ProductShell primaryZone="ai-workplane"><main className="product-route-state" aria-live="polite">Checking exact details…</main></ProductShell>}>
       <SharedProjectInspectorLoader />
     </Suspense>
   );

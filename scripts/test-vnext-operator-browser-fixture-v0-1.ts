@@ -575,6 +575,17 @@ try {
       error instanceof SharedProjectInspectorTargetErrorV01 &&
       error.code === "shared_inspector_query_size_invalid",
   );
+  assert.throws(
+    () =>
+      parseSharedInspectorTargetV01(
+        new URLSearchParams(
+          "target=project_coordination&return_to=https%3A%2F%2Fevil.example",
+        ),
+    ),
+    (error: unknown) =>
+      error instanceof SharedProjectInspectorTargetErrorV01 &&
+      error.code === "shared_inspector_target_fields_invalid",
+  );
   record("shared_inspector_href_and_strict_target_parser_fail_closed");
 
   const networkGuard = installZeroNetworkGuard({ allowLoopback: false });
@@ -815,6 +826,11 @@ try {
   assert.equal(inspectorRouteSource.includes("export const PATCH"), false);
   assert.equal(inspectorRouteSource.includes("export const DELETE"), false);
   assert.equal(inspectorSurfaceSource.includes("data-shared-project-inspector"), true);
+  assert.equal(inspectorSurfaceSource.includes("Exact details"), true);
+  assert.equal(inspectorSurfaceSource.includes("Additional exact records"), true);
+  assert.equal(inspectorSurfaceSource.includes("Exact record identity"), true);
+  assert.equal(inspectorSurfaceSource.includes("Shared Inspector ·"), false);
+  assert.equal(inspectorSurfaceSource.includes("twoColumnGrid"), false);
   assert.equal(inspectorSurfaceSource.includes("<form"), false);
   assert.equal(inspectorSurfaceSource.includes('type="submit"'), false);
   assert.equal(inspectorSurfaceSource.includes("Create ReviewDecision"), false);

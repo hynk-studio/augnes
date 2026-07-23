@@ -13,6 +13,7 @@ import type {
   DelegatedWorkTimelineItemV01,
   DelegatedWorkTimelineKindV01,
 } from "@/types/vnext/delegated-work";
+import { createRunResultReviewHrefV01 } from "@/lib/vnext/ai-workplane-review-href";
 import {
   DELEGATED_WORK_LIMITS_V01,
   DELEGATED_WORK_PROJECTION_VERSION_V01,
@@ -227,7 +228,9 @@ export function buildDelegatedWorkProjectionV01(
     ? {
         receipt_ref: input.live_run.receipt.receipt_ref,
         outcome: input.live_run.receipt.outcome,
-        review_href: `/workbench/results/${input.live_run.receipt.receipt_ref.replace(":", "~")}`,
+        review_href: createRunResultReviewHrefV01(
+          input.live_run.receipt.receipt_ref,
+        ),
       }
     : null;
 

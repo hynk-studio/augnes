@@ -47,9 +47,10 @@ The vNext commitments that remain active are:
 - target default top-level navigation limited to Blank State and AI Workplane
 - GuideBrief as an active, non-authoritative cross-surface interpretation and
   guidance responsibility, distinct from `TaskContextPacket`
-- current Project Home, Semantic Workbench, Shared Inspector, Portability, and
-  Recovery as implemented reference operator surfaces until later correction
-  PRs absorb, demote, relocate, redirect, or remove them with replacement proof
+- historical Project Home, Semantic Workbench, and Shared Inspector names as
+  compatibility residue beneath Blank State, AI Workplane, and contextual Exact
+  details; Portability and Recovery remain reference operator surfaces until
+  later correction PRs relocate or reduce them with replacement proof
 - a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
 - migration, backup, restore, update, recovery, and automated-run reconciliation
 

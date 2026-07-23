@@ -55,14 +55,17 @@ embedded되는 non-authoritative interpretation layer이며 peer page가 아니�
 Inspector도 normal peer destination이 아니라 contextual audit surface다.
 
 현재 runtime은 canonical Blank State, GuideBrief v0.2와 human-facing AI Workplane을
-통해 operational Core를 투영한다. C5 in this change는 기존 managed-live runner ledger와
+통해 operational Core를 투영한다. C5는 기존 managed-live runner ledger와
 native-host lifecycle을 durable delegated Codex progress, approval attention, interruption,
-explicit resume와 trusted-result boundary로 투영한다. Shared Inspector, Portability와 Recovery는
-여전히 reference operator implementation이다. Post-Build Week correction은 이 engine을
+explicit resume와 trusted-result boundary로 투영했다. C6 in this change는 exact reader를
+보존하면서 Shared Inspector presentation을 concrete-target contextual Exact details로
+demote한다. Portability와 Recovery는 여전히 reference operator implementation이다.
+Post-Build Week correction은 이 engine을
 폐기하지 않고 target surface 아래로 reproject, absorb 또는 demote한다. C4는 exact
 verification, proposal, decision, confirmation, application과 lineage semantics를 유지한 채
 default Workbench projection을 ordinary-language AI Workplane으로 바꿨다. C5는 새
-timeline persistence나 execution authority를 만들지 않는다. 이후 correction
+timeline persistence나 execution authority를 만들지 않았고 C6는 새 read authority나
+return URL authority를 만들지 않는다. 이후 correction
 PR 전까지 현재 code가 implemented behavior의 source of truth다.
 
 ---
@@ -815,9 +818,13 @@ Inspector는 concrete work item, run, result, criterion, source, Evidence, Claim
 proposal, decision, Transition, warning, automation event 또는 diagnostic failure에서
 여는 exact read-only audit and drill-down surface다.
 
-현재 `/workbench/inspector`와 `shared_project_inspector.v0.1`은 구현된 reference
-surface다. authenticated project scope, read-only projection과 no-authority invariant는
-그대로 보존한다. Inspector GET/render는 record, decision, gate, Transition, packet,
+현재 `/workbench/inspector`와 `shared_project_inspector.v0.1` exact reader는 그대로
+유지된다. C6의 `contextual_inspector_view.v0.1`은 authenticated projection 위의
+bounded presentation이며 concrete target title, exact status, 최대 네 개의 관련
+section, closed additional records, exact identity disclosure와 deterministic related
+return context만 만든다. authenticated project scope, read-only projection과
+no-authority invariant는 그대로 보존한다. Inspector GET/render는 record, decision,
+gate, Transition, packet,
 feedback, automation, Perspective 또는 memory를 만들거나 고르지 않고
 model/provider/external action도 호출하지 않는다.
 
@@ -847,7 +854,8 @@ Current-to-target disposition은 다음과 같다.
 - Project Home capability는 Blank State로 planned absorption된다.
 - Semantic Workbench와 현재 engine projection 대부분은 AI Workplane 아래로
   planned absorption된다.
-- Shared Inspector는 contextual exact read-only drill-down으로 유지된다.
+- Shared Inspector exact reader와 historical naming은 compatibility residue로
+  유지되며 active product는 contextual Exact details로 presentation된다.
 - Portability와 Recovery는 project management, safety, settings 또는
   condition-triggered path로 planned relocation된다.
 - Projects와 Home은 competing peer top-level destination으로 남지 않는다.

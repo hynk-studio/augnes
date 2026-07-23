@@ -154,6 +154,15 @@ The deterministic local round-trip remains an advanced project option. The
 existing host-round-trip route and autonomy runner ledger remain retained
 runtime authorities; broad adapter/file-name cleanup is deferred to C9.
 
+C6 retains `shared_project_inspector.v0.1` and the compatible
+`/workbench/inspector` route as the exact authenticated reader. Active product
+presentation is `contextual_inspector_view.v0.1`: generic
+`project_coordination` navigation is compatibility/direct-audit residue only,
+while concrete result, suggested-change, delegated-run, automation-policy and
+Personal Perspective links open contextual Exact details. Historical
+SharedProjectInspector component/type names and inactive Agent Workplane links
+remain C9 cleanup residue.
+
 ### Automation and Personal Perspective
 
 Do not delete shared roadmap foundations. Delete only duplicated or advanced subsystems after replacement or an explicit later product decision:

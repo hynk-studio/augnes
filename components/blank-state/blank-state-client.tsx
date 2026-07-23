@@ -635,7 +635,7 @@ function ProjectOptions({
           {projection.automation.cycle.run?.result_href ? <a href={projection.automation.cycle.run.result_href}>Open automated result</a> : null}
           {projection.automation.cycle.run?.proposal_href ? <a href={projection.automation.cycle.run.proposal_href}>Review suggested change</a> : null}
           {projection.automation.cycle.feedback_href ? <a href={projection.automation.cycle.feedback_href}>Share outcome</a> : null}
-          {active ? <a href={projection.automation.inspector_href} data-project-automation-inspector="true">View exact automation details</a> : null}
+          {active && projection.automation.inspector_href ? <a href={projection.automation.inspector_href} data-project-automation-inspector="true">View exact automation details</a> : null}
           <ProjectControls projection={projection} kind="automation" />
         </section>
 
