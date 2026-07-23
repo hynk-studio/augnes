@@ -17,11 +17,11 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 156);
+assert.equal(resultKeys.length, 159);
 assert.equal(recordNames.length, 40);
 assert.equal(
   hashInventory(resultKeys),
-  "cbc99de45296ef6e39476cd9dd8b76c9904017761508ba8769de6a7d56adfc2c",
+  "50bed4c303ac4c6c8eb2fbbc17b9816a8ea83c50ae02af6395c5f74a8c4ed846",
 );
 assert.equal(
   hashInventory(recordNames),
@@ -74,6 +74,14 @@ assert.match(
 assert.match(
   source,
   /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2/u,
+);
+assert.match(
+  source,
+  /data-guide-brief-version="guide_brief\.v0\.2"[\s\S]*data-ai-workplane-guide="guide_brief\.v0\.2"/u,
+);
+assert.match(
+  source,
+  /guide_brief_cross_surface_consistency = true/u,
 );
 assert.match(
   source,

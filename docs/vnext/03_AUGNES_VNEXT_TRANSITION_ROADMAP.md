@@ -105,11 +105,12 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
   authority; no runtime, protocol, schema or behavior change
 - **C1 — Top-level IA reduction:** merged; the shared shell exposes Blank State
   and AI Workplane as its two primary zones
-- **C2 — Blank State restoration and Project Home absorption:** this change
-  makes `/` the canonical Blank State and makes `/projects` and
-  `/projects/[projectId]` compatible views of the same surface; C2 is complete
-  only after user review and merge
-- **C3 — GuideBrief active-path restoration:** next after C2 merge
+- **C2 — Blank State restoration and Project Home absorption:** merged; `/` is
+  the canonical Blank State and `/projects` plus `/projects/[projectId]` are
+  compatible views of the same surface
+- **C3 — GuideBrief active-path restoration:** this change activates one
+  bounded current-project v0.2 builder across Browser, AI Workplane,
+  ChatGPT/MCP and Codex; complete only after user review and merge
 - **C4 — AI Workplane reprojection of current Semantic Workbench and engine complexity**
 - **C5 — Delegated Codex work timeline and resumption**
 - **C6 — Contextual Inspector demotion**
@@ -117,18 +118,21 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
 - **C8 — Visual system after IA correction**
 - **C9 — Compatibility and obsolete-surface reduction**
 
-C2 in this change replaces the root redirect, standalone Projects product,
+C2 replaced the root redirect, standalone Projects product,
 user-facing Project Home composition, and competing `/overview` home with one
 shared Blank State architecture. Existing Project Home read models remain
 internal sources, and current project-management and host/control capabilities
-remain available within the shared surface. GuideBrief active-path restoration
-remains pending C3; current Semantic Workbench and Agent Workplane reprojection
-remains pending C4; C5 delegated-work timeline, C6 deeper Inspector demotion,
+remain available within the shared surface. C3 in this change replaces the
+independent C2 focus/action decision path, legacy active route output,
+fixture-backed active Web guide, and state-brief-based `codex:read-brief` with
+GuideBrief v0.2 projections while preserving the exact `TaskContextPacket` as a
+separate execution contract. Current Semantic Workbench and Agent Workplane
+reprojection remains pending C4; C5 delegated-work timeline, C6 deeper Inspector demotion,
 C7 final Portability/Recovery relocation, C8 visual system, and C9 compatibility
 reduction remain unimplemented. Current code remains authoritative for each
 existing behavior until its later correction PR changes it.
 
-No broad visual-polish or unrelated new-feature phase precedes C3 after C2
+No broad visual-polish or unrelated new-feature phase precedes C4 after C3
 unless the user explicitly overrides this correction program. Replacement work
 must account for the superseded surface through absorption, redirect, hiding,
 explicit demotion or removal; it must not silently add another destination.

@@ -252,12 +252,17 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           resultStatus: 'blocked',
           resultKind: 'verification',
         });
+        const explicitGuideResult = await server._registeredTools.augnes_get_guide_brief.handler({
+          projectId: 'project:00000000-0000-4000-8000-000000000002',
+          compact: false,
+        });
         server.close();
         console.log(JSON.stringify({
           widgetUri: WIDGET_URI,
           profiles,
           richRecord: richRecordResult.structuredContent?.actionRecord,
           richRecordText: richRecordResult.content?.[0]?.text,
+          explicitGuide: explicitGuideResult.structuredContent?.guideBrief,
           toolNames: Object.keys(server._registeredTools)
         }));
       `,
@@ -693,7 +698,7 @@ async function main() {
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.guide_version,
-    "guide_brief.v0.1",
+    "guide_brief.v0.2",
     "augnes_get_guide_brief should return GuideBrief structured content"
   );
   assert.equal(
@@ -702,17 +707,17 @@ async function main() {
     "augnes_get_guide_brief should summarize observed items"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority_boundary.can_execute_codex,
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority.can_execute_codex,
     false,
     "augnes_get_guide_brief should not expose Codex execution authority"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority_boundary.can_call_openai_or_provider,
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority.can_call_openai_or_provider,
     false,
     "augnes_get_guide_brief should preserve guideBrief OpenAI/provider denial"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSnake.authority_boundary.can_call_openai_or_provider,
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSnake.authority.can_call_openai_or_provider,
     false,
     "augnes_get_guide_brief should preserve guide_brief OpenAI/provider denial"
   );
@@ -738,18 +743,28 @@ async function main() {
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
-    /Suggestions are not actions/i,
-    "augnes_get_guide_brief should state suggestions are not actions"
+    /Suggestions are not instructions/i,
+    "augnes_get_guide_brief should state suggestions are not instructions"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
-    /Needs user judgment items are not decided by the guide/i,
+    /Unresolved user judgment:/i,
     "augnes_get_guide_brief should state user judgment items are not decided"
   );
-  assert.match(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.text,
-    /Handoff candidates are preview-only/i,
-    "augnes_get_guide_brief should state handoff candidates are preview-only"
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.source_status,
+    "live_current_project",
+    "augnes_get_guide_brief should expose current-project source status"
+  );
+  assert.equal(
+    bridgeSnapshot.explicitGuide.identity.project_id,
+    "project:00000000-0000-4000-8000-000000000002",
+    "augnes_get_guide_brief should preserve an explicitly requested exact project"
+  );
+  assert.equal(
+    bridgeSnapshot.explicitGuide.identity.project_context,
+    "viewed",
+    "an explicit GuideBrief project read must not silently switch active context"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.contract_version,

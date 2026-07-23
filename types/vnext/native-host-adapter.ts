@@ -1,6 +1,7 @@
 import type { ExternalRefV01 } from "./external-ref";
 import type { TaskContextPacketV01 } from "./task-context-packet";
 import type { BoundedAutomationCapabilityGrantV01 } from "./bounded-automation-cycle";
+import type { GuideBriefCodexProjectionV02 } from "./guide-brief";
 
 export const NATIVE_HOST_REQUEST_VERSION_V01 =
   "native_host_request.v0.1" as const;
@@ -93,6 +94,8 @@ export interface NativeHostRequestV01 {
   task_ref: ExternalRefV01;
   task_context_packet_ref: ExternalRefV01;
   packet: TaskContextPacketV01;
+  /** Non-authoritative in-memory guidance; excluded from packet integrity. */
+  guide_brief?: GuideBriefCodexProjectionV02;
   packet_lineage: {
     source_transition_receipt_ref: ExternalRefV01;
     packet_source_refs: ExternalRefV01[];

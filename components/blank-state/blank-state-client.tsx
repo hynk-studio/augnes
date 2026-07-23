@@ -15,15 +15,18 @@ import type {
   LocalFolderPickerOutcomeV01,
   RecentProjectEntryV01,
 } from "@/types/vnext/project-onboarding";
+import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 
 type SelectedFolder = Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>;
 
 export function BlankStateClient({
   source,
   view,
+  guide,
 }: {
   source: BlankStateSourceV01;
   view: BlankStateViewV01;
+  guide: ProjectGuideBriefV02;
 }) {
   const [recent, setRecent] = useState(source.recent_projects);
   const [picker, setPicker] = useState<LocalFolderPickerOutcomeV01 | null>(null);
@@ -235,6 +238,9 @@ export function BlankStateClient({
         className="blank-state-shell"
         data-blank-state="v0.1"
         data-blank-state-focus={view.focus}
+        data-guide-brief-version={guide.guide_version}
+        data-guide-brief-source-status={guide.source_status}
+        data-guide-brief-project-context={guide.identity.project_context}
         data-blank-state-active={projection?.project_summary.is_active ? "true" : "false"}
         data-blank-state-project-management-hydrated={hydrated ? "true" : "false"}
       >
@@ -259,6 +265,24 @@ export function BlankStateClient({
             onLocate={(entry) => void locate(entry)}
             onActivate={(projectId) => void activate(projectId)}
           />
+          {view.why_this_is_next.observed.length ? (
+            <details className="blank-state-guide-disclosure" data-guide-brief-disclosure="v0.2">
+              <summary>Why this is next</summary>
+              <div>
+                <p>{view.why_this_is_next.observed[0]}</p>
+                {view.why_this_is_next.inferred[0] ? (
+                  <p>
+                    {view.why_this_is_next.inferred[0].statement}{" "}
+                    <span>{view.why_this_is_next.inferred[0].caveats[0]}</span>
+                  </p>
+                ) : null}
+                {view.why_this_is_next.needs_user_judgment[0] ? (
+                  <p>Waiting for your judgment: {view.why_this_is_next.needs_user_judgment[0]}</p>
+                ) : null}
+                <p>This guidance is read-only and does not make the decision for you.</p>
+              </div>
+            </details>
+          ) : null}
           {message ? <p className="blank-state-message" role="status">{message}</p> : null}
         </section>
 

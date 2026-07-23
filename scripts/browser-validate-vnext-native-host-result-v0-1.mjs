@@ -228,6 +228,9 @@ const result = {
   project_home_coordination_visible: false,
   workbench_result_review_read_only: false,
   shared_semantic_workbench_shell: false,
+  guide_brief_blank_state_v0_2: false,
+  guide_brief_ai_workplane_v0_2: false,
+  guide_brief_cross_surface_consistency: false,
   workbench_result_reload_durable: false,
   result_inspector_complete: false,
   shared_inspector_read_only: false,
@@ -609,7 +612,7 @@ async function main() {
   if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
     await navigate(`${appOrigin}/`);
-    await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="no_projects"]') !== null`, "no-project Blank State");
+    await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="no_projects"][data-guide-brief-version="guide_brief.v0.2"][data-guide-brief-source-status="project_choice"]') !== null`, "no-project GuideBrief-backed Blank State");
     await waitForCondition(
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelectorAll('[data-blank-state-primary-action]').length === 1`,
       "single project-selection action",
@@ -656,6 +659,9 @@ async function main() {
         metric_grid_absent: surface?.querySelector('.project-home-coordinate-grid') === null,
         internal_vocabulary_absent: !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|Decision debt|Accepted state|Working projection|Exact coordination|Inspector lineage|packet fingerprint)/i.test(visibleText),
         active: surface?.getAttribute('data-blank-state-active') === 'true',
+        guide_version: surface?.getAttribute('data-guide-brief-version'),
+        guide_source: surface?.getAttribute('data-guide-brief-source-status'),
+        guide_context: surface?.getAttribute('data-guide-brief-project-context'),
         operator_proposal_leaked: visibleText.includes(${JSON.stringify(manifest.proposal_id)}),
         operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)})
       };
@@ -668,9 +674,45 @@ async function main() {
       metric_grid_absent: true,
       internal_vocabulary_absent: true,
       active: true,
+      guide_version: "guide_brief.v0.2",
+      guide_source: "live_current_project",
+      guide_context: "current",
       operator_proposal_leaked: false,
       operator_packet_leaked: false,
     });
+    const routeGuide = await evaluateJson(`(async () => {
+      const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
+        headers: { 'x-augnes-local-readonly': 'guide-brief-v0.2' },
+        cache: 'no-store',
+      });
+      const body = await response.json();
+      const serialized = JSON.stringify(body);
+      return {
+        status: response.status,
+        cache_control: response.headers.get('cache-control'),
+        version: body.guide_version,
+        project: body.identity?.project_display_name,
+        context: body.identity?.project_context,
+        focus: body.coordinate?.focus,
+        browser_focus: document.querySelector('[data-blank-state="v0.1"]')?.getAttribute('data-blank-state-focus'),
+        authority: body.authority?.source_of_truth,
+        private_path_absent: !/(\\/Users\\/|\\/home\\/|[A-Za-z]:\\\\)/u.test(serialized),
+        credential_absent: !/(OPENAI_API_KEY|GITHUB_TOKEN|sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_-]{8,})/u.test(serialized),
+      };
+    })()`);
+    assert.deepEqual(routeGuide, {
+      status: 200,
+      cache_control: "no-store",
+      version: "guide_brief.v0.2",
+      project: "Browser Onboarding Project",
+      context: "current",
+      focus: "ready_to_continue",
+      browser_focus: "ready_to_continue",
+      authority: false,
+      private_path_absent: true,
+      credential_absent: true,
+    });
+    result.guide_brief_blank_state_v0_2 = true;
     result.minimum_project_home_empty_state = true;
     result.project_home_coordination_visible = true;
     result.minimum_project_home_project_isolation = true;
@@ -1208,6 +1250,25 @@ async function main() {
       `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
       "locked Semantic Workbench",
     );
+    await waitForCondition(
+      `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
+      "AI Workplane current-project GuideBrief",
+    );
+    const workplaneGuide = await evaluateJson(`(() => {
+      const guide = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
+      return {
+        project: guide?.querySelector('strong')?.textContent?.trim() ?? null,
+        status: guide?.getAttribute('data-ai-workplane-guide-status'),
+        mutating_controls: guide?.querySelectorAll('button, input, textarea, select').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(workplaneGuide, {
+      project: "Browser Onboarding Project",
+      status: "available",
+      mutating_controls: 0,
+    });
+    result.guide_brief_ai_workplane_v0_2 = true;
+    result.guide_brief_cross_surface_consistency = true;
     await validateProductShell({
       route: "/workbench/semantic-review",
       expectedPrimaryZone: "ai-workplane",
@@ -2368,13 +2429,13 @@ async function main() {
       "read-only Workbench result review",
     );
     await waitForCondition(
-      `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null`,
-      "read-only proposal settlement refresh",
+      `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
+      "read-only proposal settlement and current-project guide refresh",
     );
     timing.milestone("proposal settlement and result review ready");
     assert.equal(
       await evaluateBoolean(
-        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
+        `document.querySelector('[data-semantic-workbench-shell="v0.1"][data-semantic-workbench-entry-state="assessment"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null && document.body.textContent.includes('Semantic Workbench · Verify and decide')`,
       ),
       true,
     );
@@ -2439,7 +2500,12 @@ async function main() {
           proposal.textContent?.includes('pending review') === true &&
           proposal.querySelector('[data-result-to-proposal-link="true"]') !== null,
         private_root_visible: text.includes(${JSON.stringify(liveAfter.normalized_root)}),
-        packet_rendering_visible: text.includes(${JSON.stringify(packet.task.goal)}),
+        current_goal_summary_visible: text.includes(${JSON.stringify(packet.task.goal)}),
+        exact_packet_identity_visible:
+          text.includes(${JSON.stringify(packet.packet_id)}) ||
+          text.includes(${JSON.stringify(packet.integrity.fingerprint)}),
+        raw_packet_contract_visible:
+          text.includes('TaskContextPacket') || text.includes('Packet fingerprint'),
         raw_protocol_visible: /jsonrpc|raw diff must never be persisted|raw output must never be persisted|OPENAI_API_KEY/.test(text),
       };
     })()`);
@@ -2466,7 +2532,9 @@ async function main() {
       criterion_authority_boundary: true,
       proposal_available: true,
       private_root_visible: false,
-      packet_rendering_visible: false,
+      current_goal_summary_visible: true,
+      exact_packet_identity_visible: false,
+      raw_packet_contract_visible: false,
       raw_protocol_visible: false,
     });
     await validateWorkbenchResultViewports();

@@ -102,8 +102,8 @@ layer shared across Browser, ChatGPT, Codex, Blank State, and AI Workplane.
 **Inspector** remains contextual, optional, exact read-only detail rather than
 a normal peer destination.
 
-The existing engine is being preserved and reprojected, not discarded. C2 in
-this change renders `/` as the canonical Blank State and absorbs project choice,
+The existing engine is being preserved and reprojected, not discarded. C2
+renders `/` as the canonical Blank State and absorbs project choice,
 resumption, and the former user-facing Project Home composition into one shared
 surface. `/projects` and `/projects/[projectId]` remain compatible management and
 viewed-project routes into that surface. The internal Project Home projection
@@ -115,9 +115,14 @@ The target topology is documented in the
 C0 established the product authority and C1 reduced the shared shell to
 **Blank State** and **AI Workplane** as its only primary destinations. Existing
 project selection, transfer, and recovery routes remain available through
-secondary **Project tools**. C2 becomes complete only when this PR is reviewed
-and merged. GuideBrief active-path restoration remains pending C3; C4–C9 also
-remain pending.
+secondary **Project tools**. C0–C2 are merged. C3 in this change makes
+`guide_brief.v0.2` the deterministic current-project interpretation shared by
+Blank State, a compact AI Workplane rail, the existing
+`augnes_get_guide_brief` MCP tool, `codex:read-brief`, and new native Codex task
+starts. GuideBrief remains a read-only View and is delivered separately from the
+exact `TaskContextPacket`; legacy v0.1 fixtures and Human Surface consumers are
+historical or compatibility-only. C3 becomes complete only after this PR is
+reviewed and merged. C4–C9 remain pending.
 
 The repository now supports:
 

@@ -15,6 +15,7 @@ import {
 import {
   loadBlankStateSourceV01,
 } from "../lib/vnext/blank-state/blank-state-source";
+import { buildProjectGuideBriefV02 } from "../lib/vnext/guide-brief/project-guide-brief";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
@@ -118,8 +119,16 @@ function recentEntry(overrides: Partial<RecentProjectEntryV01> = {}): RecentProj
   };
 }
 
+function view(sourceValue: BlankStateSourceV01) {
+  const guide = buildProjectGuideBriefV02({
+    source: sourceValue,
+    generated_at: "2026-07-23T00:00:00.000Z",
+  });
+  return buildBlankStateViewV01(guide);
+}
+
 async function main() {
-  const noProjects = buildBlankStateViewV01(source(null));
+  const noProjects = view(source(null));
   assert.equal(noProjects.focus, "no_projects");
   assert.deepEqual(noProjects.primary_action, {
     kind: "choose_folder",
@@ -127,13 +136,13 @@ async function main() {
   });
 
   const recent = recentEntry();
-  const projectChoice = buildBlankStateViewV01(source(null, {
+  const projectChoice = view(source(null, {
     recent_projects: [recent],
   }));
   assert.equal(projectChoice.focus, "project_choice");
   assert.equal(projectChoice.primary_action.kind, "open_recent");
 
-  const unavailableActive = buildBlankStateViewV01(source(null, {
+  const unavailableActive = view(source(null, {
     active_project_id: recent.project.project_id,
     recent_projects: [{ ...recent, is_active: true, active_project_id: recent.project.project_id }],
     project_resolution: "unavailable",
@@ -143,17 +152,17 @@ async function main() {
   assert.match(unavailableActive.situation, /record is safe/u);
   assert.equal(unavailableActive.semantic_authority_granted, false);
 
-  const inactive = buildBlankStateViewV01(source(projection({ active: false })));
+  const inactive = view(source(projection({ active: false })));
   assert.equal(inactive.focus, "viewed_project_inactive");
   assert.equal(inactive.primary_action.kind, "make_active");
 
-  const missingRoot = buildBlankStateViewV01(source(projection({ root: "missing" }), {
+  const missingRoot = view(source(projection({ root: "missing" }), {
     recent_projects: [recentEntry({ root_availability: "missing", is_active: true })],
   }));
   assert.equal(missingRoot.focus, "project_root_unavailable");
   assert.equal(missingRoot.primary_action.kind, "locate_folder");
 
-  const running = buildBlankStateViewV01(source(projection({
+  const running = view(source(projection({
     goal: "Finish the bounded work",
     run: {
       run_ref: "run:test",
@@ -185,7 +194,7 @@ async function main() {
     entry_state: "assessment",
     source: { record_kind: "run_receipt", record_id: "receipt:test" },
   } as const;
-  const resultReady = buildBlankStateViewV01(source(projection({
+  const resultReady = view(source(projection({
     result: {
       receipt_ref: "receipt:test",
       run_ref: "run:test",
@@ -218,7 +227,7 @@ async function main() {
   assert.equal(resultReady.situation.includes("CriterionAssessment"), false);
   assert.deepEqual(resultReady.current_work?.verification, { passed: 2, failed: 0, skipped: 1 });
 
-  const attention = buildBlankStateViewV01(source(projection({
+  const attention = view(source(projection({
     attention: [{
       attention_id: "attention:test",
       summary: "ReviewDecision is waiting",
@@ -232,7 +241,7 @@ async function main() {
   assert.equal(attention.situation.includes("ReviewDecision"), false);
   assert.equal(attention.material_note?.includes("Transition"), false);
 
-  const idle = buildBlankStateViewV01(source(projection()));
+  const idle = view(source(projection()));
   assert.equal(idle.focus, "ready_to_continue");
   assert.equal(idle.primary_action.kind, "link");
   assert.equal(idle.projection_only, true);

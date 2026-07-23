@@ -56,7 +56,7 @@ const DEFAULT_API_BASE_URL = "http://localhost:3000";
 const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER = "constellation-preview-v0.1";
 const GUIDE_BRIEF_LOCAL_READ_HEADER = "x-augnes-local-readonly";
-const GUIDE_BRIEF_LOCAL_READ_MARKER = "guide-brief-v0.1";
+const GUIDE_BRIEF_LOCAL_READ_MARKER = "guide-brief-v0.2";
 const AUTONOMY_CONTRACT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const AUTONOMY_CONTRACT_LOCAL_READ_MARKER = "autonomy-contract-v0.1";
 const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
@@ -208,14 +208,17 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
     );
   }
 
-  async getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult> {
+  async getGuideBrief(input: { scope: StateRuntimeScope; projectId?: string }): Promise<GuideBriefResult> {
     return this.requestJson(
       endpointContract.guideBrief.method,
       endpointContract.guideBrief.path,
       GuideBriefResultSchema,
       "guide brief",
       {
-        query: { scope: parseScope(scope) },
+        query: {
+          scope: parseScope(input.scope),
+          ...(input.projectId ? { project_id: input.projectId } : {}),
+        },
         headers: {
           [GUIDE_BRIEF_LOCAL_READ_HEADER]: GUIDE_BRIEF_LOCAL_READ_MARKER,
         },

@@ -1046,24 +1046,14 @@ function guideBriefItemCount(value: unknown): number {
 }
 
 function summarizeGuideBriefSourceRefs(guideBrief: GuideBriefResult): Record<string, unknown> {
-  const sourceRefs =
-    guideBrief.source_refs && typeof guideBrief.source_refs === "object"
-      ? (guideBrief.source_refs as Record<string, unknown>)
-      : {};
-
   return {
-    current_working_perspective_ref: sourceRefs.current_working_perspective_ref ?? null,
-    delta_projection_ref: sourceRefs.delta_projection_ref ?? null,
-    workplane_ref: sourceRefs.workplane_ref ?? null,
-    perspective_snapshot_ref_count: guideBriefItemCount(sourceRefs.perspective_snapshot_refs),
-    delta_id_count: guideBriefItemCount(sourceRefs.delta_ids),
-    batch_id_count: guideBriefItemCount(sourceRefs.batch_ids),
-    evidence_ref_count: guideBriefItemCount(sourceRefs.evidence_refs),
-    artifact_ref_count: guideBriefItemCount(sourceRefs.artifact_refs),
-    handoff_ref_count: guideBriefItemCount(sourceRefs.handoff_refs),
-    diagnostic_ref_count: guideBriefItemCount(sourceRefs.diagnostic_refs),
-    route_refs: Array.isArray(sourceRefs.route_refs) ? sourceRefs.route_refs : [],
-    docs_refs: Array.isArray(sourceRefs.docs_refs) ? sourceRefs.docs_refs : [],
+    count: guideBrief.source_refs.length,
+    refs: guideBrief.source_refs.map((sourceRef) => ({
+      ref_id: sourceRef.ref_id,
+      kind: sourceRef.kind,
+      label: sourceRef.label,
+      href: sourceRef.href,
+    })),
   };
 }
 
@@ -1072,21 +1062,28 @@ function buildGuideBriefSummary(guideBrief: GuideBriefResult) {
   const inferredCount = guideBrief.inferred.length;
   const suggestedCount = guideBrief.suggested.length;
   const needsUserJudgmentCount = guideBrief.needs_user_judgment.length;
-  const stalenessWarningCount = guideBriefItemCount(guideBrief.staleness_warnings);
-  const handoffCandidateCount = guideBriefItemCount(guideBrief.handoff_candidates);
-
   return {
-    scope: guideBrief.scope,
+    scope: guideBrief.request.scope,
     guide_version: guideBrief.guide_version,
+    project_id: guideBrief.identity.project_id,
+    project_name: guideBrief.identity.project_display_name,
+    project_context: guideBrief.identity.project_context,
+    source_status: guideBrief.source_status,
+    current_goal: guideBrief.coordinate.goal,
+    work_status: guideBrief.coordinate.work_status,
+    material_blocker_or_uncertainty:
+      guideBrief.coordinate.material_blocker_or_uncertainty,
+    unresolved_user_judgment:
+      guideBrief.coordinate.unresolved_user_judgment,
+    primary_guidance: guideBrief.primary_guidance.label,
     observed_count: observedCount,
     inferred_count: inferredCount,
     suggested_count: suggestedCount,
     needs_user_judgment_count: needsUserJudgmentCount,
-    staleness_warning_count: stalenessWarningCount,
-    handoff_candidate_count: handoffCandidateCount,
+    gap_count: guideBrief.gaps.length,
     read_boundary: {
       source_route: "GET /api/augnes/read/guide-brief",
-      local_readonly_marker: "x-augnes-local-readonly: guide-brief-v0.1",
+      local_readonly_marker: "x-augnes-local-readonly: guide-brief-v0.2",
       guide_brief_read_only: true,
       suggestions_are_actions: false,
       handoff_execution_authority: false,
@@ -1106,17 +1103,20 @@ const GUIDE_BRIEF_AUTHORITY_BOUNDARY_FALSE_FIELDS = [
   "can_update_work",
   "can_mutate_memory",
   "can_apply_project_perspective",
+  "can_approve",
+  "can_transition",
   "can_publish_external",
   "can_merge",
-  "can_retry_replay_deploy",
+  "can_retry",
   "can_call_github",
   "can_call_openai_or_provider",
   "can_execute_codex",
   "can_create_branch_or_pr",
   "can_send_handoff",
   "can_launch_autonomy",
-  "can_create_mcp_tool",
+  "can_write_db",
   "can_create_ui_action",
+  "can_grant_host_permission",
 ] as const;
 
 const GUIDE_BRIEF_READ_BOUNDARY_FALSE_FIELDS = [
@@ -1157,7 +1157,7 @@ function restoreGuideBriefAuthorityBoundary(
 ): Record<string, unknown> {
   return restoreFalseBoundaryFields(
     sanitizedAuthorityBoundary,
-    guideBrief.authority_boundary,
+    guideBrief.authority,
     GUIDE_BRIEF_AUTHORITY_BOUNDARY_FALSE_FIELDS
   );
 }
@@ -1182,10 +1182,30 @@ function buildGuideBriefStructuredContent({
   guideBriefSummary: ReturnType<typeof buildGuideBriefSummary>;
   compact: boolean | undefined;
 }): Record<string, unknown> {
+  const projectedGuide = compact
+    ? {
+        runtime: guideBrief.runtime,
+        guide_version: guideBrief.guide_version,
+        generated_at: guideBrief.generated_at,
+        request: guideBrief.request,
+        identity: guideBrief.identity,
+        source_status: guideBrief.source_status,
+        gaps: guideBrief.gaps,
+        coordinate: guideBrief.coordinate,
+        observed: guideBrief.observed.slice(0, 3),
+        inferred: guideBrief.inferred.slice(0, 2),
+        suggested: guideBrief.suggested.slice(0, 1),
+        needs_user_judgment: guideBrief.needs_user_judgment,
+        primary_guidance: guideBrief.primary_guidance,
+        source_refs: guideBrief.source_refs,
+        authority: guideBrief.authority,
+        safety: guideBrief.safety,
+      }
+    : guideBrief;
   const structuredContent = sanitizePayload({
     profile: config.appProfile,
-    guideBrief,
-    guide_brief: guideBrief,
+    guideBrief: projectedGuide,
+    guide_brief: projectedGuide,
     guideBriefSummary,
     guide_summary: guideBriefSummary,
     compact: compact ?? true,
@@ -1193,10 +1213,8 @@ function buildGuideBriefStructuredContent({
     inferred_count: guideBriefSummary.inferred_count,
     suggested_count: guideBriefSummary.suggested_count,
     needs_user_judgment_count: guideBriefSummary.needs_user_judgment_count,
-    staleness_warning_count: guideBriefSummary.staleness_warning_count,
-    handoff_candidate_count: guideBriefSummary.handoff_candidate_count,
-    authority_boundary: guideBrief.authority_boundary,
-    surface_rendering_notes: guideBrief.surface_rendering_notes ?? {},
+    gap_count: guideBriefSummary.gap_count,
+    authority_boundary: guideBrief.authority,
     read_boundary: guideBriefSummary.read_boundary,
     route_boundary: guideBriefSummary.read_boundary,
     source_refs: summarizeGuideBriefSourceRefs(guideBrief),
@@ -1219,8 +1237,8 @@ function buildGuideBriefStructuredContent({
     const sanitizedGuideBrief = objectRecord(structuredContent[guideBriefKey]);
     structuredContent[guideBriefKey] = {
       ...sanitizedGuideBrief,
-      authority_boundary: restoreGuideBriefAuthorityBoundary(
-        sanitizedGuideBrief.authority_boundary,
+      authority: restoreGuideBriefAuthorityBoundary(
+        sanitizedGuideBrief.authority,
         guideBrief
       ),
     };
@@ -1233,11 +1251,16 @@ function describeGuideBrief(guideBrief: GuideBriefResult): string {
   const summary = buildGuideBriefSummary(guideBrief);
 
   return [
-    `GuideBrief loaded for scope ${guideBrief.scope}: ${summary.observed_count} observed, ${summary.inferred_count} inferred, ${summary.suggested_count} suggested, and ${summary.needs_user_judgment_count} needs_user_judgment item(s).`,
-    `${summary.staleness_warning_count} staleness warning(s); ${summary.handoff_candidate_count} handoff candidate(s).`,
-    "Handoff candidates are preview-only.",
-    "Suggestions are not actions.",
-    "Needs user judgment items are not decided by the guide.",
+    `GuideBrief v0.2 for ${summary.project_name ?? "project choice"}: ${summary.work_status}.`,
+    summary.current_goal ? `Current goal: ${summary.current_goal}.` : "No current goal is available.",
+    summary.material_blocker_or_uncertainty
+      ? `Important blocker or uncertainty: ${summary.material_blocker_or_uncertainty}.`
+      : "No material blocker is currently summarized.",
+    summary.unresolved_user_judgment
+      ? `Unresolved user judgment: ${summary.unresolved_user_judgment}.`
+      : "No unresolved user judgment is currently summarized.",
+    `Recommended next action: ${summary.primary_guidance}.`,
+    "Suggestions are not instructions and GuideBrief is not a source of truth.",
     "Read-only tool: no writes, no Codex execution, no GitHub/OpenAI/provider calls, no handoff send.",
   ].join(" ");
 }
@@ -2357,16 +2380,19 @@ export function createMcpAppServer(
       {
         title: "Get GuideBrief",
         description:
-          "Read-only GuideBrief tool. It consumes the local GuideBrief route, keeps Observed/Inferred/Suggested/Needs user judgment separated, treats suggestions as not actions, keeps handoff candidates preview-only, does not decide needs_user_judgment items, does not execute Codex, does not call GitHub/OpenAI/provider services, does not create proof/evidence records, and does not mutate state, memory, or DB records.",
+          "Read-only current-project GuideBrief v0.2 tool. It keeps Observed/Inferred/Suggested/Needs user judgment separated, treats suggestions as not instructions, preserves TaskContextPacket separation, and cannot approve, execute Codex, call GitHub/OpenAI/provider services, create proof/Evidence, or mutate state, memory, or database records.",
         inputSchema: GuideBriefToolInputSchema.shape,
         annotations: localRouteReadAnnotations,
         _meta: modelOnlyToolMeta,
       },
-      async ({ scope, compact }) => {
+      async ({ scope, projectId, compact }) => {
         const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
 
         try {
-          const guideBrief = await stateRuntimeAdapter.getGuideBrief(resolvedScope);
+          const guideBrief = await stateRuntimeAdapter.getGuideBrief({
+            scope: resolvedScope,
+            ...(projectId ? { projectId } : {}),
+          });
           const guideBriefSummary = buildGuideBriefSummary(guideBrief);
           const structuredContent = buildGuideBriefStructuredContent({
             guideBrief,

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { BlankStateSurface } from "@/components/blank-state/blank-state-surface";
-import { loadBlankStateSourceV01 } from "@/lib/vnext/blank-state/blank-state-source";
+import { loadProjectGuideBriefV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +18,10 @@ export default async function ProjectPage({
     notFound();
   }
 
-  const source = await loadBlankStateSourceV01({
+  const { source, guide } = await loadProjectGuideBriefV02({
     route_mode: "viewed_project",
-    requested_project_id: projectId,
+    project_id: projectId,
   });
   if (source.project_resolution !== "resolved") notFound();
-  return <BlankStateSurface source={source} />;
+  return <BlankStateSurface source={source} guide={guide} />;
 }

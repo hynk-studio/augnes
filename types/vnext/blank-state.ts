@@ -79,6 +79,11 @@ export interface BlankStateViewV01 {
     summary: string;
     occurred_at: string;
   };
+  why_this_is_next: {
+    observed: string[];
+    inferred: Array<{ statement: string; caveats: string[] }>;
+    needs_user_judgment: string[];
+  };
   projection_only: true;
   semantic_authority_granted: false;
 }
