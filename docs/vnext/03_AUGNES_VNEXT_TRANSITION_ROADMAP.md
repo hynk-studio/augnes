@@ -113,11 +113,12 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
 - **C4 — AI Workplane reprojection of current Semantic Workbench and engine complexity:**
   merged; the compatible route now presents bounded human work, result,
   suggested-change, decision, and project-change projections
-- **C5 — Delegated Codex work timeline and resumption:** this change projects
-  the existing managed-live runner ledger as bounded progress, operational
-  attention, trusted result, and explicit exact resume; complete only after
-  user review and merge
-- **C6 — Contextual Inspector demotion**
+- **C5 — Delegated Codex work timeline and resumption:** merged; the existing
+  managed-live runner ledger is projected as bounded progress, operational
+  attention, trusted result, and explicit exact resume
+- **C6 — Contextual Inspector demotion:** this change preserves the exact
+  reader while replacing the peer/protocol-first presentation with contextual
+  Exact details and deterministic related return navigation
 - **C7 — Management and safety relocation for Portability and Recovery**
 - **C8 — Visual system after IA correction**
 - **C9 — Compatibility and obsolete-surface reduction**
@@ -132,15 +133,17 @@ fixture-backed active Web guide, and state-brief-based `codex:read-brief` with
 GuideBrief v0.2 projections while preserving the exact `TaskContextPacket` as a
 separate execution contract. C4 redirects the independent Agent
 Workplane landing, makes the compatible semantic-review route the canonical AI
-Workplane, and demotes exact protocol detail without changing authority. C5 in
-this change reuses the existing runner ledger and host-round-trip route; it adds
+Workplane, and demotes exact protocol detail without changing authority. C5
+reuses the existing runner ledger and host-round-trip route; it adds
 no event store, percentage, ETA, automatic retry, or execution authority.
-C6 deeper Inspector demotion, C7 final Portability/Recovery relocation, C8 visual
-system, and C9 compatibility reduction remain unimplemented. Current code
+C6 in this change removes generic active Inspector navigation and presents
+target-relevant exact sections without changing the exact reader. C7 final
+Portability/Recovery relocation, C8 visual system, and C9 compatibility
+reduction remain unimplemented. Current code
 remains authoritative for each existing behavior until its later correction PR
 changes it.
 
-No broad visual-polish or unrelated new-feature phase precedes C6 after C5
+No broad visual-polish or unrelated new-feature phase precedes C7 after C6
 unless the user explicitly overrides this correction program. Replacement work
 must account for the superseded surface through absorption, redirect, hiding,
 explicit demotion or removal; it must not silently add another destination.

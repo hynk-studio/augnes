@@ -119,6 +119,16 @@ receipt/result persistence. It also checks one-primary-action behavior,
 bounded announcements, no retry, cleanup, and 390px/430px overflow. C5 becomes
 complete only after its PR is reviewed and merged.
 
+C6 evidence additionally checks that the exact authenticated reader, strict
+target parser, fingerprint/source binding, project isolation, section bounds,
+direct addresses, and all-false authority remain unchanged while the active
+presentation becomes contextual Exact details. It checks deterministic related
+return mapping, no arbitrary return URL, at most four primary sections, closed
+additional records and identities, locked-state non-disclosure, no generic AI
+Workplane Inspector link, zero Inspector requests in normal C4/C5 flows, zero
+writes/egress/retry, and 390px/430px overflow. C6 becomes complete only after
+its PR is reviewed and merged.
+
 ## Semantic authority guardrails
 
 The following are zero-tolerance correctness guardrails for any implemented path

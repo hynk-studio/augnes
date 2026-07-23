@@ -36,6 +36,7 @@ import {
   type VNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import {
+  SharedProjectInspectorReadErrorV01,
   buildBoundedSharedProjectInspectorSectionV01,
   classifySharedProjectInspectorStrategicMaterialV01,
   readSharedProjectInspectorV01,
@@ -575,6 +576,17 @@ try {
       error instanceof SharedProjectInspectorTargetErrorV01 &&
       error.code === "shared_inspector_query_size_invalid",
   );
+  assert.throws(
+    () =>
+      parseSharedInspectorTargetV01(
+        new URLSearchParams(
+          "target=project_coordination&return_to=https%3A%2F%2Fevil.example",
+        ),
+    ),
+    (error: unknown) =>
+      error instanceof SharedProjectInspectorTargetErrorV01 &&
+      error.code === "shared_inspector_target_fields_invalid",
+  );
   record("shared_inspector_href_and_strict_target_parser_fail_closed");
 
   const networkGuard = installZeroNetworkGuard({ allowLoopback: false });
@@ -782,6 +794,67 @@ try {
     );
     assert.equal(responseBody.semantic_mutation_available, false);
     assert.equal(responseBody.model_or_provider_call_performed, false);
+
+    for (const routeErrorCase of [
+      {
+        error: new SharedProjectInspectorReadErrorV01(
+          "shared_inspector_target_missing",
+          404,
+        ),
+        status: 404,
+        code: "shared_inspector_target_missing",
+      },
+      {
+        error: new SharedProjectInspectorReadErrorV01(
+          "shared_inspector_candidate_source_conflict",
+          409,
+        ),
+        status: 409,
+        code: "shared_inspector_candidate_source_conflict",
+      },
+      {
+        error: new Error(
+          "private read failure at /tmp/inspector.db with hidden material",
+        ),
+        status: 500,
+        code: "shared_inspector_read_failed",
+      },
+    ] as const) {
+      let readCount = 0;
+      const errorHandler =
+        createVNextOperatorSharedInspectorReadHandlerV01({
+          environment: inspectorEnvironment,
+          clock: { now: () => inspectorObservedAt },
+          read_inspector: () => {
+            readCount += 1;
+            throw routeErrorCase.error;
+          },
+        });
+      const errorResponse = await errorHandler(
+        new Request(
+          `http://127.0.0.1:3000/api/vnext/operator/inspector${query}`,
+          {
+            method: "GET",
+            headers: { host: "127.0.0.1:3000", cookie },
+          },
+        ),
+      );
+      const errorText = await errorResponse.text();
+      const errorBody = JSON.parse(errorText) as {
+        ok?: boolean;
+        error_code?: string;
+      };
+      assert.equal(readCount, 1);
+      assert.equal(errorResponse.status, routeErrorCase.status);
+      assert.deepEqual(errorBody, {
+        ok: false,
+        error_code: routeErrorCase.code,
+      });
+      assert.doesNotMatch(
+        errorText,
+        /\/tmp\/inspector\.db|hidden material|private read failure/u,
+      );
+    }
     assert.deepEqual(networkGuard.attempts, []);
   } finally {
     networkGuard.restore();
@@ -815,6 +888,29 @@ try {
   assert.equal(inspectorRouteSource.includes("export const PATCH"), false);
   assert.equal(inspectorRouteSource.includes("export const DELETE"), false);
   assert.equal(inspectorSurfaceSource.includes("data-shared-project-inspector"), true);
+  assert.equal(inspectorSurfaceSource.includes("Exact details"), true);
+  assert.equal(inspectorSurfaceSource.includes("Additional exact records"), true);
+  assert.equal(inspectorSurfaceSource.includes("Exact record identity"), true);
+  assert.equal(
+    inspectorSurfaceSource.includes(
+      "data-contextual-inspector-exact-status",
+    ),
+    true,
+  );
+  assert.equal(
+    inspectorSurfaceSource.includes(
+      "data-contextual-inspector-project-activity",
+    ),
+    true,
+  );
+  assert.equal(
+    inspectorSurfaceSource.includes(
+      "data-contextual-inspector-activity-notice",
+    ),
+    true,
+  );
+  assert.equal(inspectorSurfaceSource.includes("Shared Inspector ·"), false);
+  assert.equal(inspectorSurfaceSource.includes("twoColumnGrid"), false);
   assert.equal(inspectorSurfaceSource.includes("<form"), false);
   assert.equal(inspectorSurfaceSource.includes('type="submit"'), false);
   assert.equal(inspectorSurfaceSource.includes("Create ReviewDecision"), false);

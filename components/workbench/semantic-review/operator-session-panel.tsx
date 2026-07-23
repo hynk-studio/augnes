@@ -31,10 +31,12 @@ export function OperatorSessionPanel({
   state,
   onAuthenticated,
   onLocked,
+  context = "review",
 }: {
   state: OperatorSessionStateV01;
   onAuthenticated: (session: OperatorSessionViewV01) => void;
   onLocked: (errorCode?: string) => void;
+  context?: "review" | "exact-details";
 }) {
   const [bootstrapToken, setBootstrapToken] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,29 +104,41 @@ export function OperatorSessionPanel({
   }
 
   if (state.status === "checking") {
+    const exactDetails = context === "exact-details";
     return (
       <section className={styles.lockedPanel} data-vnext-operator-session="checking">
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Local review access</p>
-          <h2>Checking protected project review</h2>
+          <h2>
+            {exactDetails
+              ? "Checking access to exact details"
+              : "Checking protected project review"}
+          </h2>
         </div>
         <p className={styles.copy} role="status">
-          Protected project review is not loaded before local access is validated.
+          {exactDetails
+            ? "Exact project material is not loaded before local access is validated."
+            : "Protected project review is not loaded before local access is validated."}
         </p>
       </section>
     );
   }
 
   if (state.status === "disabled") {
+    const exactDetails = context === "exact-details";
     return (
       <section className={styles.lockedPanel} data-vnext-operator-session="disabled">
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Local review access</p>
-          <h2>Protected project review is unavailable</h2>
+          <h2>
+            {exactDetails
+              ? "Exact details are unavailable"
+              : "Protected project review is unavailable"}
+          </h2>
         </div>
         <p className={styles.notice}>
-          Local review is disabled. This page loaded no protected change,
-          decision, project-state, or access material.
+          Local review is disabled. This page loaded no protected project
+          material.
         </p>
       </section>
     );
@@ -179,11 +193,16 @@ export function OperatorSessionPanel({
     );
   }
 
+  const exactDetails = context === "exact-details";
   return (
     <section className={styles.lockedPanel} data-vnext-operator-session="locked">
       <div className={styles.panelHeader}>
           <p className={styles.kicker}>Local review access</p>
-          <h2>Unlock protected project review</h2>
+          <h2>
+            {exactDetails
+              ? "Unlock exact details"
+              : "Unlock protected project review"}
+          </h2>
       </div>
       <p className={styles.copy}>
         Enter the one-time local token. It is submitted only to this local form
@@ -205,7 +224,11 @@ export function OperatorSessionPanel({
           data-ai-workplane-primary-action="unlock"
           disabled={busy || bootstrapToken.length === 0}
         >
-          {busy ? "Unlocking review…" : "Unlock project review"}
+          {busy
+            ? "Unlocking review…"
+            : exactDetails
+              ? "Unlock exact details"
+              : "Unlock project review"}
         </button>
       </form>
       <p className={styles.notice}>

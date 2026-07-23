@@ -68,6 +68,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "contextual exact-details presentation contract",
+      ...rootNode("scripts/test-vnext-contextual-inspector.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "delegated Codex work projection and polling contract",
       ...rootNode("scripts/test-vnext-delegated-work.ts"),
       timeoutMs: 30_000,

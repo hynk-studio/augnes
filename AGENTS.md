@@ -69,10 +69,11 @@ GuideBrief product responsibility, UX merge gates, and replacement discipline.
 It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
-interface. C0–C4 are merged. The C5 implementation in this change projects the
-existing managed-live native-host lifecycle and durable runner ledger as
-human-facing delegated Codex progress and explicit resumption while preserving
-their exact engine, authority, persistence, replay, and exact-detail behavior:
+interface. C0–C5 are merged. The C6 implementation in this change demotes the
+existing exact reader from a standalone protocol-oriented presentation into
+contextual, optional Exact details while preserving authenticated project
+scope, source/fingerprint binding, bounds, direct addressability, and read-only
+authority:
 
 - **Blank State** — default simple human entry and resumption surface
 - **GuideBrief** — embedded cross-surface interpretation and guidance layer
@@ -92,13 +93,16 @@ not parallel user-facing products. C3 made GuideBrief v0.2 the active bounded
 current-project View without replacing `TaskContextPacket` or granting
 authority. C4 makes `/workbench/semantic-review` the canonical
 human-facing AI Workplane, redirects `/workbench` there, and moves exact
-protocol detail behind advanced or contextual paths. C5 in this change makes
-AI Workplane the single live-Codex controller, adds a bounded durable progress
-timeline over the existing ledger, and gives Blank State a compact return path.
+protocol detail behind advanced or contextual paths. C5 made AI Workplane the
+single live-Codex controller, added a bounded durable progress timeline over
+the existing ledger, and gave Blank State a compact return path.
 Leaving the page does not cancel admitted local work; lost local-runtime
-ownership requires explicit exact resume. C5 becomes complete only when this PR
-is reviewed and merged. C6–C9 remain pending. Current code remains authoritative
-for implemented behavior until each later correction PR changes it.
+ownership requires explicit exact resume. C6 in this change makes
+`/workbench/inspector` a concrete-target contextual Exact details surface,
+removes generic active Inspector navigation, and provides deterministic related
+return links. C6 becomes complete only when this PR is reviewed and merged.
+C7–C9 remain pending. Current code remains authoritative for implemented
+behavior until each later correction PR changes it.
 
 ### Hard UX invariants
 
@@ -163,9 +167,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C5 delegated Codex timeline and
-resumption is the active authorized correction after merged C0–C4. Do not start
-C6–C9 or broad visual polish before C5 user review and merge.
+An unsatisfactory answer blocks the PR. C6 contextual Inspector demotion is the
+active authorized correction after merged C0–C5. Do not start C7–C9 or broad
+visual polish before C6 user review and merge.
 
 ## Development defaults
 

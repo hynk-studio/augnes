@@ -47,12 +47,15 @@ interface HandlerOptionsV01 {
   open_database?: (
     config: VNextLocalOperatorPilotConfigV01,
   ) => Database.Database;
+  read_inspector?: typeof readSharedProjectInspectorV01;
 }
 
 export function createVNextOperatorSharedInspectorReadHandlerV01(
   options: HandlerOptionsV01 = {},
 ) {
   const openDatabase = options.open_database ?? openVNextLocalOperatorDatabaseV01;
+  const readInspector =
+    options.read_inspector ?? readSharedProjectInspectorV01;
   return async function GET(request: Request): Promise<NextResponse> {
     let db: Database.Database | null = null;
     try {
@@ -91,7 +94,7 @@ export function createVNextOperatorSharedInspectorReadHandlerV01(
         options.clock,
         "shared_project_inspector_observed_at",
       );
-      const inspector = readSharedProjectInspectorV01(db, {
+      const inspector = readInspector(db, {
         config,
         authenticated_session_id: authentication.session.session_id,
         observed_at: observedAt,

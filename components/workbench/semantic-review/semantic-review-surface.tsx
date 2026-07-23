@@ -587,7 +587,11 @@ export function SemanticReviewSurface({
             : entryPresentation.label
         }
         projectHref={projectHref}
-        exactDetailsHref={privateView?.value.inspector_href}
+        exactDetailsHref={
+          privateView?.kind === "detail"
+            ? privateView.value.inspector_href
+            : undefined
+        }
       >
         <OperatorSessionPanel
           state={sessionState}

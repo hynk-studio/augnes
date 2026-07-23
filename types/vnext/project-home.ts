@@ -187,7 +187,7 @@ export interface ProjectHomeAutomationSummaryV01 {
   admission_reason: string;
   current_run_summary: BoundedAutomationCycleProjectionV01["run"];
   cycle: BoundedAutomationCycleProjectionV01;
-  inspector_href: string;
+  inspector_href: string | null;
 }
 
 export interface ProjectHomePersonalPerspectiveSummaryV01 {
