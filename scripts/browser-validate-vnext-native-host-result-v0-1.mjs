@@ -4154,7 +4154,7 @@ async function main() {
 
   }
 
-  if (RUN_CORE_SCOPE) {
+  if (RUN_CONTINUITY_SCOPE) {
   await runPhase("personal_perspective_inspector", async () => {
     await navigate(
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
@@ -4738,6 +4738,9 @@ async function main() {
     record("personal_perspective_shared_inspector_is_read_only_and_project_scoped");
   });
 
+  }
+
+  if (RUN_CORE_SCOPE) {
   await runPhase("product_shell_responsive", async () => {
     await validateProductShellResponsive("/workbench/inspector");
     await navigate(`${appOrigin}${result.folder_onboarding_destination}`);
@@ -5251,12 +5254,14 @@ async function main() {
     assert.equal(result.late_preview_response_discarded, false);
     assert.equal(result.exact_ready_to_complete_navigation, false);
     assert.equal(result.pending_applying_candidate_default_selection, false);
+    assert.equal(result.personal_perspective_shared_inspector_exact, false);
   } else if (VALIDATION_SCOPE === "continuity") {
     assert.equal(result.multi_candidate_transition_scope, true);
     assert.equal(result.candidate_switch_mutation_locking, true);
     assert.equal(result.late_preview_response_discarded, true);
     assert.equal(result.exact_ready_to_complete_navigation, true);
     assert.equal(result.pending_applying_candidate_default_selection, true);
+    assert.equal(result.personal_perspective_shared_inspector_exact, true);
   }
 
   await waitForRequestQuiet();
@@ -5495,9 +5500,15 @@ function seedExactBindingBrowserProposals(
       .find((packet) =>
         packet.selected_context?.some(
           (entry) => entry.entry_kind === "accepted_state_ref",
+        ) &&
+        !packet.selected_context?.some(
+          (entry) => entry.entry_kind === "memory_ref",
         ),
       );
-    assert(currentPacket, "exact-binding accepted-state packet fixture missing");
+    assert(
+      currentPacket,
+      "exact-binding non-Personal-Perspective accepted-state packet fixture missing",
+    );
     const pendingProject = {
       fixture_id: "continuity-exact-binding-pending",
       workspace_id: workspaceId,

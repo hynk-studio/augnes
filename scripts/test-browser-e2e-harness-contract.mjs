@@ -94,6 +94,9 @@ const multiCandidateTransitionPhase = source.indexOf(
 const exactBindingRecord = source.indexOf(
   'record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate")',
 );
+const personalPerspectivePhase = source.indexOf(
+  'runPhase("personal_perspective_inspector"',
+);
 assert(
   continuityScopeStart >= 0 &&
     multiCandidateTransitionPhase > continuityScopeStart,
@@ -103,15 +106,28 @@ assert.equal(
     .length,
   1,
 );
+assert(
+  continuityScopeStart >= 0 &&
+    personalPerspectivePhase > continuityScopeStart,
+);
+assert.equal(
+  [...source.matchAll(/runPhase\("personal_perspective_inspector"/gu)]
+    .length,
+  1,
+);
 assert.match(
   source,
   /isExpectedSyntheticSessionRefusal[\s\S]*entry\.phase === "synthetic_session_bootstrap"[\s\S]*entry\.path === "\/api\/vnext\/operator\/session"[\s\S]*response\.method === "GET"[\s\S]*response\.status === 401/u,
 );
 assert.match(
   source,
-  /VALIDATION_SCOPE === "core"[\s\S]*result\.multi_candidate_transition_scope, false[\s\S]*result\.exact_ready_to_complete_navigation, false[\s\S]*VALIDATION_SCOPE === "continuity"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, true/u,
+  /VALIDATION_SCOPE === "core"[\s\S]*result\.multi_candidate_transition_scope, false[\s\S]*result\.exact_ready_to_complete_navigation, false[\s\S]*result\.personal_perspective_shared_inspector_exact, false[\s\S]*VALIDATION_SCOPE === "continuity"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, true[\s\S]*result\.personal_perspective_shared_inspector_exact, true/u,
 );
 assert(continuityScopeStart >= 0 && exactBindingRecord > continuityScopeStart);
+assert.match(
+  source,
+  /seedExactBindingBrowserProposals[\s\S]*entry\.entry_kind === "accepted_state_ref"[\s\S]*entry\.entry_kind === "memory_ref"[\s\S]*exact-binding non-Personal-Perspective accepted-state packet fixture missing/u,
+);
 assert.equal(
   [
     ...source.matchAll(
