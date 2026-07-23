@@ -3803,6 +3803,50 @@ async function main() {
     record("policy_triggered_later_receipt_uses_explicit_non_authoritative_feedback");
   });
 
+  }
+
+  if (RUN_CONTINUITY_SCOPE) {
+    database ??= new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    await runPhase("synthetic_session_bootstrap", async () => {
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await waitForCondition(
+        `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null || document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
+        "continuity operator session state",
+      );
+      if (
+        await evaluateBoolean(
+          `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
+        )
+      ) {
+        bootstrapToken = await issueBootstrap(runtimeEnvironment);
+        await setBootstrapInput(bootstrapToken);
+        assert.equal(
+          await evaluateBoolean(`(() => {
+            const form = document.querySelector('#vnext-operator-bootstrap-token')?.closest('form');
+            if (!form) return false;
+            form.requestSubmit();
+            return true;
+          })()`),
+          true,
+        );
+        await waitForCondition(
+          `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null`,
+          "authenticated continuity local session",
+        );
+        assert.equal(
+          await evaluateBoolean(
+            `document.documentElement.innerHTML.includes(${JSON.stringify(bootstrapToken)})`,
+          ),
+          false,
+        );
+        assert.equal(serverLog.includes(bootstrapToken), false);
+        bootstrapToken = null;
+      }
+    });
+
   await runPhase("multi_candidate_transition_scope", async () => {
     const currentPacket = database
       .prepare(
@@ -4108,6 +4152,9 @@ async function main() {
     record("applying_decision_wording_and_exact_values_remain_truthful");
   });
 
+  }
+
+  if (RUN_CORE_SCOPE) {
   await runPhase("personal_perspective_inspector", async () => {
     await navigate(
       `${appOrigin}/projects/${encodeURIComponent(manifest.project_id)}`,
@@ -5200,6 +5247,17 @@ async function main() {
 
   await waitForRequestQuiet();
   timing.milestone("final global request quiet observed");
+  const isExpectedSyntheticSessionRefusal = (entry) =>
+    entry.phase === "synthetic_session_bootstrap" &&
+    entry.path === "/api/vnext/operator/session" &&
+    /401 \(Unauthorized\)/i.test(entry.text) &&
+    responses.some(
+      (response) =>
+        response.phase === entry.phase &&
+        response.path === entry.path &&
+        response.method === "GET" &&
+        response.status === 401,
+    );
   const isExpectedImportedDestinationSessionRefusal = (entry) =>
     entry.phase === "final_r8_portability_reconciliation" &&
     (entry.path === "/api/vnext/operator/session" ||
@@ -5220,6 +5278,7 @@ async function main() {
         (entry.phase === "locked_workbench" &&
           entry.path?.startsWith("/api/vnext/operator/") &&
           /401/i.test(entry.text)) ||
+        isExpectedSyntheticSessionRefusal(entry) ||
         isExpectedImportedDestinationSessionRefusal(entry) ||
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/projects" &&

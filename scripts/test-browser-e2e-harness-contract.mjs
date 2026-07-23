@@ -88,8 +88,24 @@ assert.match(
   /guideAfterImpactCount, guideBeforeImpact\.count[\s\S]*guideAfterConfirmationCount, guideBeforeImpact\.count[\s\S]*guideAfterApplication\.count,[\s\S]*guideBeforeImpact\.count \+ 1/u,
 );
 const continuityScopeStart = source.indexOf("if (RUN_CONTINUITY_SCOPE)");
+const multiCandidateTransitionPhase = source.indexOf(
+  'runPhase("multi_candidate_transition_scope"',
+);
 const exactBindingRecord = source.indexOf(
   'record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate")',
+);
+assert(
+  continuityScopeStart >= 0 &&
+    multiCandidateTransitionPhase > continuityScopeStart,
+);
+assert.equal(
+  [...source.matchAll(/runPhase\("multi_candidate_transition_scope"/gu)]
+    .length,
+  1,
+);
+assert.match(
+  source,
+  /isExpectedSyntheticSessionRefusal[\s\S]*entry\.phase === "synthetic_session_bootstrap"[\s\S]*entry\.path === "\/api\/vnext\/operator\/session"[\s\S]*response\.method === "GET"[\s\S]*response\.status === 401/u,
 );
 assert(continuityScopeStart >= 0 && exactBindingRecord > continuityScopeStart);
 assert.equal(
