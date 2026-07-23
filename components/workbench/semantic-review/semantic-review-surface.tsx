@@ -9,6 +9,8 @@ import {
 } from "@/components/workbench/ai-workplane/ai-workplane-shell";
 import { useProjectGuideBriefV02 } from "@/components/guide/use-project-guide-brief-v0-2";
 import { ProductShell } from "@/components/product-shell";
+import { DelegatedWorkPanel } from "@/components/delegated-work/delegated-work-panel";
+import { useDelegatedCodexWorkV01 } from "@/components/delegated-work/use-delegated-codex-work-v0-1";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import {
   buildAIWorkplaneHomeViewV01,
@@ -67,6 +69,11 @@ export function SemanticReviewSurface({
   } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const operatorMutationInFlight = useRef(false);
+  const lastGuideSyncKey = useRef<string | null>(null);
+  const lastTrustedResultRef = useRef<string | null>(null);
+  const delegatedState = useDelegatedCodexWorkV01(
+    sessionState.status === "authenticated" && !proposalId,
+  );
 
   const loadPrivateView = useCallback(async (options?: {
     announceLoading?: boolean;
@@ -438,6 +445,61 @@ export function SemanticReviewSurface({
     });
   }
 
+  useEffect(() => {
+    const delegated = delegatedState.projection;
+    if (!delegated || proposalId) return;
+    const guideDelegated = guideState.guide?.coordinate.delegated_work ?? null;
+    const exactKey = [
+      delegated.stage,
+      delegated.current.latest_checkpoint ?? "",
+      delegated.current.trusted_result_available ? "result" : "no-result",
+      delegated.control_revision,
+    ].join("\u0000");
+    const guideKey = guideDelegated
+      ? [
+          guideDelegated.stage,
+          guideDelegated.latest_checkpoint ?? "",
+          guideDelegated.trusted_result_available ? "result" : "no-result",
+        ].join("\u0000")
+      : "";
+    const comparableExactKey = [
+      delegated.stage,
+      delegated.current.latest_checkpoint ?? "",
+      delegated.current.trusted_result_available ? "result" : "no-result",
+    ].join("\u0000");
+    if (
+      comparableExactKey !== guideKey &&
+      lastGuideSyncKey.current !== exactKey
+    ) {
+      lastGuideSyncKey.current = exactKey;
+      void guideState.refresh();
+    }
+  }, [
+    delegatedState.projection,
+    guideState.guide,
+    guideState.refresh,
+    proposalId,
+  ]);
+
+  useEffect(() => {
+    const resultRef = delegatedState.projection?.result?.receipt_ref ?? null;
+    if (
+      !resultRef ||
+      resultRef === lastTrustedResultRef.current ||
+      sessionState.status !== "authenticated" ||
+      proposalId
+    ) {
+      return;
+    }
+    lastTrustedResultRef.current = resultRef;
+    void loadPrivateView({ announceLoading: false });
+  }, [
+    delegatedState.projection?.result?.receipt_ref,
+    loadPrivateView,
+    proposalId,
+    sessionState.status,
+  ]);
+
   const privateMaterialVisible =
     sessionState.status === "authenticated" && privateView !== null;
   const guideConsistency = compareAIWorkplaneGuideProjectV01(
@@ -461,7 +523,16 @@ export function SemanticReviewSurface({
         : privateView?.kind === "detail"
           ? privateView.value.proposal.project_continuity
           : null,
+    delegated_work: !proposalId ? delegatedState.projection : null,
   });
+  const delegatedOwnsFocus =
+    !proposalId &&
+    Boolean(
+      delegatedState.projection &&
+        (delegatedState.projection.stage !== "not_started" ||
+          (delegatedState.projection.start_eligible &&
+            homeView.state === "delegated_ready")),
+    );
   const entryPresentation = aiWorkplaneEntryPresentation(
     sessionState,
     privateView,
@@ -489,6 +560,20 @@ export function SemanticReviewSurface({
         guide={guideState.projection}
         guideLoading={guideState.status === "loading"}
         guideRequestCount={guideState.requestCountRef.current}
+        priorityContent={
+          exactReviewAvailable &&
+          privateView?.kind === "list" &&
+          delegatedState.projection ? (
+            <DelegatedWorkPanel
+              projection={delegatedState.projection}
+              status={delegatedState.status}
+              error={delegatedState.error}
+              requestCount={delegatedState.requestCountRef.current}
+              ownsPrimaryAction={delegatedOwnsFocus}
+              onAction={delegatedState.act}
+            />
+          ) : null
+        }
         title={proposalId ? "Review suggested change" : homeView.heading}
         description={
           proposalId
@@ -552,6 +637,7 @@ export function SemanticReviewSurface({
             reconciliation={privateView.value.project_verify_reconciliation}
             continuity={privateView.value.project_continuity}
             view={homeView}
+            showCurrentFocus={!delegatedOwnsFocus}
           />
         ) : null}
 
@@ -703,6 +789,14 @@ function aiWorkplaneEntryPresentation(
           ? "Decision saved · project unchanged"
           : homeState === "change_decision"
             ? "Needs your decision"
+            : homeState === "delegated_approval"
+              ? "Waiting for your approval"
+              : homeState === "delegated_resume"
+                ? "Codex work interrupted"
+                : homeState === "delegated_cancelling"
+                  ? "Codex work stopping"
+                  : homeState === "delegated_ready"
+                    ? "Ready to delegate"
             : homeState === "result_ready"
               ? "Result ready"
               : homeState === "work_in_progress"

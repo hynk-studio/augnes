@@ -10,6 +10,10 @@ export type AIWorkplaneHomeStateV01 =
   | "change_decision"
   | "result_ready"
   | "work_in_progress"
+  | "delegated_approval"
+  | "delegated_resume"
+  | "delegated_cancelling"
+  | "delegated_ready"
   | "other_attention"
   | "no_current_decision";
 
@@ -23,7 +27,14 @@ export type AIWorkplaneQueueItemStatusV01 =
   | "rejected";
 
 export interface AIWorkplanePrimaryActionV01 {
-  kind: "link" | "unlock" | "save_decision" | "review_impact" | "confirm" | "apply";
+  kind:
+    | "link"
+    | "unlock"
+    | "save_decision"
+    | "review_impact"
+    | "confirm"
+    | "apply"
+    | "delegated_work";
   label: string;
   href: string | null;
 }

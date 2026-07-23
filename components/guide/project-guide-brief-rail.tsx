@@ -11,6 +11,7 @@ const PENDING_GUIDE: GuideBriefAIWorkplaneProjectionV02 = {
   material_blocker_or_judgment: null,
   recommended_review_focus: "Continue only from verified current project information",
   exact_detail_href: null,
+  delegated_work: null,
 };
 
 const UNAVAILABLE_GUIDE: GuideBriefAIWorkplaneProjectionV02 = {

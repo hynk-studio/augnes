@@ -1071,6 +1071,7 @@ function buildGuideBriefSummary(guideBrief: GuideBriefResult) {
     source_status: guideBrief.source_status,
     current_goal: guideBrief.coordinate.goal,
     work_status: guideBrief.coordinate.work_status,
+    delegated_work: guideBrief.coordinate.delegated_work,
     material_blocker_or_uncertainty:
       guideBrief.coordinate.material_blocker_or_uncertainty,
     unresolved_user_judgment:
@@ -1253,6 +1254,9 @@ function describeGuideBrief(guideBrief: GuideBriefResult): string {
   return [
     `GuideBrief v0.2 for ${summary.project_name ?? "project choice"}: ${summary.work_status}.`,
     summary.current_goal ? `Current goal: ${summary.current_goal}.` : "No current goal is available.",
+    summary.delegated_work
+      ? `Delegated Codex work: ${summary.delegated_work.stage}. Latest checkpoint: ${summary.delegated_work.latest_checkpoint ?? "not yet available"}.`
+      : "No delegated Codex work is currently summarized.",
     summary.material_blocker_or_uncertainty
       ? `Important blocker or uncertainty: ${summary.material_blocker_or_uncertainty}.`
       : "No material blocker is currently summarized.",

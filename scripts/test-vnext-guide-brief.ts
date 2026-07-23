@@ -74,12 +74,70 @@ function source(project: ProjectHomeProjectionV01 | null, overrides: Partial<Bla
     projection: project,
     project_resolution: project ? "resolved" : "none",
     direct_host_round_trip_available: false,
+    delegated_work: null,
     ...overrides,
   };
 }
 
 function build(value: BlankStateSourceV01) {
   return buildProjectGuideBriefV02({ source: value, generated_at: NOW });
+}
+
+function waitingDelegatedWork(): NonNullable<BlankStateSourceV01["delegated_work"]> {
+  return {
+    projection_version: "delegated_work_projection.v0.1",
+    workspace_id: "workspace:00000000-0000-4000-8000-000000000001",
+    project_id: PROJECT_ID,
+    run_ref: "autonomy-run:00000000-0000-4000-8000-000000000001",
+    mode: "interactive",
+    source_status: "available",
+    stage: "waiting_for_approval",
+    started_at: NOW,
+    updated_at: NOW,
+    finished_at: null,
+    current: {
+      goal: "Ship the bounded current-project guide",
+      stage_label: "Waiting for your approval",
+      situation: "Codex needs a bounded permission decision before it can continue.",
+      latest_checkpoint: "Running a project command",
+      material_blocker_or_request: "A project command needs your approval.",
+      reconciliation_required: false,
+      last_observed_at: NOW,
+      trusted_result_available: false,
+      needs_user: true,
+    },
+    timeline: [],
+    compacted_item_count: 0,
+    gap_notes: [],
+    next_action: {
+      kind: "review_requested_access",
+      label: "Review requested access",
+      href: "/workbench/semantic-review#delegated-work",
+      executes: false,
+    },
+    pending_approval: null,
+    result: null,
+    exact_detail_href: null,
+    start_eligible: false,
+    start_blocker: "A run is already active.",
+    control_revision: 3,
+    can_cancel: true,
+    authority: {
+      writes_database: false,
+      creates_run: false,
+      starts_codex: false,
+      approves_host_action: false,
+      cancels_run: false,
+      resumes_run: false,
+      creates_result: false,
+      establishes_task_success: false,
+      creates_evidence: false,
+      changes_project_state: false,
+      calls_provider: false,
+      calls_github: false,
+      retries: false,
+    },
+  };
 }
 
 function resultProjection() {
@@ -177,6 +235,25 @@ async function main() {
   assert.equal(resultGuide.inferred.length <= 4, true);
   assert.equal(resultGuide.suggested.length <= 3, true);
   assert.equal(resultGuide.needs_user_judgment.length <= 3, true);
+
+  const delegatedGuide = build(
+    source(projection(), { delegated_work: waitingDelegatedWork() }),
+  );
+  assert.equal(delegatedGuide.coordinate.delegated_work?.stage, "waiting_for_approval");
+  assert.equal(
+    delegatedGuide.projections.blank_state.current_work?.delegated_work?.stage,
+    "waiting_for_approval",
+  );
+  assert.equal(
+    delegatedGuide.projections.ai_workplane.delegated_work?.stage,
+    "waiting_for_approval",
+  );
+  assert.equal(
+    delegatedGuide.projections.chatgpt.delegated_work?.stage,
+    "waiting_for_approval",
+  );
+  assert.equal(delegatedGuide.primary_guidance.label, "Review requested access");
+  assert.equal(delegatedGuide.authority.can_approve, false);
 
   const deterministicA = build(source(resultProjection()));
   const deterministicB = build(source(resultProjection()));

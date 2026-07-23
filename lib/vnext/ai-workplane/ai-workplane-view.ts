@@ -17,6 +17,7 @@ import type {
 } from "@/types/vnext/ai-workplane";
 import { AI_WORKPLANE_PRESENTATION_VERSION_V01 } from "@/types/vnext/ai-workplane";
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
+import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
 
 const MAX_QUEUE_ITEMS = 5;
 const MAX_UNCERTAINTIES = 6;
@@ -38,6 +39,7 @@ export function buildAIWorkplaneHomeViewV01(input: {
   guide: ProjectGuideBriefV02 | null;
   proposals: VNextOperatorPilotReviewListItemV01[];
   continuity: VNextOperatorPilotProjectContinuityV01 | null;
+  delegated_work?: DelegatedWorkProjectionV01 | null;
 }): AIWorkplaneHomeViewV01 {
   const guide = input.guide;
   const projectName = guide?.identity.project_display_name ?? null;
@@ -82,6 +84,89 @@ export function buildAIWorkplaneHomeViewV01(input: {
       "AI Workplane needs a current project from Blank State.",
       null,
       { kind: "link", label: "Open Blank State", href: "/" },
+    );
+  }
+  const delegated = input.delegated_work;
+  if (delegated?.stage === "waiting_for_approval") {
+    return state(
+      base,
+      "delegated_approval",
+      "Codex needs your decision",
+      delegated.current.situation,
+      delegated.current.material_blocker_or_request,
+      {
+        kind: "delegated_work",
+        label: "Review requested access",
+        href: null,
+      },
+    );
+  }
+  if (delegated?.stage === "resume_required") {
+    return state(
+      base,
+      "delegated_resume",
+      "Codex work was interrupted",
+      delegated.current.situation,
+      delegated.current.material_blocker_or_request,
+      {
+        kind: "delegated_work",
+        label: "Resume Codex work",
+        href: null,
+      },
+    );
+  }
+  if (delegated?.stage === "cancelling") {
+    return state(
+      base,
+      "delegated_cancelling",
+      "Codex is stopping",
+      delegated.current.situation,
+      delegated.current.latest_checkpoint,
+      null,
+    );
+  }
+  if (["preparing", "working"].includes(delegated?.stage ?? "")) {
+    return state(
+      base,
+      "work_in_progress",
+      "Codex is working",
+      delegated?.current.situation ??
+        "Codex is continuing the admitted local work.",
+      delegated?.current.latest_checkpoint ?? null,
+      null,
+    );
+  }
+  if (delegated?.stage === "result_ready") {
+    return state(
+      base,
+      "result_ready",
+      "A result is ready",
+      delegated.current.situation,
+      delegated.current.latest_checkpoint,
+      {
+        kind: "delegated_work",
+        label: "Review result",
+        href: null,
+      },
+    );
+  }
+  if (
+    delegated &&
+    ["blocked", "failed", "cancelled", "timed_out", "unavailable"].includes(
+      delegated.stage,
+    )
+  ) {
+    return state(
+      base,
+      "other_attention",
+      delegated.current.stage_label,
+      delegated.current.situation,
+      delegated.current.material_blocker_or_request,
+      {
+        kind: "delegated_work",
+        label: "Review what happened",
+        href: null,
+      },
     );
   }
 
@@ -187,6 +272,20 @@ export function buildAIWorkplaneHomeViewV01(input: {
       queue[0]!.title,
       queue[0]!.reason,
       { kind: "link", label: "Continue review", href: queue[0]!.href },
+    );
+  }
+  if (delegated?.stage === "not_started" && delegated.start_eligible) {
+    return state(
+      base,
+      "delegated_ready",
+      "Current work is ready for Codex",
+      "Delegate the exact current work and return later to follow durable progress.",
+      null,
+      {
+        kind: "delegated_work",
+        label: "Start Codex work",
+        href: null,
+      },
     );
   }
   return state(

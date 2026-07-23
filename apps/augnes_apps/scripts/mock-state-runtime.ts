@@ -1006,6 +1006,13 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         material_blocker_or_uncertainty: "User review remains unresolved.",
         unresolved_user_judgment: "Should the result be accepted?",
         recent_meaningful_change: "A result became available.",
+        delegated_work: {
+          stage: "result_ready",
+          latest_checkpoint: "Result saved",
+          needs_user: true,
+          trusted_result_available: true,
+          next_action: "review_result",
+        },
       },
       observed: [{ item_id: observedId, statement: "A saved result is available.", source_refs: [projectRef] }],
       inferred: [{ item_id: "inferred:mock-current", statement: "Result review is the next bounded focus.", supporting_observation_ids: [observedId], confidence: "high", caveats: ["GuideBrief is not project truth."] }],

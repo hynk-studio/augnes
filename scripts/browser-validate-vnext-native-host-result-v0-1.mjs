@@ -220,7 +220,13 @@ const result = {
   project_home_current_run_visible: false,
   live_codex_approved_once: false,
   live_codex_second_approval: false,
-  project_home_approval_refresh_count: 0,
+  ai_workplane_approval_refresh_count: 0,
+  delegated_work_single_initial_read: false,
+  delegated_work_timeline_public_safe: false,
+  delegated_work_narrow_viewport_no_overflow: false,
+  live_codex_untouched_approval_polling_stopped: false,
+  live_codex_leave_return_same_run: false,
+  live_codex_leave_return_no_new_turn: false,
   approval_barrier_timing: null,
   live_codex_receipt_persisted: false,
   live_codex_no_internal_id_input: false,
@@ -228,6 +234,7 @@ const result = {
   project_home_coordination_visible: false,
   workbench_result_review_read_only: false,
   shared_semantic_workbench_shell: false,
+  workbench_compatibility_redirect: false,
   guide_brief_blank_state_v0_2: false,
   guide_brief_ai_workplane_v0_2: false,
   guide_brief_cross_surface_consistency: false,
@@ -1949,20 +1956,21 @@ async function main() {
     );
     await openBlankStateProjectOptions();
     await waitForCondition(
-      `document.querySelector('[data-direct-host-round-trip="v0.2"][data-direct-host-round-trip-hydrated="true"]') !== null`,
-      "operator Project Home direct-host action",
+      `document.querySelector('[data-direct-host-round-trip="v0.3"]') !== null`,
+      "advanced deterministic local test action",
     );
     result.direct_host_project_home_active = true;
 
     const actionShape = await evaluateJson(`(() => {
-      const action = document.querySelector('[data-direct-host-round-trip="v0.2"]');
+      const action = document.querySelector('[data-direct-host-round-trip="v0.3"]');
       const labels = action
         ? Array.from(action.querySelectorAll('button, a')).map((candidate) => candidate.textContent?.trim() ?? '')
         : [];
       return {
         action_present: Boolean(action),
         form_field_count: action?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
-        start_button_count: action?.querySelectorAll('[data-direct-host-action="deterministic"], [data-live-host-action="start"]').length ?? -1,
+        start_button_count: action?.querySelectorAll('[data-direct-host-action="deterministic"]').length ?? -1,
+        live_control_count: action?.querySelectorAll('[data-delegated-work-action], [data-live-host-action]').length ?? -1,
         copy_or_paste_action: labels.some((label) => /copy|paste/i.test(label)),
         retired_control_count: Array.from(document.querySelectorAll('button, a')).filter((candidate) =>
           /copy taskcontextpacket|handoff capsule|core handoff|launch card|paste result|result report/i.test(candidate.textContent ?? '')
@@ -1973,7 +1981,8 @@ async function main() {
     assert.deepEqual(actionShape, {
       action_present: true,
       form_field_count: 0,
-      start_button_count: 2,
+      start_button_count: 1,
+      live_control_count: 0,
       copy_or_paste_action: false,
       retired_control_count: 0,
       result_textarea_count: 0,
@@ -2012,8 +2021,8 @@ async function main() {
     result.direct_host_status = hostResponse?.status ?? null;
     if (hostResponse?.status !== 201) {
       const visibleState = await evaluateJson(`(() => ({
-        status: document.querySelector('[data-direct-host-round-trip="v0.2"]')?.getAttribute('data-direct-host-round-trip-status') ?? null,
-        text: document.querySelector('[data-direct-host-round-trip="v0.2"]')?.textContent?.trim() ?? ''
+        status: document.querySelector('[data-direct-host-round-trip="v0.3"]')?.getAttribute('data-direct-host-round-trip-status') ?? null,
+        text: document.querySelector('[data-direct-host-round-trip="v0.3"]')?.textContent?.trim() ?? ''
       }))()`);
       assert.equal(
         hostResponse?.status,
@@ -2111,12 +2120,34 @@ async function main() {
     record("active_project_direct_host_round_trip_persists_exact_packet_receipt");
     record("direct_host_round_trip_has_zero_copy_paste_or_internal_id_input");
 
-    const liveProjectHomePath = await evaluateString("location.pathname");
+    const aiWorkplaneMountRequestStart = requests.length;
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null && document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]') !== null`,
+      "AI Workplane delegated Codex work",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-direct-host-round-trip] [data-delegated-work-action]') === null`,
+      ),
+      true,
+    );
+    assert.equal(
+      requests
+        .slice(aiWorkplaneMountRequestStart)
+        .filter(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.method === "GET",
+        ).length,
+      1,
+    );
+    result.delegated_work_single_initial_read = true;
     const liveRequestStart = requests.length;
     const liveResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = document.querySelector('[data-live-host-action="start"]');
+        const button = document.querySelector('[data-delegated-work-action="start"]');
         button?.click();
         return Boolean(button);
       })()`),
@@ -2141,33 +2172,20 @@ async function main() {
     assert(firstApprovalState.pending_approval);
     assert.equal(firstApprovalState.pending_approval.decision_submitted, false);
     await waitForCondition(
-      `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"]') !== null`,
+      `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-approval="pending"]') !== null`,
       "live Codex command approval",
     );
-    await waitForCondition(
-      `document.querySelector('[data-current-host-run="waiting_for_approval"]') !== null`,
-      "Project Home current nonterminal run",
-    );
-    await waitForHostCondition(
-      () =>
-        responses.slice(liveResponseStart).some(
-          (entry) =>
-            entry.path === liveProjectHomePath &&
-            entry.type === "Fetch" &&
-            entry.status === 200,
-        ),
-      "Project Home first approval server refresh",
-    );
-    timing.milestone("first Project Home approval refresh observed");
     result.live_codex_waiting_for_approval = true;
     result.project_home_current_run_visible = true;
     const pendingShape = await evaluateJson(`(() => {
-      const action = document.querySelector('[data-direct-host-round-trip="v0.2"]');
-      const approval = document.querySelector('[data-live-host-approval="pending"]');
+      const action = document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]');
+      const approval = document.querySelector('[data-delegated-work-approval="pending"]');
       return {
         form_field_count: action?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
         approval_present: Boolean(approval),
-        approve_once_present: Boolean(document.querySelector('[data-live-host-action="approve-once"]')),
+        approve_once_present: Boolean(document.querySelector('[data-delegated-work-action="approve-once"]')),
+        polling: action?.getAttribute('data-delegated-work-polling') ?? null,
+        primary_action_count: document.querySelectorAll('[data-ai-workplane-primary-action]').length,
         raw_protocol_visible: document.body.textContent.includes('jsonrpc') || document.body.textContent.includes('OPENAI_API_KEY')
       };
     })()`);
@@ -2175,13 +2193,60 @@ async function main() {
       form_field_count: 0,
       approval_present: true,
       approve_once_present: true,
+      polling: "false",
+      primary_action_count: 1,
       raw_protocol_visible: false,
     });
+    const untouchedApprovalGetCount = requests.filter(
+      (entry) =>
+        entry.path === "/api/vnext/operator/host-round-trip" &&
+        entry.method === "GET",
+    ).length;
+    const untouchedApprovalObservedAt = Date.now();
+    await waitForHostCondition(
+      () => Date.now() - untouchedApprovalObservedAt >= 900,
+      "untouched approval polling boundary",
+      2_000,
+    );
+    assert.equal(
+      requests.filter(
+        (entry) =>
+          entry.path === "/api/vnext/operator/host-round-trip" &&
+          entry.method === "GET",
+      ).length,
+      untouchedApprovalGetCount,
+    );
+    result.live_codex_untouched_approval_polling_stopped = true;
+
+    const turnStartsBeforeLeave =
+      countBrowserFixtureReceivedMethod("turn/start");
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work-summary="waiting_for_approval"]') !== null && document.querySelector('[data-blank-state-delegated-work-link="true"]') !== null`,
+      "Blank State compact delegated-work resumption",
+    );
+    assert.equal(
+      readLatestManagedLiveRunState(manifest.project_id)?.run_ref,
+      firstApprovalState.run_ref,
+    );
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="approve-once"]') !== null`,
+      "returned AI Workplane approval",
+    );
+    assert.equal(
+      countBrowserFixtureReceivedMethod("turn/start"),
+      turnStartsBeforeLeave,
+    );
+    await validateDelegatedWorkViewports();
+    result.live_codex_leave_return_same_run = true;
+    result.live_codex_leave_return_no_new_turn = true;
+    result.delegated_work_narrow_viewport_no_overflow = true;
 
     const firstApprovalResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = document.querySelector('[data-live-host-action="approve-once"]');
+        const button = document.querySelector('[data-delegated-work-action="approve-once"]');
         button?.click();
         return Boolean(button);
       })()`),
@@ -2242,27 +2307,28 @@ async function main() {
         firstApprovalState.pending_approval.control_revision,
     );
     await waitForCondition(
-      `document.querySelector('[data-live-host-status="waiting_for_approval"] [data-live-host-approval="pending"] [data-live-host-action="approve-once"]:not([disabled])') !== null`,
+      `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-approval="pending"] [data-delegated-work-action="approve-once"]:not([disabled])') !== null`,
       "second live Codex command approval",
     );
-    await waitForHostCondition(
-      () =>
-        responses.slice(secondApprovalRefreshStart).some(
+    assert.equal(
+      responses
+        .slice(secondApprovalRefreshStart)
+        .some(
           (entry) =>
-            entry.path === liveProjectHomePath &&
+            entry.path === "/api/vnext/operator/host-round-trip" &&
             entry.type === "Fetch" &&
             entry.status === 200,
         ),
-      "Project Home second approval server refresh",
+      true,
     );
-    timing.milestone("second Project Home approval refresh observed");
+    timing.milestone("second AI Workplane approval refresh observed");
     result.live_codex_second_approval = true;
-    result.project_home_approval_refresh_count = 2;
+    result.ai_workplane_approval_refresh_count = 2;
 
     const secondApprovalResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
-        const button = document.querySelector('[data-live-host-action="approve-once"]');
+        const button = document.querySelector('[data-delegated-work-action="approve-once"]');
         if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
         button.click();
         return true;
@@ -2314,10 +2380,10 @@ async function main() {
     timing.milestone("completed durable state observed");
     result.approval_barrier_timing = readApprovalBarrierTiming();
     await waitForCondition(
-      `document.querySelector('[data-live-host-status="completed"] [data-live-host-receipt="persisted"]') !== null`,
+      `document.querySelector('[data-delegated-work-stage="result_ready"] [data-ai-workplane-primary-action="review-result"]') !== null`,
       "live Codex terminal receipt after approval",
     );
-    timing.milestone("terminal Project Home refresh observed");
+    timing.milestone("terminal AI Workplane projection observed");
     result.live_codex_status = "completed";
     result.live_codex_approved_once = true;
 
@@ -2381,14 +2447,39 @@ async function main() {
       false,
     );
     result.live_codex_receipt_persisted = true;
+    const timelineShape = await evaluateJson(`(() => {
+      const timeline = document.querySelector('[aria-label="Delegated Codex work progress"]');
+      const text = timeline?.textContent ?? '';
+      return {
+        timeline_present: Boolean(timeline),
+        result_saved: text.includes('Result saved'),
+        checkpoint_count: timeline?.querySelectorAll('[data-delegated-work-timeline-kind^="checkpoint_"]').length ?? 0,
+        opaque_id_visible: /autonomy-run:|native-host-event:|host thread|host turn|control revision/i.test(text),
+        private_path_visible: text.includes(${JSON.stringify(path.dirname(databasePath))}),
+        raw_output_visible: /raw command output|provider output|reasoning delta/i.test(text),
+        primary_action_count: document.querySelectorAll('[data-ai-workplane-primary-action]').length,
+      };
+    })()`);
+    assert.equal(timelineShape.timeline_present, true);
+    assert.equal(timelineShape.result_saved, true);
+    assert.equal(timelineShape.checkpoint_count >= 2, true);
+    assert.equal(timelineShape.opaque_id_visible, false);
+    assert.equal(timelineShape.private_path_visible, false);
+    assert.equal(timelineShape.raw_output_visible, false);
+    assert.equal(timelineShape.primary_action_count, 1);
+    result.delegated_work_timeline_public_safe = true;
     record("active_project_live_codex_refreshes_two_approval_boundaries_and_persists_one_receipt");
     record("live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry");
-    await closeBlankStateProjectOptions();
 
     const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
+    await navigate(`${appOrigin}/`);
     await waitForCondition(
-      `document.querySelector('[data-latest-run-result="completed"] [data-review-result-link="true"]')?.getAttribute('href') === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-current-host-run]') === null`,
-      "Project Home latest immutable terminal result",
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
+      "Blank State after delegated result",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-latest-run-result="completed"] [data-review-result-link="true"]')?.getAttribute('href') === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-current-host-run]') === null && document.querySelector('[data-delegated-work-summary="result_ready"]') !== null`,
+      "Blank State latest immutable delegated result",
     );
     assert.equal(
       await evaluateBoolean(
@@ -6116,6 +6207,60 @@ async function validateWorkbenchResultViewports() {
   }
 }
 
+async function validateDelegatedWorkViewports() {
+  for (const width of [390, 430]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await evaluateBoolean(
+      `(() => { window.scrollTo(0, 0); return window.scrollY === 0; })()`,
+    );
+    await delay(100);
+    const metrics = await evaluateJson(`(() => {
+      const panel = document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]');
+      const heading = panel?.querySelector('h2');
+      const primary = panel?.querySelector('[data-ai-workplane-primary-action]');
+      const navigation = document.querySelector('nav[aria-label="Primary navigation"]');
+      const visible = (element) => {
+        const rect = element?.getBoundingClientRect();
+        return Boolean(rect && rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight);
+      };
+      return {
+        width: window.innerWidth,
+        document_horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        panel_horizontal_overflow:
+          (panel?.scrollWidth ?? 0) > (panel?.clientWidth ?? 0) + 1,
+        heading_visible: visible(heading),
+        primary_visible: visible(primary),
+        primary_count: panel?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? 0,
+        navigation_link_count: navigation?.querySelectorAll(':scope > a').length ?? 0,
+        timeline_semantic:
+          panel?.querySelector('ol[aria-label="Delegated Codex work progress"]') !== null
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      width,
+      document_horizontal_overflow: false,
+      panel_horizontal_overflow: false,
+      heading_visible: true,
+      primary_visible: true,
+      primary_count: 1,
+      navigation_link_count: 2,
+      timeline_semantic: true,
+    });
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+}
+
 async function validateSharedInspectorViewports() {
   for (const width of [390, 768, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
@@ -7395,6 +7540,19 @@ function readApprovalBarrierTiming() {
     timing_version: "browser_approval_barriers.v0.1",
     events: publicEntries,
   };
+}
+
+function countBrowserFixtureReceivedMethod(method) {
+  if (!existsSync(browserApprovalBarrierTracePath)) return 0;
+  return readFileSync(browserApprovalBarrierTracePath, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter(
+      (entry) =>
+        entry.kind === "received" && entry.value?.method === method,
+    ).length;
 }
 
 function childHasExited(child) {

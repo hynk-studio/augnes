@@ -28,6 +28,11 @@ async function main() {
     parsedGuide = guide;
     assert.equal(guide.guide_version, "guide_brief.v0.2");
     assert.equal(guide.identity.project_id, PROJECT_ID);
+    assert.equal(guide.coordinate.delegated_work?.stage, "result_ready");
+    assert.equal(
+      guide.coordinate.delegated_work?.trusted_result_available,
+      true,
+    );
     assert.equal(observedMarker, "guide-brief-v0.2");
     assert.match(observedUrl, /scope=project%3Aaugnes/u);
     assert.match(observedUrl, /project_id=project%3A00000000-0000-4000-8000-000000000001/u);
@@ -62,6 +67,8 @@ async function main() {
     "Source status",
   ]) assert.match(rendered, new RegExp(heading, "u"));
   assert.match(rendered, /TaskContextPacket is delivered separately/u);
+  assert.match(rendered, /delegated work: result_ready/u);
+  assert.match(rendered, /latest checkpoint: Result saved/u);
   assert.equal(rendered.includes("item_id"), false);
   assert.equal(Buffer.byteLength(rendered, "utf8") < 16_384, true);
 
@@ -86,7 +93,7 @@ async function main() {
   }
 
   console.log(JSON.stringify({
-    assertions: 21,
+    assertions: 25,
     guide_marker: "guide-brief-v0.2",
     bounded_sections: true,
     old_state_brief_rejected: true,

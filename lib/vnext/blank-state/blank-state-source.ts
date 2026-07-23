@@ -20,6 +20,8 @@ import {
   LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
 } from "@/lib/vnext/native-host/local-project-verification-adapter";
 import { DEFAULT_LIVE_TIMEOUT_MS } from "@/lib/vnext/runtime/live-native-host-run-service";
+import { getLiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
+import { readDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-source";
 import { readVNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { VNextOperatorPilotContinuityErrorV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { BoundedAutomationHostContractV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
@@ -77,6 +79,7 @@ export async function readBlankStateSourceV01(
       projection: null,
       project_resolution: "none",
       direct_host_round_trip_available: false,
+      delegated_work: null,
     };
   }
 
@@ -108,6 +111,19 @@ export async function readBlankStateSourceV01(
     }
   }
 
+  const operatorConfig = readMatchingOperatorConfigV01(
+    workspace.workspace_id,
+    targetProjectId,
+  );
+  const delegatedWork =
+    projection?.project_summary.is_active && operatorConfig
+      ? readDelegatedWorkProjectionV01(db, {
+          config: operatorConfig,
+          live_run:
+            getLiveNativeHostRunServiceV01().read(operatorConfig),
+        })
+      : null;
+
   return {
     route_mode: input.route_mode,
     requested_project_id: requestedProjectId,
@@ -118,6 +134,7 @@ export async function readBlankStateSourceV01(
     direct_host_round_trip_available: projection
       ? directHostRoundTripAvailableV01(projection)
       : false,
+    delegated_work: delegatedWork,
   };
 }
 

@@ -101,6 +101,17 @@ export function buildProjectGuideBriefV02(
     material_blocker_or_uncertainty: blocker,
     unresolved_user_judgment: judgments[0]?.question ?? null,
     recent_meaningful_change: boundedTextV02(recentChange?.summary ?? null),
+    delegated_work: source.delegated_work
+      ? {
+          stage: source.delegated_work.stage,
+          latest_checkpoint:
+            source.delegated_work.current.latest_checkpoint,
+          needs_user: source.delegated_work.current.needs_user,
+          trusted_result_available:
+            source.delegated_work.current.trusted_result_available,
+          next_action: source.delegated_work.next_action.kind,
+        }
+      : null,
   };
   const blankState = buildBlankStateProjectionV02({
     source,
@@ -122,6 +133,7 @@ export function buildProjectGuideBriefV02(
       coordinate.unresolved_user_judgment ?? coordinate.material_blocker_or_uncertainty,
     recommended_review_focus: primaryGuidance.label,
     exact_detail_href: result?.inspector_href ?? null,
+    delegated_work: coordinate.delegated_work,
   };
   const codex = buildCodexProjectionV02({
     source,
@@ -186,6 +198,7 @@ export function buildProjectGuideBriefV02(
         needs_user_judgment: judgments,
         primary_guidance: primaryGuidance,
         source_refs: refs,
+        delegated_work: coordinate.delegated_work,
       },
       codex,
     },
@@ -400,6 +413,112 @@ function decideFocusV02(source: BlankStateSourceV01): FocusDecisionV02 {
         why: "Changing the active project changes where subsequent work is scoped.",
         blocked: ["Starting or changing project-scoped work"],
       },
+    };
+  }
+  const delegated = source.delegated_work;
+  if (delegated?.stage === "waiting_for_approval") {
+    return {
+      focus: "work_requires_attention",
+      heading: "Codex needs your decision",
+      situation:
+        "Delegated work is waiting for you to review a bounded access request.",
+      material_note: delegated.current.material_blocker_or_request,
+      action: {
+        kind: "link",
+        label: "Review requested access",
+        href: "/workbench/semantic-review#delegated-work-approval",
+        entry_state: "delegated_work",
+      },
+      action_reason:
+        "Codex cannot continue until the bounded request is approved or declined.",
+      project_management_emphasized: management,
+      user_judgment: {
+        question: "Should Codex receive this bounded access once?",
+        why: "The operational request remains separate from any project decision.",
+        blocked: ["Continuing the delegated Codex work"],
+      },
+    };
+  }
+  if (delegated?.stage === "resume_required") {
+    return {
+      focus: "work_requires_attention",
+      heading: "Codex work was interrupted",
+      situation:
+        "The local runtime lost ownership and will not assume that work continued.",
+      material_note:
+        "Resume reuses the same admitted run and exact host binding. It is never automatic.",
+      action: {
+        kind: "link",
+        label: "Resume in AI Workplane",
+        href: "/workbench/semantic-review#delegated-work",
+        entry_state: "delegated_work",
+      },
+      action_reason:
+        "The interrupted work requires an explicit resume before progress can continue.",
+      project_management_emphasized: management,
+      user_judgment: null,
+    };
+  }
+  if (delegated?.stage === "cancelling") {
+    return {
+      focus: "work_in_progress",
+      heading: "Codex is stopping",
+      situation:
+        "Augnes is waiting for the admitted work to stop cleanly.",
+      material_note: delegated.current.latest_checkpoint,
+      action: {
+        kind: "link",
+        label: "View progress",
+        href: "/workbench/semantic-review#delegated-work",
+        entry_state: "delegated_work",
+      },
+      action_reason:
+        "The AI Workplane shows the exact stopping state without inferring a result.",
+      project_management_emphasized: management,
+      user_judgment: null,
+    };
+  }
+  if (["preparing", "working"].includes(delegated?.stage ?? "")) {
+    return {
+      focus: "work_in_progress",
+      heading: "Codex is working",
+      situation: delegated?.current.goal
+        ? `Codex is working on: ${publicGuideBriefTextV02(delegated.current.goal)}`
+        : "Codex is continuing the admitted local work.",
+      material_note:
+        delegated?.current.latest_checkpoint ??
+        "A running process is not treated as a successful result.",
+      action: {
+        kind: "link",
+        label: "Open delegated work",
+        href: "/workbench/semantic-review#delegated-work",
+        entry_state: "delegated_work",
+      },
+      action_reason:
+        "The AI Workplane shows durable progress without claiming success early.",
+      project_management_emphasized: management,
+      user_judgment: null,
+    };
+  }
+  if (
+    delegated?.stage === "result_ready" &&
+    delegated.result?.review_href
+  ) {
+    return {
+      focus: "result_ready",
+      heading: "A result is ready",
+      situation: "The delegated Codex result was saved and is ready to review.",
+      material_note:
+        "Result readiness comes from the trusted saved result, not host completion alone.",
+      action: {
+        kind: "link",
+        label: "Review result",
+        href: delegated.result.review_href,
+        entry_state: "result_ready",
+      },
+      action_reason: "A trusted result is available for review.",
+      project_management_emphasized: management,
+      user_judgment: null,
     };
   }
   const currentRun = projection.run_results.current_run;
@@ -670,13 +789,37 @@ function buildBlankStateProjectionV02(input: {
     material_note: input.decision.material_note,
     primary_action: input.decision.action,
     project_management_emphasized: input.decision.project_management_emphasized,
-    current_work: projection && (run || result)
+    current_work: projection && (run || result || input.source.delegated_work)
       ? {
-          status: run ? run.reconciliation_required ? "Needs observation" : "In progress" : "Result saved",
-          goal: boundedTextV02(projection.coordination.task_frame.goal),
+          status:
+            input.source.delegated_work?.current.stage_label ??
+            (run
+              ? run.reconciliation_required
+                ? "Needs observation"
+                : "In progress"
+              : "Result saved"),
+          goal: boundedTextV02(
+            input.source.delegated_work?.current.goal ??
+              projection.coordination.task_frame.goal,
+          ),
           result_summary: boundedTextV02(result?.summary ?? null),
           verification: result ? { passed: result.check_counts.passed, failed: result.check_counts.failed, skipped: result.check_counts.skipped } : null,
           exact_detail_href: result?.inspector_href ?? null,
+          delegated_work: input.source.delegated_work
+            ? {
+                stage: input.source.delegated_work.stage,
+                stage_label:
+                  input.source.delegated_work.current.stage_label,
+                latest_checkpoint:
+                  input.source.delegated_work.current.latest_checkpoint,
+                last_observed_at:
+                  input.source.delegated_work.current.last_observed_at,
+                trusted_result_available:
+                  input.source.delegated_work.current
+                    .trusted_result_available,
+                href: "/workbench/semantic-review#delegated-work",
+              }
+            : null,
         }
       : null,
     additional_attention: (projection?.attention.items ?? [])

@@ -148,6 +148,12 @@ compatible canonical AI Workplane route rather than remaining a competing
 landing. This compatibility rule does not make Inspector a target peer
 navigation destination.
 
+C5 moves active live-Codex start, progress, approval, cancellation and resume
+ownership from the Project options compatibility component into AI Workplane.
+The deterministic local round-trip remains an advanced project option. The
+existing host-round-trip route and autonomy runner ledger remain retained
+runtime authorities; broad adapter/file-name cleanup is deferred to C9.
+
 ### Automation and Personal Perspective
 
 Do not delete shared roadmap foundations. Delete only duplicated or advanced subsystems after replacement or an explicit later product decision:

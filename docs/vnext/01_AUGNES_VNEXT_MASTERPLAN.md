@@ -54,12 +54,15 @@ Target default top-level navigation은 Blank State와 AI Workplane 두 destinati
 embedded되는 non-authoritative interpretation layer이며 peer page가 아니다.
 Inspector도 normal peer destination이 아니라 contextual audit surface다.
 
-현재 runtime은 canonical Blank State, GuideBrief v0.2와 이 change가 구현하는 human-facing
-AI Workplane을 통해 operational Core를 투영한다. Shared Inspector, Portability와 Recovery는
+현재 runtime은 canonical Blank State, GuideBrief v0.2와 human-facing AI Workplane을
+통해 operational Core를 투영한다. C5 in this change는 기존 managed-live runner ledger와
+native-host lifecycle을 durable delegated Codex progress, approval attention, interruption,
+explicit resume와 trusted-result boundary로 투영한다. Shared Inspector, Portability와 Recovery는
 여전히 reference operator implementation이다. Post-Build Week correction은 이 engine을
 폐기하지 않고 target surface 아래로 reproject, absorb 또는 demote한다. C4는 exact
 verification, proposal, decision, confirmation, application과 lineage semantics를 유지한 채
-default Workbench projection을 ordinary-language AI Workplane으로 바꾼다. 이후 correction
+default Workbench projection을 ordinary-language AI Workplane으로 바꿨다. C5는 새
+timeline persistence나 execution authority를 만들지 않는다. 이후 correction
 PR 전까지 현재 code가 implemented behavior의 source of truth다.
 
 ---
@@ -793,8 +796,13 @@ historical Agent Workplane과 Semantic Workbench는 implementation ancestry와 i
 compatibility naming으로 남을 수 있다. C4 implementation은
 `/workbench/semantic-review`를 current compatible canonical AI Workplane route로
 reproject하고 `/workbench`를 그 route로 redirect한다. exact engine structure는 advanced
-review와 contextual Inspector에서 유지되며 default user path를 정의하지 않는다. C4는
-이 PR이 review와 merge된 뒤에만 complete다.
+review와 contextual Inspector에서 유지되며 default user path를 정의하지 않는다.
+
+C5 implementation은 AI Workplane이 current exact `TaskContextPacket`의 live delegation,
+bounded progress, operational approval, cancellation, explicit resume와 trusted result
+handoff를 소유하게 한다. 이 timeline은 `autonomy_runs`, steps와 events 위의 read-only
+View다. page leave/remount는 run 또는 turn을 만들거나 취소하지 않으며, runtime ownership
+loss는 자동 completion이 아니라 explicit resume-required로 투영한다.
 
 AI Workplane의 default human projection은 requested work, current meaningful stage,
 result, verification outcome, remaining uncertainty/risk와 실제 필요한 user decision을

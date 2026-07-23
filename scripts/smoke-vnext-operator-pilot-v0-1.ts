@@ -136,6 +136,7 @@ import {
   type OpenAIResponsesTransportRequestV01,
 } from "../lib/vnext/model-gateway/openai/responses-adapter";
 import type { ProjectRunResultDetailV01 } from "../types/vnext/project-run-result";
+import type { DelegatedWorkProjectionV01 } from "../types/vnext/delegated-work";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
@@ -8331,6 +8332,14 @@ async function assertLiveCodexPublicSafeCommandPersistenceOnCloneV01(input: {
           }),
         );
         jar.absorb(start);
+        const startBody = await publicJson(start);
+        const startedDelegated =
+          delegatedProjectionFromRouteBodyV01(startBody);
+        assert(
+          ["preparing", "working", "resume_required"].includes(
+            startedDelegated.stage,
+          ),
+        );
         let projection = await waitForLiveProjectionV01(
           harness.service,
           config,
@@ -8440,11 +8449,16 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         scenario: "command_approval",
         now: () => clock.now(),
       });
+      const forcedProjectionReads = { count: 0 };
       const post = createVNextOperatorHostRoundTripHandlerV01({
         environment,
         clock,
         secret_source: new DeterministicSecretSource(),
         live_service: harness.service,
+        read_delegated_projection:
+          forcedDelegatedProjectionFailureReaderV01(
+            forcedProjectionReads,
+          ),
       });
       const get = createVNextOperatorHostRoundTripReadHandlerV01({
         environment,
@@ -8456,6 +8470,8 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
       const receiptsBefore = countRowsByKind(db, "run_receipt");
       db.close();
       try {
+        const staleStartJar = cloneRouteCookieJarV01(jar);
+        const startCookieBefore = jar.header();
         const start = await post(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
@@ -8465,13 +8481,107 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         );
         assert.equal(start.status, 202);
         jar.absorb(start);
+        assert.notEqual(jar.header(), startCookieBefore);
         const startBody = await publicJson(start);
         assert.equal(startBody.path_kind, "live_codex_app_server");
+        assert.equal(
+          startBody.route_version,
+          "vnext_operator_host_round_trip_route.v0.3",
+        );
+        assert.equal(startBody.status, "accepted");
+        const unavailableStart =
+          assertUnavailableDelegatedProjectionResponseV01(
+            startBody,
+            "accepted_action",
+          );
+        assert.equal(
+          unavailableStart.control_revision,
+          projectionFromRouteBodyV01(startBody).control_revision,
+        );
+        assert.equal(forcedProjectionReads.count, 1);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleStartJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
         let projection = projectionFromRouteBodyV01(startBody);
         assert.equal(projection.packet_copy_actions, 0);
         assert.equal(projection.handoff_paste_actions, 0);
         assert.equal(projection.result_paste_actions, 0);
         assert.equal(projection.internal_id_entry_actions, 0);
+
+        const staleReplayJar = cloneRouteCookieJarV01(jar);
+        const startReplay = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        assert.equal(startReplay.status, 200);
+        jar.absorb(startReplay);
+        const startReplayBody = await publicJson(startReplay);
+        assert.equal(startReplayBody.status, "exact_replay");
+        assertUnavailableDelegatedProjectionResponseV01(
+          startReplayBody,
+          "accepted_action",
+        );
+        assert.equal(forcedProjectionReads.count, 2);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleReplayJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
+        let projectionCloseFailureCount = 0;
+        const closeFailurePost =
+          createVNextOperatorHostRoundTripHandlerV01({
+            environment,
+            clock,
+            secret_source: new DeterministicSecretSource(),
+            live_service: harness.service,
+            open_database: (databaseConfig) => {
+              const projectionDb =
+                openVNextLocalOperatorDatabaseV01(databaseConfig);
+              const close = projectionDb.close.bind(projectionDb);
+              projectionDb.close = () => {
+                projectionCloseFailureCount += 1;
+                close();
+                throw new Error(
+                  "forced_projection_database_close_failure",
+                );
+              };
+              return projectionDb;
+            },
+          });
+        const staleCloseFailureJar = cloneRouteCookieJarV01(jar);
+        const closeFailureReplay = await closeFailurePost(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        assert.equal(closeFailureReplay.status, 200);
+        jar.absorb(closeFailureReplay);
+        const closeFailureReplayBody =
+          await publicJson(closeFailureReplay);
+        assert.equal(closeFailureReplayBody.status, "exact_replay");
+        assertUnavailableDelegatedProjectionResponseV01(
+          closeFailureReplayBody,
+          "accepted_action",
+        );
+        assert.equal(projectionCloseFailureCount >= 1, true);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleCloseFailureJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
 
         try {
           projection = await waitForLiveProjectionV01(
@@ -8546,12 +8656,50 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           }),
         );
         assert.equal(read.status, 200);
+        const readBody = await publicJson(read);
         assert.equal(
-          projectionFromRouteBodyV01(await publicJson(read)).status,
+          projectionFromRouteBodyV01(readBody).status,
           "waiting_for_approval",
         );
+        assert.equal(
+          delegatedProjectionFromRouteBodyV01(readBody).stage,
+          "waiting_for_approval",
+        );
+        assert.equal(
+          readBody.delegated_work_projection_status,
+          "available",
+        );
+
+        const unavailableReadCount = { count: 0 };
+        const unavailableGet =
+          createVNextOperatorHostRoundTripReadHandlerV01({
+            environment,
+            clock,
+            live_service: harness.service,
+            read_delegated_projection:
+              forcedDelegatedProjectionFailureReaderV01(
+                unavailableReadCount,
+              ),
+          });
+        const unavailableRead = await unavailableGet(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "GET",
+            jar,
+          }),
+        );
+        assert.equal(unavailableRead.status, 200);
+        const unavailableReadBody = await publicJson(unavailableRead);
+        assert.equal(unavailableReadBody.status, "projection");
+        assert(projectionFromRouteBodyV01(unavailableReadBody));
+        assertUnavailableDelegatedProjectionResponseV01(
+          unavailableReadBody,
+          "read",
+        );
+        assert.equal(unavailableReadCount.count, 1);
 
         const approval = projection.pending_approval;
+        const staleApprovalJar = cloneRouteCookieJarV01(jar);
+        const approvalCookieBefore = jar.header();
         const approve = await post(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
@@ -8566,7 +8714,22 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         );
         assert.equal(approve.status, 200);
         jar.absorb(approve);
-        assert.equal((await publicJson(approve)).decision_created, false);
+        assert.notEqual(jar.header(), approvalCookieBefore);
+        const approveBody = await publicJson(approve);
+        assert.equal(approveBody.status, "decision_admitted");
+        assert.equal(approveBody.decision_created, false);
+        assertUnavailableDelegatedProjectionResponseV01(
+          approveBody,
+          "accepted_action",
+        );
+        assert.equal(forcedProjectionReads.count, 3);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleApprovalJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
         try {
           projection = await waitForLiveProjectionV01(
             harness.service,
@@ -8592,6 +8755,40 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
           ),
           true,
         );
+        const checkpointEvents = run.events.filter(
+          (event) =>
+            event.event_type === "host_event_observed" &&
+            event.payload.event_kind === "work_checkpoint",
+        );
+        assert.equal(checkpointEvents.length >= 2, true);
+        assert.equal(
+          checkpointEvents.every((event) => {
+            const serialized = JSON.stringify(event.payload.checkpoint);
+            return (
+              event.payload.host_refs != null &&
+              !serialized.includes("npm test") &&
+              !serialized.includes(config.database_path) &&
+              !serialized.includes("output")
+            );
+          }),
+          true,
+        );
+        const terminalRead = await get(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "GET",
+            jar,
+          }),
+        );
+        assert.equal(terminalRead.status, 200);
+        const terminalDelegated = delegatedProjectionFromRouteBodyV01(
+          await publicJson(terminalRead),
+        );
+        assert.equal(terminalDelegated.stage, "result_ready");
+        assert.equal(
+          terminalDelegated.current.trusted_result_available,
+          true,
+        );
+        assert.equal(terminalDelegated.next_action.kind, "review_result");
         const receiptId = String(run.metadata.run_receipt_id);
         const receiptDb = openVNextLocalOperatorDatabaseV01(config);
         const record = readVNextCoreRecordV01(receiptDb, {
@@ -8978,6 +9175,12 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
   pass("live_codex_route_uses_zero_copy_paste_or_internal_id_entry");
   pass("live_codex_packet_egress_and_r4_coverage_are_truthful_and_minimized");
   pass("live_codex_process_settles_before_one_canonical_receipt");
+  pass(
+    "live_codex_start_approval_and_get_preserve_success_cookie_when_delegated_projection_fails",
+  );
+  pass(
+    "live_codex_start_exact_replay_rotates_nonce_once_without_projection_retry",
+  );
   reject("live_codex_terminal_replay_after_root_rebind_fails_closed");
 }
 
@@ -8999,10 +9202,20 @@ async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
         scenario: "file_approval",
         now: () => clock.now(),
       });
+      const forcedProjectionReads = { count: 0 };
       const post = createVNextOperatorHostRoundTripHandlerV01({
         environment,
         clock,
         secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+        read_delegated_projection:
+          forcedDelegatedProjectionFailureReaderV01(
+            forcedProjectionReads,
+          ),
+      });
+      const get = createVNextOperatorHostRoundTripReadHandlerV01({
+        environment,
+        clock,
         live_service: harness.service,
       });
       const jar = cloneRouteCookieJarV01(input.jar);
@@ -9074,6 +9287,7 @@ async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
         );
         assert.equal(stale.status, 409);
 
+        const staleDeclineJar = cloneRouteCookieJarV01(jar);
         const decline = await post(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
@@ -9088,7 +9302,22 @@ async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
         );
         assert.equal(decline.status, 200);
         jar.absorb(decline);
+        const declineBody = await publicJson(decline);
+        assert.equal(declineBody.status, "decision_admitted");
+        assertUnavailableDelegatedProjectionResponseV01(
+          declineBody,
+          "accepted_action",
+        );
+        assert.equal(forcedProjectionReads.count, 1);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleDeclineJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
 
+        const staleDeclineReplayJar = cloneRouteCookieJarV01(jar);
         const exactReplay = await post(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
@@ -9103,7 +9332,22 @@ async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
         );
         assert.equal(exactReplay.status, 200);
         jar.absorb(exactReplay);
+        const exactReplayBody = await publicJson(exactReplay);
+        assert.equal(exactReplayBody.status, "decision_admitted");
+        assertUnavailableDelegatedProjectionResponseV01(
+          exactReplayBody,
+          "accepted_action",
+        );
+        assert.equal(forcedProjectionReads.count, 2);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleDeclineReplayJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
 
+        const readsBeforeConflict = forcedProjectionReads.count;
         const conflict = await post(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
@@ -9121,6 +9365,7 @@ async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
           (await publicJson(conflict)).error_code,
           "live_host_approval_decision_conflict",
         );
+        assert.equal(forcedProjectionReads.count, readsBeforeConflict);
 
         try {
           projection = await waitForLiveProjectionV01(
@@ -9247,6 +9492,9 @@ async function assertLiveCodexApprovalReplayAndContainmentOnClonesV01(input: {
   );
   pass(
     "live_codex_host_approval_creates_no_review_decision_or_semantic_transition",
+  );
+  pass(
+    "live_codex_decline_and_exact_replay_preserve_rotated_session_when_projection_fails",
   );
 }
 
@@ -9463,10 +9711,28 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
         controlled_cleanup: true,
         stop_settle_timeout_ms: 10_000,
       });
+      const secretSource = new DeterministicSecretSource();
       const post = createVNextOperatorHostRoundTripHandlerV01({
         environment,
         clock,
-        secret_source: new DeterministicSecretSource(),
+        secret_source: secretSource,
+        live_service: harness.service,
+      });
+      const forcedProjectionReads = { count: 0 };
+      const postWithProjectionFailure =
+        createVNextOperatorHostRoundTripHandlerV01({
+          environment,
+          clock,
+          secret_source: secretSource,
+          live_service: harness.service,
+          read_delegated_projection:
+            forcedDelegatedProjectionFailureReaderV01(
+              forcedProjectionReads,
+            ),
+        });
+      const get = createVNextOperatorHostRoundTripReadHandlerV01({
+        environment,
+        clock,
         live_service: harness.service,
       });
       const jar = cloneRouteCookieJarV01(input.jar);
@@ -9496,7 +9762,9 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
         }
         assert(projection.run_ref);
         const cancellationRequestRevision = projection.control_revision;
-        const conflictingCancellation = await post(
+        const projectionReadsBeforeOperationalFailure =
+          forcedProjectionReads.count;
+        const conflictingCancellation = await postWithProjectionFailure(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
             jar,
@@ -9513,13 +9781,18 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
           "waiting_for_approval",
         );
         assert.equal(
+          forcedProjectionReads.count,
+          projectionReadsBeforeOperationalFailure,
+        );
+        assert.equal(
           countTraceMethodV01(
             readFakeTraceV01(harness.trace_path),
             "turn/interrupt",
           ),
           0,
         );
-        const cancel = await post(
+        const staleCancelJar = cloneRouteCookieJarV01(jar);
+        const cancel = await postWithProjectionFailure(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
             jar,
@@ -9532,6 +9805,20 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
         );
         assert.equal(cancel.status, 200);
         jar.absorb(cancel);
+        const cancelBody = await publicJson(cancel);
+        assert.equal(cancelBody.status, "cancellation_admitted");
+        assertUnavailableDelegatedProjectionResponseV01(
+          cancelBody,
+          "accepted_action",
+        );
+        assert.equal(forcedProjectionReads.count, 1);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleCancelJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
         await waitForFakeTraceMethodV01(harness.trace_path, "turn/interrupt");
         projection = harness.service.read(config);
         assert.equal(projection.status, "cancelling");
@@ -9570,7 +9857,8 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
         );
         assertObservedProcessesStoppedV01(harness.observations);
 
-        const replay = await post(
+        const staleCancelReplayJar = cloneRouteCookieJarV01(jar);
+        const replay = await postWithProjectionFailure(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
             jar,
@@ -9583,6 +9871,20 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
         );
         assert.equal(replay.status, 200);
         jar.absorb(replay);
+        const replayBody = await publicJson(replay);
+        assert.equal(replayBody.status, "cancellation_admitted");
+        assertUnavailableDelegatedProjectionResponseV01(
+          replayBody,
+          "accepted_action",
+        );
+        assert.equal(forcedProjectionReads.count, 2);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleCancelReplayJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
         assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
         assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
       } finally {
@@ -9596,6 +9898,12 @@ async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
   );
   pass("live_codex_cancel_interrupts_exact_turn_and_waits_for_cleanup_barrier");
   pass("live_codex_repeated_cancel_is_idempotent_with_one_receipt");
+  pass(
+    "live_codex_cancel_and_replay_preserve_success_cookie_when_projection_fails",
+  );
+  reject(
+    "live_codex_operational_failure_is_not_converted_to_projection_fallback_success",
+  );
 }
 
 async function assertLiveCodexTimeoutSettlementOnCloneV01(input: {
@@ -9765,10 +10073,28 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         scenario: "disconnect_resume",
         now: () => clock.now(),
       });
+      const secretSource = new DeterministicSecretSource();
       const post = createVNextOperatorHostRoundTripHandlerV01({
         environment,
         clock,
-        secret_source: new DeterministicSecretSource(),
+        secret_source: secretSource,
+        live_service: harness.service,
+      });
+      const forcedProjectionReads = { count: 0 };
+      const postWithProjectionFailure =
+        createVNextOperatorHostRoundTripHandlerV01({
+          environment,
+          clock,
+          secret_source: secretSource,
+          live_service: harness.service,
+          read_delegated_projection:
+            forcedDelegatedProjectionFailureReaderV01(
+              forcedProjectionReads,
+            ),
+        });
+      const get = createVNextOperatorHostRoundTripReadHandlerV01({
+        environment,
+        clock,
         live_service: harness.service,
       });
       const jar = cloneRouteCookieJarV01(input.jar);
@@ -9807,7 +10133,8 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
           "live_host_cancel_owner_unavailable",
         );
         assert.equal(countRunReceiptsV01(config), receiptsBefore);
-        const resume = await post(
+        const staleResumeJar = cloneRouteCookieJarV01(jar);
+        const resume = await postWithProjectionFailure(
           routeRequest("/api/vnext/operator/host-round-trip", {
             method: "POST",
             jar,
@@ -9820,6 +10147,27 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         );
         assert.equal(resume.status, 202);
         jar.absorb(resume);
+        const resumeBody = await publicJson(resume);
+        assert.equal(resumeBody.status, "resume_admitted");
+        const resumedDelegated =
+          assertUnavailableDelegatedProjectionResponseV01(
+            resumeBody,
+            "accepted_action",
+          );
+        assert.equal(resumedDelegated.run_ref, projection.run_ref);
+        assert.equal(forcedProjectionReads.count, 1);
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleResumeJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
+        assert(
+          ["starting", "running"].includes(
+            projectionFromRouteBodyV01(resumeBody).status,
+          ),
+        );
         try {
           projection = await waitForLiveProjectionV01(
             harness.service,
@@ -9839,6 +10187,24 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         assert.equal(countTraceMethodV01(trace, "turn/start"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/read"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/resume"), 1);
+        const turnStart = trace.find(
+          (entry) =>
+            entry.kind === "received" &&
+            entry.value?.method === "turn/start",
+        );
+        assert.equal(turnStart?.value.guide_brief_section, true);
+        assert.equal(turnStart?.value.guide_brief_version_v0_2, true);
+        assert.equal(turnStart?.value.guide_grants_approval, false);
+        const resumedRun = readHostRunStateFromConfigV01(
+          config,
+          projection.run_ref!,
+        );
+        assert.equal(
+          resumedRun.events.some(
+            (event) => event.event_type === "run_resumed",
+          ),
+          true,
+        );
         assertObservedProcessesStoppedV01(harness.observations);
         assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
       } finally {
@@ -9848,6 +10214,9 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
   );
   pass("live_codex_disconnect_pauses_without_receipt_and_resumes_known_thread");
   pass("live_codex_resume_creates_no_second_thread_or_turn");
+  pass(
+    "live_codex_resume_preserves_success_cookie_when_projection_fails",
+  );
   reject("live_codex_disconnected_run_cannot_claim_cancel_without_host_owner");
 }
 
@@ -10302,6 +10671,102 @@ function projectionFromRouteBodyV01(
   const value = body.live_run;
   assert(value && typeof value === "object" && !Array.isArray(value));
   return value as LiveNativeHostRunProjectionV01;
+}
+
+function delegatedProjectionFromRouteBodyV01(
+  body: Record<string, unknown>,
+): DelegatedWorkProjectionV01 {
+  const value = body.delegated_work;
+  assert(value && typeof value === "object" && !Array.isArray(value));
+  assert.equal(
+    (value as { projection_version?: unknown }).projection_version,
+    "delegated_work_projection.v0.1",
+  );
+  return value as DelegatedWorkProjectionV01;
+}
+
+function forcedDelegatedProjectionFailureReaderV01(counter: {
+  count: number;
+}) {
+  return () => {
+    counter.count += 1;
+    throw new Error(
+      "forced_delegated_projection_failure:/private/database/path:secret-value:SELECT *",
+    );
+  };
+}
+
+function assertUnavailableDelegatedProjectionResponseV01(
+  body: Record<string, unknown>,
+  context: "read" | "accepted_action",
+): DelegatedWorkProjectionV01 {
+  assert.equal(body.delegated_work_projection_status, "unavailable");
+  assert.equal(
+    body.delegated_work_error_code,
+    "delegated_work_projection_unavailable",
+  );
+  const delegated = delegatedProjectionFromRouteBodyV01(body);
+  assert.equal(delegated.source_status, "unavailable");
+  assert.equal(delegated.stage, "unavailable");
+  assert.equal(delegated.timeline.length, 0);
+  assert.equal(delegated.start_eligible, false);
+  assert.equal(delegated.can_cancel, false);
+  assert.equal(delegated.next_action.kind, "none");
+  assert.deepEqual(Object.values(delegated.authority), Array(13).fill(false));
+  assert.match(
+    delegated.current.situation,
+    context === "accepted_action"
+      ? /operational action was accepted.*could not be refreshed/iu
+      : /current progress could not be read/iu,
+  );
+  const serialized = JSON.stringify(body);
+  for (const forbidden of [
+    "forced_delegated_projection_failure",
+    "/private/database/path",
+    "secret-value",
+    "SELECT *",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
+  return delegated;
+}
+
+async function assertRotatedOperatorCookieContinuityV01(input: {
+  get: ReturnType<typeof createVNextOperatorHostRoundTripReadHandlerV01>;
+  stale_jar: RouteCookieJar;
+  current_jar: RouteCookieJar;
+  config: VNextLocalOperatorPilotConfigV01;
+  clock: VNextLocalRuntimeClockV01;
+}): Promise<void> {
+  const staleCredential =
+    readVNextLocalOperatorCredentialFromRequestV01(
+    routeRequest("/api/vnext/operator/host-round-trip", {
+      method: "GET",
+      jar: input.stale_jar,
+    }),
+  );
+  const db = openVNextLocalOperatorDatabaseV01(input.config);
+  try {
+    assert.throws(
+      () =>
+        admitVNextLocalOperatorMutationV01(db, {
+          config: input.config,
+          credential: staleCredential,
+          clock: input.clock,
+          secret_source: new DeterministicSecretSource(),
+        }),
+      /operator_action_nonce_invalid/u,
+    );
+  } finally {
+    db.close();
+  }
+  const current = await input.get(
+    routeRequest("/api/vnext/operator/host-round-trip", {
+      method: "GET",
+      jar: input.current_jar,
+    }),
+  );
+  assert.equal(current.status, 200);
 }
 
 function cloneRouteCookieJarV01(source: RouteCookieJar): RouteCookieJar {

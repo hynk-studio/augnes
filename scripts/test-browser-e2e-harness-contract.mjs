@@ -17,11 +17,11 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 163);
+assert.equal(resultKeys.length, 170);
 assert.equal(recordNames.length, 41);
 assert.equal(
   hashInventory(resultKeys),
-  "6b380b7fa6ecf01c78052ae4ee7c7002d9a1e0b83621f909bf3309ab6c5d322d",
+  "b11352420878c76c9220ba916ac853119a973ef411dd1d382fb0aa04b64cd6bc",
 );
 assert.equal(
   hashInventory(recordNames),

@@ -294,7 +294,43 @@ export function BlankStateClient({
                 <h2 id="current-work-title">{view.current_work.status}</h2>
               </div>
             </div>
-            {projection?.run_results.current_run ? (
+            {view.current_work.delegated_work ? (
+              <article
+                data-delegated-work-summary={
+                  view.current_work.delegated_work.stage
+                }
+              >
+                {view.current_work.goal ? (
+                  <p>{view.current_work.goal}</p>
+                ) : null}
+                {view.current_work.delegated_work.latest_checkpoint ? (
+                  <p className="blank-state-meta">
+                    Latest checkpoint:{" "}
+                    {view.current_work.delegated_work.latest_checkpoint}
+                  </p>
+                ) : null}
+                {view.current_work.delegated_work.last_observed_at ? (
+                  <time
+                    className="blank-state-meta"
+                    dateTime={
+                      view.current_work.delegated_work.last_observed_at
+                    }
+                  >
+                    Last observed{" "}
+                    {formatTimestamp(
+                      view.current_work.delegated_work.last_observed_at,
+                    )}
+                  </time>
+                ) : null}
+                <a
+                  className="blank-state-secondary-link"
+                  href={view.current_work.delegated_work.href}
+                  data-blank-state-delegated-work-link="true"
+                >
+                  Open delegated work
+                </a>
+              </article>
+            ) : projection?.run_results.current_run ? (
               <article data-current-host-run={projection.run_results.current_run.status}>
                 {view.current_work.goal ? <p>{view.current_work.goal}</p> : null}
                 <p className="blank-state-meta">
@@ -626,8 +662,12 @@ function ProjectOptions({
 
         {directHostRoundTripAvailable ? (
           <section aria-labelledby="local-work-controls-title">
-            <h2 id="local-work-controls-title">Local work controls</h2>
-            <p>Start or control the current repository-owned host work. Results are saved before Augnes treats them as complete.</p>
+            <h2 id="local-work-controls-title">Advanced local test work</h2>
+            <p>
+              Run the deterministic compatibility check. Live Codex work,
+              progress, approval, cancellation, and resume are owned by AI
+              Workplane.
+            </p>
             <DirectHostRoundTripAction />
           </section>
         ) : null}
