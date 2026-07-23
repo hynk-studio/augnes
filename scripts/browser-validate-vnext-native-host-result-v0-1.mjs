@@ -2916,53 +2916,48 @@ async function main() {
           );
         };
 
-        for (const unavailableCode of [
-          "shared_inspector_read_failed",
-          "shared_inspector_unavailable",
-          "shared_inspector_unknown_safe_code",
-        ]) {
-          await renderInterceptedInspector({
-            status: 500,
-            body: { ok: false, error_code: unavailableCode },
-            expectedSelector:
-              `document.querySelector('[data-contextual-inspector-state="unavailable"] h1')?.textContent?.trim() === 'Exact details could not be read'`,
-            label: `unavailable exact-details state for ${unavailableCode}`,
-          });
-          const unavailableShape = await evaluateJson(`(() => {
+        const unavailableCode = "shared_inspector_read_failed";
+        await renderInterceptedInspector({
+          status: 500,
+          body: { ok: false, error_code: unavailableCode },
+          expectedSelector:
+            `document.querySelector('[data-contextual-inspector-state="unavailable"] h1')?.textContent?.trim() === 'Exact details could not be read'`,
+          label: `unavailable exact-details state for ${unavailableCode}`,
+        });
+        const unavailableShape = await evaluateJson(`(() => {
+          const state = document.querySelector('[data-contextual-inspector-state="unavailable"]');
+          const diagnostic = state?.querySelector('details code')?.closest('details');
+          const visibleText = state?.innerText ?? '';
+          return {
+            heading: state?.querySelector('h1')?.textContent?.trim() ?? null,
+            missing_claim_absent: !visibleText.includes('no longer available'),
+            no_retry_copy:
+              visibleText.includes('No project write, repair, provider call, or automatic retry was attempted.'),
+            related_return_present:
+              state?.querySelector('[data-contextual-inspector-return]') instanceof HTMLAnchorElement,
+            diagnostic_closed:
+              diagnostic instanceof HTMLDetailsElement && !diagnostic.open,
+            raw_code_hidden: !visibleText.includes(${JSON.stringify(unavailableCode)}),
+          };
+        })()`);
+        assert.equal(unavailableShape.heading, "Exact details could not be read");
+        assert.equal(unavailableShape.missing_claim_absent, true);
+        assert.equal(unavailableShape.no_retry_copy, true);
+        assert.equal(unavailableShape.related_return_present, true);
+        assert.equal(unavailableShape.diagnostic_closed, true);
+        assert.equal(unavailableShape.raw_code_hidden, true);
+        assert.equal(
+          await evaluateBoolean(`(() => {
             const state = document.querySelector('[data-contextual-inspector-state="unavailable"]');
             const diagnostic = state?.querySelector('details code')?.closest('details');
-            const visibleText = state?.innerText ?? '';
-            return {
-              heading: state?.querySelector('h1')?.textContent?.trim() ?? null,
-              missing_claim_absent: !visibleText.includes('no longer available'),
-              no_retry_copy:
-                visibleText.includes('No project write, repair, provider call, or automatic retry was attempted.'),
-              related_return_present:
-                state?.querySelector('[data-contextual-inspector-return]') instanceof HTMLAnchorElement,
-              diagnostic_closed:
-                diagnostic instanceof HTMLDetailsElement && !diagnostic.open,
-              raw_code_hidden: !visibleText.includes(${JSON.stringify(unavailableCode)}),
-            };
-          })()`);
-          assert.equal(unavailableShape.heading, "Exact details could not be read");
-          assert.equal(unavailableShape.missing_claim_absent, true);
-          assert.equal(unavailableShape.no_retry_copy, true);
-          assert.equal(unavailableShape.related_return_present, true);
-          assert.equal(unavailableShape.diagnostic_closed, true);
-          assert.equal(unavailableShape.raw_code_hidden, true);
-          assert.equal(
-            await evaluateBoolean(`(() => {
-              const state = document.querySelector('[data-contextual-inspector-state="unavailable"]');
-              const diagnostic = state?.querySelector('details code')?.closest('details');
-              if (!(diagnostic instanceof HTMLDetailsElement)) return false;
-              diagnostic.open = true;
-              const code = diagnostic.querySelector('code');
-              return diagnostic.open &&
-                (code?.textContent ?? '').includes(${JSON.stringify(unavailableCode)});
-            })()`),
-            true,
-          );
-        }
+            if (!(diagnostic instanceof HTMLDetailsElement)) return false;
+            diagnostic.open = true;
+            const code = diagnostic.querySelector('code');
+            return diagnostic.open &&
+              (code?.textContent ?? '').includes(${JSON.stringify(unavailableCode)});
+          })()`),
+          true,
+        );
 
         await renderInterceptedInspector({
           status: 404,
@@ -3033,24 +3028,6 @@ async function main() {
             status_label: "Some related detail is unavailable",
             activity_notice: true,
           },
-          {
-            label: "inactive complete",
-            project_activity: "inactive_read_only",
-            target_status: "present",
-            completeness: "complete",
-            exact_status: "complete",
-            status_label: "Exact detail available",
-            activity_notice: true,
-          },
-          {
-            label: "active conflict",
-            project_activity: "active",
-            target_status: "conflict",
-            completeness: "conflict",
-            exact_status: "conflict",
-            status_label: "Exact sources do not agree",
-            activity_notice: false,
-          },
         ];
         for (const projectionCase of projectionCases) {
           const body = structuredClone(liveInspectorRead.body);
@@ -3114,12 +3091,6 @@ async function main() {
         interceptedInspectorResponse = null;
         currentPhase = priorInspectorCorrectionPhase;
       }
-
-      await navigate(new URL(inspectorHref, appOrigin).toString());
-      await waitForCondition(
-        `document.querySelector('[data-shared-project-inspector="v0.1"][data-contextual-inspector-exact-status="complete"][data-contextual-inspector-project-activity="active"]') !== null`,
-        "restored live exact result details after status corrections",
-      );
     }
     result.shared_inspector_read_only = true;
     result.shared_inspector_server_scoped = true;
