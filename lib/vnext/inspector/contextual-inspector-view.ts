@@ -4,7 +4,9 @@ import {
 } from "@/lib/vnext/ai-workplane-review-href";
 import type {
   ContextualInspectorExactStatusV01,
+  ContextualInspectorProjectActivityV01,
   ContextualInspectorRelatedContextV01,
+  ContextualInspectorRouteErrorStateV01,
   ContextualInspectorViewV01,
 } from "@/types/vnext/contextual-inspector";
 import { CONTEXTUAL_INSPECTOR_VIEW_VERSION_V01 } from "@/types/vnext/contextual-inspector";
@@ -17,6 +19,38 @@ import type {
 
 const PRIMARY_SECTION_LIMIT_V01 = 4;
 const TEXT_LIMIT_V01 = 320;
+const PUBLIC_ERROR_CODE_V01 = /^[a-z0-9_:-]{1,160}$/u;
+
+const MISSING_ROUTE_ERROR_CODES_V01 = new Set([
+  "shared_inspector_target_missing",
+  "shared_inspector_automation_policy_missing",
+  "shared_inspector_automation_binding_missing",
+  "shared_inspector_strategic_material_missing",
+  "shared_inspector_personal_perspective_not_included",
+]);
+
+const CONFLICT_ROUTE_ERROR_CODES_V01 = new Set([
+  "shared_inspector_active_project_conflict",
+  "shared_inspector_criterion_source_conflict",
+  "shared_inspector_family_source_conflict",
+  "shared_inspector_candidate_source_conflict",
+  "shared_inspector_target_head_conflict",
+  "shared_inspector_automation_policy_conflict",
+  "shared_inspector_automation_work_conflict",
+  "shared_inspector_automation_binding_conflict",
+  "shared_inspector_target_fingerprint_conflict",
+  "shared_inspector_evidence_source_conflict",
+  "shared_inspector_claim_source_conflict",
+  "shared_inspector_relation_source_conflict",
+  "shared_inspector_decision_source_conflict",
+  "shared_inspector_transition_source_conflict",
+  "shared_inspector_semantic_state_conflict",
+  "shared_inspector_context_use_review_conflict",
+  "shared_inspector_capability_grant_conflict",
+  "shared_inspector_packet_source_conflict",
+  "shared_inspector_receipt_source_conflict",
+  "shared_inspector_proposal_source_conflict",
+]);
 
 const AUTHORITY_V01 = {
   writes_database: false,
@@ -95,10 +129,10 @@ const CONTEXT_SECTIONS_V01: readonly SharedProjectInspectorSectionKindV01[] = [
 
 export function buildContextualInspectorViewV01(input: {
   inspector: SharedProjectInspectorProjectionV01;
-  project_activity?: "active" | "inactive_read_only";
+  project_activity: ContextualInspectorProjectActivityV01;
 }): ContextualInspectorViewV01 {
   const { inspector } = input;
-  const status = exactStatusV01(inspector, input.project_activity);
+  const exactStatus = exactStatusV01(inspector);
   const orderedSections = orderSectionsV01(
     inspector.sections,
     relevanceForTargetV01(inspector.target.target_kind),
@@ -108,20 +142,18 @@ export function buildContextualInspectorViewV01(input: {
   const defaultOpen = primarySections.find((section) =>
     ["conflict", "bounded_incomplete"].includes(section.status),
   );
-  const statusCopy = statusCopyV01(status);
+  const statusCopy = statusCopyV01(exactStatus);
   return {
     presentation_version: CONTEXTUAL_INSPECTOR_VIEW_VERSION_V01,
     target_kind: inspector.target.target_kind,
     target_label: targetLabelV01(inspector.target.target_kind),
     heading: targetHeadingV01(inspector.target.target_kind),
     target_summary: targetSummaryV01(inspector),
-    status,
+    exact_status: exactStatus,
     status_label: statusCopy.label,
     status_explanation: statusCopy.explanation,
-    material_notice:
-      status === "complete"
-        ? null
-        : statusCopy.explanation,
+    project_activity: input.project_activity,
+    activity_notice: activityNoticeV01(input.project_activity),
     observed_at: inspector.observed_at,
     related_context: deriveContextualInspectorRelatedContextV01(inspector),
     primary_sections: primarySections,
@@ -133,6 +165,7 @@ export function buildContextualInspectorViewV01(input: {
 
 export function buildUnavailableContextualInspectorViewV01(
   target: SharedProjectInspectorTargetV01,
+  projectActivity: ContextualInspectorProjectActivityV01 | null = null,
 ): ContextualInspectorViewV01 {
   const copy = statusCopyV01("unavailable");
   return {
@@ -142,16 +175,69 @@ export function buildUnavailableContextualInspectorViewV01(
     heading: targetHeadingV01(target.target_kind),
     target_summary:
       "The exact source could not be read. No substitute record was selected.",
-    status: "unavailable",
+    exact_status: "unavailable",
     status_label: copy.label,
     status_explanation: copy.explanation,
-    material_notice: copy.explanation,
+    project_activity: projectActivity,
+    activity_notice: activityNoticeV01(projectActivity),
     observed_at: null,
     related_context: deriveSafeContextualInspectorRelatedContextV01(target),
     primary_sections: [],
     additional_sections: [],
     default_open_section_kind: null,
     authority: AUTHORITY_V01,
+  };
+}
+
+export function publicContextualInspectorErrorCodeV01(
+  value: unknown,
+): string {
+  return typeof value === "string" && PUBLIC_ERROR_CODE_V01.test(value)
+    ? value
+    : "shared_inspector_unavailable";
+}
+
+export function classifyContextualInspectorRouteErrorV01(
+  errorCode: string | null,
+): ContextualInspectorRouteErrorStateV01 {
+  if (errorCode && MISSING_ROUTE_ERROR_CODES_V01.has(errorCode)) {
+    return "missing";
+  }
+  if (errorCode && CONFLICT_ROUTE_ERROR_CODES_V01.has(errorCode)) {
+    return "conflict";
+  }
+  return "unavailable";
+}
+
+export function contextualInspectorRouteErrorPresentationV01(
+  errorCode: string | null,
+): {
+  state: ContextualInspectorRouteErrorStateV01;
+  title: string;
+  explanation: string;
+} {
+  const state = classifyContextualInspectorRouteErrorV01(errorCode);
+  if (state === "missing") {
+    return {
+      state,
+      title: "The exact target is no longer available",
+      explanation:
+        "The requested exact record could not be resolved. No substitute record was selected.",
+    };
+  }
+  if (state === "conflict") {
+    return {
+      state,
+      title: "The saved exact sources no longer agree",
+      explanation:
+        "The exact source conflict was preserved. These details do not repair or choose another record.",
+    };
+  }
+  return {
+    state,
+    title: "Exact details could not be read",
+    explanation:
+      "No project write, repair, provider call, or automatic retry was attempted.",
   };
 }
 
@@ -248,9 +334,7 @@ export function contextualInspectorSectionSummaryV01(
 
 function exactStatusV01(
   inspector: SharedProjectInspectorProjectionV01,
-  projectActivity: "active" | "inactive_read_only" | undefined,
 ): ContextualInspectorExactStatusV01 {
-  if (projectActivity === "inactive_read_only") return "inactive_read_only";
   if (
     inspector.target_status === "conflict" ||
     inspector.completeness === "conflict"
@@ -302,12 +386,6 @@ function statusCopyV01(
         explanation:
           "The requested exact record could not be resolved. No substitute record was selected.",
       };
-    case "inactive_read_only":
-      return {
-        label: "This project is not current",
-        explanation:
-          "The exact detail remains available as a read-only view. Opening it did not switch projects.",
-      };
     case "unavailable":
       return {
         label: "Exact details could not be read",
@@ -315,6 +393,14 @@ function statusCopyV01(
           "No repair, write, model call, or external action was attempted.",
       };
   }
+}
+
+function activityNoticeV01(
+  activity: ContextualInspectorProjectActivityV01 | null,
+): string | null {
+  return activity === "inactive_read_only"
+    ? "This project is not current. These details remain read-only, and opening them did not switch projects."
+    : null;
 }
 
 function relevanceForTargetV01(

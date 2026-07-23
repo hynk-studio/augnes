@@ -27,7 +27,15 @@ export type ContextualInspectorExactStatusV01 =
   | "bounded_incomplete"
   | "conflict"
   | "missing"
-  | "inactive_read_only"
+  | "unavailable";
+
+export type ContextualInspectorProjectActivityV01 =
+  | "active"
+  | "inactive_read_only";
+
+export type ContextualInspectorRouteErrorStateV01 =
+  | "missing"
+  | "conflict"
   | "unavailable";
 
 export interface ContextualInspectorViewV01 {
@@ -36,10 +44,11 @@ export interface ContextualInspectorViewV01 {
   target_label: string;
   heading: string;
   target_summary: string;
-  status: ContextualInspectorExactStatusV01;
+  exact_status: ContextualInspectorExactStatusV01;
   status_label: string;
   status_explanation: string;
-  material_notice: string | null;
+  project_activity: ContextualInspectorProjectActivityV01 | null;
+  activity_notice: string | null;
   observed_at: string | null;
   related_context: ContextualInspectorRelatedContextV01;
   primary_sections: SharedProjectInspectorSectionV01[];

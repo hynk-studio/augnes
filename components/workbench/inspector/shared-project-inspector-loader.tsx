@@ -11,7 +11,9 @@ import {
 } from "@/components/workbench/semantic-review/operator-session-panel";
 import {
   buildContextualInspectorViewV01,
+  contextualInspectorRouteErrorPresentationV01,
   deriveSafeContextualInspectorRelatedContextV01,
+  publicContextualInspectorErrorCodeV01,
 } from "@/lib/vnext/inspector/contextual-inspector-view";
 import { parseSharedInspectorTargetV01 } from "@/lib/vnext/shared-project-inspector-href";
 import type { ContextualInspectorRelatedContextV01 } from "@/types/vnext/contextual-inspector";
@@ -57,12 +59,18 @@ export function SharedProjectInspectorLoader() {
           setSession({
             status: "locked",
             session: null,
-            error_code: publicErrorCodeV01(body.error_code),
+            error_code: publicContextualInspectorErrorCodeV01(body.error_code),
           });
           return;
         }
-        if (!response.ok || body.status !== "inspector_read" || !body.inspector) {
-          setErrorCode(publicErrorCodeV01(body.error_code));
+        if (
+          !response.ok ||
+          body.status !== "inspector_read" ||
+          !body.inspector ||
+          (body.project_activity !== "active" &&
+            body.project_activity !== "inactive_read_only")
+        ) {
+          setErrorCode(publicContextualInspectorErrorCodeV01(body.error_code));
           return;
         }
         setInspectorResponse(body);
@@ -98,7 +106,7 @@ export function SharedProjectInspectorLoader() {
           return;
         }
         if (!response.ok || body.status !== "authenticated" || !body.session) {
-          const code = publicErrorCodeV01(body.error_code);
+          const code = publicContextualInspectorErrorCodeV01(body.error_code);
           setSession({
             status: "locked",
             session: null,
@@ -152,7 +160,7 @@ export function SharedProjectInspectorLoader() {
     setSession({
       status: "locked",
       session: null,
-      error_code: code ? publicErrorCodeV01(code) : null,
+      error_code: code ? publicContextualInspectorErrorCodeV01(code) : null,
     });
   }
 
@@ -214,11 +222,13 @@ export function SharedProjectInspectorLoader() {
     );
   }
 
+  const errorPresentation =
+    contextualInspectorRouteErrorPresentationV01(errorCode);
   return (
     <ContextualInspectorState
-      state={errorStateV01(errorCode)}
-      title={errorTitleV01(errorCode)}
-      copy={errorCopyV01(errorCode)}
+      state={errorPresentation.state}
+      title={errorPresentation.title}
+      copy={errorPresentation.explanation}
       relatedContext={safeRelatedContext}
       errorCode={errorCode}
     >
@@ -266,7 +276,7 @@ function ContextualInspectorState({
           {errorCode ? (
             <details className={styles.diagnosticDisclosure}>
               <summary>Technical diagnostic</summary>
-              <code>{publicErrorCodeV01(errorCode)}</code>
+              <code>{publicContextualInspectorErrorCodeV01(errorCode)}</code>
             </details>
           ) : null}
         </div>
@@ -293,50 +303,16 @@ function parseTargetV01(
       target: null,
       error_code:
         error instanceof Error
-          ? publicErrorCodeV01(error.message)
+          ? publicContextualInspectorErrorCodeV01(error.message)
           : "shared_inspector_target_invalid",
     };
   }
 }
 
-function errorStateV01(
-  errorCode: string | null,
-): "missing" | "conflict" | "unavailable" {
-  if (errorCode?.includes("conflict") || errorCode?.includes("mismatch")) {
-    return "conflict";
-  }
-  if (
-    errorCode?.includes("missing") ||
-    errorCode?.includes("not_found") ||
-    errorCode?.includes("unavailable")
-  ) {
-    return "missing";
-  }
-  return "unavailable";
-}
-
-function errorTitleV01(errorCode: string | null): string {
-  const state = errorStateV01(errorCode);
-  if (state === "missing") return "The exact target is no longer available";
-  if (state === "conflict") return "The saved exact sources no longer agree";
-  return "Exact details could not be read";
-}
-
-function errorCopyV01(errorCode: string | null): string {
-  const state = errorStateV01(errorCode);
-  if (state === "missing") {
-    return "No substitute record was selected and no repair was attempted.";
-  }
-  if (state === "conflict") {
-    return "The exact source conflict was preserved. These details do not repair or choose another record.";
-  }
-  return "No project write, repair, provider call, or automatic retry was attempted.";
-}
-
 interface InspectorRouteResponseV01 {
   ok?: boolean;
   status?: "inspector_read";
-  project_activity?: "active" | "inactive_read_only";
+  project_activity: "active" | "inactive_read_only";
   inspector?: SharedProjectInspectorProjectionV01;
   error_code?: string | null;
 }
@@ -346,10 +322,4 @@ interface SessionRouteResponseV01 {
   status?: "authenticated";
   session?: OperatorSessionViewV01;
   error_code?: string | null;
-}
-
-function publicErrorCodeV01(value: unknown): string {
-  return typeof value === "string" && /^[a-z0-9_:-]{1,160}$/u.test(value)
-    ? value
-    : "shared_inspector_unavailable";
 }

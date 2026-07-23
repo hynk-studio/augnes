@@ -179,6 +179,7 @@ let currentPhase = "setup";
 let lastRequestAt = Date.now();
 let serverLog = "";
 let pausedSemanticTransitionRequest = null;
+let interceptedInspectorResponse = null;
 const requests = [];
 const responses = [];
 const requestMethods = new Map();
@@ -2800,7 +2801,7 @@ async function main() {
         contextual_first_view:
           inspector?.querySelector('[data-contextual-inspector-heading]') !== null &&
           inspector?.querySelector('[data-contextual-inspector-about="true"]') !== null &&
-          inspector?.querySelector('[data-contextual-inspector-exact-status]') !== null,
+          inspector?.getAttribute('data-contextual-inspector-exact-status') !== null,
         first_view_identity_absent:
           !visibleText.includes('sha256:') &&
           !visibleText.includes(${JSON.stringify(liveAfter.latest_receipt.receipt_id)}),
@@ -2866,6 +2867,260 @@ async function main() {
       "reloaded shared receipt Inspector",
     );
     assert.deepEqual(databaseSnapshot(database), beforeInspectorRead);
+
+    if (RUN_CORE_SCOPE) {
+      const liveInspectorRead = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/operator/inspector' + location.search, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(liveInspectorRead.status, 200);
+      assert.equal(liveInspectorRead.body?.status, "inspector_read");
+      assert.equal(liveInspectorRead.body?.project_activity, "active");
+      assert.equal(
+        liveInspectorRead.body?.inspector?.target?.target_kind,
+        "run_receipt",
+      );
+
+      const priorInspectorCorrectionPhase = currentPhase;
+      currentPhase = "contextual_inspector_status_correction";
+      try {
+        const renderInterceptedInspector = async ({
+          status,
+          body,
+          expectedSelector,
+          label,
+        }) => {
+          assert.equal(interceptedInspectorResponse, null);
+          interceptedInspectorResponse = { status, body };
+          const requestStart = requests.length;
+          await navigate(new URL(inspectorHref, appOrigin).toString());
+          await waitForCondition(expectedSelector, label);
+          await waitForRequestQuiet();
+          assert.equal(
+            interceptedInspectorResponse,
+            null,
+            `${label} response interception must be consumed exactly once`,
+          );
+          assert.equal(
+            requests.slice(requestStart).filter(
+              (entry) =>
+                entry.path === "/api/vnext/operator/inspector" &&
+                entry.method === "GET",
+            ).length,
+            1,
+            `${label} must perform one Inspector read without retry`,
+          );
+        };
+
+        for (const unavailableCode of [
+          "shared_inspector_read_failed",
+          "shared_inspector_unavailable",
+          "shared_inspector_unknown_safe_code",
+        ]) {
+          await renderInterceptedInspector({
+            status: 500,
+            body: { ok: false, error_code: unavailableCode },
+            expectedSelector:
+              `document.querySelector('[data-contextual-inspector-state="unavailable"] h1')?.textContent?.trim() === 'Exact details could not be read'`,
+            label: `unavailable exact-details state for ${unavailableCode}`,
+          });
+          const unavailableShape = await evaluateJson(`(() => {
+            const state = document.querySelector('[data-contextual-inspector-state="unavailable"]');
+            const diagnostic = state?.querySelector('details code')?.closest('details');
+            const visibleText = state?.innerText ?? '';
+            return {
+              heading: state?.querySelector('h1')?.textContent?.trim() ?? null,
+              missing_claim_absent: !visibleText.includes('no longer available'),
+              no_retry_copy:
+                visibleText.includes('No project write, repair, provider call, or automatic retry was attempted.'),
+              related_return_present:
+                state?.querySelector('[data-contextual-inspector-return]') instanceof HTMLAnchorElement,
+              diagnostic_closed:
+                diagnostic instanceof HTMLDetailsElement && !diagnostic.open,
+              raw_code_hidden: !visibleText.includes(${JSON.stringify(unavailableCode)}),
+            };
+          })()`);
+          assert.equal(unavailableShape.heading, "Exact details could not be read");
+          assert.equal(unavailableShape.missing_claim_absent, true);
+          assert.equal(unavailableShape.no_retry_copy, true);
+          assert.equal(unavailableShape.related_return_present, true);
+          assert.equal(unavailableShape.diagnostic_closed, true);
+          assert.equal(unavailableShape.raw_code_hidden, true);
+          assert.equal(
+            await evaluateBoolean(`(() => {
+              const state = document.querySelector('[data-contextual-inspector-state="unavailable"]');
+              const diagnostic = state?.querySelector('details code')?.closest('details');
+              if (!(diagnostic instanceof HTMLDetailsElement)) return false;
+              diagnostic.open = true;
+              const code = diagnostic.querySelector('code');
+              return diagnostic.open &&
+                (code?.textContent ?? '').includes(${JSON.stringify(unavailableCode)});
+            })()`),
+            true,
+          );
+        }
+
+        await renderInterceptedInspector({
+          status: 404,
+          body: { ok: false, error_code: "shared_inspector_target_missing" },
+          expectedSelector:
+            `document.querySelector('[data-contextual-inspector-state="missing"] h1')?.textContent?.trim() === 'The exact target is no longer available'`,
+          label: "known missing exact target",
+        });
+        assert.equal(
+          await evaluateBoolean(`(() => {
+            const state = document.querySelector('[data-contextual-inspector-state="missing"]');
+            const text = state?.innerText ?? '';
+            return text.includes('The requested exact record could not be resolved. No substitute record was selected.') &&
+              !text.includes('Exact details could not be read');
+          })()`),
+          true,
+        );
+
+        await renderInterceptedInspector({
+          status: 409,
+          body: {
+            ok: false,
+            error_code: "shared_inspector_candidate_source_conflict",
+          },
+          expectedSelector:
+            `document.querySelector('[data-contextual-inspector-state="conflict"] h1')?.textContent?.trim() === 'The saved exact sources no longer agree'`,
+          label: "known conflicting exact target",
+        });
+        assert.equal(
+          await evaluateBoolean(`(() => {
+            const state = document.querySelector('[data-contextual-inspector-state="conflict"]');
+            const text = state?.innerText ?? '';
+            return text.includes('The exact source conflict was preserved.') &&
+              !text.includes('no longer available') &&
+              state?.querySelectorAll('form').length === 0 &&
+              !Array.from(state?.querySelectorAll('button') ?? []).some((entry) =>
+                /make active|switch project|repair/i.test(entry.textContent ?? '')
+              );
+          })()`),
+          true,
+        );
+
+        const projectionCases = [
+          {
+            label: "inactive conflict",
+            project_activity: "inactive_read_only",
+            target_status: "conflict",
+            completeness: "conflict",
+            exact_status: "conflict",
+            status_label: "Exact sources do not agree",
+            activity_notice: true,
+          },
+          {
+            label: "inactive bounded incomplete",
+            project_activity: "inactive_read_only",
+            target_status: "bounded_incomplete",
+            completeness: "bounded_incomplete",
+            exact_status: "bounded_incomplete",
+            status_label: "This is a bounded exact view",
+            activity_notice: true,
+          },
+          {
+            label: "inactive partial",
+            project_activity: "inactive_read_only",
+            target_status: "present",
+            completeness: "partial",
+            exact_status: "partial",
+            status_label: "Some related detail is unavailable",
+            activity_notice: true,
+          },
+          {
+            label: "inactive complete",
+            project_activity: "inactive_read_only",
+            target_status: "present",
+            completeness: "complete",
+            exact_status: "complete",
+            status_label: "Exact detail available",
+            activity_notice: true,
+          },
+          {
+            label: "active conflict",
+            project_activity: "active",
+            target_status: "conflict",
+            completeness: "conflict",
+            exact_status: "conflict",
+            status_label: "Exact sources do not agree",
+            activity_notice: false,
+          },
+        ];
+        for (const projectionCase of projectionCases) {
+          const body = structuredClone(liveInspectorRead.body);
+          body.project_activity = projectionCase.project_activity;
+          body.inspector.target_status = projectionCase.target_status;
+          body.inspector.completeness = projectionCase.completeness;
+          await renderInterceptedInspector({
+            status: 200,
+            body,
+            expectedSelector:
+              `document.querySelector('[data-shared-project-inspector="v0.1"][data-contextual-inspector-exact-status="${projectionCase.exact_status}"][data-contextual-inspector-project-activity="${projectionCase.project_activity}"]') !== null`,
+            label: projectionCase.label,
+          });
+          const projectionShape = await evaluateJson(`(() => {
+            const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
+            const status = inspector?.querySelector('[data-contextual-inspector-status-block]');
+            const notice = inspector?.querySelector('[data-contextual-inspector-activity-notice="true"]');
+            const visibleText = inspector?.innerText ?? '';
+            return {
+              exact_status: inspector?.getAttribute('data-contextual-inspector-exact-status') ?? null,
+              project_activity: inspector?.getAttribute('data-contextual-inspector-project-activity') ?? null,
+              status_label: status?.querySelector('h2')?.textContent?.trim() ?? null,
+              status_role: status?.getAttribute('role') ?? null,
+              activity_notice_count:
+                inspector?.querySelectorAll('[data-contextual-inspector-activity-notice="true"]').length ?? -1,
+              activity_copy:
+                notice?.textContent?.replace(/\\s+/g, ' ').trim() ?? null,
+              contradictory_availability_absent:
+                !visibleText.includes('The exact detail remains available as a read-only view.'),
+              mutation_control_absent:
+                !Array.from(inspector?.querySelectorAll('button, form') ?? []).some((entry) =>
+                  /make active|switch project|repair/i.test(entry.textContent ?? '')
+                ),
+            };
+          })()`);
+          assert.deepEqual(projectionShape, {
+            exact_status: projectionCase.exact_status,
+            project_activity: projectionCase.project_activity,
+            status_label: projectionCase.status_label,
+            status_role:
+              projectionCase.exact_status === "conflict" ? "alert" : "status",
+            activity_notice_count: projectionCase.activity_notice ? 1 : 0,
+            activity_copy: projectionCase.activity_notice
+              ? "This project is not current. These details remain read-only, and opening them did not switch projects."
+              : null,
+            contradictory_availability_absent: true,
+            mutation_control_absent: true,
+          });
+          if (projectionCase.label === "inactive conflict") {
+            await validateSharedInspectorViewports();
+          }
+        }
+        assert.deepEqual(databaseSnapshot(database), beforeInspectorRead);
+        record(
+          "contextual_inspector_route_errors_preserve_missing_conflict_and_unavailable",
+        );
+        record(
+          "contextual_inspector_exact_status_remains_primary_for_inactive_projects",
+        );
+      } finally {
+        interceptedInspectorResponse = null;
+        currentPhase = priorInspectorCorrectionPhase;
+      }
+
+      await navigate(new URL(inspectorHref, appOrigin).toString());
+      await waitForCondition(
+        `document.querySelector('[data-shared-project-inspector="v0.1"][data-contextual-inspector-exact-status="complete"][data-contextual-inspector-project-activity="active"]') !== null`,
+        "restored live exact result details after status corrections",
+      );
+    }
     result.shared_inspector_read_only = true;
     result.shared_inspector_server_scoped = true;
     result.shared_inspector_reload_idempotent = true;
@@ -5496,6 +5751,24 @@ async function main() {
         response.method === "GET" &&
         response.status === 401,
     );
+  const isExpectedContextualInspectorStatusResponse = (entry) => {
+    if (
+      entry.phase !== "contextual_inspector_status_correction" ||
+      entry.path !== "/api/vnext/operator/inspector"
+    ) {
+      return false;
+    }
+    const statusMatch = entry.text.match(/\b(404|409|500)\b/);
+    if (!statusMatch) return false;
+    const status = Number(statusMatch[1]);
+    return responses.some(
+      (response) =>
+        response.phase === entry.phase &&
+        response.path === entry.path &&
+        response.method === "GET" &&
+        response.status === status,
+    );
+  };
   const unexpectedConsoleErrors = consoleErrors.filter(
     (entry) =>
       !(
@@ -5516,6 +5789,7 @@ async function main() {
           )) ||
         isExpectedSyntheticSessionRefusal(entry) ||
         isExpectedImportedDestinationSessionRefusal(entry) ||
+        isExpectedContextualInspectorStatusResponse(entry) ||
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/projects" &&
           /409/i.test(entry.text)) ||
@@ -5548,6 +5822,7 @@ async function main() {
   assert.deepEqual(unexpectedConsoleErrors, []);
   assert.deepEqual(unexpectedFailedRequests, []);
   assert.deepEqual(externalRequests, []);
+  assert.equal(interceptedInspectorResponse, null);
   assert.equal(
     requests.some(
       (request) =>
@@ -6406,7 +6681,7 @@ async function validateSharedInspectorViewports() {
         ?.querySelector('[data-contextual-inspector-heading]')
         ?.getBoundingClientRect();
       const statusRect = inspector
-        ?.querySelector('[data-contextual-inspector-exact-status]')
+        ?.querySelector('[data-contextual-inspector-status-block]')
         ?.getBoundingClientRect();
       const isVisible = (candidate) =>
         Boolean(candidate) &&
@@ -6549,6 +6824,23 @@ function attachCdpObservers() {
         void cdp.send("Fetch.failRequest", {
           requestId: event.params.requestId,
           errorReason: "BlockedByClient",
+        }).catch(() => undefined);
+      } else if (
+        interceptedInspectorResponse &&
+        classification.path === "/api/vnext/operator/inspector"
+      ) {
+        const intercepted = interceptedInspectorResponse;
+        interceptedInspectorResponse = null;
+        void cdp.send("Fetch.fulfillRequest", {
+          requestId: event.params.requestId,
+          responseCode: intercepted.status,
+          responseHeaders: [
+            { name: "Content-Type", value: "application/json; charset=utf-8" },
+            { name: "Cache-Control", value: "no-store, max-age=0" },
+          ],
+          body: Buffer.from(JSON.stringify(intercepted.body), "utf8").toString(
+            "base64",
+          ),
         }).catch(() => undefined);
       } else if (
         pausedSemanticTransitionRequest &&

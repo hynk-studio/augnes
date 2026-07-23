@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   buildContextualInspectorViewV01,
   buildUnavailableContextualInspectorViewV01,
+  classifyContextualInspectorRouteErrorV01,
+  contextualInspectorRouteErrorPresentationV01,
+  publicContextualInspectorErrorCodeV01,
 } from "../lib/vnext/inspector/contextual-inspector-view";
 import {
   createSharedInspectorHrefV01,
@@ -249,8 +252,14 @@ for (const testCase of TARGET_CASES) {
   );
   assert.doesNotMatch(href, /return_to|return_label|workspace_id|project_id/u);
   const projection = projectionV01(testCase.target);
-  const view = buildContextualInspectorViewV01({ inspector: projection });
-  const repeated = buildContextualInspectorViewV01({ inspector: projection });
+  const view = buildContextualInspectorViewV01({
+    inspector: projection,
+    project_activity: "active",
+  });
+  const repeated = buildContextualInspectorViewV01({
+    inspector: projection,
+    project_activity: "active",
+  });
   assert.equal(view.presentation_version, "contextual_inspector_view.v0.1");
   assert.equal(view.related_context.kind, testCase.related);
   assert.equal(view.primary_sections[0]?.section_kind, testCase.firstSection);
@@ -291,6 +300,7 @@ issueProjection.sections.find(
 )!.status = "bounded_incomplete";
 const issueView = buildContextualInspectorViewV01({
   inspector: issueProjection,
+  project_activity: "active",
 });
 assert.equal(issueView.primary_sections[0]?.section_kind, "decision_gate");
 assert.equal(issueView.default_open_section_kind, "decision_gate");
@@ -315,11 +325,16 @@ for (const completeness of [
       : completeness === "bounded_incomplete"
         ? "bounded_incomplete"
         : "present";
-  const view = buildContextualInspectorViewV01({ inspector: projection });
+  const view = buildContextualInspectorViewV01({
+    inspector: projection,
+    project_activity: "active",
+  });
   assert.equal(
-    view.status,
+    view.exact_status,
     completeness === "complete" ? "complete" : completeness,
   );
+  assert.equal(view.project_activity, "active");
+  assert.equal(view.activity_notice, null);
 }
 
 const missingProjection = projectionV01({
@@ -327,21 +342,175 @@ const missingProjection = projectionV01({
 });
 missingProjection.target_status = "missing";
 assert.equal(
-  buildContextualInspectorViewV01({ inspector: missingProjection }).status,
+  buildContextualInspectorViewV01({
+    inspector: missingProjection,
+    project_activity: "active",
+  }).exact_status,
   "missing",
 );
+
+const completeProjection = projectionV01({
+  target_kind: "project_coordination",
+});
+const inactiveComplete = buildContextualInspectorViewV01({
+  inspector: completeProjection,
+  project_activity: "inactive_read_only",
+});
+assert.equal(inactiveComplete.exact_status, "complete");
+assert.equal(inactiveComplete.project_activity, "inactive_read_only");
+assert.match(inactiveComplete.activity_notice ?? "", /not current/u);
+
+const conflictProjection = projectionV01({
+  target_kind: "project_coordination",
+});
+conflictProjection.target_status = "conflict";
+conflictProjection.completeness = "conflict";
+const activeConflict = buildContextualInspectorViewV01({
+  inspector: conflictProjection,
+  project_activity: "active",
+});
+assert.equal(activeConflict.exact_status, "conflict");
+assert.equal(activeConflict.activity_notice, null);
+const inactiveConflict = buildContextualInspectorViewV01({
+  inspector: conflictProjection,
+  project_activity: "inactive_read_only",
+});
+assert.equal(inactiveConflict.exact_status, "conflict");
+assert.equal(inactiveConflict.status_label, "Exact sources do not agree");
+assert.match(inactiveConflict.activity_notice ?? "", /not current/u);
+assert.doesNotMatch(
+  inactiveConflict.activity_notice ?? "",
+  /available|complete/u,
+);
+const conflictingMissingProjection = projectionV01({
+  target_kind: "project_coordination",
+});
+conflictingMissingProjection.target_status = "missing";
+conflictingMissingProjection.completeness = "conflict";
 assert.equal(
   buildContextualInspectorViewV01({
-    inspector: projectionV01({ target_kind: "project_coordination" }),
+    inspector: conflictingMissingProjection,
     project_activity: "inactive_read_only",
-  }).status,
-  "inactive_read_only",
+  }).exact_status,
+  "conflict",
+);
+
+const boundedProjection = projectionV01({
+  target_kind: "project_coordination",
+});
+boundedProjection.target_status = "bounded_incomplete";
+boundedProjection.completeness = "bounded_incomplete";
+const inactiveBounded = buildContextualInspectorViewV01({
+  inspector: boundedProjection,
+  project_activity: "inactive_read_only",
+});
+assert.equal(inactiveBounded.exact_status, "bounded_incomplete");
+assert.match(inactiveBounded.activity_notice ?? "", /not current/u);
+
+const partialProjection = projectionV01({
+  target_kind: "project_coordination",
+});
+partialProjection.completeness = "partial";
+const inactivePartial = buildContextualInspectorViewV01({
+  inspector: partialProjection,
+  project_activity: "inactive_read_only",
+});
+assert.equal(inactivePartial.exact_status, "partial");
+assert.match(inactivePartial.activity_notice ?? "", /not current/u);
+
+const inactiveMissing = buildContextualInspectorViewV01({
+  inspector: missingProjection,
+  project_activity: "inactive_read_only",
+});
+assert.equal(inactiveMissing.exact_status, "missing");
+assert.match(inactiveMissing.activity_notice ?? "", /not current/u);
+
+const unavailableView = buildUnavailableContextualInspectorViewV01({
+  target_kind: "project_coordination",
+});
+assert.equal(unavailableView.exact_status, "unavailable");
+assert.equal(unavailableView.project_activity, null);
+assert.equal(unavailableView.activity_notice, null);
+assert.doesNotMatch(
+  `${unavailableView.status_label}\n${unavailableView.status_explanation}`,
+  /no longer available|could not be resolved/u,
+);
+
+const missingRouteErrorCodes = [
+  "shared_inspector_target_missing",
+  "shared_inspector_automation_policy_missing",
+  "shared_inspector_automation_binding_missing",
+  "shared_inspector_strategic_material_missing",
+  "shared_inspector_personal_perspective_not_included",
+] as const;
+const conflictRouteErrorCodes = [
+  "shared_inspector_active_project_conflict",
+  "shared_inspector_criterion_source_conflict",
+  "shared_inspector_family_source_conflict",
+  "shared_inspector_candidate_source_conflict",
+  "shared_inspector_target_head_conflict",
+  "shared_inspector_automation_policy_conflict",
+  "shared_inspector_automation_work_conflict",
+  "shared_inspector_automation_binding_conflict",
+  "shared_inspector_target_fingerprint_conflict",
+  "shared_inspector_evidence_source_conflict",
+  "shared_inspector_claim_source_conflict",
+  "shared_inspector_relation_source_conflict",
+  "shared_inspector_decision_source_conflict",
+  "shared_inspector_transition_source_conflict",
+  "shared_inspector_semantic_state_conflict",
+  "shared_inspector_context_use_review_conflict",
+  "shared_inspector_capability_grant_conflict",
+  "shared_inspector_packet_source_conflict",
+  "shared_inspector_receipt_source_conflict",
+  "shared_inspector_proposal_source_conflict",
+] as const;
+for (const code of missingRouteErrorCodes) {
+  assert.equal(classifyContextualInspectorRouteErrorV01(code), "missing", code);
+}
+for (const code of conflictRouteErrorCodes) {
+  assert.equal(classifyContextualInspectorRouteErrorV01(code), "conflict", code);
+}
+for (const errorCase of [
+  ["shared_inspector_unavailable", "unavailable"],
+  ["shared_inspector_read_failed", "unavailable"],
+  ["shared_inspector_request_failed", "unavailable"],
+  [null, "unavailable"],
+  ["shared_inspector_unknown_safe_code", "unavailable"],
+  ["shared_inspector_contains_missing_but_unknown", "unavailable"],
+  ["shared_inspector_contains_conflict_but_unknown", "unavailable"],
+  ["shared_inspector_candidate_mismatch", "unavailable"],
+] as const) {
+  assert.equal(
+    classifyContextualInspectorRouteErrorV01(errorCase[0]),
+    errorCase[1],
+    String(errorCase[0]),
+  );
+}
+const sanitizedMalformed = publicContextualInspectorErrorCodeV01(
+  "shared inspector conflict with spaces",
+);
+assert.equal(sanitizedMalformed, "shared_inspector_unavailable");
+assert.equal(
+  classifyContextualInspectorRouteErrorV01(sanitizedMalformed),
+  "unavailable",
+);
+assert.deepEqual(
+  contextualInspectorRouteErrorPresentationV01(
+    "shared_inspector_target_missing",
+  ),
+  {
+    state: "missing",
+    title: "The exact target is no longer available",
+    explanation:
+      "The requested exact record could not be resolved. No substitute record was selected.",
+  },
 );
 assert.equal(
-  buildUnavailableContextualInspectorViewV01({
-    target_kind: "project_coordination",
-  }).status,
-  "unavailable",
+  contextualInspectorRouteErrorPresentationV01(
+    "shared_inspector_read_failed",
+  ).title,
+  "Exact details could not be read",
 );
 
 const emptyProjection = projectionV01({
@@ -350,6 +519,7 @@ const emptyProjection = projectionV01({
 emptyProjection.sections = [];
 const emptyView = buildContextualInspectorViewV01({
   inspector: emptyProjection,
+  project_activity: "active",
 });
 assert.deepEqual(emptyView.primary_sections, []);
 assert.deepEqual(emptyView.additional_sections, []);
@@ -360,7 +530,10 @@ const omittedProjection = projectionV01({
 omittedProjection.sections[0]!.bounds.presentation_omitted = true;
 omittedProjection.sections[0]!.bounds.items = collectionBoundV01(8, 2);
 assert.equal(
-  buildContextualInspectorViewV01({ inspector: omittedProjection })
+  buildContextualInspectorViewV01({
+    inspector: omittedProjection,
+    project_activity: "active",
+  })
     .primary_sections[0]?.bounds.presentation_omitted,
   true,
 );

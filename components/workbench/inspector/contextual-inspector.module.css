@@ -54,6 +54,15 @@
   overflow-wrap: anywhere;
 }
 
+.activityNotice {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-inline-start: 0.25rem solid currentColor;
+  background: var(--color-subtle, #f3f6f8);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .status,
 .context {
   display: grid;

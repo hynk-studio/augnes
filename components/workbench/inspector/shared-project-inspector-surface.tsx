@@ -32,7 +32,10 @@ export function SharedProjectInspectorSurface({
         data-inspector-semantic-mutation="false"
         data-inspector-target-kind={inspector.target.target_kind}
         data-inspector-completeness={inspector.completeness}
-        data-contextual-inspector-status={view.status}
+        data-contextual-inspector-exact-status={view.exact_status}
+        data-contextual-inspector-project-activity={
+          view.project_activity ?? "unknown"
+        }
         data-contextual-inspector-related-context={view.related_context.kind}
       >
         <div className={styles.shell}>
@@ -69,8 +72,8 @@ export function SharedProjectInspectorSurface({
           <section
             className={styles.status}
             aria-labelledby="contextual-inspector-status-title"
-            role={view.status === "conflict" ? "alert" : "status"}
-            data-contextual-inspector-exact-status={view.status}
+            role={view.exact_status === "conflict" ? "alert" : "status"}
+            data-contextual-inspector-status-block={view.exact_status}
           >
             <p className={styles.sectionLabel}>Current exact status</p>
             <h2 id="contextual-inspector-status-title">{view.status_label}</h2>
@@ -84,6 +87,16 @@ export function SharedProjectInspectorSurface({
               </p>
             ) : null}
           </section>
+
+          {view.activity_notice ? (
+            <aside
+              className={styles.activityNotice}
+              aria-label="Project activity"
+              data-contextual-inspector-activity-notice="true"
+            >
+              {view.activity_notice}
+            </aside>
+          ) : null}
 
           <div
             className={styles.primarySections}
