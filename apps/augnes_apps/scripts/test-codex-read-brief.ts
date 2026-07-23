@@ -6,8 +6,8 @@ import {
   buildGuideBriefUrl,
   fetchGuideBrief,
   printGuideBriefSummary,
-} from "../apps/augnes_apps/scripts/codex-read-brief";
-import { MockStateRuntimeBridgeAdapter } from "../apps/augnes_apps/scripts/mock-state-runtime";
+} from "./codex-read-brief.js";
+import { MockStateRuntimeBridgeAdapter } from "./mock-state-runtime.js";
 
 const PROJECT_ID = "project:00000000-0000-4000-8000-000000000001";
 

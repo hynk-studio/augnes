@@ -184,7 +184,7 @@ const suites = {
       requirements: ["route-transport", "deterministic-fake-transport"],
       label:
         "Codex current-project GuideBrief marker, bounded sections, and fail-closed parsing",
-      ...rootNode("scripts/test-codex-read-brief.ts"),
+      ...nestedNode("scripts/test-codex-read-brief.ts"),
       timeoutMs: 30_000,
     },
     {
