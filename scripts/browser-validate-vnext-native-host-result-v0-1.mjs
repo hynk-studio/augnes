@@ -4005,7 +4005,18 @@ async function main() {
     } finally {
       newerUndecidedDatabase.close();
     }
-    await navigate(`${appOrigin}/workbench/semantic-review`);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector(
+          'nav[aria-label="Primary navigation"] a[href="/workbench/semantic-review"]'
+        );
+        if (!(link instanceof HTMLAnchorElement)) return false;
+        link.click();
+        return true;
+      })()`),
+      true,
+      "AI Workplane primary navigation must remain available from proposal detail",
+    );
     await waitForCondition(
       `document.querySelector('[data-ai-workplane-home="v0.1"][data-ai-workplane-home-state="change_completion"] [data-ai-workplane-primary-action="link"]')?.getAttribute('href') === ${JSON.stringify(path)}`,
       "exact older ready-to-complete proposal focused ahead of newer undecided proposal",
