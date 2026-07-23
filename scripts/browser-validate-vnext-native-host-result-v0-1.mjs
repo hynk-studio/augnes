@@ -3957,111 +3957,6 @@ async function main() {
       "Accept candidate B independently so candidate-local decisions and persisted receipts can be distinguished.",
     );
 
-    const newerUndecidedProject = {
-      fixture_id: "semantic-review-loop-newer-undecided-proposal",
-      workspace_id: manifest.workspace_id,
-      project_id: manifest.project_id,
-      run_id: "run:operator-browser-newer-undecided-proposal",
-    };
-    const newerUndecidedAnchor = new Date(
-      Date.parse(currentMultiCandidateProposal.created_at) + 60_000,
-    ).toISOString();
-    const newerUndecidedReceipt =
-      buildSemanticReviewLoopRunReceiptFixture(
-        newerUndecidedProject,
-        currentPacket,
-        { timeline_anchor_at: newerUndecidedAnchor },
-      );
-    const newerUndecidedProposal =
-      buildSemanticReviewLoopProposalFixture(
-        newerUndecidedProject,
-        currentPacket,
-        newerUndecidedReceipt,
-        {
-          primary_delta_type: "agent_plan_delta",
-          candidate_namespace: "newer-undecided",
-          timeline_anchor_at: newerUndecidedAnchor,
-        },
-      );
-    const newerUndecidedDatabase = new Database(databasePath);
-    try {
-      newerUndecidedDatabase.pragma("foreign_keys = ON");
-      newerUndecidedDatabase.transaction(() => {
-        admitStructuredRunReceiptV01(
-          newerUndecidedDatabase,
-          newerUndecidedReceipt,
-        );
-        insertVNextCoreRecordV01(newerUndecidedDatabase, {
-          record_kind: "episode_delta_proposal",
-          record_id: newerUndecidedProposal.proposal_id,
-          workspace_id: newerUndecidedProposal.workspace_id,
-          project_id: newerUndecidedProposal.project_id,
-          fingerprint: newerUndecidedProposal.integrity.fingerprint,
-          idempotency_key: null,
-          payload: newerUndecidedProposal,
-          created_at: newerUndecidedProposal.created_at,
-        });
-      })();
-    } finally {
-      newerUndecidedDatabase.close();
-    }
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const link = document.querySelector(
-          'nav[aria-label="Primary navigation"] a[href="/workbench/semantic-review"]'
-        );
-        if (!(link instanceof HTMLAnchorElement)) return false;
-        link.click();
-        return true;
-      })()`),
-      true,
-      "AI Workplane primary navigation must remain available from proposal detail",
-    );
-    await waitForCondition(
-      `document.querySelector('[data-ai-workplane-home="v0.1"][data-ai-workplane-home-state="change_completion"] [data-ai-workplane-primary-action="link"]')?.getAttribute('href') === ${JSON.stringify(path)}`,
-      "exact older ready-to-complete proposal focused ahead of newer undecided proposal",
-    );
-    const exactProposalStatuses = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/operator/semantic-review', {
-        method: 'GET',
-        cache: 'no-store',
-        credentials: 'same-origin',
-      });
-      const body = await response.json();
-      return {
-        status: response.status,
-        ready: body.proposals?.find(
-          (entry) => entry.proposal_id === ${JSON.stringify(currentMultiCandidateProposal.proposal_id)}
-        )?.decision_application_summary,
-        newer: body.proposals?.find(
-          (entry) => entry.proposal_id === ${JSON.stringify(newerUndecidedProposal.proposal_id)}
-        )?.decision_application_summary,
-      };
-    })()`);
-    assert.equal(exactProposalStatuses.status, 200);
-    assert.equal(exactProposalStatuses.ready?.status, "ready_to_complete");
-    assert.equal(
-      exactProposalStatuses.ready?.preferred_candidate_id,
-      candidateB,
-    );
-    assert.equal(exactProposalStatuses.newer?.status, "needs_decision");
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const link = document.querySelector('[data-ai-workplane-home="v0.1"] [data-ai-workplane-primary-action="link"]');
-        if (!(link instanceof HTMLAnchorElement)) return false;
-        link.click();
-        return true;
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `location.pathname === ${JSON.stringify(path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateB)} && document.querySelector('[data-vnext-transition-action="preview"]:not([disabled])') !== null`,
-      "pending applying decision selects its exact candidate by default",
-    );
-    result.exact_ready_to_complete_navigation = true;
-    result.pending_applying_candidate_default_selection = true;
-    record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate");
-
     await selectCandidate(candidateA);
     const beforeLatePreview = databaseSnapshot(database);
     pauseNextSemanticTransitionRequest("preview");
@@ -4194,8 +4089,6 @@ async function main() {
       ...beforeMultiCandidate.semantic_authority_counts,
       semantic_state:
         beforeMultiCandidate.semantic_authority_counts.semantic_state + 1,
-      proposals:
-        beforeMultiCandidate.semantic_authority_counts.proposals + 1,
       decisions: beforeMultiCandidate.semantic_authority_counts.decisions + 2,
       commit_gates:
         beforeMultiCandidate.semantic_authority_counts.commit_gates + 1,
@@ -4848,6 +4741,10 @@ async function main() {
       fileMustExist: true,
     });
   await runPhase("final_r8_portability_reconciliation", async () => {
+    const exactBindingFixture = seedExactBindingBrowserProposals(databasePath, {
+      workspaceId: manifest.workspace_id,
+      projectId: manifest.project_id,
+    });
     mkdirSync(downloadDirectory, { recursive: true, mode: 0o700 });
     await cdp.send("Browser.setDownloadBehavior", {
       behavior: "allow",
@@ -4981,6 +4878,123 @@ async function main() {
       `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null`,
       "explicit imported-destination local operator session",
     );
+    const exactBindingDecision = await evaluateJson(`(async () => {
+      const detailResponse = await fetch(
+        '/api/vnext/operator/semantic-review?' + new URLSearchParams({
+          proposal_id: ${JSON.stringify(exactBindingFixture.pending_proposal_id)}
+        }),
+        { cache: 'no-store', credentials: 'same-origin' }
+      );
+      const detailBody = await detailResponse.json();
+      const candidate = detailBody.proposal?.candidates?.find(
+        (entry) =>
+          entry.candidate?.candidate_id ===
+          ${JSON.stringify(exactBindingFixture.preferred_candidate_id)}
+      );
+      if (!candidate) {
+        return {
+          detail_status: detailResponse.status,
+          decision_status: null,
+          decision_result: 'preferred_candidate_missing'
+        };
+      }
+      const decisionResponse = await fetch(
+        '/api/vnext/operator/semantic-review',
+        {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            proposal_id: ${JSON.stringify(exactBindingFixture.pending_proposal_id)},
+            proposal_fingerprint:
+              ${JSON.stringify(exactBindingFixture.pending_proposal_fingerprint)},
+            candidate_id: candidate.candidate.candidate_id,
+            candidate_fingerprint: candidate.candidate_fingerprint,
+            decision: 'accept',
+            rationale_summary:
+              'Accept the exact second candidate so completion navigation remains bound to its persisted decision.'
+          })
+        }
+      );
+      const decisionBody = await decisionResponse.json();
+      return {
+        detail_status: detailResponse.status,
+        decision_status: decisionResponse.status,
+        decision_result: decisionBody.status ?? null,
+        transition_requested: decisionBody.transition_requested ?? null
+      };
+    })()`);
+    assert.deepEqual(exactBindingDecision, {
+      detail_status: 200,
+      decision_status: 201,
+      decision_result: "inserted",
+      transition_requested: true,
+    });
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-ai-workplane-home="v0.1"][data-ai-workplane-home-state="change_completion"] [data-ai-workplane-primary-action="link"]')?.getAttribute('href') === ${JSON.stringify(exactBindingFixture.pending_proposal_path)}`,
+      "exact older ready-to-complete proposal focused ahead of newer undecided proposal",
+    );
+    const exactProposalStatuses = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      const body = await response.json();
+      const primary = document.querySelector(
+        '[data-ai-workplane-home="v0.1"] [data-ai-workplane-primary-action="link"]'
+      );
+      return {
+        status: response.status,
+        ready: body.proposals?.find(
+          (entry) =>
+            entry.proposal_id ===
+            ${JSON.stringify(exactBindingFixture.pending_proposal_id)}
+        )?.decision_application_summary,
+        newer: body.proposals?.find(
+          (entry) =>
+            entry.proposal_id ===
+            ${JSON.stringify(exactBindingFixture.newer_proposal_id)}
+        )?.decision_application_summary,
+        primary_label: primary?.textContent?.trim() ?? null,
+        primary_href: primary?.getAttribute('href') ?? null,
+      };
+    })()`);
+    assert.equal(exactProposalStatuses.status, 200);
+    assert.equal(exactProposalStatuses.ready?.status, "ready_to_complete");
+    assert.equal(
+      exactProposalStatuses.ready?.preferred_candidate_id,
+      exactBindingFixture.preferred_candidate_id,
+    );
+    assert.equal(exactProposalStatuses.newer?.status, "needs_decision");
+    assert.equal(
+      exactProposalStatuses.primary_label,
+      "Continue change review",
+    );
+    assert.equal(
+      exactProposalStatuses.primary_href,
+      exactBindingFixture.pending_proposal_path,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const link = document.querySelector(
+          '[data-ai-workplane-home="v0.1"] [data-ai-workplane-primary-action="link"]'
+        );
+        if (!(link instanceof HTMLAnchorElement)) return false;
+        link.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(exactBindingFixture.pending_proposal_path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(exactBindingFixture.preferred_candidate_id)} && document.querySelector('[data-vnext-transition-action="preview"]:not([disabled])') !== null`,
+      "pending applying decision selects its exact candidate by default",
+    );
+    result.exact_ready_to_complete_navigation = true;
+    result.pending_applying_candidate_default_selection = true;
+    record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate");
     const importedWorkbenchProbe = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/operator/semantic-review', {
         cache: 'no-store',
@@ -5301,7 +5315,8 @@ async function main() {
         request.phase === "final_r8_portability_reconciliation" &&
         (request.path === "/api/vnext/portability" ||
           request.path === "/api/recovery" ||
-          request.path === "/api/vnext/operator/session")
+          request.path === "/api/vnext/operator/session" ||
+          request.path === "/api/vnext/operator/semantic-review")
       ) &&
       !(
         request.phase === "retired_routes" &&
@@ -5380,6 +5395,111 @@ function activateFixtureProjectForContinuity(
       expected_project_id: null,
       expected_revision: null,
     });
+  } finally {
+    writableDatabase.close();
+  }
+}
+
+function seedExactBindingBrowserProposals(
+  targetDatabasePath,
+  { workspaceId, projectId },
+) {
+  const writableDatabase = new Database(targetDatabasePath, {
+    fileMustExist: true,
+  });
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const currentPacket = writableDatabase
+      .prepare(
+        `SELECT payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'task_context_packet'
+           AND project_id = ?
+         ORDER BY created_at DESC, record_id DESC`,
+      )
+      .all(projectId)
+      .map((row) => JSON.parse(row.payload_json))
+      .find((packet) =>
+        packet.selected_context?.some(
+          (entry) => entry.entry_kind === "accepted_state_ref",
+        ),
+      );
+    assert(currentPacket, "exact-binding accepted-state packet fixture missing");
+    const pendingProject = {
+      fixture_id: "continuity-exact-binding-pending",
+      workspace_id: workspaceId,
+      project_id: projectId,
+      run_id: "run:continuity-exact-binding-pending",
+    };
+    const pendingReceipt = buildSemanticReviewLoopRunReceiptFixture(
+      pendingProject,
+      currentPacket,
+      { timeline_anchor_at: currentPacket.generated_at },
+    );
+    const pendingProposal = buildSemanticReviewLoopProposalFixture(
+      pendingProject,
+      currentPacket,
+      pendingReceipt,
+      {
+        primary_delta_type: "agent_plan_delta",
+        candidate_namespace: "continuity-exact-binding-pending",
+        timeline_anchor_at: currentPacket.generated_at,
+      },
+    );
+    const newerAnchor = new Date(
+      Date.parse(pendingProposal.created_at) + 60_000,
+    ).toISOString();
+    const newerProject = {
+      fixture_id: "continuity-exact-binding-newer",
+      workspace_id: workspaceId,
+      project_id: projectId,
+      run_id: "run:continuity-exact-binding-newer",
+    };
+    const newerReceipt = buildSemanticReviewLoopRunReceiptFixture(
+      newerProject,
+      currentPacket,
+      { timeline_anchor_at: newerAnchor },
+    );
+    const newerProposal = buildSemanticReviewLoopProposalFixture(
+      newerProject,
+      currentPacket,
+      newerReceipt,
+      {
+        primary_delta_type: "agent_plan_delta",
+        candidate_namespace: "continuity-exact-binding-newer",
+        timeline_anchor_at: newerAnchor,
+      },
+    );
+    const preferredCandidate = pendingProposal.proposed_deltas[1];
+    assert(
+      preferredCandidate,
+      "exact-binding pending proposal needs a second candidate",
+    );
+    writableDatabase.transaction(() => {
+      for (const [receipt, proposal] of [
+        [pendingReceipt, pendingProposal],
+        [newerReceipt, newerProposal],
+      ]) {
+        admitStructuredRunReceiptV01(writableDatabase, receipt);
+        insertVNextCoreRecordV01(writableDatabase, {
+          record_kind: "episode_delta_proposal",
+          record_id: proposal.proposal_id,
+          workspace_id: proposal.workspace_id,
+          project_id: proposal.project_id,
+          fingerprint: proposal.integrity.fingerprint,
+          idempotency_key: null,
+          payload: proposal,
+          created_at: proposal.created_at,
+        });
+      }
+    })();
+    return {
+      pending_proposal_id: pendingProposal.proposal_id,
+      pending_proposal_fingerprint: pendingProposal.integrity.fingerprint,
+      preferred_candidate_id: preferredCandidate.candidate_id,
+      newer_proposal_id: newerProposal.proposal_id,
+      pending_proposal_path: `/workbench/semantic-review/${pendingProposal.proposal_id.replace(":", "~")}`,
+    };
   } finally {
     writableDatabase.close();
   }

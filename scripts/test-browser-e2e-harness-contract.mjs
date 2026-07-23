@@ -87,6 +87,19 @@ assert.match(
   source,
   /guideAfterImpactCount, guideBeforeImpact\.count[\s\S]*guideAfterConfirmationCount, guideBeforeImpact\.count[\s\S]*guideAfterApplication\.count,[\s\S]*guideBeforeImpact\.count \+ 1/u,
 );
+const continuityScopeStart = source.indexOf("if (RUN_CONTINUITY_SCOPE)");
+const exactBindingRecord = source.indexOf(
+  'record("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate")',
+);
+assert(continuityScopeStart >= 0 && exactBindingRecord > continuityScopeStart);
+assert.equal(
+  [
+    ...source.matchAll(
+      /record\("ai_workplane_home_binds_completion_to_exact_proposal_and_candidate"\)/gu,
+    ),
+  ].length,
+  1,
+);
 assert.match(
   source,
   /async function validateProjectToolsKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Tab", "Tab", 9, 8\)/u,
