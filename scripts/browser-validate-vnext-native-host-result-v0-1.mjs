@@ -334,7 +334,7 @@ const result = {
   control_mutation_personal_content_created: null,
   product_shell_route_classifications: [],
   product_shell_responsive_results: [],
-  product_tools_keyboard_navigation: false,
+  management_safety_keyboard_navigation: false,
   viewport_results: [],
   viewport_warnings: [],
   packet_copy_actions: 0,
@@ -623,6 +623,7 @@ async function main() {
 
   if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
+    const noProjectUtilityRequestStart = requests.length;
     await navigate(`${appOrigin}/`);
     await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="no_projects"][data-guide-brief-version="guide_brief.v0.2"][data-guide-brief-source-status="project_choice"]') !== null`, "no-project GuideBrief-backed Blank State");
     await waitForCondition(
@@ -630,6 +631,33 @@ async function main() {
       "single project-selection action",
     );
     await validateBlankStateViewports(false);
+    const noProjectManagementSafety = await evaluateJson(`(() => {
+      const details = document.querySelector('details[data-management-safety]');
+      return {
+        open: details instanceof HTMLDetailsElement ? details.open : null,
+        context: details?.getAttribute('data-management-safety-project-context') ?? null,
+        links: Array.from(details?.querySelectorAll('a') ?? []).map((link) => ({
+          label: link.textContent?.trim() ?? '',
+          href: link.getAttribute('href')
+        }))
+      };
+    })()`);
+    assert.deepEqual(noProjectManagementSafety, {
+      open: false,
+      context: "no_active_project",
+      links: [
+        { label: "Manage project", href: "#project-management" },
+        { label: "Move or import a project", href: "/portability" },
+        { label: "Backups and recovery", href: "/recovery" },
+      ],
+    });
+    const noProjectUtilityRequests = requests
+      .slice(noProjectUtilityRequestStart)
+      .filter((request) =>
+        request.path === "/api/vnext/portability" ||
+        request.path === "/api/recovery"
+      );
+    assert.deepEqual(noProjectUtilityRequests, []);
     assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
     const cancelledPickerResponseStart = responses.length;
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
@@ -675,7 +703,11 @@ async function main() {
         guide_source: surface?.getAttribute('data-guide-brief-source-status'),
         guide_context: surface?.getAttribute('data-guide-brief-project-context'),
         operator_proposal_leaked: visibleText.includes(${JSON.stringify(manifest.proposal_id)}),
-        operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)})
+        operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)}),
+        management_safety_closed:
+          document.querySelector('details[data-management-safety]')?.open === false,
+        management_safety_context:
+          document.querySelector('details[data-management-safety]')?.getAttribute('data-management-safety-project-context') ?? null
       };
     })()`);
     assert.deepEqual(emptyProjectHome, {
@@ -691,6 +723,8 @@ async function main() {
       guide_context: "current",
       operator_proposal_leaked: false,
       operator_packet_leaked: false,
+      management_safety_closed: true,
+      management_safety_context: "active_project",
     });
     const routeGuide = await evaluateJson(`(async () => {
       const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
@@ -1248,7 +1282,7 @@ async function main() {
     await validateProductShell({
       route: "/projects",
       expectedPrimaryZone: "blank-state",
-      expectedUtilityContext: "project-management",
+      expectedUtilityContext: null,
     });
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
     record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
@@ -5183,6 +5217,7 @@ async function main() {
     );
     await validateProductShellResponsive("/projects/[projectId]");
     const projectManagementDocumentStart = responses.length;
+    const projectManagementUtilityRequestStart = requests.length;
     await navigate(`${appOrigin}/projects`);
     await waitForHostCondition(
       () => responses.slice(projectManagementDocumentStart).some(
@@ -5212,8 +5247,16 @@ async function main() {
       await evaluateString(`document.body.innerText`),
     );
     await validateProductShellResponsive("/projects");
-    await validateProjectToolsKeyboardNavigation();
-    result.product_tools_keyboard_navigation = true;
+    assert.deepEqual(
+      requests.slice(projectManagementUtilityRequestStart).filter(
+        (request) =>
+          request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery",
+      ),
+      [],
+    );
+    await validateManagementSafetyKeyboardNavigation();
+    result.management_safety_keyboard_navigation = true;
   });
 
   }
@@ -5236,13 +5279,13 @@ async function main() {
     });
     await navigate(`${appOrigin}/portability`);
     await waitForCondition(
-      `document.querySelector('[data-portability-surface="v1"]') !== null && document.body.textContent.includes('Review exact scope before export') && document.querySelector('input[type="checkbox"]:not(:checked)') !== null`,
+      `document.querySelector('[data-portability-surface="v1"][data-portability-preview-state="available"]') !== null && document.querySelector('[data-portability-primary-action="export"]')?.textContent?.includes('Export current project') === true && document.querySelector('input[data-portability-personal-consent="true"]:not(:checked)') !== null && document.querySelector('details[data-portability-import-disclosure]')?.open === false && document.querySelector('details')?.textContent?.includes('Review package contents') === true`,
       "portable active-project preview with Personal Perspective excluded",
     );
     await validateProductShell({
       route: "/portability",
       expectedPrimaryZone: null,
-      expectedUtilityContext: "portability",
+      expectedUtilityContext: null,
       projectContextRequired: true,
     });
     result.portable_export_preview_visible = true;
@@ -5250,7 +5293,7 @@ async function main() {
     assert.equal(
       await evaluateBoolean(`(() => {
         const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Export portable project'
+          (candidate) => candidate.textContent?.trim() === 'Export current project'
         );
         button?.click();
         return Boolean(button);
@@ -5283,7 +5326,7 @@ async function main() {
     await waitForHttp(`${appOrigin}/portability`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/portability`);
     await waitForCondition(
-      `document.querySelector('[data-portability-surface="v1"] input[type="file"]') !== null`,
+      `document.querySelector('[data-portability-surface="v1"][data-portability-preview-state="unavailable"] input[type="file"]') !== null && document.querySelector('[data-portability-primary-action="import"]') !== null && !document.body.textContent.includes('Open imported Project Home')`,
       "clean-destination local import control",
     );
     const documentNode = await cdp.send("DOM.getDocument", {
@@ -5299,6 +5342,7 @@ async function main() {
       nodeId: fileInputNode.nodeId,
       files: [portablePackagePath],
     });
+    const portableUiImportResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
         const input = document.querySelector('[data-portability-surface="v1"] input[type="file"]');
@@ -5308,8 +5352,42 @@ async function main() {
       })()`),
       true,
     );
+    await waitForHostCondition(
+      () => responses.slice(portableUiImportResponseStart).some(
+        (entry) =>
+          entry.path === "/api/vnext/portability" &&
+          entry.method === "POST" &&
+          entry.status === 200,
+      ),
+      "portable UI import response",
+    );
+    const portableUiImportResponse = responses
+      .slice(portableUiImportResponseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/portability" &&
+          entry.method === "POST" &&
+          entry.status === 200,
+      );
+    assert(portableUiImportResponse);
+    const portableUiImportBody = JSON.parse(
+      (
+        await cdp.send("Network.getResponseBody", {
+          requestId: portableUiImportResponse.request_id,
+        })
+      ).body,
+    );
+    assert.equal(portableUiImportBody.status, "imported");
+    assert.equal(
+      portableUiImportBody.projection_reader_verification,
+      "verified",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-portability-import-result="imported"]') !== null && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Open imported project') && !document.body.textContent.includes('Open imported Project Home')`,
+      "verified UI import result",
+    );
     const portablePackageBase64 = readFileSync(portablePackagePath).toString("base64");
-    const portableImport = await evaluateJson(`(async () => {
+    const portableReplay = await evaluateJson(`(async () => {
       const binary = atob(${JSON.stringify(portablePackageBase64)});
       const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
       const response = await fetch('/api/vnext/portability', {
@@ -5320,12 +5398,15 @@ async function main() {
       return { status: response.status, body: await response.json() };
     })()`);
     assert.equal(
-      portableImport.status,
+      portableReplay.status,
       200,
-      `Clean-destination import refused: ${portableImport.body?.reason_code ?? "unknown"}`,
+      `Exact replay import refused: ${portableReplay.body?.reason_code ?? "unknown"}`,
     );
-    assert.equal(portableImport.body.status, "imported");
-    assert.equal(portableImport.body.projection_reader_verification, "verified");
+    assert.equal(portableReplay.body.status, "exact_replay");
+    assert.equal(
+      portableReplay.body.projection_reader_verification,
+      "verified",
+    );
     result.portable_import_clean_destination = true;
 
     await navigate(
@@ -5605,13 +5686,13 @@ async function main() {
       automatic_retry: false,
     });
     await waitForCondition(
-      `document.querySelector('[data-continuity-diagnostics="v1"]') !== null && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Review needed') === true && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Exact replay') === true`,
+      `document.querySelector('[data-recovery-product-surface="v0.1"][data-recovery-mode="normal"]') !== null && document.querySelector('[data-recovery-primary-action]') !== null && Array.from(document.querySelectorAll('details')).some((details) => details.textContent?.includes('Advanced diagnostics') && details.open === false) && document.querySelector('[data-continuity-diagnostics="v1"]') !== null && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Review needed') === true && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Exact replay') === true`,
       "public restart reconciliation diagnostics",
     );
     await validateProductShell({
       route: "/recovery",
       expectedPrimaryZone: null,
-      expectedUtilityContext: "recovery",
+      expectedUtilityContext: null,
     });
     const reconciliationText = await evaluateString(
       `document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent ?? ''`,
@@ -5767,6 +5848,16 @@ async function main() {
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/project-controls" &&
           /409/i.test(entry.text)) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/vnext/portability" &&
+          /409/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.method === "GET" &&
+              response.status === 409,
+          )) ||
         (entry.phase === "folder_onboarding" &&
           entry.path?.startsWith("/_next/") &&
           entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
@@ -6238,10 +6329,7 @@ async function validateProductShell({
       ${projectContextRequired ? "candidate.querySelector('[data-project-context-label]') !== null" : "true"}
     ) ?? null;
     const primary = root?.querySelector('nav[aria-label="Primary navigation"]');
-    const projectTools = root?.querySelector('details.product-project-tools');
-    const utility = projectTools?.querySelector('nav[aria-label="Project tools"]');
     const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
-    const utilityLinks = Array.from(utility?.querySelectorAll(':scope > a') ?? []);
     return {
       route: ${JSON.stringify(route)},
       primary_zone: root?.getAttribute('data-primary-product-zone') ?? null,
@@ -6253,20 +6341,13 @@ async function validateProductShell({
         href: link.getAttribute('href'),
         current: link.getAttribute('aria-current')
       })),
-      project_tools_label: utility?.getAttribute('aria-label') ?? null,
-      project_tools_summary: projectTools?.querySelector(':scope > summary > span')?.textContent?.trim() ?? null,
-      project_tools_open: projectTools instanceof HTMLDetailsElement ? projectTools.open : null,
+      project_tools_count: root?.querySelectorAll('details.product-project-tools, nav[aria-label="Project tools"]').length ?? -1,
       visible_primary_link_count: Array.from(
         document.querySelectorAll('nav[aria-label="Primary navigation"] > a')
       ).filter(visible).length,
-      project_tools_links: utilityLinks.map((link) => ({
-        label: link.textContent?.trim() ?? '',
-        href: link.getAttribute('href'),
-        current: link.getAttribute('aria-current')
-      })),
-      inspector_in_project_tools: utilityLinks.some((link) =>
-        link.textContent?.includes('Inspector') || link.getAttribute('href')?.includes('/workbench/inspector')
-      ),
+      global_utility_link_count: Array.from(root?.querySelectorAll('header a') ?? []).filter((link) =>
+        ['/projects', '/portability', '/recovery'].includes(link.getAttribute('href') ?? '')
+      ).length,
       project_context_label:
         root?.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label') ?? null
     };
@@ -6287,28 +6368,9 @@ async function validateProductShell({
       current: expectedPrimaryZone === "ai-workplane" ? "page" : null,
     },
   ]);
-  assert.equal(shell.project_tools_label, "Project tools");
-  assert.equal(shell.project_tools_summary, "Project tools");
-  assert.equal(shell.project_tools_open, false);
   assert.equal(shell.visible_primary_link_count, 2);
-  assert.deepEqual(shell.project_tools_links, [
-    {
-      label: "Switch or add project",
-      href: "/projects",
-      current: expectedUtilityContext === "project-management" ? "page" : null,
-    },
-    {
-      label: "Transfer project",
-      href: "/portability",
-      current: expectedUtilityContext === "portability" ? "page" : null,
-    },
-    {
-      label: "Recovery",
-      href: "/recovery",
-      current: expectedUtilityContext === "recovery" ? "page" : null,
-    },
-  ]);
-  assert.equal(shell.inspector_in_project_tools, false);
+  assert.equal(shell.project_tools_count, 0);
+  assert.equal(shell.global_utility_link_count, 0);
   result.product_shell_route_classifications.push(shell);
   if (projectContextRequired) {
     assert.equal(
@@ -6327,22 +6389,9 @@ async function validateProductShellResponsive(route) {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const details = document.querySelector('details.product-project-tools');
-        if (!(details instanceof HTMLDetailsElement)) return false;
-        details.open = true;
-        return details.open;
-      })()`),
-      true,
-    );
-    await delay(50);
     const metrics = await evaluateJson(`(() => {
       const primary = document.querySelector('nav[aria-label="Primary navigation"]');
       const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
-      const details = document.querySelector('details.product-project-tools');
-      const summary = details?.querySelector(':scope > summary');
-      const utilityLinks = Array.from(details?.querySelectorAll('nav[aria-label="Project tools"] > a') ?? []);
       const insideViewport = (element) => {
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.height >= 40 && rect.left >= -1 && rect.right <= window.innerWidth + 1;
@@ -6354,8 +6403,8 @@ async function validateProductShellResponsive(route) {
           document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
         primary_link_count: primaryLinks.length,
         primary_links_visible: primaryLinks.every((link) => insideViewport(link)),
-        project_tools_summary_visible: summary ? insideViewport(summary) : false,
-        project_tools_links_visible: utilityLinks.length === 3 && utilityLinks.every((link) => insideViewport(link)),
+        project_tools_count:
+          document.querySelectorAll('details.product-project-tools, nav[aria-label="Project tools"]').length,
         primary_labels: primaryLinks.map((link) => link.querySelector('strong')?.textContent?.trim() ?? '')
       };
     })()`);
@@ -6365,20 +6414,10 @@ async function validateProductShellResponsive(route) {
       document_horizontal_overflow: false,
       primary_link_count: 2,
       primary_links_visible: true,
-      project_tools_summary_visible: true,
-      project_tools_links_visible: true,
+      project_tools_count: 0,
       primary_labels: ["Blank State", "AI Workplane"],
     });
     result.product_shell_responsive_results.push(metrics);
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const details = document.querySelector('details.product-project-tools');
-        if (!(details instanceof HTMLDetailsElement)) return false;
-        details.open = false;
-        return !details.open;
-      })()`),
-      true,
-    );
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
@@ -6388,10 +6427,10 @@ async function validateProductShellResponsive(route) {
   });
 }
 
-async function validateProjectToolsKeyboardNavigation() {
+async function validateManagementSafetyKeyboardNavigation() {
   assert.equal(
     await evaluateBoolean(`(() => {
-      const summary = document.querySelector('details.product-project-tools > summary');
+      const summary = document.querySelector('details[data-management-safety] > summary');
       if (!(summary instanceof HTMLElement)) return false;
       summary.focus();
       return document.activeElement === summary;
@@ -6400,25 +6439,25 @@ async function validateProjectToolsKeyboardNavigation() {
   );
   await dispatchKeyboardKey(" ", "Space", 32);
   await waitForCondition(
-    `document.querySelector('details.product-project-tools')?.open === true`,
-    "keyboard-opened Project tools",
+    `document.querySelector('details[data-management-safety]')?.open === true`,
+    "keyboard-opened Manage and protect",
   );
   await dispatchKeyboardKey("Tab", "Tab", 9);
   assert.equal(
     await evaluateString("document.activeElement?.getAttribute('href') ?? ''"),
-    "/projects",
+    "#project-management",
   );
   await dispatchKeyboardKey("Tab", "Tab", 9, 8);
   assert.equal(
     await evaluateBoolean(
-      "document.activeElement === document.querySelector('details.product-project-tools > summary')",
+      "document.activeElement === document.querySelector('details[data-management-safety] > summary')",
     ),
     true,
   );
   await dispatchKeyboardKey(" ", "Space", 32);
   await waitForCondition(
-    `document.querySelector('details.product-project-tools')?.open === false`,
-    "keyboard-closed Project tools",
+    `document.querySelector('details[data-management-safety]')?.open === false`,
+    "keyboard-closed Manage and protect",
   );
 }
 

@@ -163,6 +163,14 @@ Personal Perspective links open contextual Exact details. Historical
 SharedProjectInspector component/type names and inactive Agent Workplane links
 remain C9 cleanup residue.
 
+C7 removes active shared-shell Project tools rendering but retains compatible
+`/portability` and `/recovery` route names and their exact engines. Project
+transfer/import and ordinary backups/recovery are discovered through Blank
+State’s closed Manage and protect context; forced recovery remains owned by the
+existing proxy. `ProductUtilityContext`, `utilityContext` data markers, old
+`.product-project-tools` CSS, historical callers, and internal Portability/
+Recovery names remain explicit C9 compatibility residue.
+
 ### Automation and Personal Perspective
 
 Do not delete shared roadmap foundations. Delete only duplicated or advanced subsystems after replacement or an explicit later product decision:

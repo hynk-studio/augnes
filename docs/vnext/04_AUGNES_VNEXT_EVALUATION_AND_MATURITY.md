@@ -126,8 +126,18 @@ presentation becomes contextual Exact details. It checks deterministic related
 return mapping, no arbitrary return URL, at most four primary sections, closed
 additional records and identities, locked-state non-disclosure, no generic AI
 Workplane Inspector link, zero Inspector requests in normal C4/C5 flows, zero
-writes/egress/retry, and 390px/430px overflow. C6 becomes complete only after
-its PR is reviewed and merged.
+writes/egress/retry, and 390px/430px overflow. C6 is merged.
+
+C7 evidence additionally checks that ProductShell renders exactly the two
+primary destinations and no Project tools menu; Blank State’s closed Manage and
+protect disclosure performs zero utility reads; import remains available when
+no export preview can be read; Personal Perspective stays excluded without
+explicit consent; and Recovery distinguishes normal maintenance from forced
+runtime recovery while selecting at most one exact primary action. It preserves
+package integrity, atomic import/exact replay, verified-backup restore
+confirmation, recovery-mode proxy/write refusal, redacted support reports,
+zero retry/egress, cleanup, and 390px/430px overflow. C7 becomes complete only
+after its PR is reviewed and merged.
 
 ## Semantic authority guardrails
 

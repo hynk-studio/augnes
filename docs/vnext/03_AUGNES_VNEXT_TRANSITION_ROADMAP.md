@@ -116,10 +116,11 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
 - **C5 — Delegated Codex work timeline and resumption:** merged; the existing
   managed-live runner ledger is projected as bounded progress, operational
   attention, trusted result, and explicit exact resume
-- **C6 — Contextual Inspector demotion:** this change preserves the exact
-  reader while replacing the peer/protocol-first presentation with contextual
-  Exact details and deterministic related return navigation
-- **C7 — Management and safety relocation for Portability and Recovery**
+- **C6 — Contextual Inspector demotion:** merged; exact reader preserved beneath
+  contextual Exact details and deterministic related return navigation
+- **C7 — Management and safety relocation for Portability and Recovery:** this
+  change removes shared-shell utility navigation while preserving the compatible
+  routes and exact engines under Blank State management and forced safety paths
 - **C8 — Visual system after IA correction**
 - **C9 — Compatibility and obsolete-surface reduction**
 
@@ -136,14 +137,15 @@ Workplane landing, makes the compatible semantic-review route the canonical AI
 Workplane, and demotes exact protocol detail without changing authority. C5
 reuses the existing runner ledger and host-round-trip route; it adds
 no event store, percentage, ETA, automatic retry, or execution authority.
-C6 in this change removes generic active Inspector navigation and presents
-target-relevant exact sections without changing the exact reader. C7 final
-Portability/Recovery relocation, C8 visual system, and C9 compatibility
-reduction remain unimplemented. Current code
+C6 removed generic active Inspector navigation and presents target-relevant
+exact sections without changing the exact reader. C7 in this change relocates
+Portability/Recovery discovery without changing their mutation or recovery-mode
+boundaries. C8 visual system and C9 compatibility reduction remain
+unimplemented. Current code
 remains authoritative for each existing behavior until its later correction PR
 changes it.
 
-No broad visual-polish or unrelated new-feature phase precedes C7 after C6
+No broad visual-polish or unrelated new-feature phase precedes C8 after C7
 unless the user explicitly overrides this correction program. Replacement work
 must account for the superseded surface through absorption, redirect, hiding,
 explicit demotion or removal; it must not silently add another destination.

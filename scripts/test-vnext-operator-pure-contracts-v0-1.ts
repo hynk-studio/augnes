@@ -24,6 +24,7 @@ import {
   createProposalWorkbenchEntryV01,
   createRunResultWorkbenchEntryV01,
 } from "../lib/vnext/runtime/semantic-workbench-entry";
+import { buildManagementSafetyViewV01 } from "../lib/vnext/management-safety/management-safety-view";
 
 const assertions: string[] = [];
 
@@ -174,7 +175,6 @@ const blankPrimaryNavigation = labeledNavigationMarkup(
   blankStateShell,
   "Primary navigation",
 );
-const blankProjectTools = labeledNavigationMarkup(blankStateShell, "Project tools");
 const aiPrimaryNavigation = labeledNavigationMarkup(
   aiWorkplaneShell,
   "Primary navigation",
@@ -182,10 +182,6 @@ const aiPrimaryNavigation = labeledNavigationMarkup(
 const portabilityPrimaryNavigation = labeledNavigationMarkup(
   portabilityShell,
   "Primary navigation",
-);
-const portabilityProjectTools = labeledNavigationMarkup(
-  portabilityShell,
-  "Project tools",
 );
 for (const primaryNavigation of [
   blankPrimaryNavigation,
@@ -222,25 +218,60 @@ assert.match(
   /href="\/workbench\/semantic-review" aria-current="page"/u,
 );
 assert.equal(count(portabilityPrimaryNavigation, /aria-current="page"/gu), 0);
-for (const projectTools of [blankProjectTools, portabilityProjectTools]) {
-  assert.equal(count(projectTools, /<a /gu), 3);
-  assert.equal(projectTools.includes('href="/projects"'), true);
-  assert.equal(projectTools.includes('href="/portability"'), true);
-  assert.equal(projectTools.includes('href="/recovery"'), true);
-  assert.equal(projectTools.includes("Inspector"), false);
+for (const shell of [blankStateShell, aiWorkplaneShell, portabilityShell]) {
+  assert.equal(shell.includes("Project tools"), false);
+  assert.equal(shell.includes('href="/projects"'), false);
+  assert.equal(shell.includes('href="/portability"'), false);
+  assert.equal(shell.includes('href="/recovery"'), false);
 }
-assert.match(blankProjectTools, /href="\/projects" aria-current="page"/u);
-assert.match(
-  portabilityProjectTools,
-  /href="\/portability" aria-current="page"/u,
-);
 assert.match(blankStateShell, /data-primary-product-zone="blank-state"/u);
 assert.match(blankStateShell, /data-product-utility-context="project-management"/u);
 assert.match(aiWorkplaneShell, /data-primary-product-zone="ai-workplane"/u);
 assert.match(portabilityShell, /data-primary-product-zone="none"/u);
 assert.match(portabilityShell, /data-product-utility-context="portability"/u);
-assert.equal(blankStateShell.includes("<summary><span>Project tools</span>"), true);
-record("product_shell_has_two_primary_zones_and_secondary_project_tools");
+record("product_shell_has_only_two_primary_zones_and_no_global_project_tools");
+
+const activeManagement = buildManagementSafetyViewV01({
+  project_context: "active_project",
+});
+const noProjectManagement = buildManagementSafetyViewV01({
+  project_context: "no_active_project",
+});
+const inactiveManagement = buildManagementSafetyViewV01({
+  project_context: "viewed_inactive_project",
+});
+assert.equal(activeManagement.project_management.href, "#project-management");
+assert.equal(activeManagement.project_transfer.href, "/portability");
+assert.equal(activeManagement.local_recovery.href, "/recovery");
+assert.match(activeManagement.project_transfer.summary, /Export the current project/u);
+assert.match(noProjectManagement.project_transfer.summary, /Import a local project package/u);
+assert.doesNotMatch(noProjectManagement.project_transfer.summary, /Export/u);
+assert.match(inactiveManagement.project_transfer.summary, /current project/u);
+assert.deepEqual(
+  buildManagementSafetyViewV01({ project_context: "active_project" }),
+  activeManagement,
+);
+assert.equal(Object.values(activeManagement.authority).every((value) => value === false), true);
+record("management_safety_navigation_is_fixed_deterministic_and_non_authoritative");
+
+const portabilityPageSource = source("app/portability/page.tsx");
+const recoveryPageSource = source("app/recovery/page.tsx");
+const blankStateClientSource = source("components/blank-state/blank-state-client.tsx");
+assert.equal(blankStateClientSource.includes("Manage and protect"), true);
+assert.equal(blankStateClientSource.includes('href={item.href}'), true);
+assert.equal(blankStateClientSource.includes("/api/vnext/portability"), false);
+assert.equal(blankStateClientSource.includes("/api/recovery"), false);
+assert.equal(portabilityPageSource.includes("Move or import a project"), true);
+assert.equal(portabilityPageSource.includes("Back to Blank State"), true);
+assert.equal(portabilityPageSource.includes("Open imported project"), true);
+assert.equal(portabilityPageSource.includes("Open imported Project Home"), false);
+assert.equal(portabilityPageSource.includes("Export current project"), true);
+assert.equal(portabilityPageSource.includes("Review package contents"), true);
+assert.equal(recoveryPageSource.includes("buildRecoverySafetyViewV01"), true);
+assert.equal(recoveryPageSource.includes("Backups and recovery"), false);
+assert.equal(recoveryPageSource.includes("Advanced diagnostics"), true);
+assert.equal(recoveryPageSource.includes("Product tools"), false);
+record("management_and_safety_surfaces_use_contextual_human_hierarchy");
 
 const workbenchRouteSource = source("app/workbench/page.tsx");
 const semanticReviewSurfaceSource = source(
@@ -1006,7 +1037,9 @@ assert.deepEqual(assertions, [
   "live_codex_public_command_summary_preserves_safe_relative_commands",
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
-  "product_shell_has_two_primary_zones_and_secondary_project_tools",
+  "product_shell_has_only_two_primary_zones_and_no_global_project_tools",
+  "management_safety_navigation_is_fixed_deterministic_and_non_authoritative",
+  "management_and_safety_surfaces_use_contextual_human_hierarchy",
   "ai_workplane_replaces_active_agent_and_semantic_workbench_presentations",
   "ai_workplane_application_refreshes_exact_state_and_guide_once",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",

@@ -21,7 +21,7 @@ assert.equal(resultKeys.length, 170);
 assert.equal(recordNames.length, 41);
 assert.equal(
   hashInventory(resultKeys),
-  "b11352420878c76c9220ba916ac853119a973ef411dd1d382fb0aa04b64cd6bc",
+  "2f52e2fd3b06d2b690a52bd6b963ace6119d906f7dd6859377b505b7b047300c",
 );
 assert.equal(
   hashInventory(recordNames),
@@ -61,7 +61,7 @@ assert.equal(
 );
 assert.match(
   source,
-  /route: "\/projects"[\s\S]*expectedPrimaryZone: "blank-state"[\s\S]*expectedUtilityContext: "project-management"/u,
+  /route: "\/projects"[\s\S]*expectedPrimaryZone: "blank-state"[\s\S]*expectedUtilityContext: null/u,
 );
 assert.match(
   source,
@@ -69,11 +69,23 @@ assert.match(
 );
 assert.match(
   source,
-  /route: "\/portability"[\s\S]*expectedPrimaryZone: null[\s\S]*expectedUtilityContext: "portability"/u,
+  /route: "\/portability"[\s\S]*expectedPrimaryZone: null[\s\S]*expectedUtilityContext: null/u,
 );
 assert.match(
   source,
-  /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2/u,
+  /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2[\s\S]*project_tools_count: 0/u,
+);
+assert.match(
+  source,
+  /async function validateManagementSafetyKeyboardNavigation[\s\S]*details\[data-management-safety\][\s\S]*keyboard-opened Manage and protect[\s\S]*"#project-management"[\s\S]*keyboard-closed Manage and protect/u,
+);
+assert.match(
+  source,
+  /data-portability-primary-action="export"[\s\S]*Export current project[\s\S]*portable active-project preview with Personal Perspective excluded[\s\S]*data-portability-primary-action="import"[\s\S]*clean-destination local import control/u,
+);
+assert.match(
+  source,
+  /data-recovery-mode="normal"[\s\S]*data-recovery-primary-action[\s\S]*Advanced diagnostics/u,
 );
 assert.match(
   source,
@@ -138,7 +150,7 @@ assert.equal(
 );
 assert.match(
   source,
-  /async function validateProjectToolsKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Tab", "Tab", 9, 8\)/u,
+  /async function validateManagementSafetyKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Tab", "Tab", 9, 8\)/u,
 );
 assert.match(
   source,
