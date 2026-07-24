@@ -94,13 +94,34 @@ Do not commit secrets, local DB files, screenshots, generated outputs, or tunnel
 - Skipped or unavailable checks with exact reasons:
 - Final result: `pass | failure`
 - Local-environment limitations:
-- Confirmation: generated receipts and logs were not committed or published:
+- Confirmation: generated receipts and logs were not committed or uploaded:
 - Confirmation: no GitHub Actions workflow was invoked:
 - Confirmation: no GitHub status or independent attestation was fabricated:
 
 Local evidence describes the actual shared host on which it ran.
 It is not an independent hosted reproduction or external status check.
 A changed head makes the evidence stale.
+
+## Optional Local Canonical PR publication
+
+- Publication used: `yes | no`
+- Target PR:
+- Dedicated evidence comment URL:
+- Receipt SHA-256 content fingerprint:
+- Publication-envelope SHA-256 content fingerprint:
+- Remote-only verification result:
+- Local-linked verification result:
+- Identical-publication idempotent no-op proof:
+- Marker comment count:
+- Replacement used: `yes | no`
+- If replaced, exact superseded publication fingerprint:
+- Trust-boundary confirmation: this mutable comment is local evidence only; its
+  fingerprints prove content integrity, not a signature, hosted reproduction,
+  GitHub-authenticated environment, status check, or independent attestation.
+
+Publication is never automatic. The full receipt and raw logs remain ignored
+local artifacts. A publication may describe only a current deciding changed or
+full receipt for this exact Draft PR.
 
 ## Structured Evidence Records
 
@@ -141,7 +162,8 @@ Confirm this PR keeps the authority boundaries intact.
 - [ ] No auth or hosted deployment semantics were added.
 - [ ] No hosted or self-hosted CI execution path was added.
 - [ ] No GitLab or alternate CI provider was added.
-- [ ] No launchd service, Docker/VM requirement, background automation, or receipt publication was added.
+- [ ] No launchd service, Docker/VM requirement, background automation, or automatic publication was added.
+- [ ] No GitHub status, check run, deployment, workflow, review, label, or repository-setting publication path was added.
 - [ ] No secret handling changes were added.
 - [ ] No secrets, local DB files, screenshots, tunnel URLs, generated outputs, or local artifacts are committed.
 - [ ] No local receipt is described as hosted evidence or independent attestation.

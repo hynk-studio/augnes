@@ -174,9 +174,9 @@ npm run verify:local:full -- \
 ```
 
 `quick` is bounded developer feedback. It uses the installed dependency trees,
-runs typecheck plus the local-executor contracts, and may run on a dirty tree
-or noncanonical Node version. Its receipt is always non-deciding and
-non-transferable.
+runs typecheck plus the local executor, receipt, PR-evidence, transport, and
+repository lifecycle contracts, and may run on a dirty tree or noncanonical
+Node version. Its receipt is always non-deciding and non-transferable.
 
 `changed` requires a clean worktree whose current `HEAD` equals the exact
 requested head. It invokes the existing exact-SHA planner. A
@@ -239,10 +239,44 @@ hosted reproduction, or an external status check. A changed head, dirty
 worktree, lockfile or executor drift, plan drift, environment drift, missing
 phase, timeout, failure, or incomplete cleanup invalidates deciding use.
 
+An explicitly authorized user may publish a bounded projection of one current
+deciding receipt to the current task Draft PR. Publication is a separate,
+foreground action and never follows verification automatically:
+
+```bash
+npm run verify:local:evidence:prepare -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+npm run verify:local:evidence:publish -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json \
+  --confirm-publish
+npm run verify:local:evidence:verify -- --pr <positive-pr-number>
+npm run verify:local:evidence:verify -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+```
+
+`prepare` reads the live PR identity but performs no GitHub write. `publish`
+hard-binds the authorized repository, current clean pushed branch, exact live
+base/head, and existing deciding receipt, then owns one bounded marker comment.
+An identical publication is an idempotent no-write result. Replacing different
+evidence requires explicit authority naming the exact prior fingerprint.
+Remote-only verification checks the current public projection; local-linked
+verification also compares every projected field to the current local receipt.
+Full receipts, raw logs, preparation files, and publication records stay local
+and ignored.
+
+The comment and envelope remain mutable local evidence. Their SHA-256
+fingerprints prove content integrity only; they are not signatures, independent
+attestations, hosted reproductions, GitHub-authenticated execution, status
+checks, check runs, or deployments. See the
+[Local Canonical PR evidence policy](.github/LOCAL_CANONICAL_PR_EVIDENCE.md).
+
 Linux, Windows, Node 22, and other supported environments remain compatibility
 surfaces; they do not substitute for the current macOS-arm64 Node 24.18.0
 Canonical policy. The executor and documentation use Augnes product identity
 and ordinary Git history so this temporary lab branch remains transferable;
-repository-specific receipt publication or status semantics are intentionally
-absent. See the
+the hard repository/root publication authority must be reviewed during any
+separately authorized transfer. See the
 [local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).
