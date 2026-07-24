@@ -5,6 +5,10 @@ export function publicGuideBriefTextV02(value: string): string {
     .replace(/\b(?:sk|ghp|github_pat)-?[A-Za-z0-9_-]{8,}\b/gu, "[credential]")
     .replace(/\b(?:OPENAI_API_KEY|GITHUB_TOKEN|API_KEY)\s*[=:]\s*[^\s,;]+/giu, "[credential]");
   const replacements: Array<[RegExp, string]> = [
+    [
+      /\blocal_operator_runtime_unavailable\b/giu,
+      "Local work controls are currently unavailable.",
+    ],
     [/TaskContextPacket/giu, "work instructions"],
     [/RunReceipt/giu, "result"],
     [/CriterionAssessment/giu, "verification"],

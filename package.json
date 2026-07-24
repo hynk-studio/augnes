@@ -53,6 +53,8 @@
     "test:local-canonical-pr-evidence": "node scripts/test-local-canonical-pr-evidence.mjs",
     "test:local-canonical-pr-evidence-transport": "node scripts/test-local-canonical-pr-evidence-transport.mjs",
     "test:dependency-lock-compatibility": "node scripts/test-dependency-lock-compatibility.mjs",
+    "test:c8-semantic-visual": "node --import tsx scripts/test-c8-semantic-visual-contract.mjs",
+    "test:c8-visual-review": "AUGNES_C8_CAPTURE_REVIEW=1 node --import tsx scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
     "verify:local:quick": "node scripts/run-local-canonical-verification.mjs quick",
     "verify:local:changed": "node scripts/run-local-canonical-verification.mjs changed",
     "verify:local:full": "node scripts/run-local-canonical-verification.mjs full",

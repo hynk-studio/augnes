@@ -10,6 +10,10 @@ import type {
   SharedProjectInspectorProjectionV01,
   SharedProjectInspectorSectionV01,
 } from "@/types/vnext/shared-project-inspector";
+import {
+  SEMANTIC_SURFACE_ROLE,
+  SEMANTIC_VISUAL_PRIORITY,
+} from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 
 import styles from "./contextual-inspector.module.css";
 
@@ -37,6 +41,7 @@ export function SharedProjectInspectorSurface({
           view.project_activity ?? "unknown"
         }
         data-contextual-inspector-related-context={view.related_context.kind}
+        data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.inspector}
       >
         <div className={styles.shell}>
           <a
@@ -47,7 +52,10 @@ export function SharedProjectInspectorSurface({
             ← {view.related_context.label}
           </a>
 
-          <header className={styles.header}>
+          <header
+            className={styles.header}
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+          >
             <p className={styles.eyebrow}>Exact details</p>
             <h1
               id="contextual-inspector-heading"
@@ -63,6 +71,7 @@ export function SharedProjectInspectorSurface({
             className={styles.context}
             aria-labelledby="contextual-inspector-about-title"
             data-contextual-inspector-about="true"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
           >
             <p className={styles.sectionLabel}>What this detail is about</p>
             <h2 id="contextual-inspector-about-title">{view.target_label}</h2>
@@ -74,6 +83,11 @@ export function SharedProjectInspectorSurface({
             aria-labelledby="contextual-inspector-status-title"
             role={view.exact_status === "conflict" ? "alert" : "status"}
             data-contextual-inspector-status-block={view.exact_status}
+            data-augnes-visual-priority={
+              view.exact_status === "conflict"
+                ? SEMANTIC_VISUAL_PRIORITY.risk
+                : SEMANTIC_VISUAL_PRIORITY.supporting
+            }
           >
             <p className={styles.sectionLabel}>Current exact status</p>
             <h2 id="contextual-inspector-status-title">{view.status_label}</h2>
@@ -103,6 +117,7 @@ export function SharedProjectInspectorSurface({
             data-contextual-inspector-primary-section-count={
               view.primary_sections.length
             }
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
           >
             {view.primary_sections.map((section) => (
               <InspectorSection
@@ -119,6 +134,7 @@ export function SharedProjectInspectorSurface({
             <details
               className={styles.additionalRecords}
               data-contextual-inspector-additional-records="true"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
             >
               <summary>
                 <strong>Additional exact records</strong>
@@ -141,6 +157,7 @@ export function SharedProjectInspectorSurface({
           <details
             className={styles.protectionDisclosure}
             data-contextual-inspector-protection="true"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
           >
             <summary>How these details are protected</summary>
             <div>
@@ -177,6 +194,7 @@ function InspectorSection({
       className={styles.inspectorSection}
       data-inspector-section={section.section_kind}
       data-inspector-section-status={section.status}
+      data-augnes-raw-record="true"
       open={defaultOpen || undefined}
     >
       <summary>

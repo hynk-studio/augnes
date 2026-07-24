@@ -24,6 +24,51 @@
   --radius-medium: 12px;
   --radius-large: 18px;
   --content-width: 1180px;
+  --reading-width: 68ch;
+  --compact-reading-width: 56ch;
+  --space-1: 0.375rem;
+  --space-2: 0.75rem;
+  --space-3: 1.125rem;
+  --space-4: 1.75rem;
+  --space-5: 2.75rem;
+  --risk: var(--amber);
+  --risk-surface: #fff7e8;
+  --danger-surface: #fff3f3;
+  --success-surface: #f1f8f3;
+  --raw-record-surface: #f4f5f2;
+}
+
+[data-augnes-visual-priority] {
+  min-width: 0;
+}
+
+[data-augnes-visual-priority="situation"] {
+  color: var(--foreground);
+}
+
+[data-augnes-visual-priority="primary-action"] {
+  color: var(--foreground);
+}
+
+[data-augnes-visual-priority="ai-summary"] {
+  color: var(--foreground);
+}
+
+[data-augnes-visual-priority="risk"] {
+  border-inline-start-color: var(--risk);
+}
+
+[data-augnes-visual-priority="supporting"] {
+  color: var(--muted);
+}
+
+[data-augnes-visual-priority="raw-record"] {
+  color: var(--muted);
+  background: var(--raw-record-surface);
+}
+
+[data-augnes-primary-action] {
+  min-height: 44px;
 }
 
 

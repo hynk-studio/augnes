@@ -10,6 +10,10 @@ import type {
 import styles from "./semantic-review.module.css";
 
 type SupportedDecision = SemanticReviewDecisionRequestV01["decision"];
+const DEFAULT_DEFER_RATIONALE =
+  "Defer this suggested change until its unresolved questions are addressed.";
+const DEFAULT_REVISIT_CONDITION =
+  "Review again when the missing verification or current project information is available.";
 
 export function ReviewDecisionForm({
   proposalId,
@@ -29,8 +33,12 @@ export function ReviewDecisionForm({
   onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
 }) {
   const [decision, setDecision] = useState<SupportedDecision>("defer");
-  const [rationaleSummary, setRationaleSummary] = useState("");
-  const [revisitCondition, setRevisitCondition] = useState("");
+  const [rationaleSummary, setRationaleSummary] = useState(
+    DEFAULT_DEFER_RATIONALE,
+  );
+  const [revisitCondition, setRevisitCondition] = useState(
+    DEFAULT_REVISIT_CONDITION,
+  );
 
   const applyAllowed = candidateRead.pilot_admission.decision_allowed.accept;
   const selectedDecisionAllowed =
@@ -65,6 +73,7 @@ export function ReviewDecisionForm({
       data-vnext-operator-decision-form="v0.1"
       data-vnext-operator-decision-candidate={candidateRead.candidate.candidate_id}
       data-vnext-proposal-local-controls-busy={String(busy)}
+      data-vnext-default-decision-path-interactions="2"
       onSubmit={submitDecision}
     >
       <label htmlFor={`decision-${candidateRead.candidate.candidate_id}`}>
@@ -88,7 +97,7 @@ export function ReviewDecisionForm({
       </select>
 
       <label htmlFor={`rationale-${candidateRead.candidate.candidate_id}`}>
-        Decision note
+        Decision note (editable suggested wording)
       </label>
       <textarea
         id={`rationale-${candidateRead.candidate.candidate_id}`}
@@ -102,7 +111,7 @@ export function ReviewDecisionForm({
       {decision === "defer" ? (
         <>
           <label htmlFor={`revisit-${candidateRead.candidate.candidate_id}`}>
-            Review again when…
+            Review again when… (editable suggested wording)
           </label>
           <textarea
             id={`revisit-${candidateRead.candidate.candidate_id}`}
@@ -148,6 +157,7 @@ export function ReviewDecisionForm({
         className={primary ? styles.button : styles.secondaryButton}
         type="submit"
         data-ai-workplane-primary-action={primary ? "save-decision" : undefined}
+        data-augnes-primary-action={primary ? "save-decision" : undefined}
         disabled={!canSubmit}
       >
         {busy ? "Saving decision…" : "Save decision"}

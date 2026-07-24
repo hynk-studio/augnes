@@ -145,7 +145,15 @@ suggested change, delegated work, Blank State, or AI Workplane. Normal C4/C5
 flows load no Inspector data. C7 removes the shared-shell Project
 tools menu, keeps `/portability` and `/recovery` compatible, and preserves all
 package, backup, restore, update, reconciliation, and recovery-mode semantics.
-C8–C9 remain pending.
+C8 in this change establishes one product-meaning visual hierarchy across
+Blank State, AI Workplane, GuideBrief, Inspector, and the inherited management
+and recovery paths. Stable semantic hooks defend situation, primary action, AI
+summary, risk, supporting information, and raw-record order; the existing
+browser journey checks the same real states at 390 CSS pixels. Optional local
+review screenshots and their index stay ignored under
+`.augnes-local-verification/c8-review/` because aesthetic quality and
+ten-second comprehension remain user judgments. C8 is complete only after
+review and merge. C9 remains pending.
 
 The repository now supports:
 

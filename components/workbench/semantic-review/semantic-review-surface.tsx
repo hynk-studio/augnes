@@ -623,6 +623,7 @@ export function SemanticReviewSurface({
               className={styles.button}
               href="/"
               data-ai-workplane-primary-action="open-blank-state"
+              data-augnes-primary-action="open-blank-state"
             >
               Open Blank State
             </a>

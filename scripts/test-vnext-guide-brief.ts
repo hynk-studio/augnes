@@ -231,6 +231,22 @@ async function main() {
   assert.equal(resultGuide.projections.codex.suggested_next_action, resultGuide.primary_guidance.label);
   assert.equal(resultGuide.projections.ai_workplane.recommended_review_focus, resultGuide.primary_guidance.label);
   assert.deepEqual(resultGuide.projections.chatgpt.constraints, resultGuide.projections.codex.constraints);
+  assert.deepEqual(
+    resultGuide.projections.ai_workplane.important_constraints,
+    resultGuide.projections.chatgpt.constraints.slice(0, 3),
+  );
+  assert.deepEqual(
+    resultGuide.projections.ai_workplane.unresolved_user_judgments,
+    resultGuide.projections.chatgpt.needs_user_judgment.map(
+      (item) => item.question,
+    ),
+  );
+  assert.deepEqual(
+    resultGuide.projections.chatgpt.needs_user_judgment.map(
+      (item) => item.question,
+    ),
+    resultGuide.projections.codex.unresolved_user_judgments,
+  );
   assert.equal(resultGuide.observed.length <= 8, true);
   assert.equal(resultGuide.inferred.length <= 4, true);
   assert.equal(resultGuide.suggested.length <= 3, true);

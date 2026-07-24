@@ -131,8 +131,10 @@ export interface GuideBriefAIWorkplaneProjectionV02 {
   project_name: string | null;
   current_coordinate: string;
   current_goal: string | null;
+  important_constraints: string[];
   work_or_result_status: string;
   material_blocker_or_judgment: string | null;
+  unresolved_user_judgments: string[];
   recommended_review_focus: string;
   exact_detail_href: string | null;
   delegated_work: GuideBriefCurrentCoordinateV02["delegated_work"];

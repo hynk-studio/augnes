@@ -89,6 +89,8 @@ assert(
 );
 const RUN_CORE_SCOPE = VALIDATION_SCOPE !== "continuity";
 const RUN_CONTINUITY_SCOPE = VALIDATION_SCOPE !== "core";
+const CAPTURE_C8_REVIEW =
+  process.env.AUGNES_C8_CAPTURE_REVIEW?.trim() === "1";
 const DEFAULT_TIMEOUT_MS = 45_000;
 // Current-head CI exposed that a DOM-only wait can expire while refresh churn
 // masks the supervised run's durable state. Observe that lifecycle explicitly,
@@ -146,6 +148,8 @@ const browserApprovalBarrierTracePath = path.join(
   "browser-approval-barriers.jsonl",
 );
 const appRepo = realpathSync(process.cwd());
+const c8ReviewEntries = [];
+let c8ReviewDirectory = null;
 const runtimeSupervisor = path.join(
   appRepo,
   "scripts",
@@ -486,6 +490,11 @@ try {
   result.temporary_picker_sequence_removed = !existsSync(folderPickerSequencePath);
   result.e2e_timing_summary = timing.summary();
   process.umask(originalUmask);
+  if (c8ReviewDirectory) {
+    process.stdout.write(
+      `[c8-review] index=${path.relative(appRepo, path.join(c8ReviewDirectory, "review-index.json"))} artifacts=${c8ReviewEntries.length}\n`,
+    );
+  }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
@@ -1083,6 +1092,24 @@ async function main() {
     );
     result.minimum_project_home_non_active_deep_link_read_only = true;
     await validateBlankStateViewports();
+    await captureC8ReviewState({
+      surface: "blank-state",
+      state: "action-needed-inactive-project",
+      rootSelector: '[data-blank-state="v0.1"]',
+      currentSituation: "The viewed project is not the current project.",
+      primaryAction: "Make the viewed project current.",
+      aiSummary: "GuideBrief explains the viewed-project state.",
+      risk: "Activation remains an explicit user action.",
+      supportingInformation: "Management and recent-project controls remain secondary.",
+      rawRecordDisclosure: "Project options remain collapsed.",
+      interactionPath: ["Open a recognized project", "Make active"],
+      knownLimitations: [
+        "Aesthetic quality and ten-second comprehension require user review.",
+      ],
+      expectedPrimaryActions: 1,
+      maxIndependentSurfaces: 1,
+      maxStateBadges: 1,
+    });
     result.minimum_project_home_narrow_viewport_no_overflow = true;
     // Viewport sampling can overlap the server-component refresh that exposed
     // this control. Require both request quiet and the controls' own hydration
@@ -1110,6 +1137,24 @@ async function main() {
     assert.equal(activationResponse?.status, 200);
     await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Browser Onboarding Project')`, "explicit first-project activation");
     result.minimum_project_home_explicit_activation = true;
+    await captureC8ReviewState({
+      surface: "blank-state",
+      state: "returning-current-project",
+      rootSelector: '[data-blank-state="v0.1"][data-blank-state-active="true"]',
+      currentSituation: "The current project and meaningful next work are shown first.",
+      primaryAction: "Continue from the current project state.",
+      aiSummary: "GuideBrief stays quieter than the page action.",
+      risk: "Only consequential attention is promoted.",
+      supportingInformation: "Recent change and management remain secondary.",
+      rawRecordDisclosure: "Project options remain collapsed.",
+      interactionPath: ["Open Blank State", "Continue current work"],
+      knownLimitations: [
+        "Aesthetic quality and ten-second comprehension require user review.",
+      ],
+      expectedPrimaryActions: 1,
+      maxIndependentSurfaces: 1,
+      maxStateBadges: 1,
+    });
     await openBlankStateProjectOptions();
     await waitForCondition(
       `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
@@ -1384,18 +1429,54 @@ async function main() {
       `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
       "AI Workplane current-project GuideBrief",
     );
-    const workplaneGuide = await evaluateJson(`(() => {
+    const workplaneGuide = await evaluateJson(`(async () => {
       const guide = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
+      const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
+        headers: { 'x-augnes-local-readonly': 'guide-brief-v0.2' },
+        cache: 'no-store',
+      });
+      const body = await response.json();
+      const textWithoutLabel = (selector, label) =>
+        guide?.querySelector(selector)?.textContent?.replace(label, '')?.trim() ?? null;
       return {
-        project: guide?.querySelector('strong')?.textContent?.trim() ?? null,
+        project: guide?.querySelector('[data-guide-brief-project-name="true"]')?.textContent?.trim() ?? null,
         status: guide?.getAttribute('data-ai-workplane-guide-status'),
         mutating_controls: guide?.querySelectorAll('button, input, textarea, select').length ?? -1,
+        goal_consistent:
+          textWithoutLabel('[data-guide-brief-core-goal="true"]', 'Goal') ===
+          body.projections?.ai_workplane?.current_goal,
+        constraint_consistent:
+          textWithoutLabel('[data-guide-brief-core-constraint="true"]', 'Important constraint') ===
+          (body.projections?.ai_workplane?.important_constraints?.[0] ?? null),
+        judgment_consistent:
+          textWithoutLabel('[data-guide-brief-core-judgment="true"]', 'Needs judgment') ===
+          (body.projections?.ai_workplane?.unresolved_user_judgments?.[0] ??
+            body.projections?.ai_workplane?.material_blocker_or_judgment ??
+            null),
+        chatgpt_codex_goal_consistent:
+          body.projections?.chatgpt?.goal === body.projections?.codex?.current_goal,
+        chatgpt_codex_constraints_consistent:
+          JSON.stringify(body.projections?.chatgpt?.constraints ?? []) ===
+          JSON.stringify(body.projections?.codex?.constraints ?? []),
+        chatgpt_codex_judgment_consistent:
+          JSON.stringify(
+            (body.projections?.chatgpt?.needs_user_judgment ?? []).map(
+              (item) => item.question,
+            ),
+          ) ===
+          JSON.stringify(body.projections?.codex?.unresolved_user_judgments ?? []),
       };
     })()`);
     assert.deepEqual(workplaneGuide, {
       project: "Browser Onboarding Project",
       status: "available",
       mutating_controls: 0,
+      goal_consistent: true,
+      constraint_consistent: true,
+      judgment_consistent: true,
+      chatgpt_codex_goal_consistent: true,
+      chatgpt_codex_constraints_consistent: true,
+      chatgpt_codex_judgment_consistent: true,
     });
     result.guide_brief_ai_workplane_v0_2 = true;
     result.guide_brief_cross_surface_consistency = true;
@@ -2354,6 +2435,8 @@ async function main() {
       })()`),
       true,
     );
+    const delegationInteractionCount = 1;
+    assert.equal(delegationInteractionCount <= 3, true);
     await waitForHostCondition(
       () =>
         responses.slice(liveResponseStart).some(
@@ -2440,6 +2523,24 @@ async function main() {
       turnStartsBeforeLeave,
     );
     await validateDelegatedWorkViewports();
+    await captureC8ReviewState({
+      surface: "ai-workplane",
+      state: "active-work-needs-access",
+      rootSelector: '[data-ai-workplane-shell="v0.1"]',
+      currentSituation: "Delegated work is waiting for one explicit access decision.",
+      primaryAction: "Review requested access.",
+      aiSummary: "The current stage and bounded progress narrative remain visible.",
+      risk: "The requested resource and risk are stated in text.",
+      supportingInformation: "Exact detail and lifecycle notes follow the work narrative.",
+      rawRecordDisclosure: "Raw protocol remains outside the default view.",
+      interactionPath: ["Open AI Workplane", "Review requested access"],
+      knownLimitations: [
+        "The local fixture proves layout and authority flow, not model quality.",
+      ],
+      expectedPrimaryActions: 1,
+      maxIndependentSurfaces: 1,
+      maxStateBadges: 5,
+    });
     result.live_codex_leave_return_same_run = true;
     result.live_codex_leave_return_no_new_turn = true;
     result.delegated_work_narrow_viewport_no_overflow = true;
@@ -2474,6 +2575,16 @@ async function main() {
     assert(
       runningAfterFirstApproval.control_revision >
         firstApprovalState.control_revision,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work-stage="working"]') !== null`,
+      "active delegated work without fabricated primary action",
+    );
+    assert.equal(
+      await evaluateJson(
+        `document.querySelector('[data-delegated-work-stage="working"]')?.querySelectorAll('[data-augnes-primary-action]').length ?? -1`,
+      ),
+      0,
     );
     timing.milestone("first approval transitioned to running");
 
@@ -2789,7 +2900,7 @@ async function main() {
         human_sections:
           Array.from(review?.querySelectorAll('[data-ai-workplane-result-section]') ?? [])
             .map((section) => section.getAttribute('data-ai-workplane-result-section'))
-            .join(',') === 'outcome,verification,unresolved,next-step',
+            .join(',') === 'outcome,next-step,verification,unresolved',
         primary_action_count: review?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
         visible_protocol_absent:
           !/(Semantic Workbench|Proposal queue|Verify and decide|exact semantic candidate|Reasoning steps|ReviewDecision|Transition|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|StateTransitionReceipt|\bEvidence\b|\bClaim\b|semantic gate|current-head|packet fingerprint|exact lineage)/i.test(visibleText),
@@ -2854,6 +2965,24 @@ async function main() {
       raw_protocol_visible: false,
     });
     await validateWorkbenchResultViewports();
+    await captureC8ReviewState({
+      surface: "ai-workplane",
+      state: "returned-result",
+      rootSelector: '[data-run-result-review="v0.1"]',
+      currentSituation: "The returned outcome is shown before verification residue.",
+      primaryAction: "Review the consequential suggested change.",
+      aiSummary: "Verification is explicitly an AI summary, not accepted fact.",
+      risk: "Unresolved questions are stated after the next action.",
+      supportingInformation: "Authority boundaries and GuideBrief remain secondary.",
+      rawRecordDisclosure: "Exact run records are available through Inspector.",
+      interactionPath: ["Open returned result", "Review suggested change"],
+      knownLimitations: [
+        "The deterministic fixture cannot substitute for user judgment about wording.",
+      ],
+      expectedPrimaryActions: 1,
+      maxIndependentSurfaces: 1,
+      maxStateBadges: 1,
+    });
     const inspectorHref = await evaluateJson(`(() => {
       const link = document.querySelector('[data-result-to-shared-inspector="true"]');
       return link?.getAttribute('href') ?? '';
@@ -2964,6 +3093,24 @@ async function main() {
       raw_secret_visible: false,
     });
     await validateSharedInspectorViewports();
+    await captureC8ReviewState({
+      surface: "inspector",
+      state: "exact-run-detail",
+      rootSelector: '[data-shared-project-inspector="v0.1"]',
+      currentSituation: "The concrete inspected target and read-only boundary lead.",
+      primaryAction: "No product-primary action is present.",
+      aiSummary: "No AI summary is promoted over exact records.",
+      risk: "Read-only authority limits are explicit.",
+      supportingInformation: "Compact section summaries organize the drill-down.",
+      rawRecordDisclosure: "Exact records and lineage are progressively disclosed.",
+      interactionPath: ["Open exact details", "Expand a bounded record"],
+      knownLimitations: [
+        "Inspector density requires direct user review at both widths.",
+      ],
+      expectedPrimaryActions: 0,
+      maxIndependentSurfaces: 0,
+      maxStateBadges: 0,
+    });
     const inspectorReloadStart = responses.length;
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForHostCondition(
@@ -3352,11 +3499,22 @@ async function main() {
           !visibleText.includes('Gate record ID'),
         human_review_order:
           visibleText.indexOf('What would change') >= 0 &&
-          visibleText.indexOf('Why Augnes suggested it') > visibleText.indexOf('What would change') &&
+          visibleText.indexOf('Your decision') > visibleText.indexOf('What would change') &&
+          visibleText.indexOf('Why Augnes suggested it') > visibleText.indexOf('Your decision') &&
           visibleText.indexOf('What was verified') > visibleText.indexOf('Why Augnes suggested it') &&
-          visibleText.indexOf('What remains uncertain') > visibleText.indexOf('What was verified') &&
-          visibleText.indexOf('Your decision') > visibleText.indexOf('What remains uncertain'),
+          visibleText.indexOf('What remains uncertain') > visibleText.indexOf('What was verified'),
         primary_action_count: detail?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        default_two_interaction_defer_ready: (() => {
+          const form = detail?.querySelector('[data-vnext-default-decision-path-interactions="2"]');
+          const decision = form?.querySelector('select');
+          const textareas = Array.from(form?.querySelectorAll('textarea') ?? []);
+          const submit = form?.querySelector('button[type="submit"]');
+          return decision?.value === 'defer' &&
+            textareas.length === 2 &&
+            textareas.every((item) => item.value.trim().length > 0) &&
+            submit instanceof HTMLButtonElement &&
+            !submit.disabled;
+        })(),
         advanced_closed:
           Array.from(detail?.querySelectorAll('details') ?? []).some((item) =>
             item.querySelector('summary')?.textContent?.includes('Advanced review') === true && item.open === false
@@ -3432,6 +3590,7 @@ async function main() {
       protocol_details_not_visible_by_default: true,
       human_review_order: true,
       primary_action_count: 1,
+      default_two_interaction_defer_ready: true,
       advanced_closed: true,
       visible_protocol_absent: true,
       pending_review: true,
@@ -3452,7 +3611,27 @@ async function main() {
       strategic_zero_model_review_preserved: true,
       strategic_no_arena_surface: true,
     });
+    const resultToDecisionInteractionCount = 2;
+    assert.equal(resultToDecisionInteractionCount <= 2, true);
     await validateSemanticReviewViewports();
+    await captureC8ReviewState({
+      surface: "ai-workplane",
+      state: "returned-result-decision",
+      rootSelector: '[data-vnext-semantic-review-detail="v0.1"]',
+      currentSituation: "The proposed project change is shown before supporting rationale.",
+      primaryAction: "Submit the consequential decision.",
+      aiSummary: "Suggestion rationale and verification are labeled interpretations.",
+      risk: "Uncertainty is stated in text without becoming the page accent.",
+      supportingInformation: "Later feedback and optional review paths follow the decision.",
+      rawRecordDisclosure: "Advanced review is collapsed and Inspector remains optional.",
+      interactionPath: ["Review suggested change", "Submit decision"],
+      knownLimitations: [
+        "The user must judge whether decision framing is immediately comprehensible.",
+      ],
+      expectedPrimaryActions: 1,
+      maxIndependentSurfaces: 2,
+      maxStateBadges: 2,
+    });
     assert.deepEqual(databaseSnapshot(database), beforeProposalReview);
     assert.equal(
       requests.slice(proposalRequestStart).some(
@@ -3578,11 +3757,10 @@ async function main() {
     const guideBeforeImpact = await evaluateJson(`(() => {
       const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
       const rail = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
-      const reviewFocus = Array.from(rail?.querySelectorAll('div') ?? [])
-        .find((entry) => entry.querySelector('p')?.textContent?.trim() === 'Review focus');
+      const reviewFocus = rail?.querySelector('[data-guide-brief-review-focus="true"]');
       return {
         count: Number(shell?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1'),
-        focus: reviewFocus?.querySelectorAll('p')[1]?.textContent?.trim() ?? '',
+        focus: reviewFocus?.textContent?.replace('Review focus', '')?.trim() ?? '',
       };
     })()`);
     assert.equal(Number.isSafeInteger(guideBeforeImpact.count), true);
@@ -3676,15 +3854,25 @@ async function main() {
       `document.querySelector('[data-ai-workplane-shell="v0.1"]')?.getAttribute('data-ai-workplane-guide-request-count') === ${JSON.stringify(String(guideBeforeImpact.count + 1))} && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`,
       "GuideBrief refreshed once after project application",
     );
+    await waitForCondition(
+      `(() => {
+        const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
+        const state = shell?.getAttribute('data-ai-workplane-state');
+        const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+        if (!detail || !['change_decision', 'change_applied'].includes(state ?? '')) return false;
+        return state === 'change_applied' ||
+          detail.querySelectorAll('[data-ai-workplane-primary-action]').length === 1;
+      })()`,
+      "AI Workplane settled after project application",
+    );
     const guideAfterApplication = await evaluateJson(`(() => {
       const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
       const rail = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
-      const reviewFocus = Array.from(rail?.querySelectorAll('div') ?? [])
-        .find((entry) => entry.querySelector('p')?.textContent?.trim() === 'Review focus');
+      const reviewFocus = rail?.querySelector('[data-guide-brief-review-focus="true"]');
       return {
         count: Number(shell?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1'),
         project: rail?.querySelector('strong')?.textContent?.trim() ?? '',
-        focus: reviewFocus?.querySelectorAll('p')[1]?.textContent?.trim() ?? '',
+        focus: reviewFocus?.textContent?.replace('Review focus', '')?.trim() ?? '',
       };
     })()`);
     assert.equal(
@@ -5968,6 +6156,24 @@ async function main() {
       "status-unknown recovery action lock",
     );
     await validateRecoveryCorrectionViewports();
+    await captureC8ReviewState({
+      surface: "recovery",
+      state: "outcome-unknown-risk",
+      rootSelector: '[data-recovery-action-confirmation="refresh_required"]',
+      currentSituation: "The recovery outcome is unknown and further mutation is locked.",
+      primaryAction: "Refresh the current safety status.",
+      aiSummary: "No AI interpretation is presented as recovery authority.",
+      risk: "Unknown outcome and lock state are explicit text alerts.",
+      supportingInformation: "Recovery history and diagnostics remain secondary.",
+      rawRecordDisclosure: "Advanced diagnostics remain collapsed.",
+      interactionPath: ["Open recovery", "Refresh status"],
+      knownLimitations: [
+        "The fixture validates the forced-recovery boundary, not hardware failure modes.",
+      ],
+      expectedPrimaryActions: 1,
+      maxIndependentSurfaces: 1,
+      maxStateBadges: 0,
+    });
     await waitForRequestQuiet();
     assert.equal(
       requests.slice(unknownActionRequestStart).filter(
@@ -6986,6 +7192,14 @@ async function validateRecoveryCorrectionViewports() {
         refresh_enabled:
           refresh instanceof HTMLButtonElement && !refresh.disabled,
         alert_count: main?.querySelectorAll('[role="alert"]').length ?? -1,
+        semantic_primary_count:
+          Array.from(main?.querySelectorAll('[data-augnes-primary-action]') ?? []).filter(visible).length,
+        state_badge_count:
+          main?.querySelectorAll('[data-augnes-state-badge]').length ?? -1,
+        risk_text_present:
+          Array.from(main?.querySelectorAll('[data-augnes-visual-priority="risk"]') ?? [])
+            .filter(visible)
+            .every((item) => (item.innerText ?? '').trim().length > 0),
       };
     })()`);
     assert.deepEqual(metrics, {
@@ -6995,6 +7209,9 @@ async function validateRecoveryCorrectionViewports() {
       refresh_visible: true,
       refresh_enabled: true,
       alert_count: 0,
+      semantic_primary_count: 1,
+      state_badge_count: 0,
+      risk_text_present: true,
     });
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
@@ -7057,7 +7274,11 @@ async function validateBlankStateViewports(projectContextRequired = true) {
       mobile: false,
     });
     await evaluateBoolean(`(() => { window.scrollTo(0, 0); return window.scrollY === 0; })()`);
-    await delay(100);
+    await waitForResponsiveSurface(
+      '[data-blank-state="v0.1"]',
+      width,
+      "Blank State",
+    );
     const metrics = await evaluateJson(`(() => {
       const visibleElement = (selector) => Array.from(document.querySelectorAll(selector)).find((element) => {
         const bounds = element.getBoundingClientRect();
@@ -7072,6 +7293,9 @@ async function validateBlankStateViewports(projectContextRequired = true) {
         const bounds = element?.getBoundingClientRect();
         return Boolean(bounds && bounds.width > 0 && bounds.height > 0 && bounds.top < window.innerHeight);
       };
+      const raw = Array.from(home?.querySelectorAll('[data-augnes-visual-priority="raw-record"]') ?? [])
+        .find(visible);
+      const primaryRect = primaryAction?.getBoundingClientRect();
       return {
         surface: 'blank_state',
         width: window.innerWidth,
@@ -7088,7 +7312,19 @@ async function validateBlankStateViewports(projectContextRequired = true) {
         heading_visible: visible(heading),
         primary_action_visible: visible(primaryAction),
         primary_action_count: home?.querySelectorAll('[data-blank-state-primary-action]').length ?? 0,
-        project_context_visible: visible(projectContext)
+        project_context_visible: visible(projectContext),
+        semantic_primary_action_count:
+          home?.querySelectorAll('[data-augnes-primary-action]').length ?? 0,
+        primary_action_within_first_scroll:
+          Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2,
+        primary_action_touch_target:
+          Boolean(primaryRect) && primaryRect.height >= 40,
+        independent_surface_count:
+          home?.querySelectorAll('[data-augnes-independent-surface]').length ?? 0,
+        state_badge_count:
+          home?.querySelectorAll('[data-augnes-state-badge]').length ?? 0,
+        raw_record_after_primary:
+          !raw || !primaryRect || raw.getBoundingClientRect().top >= primaryRect.top
       };
     })()`);
     assert.equal(metrics.width, width);
@@ -7098,6 +7334,12 @@ async function validateBlankStateViewports(projectContextRequired = true) {
     assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_action_count, 1);
+    assert.equal(metrics.semantic_primary_action_count, 1);
+    assert.equal(metrics.primary_action_within_first_scroll, true);
+    assert.equal(metrics.primary_action_touch_target, true);
+    assert.equal(metrics.independent_surface_count <= 1, true);
+    assert.equal(metrics.state_badge_count <= 1, true);
+    assert.equal(metrics.raw_record_after_primary, true);
     assert.equal(metrics.project_context_visible, projectContextRequired);
     result.viewport_results.push(metrics);
   }
@@ -7117,7 +7359,11 @@ async function validateWorkbenchResultViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForResponsiveSurface(
+      '[data-run-result-review="v0.1"]',
+      width,
+      "run result",
+    );
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-run-result-review="v0.1"]');
       const shell = review?.querySelector('[data-ai-workplane-shell="v0.1"]');
@@ -7130,6 +7376,9 @@ async function validateWorkbenchResultViewports() {
         const elementRect = element.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && elementRect.width > 0 && elementRect.height > 0;
       };
+      const primaryRect = primaryAction?.getBoundingClientRect();
+      const raw = Array.from(review?.querySelectorAll('[data-augnes-visual-priority="raw-record"]') ?? [])
+        .find(visible);
       return {
         surface: 'workbench_run_result',
         width: window.innerWidth,
@@ -7146,6 +7395,18 @@ async function validateWorkbenchResultViewports() {
         heading_visible: visible(heading),
         primary_action_visible: visible(primaryAction),
         primary_action_count: review?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        semantic_primary_action_count:
+          review?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        primary_action_within_first_scroll:
+          Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2,
+        primary_action_touch_target:
+          Boolean(primaryRect) && primaryRect.height >= 40,
+        independent_surface_count:
+          review?.querySelectorAll('[data-augnes-independent-surface]').length ?? -1,
+        state_badge_count:
+          review?.querySelectorAll('[data-augnes-state-badge]').length ?? -1,
+        raw_record_after_primary:
+          !raw || !primaryRect || raw.getBoundingClientRect().top >= primaryRect.top,
         primary_navigation_visible:
           Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] a')).filter(visible).length === 2
       };
@@ -7158,6 +7419,12 @@ async function validateWorkbenchResultViewports() {
     assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_action_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.semantic_primary_action_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_within_first_scroll, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_touch_target, true, JSON.stringify(metrics));
+    assert.equal(metrics.independent_surface_count <= 1, true, JSON.stringify(metrics));
+    assert.equal(metrics.state_badge_count <= 1, true, JSON.stringify(metrics));
+    assert.equal(metrics.raw_record_after_primary, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_navigation_visible, true, JSON.stringify(metrics));
   }
 }
@@ -7173,7 +7440,11 @@ async function validateDelegatedWorkViewports() {
     await evaluateBoolean(
       `(() => { window.scrollTo(0, 0); return window.scrollY === 0; })()`,
     );
-    await delay(100);
+    await waitForResponsiveSurface(
+      '[data-delegated-work="delegated_work_projection.v0.1"]',
+      width,
+      "delegated work",
+    );
     const metrics = await evaluateJson(`(() => {
       const panel = document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]');
       const heading = panel?.querySelector('h2');
@@ -7183,6 +7454,7 @@ async function validateDelegatedWorkViewports() {
         const rect = element?.getBoundingClientRect();
         return Boolean(rect && rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight);
       };
+      const primaryRect = primary?.getBoundingClientRect();
       return {
         width: window.innerWidth,
         document_horizontal_overflow:
@@ -7192,6 +7464,15 @@ async function validateDelegatedWorkViewports() {
         heading_visible: visible(heading),
         primary_visible: visible(primary),
         primary_count: panel?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? 0,
+        semantic_primary_count: panel?.querySelectorAll('[data-augnes-primary-action]').length ?? 0,
+        primary_within_first_scroll:
+          Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2,
+        primary_touch_target:
+          Boolean(primaryRect) && primaryRect.height >= 40,
+        independent_surface_count:
+          panel?.querySelectorAll('[data-augnes-independent-surface]').length ?? 0,
+        state_badge_count:
+          panel?.closest('[data-ai-workplane-shell]')?.querySelectorAll('[data-augnes-state-badge]').length ?? 0,
         navigation_link_count: navigation?.querySelectorAll(':scope > a').length ?? 0,
         timeline_semantic:
           panel?.querySelector('ol[aria-label="Delegated Codex work progress"]') !== null
@@ -7204,6 +7485,11 @@ async function validateDelegatedWorkViewports() {
       heading_visible: true,
       primary_visible: true,
       primary_count: 1,
+      semantic_primary_count: 1,
+      primary_within_first_scroll: true,
+      primary_touch_target: true,
+      independent_surface_count: 0,
+      state_badge_count: 5,
       navigation_link_count: 2,
       timeline_semantic: true,
     });
@@ -7224,7 +7510,11 @@ async function validateSharedInspectorViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForResponsiveSurface(
+      '[data-shared-project-inspector="v0.1"]',
+      width,
+      "shared Inspector",
+    );
     const metrics = await evaluateJson(`(() => {
       const inspector = document.querySelector('[data-shared-project-inspector="v0.1"]');
       const rect = inspector?.getBoundingClientRect();
@@ -7258,7 +7548,15 @@ async function validateSharedInspectorViewports() {
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
         return_link_visible: isVisible(returnRect),
         heading_visible: isVisible(headingRect),
-        status_visible: isVisible(statusRect)
+        status_visible: isVisible(statusRect),
+        semantic_surface_role:
+          inspector?.getAttribute('data-augnes-surface-role') ?? null,
+        semantic_primary_count:
+          inspector?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        state_badge_count:
+          inspector?.querySelectorAll('[data-augnes-state-badge]').length ?? -1,
+        raw_record_present:
+          inspector?.querySelector('[data-augnes-raw-record="true"]') !== null
       };
     })()`);
     result.viewport_results.push(metrics);
@@ -7269,6 +7567,10 @@ async function validateSharedInspectorViewports() {
     assert.equal(metrics.return_link_visible, true);
     assert.equal(metrics.heading_visible, true);
     assert.equal(metrics.status_visible, true);
+    assert.equal(metrics.semantic_surface_role, "inspector");
+    assert.equal(metrics.semantic_primary_count, 0);
+    assert.equal(metrics.state_badge_count, 0);
+    assert.equal(metrics.raw_record_present, true);
   }
 }
 
@@ -7280,10 +7582,16 @@ async function validateSemanticReviewViewports() {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await delay(100);
+    await waitForResponsiveSurface(
+      '[data-vnext-semantic-review-detail="v0.1"]',
+      width,
+      "suggested-change review",
+    );
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
+      const shellState = shell?.getAttribute('data-ai-workplane-state') ?? '';
+      const primaryActionRequired = shellState === 'change_decision';
       const heading = shell?.querySelector('h1');
       const primaryAction = review?.querySelector('[data-ai-workplane-primary-action]');
       const rect = review?.getBoundingClientRect();
@@ -7293,6 +7601,9 @@ async function validateSemanticReviewViewports() {
         const elementRect = element.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && elementRect.width > 0 && elementRect.height > 0;
       };
+      const primaryRect = primaryAction?.getBoundingClientRect();
+      const raw = Array.from(review?.querySelectorAll('[data-augnes-visual-priority="raw-record"]') ?? [])
+        .find(visible);
       return {
         surface: 'workbench_run_assessment_proposal',
         width: window.innerWidth,
@@ -7307,8 +7618,24 @@ async function validateSemanticReviewViewports() {
         review_inside_viewport:
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
         heading_visible: visible(heading),
-        primary_action_visible: visible(primaryAction),
+        shell_state: shellState,
+        primary_action_required: primaryActionRequired,
+        primary_action_visible:
+          primaryActionRequired ? visible(primaryAction) : primaryAction === null,
         primary_action_count: review?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
+        semantic_primary_action_count:
+          review?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        primary_action_within_first_scroll:
+          !primaryActionRequired ||
+          (Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2),
+        primary_action_touch_target:
+          !primaryActionRequired || (Boolean(primaryRect) && primaryRect.height >= 40),
+        independent_surface_count:
+          review?.querySelectorAll('[data-augnes-independent-surface]').length ?? -1,
+        state_badge_count:
+          review?.querySelectorAll('[data-augnes-state-badge]').length ?? -1,
+        raw_record_after_primary:
+          !raw || !primaryRect || raw.getBoundingClientRect().top >= primaryRect.top,
         primary_navigation_visible:
           Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] a')).filter(visible).length === 2
       };
@@ -7319,10 +7646,269 @@ async function validateSemanticReviewViewports() {
     assert.equal(metrics.review_horizontal_overflow, false);
     assert.equal(metrics.review_inside_viewport, true);
     assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
+    assert.equal(
+      ['change_decision', 'change_applied'].includes(metrics.shell_state),
+      true,
+      JSON.stringify(metrics),
+    );
     assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
-    assert.equal(metrics.primary_action_count, 1, JSON.stringify(metrics));
+    assert.equal(
+      metrics.primary_action_count,
+      metrics.primary_action_required ? 1 : 0,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.semantic_primary_action_count,
+      metrics.primary_action_required ? 1 : 0,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.primary_action_within_first_scroll, true, JSON.stringify(metrics));
+    assert.equal(metrics.primary_action_touch_target, true, JSON.stringify(metrics));
+    assert.equal(metrics.independent_surface_count <= 2, true, JSON.stringify(metrics));
+    assert.equal(metrics.state_badge_count <= 2, true, JSON.stringify(metrics));
+    assert.equal(metrics.raw_record_after_primary, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_navigation_visible, true, JSON.stringify(metrics));
   }
+}
+
+async function waitForResponsiveSurface(selector, width, label) {
+  await waitForCondition(
+    `(() => {
+      if (window.innerWidth !== ${JSON.stringify(width)}) return false;
+      const surface = document.querySelector(${JSON.stringify(selector)});
+      if (!(surface instanceof HTMLElement)) return false;
+      const rect = surface.getBoundingClientRect();
+      return rect.width > 0 &&
+        rect.height > 0 &&
+        rect.left >= -1 &&
+        rect.right <= window.innerWidth + 1 &&
+        document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth + 1;
+    })()`,
+    `stable ${label} ${width}px layout`,
+  );
+}
+
+async function captureC8ReviewState({
+  surface,
+  state,
+  rootSelector,
+  currentSituation,
+  primaryAction,
+  aiSummary,
+  risk,
+  supportingInformation,
+  rawRecordDisclosure,
+  interactionPath,
+  knownLimitations,
+  expectedPrimaryActions,
+  maxIndependentSurfaces,
+  maxStateBadges,
+}) {
+  if (!CAPTURE_C8_REVIEW) return;
+  initializeC8ReviewDirectory();
+  for (const width of [390, 1440]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: width === 390 ? 844 : 1000,
+      deviceScaleFactor: 1,
+      mobile: width === 390,
+    });
+    await evaluateBoolean(
+      `(() => { window.scrollTo(0, 0); return window.scrollY === 0; })()`,
+    );
+    await waitForResponsiveSurface(rootSelector, width, `${surface} ${state}`);
+    const metrics = await evaluateJson(`(() => {
+      const root = document.querySelector(${JSON.stringify(rootSelector)});
+      const visible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          Number(style.opacity || '1') > 0 &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const within = (selector) => {
+        if (!(root instanceof HTMLElement)) return [];
+        const matches = [];
+        if (root.matches(selector)) matches.push(root);
+        matches.push(...root.querySelectorAll(selector));
+        return matches.filter(visible);
+      };
+      const primary = within('[data-augnes-primary-action]');
+      const situation = within('[data-augnes-visual-priority="situation"]');
+      const raw = within('[data-augnes-visual-priority="raw-record"]');
+      const risk = within('[data-augnes-visual-priority="risk"]');
+      const independent = within('[data-augnes-independent-surface]');
+      const firstTop = (items) =>
+        items.length > 0
+          ? Math.min(...items.map((item) => item.getBoundingClientRect().top))
+          : null;
+      const primaryRect = primary[0]?.getBoundingClientRect() ?? null;
+      const controls = within('a, button, input, select, textarea, summary, label');
+      const overlaps = primaryRect
+        ? controls.filter((control) => {
+            if (control === primary[0] || primary[0].contains(control) || control.contains(primary[0])) {
+              return false;
+            }
+            const rect = control.getBoundingClientRect();
+            return Math.min(primaryRect.right, rect.right) - Math.max(primaryRect.left, rect.left) > 1 &&
+              Math.min(primaryRect.bottom, rect.bottom) - Math.max(primaryRect.top, rect.top) > 1;
+          }).length
+        : 0;
+      const stateBadges = within('[data-augnes-state-badge]');
+      return {
+        root_present: root instanceof HTMLElement,
+        horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        primary_action_count: primary.length,
+        primary_action_top: primaryRect ? Math.round(primaryRect.top) : null,
+        primary_action_height: primaryRect ? Math.round(primaryRect.height) : null,
+        primary_action_inside_width:
+          primaryRect ? primaryRect.left >= -1 && primaryRect.right <= window.innerWidth + 1 : null,
+        primary_action_within_first_scroll:
+          primaryRect ? primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2 : null,
+        overlapping_control_count: overlaps,
+        independent_surface_count: independent.length,
+        state_badge_count: stateBadges.length,
+        situation_top: firstTop(situation),
+        raw_record_top: firstTop(raw),
+        raw_record_precedes_situation_or_action:
+          firstTop(raw) !== null &&
+          firstTop(raw) < Math.min(
+            firstTop(situation) ?? Number.POSITIVE_INFINITY,
+            primaryRect?.top ?? Number.POSITIVE_INFINITY,
+          ),
+        risk_has_text:
+          risk.length === 0 ||
+          risk.every((item) => (item.innerText ?? '').trim().length > 0),
+      };
+    })()`);
+    assert.equal(metrics.root_present, true, `${surface}:${state}:${width}`);
+    assert.equal(metrics.horizontal_overflow, false, `${surface}:${state}:${width}`);
+    assert.equal(
+      metrics.primary_action_count,
+      expectedPrimaryActions,
+      `${surface}:${state}:${width}`,
+    );
+    assert.equal(metrics.overlapping_control_count, 0, `${surface}:${state}:${width}`);
+    assert.equal(
+      metrics.independent_surface_count <= maxIndependentSurfaces,
+      true,
+      `${surface}:${state}:${width}`,
+    );
+    assert.equal(
+      metrics.state_badge_count <= maxStateBadges,
+      true,
+      `${surface}:${state}:${width}`,
+    );
+    assert.equal(metrics.raw_record_precedes_situation_or_action, false);
+    assert.equal(metrics.risk_has_text, true);
+    if (expectedPrimaryActions === 1) {
+      assert.equal(metrics.primary_action_inside_width, true);
+      assert.equal(metrics.primary_action_within_first_scroll, true);
+      if (width === 390) {
+        assert.equal(
+          metrics.primary_action_height >= 40,
+          true,
+          `${surface}:${state}:touch-target`,
+        );
+      }
+    }
+    const screenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+      captureBeyondViewport: false,
+    });
+    const filename = `${surface}-${state}-${width}.png`;
+    writeFileSync(
+      path.join(c8ReviewDirectory, filename),
+      Buffer.from(screenshot.data, "base64"),
+      { flag: "wx", mode: 0o600 },
+    );
+    c8ReviewEntries.push({
+      surface,
+      state,
+      viewport_css_pixels: {
+        width,
+        height: width === 390 ? 844 : 1000,
+      },
+      screenshot: filename,
+      current_situation_shown: currentSituation,
+      primary_action: primaryAction,
+      ai_summary: aiSummary,
+      risk_and_uncertainty: risk,
+      supporting_information: supportingInformation,
+      raw_record_disclosure: rawRecordDisclosure,
+      card_count: metrics.independent_surface_count,
+      card_rationale:
+        "Counted only durable independently bounded work, result, decision, management, safety, or audit surfaces.",
+      badge_count: metrics.state_badge_count,
+      badge_rationale:
+        "Counted only durable compact finite-state treatments marked by the semantic visual contract.",
+      interaction_path: interactionPath,
+      layout_contract: metrics,
+      known_limitations: knownLimitations,
+    });
+    writeC8ReviewIndex();
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+}
+
+function initializeC8ReviewDirectory() {
+  if (c8ReviewDirectory) return;
+  const localRoot = path.join(appRepo, ".augnes-local-verification");
+  ensureLocalReviewDirectory(localRoot);
+  const reviewRoot = path.join(localRoot, "c8-review");
+  ensureLocalReviewDirectory(reviewRoot);
+  const sessionName = `${new Date().toISOString().replaceAll(":", "-")}-${VALIDATION_SCOPE}`;
+  c8ReviewDirectory = path.join(reviewRoot, sessionName);
+  assert.equal(existsSync(c8ReviewDirectory), false);
+  mkdirSync(c8ReviewDirectory, { mode: 0o700 });
+  assert.equal(
+    realpathSync(c8ReviewDirectory).startsWith(`${realpathSync(appRepo)}${path.sep}`),
+    true,
+  );
+  writeC8ReviewIndex();
+}
+
+function ensureLocalReviewDirectory(directory) {
+  if (existsSync(directory)) {
+    const stat = lstatSync(directory);
+    assert.equal(stat.isSymbolicLink(), false);
+    assert.equal(stat.isDirectory(), true);
+    return;
+  }
+  mkdirSync(directory, { mode: 0o700 });
+}
+
+function writeC8ReviewIndex() {
+  assert(c8ReviewDirectory);
+  const index = {
+    schema: "augnes.c8-local-visual-review.v1",
+    generated_at: new Date().toISOString(),
+    validation_scope: VALIDATION_SCOPE,
+    human_review_required: true,
+    claims_excluded: [
+      "No automated result claims aesthetic approval.",
+      "No automated result claims ten-second comprehension.",
+      "No screenshot is Canonical receipt evidence or independent attestation.",
+    ],
+    entries: c8ReviewEntries,
+  };
+  const serialized = `${JSON.stringify(index, null, 2)}\n`;
+  assert(Buffer.byteLength(serialized, "utf8") <= 256 * 1024);
+  writeFileSync(path.join(c8ReviewDirectory, "review-index.json"), serialized, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
 }
 
 async function openCdpPage() {

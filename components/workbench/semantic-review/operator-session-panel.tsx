@@ -222,6 +222,7 @@ export function OperatorSessionPanel({
           className={styles.button}
           type="submit"
           data-ai-workplane-primary-action="unlock"
+          data-augnes-primary-action="unlock"
           disabled={busy || bootstrapToken.length === 0}
         >
           {busy

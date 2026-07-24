@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ProductShell } from "@/components/product-shell";
+import {
+  SEMANTIC_SURFACE_ROLE,
+  SEMANTIC_VISUAL_PRIORITY,
+} from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type { PortableProjectPreviewV01 } from "@/types/vnext/portable-project";
 import styles from "./portability.module.css";
 
@@ -153,24 +157,33 @@ export default function PortabilityPage() {
         className={styles.shell}
         data-portability-surface="v1"
         data-portability-preview-state={previewState}
+        data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.portability}
       >
         <a className={styles.returnLink} href="/">
           Back to Blank State
         </a>
-        <header className={styles.hero}>
+        <header
+          className={styles.hero}
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+        >
           <p className={styles.eyebrow}>Project management</p>
           <h1>Move or import a project</h1>
           <p>
             Create a local project package for another Augnes installation, or
             import one that was already verified there.
           </p>
-          <span className={styles.localBadge}>Local files only</span>
+          <p className={styles.localNote}>Local files only</p>
         </header>
 
         {notice ? (
           <p
             className={styles.notice}
             role={importResult?.outcome === "refused" ? "alert" : "status"}
+            data-augnes-visual-priority={
+              importResult?.outcome === "refused"
+                ? SEMANTIC_VISUAL_PRIORITY.risk
+                : SEMANTIC_VISUAL_PRIORITY.supporting
+            }
           >
             {notice}
           </p>
@@ -180,6 +193,8 @@ export default function PortabilityPage() {
           <section
             className={`${styles.panel} ${styles.resultPanel}`}
             data-portability-import-result={importResult.status}
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+            data-augnes-independent-surface="project-import-result"
           >
             <p className={styles.eyebrow}>Project package</p>
             <h2>
@@ -200,6 +215,7 @@ export default function PortabilityPage() {
                 className={styles.primaryLink}
                 href={importResult.project_home_href}
                 data-portability-primary-action="open-imported-project"
+                data-augnes-primary-action="open-imported-project"
               >
                 Open imported project
               </a>
@@ -218,6 +234,8 @@ export default function PortabilityPage() {
             <section
               className={`${styles.panel} ${styles.exportPanel}`}
               aria-labelledby="portable-preview-title"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+              data-augnes-independent-surface="project-export"
             >
               <p className={styles.eyebrow}>Current project</p>
               <h2 id="portable-preview-title">
@@ -254,6 +272,7 @@ export default function PortabilityPage() {
                 className={styles.primaryButton}
                 data-portability-export-action="true"
                 data-portability-primary-action="export"
+                data-augnes-primary-action="export"
                 disabled={busy !== null || !preview.export_available}
                 onClick={() => void exportProject()}
               >
@@ -281,6 +300,8 @@ export default function PortabilityPage() {
           <section
             className={`${styles.panel} ${styles.importPanel}`}
             aria-labelledby="portable-import-title"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+            data-augnes-independent-surface="project-import"
           >
             <p className={styles.eyebrow}>
               {previewState === "checking" ? "Checking current project" : "Local import"}
@@ -364,6 +385,7 @@ function ImportControl({
           primary ? styles.primaryFileControl : ""
         }`}
         data-portability-primary-action={primary ? "import" : undefined}
+        data-augnes-primary-action={primary ? "import" : undefined}
       >
         <span>Choose a project package to import</span>
         <input
