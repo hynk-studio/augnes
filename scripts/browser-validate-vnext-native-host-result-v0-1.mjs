@@ -5900,6 +5900,48 @@ async function main() {
         `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
       label: "confirmed recovery action state",
     });
+    const refusedActionRequestStart = requests.length;
+    interceptedRecoveryResponses.push({
+      method: "POST",
+      status: 409,
+      body: {
+        accepted: false,
+        outcome: "refused",
+        reason_code: "recovery_action_refused",
+        next_action: "review_the_current_status",
+      },
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Create backup'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null && document.body.innerText.includes('The recovery action was not scheduled.')`,
+      "authoritative refusal preserves confirmed recovery controls",
+    );
+    await waitForRequestQuiet();
+    assert.equal(
+      requests.slice(refusedActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "POST",
+      ).length,
+      1,
+      "authoritative refusal must issue one action request",
+    );
+    assert.equal(
+      requests.slice(refusedActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "GET",
+      ).length,
+      0,
+      "authoritative refusal must not force a status refresh",
+    );
     const unknownActionRequestStart = requests.length;
     interceptedRecoveryResponses.push({
       method: "POST",
@@ -6279,6 +6321,16 @@ async function main() {
               response.path === entry.path &&
               response.method === "POST" &&
               response.status === 422,
+          )) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/recovery" &&
+          /409/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.method === "POST" &&
+              response.status === 409,
           )) ||
         (entry.phase === "final_r8_portability_reconciliation" &&
           entry.path === "/api/recovery" &&
