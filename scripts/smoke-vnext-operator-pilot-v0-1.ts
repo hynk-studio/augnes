@@ -10146,7 +10146,9 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
           }),
         );
         assert.equal(resume.status, 202);
+        const resumeCookieBefore = jar.header();
         jar.absorb(resume);
+        assert.notEqual(jar.header(), resumeCookieBefore);
         const resumeBody = await publicJson(resume);
         assert.equal(resumeBody.status, "resume_admitted");
         const resumedDelegated =
@@ -10156,13 +10158,6 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
           );
         assert.equal(resumedDelegated.run_ref, projection.run_ref);
         assert.equal(forcedProjectionReads.count, 1);
-        await assertRotatedOperatorCookieContinuityV01({
-          get,
-          stale_jar: staleResumeJar,
-          current_jar: jar,
-          config,
-          clock,
-        });
         assert(
           ["starting", "running"].includes(
             projectionFromRouteBodyV01(resumeBody).status,
@@ -10173,14 +10168,26 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
             harness.service,
             config,
             (value) => value.status === "completed",
+            10_000,
+            "disconnect_resume_terminal",
           );
         } catch (error) {
           throw new Error(
-            `${error instanceof Error ? error.message : "live_resume_failed"}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-40))}`,
+            `${error instanceof Error ? error.message : "live_resume_failed"}:observations=${JSON.stringify(harness.observations.slice(-24))}:trace=${JSON.stringify(readFakeTraceV01(harness.trace_path).slice(-40))}`,
           );
         }
         assert(projection.receipt);
         assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        // The stale-nonce proof opens its own immediate write transaction.
+        // Sequence it after trusted terminal persistence so this authentication
+        // assertion cannot compete with the resumed run's lifecycle writes.
+        await assertRotatedOperatorCookieContinuityV01({
+          get,
+          stale_jar: staleResumeJar,
+          current_jar: jar,
+          config,
+          clock,
+        });
         const trace = readFakeTraceV01(harness.trace_path);
         assert.equal(countTraceMethodV01(trace, "initialize"), 2);
         assert.equal(countTraceMethodV01(trace, "thread/start"), 1);
