@@ -204,6 +204,16 @@ not deciding authority. The executor removes only the bounded ignored `.next`
 build directory before a full run and again during final cleanup. It never
 stashes, resets, cleans, or discards source changes.
 
+`next-env.d.ts` is generated and ignored rather than exact-head source.
+`npm run typecheck` explicitly runs `next typegen` before `tsc --noEmit`;
+development and production generation may reference route types under
+`.next/dev/types` and `.next/types` respectively, and `tsconfig.json` includes
+both. This generated-file ownership does not mask other changes: any unrelated
+tracked mutation still fails the post-execution clean-tree check. The package
+compatibility guard likewise compares dependency graph declarations and every
+non-root resolved package entry, while excluding unrelated root package policy
+metadata such as `engines` from dependency-graph identity.
+
 All outer phases are sequential on the shared Mac. This includes dependency,
 build, package, runtime reconciliation, supervisor, operability, and browser
 ownership. Core and continuity E2E never overlap. The existing integration

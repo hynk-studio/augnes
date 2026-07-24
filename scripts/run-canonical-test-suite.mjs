@@ -297,6 +297,11 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label: "dependency-lock graph compatibility normalization",
+      ...rootNode("scripts/test-dependency-lock-compatibility.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "canonical child environment isolation",
       ...rootNode("scripts/test-canonical-environment-isolation.mjs"),
     },

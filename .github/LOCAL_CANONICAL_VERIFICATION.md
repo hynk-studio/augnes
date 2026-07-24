@@ -173,6 +173,24 @@ cleanup. It does not use broad `git clean` or delete unrelated files. Existing
 Canonical children continue to own their bounded OS-temporary resources; the
 executor does not create another checkout or Git working copy.
 
+Next.js also owns the ignored root `next-env.d.ts`. `npm run typecheck` runs
+`next typegen` before `tsc --noEmit`, so a fresh tree receives the required
+generated declarations. Development and production generation may refer to
+different internal route-type paths under `.next/dev/types` and `.next/types`;
+both remain included by `tsconfig.json`. The generated declaration is not
+exact-head source evidence and is not committed. This does not relax identity
+checking: any unrelated tracked mutation still makes deciding verification
+fail after execution.
+
+The distributable-package compatibility guard compares the root and nested
+dependency graphs with their merged baseline. At `packages[""]`, it retains an
+explicit allowlist of dependency-bearing declarations, including dependencies,
+development/optional/peer dependency declarations and metadata, bundled
+dependencies, and workspaces. Root application version and unrelated root
+toolchain-policy metadata such as `engines` are not dependency-graph identity.
+All non-root package entries—including resolved versions, integrity,
+optionality, and platform metadata—remain exact.
+
 ## Shared-Mac scheduling and resources
 
 The Mac is a shared development and verification host. The executor favors

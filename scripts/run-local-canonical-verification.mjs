@@ -126,6 +126,21 @@ export function evaluateWorktreePolicy({ mode, worktreeDirty }) {
   };
 }
 
+export function isPostExecutionIdentityValid({
+  mode,
+  expectedHeadSha,
+  identityBefore,
+  identityAfter,
+}) {
+  return (
+    mode === "quick" ||
+    (identityAfter.head_sha === expectedHeadSha &&
+      identityAfter.worktree_dirty === false &&
+      identityAfter.branch === identityBefore.branch &&
+      identityAfter.detached === identityBefore.detached)
+  );
+}
+
 export function resolveVerificationPlan({
   mode,
   baseSha,
@@ -442,11 +457,12 @@ export async function executeLocalCanonicalVerification({
     preflightIssues.push(safeErrorCode(error));
   }
   if (
-    mode !== "quick" &&
-    (identityAfter.head_sha !== headSha ||
-      identityAfter.worktree_dirty ||
-      identityAfter.branch !== identityBefore.branch ||
-      identityAfter.detached !== identityBefore.detached)
+    !isPostExecutionIdentityValid({
+      mode,
+      expectedHeadSha: headSha,
+      identityBefore,
+      identityAfter,
+    })
   ) {
     executionFailure = true;
     preflightIssues.push("post_execution_identity_mismatch");

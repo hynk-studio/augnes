@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   readFileSync,
@@ -86,6 +87,14 @@ const localExecutorContract = readRepositoryFile(
 const localReceiptContract = readRepositoryFile(
   "scripts/test-local-canonical-receipt.mjs",
 );
+const dependencyLockCompatibility = readRepositoryFile(
+  "scripts/dependency-lock-compatibility.mjs",
+);
+const dependencyLockCompatibilityContract = readRepositoryFile(
+  "scripts/test-dependency-lock-compatibility.mjs",
+);
+const gitignore = readRepositoryFile(".gitignore");
+const tsconfig = JSON.parse(readRepositoryFile("tsconfig.json"));
 const nodeVersionMarker = readRepositoryFile(".node-version").trim();
 const packageJson = JSON.parse(readRepositoryFile("package.json"));
 
@@ -174,7 +183,8 @@ for (const fragment of [
 }
 
 const canonicalCommands = Object.freeze({
-  typecheck: "tsc --noEmit",
+  typegen: "next typegen",
+  typecheck: "npm run typegen && tsc --noEmit",
   unit: "node scripts/run-canonical-test-suite.mjs unit",
   integration: "node scripts/run-canonical-test-suite.mjs integration",
   integrationOperator:
@@ -205,12 +215,15 @@ const canonicalCommands = Object.freeze({
     "node scripts/test-local-canonical-executor.mjs",
   localReceiptContract:
     "node scripts/test-local-canonical-receipt.mjs",
+  dependencyLockCompatibilityContract:
+    "node scripts/test-dependency-lock-compatibility.mjs",
   localQuick: "node scripts/run-local-canonical-verification.mjs quick",
   localChanged: "node scripts/run-local-canonical-verification.mjs changed",
   localFull: "node scripts/run-local-canonical-verification.mjs full",
   localReceiptValidation:
     "node scripts/run-local-canonical-verification.mjs validate",
 });
+assert.equal(packageJson.scripts.typegen, canonicalCommands.typegen);
 assert.equal(packageJson.scripts.typecheck, canonicalCommands.typecheck);
 assert.equal(packageJson.scripts.test, canonicalCommands.unit);
 assert.equal(
@@ -279,6 +292,10 @@ assert.equal(
   canonicalCommands.localReceiptContract,
 );
 assert.equal(
+  packageJson.scripts["test:dependency-lock-compatibility"],
+  canonicalCommands.dependencyLockCompatibilityContract,
+);
+assert.equal(
   packageJson.scripts["verify:local:quick"],
   canonicalCommands.localQuick,
 );
@@ -297,6 +314,21 @@ assert.equal(
 assert.equal(nodeVersionMarker, "24.18.0");
 assert.equal(packageJson.engines.node, "^22.0.0 || ^24.0.0");
 assert.equal(packageJson.engines.npm, ">=10 <12");
+assert.match(gitignore, /^\/next-env\.d\.ts$/mu);
+assert.equal(
+  spawnSync("git", ["ls-files", "--error-unmatch", "next-env.d.ts"], {
+    cwd: repositoryRoot,
+    stdio: "ignore",
+  }).status,
+  1,
+);
+for (const generatedTypeInclude of [
+  "next-env.d.ts",
+  ".next/types/**/*.ts",
+  ".next/dev/types/**/*.ts",
+]) {
+  assert.equal(tsconfig.include.includes(generatedTypeInclude), true);
+}
 
 for (const command of [
   "npm run typecheck",
@@ -383,11 +415,52 @@ for (const fragment of [
   `CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST`,
   `writeReceipt`,
   `validateReceiptAgainstCurrentRepository`,
+  `isPostExecutionIdentityValid`,
 ]) {
   requireText(
     localExecutor,
     fragment,
     `local executor contract is missing: ${fragment}`,
+  );
+}
+assert.doesNotMatch(
+  localExecutor,
+  /next-env\.d\.ts/u,
+  "the local executor must not mask generated next-env state",
+);
+
+for (const fragment of [
+  `ROOT_DEPENDENCY_BEARING_FIELDS`,
+  `"dependencies"`,
+  `"devDependencies"`,
+  `"optionalDependencies"`,
+  `"peerDependencies"`,
+  `"peerDependenciesMeta"`,
+  `"bundledDependencies"`,
+  `"bundleDependencies"`,
+  `"workspaces"`,
+  `Object.hasOwn(rootPackage, field)`,
+]) {
+  requireText(
+    dependencyLockCompatibility,
+    fragment,
+    `dependency-lock normalizer is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `root_version_ignored`,
+  `root_engines_addition_and_change_ignored`,
+  `root_package_manager_policy_ignored`,
+  `root_dependency_declarations_exact`,
+  `transitive_package_entries_exact`,
+  `resolved_and_integrity_material_exact`,
+  `deleted_package_entries_refused`,
+  `nested_lock_compatibility_protected`,
+]) {
+  requireText(
+    dependencyLockCompatibilityContract,
+    fragment,
+    `dependency-lock regression is missing: ${fragment}`,
   );
 }
 assert.doesNotMatch(
@@ -441,6 +514,9 @@ for (const fragment of [
   `browser_lanes_sequential`,
   `maximum_outer_phase_concurrency`,
   `canonical_node_mismatch_explicit`,
+  `post_execution_tracked_mutation_refused`,
+  `next_env_generated_and_ignored`,
+  `typecheck_runs_next_typegen`,
   `hosted_ci_absent`,
 ]) {
   requireText(
@@ -477,6 +553,7 @@ for (const fragment of [
 }
 for (const authorityChild of [
   "scripts/test-canonical-change-planner.mjs",
+  "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-receipt.mjs",
 ]) {
@@ -885,6 +962,7 @@ console.log(
       authority_regressions_required: [
         "canonical-change-planner",
         "canonical-child-runner",
+        "dependency-lock-compatibility",
         "local-canonical-verification-contract",
         "local-canonical-executor",
         "local-canonical-receipt",

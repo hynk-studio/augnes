@@ -257,6 +257,15 @@ For ordinary PRs:
 - Deciding local evidence requires Node 24.18.0, a clean worktree, and current
   `HEAD` equal to the requested head. Node 22 and 24 are compatibility lines;
   another version must not silently produce a Canonical pass.
+- Treat root `next-env.d.ts` as ignored Next.js output. `npm run typecheck`
+  owns `next typegen` before `tsc --noEmit`; development and production may
+  generate references beneath `.next/dev/types` and `.next/types`. Never
+  restore or mask this file in the executor, and continue to fail deciding
+  verification for every unrelated tracked mutation.
+- The package compatibility guard compares the dependency graph. Root package
+  application/toolchain metadata is not graph identity, while the explicit
+  root dependency-bearing fields and every non-root resolved package entry
+  remain exact.
 - Canonical tests that start processes, servers, browsers, listeners, or long-lived asynchronous work must use the repository's bounded test-harness lifecycle and declare a measured timeout.
 - A timeout must terminate and await the complete verified owned process tree, close owned listeners, and leave zero owned process, runtime-state, database, port, or temporary-file residue.
 - Do not add unbounded `spawn`, `spawnSync`, child waits, polling loops, or server-close paths to canonical tests. New process-owning fixtures must cover timeout and cleanup behavior automatically.
