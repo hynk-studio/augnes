@@ -109,6 +109,74 @@ assertOrdered(resultReview, [
   'data-ai-workplane-result-section="verification"',
   'data-ai-workplane-result-section="unresolved"',
 ]);
+const resultVerificationStart = resultReview.indexOf(
+  'data-ai-workplane-result-section="verification"',
+);
+const resultRiskStart = resultReview.indexOf(
+  'data-ai-workplane-result-section="unresolved"',
+);
+assert.notEqual(resultVerificationStart, -1);
+assert.notEqual(resultRiskStart, -1);
+const resultVerificationOpeningTag = extractOpeningTagContaining(
+  resultReview,
+  'data-ai-workplane-result-section="verification"',
+);
+assert.match(
+  resultVerificationOpeningTag,
+  /aria-labelledby="result-verification-title"/u,
+);
+assert.match(
+  resultVerificationOpeningTag,
+  /data-ai-workplane-verification=\{view\.verification\.status\}/u,
+);
+assert.match(
+  resultVerificationOpeningTag,
+  /data-ai-workplane-result-section="verification"/u,
+);
+assert.match(
+  resultVerificationOpeningTag,
+  /data-augnes-visual-priority=\{SEMANTIC_VISUAL_PRIORITY\.aiSummary\}/u,
+);
+const resultVerificationBodyStart =
+  resultReview.indexOf(">", resultVerificationStart) + 1;
+const resultVerificationBody = resultReview.slice(
+  resultVerificationBodyStart,
+  resultRiskStart,
+);
+assert.match(
+  resultVerificationBody,
+  /<p className=\{styles\.kicker\}>AI summary<\/p>[\s\S]*<h2 id="result-verification-title">\{view\.verification\.label\}<\/h2>/u,
+);
+for (const verificationField of [
+  "passed",
+  "failed",
+  "skipped",
+  "satisfied",
+  "unsatisfied",
+  "unknown",
+]) {
+  assert.match(
+    resultVerificationBody,
+    new RegExp(`view\\.verification\\.${verificationField}`, "u"),
+    `result AI summary preserves the ${verificationField} verification metric`,
+  );
+}
+assert.match(
+  resultVerificationBody,
+  /view\.verification\.blockers\.length > 0[\s\S]*view\.verification\.blockers\.map/u,
+);
+const resultRiskAndExactDetail = resultReview.slice(resultRiskStart);
+assert.match(
+  resultRiskAndExactDetail,
+  /data-augnes-visual-priority=\{SEMANTIC_VISUAL_PRIORITY\.risk\}/u,
+);
+assert.match(resultRiskAndExactDetail, /What remains unresolved/u);
+assert.match(
+  resultRiskAndExactDetail,
+  /data-result-to-shared-inspector="true"[\s\S]*View exact details/u,
+);
+assert.match(resultReview, /data-result-review-read-only="true"/u);
+assert.match(resultReview, /data-result-authority-boundary="true"/u);
 assert.equal(
   [...resultReview.matchAll(/data-augnes-primary-action=/gu)].length >= 2,
   true,
@@ -231,4 +299,21 @@ function assertOrdered(source, values) {
     assert(current > previous, `${value} is not in semantic order`);
     previous = current;
   }
+}
+
+function extractOpeningTagContaining(source, marker) {
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `opening-tag marker is absent: ${marker}`);
+  const openingStart = source.lastIndexOf("<section", markerIndex);
+  assert.notEqual(
+    openingStart,
+    -1,
+    `no preceding section opening tag contains: ${marker}`,
+  );
+  const openingEnd = source.indexOf(">", openingStart);
+  assert(
+    openingEnd > markerIndex,
+    `section opening tag is unterminated before marker: ${marker}`,
+  );
+  return source.slice(openingStart, openingEnd + 1);
 }
