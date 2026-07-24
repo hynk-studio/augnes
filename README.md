@@ -28,8 +28,11 @@ Project context
 
 ## Judge Quickstart
 
-The source checkout requires Node.js 20.9 or newer and npm. On a supported
-Linux or macOS development host, the minimal local start is:
+The source checkout supports the maintained even-numbered Node.js 22 and 24
+lines with npm 10 or 11. Exact local Canonical evidence uses Node.js 24.18.0,
+recorded in `.node-version`; ordinary compatibility work may use another
+supported version but cannot claim a Canonical pass. On a supported Linux or
+macOS development host, the minimal local start is:
 
 ```bash
 npm install
@@ -158,17 +161,32 @@ The complete Canonical verification surface runs locally. GitHub is used for
 source control, pull requests, review, and history; this repository has no
 active GitHub Actions workflow and does not use another hosted CI provider.
 
-Select the exact plan for the proposed base and head:
+Use the repository-owned executor:
 
 ```bash
-node scripts/canonical-change-planner.mjs \
-  --event pull_request \
-  --base <exact-base-sha> \
-  --head <exact-head-sha>
+npm run verify:local:quick
+npm run verify:local:changed -- \
+  --base <exact-40-character-base-sha> \
+  --head <exact-40-character-head-sha>
+npm run verify:local:full -- \
+  --base <exact-40-character-base-sha> \
+  --head <exact-40-character-head-sha>
 ```
 
-A documentation-only plan uses
-`scripts/validate-canonical-docs-change.mjs`. A full plan runs:
+`quick` is bounded developer feedback. It uses the installed dependency trees,
+runs typecheck plus the local-executor contracts, and may run on a dirty tree
+or noncanonical Node version. Its receipt is always non-deciding and
+non-transferable.
+
+`changed` requires a clean worktree whose current `HEAD` equals the exact
+requested head. It invokes the existing exact-SHA planner. A
+`documentation-only` result runs only the documentation validator, without
+installing dependencies or executing runtime suites. A `full-canonical` result
+runs the complete surface. Planner ambiguity fails closed to the full surface;
+malformed or missing commits and an identical base/head are refused.
+
+`full` also requires a clean exact head and runs the exact planner for context,
+then deliberately expands to the complete surface:
 
 - `npm run typecheck`
 - `npm run build`
@@ -179,15 +197,42 @@ A documentation-only plan uses
 - `npm run test:e2e:core`
 - `npm run test:e2e:continuity`
 
-Focused integration and operability commands remain available through
-`package.json`. Process-owning, package, runtime, and browser lanes run
-sequentially on a shared local host; the core and continuity browser lanes must
-not run concurrently.
+Before a full surface, root and nested dependencies are replaced by sequential
+`npm ci --no-audit --no-fund` installations from their lockfiles. npm download
+cache reuse is allowed, but cached content and pre-existing `node_modules` are
+not deciding authority. The executor removes only the bounded ignored `.next`
+build directory before a full run and again during final cleanup. It never
+stashes, resets, cleans, or discards source changes.
 
-The pull request records the exact repository, base and head SHAs, worktree
-state, OS/architecture, Node/npm versions, root and nested lockfile
-fingerprints, selected plan, each selected command/result/duration, cleanup and
-remaining-process result, and final pass or failure. This evidence identifies
-its local execution environment and limitations; it is not an independent
-hosted reproduction or external status check. See the
+All outer phases are sequential on the shared Mac. This includes dependency,
+build, package, runtime reconciliation, supervisor, operability, and browser
+ownership. Core and continuity E2E never overlap. The existing integration
+runner alone retains its proven maximum-two isolated groups.
+
+Every invocation writes a public-safe JSON receipt and bounded local phase logs
+under `.augnes-local-verification/`. Receipts and logs are gitignored and
+retained locally because they describe a machine execution, may become stale,
+and are not source. Validate a deciding receipt against the current repository:
+
+```bash
+npm run verify:local:receipt -- \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+```
+
+The receipt binds the exact base/head, origin, branch/detached state, clean
+state, Node/npm and host policy, pseudonymous local machine identifier,
+lockfile hashes, executor source fingerprint, selected plan, phase results,
+timeouts, cleanup, and remaining owned-process count. Its deterministic
+SHA-256 fingerprint provides content integrity and local provenance only. It is
+one execution on one shared Mac, not independent cryptographic attestation,
+hosted reproduction, or an external status check. A changed head, dirty
+worktree, lockfile or executor drift, plan drift, environment drift, missing
+phase, timeout, failure, or incomplete cleanup invalidates deciding use.
+
+Linux, Windows, Node 22, and other supported environments remain compatibility
+surfaces; they do not substitute for the current macOS-arm64 Node 24.18.0
+Canonical policy. The executor and documentation use Augnes product identity
+and ordinary Git history so this temporary lab branch remains transferable;
+repository-specific receipt publication or status semantics are intentionally
+absent. See the
 [local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).

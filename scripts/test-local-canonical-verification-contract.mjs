@@ -71,6 +71,22 @@ const documentationValidator = readRepositoryFile(
 const packageTest = readRepositoryFile(
   "scripts/test-distributable-package.mjs",
 );
+const localExecutor = readRepositoryFile(
+  "scripts/run-local-canonical-verification.mjs",
+);
+const localEnvironment = readRepositoryFile(
+  "scripts/local-canonical-environment.mjs",
+);
+const localReceipt = readRepositoryFile(
+  "scripts/local-canonical-receipt.mjs",
+);
+const localExecutorContract = readRepositoryFile(
+  "scripts/test-local-canonical-executor.mjs",
+);
+const localReceiptContract = readRepositoryFile(
+  "scripts/test-local-canonical-receipt.mjs",
+);
+const nodeVersionMarker = readRepositoryFile(".node-version").trim();
 const packageJson = JSON.parse(readRepositoryFile("package.json"));
 
 const activeWorkflowFiles = listFiles(".github/workflows").filter((file) =>
@@ -185,6 +201,15 @@ const canonicalCommands = Object.freeze({
     "node scripts/run-canonical-test-suite.mjs e2e-continuity",
   contract:
     "node scripts/test-local-canonical-verification-contract.mjs",
+  localExecutorContract:
+    "node scripts/test-local-canonical-executor.mjs",
+  localReceiptContract:
+    "node scripts/test-local-canonical-receipt.mjs",
+  localQuick: "node scripts/run-local-canonical-verification.mjs quick",
+  localChanged: "node scripts/run-local-canonical-verification.mjs changed",
+  localFull: "node scripts/run-local-canonical-verification.mjs full",
+  localReceiptValidation:
+    "node scripts/run-local-canonical-verification.mjs validate",
 });
 assert.equal(packageJson.scripts.typecheck, canonicalCommands.typecheck);
 assert.equal(packageJson.scripts.test, canonicalCommands.unit);
@@ -245,6 +270,33 @@ assert.equal(
   packageJson.scripts["test:canonical-contract"],
   canonicalCommands.contract,
 );
+assert.equal(
+  packageJson.scripts["test:local-canonical-executor"],
+  canonicalCommands.localExecutorContract,
+);
+assert.equal(
+  packageJson.scripts["test:local-canonical-receipt"],
+  canonicalCommands.localReceiptContract,
+);
+assert.equal(
+  packageJson.scripts["verify:local:quick"],
+  canonicalCommands.localQuick,
+);
+assert.equal(
+  packageJson.scripts["verify:local:changed"],
+  canonicalCommands.localChanged,
+);
+assert.equal(
+  packageJson.scripts["verify:local:full"],
+  canonicalCommands.localFull,
+);
+assert.equal(
+  packageJson.scripts["verify:local:receipt"],
+  canonicalCommands.localReceiptValidation,
+);
+assert.equal(nodeVersionMarker, "24.18.0");
+assert.equal(packageJson.engines.node, "^22.0.0 || ^24.0.0");
+assert.equal(packageJson.engines.npm, ">=10 <12");
 
 for (const command of [
   "npm run typecheck",
@@ -258,6 +310,181 @@ for (const command of [
 ]) {
   requireText(readme, `\`${command}\``, `README is missing ${command}`);
   requireText(localPolicy, command, `policy is missing ${command}`);
+}
+for (const command of [
+  "npm run verify:local:quick",
+  "npm run verify:local:changed --",
+  "npm run verify:local:full --",
+  "npm run verify:local:receipt --",
+]) {
+  requireText(readme, command, `README is missing ${command}`);
+  requireText(localPolicy, command, `policy is missing ${command}`);
+}
+
+for (const fragment of [
+  `AUTHORIZED_REPOSITORY_ROOT = "/Users/hynk/code/augnes-temp"`,
+  `AUTHORIZED_REPOSITORY_ID =`,
+  `"hynk-studio/augnes-perspective-lab"`,
+  `AUTHORIZED_ORIGIN_URL =`,
+  `"https://github.com/hynk-studio/augnes-perspective-lab.git"`,
+  `CANONICAL_NODE_VERSION = "24.18.0"`,
+  `CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0"`,
+  `unauthorized_repository_root`,
+  `unauthorized_repository_origin`,
+  `missing_\${safeLabel(label)}_commit`,
+  `ensureBoundedLocalDirectory`,
+  `unsafe_local_artifact_directory`,
+]) {
+  requireText(
+    localEnvironment,
+    fragment,
+    `local environment identity contract is missing: ${fragment}`,
+  );
+}
+assert.doesNotMatch(
+  localEnvironment,
+  /IOPlatformUUID|system_profiler|ioreg|serial number|os\.hostname|os\.userInfo/iu,
+  "machine fingerprint must not derive from private host identity",
+);
+
+for (const fragment of [
+  `export const QUICK_PHASE_IDS`,
+  `export const FULL_PHASE_IDS`,
+  `export const RESOURCE_EXCLUSIVE_PHASE_IDS`,
+  `"dependencies-root"`,
+  `"dependencies-nested"`,
+  `"typecheck"`,
+  `"build"`,
+  `"unit"`,
+  `"authority"`,
+  `"integration"`,
+  `"operability"`,
+  `"e2e-core"`,
+  `"e2e-continuity"`,
+  `mode === "quick"`,
+  `quick_dirty_feedback_only`,
+  `deciding_mode_requires_clean_worktree`,
+  `identityBefore.head_sha !== headSha`,
+  `intended_head_mismatch`,
+  `planner_failure_requires_full_canonical`,
+  `documentation-validator`,
+  `runPhasesSequentially`,
+  `for (const phase of phases)`,
+  `canonical_node_mismatch`,
+  `npmPhase(`,
+  `["ci", "--no-audit", "--no-fund"]`,
+  `generatedNextRoot`,
+  `removed_before_execution`,
+  `removed_after_execution`,
+  `MAX_PHASE_LOG_BYTES = 2 * 1024 * 1024`,
+  `RECEIPT_RETENTION = 20`,
+  `LOG_RUN_RETENTION = 5`,
+  `buildLocalPhaseEnvironment`,
+  `CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST`,
+  `writeReceipt`,
+  `validateReceiptAgainstCurrentRepository`,
+]) {
+  requireText(
+    localExecutor,
+    fragment,
+    `local executor contract is missing: ${fragment}`,
+  );
+}
+assert.doesNotMatch(
+  localExecutor,
+  /Promise\.all\(\s*(?:FULL_PHASE_IDS|phaseDefinitions|phases)/u,
+  "outer local Canonical phases must never execute concurrently",
+);
+assert.doesNotMatch(
+  localExecutor,
+  /\b(?:retry|sleep)\s*\(/iu,
+  "the local executor must not add retries or arbitrary sleeps",
+);
+
+for (const fragment of [
+  `LOCAL_CANONICAL_RECEIPT_SCHEMA`,
+  `canonicalSerialize`,
+  `fingerprintCanonicalValue`,
+  `finalizeReceipt`,
+  `verifyReceiptIntegrity`,
+  `assertPublicSafeReceipt`,
+  `receipt_stale_head`,
+  `receipt_stale_branch_state`,
+  `receipt_current_worktree_dirty`,
+  `receipt_stale_lockfiles`,
+  `receipt_stale_executor`,
+  `receipt_stale_plan`,
+  `receipt_stale_environment`,
+  `receipt_missing_phases`,
+  `receipt_phase_inventory_mismatch`,
+  `phase_not_passing:`,
+  `receipt_cleanup_incomplete`,
+  `receipt_canonical_node_mismatch`,
+  `receipt_non_deciding`,
+  `receipt_dirty_worktree`,
+]) {
+  requireText(
+    localReceipt,
+    fragment,
+    `local receipt contract is missing: ${fragment}`,
+  );
+}
+
+for (const fragment of [
+  `authorized_root_only`,
+  `authorized_origin_only`,
+  `exact_sha_and_missing_commit_fail_closed`,
+  `quick_dirty_non_deciding`,
+  `deciding_dirty_refused`,
+  `documentation_selection_dependency_light`,
+  `full_phase_inventory_complete`,
+  `browser_lanes_sequential`,
+  `maximum_outer_phase_concurrency`,
+  `canonical_node_mismatch_explicit`,
+  `hosted_ci_absent`,
+]) {
+  requireText(
+    localExecutorContract,
+    fragment,
+    `local executor regression is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `deterministic_canonical_serialization`,
+  `content_integrity_verified`,
+  `required_fields_verified`,
+  `private_material_excluded`,
+  `stale_head_lock_executor_and_plan_refused`,
+  `incomplete_failed_timed_out_and_cleanup_incomplete_refused`,
+  `quick_dirty_explicitly_non_deciding`,
+  `canonical_node_mismatch_refused`,
+  `{ private_path: "/Users/private/project/file" }`,
+  `{ username: "private-user" }`,
+  `{ hostname: "private-host" }`,
+  `{ environment_dump: { PRIVATE_VALUE: "hidden" } }`,
+  `{ credentials: "hidden" }`,
+  `{ token: "hidden" }`,
+  `{ raw_output: "command output" }`,
+  `{ prompt: "hidden prompt" }`,
+  `{ model_output: "hidden model text" }`,
+  `{ database_content: "private row" }`,
+]) {
+  requireText(
+    localReceiptContract,
+    fragment,
+    `local receipt regression is missing: ${fragment}`,
+  );
+}
+for (const authorityChild of [
+  "scripts/test-canonical-change-planner.mjs",
+  "scripts/test-local-canonical-executor.mjs",
+  "scripts/test-local-canonical-receipt.mjs",
+]) {
+  assert.equal(
+    countOccurrences(canonicalSuite, authorityChild),
+    1,
+    `authority suite must own ${authorityChild} exactly once`,
+  );
 }
 
 for (const fragment of [
@@ -656,8 +883,11 @@ console.log(
       package_history_required: true,
       local_execution_limitations_must_be_recorded: true,
       authority_regressions_required: [
+        "canonical-change-planner",
         "canonical-child-runner",
         "local-canonical-verification-contract",
+        "local-canonical-executor",
+        "local-canonical-receipt",
       ],
     },
     null,

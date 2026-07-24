@@ -25,6 +25,7 @@ pnpm-debug.log*
 .DS_Store
 
 # generated local artifacts
+.augnes-local-verification/
 data/*.db
 data/*.db-*
 outputs/*

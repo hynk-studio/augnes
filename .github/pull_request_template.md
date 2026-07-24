@@ -65,23 +65,38 @@ Do not commit secrets, local DB files, screenshots, generated outputs, or tunnel
 ## Exact-head local Canonical evidence
 
 - Repository:
+- Authorized local path:
+- Origin URL and verification result:
+- Branch:
 - Exact base SHA:
 - Exact head SHA:
 - Worktree status before verification:
 - Worktree status after verification:
 - Operating system and architecture:
+- Pseudonymous local machine fingerprint:
+- Canonical Node policy:
 - Node version:
+- Canonical Node match:
 - npm version:
 - Root `package-lock.json` SHA-256:
 - Nested `apps/augnes_apps/package-lock.json` SHA-256:
+- Mode and planner event/result:
 - Selected plan and planner command:
+- Dependency preparation and generated `.next` handling:
 - Selected commands, results, and finite durations:
+- Timeout states:
 - Cleanup result:
 - Remaining owned processes/listeners/runtime state/databases/profiles/temp roots:
+- Receipt repository-relative path:
+- Receipt SHA-256 content fingerprint:
+- Receipt validation command and result:
+- Intermediate failed invocations and corrections:
 - Skipped or unavailable checks with exact reasons:
 - Final result: `pass | failure`
 - Local-environment limitations:
+- Confirmation: generated receipts and logs were not committed or published:
 - Confirmation: no GitHub Actions workflow was invoked:
+- Confirmation: no GitHub status or independent attestation was fabricated:
 
 Local evidence describes the actual shared host on which it ran.
 It is not an independent hosted reproduction or external status check.
@@ -125,8 +140,12 @@ Confirm this PR keeps the authority boundaries intact.
 - [ ] No GitHub auto-merge was added.
 - [ ] No auth or hosted deployment semantics were added.
 - [ ] No hosted or self-hosted CI execution path was added.
+- [ ] No GitLab or alternate CI provider was added.
+- [ ] No launchd service, Docker/VM requirement, background automation, or receipt publication was added.
 - [ ] No secret handling changes were added.
 - [ ] No secrets, local DB files, screenshots, tunnel URLs, generated outputs, or local artifacts are committed.
+- [ ] No local receipt is described as hosted evidence or independent attestation.
+- [ ] No merge, ready-for-review transition, or auto-merge action was performed.
 
 ## Completion Record Reminder
 
