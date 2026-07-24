@@ -180,6 +180,7 @@ let lastRequestAt = Date.now();
 let serverLog = "";
 let pausedSemanticTransitionRequest = null;
 let interceptedInspectorResponse = null;
+const interceptedRecoveryResponses = [];
 const requests = [];
 const responses = [];
 const requestMethods = new Map();
@@ -646,7 +647,10 @@ async function main() {
       open: false,
       context: "no_active_project",
       links: [
-        { label: "Manage project", href: "#project-management" },
+        {
+          label: "Manage project",
+          href: "/projects#project-management",
+        },
         { label: "Move or import a project", href: "/portability" },
         { label: "Backups and recovery", href: "/recovery" },
       ],
@@ -658,6 +662,43 @@ async function main() {
         request.path === "/api/recovery"
       );
     assert.deepEqual(noProjectUtilityRequests, []);
+    const noProjectManagementRequestStart = requests.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const details = document.querySelector('details[data-management-safety]');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        const link = Array.from(details.querySelectorAll('a')).find(
+          (candidate) => candidate.textContent?.trim() === 'Manage project',
+        );
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === '/projects' && location.hash === '#project-management' && document.querySelector('#project-management')?.getClientRects().length > 0`,
+      "no-project deterministic management route",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-blank-state-primary-action="choose_folder"]') !== null`,
+      ),
+      true,
+    );
+    assert.deepEqual(
+      requests.slice(noProjectManagementRequestStart).filter(
+        (request) =>
+          request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery",
+      ),
+      [],
+    );
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `location.pathname === '/' && document.querySelector('[data-blank-state-project-management-hydrated="true"] [data-blank-state-primary-action="choose_folder"]') !== null`,
+      "no-project Blank State after management route",
+    );
     assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
     const cancelledPickerResponseStart = responses.length;
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
@@ -1001,6 +1042,45 @@ async function main() {
       return await response.json();
     })()`);
     assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
+    const inactiveManagementUtilityRequestStart = requests.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const details = document.querySelector('details[data-management-safety]');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        const link = Array.from(details.querySelectorAll('a')).find(
+          (candidate) => candidate.textContent?.trim() === 'Manage project',
+        );
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === '/projects' && location.hash === '#project-management' && document.querySelector('#project-management')?.getClientRects().length > 0`,
+      "inactive-view deterministic management route",
+    );
+    const activeAfterInactiveManagement = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    assert.equal(
+      activeAfterInactiveManagement.recent_projects.find((entry) => entry.is_active)?.project.display_name,
+      "Browser Second Project",
+    );
+    assert.deepEqual(
+      requests.slice(inactiveManagementUtilityRequestStart).filter(
+        (request) =>
+          request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery",
+      ),
+      [],
+    );
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="false"]') !== null`,
+      "return to inactive project after management route",
+    );
     result.minimum_project_home_non_active_deep_link_read_only = true;
     await validateBlankStateViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
@@ -5257,6 +5337,7 @@ async function main() {
     );
     await validateManagementSafetyKeyboardNavigation();
     result.management_safety_keyboard_navigation = true;
+    record("management_safety_reaches_visible_project_management_without_switching");
   });
 
   }
@@ -5407,6 +5488,29 @@ async function main() {
       portableReplay.body.projection_reader_verification,
       "verified",
     );
+    const portableRefusal = await evaluateJson(`(async () => {
+      const binary = atob(${JSON.stringify(portablePackageBase64)});
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      bytes[Math.floor(bytes.length / 2)] ^= 1;
+      const response = await fetch('/api/vnext/portability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/vnd.augnes.portable-project+json' },
+        body: bytes
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(portableRefusal.status, 422);
+    assert.equal(portableRefusal.body.outcome, "refused");
+    const refusedPortableHistory = readContinuityOperationalStatus({
+      databasePath: importedDatabasePath,
+    }).portability;
+    assert.equal(refusedPortableHistory?.operation, "import");
+    assert.equal(refusedPortableHistory?.outcome, "refused");
+    assert.equal(
+      refusedPortableHistory?.reason_code,
+      portableRefusal.body.reason_code,
+    );
+    assert.equal(refusedPortableHistory?.reader_verification, "refused");
     result.portable_import_clean_destination = true;
 
     await navigate(
@@ -5666,6 +5770,7 @@ async function main() {
       return {
         status: response.status,
         error_code: body.error_code ?? null,
+        body,
         reconciliation: body.continuity?.reconciliation
           ? {
               review_needed: body.continuity.reconciliation.orphaned_review_needed_count,
@@ -5700,9 +5805,316 @@ async function main() {
     assert.match(reconciliationText, /Review needed[\s\S]*1/u);
     assert.match(reconciliationText, /Exact replay[\s\S]*1/u);
     assert.match(reconciliationText, /Automatic retry[\s\S]*Not started/u);
+    const transferHistoryText = await evaluateString(
+      `Array.from(document.querySelectorAll('[data-continuity-diagnostics="v1"] section')).find(
+        (section) => section.textContent?.includes('Project transfer history')
+      )?.textContent ?? ''`,
+    );
+    assert.match(transferHistoryText, /Refused/u);
+    assert.doesNotMatch(transferHistoryText, /Completed|Exact replay/u);
     result.restart_run_reconciliation_review_needed = true;
     result.restart_terminal_receipt_exact_replay = true;
     result.continuity_diagnostics_visible = true;
+    record("classified_portability_refusal_replaces_prior_success_history");
+
+    const renderInterceptedRecoveryStatus = async ({
+      body,
+      expectedSelector,
+      label,
+    }) => {
+      assert.deepEqual(interceptedRecoveryResponses, []);
+      interceptedRecoveryResponses.push({
+        method: "GET",
+        status: 200,
+        body,
+      });
+      const requestStart = requests.length;
+      await navigate(`${appOrigin}/recovery`);
+      await waitForCondition(expectedSelector, label);
+      await waitForRequestQuiet();
+      assert.deepEqual(
+        interceptedRecoveryResponses,
+        [],
+        `${label} interception must be consumed exactly once`,
+      );
+      assert.equal(
+        requests.slice(requestStart).filter(
+          (entry) =>
+            entry.path === "/api/recovery" && entry.method === "GET",
+        ).length,
+        1,
+        `${label} must perform one status read`,
+      );
+    };
+
+    for (const recoveryClassification of [
+      {
+        classification: "incompatible",
+        label: "Compatibility needs review",
+        state: "incompatible",
+      },
+      {
+        classification: "unavailable",
+        label: "Current safety state unavailable",
+        state: "unavailable",
+      },
+    ]) {
+      const body = structuredClone(recoveryDiagnosticsProbe.body);
+      body.recovery_mode = true;
+      body.database.schema_classification =
+        recoveryClassification.classification;
+      body.actions = {
+        create_backup: false,
+        retry_update: false,
+        restore_backup: false,
+      };
+      body.latest_operation = null;
+      await renderInterceptedRecoveryStatus({
+        body,
+        expectedSelector:
+          `document.querySelector('[data-recovery-mode="recovery"] [data-recovery-safety-state="${recoveryClassification.state}"] h2')?.textContent?.trim() === ${JSON.stringify(recoveryClassification.label)} && document.querySelector('[data-recovery-primary-action="none"]') !== null`,
+        label: `recovery mode with ${recoveryClassification.classification} database safety`,
+      });
+      assert.equal(
+        await evaluateBoolean(
+          `document.querySelector('[data-recovery-mode="recovery"]')?.innerText.includes('Augnes needs your attention before normal project work can continue.') === true`,
+        ),
+        true,
+      );
+    }
+
+    const currentNormalRecovery = structuredClone(
+      recoveryDiagnosticsProbe.body,
+    );
+    currentNormalRecovery.recovery_mode = false;
+    currentNormalRecovery.database.schema_classification = "current";
+    currentNormalRecovery.actions = {
+      create_backup: true,
+      retry_update: false,
+      restore_backup: false,
+    };
+    currentNormalRecovery.latest_operation = null;
+    await renderInterceptedRecoveryStatus({
+      body: currentNormalRecovery,
+      expectedSelector:
+        `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
+      label: "confirmed recovery action state",
+    });
+    const unknownActionRequestStart = requests.length;
+    interceptedRecoveryResponses.push({
+      method: "POST",
+      status: 504,
+      body: {
+        outcome: "status_unknown",
+        reason_code: "recovery_action_outcome_unknown",
+        next_action: "refresh_recovery_status",
+      },
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Create backup'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="refresh_required"] [data-recovery-primary-action="check_again"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Refresh status' && !button.disabled)`,
+      "status-unknown recovery action lock",
+    );
+    await validateRecoveryCorrectionViewports();
+    await waitForRequestQuiet();
+    assert.equal(
+      requests.slice(unknownActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "POST",
+      ).length,
+      1,
+    );
+    assert.equal(
+      requests.slice(unknownActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "GET",
+      ).length,
+      0,
+      "status_unknown must not trigger an automatic status read",
+    );
+    const lockedPostCount = requests.filter(
+      (entry) => entry.path === "/api/recovery" && entry.method === "POST",
+    ).length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const buttons = Array.from(document.querySelectorAll('button')).filter(
+          (candidate) => /create backup|retry update|restore selected verified backup/i.test(
+            candidate.textContent ?? ''
+          )
+        );
+        for (const button of buttons) button.click();
+        return buttons.every((button) => button.disabled);
+      })()`),
+      true,
+    );
+    await waitForRequestQuiet();
+    assert.equal(
+      requests.filter(
+        (entry) => entry.path === "/api/recovery" && entry.method === "POST",
+      ).length,
+      lockedPostCount,
+      "late acceptance lock must prevent a second mutation POST",
+    );
+
+    interceptedRecoveryResponses.push({
+      method: "GET",
+      status: 500,
+      body: { error_code: "recovery_status_unavailable" },
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Refresh status'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null && document.body.innerText.includes('The refresh did not succeed.')`,
+      "failed explicit refresh preserves recovery action lock",
+    );
+    interceptedRecoveryResponses.push({
+      method: "GET",
+      status: 200,
+      body: currentNormalRecovery,
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Refresh status'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
+      "successful explicit refresh clears recovery action lock",
+    );
+
+    for (const scheduledCase of [
+      {
+        action: "retry_update",
+        recommendation: "retry_update",
+        outcome: "retry_scheduled",
+        button: "Retry update",
+      },
+      {
+        action: "restore_backup",
+        recommendation: "restore_latest_verified_backup",
+        outcome: "restore_scheduled",
+        button: "Restore selected verified backup",
+      },
+    ]) {
+      const scheduledStatus = structuredClone(recoveryDiagnosticsProbe.body);
+      scheduledStatus.recovery_mode = true;
+      scheduledStatus.database.schema_classification = "current";
+      scheduledStatus.latest_operation = {
+        outcome: "recovery_available",
+        reason_code: "recovery_required",
+        application_version: null,
+        target_application_version: null,
+        target_build_identity: null,
+        database_state: "current",
+        data_preserved: true,
+        backup_verified: false,
+        safety_backup_created: false,
+        next_action: scheduledCase.recommendation,
+      };
+      scheduledStatus.backup_inventory_state = "available";
+      scheduledStatus.backup_count = 1;
+      scheduledStatus.backups = [
+        {
+          backup_id: "backup:browser-lock",
+          label: "Browser verified recovery point",
+          created_at: "2026-07-21T06:30:00.000Z",
+          reason: "pre_update",
+          source_application_version: "0.1.1",
+          verified: true,
+        },
+      ];
+      scheduledStatus.actions = {
+        create_backup: false,
+        retry_update: scheduledCase.action === "retry_update",
+        restore_backup: scheduledCase.action === "restore_backup",
+      };
+      await renderInterceptedRecoveryStatus({
+        body: scheduledStatus,
+        expectedSelector:
+          `document.querySelector('[data-recovery-primary-action="${scheduledCase.action}"]') !== null`,
+        label: `${scheduledCase.outcome} available action`,
+      });
+      const scheduledRequestStart = requests.length;
+      interceptedRecoveryResponses.push({
+        method: "POST",
+        status: 202,
+        body: {
+          accepted: true,
+          outcome: scheduledCase.outcome,
+          next_action: "wait_for_augnes_to_restart",
+        },
+      });
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === ${JSON.stringify(scheduledCase.button)}
+          );
+          button?.click();
+          return Boolean(button);
+        })()`),
+        true,
+      );
+      if (scheduledCase.action === "restore_backup") {
+        await waitForCondition(
+          `document.querySelector('[role="dialog"]') !== null`,
+          "restore confirmation before scheduled action",
+        );
+        assert.equal(
+          await evaluateBoolean(`(() => {
+            const button = Array.from(document.querySelectorAll('[role="dialog"] button')).find(
+              (candidate) => candidate.textContent?.trim() === 'Restore this verified backup'
+            );
+            button?.click();
+            return Boolean(button);
+          })()`),
+          true,
+        );
+      }
+      await waitForCondition(
+        `document.querySelector('[data-recovery-action-confirmation="refresh_required"] [data-recovery-primary-action="check_again"]') !== null`,
+        `${scheduledCase.outcome} locks later recovery mutations`,
+      );
+      await waitForRequestQuiet();
+      assert.equal(
+        requests.slice(scheduledRequestStart).filter(
+          (entry) =>
+            entry.path === "/api/recovery" && entry.method === "POST",
+        ).length,
+        1,
+        `${scheduledCase.outcome} must be accepted exactly once`,
+      );
+    }
+
+    assert.deepEqual(interceptedRecoveryResponses, []);
+    record("recovery_mode_and_database_safety_remain_orthogonal");
+    record("uncertain_and_scheduled_recovery_actions_lock_until_refresh");
+    await navigate(`${appOrigin}/recovery`);
+    await waitForCondition(
+      `document.querySelector('[data-recovery-product-surface="v0.1"][data-recovery-mode="normal"]') !== null`,
+      "real recovery status restored after correction scenarios",
+    );
 
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -5858,6 +6270,25 @@ async function main() {
               response.method === "GET" &&
               response.status === 409,
           )) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/vnext/portability" &&
+          /422/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.method === "POST" &&
+              response.status === 422,
+          )) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/recovery" &&
+          /500|504/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.status >= 500,
+          )) ||
         (entry.phase === "folder_onboarding" &&
           entry.path?.startsWith("/_next/") &&
           entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
@@ -5885,6 +6316,7 @@ async function main() {
   assert.deepEqual(unexpectedFailedRequests, []);
   assert.deepEqual(externalRequests, []);
   assert.equal(interceptedInspectorResponse, null);
+  assert.deepEqual(interceptedRecoveryResponses, []);
   assert.equal(
     requests.some(
       (request) =>
@@ -6428,6 +6860,9 @@ async function validateProductShellResponsive(route) {
 }
 
 async function validateManagementSafetyKeyboardNavigation() {
+  const activeProjectName = await evaluateString(
+    "document.querySelector('.blank-state-project-context strong')?.textContent?.trim() ?? ''",
+  );
   assert.equal(
     await evaluateBoolean(`(() => {
       const summary = document.querySelector('details[data-management-safety] > summary');
@@ -6445,20 +6880,76 @@ async function validateManagementSafetyKeyboardNavigation() {
   await dispatchKeyboardKey("Tab", "Tab", 9);
   assert.equal(
     await evaluateString("document.activeElement?.getAttribute('href') ?? ''"),
-    "#project-management",
+    "/projects#project-management",
   );
-  await dispatchKeyboardKey("Tab", "Tab", 9, 8);
+  await dispatchKeyboardKey("Enter", "Enter", 13);
+  await waitForCondition(
+    `location.pathname === '/projects' && location.hash === '#project-management'`,
+    "deterministic project-management fragment navigation",
+  );
+  await waitForCondition(
+    `document.querySelector('#project-management') !== null && document.querySelector('#project-management')?.getClientRects().length > 0`,
+    "visible project-management section",
+  );
+  assert.equal(
+    await evaluateString(
+      "document.querySelector('.blank-state-project-context strong')?.textContent?.trim() ?? ''",
+    ),
+    activeProjectName,
+  );
   assert.equal(
     await evaluateBoolean(
-      "document.activeElement === document.querySelector('details[data-management-safety] > summary')",
+      `document.querySelector('#project-management')?.closest('details:not([open])') === null`,
     ),
     true,
   );
-  await dispatchKeyboardKey(" ", "Space", 32);
-  await waitForCondition(
-    `document.querySelector('details[data-management-safety]')?.open === false`,
-    "keyboard-closed Manage and protect",
-  );
+}
+
+async function validateRecoveryCorrectionViewports() {
+  for (const width of [390, 430]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: true,
+    });
+    const metrics = await evaluateJson(`(() => {
+      const main = document.querySelector('[data-recovery-action-confirmation="refresh_required"]');
+      const status = main?.querySelector('[data-recovery-safety-state]');
+      const refresh = Array.from(main?.querySelectorAll('button') ?? []).find(
+        (button) => button.textContent?.trim() === 'Refresh status'
+      );
+      const visible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      return {
+        width: window.innerWidth,
+        horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        status_visible: visible(status),
+        refresh_visible: visible(refresh),
+        refresh_enabled:
+          refresh instanceof HTMLButtonElement && !refresh.disabled,
+        alert_count: main?.querySelectorAll('[role="alert"]').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      width,
+      horizontal_overflow: false,
+      status_visible: true,
+      refresh_visible: true,
+      refresh_enabled: true,
+      alert_count: 0,
+    });
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 }
 
 async function dispatchKeyboardKey(key, code, keyCode, modifiers = 0) {
@@ -6841,6 +7332,24 @@ function attachCdpObservers() {
       ) {
         const intercepted = interceptedInspectorResponse;
         interceptedInspectorResponse = null;
+        void cdp.send("Fetch.fulfillRequest", {
+          requestId: event.params.requestId,
+          responseCode: intercepted.status,
+          responseHeaders: [
+            { name: "Content-Type", value: "application/json; charset=utf-8" },
+            { name: "Cache-Control", value: "no-store, max-age=0" },
+          ],
+          body: Buffer.from(JSON.stringify(intercepted.body), "utf8").toString(
+            "base64",
+          ),
+        }).catch(() => undefined);
+      } else if (
+        interceptedRecoveryResponses.length > 0 &&
+        classification.path === "/api/recovery" &&
+        String(event.params?.request?.method ?? "GET").toUpperCase() ===
+          interceptedRecoveryResponses[0].method
+      ) {
+        const intercepted = interceptedRecoveryResponses.shift();
         void cdp.send("Fetch.fulfillRequest", {
           requestId: event.params.requestId,
           responseCode: intercepted.status,

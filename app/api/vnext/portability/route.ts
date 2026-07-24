@@ -25,8 +25,10 @@ const RESPONSE_HEADERS = {
 } as const;
 
 export function GET(request: Request): Response {
+  let operation: "preview" | null = null;
   try {
     assertLocalRequestV01(request);
+    operation = "preview";
     const db = openDatabase();
     try {
       const preview = previewActivePortableProjectV01(db);
@@ -45,11 +47,12 @@ export function GET(request: Request): Response {
       db.close();
     }
   } catch (error) {
-    return portableErrorResponseV01(error);
+    return portableErrorResponseV01(error, operation);
   }
 }
 
 export async function POST(request: Request): Promise<Response> {
+  let operation: "export" | "import" | null = null;
   try {
     assertLocalRequestV01(request);
     const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim();
@@ -63,6 +66,7 @@ export async function POST(request: Request): Promise<Response> {
       ) {
         throw new PortableProjectErrorV01("portable_project_request_invalid", 400);
       }
+      operation = "export";
       const db = openDatabase();
       try {
         const result = exportActivePortableProjectV01(db, {
@@ -97,6 +101,7 @@ export async function POST(request: Request): Promise<Response> {
     ) {
       throw new PortableProjectErrorV01("portable_project_request_invalid", 400);
     }
+    operation = "import";
     const bytes = await readBoundedBytesV01(request, MAX_PORTABLE_PROJECT_BYTES_V01);
     const destinationRootBase = path.join(
       path.dirname(getDatabasePath()),
@@ -125,7 +130,7 @@ export async function POST(request: Request): Promise<Response> {
       db.close();
     }
   } catch (error) {
-    return portableErrorResponseV01(error);
+    return portableErrorResponseV01(error, operation);
   }
 }
 
@@ -218,18 +223,35 @@ async function readBoundedBytesV01(request: Request, limit: number): Promise<Uin
   return result;
 }
 
-function portableErrorResponseV01(error: unknown): Response {
+function portableErrorResponseV01(
+  error: unknown,
+  operation: "preview" | "export" | "import" | null,
+): Response {
   const portable = error instanceof PortableProjectErrorV01
     ? error
     : new PortableProjectErrorV01("portable_project_operation_failed", 500);
+  const nextSafeAction =
+    portable.status === 409
+      ? "review_project_identity_or_personal_perspective_scope"
+      : "choose_a_current_compatible_local_package";
+  if (operation !== null && error instanceof PortableProjectErrorV01) {
+    recordPortableResultBestEffortV01({
+      operation,
+      outcome: "refused",
+      reason_code: portable.code,
+      record_count: 0,
+      personal_perspective_included: false,
+      reader_verification:
+        operation === "import" ? "refused" : "not_applicable",
+      data_preserved: true,
+      next_safe_action: nextSafeAction,
+    });
+  }
   return jsonResponseV01({
     contract: "augnes.portable-project-operation-result.v1",
     outcome: "refused",
     reason_code: portable.code,
-    next_action:
-      portable.status === 409
-        ? "review_project_identity_or_personal_perspective_scope"
-        : "choose_a_current_compatible_local_package",
+    next_action: nextSafeAction,
     semantic_authority_created: false,
     automation_authority_created: false,
     external_action_created: false,

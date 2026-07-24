@@ -240,7 +240,18 @@ const noProjectManagement = buildManagementSafetyViewV01({
 const inactiveManagement = buildManagementSafetyViewV01({
   project_context: "viewed_inactive_project",
 });
-assert.equal(activeManagement.project_management.href, "#project-management");
+assert.equal(
+  activeManagement.project_management.href,
+  "/projects#project-management",
+);
+assert.equal(
+  noProjectManagement.project_management.href,
+  "/projects#project-management",
+);
+assert.equal(
+  inactiveManagement.project_management.href,
+  "/projects#project-management",
+);
 assert.equal(activeManagement.project_transfer.href, "/portability");
 assert.equal(activeManagement.local_recovery.href, "/recovery");
 assert.match(activeManagement.project_transfer.summary, /Export the current project/u);

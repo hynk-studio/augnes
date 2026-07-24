@@ -18,14 +18,14 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
 assert.equal(resultKeys.length, 170);
-assert.equal(recordNames.length, 41);
+assert.equal(recordNames.length, 45);
 assert.equal(
   hashInventory(resultKeys),
   "2f52e2fd3b06d2b690a52bd6b963ace6119d906f7dd6859377b505b7b047300c",
 );
 assert.equal(
   hashInventory(recordNames),
-  "729ece764ac96c78c6a3beafb5f030382b8a81200de99770c0d98ab8495d3a10",
+  "dce5ad0c1d134de39cc7185bdcc43808cc3144542c35aa7dcab81dbfa8ab2a94",
 );
 assert.match(
   source,
@@ -77,7 +77,7 @@ assert.match(
 );
 assert.match(
   source,
-  /async function validateManagementSafetyKeyboardNavigation[\s\S]*details\[data-management-safety\][\s\S]*keyboard-opened Manage and protect[\s\S]*"#project-management"[\s\S]*keyboard-closed Manage and protect/u,
+  /async function validateManagementSafetyKeyboardNavigation[\s\S]*details\[data-management-safety\][\s\S]*keyboard-opened Manage and protect[\s\S]*"\/projects#project-management"[\s\S]*visible project-management section/u,
 );
 assert.match(
   source,
@@ -86,6 +86,10 @@ assert.match(
 assert.match(
   source,
   /data-recovery-mode="normal"[\s\S]*data-recovery-primary-action[\s\S]*Advanced diagnostics/u,
+);
+assert.match(
+  source,
+  /recoveryClassification[\s\S]*Compatibility needs review[\s\S]*Current safety state unavailable[\s\S]*status-unknown recovery action lock[\s\S]*late acceptance lock must prevent a second mutation POST[\s\S]*failed explicit refresh preserves recovery action lock[\s\S]*successful explicit refresh clears recovery action lock[\s\S]*outcome: "retry_scheduled"[\s\S]*outcome: "restore_scheduled"[\s\S]*must be accepted exactly once/u,
 );
 assert.match(
   source,
@@ -150,7 +154,11 @@ assert.equal(
 );
 assert.match(
   source,
-  /async function validateManagementSafetyKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Tab", "Tab", 9, 8\)/u,
+  /async function validateManagementSafetyKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Enter"[\s\S]*visible project-management section/u,
+);
+assert.match(
+  source,
+  /async function validateRecoveryCorrectionViewports[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*horizontal_overflow: false[\s\S]*refresh_enabled: true[\s\S]*alert_count: 0/u,
 );
 assert.match(
   source,

@@ -14,7 +14,7 @@ export function buildManagementSafetyViewV01(input: {
       kind: "project_management",
       label: "Manage project",
       summary: "Choose, switch, locate, or remove recent local projects.",
-      href: "#project-management",
+      href: "/projects#project-management",
     },
     project_transfer: {
       kind: "project_transfer",

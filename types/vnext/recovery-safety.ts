@@ -103,6 +103,17 @@ export interface RecoverySafetyActionV01 {
   mutates: boolean;
 }
 
+export type RecoveryActionConfirmationStateV01 =
+  | "confirmed"
+  | "refresh_required";
+
+export interface RecoveryActionControlViewV01 {
+  confirmation_state: RecoveryActionConfirmationStateV01;
+  consequential_mutations_locked: boolean;
+  primary_action: RecoverySafetyActionV01;
+  secondary_actions: RecoverySafetyActionV01[];
+}
+
 export interface RecoverySafetyViewV01 {
   view_version: typeof RECOVERY_SAFETY_VIEW_VERSION_V01;
   mode: "normal" | "recovery" | "unknown";

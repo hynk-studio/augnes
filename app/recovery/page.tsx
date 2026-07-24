@@ -5,10 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ProductShell } from "@/components/product-shell";
 import {
+  RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
+  buildRecoveryActionControlViewV01,
+  recoveryActionOutcomeRequiresRefreshV01,
+} from "@/lib/vnext/recovery/recovery-action-confirmation";
+import {
   buildRecoverySafetyViewV01,
   buildUnavailableRecoverySafetyViewV01,
 } from "@/lib/vnext/recovery/recovery-safety-view";
 import type {
+  RecoveryActionConfirmationStateV01,
   RecoverySafetyActionV01,
   RecoverySafetyViewV01,
   RecoveryStatusV01,
@@ -57,6 +63,8 @@ export default function RecoveryPage() {
   const [supportPreview, setSupportPreview] =
     useState<SupportReportPreview | null>(null);
   const [restoreConfirmationOpen, setRestoreConfirmationOpen] = useState(false);
+  const [actionConfirmationState, setActionConfirmationState] =
+    useState<RecoveryActionConfirmationStateV01>("confirmed");
 
   const backups = useMemo(
     () => sortBackups(status?.backups ?? []),
@@ -83,7 +91,13 @@ export default function RecoveryPage() {
     });
   }, [backups]);
 
-  async function loadStatus(signal?: AbortSignal, page = 1) {
+  async function loadStatus(
+    signal?: AbortSignal,
+    page = 1,
+    options: {
+      confirm_current_state?: boolean;
+    } = {},
+  ): Promise<boolean> {
     setLoading(true);
     setUnavailable(false);
     try {
@@ -98,23 +112,50 @@ export default function RecoveryPage() {
         throw new Error("recovery_unavailable");
       }
       setStatus(value);
+      if (options.confirm_current_state) {
+        setActionConfirmationState("confirmed");
+      }
+      return true;
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return false;
+      }
       setUnavailable(true);
       if (status !== null) {
         setNotice(
           "Recovery status could not be refreshed. The last confirmed status remains on screen.",
         );
       }
+      return false;
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
+  }
+
+  function requireStatusRefresh(message = RECOVERY_REFRESH_REQUIRED_NOTICE_V01) {
+    setActionConfirmationState("refresh_required");
+    setRestoreConfirmationOpen(false);
+    setNotice(message);
+  }
+
+  async function refreshCurrentStatus() {
+    const refreshed = await loadStatus(
+      undefined,
+      status?.backup_page ?? 1,
+      { confirm_current_state: true },
+    );
+    setNotice(
+      refreshed
+        ? "Recovery status refreshed. Available actions now use the current confirmed state."
+        : `${RECOVERY_REFRESH_REQUIRED_NOTICE_V01} The refresh did not succeed.`,
+    );
   }
 
   async function runAction(
     action: "create_backup" | "restore_backup" | "retry_update",
     backupId?: string,
   ) {
+    if (actionConfirmationState === "refresh_required") return;
     setBusyAction(action);
     setNotice(null);
     try {
@@ -128,40 +169,58 @@ export default function RecoveryPage() {
       });
       const value = (await response.json()) as RecoveryActionResult;
       if (!response.ok || !value.accepted) {
-        setNotice(
-          value.outcome === "status_unknown"
-            ? "Augnes could not confirm whether the action was accepted. Refresh recovery status before choosing another action."
-            : value.outcome === "refused"
-              ? `The recovery action was not scheduled. ${humanize(
-                  value.reason_code ?? "review_the_current_status",
-                )}.`
-              : "The recovery action could not be confirmed. Refresh recovery status before choosing another action.",
-        );
+        if (value.outcome === "status_unknown") {
+          requireStatusRefresh();
+        } else if (value.outcome === "refused") {
+          setNotice(
+            `The recovery action was not scheduled. ${humanize(
+              value.reason_code ?? "review_the_current_status",
+            )}.`,
+          );
+        } else {
+          requireStatusRefresh();
+        }
         return;
       }
-      setNotice(
-        `${humanize(value.outcome)}. ${humanize(
-          value.next_action ?? "wait_for_the_operation_to_finish",
-        )}.`,
-      );
+      if (recoveryActionOutcomeRequiresRefreshV01(value.outcome)) {
+        requireStatusRefresh(
+          value.outcome === "restore_scheduled"
+            ? `The restore was accepted. ${RECOVERY_REFRESH_REQUIRED_NOTICE_V01}`
+            : value.outcome === "retry_scheduled"
+              ? `The update retry was accepted. ${RECOVERY_REFRESH_REQUIRED_NOTICE_V01}`
+              : RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
+        );
+      }
       if (value.outcome === "backup_created") {
-        await loadStatus(undefined, status?.backup_page ?? 1);
+        const refreshed = await loadStatus(
+          undefined,
+          status?.backup_page ?? 1,
+          { confirm_current_state: true },
+        );
+        setNotice(
+          refreshed
+            ? "Backup created. Current recovery status was refreshed."
+            : `${RECOVERY_REFRESH_REQUIRED_NOTICE_V01} The follow-up status read did not succeed.`,
+        );
       }
     } catch {
-      setNotice(
-        "The recovery action could not be confirmed. Refresh recovery status before choosing another action.",
-      );
+      requireStatusRefresh();
     } finally {
       setBusyAction(null);
     }
   }
 
   function restoreBackup() {
+    if (actionConfirmationState === "refresh_required") return;
     if (selectedBackup === null || !selectedBackup.verified) return;
     setRestoreConfirmationOpen(true);
   }
 
   function confirmRestoreBackup() {
+    if (actionConfirmationState === "refresh_required") {
+      setRestoreConfirmationOpen(false);
+      return;
+    }
     if (!selectedBackup?.verified) return;
     setRestoreConfirmationOpen(false);
     void runAction("restore_backup", selectedBackup.backup_id);
@@ -226,9 +285,15 @@ export default function RecoveryPage() {
         selected_backup_id: selectedBackup?.backup_id ?? null,
       })
     : null;
-  const view = unavailable
+  const view = unavailable && status === null
     ? buildUnavailableRecoverySafetyViewV01()
     : confirmedView;
+  const actionControl = view
+    ? buildRecoveryActionControlViewV01({
+        view,
+        confirmation_state: actionConfirmationState,
+      })
+    : null;
 
   return (
     <ProductShell primaryZone={null}>
@@ -237,6 +302,7 @@ export default function RecoveryPage() {
         data-recovery-product-surface="v0.1"
         data-recovery-safety-view={view?.view_version ?? "checking"}
         data-recovery-mode={view?.mode ?? "checking"}
+        data-recovery-action-confirmation={actionConfirmationState}
       >
         {status && !status.recovery_mode ? (
           <a className={styles.returnLink} href="/">
@@ -277,19 +343,24 @@ export default function RecoveryPage() {
           <section
             className={`${styles.safetySummary} ${styles.safetyAttention}`}
             role="alert"
-            data-recovery-primary-action={view.primary_action.kind}
+            data-recovery-primary-action={
+              actionControl?.primary_action.kind ?? view.primary_action.kind
+            }
           >
             <p className={styles.kicker}>Current safety state</p>
             <h2>{view.safety_status_label}</h2>
             <p>{view.situation}</p>
             <RecoveryPrimaryAction
-              action={view.primary_action}
+              action={actionControl?.primary_action ?? view.primary_action}
               busyAction={busyAction}
               loading={loading}
+              consequentialMutationsLocked={
+                actionControl?.consequential_mutations_locked ?? false
+              }
               onCreateBackup={() => void runAction("create_backup")}
               onRetryUpdate={() => void runAction("retry_update")}
               onRestore={restoreBackup}
-              onRefresh={() => void loadStatus()}
+              onRefresh={() => void refreshCurrentStatus()}
             />
           </section>
         ) : view && status ? (
@@ -308,7 +379,9 @@ export default function RecoveryPage() {
                   : "status"
               }
               data-recovery-safety-state={view.safety_state}
-              data-recovery-primary-action={view.primary_action.kind}
+              data-recovery-primary-action={
+                actionControl?.primary_action.kind ?? view.primary_action.kind
+              }
             >
               <p className={styles.kicker}>Current safety state</p>
               <h2>{view.safety_status_label}</h2>
@@ -321,15 +394,16 @@ export default function RecoveryPage() {
               <div className={styles.primaryAction}>
                 <p className={styles.kicker}>Next safe action</p>
                 <RecoveryPrimaryAction
-                  action={view.primary_action}
+                  action={actionControl?.primary_action ?? view.primary_action}
                   busyAction={busyAction}
                   loading={loading}
+                  consequentialMutationsLocked={
+                    actionControl?.consequential_mutations_locked ?? false
+                  }
                   onCreateBackup={() => void runAction("create_backup")}
                   onRetryUpdate={() => void runAction("retry_update")}
                   onRestore={restoreBackup}
-                  onRefresh={() =>
-                    void loadStatus(undefined, status.backup_page)
-                  }
+                  onRefresh={() => void refreshCurrentStatus()}
                 />
               </div>
             </section>
@@ -341,6 +415,9 @@ export default function RecoveryPage() {
               selectedBackupId={selectedBackupId}
               loading={loading}
               busyAction={busyAction}
+              consequentialMutationsLocked={
+                actionControl?.consequential_mutations_locked ?? false
+              }
               onSelect={setSelectedBackupId}
               onPage={(page) => void loadStatus(undefined, page)}
             />
@@ -351,7 +428,7 @@ export default function RecoveryPage() {
             >
               <summary>Other recovery actions</summary>
               <div className={styles.actions}>
-                {view.secondary_actions.map((action) => (
+                {(actionControl?.secondary_actions ?? view.secondary_actions).map((action) => (
                   <RecoverySecondaryAction
                     action={action}
                     key={action.kind}
@@ -359,12 +436,13 @@ export default function RecoveryPage() {
                     selectedBackup={selectedBackup}
                     busyAction={busyAction}
                     loading={loading}
+                    consequentialMutationsLocked={
+                      actionControl?.consequential_mutations_locked ?? false
+                    }
                     onCreateBackup={() => void runAction("create_backup")}
                     onRetryUpdate={() => void runAction("retry_update")}
                     onRestore={restoreBackup}
-                    onRefresh={() =>
-                      void loadStatus(undefined, status.backup_page)
-                    }
+                    onRefresh={() => void refreshCurrentStatus()}
                   />
                 ))}
               </div>
@@ -386,7 +464,10 @@ export default function RecoveryPage() {
         ) : null}
       </main>
       <ConfirmationDialog
-        open={restoreConfirmationOpen}
+        open={
+          restoreConfirmationOpen &&
+          actionConfirmationState === "confirmed"
+        }
         title={`Restore ${selectedBackup?.label ?? "the selected backup"}?`}
         description="Augnes will protect the current state before replacing the database. Continuing explicitly authorizes this restore action."
         confirmLabel="Restore this verified backup"
@@ -420,6 +501,7 @@ function RecoveryPrimaryAction({
   action,
   busyAction,
   loading,
+  consequentialMutationsLocked,
   onCreateBackup,
   onRetryUpdate,
   onRestore,
@@ -428,6 +510,7 @@ function RecoveryPrimaryAction({
   action: RecoverySafetyActionV01;
   busyAction: string | null;
   loading: boolean;
+  consequentialMutationsLocked: boolean;
   onCreateBackup: () => void;
   onRetryUpdate: () => void;
   onRestore: () => void;
@@ -454,7 +537,11 @@ function RecoveryPrimaryAction({
       type="button"
       className={styles.primaryButton}
       onClick={callback}
-      disabled={busyAction !== null || loading}
+      disabled={
+        busyAction !== null ||
+        loading ||
+        (consequentialMutationsLocked && action.mutates)
+      }
     >
       {action.kind === busyAction
         ? action.kind === "create_backup"
@@ -475,6 +562,7 @@ function RecoverySecondaryAction({
   selectedBackup,
   busyAction,
   loading,
+  consequentialMutationsLocked,
   onCreateBackup,
   onRetryUpdate,
   onRestore,
@@ -485,6 +573,7 @@ function RecoverySecondaryAction({
   selectedBackup: RecoveryStatusV01["backups"][number] | null;
   busyAction: string | null;
   loading: boolean;
+  consequentialMutationsLocked: boolean;
   onCreateBackup: () => void;
   onRetryUpdate: () => void;
   onRestore: () => void;
@@ -512,7 +601,12 @@ function RecoverySecondaryAction({
       type="button"
       className={styles.secondaryButton}
       onClick={callback}
-      disabled={!available || busyAction !== null || loading}
+      disabled={
+        !available ||
+        busyAction !== null ||
+        loading ||
+        (consequentialMutationsLocked && action.mutates)
+      }
     >
       {action.label}
     </button>
@@ -526,6 +620,7 @@ function RecoveryPoints({
   selectedBackupId,
   loading,
   busyAction,
+  consequentialMutationsLocked,
   onSelect,
   onPage,
 }: {
@@ -535,6 +630,7 @@ function RecoveryPoints({
   selectedBackupId: string | null;
   loading: boolean;
   busyAction: string | null;
+  consequentialMutationsLocked: boolean;
   onSelect: (backupId: string) => void;
   onPage: (page: number) => void;
 }) {
@@ -583,7 +679,11 @@ function RecoveryPoints({
                 name="recovery-backup"
                 checked={selectedBackupId === backup.backup_id}
                 onChange={() => onSelect(backup.backup_id)}
-                disabled={!backup.verified || busyAction !== null}
+                disabled={
+                  !backup.verified ||
+                  busyAction !== null ||
+                  consequentialMutationsLocked
+                }
               />
               <span>
                 <strong>{backup.label}</strong>
@@ -810,8 +910,13 @@ function AdvancedDiagnostics({
             )}
           </h2>
           <p>
-            Review the latest bounded local transfer result without treating it
-            as recovery authority.
+            {status.continuity.portability?.outcome === "refused"
+              ? `The latest ${humanize(
+                  status.continuity.portability.operation,
+                ).toLowerCase()} attempt was refused: ${humanize(
+                  status.continuity.portability.reason_code,
+                )}. No transfer authority was created.`
+              : "Review the latest bounded local transfer result without treating it as recovery authority."}
           </p>
           <a href="/portability">Review project transfer history</a>
         </section>

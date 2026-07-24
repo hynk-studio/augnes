@@ -10,7 +10,7 @@ export interface ManagementSafetyNavigationItemV01 {
   kind: "project_management" | "project_transfer" | "local_recovery";
   label: string;
   summary: string;
-  href: "#project-management" | "/portability" | "/recovery";
+  href: "/projects#project-management" | "/portability" | "/recovery";
 }
 
 export interface ManagementSafetyViewV01 {

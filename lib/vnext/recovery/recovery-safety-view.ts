@@ -66,13 +66,15 @@ export function buildRecoverySafetyViewV01(input: {
   });
   const secondary = availableActionsV01(status)
     .filter((action) => action.kind !== primary.kind);
-  const safetyState = status.recovery_mode
-    ? "attention"
-    : status.database.schema_classification === "current"
-      ? "ready"
-      : status.database.schema_classification === "unavailable"
-        ? "unavailable"
-        : "incompatible";
+  const safetyState =
+    status.database.schema_classification === "unavailable"
+      ? "unavailable"
+      : status.database.schema_classification === "old" ||
+          status.database.schema_classification === "incompatible"
+        ? "incompatible"
+        : status.recovery_mode
+          ? "attention"
+          : "ready";
 
   return {
     view_version: RECOVERY_SAFETY_VIEW_VERSION_V01,
@@ -138,6 +140,7 @@ function selectPrimaryActionV01(input: {
   const { status, recommendation, selected_verified: selectedVerified } = input;
   if (
     status.recovery_mode &&
+    status.database.schema_classification === "current" &&
     recommendation !== null &&
     RESTORE_RECOMMENDATIONS.has(recommendation) &&
     status.actions.restore_backup &&
@@ -148,6 +151,7 @@ function selectPrimaryActionV01(input: {
   }
   if (
     status.recovery_mode &&
+    status.database.schema_classification === "current" &&
     recommendation !== null &&
     RETRY_RECOMMENDATIONS.has(recommendation) &&
     status.actions.retry_update

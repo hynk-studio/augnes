@@ -9,6 +9,11 @@ import { NextRequest } from "next/server";
 
 import { GET, POST } from "../app/api/recovery/route";
 import {
+  RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
+  buildRecoveryActionControlViewV01,
+  recoveryActionOutcomeRequiresRefreshV01,
+} from "../lib/vnext/recovery/recovery-action-confirmation";
+import {
   RECOVERY_RESTORE_RECOMMENDATION_CODES_V01,
   RECOVERY_RETRY_RECOMMENDATION_CODES_V01,
   buildRecoverySafetyViewV01,
@@ -288,6 +293,72 @@ function testRecoverySafetyPresentationV01() {
   assert.equal(healthy.primary_action.label, "Create backup");
   assert.equal(healthy.secondary_actions.some((action) => action.kind === "check_again"), true);
 
+  for (const recoveryMode of [false, true]) {
+    for (const classification of [
+      "current",
+      "old",
+      "incompatible",
+      "unavailable",
+    ] as const) {
+      const status = recoveryPresentationFixture({
+        recovery_mode: recoveryMode,
+        database: {
+          ...healthyStatus.database,
+          schema_classification: classification,
+        },
+        latest_operation: latestOperation("retry_update"),
+        actions: {
+          create_backup: true,
+          retry_update: true,
+          restore_backup: true,
+        },
+      });
+      const first = buildRecoverySafetyViewV01({
+        status,
+        selected_backup_id: null,
+      });
+      const second = buildRecoverySafetyViewV01({
+        status,
+        selected_backup_id: null,
+      });
+      assert.equal(first.mode, recoveryMode ? "recovery" : "normal");
+      assert.equal(
+        first.safety_state,
+        classification === "unavailable"
+          ? "unavailable"
+          : classification === "old" || classification === "incompatible"
+            ? "incompatible"
+            : recoveryMode
+              ? "attention"
+              : "ready",
+      );
+      assert.equal(
+        first.safety_status_label,
+        classification === "unavailable"
+          ? "Current safety state unavailable"
+          : classification === "old" || classification === "incompatible"
+            ? "Compatibility needs review"
+            : recoveryMode
+              ? "Attention is required"
+              : "Local data is ready",
+      );
+      assert.equal(
+        first.primary_action.kind,
+        recoveryMode && classification === "current"
+          ? "retry_update"
+          : !recoveryMode && classification === "current"
+            ? "create_backup"
+            : "none",
+      );
+      assert.equal(first.secondary_actions.filter((action) => action.kind === first.primary_action.kind).length, 0);
+      assert.deepEqual(first, second);
+      assert.equal(
+        Object.values(first.authority).every((value) => value === false),
+        true,
+      );
+    }
+  }
+
   for (const recommendation of RECOVERY_RESTORE_RECOMMENDATION_CODES_V01) {
     const status = recoveryPresentationFixture({
       recovery_mode: true,
@@ -481,6 +552,58 @@ function testRecoverySafetyPresentationV01() {
     healthy,
   );
   assert.equal(Object.values(healthy.authority).every((value) => value === false), true);
+
+  for (const outcome of [
+    "status_unknown",
+    "restore_scheduled",
+    "retry_scheduled",
+    "backup_created",
+  ]) {
+    assert.equal(recoveryActionOutcomeRequiresRefreshV01(outcome), true);
+  }
+  assert.equal(recoveryActionOutcomeRequiresRefreshV01("refused"), false);
+  const locked = buildRecoveryActionControlViewV01({
+    view: {
+      ...healthy,
+      secondary_actions: [
+        ...healthy.secondary_actions,
+        {
+          kind: "restore_backup",
+          label: "Restore selected verified backup",
+          mutates: true,
+        },
+      ],
+    },
+    confirmation_state: "refresh_required",
+  });
+  assert.equal(locked.confirmation_state, "refresh_required");
+  assert.equal(locked.consequential_mutations_locked, true);
+  assert.deepEqual(locked.primary_action, {
+    kind: "check_again",
+    label: "Refresh status",
+    mutates: false,
+  });
+  assert.equal(
+    locked.secondary_actions.some((action) => action.kind === "check_again"),
+    false,
+  );
+  assert.equal(
+    locked.secondary_actions.filter((action) => action.mutates).length > 0,
+    true,
+  );
+  assert.match(RECOVERY_REFRESH_REQUIRED_NOTICE_V01, /Refresh status/u);
+  assert.deepEqual(
+    buildRecoveryActionControlViewV01({
+      view: healthy,
+      confirmation_state: "confirmed",
+    }),
+    {
+      confirmation_state: "confirmed",
+      consequential_mutations_locked: false,
+      primary_action: healthy.primary_action,
+      secondary_actions: healthy.secondary_actions,
+    },
+  );
 }
 
 function recoveryPresentationFixture(
