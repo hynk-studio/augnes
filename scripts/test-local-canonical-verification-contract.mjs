@@ -87,6 +87,24 @@ const localExecutorContract = readRepositoryFile(
 const localReceiptContract = readRepositoryFile(
   "scripts/test-local-canonical-receipt.mjs",
 );
+const localPrEvidencePolicy = readRepositoryFile(
+  ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
+);
+const localPrEvidence = readRepositoryFile(
+  "scripts/local-canonical-pr-evidence.mjs",
+);
+const localPrEvidenceEnvelope = readRepositoryFile(
+  "scripts/local-canonical-pr-evidence-envelope.mjs",
+);
+const localPrEvidenceTransport = readRepositoryFile(
+  "scripts/local-canonical-github-transport.mjs",
+);
+const localPrEvidenceContract = readRepositoryFile(
+  "scripts/test-local-canonical-pr-evidence.mjs",
+);
+const localPrEvidenceTransportContract = readRepositoryFile(
+  "scripts/test-local-canonical-pr-evidence-transport.mjs",
+);
 const dependencyLockCompatibility = readRepositoryFile(
   "scripts/dependency-lock-compatibility.mjs",
 );
@@ -123,6 +141,7 @@ const activePolicySources = {
   "AGENTS.md": agents,
   "README.md": readme,
   ".github/LOCAL_CANONICAL_VERIFICATION.md": localPolicy,
+  ".github/LOCAL_CANONICAL_PR_EVIDENCE.md": localPrEvidencePolicy,
   ".github/pull_request_template.md": pullRequestTemplate,
   "docs/REPOSITORY_REDUCTION_SCOPE.md": reductionScope,
 };
@@ -222,6 +241,16 @@ const canonicalCommands = Object.freeze({
   localFull: "node scripts/run-local-canonical-verification.mjs full",
   localReceiptValidation:
     "node scripts/run-local-canonical-verification.mjs validate",
+  localEvidenceContract:
+    "node scripts/test-local-canonical-pr-evidence.mjs",
+  localEvidenceTransportContract:
+    "node scripts/test-local-canonical-pr-evidence-transport.mjs",
+  localEvidencePrepare:
+    "node scripts/local-canonical-pr-evidence.mjs prepare",
+  localEvidencePublish:
+    "node scripts/local-canonical-pr-evidence.mjs publish",
+  localEvidenceVerify:
+    "node scripts/local-canonical-pr-evidence.mjs verify",
 });
 assert.equal(packageJson.scripts.typegen, canonicalCommands.typegen);
 assert.equal(packageJson.scripts.typecheck, canonicalCommands.typecheck);
@@ -311,6 +340,26 @@ assert.equal(
   packageJson.scripts["verify:local:receipt"],
   canonicalCommands.localReceiptValidation,
 );
+assert.equal(
+  packageJson.scripts["test:local-canonical-pr-evidence"],
+  canonicalCommands.localEvidenceContract,
+);
+assert.equal(
+  packageJson.scripts["test:local-canonical-pr-evidence-transport"],
+  canonicalCommands.localEvidenceTransportContract,
+);
+assert.equal(
+  packageJson.scripts["verify:local:evidence:prepare"],
+  canonicalCommands.localEvidencePrepare,
+);
+assert.equal(
+  packageJson.scripts["verify:local:evidence:publish"],
+  canonicalCommands.localEvidencePublish,
+);
+assert.equal(
+  packageJson.scripts["verify:local:evidence:verify"],
+  canonicalCommands.localEvidenceVerify,
+);
 assert.equal(nodeVersionMarker, "24.18.0");
 assert.equal(packageJson.engines.node, "^22.0.0 || ^24.0.0");
 assert.equal(packageJson.engines.npm, ">=10 <12");
@@ -351,6 +400,15 @@ for (const command of [
 ]) {
   requireText(readme, command, `README is missing ${command}`);
   requireText(localPolicy, command, `policy is missing ${command}`);
+}
+for (const command of [
+  "npm run verify:local:evidence:prepare --",
+  "npm run verify:local:evidence:publish --",
+  "npm run verify:local:evidence:verify --",
+]) {
+  requireText(readme, command, `README is missing ${command}`);
+  requireText(localPolicy, command, `policy is missing ${command}`);
+  requireText(localPrEvidencePolicy, command, `evidence policy is missing ${command}`);
 }
 
 for (const fragment of [
@@ -556,11 +614,159 @@ for (const authorityChild of [
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-receipt.mjs",
+  "scripts/test-local-canonical-pr-evidence.mjs",
+  "scripts/test-local-canonical-pr-evidence-transport.mjs",
 ]) {
   assert.equal(
     countOccurrences(canonicalSuite, authorityChild),
     1,
     `authority suite must own ${authorityChild} exactly once`,
+  );
+}
+
+for (const fragment of [
+  `augnes.local-canonical-pr-evidence.v1`,
+  `MAX_PUBLICATION_ENVELOPE_BYTES = 32 * 1024`,
+  `MAX_PUBLICATION_COMMENT_BYTES = 48 * 1024`,
+  `<!-- augnes-local-canonical-pr-evidence:v1 -->`,
+  `<!-- /augnes-local-canonical-pr-evidence:v1 -->`,
+  `fingerprintCanonicalValue(envelopeContent)`,
+  `assertPublicSafeReceipt(envelope)`,
+  `publication_integrity_mismatch`,
+  `duplicate_publication_comments`,
+  `not a signature or independent attestation`,
+  `GitHub did not run these tests`,
+]) {
+  requireText(
+    localPrEvidenceEnvelope,
+    fragment,
+    `publication envelope contract is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `validateReceiptAgainstCurrentRepository`,
+  `receipt_not_current_deciding_evidence`,
+  `remoteHeadSha !== identity.head_sha`,
+  `remoteBaseSha !== pullRequest.base_sha`,
+  `dirty_worktree_not_publishable`,
+  `pull_request_not_draft`,
+  `replacement_authority_required`,
+  `publication_comment_changed_before_update`,
+  `idempotent_noop`,
+  `github_write_performed: action !== "idempotent_noop"`,
+  `local_linked_match`,
+  `.augnes-local-verification`,
+  `"publications"`,
+]) {
+  requireText(
+    localPrEvidence,
+    fragment,
+    `publication orchestrator contract is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `AUTHORIZED_GITHUB_REPOSITORY`,
+  `"hynk-studio/augnes-perspective-lab"`,
+  `spawnSync("gh", args`,
+  `shell: false`,
+  `GITHUB_TRANSPORT_TIMEOUT_MS = 30_000`,
+  `GITHUB_TRANSPORT_MAX_BYTES = 2 * 1024 * 1024`,
+  `--paginate`,
+  `--input`,
+  `github_transport_failed`,
+]) {
+  requireText(
+    localPrEvidenceTransport,
+    fragment,
+    `publication transport contract is missing: ${fragment}`,
+  );
+}
+for (const forbiddenEndpoint of [
+  "/statuses",
+  "/check-runs",
+  "/deployments",
+  "/actions/workflows",
+]) {
+  assert.doesNotMatch(
+    localPrEvidenceTransport,
+    new RegExp(forbiddenEndpoint.replace("/", "\\/"), "u"),
+    `publication transport must not contain ${forbiddenEndpoint}`,
+  );
+}
+assert.doesNotMatch(
+  localPrEvidenceTransport,
+  /GITHUB_TOKEN|GH_TOKEN|auth status|credential/iu,
+  "publication transport must not inspect or log authentication material",
+);
+for (const fragment of [
+  `deterministic_projection`,
+  `non_deciding_receipts_refused`,
+  `private_material_excluded`,
+  `duplicate_and_malformed_comments_refused`,
+  `dirty_stale_fork_closed_merged_and_non_draft_refused`,
+  `arbitrary_comment_id_refused`,
+]) {
+  requireText(
+    localPrEvidenceContract,
+    fragment,
+    `publication regression is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `fixed_repository_endpoints`,
+  `argument_safe_gh_spawn`,
+  `idempotent_noop_zero_writes`,
+  `replacement_requires_exact_prior_fingerprint`,
+  `changed_remote_body_refused`,
+  `unrelated_comments_unchanged`,
+  `no_delete_status_check_deployment_or_workflow_path`,
+]) {
+  requireText(
+    localPrEvidenceTransportContract,
+    fragment,
+    `publication transport regression is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `Publication used: \`yes | no\``,
+  `Dedicated evidence comment URL:`,
+  `Publication-envelope SHA-256 content fingerprint:`,
+  `Remote-only verification result:`,
+  `Local-linked verification result:`,
+  `Identical-publication idempotent no-op proof:`,
+  `Replacement used: \`yes | no\``,
+  `not a signature`,
+]) {
+  requireText(
+    pullRequestTemplate,
+    fragment,
+    `pull-request template publication field is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `publication is never implicit`,
+  `current task Draft PR`,
+  `Never publish quick`,
+  `Never publish to a historical PR`,
+  `Stop on duplicate marker comments`,
+  `idempotent no-write result`,
+]) {
+  requireText(
+    agents,
+    fragment,
+    `AGENTS.md publication instruction is missing: ${fragment}`,
+  );
+}
+assert.match(gitignore, /^\.augnes-local-verification\/$/mu);
+for (const forbiddenConfig of [
+  ".gitlab-ci.yml",
+  ".gitlab-ci.yaml",
+  ".github/actions-runner",
+]) {
+  assert.equal(
+    existsSync(path.join(repositoryRoot, forbiddenConfig)),
+    false,
+    `alternate or self-hosted CI config must remain absent: ${forbiddenConfig}`,
   );
 }
 
@@ -966,7 +1172,11 @@ console.log(
         "local-canonical-verification-contract",
         "local-canonical-executor",
         "local-canonical-receipt",
+        "local-canonical-pr-evidence",
+        "local-canonical-pr-evidence-transport",
       ],
+      local_pr_evidence_publication_explicit_only: true,
+      local_pr_evidence_status_check_and_deployment_paths_absent: true,
     },
     null,
     2,

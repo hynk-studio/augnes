@@ -328,6 +328,18 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "local Canonical PR evidence projection and policy contract",
+      ...rootNode("scripts/test-local-canonical-pr-evidence.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical PR evidence GitHub transport contract",
+      ...rootNode(
+        "scripts/test-local-canonical-pr-evidence-transport.mjs",
+      ),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded model egress before transport",
       ...rootNode("scripts/test-bounded-model-egress.ts"),
     },

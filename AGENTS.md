@@ -285,8 +285,26 @@ For ordinary PRs:
   fingerprint in PR evidence. Validate it after the exact-head run. Never call
   the receipt hosted evidence, independent attestation, or an external status.
 - Generated receipts and logs remain ignored local artifacts. Do not commit or
-  publish them, create a GitHub status from them, or add receipt publication
-  without a later explicitly authorized PR.
+  upload them or create a GitHub status from them.
+- Local Canonical PR evidence publication is never implicit. Codex may run
+  `npm run verify:local:evidence:prepare` without a GitHub write, but may run
+  `verify:local:evidence:publish` only when the user explicitly authorizes the
+  exact task and current task Draft PR.
+- Publish only after source is committed, the exact head is pushed, and a
+  current changed/full receipt validates as deciding. Never publish quick,
+  dirty, stale, failed, incomplete, noncanonical, or non-deciding evidence.
+- Publish only the bounded dedicated marker comment to the current task Draft
+  PR. Never publish to a historical PR or unrelated issue; never create a
+  status, check, deployment, review, label, workflow, merge, ready-for-review
+  transition, auto-merge action, or repository-setting change.
+- Stop on duplicate marker comments, stale base/head/branch identity, a fork or
+  non-Draft target, or an optimistic replacement fingerprint/body mismatch.
+  Replacing different evidence requires the exact prior publication
+  fingerprint and explicit publication confirmation. An identical fingerprint
+  must be an idempotent no-write result.
+- Call the comment a mutable local-evidence projection. Its SHA-256 fingerprints
+  prove content integrity only, not a signature, hosted reproduction,
+  GitHub-authenticated environment, or independent attestation.
 - Do not add automatic retries, arbitrary sleeps, or wider timeouts to obtain a
   pass. Fix a failing child from its label and heartbeat, produce a new exact
   head when code changes, and rerun every affected selected command.

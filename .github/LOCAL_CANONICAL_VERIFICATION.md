@@ -11,7 +11,10 @@ event may start or impersonate verification compute.
 The deciding surface is one completed local run for the exact proposed head on
 the authorized shared Mac. This policy records that environment and its
 limitations. It does not claim that local evidence is stronger than independent
-reproduction, and it does not publish local results.
+reproduction. Publication never occurs automatically; an explicitly authorized
+user may publish only a bounded projection of a current deciding receipt under
+the separate
+[Local Canonical pull-request evidence policy](LOCAL_CANONICAL_PR_EVIDENCE.md).
 
 The receipt preserves the established evidence vocabulary:
 
@@ -88,6 +91,7 @@ trees and runs:
 - typecheck;
 - local executor identity/scheduling contracts;
 - local receipt integrity/staleness contracts;
+- Local Canonical PR evidence projection and fixed-transport contracts;
 - the existing local Canonical lifecycle contract.
 
 It does not install dependencies or run build, package, runtime, integration,
@@ -298,22 +302,48 @@ cleanup, zero remaining owned processes, repository-relative final receipt
 path, fingerprint, and successful receipt validation. It also states:
 
 - the execution occurred once on a shared local Mac;
-- no generated receipt or raw log was committed or published;
+- no generated receipt or raw log was committed or uploaded;
 - no GitHub Actions or other hosted/self-hosted CI ran;
 - no status check or independent attestation was fabricated;
 - no other repository or project directory was inspected or modified.
+
+Optional publication uses:
+
+```bash
+npm run verify:local:evidence:prepare -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+npm run verify:local:evidence:publish -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json \
+  --confirm-publish
+npm run verify:local:evidence:verify -- --pr <positive-pr-number>
+npm run verify:local:evidence:verify -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+```
+
+`prepare` is read-only with respect to GitHub. `publish` repeats every exact
+identity and deciding-receipt gate immediately before the one authorized
+comment write. It publishes neither the full receipt nor logs. Remote-only
+verification checks the current comment projection; local-linked verification
+also proves that projection matches the current local receipt. Neither is a
+signature, status check, hosted reproduction, or independent attestation.
+Generated publication artifacts and records remain ignored.
 
 ## Repository execution and transfer boundary
 
 `.github/workflows` must remain empty. Do not add a dummy workflow, reusable
 action solely for hosted execution, GitLab or another CI provider, a
 self-hosted GitHub runner, launchd service, Docker/VM requirement, background
-automation, or receipt publication in this change.
+automation, or automatic publication. Local Canonical PR evidence is an
+explicit foreground comment write only; it does not restore hosted compute or
+add a background publication path.
 
 The repository is a temporary development location. Harness commits use Augnes
 product names, repository-relative source paths, ordinary Git history, and no
 repository-specific product identity. This keeps the history suitable for a
 later separately authorized transfer. The current hard repository root/origin
-gate and any future receipt-publication authority must be deliberately reviewed
-in separate work for the eventual destination; this PR does not contact or
-modify that repository.
+gate and the current publication authority must be deliberately reviewed in
+separate work for the eventual destination; this PR does not contact or modify
+that repository.
