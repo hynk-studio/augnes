@@ -18,14 +18,14 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
 assert.equal(resultKeys.length, 170);
-assert.equal(recordNames.length, 45);
+assert.equal(recordNames.length, 46);
 assert.equal(
   hashInventory(resultKeys),
   "2f52e2fd3b06d2b690a52bd6b963ace6119d906f7dd6859377b505b7b047300c",
 );
 assert.equal(
   hashInventory(recordNames),
-  "dce5ad0c1d134de39cc7185bdcc43808cc3144542c35aa7dcab81dbfa8ab2a94",
+  "712cee8616f22226319e4bc05246d48d8bb62c11674a106e454d9352a9ebb128",
 );
 assert.match(
   source,
@@ -89,7 +89,7 @@ assert.match(
 );
 assert.match(
   source,
-  /recoveryClassification[\s\S]*Compatibility needs review[\s\S]*Current safety state unavailable[\s\S]*status-unknown recovery action lock[\s\S]*late acceptance lock must prevent a second mutation POST[\s\S]*failed explicit refresh preserves recovery action lock[\s\S]*successful explicit refresh clears recovery action lock[\s\S]*outcome: "retry_scheduled"[\s\S]*outcome: "restore_scheduled"[\s\S]*must be accepted exactly once/u,
+  /recoveryClassification[\s\S]*Compatibility needs review[\s\S]*Current safety state unavailable[\s\S]*authoritative_recovery_refusal_preserves_confirmed_controls[\s\S]*status-unknown recovery action lock[\s\S]*late acceptance lock must prevent a second mutation POST[\s\S]*failed explicit refresh preserves recovery action lock[\s\S]*successful explicit refresh clears recovery action lock[\s\S]*outcome: "retry_scheduled"[\s\S]*outcome: "restore_scheduled"[\s\S]*must be accepted exactly once/u,
 );
 assert.match(
   source,

@@ -5942,6 +5942,7 @@ async function main() {
       0,
       "authoritative refusal must not force a status refresh",
     );
+    record("authoritative_recovery_refusal_preserves_confirmed_controls");
     const unknownActionRequestStart = requests.length;
     interceptedRecoveryResponses.push({
       method: "POST",
