@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { appendFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -362,17 +361,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     });
     const summary = cliSummary(plan);
     console.log(JSON.stringify(summary));
-    if (args.get("write-github-output") === "true") {
-      const githubOutput = process.env.GITHUB_OUTPUT;
-      if (!githubOutput) {
-        throw new Error("GITHUB_OUTPUT is required when writing planner outputs");
-      }
-      appendFileSync(
-        githubOutput,
-        `plan=${summary.plan}\nchange_count=${summary.change_count ?? 0}\n`,
-        "utf8",
-      );
-    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

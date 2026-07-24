@@ -109,7 +109,7 @@ surface. `/projects` and `/projects/[projectId]` remain compatible management an
 viewed-project routes into that surface. The internal Project Home projection
 continues to supply read-only source data; it is not a separate product surface.
 Project transfer and recovery retain their compatible routes and exact engines,
-but C7 in this change presents them as contextual management and safety work.
+and C7 presents them as contextual management and safety work.
 The exact Inspector reader remains contextual **Exact details**, not a peer
 product.
 The target topology is documented in the
@@ -119,7 +119,7 @@ C0 established the product authority and C1 reduced the shared shell to
 project selection remains in Blank State; transfer/import and ordinary
 backups/recovery are available under its closed **Manage and protect**
 disclosure. The runtime proxy still forces `/recovery` when recovery mode is
-active. C0–C6 are merged. GuideBrief v0.2 is the
+active. C0–C7 are merged. GuideBrief v0.2 is the
 deterministic current-project interpretation shared by
 Blank State, a compact AI Workplane rail, the existing
 `augnes_get_guide_brief` MCP tool, `codex:read-brief`, and new native Codex task
@@ -139,11 +139,10 @@ binding. C6 keeps `/workbench/inspector` directly addressable
 while presenting only concrete target context, target-relevant exact sections,
 closed additional records, and a deterministic return to the related result,
 suggested change, delegated work, Blank State, or AI Workplane. Normal C4/C5
-flows load no Inspector data. C7 in this change removes the shared-shell Project
+flows load no Inspector data. C7 removes the shared-shell Project
 tools menu, keeps `/portability` and `/recovery` compatible, and preserves all
 package, backup, restore, update, reconciliation, and recovery-mode semantics.
-C7 becomes complete only after this PR is reviewed and merged; C8–C9 remain
-pending.
+C8–C9 remain pending.
 
 The repository now supports:
 
@@ -152,3 +151,43 @@ The repository now supports:
 - project-scoped deterministic and live Codex/native-host round trips;
 - structured, immutable `RunReceipt` records;
 - source-linked criterion verification that preserves unresolved status;
+
+## Canonical verification
+
+The complete Canonical verification surface runs locally. GitHub is used for
+source control, pull requests, review, and history; this repository has no
+active GitHub Actions workflow and does not use another hosted CI provider.
+
+Select the exact plan for the proposed base and head:
+
+```bash
+node scripts/canonical-change-planner.mjs \
+  --event pull_request \
+  --base <exact-base-sha> \
+  --head <exact-head-sha>
+```
+
+A documentation-only plan uses
+`scripts/validate-canonical-docs-change.mjs`. A full plan runs:
+
+- `npm run typecheck`
+- `npm run build`
+- `npm test`
+- `npm run test:authority`
+- `npm run test:integration`
+- `npm run test:operability`
+- `npm run test:e2e:core`
+- `npm run test:e2e:continuity`
+
+Focused integration and operability commands remain available through
+`package.json`. Process-owning, package, runtime, and browser lanes run
+sequentially on a shared local host; the core and continuity browser lanes must
+not run concurrently.
+
+The pull request records the exact repository, base and head SHAs, worktree
+state, OS/architecture, Node/npm versions, root and nested lockfile
+fingerprints, selected plan, each selected command/result/duration, cleanup and
+remaining-process result, and final pass or failure. This evidence identifies
+its local execution environment and limitations; it is not an independent
+hosted reproduction or external status check. See the
+[local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).

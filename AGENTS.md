@@ -69,7 +69,7 @@ GuideBrief product responsibility, UX merge gates, and replacement discipline.
 It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
-interface. C0–C6 are merged. The C7 implementation in this change removes the
+interface. C0–C7 are merged. C7 removed the
 permanent shared-shell Project tools menu and relocates project transfer plus
 local-data safety into Blank State management contexts while preserving every
 existing portability and recovery authority:
@@ -103,8 +103,7 @@ ownership requires explicit exact resume. C6 makes
 removes generic active Inspector navigation, and provides deterministic related
 return links. C7 in this change keeps `/portability` and `/recovery` compatible
 while presenting focused management and safety work with at most one primary
-action. C7 becomes complete only when this PR is reviewed and merged. C8–C9
-remain pending. Current code remains authoritative for implemented
+action. C8–C9 remain pending. Current code remains authoritative for implemented
 behavior until each later correction PR changes it.
 
 ### Hard UX invariants
@@ -170,9 +169,8 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C7 management and safety relocation is
-the active authorized correction after merged C0–C6. Do not start C8–C9 or
-broad visual polish before C7 user review and merge.
+An unsatisfactory answer blocks the PR. C0–C7 are merged. Do not start C8–C9
+without explicit authorization.
 
 ## Development defaults
 
@@ -243,14 +241,27 @@ For ordinary PRs:
   → feedback lineage is complete
 - report exact commands, results, and concrete skipped reasons
 
-### Canonical CI lifecycle
+### Local Canonical verification lifecycle
 
 - Canonical tests that start processes, servers, browsers, listeners, or long-lived asynchronous work must use the repository's bounded test-harness lifecycle and declare a measured timeout.
 - A timeout must terminate and await the complete verified owned process tree, close owned listeners, and leave zero owned process, runtime-state, database, port, or temporary-file residue.
 - Do not add unbounded `spawn`, `spawnSync`, child waits, polling loops, or server-close paths to canonical tests. New process-owning fixtures must cover timeout and cleanup behavior automatically.
-- Only a completed successful Canonical CI run for the current pull-request head is merge evidence. Superseded runs must be cancelled automatically or treated as stale.
-- Do not repeatedly rerun a nonterminal CI job. Identify the active canonical child from its label and heartbeat, fix the cause, push a new head, and allow one fresh run.
-- Increase child, step, or job timeouts only from measured successful durations. Never widen a timeout merely to conceal a hang.
+- GitHub Actions execution must remain absent. GitHub is source control,
+  pull-request, review, and history infrastructure, not an active verification
+  runner for this repository.
+- Temporary deciding evidence is a completed successful local Canonical run for
+  the exact pull-request head. Record the exact repository, base and head SHAs,
+  clean/dirty state, OS and architecture, Node/npm versions, root and nested
+  lockfile fingerprints, selected plan, every selected command/result and
+  duration, cleanup/remaining-process result, and final pass or failure.
+- Local evidence must name its shared-host environment and limitations. It does
+  not provide an independent hosted reproduction or external status identity.
+- Run process-owning, package, runtime, and browser lanes sequentially on the
+  shared host. Core and continuity E2E must not run concurrently.
+- Do not add automatic retries, arbitrary sleeps, or wider timeouts to obtain a
+  pass. Fix a failing child from its label and heartbeat, produce a new exact
+  head when code changes, and rerun every affected selected command.
+- Increase child or suite timeouts only from measured successful durations. Never widen a timeout merely to conceal a hang.
 
 Long manual operator pilots, broad real-project usefulness evaluation, and extended qualification are Alpha/RC activities, not default merge gates for R2–R8. Bounded automation and Personal Perspective paths still require focused behavior tests as they are implemented.
 

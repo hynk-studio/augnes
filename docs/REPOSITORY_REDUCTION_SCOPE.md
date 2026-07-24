@@ -217,7 +217,8 @@ Audit at minimum:
 - public `lib/**` entry points
 - `scripts/**`
 - every `package.json` script
-- `.github/workflows/**`
+- `.github/workflows/**` (must remain free of executable GitHub Actions
+  workflows unless repository policy is explicitly changed)
 - schema and migrations
 - active documentation links
 - `reports/**`
@@ -230,4 +231,7 @@ No runtime code, migration, package command, test, report, or document is delete
 2. Repository Reduction Cleanup applies the audited manifest, removes historical residue, and creates canonical test entry points while preserving live compatibility.
 3. R2–R8 vertical PRs remove compatibility in the same PR as its tested replacement.
 
-Local typecheck, build, browser, disposable-database, export, and recovery verification must run through Codex or GitHub Actions before implementation deletion PRs are merged.
+Local typecheck, build, browser, disposable-database, export, and recovery
+verification must run through the exact-head local Canonical surface before
+implementation deletion PRs are merged. GitHub Actions is not an active
+verification surface for this repository.

@@ -42,6 +42,7 @@
     "typecheck": "tsc --noEmit",
     "test:operator-pure-contracts": "node --import tsx scripts/test-vnext-operator-pure-contracts-v0-1.ts",
     "test:operator-browser-fixture": "node --import tsx scripts/test-vnext-operator-browser-fixture-v0-1.ts",
+    "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",
     "test": "node scripts/run-canonical-test-suite.mjs unit",
     "test:integration": "node scripts/run-canonical-test-suite.mjs integration",
     "test:integration:operator": "node scripts/run-canonical-test-suite.mjs integration-operator",

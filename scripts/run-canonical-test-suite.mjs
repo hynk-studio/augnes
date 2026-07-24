@@ -301,8 +301,10 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
-      label: "canonical CI workflow and lifecycle guardrails",
-      ...rootNode("scripts/test-canonical-ci-contract.mjs"),
+      label: "local Canonical verification and lifecycle guardrails",
+      ...rootNode(
+        "scripts/test-local-canonical-verification-contract.mjs",
+      ),
       timeoutMs: 30_000,
     },
     {
