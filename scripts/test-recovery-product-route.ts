@@ -8,7 +8,19 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 
 import { GET, POST } from "../app/api/recovery/route";
+import {
+  RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
+  buildRecoveryActionControlViewV01,
+  recoveryActionOutcomeRequiresRefreshV01,
+} from "../lib/vnext/recovery/recovery-action-confirmation";
+import {
+  RECOVERY_RESTORE_RECOMMENDATION_CODES_V01,
+  RECOVERY_RETRY_RECOMMENDATION_CODES_V01,
+  buildRecoverySafetyViewV01,
+  buildUnavailableRecoverySafetyViewV01,
+} from "../lib/vnext/recovery/recovery-safety-view";
 import { proxy } from "../proxy";
+import type { RecoveryStatusV01 } from "../types/vnext/recovery-safety";
 import {
   recordPortableOperationResult,
   recordRunReconciliationResult,
@@ -33,6 +45,7 @@ const requestHeaders = {
 };
 
 async function main() {
+  testRecoverySafetyPresentationV01();
   const savedEnvironment = new Map<string, string | undefined>();
   for (const [key, value] of Object.entries(environment)) {
     savedEnvironment.set(key, process.env[key]);
@@ -268,7 +281,381 @@ async function main() {
   }
 }
 
-function recoveryStatusFixture() {
+function testRecoverySafetyPresentationV01() {
+  const healthyStatus = recoveryPresentationFixture();
+  const healthy = buildRecoverySafetyViewV01({
+    status: healthyStatus,
+    selected_backup_id: null,
+  });
+  assert.equal(healthy.mode, "normal");
+  assert.equal(healthy.safety_state, "ready");
+  assert.equal(healthy.primary_action.kind, "create_backup");
+  assert.equal(healthy.primary_action.label, "Create backup");
+  assert.equal(healthy.secondary_actions.some((action) => action.kind === "check_again"), true);
+
+  for (const recoveryMode of [false, true]) {
+    for (const classification of [
+      "current",
+      "old",
+      "incompatible",
+      "unavailable",
+    ] as const) {
+      const status = recoveryPresentationFixture({
+        recovery_mode: recoveryMode,
+        database: {
+          ...healthyStatus.database,
+          schema_classification: classification,
+        },
+        latest_operation: latestOperation("retry_update"),
+        actions: {
+          create_backup: true,
+          retry_update: true,
+          restore_backup: true,
+        },
+      });
+      const first = buildRecoverySafetyViewV01({
+        status,
+        selected_backup_id: null,
+      });
+      const second = buildRecoverySafetyViewV01({
+        status,
+        selected_backup_id: null,
+      });
+      assert.equal(first.mode, recoveryMode ? "recovery" : "normal");
+      assert.equal(
+        first.safety_state,
+        classification === "unavailable"
+          ? "unavailable"
+          : classification === "old" || classification === "incompatible"
+            ? "incompatible"
+            : recoveryMode
+              ? "attention"
+              : "ready",
+      );
+      assert.equal(
+        first.safety_status_label,
+        classification === "unavailable"
+          ? "Current safety state unavailable"
+          : classification === "old" || classification === "incompatible"
+            ? "Compatibility needs review"
+            : recoveryMode
+              ? "Attention is required"
+              : "Local data is ready",
+      );
+      assert.equal(
+        first.primary_action.kind,
+        recoveryMode && classification === "current"
+          ? "retry_update"
+          : !recoveryMode && classification === "current"
+            ? "create_backup"
+            : "none",
+      );
+      assert.equal(first.secondary_actions.filter((action) => action.kind === first.primary_action.kind).length, 0);
+      assert.deepEqual(first, second);
+      assert.equal(
+        Object.values(first.authority).every((value) => value === false),
+        true,
+      );
+    }
+  }
+
+  for (const recommendation of RECOVERY_RESTORE_RECOMMENDATION_CODES_V01) {
+    const status = recoveryPresentationFixture({
+      recovery_mode: true,
+      latest_operation: latestOperation(recommendation),
+      backups: [verifiedBackup()],
+      backup_count: 1,
+      actions: {
+        create_backup: true,
+        retry_update: true,
+        restore_backup: true,
+      },
+    });
+    const view = buildRecoverySafetyViewV01({
+      status,
+      selected_backup_id: "backup:verified",
+    });
+    assert.equal(view.primary_action.kind, "restore_backup", recommendation);
+    assert.equal(view.mode, "recovery");
+    assert.equal(view.safety_state, "attention");
+  }
+
+  for (const recommendation of RECOVERY_RETRY_RECOMMENDATION_CODES_V01) {
+    const status = recoveryPresentationFixture({
+      recovery_mode: true,
+      latest_operation: latestOperation(recommendation),
+      backups: [verifiedBackup()],
+      backup_count: 1,
+      actions: {
+        create_backup: true,
+        retry_update: true,
+        restore_backup: true,
+      },
+    });
+    const view = buildRecoverySafetyViewV01({
+      status,
+      selected_backup_id: "backup:verified",
+    });
+    assert.equal(view.primary_action.kind, "retry_update", recommendation);
+  }
+
+  for (const ambiguous of [
+    "retry_update_or_restore_verified_backup",
+    "retry_restore_or_choose_another_verified_backup",
+    "choose_a_verified_recovery_backup",
+    "review_recovery_backup_inventory",
+    "retry_update_or_continue_current_data",
+    "relaunch_a_compatible_verified_package",
+    "preserve_current_data_and_relaunch_a_compatible_verified_package",
+    "continue_with_current_data",
+    "unknown_future_recovery_action",
+  ]) {
+    const view = buildRecoverySafetyViewV01({
+      status: recoveryPresentationFixture({
+        recovery_mode: true,
+        latest_operation: latestOperation(ambiguous),
+        backups: [verifiedBackup()],
+        backup_count: 1,
+        actions: {
+          create_backup: true,
+          retry_update: true,
+          restore_backup: true,
+        },
+      }),
+      selected_backup_id: "backup:verified",
+    });
+    assert.equal(view.primary_action.kind, "none", ambiguous);
+    assert.equal(view.primary_action.mutates, false);
+  }
+
+  const noLatest = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      recovery_mode: true,
+      latest_operation: null,
+      actions: {
+        create_backup: true,
+        retry_update: true,
+        restore_backup: true,
+      },
+    }),
+    selected_backup_id: null,
+  });
+  assert.equal(noLatest.primary_action.kind, "none");
+
+  const unverifiedRestore = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      recovery_mode: true,
+      latest_operation: latestOperation("restore_latest_verified_backup"),
+      backups: [{ ...verifiedBackup(), verified: false }],
+      backup_count: 1,
+      actions: {
+        create_backup: false,
+        retry_update: false,
+        restore_backup: true,
+      },
+    }),
+    selected_backup_id: "backup:verified",
+  });
+  assert.equal(unverifiedRestore.primary_action.kind, "none");
+  assert.equal(unverifiedRestore.backup_summary.selected_verified, false);
+
+  const inventoryUnavailable = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      recovery_mode: true,
+      latest_operation: latestOperation("restore_latest_verified_backup"),
+      backup_inventory_state: "unavailable",
+      backups: [],
+      backup_count: 0,
+      actions: {
+        create_backup: false,
+        retry_update: false,
+        restore_backup: true,
+      },
+    }),
+    selected_backup_id: null,
+  });
+  assert.equal(inventoryUnavailable.primary_action.kind, "none");
+  assert.match(inventoryUnavailable.backup_summary.notice ?? "", /not treated as an empty inventory/u);
+
+  const truncated = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      backup_inventory_truncated: true,
+      backup_page_count: 2,
+      backups: [verifiedBackup()],
+      backup_count: 2,
+    }),
+    selected_backup_id: "backup:verified",
+  });
+  assert.match(truncated.backup_summary.notice ?? "", /other pages/u);
+
+  const legacy = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      legacy_backup_count: 2,
+      legacy_backup_unavailable_count: 1,
+      backups: [verifiedBackup()],
+      backup_count: 1,
+    }),
+    selected_backup_id: "backup:verified",
+  });
+  assert.match(legacy.backup_summary.notice ?? "", /compatible verified Augnes package/u);
+
+  for (const classification of ["old", "incompatible", "unavailable"] as const) {
+    const view = buildRecoverySafetyViewV01({
+      status: recoveryPresentationFixture({
+        database: {
+          ...recoveryPresentationFixture().database,
+          schema_classification: classification,
+        },
+      }),
+      selected_backup_id: null,
+    });
+    assert.notEqual(view.primary_action.kind, "create_backup");
+    assert.equal(
+      view.safety_state,
+      classification === "unavailable" ? "unavailable" : "incompatible",
+    );
+  }
+
+  const refused = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      latest_operation: latestOperation("review_the_current_recovery_status", {
+        outcome: "refused",
+        data_preserved: false,
+      }),
+    }),
+    selected_backup_id: null,
+  });
+  assert.match(refused.latest_operation_summary ?? "", /not confirmed/u);
+
+  const acceptedBackup = buildRecoverySafetyViewV01({
+    status: recoveryPresentationFixture({
+      latest_operation: latestOperation("continue_with_current_data", {
+        outcome: "backup_created",
+        backup_verified: true,
+        safety_backup_created: true,
+      }),
+    }),
+    selected_backup_id: null,
+  });
+  assert.match(acceptedBackup.latest_operation_summary ?? "", /verified recovery point/u);
+
+  const unavailable = buildUnavailableRecoverySafetyViewV01();
+  assert.equal(unavailable.mode, "unknown");
+  assert.equal(unavailable.primary_action.kind, "check_again");
+  assert.equal(unavailable.primary_action.mutates, false);
+  assert.equal(Object.values(unavailable.authority).every((value) => value === false), true);
+  assert.deepEqual(
+    buildRecoverySafetyViewV01({
+      status: healthyStatus,
+      selected_backup_id: null,
+    }),
+    healthy,
+  );
+  assert.equal(Object.values(healthy.authority).every((value) => value === false), true);
+
+  for (const outcome of [
+    "status_unknown",
+    "restore_scheduled",
+    "retry_scheduled",
+    "backup_created",
+  ]) {
+    assert.equal(recoveryActionOutcomeRequiresRefreshV01(outcome), true);
+  }
+  assert.equal(recoveryActionOutcomeRequiresRefreshV01("refused"), false);
+  const locked = buildRecoveryActionControlViewV01({
+    view: {
+      ...healthy,
+      secondary_actions: [
+        ...healthy.secondary_actions,
+        {
+          kind: "restore_backup",
+          label: "Restore selected verified backup",
+          mutates: true,
+        },
+      ],
+    },
+    confirmation_state: "refresh_required",
+  });
+  assert.equal(locked.confirmation_state, "refresh_required");
+  assert.equal(locked.consequential_mutations_locked, true);
+  assert.deepEqual(locked.primary_action, {
+    kind: "check_again",
+    label: "Refresh status",
+    mutates: false,
+  });
+  assert.equal(
+    locked.secondary_actions.some((action) => action.kind === "check_again"),
+    false,
+  );
+  assert.equal(
+    locked.secondary_actions.filter((action) => action.mutates).length > 0,
+    true,
+  );
+  assert.match(RECOVERY_REFRESH_REQUIRED_NOTICE_V01, /Refresh status/u);
+  assert.deepEqual(
+    buildRecoveryActionControlViewV01({
+      view: healthy,
+      confirmation_state: "confirmed",
+    }),
+    {
+      confirmation_state: "confirmed",
+      consequential_mutations_locked: false,
+      primary_action: healthy.primary_action,
+      secondary_actions: healthy.secondary_actions,
+    },
+  );
+}
+
+function recoveryPresentationFixture(
+  overrides: Partial<RecoveryStatusV01> = {},
+): RecoveryStatusV01 {
+  const base = recoveryStatusFixture();
+  return {
+    ...base,
+    continuity: {
+      contract: "augnes.continuity-operations.v1",
+      status_available: true,
+      public_reason_code: "continuity_status_available",
+      portability: null,
+      reconciliation: null,
+    },
+    ...overrides,
+  };
+}
+
+function latestOperation(
+  nextAction: string,
+  overrides: Partial<
+    NonNullable<RecoveryStatusV01["latest_operation"]>
+  > = {},
+): NonNullable<RecoveryStatusV01["latest_operation"]> {
+  return {
+    outcome: "recovery_available",
+    reason_code: "recovery_required",
+    application_version: "0.1.0",
+    target_application_version: "0.2.0",
+    target_build_identity: `sha256:${"b".repeat(64)}`,
+    database_state: "recovery_required",
+    data_preserved: true,
+    backup_verified: false,
+    safety_backup_created: false,
+    next_action: nextAction,
+    ...overrides,
+  };
+}
+
+function verifiedBackup(): RecoveryStatusV01["backups"][number] {
+  return {
+    backup_id: "backup:verified",
+    label: "Verified recovery point",
+    created_at: "2026-07-21T04:00:00.000Z",
+    reason: "pre_update",
+    source_application_version: "0.1.0",
+    verified: true,
+  };
+}
+
+function recoveryStatusFixture(): Omit<RecoveryStatusV01, "continuity"> {
   return {
     contract: "augnes.recovery-product.v1",
     schema_version: 1,

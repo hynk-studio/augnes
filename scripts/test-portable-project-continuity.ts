@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -26,6 +34,7 @@ import { validateRecoveryBackup } from "./recovery-backup.mjs";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { buildVNextOperatorBrowserFixtureV01 } from "./vnext-operator-browser-fixture-builder-v0-1";
 import { GET as portabilityGet, POST as portabilityPost } from "../app/api/vnext/portability/route";
+import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-portable-project-test-"));
 const sourceRoot = path.join(root, "source-fixture");
@@ -292,6 +301,165 @@ try {
     const routeImportResult = await routeImport.json() as { status: string; project_home_href: string };
     assert.equal(routeImportResult.status, "exact_replay");
     assert.equal(routeImportResult.project_home_href, imported.project_home_href);
+
+    const canonicalRecordCountBeforeRefusal = count(
+      source,
+      "vnext_core_records",
+      fixtureManifest.workspace_id,
+      fixtureManifest.project_id,
+    );
+    const refusedBytes = Uint8Array.from(routeBytes);
+    refusedBytes[Math.floor(refusedBytes.length / 2)]! ^= 1;
+    const refusedImport = await portabilityPost(localRequestV01("POST", {
+      contentType: "application/vnd.augnes.portable-project+json",
+      body: refusedBytes.buffer as ArrayBuffer,
+    }));
+    assert.equal(refusedImport.status, 422);
+    const refusedImportBody = await refusedImport.json() as {
+      outcome: string;
+      reason_code: string;
+      next_action: string;
+    };
+    assert.equal(refusedImportBody.outcome, "refused");
+    const refusedImportHistory = readContinuityOperationalStatus({
+      databasePath: sourceDbPath,
+    }).portability;
+    assert.equal(refusedImportHistory?.operation, "import");
+    assert.equal(refusedImportHistory?.outcome, "refused");
+    assert.equal(
+      refusedImportHistory?.reason_code,
+      refusedImportBody.reason_code,
+    );
+    assert.equal(refusedImportHistory?.reader_verification, "refused");
+    assert.equal(refusedImportHistory?.data_preserved, true);
+    assert.equal(
+      count(
+        source,
+        "vnext_core_records",
+        fixtureManifest.workspace_id,
+        fixtureManifest.project_id,
+      ),
+      canonicalRecordCountBeforeRefusal,
+    );
+
+    const legitimateHistoryBeforeHostileRequests = structuredClone(
+      refusedImportHistory,
+    );
+    for (const hostileRequest of [
+      new Request("http://127.0.0.1:3100/api/vnext/portability", {
+        method: "POST",
+        headers: {
+          host: "127.0.0.1:3100",
+          origin: "http://attacker.invalid",
+          "content-type": "application/vnd.augnes.portable-project+json",
+        },
+        body: routeBytes,
+      }),
+      new Request("http://127.0.0.1:3100/api/vnext/portability", {
+        method: "POST",
+        headers: {
+          host: "attacker.invalid",
+          origin: "http://attacker.invalid",
+          "content-type": "application/vnd.augnes.portable-project+json",
+        },
+        body: routeBytes,
+      }),
+      new Request("http://127.0.0.1:3100/api/vnext/portability?inject=1", {
+        method: "GET",
+        headers: { host: "127.0.0.1:3100" },
+      }),
+      localRequestV01("POST", {
+        contentType: "text/plain",
+        body: "not a classified project operation",
+      }),
+      localRequestV01("POST", {
+        contentType: "application/json",
+        body: JSON.stringify({
+          action: "unknown",
+          include_personal_perspective: false,
+        }),
+      }),
+    ]) {
+      const hostileResponse =
+        hostileRequest.method === "GET"
+          ? portabilityGet(hostileRequest)
+          : await portabilityPost(hostileRequest);
+      assert.equal(hostileResponse.status, 400);
+      assert.deepEqual(
+        readContinuityOperationalStatus({ databasePath: sourceDbPath })
+          .portability,
+        legitimateHistoryBeforeHostileRequests,
+      );
+    }
+
+    source
+      .prepare(
+        "DELETE FROM vnext_active_project_selections WHERE workspace_id = ?",
+      )
+      .run(fixtureManifest.workspace_id);
+    const refusedExport = await portabilityPost(localRequestV01("POST", {
+      contentType: "application/json",
+      body: JSON.stringify({
+        action: "export",
+        include_personal_perspective: false,
+      }),
+    }));
+    assert.equal(refusedExport.status, 409);
+    const refusedExportBody = await refusedExport.json() as {
+      reason_code: string;
+    };
+    const refusedExportHistory = readContinuityOperationalStatus({
+      databasePath: sourceDbPath,
+    }).portability;
+    assert.equal(refusedExportHistory?.operation, "export");
+    assert.equal(refusedExportHistory?.outcome, "refused");
+    assert.equal(
+      refusedExportHistory?.reason_code,
+      refusedExportBody.reason_code,
+    );
+    assert.equal(refusedExportHistory?.reader_verification, "not_applicable");
+
+    const refusedPreview = portabilityGet(localRequestV01("GET"));
+    assert.equal(refusedPreview.status, 409);
+    const refusedPreviewBody = await refusedPreview.json() as {
+      reason_code: string;
+    };
+    const refusedPreviewHistory = readContinuityOperationalStatus({
+      databasePath: sourceDbPath,
+    }).portability;
+    assert.equal(refusedPreviewHistory?.operation, "preview");
+    assert.equal(refusedPreviewHistory?.outcome, "refused");
+    assert.equal(
+      refusedPreviewHistory?.reason_code,
+      refusedPreviewBody.reason_code,
+    );
+
+    const continuityPath = path.join(
+      sourceRoot,
+      "augnes-continuity-operations.json",
+    );
+    const continuityBackupPath = `${continuityPath}.test-backup`;
+    renameSync(continuityPath, continuityBackupPath);
+    mkdirSync(continuityPath, { mode: 0o700 });
+    try {
+      const sidecarFailureResponse = portabilityGet(localRequestV01("GET"));
+      assert.equal(sidecarFailureResponse.status, refusedPreview.status);
+      assert.deepEqual(
+        await sidecarFailureResponse.json(),
+        refusedPreviewBody,
+      );
+    } finally {
+      rmSync(continuityPath, { recursive: true, force: true });
+      renameSync(continuityBackupPath, continuityPath);
+    }
+
+    active = selectActiveProjectV01(source, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+      now: "2026-07-21T03:20:00.000Z",
+      expected_project_id: null,
+      expected_revision: null,
+    });
   } finally {
     if (previousDatabasePath === undefined) delete process.env.AUGNES_DB_PATH;
     else process.env.AUGNES_DB_PATH = previousDatabasePath;
@@ -316,6 +484,9 @@ try {
     personal_perspective_explicit_consent: true,
     recovery_contract_separation: true,
     product_route_round_trip: true,
+    classified_refusal_replaces_prior_success: true,
+    hostile_request_history_writes: 0,
+    sidecar_failure_response_preserved: true,
     external_network_calls: network.attempts.length,
     residue_after_cleanup: 0,
   }, null, 2));

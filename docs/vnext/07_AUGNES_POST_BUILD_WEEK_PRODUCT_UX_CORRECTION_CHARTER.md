@@ -15,15 +15,18 @@ user-facing surface topology가 이전 active planning과 충돌하면 이 문�
 제품 정체성과 전략 불변식을, [`02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)는
 Core와 protocol 의미를 계속 소유한다.
 
-현재 code와 runtime은 구현된 behavior의 source of truth다. C0–C5는 merge되었다.
+현재 code와 runtime은 구현된 behavior의 source of truth다. C0–C6는 merge되었다.
 `guide_brief.v0.2`는 Blank State, AI Workplane, ChatGPT/MCP와 Codex가 공유하는 bounded
 current-project View다. C4는 exact result, verification, suggested-change, decision과
 project-change flow를 보존하면서 current Workbench를 human-facing AI Workplane으로
 reproject했다. C5는 기존 runner ledger와 native-host lifecycle을 durable
-delegated-work timeline과 explicit resume로 투영했다. C6 implementation은 exact
-reader를 보존하면서 protocol-first Shared Inspector presentation을 contextual Exact
-details로 demote한다. C6는 이 PR이 review와 merge된 뒤에만 complete다. C7 이후
-correction은 아직 일어났다고 주장하지 않는다.
+delegated-work timeline과 explicit resume로 투영했다. C6는 exact reader를
+보존하면서 protocol-first Shared Inspector presentation을 contextual Exact details로
+demote했다. C7 implementation은 permanent Project tools menu를 제거하고 project
+transfer/import와 ordinary recovery discovery를 Blank State의 Manage and protect로
+relocate한다. forced recovery mode는 기존 proxy가 계속 소유한다. C7은 이 PR이
+review와 merge된 뒤에만 complete다. C8–C9 correction은 아직 일어났다고 주장하지
+않는다.
 
 ## 2. Why correction is required
 
@@ -47,9 +50,9 @@ verification, reconciliation, automation, semantic processing, portability와 re
 - human-facing AI Workplane on the compatible semantic-review route
 - bounded delegated Codex progress and explicit resumption
 - contextual Exact details over the compatibility Shared Inspector reader
-- Portability
-- Recovery
-- C1 shared shell classification with two primary zones and secondary Project tools
+- contextual Move or import a project on the compatible Portability route
+- contextual Backups and recovery on the compatible Recovery route
+- C1 shared shell classification with two primary zones and no active Project tools menu
 - embedded current-project GuideBrief v0.2 projections
 
 이 surface들은 operational Core를 평가하고 정확한 state, lineage, verification과
@@ -57,7 +60,8 @@ recovery behavior를 드러내는 현재 구현이다. C1은 shared ProductShell
 AI Workplane 두 primary zone으로 줄였다. C2는 `/`, `/projects`,
 `/projects/[projectId]`를 하나의 Blank State architecture로 통합하고 `/overview`를
 `/`로 redirect한다. Project Home은 internal source-model/history 이름으로만 남으며,
-Portability와 Recovery는 secondary Project tools context를 유지한다. Inspector route는
+Portability와 Recovery는 Blank State Manage and protect와 forced recovery condition
+아래에서 discovery된다. Inspector route는
 AI Workplane zone 아래에서 contextual/direct access를 유지한다. 현재 route content와
 behavior는 이후 correction PR이 실제로 변경할 때까지 authoritative runtime truth다.
 
@@ -81,10 +85,12 @@ current-project GuideBrief source/builder를 Blank State, compact AI Workplane,
 ChatGPT/MCP, `codex:read-brief`와 new native Codex task start에 연결했다. C4는 current
 result, suggested-change, decision과 confirmed project-change controls를 AI Workplane의
 human projection으로 흡수했다. C5는 existing managed-live ledger를 AI Workplane full
-timeline과 Blank State compact return status로 투영했다. C6 in this change는 exact
-reader를 바꾸지 않고 concrete target, relevant source/safeguard section, closed
-additional record와 related return context만 default presentation한다. utility
-relocation, visual system과 compatibility reduction은 아직 runtime에 구현되지 않았다.
+timeline과 Blank State compact return status로 투영했다. C6는 exact reader를 바꾸지
+않고 concrete target, relevant source/safeguard section, closed additional record와
+related return context만 default presentation한다. C7 in this change는 utility
+discovery를 Blank State management/safety와 condition-triggered recovery path로
+relocate한다. visual system과 compatibility reduction은 아직 runtime에 구현되지
+않았다.
 
 ## 4. Target product topology
 
@@ -327,8 +333,8 @@ merge-blocked다.
 | Project Home | C2 absorbed its user-facing capabilities into Blank State; the source projection remains internal |
 | Semantic Workbench | C4 replaces its default protocol-first presentation with AI Workplane; internal and compatibility names may remain |
 | Shared Inspector | retained as contextual exact read-only drill-down |
-| Portability | planned relocation to project management, settings or an explicit transfer path |
-| Recovery | planned relocation to safety, settings or a condition-triggered recovery path |
+| Portability | C7 relocates the compatible route beneath Blank State management as Move or import a project |
+| Recovery | C7 relocates ordinary access beneath Blank State safety while preserving condition-triggered recovery mode |
 | Projects and Home | must not remain competing peer top-level destinations |
 
 C0는 이 runtime migration을 수행하지 않는다. later correction PR은 current route와
@@ -339,12 +345,13 @@ C1은 이 disposition의 navigation classification을 수행했다. C2는
 Project Home와 standalone onboarding을 하나의 Blank State surface로 대체하고,
 `/projects`와 `/projects/[projectId]`를 그 surface의 compatibility views로 유지한다.
 current Workbench/result/Inspector route는 AI Workplane primary zone에 남고,
-Portability와 Recovery는 primary selection이 없는 secondary Project tools context로
-남는다. C3는 이 surface들에 embedded GuideBrief를 연결했다. C4는
+Portability와 Recovery는 C7에서 shared-shell menu를 떠나 Blank State Manage and
+protect와 condition-triggered recovery path 아래로 relocated된다. C3는 이 surface들에
+embedded GuideBrief를 연결했다. C4는
 Workbench/result/change-review default projection을 AI Workplane으로 대체했다. C5는
-live Codex controls와 durable progress/resume를 AI Workplane에 흡수했다. C6 in this
-change는 Inspector를 contextual Exact details로 demote한다. C7 final utility
-relocation은 아직 pending이다.
+live Codex controls와 durable progress/resume를 AI Workplane에 흡수했다. C6는
+Inspector를 contextual Exact details로 demote했다. C7 in this change는 final utility
+relocation을 구현한다.
 
 ## 14. C0–C9 correction sequence
 
@@ -355,16 +362,16 @@ relocation은 아직 pending이다.
 - **C4 — AI Workplane reprojection of current Semantic Workbench and engine complexity:**
   merged
 - **C5 — Delegated Codex work timeline and resumption:** merged
-- **C6 — Contextual Inspector demotion:** implemented in this change; complete
-  only after user review and merge
-- **C7 — Management and safety relocation for Portability and Recovery**
+- **C6 — Contextual Inspector demotion:** merged
+- **C7 — Management and safety relocation for Portability and Recovery:**
+  implemented in this change; complete only after user review and merge
 - **C8 — Visual system after IA correction**
 - **C9 — Compatibility and obsolete-surface reduction**
 
-C7–C9는 implemented, complete 또는 runtime-active가 아니다. C6는 이 change에서
+C8–C9는 implemented, complete 또는 runtime-active가 아니다. C7은 이 change에서
 implemented되지만 review와 merge 전에는 complete가 아니다. user가 correction
 program을 명시적으로 override하지 않는 한 broad visual polish나 unrelated feature
-phase가 C7보다 먼저 오지 않는다.
+phase가 C8보다 먼저 오지 않는다.
 
 ## 15. Non-goals
 
@@ -393,6 +400,6 @@ C0의 완료 조건은 다음뿐이다.
 - Evaluation & Maturity가 basic UX correctness를 Alpha 이후로 미루지 않는다.
 - Roadmap이 C1을 다음 runtime step으로 기록하고 C1–C9를 미구현 상태로 유지한다.
 
-C0–C5는 review와 merge를 마쳤다. C6 implementation은 별도 user review와 merge를
-기다리며, 그 전에는 C7을 시작하지 않는다. C0 자체가 runtime behavior를 변경하지
+C0–C6는 review와 merge를 마쳤다. C7 implementation은 별도 user review와 merge를
+기다리며, 그 전에는 C8을 시작하지 않는다. C0 자체가 runtime behavior를 변경하지
 않았다는 historical boundary는 그대로 유지된다.

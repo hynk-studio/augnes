@@ -57,15 +57,17 @@ Inspector도 normal peer destination이 아니라 contextual audit surface다.
 현재 runtime은 canonical Blank State, GuideBrief v0.2와 human-facing AI Workplane을
 통해 operational Core를 투영한다. C5는 기존 managed-live runner ledger와
 native-host lifecycle을 durable delegated Codex progress, approval attention, interruption,
-explicit resume와 trusted-result boundary로 투영했다. C6 in this change는 exact reader를
-보존하면서 Shared Inspector presentation을 concrete-target contextual Exact details로
-demote한다. Portability와 Recovery는 여전히 reference operator implementation이다.
+explicit resume와 trusted-result boundary로 투영했다. C6는 exact reader를 보존하면서
+Shared Inspector presentation을 concrete-target contextual Exact details로 demote했다.
+C7 in this change는 Portability와 Recovery의 exact engine을 유지하면서 Blank State의
+management/safety context와 condition-triggered recovery path 아래로 relocation한다.
 Post-Build Week correction은 이 engine을
 폐기하지 않고 target surface 아래로 reproject, absorb 또는 demote한다. C4는 exact
 verification, proposal, decision, confirmation, application과 lineage semantics를 유지한 채
 default Workbench projection을 ordinary-language AI Workplane으로 바꿨다. C5는 새
 timeline persistence나 execution authority를 만들지 않았고 C6는 새 read authority나
-return URL authority를 만들지 않는다. 이후 correction
+return URL authority를 만들지 않는다. C7은 package, backup, restore 또는 recovery
+authority를 새로 만들지 않는다. 이후 correction
 PR 전까지 현재 code가 implemented behavior의 source of truth다.
 
 ---
@@ -856,8 +858,8 @@ Current-to-target disposition은 다음과 같다.
   planned absorption된다.
 - Shared Inspector exact reader와 historical naming은 compatibility residue로
   유지되며 active product는 contextual Exact details로 presentation된다.
-- Portability와 Recovery는 project management, safety, settings 또는
-  condition-triggered path로 planned relocation된다.
+- Portability와 Recovery compatible routes는 Blank State의 Manage and protect와
+  condition-triggered recovery mode 아래로 relocated된다.
 - Projects와 Home은 competing peer top-level destination으로 남지 않는다.
 
 이 migration은 C0에서 수행하지 않는다. replacement PR은 parity와 current behavior를

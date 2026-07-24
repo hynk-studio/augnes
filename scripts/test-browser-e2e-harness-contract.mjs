@@ -18,14 +18,14 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
 assert.equal(resultKeys.length, 170);
-assert.equal(recordNames.length, 41);
+assert.equal(recordNames.length, 46);
 assert.equal(
   hashInventory(resultKeys),
-  "b11352420878c76c9220ba916ac853119a973ef411dd1d382fb0aa04b64cd6bc",
+  "2f52e2fd3b06d2b690a52bd6b963ace6119d906f7dd6859377b505b7b047300c",
 );
 assert.equal(
   hashInventory(recordNames),
-  "729ece764ac96c78c6a3beafb5f030382b8a81200de99770c0d98ab8495d3a10",
+  "712cee8616f22226319e4bc05246d48d8bb62c11674a106e454d9352a9ebb128",
 );
 assert.match(
   source,
@@ -61,7 +61,7 @@ assert.equal(
 );
 assert.match(
   source,
-  /route: "\/projects"[\s\S]*expectedPrimaryZone: "blank-state"[\s\S]*expectedUtilityContext: "project-management"/u,
+  /route: "\/projects"[\s\S]*expectedPrimaryZone: "blank-state"[\s\S]*expectedUtilityContext: null/u,
 );
 assert.match(
   source,
@@ -69,11 +69,27 @@ assert.match(
 );
 assert.match(
   source,
-  /route: "\/portability"[\s\S]*expectedPrimaryZone: null[\s\S]*expectedUtilityContext: "portability"/u,
+  /route: "\/portability"[\s\S]*expectedPrimaryZone: null[\s\S]*expectedUtilityContext: null/u,
 );
 assert.match(
   source,
-  /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2/u,
+  /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2[\s\S]*project_tools_count: 0/u,
+);
+assert.match(
+  source,
+  /async function validateManagementSafetyKeyboardNavigation[\s\S]*details\[data-management-safety\][\s\S]*keyboard-opened Manage and protect[\s\S]*"\/projects#project-management"[\s\S]*visible project-management section/u,
+);
+assert.match(
+  source,
+  /data-portability-primary-action="export"[\s\S]*Export current project[\s\S]*portable active-project preview with Personal Perspective excluded[\s\S]*data-portability-primary-action="import"[\s\S]*clean-destination local import control/u,
+);
+assert.match(
+  source,
+  /data-recovery-mode="normal"[\s\S]*data-recovery-primary-action[\s\S]*Advanced diagnostics/u,
+);
+assert.match(
+  source,
+  /recoveryClassification[\s\S]*Compatibility needs review[\s\S]*Current safety state unavailable[\s\S]*authoritative_recovery_refusal_preserves_confirmed_controls[\s\S]*status-unknown recovery action lock[\s\S]*late acceptance lock must prevent a second mutation POST[\s\S]*failed explicit refresh preserves recovery action lock[\s\S]*successful explicit refresh clears recovery action lock[\s\S]*outcome: "retry_scheduled"[\s\S]*outcome: "restore_scheduled"[\s\S]*must be accepted exactly once/u,
 );
 assert.match(
   source,
@@ -138,7 +154,11 @@ assert.equal(
 );
 assert.match(
   source,
-  /async function validateProjectToolsKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Tab", "Tab", 9, 8\)/u,
+  /async function validateManagementSafetyKeyboardNavigation[\s\S]*dispatchKeyboardKey\(" ", "Space", 32\)[\s\S]*dispatchKeyboardKey\("Tab"[\s\S]*dispatchKeyboardKey\("Enter"[\s\S]*visible project-management section/u,
+);
+assert.match(
+  source,
+  /async function validateRecoveryCorrectionViewports[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*horizontal_overflow: false[\s\S]*refresh_enabled: true[\s\S]*alert_count: 0/u,
 );
 assert.match(
   source,

@@ -69,11 +69,10 @@ GuideBrief product responsibility, UX merge gates, and replacement discipline.
 It does not redefine Core protocol or durable authority.
 
 The current runtime demonstrates the operational Core and a reference operator
-interface. C0–C5 are merged. The C6 implementation in this change demotes the
-existing exact reader from a standalone protocol-oriented presentation into
-contextual, optional Exact details while preserving authenticated project
-scope, source/fingerprint binding, bounds, direct addressability, and read-only
-authority:
+interface. C0–C6 are merged. The C7 implementation in this change removes the
+permanent shared-shell Project tools menu and relocates project transfer plus
+local-data safety into Blank State management contexts while preserving every
+existing portability and recovery authority:
 
 - **Blank State** — default simple human entry and resumption surface
 - **GuideBrief** — embedded cross-surface interpretation and guidance layer
@@ -82,7 +81,9 @@ authority:
 - **Provider / Runner / Tool Layer** — execution power without user-facing IA authority
 
 Default top-level navigation is limited to **Blank State** and **AI Workplane**.
-Project selection, Portability, and Recovery are secondary Project tools;
+Project selection remains in Blank State. Project transfer/import and ordinary
+backups/recovery are reached from Blank State’s closed **Manage and protect**
+context; forced recovery remains condition-triggered by the runtime proxy.
 Inspector is contextual beneath AI Workplane and is not a Project tool.
 GuideBrief is not a peer destination. C1 established the two-zone shell. C2
 renders `/` as the canonical Blank State; `/projects` and
@@ -97,11 +98,13 @@ protocol detail behind advanced or contextual paths. C5 made AI Workplane the
 single live-Codex controller, added a bounded durable progress timeline over
 the existing ledger, and gave Blank State a compact return path.
 Leaving the page does not cancel admitted local work; lost local-runtime
-ownership requires explicit exact resume. C6 in this change makes
+ownership requires explicit exact resume. C6 makes
 `/workbench/inspector` a concrete-target contextual Exact details surface,
 removes generic active Inspector navigation, and provides deterministic related
-return links. C6 becomes complete only when this PR is reviewed and merged.
-C7–C9 remain pending. Current code remains authoritative for implemented
+return links. C7 in this change keeps `/portability` and `/recovery` compatible
+while presenting focused management and safety work with at most one primary
+action. C7 becomes complete only when this PR is reviewed and merged. C8–C9
+remain pending. Current code remains authoritative for implemented
 behavior until each later correction PR changes it.
 
 ### Hard UX invariants
@@ -167,9 +170,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C6 contextual Inspector demotion is the
-active authorized correction after merged C0–C5. Do not start C7–C9 or broad
-visual polish before C6 user review and merge.
+An unsatisfactory answer blocks the PR. C7 management and safety relocation is
+the active authorized correction after merged C0–C6. Do not start C8–C9 or
+broad visual polish before C7 user review and merge.
 
 ## Development defaults
 

@@ -180,6 +180,7 @@ let lastRequestAt = Date.now();
 let serverLog = "";
 let pausedSemanticTransitionRequest = null;
 let interceptedInspectorResponse = null;
+const interceptedRecoveryResponses = [];
 const requests = [];
 const responses = [];
 const requestMethods = new Map();
@@ -334,7 +335,7 @@ const result = {
   control_mutation_personal_content_created: null,
   product_shell_route_classifications: [],
   product_shell_responsive_results: [],
-  product_tools_keyboard_navigation: false,
+  management_safety_keyboard_navigation: false,
   viewport_results: [],
   viewport_warnings: [],
   packet_copy_actions: 0,
@@ -623,6 +624,7 @@ async function main() {
 
   if (RUN_CORE_SCOPE) {
   await runPhase("folder_onboarding", async () => {
+    const noProjectUtilityRequestStart = requests.length;
     await navigate(`${appOrigin}/`);
     await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="no_projects"][data-guide-brief-version="guide_brief.v0.2"][data-guide-brief-source-status="project_choice"]') !== null`, "no-project GuideBrief-backed Blank State");
     await waitForCondition(
@@ -630,6 +632,73 @@ async function main() {
       "single project-selection action",
     );
     await validateBlankStateViewports(false);
+    const noProjectManagementSafety = await evaluateJson(`(() => {
+      const details = document.querySelector('details[data-management-safety]');
+      return {
+        open: details instanceof HTMLDetailsElement ? details.open : null,
+        context: details?.getAttribute('data-management-safety-project-context') ?? null,
+        links: Array.from(details?.querySelectorAll('a') ?? []).map((link) => ({
+          label: link.textContent?.trim() ?? '',
+          href: link.getAttribute('href')
+        }))
+      };
+    })()`);
+    assert.deepEqual(noProjectManagementSafety, {
+      open: false,
+      context: "no_active_project",
+      links: [
+        {
+          label: "Manage project",
+          href: "/projects#project-management",
+        },
+        { label: "Move or import a project", href: "/portability" },
+        { label: "Backups and recovery", href: "/recovery" },
+      ],
+    });
+    const noProjectUtilityRequests = requests
+      .slice(noProjectUtilityRequestStart)
+      .filter((request) =>
+        request.path === "/api/vnext/portability" ||
+        request.path === "/api/recovery"
+      );
+    assert.deepEqual(noProjectUtilityRequests, []);
+    const noProjectManagementRequestStart = requests.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const details = document.querySelector('details[data-management-safety]');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        const link = Array.from(details.querySelectorAll('a')).find(
+          (candidate) => candidate.textContent?.trim() === 'Manage project',
+        );
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === '/projects' && location.hash === '#project-management' && document.querySelector('#project-management')?.getClientRects().length > 0`,
+      "no-project deterministic management route",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-blank-state-primary-action="choose_folder"]') !== null`,
+      ),
+      true,
+    );
+    assert.deepEqual(
+      requests.slice(noProjectManagementRequestStart).filter(
+        (request) =>
+          request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery",
+      ),
+      [],
+    );
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `location.pathname === '/' && document.querySelector('[data-blank-state-project-management-hydrated="true"] [data-blank-state-primary-action="choose_folder"]') !== null`,
+      "no-project Blank State after management route",
+    );
     assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
     const cancelledPickerResponseStart = responses.length;
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
@@ -675,7 +744,11 @@ async function main() {
         guide_source: surface?.getAttribute('data-guide-brief-source-status'),
         guide_context: surface?.getAttribute('data-guide-brief-project-context'),
         operator_proposal_leaked: visibleText.includes(${JSON.stringify(manifest.proposal_id)}),
-        operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)})
+        operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)}),
+        management_safety_closed:
+          document.querySelector('details[data-management-safety]')?.open === false,
+        management_safety_context:
+          document.querySelector('details[data-management-safety]')?.getAttribute('data-management-safety-project-context') ?? null
       };
     })()`);
     assert.deepEqual(emptyProjectHome, {
@@ -691,6 +764,8 @@ async function main() {
       guide_context: "current",
       operator_proposal_leaked: false,
       operator_packet_leaked: false,
+      management_safety_closed: true,
+      management_safety_context: "active_project",
     });
     const routeGuide = await evaluateJson(`(async () => {
       const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
@@ -967,6 +1042,45 @@ async function main() {
       return await response.json();
     })()`);
     assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
+    const inactiveManagementUtilityRequestStart = requests.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const details = document.querySelector('details[data-management-safety]');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        const link = Array.from(details.querySelectorAll('a')).find(
+          (candidate) => candidate.textContent?.trim() === 'Manage project',
+        );
+        link?.click();
+        return Boolean(link);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `location.pathname === '/projects' && location.hash === '#project-management' && document.querySelector('#project-management')?.getClientRects().length > 0`,
+      "inactive-view deterministic management route",
+    );
+    const activeAfterInactiveManagement = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    assert.equal(
+      activeAfterInactiveManagement.recent_projects.find((entry) => entry.is_active)?.project.display_name,
+      "Browser Second Project",
+    );
+    assert.deepEqual(
+      requests.slice(inactiveManagementUtilityRequestStart).filter(
+        (request) =>
+          request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery",
+      ),
+      [],
+    );
+    await navigate(`${appOrigin}${destination}`);
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="false"]') !== null`,
+      "return to inactive project after management route",
+    );
     result.minimum_project_home_non_active_deep_link_read_only = true;
     await validateBlankStateViewports();
     result.minimum_project_home_narrow_viewport_no_overflow = true;
@@ -1248,7 +1362,7 @@ async function main() {
     await validateProductShell({
       route: "/projects",
       expectedPrimaryZone: "blank-state",
-      expectedUtilityContext: "project-management",
+      expectedUtilityContext: null,
     });
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
     record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
@@ -5183,6 +5297,7 @@ async function main() {
     );
     await validateProductShellResponsive("/projects/[projectId]");
     const projectManagementDocumentStart = responses.length;
+    const projectManagementUtilityRequestStart = requests.length;
     await navigate(`${appOrigin}/projects`);
     await waitForHostCondition(
       () => responses.slice(projectManagementDocumentStart).some(
@@ -5212,8 +5327,17 @@ async function main() {
       await evaluateString(`document.body.innerText`),
     );
     await validateProductShellResponsive("/projects");
-    await validateProjectToolsKeyboardNavigation();
-    result.product_tools_keyboard_navigation = true;
+    assert.deepEqual(
+      requests.slice(projectManagementUtilityRequestStart).filter(
+        (request) =>
+          request.path === "/api/vnext/portability" ||
+          request.path === "/api/recovery",
+      ),
+      [],
+    );
+    await validateManagementSafetyKeyboardNavigation();
+    result.management_safety_keyboard_navigation = true;
+    record("management_safety_reaches_visible_project_management_without_switching");
   });
 
   }
@@ -5236,13 +5360,13 @@ async function main() {
     });
     await navigate(`${appOrigin}/portability`);
     await waitForCondition(
-      `document.querySelector('[data-portability-surface="v1"]') !== null && document.body.textContent.includes('Review exact scope before export') && document.querySelector('input[type="checkbox"]:not(:checked)') !== null`,
+      `document.querySelector('[data-portability-surface="v1"][data-portability-preview-state="available"]') !== null && document.querySelector('[data-portability-primary-action="export"]')?.textContent?.includes('Export current project') === true && document.querySelector('input[data-portability-personal-consent="true"]:not(:checked)') !== null && document.querySelector('details[data-portability-import-disclosure]')?.open === false && document.querySelector('details')?.textContent?.includes('Review package contents') === true`,
       "portable active-project preview with Personal Perspective excluded",
     );
     await validateProductShell({
       route: "/portability",
       expectedPrimaryZone: null,
-      expectedUtilityContext: "portability",
+      expectedUtilityContext: null,
       projectContextRequired: true,
     });
     result.portable_export_preview_visible = true;
@@ -5250,7 +5374,7 @@ async function main() {
     assert.equal(
       await evaluateBoolean(`(() => {
         const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Export portable project'
+          (candidate) => candidate.textContent?.trim() === 'Export current project'
         );
         button?.click();
         return Boolean(button);
@@ -5283,7 +5407,7 @@ async function main() {
     await waitForHttp(`${appOrigin}/portability`, DEFAULT_TIMEOUT_MS);
     await navigate(`${appOrigin}/portability`);
     await waitForCondition(
-      `document.querySelector('[data-portability-surface="v1"] input[type="file"]') !== null`,
+      `document.querySelector('[data-portability-surface="v1"][data-portability-preview-state="unavailable"] input[type="file"]') !== null && document.querySelector('[data-portability-primary-action="import"]') !== null && !document.body.textContent.includes('Open imported Project Home')`,
       "clean-destination local import control",
     );
     const documentNode = await cdp.send("DOM.getDocument", {
@@ -5299,6 +5423,7 @@ async function main() {
       nodeId: fileInputNode.nodeId,
       files: [portablePackagePath],
     });
+    const portableUiImportResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
         const input = document.querySelector('[data-portability-surface="v1"] input[type="file"]');
@@ -5308,8 +5433,42 @@ async function main() {
       })()`),
       true,
     );
+    await waitForHostCondition(
+      () => responses.slice(portableUiImportResponseStart).some(
+        (entry) =>
+          entry.path === "/api/vnext/portability" &&
+          entry.method === "POST" &&
+          entry.status === 200,
+      ),
+      "portable UI import response",
+    );
+    const portableUiImportResponse = responses
+      .slice(portableUiImportResponseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/portability" &&
+          entry.method === "POST" &&
+          entry.status === 200,
+      );
+    assert(portableUiImportResponse);
+    const portableUiImportBody = JSON.parse(
+      (
+        await cdp.send("Network.getResponseBody", {
+          requestId: portableUiImportResponse.request_id,
+        })
+      ).body,
+    );
+    assert.equal(portableUiImportBody.status, "imported");
+    assert.equal(
+      portableUiImportBody.projection_reader_verification,
+      "verified",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-portability-import-result="imported"]') !== null && Array.from(document.querySelectorAll('a')).some((link) => link.textContent?.trim() === 'Open imported project') && !document.body.textContent.includes('Open imported Project Home')`,
+      "verified UI import result",
+    );
     const portablePackageBase64 = readFileSync(portablePackagePath).toString("base64");
-    const portableImport = await evaluateJson(`(async () => {
+    const portableReplay = await evaluateJson(`(async () => {
       const binary = atob(${JSON.stringify(portablePackageBase64)});
       const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
       const response = await fetch('/api/vnext/portability', {
@@ -5320,12 +5479,38 @@ async function main() {
       return { status: response.status, body: await response.json() };
     })()`);
     assert.equal(
-      portableImport.status,
+      portableReplay.status,
       200,
-      `Clean-destination import refused: ${portableImport.body?.reason_code ?? "unknown"}`,
+      `Exact replay import refused: ${portableReplay.body?.reason_code ?? "unknown"}`,
     );
-    assert.equal(portableImport.body.status, "imported");
-    assert.equal(portableImport.body.projection_reader_verification, "verified");
+    assert.equal(portableReplay.body.status, "exact_replay");
+    assert.equal(
+      portableReplay.body.projection_reader_verification,
+      "verified",
+    );
+    const portableRefusal = await evaluateJson(`(async () => {
+      const binary = atob(${JSON.stringify(portablePackageBase64)});
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      bytes[Math.floor(bytes.length / 2)] ^= 1;
+      const response = await fetch('/api/vnext/portability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/vnd.augnes.portable-project+json' },
+        body: bytes
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(portableRefusal.status, 422);
+    assert.equal(portableRefusal.body.outcome, "refused");
+    const refusedPortableHistory = readContinuityOperationalStatus({
+      databasePath: importedDatabasePath,
+    }).portability;
+    assert.equal(refusedPortableHistory?.operation, "import");
+    assert.equal(refusedPortableHistory?.outcome, "refused");
+    assert.equal(
+      refusedPortableHistory?.reason_code,
+      portableRefusal.body.reason_code,
+    );
+    assert.equal(refusedPortableHistory?.reader_verification, "refused");
     result.portable_import_clean_destination = true;
 
     await navigate(
@@ -5585,6 +5770,7 @@ async function main() {
       return {
         status: response.status,
         error_code: body.error_code ?? null,
+        body,
         reconciliation: body.continuity?.reconciliation
           ? {
               review_needed: body.continuity.reconciliation.orphaned_review_needed_count,
@@ -5605,13 +5791,13 @@ async function main() {
       automatic_retry: false,
     });
     await waitForCondition(
-      `document.querySelector('[data-continuity-diagnostics="v1"]') !== null && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Review needed') === true && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Exact replay') === true`,
+      `document.querySelector('[data-recovery-product-surface="v0.1"][data-recovery-mode="normal"]') !== null && document.querySelector('[data-recovery-primary-action]') !== null && Array.from(document.querySelectorAll('details')).some((details) => details.textContent?.includes('Advanced diagnostics') && details.open === false) && document.querySelector('[data-continuity-diagnostics="v1"]') !== null && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Review needed') === true && document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent?.includes('Exact replay') === true`,
       "public restart reconciliation diagnostics",
     );
     await validateProductShell({
       route: "/recovery",
       expectedPrimaryZone: null,
-      expectedUtilityContext: "recovery",
+      expectedUtilityContext: null,
     });
     const reconciliationText = await evaluateString(
       `document.querySelector('[data-run-reconciliation-status="v1"]')?.textContent ?? ''`,
@@ -5619,9 +5805,359 @@ async function main() {
     assert.match(reconciliationText, /Review needed[\s\S]*1/u);
     assert.match(reconciliationText, /Exact replay[\s\S]*1/u);
     assert.match(reconciliationText, /Automatic retry[\s\S]*Not started/u);
+    const transferHistoryText = await evaluateString(
+      `Array.from(document.querySelectorAll('[data-continuity-diagnostics="v1"] section')).find(
+        (section) => section.textContent?.includes('Project transfer history')
+      )?.textContent ?? ''`,
+    );
+    assert.match(transferHistoryText, /Refused/u);
+    assert.doesNotMatch(transferHistoryText, /Completed|Exact replay/u);
     result.restart_run_reconciliation_review_needed = true;
     result.restart_terminal_receipt_exact_replay = true;
     result.continuity_diagnostics_visible = true;
+    record("classified_portability_refusal_replaces_prior_success_history");
+
+    const renderInterceptedRecoveryStatus = async ({
+      body,
+      expectedSelector,
+      label,
+    }) => {
+      assert.deepEqual(interceptedRecoveryResponses, []);
+      interceptedRecoveryResponses.push({
+        method: "GET",
+        status: 200,
+        body,
+      });
+      const requestStart = requests.length;
+      await navigate(`${appOrigin}/recovery`);
+      await waitForCondition(expectedSelector, label);
+      await waitForRequestQuiet();
+      assert.deepEqual(
+        interceptedRecoveryResponses,
+        [],
+        `${label} interception must be consumed exactly once`,
+      );
+      assert.equal(
+        requests.slice(requestStart).filter(
+          (entry) =>
+            entry.path === "/api/recovery" && entry.method === "GET",
+        ).length,
+        1,
+        `${label} must perform one status read`,
+      );
+    };
+
+    for (const recoveryClassification of [
+      {
+        classification: "incompatible",
+        label: "Compatibility needs review",
+        state: "incompatible",
+      },
+      {
+        classification: "unavailable",
+        label: "Current safety state unavailable",
+        state: "unavailable",
+      },
+    ]) {
+      const body = structuredClone(recoveryDiagnosticsProbe.body);
+      body.recovery_mode = true;
+      body.database.schema_classification =
+        recoveryClassification.classification;
+      body.actions = {
+        create_backup: false,
+        retry_update: false,
+        restore_backup: false,
+      };
+      body.latest_operation = null;
+      await renderInterceptedRecoveryStatus({
+        body,
+        expectedSelector:
+          `document.querySelector('[data-recovery-mode="recovery"] [data-recovery-safety-state="${recoveryClassification.state}"] h2')?.textContent?.trim() === ${JSON.stringify(recoveryClassification.label)} && document.querySelector('[data-recovery-primary-action="none"]') !== null`,
+        label: `recovery mode with ${recoveryClassification.classification} database safety`,
+      });
+      assert.equal(
+        await evaluateBoolean(
+          `document.querySelector('[data-recovery-mode="recovery"]')?.innerText.includes('Augnes needs your attention before normal project work can continue.') === true`,
+        ),
+        true,
+      );
+    }
+
+    const currentNormalRecovery = structuredClone(
+      recoveryDiagnosticsProbe.body,
+    );
+    currentNormalRecovery.recovery_mode = false;
+    currentNormalRecovery.database.schema_classification = "current";
+    currentNormalRecovery.actions = {
+      create_backup: true,
+      retry_update: false,
+      restore_backup: false,
+    };
+    currentNormalRecovery.latest_operation = null;
+    await renderInterceptedRecoveryStatus({
+      body: currentNormalRecovery,
+      expectedSelector:
+        `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
+      label: "confirmed recovery action state",
+    });
+    const refusedActionRequestStart = requests.length;
+    interceptedRecoveryResponses.push({
+      method: "POST",
+      status: 409,
+      body: {
+        accepted: false,
+        outcome: "refused",
+        reason_code: "recovery_action_refused",
+        next_action: "review_the_current_status",
+      },
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Create backup'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null && document.body.innerText.includes('The recovery action was not scheduled.')`,
+      "authoritative refusal preserves confirmed recovery controls",
+    );
+    await waitForRequestQuiet();
+    assert.equal(
+      requests.slice(refusedActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "POST",
+      ).length,
+      1,
+      "authoritative refusal must issue one action request",
+    );
+    assert.equal(
+      requests.slice(refusedActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "GET",
+      ).length,
+      0,
+      "authoritative refusal must not force a status refresh",
+    );
+    record("authoritative_recovery_refusal_preserves_confirmed_controls");
+    const unknownActionRequestStart = requests.length;
+    interceptedRecoveryResponses.push({
+      method: "POST",
+      status: 504,
+      body: {
+        outcome: "status_unknown",
+        reason_code: "recovery_action_outcome_unknown",
+        next_action: "refresh_recovery_status",
+      },
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Create backup'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="refresh_required"] [data-recovery-primary-action="check_again"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Refresh status' && !button.disabled)`,
+      "status-unknown recovery action lock",
+    );
+    await validateRecoveryCorrectionViewports();
+    await waitForRequestQuiet();
+    assert.equal(
+      requests.slice(unknownActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "POST",
+      ).length,
+      1,
+    );
+    assert.equal(
+      requests.slice(unknownActionRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/recovery" && entry.method === "GET",
+      ).length,
+      0,
+      "status_unknown must not trigger an automatic status read",
+    );
+    const lockedPostCount = requests.filter(
+      (entry) => entry.path === "/api/recovery" && entry.method === "POST",
+    ).length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const buttons = Array.from(document.querySelectorAll('button')).filter(
+          (candidate) => /create backup|retry update|restore selected verified backup/i.test(
+            candidate.textContent ?? ''
+          )
+        );
+        for (const button of buttons) button.click();
+        return buttons.every((button) => button.disabled);
+      })()`),
+      true,
+    );
+    await waitForRequestQuiet();
+    assert.equal(
+      requests.filter(
+        (entry) => entry.path === "/api/recovery" && entry.method === "POST",
+      ).length,
+      lockedPostCount,
+      "late acceptance lock must prevent a second mutation POST",
+    );
+
+    interceptedRecoveryResponses.push({
+      method: "GET",
+      status: 500,
+      body: { error_code: "recovery_status_unavailable" },
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Refresh status'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null && document.body.innerText.includes('The refresh did not succeed.')`,
+      "failed explicit refresh preserves recovery action lock",
+    );
+    interceptedRecoveryResponses.push({
+      method: "GET",
+      status: 200,
+      body: currentNormalRecovery,
+    });
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Refresh status'
+        );
+        button?.click();
+        return Boolean(button);
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
+      "successful explicit refresh clears recovery action lock",
+    );
+
+    for (const scheduledCase of [
+      {
+        action: "retry_update",
+        recommendation: "retry_update",
+        outcome: "retry_scheduled",
+        button: "Retry update",
+      },
+      {
+        action: "restore_backup",
+        recommendation: "restore_latest_verified_backup",
+        outcome: "restore_scheduled",
+        button: "Restore selected verified backup",
+      },
+    ]) {
+      const scheduledStatus = structuredClone(recoveryDiagnosticsProbe.body);
+      scheduledStatus.recovery_mode = true;
+      scheduledStatus.database.schema_classification = "current";
+      scheduledStatus.latest_operation = {
+        outcome: "recovery_available",
+        reason_code: "recovery_required",
+        application_version: null,
+        target_application_version: null,
+        target_build_identity: null,
+        database_state: "current",
+        data_preserved: true,
+        backup_verified: false,
+        safety_backup_created: false,
+        next_action: scheduledCase.recommendation,
+      };
+      scheduledStatus.backup_inventory_state = "available";
+      scheduledStatus.backup_count = 1;
+      scheduledStatus.backups = [
+        {
+          backup_id: "backup:browser-lock",
+          label: "Browser verified recovery point",
+          created_at: "2026-07-21T06:30:00.000Z",
+          reason: "pre_update",
+          source_application_version: "0.1.1",
+          verified: true,
+        },
+      ];
+      scheduledStatus.actions = {
+        create_backup: false,
+        retry_update: scheduledCase.action === "retry_update",
+        restore_backup: scheduledCase.action === "restore_backup",
+      };
+      await renderInterceptedRecoveryStatus({
+        body: scheduledStatus,
+        expectedSelector:
+          `document.querySelector('[data-recovery-primary-action="${scheduledCase.action}"]') !== null`,
+        label: `${scheduledCase.outcome} available action`,
+      });
+      const scheduledRequestStart = requests.length;
+      interceptedRecoveryResponses.push({
+        method: "POST",
+        status: 202,
+        body: {
+          accepted: true,
+          outcome: scheduledCase.outcome,
+          next_action: "wait_for_augnes_to_restart",
+        },
+      });
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === ${JSON.stringify(scheduledCase.button)}
+          );
+          button?.click();
+          return Boolean(button);
+        })()`),
+        true,
+      );
+      if (scheduledCase.action === "restore_backup") {
+        await waitForCondition(
+          `document.querySelector('[role="dialog"]') !== null`,
+          "restore confirmation before scheduled action",
+        );
+        assert.equal(
+          await evaluateBoolean(`(() => {
+            const button = Array.from(document.querySelectorAll('[role="dialog"] button')).find(
+              (candidate) => candidate.textContent?.trim() === 'Restore this verified backup'
+            );
+            button?.click();
+            return Boolean(button);
+          })()`),
+          true,
+        );
+      }
+      await waitForCondition(
+        `document.querySelector('[data-recovery-action-confirmation="refresh_required"] [data-recovery-primary-action="check_again"]') !== null`,
+        `${scheduledCase.outcome} locks later recovery mutations`,
+      );
+      await waitForRequestQuiet();
+      assert.equal(
+        requests.slice(scheduledRequestStart).filter(
+          (entry) =>
+            entry.path === "/api/recovery" && entry.method === "POST",
+        ).length,
+        1,
+        `${scheduledCase.outcome} must be accepted exactly once`,
+      );
+    }
+
+    assert.deepEqual(interceptedRecoveryResponses, []);
+    record("recovery_mode_and_database_safety_remain_orthogonal");
+    record("uncertain_and_scheduled_recovery_actions_lock_until_refresh");
+    await navigate(`${appOrigin}/recovery`);
+    await waitForCondition(
+      `document.querySelector('[data-recovery-product-surface="v0.1"][data-recovery-mode="normal"]') !== null`,
+      "real recovery status restored after correction scenarios",
+    );
 
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -5767,6 +6303,45 @@ async function main() {
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/project-controls" &&
           /409/i.test(entry.text)) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/vnext/portability" &&
+          /409/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.method === "GET" &&
+              response.status === 409,
+          )) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/vnext/portability" &&
+          /422/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.method === "POST" &&
+              response.status === 422,
+          )) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/recovery" &&
+          /409/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.method === "POST" &&
+              response.status === 409,
+          )) ||
+        (entry.phase === "final_r8_portability_reconciliation" &&
+          entry.path === "/api/recovery" &&
+          /500|504/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.status >= 500,
+          )) ||
         (entry.phase === "folder_onboarding" &&
           entry.path?.startsWith("/_next/") &&
           entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")) ||
@@ -5794,6 +6369,7 @@ async function main() {
   assert.deepEqual(unexpectedFailedRequests, []);
   assert.deepEqual(externalRequests, []);
   assert.equal(interceptedInspectorResponse, null);
+  assert.deepEqual(interceptedRecoveryResponses, []);
   assert.equal(
     requests.some(
       (request) =>
@@ -6238,10 +6814,7 @@ async function validateProductShell({
       ${projectContextRequired ? "candidate.querySelector('[data-project-context-label]') !== null" : "true"}
     ) ?? null;
     const primary = root?.querySelector('nav[aria-label="Primary navigation"]');
-    const projectTools = root?.querySelector('details.product-project-tools');
-    const utility = projectTools?.querySelector('nav[aria-label="Project tools"]');
     const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
-    const utilityLinks = Array.from(utility?.querySelectorAll(':scope > a') ?? []);
     return {
       route: ${JSON.stringify(route)},
       primary_zone: root?.getAttribute('data-primary-product-zone') ?? null,
@@ -6253,20 +6826,13 @@ async function validateProductShell({
         href: link.getAttribute('href'),
         current: link.getAttribute('aria-current')
       })),
-      project_tools_label: utility?.getAttribute('aria-label') ?? null,
-      project_tools_summary: projectTools?.querySelector(':scope > summary > span')?.textContent?.trim() ?? null,
-      project_tools_open: projectTools instanceof HTMLDetailsElement ? projectTools.open : null,
+      project_tools_count: root?.querySelectorAll('details.product-project-tools, nav[aria-label="Project tools"]').length ?? -1,
       visible_primary_link_count: Array.from(
         document.querySelectorAll('nav[aria-label="Primary navigation"] > a')
       ).filter(visible).length,
-      project_tools_links: utilityLinks.map((link) => ({
-        label: link.textContent?.trim() ?? '',
-        href: link.getAttribute('href'),
-        current: link.getAttribute('aria-current')
-      })),
-      inspector_in_project_tools: utilityLinks.some((link) =>
-        link.textContent?.includes('Inspector') || link.getAttribute('href')?.includes('/workbench/inspector')
-      ),
+      global_utility_link_count: Array.from(root?.querySelectorAll('header a') ?? []).filter((link) =>
+        ['/projects', '/portability', '/recovery'].includes(link.getAttribute('href') ?? '')
+      ).length,
       project_context_label:
         root?.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label') ?? null
     };
@@ -6287,28 +6853,9 @@ async function validateProductShell({
       current: expectedPrimaryZone === "ai-workplane" ? "page" : null,
     },
   ]);
-  assert.equal(shell.project_tools_label, "Project tools");
-  assert.equal(shell.project_tools_summary, "Project tools");
-  assert.equal(shell.project_tools_open, false);
   assert.equal(shell.visible_primary_link_count, 2);
-  assert.deepEqual(shell.project_tools_links, [
-    {
-      label: "Switch or add project",
-      href: "/projects",
-      current: expectedUtilityContext === "project-management" ? "page" : null,
-    },
-    {
-      label: "Transfer project",
-      href: "/portability",
-      current: expectedUtilityContext === "portability" ? "page" : null,
-    },
-    {
-      label: "Recovery",
-      href: "/recovery",
-      current: expectedUtilityContext === "recovery" ? "page" : null,
-    },
-  ]);
-  assert.equal(shell.inspector_in_project_tools, false);
+  assert.equal(shell.project_tools_count, 0);
+  assert.equal(shell.global_utility_link_count, 0);
   result.product_shell_route_classifications.push(shell);
   if (projectContextRequired) {
     assert.equal(
@@ -6327,22 +6874,9 @@ async function validateProductShellResponsive(route) {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const details = document.querySelector('details.product-project-tools');
-        if (!(details instanceof HTMLDetailsElement)) return false;
-        details.open = true;
-        return details.open;
-      })()`),
-      true,
-    );
-    await delay(50);
     const metrics = await evaluateJson(`(() => {
       const primary = document.querySelector('nav[aria-label="Primary navigation"]');
       const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
-      const details = document.querySelector('details.product-project-tools');
-      const summary = details?.querySelector(':scope > summary');
-      const utilityLinks = Array.from(details?.querySelectorAll('nav[aria-label="Project tools"] > a') ?? []);
       const insideViewport = (element) => {
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.height >= 40 && rect.left >= -1 && rect.right <= window.innerWidth + 1;
@@ -6354,8 +6888,8 @@ async function validateProductShellResponsive(route) {
           document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
         primary_link_count: primaryLinks.length,
         primary_links_visible: primaryLinks.every((link) => insideViewport(link)),
-        project_tools_summary_visible: summary ? insideViewport(summary) : false,
-        project_tools_links_visible: utilityLinks.length === 3 && utilityLinks.every((link) => insideViewport(link)),
+        project_tools_count:
+          document.querySelectorAll('details.product-project-tools, nav[aria-label="Project tools"]').length,
         primary_labels: primaryLinks.map((link) => link.querySelector('strong')?.textContent?.trim() ?? '')
       };
     })()`);
@@ -6365,20 +6899,10 @@ async function validateProductShellResponsive(route) {
       document_horizontal_overflow: false,
       primary_link_count: 2,
       primary_links_visible: true,
-      project_tools_summary_visible: true,
-      project_tools_links_visible: true,
+      project_tools_count: 0,
       primary_labels: ["Blank State", "AI Workplane"],
     });
     result.product_shell_responsive_results.push(metrics);
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const details = document.querySelector('details.product-project-tools');
-        if (!(details instanceof HTMLDetailsElement)) return false;
-        details.open = false;
-        return !details.open;
-      })()`),
-      true,
-    );
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
@@ -6388,10 +6912,13 @@ async function validateProductShellResponsive(route) {
   });
 }
 
-async function validateProjectToolsKeyboardNavigation() {
+async function validateManagementSafetyKeyboardNavigation() {
+  const activeProjectName = await evaluateString(
+    "document.querySelector('.blank-state-project-context strong')?.textContent?.trim() ?? ''",
+  );
   assert.equal(
     await evaluateBoolean(`(() => {
-      const summary = document.querySelector('details.product-project-tools > summary');
+      const summary = document.querySelector('details[data-management-safety] > summary');
       if (!(summary instanceof HTMLElement)) return false;
       summary.focus();
       return document.activeElement === summary;
@@ -6400,26 +6927,82 @@ async function validateProjectToolsKeyboardNavigation() {
   );
   await dispatchKeyboardKey(" ", "Space", 32);
   await waitForCondition(
-    `document.querySelector('details.product-project-tools')?.open === true`,
-    "keyboard-opened Project tools",
+    `document.querySelector('details[data-management-safety]')?.open === true`,
+    "keyboard-opened Manage and protect",
   );
   await dispatchKeyboardKey("Tab", "Tab", 9);
   assert.equal(
     await evaluateString("document.activeElement?.getAttribute('href') ?? ''"),
-    "/projects",
+    "/projects#project-management",
   );
-  await dispatchKeyboardKey("Tab", "Tab", 9, 8);
+  await dispatchKeyboardKey("Enter", "Enter", 13);
+  await waitForCondition(
+    `location.pathname === '/projects' && location.hash === '#project-management'`,
+    "deterministic project-management fragment navigation",
+  );
+  await waitForCondition(
+    `document.querySelector('#project-management') !== null && document.querySelector('#project-management')?.getClientRects().length > 0`,
+    "visible project-management section",
+  );
+  assert.equal(
+    await evaluateString(
+      "document.querySelector('.blank-state-project-context strong')?.textContent?.trim() ?? ''",
+    ),
+    activeProjectName,
+  );
   assert.equal(
     await evaluateBoolean(
-      "document.activeElement === document.querySelector('details.product-project-tools > summary')",
+      `document.querySelector('#project-management')?.closest('details:not([open])') === null`,
     ),
     true,
   );
-  await dispatchKeyboardKey(" ", "Space", 32);
-  await waitForCondition(
-    `document.querySelector('details.product-project-tools')?.open === false`,
-    "keyboard-closed Project tools",
-  );
+}
+
+async function validateRecoveryCorrectionViewports() {
+  for (const width of [390, 430]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: true,
+    });
+    const metrics = await evaluateJson(`(() => {
+      const main = document.querySelector('[data-recovery-action-confirmation="refresh_required"]');
+      const status = main?.querySelector('[data-recovery-safety-state]');
+      const refresh = Array.from(main?.querySelectorAll('button') ?? []).find(
+        (button) => button.textContent?.trim() === 'Refresh status'
+      );
+      const visible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      return {
+        width: window.innerWidth,
+        horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        status_visible: visible(status),
+        refresh_visible: visible(refresh),
+        refresh_enabled:
+          refresh instanceof HTMLButtonElement && !refresh.disabled,
+        alert_count: main?.querySelectorAll('[role="alert"]').length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      width,
+      horizontal_overflow: false,
+      status_visible: true,
+      refresh_visible: true,
+      refresh_enabled: true,
+      alert_count: 0,
+    });
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 }
 
 async function dispatchKeyboardKey(key, code, keyCode, modifiers = 0) {
@@ -6802,6 +7385,24 @@ function attachCdpObservers() {
       ) {
         const intercepted = interceptedInspectorResponse;
         interceptedInspectorResponse = null;
+        void cdp.send("Fetch.fulfillRequest", {
+          requestId: event.params.requestId,
+          responseCode: intercepted.status,
+          responseHeaders: [
+            { name: "Content-Type", value: "application/json; charset=utf-8" },
+            { name: "Cache-Control", value: "no-store, max-age=0" },
+          ],
+          body: Buffer.from(JSON.stringify(intercepted.body), "utf8").toString(
+            "base64",
+          ),
+        }).catch(() => undefined);
+      } else if (
+        interceptedRecoveryResponses.length > 0 &&
+        classification.path === "/api/recovery" &&
+        String(event.params?.request?.method ?? "GET").toUpperCase() ===
+          interceptedRecoveryResponses[0].method
+      ) {
+        const intercepted = interceptedRecoveryResponses.shift();
         void cdp.send("Fetch.fulfillRequest", {
           requestId: event.params.requestId,
           responseCode: intercepted.status,

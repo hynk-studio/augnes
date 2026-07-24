@@ -49,8 +49,8 @@ The vNext commitments that remain active are:
   guidance responsibility, distinct from `TaskContextPacket`
 - historical Project Home, Semantic Workbench, and Shared Inspector names as
   compatibility residue beneath Blank State, AI Workplane, and contextual Exact
-  details; Portability and Recovery remain reference operator surfaces until
-  later correction PRs relocate or reduce them with replacement proof
+  details; C7 relocates the compatible Portability and Recovery routes beneath
+  Blank State management and condition-triggered safety paths
 - a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
 - migration, backup, restore, update, recovery, and automated-run reconciliation
 
@@ -60,16 +60,16 @@ The vNext commitments that remain active are:
 C0 Product UX charter and hard invariants — documentation authority only
 C1 Top-level IA reduction — merged
 C2 Blank State restoration and Project Home absorption — merged
-C3 GuideBrief active-path restoration — implemented in this change; complete after review and merge
-C4 AI Workplane reprojection — next after C3 merge
-C5 Delegated Codex work timeline and resumption
-C6 Contextual Inspector demotion
-C7 Portability and Recovery management/safety relocation
+C3 GuideBrief active-path restoration — merged
+C4 AI Workplane reprojection — merged
+C5 Delegated Codex work timeline and resumption — merged
+C6 Contextual Inspector demotion — merged
+C7 Portability and Recovery management/safety relocation — implemented in this change; complete after review and merge
 C8 Visual system after IA correction
 C9 Compatibility and obsolete-surface reduction
 ```
 
-C4–C9 are not implemented, complete, or runtime-active. The R1–R8 sequence in
+C8–C9 are not implemented, complete, or runtime-active. The R1–R8 sequence in
 the Roadmap records the operational Core and reference operator implementation
 that C0 preserves and reprojects; it is not the next user-facing correction
 order.

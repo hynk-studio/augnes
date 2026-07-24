@@ -32,26 +32,6 @@ const PRIMARY_NAVIGATION: Array<{
   },
 ];
 
-const PROJECT_TOOLS: Array<{
-  href: string;
-  label: string;
-  context: ProductUtilityContext;
-}> = [
-  {
-    href: "/projects",
-    label: "Switch or add project",
-    context: "project-management",
-  },
-  { href: "/portability", label: "Transfer project", context: "portability" },
-  { href: "/recovery", label: "Recovery", context: "recovery" },
-];
-
-const UTILITY_CONTEXT_LABELS: Record<ProductUtilityContext, string> = {
-  "project-management": "Switch or add project",
-  portability: "Transfer project",
-  recovery: "Recovery",
-};
-
 export function ProductShell({
   primaryZone,
   utilityContext = null,
@@ -120,26 +100,6 @@ export function ProductShell({
             </a>
           ))}
         </nav>
-        <details
-          className="product-project-tools"
-          data-project-tools-context={utilityContext ?? "none"}
-        >
-          <summary>
-            <span>Project tools</span>
-            {utilityContext ? <small>{UTILITY_CONTEXT_LABELS[utilityContext]}</small> : null}
-          </summary>
-          <nav aria-label="Project tools">
-            {PROJECT_TOOLS.map((item) => (
-              <a
-                href={item.href}
-                key={item.context}
-                aria-current={item.context === utilityContext ? "page" : undefined}
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </details>
       </header>
       <div id="augnes-main-content" className="product-shell-content" tabIndex={-1}>
         {children}

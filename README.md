@@ -108,15 +108,18 @@ resumption, and the former user-facing Project Home composition into one shared
 surface. `/projects` and `/projects/[projectId]` remain compatible management and
 viewed-project routes into that surface. The internal Project Home projection
 continues to supply read-only source data; it is not a separate product surface.
-Portability and Recovery remain current reference operator surfaces until their
-assigned correction work changes them. The exact Inspector reader remains, but
-C6 reprojects it as contextual **Exact details**, not a peer product.
+Project transfer and recovery retain their compatible routes and exact engines,
+but C7 in this change presents them as contextual management and safety work.
+The exact Inspector reader remains contextual **Exact details**, not a peer
+product.
 The target topology is documented in the
 [post-Build Week product UX correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md);
 C0 established the product authority and C1 reduced the shared shell to
 **Blank State** and **AI Workplane** as its only primary destinations. Existing
-project selection, transfer, and recovery routes remain available through
-secondary **Project tools**. C0–C5 are merged. GuideBrief v0.2 is the
+project selection remains in Blank State; transfer/import and ordinary
+backups/recovery are available under its closed **Manage and protect**
+disclosure. The runtime proxy still forces `/recovery` when recovery mode is
+active. C0–C6 are merged. GuideBrief v0.2 is the
 deterministic current-project interpretation shared by
 Blank State, a compact AI Workplane rail, the existing
 `augnes_get_guide_brief` MCP tool, `codex:read-brief`, and new native Codex task
@@ -132,12 +135,15 @@ cancel/resume ownership into AI Workplane, and gives Blank State a compact
 status and return path. Leaving the page does not itself cancel admitted local
 work; a lost local-runtime owner requires explicit resume of the same exact
 run/thread/turn binding. Trusted result status requires persisted receipt/result
-binding. C6 in this change keeps `/workbench/inspector` directly addressable
+binding. C6 keeps `/workbench/inspector` directly addressable
 while presenting only concrete target context, target-relevant exact sections,
 closed additional records, and a deterministic return to the related result,
 suggested change, delegated work, Blank State, or AI Workplane. Normal C4/C5
-flows load no Inspector data. C6 becomes complete only after this PR is reviewed
-and merged; C7–C9 remain pending.
+flows load no Inspector data. C7 in this change removes the shared-shell Project
+tools menu, keeps `/portability` and `/recovery` compatible, and preserves all
+package, backup, restore, update, reconciliation, and recovery-mode semantics.
+C7 becomes complete only after this PR is reviewed and merged; C8–C9 remain
+pending.
 
 The repository now supports:
 

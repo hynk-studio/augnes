@@ -4,96 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ProductShell } from "@/components/product-shell";
+import {
+  RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
+  buildRecoveryActionControlViewV01,
+  recoveryActionOutcomeRequiresRefreshV01,
+} from "@/lib/vnext/recovery/recovery-action-confirmation";
+import {
+  buildRecoverySafetyViewV01,
+  buildUnavailableRecoverySafetyViewV01,
+} from "@/lib/vnext/recovery/recovery-safety-view";
+import type {
+  RecoveryActionConfirmationStateV01,
+  RecoverySafetyActionV01,
+  RecoverySafetyViewV01,
+  RecoveryStatusV01,
+} from "@/types/vnext/recovery-safety";
 import styles from "./recovery.module.css";
-
-interface RecoveryStatus {
-  contract: "augnes.recovery-product.v1";
-  schema_version: 1;
-  recovery_mode: boolean;
-  application: {
-    version: string;
-    build_identity: string;
-    package_contract: string | null;
-    package_contract_version: number | null;
-    compatibility: "verified_package" | "source_runtime";
-  };
-  database: {
-    state: string;
-    schema_contract: string | null;
-    schema_classification: "current" | "old" | "incompatible" | "unavailable";
-    migration_state: string;
-  };
-  runtime: {
-    runtime_contract: string | null;
-    runtime_schema_version: number | null;
-    lifecycle_state: string;
-    bridge_health: string;
-    capability_availability: string;
-  };
-  continuity: ContinuityStatus;
-  latest_operation: {
-    outcome: string;
-    reason_code: string;
-    application_version: string | null;
-    target_application_version: string | null;
-    target_build_identity: string | null;
-    database_state: string | null;
-    data_preserved: boolean;
-    backup_verified: boolean;
-    safety_backup_created: boolean;
-    next_action: string;
-  } | null;
-  backup_inventory_state: "available" | "unavailable";
-  backup_count: number;
-  legacy_backup_count: number;
-  legacy_backup_unavailable_count: number;
-  backup_inventory_truncated: boolean;
-  backup_page: number;
-  backup_page_count: number;
-  backups: Array<{
-    backup_id: string;
-    label: string;
-    created_at: string;
-    reason: string;
-    source_application_version: string;
-    verified: boolean;
-  }>;
-  actions: {
-    create_backup: boolean;
-    retry_update: boolean;
-    restore_backup: boolean;
-  };
-}
-
-interface ContinuityStatus {
-  contract: "augnes.continuity-operations.v1";
-  status_available: boolean;
-  public_reason_code: string;
-  portability: null | {
-    operation: "preview" | "export" | "import";
-    outcome: "available" | "completed" | "exact_replay" | "refused";
-    reason_code: string;
-    record_count: number;
-    reader_verification: "not_applicable" | "verified" | "refused";
-    next_safe_action: string;
-  };
-  reconciliation: null | {
-    outcome: "reconciled" | "review_needed" | "conflict_refused";
-    total_runs_considered: number;
-    counts: Record<string, number>;
-    exact_replays_reused: number;
-    conflicts_refused: number;
-    waiting_for_approval_count: number;
-    orphaned_review_needed_count: number;
-    unsupported_host_coverage_count: number;
-    no_retry_count: number;
-    reason_codes: string[];
-    next_safe_action: string;
-    automatic_retry_started: false;
-    semantic_authority_created: false;
-    external_action_created: false;
-  };
-}
 
 interface SupportReportPreview {
   contract: "augnes.support-report-preview.v1";
@@ -122,33 +48,28 @@ interface RecoveryActionResult {
 }
 
 export default function RecoveryPage() {
-  const [status, setStatus] = useState<RecoveryStatus | null>(null);
+  const [status, setStatus] = useState<RecoveryStatusV01 | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<
-    "create_backup" | "restore_backup" | "retry_update" | "preview_support_report" | null
+    | "create_backup"
+    | "restore_backup"
+    | "retry_update"
+    | "preview_support_report"
+    | null
   >(null);
-  const [selectedBackupId, setSelectedBackupId] = useState<string | null>(
-    null,
-  );
+  const [selectedBackupId, setSelectedBackupId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [supportPreview, setSupportPreview] =
     useState<SupportReportPreview | null>(null);
   const [restoreConfirmationOpen, setRestoreConfirmationOpen] = useState(false);
+  const [actionConfirmationState, setActionConfirmationState] =
+    useState<RecoveryActionConfirmationStateV01>("confirmed");
 
   const backups = useMemo(
     () => sortBackups(status?.backups ?? []),
     [status?.backups],
   );
-  const reconciliationCounts = status?.continuity.reconciliation?.counts;
-  const activeRunCount = reconciliationCounts
-    ? reconciliationCounts.queued + reconciliationCounts.starting +
-      reconciliationCounts.running + reconciliationCounts.cancelling
-    : 0;
-  const terminalRunCount = reconciliationCounts
-    ? reconciliationCounts.completed + reconciliationCounts.failed +
-      reconciliationCounts.timed_out + reconciliationCounts.cancelled
-    : 0;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -158,16 +79,25 @@ export default function RecoveryPage() {
 
   useEffect(() => {
     setSelectedBackupId((current) => {
-      if (current !== null && backups.some(
-        (backup) => backup.backup_id === current && backup.verified,
-      )) {
+      if (
+        current !== null &&
+        backups.some(
+          (backup) => backup.backup_id === current && backup.verified,
+        )
+      ) {
         return current;
       }
       return backups.find((backup) => backup.verified)?.backup_id ?? null;
     });
   }, [backups]);
 
-  async function loadStatus(signal?: AbortSignal, page = 1) {
+  async function loadStatus(
+    signal?: AbortSignal,
+    page = 1,
+    options: {
+      confirm_current_state?: boolean;
+    } = {},
+  ): Promise<boolean> {
     setLoading(true);
     setUnavailable(false);
     try {
@@ -177,28 +107,55 @@ export default function RecoveryPage() {
         signal,
       });
       if (!response.ok) throw new Error("recovery_unavailable");
-      const value = (await response.json()) as RecoveryStatus;
+      const value = (await response.json()) as RecoveryStatusV01;
       if (value.contract !== "augnes.recovery-product.v1") {
         throw new Error("recovery_unavailable");
       }
       setStatus(value);
+      if (options.confirm_current_state) {
+        setActionConfirmationState("confirmed");
+      }
+      return true;
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return false;
+      }
       setUnavailable(true);
       if (status !== null) {
         setNotice(
           "Recovery status could not be refreshed. The last confirmed status remains on screen.",
         );
       }
+      return false;
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
+  }
+
+  function requireStatusRefresh(message = RECOVERY_REFRESH_REQUIRED_NOTICE_V01) {
+    setActionConfirmationState("refresh_required");
+    setRestoreConfirmationOpen(false);
+    setNotice(message);
+  }
+
+  async function refreshCurrentStatus() {
+    const refreshed = await loadStatus(
+      undefined,
+      status?.backup_page ?? 1,
+      { confirm_current_state: true },
+    );
+    setNotice(
+      refreshed
+        ? "Recovery status refreshed. Available actions now use the current confirmed state."
+        : `${RECOVERY_REFRESH_REQUIRED_NOTICE_V01} The refresh did not succeed.`,
+    );
   }
 
   async function runAction(
     action: "create_backup" | "restore_backup" | "retry_update",
     backupId?: string,
   ) {
+    if (actionConfirmationState === "refresh_required") return;
     setBusyAction(action);
     setNotice(null);
     try {
@@ -212,48 +169,58 @@ export default function RecoveryPage() {
       });
       const value = (await response.json()) as RecoveryActionResult;
       if (!response.ok || !value.accepted) {
-        setNotice(
-          value.outcome === "status_unknown"
-            ? "Augnes could not confirm whether the action was accepted. Refresh recovery status before choosing another action."
-            : value.outcome === "refused"
-            ? `The recovery action was not scheduled. ${humanize(value.reason_code ?? "review_the_current_status")}.`
-            : "The recovery action could not be confirmed. Refresh recovery status before choosing another action.",
-        );
+        if (value.outcome === "status_unknown") {
+          requireStatusRefresh();
+        } else if (value.outcome === "refused") {
+          setNotice(
+            `The recovery action was not scheduled. ${humanize(
+              value.reason_code ?? "review_the_current_status",
+            )}.`,
+          );
+        } else {
+          requireStatusRefresh();
+        }
         return;
       }
-      setNotice(
-        `${humanize(value.outcome)}. ${humanize(value.next_action ?? "wait_for_the_operation_to_finish")}.`,
-      );
+      if (recoveryActionOutcomeRequiresRefreshV01(value.outcome)) {
+        requireStatusRefresh(
+          value.outcome === "restore_scheduled"
+            ? `The restore was accepted. ${RECOVERY_REFRESH_REQUIRED_NOTICE_V01}`
+            : value.outcome === "retry_scheduled"
+              ? `The update retry was accepted. ${RECOVERY_REFRESH_REQUIRED_NOTICE_V01}`
+              : RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
+        );
+      }
       if (value.outcome === "backup_created") {
-        await loadStatus(undefined, status?.backup_page ?? 1);
+        const refreshed = await loadStatus(
+          undefined,
+          status?.backup_page ?? 1,
+          { confirm_current_state: true },
+        );
+        setNotice(
+          refreshed
+            ? "Backup created. Current recovery status was refreshed."
+            : `${RECOVERY_REFRESH_REQUIRED_NOTICE_V01} The follow-up status read did not succeed.`,
+        );
       }
     } catch {
-      setNotice(
-        "The recovery action could not be confirmed. Refresh recovery status before choosing another action.",
-      );
+      requireStatusRefresh();
     } finally {
       setBusyAction(null);
     }
   }
 
-  function retryUpdate() {
-    void runAction("retry_update");
-  }
-
-  function createBackup() {
-    void runAction("create_backup");
-  }
-
   function restoreBackup() {
-    if (selectedBackupId === null) return;
-    const selected = backups.find(
-      (backup) => backup.backup_id === selectedBackupId,
-    );
-    if (!selected?.verified) return;
+    if (actionConfirmationState === "refresh_required") return;
+    if (selectedBackup === null || !selectedBackup.verified) return;
     setRestoreConfirmationOpen(true);
   }
 
   function confirmRestoreBackup() {
+    if (actionConfirmationState === "refresh_required") {
+      setRestoreConfirmationOpen(false);
+      return;
+    }
     if (!selectedBackup?.verified) return;
     setRestoreConfirmationOpen(false);
     void runAction("restore_backup", selectedBackup.backup_id);
@@ -279,9 +246,13 @@ export default function RecoveryPage() {
         throw new Error("support_report_preview_unavailable");
       }
       setSupportPreview(value);
-      setNotice("Redacted support report preview is ready. No database contents or private provider material were collected.");
+      setNotice(
+        "Redacted support report preview is ready. No database contents or private provider material were collected.",
+      );
     } catch {
-      setNotice("The redacted support report could not be previewed. No report was created.");
+      setNotice(
+        "The redacted support report could not be previewed. No report was created.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -299,381 +270,707 @@ export default function RecoveryPage() {
     anchor.download = "augnes-redacted-support-report.json";
     anchor.click();
     URL.revokeObjectURL(url);
-    setNotice("Redacted support report exported locally from the reviewed preview.");
+    setNotice(
+      "Redacted support report exported locally from the reviewed preview.",
+    );
   }
 
-  const latest = status?.latest_operation ?? null;
   const selectedBackup =
     selectedBackupId === null
       ? null
       : backups.find((backup) => backup.backup_id === selectedBackupId) ?? null;
+  const confirmedView = status
+    ? buildRecoverySafetyViewV01({
+        status,
+        selected_backup_id: selectedBackup?.backup_id ?? null,
+      })
+    : null;
+  const view = unavailable && status === null
+    ? buildUnavailableRecoverySafetyViewV01()
+    : confirmedView;
+  const actionControl = view
+    ? buildRecoveryActionControlViewV01({
+        view,
+        confirmation_state: actionConfirmationState,
+      })
+    : null;
 
   return (
-    <ProductShell primaryZone={null} utilityContext="recovery">
+    <ProductShell primaryZone={null}>
       <main
         className={styles.shell}
         data-recovery-product-surface="v0.1"
+        data-recovery-safety-view={view?.view_version ?? "checking"}
+        data-recovery-mode={view?.mode ?? "checking"}
+        data-recovery-action-confirmation={actionConfirmationState}
       >
+        {status && !status.recovery_mode ? (
+          <a className={styles.returnLink} href="/">
+            Back to Blank State
+          </a>
+        ) : null}
         <header className={styles.hero}>
           <div>
-            <p className={styles.eyebrow}>Application safety</p>
-            <h1>Protect local continuity</h1>
-            <p>Verify the application, database, and recovery points.</p>
+            <p className={styles.eyebrow}>
+              {status?.recovery_mode
+                ? "Recovery mode"
+                : status
+                  ? "Manage and protect"
+                  : "Application safety"}
+            </p>
+            <h1>{view?.heading ?? "Checking local data safety"}</h1>
+            <p>
+              {view?.situation ??
+                "Augnes is checking the runtime, local data, and recovery points."}
+            </p>
           </div>
           <span className={styles.localBadge}>Local data protection</span>
         </header>
 
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
-
-      {loading && status === null ? (
-        <section className={styles.panel} aria-live="polite">
-          <h2>Reading recovery status</h2>
-          <p>The local runtime is checking the application and database.</p>
-        </section>
-      ) : unavailable && status === null ? (
-        <section className={`${styles.panel} ${styles.attention}`} role="alert">
-          <p className={styles.kicker}>Status unavailable</p>
-          <h2>Recovery status could not be read</h2>
-          <p>No data changed. Keep Augnes open and try again.</p>
-          <button
-            type="button"
-            onClick={() => void loadStatus()}
-            disabled={loading}
-          >
-            {loading ? "Checking…" : "Check again"}
-          </button>
-        </section>
-      ) : status ? (
-        <>
-          <section
-            className={`${styles.safetySummary} ${status.recovery_mode ? styles.safetyAttention : styles.safetyReady}`}
-            aria-labelledby="recovery-safety-title"
-          >
-            <div>
-              <p className={styles.kicker}>Overall safety state</p>
-              <h2 id="recovery-safety-title">
-                {status.recovery_mode
-                  ? "Recovery mode needs your attention"
-                  : status.database.schema_classification === "current"
-                    ? "Local data is ready"
-                    : "Review database compatibility"}
-              </h2>
-              <p>{humanize(latest?.next_action ?? "review_the_available_recovery_actions")}</p>
-              <a href="#recovery-actions">Review available recovery actions</a>
-            </div>
-            <dl className={styles.safetyFacts}>
-              <div><dt>Application</dt><dd>{status.application.version} · {humanize(status.application.compatibility)}</dd></div>
-              <div><dt>Database</dt><dd>{humanize(status.database.state)} · schema {humanize(status.database.schema_classification)}</dd></div>
-              <div><dt>Runtime</dt><dd>{humanize(status.runtime.bridge_health)} bridge · {humanize(status.runtime.capability_availability)}</dd></div>
-              <div><dt>Verified backups</dt><dd>{backups.filter((backup) => backup.verified).length} shown</dd></div>
-            </dl>
-          </section>
-
-          <details className={styles.advancedDiagnostics}>
-            <summary>
-              <span><strong>Advanced diagnostics</strong><small>Build, database, bridge, continuity, and support</small></span>
-              <span>Inspect</span>
-            </summary>
-            <div className={styles.advancedBody}>
-          <section className={styles.summaryGrid} aria-label="Recovery summary">
-            <article className={styles.panel}>
-              <p className={styles.kicker}>Application</p>
-              <h2>Build {status.application.version}</h2>
-              <dl className={styles.facts}>
-                <div><dt>Version</dt><dd>{status.application.version}</dd></div>
-                <div><dt>Build</dt><dd>{status.application.build_identity}</dd></div>
-                <div><dt>Package contract</dt><dd>{status.application.package_contract ?? "Source runtime"}</dd></div>
-                <div><dt>Compatibility</dt><dd>{humanize(status.application.compatibility)}</dd></div>
-                <div><dt>Runtime</dt><dd>{status.runtime.runtime_contract ?? "Unavailable"}</dd></div>
-                <div><dt>Bridge</dt><dd>{humanize(status.runtime.bridge_health)}</dd></div>
-                <div><dt>Capabilities</dt><dd>{humanize(status.runtime.capability_availability)}</dd></div>
-              </dl>
-            </article>
-
-            <article className={styles.panel}>
-              <p className={styles.kicker}>Database and update</p>
-              <h2>{humanize(latest?.outcome ?? status.database.state)}</h2>
-              <dl className={styles.facts}>
-                <div><dt>Database</dt><dd>{humanize(status.database.state)}</dd></div>
-                <div><dt>Schema</dt><dd>{humanize(status.database.schema_classification)}</dd></div>
-                <div><dt>Schema contract</dt><dd>{status.database.schema_contract ?? "Unavailable"}</dd></div>
-                <div><dt>Migration</dt><dd>{humanize(status.database.migration_state)}</dd></div>
-                {latest && <div><dt>Outcome</dt><dd>{humanize(latest.reason_code)}</dd></div>}
-                {latest && <div><dt>Source version</dt><dd>{latest.application_version ?? "Unknown (offline data)"}</dd></div>}
-                {latest?.target_application_version && <div><dt>Target version</dt><dd>{latest.target_application_version}</dd></div>}
-              </dl>
-            </article>
-
-            <article className={styles.panel}>
-              <p className={styles.kicker}>Data protection</p>
-              <h2>
-                {latest === null
-                  ? "No recovery operation"
-                  : latest.data_preserved
-                    ? "Data preserved"
-                    : "Needs attention"}
-              </h2>
-              {latest ? (
-                <ul className={styles.checks}>
-                  <li data-state={latest.data_preserved ? "good" : "attention"}>
-                    {latest.data_preserved ? "Application data was preserved" : "Data preservation is not confirmed"}
-                  </li>
-                  <li data-state={latest.backup_verified ? "good" : "attention"}>
-                    {latest.backup_verified ? "Recovery backup verified" : "No verified recovery backup reported"}
-                  </li>
-                  <li data-state={latest.safety_backup_created ? "good" : "neutral"}>
-                    {latest.safety_backup_created ? "Safety backup created" : "No additional safety backup was needed"}
-                  </li>
-                </ul>
-              ) : (
-                <p>No update or restore operation has been recorded.</p>
-              )}
-            </article>
-          </section>
-
-          <section
-            className={styles.summaryGrid}
-            aria-label="Portable continuity and run reconciliation"
-            data-continuity-diagnostics="v1"
-          >
-            <article className={styles.panel}>
-              <p className={styles.kicker}>Portable continuity</p>
-              <h2>{humanize(status.continuity.portability?.outcome ?? "no_portable_operation")}</h2>
-              <dl className={styles.facts}>
-                <div><dt>Operation</dt><dd>{humanize(status.continuity.portability?.operation ?? "none")}</dd></div>
-                <div><dt>Reason</dt><dd>{humanize(status.continuity.portability?.reason_code ?? status.continuity.public_reason_code)}</dd></div>
-                <div><dt>Records</dt><dd>{status.continuity.portability?.record_count ?? 0}</dd></div>
-                <div><dt>Readers</dt><dd>{humanize(status.continuity.portability?.reader_verification ?? "not_verified")}</dd></div>
-              </dl>
-              <p><a href="/portability">Open project portability</a></p>
-            </article>
-
-            <article className={styles.panel} data-run-reconciliation-status="v1">
-              <p className={styles.kicker}>Restart reconciliation</p>
-              <h2>{humanize(status.continuity.reconciliation?.outcome ?? "no_reconciliation_result")}</h2>
-              <dl className={styles.facts}>
-                <div><dt>Runs reviewed</dt><dd>{status.continuity.reconciliation?.total_runs_considered ?? 0}</dd></div>
-                <div><dt>Active</dt><dd>{activeRunCount}</dd></div>
-                <div><dt>Terminal</dt><dd>{terminalRunCount}</dd></div>
-                <div><dt>Waiting approval</dt><dd>{status.continuity.reconciliation?.waiting_for_approval_count ?? 0}</dd></div>
-                <div><dt>Review needed</dt><dd>{status.continuity.reconciliation?.orphaned_review_needed_count ?? 0}</dd></div>
-                <div><dt>Unsupported host</dt><dd>{status.continuity.reconciliation?.unsupported_host_coverage_count ?? 0}</dd></div>
-                <div><dt>Exact replay</dt><dd>{status.continuity.reconciliation?.exact_replays_reused ?? 0}</dd></div>
-                <div><dt>Conflicts</dt><dd>{status.continuity.reconciliation?.conflicts_refused ?? 0}</dd></div>
-                <div><dt>Automatic retry</dt><dd>{status.continuity.reconciliation?.automatic_retry_started === false ? "Not started" : "Unavailable"}</dd></div>
-              </dl>
-            </article>
-
-            <article className={styles.panel} data-support-report-surface="v1">
-              <p className={styles.kicker}>Public-safe support report</p>
-              <h2>{supportPreview ? "Preview reviewed" : "Preview before export"}</h2>
-              <p>Bounded, redacted, and local.</p>
-              {supportPreview ? (
-                <div className={styles.reportPreview} data-support-report-preview="ready">
-                  <p>{supportPreview.byte_count} bytes · redacted · read-only · non-authoritative</p>
-                  <p>Excludes {supportPreview.report.exclusions.map(humanize).join(", ")}.</p>
-                </div>
-              ) : null}
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => void previewSupportReport()}
-                  disabled={busyAction !== null}
-                >
-                  {busyAction === "preview_support_report" ? "Building preview…" : "Preview support report"}
-                </button>
-                <button
-                  type="button"
-                  onClick={exportSupportReport}
-                  disabled={supportPreview === null || busyAction !== null}
-                >
-                  Export redacted report
-                </button>
-              </div>
-            </article>
-          </section>
-
-            </div>
-          </details>
-
-          <div className={styles.recoveryWorkspace}>
-          <section className={styles.panel} aria-labelledby="recovery-backups-title">
-            <div className={styles.sectionHeading}>
-              <div>
-                <p className={styles.kicker}>Recovery points</p>
-                <h2 id="recovery-backups-title">Choose a backup</h2>
-              </div>
-              <span className={styles.count}>
-                {status.backup_inventory_state === "available"
-                  ? `${status.backup_count} available`
-                  : "Inventory unavailable"}
-              </span>
-            </div>
-
-            {backups.length === 0 ? (
-              <p>
-                {status.backup_inventory_state === "available"
-                  ? "No recovery backups are currently available."
-                  : "Recovery backups could not be verified. No restore action is available."}
-              </p>
-            ) : (
-              <fieldset className={styles.backupList}>
-                <legend className="sr-only">Recovery backup</legend>
-                {backups.map((backup, index) => (
-                  <label
-                    className={styles.backupOption}
-                    data-verified={backup.verified ? "true" : "false"}
-                    key={`${backup.created_at}:${index}`}
-                    htmlFor={`recovery-backup-${index}`}
-                  >
-                    <input
-                      id={`recovery-backup-${index}`}
-                      type="radio"
-                      name="recovery-backup"
-                      checked={selectedBackupId === backup.backup_id}
-                      onChange={() => setSelectedBackupId(backup.backup_id)}
-                      disabled={!backup.verified || busyAction !== null}
-                    />
-                    <span>
-                      <strong>{backup.label}</strong>
-                      <span className={styles.backupMeta}>
-                        <time dateTime={backup.created_at}>{formatTimestamp(backup.created_at)}</time>
-                        {" · "}{humanize(backup.reason)}
-                        {" · "}{backup.verified ? "Verified" : "Not verified"}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            )}
-            {status.backup_inventory_truncated ? (
-              <div className={styles.actions} aria-label="Recovery backup pages">
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() =>
-                    void loadStatus(undefined, status.backup_page - 1)
-                  }
-                  disabled={
-                    status.backup_page <= 1 || loading || busyAction !== null
-                  }
-                >
-                  Newer backups
-                </button>
-                <span className={styles.count}>
-                  Page {status.backup_page} of {status.backup_page_count}
-                </span>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() =>
-                    void loadStatus(undefined, status.backup_page + 1)
-                  }
-                  disabled={
-                    status.backup_page >= status.backup_page_count ||
-                    loading ||
-                    busyAction !== null
-                  }
-                >
-                  Older backups
-                </button>
-              </div>
-            ) : null}
-            {status.legacy_backup_unavailable_count > 0 ? (
-              <p className={styles.notice} role="status">
-                {status.legacy_backup_unavailable_count} older recovery backup
-                {status.legacy_backup_unavailable_count === 1 ? " is" : "s are"}{" "}
-                preserved but cannot be restored by this build. Relaunch a
-                compatible verified Augnes package to review it.
-              </p>
-            ) : null}
-          </section>
-
-          <section id="recovery-actions" className={`${styles.panel} ${styles.nextAction}`} aria-labelledby="recovery-next-action-title">
-            <div>
-              <p className={styles.kicker}>Next safe action</p>
-              <h2 id="recovery-next-action-title">
-                {humanize(latest?.next_action ?? "review_the_available_recovery_actions")}
-              </h2>
-              <p>Restore protects the current copy before replacement.</p>
-            </div>
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={createBackup}
-                disabled={!status.actions.create_backup || busyAction !== null}
-              >
-                {busyAction === "create_backup"
-                  ? "Creating verified backup…"
-                  : "Create backup"}
-              </button>
-              <button
-                type="button"
-                onClick={retryUpdate}
-                disabled={!status.actions.retry_update || busyAction !== null}
-              >
-                {busyAction === "retry_update" ? "Scheduling retry…" : "Retry update"}
-              </button>
-              <button
-                type="button"
-                className={styles.restoreAction}
-                onClick={restoreBackup}
-                disabled={
-                  !status.actions.restore_backup ||
-                  selectedBackup === null ||
-                  !selectedBackup.verified ||
-                  busyAction !== null
-                }
-              >
-                {busyAction === "restore_backup"
-                  ? "Scheduling restore…"
-                  : selectedBackup?.backup_id === backups[0]?.backup_id
-                    ? "Restore latest backup"
-                    : "Restore selected backup"}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => void loadStatus(undefined, status.backup_page)}
-                disabled={loading || busyAction !== null}
-              >
-                {loading ? "Refreshing…" : "Refresh status"}
-              </button>
-            </div>
-          </section>
-          </div>
-
-          <p className={styles.boundary}>
-            Recovery changes application or database copies only. It does not
-            accept project proposals, create review decisions, or authorize a
-            semantic transition.
+        {notice ? (
+          <p className={styles.notice} role="status">
+            {notice}
           </p>
-        </>
-      ) : null}
+        ) : null}
+
+        {loading && status === null ? (
+          <section className={styles.panel} aria-live="polite">
+            <p className={styles.kicker}>Current safety state</p>
+            <h2>Checking local data safety</h2>
+            <p>No recovery action is available until the current state is read.</p>
+          </section>
+        ) : view && status === null ? (
+          <section
+            className={`${styles.safetySummary} ${styles.safetyAttention}`}
+            role="alert"
+            data-recovery-primary-action={
+              actionControl?.primary_action.kind ?? view.primary_action.kind
+            }
+          >
+            <p className={styles.kicker}>Current safety state</p>
+            <h2>{view.safety_status_label}</h2>
+            <p>{view.situation}</p>
+            <RecoveryPrimaryAction
+              action={actionControl?.primary_action ?? view.primary_action}
+              busyAction={busyAction}
+              loading={loading}
+              consequentialMutationsLocked={
+                actionControl?.consequential_mutations_locked ?? false
+              }
+              onCreateBackup={() => void runAction("create_backup")}
+              onRetryUpdate={() => void runAction("retry_update")}
+              onRestore={restoreBackup}
+              onRefresh={() => void refreshCurrentStatus()}
+            />
+          </section>
+        ) : view && status ? (
+          <>
+            <section
+              className={`${styles.safetySummary} ${
+                view.safety_state === "ready"
+                  ? styles.safetyReady
+                  : styles.safetyAttention
+              }`}
+              role={
+                view.safety_state === "attention" ||
+                view.safety_state === "incompatible" ||
+                view.safety_state === "unavailable"
+                  ? "alert"
+                  : "status"
+              }
+              data-recovery-safety-state={view.safety_state}
+              data-recovery-primary-action={
+                actionControl?.primary_action.kind ?? view.primary_action.kind
+              }
+            >
+              <p className={styles.kicker}>Current safety state</p>
+              <h2>{view.safety_status_label}</h2>
+              <p>{view.situation}</p>
+              {view.latest_operation_summary ? (
+                <p className={styles.latestOperation}>
+                  {view.latest_operation_summary}
+                </p>
+              ) : null}
+              <div className={styles.primaryAction}>
+                <p className={styles.kicker}>Next safe action</p>
+                <RecoveryPrimaryAction
+                  action={actionControl?.primary_action ?? view.primary_action}
+                  busyAction={busyAction}
+                  loading={loading}
+                  consequentialMutationsLocked={
+                    actionControl?.consequential_mutations_locked ?? false
+                  }
+                  onCreateBackup={() => void runAction("create_backup")}
+                  onRetryUpdate={() => void runAction("retry_update")}
+                  onRestore={restoreBackup}
+                  onRefresh={() => void refreshCurrentStatus()}
+                />
+              </div>
+            </section>
+
+            <RecoveryPoints
+              status={status}
+              view={confirmedView ?? view}
+              backups={backups}
+              selectedBackupId={selectedBackupId}
+              loading={loading}
+              busyAction={busyAction}
+              consequentialMutationsLocked={
+                actionControl?.consequential_mutations_locked ?? false
+              }
+              onSelect={setSelectedBackupId}
+              onPage={(page) => void loadStatus(undefined, page)}
+            />
+
+            <details
+              className={styles.otherActions}
+              data-recovery-secondary-actions="closed"
+            >
+              <summary>Other recovery actions</summary>
+              <div className={styles.actions}>
+                {(actionControl?.secondary_actions ?? view.secondary_actions).map((action) => (
+                  <RecoverySecondaryAction
+                    action={action}
+                    key={action.kind}
+                    status={status}
+                    selectedBackup={selectedBackup}
+                    busyAction={busyAction}
+                    loading={loading}
+                    consequentialMutationsLocked={
+                      actionControl?.consequential_mutations_locked ?? false
+                    }
+                    onCreateBackup={() => void runAction("create_backup")}
+                    onRetryUpdate={() => void runAction("retry_update")}
+                    onRestore={restoreBackup}
+                    onRefresh={() => void refreshCurrentStatus()}
+                  />
+                ))}
+              </div>
+            </details>
+
+            <AdvancedDiagnostics
+              status={status}
+              supportPreview={supportPreview}
+              busyAction={busyAction}
+              onPreviewSupport={() => void previewSupportReport()}
+              onExportSupport={exportSupportReport}
+            />
+
+            <p className={styles.boundary}>
+              These controls protect application or database copies only. They
+              do not accept project changes or grant work authority.
+            </p>
+          </>
+        ) : null}
       </main>
       <ConfirmationDialog
-        open={restoreConfirmationOpen}
+        open={
+          restoreConfirmationOpen &&
+          actionConfirmationState === "confirmed"
+        }
         title={`Restore ${selectedBackup?.label ?? "the selected backup"}?`}
         description="Augnes will protect the current state before replacing the database. Continuing explicitly authorizes this restore action."
-        confirmLabel="Authorize restore"
+        confirmLabel="Restore this verified backup"
         tone="danger"
         busy={busyAction === "restore_backup"}
         onCancel={() => setRestoreConfirmationOpen(false)}
         onConfirm={confirmRestoreBackup}
       >
-        {selectedBackup ? <dl><div><dt>Verified backup</dt><dd>{selectedBackup.label}</dd></div><div><dt>Created</dt><dd>{formatTimestamp(selectedBackup.created_at)}</dd></div><div><dt>Protection</dt><dd>Current state protected before replacement</dd></div></dl> : null}
+        {selectedBackup ? (
+          <dl>
+            <div>
+              <dt>Verified backup</dt>
+              <dd>{selectedBackup.label}</dd>
+            </div>
+            <div>
+              <dt>Created</dt>
+              <dd>{formatTimestamp(selectedBackup.created_at)}</dd>
+            </div>
+            <div>
+              <dt>Protection</dt>
+              <dd>Current state protected before replacement</dd>
+            </div>
+          </dl>
+        ) : null}
       </ConfirmationDialog>
     </ProductShell>
   );
 }
 
-function sortBackups(backups: RecoveryStatus["backups"]): RecoveryStatus["backups"] {
+function RecoveryPrimaryAction({
+  action,
+  busyAction,
+  loading,
+  consequentialMutationsLocked,
+  onCreateBackup,
+  onRetryUpdate,
+  onRestore,
+  onRefresh,
+}: {
+  action: RecoverySafetyActionV01;
+  busyAction: string | null;
+  loading: boolean;
+  consequentialMutationsLocked: boolean;
+  onCreateBackup: () => void;
+  onRetryUpdate: () => void;
+  onRestore: () => void;
+  onRefresh: () => void;
+}) {
+  if (action.kind === "none") {
+    return (
+      <p className={styles.noPrimaryAction}>
+        Review the available actions below. Augnes will not guess between
+        consequential choices.
+      </p>
+    );
+  }
+  const callback =
+    action.kind === "create_backup"
+      ? onCreateBackup
+      : action.kind === "retry_update"
+        ? onRetryUpdate
+        : action.kind === "restore_backup"
+          ? onRestore
+          : onRefresh;
+  return (
+    <button
+      type="button"
+      className={styles.primaryButton}
+      onClick={callback}
+      disabled={
+        busyAction !== null ||
+        loading ||
+        (consequentialMutationsLocked && action.mutates)
+      }
+    >
+      {action.kind === busyAction
+        ? action.kind === "create_backup"
+          ? "Creating verified backup…"
+          : action.kind === "retry_update"
+            ? "Scheduling retry…"
+            : "Scheduling restore…"
+        : loading && action.kind === "check_again"
+          ? "Checking…"
+          : action.label}
+    </button>
+  );
+}
+
+function RecoverySecondaryAction({
+  action,
+  status,
+  selectedBackup,
+  busyAction,
+  loading,
+  consequentialMutationsLocked,
+  onCreateBackup,
+  onRetryUpdate,
+  onRestore,
+  onRefresh,
+}: {
+  action: RecoverySafetyActionV01;
+  status: RecoveryStatusV01;
+  selectedBackup: RecoveryStatusV01["backups"][number] | null;
+  busyAction: string | null;
+  loading: boolean;
+  consequentialMutationsLocked: boolean;
+  onCreateBackup: () => void;
+  onRetryUpdate: () => void;
+  onRestore: () => void;
+  onRefresh: () => void;
+}) {
+  if (action.kind === "none") return null;
+  const callback =
+    action.kind === "create_backup"
+      ? onCreateBackup
+      : action.kind === "retry_update"
+        ? onRetryUpdate
+        : action.kind === "restore_backup"
+          ? onRestore
+          : onRefresh;
+  const available =
+    action.kind === "create_backup"
+      ? status.actions.create_backup
+      : action.kind === "retry_update"
+        ? status.actions.retry_update
+        : action.kind === "restore_backup"
+          ? status.actions.restore_backup && selectedBackup?.verified === true
+          : true;
+  return (
+    <button
+      type="button"
+      className={styles.secondaryButton}
+      onClick={callback}
+      disabled={
+        !available ||
+        busyAction !== null ||
+        loading ||
+        (consequentialMutationsLocked && action.mutates)
+      }
+    >
+      {action.label}
+    </button>
+  );
+}
+
+function RecoveryPoints({
+  status,
+  view,
+  backups,
+  selectedBackupId,
+  loading,
+  busyAction,
+  consequentialMutationsLocked,
+  onSelect,
+  onPage,
+}: {
+  status: RecoveryStatusV01;
+  view: RecoverySafetyViewV01;
+  backups: RecoveryStatusV01["backups"];
+  selectedBackupId: string | null;
+  loading: boolean;
+  busyAction: string | null;
+  consequentialMutationsLocked: boolean;
+  onSelect: (backupId: string) => void;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <section className={styles.panel} aria-labelledby="recovery-backups-title">
+      <div className={styles.sectionHeading}>
+        <div>
+          <p className={styles.kicker}>Recovery points</p>
+          <h2 id="recovery-backups-title">Verified local backups</h2>
+        </div>
+        <span className={styles.count}>
+          {status.backup_inventory_state === "available"
+            ? `${view.backup_summary.verified_count} verified`
+            : "Inventory unavailable"}
+        </span>
+      </div>
+      {view.backup_summary.notice ? (
+        <p
+          className={styles.inventoryNotice}
+          role={
+            status.backup_inventory_state === "unavailable" ? "alert" : "status"
+          }
+        >
+          {view.backup_summary.notice}
+        </p>
+      ) : null}
+      {backups.length === 0 ? (
+        <p>
+          {status.backup_inventory_state === "available"
+            ? "No recovery points are currently shown."
+            : "Recovery points could not be verified. No restore action is available."}
+        </p>
+      ) : (
+        <fieldset className={styles.backupList}>
+          <legend className="sr-only">Recovery point</legend>
+          {backups.map((backup, index) => (
+            <label
+              className={styles.backupOption}
+              data-verified={backup.verified ? "true" : "false"}
+              key={`${backup.created_at}:${index}`}
+              htmlFor={`recovery-backup-${index}`}
+            >
+              <input
+                id={`recovery-backup-${index}`}
+                type="radio"
+                name="recovery-backup"
+                checked={selectedBackupId === backup.backup_id}
+                onChange={() => onSelect(backup.backup_id)}
+                disabled={
+                  !backup.verified ||
+                  busyAction !== null ||
+                  consequentialMutationsLocked
+                }
+              />
+              <span>
+                <strong>{backup.label}</strong>
+                <span className={styles.backupMeta}>
+                  <time dateTime={backup.created_at}>
+                    {formatTimestamp(backup.created_at)}
+                  </time>
+                  {" · "}
+                  {humanize(backup.reason)}
+                  {" · "}
+                  {backup.verified ? "Verified" : "Not verified"}
+                </span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {status.backup_inventory_truncated ? (
+        <div className={styles.actions} aria-label="Recovery point pages">
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => onPage(status.backup_page - 1)}
+            disabled={
+              status.backup_page <= 1 || loading || busyAction !== null
+            }
+          >
+            Newer recovery points
+          </button>
+          <span className={styles.count}>
+            Page {status.backup_page} of {status.backup_page_count}
+          </span>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => onPage(status.backup_page + 1)}
+            disabled={
+              status.backup_page >= status.backup_page_count ||
+              loading ||
+              busyAction !== null
+            }
+          >
+            Older recovery points
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function AdvancedDiagnostics({
+  status,
+  supportPreview,
+  busyAction,
+  onPreviewSupport,
+  onExportSupport,
+}: {
+  status: RecoveryStatusV01;
+  supportPreview: SupportReportPreview | null;
+  busyAction: string | null;
+  onPreviewSupport: () => void;
+  onExportSupport: () => void;
+}) {
+  const latest = status.latest_operation;
+  const reconciliationCounts = status.continuity.reconciliation?.counts;
+  const activeRunCount = reconciliationCounts
+    ? reconciliationCounts.queued +
+      reconciliationCounts.starting +
+      reconciliationCounts.running +
+      reconciliationCounts.cancelling
+    : 0;
+  const terminalRunCount = reconciliationCounts
+    ? reconciliationCounts.completed +
+      reconciliationCounts.failed +
+      reconciliationCounts.timed_out +
+      reconciliationCounts.cancelled
+    : 0;
+
+  return (
+    <details className={styles.advancedDiagnostics}>
+      <summary>
+        <span>
+          <strong>Advanced diagnostics</strong>
+          <small>Build, database, continuity, and redacted support</small>
+        </span>
+        <span>Inspect</span>
+      </summary>
+      <div
+        className={styles.advancedBody}
+        data-continuity-diagnostics="v1"
+      >
+        <section className={styles.summaryGrid} aria-label="Recovery diagnostics">
+          <article className={styles.panel}>
+            <p className={styles.kicker}>Application and database</p>
+            <h2>{status.application.version}</h2>
+            <dl className={styles.facts}>
+              <div>
+                <dt>Build</dt>
+                <dd>{status.application.build_identity}</dd>
+              </div>
+              <div>
+                <dt>Package</dt>
+                <dd>{status.application.package_contract ?? "Source runtime"}</dd>
+              </div>
+              <div>
+                <dt>Database</dt>
+                <dd>{humanize(status.database.state)}</dd>
+              </div>
+              <div>
+                <dt>Schema</dt>
+                <dd>{humanize(status.database.schema_classification)}</dd>
+              </div>
+              <div>
+                <dt>Migration</dt>
+                <dd>{humanize(status.database.migration_state)}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className={styles.panel}>
+            <p className={styles.kicker}>Runtime and protection</p>
+            <h2>{humanize(status.runtime.lifecycle_state)}</h2>
+            <dl className={styles.facts}>
+              <div>
+                <dt>Bridge</dt>
+                <dd>{humanize(status.runtime.bridge_health)}</dd>
+              </div>
+              <div>
+                <dt>Capabilities</dt>
+                <dd>{humanize(status.runtime.capability_availability)}</dd>
+              </div>
+              <div>
+                <dt>Data</dt>
+                <dd>
+                  {latest?.data_preserved
+                    ? "Preserved"
+                    : "Preservation not confirmed"}
+                </dd>
+              </div>
+              <div>
+                <dt>Safety backup</dt>
+                <dd>
+                  {latest?.safety_backup_created
+                    ? "Created"
+                    : "No additional safety backup reported"}
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className={styles.panel} data-run-reconciliation-status="v1">
+            <p className={styles.kicker}>Restart reconciliation</p>
+            <h2>
+              {humanize(
+                status.continuity.reconciliation?.outcome ??
+                  "no_reconciliation_result",
+              )}
+            </h2>
+            <dl className={styles.facts}>
+              <div>
+                <dt>Runs reviewed</dt>
+                <dd>
+                  {status.continuity.reconciliation
+                    ?.total_runs_considered ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Active</dt>
+                <dd>{activeRunCount}</dd>
+              </div>
+              <div>
+                <dt>Terminal</dt>
+                <dd>{terminalRunCount}</dd>
+              </div>
+              <div>
+                <dt>Waiting</dt>
+                <dd>
+                  {status.continuity.reconciliation
+                    ?.waiting_for_approval_count ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Review needed</dt>
+                <dd>
+                  {status.continuity.reconciliation
+                    ?.orphaned_review_needed_count ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Unsupported host</dt>
+                <dd>
+                  {status.continuity.reconciliation
+                    ?.unsupported_host_coverage_count ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Exact replay</dt>
+                <dd>
+                  {status.continuity.reconciliation
+                    ?.exact_replays_reused ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Conflicts</dt>
+                <dd>
+                  {status.continuity.reconciliation
+                    ?.conflicts_refused ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt>Automatic retry</dt>
+                <dd>Not started</dd>
+              </div>
+            </dl>
+          </article>
+        </section>
+
+        <section className={styles.panel}>
+          <p className={styles.kicker}>Project transfer history</p>
+          <h2>
+            {humanize(
+              status.continuity.portability?.outcome ??
+                "no_project_transfer_recorded",
+            )}
+          </h2>
+          <p>
+            {status.continuity.portability?.outcome === "refused"
+              ? `The latest ${humanize(
+                  status.continuity.portability.operation,
+                ).toLowerCase()} attempt was refused: ${humanize(
+                  status.continuity.portability.reason_code,
+                )}. No transfer authority was created.`
+              : "Review the latest bounded local transfer result without treating it as recovery authority."}
+          </p>
+          <a href="/portability">Review project transfer history</a>
+        </section>
+
+        <section className={styles.panel} data-support-report-surface="v1">
+          <p className={styles.kicker}>Redacted support report</p>
+          <h2>{supportPreview ? "Preview reviewed" : "Preview before export"}</h2>
+          <p>
+            The report stays local and excludes database contents and private
+            provider material.
+          </p>
+          {supportPreview ? (
+            <div
+              className={styles.reportPreview}
+              data-support-report-preview="ready"
+            >
+              <p>
+                {supportPreview.byte_count} bytes · redacted · read-only ·
+                non-authoritative
+              </p>
+              <p>
+                Excludes {supportPreview.report.exclusions.map(humanize).join(", ")}.
+              </p>
+            </div>
+          ) : null}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={onPreviewSupport}
+              disabled={busyAction !== null}
+            >
+              {busyAction === "preview_support_report"
+                ? "Building preview…"
+                : "Preview support report"}
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={onExportSupport}
+              disabled={supportPreview === null || busyAction !== null}
+            >
+              Export redacted report
+            </button>
+          </div>
+        </section>
+      </div>
+    </details>
+  );
+}
+
+function sortBackups(
+  backups: RecoveryStatusV01["backups"],
+): RecoveryStatusV01["backups"] {
   return [...backups].sort(
     (left, right) => Date.parse(right.created_at) - Date.parse(left.created_at),
   );

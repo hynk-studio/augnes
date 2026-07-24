@@ -16,6 +16,7 @@ import type {
   RecentProjectEntryV01,
 } from "@/types/vnext/project-onboarding";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
+import type { ManagementSafetyViewV01 } from "@/types/vnext/management-safety";
 
 type SelectedFolder = Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>;
 
@@ -23,10 +24,12 @@ export function BlankStateClient({
   source,
   view,
   guide,
+  managementSafety,
 }: {
   source: BlankStateSourceV01;
   view: BlankStateViewV01;
   guide: ProjectGuideBriefV02;
+  managementSafety: ManagementSafetyViewV01;
 }) {
   const [recent, setRecent] = useState(source.recent_projects);
   const [picker, setPicker] = useState<LocalFolderPickerOutcomeV01 | null>(null);
@@ -401,6 +404,8 @@ export function BlankStateClient({
           </details>
         )}
 
+        <ManagementSafety view={managementSafety} />
+
         {projection ? (
           <ProjectOptions
             projection={projection}
@@ -445,6 +450,41 @@ export function BlankStateClient({
         onConfirm={confirmRemoval}
       />
     </>
+  );
+}
+
+function ManagementSafety({
+  view,
+}: {
+  view: ManagementSafetyViewV01;
+}) {
+  const items = [
+    view.project_management,
+    view.project_transfer,
+    view.local_recovery,
+  ];
+  return (
+    <details
+      className="blank-state-disclosure"
+      data-management-safety={view.view_version}
+      data-management-safety-project-context={view.project_context}
+    >
+      <summary>Manage and protect</summary>
+      <div className="blank-state-management-safety">
+        <p>
+          Move local project continuity or review application-data safety
+          without changing the current work.
+        </p>
+        <ul>
+          {items.map((item) => (
+            <li key={item.kind}>
+              <a href={item.href}>{item.label}</a>
+              <p>{item.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </details>
   );
 }
 

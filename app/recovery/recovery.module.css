@@ -1,9 +1,15 @@
 .shell {
-  width: min(var(--content-width), calc(100% - 32px));
+  width: min(880px, calc(100% - 32px));
   margin: 34px auto 64px;
   display: grid;
   gap: 20px;
   color: var(--foreground);
+}
+
+.returnLink {
+  display: inline-flex;
+  width: fit-content;
+  font-weight: 750;
 }
 
 .hero {
@@ -59,7 +65,8 @@
 
 .secondaryAction,
 .actions button,
-.panel > button {
+.panel > button,
+.primaryButton {
   min-height: 42px;
   display: inline-flex;
   align-items: center;
@@ -75,7 +82,8 @@
 }
 
 .secondaryAction,
-.actions .secondaryButton {
+.actions .secondaryButton,
+.secondaryButton {
   border-color: var(--panel-border);
   background: #fff;
   color: var(--foreground);
@@ -98,9 +106,9 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(260px, .9fr) minmax(0, 1.1fr);
-  gap: 28px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
   padding: 26px;
   border: 0;
   border-radius: 18px 18px 18px 6px;
@@ -131,7 +139,7 @@
 }
 
 .safetySummary h2 {
-  margin: 5px 0 7px;
+  margin: 0;
   font-size: clamp(1.45rem, 3vw, 2rem);
 }
 
@@ -152,11 +160,45 @@
   color: var(--muted);
 }
 
-.safetyReady > div > p:not(.kicker) { color: rgba(248, 245, 235, .8); }
+.safetyReady > p:not(.kicker) { color: rgba(248, 245, 235, .8); }
 
 .safetySummary a {
   font-size: .86rem;
   font-weight: 750;
+}
+
+.latestOperation {
+  max-width: 680px;
+}
+
+.primaryAction {
+  display: grid;
+  gap: 9px;
+  max-width: 520px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, .2);
+}
+
+.safetyAttention .primaryAction {
+  border-top-color: var(--panel-border);
+}
+
+.primaryButton {
+  width: fit-content;
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.noPrimaryAction {
+  max-width: 620px;
+  margin: 0;
+  font-weight: 650;
 }
 
 .safetyFacts {
@@ -196,6 +238,23 @@
   border-bottom: 1px solid var(--panel-border);
   border-radius: 0;
   background: transparent;
+}
+
+.otherActions {
+  padding: 15px 0;
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.otherActions > summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: 750;
+}
+
+.otherActions > .actions {
+  justify-content: flex-start;
+  margin-top: 15px;
 }
 
 .advancedDiagnostics > summary {
@@ -241,33 +300,6 @@
   border-radius: var(--radius-medium);
   background: var(--panel);
   box-shadow: var(--shadow);
-}
-
-.recoveryWorkspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
-  gap: 28px;
-  align-items: start;
-}
-
-.recoveryWorkspace > .panel {
-  border-width: 1px 0 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.recoveryWorkspace > .nextAction {
-  position: sticky;
-  top: 26px;
-  display: grid;
-  border-top: 3px solid var(--amber);
-  background: rgba(255, 252, 244, .75);
-}
-
-.recoveryWorkspace > .nextAction .actions {
-  display: grid;
-  width: 100%;
 }
 
 .panel h2 {
@@ -370,6 +402,11 @@
   border: 0;
 }
 
+.inventoryNotice {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .backupOption {
   display: flex;
   gap: 12px;
@@ -408,16 +445,6 @@
   line-height: 1.45;
 }
 
-.nextAction {
-  border-color: rgba(40, 107, 85, 0.32);
-  border-left: 5px solid var(--accent);
-  background: linear-gradient(145deg, #fff, #f1f7f3);
-}
-
-.nextAction > div:first-child {
-  max-width: 620px;
-}
-
 .actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -440,16 +467,7 @@
     grid-template-columns: 1fr;
   }
 
-  .recoveryWorkspace {
-    grid-template-columns: 1fr;
-  }
-
-  .recoveryWorkspace > .nextAction {
-    position: static;
-  }
-
   .hero,
-  .nextAction,
   .safetySummary {
     flex-direction: column;
   }
@@ -486,7 +504,8 @@
   }
 
   .actions button,
-  .secondaryAction {
+  .secondaryAction,
+  .primaryButton {
     width: 100%;
   }
 
