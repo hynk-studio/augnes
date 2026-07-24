@@ -62,6 +62,31 @@ Paste the command and result. If a command is unavailable or skipped, state the 
 
 Do not commit secrets, local DB files, screenshots, generated outputs, or tunnel URLs containing private material.
 
+## Exact-head local Canonical evidence
+
+- Repository:
+- Exact base SHA:
+- Exact head SHA:
+- Worktree status before verification:
+- Worktree status after verification:
+- Operating system and architecture:
+- Node version:
+- npm version:
+- Root `package-lock.json` SHA-256:
+- Nested `apps/augnes_apps/package-lock.json` SHA-256:
+- Selected plan and planner command:
+- Selected commands, results, and finite durations:
+- Cleanup result:
+- Remaining owned processes/listeners/runtime state/databases/profiles/temp roots:
+- Skipped or unavailable checks with exact reasons:
+- Final result: `pass | failure`
+- Local-environment limitations:
+- Confirmation: no GitHub Actions workflow was invoked:
+
+Local evidence describes the actual shared host on which it ran.
+It is not an independent hosted reproduction or external status check.
+A changed head makes the evidence stale.
+
 ## Structured Evidence Records
 
 - Were structured evidence records created? `yes | no`
@@ -99,6 +124,7 @@ Confirm this PR keeps the authority boundaries intact.
 - [ ] No ChatGPT App commit/reject authority was added.
 - [ ] No GitHub auto-merge was added.
 - [ ] No auth or hosted deployment semantics were added.
+- [ ] No hosted or self-hosted CI execution path was added.
 - [ ] No secret handling changes were added.
 - [ ] No secrets, local DB files, screenshots, tunnel URLs, generated outputs, or local artifacts are committed.
 
@@ -118,6 +144,6 @@ Recommended fields:
 CODEX_WORK_ID=AG-___
 CODEX_RESULT_STATUS=completed
 CODEX_RESULT_KIND=documentation
-CODEX_RELATED_PR=https://github.com/Aurna-code/augnes/pull/___
+CODEX_RELATED_PR=https://github.com/hynk-studio/augnes-perspective-lab/pull/___
 CODEX_RELATED_STATE_KEYS="state.key,another.state.key"
 ```

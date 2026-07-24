@@ -160,7 +160,7 @@ function createRepository(name) {
   const cwd = path.join(temporaryRoot, name);
   mkdirSync(cwd, { recursive: true });
   git(cwd, ["init", "--quiet"]);
-  git(cwd, ["config", "user.email", "canonical-tests@example.invalid"]);
+  git(cwd, ["config", "user.email", "local-canonical@example.invalid"]);
   git(cwd, ["config", "user.name", "Canonical Tests"]);
   write(cwd, "README.md", "# Fixture\n");
   write(cwd, "AGENTS.md", "# Instructions\n");
