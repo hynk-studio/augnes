@@ -243,6 +243,29 @@ For ordinary PRs:
 
 ### Local Canonical verification lifecycle
 
+- Operate only in the repository path explicitly opened or supplied by the
+  user. Before mutation, resolve the repository root and verify its `origin`
+  against the user-authorized repository. Stop on a mismatch.
+- Use `npm run verify:local:quick` during implementation. Quick mode is
+  non-deciding feedback and may truthfully record a dirty tree or noncanonical
+  Node version.
+- Before opening most pull requests, use
+  `npm run verify:local:changed -- --base <exact-40-character-sha> --head <exact-40-character-sha>`.
+  Use `npm run verify:local:full -- --base <exact-40-character-sha> --head <exact-40-character-sha>`
+  when the planner selects `full-canonical`, before phase completion, or when
+  package, runtime, process, browser, or authority boundaries change.
+- Deciding local evidence requires Node 24.18.0, a clean worktree, and current
+  `HEAD` equal to the requested head. Node 22 and 24 are compatibility lines;
+  another version must not silently produce a Canonical pass.
+- Treat root `next-env.d.ts` as ignored Next.js output. `npm run typecheck`
+  owns `next typegen` before `tsc --noEmit`; development and production may
+  generate references beneath `.next/dev/types` and `.next/types`. Never
+  restore or mask this file in the executor, and continue to fail deciding
+  verification for every unrelated tracked mutation.
+- The package compatibility guard compares the dependency graph. Root package
+  application/toolchain metadata is not graph identity, while the explicit
+  root dependency-bearing fields and every non-root resolved package entry
+  remain exact.
 - Canonical tests that start processes, servers, browsers, listeners, or long-lived asynchronous work must use the repository's bounded test-harness lifecycle and declare a measured timeout.
 - A timeout must terminate and await the complete verified owned process tree, close owned listeners, and leave zero owned process, runtime-state, database, port, or temporary-file residue.
 - Do not add unbounded `spawn`, `spawnSync`, child waits, polling loops, or server-close paths to canonical tests. New process-owning fixtures must cover timeout and cleanup behavior automatically.
@@ -258,6 +281,12 @@ For ordinary PRs:
   not provide an independent hosted reproduction or external status identity.
 - Run process-owning, package, runtime, and browser lanes sequentially on the
   shared host. Core and continuity E2E must not run concurrently.
+- Cite the exact repository-relative receipt path and SHA-256 content
+  fingerprint in PR evidence. Validate it after the exact-head run. Never call
+  the receipt hosted evidence, independent attestation, or an external status.
+- Generated receipts and logs remain ignored local artifacts. Do not commit or
+  publish them, create a GitHub status from them, or add receipt publication
+  without a later explicitly authorized PR.
 - Do not add automatic retries, arbitrary sleeps, or wider timeouts to obtain a
   pass. Fix a failing child from its label and heartbeat, produce a new exact
   head when code changes, and rerun every affected selected command.
@@ -277,3 +306,4 @@ Use a dedicated branch. Keep the PR centered on one product advance or one audit
 - remaining blocker
 
 Do not hide breaking changes as cleanup.
+Never merge, mark ready for review, or enable auto-merge.

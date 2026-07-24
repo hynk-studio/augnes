@@ -48,6 +48,7 @@ import {
   formatDistributablePlatformLabel,
   validateDistributableManifest,
 } from "./distributable-package-contract.mjs";
+import { normalizedDependencyLock } from "./dependency-lock-compatibility.mjs";
 import { resolveAugnesLocalPaths } from "./augnes-local-paths.mjs";
 import {
   bootstrapJournalPath,
@@ -2023,18 +2024,17 @@ function assertDependencyLockCompatibility(legacyRoot, currentRoot) {
     path.join("apps", "augnes_apps", "package-lock.json"),
   ]) {
     assert.deepEqual(
-      normalizedDependencyLock(path.join(legacyRoot, relativePath)),
-      normalizedDependencyLock(path.join(currentRoot, relativePath)),
+      normalizedDependencyLockFromFile(path.join(legacyRoot, relativePath)),
+      normalizedDependencyLockFromFile(path.join(currentRoot, relativePath)),
       `${relativePath} dependency graph changed since merged #1118`,
     );
   }
 }
 
-function normalizedDependencyLock(filePath) {
-  const lock = JSON.parse(readFileSync(filePath, "utf8"));
-  delete lock.version;
-  if (lock.packages?.[""]) delete lock.packages[""].version;
-  return lock;
+function normalizedDependencyLockFromFile(filePath) {
+  return normalizedDependencyLock(
+    JSON.parse(readFileSync(filePath, "utf8")),
+  );
 }
 
 function copyIsolatedPackageDependencies(legacyRoot, currentRoot) {

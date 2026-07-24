@@ -292,6 +292,16 @@ const suites = {
   ],
   authority: [
     {
+      label: "canonical change planner and documentation validator",
+      ...rootNode("scripts/test-canonical-change-planner.mjs"),
+      timeoutMs: 60_000,
+    },
+    {
+      label: "dependency-lock graph compatibility normalization",
+      ...rootNode("scripts/test-dependency-lock-compatibility.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "canonical child environment isolation",
       ...rootNode("scripts/test-canonical-environment-isolation.mjs"),
     },
@@ -305,6 +315,16 @@ const suites = {
       ...rootNode(
         "scripts/test-local-canonical-verification-contract.mjs",
       ),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical executor identity and scheduling contract",
+      ...rootNode("scripts/test-local-canonical-executor.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical receipt integrity and staleness contract",
+      ...rootNode("scripts/test-local-canonical-receipt.mjs"),
       timeoutMs: 30_000,
     },
     {

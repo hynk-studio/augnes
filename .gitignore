@@ -3,6 +3,7 @@ node_modules/
 
 # Next.js
 .next/
+/next-env.d.ts
 out/
 *.tsbuildinfo
 
@@ -25,6 +26,7 @@ pnpm-debug.log*
 .DS_Store
 
 # generated local artifacts
+.augnes-local-verification/
 data/*.db
 data/*.db-*
 outputs/*
