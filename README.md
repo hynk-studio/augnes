@@ -155,10 +155,39 @@ verification requires the exact clean head, repository-required Node/npm
 versions, planner-selected scope, successful cleanup, and a validated local
 receipt.
 
+The complete surface consists of:
+
+- `npm run typecheck`
+- `npm run build`
+- `npm test`
+- `npm run test:authority`
+- `npm run test:integration`
+- `npm run test:operability`
+- `npm run test:e2e:core`
+- `npm run test:e2e:continuity`
+
 Receipts and logs remain ignored local artifacts. Their fingerprints establish
 content integrity and local provenance only; they are not hosted reproduction,
 independent attestation, or an external status. Evidence publication is a
 separate explicit action and never follows verification automatically.
+
+The explicit evidence commands are:
+
+```bash
+npm run verify:local:evidence:prepare -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+npm run verify:local:evidence:publish -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json \
+  --confirm-publish
+npm run verify:local:evidence:verify -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+```
+
+`prepare` is read-only. `publish` is forbidden without separate explicit
+authorization for the exact current Draft PR and receipt.
 
 See:
 
