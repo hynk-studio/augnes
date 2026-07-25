@@ -201,25 +201,41 @@ For ordinary changes:
 - Dependency replacement, build, package, runtime, operability, and browser
   phases run sequentially on the shared host. Core and continuity E2E never run
   concurrently.
-- Process-owning tests must use bounded lifecycle/timeouts, terminate and await
-  their complete owned process tree, close listeners, and leave zero owned
-  process, port, database, runtime-state, or temporary-file residue.
-- Do not add arbitrary sleeps, automatic retries, unbounded child waits, or
-  cleanup bypasses to obtain a pass.
-- Cite the exact repository-relative receipt path and SHA-256 content
-  fingerprint. Validate the deciding receipt against the current repository
-  after the exact-head run.
+- Process-owning Canonical tests must use the repository's bounded test-harness lifecycle
+  and declare a measured timeout. They must terminate and await their complete
+  owned process tree, close listeners, and leave zero owned process, port,
+  database, runtime-state, or temporary-file residue.
+- Do not add automatic retries, arbitrary sleeps, or wider timeouts to obtain a
+  pass. Do not add unbounded child waits or cleanup bypasses.
+- Temporary deciding evidence is a completed successful local Canonical run for
+  the exact pull-request head. Cite its exact repository-relative receipt path
+  and SHA-256 content fingerprint. Validate the deciding receipt against the
+  current repository after the exact-head run.
 - A receipt records one execution on one shared machine. It is not hosted
   reproduction, independent attestation, signature, GitHub-authenticated
   execution, status, check, or deployment.
 - Receipts and logs remain ignored local artifacts. Do not commit or upload
   them.
-- Local Canonical evidence publication is never implicit. Run
-  `verify:local:evidence:publish` only with explicit authority for the exact
-  current Draft PR and receipt; never create a status, check, deployment,
-  review, label, workflow, ready transition, auto-merge action, or setting
-  change as a side effect.
-- GitHub Actions execution remains absent. GitHub is source control,
+- Local Canonical PR evidence publication is never implicit. Codex may run
+  `npm run verify:local:evidence:prepare` without a GitHub write, but may run
+  `verify:local:evidence:publish` only when the user explicitly authorizes the
+  exact task and current task Draft PR.
+- Publish only after source is committed, the exact head is pushed, and a
+  current changed/full receipt validates as deciding. Never publish quick,
+  dirty, stale, failed, incomplete, noncanonical, or non-deciding evidence.
+- Publish only the bounded dedicated marker comment to the current task Draft
+  PR. Never publish to a historical PR or unrelated issue; never create a
+  status, check, deployment, review, label, workflow, merge, ready-for-review
+  transition, auto-merge action, or repository-setting change.
+- Stop on duplicate marker comments, stale base/head/branch identity, a fork or
+  non-Draft target, or an optimistic replacement fingerprint/body mismatch.
+  Replacing different evidence requires the exact prior publication
+  fingerprint and explicit publication confirmation. An identical fingerprint
+  must be an idempotent no-write result.
+- Call the comment a mutable local-evidence projection. Its SHA-256 fingerprints
+  prove content integrity only, not a signature, hosted reproduction,
+  GitHub-authenticated environment, or independent attestation.
+- GitHub Actions execution must remain absent. GitHub is source control,
   pull-request, review, and history infrastructure, not this repository’s
   active verification runner.
 
