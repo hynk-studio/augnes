@@ -69,11 +69,16 @@ C8 Visual system after IA correction — merged
 C9 Compatibility and obsolete-surface reduction — pending; not authorized by RR0
 ```
 
-[RR0](https://github.com/hynk-studio/augnes-perspective-lab/issues/69) is the
-current repository inventory-and-planning phase. It does not change runtime
-behavior or authorize C9. The R1–R8 sequence in the Roadmap records the
-operational Core and reference operator implementation that C0 preserves and
-reprojects; it is not the next user-facing correction order.
+[Issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
+defined the scope and boundaries for RR0. RR0 was completed in
+[Draft PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70)
+as an inventory-and-planning phase; that PR is the completed inventory and
+outcome record. RR0 changed no runtime behavior and authorized no implementation
+phase. Repository authority reconciliation and every later implementation
+phase, including C9, remain pending separate explicit authorization. The R1–R8
+sequence in the Roadmap records the operational Core and reference operator
+implementation that C0 preserves and reprojects; it is not the next user-facing
+correction order.
 
 ## Active versus deferred scope
 

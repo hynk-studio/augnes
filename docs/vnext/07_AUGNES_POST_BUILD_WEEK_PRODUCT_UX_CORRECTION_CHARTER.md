@@ -25,8 +25,8 @@ delegated-work timeline과 explicit resume로 투영했다. C6는 exact reader�
 demote했다. C7은 permanent Project tools menu를 제거하고 project transfer/import와
 ordinary recovery discovery를 Blank State의 Manage and protect로 relocate했다.
 forced recovery mode는 기존 proxy가 계속 소유한다. C8은 actual owning surface에
-semantic visual hierarchy를 구현했다. RR0는 inventory-and-planning phase이며 C9
-correction 또는 runtime cleanup을 authorize하지 않는다.
+semantic visual hierarchy를 구현했다. RR0는 inventory-and-planning phase로
+완료되었으며 C9 correction 또는 runtime cleanup을 authorize하지 않았다.
 
 ## 2. Why correction is required
 
@@ -397,8 +397,8 @@ Inspector를 contextual Exact details로 demote했다. C7은 final utility reloc
 - **C9 — Compatibility and obsolete-surface reduction:** pending; requires
   separate explicit authorization
 
-C9은 implemented, complete 또는 runtime-active가 아니다. RR0 inventory와 planning은
-C9 cleanup authority를 부여하지 않는다.
+C9은 implemented, complete 또는 runtime-active가 아니다. 완료된 RR0 inventory와
+planning은 C9 cleanup authority를 부여하지 않았다.
 
 ## 15. Non-goals
 

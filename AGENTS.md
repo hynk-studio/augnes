@@ -105,10 +105,10 @@ return links. C7 keeps `/portability` and `/recovery` compatible while
 presenting focused management and safety work with at most one primary action.
 C8 applies one semantic visual hierarchy—situation, primary
 action, AI summary, risk, supporting information, then raw record—across the
-actual owning surfaces. RR0 is an inventory-and-planning phase only. C9 remains
-pending and requires separate explicit authorization. Current code remains
-authoritative for implemented behavior until each later correction PR changes
-it.
+actual owning surfaces. RR0 was completed as an inventory-and-planning phase
+and authorized no implementation phase. C9 remains pending and requires
+separate explicit authorization. Current code remains authoritative for
+implemented behavior until each later correction PR changes it.
 
 ### Hard UX invariants
 
@@ -173,8 +173,9 @@ Every user-facing PR body must answer:
 11. Does the change preserve current runtime truth while moving toward the target topology?
 12. Does this PR increase or reduce the number of concepts the user must understand?
 
-An unsatisfactory answer blocks the PR. C0–C8 are merged. RR0 does not authorize
-C9 or any runtime cleanup. Do not start C9 without explicit authorization.
+An unsatisfactory answer blocks the PR. C0–C8 are merged. RR0 was completed as
+an inventory-and-planning phase and did not authorize C9 or any runtime cleanup.
+Do not start C9 without explicit authorization.
 
 ## Development defaults
 

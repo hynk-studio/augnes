@@ -62,7 +62,7 @@ Shared Inspector presentation을 concrete-target contextual Exact details로 dem
 C7은 Portability와 Recovery의 exact engine을 유지하면서 Blank State의
 management/safety context와 condition-triggered recovery path 아래로 relocation한다.
 C8은 같은 owning surface에 semantic visual hierarchy를 적용했으며 C0–C8은 merge되었다.
-RR0는 inventory-and-planning phase일 뿐 C9 또는 runtime cleanup을 authorize하지 않는다.
+RR0는 inventory-and-planning phase로 완료되었고 C9 또는 runtime cleanup을 authorize하지 않았다.
 Post-Build Week correction은 이 engine을
 폐기하지 않고 target surface 아래로 reproject, absorb 또는 demote한다. C4는 exact
 verification, proposal, decision, confirmation, application과 lineage semantics를 유지한 채

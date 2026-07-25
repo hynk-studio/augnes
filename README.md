@@ -152,8 +152,9 @@ summary, risk, supporting information, and raw-record order; the existing
 browser journey checks the same real states at 390 CSS pixels. Optional local
 review screenshots and their index stay ignored under
 `.augnes-local-verification/c8-review/` because aesthetic quality and
-ten-second comprehension remain user judgments. RR0 is inventory and planning
-only. C9 remains pending and requires separate explicit authorization.
+ten-second comprehension remain user judgments. RR0 was completed as inventory
+and planning only and authorized no implementation phase. C9 remains pending
+and requires separate explicit authorization.
 
 The repository now supports:
 

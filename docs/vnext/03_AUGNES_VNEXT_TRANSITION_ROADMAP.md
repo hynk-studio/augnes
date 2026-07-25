@@ -145,14 +145,18 @@ boundaries. C8 applies the semantic visual hierarchy without changing those
 authorities. C0–C8 are merged. Current code remains authoritative for each
 existing behavior until its later correction PR changes it.
 
-[RR0](https://github.com/hynk-studio/augnes-perspective-lab/issues/69) is the
-current inventory-and-planning phase. Its review must precede separately
-authorized authority reconciliation, product-continuity UI work, C9 after
+[Issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
+defined the scope and boundaries for RR0. RR0 was completed in
+[Draft PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70)
+as an inventory-and-planning phase; that PR is the completed inventory and
+outcome record. RR0 changed no runtime behavior and authorized no implementation
+phase. Repository authority reconciliation and every later implementation
+phase—product-continuity UI work, C9 after
 replacement proof, documentation/research reduction, and code/fixture/script
-rationalization. RR0 itself changes no runtime behavior and authorizes none of
-those implementation phases. Replacement work must account for every
-superseded surface through absorption, redirect, hiding, explicit demotion, or
-removal; it must not silently add another destination.
+rationalization—remain pending separate explicit authorization. Replacement
+work must account for every superseded surface through absorption, redirect,
+hiding, explicit demotion, or removal; it must not silently add another
+destination.
 
 ## Operational Core implementation sequence
 
