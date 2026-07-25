@@ -64,15 +64,16 @@ C3 GuideBrief active-path restoration — merged
 C4 AI Workplane reprojection — merged
 C5 Delegated Codex work timeline and resumption — merged
 C6 Contextual Inspector demotion — merged
-C7 Portability and Recovery management/safety relocation — implemented in this change; complete after review and merge
-C8 Visual system after IA correction
-C9 Compatibility and obsolete-surface reduction
+C7 Portability and Recovery management/safety relocation — merged
+C8 Visual system after IA correction — merged
+C9 Compatibility and obsolete-surface reduction — pending; not authorized by RR0
 ```
 
-C8–C9 are not implemented, complete, or runtime-active. The R1–R8 sequence in
-the Roadmap records the operational Core and reference operator implementation
-that C0 preserves and reprojects; it is not the next user-facing correction
-order.
+[RR0](https://github.com/hynk-studio/augnes-perspective-lab/issues/69) is the
+current repository inventory-and-planning phase. It does not change runtime
+behavior or authorize C9. The R1–R8 sequence in the Roadmap records the
+operational Core and reference operator implementation that C0 preserves and
+reprojects; it is not the next user-facing correction order.
 
 ## Active versus deferred scope
 

@@ -122,7 +122,7 @@ C0 established the product authority and C1 reduced the shared shell to
 project selection remains in Blank State; transfer/import and ordinary
 backups/recovery are available under its closed **Manage and protect**
 disclosure. The runtime proxy still forces `/recovery` when recovery mode is
-active. C0–C7 are merged. GuideBrief v0.2 is the
+active. C0–C8 are merged. GuideBrief v0.2 is the
 deterministic current-project interpretation shared by
 Blank State, a compact AI Workplane rail, the existing
 `augnes_get_guide_brief` MCP tool, `codex:read-brief`, and new native Codex task
@@ -145,15 +145,15 @@ suggested change, delegated work, Blank State, or AI Workplane. Normal C4/C5
 flows load no Inspector data. C7 removes the shared-shell Project
 tools menu, keeps `/portability` and `/recovery` compatible, and preserves all
 package, backup, restore, update, reconciliation, and recovery-mode semantics.
-C8 in this change establishes one product-meaning visual hierarchy across
+C8 establishes one product-meaning visual hierarchy across
 Blank State, AI Workplane, GuideBrief, Inspector, and the inherited management
 and recovery paths. Stable semantic hooks defend situation, primary action, AI
 summary, risk, supporting information, and raw-record order; the existing
 browser journey checks the same real states at 390 CSS pixels. Optional local
 review screenshots and their index stay ignored under
 `.augnes-local-verification/c8-review/` because aesthetic quality and
-ten-second comprehension remain user judgments. C8 is complete only after
-review and merge. C9 remains pending.
+ten-second comprehension remain user judgments. RR0 is inventory and planning
+only. C9 remains pending and requires separate explicit authorization.
 
 The repository now supports:
 
