@@ -1,12 +1,21 @@
 # Augnes vNext Architecture and Protocol
-## Technical Meaning Contract for Core, Adapters, Receipts, Decisions and Temporal Lineage
+## Sole Semantic Authority for Core, Protocol, Persistence, Decisions, and Temporal Lineage
 
-> **문서 지위:** Masterplan 하위의 활성 기술 기준
-> **버전:** v0.1
-> **기준일:** 2026-07-10 KST
-> **상위 문서:** `01_AUGNES_VNEXT_MASTERPLAN.md`
-> **스키마 권위:** 실제 필드·enum·validation schema는 `SSOT_SCHEMA_BUNDLE` 및 이후 versioned schema 파일이 최종 권위를 가진다.
-> **주의:** 이 문서는 의미 계약을 정의하며, 곧바로 DB migration이나 API surface를 승인하지 않는다.
+> **Document status:** Sole active repository authority for Core and protocol
+> semantics.
+>
+> **Product authority:** Product identity, continuity, and surface
+> responsibilities belong to
+> [`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md).
+>
+> **Implementation truth:** Checked-in schemas, migrations, types, validators,
+> and runtime behavior determine what is implemented. Older SSOT bundles and
+> schema archives are compatibility/history unless an active versioned
+> implementation contract explicitly consumes them.
+>
+> **Change boundary:** This document defines meaning. It does not itself
+> authorize a schema, migration, API, route, product projection, or runtime
+> behavior change.
 
 ---
 
@@ -79,84 +88,58 @@ Transport Bindings
 
 Integration Kit는 Core approval을 우회하지 않는다.
 
-### 1.4 Product Surfaces, Projections and Inspector
+### 1.4 Product projections do not create Core authority
 
-이 절의 Project Home, Semantic Workbench와 Inspector는 현재 reference operator
-implementation의 implemented client/projection boundary를 기술한다. target
-post-Build Week user-facing topology와 navigation은
-[`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)가
-소유한다. 이 구분은 아래 Core, protocol, authority 또는 persistence 의미를 변경하지
-않는다.
+Product responsibilities, navigation, and cross-surface meaning belong to
+[`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md). Current
+implementation and compatibility names belong to the roadmap and checked-in
+runtime. This section owns only their Core/protocol boundary.
 
-```text
-Augnes Project Home
-Augnes Semantic Workbench
-Augnes Inspector
-Host-native compact cards
-Current Working Perspective
-Context Compiler
-Attention Queue
-Evidence Pack
-Run Trace
-Project Timeline
-Lineage Explorer
-Integration Health
-```
+A Blank State projection, AI Workplane projection, timeline, relationship view,
+GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
+trace, or integration-health view is a client or rebuildable projection over
+Core meaning. Its presence does not create a new Core object, lifecycle,
+current-head selector, persistence requirement, or authority principal.
 
-Project Home은 work를 frame/resume하고 durable current coordination을 보여 주는
-인간 front door다. Semantic Workbench는 cross-host result comparison, Evidence/Claim
-reconciliation, reviewable semantic delta와 decision consequence composition,
-ReviewDecision 준비와 next-context composition을 위한 능동 semantic work
-surface다. `/workbench`는 compatibility entry이고
-`/workbench/semantic-review`가 canonical Workbench다. Workbench의 책임은 provider
-제품의 일시적 기능 공백이 아니라 cross-host·cross-time canonical project
-semantics로 정의한다.
+Product projections may:
 
-Inspector는 Home과 Workbench가 공유하는 read-heavy source map, epistemic basis,
-authority lineage, audit와 drill-down surface다. 현재 shared route는
-`/workbench/inspector`, authenticated read route는
-`GET /api/vnext/operator/inspector`, rebuildable composition contract는
-`shared_project_inspector.v0.1`이다. 이 contract는 Core record, table, current-head
-selector 또는 durable authority가 아니며 project scope를 client에서 받지 않는다.
-Inspector GET/render는 semantic/control write, model/provider call, external action,
-filesystem mutation 또는 historical repair를 수행하지 않는다. host-native compact
-card는 bounded context와 review intent를 native UX에 표시한다. compact card와
-Inspector 어느 것도 Home과 Workbench를 단독 대체하지 않는다.
+- read project-scoped Core records;
+- compose source-linked, time-bounded views;
+- present uncertainty, candidate material, and exact lineage;
+- submit bounded intent to an existing decision, grant, execution, or
+  Transition gate.
 
-모든 surface는 Core record를 소비하는 projection 또는 client다. UI 이름은
-authority를 부여하지 않으며, surface가 낸 review/decision intent도 explicit Core
-decision/transition path가 적용하기 전에는 durable state가 아니다. Home과
-Workbench는 projection을 조합하고 bounded review 또는 decision intent를 Core
-gate로 보낼 수 있지만 source of truth가 아니다. workflow-stage마다 전용 table과
-panel을 만드는 방식은 계속 금지한다.
+They may not:
 
-Strategic review가 해당 task에서 활성화되면 Project Home은 pending
-attention과 durable coordination만 요약한다. Workbench는 base-versus-challenger,
-condition-bound advantage, transfer cost, falsifier, patch, regression과 decision/later-context
-consequence를 candidate 단위로 구성한다. Inspector는 exact packet, receipt,
-base-source fingerprint, supporting/opposing refs와 proposal → decision → Transition →
-later packet → feedback lineage를 drill down한다. 이 책임은 Arena page나 새 UI
-권한을 승인하지 않는다.
+- establish truth or accept Evidence, Claim, Perspective, or state;
+- turn recommendation into `ReviewDecision`;
+- turn execution completion into verified task success;
+- turn a candidate into accepted state;
+- apply a Transition, authorize execution, expand a capability grant, or select
+  later context merely by rendering or recommending;
+- create a new protocol record because product doctrine names a responsibility.
 
-Canonical interaction loop:
+GuideBrief remains contextual, source-anchored, conversational, and
+non-authoritative. Inspector remains read-only exact detail. Research engines
+may explore, compare, challenge, infer, predict, and propose, but their output
+is not truth, accepted Perspective, user decision, Transition, execution
+authority, or authority expansion.
+
+The canonical interaction meaning remains:
 
 ```text
-Project Home frames or resumes work
-→ TaskContextPacket intent
-→ native host execution
-→ RunReceipt operational residue
+bounded task context
+→ native-host execution
+→ operational receipt
 → source-linked, non-authoritative assessment/comparison
-→ EpisodeDeltaProposal
-→ ReviewDecision
-→ authorized transition
-→ changed later TaskContextPacket selection
-→ later RunReceipt / ContextUseReview feedback
-→ updated Project Home projection
+→ proposal candidate
+→ user or explicitly authorized decision
+→ separately authorized Transition
+→ later context and outcome feedback
 ```
 
-Inspector drill-down은 이 loop 전 구간에서 source, artifact, run, decision과
-Perspective lineage를 열 수 있어야 한다. 이 loop는 새 protocol type, DB schema,
-API, route 또는 UI implementation plan을 승인하지 않는다.
+This meaning does not require every stage to appear in the UI and does not
+authorize a new schema, API, route, surface, or implementation plan.
 
 ### 1.5 Augnes Lab
 

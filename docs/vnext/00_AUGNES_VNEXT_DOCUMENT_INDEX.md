@@ -1,127 +1,86 @@
-# Augnes vNext document index
+# Augnes vNext authority map
 
-## Active authority
+## Role
 
-Use this order when current documents disagree:
+This file is the concise map of active repository authority. It does not own
+product doctrine, Core semantics, implementation chronology, evaluation
+criteria, or the C0–C9 program.
 
-1. `01_AUGNES_VNEXT_MASTERPLAN.md` — product identity and strategic invariants
-2. `07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md` — post-Build Week
-   user-facing topology, navigation, progressive disclosure, GuideBrief product
-   responsibility, UX merge gates, and replacement-versus-addition discipline
-3. `02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md` — Core and protocol meaning
-4. `03_AUGNES_VNEXT_TRANSITION_ROADMAP.md` — active implementation order
-5. `04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` — development and post-Alpha evaluation
-6. `../REPOSITORY_REDUCTION_SCOPE.md` — repository retention and deletion policy
+The governing rule is:
 
-The active GuideBrief implementation contract is
-`../GUIDEBRIEF_CONTRACT_V0_2.md`. It governs the current-project packet,
-surface projections, local route/marker, TaskContextPacket separation, bounds,
-safety and all-false authority boundary without redefining Core semantics.
+> One durable topic has one active owner. Other material may implement,
+> constrain, research beyond, or preserve the history of that owner, but it
+> does not silently become competing current authority.
 
-The C0 charter takes precedence over older surface-topology planning where it
-conflicts, but it does not redefine Core protocol semantics or durable
-authority. Code and current runtime behavior remain the source of truth for
-what is implemented today until later correction PRs change them.
+## Active owners
 
-## Product commitments
+| Durable topic | Active owner | Boundary |
+|---|---|---|
+| Product and continuity doctrine | [`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md) | Defines what Augnes is, cross-surface continuity, product responsibilities, authority boundaries, and the feature-change test. It does not define Core records or claim implementation status. |
+| Core and protocol semantics | [`02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md) | Sole semantic authority for Core records, identity, persistence, lineage, evidence, proposals, decisions, Transitions, execution authority, and provider-neutral protocol boundaries. |
+| Current implementation status and sequence | [`03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md) | Sole owner of completed, current, next, later, and research sequencing. Current code remains the truth for implemented behavior. |
+| Evaluation and maturity | [`04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) | Owns correctness, product-continuity, outcome, maturity, and usefulness evaluation without inventing measured success. |
+| Temporary C0–C9 correction program | [`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md) | Owns only the reason, status, C9 proof boundary, and closeout of the temporary correction program. |
+| Product entry and supported usage | [`../../README.md`](../../README.md) | Concise product introduction, supported startup/evaluation paths, current topology summary, and links to active authority. |
+| Repository operating rules | [`../../AGENTS.md`](../../AGENTS.md) | Workspace/repository boundaries, required reading, development rules, authority restrictions, verification, and blocking product questions. |
+| Retention and deletion safety | [`../REPOSITORY_REDUCTION_SCOPE.md`](../REPOSITORY_REDUCTION_SCOPE.md) | Safety and proof requirements for later retention, reduction, and deletion work. It does not authorize C9 or cleanup. |
 
-The vNext commitments that remain active are:
+## Supporting layers
 
-- provider-neutral, local-first temporal project substrate
-- Resume / Verify / Decide
-- native hosts execute; Augnes preserves meaning, lineage, reviewed decisions, and durable state
-- project identity and isolation
-- `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, and `ReviewDecision`
-- a bounded Automation Spine using policy, grants, runs, receipts, stop conditions, and user control
-- minimal Model Gateway and OpenAI reference adapter
-- Codex/native-host context and receipt round trip for interactive and unattended runs
-- `TaskContextPacket` intent + `RunReceipt` operational residue → source-linked,
-  non-authoritative assessment/comparison → `EpisodeDeltaProposal` →
-  `ReviewDecision` → authorized Transition → later context
-- required criterion assessment plus optional bounded `strategic_advantage_transfer`
-  analysis inside that same assessment boundary, never as a separate authority or subsystem
-- later `ContextUseReview` feedback that traces whether accepted context or
-  strategic transfers were helpful, stale, or misleading
-- target post-Build Week surfaces: Blank State, embedded GuideBrief, AI
-  Workplane, contextual Inspector, and the Provider / Runner / Tool Layer
-- target default top-level navigation limited to Blank State and AI Workplane
-- GuideBrief as an active, non-authoritative cross-surface interpretation and
-  guidance responsibility, distinct from `TaskContextPacket`
-- historical Project Home, Semantic Workbench, and Shared Inspector names as
-  compatibility residue beneath Blank State, AI Workplane, and contextual Exact
-  details; C7 relocates the compatible Portability and Recovery routes beneath
-  Blank State management and condition-triggered safety paths
-- a bounded Personal Perspective lane that reuses existing Core review, context-selection, lineage, and feedback contracts
-- migration, backup, restore, update, recovery, and automated-run reconciliation
+### Active implementation contracts
 
-## Active post-Build Week correction order
+Versioned contracts such as
+[`GUIDEBRIEF_CONTRACT_V0_2.md`](../GUIDEBRIEF_CONTRACT_V0_2.md), Local Canonical
+verification policy, current review-window and operability contracts,
+recovery/portability contracts, and active package contracts constrain actual
+implementations. They implement canonical authority but do not override it.
 
-```text
-C0 Product UX charter and hard invariants — documentation authority only
-C1 Top-level IA reduction — merged
-C2 Blank State restoration and Project Home absorption — merged
-C3 GuideBrief active-path restoration — merged
-C4 AI Workplane reprojection — merged
-C5 Delegated Codex work timeline and resumption — merged
-C6 Contextual Inspector demotion — merged
-C7 Portability and Recovery management/safety relocation — merged
-C8 Visual system after IA correction — merged
-C9 Compatibility and obsolete-surface reduction — pending; not authorized by RR0
-```
+### Active research
 
-[Issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
-defined the scope and boundaries for RR0. RR0 was completed in
-[Draft PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70)
-as an inventory-and-planning phase; that PR is the completed inventory and
-outcome record. RR0 changed no runtime behavior and authorized no implementation
-phase. Repository authority reconciliation and every later implementation
-phase, including C9, remain pending separate explicit authorization. The R1–R8
-sequence in the Roadmap records the operational Core and reference operator
-implementation that C0 preserves and reprojects; it is not the next user-facing
-correction order.
+Research documents and research runtime families must identify themselves as an
+implemented bounded capability, active research, paused research, deferred
+candidate, or unresolved program. Formalization, model agreement, graph
+structure, persistent artifacts, or runtime reachability do not create product
+or semantic authority.
 
-## Active versus deferred scope
+The current distinctions include limited implemented Personal Perspective
+controls versus broader deferred R&D; bounded strategic transfer and
+`ContextUseReview`; unresolved temporal, metacognitive, retrieval, and candidate
+diagnostics; paused Sidecar residue; current native context reuse versus older
+handoff compatibility; bounded automation versus legacy autonomy/Autohunt;
+deferred Arena/actor/debate substrate; and current relationship responsibility
+versus legacy “constellation” branding.
 
-Active during R2–R8:
+### Operator and developer manuals
 
-- minimal Automation Spine integrated into the shared Core path
-- bounded policy-triggered execution
-- capability grants, budgets, stop conditions, pause/cancel, receipts, and reconciliation
-- bounded source-linked strategic review inside the required R6 assessment boundary
-- condition-bound advantage extraction, strategy-patch and regression candidates,
-  and later-outcome feedback for accepted transfers
-- Personal Perspective work that reuses existing candidate, review, scoped state, context-selection, receipt, and feedback contracts
+Runbooks, setup guides, package manuals, skills, and verification manuals govern
+their named operating path. They do not define product doctrine, Core semantics,
+or current sequencing.
 
-Deferred until the core product and minimal Automation Spine are feature-complete:
+### Compatibility and historical material
 
-- Generic CLI second adapter
-- advanced Autohunt heuristics and work-discovery optimization
-- generic scheduler implementation inside Augnes
-- unrestricted retry, self-modification, authority expansion, and automatic semantic commit
-- broad Personal Vault and Perspective Arena productization
-- persistent strategic actors; actor mutation, branching, merging, or population evolution
-- unrestricted multi-round debate, automatic winner or fitness-based selection,
-  consensus- or model-count-based promotion, and automatic strategy mutation
-- advanced model routing used merely to simulate diversity
-- hidden or automatic cross-project Personal Perspective injection
-- advanced multi-provider routing
-- autonomous evidence-chain expansion
-- long-form qualification infrastructure
+Older plans, milestone snapshots, closeouts, submission records, fixtures,
+archived packages, compatibility documents, and branch residue remain evidence
+or support for the paths that still consume them. They are not active authority
+unless an active owner explicitly delegates a bounded contract to them. Git
+history is the primary archive; retirement requires separate reviewed proof.
 
-## Historical documents
+## Conflict resolution
 
-Older plans, milestone snapshots, PR-by-PR checkpoint narratives, dogfood reports, closeout records, runbooks, and compatibility documents are not active sequencing authority. Read them only when modifying the historical compatibility path they describe.
+1. Use the active owner for the topic in dispute.
+2. Product projections in `01` cannot redefine Core/protocol meaning in `02`;
+   `02` cannot invent product navigation or claim target product completion.
+3. `03` is the only active sequencing document, and it must agree with
+   checked-in runtime evidence about what is implemented.
+4. `04` owns evaluation; a roadmap milestone, fixture, metric, or test count
+   cannot claim product usefulness on its own.
+5. `07` is temporary C0–C9 authority only. It cannot override durable doctrine,
+   Core semantics, or evaluation, and it retires after C9 closeout.
+6. Active implementation contracts may narrow an implementation but cannot
+   expand product, semantic, execution, or user authority.
+7. Research, compatibility, and historical material lose any conflict with an
+   active owner.
 
-Git history is the archive. New work should not preserve obsolete process residue solely for historical completeness.
-
-## Development rule
-
-A PR should either:
-
-- move the active interactive or bounded automated product flow forward,
-- advance the bounded Personal Perspective lane without blocking the mainline flow,
-- improve operability or reliability,
-- preserve a real data/authority safety invariant, or
-- remove verified obsolete residue.
-
-New planning-only documents, passive workflow-stage panels, manual copy/paste flows, duplicated automation/perspective subsystems, and feature-specific package smoke commands are not default work.
+Unknown conflicts fail closed: preserve the current implementation and data,
+record the unresolved question, and obtain separate explicit authorization
+before changing runtime, authority, or compatibility.
