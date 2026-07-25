@@ -211,9 +211,29 @@ async function main() {
   for (const [guide, focus] of states) {
     assert.equal(guide.coordinate.focus, focus);
     assert.equal(guide.projections.blank_state.focus, focus);
-    assert.equal(guide.projections.blank_state.primary_action.label, guide.primary_guidance.label);
+    assert.equal(
+      guide.projections.blank_state.primary_action?.label ??
+        guide.projections.blank_state.highlighted_item.secondary_action?.label,
+      guide.primary_guidance.label,
+    );
     assert.equal(guide.projections.ai_workplane.recommended_review_focus, guide.primary_guidance.label);
     assert.equal(guide.projections.chatgpt.primary_guidance.label, guide.primary_guidance.label);
+    assert.deepEqual(
+      guide.projections.blank_state.highlighted_item.requires_human_attention,
+      guide.coordinate.human_attention.required,
+    );
+    assert.deepEqual(
+      guide.projections.ai_workplane.human_attention,
+      guide.coordinate.human_attention,
+    );
+    assert.deepEqual(
+      guide.projections.chatgpt.human_attention,
+      guide.coordinate.human_attention,
+    );
+    assert.deepEqual(
+      guide.projections.codex.human_attention,
+      guide.coordinate.human_attention,
+    );
     assert.equal(guide.authority.source_of_truth, false);
     assert.equal(guide.authority.can_approve, false);
     assert.equal(guide.authority.can_write_db, false);
@@ -257,8 +277,8 @@ async function main() {
   );
   assert.equal(delegatedGuide.coordinate.delegated_work?.stage, "waiting_for_approval");
   assert.equal(
-    delegatedGuide.projections.blank_state.current_work?.delegated_work?.stage,
-    "waiting_for_approval",
+    delegatedGuide.projections.blank_state.highlighted_item.attention_category,
+    "access_judgment",
   );
   assert.equal(
     delegatedGuide.projections.ai_workplane.delegated_work?.stage,
@@ -269,7 +289,29 @@ async function main() {
     "waiting_for_approval",
   );
   assert.equal(delegatedGuide.primary_guidance.label, "Review requested access");
+  assert.equal(delegatedGuide.coordinate.human_attention.required, true);
+  assert.equal(
+    delegatedGuide.coordinate.human_attention.category,
+    "access_judgment",
+  );
   assert.equal(delegatedGuide.authority.can_approve, false);
+
+  const runningGuide = states[5][0];
+  assert.equal(runningGuide.coordinate.human_attention.required, false);
+  assert.equal(runningGuide.coordinate.human_attention.category, null);
+  assert.equal(
+    runningGuide.projections.blank_state.primary_action,
+    null,
+  );
+  assert.equal(
+    runningGuide.projections.blank_state.highlighted_item.secondary_action
+      ?.label,
+    "View progress",
+  );
+  assert.equal(
+    runningGuide.projections.codex.human_attention.authority_granted,
+    false,
+  );
 
   const deterministicA = build(source(resultProjection()));
   const deterministicB = build(source(resultProjection()));

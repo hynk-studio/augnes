@@ -257,6 +257,122 @@
   border-top: 1px solid var(--panel-border);
 }
 
+.blank-state-continuity {
+  display: grid;
+  gap: 18px;
+  padding: 26px 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.blank-state-continuity-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.8fr);
+  gap: 24px;
+  align-items: end;
+}
+
+.blank-state-continuity-heading h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.blank-state-attention-summary {
+  margin: 0;
+  color: #39433f;
+  line-height: 1.55;
+}
+
+.blank-state-continuity-item {
+  display: grid;
+  gap: 8px;
+}
+
+.blank-state-continuity-item--highlighted {
+  padding: 22px;
+  border: 1px solid rgba(40, 107, 85, .22);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-medium);
+  background: linear-gradient(135deg, rgba(40, 107, 85, .07), rgba(255, 255, 255, .72));
+}
+
+.blank-state-continuity-item--highlighted[data-blank-state-human-attention="true"] {
+  border-color: rgba(161, 106, 18, .34);
+  border-left-color: var(--amber);
+  background: linear-gradient(135deg, #fff8e9, rgba(255, 255, 255, .82));
+}
+
+.blank-state-continuity-item :is(h3, p) { margin: 0; }
+
+.blank-state-continuity-item h3 {
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  line-height: 1.28;
+}
+
+.blank-state-attention-label {
+  width: fit-content;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 820;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.blank-state-attention-label--required { color: #7b5312; }
+
+.blank-state-continuity-state {
+  color: var(--foreground);
+  font-weight: 740;
+}
+
+.blank-state-continuity-change,
+.blank-state-continuity-detail {
+  max-width: 70ch;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.blank-state-continuity-change span {
+  color: var(--foreground);
+  font-weight: 720;
+}
+
+.blank-state-continuity-change time {
+  display: inline-block;
+  margin-left: 5px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.blank-state-continuity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.blank-state-exact-detail-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 4px;
+  color: var(--muted);
+  font-weight: 720;
+}
+
+.blank-state-continuity-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blank-state-continuity-list > li {
+  padding: 17px 2px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
 .blank-state-region h2,
 .blank-state-project-management h2,
 .blank-state-options-grid h2 {
@@ -391,6 +507,10 @@
 @media (max-width: 760px) {
   .blank-state-shell { width: min(100% - 24px, 920px); margin-top: 24px; }
   .blank-state-focus { padding-top: 18px; }
+  .blank-state-continuity-heading { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .blank-state-continuity-item--highlighted { padding: 18px; }
+  .blank-state-continuity-actions { align-items: stretch; }
+  .blank-state-continuity-actions :is(a, button) { width: 100%; }
   .blank-state-region-heading { flex-direction: column; align-items: stretch; }
   .blank-state-options-grid { grid-template-columns: minmax(0, 1fr); }
   .blank-state-project-management dl div,

@@ -640,7 +640,12 @@ async function main() {
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelectorAll('[data-blank-state-primary-action]').length === 1`,
       "single project-selection action",
     );
-    await validateBlankStateViewports(false);
+    await validateBlankStateViewports(false, {
+      state: "no-project-onboarding",
+      attentionCount: 0,
+      attentionCategory: "none",
+      primaryActions: 1,
+    });
     const noProjectManagementSafety = await evaluateJson(`(() => {
       const details = document.querySelector('details[data-management-safety]');
       return {
@@ -736,8 +741,15 @@ async function main() {
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
     const destination = await evaluateString("location.pathname");
+    const firstProjectId = decodeURIComponent(destination.split("/").at(-1));
     result.folder_onboarding_destination = destination;
     await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-focus="ready_to_continue"]') !== null`, "active Blank State destination");
+    await validateBlankStateViewports(true, {
+      state: "ready-to-continue",
+      attentionCount: 0,
+      attentionCategory: "none",
+      primaryActions: 1,
+    });
     const emptyProjectHome = await evaluateJson(`(() => {
       const surface = document.querySelector('[data-blank-state="v0.1"]');
       const visibleText = surface?.innerText ?? '';
@@ -808,6 +820,31 @@ async function main() {
       private_path_absent: true,
       credential_absent: true,
     });
+    const cleanCurrentRunId = seedBrowserNormalWorkRun({
+      databasePath,
+      projectId: firstProjectId,
+    });
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-current-host-run]') !== null`,
+      "clean current-project work in progress",
+    );
+    await validateBlankStateViewports(true, {
+      state: "normal-work-in-progress",
+      attentionCount: 0,
+      attentionCategory: "none",
+      primaryActions: 0,
+      secondaryActionRequired: true,
+    });
+    removeBrowserNormalWorkRun({
+      databasePath,
+      runId: cleanCurrentRunId,
+    });
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="ready_to_continue"]') !== null`,
+      "clean project after normal-work fixture removal",
+    );
     result.guide_brief_blank_state_v0_2 = true;
     result.minimum_project_home_empty_state = true;
     result.project_home_coordination_visible = true;
@@ -873,7 +910,6 @@ async function main() {
     result.project_automation_enabled = true;
     result.project_automation_policy_summary_visible = true;
 
-    const firstProjectId = decodeURIComponent(destination.split("/").at(-1));
     const enabledSnapshot = readProjectControlState(firstProjectId);
     assert.equal(enabledSnapshot.automation?.revision, 1);
     const directPause = await evaluateJson(`(async () => {
@@ -1091,7 +1127,12 @@ async function main() {
       "return to inactive project after management route",
     );
     result.minimum_project_home_non_active_deep_link_read_only = true;
-    await validateBlankStateViewports();
+    await validateBlankStateViewports(true, {
+      state: "viewed-inactive-project",
+      attentionCount: 1,
+      attentionCategory: "project_activation",
+      primaryActions: 1,
+    });
     await captureC8ReviewState({
       surface: "blank-state",
       state: "action-needed-inactive-project",
@@ -1208,6 +1249,12 @@ async function main() {
       ),
       true,
     );
+    await validateBlankStateViewports(true, {
+      state: "project-root-recovery",
+      attentionCount: 1,
+      attentionCategory: "project_recovery",
+      primaryActions: 1,
+    });
     const rebindPickerResponseStart = responses.length;
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -1465,6 +1512,19 @@ async function main() {
             ),
           ) ===
           JSON.stringify(body.projections?.codex?.unresolved_user_judgments ?? []),
+        human_attention_consistent:
+          JSON.stringify(body.coordinate?.human_attention ?? null) ===
+            JSON.stringify(body.projections?.ai_workplane?.human_attention ?? null) &&
+          JSON.stringify(body.coordinate?.human_attention ?? null) ===
+            JSON.stringify(body.projections?.chatgpt?.human_attention ?? null) &&
+          JSON.stringify(body.coordinate?.human_attention ?? null) ===
+            JSON.stringify(body.projections?.codex?.human_attention ?? null) &&
+          body.coordinate?.human_attention?.required ===
+            body.projections?.blank_state?.highlighted_item
+              ?.requires_human_attention &&
+          body.coordinate?.human_attention?.category ===
+            body.projections?.blank_state?.highlighted_item
+              ?.attention_category,
       };
     })()`);
     assert.deepEqual(workplaneGuide, {
@@ -1477,6 +1537,7 @@ async function main() {
       chatgpt_codex_goal_consistent: true,
       chatgpt_codex_constraints_consistent: true,
       chatgpt_codex_judgment_consistent: true,
+      human_attention_consistent: true,
     });
     result.guide_brief_ai_workplane_v0_2 = true;
     result.guide_brief_cross_surface_consistency = true;
@@ -2509,6 +2570,12 @@ async function main() {
       `document.querySelector('[data-delegated-work-summary="waiting_for_approval"]') !== null && document.querySelector('[data-blank-state-delegated-work-link="true"]') !== null`,
       "Blank State compact delegated-work resumption",
     );
+    await validateBlankStateViewports(true, {
+      state: "genuine-human-attention",
+      attentionCount: 6,
+      attentionCategory: "access_judgment",
+      primaryActions: 1,
+    });
     assert.equal(
       readLatestManagedLiveRunState(manifest.project_id)?.run_ref,
       firstApprovalState.run_ref,
@@ -2587,6 +2654,22 @@ async function main() {
       0,
     );
     timing.milestone("first approval transitioned to running");
+    const turnStartsBeforeProgressVisit =
+      countBrowserFixtureReceivedMethod("turn/start");
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
+      "Blank State while delegated work continues",
+    );
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work-stage="working"]') !== null`,
+      "AI Workplane after Blank State progress visit",
+    );
+    assert.equal(
+      countBrowserFixtureReceivedMethod("turn/start"),
+      turnStartsBeforeProgressVisit,
+    );
 
     const secondApprovalRefreshStart = responses.length;
     writeFileSync(browserSecondApprovalReleasePath, "released\n", {
@@ -2819,6 +2902,12 @@ async function main() {
       form_field_count: 0,
       primary_action_count: 1,
       protocol_vocabulary_absent: true,
+    });
+    await validateBlankStateViewports(true, {
+      state: "trusted-result-ready",
+      attentionCount: null,
+      attentionCategory: null,
+      primaryActions: 1,
     });
     result.project_home_latest_result_visible = true;
     record("project_home_distinguishes_latest_terminal_result_with_server_generated_review_link");
@@ -7265,7 +7354,16 @@ async function closeBlankStateProjectOptions() {
   );
 }
 
-async function validateBlankStateViewports(projectContextRequired = true) {
+async function validateBlankStateViewports(
+  projectContextRequired = true,
+  {
+    state = "unspecified",
+    attentionCount = null,
+    attentionCategory = null,
+    primaryActions = 1,
+    secondaryActionRequired = null,
+  } = {},
+) {
   for (const width of [390, 430, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
@@ -7289,6 +7387,15 @@ async function validateBlankStateViewports(projectContextRequired = true) {
       const heading = home?.querySelector('h1');
       const primaryAction = home?.querySelector('[data-blank-state-primary-action]');
       const projectContext = visibleElement('[data-project-context-label]');
+      const continuity = home?.querySelector('[data-blank-state-continuity-list]');
+      const highlighted = Array.from(
+        continuity?.querySelectorAll('[data-blank-state-continuity-highlighted="true"]') ?? [],
+      );
+      const remaining = Array.from(
+        continuity?.querySelectorAll(
+          '.blank-state-continuity-list [data-blank-state-continuity-item]',
+        ) ?? [],
+      );
       const visible = (element) => {
         const bounds = element?.getBoundingClientRect();
         return Boolean(bounds && bounds.width > 0 && bounds.height > 0 && bounds.top < window.innerHeight);
@@ -7296,6 +7403,23 @@ async function validateBlankStateViewports(projectContextRequired = true) {
       const raw = Array.from(home?.querySelectorAll('[data-augnes-visual-priority="raw-record"]') ?? [])
         .find(visible);
       const primaryRect = primaryAction?.getBoundingClientRect();
+      const controls = Array.from(
+        continuity?.querySelectorAll('a, button, summary') ?? [],
+      ).filter(visible);
+      const overlappingControlCount = controls.flatMap((control, index) =>
+        controls.slice(index + 1).filter((candidate) => {
+          const left = control.getBoundingClientRect();
+          const right = candidate.getBoundingClientRect();
+          return Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 &&
+            Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1;
+        })
+      ).length;
+      const visibleText = home?.innerText ?? '';
+      const highlightedId =
+        highlighted[0]?.getAttribute('data-blank-state-continuity-item') ?? null;
+      const remainingIds = remaining.map((item) =>
+        item.getAttribute('data-blank-state-continuity-item')
+      );
       return {
         surface: 'blank_state',
         width: window.innerWidth,
@@ -7310,7 +7434,8 @@ async function validateBlankStateViewports(projectContextRequired = true) {
         home_inside_viewport:
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
         heading_visible: visible(heading),
-        primary_action_visible: visible(primaryAction),
+        primary_action_visible:
+          Boolean(primaryRect) && primaryRect.width > 0 && primaryRect.height > 0,
         primary_action_count: home?.querySelectorAll('[data-blank-state-primary-action]').length ?? 0,
         project_context_visible: visible(projectContext),
         semantic_primary_action_count:
@@ -7319,6 +7444,42 @@ async function validateBlankStateViewports(projectContextRequired = true) {
           Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2,
         primary_action_touch_target:
           Boolean(primaryRect) && primaryRect.height >= 40,
+        continuity_present: Boolean(continuity),
+        continuity_item_count:
+          continuity?.querySelectorAll('[data-blank-state-continuity-item]').length ?? 0,
+        highlighted_item_count: highlighted.length,
+        highlighted_not_repeated:
+          highlightedId !== null && !remainingIds.includes(highlightedId),
+        unique_item_ids:
+          new Set([highlightedId, ...remainingIds].filter(Boolean)).size ===
+          1 + remainingIds.length,
+        human_attention_count: Number(
+          continuity?.getAttribute('data-blank-state-attention-count') ?? '-1',
+        ),
+        highlighted_attention_category:
+          highlighted[0]?.getAttribute('data-blank-state-attention-category') ?? null,
+        highlighted_attention_text_backed:
+          highlighted[0]?.querySelector('.blank-state-attention-label')?.textContent?.trim().length > 0,
+        secondary_action_visible:
+          controls.some((control) =>
+            control.classList.contains('blank-state-secondary-link')
+          ),
+        overlapping_control_count: overlappingControlCount,
+        legacy_competing_regions_absent:
+          home?.querySelector('#current-work-title, #attention-title, #recent-change-title') === null,
+        management_secondary:
+          home?.querySelector('details[data-management-safety]')?.open === false &&
+          (home?.querySelector('details[data-blank-state-project-management="collapsed"]')?.open === false ||
+            home?.getAttribute('data-blank-state-focus') === 'no_projects' ||
+            home?.getAttribute('data-blank-state-focus') === 'project_root_unavailable'),
+        internal_id_input_absent:
+          home?.querySelector('input[type="text"], textarea, [contenteditable="true"]') === null,
+        protocol_vocabulary_absent:
+          !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|packet fingerprint|approval_ref|run_ref)/i.test(visibleText),
+        continuity_after_context:
+          Boolean(continuity) &&
+          Boolean(heading) &&
+          heading.getBoundingClientRect().top <= continuity.getBoundingClientRect().top,
         independent_surface_count:
           home?.querySelectorAll('[data-augnes-independent-surface]').length ?? 0,
         state_badge_count:
@@ -7332,16 +7493,51 @@ async function validateBlankStateViewports(projectContextRequired = true) {
     assert.equal(metrics.home_horizontal_overflow, false);
     assert.equal(metrics.home_inside_viewport, true);
     assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
-    assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
-    assert.equal(metrics.primary_action_count, 1);
-    assert.equal(metrics.semantic_primary_action_count, 1);
-    assert.equal(metrics.primary_action_within_first_scroll, true);
-    assert.equal(metrics.primary_action_touch_target, true);
+    assert.equal(
+      metrics.primary_action_visible,
+      primaryActions === 1,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.primary_action_count, primaryActions);
+    assert.equal(metrics.semantic_primary_action_count, primaryActions);
+    if (primaryActions === 1) {
+      assert.equal(metrics.primary_action_within_first_scroll, true);
+      assert.equal(metrics.primary_action_touch_target, true);
+    }
+    assert.equal(metrics.continuity_present, true);
+    assert.equal(metrics.continuity_item_count >= 1, true);
+    assert.equal(metrics.continuity_item_count <= 5, true);
+    assert.equal(metrics.highlighted_item_count, 1);
+    assert.equal(metrics.highlighted_not_repeated, true);
+    assert.equal(metrics.unique_item_ids, true);
+    if (attentionCount !== null) {
+      assert.equal(metrics.human_attention_count, attentionCount);
+    }
+    if (attentionCategory !== null) {
+      assert.equal(
+        metrics.highlighted_attention_category,
+        attentionCategory,
+      );
+    }
+    assert.equal(metrics.highlighted_attention_text_backed, true);
+    if (secondaryActionRequired !== null) {
+      assert.equal(
+        metrics.secondary_action_visible,
+        secondaryActionRequired,
+        JSON.stringify(metrics),
+      );
+    }
+    assert.equal(metrics.overlapping_control_count, 0);
+    assert.equal(metrics.legacy_competing_regions_absent, true);
+    assert.equal(metrics.management_secondary, true);
+    assert.equal(metrics.internal_id_input_absent, true);
+    assert.equal(metrics.protocol_vocabulary_absent, true);
+    assert.equal(metrics.continuity_after_context, true);
     assert.equal(metrics.independent_surface_count <= 1, true);
     assert.equal(metrics.state_badge_count <= 1, true);
     assert.equal(metrics.raw_record_after_primary, true);
     assert.equal(metrics.project_context_visible, projectContextRequired);
-    result.viewport_results.push(metrics);
+    result.viewport_results.push({ ...metrics, pc1_state: state });
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
@@ -8417,6 +8613,74 @@ function seedExpiredProjectHomePacket({ projectId, marker }) {
       payload: packet,
       created_at: packet.generated_at,
     });
+  } finally {
+    writableDatabase.close();
+  }
+}
+
+function seedBrowserNormalWorkRun({ databasePath, projectId }) {
+  const writableDatabase = new Database(databasePath, { fileMustExist: true });
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const identities = writableDatabase
+      .prepare(
+        `SELECT workspace_id
+           FROM vnext_project_identities
+          WHERE project_id = ?
+          ORDER BY workspace_id ASC`,
+      )
+      .all(projectId);
+    assert.equal(identities.length, 1);
+    const workspaceId = identities[0].workspace_id;
+    const runId = "run:browser-pc1-normal-progress";
+    const startedAt = "2026-07-21T06:00:00.000Z";
+    insertAutonomyRunLedgerRecord(
+      {
+        run_id: runId,
+        scope: projectId,
+        autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
+        title: "Continue the onboarding project",
+        status: "running",
+        scheduled_for: null,
+        started_at: startedAt,
+        finished_at: null,
+        created_at: startedAt,
+        updated_at: startedAt,
+        stop_reason: null,
+        source_refs: buildDefaultRunnerSourceRefs({
+          runner_refs: [runId],
+        }),
+        authority_boundary: buildDefaultRunnerAuthorityBoundary(),
+        budget_snapshot: buildDefaultRunnerBudgetSnapshot({
+          budget_id: "budget:browser-pc1-normal-progress",
+        }),
+        metadata: {
+          workspace_id: workspaceId,
+          project_id: projectId,
+          invocation_origin: "interactive",
+          lifecycle_mode: "deterministic_local",
+          reconciliation_required: false,
+          automatic_retry: false,
+        },
+      },
+      [],
+      [],
+      { db: writableDatabase },
+    );
+    return runId;
+  } finally {
+    writableDatabase.close();
+  }
+}
+
+function removeBrowserNormalWorkRun({ databasePath, runId }) {
+  const writableDatabase = new Database(databasePath, { fileMustExist: true });
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const removed = writableDatabase
+      .prepare("DELETE FROM autonomy_runs WHERE run_id = ?")
+      .run(runId);
+    assert.equal(removed.changes, 1);
   } finally {
     writableDatabase.close();
   }

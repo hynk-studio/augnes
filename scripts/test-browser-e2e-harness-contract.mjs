@@ -53,7 +53,7 @@ assert.match(
 );
 assert.match(
   source,
-  /await validateBlankStateViewports\(\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
+  /await validateBlankStateViewports\(true, \{[\s\S]*state: "viewed-inactive-project"[\s\S]*attentionCategory: "project_activation"[\s\S]*\}\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
 );
 assert.equal(
   [...source.matchAll(/await validateProductShell\(\{/gu)].length,
@@ -74,6 +74,21 @@ assert.match(
 assert.match(
   source,
   /async function validateProductShellResponsive[\s\S]*for \(const width of \[390, 430\]\)[\s\S]*document_horizontal_overflow: false[\s\S]*primary_link_count: 2[\s\S]*project_tools_count: 0/u,
+);
+for (const state of [
+  "no-project-onboarding",
+  "ready-to-continue",
+  "viewed-inactive-project",
+  "project-root-recovery",
+  "genuine-human-attention",
+  "normal-work-in-progress",
+  "trusted-result-ready",
+]) {
+  assert.match(source, new RegExp(`state: "${state}"`, "u"));
+}
+assert.match(
+  source,
+  /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1440\]\)[\s\S]*highlighted_item_count[\s\S]*human_attention_count[\s\S]*legacy_competing_regions_absent[\s\S]*protocol_vocabulary_absent/u,
 );
 assert.match(
   source,

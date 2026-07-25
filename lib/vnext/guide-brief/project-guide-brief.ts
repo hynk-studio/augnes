@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 
 import {
-  ordinaryActionLabelV02,
+  buildBlankStateContinuityV01,
+  type BlankStateContinuityCompositionV01,
+} from "@/lib/vnext/blank-state/blank-state-continuity";
+import {
   publicGuideBriefTextV02,
 } from "@/lib/vnext/guide-brief/public-guide-text";
-import type { SemanticWorkbenchEntryV01 } from "@/types/vnext/semantic-workbench";
 import {
   BLANK_STATE_VIEW_VERSION_V01,
   type BlankStatePrimaryActionV01,
@@ -34,28 +36,13 @@ export interface BuildProjectGuideBriefInputV02 {
   generated_at: string;
 }
 
-interface FocusDecisionV02 {
-  focus: ProjectGuideBriefV02["coordinate"]["focus"];
-  heading: string;
-  situation: string;
-  material_note: string | null;
-  action: BlankStatePrimaryActionV01;
-  action_reason: string;
-  project_management_emphasized: boolean;
-  user_judgment: null | {
-    question: string;
-    why: string;
-    blocked: string[];
-  };
-}
-
 export function buildProjectGuideBriefV02(
   input: BuildProjectGuideBriefInputV02,
 ): ProjectGuideBriefV02 {
   const generatedAt = strictTimestamp(input.generated_at);
   const source = input.source;
   const projection = source.projection;
-  const decision = decideFocusV02(source);
+  const decision = buildBlankStateContinuityV01(source);
   const projectContext = projectContextV02(source);
   const sourceStatus = sourceStatusV02(source, projectContext);
   const projectName = projection
@@ -75,11 +62,11 @@ export function buildProjectGuideBriefV02(
   const blocker = boundedTextV02(decision.material_note);
   const primarySourceRefs = refs.slice(0, 4).map((ref) => ref.ref_id);
   const primaryGuidance: ProjectGuideBriefV02["primary_guidance"] = {
-    label: decision.action.label,
+    label: decision.guide_action.label,
     reason: boundedTextV02(decision.action_reason) ?? "Continue from the current project state.",
-    href: actionHrefV02(decision.action),
-    action_ref: actionRefV02(decision.action),
-    action: decision.action,
+    href: actionHrefV02(decision.guide_action),
+    action_ref: actionRefV02(decision.guide_action),
+    action: decision.guide_action,
     requires_user_judgment: Boolean(decision.user_judgment),
     source_refs: primarySourceRefs,
     executes: false,
@@ -101,12 +88,17 @@ export function buildProjectGuideBriefV02(
     material_blocker_or_uncertainty: blocker,
     unresolved_user_judgment: judgments[0]?.question ?? null,
     recent_meaningful_change: boundedTextV02(recentChange?.summary ?? null),
+    human_attention: humanAttentionV02(decision),
     delegated_work: source.delegated_work
       ? {
           stage: source.delegated_work.stage,
           latest_checkpoint:
             source.delegated_work.current.latest_checkpoint,
-          needs_user: source.delegated_work.current.needs_user,
+          needs_user: [
+            "waiting_for_approval",
+            "resume_required",
+            "result_ready",
+          ].includes(source.delegated_work.stage),
           trusted_result_available:
             source.delegated_work.current.trusted_result_available,
           next_action: source.delegated_work.next_action.kind,
@@ -138,6 +130,7 @@ export function buildProjectGuideBriefV02(
     unresolved_user_judgments: judgments.map((item) => item.question),
     recommended_review_focus: primaryGuidance.label,
     exact_detail_href: result?.inspector_href ?? null,
+    human_attention: coordinate.human_attention,
     delegated_work: coordinate.delegated_work,
   };
   const codex = buildCodexProjectionV02({
@@ -150,6 +143,7 @@ export function buildProjectGuideBriefV02(
     goal,
     judgments,
     primary_label: primaryGuidance.label,
+    human_attention: coordinate.human_attention,
     refs,
     unavailable_reason: sourceStatus === "unavailable"
       ? "Current project guidance is unavailable; use the exact task packet and existing authority gates."
@@ -203,6 +197,7 @@ export function buildProjectGuideBriefV02(
         needs_user_judgment: judgments,
         primary_guidance: primaryGuidance,
         source_refs: refs,
+        human_attention: coordinate.human_attention,
         delegated_work: coordinate.delegated_work,
       },
       codex,
@@ -299,6 +294,15 @@ export function buildTaskStartGuideBriefCodexProjectionV02(input: {
       important_risk_or_gap: risk,
       suggested_next_action:
         "Follow the exact requested work and its required checks",
+      human_attention: {
+        required: unresolved.length > 0,
+        category: unresolved.length > 0 ? "pending_review" : null,
+        blocked_or_awaiting: unresolved[0] ?? null,
+        recommended_next_step:
+          "Follow the exact requested work and its required checks",
+        projection_only: true,
+        authority_granted: false,
+      },
       source_refs: refs,
       packet_binding: null,
       task_context_packet_delivered_separately: true,
@@ -334,6 +338,14 @@ export function unavailableGuideBriefCodexProjectionV02(
       unresolved_user_judgments: [],
       important_risk_or_gap: "Current project guidance could not be derived.",
       suggested_next_action: "Follow only the exact TaskContextPacket and existing authority gates.",
+      human_attention: {
+        required: false,
+        category: null,
+        blocked_or_awaiting: null,
+        recommended_next_step: null,
+        projection_only: true,
+        authority_granted: false,
+      },
       source_refs: [],
       packet_binding: null,
       task_context_packet_delivered_separately: true,
@@ -349,271 +361,9 @@ export function unavailableGuideBriefCodexProjectionV02(
   );
 }
 
-function decideFocusV02(source: BlankStateSourceV01): FocusDecisionV02 {
-  const projection = source.projection;
-  const management = source.route_mode === "project_management";
-  if (!projection) {
-    if (source.recent_projects.length === 0) {
-      return {
-        focus: "no_projects",
-        heading: "What are you trying to do?",
-        situation: "Choose a local project so Augnes can help you start or continue work.",
-        material_note: null,
-        action: { kind: "choose_folder", label: "Choose a local project" },
-        action_reason: "A local project is needed before work can start.",
-        project_management_emphasized: true,
-        user_judgment: null,
-      };
-    }
-    const active = source.active_project_id
-      ? source.recent_projects.find((item) => item.project.project_id === source.active_project_id)
-      : null;
-    const first = active ?? source.recent_projects.find((item) => item.root_availability === "available") ?? source.recent_projects[0]!;
-    const name = displayProjectNameV02(first.project.display_name);
-    const unavailableActive = Boolean(source.active_project_id);
-    return {
-      focus: "project_choice",
-      heading: unavailableActive ? "Reconnect your current project" : "Choose where to continue",
-      situation: unavailableActive
-        ? "Your current project record is safe, but its saved project view could not be opened. Choose or reconnect a project below."
-        : "Continue an existing project or choose another local folder.",
-      material_note: unavailableActive
-        ? "No project was switched and no stored project data was changed."
-        : null,
-      action: first.root_availability === "available"
-        ? { kind: "open_recent", label: `Continue with ${name}`, project_id: first.project.project_id }
-        : { kind: "locate_folder", label: `Locate ${name}`, project_id: first.project.project_id },
-      action_reason: first.root_availability === "available"
-        ? "This is the most recent available project."
-        : "The saved project needs its local folder reconnected.",
-      project_management_emphasized: true,
-      user_judgment: null,
-    };
-  }
-
-  const name = displayProjectNameV02(projection.project_summary.project.display_name);
-  if (projection.project_summary.root_availability !== "available") {
-    return {
-      focus: "project_root_unavailable",
-      heading: `Reconnect ${name}`,
-      situation: "The project record is safe, but Augnes cannot reach its local folder.",
-      material_note: "Locate the folder to reconnect it. Nothing will be changed until you confirm the folder.",
-      action: { kind: "locate_folder", label: "Locate folder", project_id: projection.project_id },
-      action_reason: "The current project cannot be used until its folder is reconnected.",
-      project_management_emphasized: true,
-      user_judgment: null,
-    };
-  }
-  if (!projection.project_summary.is_active) {
-    return {
-      focus: "viewed_project_inactive",
-      heading: `You are viewing ${name}`,
-      situation: "Opening this link did not switch your current project.",
-      material_note: "Make this project active before changing controls or starting work.",
-      action: { kind: "make_active", label: "Make active", project_id: projection.project_id },
-      action_reason: "Project-changing work must stay bound to the active project.",
-      project_management_emphasized: management,
-      user_judgment: {
-        question: `Should ${name} become the current project?`,
-        why: "Changing the active project changes where subsequent work is scoped.",
-        blocked: ["Starting or changing project-scoped work"],
-      },
-    };
-  }
-  const delegated = source.delegated_work;
-  if (delegated?.stage === "waiting_for_approval") {
-    return {
-      focus: "work_requires_attention",
-      heading: "Codex needs your decision",
-      situation:
-        "Delegated work is waiting for you to review a bounded access request.",
-      material_note: delegated.current.material_blocker_or_request,
-      action: {
-        kind: "link",
-        label: "Review requested access",
-        href: "/workbench/semantic-review#delegated-work-approval",
-        entry_state: "delegated_work",
-      },
-      action_reason:
-        "Codex cannot continue until the bounded request is approved or declined.",
-      project_management_emphasized: management,
-      user_judgment: {
-        question: "Should Codex receive this bounded access once?",
-        why: "The operational request remains separate from any project decision.",
-        blocked: ["Continuing the delegated Codex work"],
-      },
-    };
-  }
-  if (delegated?.stage === "resume_required") {
-    return {
-      focus: "work_requires_attention",
-      heading: "Codex work was interrupted",
-      situation:
-        "The local runtime lost ownership and will not assume that work continued.",
-      material_note:
-        "Resume reuses the same admitted run and exact host binding. It is never automatic.",
-      action: {
-        kind: "link",
-        label: "Resume in AI Workplane",
-        href: "/workbench/semantic-review#delegated-work",
-        entry_state: "delegated_work",
-      },
-      action_reason:
-        "The interrupted work requires an explicit resume before progress can continue.",
-      project_management_emphasized: management,
-      user_judgment: null,
-    };
-  }
-  if (delegated?.stage === "cancelling") {
-    return {
-      focus: "work_in_progress",
-      heading: "Codex is stopping",
-      situation:
-        "Augnes is waiting for the admitted work to stop cleanly.",
-      material_note: delegated.current.latest_checkpoint,
-      action: {
-        kind: "link",
-        label: "View progress",
-        href: "/workbench/semantic-review#delegated-work",
-        entry_state: "delegated_work",
-      },
-      action_reason:
-        "The AI Workplane shows the exact stopping state without inferring a result.",
-      project_management_emphasized: management,
-      user_judgment: null,
-    };
-  }
-  if (["preparing", "working"].includes(delegated?.stage ?? "")) {
-    return {
-      focus: "work_in_progress",
-      heading: "Codex is working",
-      situation: delegated?.current.goal
-        ? `Codex is working on: ${publicGuideBriefTextV02(delegated.current.goal)}`
-        : "Codex is continuing the admitted local work.",
-      material_note:
-        delegated?.current.latest_checkpoint ??
-        "A running process is not treated as a successful result.",
-      action: {
-        kind: "link",
-        label: "Open delegated work",
-        href: "/workbench/semantic-review#delegated-work",
-        entry_state: "delegated_work",
-      },
-      action_reason:
-        "The AI Workplane shows durable progress without claiming success early.",
-      project_management_emphasized: management,
-      user_judgment: null,
-    };
-  }
-  if (
-    delegated?.stage === "result_ready" &&
-    delegated.result?.review_href
-  ) {
-    return {
-      focus: "result_ready",
-      heading: "A result is ready",
-      situation: "The delegated Codex result was saved and is ready to review.",
-      material_note:
-        "Result readiness comes from the trusted saved result, not host completion alone.",
-      action: {
-        kind: "link",
-        label: "Review result",
-        href: delegated.result.review_href,
-        entry_state: "result_ready",
-      },
-      action_reason: "A trusted result is available for review.",
-      project_management_emphasized: management,
-      user_judgment: null,
-    };
-  }
-  const currentRun = projection.run_results.current_run;
-  if (currentRun?.reconciliation_required) {
-    return {
-      focus: "work_requires_attention",
-      heading: "Current work needs to be checked",
-      situation: "Augnes lost a complete observation of the running work and will not infer a result.",
-      material_note: "Review the current work before continuing or accepting any project change.",
-      action: workplaneActionV02("Review current work"),
-      action_reason: "The current work state must be reconciled before its result can be trusted.",
-      project_management_emphasized: management,
-      user_judgment: null,
-    };
-  }
-  if (currentRun) {
-    return {
-      focus: "work_in_progress",
-      heading: "Work is in progress",
-      situation: projection.coordination.task_frame.goal
-        ? `Augnes is working on: ${publicGuideBriefTextV02(projection.coordination.task_frame.goal)}`
-        : "Augnes is observing the current work and waiting for a saved result.",
-      material_note: "A running host process is not treated as a successful result until its saved result is available.",
-      action: workplaneActionV02("View current work"),
-      action_reason: "The AI Workplane shows the current work without treating process activity as success.",
-      project_management_emphasized: management,
-      user_judgment: null,
-    };
-  }
-  const result = projection.run_results.latest_result;
-  const entry = projection.run_results.workbench_entry;
-  if (result && entry) {
-    return {
-      focus: "result_ready",
-      heading: "A result is ready",
-      situation: publicGuideBriefTextV02(result.summary),
-      material_note: result.blocker_count > 0 || result.gap_count > 0
-        ? `${result.blocker_count} ${pluralV02(result.blocker_count, "blocker", "blockers")} and ${result.gap_count} ${pluralV02(result.gap_count, "open question", "open questions")} remain.`
-        : "Verification found no remaining blocker or open question in this result.",
-      action: entryActionV02(entry),
-      action_reason: "A saved result is ready for the next existing review step.",
-      project_management_emphasized: management,
-      user_judgment: result.blocker_count > 0 || result.gap_count > 0
-        ? {
-            question: "How should the remaining blocker or open question be handled?",
-            why: "The result cannot settle that judgment on the user's behalf.",
-            blocked: ["Accepting a consequential project change"],
-          }
-        : null,
-    };
-  }
-  const attention = projection.attention.items[0];
-  if (attention) {
-    return {
-      focus: "attention_required",
-      heading: "Your attention is needed",
-      situation: publicGuideBriefTextV02(attention.summary),
-      material_note: publicGuideBriefTextV02(attention.reason),
-      action: attention.workbench_entry
-        ? entryActionV02(attention.workbench_entry)
-        : attention.action_href
-          ? { kind: "link", label: publicGuideBriefTextV02(attention.action_label), href: attention.action_href, entry_state: null }
-          : workplaneActionV02("Review current work"),
-      action_reason: "This is the highest-priority current item that requires attention.",
-      project_management_emphasized: management,
-      user_judgment: {
-        question: publicGuideBriefTextV02(attention.summary),
-        why: publicGuideBriefTextV02(attention.reason),
-        blocked: ["The next reviewed project step"],
-      },
-    };
-  }
-  const goal = projection.coordination.task_frame.goal;
-  return {
-    focus: "ready_to_continue",
-    heading: goal ? "Ready to continue" : "What would you like to do next?",
-    situation: goal
-      ? `Current work: ${publicGuideBriefTextV02(goal)}`
-      : `${name} is ready for your next piece of work.`,
-    material_note: null,
-    action: workplaneActionV02("Continue in AI Workplane"),
-    action_reason: "The project is available and no more urgent state currently takes priority.",
-    project_management_emphasized: management,
-    user_judgment: null,
-  };
-}
-
 function buildSourceRefsV02(
   source: BlankStateSourceV01,
-  decision: FocusDecisionV02,
+  decision: BlankStateContinuityCompositionV01,
   projectName: string | null,
 ): GuideBriefSourceRefV02[] {
   const projection = source.projection;
@@ -647,15 +397,15 @@ function buildSourceRefsV02(
     const id = source.requested_project_id ?? source.active_project_id!;
     add({ ref_id: stableRefV02("project", id), kind: "project", label: projectName ?? "Saved project", href: `/projects/${encodeURIComponent(id)}` });
   }
-  if (decision.action.kind === "link") {
-    add({ ref_id: stableRefV02("route", decision.action.href), kind: "route", label: decision.action.label, href: decision.action.href });
+  if (decision.guide_action.kind === "link") {
+    add({ ref_id: stableRefV02("route", decision.guide_action.href), kind: "route", label: decision.guide_action.label, href: decision.guide_action.href });
   }
   return values.slice(0, GUIDE_BRIEF_LIMITS_V02.source_refs);
 }
 
 function buildObservedV02(
   source: BlankStateSourceV01,
-  decision: FocusDecisionV02,
+  decision: BlankStateContinuityCompositionV01,
   refs: GuideBriefSourceRefV02[],
 ): GuideBriefObservedItemV02[] {
   const projection = source.projection;
@@ -700,9 +450,12 @@ function buildObservedV02(
     push(`A saved result is available: ${publicGuideBriefTextV02(savedResult.summary)}`, [resultRef]);
     push(`Verification reports ${savedResult.check_counts.passed} passed, ${savedResult.check_counts.failed} failed, and ${savedResult.check_counts.skipped} skipped checks.`, [resultRef]);
   }
-  if (projection.attention.items[0]) {
+  if (decision.attention_count > 0) {
     const attentionRef = refs.find((ref) => ref.kind === "attention")?.ref_id ?? projectRef;
-    push(`The highest-priority attention item is: ${publicGuideBriefTextV02(projection.attention.items[0].summary)}`, [attentionRef]);
+    push(
+      `A consequential intervention is pending: ${decision.highlighted_item.work_name}`,
+      [attentionRef],
+    );
   }
   if (result.length === 0) push(decision.situation, [projectRef]);
   return result.slice(0, GUIDE_BRIEF_LIMITS_V02.observed);
@@ -710,7 +463,7 @@ function buildObservedV02(
 
 function buildInferredV02(
   source: BlankStateSourceV01,
-  decision: FocusDecisionV02,
+  decision: BlankStateContinuityCompositionV01,
   observed: GuideBriefObservedItemV02[],
 ): GuideBriefInferredItemV02[] {
   const support = observed.map((item) => item.item_id).slice(0, 3);
@@ -729,15 +482,15 @@ function buildInferredV02(
 }
 
 function buildSuggestedV02(
-  decision: FocusDecisionV02,
+  decision: BlankStateContinuityCompositionV01,
   refs: GuideBriefSourceRefV02[],
 ): GuideBriefSuggestedItemV02[] {
   return [{
-    item_id: stableItemIdV02("suggested", decision.action.label, refs.map((ref) => ref.ref_id).slice(0, 4)),
-    label: decision.action.label,
+    item_id: stableItemIdV02("suggested", decision.guide_action.label, refs.map((ref) => ref.ref_id).slice(0, 4)),
+    label: decision.guide_action.label,
     reason: decision.action_reason,
-    href: actionHrefV02(decision.action),
-    action_ref: actionRefV02(decision.action),
+    href: actionHrefV02(decision.guide_action),
+    action_ref: actionRefV02(decision.guide_action),
     blockers: decision.user_judgment?.blocked ?? [],
     source_refs: refs.map((ref) => ref.ref_id).slice(0, 4),
     executes: false,
@@ -745,7 +498,7 @@ function buildSuggestedV02(
 }
 
 function buildJudgmentsV02(
-  decision: FocusDecisionV02,
+  decision: BlankStateContinuityCompositionV01,
   refs: GuideBriefSourceRefV02[],
 ): GuideBriefUserJudgmentItemV02[] {
   if (!decision.user_judgment) return [];
@@ -762,7 +515,7 @@ function buildJudgmentsV02(
 
 function buildBlankStateProjectionV02(input: {
   source: BlankStateSourceV01;
-  decision: FocusDecisionV02;
+  decision: BlankStateContinuityCompositionV01;
   sourceStatus: ProjectGuideBriefSourceStatusV02;
   projectContext: ProjectGuideBriefProjectContextV02;
   projectName: string | null;
@@ -770,12 +523,6 @@ function buildBlankStateProjectionV02(input: {
   inferred: GuideBriefInferredItemV02[];
   judgments: GuideBriefUserJudgmentItemV02[];
 }): ProjectGuideBriefV02["projections"]["blank_state"] {
-  const projection = input.source.projection;
-  const run = projection?.run_results.current_run ?? null;
-  const result = projection?.run_results.latest_result ?? null;
-  const primaryAttentionId = input.decision.focus === "attention_required"
-    ? projection?.attention.items[0]?.attention_id
-    : null;
   return {
     blank_state_view_version: BLANK_STATE_VIEW_VERSION_V01,
     guide_version: GUIDE_BRIEF_VERSION_V02,
@@ -792,54 +539,14 @@ function buildBlankStateProjectionV02(input: {
     heading: input.decision.heading,
     situation: input.decision.situation,
     material_note: input.decision.material_note,
-    primary_action: input.decision.action,
+    continuity_summary: input.decision.continuity_summary,
+    attention_count: input.decision.attention_count,
+    continuity_item_count: input.decision.continuity_item_count,
+    omitted_item_count: input.decision.omitted_item_count,
+    highlighted_item: input.decision.highlighted_item,
+    continuity_items: input.decision.continuity_items,
+    primary_action: input.decision.primary_action,
     project_management_emphasized: input.decision.project_management_emphasized,
-    current_work: projection && (run || result || input.source.delegated_work)
-      ? {
-          status:
-            input.source.delegated_work?.current.stage_label ??
-            (run
-              ? run.reconciliation_required
-                ? "Needs observation"
-                : "In progress"
-              : "Result saved"),
-          goal: boundedTextV02(
-            input.source.delegated_work?.current.goal ??
-              projection.coordination.task_frame.goal,
-          ),
-          result_summary: boundedTextV02(result?.summary ?? null),
-          verification: result ? { passed: result.check_counts.passed, failed: result.check_counts.failed, skipped: result.check_counts.skipped } : null,
-          exact_detail_href: result?.inspector_href ?? null,
-          delegated_work: input.source.delegated_work
-            ? {
-                stage: input.source.delegated_work.stage,
-                stage_label:
-                  input.source.delegated_work.current.stage_label,
-                latest_checkpoint:
-                  input.source.delegated_work.current.latest_checkpoint,
-                last_observed_at:
-                  input.source.delegated_work.current.last_observed_at,
-                trusted_result_available:
-                  input.source.delegated_work.current
-                    .trusted_result_available,
-                href: "/workbench/semantic-review#delegated-work",
-              }
-            : null,
-        }
-      : null,
-    additional_attention: (projection?.attention.items ?? [])
-      .filter((item) => item.attention_id !== primaryAttentionId)
-      .slice(0, 2)
-      .map((item) => ({
-        id: stableItemIdV02("attention", item.attention_id, []),
-        summary: publicGuideBriefTextV02(item.summary),
-        reason: publicGuideBriefTextV02(item.reason),
-        href: item.workbench_entry?.href ?? item.action_href,
-        label: item.workbench_entry ? ordinaryActionLabelV02(item.workbench_entry.entry_state) : publicGuideBriefTextV02(item.action_label),
-      })),
-    recent_change: projection?.recent_activity.items[0]
-      ? { summary: publicGuideBriefTextV02(projection.recent_activity.items[0].summary), occurred_at: projection.recent_activity.items[0].occurred_at }
-      : null,
     why_this_is_next: {
       observed: input.observed.slice(0, 3).map((item) => item.statement),
       inferred: input.inferred.slice(0, 2).map((item) => ({ statement: item.statement, caveats: item.caveats })),
@@ -860,6 +567,7 @@ function buildCodexProjectionV02(input: {
   goal: string | null;
   judgments: GuideBriefUserJudgmentItemV02[];
   primary_label: string;
+  human_attention: ProjectGuideBriefV02["coordinate"]["human_attention"];
   refs: GuideBriefSourceRefV02[];
   unavailable_reason: string | null;
 }): GuideBriefCodexProjectionV02 {
@@ -879,6 +587,7 @@ function buildCodexProjectionV02(input: {
     unresolved_user_judgments: input.judgments.map((item) => item.question),
     important_risk_or_gap: boundedTextV02(frame?.risks?.[0] ?? frame?.gaps?.[0] ?? null),
     suggested_next_action: input.primary_label,
+    human_attention: input.human_attention,
     source_refs: input.refs.map((ref) => ref.ref_id).slice(0, GUIDE_BRIEF_LIMITS_V02.source_refs),
     packet_binding: null,
     task_context_packet_delivered_separately: true,
@@ -889,6 +598,25 @@ function buildCodexProjectionV02(input: {
     can_execute_codex: false,
     can_grant_host_permission: false,
     unavailable_reason: input.unavailable_reason,
+  };
+}
+
+function humanAttentionV02(
+  decision: BlankStateContinuityCompositionV01,
+): ProjectGuideBriefV02["coordinate"]["human_attention"] {
+  return {
+    required: decision.highlighted_item.requires_human_attention,
+    category: decision.highlighted_item.attention_category,
+    blocked_or_awaiting:
+      decision.highlighted_item.requires_human_attention
+        ? decision.highlighted_item.consequential_detail
+        : null,
+    recommended_next_step:
+      decision.primary_action?.label ??
+      decision.highlighted_item.secondary_action?.label ??
+      null,
+    projection_only: true,
+    authority_granted: false,
   };
 }
 
@@ -954,15 +682,19 @@ function sourceGapsV02(source: BlankStateSourceV01): string[] {
   return boundedListV02(gaps, 4);
 }
 
-function workStatusV02(source: BlankStateSourceV01, decision: FocusDecisionV02): string {
+function workStatusV02(source: BlankStateSourceV01, decision: BlankStateContinuityCompositionV01): string {
   const projection = source.projection;
   if (!projection) return source.recent_projects.length === 0 ? "No project selected" : "Project selection needed";
   if (projection.project_summary.root_availability !== "available") return "Project folder needs reconnection";
   if (!projection.project_summary.is_active) return "Viewed project is not active";
+  if (decision.highlighted_item.attention_category === "access_judgment") return "Bounded access decision required";
+  if (decision.highlighted_item.attention_category === "explicit_resume") return "Explicit resume required";
+  if (source.delegated_work?.stage === "result_ready") return "Trusted result ready for review";
+  if (["preparing", "working", "cancelling"].includes(source.delegated_work?.stage ?? "")) return "Work in progress";
   if (projection.run_results.current_run?.reconciliation_required) return "Current work needs reconciliation";
   if (projection.run_results.current_run) return "Work in progress";
   if (projection.run_results.latest_result) return "Result ready for review";
-  if (projection.attention.items.length > 0) return "User attention required";
+  if (decision.attention_count > 0) return "User attention required";
   return decision.focus === "ready_to_continue" ? "Ready to continue" : decision.heading;
 }
 
@@ -974,14 +706,6 @@ function actionHrefV02(action: BlankStatePrimaryActionV01): string | null {
 
 function actionRefV02(action: BlankStatePrimaryActionV01): string | null {
   return action.kind === "link" ? null : action.kind;
-}
-
-function entryActionV02(entry: SemanticWorkbenchEntryV01): BlankStatePrimaryActionV01 {
-  return { kind: "link", label: ordinaryActionLabelV02(entry.entry_state, entry.action_label), href: entry.href, entry_state: entry.entry_state };
-}
-
-function workplaneActionV02(label: string): BlankStatePrimaryActionV01 {
-  return { kind: "link", label, href: WORKPLANE_HREF, entry_state: null };
 }
 
 function recentTargetNameV02(source: BlankStateSourceV01): string | null {
