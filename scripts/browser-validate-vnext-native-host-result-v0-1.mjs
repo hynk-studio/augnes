@@ -7454,8 +7454,19 @@ async function validateBlankStateViewports(
           new Set([highlightedId, ...remainingIds].filter(Boolean)).size ===
           1 + remainingIds.length,
         human_attention_count: Number(
-          continuity?.getAttribute('data-blank-state-attention-count') ?? '-1',
+          continuity?.getAttribute('data-blank-state-known-attention-count') ?? '-1',
         ),
+        attention_count_status:
+          continuity?.getAttribute('data-blank-state-attention-count-status') ?? null,
+        source_omitted_attention_count:
+          continuity?.getAttribute('data-blank-state-source-omitted-attention-count') ?? null,
+        source_attention_omitted_rendered:
+          (() => {
+            const bounds = continuity
+              ?.querySelector('[data-blank-state-source-attention-omitted]')
+              ?.getBoundingClientRect();
+            return Boolean(bounds && bounds.width > 0 && bounds.height > 0);
+          })(),
         highlighted_attention_category:
           highlighted[0]?.getAttribute('data-blank-state-attention-category') ?? null,
         highlighted_attention_text_backed:
@@ -7510,6 +7521,16 @@ async function validateBlankStateViewports(
     assert.equal(metrics.highlighted_item_count, 1);
     assert.equal(metrics.highlighted_not_repeated, true);
     assert.equal(metrics.unique_item_ids, true);
+    assert.equal(
+      ["complete", "lower_bound", "source_incomplete"].includes(
+        metrics.attention_count_status,
+      ),
+      true,
+    );
+    if (metrics.attention_count_status === "lower_bound") {
+      assert.equal(Number(metrics.source_omitted_attention_count) > 0, true);
+      assert.equal(metrics.source_attention_omitted_rendered, true);
+    }
     if (attentionCount !== null) {
       assert.equal(metrics.human_attention_count, attentionCount);
     }

@@ -295,9 +295,9 @@ export function buildTaskStartGuideBriefCodexProjectionV02(input: {
       suggested_next_action:
         "Follow the exact requested work and its required checks",
       human_attention: {
-        required: unresolved.length > 0,
-        category: unresolved.length > 0 ? "pending_review" : null,
-        blocked_or_awaiting: unresolved[0] ?? null,
+        required: false,
+        category: null,
+        blocked_or_awaiting: null,
         recommended_next_step:
           "Follow the exact requested work and its required checks",
         projection_only: true,
@@ -450,7 +450,7 @@ function buildObservedV02(
     push(`A saved result is available: ${publicGuideBriefTextV02(savedResult.summary)}`, [resultRef]);
     push(`Verification reports ${savedResult.check_counts.passed} passed, ${savedResult.check_counts.failed} failed, and ${savedResult.check_counts.skipped} skipped checks.`, [resultRef]);
   }
-  if (decision.attention_count > 0) {
+  if (decision.known_attention_count > 0) {
     const attentionRef = refs.find((ref) => ref.kind === "attention")?.ref_id ?? projectRef;
     push(
       `A consequential intervention is pending: ${decision.highlighted_item.work_name}`,
@@ -540,9 +540,14 @@ function buildBlankStateProjectionV02(input: {
     situation: input.decision.situation,
     material_note: input.decision.material_note,
     continuity_summary: input.decision.continuity_summary,
-    attention_count: input.decision.attention_count,
-    continuity_item_count: input.decision.continuity_item_count,
-    omitted_item_count: input.decision.omitted_item_count,
+    known_attention_count: input.decision.known_attention_count,
+    attention_count_status: input.decision.attention_count_status,
+    known_continuity_item_count: input.decision.known_continuity_item_count,
+    locally_omitted_item_count: input.decision.locally_omitted_item_count,
+    source_omitted_attention_count:
+      input.decision.source_omitted_attention_count,
+    source_attention_destination:
+      input.decision.source_attention_destination,
     highlighted_item: input.decision.highlighted_item,
     continuity_items: input.decision.continuity_items,
     primary_action: input.decision.primary_action,
@@ -694,7 +699,7 @@ function workStatusV02(source: BlankStateSourceV01, decision: BlankStateContinui
   if (projection.run_results.current_run?.reconciliation_required) return "Current work needs reconciliation";
   if (projection.run_results.current_run) return "Work in progress";
   if (projection.run_results.latest_result) return "Result ready for review";
-  if (decision.attention_count > 0) return "User attention required";
+  if (decision.known_attention_count > 0) return "User attention required";
   return decision.focus === "ready_to_continue" ? "Ready to continue" : decision.heading;
 }
 

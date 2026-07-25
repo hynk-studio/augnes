@@ -72,6 +72,9 @@ import {
   readProjectHomeProjectionV01,
 } from "../lib/vnext/project-home/project-home-projection";
 import {
+  buildProjectGuideBriefV02,
+} from "../lib/vnext/guide-brief/project-guide-brief";
+import {
   buildReviewDecisionV01,
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
   validateReviewDecisionV01,
@@ -1276,6 +1279,63 @@ async function main() {
     assert.equal(JSON.stringify(beforeAccepted).includes(expiringPerspectiveMarker), false);
     assert.equal(beforeAccepted.attention.total_count, 7);
     assert.equal(beforeAccepted.attention.items.length, 5, "pending attention is bounded");
+    const currentActiveSelection =
+      beforeAccepted.project_summary.active_selection;
+    assert(currentActiveSelection);
+    const currentProjectBoundedAttention = {
+      ...beforeAccepted,
+      project_summary: {
+        ...beforeAccepted.project_summary,
+        is_active: true,
+        active_selection: {
+          ...currentActiveSelection,
+          project_id: beforeAccepted.project_id,
+        },
+      },
+    };
+    const boundedAttentionGuide = buildProjectGuideBriefV02({
+      source: {
+        route_mode: "canonical",
+        requested_project_id: null,
+        active_project_id: beforeAccepted.project_id,
+        recent_projects: [],
+        projection: currentProjectBoundedAttention,
+        project_resolution: "resolved",
+        direct_host_round_trip_available: false,
+        delegated_work: null,
+      },
+      generated_at: fixedGeneratedAt,
+    });
+    const boundedAttentionBlankState =
+      boundedAttentionGuide.projections.blank_state;
+    assert.equal(boundedAttentionBlankState.known_attention_count, 5);
+    assert.equal(
+      boundedAttentionBlankState.attention_count_status,
+      "lower_bound",
+    );
+    assert.equal(
+      boundedAttentionBlankState.source_omitted_attention_count,
+      2,
+    );
+    assert.match(
+      boundedAttentionBlankState.continuity_summary,
+      /at least 5 known items genuinely need you/u,
+    );
+    assert.equal(
+      1 + boundedAttentionBlankState.continuity_items.length,
+      5,
+    );
+    assert.equal(
+      boundedAttentionBlankState.continuity_items.some(
+        (item) =>
+          item.item_id === boundedAttentionBlankState.highlighted_item.item_id,
+      ),
+      false,
+    );
+    assert.equal(
+      (boundedAttentionBlankState.primary_action === null ? 0 : 1) <= 1,
+      true,
+    );
     assert.equal(beforeAccepted.attention.decision_debt.pending_candidate_count, 6);
     const blockedResultAttention = beforeAccepted.attention.items.find(
       (item) => item.attention_id === `result:${latestFailedReceipt.receipt_id}`,

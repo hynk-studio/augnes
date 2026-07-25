@@ -55,6 +55,11 @@ export type BlankStateAttentionCategoryV01 =
   | "project_activation"
   | "pending_review";
 
+export type BlankStateAttentionCountStatusV01 =
+  | "complete"
+  | "lower_bound"
+  | "source_incomplete";
+
 export interface BlankStateContinuityLinkV01 {
   label: string;
   href: string;
@@ -105,9 +110,20 @@ export interface BlankStateViewV01 {
   situation: string;
   material_note: string | null;
   continuity_summary: string;
-  attention_count: number;
-  continuity_item_count: number;
-  omitted_item_count: number;
+  /** Deduplicated consequential items that PC1 received and composed exactly. */
+  known_attention_count: number;
+  /** Whether the known count is exact or bounded by incomplete upstream input. */
+  attention_count_status: BlankStateAttentionCountStatusV01;
+  /** Deduplicated continuity items that PC1 received and composed exactly. */
+  known_continuity_item_count: number;
+  /** Known composed items omitted after PC1 applies its five-item view bound. */
+  locally_omitted_item_count: number;
+  /**
+   * Project Home attention records omitted before PC1 composition. Null means
+   * the source count was structurally inconsistent and was not fabricated.
+   */
+  source_omitted_attention_count: number | null;
+  source_attention_destination: BlankStateContinuityLinkV01 | null;
   highlighted_item: BlankStateContinuityItemV01;
   continuity_items: BlankStateContinuityItemV01[];
   primary_action: BlankStatePrimaryActionV01 | null;

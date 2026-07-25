@@ -6,7 +6,9 @@ import {
 } from "@/lib/vnext/guide-brief/public-guide-text";
 import type {
   BlankStateAttentionCategoryV01,
+  BlankStateAttentionCountStatusV01,
   BlankStateContinuityItemV01,
+  BlankStateContinuityLinkV01,
   BlankStateFocusV01,
   BlankStatePrimaryActionV01,
   BlankStateSourceV01,
@@ -43,9 +45,12 @@ export interface BlankStateContinuityCompositionV01 {
   situation: string;
   material_note: string | null;
   continuity_summary: string;
-  attention_count: number;
-  continuity_item_count: number;
-  omitted_item_count: number;
+  known_attention_count: number;
+  attention_count_status: BlankStateAttentionCountStatusV01;
+  known_continuity_item_count: number;
+  locally_omitted_item_count: number;
+  source_omitted_attention_count: number | null;
+  source_attention_destination: BlankStateContinuityLinkV01 | null;
   highlighted_item: BlankStateContinuityItemV01;
   continuity_items: BlankStateContinuityItemV01[];
   primary_action: BlankStatePrimaryActionV01 | null;
@@ -92,20 +97,21 @@ export function buildBlankStateContinuityV01(
   if (!hasCurrentResponsibility) candidates.push(continuationCandidateV01(source));
 
   const ordered = deduplicateCandidatesV01(candidates.sort(compareCandidatesV01));
-  const attentionCount = ordered.filter(
+  const knownAttentionCount = ordered.filter(
     (candidate) => candidate.item.requires_human_attention,
   ).length;
+  const sourceAttentionBoundary = sourceAttentionBoundaryV01(source);
   const visible = ordered.slice(0, MAX_VISIBLE_ITEMS);
   const highlighted = visible[0] ?? continuationCandidateV01(source);
   const remaining = visible.slice(1);
   const workContinuing = ordered.some((candidate) =>
     ["delegated_work", "current_run"].includes(candidate.item.source_family),
   );
-  const continuitySummary = attentionCount > 0
-    ? `${workContinuing ? "Work is continuing, and " : ""}${attentionCount} ${pluralV01(attentionCount, "item genuinely needs", "items genuinely need")} you.`
-    : workContinuing
-      ? "Work is continuing. Nothing currently requires your intervention."
-      : "Nothing currently requires your intervention. Continue from the current project when you are ready.";
+  const continuitySummary = continuitySummaryV01({
+    knownAttentionCount,
+    workContinuing,
+    sourceStatus: sourceAttentionBoundary.status,
+  });
 
   return {
     focus: highlighted.focus,
@@ -113,9 +119,19 @@ export function buildBlankStateContinuityV01(
     situation: highlighted.situation,
     material_note: highlighted.material_note,
     continuity_summary: continuitySummary,
-    attention_count: attentionCount,
-    continuity_item_count: ordered.length,
-    omitted_item_count: Math.max(0, ordered.length - MAX_VISIBLE_ITEMS),
+    known_attention_count: knownAttentionCount,
+    attention_count_status: sourceAttentionBoundary.status,
+    known_continuity_item_count: ordered.length,
+    locally_omitted_item_count: Math.max(0, ordered.length - MAX_VISIBLE_ITEMS),
+    source_omitted_attention_count:
+      sourceAttentionBoundary.omittedAttentionCount,
+    source_attention_destination:
+      sourceAttentionBoundary.status === "complete"
+        ? null
+        : {
+            label: "Review project attention",
+            href: WORKPLANE_HREF,
+          },
     highlighted_item: highlighted.item,
     continuity_items: remaining.map((candidate) => candidate.item),
     primary_action: highlighted.item.next_action,
@@ -833,15 +849,32 @@ function singleItemCompositionV01(input: {
   project_management_emphasized: boolean;
   user_judgment?: ContinuityUserJudgmentV01 | null;
 }): BlankStateContinuityCompositionV01 {
+  const sourceAttentionBoundary = sourceAttentionBoundaryV01(input.source);
+  const boundedSourceNote =
+    sourceAttentionBoundary.status === "lower_bound"
+      ? " Additional project attention exists outside this view."
+      : sourceAttentionBoundary.status === "source_incomplete"
+        ? " The complete project attention count is unavailable."
+        : "";
   return {
     focus: input.focus,
     heading: input.heading,
     situation: input.situation,
     material_note: input.material_note,
-    continuity_summary: input.continuity_summary,
-    attention_count: input.item.requires_human_attention ? 1 : 0,
-    continuity_item_count: 1,
-    omitted_item_count: 0,
+    continuity_summary: `${input.continuity_summary}${boundedSourceNote}`,
+    known_attention_count: input.item.requires_human_attention ? 1 : 0,
+    attention_count_status: sourceAttentionBoundary.status,
+    known_continuity_item_count: 1,
+    locally_omitted_item_count: 0,
+    source_omitted_attention_count:
+      sourceAttentionBoundary.omittedAttentionCount,
+    source_attention_destination:
+      sourceAttentionBoundary.status === "complete"
+        ? null
+        : {
+            label: "Review project attention",
+            href: WORKPLANE_HREF,
+          },
     highlighted_item: input.item,
     continuity_items: [],
     primary_action: input.item.next_action,
@@ -850,6 +883,66 @@ function singleItemCompositionV01(input: {
     project_management_emphasized: input.project_management_emphasized,
     user_judgment: input.user_judgment ?? null,
   };
+}
+
+function sourceAttentionBoundaryV01(source: BlankStateSourceV01): {
+  status: BlankStateAttentionCountStatusV01;
+  omittedAttentionCount: number | null;
+} {
+  const attention = source.projection?.attention;
+  if (!attention) {
+    return {
+      status: "complete",
+      omittedAttentionCount: 0,
+    };
+  }
+  const totalCount = attention.total_count;
+  const returnedCount = attention.items.length;
+  if (
+    !Number.isSafeInteger(totalCount) ||
+    totalCount < 0 ||
+    totalCount < returnedCount
+  ) {
+    return {
+      status: "source_incomplete",
+      omittedAttentionCount: null,
+    };
+  }
+  const omittedAttentionCount = totalCount - returnedCount;
+  if (!attention.state || attention.state.status === "error") {
+    return {
+      status: "source_incomplete",
+      omittedAttentionCount,
+    };
+  }
+  return {
+    status: omittedAttentionCount > 0 ? "lower_bound" : "complete",
+    omittedAttentionCount,
+  };
+}
+
+function continuitySummaryV01(input: {
+  knownAttentionCount: number;
+  workContinuing: boolean;
+  sourceStatus: BlankStateAttentionCountStatusV01;
+}): string {
+  const continuing = input.workContinuing ? "Work is continuing, and " : "";
+  if (input.sourceStatus === "lower_bound") {
+    return input.knownAttentionCount > 0
+      ? `${continuing}at least ${input.knownAttentionCount} known ${pluralV01(input.knownAttentionCount, "item genuinely needs", "items genuinely need")} you. Additional project attention exists outside this view.`
+      : `${input.workContinuing ? "Work is continuing. " : ""}Additional project attention needs review outside this view.`;
+  }
+  if (input.sourceStatus === "source_incomplete") {
+    return input.knownAttentionCount > 0
+      ? `${continuing}${input.knownAttentionCount} known ${pluralV01(input.knownAttentionCount, "item genuinely needs", "items genuinely need")} you. The complete project attention count is unavailable.`
+      : `${input.workContinuing ? "Work is continuing. " : ""}The complete project attention count is unavailable.`;
+  }
+  if (input.knownAttentionCount > 0) {
+    return `${continuing}${input.knownAttentionCount} ${pluralV01(input.knownAttentionCount, "item genuinely needs", "items genuinely need")} you.`;
+  }
+  return input.workContinuing
+    ? "Work is continuing. Nothing currently requires your intervention."
+    : "Nothing currently requires your intervention. Continue from the current project when you are ready.";
 }
 
 function itemV01(input: {

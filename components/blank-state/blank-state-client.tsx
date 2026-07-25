@@ -304,10 +304,15 @@ export function BlankStateClient({
           className="blank-state-continuity"
           aria-labelledby="continuity-list-title"
           data-blank-state-continuity-list="v0.1"
-          data-blank-state-attention-count={view.attention_count}
+          data-blank-state-known-attention-count={view.known_attention_count}
+          data-blank-state-attention-count-status={view.attention_count_status}
+          data-blank-state-source-omitted-attention-count={
+            view.source_omitted_attention_count ?? "unknown"
+          }
           data-augnes-independent-surface="continuous-work"
           data-augnes-visual-priority={
-            view.attention_count > 0
+            view.known_attention_count > 0 ||
+            (view.source_omitted_attention_count ?? 0) > 0
               ? SEMANTIC_VISUAL_PRIORITY.risk
               : SEMANTIC_VISUAL_PRIORITY.aiSummary
           }
@@ -356,11 +361,30 @@ export function BlankStateClient({
               ))}
             </ol>
           ) : null}
-          {view.omitted_item_count > 0 ? (
+          {view.locally_omitted_item_count > 0 ? (
             <p className="blank-state-meta">
-              {view.omitted_item_count} additional{" "}
-              {view.omitted_item_count === 1 ? "item is" : "items are"} available
-              from the existing project destinations.
+              {view.locally_omitted_item_count} additional{" "}
+              {view.locally_omitted_item_count === 1 ? "item is" : "items are"}{" "}
+              available from the existing project destinations.
+            </p>
+          ) : null}
+          {view.source_attention_destination &&
+          view.attention_count_status !== "complete" ? (
+            <p
+              className="blank-state-meta"
+              data-blank-state-source-attention-omitted="true"
+            >
+              {view.attention_count_status === "lower_bound" &&
+              view.source_omitted_attention_count !== null
+                ? `${view.source_omitted_attention_count} additional project ${
+                    view.source_omitted_attention_count === 1
+                      ? "attention item exists"
+                      : "attention items exist"
+                  } outside this view. `
+                : "Additional project attention may exist outside this view. "}
+              <a href={view.source_attention_destination.href}>
+                {view.source_attention_destination.label}
+              </a>
             </p>
           ) : null}
         </section>
