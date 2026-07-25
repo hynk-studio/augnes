@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ProductShell } from "@/components/product-shell";
 import {
+  SEMANTIC_SURFACE_ROLE,
+  SEMANTIC_VISUAL_PRIORITY,
+} from "@/lib/vnext/semantic-visual/semantic-visual-contract";
+import {
   RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
   buildRecoveryActionControlViewV01,
   recoveryActionOutcomeRequiresRefreshV01,
@@ -303,13 +307,17 @@ export default function RecoveryPage() {
         data-recovery-safety-view={view?.view_version ?? "checking"}
         data-recovery-mode={view?.mode ?? "checking"}
         data-recovery-action-confirmation={actionConfirmationState}
+        data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.recovery}
       >
         {status && !status.recovery_mode ? (
           <a className={styles.returnLink} href="/">
             Back to Blank State
           </a>
         ) : null}
-        <header className={styles.hero}>
+        <header
+          className={styles.hero}
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+        >
           <div>
             <p className={styles.eyebrow}>
               {status?.recovery_mode
@@ -324,7 +332,7 @@ export default function RecoveryPage() {
                 "Augnes is checking the runtime, local data, and recovery points."}
             </p>
           </div>
-          <span className={styles.localBadge}>Local data protection</span>
+          <p className={styles.localNote}>Local data protection</p>
         </header>
 
         {notice ? (
@@ -334,7 +342,11 @@ export default function RecoveryPage() {
         ) : null}
 
         {loading && status === null ? (
-          <section className={styles.panel} aria-live="polite">
+          <section
+            className={styles.panel}
+            aria-live="polite"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+          >
             <p className={styles.kicker}>Current safety state</p>
             <h2>Checking local data safety</h2>
             <p>No recovery action is available until the current state is read.</p>
@@ -346,6 +358,8 @@ export default function RecoveryPage() {
             data-recovery-primary-action={
               actionControl?.primary_action.kind ?? view.primary_action.kind
             }
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+            data-augnes-independent-surface="recovery-safety"
           >
             <p className={styles.kicker}>Current safety state</p>
             <h2>{view.safety_status_label}</h2>
@@ -382,6 +396,12 @@ export default function RecoveryPage() {
               data-recovery-primary-action={
                 actionControl?.primary_action.kind ?? view.primary_action.kind
               }
+              data-augnes-visual-priority={
+                view.safety_state === "ready"
+                  ? SEMANTIC_VISUAL_PRIORITY.situation
+                  : SEMANTIC_VISUAL_PRIORITY.risk
+              }
+              data-augnes-independent-surface="recovery-safety"
             >
               <p className={styles.kicker}>Current safety state</p>
               <h2>{view.safety_status_label}</h2>
@@ -536,6 +556,7 @@ function RecoveryPrimaryAction({
     <button
       type="button"
       className={styles.primaryButton}
+      data-augnes-primary-action={action.kind}
       onClick={callback}
       disabled={
         busyAction !== null ||
@@ -635,7 +656,11 @@ function RecoveryPoints({
   onPage: (page: number) => void;
 }) {
   return (
-    <section className={styles.panel} aria-labelledby="recovery-backups-title">
+    <section
+      className={styles.panel}
+      aria-labelledby="recovery-backups-title"
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+    >
       <div className={styles.sectionHeading}>
         <div>
           <p className={styles.kicker}>Recovery points</p>

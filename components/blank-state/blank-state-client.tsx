@@ -6,6 +6,10 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
 import { ProjectControls } from "@/components/project-controls";
 import { publicBlankStateTextV01 } from "@/lib/vnext/blank-state/blank-state-view";
+import {
+  SEMANTIC_SURFACE_ROLE,
+  SEMANTIC_VISUAL_PRIORITY,
+} from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type {
   BlankStatePrimaryActionV01,
   BlankStateSourceV01,
@@ -246,8 +250,13 @@ export function BlankStateClient({
         data-guide-brief-project-context={guide.identity.project_context}
         data-blank-state-active={projection?.project_summary.is_active ? "true" : "false"}
         data-blank-state-project-management-hydrated={hydrated ? "true" : "false"}
+        data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.blankState}
       >
-        <section className="blank-state-focus" aria-labelledby="blank-state-title">
+        <section
+          className="blank-state-focus"
+          aria-labelledby="blank-state-title"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+        >
           <p className="blank-state-eyebrow">Blank State</p>
           {view.project_name ? (
             <p className="blank-state-project-context">
@@ -257,7 +266,12 @@ export function BlankStateClient({
           <h1 id="blank-state-title">{view.heading}</h1>
           <p className="blank-state-situation">{view.situation}</p>
           {view.material_note ? (
-            <p className="blank-state-material-note">{view.material_note}</p>
+            <p
+              className="blank-state-material-note"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+            >
+              {view.material_note}
+            </p>
           ) : null}
           <PrimaryAction
             action={view.primary_action}
@@ -269,7 +283,12 @@ export function BlankStateClient({
             onActivate={(projectId) => void activate(projectId)}
           />
           {view.why_this_is_next.observed.length ? (
-            <details className="blank-state-guide-disclosure" data-guide-brief-disclosure="v0.2">
+            <details
+              className="blank-state-guide-disclosure"
+              data-guide-brief-disclosure="v0.2"
+              data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+            >
               <summary>Why this is next</summary>
               <div>
                 <p>{view.why_this_is_next.observed[0]}</p>
@@ -290,7 +309,11 @@ export function BlankStateClient({
         </section>
 
         {view.current_work ? (
-          <section className="blank-state-region" aria-labelledby="current-work-title">
+          <section
+            className="blank-state-region"
+            aria-labelledby="current-work-title"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+          >
             <div className="blank-state-region-heading">
               <div>
                 <p className="blank-state-region-label">Current work</p>
@@ -371,7 +394,11 @@ export function BlankStateClient({
         ) : null}
 
         {view.additional_attention.length ? (
-          <section className="blank-state-region" aria-labelledby="attention-title">
+          <section
+            className="blank-state-region"
+            aria-labelledby="attention-title"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+          >
             <p className="blank-state-region-label">Needs your attention</p>
             <h2 id="attention-title">Other items to review</h2>
             <ul className="blank-state-list">
@@ -387,7 +414,11 @@ export function BlankStateClient({
         ) : null}
 
         {view.recent_change ? (
-          <section className="blank-state-region" aria-labelledby="recent-change-title">
+          <section
+            className="blank-state-region"
+            aria-labelledby="recent-change-title"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+          >
             <p className="blank-state-region-label">Recent meaningful change</p>
             <h2 id="recent-change-title">Since you last looked</h2>
             <p>{view.recent_change.summary}</p>
@@ -468,6 +499,8 @@ function ManagementSafety({
       className="blank-state-disclosure"
       data-management-safety={view.view_version}
       data-management-safety-project-context={view.project_context}
+      data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
       <summary>Manage and protect</summary>
       <div className="blank-state-management-safety">
@@ -512,6 +545,8 @@ function PrimaryAction({
         href={action.href}
         data-blank-state-primary-action={action.kind}
         data-workbench-entry-state={action.entry_state ?? undefined}
+        data-augnes-primary-action={action.kind}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
         {action.label}
       </a>
@@ -531,6 +566,8 @@ function PrimaryAction({
       type="button"
       className="blank-state-primary-action"
       data-blank-state-primary-action={action.kind}
+      data-augnes-primary-action={action.kind}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       onClick={callback}
       disabled={busy || (action.kind !== "choose_folder" && action.kind !== "make_active" && !recentEntry)}
     >
@@ -565,7 +602,14 @@ function ProjectManagement({
   onCancelInspection: () => void;
 }) {
   return (
-    <section id="project-management" className="blank-state-project-management" aria-labelledby="project-management-title" aria-busy={busy}>
+    <section
+      id="project-management"
+      className="blank-state-project-management"
+      aria-labelledby="project-management-title"
+      aria-busy={busy}
+      data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+    >
       <div className="blank-state-region-heading">
         <div>
           <p className="blank-state-region-label">Project options</p>
@@ -608,7 +652,14 @@ function ProjectManagement({
               <li key={entry.project.project_id} className={entry.is_active ? "is-active" : undefined}>
                 <div>
                   <strong>{entry.project.display_name ?? "Unnamed project"}</strong>
-                  {entry.is_active ? <span className="active-project-badge">Current</span> : null}
+                  {entry.is_active ? (
+                    <span
+                      className="active-project-badge"
+                      data-augnes-state-badge="current-project"
+                    >
+                      Current
+                    </span>
+                  ) : null}
                   <p>{entry.local_root.normalized_path}</p>
                   <p className={`root-status root-status--${entry.root_availability}`}>
                     {entry.root_availability === "available" ? "Folder available" : "Folder needs to be located"}
@@ -642,7 +693,11 @@ function ProjectOptions({
 }) {
   const active = projection.project_summary.is_active;
   return (
-    <details className="blank-state-disclosure" data-blank-state-project-options="true">
+    <details
+      className="blank-state-disclosure"
+      data-blank-state-project-options="true"
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+    >
       <summary>Project options</summary>
       <div className="blank-state-options-grid">
         <section aria-labelledby="automation-options-title">

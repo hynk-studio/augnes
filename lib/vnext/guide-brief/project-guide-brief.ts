@@ -128,9 +128,14 @@ export function buildProjectGuideBriefV02(
     project_name: projectName,
     current_coordinate: decision.heading,
     current_goal: goal,
+    important_constraints: boundedListV02(
+      projection?.coordination.task_frame.forbidden_actions ?? [],
+      3,
+    ),
     work_or_result_status: coordinate.work_status,
     material_blocker_or_judgment:
       coordinate.unresolved_user_judgment ?? coordinate.material_blocker_or_uncertainty,
+    unresolved_user_judgments: judgments.map((item) => item.question),
     recommended_review_focus: primaryGuidance.label,
     exact_detail_href: result?.inspector_href ?? null,
     delegated_work: coordinate.delegated_work,

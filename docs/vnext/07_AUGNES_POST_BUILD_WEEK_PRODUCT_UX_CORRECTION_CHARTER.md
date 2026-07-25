@@ -15,18 +15,18 @@ user-facing surface topology가 이전 active planning과 충돌하면 이 문�
 제품 정체성과 전략 불변식을, [`02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)는
 Core와 protocol 의미를 계속 소유한다.
 
-현재 code와 runtime은 구현된 behavior의 source of truth다. C0–C6는 merge되었다.
+현재 code와 runtime은 구현된 behavior의 source of truth다. C0–C7은 merge되었다.
 `guide_brief.v0.2`는 Blank State, AI Workplane, ChatGPT/MCP와 Codex가 공유하는 bounded
 current-project View다. C4는 exact result, verification, suggested-change, decision과
 project-change flow를 보존하면서 current Workbench를 human-facing AI Workplane으로
 reproject했다. C5는 기존 runner ledger와 native-host lifecycle을 durable
 delegated-work timeline과 explicit resume로 투영했다. C6는 exact reader를
 보존하면서 protocol-first Shared Inspector presentation을 contextual Exact details로
-demote했다. C7 implementation은 permanent Project tools menu를 제거하고 project
-transfer/import와 ordinary recovery discovery를 Blank State의 Manage and protect로
-relocate한다. forced recovery mode는 기존 proxy가 계속 소유한다. C7은 이 PR이
-review와 merge된 뒤에만 complete다. C8–C9 correction은 아직 일어났다고 주장하지
-않는다.
+demote했다. C7은 permanent Project tools menu를 제거하고 project transfer/import와
+ordinary recovery discovery를 Blank State의 Manage and protect로 relocate했다.
+forced recovery mode는 기존 proxy가 계속 소유한다. C8은 이 change에서 actual
+owning surface에 semantic visual hierarchy를 구현하며 user review와 merge 뒤에만
+complete다. C9 correction은 아직 일어났다고 주장하지 않는다.
 
 ## 2. Why correction is required
 
@@ -87,10 +87,11 @@ result, suggested-change, decision과 confirmed project-change controls를 AI Wo
 human projection으로 흡수했다. C5는 existing managed-live ledger를 AI Workplane full
 timeline과 Blank State compact return status로 투영했다. C6는 exact reader를 바꾸지
 않고 concrete target, relevant source/safeguard section, closed additional record와
-related return context만 default presentation한다. C7 in this change는 utility
-discovery를 Blank State management/safety와 condition-triggered recovery path로
-relocate한다. visual system과 compatibility reduction은 아직 runtime에 구현되지
-않았다.
+related return context만 default presentation한다. C7은 utility discovery를 Blank
+State management/safety와 condition-triggered recovery path로 relocate했다. C8 in
+this change는 같은 topology를 situation, primary action, AI summary, risk,
+supporting information, raw record 순서로 표현한다. compatibility reduction은 아직
+runtime에 구현되지 않았다.
 
 ## 4. Target product topology
 
@@ -306,6 +307,34 @@ merge-blocked다.
     hierarchy, surface responsibility와 progressive disclosure 교정 전에 broad visual
     polish를 수행하지 않는다. unresolved IA를 visual polish로 정당화하지 않는다.
 
+### C8 semantic visual contract
+
+C8은 새 peer product나 generic card library를 만들지 않는다. 다음 meaning role은
+default reading order, typography, contrast, spacing, grouping, action emphasis와
+responsive reflow를 함께 지배한다.
+
+1. current situation
+2. primary action
+3. AI summary
+4. risk and uncertainty
+5. supporting information
+6. raw record
+
+한 default state에는 action이 실제로 필요할 때만 primary action 하나가 있다.
+GuideBrief는 같은 goal, constraint와 unresolved judgment를 Browser, ChatGPT와
+Codex에 유지하지만 page action보다 조용하다. Inspector는 neutral, compact,
+read-only exact detail이며 normal flow의 prerequisite가 아니다. Management,
+Portability와 Recovery는 Blank State management/safety language를 상속하고
+consequential risk만 semantic warning treatment를 사용한다.
+
+390 CSS pixel browser contract는 horizontal overflow, clipped or overlapping
+primary controls, first-scroll action placement, default protocol vocabulary,
+internal-ID input과 Inspector dependency를 막는다. Optional screenshots와 review
+index는 `.augnes-local-verification/c8-review/` 아래 local ignored artifact로만
+생성한다. 이 artifact와 automated contract는 visual hierarchy review를 돕지만
+aesthetic approval이나 ten-second comprehension을 주장하지 않는다. 그 판단은
+user가 직접 수행한다.
+
 ## 12. User-facing PR gates
 
 모든 future user-facing PR은 PR body에서 다음에 답해야 한다.
@@ -363,15 +392,15 @@ relocation을 구현한다.
   merged
 - **C5 — Delegated Codex work timeline and resumption:** merged
 - **C6 — Contextual Inspector demotion:** merged
-- **C7 — Management and safety relocation for Portability and Recovery:**
-  implemented in this change; complete only after user review and merge
-- **C8 — Visual system after IA correction**
+- **C7 — Management and safety relocation for Portability and Recovery:** merged
+- **C8 — Visual system after IA correction:** implemented in this change;
+  complete only after user review and merge
 - **C9 — Compatibility and obsolete-surface reduction**
 
-C8–C9는 implemented, complete 또는 runtime-active가 아니다. C7은 이 change에서
-implemented되지만 review와 merge 전에는 complete가 아니다. user가 correction
-program을 명시적으로 override하지 않는 한 broad visual polish나 unrelated feature
-phase가 C8보다 먼저 오지 않는다.
+C8은 이 change에서 implemented되지만 review와 merge 전에는 complete가 아니다.
+C9은 implemented, complete 또는 runtime-active가 아니다. user가 correction
+program을 명시적으로 override하지 않는 한 C9 cleanup을 이 C8 branch에서 먼저
+수행하지 않는다.
 
 ## 15. Non-goals
 
@@ -400,6 +429,7 @@ C0의 완료 조건은 다음뿐이다.
 - Evaluation & Maturity가 basic UX correctness를 Alpha 이후로 미루지 않는다.
 - Roadmap이 C1을 다음 runtime step으로 기록하고 C1–C9를 미구현 상태로 유지한다.
 
-C0–C6는 review와 merge를 마쳤다. C7 implementation은 별도 user review와 merge를
-기다리며, 그 전에는 C8을 시작하지 않는다. C0 자체가 runtime behavior를 변경하지
-않았다는 historical boundary는 그대로 유지된다.
+C0–C7은 review와 merge를 마쳤다. C8 implementation은 별도 user review와 merge를
+기다리며, 그 전에는 complete로 주장하지 않는다. C9은 별도 explicit authority를
+기다린다. C0 자체가 runtime behavior를 변경하지 않았다는 historical boundary는
+그대로 유지된다.

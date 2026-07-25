@@ -785,6 +785,50 @@ try {
     automaticallySelectedCandidate?.candidate.candidate_id,
     secondCandidate.candidate.candidate_id,
   );
+  const appliedMultiCandidateReceipt = {
+    ...exactAppliedReceipt,
+    source_decision: {
+      ...exactAppliedReceipt.source_decision,
+      decision_id: multiCandidateDecision.decision_id,
+      decision_fingerprint: multiCandidateDecision.integrity.fingerprint,
+    },
+    source_candidate: {
+      candidate_id: secondCandidate.candidate.candidate_id,
+      candidate_fingerprint: secondCandidate.candidate_fingerprint,
+    },
+  };
+  const multiCandidateAfterApplication = {
+    ...multiCandidateRead,
+    transition_receipts: [appliedMultiCandidateReceipt],
+    transition: {
+      status: "applied" as const,
+      transition_receipt_id:
+        appliedMultiCandidateReceipt.transition_receipt_id,
+      transition_receipt_fingerprint:
+        appliedMultiCandidateReceipt.integrity.fingerprint,
+      notes: [],
+    },
+    decision_application_summary: {
+      ...multiCandidateRead.decision_application_summary,
+      status: "project_updated" as const,
+      applying_decision_pending: false,
+      matching_transition_receipt_present: true,
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const remainingDecisionCandidate =
+    selectAIWorkplaneChangeCandidateV01(
+      multiCandidateAfterApplication,
+      null,
+    );
+  assert.equal(
+    remainingDecisionCandidate?.candidate.candidate_id,
+    firstCandidate.candidate.candidate_id,
+  );
+  const remainingDecisionView = buildAIWorkplaneChangeReviewViewV01({
+    read: multiCandidateAfterApplication,
+    selected_candidate_id: null,
+  });
+  assert.equal(remainingDecisionView.decision_status, "blocked");
   const multiCandidateView = buildAIWorkplaneChangeReviewViewV01({
     read: multiCandidateRead,
     selected_candidate_id: null,

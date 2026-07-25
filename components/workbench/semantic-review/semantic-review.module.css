@@ -147,12 +147,15 @@
 }
 
 .boundaryBand {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.45;
 }
 
-.boundaryBand span,
 .badge {
   display: inline-flex;
   flex: 0 0 auto;
@@ -234,22 +237,23 @@
 .workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child {
   padding: 24px 26px;
   border: 0;
-  border-radius: 16px;
-  background: #173f34;
-  box-shadow: 0 18px 42px rgba(23, 63, 52, 0.14);
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child :is(h2, dt, dd, .copy) {
-  color: #f8f5eb;
+  color: var(--foreground);
 }
 
 .workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child .kicker {
-  color: #efc56e;
+  color: var(--accent-strong);
 }
 
 .workbenchSequence[data-vnext-semantic-review-detail] > .panel:first-child .statusGrid div {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--panel-border);
+  background: transparent;
 }
 
 .lockedPanel {
@@ -373,7 +377,7 @@
 
 .button,
 .secondaryButton {
-  min-height: 38px;
+  min-height: 44px;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.82rem;
@@ -1048,7 +1052,7 @@
   gap: 18px;
   padding: clamp(20px, 4vw, 34px);
   border-color: rgba(18, 112, 82, 0.24);
-  background: linear-gradient(145deg, rgba(245, 251, 248, 0.96), rgba(255, 255, 255, 0.96));
+  background: rgba(245, 251, 248, 0.74);
 }
 
 .workplaneCoordinate {

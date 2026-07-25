@@ -2,6 +2,7 @@
 
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
 import type { DelegatedWorkActionV01 } from "./use-delegated-codex-work-v0-1";
+import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
@@ -40,6 +41,8 @@ export function DelegatedWorkPanel({
           ? "true"
           : "false"
       }
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+      data-augnes-independent-surface="delegated-work"
     >
       <div className={styles.panelHeader}>
         <p className={styles.kicker}>Delegated Codex work</p>
@@ -114,6 +117,7 @@ export function DelegatedWorkPanel({
           className={styles.delegatedApproval}
           aria-labelledby="delegated-work-approval-title"
           data-delegated-work-approval="pending"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
         >
           <div>
             <p className={styles.kicker}>Requested access</p>
@@ -173,7 +177,7 @@ export function DelegatedWorkPanel({
       ) : null}
 
       {projection?.timeline.length ? (
-        <div>
+        <div data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}>
           <h3>Progress</h3>
           <ol
             className={styles.delegatedTimeline}
@@ -263,7 +267,9 @@ function PrimaryDelegatedAction({
       <button
         type="button"
         className={styles.button}
-        data-ai-workplane-primary-action="start-codex-work"
+          data-ai-workplane-primary-action="start-codex-work"
+          data-augnes-primary-action="start-codex-work"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
         data-delegated-work-action="start"
         disabled={busy}
         onClick={() => void onAction({ action: "start_live" })}
@@ -281,6 +287,8 @@ function PrimaryDelegatedAction({
         className={styles.button}
         href="#delegated-work-approval"
         data-ai-workplane-primary-action="review-requested-access"
+        data-augnes-primary-action="review-requested-access"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
         Review requested access
       </a>
@@ -292,6 +300,8 @@ function PrimaryDelegatedAction({
         type="button"
         className={styles.button}
         data-ai-workplane-primary-action="resume-codex-work"
+        data-augnes-primary-action="resume-codex-work"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
         data-delegated-work-action="resume"
         disabled={busy}
         onClick={() =>
@@ -312,6 +322,8 @@ function PrimaryDelegatedAction({
         className={styles.button}
         href={projection.result.review_href}
         data-ai-workplane-primary-action="review-result"
+        data-augnes-primary-action="review-result"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
         Review result
       </a>
@@ -327,6 +339,8 @@ function PrimaryDelegatedAction({
         className={styles.button}
         href="/"
         data-ai-workplane-primary-action="return-to-blank-state"
+        data-augnes-primary-action="return-to-blank-state"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
         Return to Blank State
       </a>

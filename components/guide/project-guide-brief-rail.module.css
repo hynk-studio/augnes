@@ -1,23 +1,34 @@
 .rail {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin: 0 0 20px;
-  padding: 16px;
-  border: 1px solid rgba(15, 118, 110, .25);
-  border-radius: 12px;
-  background: rgba(240, 253, 250, .72);
-  color: #0f172a;
+  grid-template-columns: minmax(12rem, .72fr) minmax(0, 1.28fr);
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) 0 var(--space-3) var(--space-3);
+  border: 0;
+  border-left: 2px solid var(--info-border);
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--foreground);
 }
 
 .rail > * { min-width: 0; }
 .rail p { margin: 0; overflow-wrap: anywhere; }
-.rail a { color: #0f766e; font-weight: 750; }
-.label { margin-bottom: 5px !important; color: #0f766e; font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.muted { margin-top: 5px !important; color: #475569; font-size: .84rem; }
-.note { margin-top: 7px !important; color: #854d0e; font-size: .84rem; }
-.boundary { grid-column: 1 / -1; padding-top: 10px; border-top: 1px solid rgba(15, 118, 110, .18); color: #475569; font-size: .78rem; }
+.rail a { color: var(--accent-strong); font-weight: 750; }
+.voice { display: grid; align-content: start; gap: var(--space-1); }
+.voice > strong { font-size: 1rem; line-height: 1.35; }
+.voice > p:last-child { color: var(--muted); font-size: .84rem; line-height: 1.45; }
+.label { color: var(--accent-strong); font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); }
+.context p { color: var(--foreground); font-size: .84rem; line-height: 1.45; }
+.context p > span { display: block; margin-bottom: 2px; color: var(--muted); font-size: .69rem; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
+.context a { width: fit-content; font-size: .8rem; }
+.note { padding-left: var(--space-2); border-left: 2px solid var(--risk); color: #704b19 !important; }
+.focus { font-weight: 700; }
+.boundary { grid-column: 1 / -1; color: var(--muted); font-size: .74rem; }
 
 @media (max-width: 760px) {
-  .rail { grid-template-columns: minmax(0, 1fr); }
+  .rail {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: var(--space-2);
+  }
+  .context { grid-template-columns: minmax(0, 1fr); }
 }

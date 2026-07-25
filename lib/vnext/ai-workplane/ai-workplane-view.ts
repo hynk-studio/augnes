@@ -348,40 +348,7 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
       authority: PRESENTATION_AUTHORITY,
     };
   }
-  const decisions = read.decision_history
-    .filter(
-      (entry) =>
-        entry.status === "valid" &&
-        entry.pilot_session_bound &&
-        entry.decision.candidate.candidate_id ===
-          selected.candidate.candidate_id,
-    )
-    .map((entry) => entry.decision)
-    .sort(compareEffectiveReviewDecisionsV01);
-  const effective = decisions[0] ?? null;
-  const receipt = effective
-    ? read.transition_receipts.find(
-        (entry) =>
-          entry.source_decision.decision_id === effective.decision_id &&
-          entry.source_decision.decision_fingerprint === effective.integrity.fingerprint &&
-          entry.source_candidate.candidate_id === selected.candidate.candidate_id &&
-          entry.source_candidate.candidate_fingerprint === selected.candidate_fingerprint,
-      ) ?? null
-    : null;
-  const blocked = selected.pilot_admission.decision_allowed.accept === false;
-  const decisionStatus = receipt
-    ? "project_updated"
-    : !effective
-      ? blocked
-        ? "blocked"
-        : "needs_decision"
-      : effective.decision === "reject"
-        ? "rejected"
-        : effective.decision === "defer"
-          ? "deferred"
-          : blocked
-            ? "blocked"
-            : "decision_saved";
+  const decisionStatus = changeReviewDecisionStatusV01(read, selected);
   const uncertainties = boundedUnique([
     ...selected.candidate.uncertainties,
     ...selected.candidate.limitations,
@@ -409,22 +376,71 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
   };
 }
 
+function changeReviewDecisionStatusV01(
+  read: SemanticReviewProposalDetailV01,
+  selected: SemanticReviewProposalDetailV01["candidates"][number],
+): AIWorkplaneChangeReviewViewV01["decision_status"] {
+  const decisions = read.decision_history
+    .filter(
+      (entry) =>
+        entry.status === "valid" &&
+        entry.pilot_session_bound &&
+        entry.decision.candidate.candidate_id ===
+          selected.candidate.candidate_id,
+    )
+    .map((entry) => entry.decision)
+    .sort(compareEffectiveReviewDecisionsV01);
+  const effective = decisions[0] ?? null;
+  const receipt = effective
+    ? read.transition_receipts.find(
+        (entry) =>
+          entry.source_decision.decision_id === effective.decision_id &&
+          entry.source_decision.decision_fingerprint === effective.integrity.fingerprint &&
+          entry.source_candidate.candidate_id === selected.candidate.candidate_id &&
+          entry.source_candidate.candidate_fingerprint === selected.candidate_fingerprint,
+      ) ?? null
+    : null;
+  const blocked = selected.pilot_admission.decision_allowed.accept === false;
+  return receipt
+    ? "project_updated"
+    : !effective
+      ? blocked
+        ? "blocked"
+        : "needs_decision"
+      : effective.decision === "reject"
+        ? "rejected"
+        : effective.decision === "defer"
+          ? "deferred"
+          : blocked
+            ? "blocked"
+            : "decision_saved";
+}
+
 export function selectAIWorkplaneChangeCandidateV01(
   read: SemanticReviewProposalDetailV01,
   selectedCandidateId: string | null,
 ): SemanticReviewProposalDetailV01["candidates"][number] | null {
+  const explicit = read.candidates.find(
+    (entry) => entry.candidate.candidate_id === selectedCandidateId,
+  );
+  if (explicit) return explicit;
+  const preferred = read.candidates.find(
+    (entry) =>
+      entry.candidate.candidate_id ===
+        read.decision_application_summary.preferred_candidate_id &&
+      entry.candidate_fingerprint ===
+        read.decision_application_summary.preferred_candidate_fingerprint,
+  );
+  if (read.decision_application_summary.applying_decision_pending && preferred) {
+    return preferred;
+  }
+  const decisionNeeded = read.candidates.find((entry) => {
+    const status = changeReviewDecisionStatusV01(read, entry);
+    return status === "needs_decision" || status === "blocked";
+  });
   return (
-    read.candidates.find(
-      (entry) =>
-        entry.candidate.candidate_id === selectedCandidateId,
-    ) ??
-    read.candidates.find(
-      (entry) =>
-        entry.candidate.candidate_id ===
-          read.decision_application_summary.preferred_candidate_id &&
-        entry.candidate_fingerprint ===
-          read.decision_application_summary.preferred_candidate_fingerprint,
-    ) ??
+    decisionNeeded ??
+    preferred ??
     read.candidates[0] ??
     null
   );

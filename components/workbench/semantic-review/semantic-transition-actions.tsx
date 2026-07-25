@@ -571,6 +571,7 @@ export function SemanticTransitionActions({
             type="button"
             data-vnext-transition-action="preview"
             data-ai-workplane-primary-action="review-impact"
+            data-augnes-primary-action="review-impact"
             disabled={allBusy}
             onClick={() => void preparePreview()}
           >
@@ -617,6 +618,7 @@ export function SemanticTransitionActions({
             type="button"
             data-vnext-transition-action="confirm"
             data-ai-workplane-primary-action="confirm-change"
+            data-augnes-primary-action="confirm-change"
             disabled={!previewReviewed || allBusy}
             onClick={() => void confirmGate()}
           >
@@ -662,6 +664,7 @@ export function SemanticTransitionActions({
             type="button"
             data-vnext-transition-action="apply"
             data-ai-workplane-primary-action="apply-to-project"
+            data-augnes-primary-action="apply-to-project"
             disabled={!gateReviewed || !priorPacket || allBusy}
             onClick={() => void applyTransitionAndCompile()}
           >
@@ -688,9 +691,8 @@ export function SemanticTransitionActions({
             data-vnext-transition-compile-transition-applied="true"
           >
             <a
-              className={styles.button}
+              className={styles.secondaryButton}
               href="/workbench/semantic-review"
-              data-ai-workplane-primary-action="return-home"
             >
               Return to AI Workplane
             </a>

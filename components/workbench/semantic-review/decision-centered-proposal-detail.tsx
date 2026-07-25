@@ -7,6 +7,7 @@ import {
   selectAIWorkplaneChangeCandidateV01,
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
+import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 
 import { ContextUseReviewForm } from "./context-use-review-form";
@@ -94,6 +95,25 @@ export function DecisionCenteredProposalDetail({
   const decisionFormPrimary =
     view.decision_status !== "decision_saved" &&
     view.decision_status !== "project_updated";
+  const nextDecisionCandidate =
+    view.decision_status === "project_updated"
+      ? read.candidates.find((candidate) => {
+          if (
+            candidate.candidate.candidate_id ===
+            selected?.candidate.candidate_id
+          ) {
+            return false;
+          }
+          const candidateView = buildAIWorkplaneChangeReviewViewV01({
+            read,
+            selected_candidate_id: candidate.candidate.candidate_id,
+          });
+          return (
+            candidateView.decision_status === "needs_decision" ||
+            candidateView.decision_status === "blocked"
+          );
+        }) ?? null
+      : null;
 
   return (
     <section
@@ -109,7 +129,12 @@ export function DecisionCenteredProposalDetail({
       data-vnext-transition-status={read.transition.status}
       data-vnext-selected-candidate={selected ? "present" : "none"}
     >
-      <section className={`${styles.panel} ${styles.workplaneFocus}`} aria-labelledby="what-would-change-title">
+      <section
+        className={`${styles.panel} ${styles.workplaneFocus}`}
+        aria-labelledby="what-would-change-title"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+        data-augnes-independent-surface="suggested-change"
+      >
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Suggested change</p>
           <h2 id="what-would-change-title">What would change</h2>
@@ -148,59 +173,17 @@ export function DecisionCenteredProposalDetail({
                 <p className={styles.kicker}>{view.operation_label}</p>
                 <h3>{view.title}</h3>
               </div>
-              <span className={styles.badge}>{view.decision_status_label}</span>
+              <span
+                className={styles.badge}
+                data-augnes-state-badge="decision-status"
+              >
+                {view.decision_status_label}
+              </span>
             </div>
             <p className={styles.copy}>{view.effect_summary}</p>
           </section>
         ) : (
           <p className={styles.empty}>No reviewable change is available.</p>
-        )}
-      </section>
-
-      <section className={styles.panel} aria-labelledby="why-suggested-title">
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Current reasoning</p>
-          <h2 id="why-suggested-title">Why Augnes suggested it</h2>
-        </div>
-        <p className={styles.copy}>{view.reason}</p>
-        <p className={styles.muted}>
-          This is a bounded interpretation of the current result and project context,
-          not an accepted project change.
-        </p>
-      </section>
-
-      <section
-        className={styles.panel}
-        aria-labelledby="verified-title"
-        data-ai-workplane-verification={view.verification.status}
-      >
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Verification</p>
-          <h2 id="verified-title">What was verified</h2>
-        </div>
-        <p className={styles.humanStatus}>{view.verification.label}</p>
-        <dl className={styles.statusGrid}>
-          <DataPoint label="Checks passed" value={String(view.verification.passed)} />
-          <DataPoint label="Checks failed" value={String(view.verification.failed)} />
-          <DataPoint label="Checks skipped" value={String(view.verification.skipped)} />
-          <DataPoint label="Requirements satisfied" value={String(view.verification.satisfied)} />
-          <DataPoint label="Requirements not satisfied" value={String(view.verification.unsatisfied)} />
-          <DataPoint label="Requirements not confirmed" value={String(view.verification.unknown)} />
-        </dl>
-        <TextList title="Important blockers" items={view.verification.blockers} />
-      </section>
-
-      <section className={styles.panel} aria-labelledby="uncertain-title">
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Risk and judgment</p>
-          <h2 id="uncertain-title">What remains uncertain</h2>
-        </div>
-        {view.uncertainties.length > 0 ? (
-          <ul className={styles.plainList}>
-            {view.uncertainties.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}
-          </ul>
-        ) : (
-          <p className={styles.copy}>No material uncertainty is reported in the bounded current review.</p>
         )}
       </section>
 
@@ -212,12 +195,30 @@ export function DecisionCenteredProposalDetail({
           data-vnext-candidate-accept-eligible={String(
             selected.pilot_admission.decision_allowed.accept,
           )}
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+          data-augnes-independent-surface="decision"
         >
           <div className={styles.panelHeader}>
             <p className={styles.kicker}>Needs your decision</p>
             <h2 id="your-decision-title">Your decision</h2>
           </div>
           <p className={styles.copy}>{view.decision_status_label}</p>
+          {nextDecisionCandidate ? (
+            <button
+              className={styles.button}
+              type="button"
+              data-vnext-review-next-change="true"
+              data-ai-workplane-primary-action="review-next-change"
+              data-augnes-primary-action="review-next-change"
+              onClick={() =>
+                onSelectedCandidateChange(
+                  nextDecisionCandidate.candidate.candidate_id,
+                )
+              }
+            >
+              Review next change
+            </button>
+          ) : null}
           {strategicActionsAvailable ? (
             <ReviewDecisionForm
               key={selected.candidate.candidate_id}
@@ -237,6 +238,62 @@ export function DecisionCenteredProposalDetail({
           )}
         </section>
       ) : null}
+
+      <section
+        className={styles.panel}
+        aria-labelledby="why-suggested-title"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+      >
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Current reasoning</p>
+          <h2 id="why-suggested-title">Why Augnes suggested it</h2>
+        </div>
+        <p className={styles.copy}>{view.reason}</p>
+        <p className={styles.muted}>
+          This is a bounded interpretation of the current result and project context,
+          not an accepted project change.
+        </p>
+      </section>
+
+      <section
+        className={styles.panel}
+        aria-labelledby="verified-title"
+        data-ai-workplane-verification={view.verification.status}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+      >
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Verification</p>
+          <h2 id="verified-title">What was verified</h2>
+        </div>
+        <p className={styles.humanStatus}>{view.verification.label}</p>
+        <dl className={styles.statusGrid}>
+          <DataPoint label="Checks passed" value={String(view.verification.passed)} />
+          <DataPoint label="Checks failed" value={String(view.verification.failed)} />
+          <DataPoint label="Checks skipped" value={String(view.verification.skipped)} />
+          <DataPoint label="Requirements satisfied" value={String(view.verification.satisfied)} />
+          <DataPoint label="Requirements not satisfied" value={String(view.verification.unsatisfied)} />
+          <DataPoint label="Requirements not confirmed" value={String(view.verification.unknown)} />
+        </dl>
+        <TextList title="Important blockers" items={view.verification.blockers} />
+      </section>
+
+      <section
+        className={styles.panel}
+        aria-labelledby="uncertain-title"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+      >
+        <div className={styles.panelHeader}>
+          <p className={styles.kicker}>Risk and judgment</p>
+          <h2 id="uncertain-title">What remains uncertain</h2>
+        </div>
+        {view.uncertainties.length > 0 ? (
+          <ul className={styles.plainList}>
+            {view.uncertainties.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}
+          </ul>
+        ) : (
+          <p className={styles.copy}>No material uncertainty is reported in the bounded current review.</p>
+        )}
+      </section>
 
       {selected ? (
         <SemanticTransitionActions
@@ -262,14 +319,19 @@ export function DecisionCenteredProposalDetail({
         />
       ) : null}
 
-      <LaterContextFeedback
-        read={read}
-        proposalId={proposal.proposal_id}
-        busy={proposalLocalBusy}
-        onContextUseReview={onContextUseReview}
-      />
+      <div data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}>
+        <LaterContextFeedback
+          read={read}
+          proposalId={proposal.proposal_id}
+          busy={proposalLocalBusy}
+          onContextUseReview={onContextUseReview}
+        />
+      </div>
 
-      <details className={styles.advancedDisclosure}>
+      <details
+        className={styles.advancedDisclosure}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+      >
         <summary>Advanced review</summary>
         <p className={styles.muted}>
           Exact verification, decision history, project-change safeguards, and source

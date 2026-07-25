@@ -2,6 +2,7 @@ import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verif
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { AIWorkplaneHomeViewV01 } from "@/types/vnext/ai-workplane";
 import type { AIWorkplaneQueueItemStatusV01 } from "@/types/vnext/ai-workplane";
+import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 
 import { ProjectVerificationWorkbench } from "./project-verification-workbench";
 import type { SemanticReviewProposalListItemV01 } from "./semantic-review-types";
@@ -33,6 +34,7 @@ export function SemanticReviewProposalList({
         <section
           className={`${styles.panel} ${styles.workplaneFocus}`}
           aria-labelledby="ai-workplane-current-focus-title"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
         >
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Current work</p>
@@ -58,6 +60,8 @@ export function SemanticReviewProposalList({
               className={styles.button}
               href={view.primary_action.href}
               data-ai-workplane-primary-action={view.primary_action.kind}
+              data-augnes-primary-action={view.primary_action.kind}
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
             >
               {view.primary_action.label}
             </a>
@@ -67,7 +71,11 @@ export function SemanticReviewProposalList({
       ) : null}
 
       {view.focused_item ? (
-        <section className={styles.panel} aria-labelledby="ai-workplane-decision-title">
+        <section
+          className={styles.panel}
+          aria-labelledby="ai-workplane-decision-title"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+        >
           <div className={styles.panelHeader}>
             <p className={styles.kicker}>
               {focusedItemHeading(view.focused_item.status)}
@@ -80,7 +88,11 @@ export function SemanticReviewProposalList({
       ) : null}
 
       {view.additional_items.length > 0 ? (
-        <section className={styles.panel} aria-labelledby="ai-workplane-other-review-title">
+        <section
+          className={styles.panel}
+          aria-labelledby="ai-workplane-other-review-title"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+        >
           <div className={styles.panelHeader}>
             <p className={styles.kicker}>Other work to review</p>
             <h2 id="ai-workplane-other-review-title">More suggested changes</h2>
@@ -91,7 +103,12 @@ export function SemanticReviewProposalList({
                 <div className={styles.proposalCardBody}>
                   <div className={styles.rowBetween}>
                     <strong>{item.title}</strong>
-                    <span className={styles.badge}>{item.status_label}</span>
+                    <span
+                      className={styles.badge}
+                      data-augnes-state-badge="proposal-status"
+                    >
+                      {item.status_label}
+                    </span>
                   </div>
                   <p className={styles.muted}>{item.reason}</p>
                 </div>
@@ -105,7 +122,11 @@ export function SemanticReviewProposalList({
           </ol>
         </section>
       ) : proposals.length === 0 && view.state === "no_current_decision" ? (
-        <section className={styles.panel} aria-labelledby="ai-workplane-empty-title">
+        <section
+          className={styles.panel}
+          aria-labelledby="ai-workplane-empty-title"
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+        >
           <div className={styles.panelHeader}>
             <p className={styles.kicker}>Results and recent outcomes</p>
             <h2 id="ai-workplane-empty-title">Nothing else is waiting for review</h2>
@@ -116,7 +137,10 @@ export function SemanticReviewProposalList({
         </section>
       ) : null}
 
-      <details className={styles.advancedDisclosure}>
+      <details
+        className={styles.advancedDisclosure}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+      >
         <summary>Advanced verification</summary>
         <p className={styles.muted}>
           Exact supporting, conflicting, missing, and source-history detail is

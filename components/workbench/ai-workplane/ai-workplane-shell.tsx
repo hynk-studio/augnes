@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 
 import { ProjectGuideBriefRail } from "@/components/guide/project-guide-brief-rail";
+import {
+  SEMANTIC_SURFACE_ROLE,
+  SEMANTIC_VISUAL_PRIORITY,
+} from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
 
 import styles from "../semantic-review/semantic-review.module.css";
@@ -48,14 +52,53 @@ export function AIWorkplaneShell({
   priorityContent?: ReactNode;
   children: ReactNode;
 }) {
+  const guideFollowsConsequentialWork = [
+    "result_ready",
+    "change_decision",
+    "change_completion",
+    "change_applied",
+  ].includes(state);
+  const guideRail = (
+    <ProjectGuideBriefRail guide={guide ?? undefined} loading={guideLoading} />
+  );
+  const decisionBoundary = (
+    <details
+      className={styles.boundaryDisclosure}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+    >
+      <summary>
+        <strong
+          className={styles.entryState}
+          data-augnes-state-badge="workplane-state"
+        >
+          {stateLabel}
+        </strong>
+        <span>How decisions are protected</span>
+      </summary>
+      <ul
+        className={styles.boundaryBand}
+        aria-label="How AI Workplane decisions are protected"
+      >
+        <li>Results are not accepted automatically.</li>
+        <li>Saving a decision does not change the project.</li>
+        <li>Applying a change requires a separate confirmation.</li>
+        <li>Exact sources remain available in View exact details.</li>
+      </ul>
+    </details>
+  );
+
   return (
     <div
       className={styles.shell}
       data-ai-workplane-shell="v0.1"
       data-ai-workplane-state={state}
       data-ai-workplane-guide-request-count={guideRequestCount}
+      data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.aiWorkplane}
     >
-      <header className={styles.header}>
+      <header
+        className={styles.header}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+      >
         <div>
           <p className={styles.eyebrow}>AI Workplane</p>
           <h1>{title}</h1>
@@ -76,25 +119,13 @@ export function AIWorkplaneShell({
 
       {priorityContent}
 
-      <ProjectGuideBriefRail guide={guide ?? undefined} loading={guideLoading} />
-
-      <details className={styles.boundaryDisclosure}>
-        <summary>
-          <strong className={styles.entryState}>{stateLabel}</strong>
-          <span>How decisions are protected</span>
-        </summary>
-        <div
-          className={styles.boundaryBand}
-          aria-label="How AI Workplane decisions are protected"
-        >
-          <span>Results are not accepted automatically.</span>
-          <span>Saving a decision does not change the project.</span>
-          <span>Applying a change requires a separate confirmation.</span>
-          <span>Exact sources remain available in View exact details.</span>
-        </div>
-      </details>
+      {!guideFollowsConsequentialWork ? guideRail : null}
+      {!guideFollowsConsequentialWork ? decisionBoundary : null}
 
       {children}
+
+      {guideFollowsConsequentialWork ? guideRail : null}
+      {guideFollowsConsequentialWork ? decisionBoundary : null}
     </div>
   );
 }

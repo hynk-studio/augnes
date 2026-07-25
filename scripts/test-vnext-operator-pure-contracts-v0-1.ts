@@ -319,9 +319,68 @@ assert.equal(changeReviewSource.includes("What remains uncertain"), true);
 assert.equal(changeReviewSource.includes("Your decision"), true);
 assert.equal(changeReviewSource.includes("Advanced review"), true);
 assert.equal(resultReviewSource.includes("Outcome"), true);
-assert.equal(resultReviewSource.includes("Verification"), true);
+assert.equal(
+  resultReviewSource.includes(
+    'data-ai-workplane-result-section="verification"',
+  ),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes(
+    "data-ai-workplane-verification={view.verification.status}",
+  ),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("SEMANTIC_VISUAL_PRIORITY.aiSummary"),
+  true,
+);
+assert.match(
+  resultReviewSource,
+  /<p className=\{styles\.kicker\}>AI summary<\/p>[\s\S]*<h2 id="result-verification-title">\{view\.verification\.label\}<\/h2>/u,
+);
+for (const verificationField of [
+  "passed",
+  "failed",
+  "skipped",
+  "satisfied",
+  "unsatisfied",
+  "unknown",
+]) {
+  assert.equal(
+    resultReviewSource.includes(`view.verification.${verificationField}`),
+    true,
+    `result review preserves the ${verificationField} verification metric`,
+  );
+}
+assert.equal(
+  resultReviewSource.includes("view.verification.blockers.length > 0"),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("view.verification.blockers.map"),
+  true,
+);
 assert.equal(resultReviewSource.includes("What remains unresolved"), true);
+assert.equal(
+  resultReviewSource.includes(
+    'data-ai-workplane-result-section="unresolved"',
+  ),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("SEMANTIC_VISUAL_PRIORITY.risk"),
+  true,
+);
 assert.equal(resultReviewSource.includes("data-result-review-read-only"), true);
+assert.equal(
+  resultReviewSource.includes('data-result-to-shared-inspector="true"'),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("href={result.summary.inspector_href}"),
+  true,
+);
 record("ai_workplane_replaces_active_agent_and_semantic_workbench_presentations");
 
 const confirmationCallbackSource = transitionActionsSource.slice(

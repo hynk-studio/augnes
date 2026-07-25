@@ -5,7 +5,7 @@
 
 .shell {
   display: grid;
-  gap: 1.25rem;
+  gap: var(--space-3);
   width: min(100%, 52rem);
   margin: 0 auto;
 }
@@ -58,7 +58,7 @@
   margin: 0;
   padding: 0.85rem 1rem;
   border-inline-start: 0.25rem solid currentColor;
-  background: var(--color-subtle, #f3f6f8);
+  background: var(--panel-subtle);
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -67,10 +67,11 @@
 .context {
   display: grid;
   gap: 0.45rem;
-  padding: 1.1rem 1.2rem;
-  border: 1px solid var(--color-border, #cbd4dc);
-  border-radius: 0.85rem;
-  background: var(--color-panel, #fff);
+  padding: .85rem 0 .85rem 1rem;
+  border: 0;
+  border-left: 2px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .observed {
@@ -81,7 +82,7 @@
 .notice {
   padding: 0.85rem 1rem;
   border-inline-start: 0.25rem solid currentColor;
-  background: var(--color-subtle, #f3f6f8);
+  background: var(--panel-subtle);
 }
 
 .primarySections,
@@ -94,9 +95,10 @@
 .additionalRecords,
 .protectionDisclosure {
   min-width: 0;
-  border: 1px solid var(--color-border, #cbd4dc);
-  border-radius: 0.75rem;
-  background: var(--color-panel, #fff);
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .inspectorSection > summary,
@@ -106,7 +108,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem;
+  padding: .85rem .25rem;
   cursor: pointer;
 }
 
@@ -133,7 +135,7 @@
 .sectionBody,
 .additionalBody,
 .protectionDisclosure > div {
-  padding: 0 1rem 1rem;
+  padding: 0 .25rem 1rem;
 }
 
 .factList {
@@ -167,6 +169,8 @@
 
 .itemList li {
   min-width: 0;
+  padding-bottom: .65rem;
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .itemList p,

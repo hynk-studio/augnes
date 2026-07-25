@@ -68,6 +68,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "C8 semantic visual hierarchy and regression contract",
+      ...rootNode("scripts/test-c8-semantic-visual-contract.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "contextual exact-details presentation contract",
       ...rootNode("scripts/test-vnext-contextual-inspector.ts"),
       timeoutMs: 30_000,

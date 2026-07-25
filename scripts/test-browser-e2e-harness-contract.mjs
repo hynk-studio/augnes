@@ -162,6 +162,51 @@ assert.match(
 );
 assert.match(
   source,
+  /async function captureC8ReviewState[\s\S]*for \(const width of \[390, 1440\]\)[\s\S]*primary_action_within_first_scroll[\s\S]*overlapping_control_count[\s\S]*state_badge_count[\s\S]*raw_record_precedes_situation_or_action[\s\S]*risk_has_text/u,
+);
+assert.match(
+  source,
+  /async function waitForResponsiveSurface[\s\S]*window\.innerWidth[\s\S]*rect\.left >= -1[\s\S]*rect\.right <= window\.innerWidth \+ 1[\s\S]*documentElement\.scrollWidth <=[\s\S]*documentElement\.clientWidth \+ 1/u,
+);
+for (const functionName of [
+  "validateBlankStateViewports",
+  "validateWorkbenchResultViewports",
+  "validateDelegatedWorkViewports",
+  "validateSharedInspectorViewports",
+  "validateSemanticReviewViewports",
+  "captureC8ReviewState",
+]) {
+  const start = source.indexOf(`async function ${functionName}`);
+  const end = source.indexOf("\nasync function ", start + 1);
+  assert(start >= 0 && end > start);
+  assert.equal(source.slice(start, end).includes("await delay(100)"), false);
+}
+assert.match(
+  source,
+  /AUGNES_C8_CAPTURE_REVIEW[\s\S]*\.augnes-local-verification[\s\S]*c8-review[\s\S]*augnes\.c8-local-visual-review\.v1[\s\S]*human_review_required: true/u,
+);
+assert.match(
+  source,
+  /state: "action-needed-inactive-project"[\s\S]*state: "returning-current-project"[\s\S]*state: "active-work-needs-access"[\s\S]*state: "returned-result"[\s\S]*state: "exact-run-detail"[\s\S]*state: "returned-result-decision"[\s\S]*state: "outcome-unknown-risk"/u,
+);
+assert.match(
+  source,
+  /const delegationInteractionCount = 1;[\s\S]*delegationInteractionCount <= 3[\s\S]*data-vnext-default-decision-path-interactions="2"[\s\S]*const resultToDecisionInteractionCount = 2;[\s\S]*resultToDecisionInteractionCount <= 2/u,
+);
+assert.match(
+  source,
+  /data-delegated-work-stage="working"[\s\S]*active delegated work without fabricated primary action[\s\S]*data-augnes-primary-action[\s\S]*0,/u,
+);
+assert.match(
+  source,
+  /\['change_decision', 'change_applied'\]\.includes\(state[\s\S]*data-ai-workplane-primary-action[\s\S]*AI Workplane settled after project application/u,
+);
+assert.match(
+  source,
+  /const primaryActionRequired = shellState === 'change_decision'[\s\S]*\['change_decision', 'change_applied'\]\.includes\(metrics\.shell_state\)[\s\S]*metrics\.primary_action_required \? 1 : 0/u,
+);
+assert.match(
+  source,
   /async function waitForHttp[\s\S]*const waitNumber = waitCount;[\s\S]*String\(waitNumber\)/u,
 );
 

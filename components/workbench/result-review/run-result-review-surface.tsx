@@ -8,6 +8,7 @@ import {
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
+import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
 
@@ -55,12 +56,15 @@ export function RunResultReviewSurface({
               className={`${styles.panel} ${styles.workplaneFocus}`}
               role="alert"
               data-ai-workplane-guide-consistency={guideConsistency.status}
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
             >
               <p className={styles.copy}>{guideConsistency.message}</p>
               <a
                 className={styles.button}
                 href="/"
                 data-ai-workplane-primary-action="open-blank-state"
+                data-augnes-primary-action="open-blank-state"
+                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
               >
                 Open Blank State
               </a>
@@ -97,6 +101,8 @@ export function RunResultReviewSurface({
             className={`${styles.panel} ${styles.workplaneFocus}`}
             aria-labelledby="result-outcome-title"
             data-ai-workplane-result-section="outcome"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+            data-augnes-independent-surface="result"
           >
             <div className={styles.panelHeader}>
               <p className={styles.kicker}>Outcome</p>
@@ -107,12 +113,34 @@ export function RunResultReviewSurface({
 
           <section
             className={styles.panel}
+            aria-labelledby="result-next-step-title"
+            data-ai-workplane-result-section="next-step"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+          >
+            <div className={styles.panelHeader}>
+              <p className={styles.kicker}>Next meaningful action</p>
+              <h2 id="result-next-step-title">Continue from this result</h2>
+            </div>
+            <a
+              className={styles.button}
+              href={view.primary_action.href ?? "/workbench/semantic-review"}
+              data-ai-workplane-primary-action={view.primary_action.kind}
+              data-augnes-primary-action={view.primary_action.kind}
+              data-result-to-proposal-link={result.proposal.status === "available" ? "true" : undefined}
+            >
+              {view.primary_action.label}
+            </a>
+          </section>
+
+          <section
+            className={styles.panel}
             aria-labelledby="result-verification-title"
             data-ai-workplane-verification={view.verification.status}
             data-ai-workplane-result-section="verification"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
           >
             <div className={styles.panelHeader}>
-              <p className={styles.kicker}>Verification</p>
+              <p className={styles.kicker}>AI summary</p>
               <h2 id="result-verification-title">{view.verification.label}</h2>
             </div>
             <dl className={styles.statusGrid}>
@@ -134,6 +162,7 @@ export function RunResultReviewSurface({
             className={styles.panel}
             aria-labelledby="result-unresolved-title"
             data-ai-workplane-result-section="unresolved"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
           >
             <div className={styles.panelHeader}>
               <p className={styles.kicker}>Risk and open questions</p>
@@ -148,26 +177,10 @@ export function RunResultReviewSurface({
             )}
           </section>
 
-          <section
-            className={styles.panel}
-            aria-labelledby="result-next-step-title"
-            data-ai-workplane-result-section="next-step"
+          <details
+            className={styles.advancedDisclosure}
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
           >
-            <div className={styles.panelHeader}>
-              <p className={styles.kicker}>Suggested next step</p>
-              <h2 id="result-next-step-title">Continue from this result</h2>
-            </div>
-            <a
-              className={styles.button}
-              href={view.primary_action.href ?? "/workbench/semantic-review"}
-              data-ai-workplane-primary-action={view.primary_action.kind}
-              data-result-to-proposal-link={result.proposal.status === "available" ? "true" : undefined}
-            >
-              {view.primary_action.label}
-            </a>
-          </section>
-
-          <details className={styles.advancedDisclosure}>
             <summary>Advanced result details</summary>
             <TaskSuccessCriteria result={result} />
             <ReviewableProposal result={result} />
@@ -198,7 +211,11 @@ export function RunResultReviewSurface({
             </section>
           </details>
 
-          <p className={styles.notice} data-result-authority-boundary="true">
+          <p
+            className={styles.notice}
+            data-result-authority-boundary="true"
+            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+          >
             Opening this result is read-only. It saved no decision, accepted no
             project change, and closed no work.
           </p>
