@@ -15,7 +15,7 @@ user-facing surface topology가 이전 active planning과 충돌하면 이 문�
 제품 정체성과 전략 불변식을, [`02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)는
 Core와 protocol 의미를 계속 소유한다.
 
-현재 code와 runtime은 구현된 behavior의 source of truth다. C0–C7은 merge되었다.
+현재 code와 runtime은 구현된 behavior의 source of truth다. C0–C8은 merge되었다.
 `guide_brief.v0.2`는 Blank State, AI Workplane, ChatGPT/MCP와 Codex가 공유하는 bounded
 current-project View다. C4는 exact result, verification, suggested-change, decision과
 project-change flow를 보존하면서 current Workbench를 human-facing AI Workplane으로
@@ -24,9 +24,9 @@ delegated-work timeline과 explicit resume로 투영했다. C6는 exact reader�
 보존하면서 protocol-first Shared Inspector presentation을 contextual Exact details로
 demote했다. C7은 permanent Project tools menu를 제거하고 project transfer/import와
 ordinary recovery discovery를 Blank State의 Manage and protect로 relocate했다.
-forced recovery mode는 기존 proxy가 계속 소유한다. C8은 이 change에서 actual
-owning surface에 semantic visual hierarchy를 구현하며 user review와 merge 뒤에만
-complete다. C9 correction은 아직 일어났다고 주장하지 않는다.
+forced recovery mode는 기존 proxy가 계속 소유한다. C8은 actual owning surface에
+semantic visual hierarchy를 구현했다. RR0는 inventory-and-planning phase로
+완료되었으며 C9 correction 또는 runtime cleanup을 authorize하지 않았다.
 
 ## 2. Why correction is required
 
@@ -88,8 +88,8 @@ human projection으로 흡수했다. C5는 existing managed-live ledger를 AI Wo
 timeline과 Blank State compact return status로 투영했다. C6는 exact reader를 바꾸지
 않고 concrete target, relevant source/safeguard section, closed additional record와
 related return context만 default presentation한다. C7은 utility discovery를 Blank
-State management/safety와 condition-triggered recovery path로 relocate했다. C8 in
-this change는 같은 topology를 situation, primary action, AI summary, risk,
+State management/safety와 condition-triggered recovery path로 relocate했다. C8은
+같은 topology를 situation, primary action, AI summary, risk,
 supporting information, raw record 순서로 표현한다. compatibility reduction은 아직
 runtime에 구현되지 않았다.
 
@@ -379,8 +379,8 @@ protect와 condition-triggered recovery path 아래로 relocated된다. C3는 �
 embedded GuideBrief를 연결했다. C4는
 Workbench/result/change-review default projection을 AI Workplane으로 대체했다. C5는
 live Codex controls와 durable progress/resume를 AI Workplane에 흡수했다. C6는
-Inspector를 contextual Exact details로 demote했다. C7 in this change는 final utility
-relocation을 구현한다.
+Inspector를 contextual Exact details로 demote했다. C7은 final utility relocation을
+구현했다.
 
 ## 14. C0–C9 correction sequence
 
@@ -393,14 +393,12 @@ relocation을 구현한다.
 - **C5 — Delegated Codex work timeline and resumption:** merged
 - **C6 — Contextual Inspector demotion:** merged
 - **C7 — Management and safety relocation for Portability and Recovery:** merged
-- **C8 — Visual system after IA correction:** implemented in this change;
-  complete only after user review and merge
-- **C9 — Compatibility and obsolete-surface reduction**
+- **C8 — Visual system after IA correction:** merged
+- **C9 — Compatibility and obsolete-surface reduction:** pending; requires
+  separate explicit authorization
 
-C8은 이 change에서 implemented되지만 review와 merge 전에는 complete가 아니다.
-C9은 implemented, complete 또는 runtime-active가 아니다. user가 correction
-program을 명시적으로 override하지 않는 한 C9 cleanup을 이 C8 branch에서 먼저
-수행하지 않는다.
+C9은 implemented, complete 또는 runtime-active가 아니다. 완료된 RR0 inventory와
+planning은 C9 cleanup authority를 부여하지 않았다.
 
 ## 15. Non-goals
 
@@ -427,9 +425,9 @@ C0의 완료 조건은 다음뿐이다.
 - repository instructions가 hard UX invariants와 PR questions를 merge gate로
   요구한다.
 - Evaluation & Maturity가 basic UX correctness를 Alpha 이후로 미루지 않는다.
-- Roadmap이 C1을 다음 runtime step으로 기록하고 C1–C9를 미구현 상태로 유지한다.
+- Roadmap이 현재 correction status와 RR0 이후의 별도 authorization sequence를
+  기록한다.
 
-C0–C7은 review와 merge를 마쳤다. C8 implementation은 별도 user review와 merge를
-기다리며, 그 전에는 complete로 주장하지 않는다. C9은 별도 explicit authority를
-기다린다. C0 자체가 runtime behavior를 변경하지 않았다는 historical boundary는
-그대로 유지된다.
+C0–C8은 review와 merge를 마쳤다. C9은 별도 explicit authority를 기다린다. C0
+자체가 runtime behavior를 변경하지 않았다는 historical boundary는 그대로
+유지된다.

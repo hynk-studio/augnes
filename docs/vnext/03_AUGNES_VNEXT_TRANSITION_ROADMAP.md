@@ -118,11 +118,12 @@ Do not create a separate persistence, review, context packet, receipt, or outcom
   attention, trusted result, and explicit exact resume
 - **C6 — Contextual Inspector demotion:** merged; exact reader preserved beneath
   contextual Exact details and deterministic related return navigation
-- **C7 — Management and safety relocation for Portability and Recovery:** this
-  change removes shared-shell utility navigation while preserving the compatible
+- **C7 — Management and safety relocation for Portability and Recovery:** merged;
+  removes shared-shell utility navigation while preserving the compatible
   routes and exact engines under Blank State management and forced safety paths
-- **C8 — Visual system after IA correction**
-- **C9 — Compatibility and obsolete-surface reduction**
+- **C8 — Visual system after IA correction:** merged
+- **C9 — Compatibility and obsolete-surface reduction:** pending; not authorized
+  by RR0
 
 C2 replaced the root redirect, standalone Projects product,
 user-facing Project Home composition, and competing `/overview` home with one
@@ -138,17 +139,24 @@ Workplane, and demotes exact protocol detail without changing authority. C5
 reuses the existing runner ledger and host-round-trip route; it adds
 no event store, percentage, ETA, automatic retry, or execution authority.
 C6 removed generic active Inspector navigation and presents target-relevant
-exact sections without changing the exact reader. C7 in this change relocates
+exact sections without changing the exact reader. C7 relocates
 Portability/Recovery discovery without changing their mutation or recovery-mode
-boundaries. C8 visual system and C9 compatibility reduction remain
-unimplemented. Current code
-remains authoritative for each existing behavior until its later correction PR
-changes it.
+boundaries. C8 applies the semantic visual hierarchy without changing those
+authorities. C0–C8 are merged. Current code remains authoritative for each
+existing behavior until its later correction PR changes it.
 
-No broad visual-polish or unrelated new-feature phase precedes C8 after C7
-unless the user explicitly overrides this correction program. Replacement work
-must account for the superseded surface through absorption, redirect, hiding,
-explicit demotion or removal; it must not silently add another destination.
+[Issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
+defined the scope and boundaries for RR0. RR0 was completed in
+[Draft PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70)
+as an inventory-and-planning phase; that PR is the completed inventory and
+outcome record. RR0 changed no runtime behavior and authorized no implementation
+phase. Repository authority reconciliation and every later implementation
+phase—product-continuity UI work, C9 after
+replacement proof, documentation/research reduction, and code/fixture/script
+rationalization—remain pending separate explicit authorization. Replacement
+work must account for every superseded surface through absorption, redirect,
+hiding, explicit demotion, or removal; it must not silently add another
+destination.
 
 ## Operational Core implementation sequence
 
