@@ -209,10 +209,15 @@ const proposalReview = read(
 );
 assertOrdered(proposalReview, [
   'id="what-would-change-title"',
+  "{timeline ? <SelectedWorkTimeline timeline={timeline} /> : null}",
   'id="your-decision-title"',
-  'id="why-suggested-title"',
-  'id="verified-title"',
-  'id="uncertain-title"',
+  "<SelectedWorkSupport view={view} />",
+  'id="selected-work-later-feedback"',
+  "<summary>Advanced review</summary>",
+]);
+assertOrdered(proposalReview, [
+  'id="selected-work-timeline-title"',
+  'id="selected-work-next-step-title"',
 ]);
 assert.match(
   proposalReview,
@@ -241,11 +246,15 @@ assert.match(
 for (const source of [
   blankState,
   workplaneShell,
-  proposalReview,
   read("components/workbench/semantic-review/proposal-list.tsx"),
 ]) {
   assert.match(source, /data-augnes-state-badge/u);
 }
+assert.doesNotMatch(proposalReview, /data-augnes-state-badge/u);
+assert.match(
+  proposalReview,
+  /aria-current=\{current \? "step" : undefined\}[\s\S]*statusLabel\(item\.status, current\)/u,
+);
 
 const inspector = read(
   "components/workbench/inspector/shared-project-inspector-surface.tsx",

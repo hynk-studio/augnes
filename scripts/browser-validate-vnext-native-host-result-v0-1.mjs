@@ -261,6 +261,9 @@ const result = {
   canonical_reconciliation_visible: false,
   protocol_details_progressively_disclosed: false,
   proposal_review_narrow_viewport_no_overflow: false,
+  selected_work_timeline_first: false,
+  selected_work_timeline_state_coverage: [],
+  selected_work_timeline_candidate_switching: false,
   strategic_profile_optional_unavailable: false,
   strategic_profile_no_analysis_on_load: false,
   strategic_profile_no_internal_id_input: false,
@@ -2036,9 +2039,10 @@ async function main() {
       "strategic defer decision response",
     );
     await waitForCondition(
-      `document.querySelector('[data-vnext-decision-history="v0.1"] li')?.textContent?.includes('defer') === true && document.querySelector('[data-vnext-transition-actions-status="awaiting_applying_decision"]') !== null`,
+      `document.querySelector('[data-vnext-decision-history="v0.1"] li')?.textContent?.includes('defer') === true && document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="deferred_until_condition"]') !== null && document.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null`,
       "strategic defer decision without transition",
     );
+    await validateSemanticReviewViewports();
     const afterStrategicDecision = readDirectHostBrowserState(
       manifest.project_id,
     );
@@ -3586,12 +3590,32 @@ async function main() {
           !visibleText.includes('sha256:') &&
           !visibleText.includes('Confirmation digest') &&
           !visibleText.includes('Gate record ID'),
-        human_review_order:
-          visibleText.indexOf('What would change') >= 0 &&
-          visibleText.indexOf('Your decision') > visibleText.indexOf('What would change') &&
-          visibleText.indexOf('Why Augnes suggested it') > visibleText.indexOf('Your decision') &&
-          visibleText.indexOf('What was verified') > visibleText.indexOf('Why Augnes suggested it') &&
-          visibleText.indexOf('What remains uncertain') > visibleText.indexOf('What was verified'),
+        human_review_order: (() => {
+          const identity = detail?.querySelector('[aria-labelledby="what-would-change-title"]');
+          const timeline = detail?.querySelector('[data-selected-work-timeline-items]');
+          const currentPosition = timeline?.querySelector('[data-selected-work-next-step]');
+          const decision = detail?.querySelector('#selected-work-decision');
+          const support = detail?.querySelector('#selected-work-support');
+          return Boolean(identity && timeline && currentPosition && decision && support) &&
+            Boolean(identity.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+            Boolean(timeline.compareDocumentPosition(decision) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+            Boolean(decision.compareDocumentPosition(support) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+            currentPosition.textContent?.includes('Current position') === true &&
+            currentPosition.textContent?.includes('What happens next') === true;
+        })(),
+        timeline_first:
+          detail?.getAttribute('data-selected-work-timeline') === 'selected_work_timeline.v0.1' &&
+          detail?.querySelector('[aria-label="Selected work meaningful timeline"]') !== null &&
+          detail?.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 &&
+          detail?.querySelector('[data-selected-work-next-step="review_focused"]') !== null,
+        timeline_non_authoritative:
+          detail?.querySelector('[data-selected-work-projection-only="true"][data-selected-work-semantic-authority="false"]') !== null &&
+          Array.from(detail?.querySelectorAll('[data-selected-work-timeline-item]') ?? []).every(
+            (item) => item.getAttribute('data-selected-work-timeline-authority') === 'false'
+          ),
+        one_default_timeline_surface:
+          detail?.querySelectorAll('[data-augnes-independent-surface]').length === 1 &&
+          detail?.querySelectorAll('[data-augnes-state-badge]').length === 0,
         primary_action_count: detail?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
         default_two_interaction_defer_ready: (() => {
           const form = detail?.querySelector('[data-vnext-default-decision-path-interactions="2"]');
@@ -3678,6 +3702,9 @@ async function main() {
       canonical_no_local_truth_or_current_inference: true,
       protocol_details_not_visible_by_default: true,
       human_review_order: true,
+      timeline_first: true,
+      timeline_non_authoritative: true,
+      one_default_timeline_surface: true,
       primary_action_count: 1,
       default_two_interaction_defer_ready: true,
       advanced_closed: true,
@@ -3718,8 +3745,8 @@ async function main() {
         "The user must judge whether decision framing is immediately comprehensible.",
       ],
       expectedPrimaryActions: 1,
-      maxIndependentSurfaces: 2,
-      maxStateBadges: 2,
+      maxIndependentSurfaces: 1,
+      maxStateBadges: 1,
     });
     assert.deepEqual(databaseSnapshot(database), beforeProposalReview);
     assert.equal(
@@ -3838,6 +3865,7 @@ async function main() {
     });
     result.explicit_review_decision_created = true;
     record("workbench_records_explicit_decision_without_applying_transition");
+    await validateSemanticReviewViewports();
 
     await waitForCondition(
       `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`,
@@ -3916,6 +3944,7 @@ async function main() {
     const guideAfterConfirmationCount = await evaluateJson(`Number(document.querySelector('[data-ai-workplane-shell="v0.1"]')?.getAttribute('data-ai-workplane-guide-request-count') ?? '-1')`);
     assert.equal(guideAfterConfirmationCount, guideBeforeImpact.count);
     record("semantic_gate_persists_without_transition_state_or_packet");
+    await validateSemanticReviewViewports();
 
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -3936,7 +3965,7 @@ async function main() {
       true,
     );
     await waitForCondition(
-      `document.querySelector('[data-vnext-transition-step="apply"][data-vnext-transition-step-status="applied"][data-vnext-transition-commit-packet-compiled="true"]') !== null && document.querySelector('[data-vnext-transition-step="later-packet"][data-vnext-transition-step-status="compiled"]') !== null`,
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="project_updated"]') !== null && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1`,
       "atomic semantic Transition and later packet",
     );
     await waitForCondition(
@@ -3982,25 +4011,32 @@ async function main() {
     };
     result.guide_brief_post_application_consistent = true;
     const appliedShape = await evaluateJson(`(() => {
-      const apply = document.querySelector('[data-vnext-transition-step="apply"]');
-      const packet = document.querySelector('[data-vnext-transition-step="later-packet"]');
-      const safeguards = document.querySelector('[data-vnext-transition-safeguards="exact"]');
-      const text = safeguards?.textContent ?? '';
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const timeline = detail?.querySelector('[data-selected-work-timeline-items]');
+      const current = timeline?.querySelector('[data-selected-work-timeline-current="true"]');
+      const advanced = Array.from(detail?.querySelectorAll('details') ?? []).find(
+        (item) => item.querySelector(':scope > summary')?.textContent?.includes('Advanced review')
+      );
       return {
-        receipt_visible:
-          apply?.textContent?.includes('Project updated') === true &&
-          text.includes('StateTransitionReceipt ID'),
-        create_effect_visible: text.includes('Before absent') && text.includes('After present'),
-        later_packet_visible:
-          packet?.getAttribute('data-vnext-transition-step-status') === 'compiled' &&
-          text.includes('Later TaskContextPacket ID'),
+        timeline_project_updated:
+          detail?.getAttribute('data-selected-work-current-stage') === 'project_updated' &&
+          current?.textContent?.includes('Project updated') === true,
+        one_current_position:
+          timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1,
+        no_competing_transition_panel:
+          detail?.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null,
+        exact_material_optional:
+          advanced instanceof HTMLDetailsElement &&
+          advanced.open === false &&
+          detail?.querySelector('[data-workbench-to-shared-inspector="true"]') !== null,
         feedback_waiting_for_run: document.querySelector('[data-vnext-context-use-feedback="not_yet_available"]') !== null,
       };
     })()`);
     assert.deepEqual(appliedShape, {
-      receipt_visible: true,
-      create_effect_visible: true,
-      later_packet_visible: true,
+      timeline_project_updated: true,
+      one_current_position: true,
+      no_competing_transition_panel: true,
+      exact_material_optional: true,
       feedback_waiting_for_run: true,
     });
     const afterClosure = readDirectHostBrowserState(manifest.project_id);
@@ -4585,6 +4621,7 @@ async function main() {
       `document.querySelector('[data-vnext-context-use-feedback="available"] [data-vnext-context-use-review-form="v0.1"]') !== null`,
       "policy-triggered later-run feedback form",
     );
+    await validateSemanticReviewViewports();
     const beforeBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
     assert.equal(
       await evaluateBoolean(`(() => {
@@ -4614,6 +4651,7 @@ async function main() {
       `document.querySelector('[data-context-use-review-actually-used-basis="user_declaration"][data-context-use-review-presentation-basis="direct_local_observation"]') !== null`,
       "policy-triggered context-use provenance",
     );
+    await validateSemanticReviewViewports();
     const afterBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
     assert.deepEqual(afterBoundedFeedback.semantic_authority_counts, {
       ...beforeBoundedFeedback.semantic_authority_counts,
@@ -4708,6 +4746,28 @@ async function main() {
           timeline_anchor_at: currentPacket.generated_at,
         },
       );
+    const blockedAfterApplicationProject = {
+      ...currentMultiCandidateProject,
+      fixture_id: "semantic-review-loop-blocked-after-application",
+      run_id: "run:operator-browser-blocked-after-application",
+    };
+    const blockedAfterApplicationReceipt =
+      buildSemanticReviewLoopRunReceiptFixture(
+        blockedAfterApplicationProject,
+        currentPacket,
+        { timeline_anchor_at: currentPacket.generated_at },
+      );
+    const blockedAfterApplicationProposal =
+      buildSemanticReviewLoopProposalFixture(
+        blockedAfterApplicationProject,
+        currentPacket,
+        blockedAfterApplicationReceipt,
+        {
+          primary_delta_type: "agent_plan_delta",
+          candidate_namespace: "browser-current-transition-scope",
+          timeline_anchor_at: currentPacket.generated_at,
+        },
+      );
     const writableMultiCandidateDatabase = new Database(databasePath);
     try {
       writableMultiCandidateDatabase.pragma("foreign_keys = ON");
@@ -4715,6 +4775,10 @@ async function main() {
         admitStructuredRunReceiptV01(
           writableMultiCandidateDatabase,
           currentMultiCandidateReceipt,
+        );
+        admitStructuredRunReceiptV01(
+          writableMultiCandidateDatabase,
+          blockedAfterApplicationReceipt,
         );
         insertVNextCoreRecordV01(writableMultiCandidateDatabase, {
           record_kind: "episode_delta_proposal",
@@ -4725,6 +4789,16 @@ async function main() {
           idempotency_key: null,
           payload: currentMultiCandidateProposal,
           created_at: currentMultiCandidateProposal.created_at,
+        });
+        insertVNextCoreRecordV01(writableMultiCandidateDatabase, {
+          record_kind: "episode_delta_proposal",
+          record_id: blockedAfterApplicationProposal.proposal_id,
+          workspace_id: blockedAfterApplicationProposal.workspace_id,
+          project_id: blockedAfterApplicationProposal.project_id,
+          fingerprint: blockedAfterApplicationProposal.integrity.fingerprint,
+          idempotency_key: null,
+          payload: blockedAfterApplicationProposal,
+          created_at: blockedAfterApplicationProposal.created_at,
         });
       })();
     } finally {
@@ -4737,14 +4811,21 @@ async function main() {
       `location.pathname === ${JSON.stringify(path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.querySelectorAll('option').length === 2`,
       "two-candidate decision-centered Workbench",
     );
-    const candidateIds = await evaluateJson(`(() => {
+    const candidateOptions = await evaluateJson(`(() => {
       const select = document.querySelector('[data-vnext-candidate-selector="v0.1"]');
       if (!(select instanceof HTMLSelectElement)) return [];
-      return Array.from(select.options).map((option) => option.value);
+      return Array.from(select.options).map((option) => ({
+        candidate_id: option.value,
+        title: option.textContent?.split(' · ')[0]?.trim() ?? '',
+      }));
     })()`);
+    const candidateIds = candidateOptions.map((option) => option.candidate_id);
     assert.equal(candidateIds.length, 2);
     assert.notEqual(candidateIds[0], candidateIds[1]);
     const [candidateA, candidateB] = candidateIds;
+    const candidateATitle = candidateOptions[0].title;
+    const candidateBTitle = candidateOptions[1].title;
+    assert.notEqual(candidateATitle, candidateBTitle);
 
     const recordSelectedAcceptDecision = async (candidateId, rationale) => {
       await waitForCondition(
@@ -4783,7 +4864,16 @@ async function main() {
         candidateId,
       );
       await waitForCondition(
-        `document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)')?.value === ${JSON.stringify(candidateId)} && document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="false"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)}`,
+        `(() => {
+          const selector = document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)');
+          const selectedTitle = document.querySelector('[data-vnext-candidate-id="selected"] h3')?.textContent?.trim() ?? '';
+          const optionLabel = selector instanceof HTMLSelectElement
+            ? selector.options[selector.selectedIndex]?.textContent?.trim() ?? ''
+            : '';
+          return selector?.value === ${JSON.stringify(candidateId)} &&
+            optionLabel.startsWith(selectedTitle) &&
+            document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="false"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)};
+        })()`,
         `selected candidate ${candidateId}`,
       );
     };
@@ -4822,6 +4912,22 @@ async function main() {
       "Accept candidate B independently so candidate-local decisions and persisted receipts can be distinguished.",
     );
 
+    const blockedAfterApplicationPath =
+      `/workbench/semantic-review/${blockedAfterApplicationProposal.proposal_id.replace(":", "~")}`;
+    await navigate(`${appOrigin}${blockedAfterApplicationPath}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(blockedAfterApplicationPath)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateA)}`,
+      "same-target proposal before competing project application",
+    );
+    await recordSelectedAcceptDecision(
+      candidateA,
+      "Accept the same exact target before another authorized project update makes this saved decision stale.",
+    );
+    await navigate(`${appOrigin}${path}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.querySelectorAll('option').length === 2`,
+      "return to exact multi-candidate review",
+    );
     await selectCandidate(candidateA);
     const beforeLatePreview = databaseSnapshot(database);
     pauseNextSemanticTransitionRequest("preview");
@@ -4843,6 +4949,8 @@ async function main() {
       const later = transition?.querySelector('[data-vnext-transition-step="later-packet"]');
       const confirmButton = transition?.querySelector('[data-vnext-transition-action="confirm"]');
       const applyButton = transition?.querySelector('[data-vnext-transition-action="apply"]');
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const timeline = detail?.querySelector('[data-selected-work-timeline-items]');
       return {
         applying_decisions: transition?.getAttribute('data-vnext-transition-applying-decision-count'),
         persisted_receipts: transition?.getAttribute('data-vnext-transition-persisted-receipt-count'),
@@ -4857,6 +4965,11 @@ async function main() {
         primary_action_count: transition?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
         exact_decision_value: transition?.getAttribute('data-vnext-transition-selected-decision-kind') ?? null,
         accepted_wording_present: /exact accepted decision|accept carries intent/i.test(transition?.textContent ?? ''),
+        timeline_selected_title:
+          detail?.querySelector('[data-vnext-candidate-id="selected"] h3')?.textContent?.trim() ?? null,
+        timeline_stage: detail?.getAttribute('data-selected-work-current-stage') ?? null,
+        timeline_current_count:
+          timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length ?? -1,
       };
     })()`);
     assert.deepEqual(candidateBShapeBeforeLateResponse, {
@@ -4873,7 +4986,11 @@ async function main() {
       primary_action_count: 1,
       exact_decision_value: "accept",
       accepted_wording_present: false,
+      timeline_selected_title: candidateBTitle,
+      timeline_stage: "awaiting_application",
+      timeline_current_count: 1,
     });
+    result.selected_work_timeline_candidate_switching = true;
     await releasePausedSemanticTransitionRequest("preview");
     await waitForRequestQuiet();
     assert.deepEqual(databaseSnapshot(database), beforeLatePreview);
@@ -4893,10 +5010,14 @@ async function main() {
     assert.equal(
       await evaluateBoolean(`(() => {
         const transition = document.querySelector('[data-vnext-semantic-transition-actions="v0.1"]');
+        const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
         return transition?.querySelector('[data-vnext-transition-step="preview"]')?.getAttribute('data-vnext-transition-step-status') === 'not_prepared' &&
           transition.getAttribute('data-vnext-transition-persisted-receipt-count') === '0' &&
           transition.querySelectorAll('input[type="checkbox"]').length === 0 &&
-          transition.querySelectorAll('[role="alert"], [role="status"]').length === 0;
+          transition.querySelectorAll('[role="alert"], [role="status"]').length === 0 &&
+          detail?.getAttribute('data-selected-work-current-stage') === 'awaiting_application' &&
+          detail.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 &&
+          detail.querySelector('[data-vnext-candidate-id="selected"] h3')?.textContent?.trim() === ${JSON.stringify(candidateATitle)};
       })()`),
       true,
       "switching back must not resurrect candidate A ephemeral preview state",
@@ -4945,7 +5066,7 @@ async function main() {
     );
     await releasePausedSemanticTransitionRequest("apply");
     await waitForCondition(
-      `document.querySelector('[data-vnext-transition-step="apply"][data-vnext-transition-step-status="applied"]') !== null && document.querySelector('[data-vnext-transition-persisted-receipt-count="1"]') !== null && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="project_updated"]') !== null && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
       "candidate A Transition completion unlocks selector",
     );
 
@@ -4954,14 +5075,14 @@ async function main() {
       ...beforeMultiCandidate.semantic_authority_counts,
       semantic_state:
         beforeMultiCandidate.semantic_authority_counts.semantic_state + 1,
-      decisions: beforeMultiCandidate.semantic_authority_counts.decisions + 2,
+      decisions: beforeMultiCandidate.semantic_authority_counts.decisions + 3,
       commit_gates:
         beforeMultiCandidate.semantic_authority_counts.commit_gates + 1,
       transitions:
         beforeMultiCandidate.semantic_authority_counts.transitions + 1,
       packets: beforeMultiCandidate.semantic_authority_counts.packets + 1,
     });
-    result.review_decisions_created += 2;
+    result.review_decisions_created += 3;
     result.semantic_transitions_created += 1;
     result.multi_candidate_transition_scope = true;
     result.candidate_switch_mutation_locking = true;
@@ -4971,6 +5092,27 @@ async function main() {
     record("late_preview_response_is_discarded_after_candidate_switch");
     record("gate_and_apply_mutations_lock_candidate_and_proposal_local_controls");
     record("applying_decision_wording_and_exact_values_remain_truthful");
+
+    await navigate(`${appOrigin}${blockedAfterApplicationPath}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(blockedAfterApplicationPath)} && document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="transition_blocked"]') !== null`,
+      "same-target accepted decision blocked after competing project update",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+        const timeline = detail?.querySelector('[data-selected-work-timeline-items]');
+        const visibleText = detail?.innerText ?? '';
+        return timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 &&
+          visibleText.includes('Project update blocked') &&
+          visibleText.includes('project update') &&
+          detail?.querySelectorAll('[data-ai-workplane-primary-action]').length <= 1;
+      })()`),
+      true,
+      "blocked timeline must identify one current position without fabricating application",
+    );
+    await validateSemanticReviewViewports();
+    record("selected_work_timeline_exposes_exact_post_decision_application_blocker");
   });
 
   }
@@ -7808,7 +7950,11 @@ async function validateSemanticReviewViewports() {
       const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
       const shellState = shell?.getAttribute('data-ai-workplane-state') ?? '';
-      const primaryActionRequired = shellState === 'change_decision';
+      const actionOwner = review?.getAttribute('data-selected-work-primary-action-owner') ?? 'none';
+      const primaryActionRequired =
+        actionOwner === 'decision' ||
+        actionOwner === 'transition' ||
+        actionOwner === 'candidate_selection';
       const heading = shell?.querySelector('h1');
       const primaryAction = review?.querySelector('[data-ai-workplane-primary-action]');
       const rect = review?.getBoundingClientRect();
@@ -7821,6 +7967,14 @@ async function validateSemanticReviewViewports() {
       const primaryRect = primaryAction?.getBoundingClientRect();
       const raw = Array.from(review?.querySelectorAll('[data-augnes-visual-priority="raw-record"]') ?? [])
         .find(visible);
+      const visibleText = review?.innerText ?? '';
+      const timeline = review?.querySelector('[data-selected-work-timeline-items]');
+      const identity = review?.querySelector(':scope > section:first-child');
+      const current = timeline?.querySelector('[data-selected-work-timeline-current="true"]');
+      const next = timeline?.querySelector('[data-selected-work-next-step]');
+      const advanced = Array.from(review?.querySelectorAll('details') ?? []).find(
+        (item) => item.querySelector(':scope > summary')?.textContent?.includes('Advanced review')
+      );
       return {
         surface: 'workbench_run_assessment_proposal',
         width: window.innerWidth,
@@ -7836,6 +7990,27 @@ async function validateSemanticReviewViewports() {
           Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
         heading_visible: visible(heading),
         shell_state: shellState,
+        timeline_version: review?.getAttribute('data-selected-work-timeline'),
+        timeline_current_stage: review?.getAttribute('data-selected-work-current-stage'),
+        timeline_action_owner: actionOwner,
+        timeline_item_count: timeline?.querySelectorAll('[data-selected-work-timeline-item]').length ?? -1,
+        timeline_current_count: timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length ?? -1,
+        timeline_first_reading_path:
+          Boolean(identity && timeline) &&
+          Boolean(identity.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING),
+        current_position_textual:
+          Boolean(current?.textContent?.trim()) &&
+          Boolean(next?.textContent?.includes('What happens next')),
+        chronology_text_backed:
+          Boolean(current?.textContent?.includes('Current')) &&
+          current?.getAttribute('aria-current') === 'step',
+        advanced_optional: advanced instanceof HTMLDetailsElement && advanced.open === false,
+        protocol_vocabulary_absent:
+          !/(ReviewDecision|StateTransitionReceipt|EpisodeDeltaProposal|CriterionAssessment|semantic gate|packet fingerprint)/i.test(visibleText),
+        protocol_vocabulary_matches:
+          visibleText.match(/ReviewDecision|StateTransitionReceipt|EpisodeDeltaProposal|CriterionAssessment|semantic gate|packet fingerprint/gi) ?? [],
+        raw_id_absent:
+          !/(episode-delta-proposal:|review-decision:|state-transition-receipt:|sha256:)/i.test(visibleText),
         primary_action_required: primaryActionRequired,
         primary_action_visible:
           primaryActionRequired ? visible(primaryAction) : primaryAction === null,
@@ -7848,9 +8023,9 @@ async function validateSemanticReviewViewports() {
         primary_action_touch_target:
           !primaryActionRequired || (Boolean(primaryRect) && primaryRect.height >= 40),
         independent_surface_count:
-          review?.querySelectorAll('[data-augnes-independent-surface]').length ?? -1,
+          Array.from(review?.querySelectorAll('[data-augnes-independent-surface]') ?? []).filter(visible).length,
         state_badge_count:
-          review?.querySelectorAll('[data-augnes-state-badge]').length ?? -1,
+          Array.from(review?.querySelectorAll('[data-augnes-state-badge]') ?? []).filter(visible).length,
         raw_record_after_primary:
           !raw || !primaryRect || raw.getBoundingClientRect().top >= primaryRect.top,
         primary_navigation_visible:
@@ -7864,10 +8039,26 @@ async function validateSemanticReviewViewports() {
     assert.equal(metrics.review_inside_viewport, true);
     assert.equal(metrics.heading_visible, true, JSON.stringify(metrics));
     assert.equal(
-      ['change_decision', 'change_applied'].includes(metrics.shell_state),
+      ['change_decision', 'change_completion', 'change_applied'].includes(metrics.shell_state),
       true,
       JSON.stringify(metrics),
     );
+    assert.equal(metrics.timeline_version, "selected_work_timeline.v0.1", JSON.stringify(metrics));
+    assert.equal(metrics.timeline_item_count > 0 && metrics.timeline_item_count <= 8, true, JSON.stringify(metrics));
+    assert.equal(metrics.timeline_current_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.timeline_first_reading_path, true, JSON.stringify(metrics));
+    assert.equal(metrics.current_position_textual, true, JSON.stringify(metrics));
+    assert.equal(metrics.chronology_text_backed, true, JSON.stringify(metrics));
+    assert.equal(metrics.advanced_optional, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.protocol_vocabulary_absent,
+      true,
+      JSON.stringify({
+        protocol_vocabulary_matches: metrics.protocol_vocabulary_matches,
+        ...metrics,
+      }),
+    );
+    assert.equal(metrics.raw_id_absent, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_action_visible, true, JSON.stringify(metrics));
     assert.equal(
       metrics.primary_action_count,
@@ -7879,12 +8070,21 @@ async function validateSemanticReviewViewports() {
       metrics.primary_action_required ? 1 : 0,
       JSON.stringify(metrics),
     );
-    assert.equal(metrics.primary_action_within_first_scroll, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_action_touch_target, true, JSON.stringify(metrics));
-    assert.equal(metrics.independent_surface_count <= 2, true, JSON.stringify(metrics));
-    assert.equal(metrics.state_badge_count <= 2, true, JSON.stringify(metrics));
+    assert.equal(metrics.independent_surface_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.state_badge_count <= 1, true, JSON.stringify(metrics));
     assert.equal(metrics.raw_record_after_primary, true, JSON.stringify(metrics));
     assert.equal(metrics.primary_navigation_visible, true, JSON.stringify(metrics));
+    result.selected_work_timeline_first = true;
+    if (
+      !result.selected_work_timeline_state_coverage.includes(
+        metrics.timeline_current_stage,
+      )
+    ) {
+      result.selected_work_timeline_state_coverage.push(
+        metrics.timeline_current_stage,
+      );
+    }
   }
 }
 

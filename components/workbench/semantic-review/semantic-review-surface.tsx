@@ -537,6 +537,7 @@ export function SemanticReviewSurface({
     sessionState,
     privateView,
     homeView.state,
+    selectedCandidateBinding,
   );
   const projectHref = privateView
     ? `/projects/${encodeURIComponent(privateView.value.project.project_id)}`
@@ -777,6 +778,10 @@ function aiWorkplaneEntryPresentation(
   sessionState: OperatorSessionStateV01,
   privateView: PrivateSemanticReviewViewV01 | null,
   homeState: ReturnType<typeof buildAIWorkplaneHomeViewV01>["state"],
+  selectedCandidateBinding: {
+    proposal_id: string;
+    candidate_id: string;
+  } | null,
 ): { state: AIWorkplaneShellStateV01; label: string } {
   if (sessionState.status !== "authenticated") {
     return sessionState.status === "checking"
@@ -815,14 +820,18 @@ function aiWorkplaneEntryPresentation(
   }
   const exact = semanticReviewDetailEntryPresentationV01(
     privateView.value.proposal,
+    selectedCandidateBinding?.proposal_id ===
+      privateView.value.proposal.proposal.proposal_id
+      ? selectedCandidateBinding.candidate_id
+      : null,
   );
   return exact.state === "pending_proposal"
-    ? { state: "change_decision", label: "Needs your decision" }
+    ? { state: "change_decision", label: exact.label }
     : exact.state === "decided_proposal" ||
         exact.state === "transition_blocked"
       ? {
           state: "change_completion",
-          label: "Decision saved · project unchanged",
+          label: exact.label,
         }
-      : { state: "change_applied", label: "Project updated" };
+      : { state: "change_applied", label: exact.label };
 }

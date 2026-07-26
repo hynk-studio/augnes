@@ -6,9 +6,17 @@ import {
   buildAIWorkplaneChangeReviewViewV01,
   selectAIWorkplaneChangeCandidateV01,
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
+import {
+  buildSelectedWorkTimelineV01,
+  selectSelectedWorkLifecycleV01,
+} from "@/lib/vnext/ai-workplane/selected-work-timeline";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
+import type {
+  SelectedWorkTimelineItemV01,
+  SelectedWorkTimelineV01,
+} from "@/types/vnext/selected-work-timeline";
 
 import { ContextUseReviewForm } from "./context-use-review-form";
 import { OperationAwareRevisionForm } from "./operation-aware-revision-form";
@@ -72,7 +80,13 @@ export function DecisionCenteredProposalDetail({
       )
     : [];
   const lifecycle = selected
-    ? selectedProjectVerifyLifecycleV01(read, selected.candidate.candidate_id)
+    ? selectSelectedWorkLifecycleV01(read, selected.candidate.candidate_id)
+    : null;
+  const timeline = selected
+    ? buildSelectedWorkTimelineV01({
+        read,
+        selected_candidate: selected,
+      })
     : null;
   const applyingDecision = selected
     ? selectedApplyingDecisionV01(read, selected.candidate.candidate_id)
@@ -92,11 +106,8 @@ export function DecisionCenteredProposalDetail({
     record_id: proposal.proposal_id,
     expected_fingerprint: proposal.integrity.fingerprint,
   });
-  const decisionFormPrimary =
-    view.decision_status !== "decision_saved" &&
-    view.decision_status !== "project_updated";
   const nextDecisionCandidate =
-    view.decision_status === "project_updated"
+    timeline?.current_position.primary_action_owner === "candidate_selection"
       ? read.candidates.find((candidate) => {
           if (
             candidate.candidate.candidate_id ===
@@ -128,12 +139,18 @@ export function DecisionCenteredProposalDetail({
       data-vnext-selected-decision-count={selectedDecisions.length}
       data-vnext-transition-status={read.transition.status}
       data-vnext-selected-candidate={selected ? "present" : "none"}
+      data-selected-work-timeline={timeline?.timeline_version ?? "unavailable"}
+      data-selected-work-current-stage={
+        timeline?.current_position.stage ?? "unavailable"
+      }
+      data-selected-work-primary-action-owner={
+        timeline?.current_position.primary_action_owner ?? "none"
+      }
     >
       <section
         className={`${styles.panel} ${styles.workplaneFocus}`}
         aria-labelledby="what-would-change-title"
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
-        data-augnes-independent-surface="suggested-change"
       >
         <div className={styles.panelHeader}>
           <p className={styles.kicker}>Suggested change</p>
@@ -153,7 +170,11 @@ export function DecisionCenteredProposalDetail({
             >
               {read.candidates.map((candidate) => (
                 <option key={candidate.candidate.candidate_id} value={candidate.candidate.candidate_id}>
-                  {candidate.candidate.title} · {operationLabel(candidate.candidate.operation)}
+                  {buildAIWorkplaneChangeReviewViewV01({
+                    read,
+                    selected_candidate_id: candidate.candidate.candidate_id,
+                  }).title}{" "}
+                  · {operationLabel(candidate.candidate.operation)}
                 </option>
               ))}
             </select>
@@ -173,12 +194,6 @@ export function DecisionCenteredProposalDetail({
                 <p className={styles.kicker}>{view.operation_label}</p>
                 <h3>{view.title}</h3>
               </div>
-              <span
-                className={styles.badge}
-                data-augnes-state-badge="decision-status"
-              >
-                {view.decision_status_label}
-              </span>
             </div>
             <p className={styles.copy}>{view.effect_summary}</p>
           </section>
@@ -187,8 +202,12 @@ export function DecisionCenteredProposalDetail({
         )}
       </section>
 
-      {selected ? (
+      {timeline ? <SelectedWorkTimeline timeline={timeline} /> : null}
+
+      {selected &&
+      timeline?.current_position.primary_action_owner === "decision" ? (
         <section
+          id="selected-work-decision"
           className={styles.panel}
           aria-labelledby="your-decision-title"
           data-vnext-candidate-id="selected-decision"
@@ -196,29 +215,14 @@ export function DecisionCenteredProposalDetail({
             selected.pilot_admission.decision_allowed.accept,
           )}
           data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
-          data-augnes-independent-surface="decision"
         >
           <div className={styles.panelHeader}>
             <p className={styles.kicker}>Needs your decision</p>
             <h2 id="your-decision-title">Your decision</h2>
           </div>
-          <p className={styles.copy}>{view.decision_status_label}</p>
-          {nextDecisionCandidate ? (
-            <button
-              className={styles.button}
-              type="button"
-              data-vnext-review-next-change="true"
-              data-ai-workplane-primary-action="review-next-change"
-              data-augnes-primary-action="review-next-change"
-              onClick={() =>
-                onSelectedCandidateChange(
-                  nextDecisionCandidate.candidate.candidate_id,
-                )
-              }
-            >
-              Review next change
-            </button>
-          ) : null}
+          <p className={styles.copy}>
+            {timeline.current_position.next_meaningful_step}
+          </p>
           {strategicActionsAvailable ? (
             <ReviewDecisionForm
               key={selected.candidate.candidate_id}
@@ -226,7 +230,7 @@ export function DecisionCenteredProposalDetail({
               proposalFingerprint={proposal.integrity.fingerprint}
               candidateRead={selected}
               applyingDecision={applyingDecision}
-              primary={decisionFormPrimary}
+              primary
               busy={proposalLocalBusy}
               onSubmit={onDecision}
             />
@@ -239,87 +243,72 @@ export function DecisionCenteredProposalDetail({
         </section>
       ) : null}
 
-      <section
-        className={styles.panel}
-        aria-labelledby="why-suggested-title"
-        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
-      >
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Current reasoning</p>
-          <h2 id="why-suggested-title">Why Augnes suggested it</h2>
-        </div>
-        <p className={styles.copy}>{view.reason}</p>
-        <p className={styles.muted}>
-          This is a bounded interpretation of the current result and project context,
-          not an accepted project change.
-        </p>
-      </section>
-
-      <section
-        className={styles.panel}
-        aria-labelledby="verified-title"
-        data-ai-workplane-verification={view.verification.status}
-        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
-      >
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Verification</p>
-          <h2 id="verified-title">What was verified</h2>
-        </div>
-        <p className={styles.humanStatus}>{view.verification.label}</p>
-        <dl className={styles.statusGrid}>
-          <DataPoint label="Checks passed" value={String(view.verification.passed)} />
-          <DataPoint label="Checks failed" value={String(view.verification.failed)} />
-          <DataPoint label="Checks skipped" value={String(view.verification.skipped)} />
-          <DataPoint label="Requirements satisfied" value={String(view.verification.satisfied)} />
-          <DataPoint label="Requirements not satisfied" value={String(view.verification.unsatisfied)} />
-          <DataPoint label="Requirements not confirmed" value={String(view.verification.unknown)} />
-        </dl>
-        <TextList title="Important blockers" items={view.verification.blockers} />
-      </section>
-
-      <section
-        className={styles.panel}
-        aria-labelledby="uncertain-title"
-        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
-      >
-        <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Risk and judgment</p>
-          <h2 id="uncertain-title">What remains uncertain</h2>
-        </div>
-        {view.uncertainties.length > 0 ? (
-          <ul className={styles.plainList}>
-            {view.uncertainties.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}
-          </ul>
-        ) : (
-          <p className={styles.copy}>No material uncertainty is reported in the bounded current review.</p>
-        )}
-      </section>
-
-      {selected ? (
-        <SemanticTransitionActions
-          key={[
-            proposal.proposal_id,
-            proposal.integrity.fingerprint,
-            selected.candidate.candidate_id,
-            selected.candidate_fingerprint,
-          ].join("|")}
-          proposalId={proposal.proposal_id}
-          proposalFingerprint={proposal.integrity.fingerprint}
-          selectedCandidateId={selected.candidate.candidate_id}
-          selectedCandidateFingerprint={selected.candidate_fingerprint}
-          decisions={read.decision_history.filter((item) => item.pilot_actionable).map((item) => item.decision)}
-          persistedReceipts={read.transition_receipts}
-          priorPacket={priorPacket}
-          onSessionInvalid={onSessionInvalid}
-          onExactReviewMaterialChanged={onExactReviewMaterialChanged}
-          onProjectApplicationCompleted={onProjectApplicationCompleted}
-          tryBeginOperatorMutation={tryBeginOperatorMutation}
-          endOperatorMutation={endOperatorMutation}
-          onApplyingMutationBusyChange={setTransitionMutationBusy}
-        />
+      {nextDecisionCandidate &&
+      timeline?.current_position.primary_action_owner ===
+        "candidate_selection" ? (
+        <section
+          id="selected-work-next-candidate"
+          className={styles.panel}
+          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+        >
+          <div className={styles.panelHeader}>
+            <p className={styles.kicker}>Next meaningful step</p>
+            <h2>Another change still needs review</h2>
+          </div>
+          <p className={styles.copy}>
+            The current selected change is settled. Move to the next unresolved
+            candidate without mixing its history into this timeline.
+          </p>
+          <button
+            className={styles.button}
+            type="button"
+            data-vnext-review-next-change="true"
+            data-ai-workplane-primary-action="review-next-change"
+            data-augnes-primary-action="review-next-change"
+            onClick={() =>
+              onSelectedCandidateChange(
+                nextDecisionCandidate.candidate.candidate_id,
+              )
+            }
+          >
+            Review next change
+          </button>
+        </section>
       ) : null}
 
-      <div data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}>
+      {selected &&
+      timeline?.current_position.primary_action_owner === "transition" ? (
+        <div id="selected-work-transition">
+          <SemanticTransitionActions
+            key={[
+              proposal.proposal_id,
+              proposal.integrity.fingerprint,
+              selected.candidate.candidate_id,
+              selected.candidate_fingerprint,
+            ].join("|")}
+            proposalId={proposal.proposal_id}
+            proposalFingerprint={proposal.integrity.fingerprint}
+            selectedCandidateId={selected.candidate.candidate_id}
+            selectedCandidateFingerprint={selected.candidate_fingerprint}
+            decisions={read.decision_history.filter((item) => item.pilot_actionable).map((item) => item.decision)}
+            persistedReceipts={read.transition_receipts}
+            priorPacket={priorPacket}
+            onSessionInvalid={onSessionInvalid}
+            onExactReviewMaterialChanged={onExactReviewMaterialChanged}
+            onProjectApplicationCompleted={onProjectApplicationCompleted}
+            tryBeginOperatorMutation={tryBeginOperatorMutation}
+            endOperatorMutation={endOperatorMutation}
+            onApplyingMutationBusyChange={setTransitionMutationBusy}
+          />
+        </div>
+      ) : null}
+
+      <SelectedWorkSupport view={view} />
+
+      <div
+        id="selected-work-later-feedback"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+      >
         <LaterContextFeedback
           read={read}
           proposalId={proposal.proposal_id}
@@ -365,6 +354,27 @@ export function DecisionCenteredProposalDetail({
 
       <details className={styles.advancedDisclosure}>
         <summary>Other review options</summary>
+        {selected &&
+        timeline?.current_position.primary_action_owner !== "decision" &&
+        strategicActionsAvailable ? (
+          <section className={styles.materialCard}>
+            <h3>Change the saved decision</h3>
+            <p className={styles.muted}>
+              This remains available as a secondary review option. It is not
+              the current timeline step.
+            </p>
+            <ReviewDecisionForm
+              key={`secondary:${selected.candidate.candidate_id}`}
+              proposalId={proposal.proposal_id}
+              proposalFingerprint={proposal.integrity.fingerprint}
+              candidateRead={selected}
+              applyingDecision={applyingDecision}
+              primary={false}
+              busy={proposalLocalBusy}
+              onSubmit={onDecision}
+            />
+          </section>
+        ) : null}
         <StrategicAdvantageTransferPanel
           proposal={proposal}
           readback={read.strategic_analysis}
@@ -407,6 +417,194 @@ export function DecisionCenteredProposalDetail({
           </section>
         ) : null}
       </details>
+    </section>
+  );
+}
+
+function SelectedWorkTimeline({
+  timeline,
+}: {
+  timeline: SelectedWorkTimelineV01;
+}) {
+  return (
+    <section
+      className={`${styles.panel} ${styles.selectedWorkTimeline}`}
+      aria-labelledby="selected-work-timeline-title"
+      data-selected-work-timeline-items={timeline.items.length}
+      data-selected-work-current-item={timeline.current_item_id}
+      data-selected-work-current-stage={timeline.current_position.stage}
+      data-selected-work-primary-action-owner={
+        timeline.current_position.primary_action_owner
+      }
+      data-selected-work-projection-only={String(
+        timeline.authority.projection_only,
+      )}
+      data-selected-work-semantic-authority="false"
+      data-augnes-independent-surface="selected-work-timeline"
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>How this work reached here</p>
+        <h2 id="selected-work-timeline-title">Meaningful timeline</h2>
+        <p className={styles.copy}>
+          One source-bound sequence for the selected change. Exact records
+          remain available under Advanced review.
+        </p>
+      </div>
+      <ol
+        className={styles.selectedWorkTimelineList}
+        aria-label="Selected work meaningful timeline"
+      >
+        {timeline.items.map((item) => (
+          <SelectedWorkTimelineItem
+            key={item.item_id}
+            item={item}
+            current={item.item_id === timeline.current_item_id}
+          />
+        ))}
+      </ol>
+      <section
+        className={styles.selectedWorkNextStep}
+        aria-labelledby="selected-work-next-step-title"
+        data-selected-work-next-step={timeline.current_position.stage}
+      >
+        <p className={styles.kicker}>Current position</p>
+        <h3 id="selected-work-next-step-title">
+          {timeline.current_position.title}
+        </h3>
+        <p className={styles.copy}>{timeline.current_position.summary}</p>
+        <strong>What happens next</strong>
+        <p className={styles.copy}>
+          {timeline.current_position.next_meaningful_step}
+        </p>
+      </section>
+      <p className={styles.muted}>
+        This timeline explains current meaning. It does not decide, approve,
+        apply, or establish verified success.
+      </p>
+    </section>
+  );
+}
+
+function SelectedWorkTimelineItem({
+  item,
+  current,
+}: {
+  item: SelectedWorkTimelineItemV01;
+  current: boolean;
+}) {
+  return (
+    <li
+      aria-current={current ? "step" : undefined}
+      data-selected-work-timeline-item={item.item_id}
+      data-selected-work-timeline-stage={item.stage}
+      data-selected-work-timeline-status={item.status}
+      data-selected-work-timeline-current={String(current)}
+      data-selected-work-timeline-time={item.time_status}
+      data-selected-work-timeline-basis={item.basis}
+      data-selected-work-timeline-authority="false"
+    >
+      <div className={styles.selectedWorkTimelineItemHeader}>
+        <div>
+          <span className={styles.timelineBasis}>{basisLabel(item)}</span>
+          <h3>{item.title}</h3>
+        </div>
+        <span className={styles.timelineStatus}>
+          {statusLabel(item.status, current)}
+        </span>
+      </div>
+      <p className={styles.copy}>{item.summary}</p>
+      <p className={styles.muted}>{item.meaning_change}</p>
+      {item.occurred_at ? (
+        <time dateTime={item.occurred_at}>
+          {formatTimelineTimestamp(item.occurred_at)}
+        </time>
+      ) : (
+        <span className={styles.timelineTime}>Time not established</span>
+      )}
+    </li>
+  );
+}
+
+function SelectedWorkSupport({
+  view,
+}: {
+  view: ReturnType<typeof buildAIWorkplaneChangeReviewViewV01>;
+}) {
+  const checks =
+    view.verification.passed +
+    view.verification.failed +
+    view.verification.skipped;
+  const requirements =
+    view.verification.satisfied +
+    view.verification.unsatisfied +
+    view.verification.unknown;
+  const support = [...view.verification.blockers, ...view.uncertainties];
+  return (
+    <section
+      id="selected-work-support"
+      className={styles.panel}
+      aria-labelledby="selected-work-support-title"
+      data-selected-work-support="verification-and-uncertainty"
+      data-ai-workplane-verification={view.verification.status}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>Support for this timeline</p>
+        <h2 id="selected-work-support-title">
+          Verification and uncertainty
+        </h2>
+      </div>
+      <p className={styles.copy}>{view.reason}</p>
+      <p className={styles.humanStatus}>{view.verification.label}</p>
+      <p className={styles.copy}>
+        {checks === 0
+          ? "No exact checks are available in this bounded review."
+          : `${view.verification.passed} of ${checks} checks passed.`}{" "}
+        {requirements === 0
+          ? "No requirement assessment is available."
+          : `${view.verification.satisfied} of ${requirements} requirements are satisfied.`}
+      </p>
+      {support.length > 0 ? (
+        <TextList title="What remains unresolved" items={support} />
+      ) : (
+        <p className={styles.copy}>
+          No material uncertainty is reported in the bounded current review.
+        </p>
+      )}
+      <details className={styles.disclosure}>
+        <summary>Exact verification counts</summary>
+        <dl className={styles.statusGrid}>
+          <DataPoint
+            label="Checks passed"
+            value={String(view.verification.passed)}
+          />
+          <DataPoint
+            label="Checks failed"
+            value={String(view.verification.failed)}
+          />
+          <DataPoint
+            label="Checks skipped"
+            value={String(view.verification.skipped)}
+          />
+          <DataPoint
+            label="Requirements satisfied"
+            value={String(view.verification.satisfied)}
+          />
+          <DataPoint
+            label="Requirements not satisfied"
+            value={String(view.verification.unsatisfied)}
+          />
+          <DataPoint
+            label="Requirements not confirmed"
+            value={String(view.verification.unknown)}
+          />
+        </dl>
+      </details>
+      <p className={styles.muted}>
+        This bounded interpretation supports review; it is not an accepted
+        project change.
+      </p>
     </section>
   );
 }
@@ -515,33 +713,6 @@ function DecisionHistory({ decisions }: { decisions: SemanticReviewProposalDetai
   );
 }
 
-function selectedProjectVerifyLifecycleV01(
-  read: SemanticReviewProposalDetailV01,
-  candidateId: string,
-): ProjectVerifyRevisionLifecycleV01 | null {
-  const profile = read.proposal.project_verify_lifecycle;
-  if (!profile || profile.lifecycle_binding.selected_candidate.candidate_id !== candidateId) return null;
-  const selectedRef = profile.lifecycle_binding.selected_record_ref;
-  if (selectedRef.record_kind === "claim_record") {
-    const family = read.project_verify_reconciliation.claim_families.find(
-      (entry) => entry.claim_family_id === profile.lifecycle_binding.family_id,
-    );
-    return family?.revisions.find(
-      (entry) =>
-        entry.claim_ref.record_id === selectedRef.record_id &&
-        entry.claim_ref.record_fingerprint === selectedRef.record_fingerprint,
-    )?.lifecycle ?? null;
-  }
-  const family = read.project_verify_reconciliation.relation_families.find(
-    (entry) => entry.relation_family_id === profile.lifecycle_binding.family_id,
-  );
-  return family?.revisions.find(
-    (entry) =>
-      entry.relation_ref.record_id === selectedRef.record_id &&
-      entry.relation_ref.record_fingerprint === selectedRef.record_fingerprint,
-  )?.lifecycle ?? null;
-}
-
 function selectedApplyingDecisionV01(
   read: SemanticReviewProposalDetailV01,
   candidateId: string,
@@ -585,4 +756,40 @@ function operationLabel(value: string): string {
 
 function humanize(value: string): string {
   return value.replaceAll("_", " ");
+}
+
+function basisLabel(item: SelectedWorkTimelineItemV01): string {
+  return item.basis === "observed"
+    ? "Observed source"
+    : item.basis === "bounded_interpretation"
+      ? "Bounded interpretation"
+      : item.basis === "user_decision"
+        ? "User decision"
+        : item.basis === "authorized_change"
+          ? "Authorized change"
+          : "Later outcome";
+}
+
+function statusLabel(
+  status: SelectedWorkTimelineItemV01["status"],
+  current: boolean,
+): string {
+  if (current) return status === "blocked" ? "Current · blocked" : "Current";
+  return status === "completed"
+    ? "Completed"
+    : status === "pending"
+      ? "Pending"
+      : status === "superseded"
+        ? "Superseded"
+        : status === "blocked"
+          ? "Blocked"
+          : "Current";
+}
+
+function formatTimelineTimestamp(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value));
 }
