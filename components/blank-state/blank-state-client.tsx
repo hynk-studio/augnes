@@ -11,6 +11,7 @@ import {
   SEMANTIC_VISUAL_PRIORITY,
 } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type {
+  BlankStateContinuityItemV01,
   BlankStatePrimaryActionV01,
   BlankStateSourceV01,
   BlankStateViewV01,
@@ -273,15 +274,6 @@ export function BlankStateClient({
               {view.material_note}
             </p>
           ) : null}
-          <PrimaryAction
-            action={view.primary_action}
-            busy={busy}
-            recentEntry={primaryEntry}
-            onChoose={() => void choose()}
-            onOpen={(entry) => void open(entry)}
-            onLocate={(entry) => void locate(entry)}
-            onActivate={(projectId) => void activate(projectId)}
-          />
           {view.why_this_is_next.observed.length ? (
             <details
               className="blank-state-guide-disclosure"
@@ -308,125 +300,94 @@ export function BlankStateClient({
           {message ? <p className="blank-state-message" role="status">{message}</p> : null}
         </section>
 
-        {view.current_work ? (
-          <section
-            className="blank-state-region"
-            aria-labelledby="current-work-title"
-            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
-          >
-            <div className="blank-state-region-heading">
-              <div>
-                <p className="blank-state-region-label">Current work</p>
-                <h2 id="current-work-title">{view.current_work.status}</h2>
-              </div>
+        <section
+          className="blank-state-continuity"
+          aria-labelledby="continuity-list-title"
+          data-blank-state-continuity-list="v0.1"
+          data-blank-state-known-attention-count={view.known_attention_count}
+          data-blank-state-attention-count-status={view.attention_count_status}
+          data-blank-state-source-omitted-attention-count={
+            view.source_omitted_attention_count ?? "unknown"
+          }
+          data-augnes-independent-surface="continuous-work"
+          data-augnes-visual-priority={
+            view.known_attention_count > 0 ||
+            (view.source_omitted_attention_count ?? 0) > 0
+              ? SEMANTIC_VISUAL_PRIORITY.risk
+              : SEMANTIC_VISUAL_PRIORITY.aiSummary
+          }
+        >
+          <div className="blank-state-continuity-heading">
+            <div>
+              <p className="blank-state-region-label">Continuous work</p>
+              <h2 id="continuity-list-title">What is happening now</h2>
             </div>
-            {view.current_work.delegated_work ? (
-              <article
-                data-delegated-work-summary={
-                  view.current_work.delegated_work.stage
-                }
-              >
-                {view.current_work.goal ? (
-                  <p>{view.current_work.goal}</p>
-                ) : null}
-                {view.current_work.delegated_work.latest_checkpoint ? (
-                  <p className="blank-state-meta">
-                    Latest checkpoint:{" "}
-                    {view.current_work.delegated_work.latest_checkpoint}
-                  </p>
-                ) : null}
-                {view.current_work.delegated_work.last_observed_at ? (
-                  <time
-                    className="blank-state-meta"
-                    dateTime={
-                      view.current_work.delegated_work.last_observed_at
-                    }
-                  >
-                    Last observed{" "}
-                    {formatTimestamp(
-                      view.current_work.delegated_work.last_observed_at,
-                    )}
-                  </time>
-                ) : null}
-                <a
-                  className="blank-state-secondary-link"
-                  href={view.current_work.delegated_work.href}
-                  data-blank-state-delegated-work-link="true"
-                >
-                  Open delegated work
-                </a>
-              </article>
-            ) : projection?.run_results.current_run ? (
-              <article data-current-host-run={projection.run_results.current_run.status}>
-                {view.current_work.goal ? <p>{view.current_work.goal}</p> : null}
-                <p className="blank-state-meta">
-                  {projection.run_results.current_run.reconciliation_required
-                    ? "Observation is incomplete; no result is being inferred."
-                    : "The host work has not produced a saved result yet."}
-                </p>
-              </article>
-            ) : null}
-            {projection?.run_results.latest_result ? (
-              <article data-latest-run-result={projection.run_results.latest_result.outcome ?? "unknown"}>
-                {view.current_work.result_summary ? <p>{view.current_work.result_summary}</p> : null}
-                {projection.run_results.workbench_entry ? (
-                  <a
-                    className="blank-state-secondary-link"
-                    href={projection.run_results.workbench_entry.href}
-                    data-review-result-link="true"
-                  >
-                    Review result
-                  </a>
-                ) : null}
-              </article>
-            ) : null}
-            {view.current_work.verification ? (
-              <p className="blank-state-meta" data-blank-state-verification="true">
-                Verification: {view.current_work.verification.passed} passed, {view.current_work.verification.failed} failed, {view.current_work.verification.skipped} skipped.
-              </p>
-            ) : null}
-            {view.current_work.exact_detail_href ? (
-              <a className="blank-state-secondary-link" href={view.current_work.exact_detail_href} data-blank-state-exact-detail="true">
-                View exact details
-              </a>
-            ) : null}
-          </section>
-        ) : null}
-
-        {view.additional_attention.length ? (
-          <section
-            className="blank-state-region"
-            aria-labelledby="attention-title"
-            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
-          >
-            <p className="blank-state-region-label">Needs your attention</p>
-            <h2 id="attention-title">Other items to review</h2>
-            <ul className="blank-state-list">
-              {view.additional_attention.map((item) => (
-                <li key={item.id}>
-                  <strong>{item.summary}</strong>
-                  <p>{item.reason}</p>
-                  {item.href ? <a href={item.href}>{item.label}</a> : null}
+            <p
+              className="blank-state-attention-summary"
+              data-blank-state-attention-summary="true"
+            >
+              {view.continuity_summary}
+            </p>
+          </div>
+          <ContinuityItem
+            item={view.highlighted_item}
+            highlighted
+            source={source}
+            primaryAction={view.primary_action}
+            primaryEntry={primaryEntry}
+            busy={busy}
+            onChoose={() => void choose()}
+            onOpen={(entry) => void open(entry)}
+            onLocate={(entry) => void locate(entry)}
+            onActivate={(projectId) => void activate(projectId)}
+          />
+          {view.continuity_items.length ? (
+            <ol className="blank-state-continuity-list">
+              {view.continuity_items.map((item) => (
+                <li key={item.item_id}>
+                  <ContinuityItem
+                    item={item}
+                    highlighted={false}
+                    source={source}
+                    primaryAction={null}
+                    primaryEntry={null}
+                    busy={busy}
+                    onChoose={() => void choose()}
+                    onOpen={(entry) => void open(entry)}
+                    onLocate={(entry) => void locate(entry)}
+                    onActivate={(projectId) => void activate(projectId)}
+                  />
                 </li>
               ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {view.recent_change ? (
-          <section
-            className="blank-state-region"
-            aria-labelledby="recent-change-title"
-            data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
-          >
-            <p className="blank-state-region-label">Recent meaningful change</p>
-            <h2 id="recent-change-title">Since you last looked</h2>
-            <p>{view.recent_change.summary}</p>
-            <time className="blank-state-meta" dateTime={view.recent_change.occurred_at}>
-              {formatTimestamp(view.recent_change.occurred_at)}
-            </time>
-          </section>
-        ) : null}
+            </ol>
+          ) : null}
+          {view.locally_omitted_item_count > 0 ? (
+            <p className="blank-state-meta">
+              {view.locally_omitted_item_count} additional{" "}
+              {view.locally_omitted_item_count === 1 ? "item is" : "items are"}{" "}
+              available from the existing project destinations.
+            </p>
+          ) : null}
+          {view.source_attention_destination &&
+          view.attention_count_status !== "complete" ? (
+            <p
+              className="blank-state-meta"
+              data-blank-state-source-attention-omitted="true"
+            >
+              {view.attention_count_status === "lower_bound" &&
+              view.source_omitted_attention_count !== null
+                ? `${view.source_omitted_attention_count} additional project ${
+                    view.source_omitted_attention_count === 1
+                      ? "attention item exists"
+                      : "attention items exist"
+                  } outside this view. `
+                : "Additional project attention may exist outside this view. "}
+              <a href={view.source_attention_destination.href}>
+                {view.source_attention_destination.label}
+              </a>
+            </p>
+          ) : null}
+        </section>
 
         {view.project_management_emphasized ? projectManagement : (
           <details className="blank-state-disclosure" data-blank-state-project-management="collapsed">
@@ -484,6 +445,155 @@ export function BlankStateClient({
   );
 }
 
+function ContinuityItem({
+  item,
+  highlighted,
+  source,
+  primaryAction,
+  primaryEntry,
+  busy,
+  onChoose,
+  onOpen,
+  onLocate,
+  onActivate,
+}: {
+  item: BlankStateContinuityItemV01;
+  highlighted: boolean;
+  source: BlankStateSourceV01;
+  primaryAction: BlankStatePrimaryActionV01 | null;
+  primaryEntry: RecentProjectEntryV01 | null;
+  busy: boolean;
+  onChoose: () => void;
+  onOpen: (entry: RecentProjectEntryV01) => void;
+  onLocate: (entry: RecentProjectEntryV01) => void;
+  onActivate: (projectId: string) => void;
+}) {
+  const delegatedStage = item.source_family === "delegated_work"
+    ? source.delegated_work?.stage
+    : undefined;
+  const currentRunStatus = item.source_family === "current_run"
+    ? source.projection?.run_results.current_run?.status
+    : undefined;
+  const resultEntryHref =
+    source.projection?.run_results.workbench_entry?.href ?? null;
+  const itemDestination =
+    item.next_action?.kind === "link"
+      ? item.next_action.href
+      : item.secondary_action?.href ?? null;
+  const isResultItem = item.source_family === "saved_result" ||
+    (delegatedStage === "result_ready") ||
+    Boolean(resultEntryHref && resultEntryHref === itemDestination);
+  const resultOutcome = isResultItem
+    ? source.projection?.run_results.latest_result?.outcome ?? "unknown"
+    : undefined;
+  const secondaryAction =
+    item.secondary_action ??
+    (!highlighted && item.next_action?.kind === "link"
+      ? {
+          label: item.next_action.label,
+          href: item.next_action.href,
+        }
+      : null);
+  const attentionLabel = item.attention_category
+    ? {
+        access_judgment: "Needs you: access decision",
+        explicit_resume: "Needs you: explicit resume",
+        reconciliation: "Needs you: reconcile observation",
+        result_review: "Needs you: review saved result",
+        project_recovery: "Needs you: reconnect project",
+        project_activation: "Needs you: activate viewed project",
+        pending_review: "Needs you: consequential review",
+      }[item.attention_category]
+    : "No intervention required";
+
+  return (
+    <article
+      className={
+        highlighted
+          ? "blank-state-continuity-item blank-state-continuity-item--highlighted"
+          : "blank-state-continuity-item"
+      }
+      data-blank-state-continuity-item={item.item_id}
+      data-blank-state-continuity-highlighted={highlighted ? "true" : "false"}
+      data-blank-state-human-attention={
+        item.requires_human_attention ? "true" : "false"
+      }
+      data-blank-state-attention-category={item.attention_category ?? "none"}
+      data-delegated-work-summary={delegatedStage}
+      data-current-host-run={currentRunStatus}
+      data-latest-run-result={resultOutcome}
+    >
+      <p
+        className={
+          item.requires_human_attention
+            ? "blank-state-attention-label blank-state-attention-label--required"
+            : "blank-state-attention-label"
+        }
+      >
+        {attentionLabel}
+      </p>
+      <h3>{item.work_name}</h3>
+      <p className="blank-state-continuity-state">{item.meaningful_state}</p>
+      {item.last_meaningful_change ? (
+        <p className="blank-state-continuity-change">
+          <span>Meaningfully changed</span>{" "}
+          {item.last_meaningful_change.summary}{" "}
+          <time dateTime={item.last_meaningful_change.occurred_at}>
+            {formatTimestamp(item.last_meaningful_change.occurred_at)}
+          </time>
+        </p>
+      ) : null}
+      {item.consequential_detail ? (
+        <p className="blank-state-continuity-detail">
+          {item.consequential_detail}
+        </p>
+      ) : null}
+      {item.verification ? (
+        <p className="blank-state-meta" data-blank-state-verification="true">
+          Verification: {item.verification.passed} passed,{" "}
+          {item.verification.failed} failed, {item.verification.skipped} skipped.
+        </p>
+      ) : null}
+      <div className="blank-state-continuity-actions">
+        {highlighted && primaryAction ? (
+          <PrimaryAction
+            action={primaryAction}
+            item={item}
+            busy={busy}
+            recentEntry={primaryEntry}
+            onChoose={onChoose}
+            onOpen={onOpen}
+            onLocate={onLocate}
+            onActivate={onActivate}
+          />
+        ) : null}
+        {secondaryAction ? (
+          <a
+            className="blank-state-secondary-link"
+            href={secondaryAction.href}
+            data-blank-state-delegated-work-link={
+              item.source_family === "delegated_work" ? "true" : undefined
+            }
+            data-review-result-link={isResultItem ? "true" : undefined}
+          >
+            {secondaryAction.label}
+          </a>
+        ) : null}
+        {item.exact_detail_href &&
+        item.exact_detail_href !== secondaryAction?.href ? (
+          <a
+            className="blank-state-exact-detail-link"
+            href={item.exact_detail_href}
+            data-blank-state-exact-detail="true"
+          >
+            View exact details
+          </a>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 function ManagementSafety({
   view,
 }: {
@@ -523,6 +633,7 @@ function ManagementSafety({
 
 function PrimaryAction({
   action,
+  item,
   busy,
   recentEntry,
   onChoose,
@@ -531,6 +642,7 @@ function PrimaryAction({
   onActivate,
 }: {
   action: BlankStatePrimaryActionV01;
+  item: BlankStateContinuityItemV01;
   busy: boolean;
   recentEntry: RecentProjectEntryV01 | null;
   onChoose: () => void;
@@ -545,6 +657,12 @@ function PrimaryAction({
         href={action.href}
         data-blank-state-primary-action={action.kind}
         data-workbench-entry-state={action.entry_state ?? undefined}
+        data-blank-state-delegated-work-link={
+          item.source_family === "delegated_work" ? "true" : undefined
+        }
+        data-review-result-link={
+          item.attention_category === "result_review" ? "true" : undefined
+        }
         data-augnes-primary-action={action.kind}
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
@@ -593,7 +711,7 @@ function ProjectManagement({
   picker: LocalFolderPickerOutcomeV01 | null;
   busy: boolean;
   message: string | null;
-  primaryAction: BlankStatePrimaryActionV01;
+  primaryAction: BlankStatePrimaryActionV01 | null;
   onChoose: () => void;
   onConfirm: () => void;
   onOpen: (entry: RecentProjectEntryV01) => void;
@@ -615,7 +733,7 @@ function ProjectManagement({
           <p className="blank-state-region-label">Project options</p>
           <h2 id="project-management-title">Choose or manage a local project</h2>
         </div>
-        {primaryAction.kind !== "choose_folder" ? (
+        {primaryAction?.kind !== "choose_folder" ? (
           <button type="button" className="blank-state-secondary-button" onClick={onChoose} disabled={busy}>
             Choose another folder
           </button>
@@ -785,10 +903,10 @@ function ProjectOptions({
 }
 
 function primaryRecentEntry(
-  action: BlankStatePrimaryActionV01,
+  action: BlankStatePrimaryActionV01 | null,
   recent: RecentProjectEntryV01[],
 ): RecentProjectEntryV01 | null {
-  if (action.kind !== "open_recent" && action.kind !== "locate_folder") return null;
+  if (!action || (action.kind !== "open_recent" && action.kind !== "locate_folder")) return null;
   return recent.find((entry) => entry.project.project_id === action.project_id) ?? null;
 }
 

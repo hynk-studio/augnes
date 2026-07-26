@@ -81,34 +81,44 @@ defined RR0. [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull
 is its completed inventory and outcome record. RR0 changed no runtime behavior
 and authorized no implementation phase.
 
-## RR1 phase lifecycle
-
 ### RR1 documentation authority reconciliation
 
 [Issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71)
-defines RR1. RR1 is documentation authority reconciliation only:
+defined RR1. [PR #72](https://github.com/hynk-studio/augnes-perspective-lab/pull/72)
+is its completed documentation-authority reconciliation and outcome record:
 
 - one active owner per durable topic;
 - product direction integrated into the existing owners;
 - duplicated chronology, doctrine, evaluation, and temporary-program language
   shortened or absorbed;
-- no runtime, UI, route, schema, migration, protocol, data, test, fixture,
-  package, workflow, release, asset, branch-policy, or repository-setting
-  change.
+- no runtime implementation or C9 authorization.
 
-While the linked RR1 pull request is open, RR1 is the current authorized phase.
-If that pull request merges, RR1 becomes completed and no implementation phase
-becomes current automatically. The Draft PR is the review packet while open and
-the outcome record if merged. RR1 authorizes no C9 or product implementation.
+## PC1 phase lifecycle
 
-No other implementation phase is currently authorized by this roadmap.
+### Current-project Blank State attention and resumption
+
+[Issue #74](https://github.com/hynk-studio/augnes-perspective-lab/issues/74)
+defines PC1: one bounded current-project or explicitly viewed-project
+implementation slice that reprojects existing work, attention, result,
+recovery, and meaningful-change information into an attention-accurate
+continuous-work list on Blank State.
+
+While its linked pull request is open, PC1 is the current authorized
+implementation slice. If that pull request merges, PC1 becomes completed. The
+pull request is the review packet while open and the outcome record if merged.
+No later product-continuity slice becomes authorized automatically.
+
+PC1 does not authorize a global or cross-project attention inbox, notification
+or polling system, timeline-first work-detail redesign, relationship
+exploration, conversational GuideBrief expansion, new persistence or protocol
+authority, or C9.
 
 ## Next separately authorized work
 
 A potential next phase is one bounded product-continuity implementation slice,
-chosen only after explicit review of current runtime evidence. Candidate
-responsibilities include attention precision, timeline-first work detail,
-bounded relationship exploration, or a more conversational GuideBrief.
+chosen only after explicit review of PC1 runtime evidence. Candidate
+responsibilities include timeline-first work detail, bounded relationship
+exploration, or a more conversational GuideBrief.
 
 Any such phase must:
 
@@ -125,7 +135,7 @@ This ordering is a proposal, not authorization.
 ## Pending C9
 
 C9 compatibility and obsolete-surface reduction remains pending separate
-explicit authorization. RR0 and RR1 do not authorize it.
+explicit authorization. RR0, RR1, and PC1 do not authorize it.
 
 Before C9 can begin, each proposed removal, redirect, demotion, or retained
 compatibility path needs the proof defined in the temporary correction charter:
@@ -138,7 +148,8 @@ disposition.
 The following remain product directions unless current runtime evidence proves
 a bounded part is implemented:
 
-- a mature attention queue that avoids false human alarms;
+- attention maturity beyond PC1's bounded current-project Blank State slice,
+  including any global or cross-project queue;
 - timeline-first long-horizon work detail;
 - bounded relationship exploration that explains connection without becoming
   a permanent “constellation” product;

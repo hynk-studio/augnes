@@ -61,6 +61,16 @@ assert.match(blankState, /SEMANTIC_VISUAL_PRIORITY\.situation/u);
 assert.match(blankState, /SEMANTIC_VISUAL_PRIORITY\.aiSummary/u);
 assert.match(blankState, /SEMANTIC_VISUAL_PRIORITY\.risk/u);
 assert.match(blankState, /SEMANTIC_VISUAL_PRIORITY\.rawRecord/u);
+assert.match(blankState, /data-blank-state-continuity-list/u);
+assert.match(blankState, /data-blank-state-continuity-highlighted/u);
+assert.match(blankState, /data-blank-state-human-attention/u);
+assert.match(blankState, /data-blank-state-attention-summary/u);
+assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
+assertOrdered(blankState, [
+  'className="blank-state-focus"',
+  'data-blank-state-continuity-list="v0.1"',
+  "<ManagementSafety",
+]);
 const guidePublicText = read(
   "lib/vnext/guide-brief/public-guide-text.ts",
 );
@@ -91,6 +101,18 @@ for (const hook of [
   assert.match(guideRail, new RegExp(hook, "u"));
 }
 const guideBuilder = read("lib/vnext/guide-brief/project-guide-brief.ts");
+const continuityBuilder = read(
+  "lib/vnext/blank-state/blank-state-continuity.ts",
+);
+assert.equal(
+  [...guideBuilder.matchAll(/buildBlankStateContinuityV01\(/gu)].length,
+  1,
+);
+assert.doesNotMatch(guideBuilder, /decideFocusV02/u);
+assert.match(continuityBuilder, /MAX_VISIBLE_ITEMS = 5/u);
+assert.match(continuityBuilder, /compareCandidatesV01/u);
+assert.match(continuityBuilder, /deduplicateCandidatesV01/u);
+assert.match(continuityBuilder, /automationRequiresIntervention/u);
 assert.match(
   guideBuilder,
   /important_constraints: boundedListV02\([\s\S]*forbidden_actions/u,

@@ -17,6 +17,14 @@ const PENDING_GUIDE: GuideBriefAIWorkplaneProjectionV02 = {
   unresolved_user_judgments: [],
   recommended_review_focus: "Continue only from verified current project information",
   exact_detail_href: null,
+  human_attention: {
+    required: false,
+    category: null,
+    blocked_or_awaiting: null,
+    recommended_next_step: null,
+    projection_only: true,
+    authority_granted: false,
+  },
   delegated_work: null,
 };
 

@@ -1,4 +1,5 @@
 import type {
+  BlankStateAttentionCategoryV01,
   BlankStateFocusV01,
   BlankStatePrimaryActionV01,
   BlankStateRouteModeV01,
@@ -97,6 +98,15 @@ export interface GuideBriefPrimaryGuidanceV02 {
   executes: false;
 }
 
+export interface GuideBriefHumanAttentionV02 {
+  required: boolean;
+  category: BlankStateAttentionCategoryV01 | null;
+  blocked_or_awaiting: string | null;
+  recommended_next_step: string | null;
+  projection_only: true;
+  authority_granted: false;
+}
+
 export interface GuideBriefCurrentCoordinateV02 {
   focus: BlankStateFocusV01;
   goal: string | null;
@@ -111,6 +121,7 @@ export interface GuideBriefCurrentCoordinateV02 {
   material_blocker_or_uncertainty: string | null;
   unresolved_user_judgment: string | null;
   recent_meaningful_change: string | null;
+  human_attention: GuideBriefHumanAttentionV02;
   delegated_work: null | {
     stage: DelegatedWorkStageV01;
     latest_checkpoint: string | null;
@@ -137,6 +148,7 @@ export interface GuideBriefAIWorkplaneProjectionV02 {
   unresolved_user_judgments: string[];
   recommended_review_focus: string;
   exact_detail_href: string | null;
+  human_attention: GuideBriefHumanAttentionV02;
   delegated_work: GuideBriefCurrentCoordinateV02["delegated_work"];
 }
 
@@ -158,6 +170,7 @@ export interface GuideBriefChatGPTProjectionV02 {
   needs_user_judgment: GuideBriefUserJudgmentItemV02[];
   primary_guidance: GuideBriefPrimaryGuidanceV02;
   source_refs: GuideBriefSourceRefV02[];
+  human_attention: GuideBriefHumanAttentionV02;
   delegated_work: GuideBriefCurrentCoordinateV02["delegated_work"];
 }
 
@@ -176,6 +189,7 @@ export interface GuideBriefCodexProjectionV02 {
   unresolved_user_judgments: string[];
   important_risk_or_gap: string | null;
   suggested_next_action: string;
+  human_attention: GuideBriefHumanAttentionV02;
   source_refs: string[];
   packet_binding: null | {
     packet_id: string;

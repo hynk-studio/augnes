@@ -30,9 +30,11 @@ function projection(overrides: {
   result?: ProjectHomeProjectionV01["run_results"]["latest_result"];
   entry?: ProjectHomeProjectionV01["run_results"]["workbench_entry"];
   attention?: ProjectHomeProjectionV01["attention"]["items"];
+  attentionTotalCount?: number;
   goal?: string | null;
 } = {}): ProjectHomeProjectionV01 {
   const active = overrides.active ?? true;
+  const attentionItems = overrides.attention ?? [];
   return {
     workspace_id: "workspace:00000000-0000-4000-8000-000000000001",
     project_id: PROJECT_ID,
@@ -60,7 +62,23 @@ function projection(overrides: {
       latest_result: overrides.result ?? null,
       workbench_entry: overrides.entry ?? null,
     },
-    attention: { items: overrides.attention ?? [] },
+    attention: {
+      state: {
+        section_state_version: "project_home_section_state.v0.1",
+        status: attentionItems.length > 0 ? "action_required" : "empty",
+        message:
+          attentionItems.length > 0
+            ? "Consequential project attention is available."
+            : "No project attention currently needs review.",
+      },
+      total_count: overrides.attentionTotalCount ?? attentionItems.length,
+      decision_debt: {
+        pending_candidate_count: 0,
+        accepted_awaiting_transition_count: 0,
+        deferred_candidate_count: 0,
+      },
+      items: attentionItems,
+    },
     recent_activity: { items: [{ summary: "Guide path updated", occurred_at: NOW, workbench_entry: null }] },
   } as unknown as ProjectHomeProjectionV01;
 }
@@ -211,9 +229,29 @@ async function main() {
   for (const [guide, focus] of states) {
     assert.equal(guide.coordinate.focus, focus);
     assert.equal(guide.projections.blank_state.focus, focus);
-    assert.equal(guide.projections.blank_state.primary_action.label, guide.primary_guidance.label);
+    assert.equal(
+      guide.projections.blank_state.primary_action?.label ??
+        guide.projections.blank_state.highlighted_item.secondary_action?.label,
+      guide.primary_guidance.label,
+    );
     assert.equal(guide.projections.ai_workplane.recommended_review_focus, guide.primary_guidance.label);
     assert.equal(guide.projections.chatgpt.primary_guidance.label, guide.primary_guidance.label);
+    assert.deepEqual(
+      guide.projections.blank_state.highlighted_item.requires_human_attention,
+      guide.coordinate.human_attention.required,
+    );
+    assert.deepEqual(
+      guide.projections.ai_workplane.human_attention,
+      guide.coordinate.human_attention,
+    );
+    assert.deepEqual(
+      guide.projections.chatgpt.human_attention,
+      guide.coordinate.human_attention,
+    );
+    assert.deepEqual(
+      guide.projections.codex.human_attention,
+      guide.coordinate.human_attention,
+    );
     assert.equal(guide.authority.source_of_truth, false);
     assert.equal(guide.authority.can_approve, false);
     assert.equal(guide.authority.can_write_db, false);
@@ -257,8 +295,8 @@ async function main() {
   );
   assert.equal(delegatedGuide.coordinate.delegated_work?.stage, "waiting_for_approval");
   assert.equal(
-    delegatedGuide.projections.blank_state.current_work?.delegated_work?.stage,
-    "waiting_for_approval",
+    delegatedGuide.projections.blank_state.highlighted_item.attention_category,
+    "access_judgment",
   );
   assert.equal(
     delegatedGuide.projections.ai_workplane.delegated_work?.stage,
@@ -269,7 +307,29 @@ async function main() {
     "waiting_for_approval",
   );
   assert.equal(delegatedGuide.primary_guidance.label, "Review requested access");
+  assert.equal(delegatedGuide.coordinate.human_attention.required, true);
+  assert.equal(
+    delegatedGuide.coordinate.human_attention.category,
+    "access_judgment",
+  );
   assert.equal(delegatedGuide.authority.can_approve, false);
+
+  const runningGuide = states[5][0];
+  assert.equal(runningGuide.coordinate.human_attention.required, false);
+  assert.equal(runningGuide.coordinate.human_attention.category, null);
+  assert.equal(
+    runningGuide.projections.blank_state.primary_action,
+    null,
+  );
+  assert.equal(
+    runningGuide.projections.blank_state.highlighted_item.secondary_action
+      ?.label,
+    "View progress",
+  );
+  assert.equal(
+    runningGuide.projections.codex.human_attention.authority_granted,
+    false,
+  );
 
   const deterministicA = build(source(resultProjection()));
   const deterministicB = build(source(resultProjection()));
@@ -296,6 +356,69 @@ async function main() {
   assert.equal(taskStart.packet_binding?.packet_fingerprint, exactPacket.integrity.fingerprint);
   assert.equal(taskStart.can_approve, false);
   assert.equal(JSON.stringify(exactPacket), before);
+  const openQuestion = "Which naming detail should be revisited later?";
+  const packetWithOpenQuestion = {
+    ...exactPacket,
+    current_projection: {
+      projection_kind: "current_working_perspective",
+      projection_only: true,
+      canonical_state: false,
+      perspective_ref: null,
+      bounded_summary: "The exact work can proceed with one unresolved question.",
+      as_of: NOW,
+      items: [
+        {
+          item_kind: "open_question",
+          summary: openQuestion,
+          source_refs: ["source:ordinary-open-question"],
+          external_refs: [],
+          currentness: {
+            status: "unknown",
+            as_of: NOW,
+            basis: "Context remains unresolved without blocking the task.",
+            source_ref: null,
+          },
+        },
+      ],
+      source_refs: ["source:ordinary-open-question"],
+      external_refs: [],
+      currentness: {
+        status: "unknown",
+        as_of: NOW,
+        basis: "The question is unresolved context.",
+        source_ref: null,
+      },
+      warnings: [],
+    },
+  } as TaskContextPacketV01;
+  const openQuestionTaskStart = buildTaskStartGuideBriefCodexProjectionV02({
+    packet: packetWithOpenQuestion,
+    project_name: "Current project",
+  });
+  assert.deepEqual(
+    openQuestionTaskStart.unresolved_user_judgments,
+    [openQuestion],
+  );
+  assert.equal(openQuestionTaskStart.human_attention.required, false);
+  assert.equal(openQuestionTaskStart.human_attention.category, null);
+  assert.equal(openQuestionTaskStart.human_attention.blocked_or_awaiting, null);
+  assert.equal(
+    openQuestionTaskStart.human_attention.recommended_next_step,
+    "Follow the exact requested work and its required checks",
+  );
+  assert.equal(openQuestionTaskStart.human_attention.projection_only, true);
+  assert.equal(openQuestionTaskStart.human_attention.authority_granted, false);
+  assert.equal(openQuestionTaskStart.can_approve, false);
+  assert.equal(openQuestionTaskStart.can_execute_codex, false);
+  assert.equal(openQuestionTaskStart.can_grant_host_permission, false);
+  assert.doesNotMatch(
+    JSON.stringify(openQuestionTaskStart.human_attention),
+    /approval|decision|Transition|blocking/u,
+  );
+  assert.deepEqual(
+    runningGuide.projections.codex.human_attention,
+    runningGuide.coordinate.human_attention,
+  );
   const unavailable = unavailableGuideBriefCodexProjectionV02(exactPacket, "bounded failure");
   assert.equal(unavailable.status, "unavailable");
   assert.equal(unavailable.packet_binding?.packet_id, exactPacket.packet_id);

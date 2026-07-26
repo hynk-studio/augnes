@@ -71,9 +71,13 @@ function projection(overrides: {
   result?: ProjectHomeProjectionV01["run_results"]["latest_result"];
   entry?: ProjectHomeProjectionV01["run_results"]["workbench_entry"];
   attention?: ProjectHomeProjectionV01["attention"]["items"];
+  attentionTotalCount?: number;
+  attentionStateStatus?: ProjectHomeProjectionV01["attention"]["state"]["status"];
+  recent?: ProjectHomeProjectionV01["recent_activity"]["items"];
   goal?: string | null;
 } = {}): ProjectHomeProjectionV01 {
   const active = overrides.active ?? true;
+  const attentionItems = overrides.attention ?? [];
   return {
     workspace_id: "workspace:test",
     project_id: "project:test",
@@ -91,8 +95,26 @@ function projection(overrides: {
       latest_result: overrides.result ?? null,
       workbench_entry: overrides.entry ?? null,
     },
-    attention: { items: overrides.attention ?? [] },
-    recent_activity: { items: [] },
+    attention: {
+      state: {
+        section_state_version: "project_home_section_state.v0.1",
+        status:
+          overrides.attentionStateStatus ??
+          (attentionItems.length > 0 ? "action_required" : "empty"),
+        message:
+          attentionItems.length > 0
+            ? "Consequential project attention is available."
+            : "No project attention currently needs review.",
+      },
+      total_count: overrides.attentionTotalCount ?? attentionItems.length,
+      decision_debt: {
+        pending_candidate_count: 0,
+        accepted_awaiting_transition_count: 0,
+        deferred_candidate_count: 0,
+      },
+      items: attentionItems,
+    },
+    recent_activity: { items: overrides.recent ?? [] },
   } as unknown as ProjectHomeProjectionV01;
 }
 
@@ -221,6 +243,8 @@ function view(sourceValue: BlankStateSourceV01) {
 async function main() {
   const noProjects = view(source(null));
   assert.equal(noProjects.focus, "no_projects");
+  assert.equal(noProjects.known_attention_count, 0);
+  assert.equal(noProjects.highlighted_item.source_family, "project_lifecycle");
   assert.deepEqual(noProjects.primary_action, {
     kind: "choose_folder",
     label: "Choose a local project",
@@ -231,7 +255,7 @@ async function main() {
     recent_projects: [recent],
   }));
   assert.equal(projectChoice.focus, "project_choice");
-  assert.equal(projectChoice.primary_action.kind, "open_recent");
+  assert.equal(projectChoice.primary_action?.kind, "open_recent");
 
   const unavailableActive = view(source(null, {
     active_project_id: recent.project.project_id,
@@ -239,19 +263,23 @@ async function main() {
     project_resolution: "unavailable",
   }));
   assert.equal(unavailableActive.focus, "project_choice");
-  assert.equal(unavailableActive.primary_action.kind, "open_recent");
+  assert.equal(unavailableActive.primary_action?.kind, "open_recent");
+  assert.equal(unavailableActive.known_attention_count, 1);
+  assert.equal(unavailableActive.highlighted_item.attention_category, "project_recovery");
   assert.match(unavailableActive.situation, /record is safe/u);
   assert.equal(unavailableActive.semantic_authority_granted, false);
 
   const inactive = view(source(projection({ active: false })));
   assert.equal(inactive.focus, "viewed_project_inactive");
-  assert.equal(inactive.primary_action.kind, "make_active");
+  assert.equal(inactive.primary_action?.kind, "make_active");
+  assert.equal(inactive.highlighted_item.attention_category, "project_activation");
 
   const missingRoot = view(source(projection({ root: "missing" }), {
     recent_projects: [recentEntry({ root_availability: "missing", is_active: true })],
   }));
   assert.equal(missingRoot.focus, "project_root_unavailable");
-  assert.equal(missingRoot.primary_action.kind, "locate_folder");
+  assert.equal(missingRoot.primary_action?.kind, "locate_folder");
+  assert.equal(missingRoot.known_attention_count, 1);
 
   const running = view(source(projection({
     goal: "Finish the bounded work",
@@ -268,7 +296,9 @@ async function main() {
     },
   })));
   assert.equal(running.focus, "work_in_progress");
-  assert.equal(running.primary_action.kind, "link");
+  assert.equal(running.primary_action, null);
+  assert.equal(running.known_attention_count, 0);
+  assert.equal(running.highlighted_item.secondary_action?.label, "View progress");
 
   const delegatedWaiting = view(
     source(projection(), {
@@ -277,24 +307,27 @@ async function main() {
   );
   assert.equal(delegatedWaiting.focus, "work_requires_attention");
   assert.equal(
-    delegatedWaiting.primary_action.label,
+    delegatedWaiting.primary_action?.label,
     "Review requested access",
   );
   assert.equal(
-    delegatedWaiting.current_work?.delegated_work?.stage,
-    "waiting_for_approval",
+    delegatedWaiting.highlighted_item.attention_category,
+    "access_judgment",
   );
+  assert.equal(delegatedWaiting.known_attention_count, 1);
   const delegatedResume = view(
     source(projection(), {
       delegated_work: delegatedWork("resume_required"),
     }),
   );
-  assert.equal(delegatedResume.primary_action.label, "Resume in AI Workplane");
+  assert.equal(delegatedResume.primary_action?.label, "Resume in AI Workplane");
+  assert.equal(delegatedResume.highlighted_item.attention_category, "explicit_resume");
   const delegatedWorking = view(
     source(projection(), { delegated_work: delegatedWork("working") }),
   );
   assert.equal(delegatedWorking.heading, "Codex is working");
-  assert.equal(delegatedWorking.primary_action.label, "Open delegated work");
+  assert.equal(delegatedWorking.primary_action, null);
+  assert.equal(delegatedWorking.known_attention_count, 0);
 
   const resultEntry = {
     entry_version: "semantic_workbench_entry.v0.1",
@@ -311,38 +344,52 @@ async function main() {
     entry_state: "assessment",
     source: { record_kind: "run_receipt", record_id: "receipt:test" },
   } as const;
+  const latestResult = {
+    receipt_ref: "receipt:test",
+    run_ref: "run:test",
+    outcome: "completed",
+    execution_status: "completed",
+    verification_status: "partial",
+    recorded_at: "2026-07-23T00:02:00.000Z",
+    started_at: "2026-07-23T00:00:00.000Z",
+    finished_at: "2026-07-23T00:02:00.000Z",
+    summary: "The bounded work completed with one open question.",
+    changed_file_count: 1,
+    artifact_count: 1,
+    command_count: 1,
+    action_count: 1,
+    check_counts: { passed: 2, failed: 0, blocked: 0, unknown: 0, skipped: 1 },
+    blocker_count: 0,
+    gap_count: 1,
+    trust_label: "observed",
+    review_attention: "verification_partial",
+    review_href: resultEntry.href,
+    inspector_href: "/workbench/inspector?target=result",
+    mode: "interactive",
+  } as const;
   const resultReady = view(source(projection({
-    result: {
-      receipt_ref: "receipt:test",
-      run_ref: "run:test",
-      outcome: "completed",
-      execution_status: "completed",
-      verification_status: "partial",
-      recorded_at: "2026-07-23T00:02:00.000Z",
-      started_at: "2026-07-23T00:00:00.000Z",
-      finished_at: "2026-07-23T00:02:00.000Z",
-      summary: "RunReceipt saved; CriterionAssessment found one gap.",
-      changed_file_count: 1,
-      artifact_count: 1,
-      command_count: 1,
-      action_count: 1,
-      check_counts: { passed: 2, failed: 0, blocked: 0, unknown: 0, skipped: 1 },
-      blocker_count: 0,
-      gap_count: 1,
-      trust_label: "observed",
-      review_attention: "verification_partial",
-      review_href: resultEntry.href,
-      inspector_href: "/workbench/inspector?target=result",
-      mode: "interactive",
-    },
+    result: latestResult,
     entry: resultEntry,
   })));
   assert.equal(resultReady.focus, "result_ready");
-  assert.equal(resultReady.primary_action.kind, "link");
-  assert.equal(resultReady.primary_action.label, "Review result");
+  assert.equal(resultReady.primary_action?.kind, "link");
+  assert.equal(resultReady.primary_action?.label, "Review result");
+  assert.equal(resultReady.known_attention_count, 1);
+  assert.equal(resultReady.highlighted_item.attention_category, "result_review");
   assert.equal(resultReady.situation.includes("RunReceipt"), false);
   assert.equal(resultReady.situation.includes("CriterionAssessment"), false);
-  assert.deepEqual(resultReady.current_work?.verification, { passed: 2, failed: 0, skipped: 1 });
+  assert.deepEqual(resultReady.highlighted_item.verification, { passed: 2, failed: 0, skipped: 1 });
+  const delegatedResult = delegatedWork("result_ready");
+  const delegatedReviewHref = delegatedResult.result!.review_href;
+  const combinedResult = view(source(projection({
+    result: { ...latestResult, review_href: delegatedReviewHref },
+    entry: { ...resultEntry, href: delegatedReviewHref },
+  }), { delegated_work: delegatedResult }));
+  assert.equal(combinedResult.known_continuity_item_count, 1);
+  assert.equal(
+    combinedResult.highlighted_item.last_meaningful_change?.summary,
+    latestResult.summary,
+  );
 
   const attention = view(source(projection({
     attention: [{
@@ -355,14 +402,355 @@ async function main() {
     }] as ProjectHomeProjectionV01["attention"]["items"],
   })));
   assert.equal(attention.focus, "attention_required");
+  assert.equal(attention.known_attention_count, 1);
+  assert.equal(attention.highlighted_item.attention_category, "pending_review");
   assert.equal(attention.situation.includes("ReviewDecision"), false);
   assert.equal(attention.material_note?.includes("Transition"), false);
 
   const idle = view(source(projection()));
   assert.equal(idle.focus, "ready_to_continue");
-  assert.equal(idle.primary_action.kind, "link");
+  assert.equal(idle.primary_action?.kind, "link");
+  assert.equal(idle.known_attention_count, 0);
   assert.equal(idle.projection_only, true);
   assert.equal(idle.semantic_authority_granted, false);
+
+  for (const stage of ["preparing", "working", "cancelling"] as const) {
+    const ordinary = view(
+      source(projection(), { delegated_work: delegatedWork(stage) }),
+    );
+    assert.equal(ordinary.known_attention_count, 0, stage);
+    assert.equal(ordinary.primary_action, null, stage);
+    assert.equal(
+      ordinary.highlighted_item.secondary_action?.label,
+      "View progress",
+      stage,
+    );
+  }
+
+  const delegatedTrustedResult = view(
+    source(projection(), { delegated_work: delegatedWork("result_ready") }),
+  );
+  assert.equal(delegatedTrustedResult.known_attention_count, 1);
+  assert.equal(
+    delegatedTrustedResult.highlighted_item.attention_category,
+    "result_review",
+  );
+  assert.equal(
+    delegatedTrustedResult.primary_action?.label,
+    "Review result",
+  );
+
+  const reconciliation = view(source(projection({
+    goal: "Reconcile the interrupted observation",
+    run: {
+      run_ref: "run:reconciliation",
+      status: "paused",
+      mode: "interactive",
+      started_at: "2026-07-23T00:00:00.000Z",
+      updated_at: "2026-07-23T00:03:00.000Z",
+      public_reason: "Runtime ownership changed.",
+      reconciliation_required: true,
+      packet_ref: null,
+      receipt_available: false,
+    },
+  })));
+  assert.equal(reconciliation.known_attention_count, 1);
+  assert.equal(
+    reconciliation.highlighted_item.attention_category,
+    "reconciliation",
+  );
+  assert.equal(reconciliation.primary_action?.label, "Review current work");
+
+  const deferredBeforeDue = view(source(projection({
+    goal: "Wait for the stated revisit condition",
+    attention: [],
+  })));
+  assert.equal(deferredBeforeDue.known_attention_count, 0);
+  assert.equal(deferredBeforeDue.focus, "ready_to_continue");
+
+  const deferredNowDue = view(source(projection({
+    attention: [{
+      attention_id: "proposal:deferred-now-due",
+      proposal_id: "proposal:deferred-now-due",
+      summary: "A deferred decision is now due for review",
+      created_at: "2026-07-23T00:04:00.000Z",
+      pending_candidate_count: 1,
+      priority: 40,
+      signals: ["interactive"],
+      reason: "Its exact revisit condition is now satisfied.",
+      workbench_entry: null,
+      action_href: "/workbench/semantic-review?proposal=deferred-now-due",
+      action_label: "Review due decision",
+      lineage: [],
+    }],
+  })));
+  assert.equal(deferredNowDue.known_attention_count, 1);
+  assert.equal(
+    deferredNowDue.highlighted_item.attention_category,
+    "pending_review",
+  );
+
+  const settledTransition = view(source(projection({
+    attention: [{
+      attention_id: "proposal:settled",
+      proposal_id: "proposal:settled",
+      summary: "A settled change remains in history",
+      created_at: "2026-07-23T00:04:00.000Z",
+      pending_candidate_count: 0,
+      priority: 1,
+      signals: ["interactive"],
+      reason: "The change was already applied.",
+      workbench_entry: {
+        entry_version: "semantic_workbench_entry.v0.1",
+        workspace_id: "workspace:test",
+        project_id: "project:test",
+        origin: "interactive",
+        href: "/workbench/semantic-review?proposal=settled",
+        action_label: "See what changed",
+        reason: "The change was already applied.",
+        review_required: false,
+        server_scope_validation_required: true,
+        projection_only: true,
+        semantic_authority_granted: false,
+        entry_state: "transition_applied",
+        source: {
+          record_kind: "episode_delta_proposal",
+          record_id: "proposal:settled",
+        },
+      },
+      action_href: null,
+      action_label: "See what changed",
+      lineage: [],
+    }],
+  })));
+  assert.equal(settledTransition.known_attention_count, 0);
+  assert.equal(settledTransition.focus, "ready_to_continue");
+  assert.equal(
+    settledTransition.continuity_items[0]?.requires_human_attention,
+    false,
+  );
+
+  const recentChange = view(source(projection({
+    recent: [{
+      activity_kind: "review_decision",
+      summary: "The verification plan changed",
+      occurred_at: "2026-07-23T00:05:00.000Z",
+      outcome: "recorded",
+      workbench_entry: null,
+      lineage: [],
+    }],
+  })));
+  assert.equal(recentChange.known_attention_count, 0);
+  assert.equal(recentChange.highlighted_item.source_family, "continuation");
+  assert.equal(
+    recentChange.continuity_items[0]?.source_family,
+    "recent_change",
+  );
+
+  const duplicateIntervention = view(source(projection({
+    attention: [
+      {
+        attention_id: "proposal:duplicate-a",
+        proposal_id: "proposal:duplicate-a",
+        summary: "Review the bounded intervention",
+        created_at: "2026-07-23T00:06:00.000Z",
+        pending_candidate_count: 1,
+        priority: 10,
+        signals: ["blocked"],
+        reason: "Safe continuation is blocked.",
+        workbench_entry: null,
+        action_href: "/workbench/semantic-review?intervention=one",
+        action_label: "Review intervention",
+        lineage: [],
+      },
+      {
+        attention_id: "proposal:duplicate-b",
+        proposal_id: "proposal:duplicate-b",
+        summary: "The same intervention appears from another source",
+        created_at: "2026-07-23T00:06:01.000Z",
+        pending_candidate_count: 1,
+        priority: 20,
+        signals: ["interactive"],
+        reason: "It has the same bounded destination.",
+        workbench_entry: null,
+        action_href: "/workbench/semantic-review?intervention=one",
+        action_label: "Review intervention",
+        lineage: [],
+      },
+    ],
+  })));
+  assert.equal(duplicateIntervention.known_attention_count, 1);
+  assert.equal(duplicateIntervention.known_continuity_item_count, 1);
+  assert.equal(duplicateIntervention.continuity_items.length, 0);
+
+  const equalClassInputs = [
+    {
+      attention_id: "proposal:equal-a",
+      proposal_id: "proposal:equal-a",
+      summary: "Equal review A",
+      created_at: "2026-07-23T00:07:00.000Z",
+      pending_candidate_count: 1,
+      priority: 30,
+      signals: ["interactive" as const],
+      reason: "A consequential review is pending.",
+      workbench_entry: null,
+      action_href: "/workbench/semantic-review?equal=a",
+      action_label: "Review A",
+      lineage: [],
+    },
+    {
+      attention_id: "proposal:equal-b",
+      proposal_id: "proposal:equal-b",
+      summary: "Equal review B",
+      created_at: "2026-07-23T00:07:00.000Z",
+      pending_candidate_count: 1,
+      priority: 30,
+      signals: ["interactive" as const],
+      reason: "A consequential review is pending.",
+      workbench_entry: null,
+      action_href: "/workbench/semantic-review?equal=b",
+      action_label: "Review B",
+      lineage: [],
+    },
+  ];
+  const deterministicA = view(source(projection({
+    attention: equalClassInputs,
+  })));
+  const deterministicB = view(source(projection({
+    attention: [...equalClassInputs].reverse(),
+  })));
+  assert.deepEqual(
+    [
+      deterministicA.highlighted_item.item_id,
+      ...deterministicA.continuity_items.map((item) => item.item_id),
+    ],
+    [
+      deterministicB.highlighted_item.item_id,
+      ...deterministicB.continuity_items.map((item) => item.item_id),
+    ],
+  );
+
+  const locallyBoundedInputs: ProjectHomeProjectionV01["attention"]["items"] =
+    Array.from({ length: 7 }, (_, index) => ({
+      attention_id: `proposal:bounded-${index}`,
+      proposal_id: `proposal:bounded-${index}`,
+      summary: `Bounded review ${index}`,
+      created_at: `2026-07-23T00:0${index}:00.000Z`,
+      pending_candidate_count: 1,
+      priority: 50,
+      signals: ["interactive"],
+      reason: "A consequential review is pending.",
+      workbench_entry: null,
+      action_href: `/workbench/semantic-review?bounded=${index}`,
+      action_label: `Review ${index}`,
+      lineage: [],
+    }));
+  const bounded = view(source(projection({
+    attention: locallyBoundedInputs,
+  })));
+  assert.equal(1 + bounded.continuity_items.length, 5);
+  assert.equal(bounded.known_attention_count, 7);
+  assert.equal(bounded.attention_count_status, "complete");
+  assert.equal(bounded.known_continuity_item_count, 7);
+  assert.equal(bounded.locally_omitted_item_count, 2);
+  assert.equal(bounded.source_omitted_attention_count, 0);
+
+  const upstreamBounded = view(source(projection({
+    attention: locallyBoundedInputs.slice(0, 5),
+    attentionTotalCount: 7,
+  })));
+  assert.equal(1 + upstreamBounded.continuity_items.length, 5);
+  assert.equal(upstreamBounded.known_attention_count, 5);
+  assert.equal(upstreamBounded.attention_count_status, "lower_bound");
+  assert.equal(upstreamBounded.known_continuity_item_count, 5);
+  assert.equal(upstreamBounded.locally_omitted_item_count, 0);
+  assert.equal(upstreamBounded.source_omitted_attention_count, 2);
+  assert.deepEqual(upstreamBounded.source_attention_destination, {
+    label: "Review project attention",
+    href: "/workbench/semantic-review",
+  });
+  assert.match(
+    upstreamBounded.continuity_summary,
+    /at least 5 known items genuinely need you/u,
+  );
+  assert.equal(
+    [
+      upstreamBounded.highlighted_item,
+      ...upstreamBounded.continuity_items,
+    ].some((item) => /Bounded review [56]/u.test(item.work_name)),
+    false,
+  );
+  assert.equal(
+    upstreamBounded.continuity_items.some(
+      (item) => item.item_id === upstreamBounded.highlighted_item.item_id,
+    ),
+    false,
+  );
+  assert.equal((upstreamBounded.primary_action === null ? 0 : 1) <= 1, true);
+
+  const inconsistentUpstream = view(source(projection({
+    attention: locallyBoundedInputs.slice(0, 5),
+    attentionTotalCount: 4,
+  })));
+  assert.equal(inconsistentUpstream.known_attention_count, 5);
+  assert.equal(
+    inconsistentUpstream.attention_count_status,
+    "source_incomplete",
+  );
+  assert.equal(inconsistentUpstream.source_omitted_attention_count, null);
+  assert.match(
+    inconsistentUpstream.continuity_summary,
+    /complete project attention count is unavailable/u,
+  );
+
+  const unavailableDelegated = view(source(projection(), {
+    delegated_work: delegatedWork("unavailable"),
+  }));
+  assert.equal(unavailableDelegated.known_attention_count, 0);
+  assert.equal(unavailableDelegated.primary_action, null);
+
+  const terminalDelegated = view(source(projection(), {
+    delegated_work: delegatedWork("failed"),
+  }));
+  assert.equal(terminalDelegated.known_attention_count, 0);
+  assert.equal(terminalDelegated.primary_action, null);
+
+  for (const composed of [
+    noProjects,
+    running,
+    delegatedWaiting,
+    delegatedTrustedResult,
+    resultReady,
+    bounded,
+    upstreamBounded,
+  ]) {
+    assert.equal(
+      composed.continuity_items.some(
+        (item) => item.item_id === composed.highlighted_item.item_id,
+      ),
+      false,
+    );
+    assert.equal(composed.highlighted_item.projection_only, true);
+    assert.equal(
+      composed.highlighted_item.semantic_authority_granted,
+      false,
+    );
+    assert.equal((composed.primary_action === null ? 0 : 1) <= 1, true);
+  }
+
+  const ordinaryPublicCopy = [
+    resultReady.heading,
+    resultReady.situation,
+    resultReady.continuity_summary,
+    resultReady.highlighted_item.work_name,
+    resultReady.highlighted_item.meaningful_state,
+    resultReady.highlighted_item.last_meaningful_change?.summary ?? "",
+    resultReady.highlighted_item.consequential_detail ?? "",
+  ].join(" ");
+  assert.doesNotMatch(
+    ordinaryPublicCopy,
+    /TaskContextPacket|RunReceipt|CriterionAssessment|ReviewDecision|StateTransitionReceipt|packet fingerprint/u,
+  );
 
   assert.equal(ordinaryActionLabel("pending_proposal"), "Review suggested change");
   assert.equal(ordinaryActionLabel("transition_applied"), "See what changed");
@@ -465,7 +853,7 @@ async function main() {
   assert.equal(missing.projection?.project_summary.root_availability, "missing");
 
   console.log(JSON.stringify({
-    assertions: 32,
+    assertion_sites: 102,
     blank_state_focuses: [
       "no_projects",
       "project_choice",

@@ -37,6 +37,58 @@ export type BlankStatePrimaryActionV01 =
       entry_state: string | null;
     };
 
+export type BlankStateContinuitySourceFamilyV01 =
+  | "project_lifecycle"
+  | "delegated_work"
+  | "current_run"
+  | "saved_result"
+  | "project_attention"
+  | "recent_change"
+  | "continuation";
+
+export type BlankStateAttentionCategoryV01 =
+  | "access_judgment"
+  | "explicit_resume"
+  | "reconciliation"
+  | "result_review"
+  | "project_recovery"
+  | "project_activation"
+  | "pending_review";
+
+export type BlankStateAttentionCountStatusV01 =
+  | "complete"
+  | "lower_bound"
+  | "source_incomplete";
+
+export interface BlankStateContinuityLinkV01 {
+  label: string;
+  href: string;
+}
+
+export interface BlankStateContinuityItemV01 {
+  item_id: string;
+  source_family: BlankStateContinuitySourceFamilyV01;
+  work_name: string;
+  meaningful_state: string;
+  requires_human_attention: boolean;
+  attention_category: BlankStateAttentionCategoryV01 | null;
+  last_meaningful_change: null | {
+    summary: string;
+    occurred_at: string;
+  };
+  consequential_detail: string | null;
+  next_action: BlankStatePrimaryActionV01 | null;
+  secondary_action: BlankStateContinuityLinkV01 | null;
+  verification: null | {
+    passed: number;
+    failed: number;
+    skipped: number;
+  };
+  exact_detail_href: string | null;
+  projection_only: true;
+  semantic_authority_granted: false;
+}
+
 export interface BlankStateSourceV01 {
   route_mode: BlankStateRouteModeV01;
   requested_project_id: string | null;
@@ -57,38 +109,25 @@ export interface BlankStateViewV01 {
   heading: string;
   situation: string;
   material_note: string | null;
-  primary_action: BlankStatePrimaryActionV01;
+  continuity_summary: string;
+  /** Deduplicated consequential items that PC1 received and composed exactly. */
+  known_attention_count: number;
+  /** Whether the known count is exact or bounded by incomplete upstream input. */
+  attention_count_status: BlankStateAttentionCountStatusV01;
+  /** Deduplicated continuity items that PC1 received and composed exactly. */
+  known_continuity_item_count: number;
+  /** Known composed items omitted after PC1 applies its five-item view bound. */
+  locally_omitted_item_count: number;
+  /**
+   * Project Home attention records omitted before PC1 composition. Null means
+   * the source count was structurally inconsistent and was not fabricated.
+   */
+  source_omitted_attention_count: number | null;
+  source_attention_destination: BlankStateContinuityLinkV01 | null;
+  highlighted_item: BlankStateContinuityItemV01;
+  continuity_items: BlankStateContinuityItemV01[];
+  primary_action: BlankStatePrimaryActionV01 | null;
   project_management_emphasized: boolean;
-  current_work: null | {
-    status: string;
-    goal: string | null;
-    result_summary: string | null;
-    verification: null | {
-      passed: number;
-      failed: number;
-      skipped: number;
-    };
-    exact_detail_href: string | null;
-    delegated_work: null | {
-      stage: DelegatedWorkProjectionV01["stage"];
-      stage_label: string;
-      latest_checkpoint: string | null;
-      last_observed_at: string | null;
-      trusted_result_available: boolean;
-      href: string;
-    };
-  };
-  additional_attention: Array<{
-    id: string;
-    summary: string;
-    reason: string;
-    href: string | null;
-    label: string;
-  }>;
-  recent_change: null | {
-    summary: string;
-    occurred_at: string;
-  };
   why_this_is_next: {
     observed: string[];
     inferred: Array<{ statement: string; caveats: string[] }>;
