@@ -11,8 +11,16 @@ import {
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
 import {
   buildSelectedWorkTimelineV01,
+  selectNextSelectedWorkCandidateV01,
   selectSelectedCandidateActionableApplyingDecisionV01,
 } from "@/lib/vnext/ai-workplane/selected-work-timeline";
+import {
+  buildSelectedWorkRelationshipsV01,
+} from "@/lib/vnext/ai-workplane/selected-work-relationships";
+import {
+  effectiveSelectedWorkRelationshipQuestionV01,
+  selectedWorkRelationshipScopeKeyV01,
+} from "@/components/workbench/semantic-review/selected-work-relationship-selection";
 import { semanticReviewDetailEntryPresentationV01 } from "@/components/workbench/semantic-review/semantic-review-entry-presentation";
 import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
 import {
@@ -65,6 +73,7 @@ import type { VNextOperatorPilotReviewListItemV01 } from "@/lib/vnext/runtime/op
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { VNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
+import type { SelectedWorkTimelineV01 } from "@/types/vnext/selected-work-timeline";
 
 import {
   installZeroNetworkGuard,
@@ -894,6 +903,32 @@ try {
       read: withTimelineSourceSummary(read),
       selected_candidate: selectedCandidate,
     });
+  const assertNextCandidateOwnerConsistency = (
+    read: SemanticReviewProposalDetailV01,
+    selectedCandidate: SemanticReviewProposalDetailV01["candidates"][number],
+    expectedCandidateId: string | null,
+  ) => {
+    const normalizedRead = withTimelineSourceSummary(read);
+    const timeline = buildSelectedWorkTimelineV01({
+      read: normalizedRead,
+      selected_candidate: selectedCandidate,
+    });
+    const nextCandidate = selectNextSelectedWorkCandidateV01({
+      read: normalizedRead,
+      selected_candidate: selectedCandidate,
+    });
+    assert.equal(
+      timeline.current_position.primary_action_owner ===
+        "candidate_selection",
+      nextCandidate !== null,
+      "the timeline candidate-selection owner and shared next-candidate projection must agree",
+    );
+    assert.equal(
+      nextCandidate?.candidate.candidate_id ?? null,
+      expectedCandidateId,
+    );
+    return { timeline, nextCandidate, read: normalizedRead };
+  };
   const timelineFor = (read: SemanticReviewProposalDetailV01) =>
     timelineForSelected(read, read.candidates[0]!);
   const noDecisionTimeline = timelineFor(timelineBaseRead);
@@ -1170,10 +1205,21 @@ try {
     ...twoActionableCandidatesRead,
     transition_receipts: [candidateLocalReceiptA],
   } satisfies SemanticReviewProposalDetailV01);
+  const candidateAAppliedSelection =
+    assertNextCandidateOwnerConsistency(
+      candidateAAppliedRead,
+      candidateLocalA,
+      candidateLocalB.candidate.candidate_id,
+    );
   assert.equal(
-    timelineForSelected(candidateAAppliedRead, candidateLocalA)
-      .current_position.stage,
+    candidateAAppliedSelection.timeline.current_position.stage,
     "project_updated",
+  );
+  assert.equal(
+    candidateAAppliedSelection.timeline.current_position
+      .primary_action_owner,
+    "candidate_selection",
+    "an applied candidate must offer the next exact applying-unapplied candidate",
   );
   const candidateBUnappliedTimeline = timelineForSelected(
     candidateAAppliedRead,
@@ -1195,6 +1241,169 @@ try {
     candidateLocalDecisionB.decision_id,
     "candidate A's receipt must not suppress candidate B's exact preview action",
   );
+
+  const candidateBUndecidedRead = withTimelineSourceSummary({
+    ...twoActionableCandidatesRead,
+    decisions: [candidateLocalDecisionA],
+    decision_history: [historyFor(candidateLocalDecisionA)],
+    transition_receipts: [candidateLocalReceiptA],
+  } satisfies SemanticReviewProposalDetailV01);
+  assert.equal(
+    assertNextCandidateOwnerConsistency(
+      candidateBUndecidedRead,
+      candidateLocalA,
+      candidateLocalB.candidate.candidate_id,
+    ).timeline.current_position.stage,
+    "project_updated",
+  );
+  const candidateBUndecidedTimeline = timelineForSelected(
+    candidateBUndecidedRead,
+    candidateLocalB,
+  );
+  assert.equal(
+    candidateBUndecidedTimeline.current_position.stage,
+    "review_focused",
+  );
+  assert.equal(
+    candidateBUndecidedTimeline.current_position.primary_action_owner,
+    "decision",
+  );
+
+  const candidateBPriorSessionRead = withTimelineSourceSummary({
+    ...candidateAAppliedRead,
+    decision_history: [
+      historyFor(candidateLocalDecisionA),
+      historyFor(candidateLocalDecisionB, false),
+    ],
+  } satisfies SemanticReviewProposalDetailV01);
+  assertNextCandidateOwnerConsistency(
+    candidateBPriorSessionRead,
+    candidateLocalA,
+    candidateLocalB.candidate.candidate_id,
+  );
+  const candidateBPriorSessionTimeline = timelineForSelected(
+    candidateBPriorSessionRead,
+    candidateLocalB,
+  );
+  assert.equal(
+    candidateBPriorSessionTimeline.current_position.stage,
+    "decision_recorded",
+  );
+  assert.equal(
+    candidateBPriorSessionTimeline.current_position.primary_action_owner,
+    "decision",
+    "a prior-session applying decision requires renewed current review rather than Transition authority",
+  );
+
+  const candidateLocalBBlocked = structuredClone(candidateLocalB);
+  candidateLocalBBlocked.pilot_admission = {
+    ...candidateLocalBBlocked.pilot_admission,
+    decision_allowed: {
+      ...candidateLocalBBlocked.pilot_admission.decision_allowed,
+      accept: false,
+    },
+    blocking_reasons: ["current_state_drifted"],
+  };
+  const candidateBBlockedRead = withTimelineSourceSummary({
+    ...candidateAAppliedRead,
+    candidates: [candidateLocalA, candidateLocalBBlocked],
+  } satisfies SemanticReviewProposalDetailV01);
+  assertNextCandidateOwnerConsistency(
+    candidateBBlockedRead,
+    candidateLocalA,
+    candidateLocalB.candidate.candidate_id,
+  );
+  const candidateBBlockedTimeline = timelineForSelected(
+    candidateBBlockedRead,
+    candidateLocalBBlocked,
+  );
+  assert.equal(
+    candidateBBlockedTimeline.current_position.stage,
+    "transition_blocked",
+  );
+  assert.equal(
+    candidateBBlockedTimeline.current_position.primary_action_owner,
+    "transition",
+  );
+  assert.equal(
+    candidateBBlockedTimeline.authority.authorizes_transition,
+    false,
+  );
+  assert.equal(
+    candidateBBlockedTimeline.authority.applies_transition,
+    false,
+    "selecting a blocked candidate must not expand Transition authority",
+  );
+
+  const candidateLocalReceiptB = {
+    ...structuredClone(candidateLocalReceiptA),
+    transition_receipt_id:
+      "state-transition-receipt:pc2-candidate-local-b",
+    source_decision: {
+      ...candidateLocalReceiptA.source_decision,
+      decision_id: candidateLocalDecisionB.decision_id,
+      decision_fingerprint: candidateLocalDecisionB.integrity.fingerprint,
+    },
+    source_candidate: {
+      candidate_id: candidateLocalB.candidate.candidate_id,
+      candidate_fingerprint: candidateLocalB.candidate_fingerprint,
+    },
+    integrity: {
+      ...candidateLocalReceiptA.integrity,
+      fingerprint: `sha256:${"d".repeat(64)}`,
+    },
+  };
+  const bothCandidatesAppliedRead = withTimelineSourceSummary({
+    ...candidateAAppliedRead,
+    transition_receipts: [
+      candidateLocalReceiptA,
+      candidateLocalReceiptB,
+    ],
+  } satisfies SemanticReviewProposalDetailV01);
+  const bothCandidatesAppliedSelection =
+    assertNextCandidateOwnerConsistency(
+      bothCandidatesAppliedRead,
+      candidateLocalA,
+      null,
+    );
+  assert.equal(
+    bothCandidatesAppliedSelection.timeline.current_position.stage,
+    "project_updated",
+  );
+  assert.equal(
+    bothCandidatesAppliedSelection.timeline.current_position
+      .primary_action_owner,
+    "none",
+  );
+
+  for (const mismatchedReceipt of [
+    {
+      ...structuredClone(candidateLocalReceiptB),
+      source_decision: {
+        ...candidateLocalReceiptB.source_decision,
+        decision_fingerprint: `sha256:${"e".repeat(64)}`,
+      },
+    },
+    {
+      ...structuredClone(candidateLocalReceiptB),
+      source_candidate: {
+        ...candidateLocalReceiptB.source_candidate,
+        candidate_fingerprint: candidateLocalA.candidate_fingerprint,
+      },
+    },
+  ]) {
+    assertNextCandidateOwnerConsistency(
+      withTimelineSourceSummary({
+        ...candidateAAppliedRead,
+        transition_receipts: [
+          candidateLocalReceiptA,
+          mismatchedReceipt,
+        ],
+      } satisfies SemanticReviewProposalDetailV01),
+      candidateLocalA,
+      candidateLocalB.candidate.candidate_id,
+    );
+  }
 
   const priorSessionAcceptedRead = withTimelineSourceSummary({
     ...acceptedRead,
@@ -1325,6 +1534,96 @@ try {
     "decision",
   );
 
+  const candidateLocalRejectedDecision = {
+    ...structuredClone(rejectedDecision),
+    decision_id: "review-decision:pc2-candidate-local-b-reject",
+    candidate: {
+      candidate_id: candidateLocalB.candidate.candidate_id,
+      candidate_fingerprint: candidateLocalB.candidate_fingerprint,
+    },
+    integrity: {
+      ...rejectedDecision.integrity,
+      fingerprint: `sha256:${"5".repeat(64)}`,
+    },
+  };
+  const candidateBRejectedRead = withTimelineSourceSummary({
+    ...candidateAAppliedRead,
+    decisions: [
+      candidateLocalDecisionA,
+      candidateLocalRejectedDecision,
+    ],
+    decision_history: [
+      historyFor(candidateLocalDecisionA),
+      historyFor(candidateLocalRejectedDecision, false),
+    ],
+  } satisfies SemanticReviewProposalDetailV01);
+  const candidateBRejectedSelection =
+    assertNextCandidateOwnerConsistency(
+      candidateBRejectedRead,
+      candidateLocalA,
+      null,
+    );
+  assert.equal(
+    candidateBRejectedSelection.timeline.current_position
+      .primary_action_owner,
+    "none",
+  );
+  assert.match(
+    timelineForSelected(candidateBRejectedRead, candidateLocalB)
+      .current_position.title,
+    /Rejected/u,
+  );
+
+  const candidateLocalDeferredDecision = {
+    ...structuredClone(deferredDecision),
+    decision_id: "review-decision:pc2-candidate-local-b-defer",
+    candidate: {
+      candidate_id: candidateLocalB.candidate.candidate_id,
+      candidate_fingerprint: candidateLocalB.candidate_fingerprint,
+    },
+    integrity: {
+      ...deferredDecision.integrity,
+      fingerprint: `sha256:${"6".repeat(64)}`,
+    },
+  };
+  const candidateBDeferredBeforeRead = withTimelineSourceSummary({
+    ...candidateAAppliedRead,
+    projection_observed_at: "2026-07-20T04:00:00.000Z",
+    decisions: [
+      candidateLocalDecisionA,
+      candidateLocalDeferredDecision,
+    ],
+    decision_history: [
+      historyFor(candidateLocalDecisionA),
+      historyFor(candidateLocalDeferredDecision, false),
+    ],
+  } satisfies SemanticReviewProposalDetailV01);
+  const candidateBDeferredBeforeSelection =
+    assertNextCandidateOwnerConsistency(
+      candidateBDeferredBeforeRead,
+      candidateLocalA,
+      null,
+    );
+  assert.equal(
+    candidateBDeferredBeforeSelection.timeline.current_position
+      .primary_action_owner,
+    "none",
+  );
+  const candidateBDeferredDueRead = withTimelineSourceSummary({
+    ...candidateBDeferredBeforeRead,
+    projection_observed_at: "2026-07-21T03:12:00.000Z",
+  });
+  assertNextCandidateOwnerConsistency(
+    candidateBDeferredDueRead,
+    candidateLocalA,
+    candidateLocalB.candidate.candidate_id,
+  );
+  assert.equal(
+    timelineForSelected(candidateBDeferredDueRead, candidateLocalB)
+      .current_position.primary_action_owner,
+    "decision",
+  );
+
   const supersedingDecision = {
     ...structuredClone(acceptedTimelineDecision),
     decision_id: "review-decision:pc2-supersede",
@@ -1361,8 +1660,41 @@ try {
     }).items.find((item) => item.stage === "decision_recorded")?.summary ?? "",
     /remove/u,
   );
+  for (const [applyingDecision, fingerprintFill] of [
+    [supersedingDecision, "7"],
+    [retractingDecision, "9"],
+  ] as const) {
+    const candidateLocalApplyingDecision = {
+      ...structuredClone(applyingDecision),
+      decision_id:
+        `${applyingDecision.decision_id}:candidate-local-b`,
+      candidate: {
+        candidate_id: candidateLocalB.candidate.candidate_id,
+        candidate_fingerprint: candidateLocalB.candidate_fingerprint,
+      },
+      integrity: {
+        ...applyingDecision.integrity,
+        fingerprint: `sha256:${fingerprintFill.repeat(64)}`,
+      },
+    };
+    assertNextCandidateOwnerConsistency(
+      withTimelineSourceSummary({
+        ...candidateAAppliedRead,
+        decisions: [
+          candidateLocalDecisionA,
+          candidateLocalApplyingDecision,
+        ],
+        decision_history: [
+          historyFor(candidateLocalDecisionA),
+          historyFor(candidateLocalApplyingDecision),
+        ],
+      } satisfies SemanticReviewProposalDetailV01),
+      candidateLocalA,
+      candidateLocalB.candidate.candidate_id,
+    );
+  }
 
-  const blockedTimeline = timelineFor({
+  const blockedRead = {
     ...acceptedRead,
     candidates: [
       {
@@ -1377,7 +1709,8 @@ try {
         },
       },
     ],
-  });
+  } satisfies SemanticReviewProposalDetailV01;
+  const blockedTimeline = timelineFor(blockedRead);
   assert.equal(blockedTimeline.current_position.stage, "transition_blocked");
   assert.equal(
     blockedTimeline.current_position.primary_action_owner,
@@ -2002,6 +2335,881 @@ try {
     /EpisodeDeltaProposal|CriterionAssessment|RunReceipt|semantic gate/u,
   );
 
+  const relationshipsForSelected = (
+    read: SemanticReviewProposalDetailV01,
+    selectedCandidate: SemanticReviewProposalDetailV01["candidates"][number],
+    selectedQuestion:
+      | Parameters<typeof buildSelectedWorkRelationshipsV01>[0]["selected_question_key"]
+      = null,
+  ) => {
+    const normalizedRead = withTimelineSourceSummary(read);
+    const timeline = timelineForSelected(normalizedRead, selectedCandidate);
+    return buildSelectedWorkRelationshipsV01({
+      read: normalizedRead,
+      selected_candidate: selectedCandidate,
+      timeline,
+      selected_question_key: selectedQuestion,
+    });
+  };
+  const relationshipsFor = (
+    read: SemanticReviewProposalDetailV01,
+    selectedQuestion:
+      | Parameters<typeof buildSelectedWorkRelationshipsV01>[0]["selected_question_key"]
+      = null,
+  ) => relationshipsForSelected(read, read.candidates[0]!, selectedQuestion);
+
+  const sourceRelationships = relationshipsFor(timelineBaseRead);
+  assert.equal(
+    sourceRelationships.relationships_version,
+    "selected_work_relationships.v0.1",
+  );
+  assert.equal(
+    sourceRelationships.selected_question_key,
+    "support_and_source",
+  );
+  assert.equal(sourceRelationships.questions.length <= 4, true);
+  assert.equal(sourceRelationships.connections.length <= 6, true);
+  assert.equal(
+    sourceRelationships.connections.filter(
+      (connection) =>
+        connection.connection_id ===
+        sourceRelationships.highlighted_connection_id,
+    ).length,
+    1,
+  );
+  assert.equal(
+    sourceRelationships.selected_work_anchor.timeline_stage,
+    noDecisionTimeline.current_position.stage,
+  );
+  assert.equal(
+    sourceRelationships.selected_work_anchor.timeline_current_item_id,
+    noDecisionTimeline.current_item_id,
+  );
+  assert.equal(
+    sourceRelationships.selected_work_anchor
+      .timeline_remains_current_position_owner,
+    true,
+  );
+  const relationshipScope = (input: {
+    proposal_id?: string;
+    proposal_fingerprint?: string;
+    candidate_id?: string;
+    candidate_fingerprint?: string;
+  } = {}) =>
+    selectedWorkRelationshipScopeKeyV01({
+      workspace_id: timelineBaseRead.proposal.workspace_id,
+      project_id: timelineBaseRead.proposal.project_id,
+      proposal_id:
+        input.proposal_id ?? timelineBaseRead.proposal.proposal_id,
+      proposal_fingerprint:
+        input.proposal_fingerprint ??
+        timelineBaseRead.proposal.integrity.fingerprint,
+      candidate_id:
+        input.candidate_id ?? timelineCandidate.candidate.candidate_id,
+      candidate_fingerprint:
+        input.candidate_fingerprint ??
+        timelineCandidate.candidate_fingerprint,
+    });
+  const proposalAScope = relationshipScope();
+  const proposalBRelationships = relationshipsFor(blockedRead);
+  const proposalBScope = relationshipScope({
+    proposal_id: `${timelineBaseRead.proposal.proposal_id}:blocked`,
+    proposal_fingerprint: `sha256:${"b".repeat(64)}`,
+  });
+  const proposalASelection = {
+    scope_key: proposalAScope,
+    question_key: "support_and_source",
+  } as const;
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: proposalBScope,
+      selection: proposalASelection,
+      available_questions: proposalBRelationships.questions,
+      default_question_key: proposalBRelationships.selected_question_key,
+    }),
+    "blocker_and_conflict",
+    "another proposal must synchronously use its own deterministic question even when candidate identity is unchanged",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: relationshipScope({
+        proposal_fingerprint: `sha256:${"c".repeat(64)}`,
+      }),
+      selection: proposalASelection,
+      available_questions: proposalBRelationships.questions,
+      default_question_key: proposalBRelationships.selected_question_key,
+    }),
+    "blocker_and_conflict",
+    "a changed proposal fingerprint must reset relationship selection synchronously",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: relationshipScope({
+        candidate_id: "delta:other-candidate",
+        candidate_fingerprint: `sha256:${"d".repeat(64)}`,
+      }),
+      selection: proposalASelection,
+      available_questions: proposalBRelationships.questions,
+      default_question_key: "blocker_and_conflict",
+    }),
+    "blocker_and_conflict",
+    "candidate switching must not transfer a prior candidate's question",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: proposalAScope,
+      selection: proposalASelection,
+      available_questions: sourceRelationships.questions,
+      default_question_key: sourceRelationships.selected_question_key,
+    }),
+    "support_and_source",
+    "same-scope unrelated rerenders must preserve a still-supported selection",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: proposalAScope,
+      selection: {
+        scope_key: proposalAScope,
+        question_key: "project_change_and_later_outcome",
+      },
+      available_questions: sourceRelationships.questions,
+      default_question_key: sourceRelationships.selected_question_key,
+    }),
+    "support_and_source",
+    "a no-longer-supported same-scope question must fall back immediately",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: proposalAScope,
+      selection: proposalASelection,
+      available_questions: [],
+      default_question_key: null,
+    }),
+    null,
+    "a no-question scope must not retain a stale selection",
+  );
+  assert.equal(
+    sourceRelationships.completeness.omitted_source_count_known,
+    false,
+  );
+  assert.equal(sourceRelationships.completeness.omitted_source_count, null);
+  assert.equal(
+    sourceRelationships.connections.every(
+      (connection) =>
+        connection.projection_only &&
+        !connection.grants_semantic_authority,
+    ),
+    true,
+  );
+  assert.deepEqual(sourceRelationships.authority, {
+    projection_only: true,
+    rebuildable: true,
+    writes_database: false,
+    creates_relation_record: false,
+    creates_evidence: false,
+    accepts_evidence: false,
+    establishes_claim_truth: false,
+    creates_decision: false,
+    authorizes_transition: false,
+    applies_transition: false,
+    selects_current_position: false,
+    changes_timeline_order: false,
+    changes_project_state: false,
+    changes_later_context: false,
+    calls_model_or_provider: false,
+    performs_external_action: false,
+  });
+
+  const observedTemplate =
+    timelineBaseRead.source_lanes.observations[0] ??
+    ({
+      material_id: "material:pc3-observed-template",
+      source_run_receipt_refs: [],
+    } as never);
+  const inferredTemplate =
+    timelineBaseRead.source_lanes.inferences[0] ??
+    ({
+      material_id: "material:pc3-inferred-template",
+      source_run_receipt_refs: [],
+    } as never);
+  const observedMaterialId = "material:pc3-observed";
+  const inferredMaterialId = "material:pc3-inferred";
+  const observedAndInferredCandidate = {
+    ...structuredClone(timelineCandidate),
+    candidate: {
+      ...structuredClone(timelineCandidate.candidate),
+      basis_material_ids: [observedMaterialId, inferredMaterialId],
+    },
+  };
+  observedAndInferredCandidate.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(
+      observedAndInferredCandidate.candidate,
+    );
+  observedAndInferredCandidate.pilot_admission = {
+    ...observedAndInferredCandidate.pilot_admission,
+    candidate_id: observedAndInferredCandidate.candidate.candidate_id,
+    candidate_fingerprint: observedAndInferredCandidate.candidate_fingerprint,
+  };
+  const observedAndInferredRead = {
+    ...timelineBaseRead,
+    candidates: [observedAndInferredCandidate],
+    source_lanes: {
+      observations: [
+        {
+          ...structuredClone(observedTemplate),
+          material_id: observedMaterialId,
+        },
+      ],
+      attestations: [],
+      inferences: [
+        {
+          ...structuredClone(inferredTemplate),
+          material_id: inferredMaterialId,
+        },
+      ],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const observedAndInferredRelationships = relationshipsFor(
+    observedAndInferredRead,
+  );
+  assert.deepEqual(
+    new Set(
+      observedAndInferredRelationships.connections.map(
+        (connection) => connection.basis,
+      ),
+    ),
+    new Set(["observed_source", "bounded_interpretation"]),
+    "observation and inference must remain different relationship bases",
+  );
+
+  const boundedMaterialIds = Array.from(
+    { length: 8 },
+    (_, index) => `material:pc3-bounded:${index + 1}`,
+  );
+  const boundedCandidate = {
+    ...structuredClone(timelineCandidate),
+    candidate: {
+      ...structuredClone(timelineCandidate.candidate),
+      basis_material_ids: boundedMaterialIds,
+    },
+  };
+  boundedCandidate.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(boundedCandidate.candidate);
+  boundedCandidate.pilot_admission = {
+    ...boundedCandidate.pilot_admission,
+    candidate_id: boundedCandidate.candidate.candidate_id,
+    candidate_fingerprint: boundedCandidate.candidate_fingerprint,
+  };
+  const boundedRelationshipRead = {
+    ...timelineBaseRead,
+    candidates: [boundedCandidate],
+    source_lanes: {
+      observations: boundedMaterialIds.map((materialId) => ({
+        ...structuredClone(observedTemplate),
+        material_id: materialId,
+        source_run_receipt_refs: [
+          externalRef(
+            "run_receipt",
+            `run-receipt:pc3-bounded:${materialId}`,
+            "direct_local_observation",
+          ),
+        ],
+      })),
+      attestations: [],
+      inferences: [],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const boundedRelationships = relationshipsFor(boundedRelationshipRead);
+  assert.equal(boundedRelationships.visible_connection_count, 6);
+  assert.equal(boundedRelationships.known_connection_count, 8);
+  assert.equal(boundedRelationships.locally_omitted_connection_count, 2);
+  assert.equal(boundedRelationships.completeness.status, "bounded_incomplete");
+  assert.equal(
+    boundedRelationships.connections.filter(
+      (connection) =>
+        connection.connection_id ===
+        boundedRelationships.highlighted_connection_id,
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    relationshipsFor({
+      ...boundedRelationshipRead,
+      source_lanes: {
+        ...boundedRelationshipRead.source_lanes,
+        observations: [
+          ...boundedRelationshipRead.source_lanes.observations,
+        ].reverse(),
+      },
+    }),
+    boundedRelationships,
+    "source-array order must not affect deterministic connection ordering",
+  );
+  const replayDeduplicatedRelationships = relationshipsFor({
+    ...observedAndInferredRead,
+    source_lanes: {
+      ...observedAndInferredRead.source_lanes,
+      observations: [
+        observedAndInferredRead.source_lanes.observations[0]!,
+        structuredClone(
+          observedAndInferredRead.source_lanes.observations[0]!,
+        ),
+      ],
+    },
+  });
+  assert.equal(
+    replayDeduplicatedRelationships.connections.filter(
+      (connection) => connection.basis === "observed_source",
+    ).length,
+    1,
+  );
+
+  const exactRelationFamily = structuredClone(
+    reconciliation.relation_families.find(
+      (family) =>
+        family.revisions[0]?.relation.relation_kind === "supports",
+    )!,
+  );
+  const exactRelationRevision = exactRelationFamily.revisions[0]!;
+  exactRelationRevision.relation = {
+    ...exactRelationRevision.relation,
+    relation_id: exactRelationRevision.relation_ref.record_id,
+    claim_ref: exactRelationFamily.claim_ref,
+    evidence_ref: exactRelationFamily.evidence_ref,
+    uncertainty: [],
+    integrity: {
+      fingerprint:
+        exactRelationRevision.relation_ref.record_fingerprint,
+    },
+  } as never;
+  const relationBoundRead = {
+    ...timelineBaseRead,
+    proposal: {
+      ...timelineBaseRead.proposal,
+      project_verify_lifecycle: {
+        lifecycle_binding: {
+          entity_kind: "claim_evidence_relation",
+          family_id: exactRelationFamily.relation_family_id,
+          selected_record_ref: exactRelationRevision.relation_ref,
+          relation_endpoints: {
+            claim_ref: exactRelationFamily.claim_ref,
+            evidence_ref: exactRelationFamily.evidence_ref,
+          },
+          selected_candidate: {
+            candidate_id: timelineCandidate.candidate.candidate_id,
+            candidate_fingerprint: timelineCandidate.candidate_fingerprint,
+          },
+        },
+      } as never,
+    },
+    project_verify_reconciliation: {
+      ...timelineBaseRead.project_verify_reconciliation,
+      relation_families: [exactRelationFamily],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const relationBoundRelationships = relationshipsFor(relationBoundRead);
+  const exactRecordedRelation =
+    relationBoundRelationships.connections.find(
+      (connection) =>
+        connection.basis === "exact_recorded_relation",
+    );
+  assert.equal(exactRecordedRelation?.relation_kind, "supported_by");
+  assert.equal(exactRecordedRelation?.support_status, "exact");
+  assert.equal(
+    exactRecordedRelation?.exact_refs.some(
+      (ref) => ref.source_kind === "claim_evidence_relation",
+    ),
+    true,
+  );
+  assert.equal(
+    exactRecordedRelation?.why_it_matters_now.includes("does not prove"),
+    true,
+  );
+
+  const partialRelationRead = {
+    ...relationBoundRead,
+    project_verify_reconciliation: {
+      ...relationBoundRead.project_verify_reconciliation,
+      relation_families: [
+        {
+          ...exactRelationFamily,
+          revisions: [],
+          completeness: {
+            ...exactRelationFamily.completeness,
+            status: "bounded_incomplete" as const,
+            omitted_reason: "bounded exact relation source unavailable",
+          },
+        },
+      ],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const partialRelationships = relationshipsFor(partialRelationRead);
+  assert.equal(partialRelationships.answer_availability, "partial");
+  assert.equal(partialRelationships.completeness.upstream_incomplete, true);
+  assert.equal(
+    partialRelationships.connections.some(
+      (connection) => connection.support_status === "partial",
+    ),
+    true,
+  );
+
+  const acceptedRelationships = relationshipsFor(acceptedRead);
+  assert.equal(
+    acceptedRelationships.selected_question_key,
+    "candidate_and_decision",
+  );
+  const acceptedScope = relationshipScope({
+    proposal_id: acceptedRead.proposal.proposal_id,
+    proposal_fingerprint: acceptedRead.proposal.integrity.fingerprint,
+    candidate_id: acceptedRead.candidates[0]!.candidate.candidate_id,
+    candidate_fingerprint:
+      acceptedRead.candidates[0]!.candidate_fingerprint,
+  });
+  const acceptedSupportSelection = {
+    scope_key: acceptedScope,
+    question_key: "support_and_source",
+  } as const;
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: acceptedScope,
+      selection: acceptedSupportSelection,
+      available_questions: acceptedRelationships.questions,
+      default_question_key: acceptedRelationships.selected_question_key,
+    }),
+    "support_and_source",
+    "same exact proposal and candidate must preserve a supported user selection",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: relationshipScope({
+        candidate_id: "delta:switched-candidate",
+        candidate_fingerprint: `sha256:${"e".repeat(64)}`,
+      }),
+      selection: acceptedSupportSelection,
+      available_questions: acceptedRelationships.questions,
+      default_question_key: acceptedRelationships.selected_question_key,
+    }),
+    "candidate_and_decision",
+    "switching candidates must use the new candidate's deterministic default",
+  );
+  assert.equal(
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: acceptedScope,
+      selection: null,
+      available_questions: acceptedRelationships.questions,
+      default_question_key: acceptedRelationships.selected_question_key,
+    }),
+    "candidate_and_decision",
+    "returning to a remounted exact scope must rebuild its current default instead of restoring an old selection",
+  );
+  assert.equal(
+    acceptedRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "decided_by" &&
+        connection.basis === "user_decision",
+    ),
+    true,
+  );
+  assert.equal(
+    acceptedRelationships.selected_work_anchor.timeline_stage,
+    acceptedTimeline.current_position.stage,
+  );
+  const priorSessionRelationships = relationshipsFor(
+    priorSessionAcceptedRead,
+  );
+  assert.equal(
+    priorSessionRelationships.selected_work_anchor.timeline_stage,
+    "decision_recorded",
+  );
+  assert.equal(
+    priorSessionRelationships.connections.some(
+      (connection) =>
+        connection.uncertainty_or_conflict?.includes(
+          "Current-session application authority is not present",
+        ) === true,
+    ),
+    true,
+  );
+  assert.equal(
+    priorSessionRelationships.connections.some(
+      (connection) => connection.relation_kind === "applied_as",
+    ),
+    false,
+  );
+
+  for (const [read, expectedTitle] of [
+    [rejectedRead, /reject decision/u],
+    [deferredRead, /review-later decision/u],
+  ] as const) {
+    const relationships = relationshipsFor(read);
+    assert.equal(
+      relationships.selected_question_key,
+      "candidate_and_decision",
+    );
+    assert.match(relationships.connections[0]?.title ?? "", expectedTitle);
+  }
+
+  const supersedeWithLineage = {
+    ...supersedingDecision,
+    lineage: {
+      ...supersedingDecision.lineage,
+      prior_decisions: [
+        {
+          decision_id: acceptedTimelineDecision.decision_id,
+          decision_fingerprint:
+            acceptedTimelineDecision.integrity.fingerprint,
+        },
+      ],
+    },
+  };
+  const supersedeRelationships = relationshipsFor({
+    ...timelineBaseRead,
+    decisions: [supersedeWithLineage, acceptedTimelineDecision],
+    decision_history: [
+      historyFor(acceptedTimelineDecision, false),
+      historyFor(supersedeWithLineage),
+    ],
+  });
+  assert.equal(
+    supersedeRelationships.connections.some(
+      (connection) => connection.relation_kind === "supersedes",
+    ),
+    true,
+  );
+  const retractWithLineage = {
+    ...retractingDecision,
+    lineage: {
+      ...retractingDecision.lineage,
+      retracted_decision: {
+        decision_id: acceptedTimelineDecision.decision_id,
+        decision_fingerprint:
+          acceptedTimelineDecision.integrity.fingerprint,
+      },
+    },
+  };
+  const retractRelationships = relationshipsFor({
+    ...timelineBaseRead,
+    decisions: [retractWithLineage, acceptedTimelineDecision],
+    decision_history: [
+      historyFor(acceptedTimelineDecision, false),
+      historyFor(retractWithLineage),
+    ],
+  });
+  assert.equal(
+    retractRelationships.connections.some(
+      (connection) => connection.relation_kind === "retracts",
+    ),
+    true,
+  );
+
+  const blockedRelationships = relationshipsFor(blockedRead);
+  assert.equal(
+    blockedRelationships.selected_question_key,
+    "blocker_and_conflict",
+  );
+  assert.equal(
+    blockedRelationships.selected_work_anchor.timeline_stage,
+    "transition_blocked",
+  );
+  assert.equal(
+    blockedRelationships.connections[0]?.relation_kind,
+    "blocked_by",
+  );
+  assert.equal(
+    blockedRelationships.connections[0]?.basis,
+    "blocker_or_conflict",
+  );
+
+  const exactConflictFamily = structuredClone(exactRelationFamily);
+  exactConflictFamily.revisions[0]!.lifecycle.conflicts = [
+    {
+      conflict_kind: "current_head",
+      code: "project_verify_current_head_conflict",
+      exact_refs: [exactRef("claim_evidence_relation", "relation:pc3-conflict")],
+      source_refs: [],
+    },
+  ];
+  const exactConflictRead = {
+    ...relationBoundRead,
+    project_verify_reconciliation: {
+      ...relationBoundRead.project_verify_reconciliation,
+      relation_families: [exactConflictFamily],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const exactConflictRelationships = relationshipsFor(
+    exactConflictRead,
+    "blocker_and_conflict",
+  );
+  assert.equal(
+    exactConflictRelationships.selected_question_key,
+    "blocker_and_conflict",
+  );
+  assert.equal(exactConflictRelationships.answer_availability, "conflicted");
+  assert.equal(
+    exactConflictRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "conflicts_with" &&
+        connection.support_status === "conflicting",
+    ),
+    true,
+  );
+
+  const appliedRelationships = relationshipsFor(appliedRead);
+  assert.equal(
+    appliedRelationships.selected_question_key,
+    "decision_and_project_change",
+  );
+  assert.equal(
+    appliedRelationships.selected_work_anchor.timeline_stage,
+    "project_updated",
+  );
+  assert.equal(
+    appliedRelationships.connections[0]?.relation_kind,
+    "applied_as",
+  );
+  assert.equal(
+    appliedRelationships.connections[0]?.basis,
+    "authorized_project_change",
+  );
+
+  const candidateARelationships = relationshipsForSelected(
+    candidateAAppliedRead,
+    candidateLocalA,
+  );
+  const candidateBRelationships = relationshipsForSelected(
+    candidateAAppliedRead,
+    candidateLocalB,
+  );
+  assert.equal(
+    candidateARelationships.selected_question_key,
+    "decision_and_project_change",
+  );
+  assert.equal(
+    candidateBRelationships.selected_question_key,
+    "candidate_and_decision",
+  );
+  assert.equal(
+    JSON.stringify(candidateARelationships).includes(
+      candidateLocalDecisionB.decision_id,
+    ),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(candidateBRelationships).includes(
+      candidateLocalDecisionA.decision_id,
+    ),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(candidateBRelationships).includes(
+      candidateLocalReceiptA.transition_receipt_id,
+    ),
+    false,
+  );
+  assert.equal(
+    relationshipsForSelected(
+      twoActionableCandidatesRead,
+      candidateLocalA,
+      "project_change_and_later_outcome",
+    ).selected_question_key,
+    "candidate_and_decision",
+    "a stale question selection must fall back inside the selected candidate scope",
+  );
+
+  const laterRelationships = relationshipsFor(laterAvailableRead);
+  assert.equal(
+    laterRelationships.selected_question_key,
+    "project_change_and_later_outcome",
+  );
+  assert.equal(
+    laterRelationships.selected_work_anchor.timeline_stage,
+    "later_outcome_available",
+  );
+  assert.equal(
+    laterRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "used_by_later_work" &&
+        connection.exact_refs.some(
+          (ref) => ref.source_kind === "compiled_context",
+        ),
+    ),
+    true,
+  );
+  assert.equal(
+    laterRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "reviewed_by_later_feedback",
+    ),
+    false,
+  );
+  const laterReviewedRelationships = relationshipsFor(laterReviewedRead);
+  assert.equal(
+    laterReviewedRelationships.selected_work_anchor.timeline_stage,
+    "later_outcome_reviewed",
+  );
+  assert.equal(
+    laterReviewedRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "reviewed_by_later_feedback",
+    ),
+    true,
+  );
+  const mismatchedLaterRead = {
+    ...laterAvailableRead,
+    project_continuity: {
+      ...laterAvailableRead.project_continuity,
+      latest_context_use_receipt: {
+        ...laterReceipt,
+        task_context_packet_fingerprint: `sha256:${"1".repeat(64)}`,
+      },
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const mismatchedLaterRelationships = relationshipsFor(mismatchedLaterRead);
+  assert.equal(
+    mismatchedLaterRelationships.questions.some(
+      (question) =>
+        question.question_key === "project_change_and_later_outcome",
+    ),
+    false,
+  );
+  assert.equal(
+    mismatchedLaterRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "used_by_later_work" ||
+        connection.relation_kind === "reviewed_by_later_feedback",
+    ),
+    false,
+  );
+  const reviewMismatchRelationships = relationshipsFor({
+    ...laterReviewedRead,
+    project_continuity: {
+      ...laterReviewedRead.project_continuity,
+      latest_context_use_review_status: {
+        ...laterReviewedRead.project_continuity
+          .latest_context_use_review_status!,
+        later_task_run_receipt_fingerprint: `sha256:${"0".repeat(64)}`,
+      },
+    },
+  });
+  assert.equal(
+    reviewMismatchRelationships.selected_work_anchor.timeline_stage,
+    "later_outcome_available",
+  );
+  assert.equal(
+    reviewMismatchRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "reviewed_by_later_feedback",
+    ),
+    false,
+  );
+  const exactReviewedTimeline = timelineFor(laterReviewedRead);
+  const mismatchedReviewRefTimeline = {
+    ...exactReviewedTimeline,
+    items: exactReviewedTimeline.items.map((item) =>
+      item.item_id === exactReviewedTimeline.current_item_id
+        ? {
+            ...item,
+            source_refs: item.source_refs.map((ref) =>
+              ref.source_kind === "later_feedback"
+                ? {
+                    ...ref,
+                    record_fingerprint: `sha256:${"0".repeat(64)}`,
+                  }
+                : ref,
+            ),
+          }
+        : item,
+    ),
+  } satisfies SelectedWorkTimelineV01;
+  const mismatchedReviewRefRelationships =
+    buildSelectedWorkRelationshipsV01({
+      read: laterReviewedRead,
+      selected_candidate: laterReviewedRead.candidates[0]!,
+      timeline: mismatchedReviewRefTimeline,
+      selected_question_key: "project_change_and_later_outcome",
+    });
+  assert.equal(
+    mismatchedReviewRefRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "reviewed_by_later_feedback",
+    ),
+    false,
+    "a mismatched exact review fingerprint must not create a reviewed connection",
+  );
+  assert.equal(
+    mismatchedReviewRefRelationships.connections.some(
+      (connection) => connection.relation_kind === "used_by_later_work",
+    ),
+    true,
+    "a review mismatch must not erase the separately exact later-result connection",
+  );
+
+  const noRelationshipCandidate = {
+    ...structuredClone(timelineCandidate),
+    candidate: {
+      ...structuredClone(timelineCandidate.candidate),
+      basis_material_ids: [],
+      source_refs: [],
+    },
+  };
+  noRelationshipCandidate.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(
+      noRelationshipCandidate.candidate,
+    );
+  noRelationshipCandidate.pilot_admission = {
+    ...noRelationshipCandidate.pilot_admission,
+    candidate_id: noRelationshipCandidate.candidate.candidate_id,
+    candidate_fingerprint: noRelationshipCandidate.candidate_fingerprint,
+  };
+  const unavailableRelationships = relationshipsFor({
+    ...timelineBaseRead,
+    candidates: [noRelationshipCandidate],
+    source_run_receipts: [],
+    source_lanes: {
+      observations: [],
+      attestations: [],
+      inferences: [],
+    },
+    proposal: {
+      ...timelineBaseRead.proposal,
+      project_verify_lifecycle: undefined,
+    },
+  });
+  assert.equal(unavailableRelationships.questions.length, 0);
+  assert.equal(unavailableRelationships.answer_availability, "unavailable");
+  assert.equal(unavailableRelationships.highlighted_connection_id, null);
+  assert.equal(unavailableRelationships.connections.length, 0);
+
+  const protocolSafeRelationships = buildSelectedWorkRelationshipsV01({
+    read: {
+      ...timelineBaseRead,
+      candidates: [protocolNamedCandidate],
+    },
+    selected_candidate: protocolNamedCandidate,
+    timeline: protocolSafeTimeline,
+  });
+  const ordinaryRelationshipCopy = [
+    protocolSafeRelationships.selected_work_anchor.title,
+    protocolSafeRelationships.selected_question_label,
+    protocolSafeRelationships.completeness.summary,
+    ...protocolSafeRelationships.connections.flatMap((connection) => [
+      connection.title,
+      connection.explanation,
+      connection.why_it_matters_now,
+      connection.uncertainty_or_conflict ?? "",
+    ]),
+  ].join(" ");
+  assert.doesNotMatch(
+    ordinaryRelationshipCopy,
+    /EpisodeDeltaProposal|CriterionAssessment|RunReceipt|ReviewDecision|StateTransitionReceipt|TaskContextPacket|semantic gate|sha256:/u,
+  );
+  assert.equal(
+    ordinaryRelationshipCopy.includes(
+      protocolNamedCandidate.candidate.candidate_id,
+    ),
+    false,
+  );
+
   let exactRefreshCount = 0;
   let guideRefreshCount = 0;
   const refreshContract =
@@ -2061,6 +3269,7 @@ try {
         change_verification_and_uncertainty_projection_checked: true,
         selected_work_timeline_stage_matrix_checked: true,
         candidate_local_transition_actionability_checked: true,
+        shared_next_candidate_owner_consistency_checked: true,
         prior_session_applying_decision_requires_current_review_checked: true,
         applied_receipt_overrides_session_actionability_checked: true,
         selected_candidate_timeline_isolation_checked: true,
@@ -2071,6 +3280,15 @@ try {
         later_outcome_preserves_project_update_checked: true,
         timeline_public_copy_protocol_safe_checked: true,
         timeline_projection_authority_all_false_checked: true,
+        selected_work_relationship_question_derivation_checked: true,
+        selected_work_relationship_exact_scope_selection_checked: true,
+        selected_work_relationship_basis_separation_checked: true,
+        selected_work_relationship_candidate_isolation_checked: true,
+        selected_work_relationship_exact_later_chain_checked: true,
+        selected_work_relationship_bounds_and_deduplication_checked: true,
+        selected_work_relationship_completeness_checked: true,
+        selected_work_relationship_public_copy_protocol_safe_checked: true,
+        selected_work_relationship_projection_authority_all_false_checked: true,
         result_outcome_verification_next_action_checked: true,
         presentation_authority_all_false_checked: true,
         guide_exact_project_mismatch_blocks_actions: true,

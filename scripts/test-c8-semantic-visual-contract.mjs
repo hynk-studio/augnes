@@ -210,6 +210,12 @@ const proposalReview = read(
 const selectedWorkTimeline = read(
   "lib/vnext/ai-workplane/selected-work-timeline.ts",
 );
+const selectedWorkRelationships = read(
+  "lib/vnext/ai-workplane/selected-work-relationships.ts",
+);
+const selectedWorkRelationshipContract = read(
+  "types/vnext/selected-work-relationships.ts",
+);
 const strictIsoTimestamp = read("lib/vnext/strict-iso-timestamp.ts");
 assert.match(
   selectedWorkTimeline,
@@ -221,6 +227,7 @@ assertOrdered(proposalReview, [
   'id="what-would-change-title"',
   "{timeline ? <SelectedWorkTimeline timeline={timeline} /> : null}",
   'id="your-decision-title"',
+  "<SelectedWorkRelationshipExploration",
   "<SelectedWorkSupport view={view} />",
   'id="selected-work-later-feedback"',
   "<summary>Advanced review</summary>",
@@ -234,8 +241,69 @@ assert.match(
   /data-vnext-review-next-change="true"[\s\S]*data-ai-workplane-primary-action="review-next-change"[\s\S]*data-augnes-primary-action="review-next-change"/u,
 );
 assert.match(
+  selectedWorkTimeline,
+  /export function selectNextSelectedWorkCandidateV01/u,
+);
+assert.equal(
+  [
+    ...selectedWorkTimeline.matchAll(
+      /selectNextSelectedWorkCandidateV01\(/gu,
+    ),
+  ].length,
+  2,
+  "the timeline builder must consume its exported next-candidate owner",
+);
+assert.match(
+  proposalReview,
+  /selectNextSelectedWorkCandidateV01\(\{[\s\S]*selected_work_candidate_selection_owner_without_candidate/u,
+);
+assert.doesNotMatch(
+  proposalReview,
+  /candidateView\.decision_status === "needs_decision"[\s\S]*candidateView\.decision_status === "blocked"/u,
+);
+assert.match(
   proposalReview,
   /timeline\?\.current_position\.primary_action_owner === "transition"[\s\S]*id="selected-work-transition"[\s\S]*<SemanticTransitionActions/u,
+);
+assert.match(
+  proposalReview,
+  /data-selected-work-relationship-question-selector="true"/u,
+);
+assert.match(
+  proposalReview,
+  /data-selected-work-relationship-highlighted=\{String\(highlighted\)\}/u,
+);
+assert.match(
+  proposalReview,
+  /data-selected-work-relationship-semantic-authority="false"/u,
+);
+assert.match(
+  proposalReview,
+  /SEMANTIC_VISUAL_PRIORITY\.supporting/u,
+);
+assert.match(
+  selectedWorkRelationshipContract,
+  /SELECTED_WORK_RELATIONSHIPS_MAX_QUESTIONS_V01 = 4/u,
+);
+assert.match(
+  selectedWorkRelationshipContract,
+  /SELECTED_WORK_RELATIONSHIPS_MAX_CONNECTIONS_V01 = 6/u,
+);
+assert.match(
+  selectedWorkRelationships,
+  /timeline_remains_current_position_owner: true/u,
+);
+assert.match(
+  selectedWorkRelationships,
+  /creates_relation_record: false/u,
+);
+assert.match(
+  selectedWorkRelationships,
+  /calls_model_or_provider: false/u,
+);
+assert.doesNotMatch(
+  selectedWorkRelationships,
+  /readVNext|openDatabase|fetch\(|Date\.parse|node:/u,
 );
 const decisionForm = read(
   "components/workbench/semantic-review/review-decision-form.tsx",
