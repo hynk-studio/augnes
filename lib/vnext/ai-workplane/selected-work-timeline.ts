@@ -555,6 +555,7 @@ function currentPositionV01(input: {
       read,
       selected,
       effectiveEntry,
+      receipt,
     );
   if (!applyingActionable) {
     return {
@@ -749,6 +750,29 @@ function exactTransitionReceiptV01(
   );
 }
 
+export function selectSelectedCandidateActionableApplyingDecisionV01(input: {
+  read: SemanticReviewProposalDetailV01;
+  selected_candidate: SelectedCandidateV01;
+}): ReviewDecisionV01 | null {
+  const { read, selected_candidate: selected } = input;
+  const effectiveEntry =
+    selectedDecisionLineageV01(read, selected).at(-1) ?? null;
+  if (!effectiveEntry) return null;
+  const receipt = exactTransitionReceiptV01(
+    read,
+    selected,
+    effectiveEntry.decision,
+  );
+  return selectedApplyingDecisionIsActionableV01(
+    read,
+    selected,
+    effectiveEntry,
+    receipt,
+  )
+    ? effectiveEntry.decision
+    : null;
+}
+
 function nextCandidateRequiringReviewV01(
   read: SemanticReviewProposalDetailV01,
   selected: SelectedCandidateV01,
@@ -876,24 +900,52 @@ function selectedApplyingDecisionIsActionableV01(
   read: SemanticReviewProposalDetailV01,
   selected: SelectedCandidateV01,
   entry: SelectedDecisionLineageEntryV01,
+  receipt: SelectedTransitionReceiptV01 | null,
 ): boolean {
   const decision = entry.decision;
+  if (
+    !isApplyingDecisionV01(decision) ||
+    entry.status !== "valid" ||
+    !entry.pilot_session_bound ||
+    !entry.pilot_actionable ||
+    decision.source_proposal.proposal_id !== read.proposal.proposal_id ||
+    decision.source_proposal.proposal_fingerprint !==
+      read.proposal.integrity.fingerprint ||
+    decision.candidate.candidate_id !== selected.candidate.candidate_id ||
+    decision.candidate.candidate_fingerprint !==
+      selected.candidate_fingerprint ||
+    decision.requested_transition_intent === null ||
+    decision.requested_transition_intent.applied !== false ||
+    receipt !== null
+  ) {
+    return false;
+  }
+
   const summary = read.decision_application_summary;
   const binding = summary.effective_decision;
-  return (
-    isApplyingDecisionV01(decision) &&
-    entry.status === "valid" &&
-    entry.pilot_session_bound &&
-    entry.pilot_actionable &&
-    summary.status === "ready_to_complete" &&
-    summary.applying_decision_pending &&
-    !summary.matching_transition_receipt_present &&
-    binding !== null &&
+  if (!binding) return true;
+
+  const touchesSelectedDecision =
+    binding.decision_id === decision.decision_id ||
+    binding.decision_fingerprint === decision.integrity.fingerprint;
+  const touchesSelectedCandidate =
+    binding.candidate_id === selected.candidate.candidate_id ||
+    binding.candidate_fingerprint === selected.candidate_fingerprint;
+  if (!touchesSelectedDecision && !touchesSelectedCandidate) {
+    return true;
+  }
+
+  const exactSelectedBinding =
     binding.decision === decision.decision &&
     binding.decision_id === decision.decision_id &&
     binding.decision_fingerprint === decision.integrity.fingerprint &&
     binding.candidate_id === selected.candidate.candidate_id &&
-    binding.candidate_fingerprint === selected.candidate_fingerprint &&
+    binding.candidate_fingerprint === selected.candidate_fingerprint;
+  return (
+    exactSelectedBinding &&
+    summary.status === "ready_to_complete" &&
+    summary.applying_decision_pending &&
+    !summary.matching_transition_receipt_present &&
     binding.pilot_actionable &&
     binding.requested_project_change &&
     binding.matching_transition_receipt_id === null &&

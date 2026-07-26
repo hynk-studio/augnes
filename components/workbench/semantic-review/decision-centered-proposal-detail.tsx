@@ -8,6 +8,7 @@ import {
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
 import {
   buildSelectedWorkTimelineV01,
+  selectSelectedCandidateActionableApplyingDecisionV01,
   selectSelectedWorkLifecycleV01,
 } from "@/lib/vnext/ai-workplane/selected-work-timeline";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
@@ -84,6 +85,12 @@ export function DecisionCenteredProposalDetail({
     : null;
   const timeline = selected
     ? buildSelectedWorkTimelineV01({
+        read,
+        selected_candidate: selected,
+      })
+    : null;
+  const selectedActionableApplyingDecision = selected
+    ? selectSelectedCandidateActionableApplyingDecisionV01({
         read,
         selected_candidate: selected,
       })
@@ -290,7 +297,11 @@ export function DecisionCenteredProposalDetail({
             proposalFingerprint={proposal.integrity.fingerprint}
             selectedCandidateId={selected.candidate.candidate_id}
             selectedCandidateFingerprint={selected.candidate_fingerprint}
-            decisions={read.decision_history.filter((item) => item.pilot_actionable).map((item) => item.decision)}
+            decisions={
+              selectedActionableApplyingDecision
+                ? [selectedActionableApplyingDecision]
+                : []
+            }
             persistedReceipts={read.transition_receipts}
             priorPacket={priorPacket}
             onSessionInvalid={onSessionInvalid}

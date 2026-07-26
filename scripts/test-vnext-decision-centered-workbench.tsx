@@ -9,7 +9,10 @@ import {
   compareAIWorkplaneGuideProjectV01,
   selectAIWorkplaneChangeCandidateV01,
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
-import { buildSelectedWorkTimelineV01 } from "@/lib/vnext/ai-workplane/selected-work-timeline";
+import {
+  buildSelectedWorkTimelineV01,
+  selectSelectedCandidateActionableApplyingDecisionV01,
+} from "@/lib/vnext/ai-workplane/selected-work-timeline";
 import { semanticReviewDetailEntryPresentationV01 } from "@/components/workbench/semantic-review/semantic-review-entry-presentation";
 import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
 import {
@@ -740,6 +743,13 @@ try {
   const multiCandidateDecisionInput = structuredClone(
     acceptReviewDecisionInputFixture,
   );
+  multiCandidateDecisionInput.workspace_id = changeRead.proposal.workspace_id;
+  multiCandidateDecisionInput.project_id = changeRead.proposal.project_id;
+  multiCandidateDecisionInput.source_proposal = {
+    proposal_version: changeRead.proposal.proposal_version,
+    proposal_id: changeRead.proposal.proposal_id,
+    proposal_fingerprint: changeRead.proposal.integrity.fingerprint,
+  };
   multiCandidateDecisionInput.candidate = {
     candidate_id: secondCandidate.candidate.candidate_id,
     candidate_fingerprint: secondCandidate.candidate_fingerprint,
@@ -790,6 +800,11 @@ try {
   );
   const appliedMultiCandidateReceipt = {
     ...exactAppliedReceipt,
+    source_proposal: {
+      proposal_version: changeRead.proposal.proposal_version,
+      proposal_id: changeRead.proposal.proposal_id,
+      proposal_fingerprint: changeRead.proposal.integrity.fingerprint,
+    },
     source_decision: {
       ...exactAppliedReceipt.source_decision,
       decision_id: multiCandidateDecision.decision_id,
@@ -871,11 +886,16 @@ try {
         transition_receipts: read.transition_receipts,
       }),
   });
-  const timelineFor = (read: SemanticReviewProposalDetailV01) =>
+  const timelineForSelected = (
+    read: SemanticReviewProposalDetailV01,
+    selectedCandidate: SemanticReviewProposalDetailV01["candidates"][number],
+  ) =>
     buildSelectedWorkTimelineV01({
       read: withTimelineSourceSummary(read),
-      selected_candidate: read.candidates[0]!,
+      selected_candidate: selectedCandidate,
     });
+  const timelineFor = (read: SemanticReviewProposalDetailV01) =>
+    timelineForSelected(read, read.candidates[0]!);
   const noDecisionTimeline = timelineFor(timelineBaseRead);
   assert.equal(noDecisionTimeline.timeline_version, "selected_work_timeline.v0.1");
   assert.deepEqual(
@@ -942,6 +962,238 @@ try {
       timelineCandidate.candidate.candidate_id,
     ).state,
     "decided_proposal",
+  );
+
+  const candidateLocalA = structuredClone(timelineCandidate);
+  candidateLocalA.candidate = {
+    ...candidateLocalA.candidate,
+    candidate_id: "delta:pc2-candidate-local-a",
+    title: "Apply candidate-local change A",
+  };
+  candidateLocalA.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(candidateLocalA.candidate);
+  candidateLocalA.pilot_admission = {
+    ...candidateLocalA.pilot_admission,
+    candidate_id: candidateLocalA.candidate.candidate_id,
+    candidate_fingerprint: candidateLocalA.candidate_fingerprint,
+  };
+  const candidateLocalB = structuredClone(timelineCandidate);
+  candidateLocalB.candidate = {
+    ...candidateLocalB.candidate,
+    candidate_id: "delta:pc2-candidate-local-b",
+    title: "Apply candidate-local change B",
+  };
+  candidateLocalB.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(candidateLocalB.candidate);
+  candidateLocalB.pilot_admission = {
+    ...candidateLocalB.pilot_admission,
+    candidate_id: candidateLocalB.candidate.candidate_id,
+    candidate_fingerprint: candidateLocalB.candidate_fingerprint,
+  };
+  const candidateApplyingDecisionV01 = (
+    candidate: SemanticReviewProposalDetailV01["candidates"][number],
+    suffix: "a" | "b",
+    decidedAt: string,
+  ): ReviewDecisionV01 => {
+    const input = structuredClone(acceptReviewDecisionInputFixture);
+    input.workspace_id = timelineBaseRead.proposal.workspace_id;
+    input.project_id = timelineBaseRead.proposal.project_id;
+    input.source_proposal = {
+      proposal_version: timelineBaseRead.proposal.proposal_version,
+      proposal_id: timelineBaseRead.proposal.proposal_id,
+      proposal_fingerprint: timelineBaseRead.proposal.integrity.fingerprint,
+    };
+    input.candidate = {
+      candidate_id: candidate.candidate.candidate_id,
+      candidate_fingerprint: candidate.candidate_fingerprint,
+    };
+    input.decided_at = decidedAt;
+    input.rationale_summary =
+      `Accept exact candidate ${suffix.toUpperCase()} in this operator session.`;
+    input.requested_transition_intent = {
+      ...input.requested_transition_intent!,
+      intent_id: `transition-intent:pc2-candidate-local-${suffix}`,
+      target_refs: candidate.candidate.target_refs,
+    };
+    return buildReviewDecisionV01(input);
+  };
+  const candidateLocalDecisionA = candidateApplyingDecisionV01(
+    candidateLocalA,
+    "a",
+    "2026-07-20T03:20:00.000Z",
+  );
+  const candidateLocalDecisionB = candidateApplyingDecisionV01(
+    candidateLocalB,
+    "b",
+    "2026-07-20T03:21:00.000Z",
+  );
+  const twoActionableCandidatesRead = withTimelineSourceSummary({
+    ...timelineBaseRead,
+    candidates: [candidateLocalA, candidateLocalB],
+    decisions: [candidateLocalDecisionA, candidateLocalDecisionB],
+    decision_history: [
+      historyFor(candidateLocalDecisionA),
+      historyFor(candidateLocalDecisionB),
+    ],
+  } satisfies SemanticReviewProposalDetailV01);
+  assert.equal(
+    twoActionableCandidatesRead.decision_application_summary
+      .effective_decision?.candidate_id,
+    candidateLocalB.candidate.candidate_id,
+    "the proposal-wide summary intentionally selects the later candidate",
+  );
+  for (const [candidate, decision] of [
+    [candidateLocalA, candidateLocalDecisionA],
+    [candidateLocalB, candidateLocalDecisionB],
+  ] as const) {
+    const timeline = timelineForSelected(
+      twoActionableCandidatesRead,
+      candidate,
+    );
+    assert.equal(timeline.current_position.stage, "awaiting_application");
+    assert.equal(
+      timeline.current_position.primary_action_owner,
+      "transition",
+    );
+    assert.equal(
+      selectSelectedCandidateActionableApplyingDecisionV01({
+        read: twoActionableCandidatesRead,
+        selected_candidate: candidate,
+      })?.decision_id,
+      decision.decision_id,
+      "the Transition action region receives the selected candidate's exact applying decision",
+    );
+  }
+  const contradictoryExactSummaryRead = {
+    ...twoActionableCandidatesRead,
+    decision_application_summary: {
+      ...twoActionableCandidatesRead.decision_application_summary,
+      status: "continue_review" as const,
+      effective_decision: {
+        decision: candidateLocalDecisionA.decision,
+        decision_id: candidateLocalDecisionA.decision_id,
+        decision_fingerprint:
+          candidateLocalDecisionA.integrity.fingerprint,
+        candidate_id: candidateLocalA.candidate.candidate_id,
+        candidate_fingerprint: candidateLocalA.candidate_fingerprint,
+        pilot_actionable: false,
+        requested_project_change: true,
+        matching_transition_receipt_id: null,
+        matching_transition_receipt_fingerprint: null,
+      },
+      applying_decision_pending: false,
+      matching_transition_receipt_present: false,
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  assert.equal(
+    buildSelectedWorkTimelineV01({
+      read: contradictoryExactSummaryRead,
+      selected_candidate: candidateLocalA,
+    }).current_position.stage,
+    "decision_recorded",
+    "an exact same-decision summary contradiction must fail closed",
+  );
+  assert.equal(
+    selectSelectedCandidateActionableApplyingDecisionV01({
+      read: contradictoryExactSummaryRead,
+      selected_candidate: candidateLocalA,
+    }),
+    null,
+  );
+
+  const mixedCandidateActionability = (
+    candidateAActionable: boolean,
+    candidateBActionable: boolean,
+  ) =>
+    withTimelineSourceSummary({
+      ...twoActionableCandidatesRead,
+      decision_history: [
+        historyFor(candidateLocalDecisionA, candidateAActionable),
+        historyFor(candidateLocalDecisionB, candidateBActionable),
+      ],
+    });
+  for (const [candidateAActionable, candidateBActionable] of [
+    [true, false],
+    [false, true],
+  ] as const) {
+    const mixedRead = mixedCandidateActionability(
+      candidateAActionable,
+      candidateBActionable,
+    );
+    const candidateATimeline = timelineForSelected(mixedRead, candidateLocalA);
+    const candidateBTimeline = timelineForSelected(mixedRead, candidateLocalB);
+    assert.equal(
+      candidateATimeline.current_position.stage,
+      candidateAActionable
+        ? "awaiting_application"
+        : "decision_recorded",
+    );
+    assert.equal(
+      candidateATimeline.current_position.primary_action_owner,
+      candidateAActionable ? "transition" : "decision",
+    );
+    assert.equal(
+      candidateBTimeline.current_position.stage,
+      candidateBActionable
+        ? "awaiting_application"
+        : "decision_recorded",
+    );
+    assert.equal(
+      candidateBTimeline.current_position.primary_action_owner,
+      candidateBActionable ? "transition" : "decision",
+    );
+  }
+
+  const candidateLocalReceiptA = {
+    ...structuredClone(appliedMultiCandidateReceipt),
+    transition_receipt_id: "state-transition-receipt:pc2-candidate-local-a",
+    source_proposal: {
+      proposal_version: timelineBaseRead.proposal.proposal_version,
+      proposal_id: timelineBaseRead.proposal.proposal_id,
+      proposal_fingerprint: timelineBaseRead.proposal.integrity.fingerprint,
+    },
+    source_decision: {
+      ...appliedMultiCandidateReceipt.source_decision,
+      decision_id: candidateLocalDecisionA.decision_id,
+      decision_fingerprint: candidateLocalDecisionA.integrity.fingerprint,
+    },
+    source_candidate: {
+      candidate_id: candidateLocalA.candidate.candidate_id,
+      candidate_fingerprint: candidateLocalA.candidate_fingerprint,
+    },
+    integrity: {
+      ...appliedMultiCandidateReceipt.integrity,
+      fingerprint: `sha256:${"c".repeat(64)}`,
+    },
+  };
+  const candidateAAppliedRead = withTimelineSourceSummary({
+    ...twoActionableCandidatesRead,
+    transition_receipts: [candidateLocalReceiptA],
+  } satisfies SemanticReviewProposalDetailV01);
+  assert.equal(
+    timelineForSelected(candidateAAppliedRead, candidateLocalA)
+      .current_position.stage,
+    "project_updated",
+  );
+  const candidateBUnappliedTimeline = timelineForSelected(
+    candidateAAppliedRead,
+    candidateLocalB,
+  );
+  assert.equal(
+    candidateBUnappliedTimeline.current_position.stage,
+    "awaiting_application",
+  );
+  assert.equal(
+    candidateBUnappliedTimeline.current_position.primary_action_owner,
+    "transition",
+  );
+  assert.equal(
+    selectSelectedCandidateActionableApplyingDecisionV01({
+      read: candidateAAppliedRead,
+      selected_candidate: candidateLocalB,
+    })?.decision_id,
+    candidateLocalDecisionB.decision_id,
+    "candidate A's receipt must not suppress candidate B's exact preview action",
   );
 
   const priorSessionAcceptedRead = withTimelineSourceSummary({
@@ -1808,6 +2060,7 @@ try {
         post_application_exact_then_guide_refresh_checked: true,
         change_verification_and_uncertainty_projection_checked: true,
         selected_work_timeline_stage_matrix_checked: true,
+        candidate_local_transition_actionability_checked: true,
         prior_session_applying_decision_requires_current_review_checked: true,
         applied_receipt_overrides_session_actionability_checked: true,
         selected_candidate_timeline_isolation_checked: true,
