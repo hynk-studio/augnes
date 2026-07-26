@@ -207,6 +207,16 @@ assert.equal(
 const proposalReview = read(
   "components/workbench/semantic-review/decision-centered-proposal-detail.tsx",
 );
+const selectedWorkTimeline = read(
+  "lib/vnext/ai-workplane/selected-work-timeline.ts",
+);
+const strictIsoTimestamp = read("lib/vnext/strict-iso-timestamp.ts");
+assert.match(
+  selectedWorkTimeline,
+  /@\/lib\/vnext\/strict-iso-timestamp/u,
+);
+assert.doesNotMatch(selectedWorkTimeline, /protocol-primitives|node:/u);
+assert.doesNotMatch(strictIsoTimestamp, /node:/u);
 assertOrdered(proposalReview, [
   'id="what-would-change-title"',
   "{timeline ? <SelectedWorkTimeline timeline={timeline} /> : null}",

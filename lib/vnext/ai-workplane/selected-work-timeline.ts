@@ -1,6 +1,6 @@
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
-import { parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
 import { compareEffectiveReviewDecisionsV01 } from "@/lib/vnext/review-decision-lineage";
+import { parseStrictIsoTimestampV01 } from "@/lib/vnext/strict-iso-timestamp";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import {

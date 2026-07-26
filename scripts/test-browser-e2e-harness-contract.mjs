@@ -47,9 +47,10 @@ assert.equal(
   [...source.matchAll(/startDevServer\(runtimeEnvironment\)/gu)].length,
   2,
 );
+assert.match(source, /const DEFAULT_TIMEOUT_MS = 45_000;/u);
 assert.match(
   source,
-  /"paused project automation before retained restart"[\s\S]*await navigate\("about:blank"\)[\s\S]*"project and control persistence after retained restart"[\s\S]*result\.project_automation_restart_persisted = true;[\s\S]*result\.minimum_project_home_restart_root_resolution = true;[\s\S]*result\.project_controls_restart_persisted = true;[\s\S]*"resumed project automation after retained restart"[\s\S]*"same destination after retained restart"[\s\S]*result\.folder_onboarding_restart_reopen = true;/u,
+  /"paused project automation before retained restart"[\s\S]*await navigate\("about:blank"\)[\s\S]*startDevServer\(runtimeEnvironment\);[\s\S]*await waitForHttp\(`\$\{appOrigin\}\/`, DEFAULT_TIMEOUT_MS\);[\s\S]*timing\.milestone\("retained runtime ready within 45 second bound"\);[\s\S]*"project and control persistence after retained restart"[\s\S]*result\.project_automation_restart_persisted = true;[\s\S]*result\.minimum_project_home_restart_root_resolution = true;[\s\S]*result\.project_controls_restart_persisted = true;[\s\S]*"resumed project automation after retained restart"[\s\S]*"same destination after retained restart"[\s\S]*result\.folder_onboarding_restart_reopen = true;/u,
 );
 assert.match(
   source,

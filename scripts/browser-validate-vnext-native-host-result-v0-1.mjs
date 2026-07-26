@@ -1364,6 +1364,7 @@ async function main() {
     serverProcess = null;
     startDevServer(runtimeEnvironment);
     await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    timing.milestone("retained runtime ready within 45 second bound");
     await navigate(`${appOrigin}/`);
     await waitForCondition(
       `location.pathname === '/' && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 && document.body.textContent.includes('Project automation is paused for new policy-triggered work.') && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Resume') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection')`,
