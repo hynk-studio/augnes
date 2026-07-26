@@ -1,4 +1,5 @@
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
+import { parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
 import { compareEffectiveReviewDecisionsV01 } from "@/lib/vnext/review-decision-lineage";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
@@ -31,6 +32,10 @@ const AUTHORITY = {
 
 type SelectedCandidateV01 =
   SemanticReviewProposalDetailV01["candidates"][number];
+type SelectedDecisionLineageEntryV01 =
+  SemanticReviewProposalDetailV01["decision_history"][number];
+type SelectedTransitionReceiptV01 =
+  SemanticReviewProposalDetailV01["transition_receipts"][number];
 
 interface TimelineCurrentPositionV01 {
   stage: SelectedWorkTimelineStageV01;
@@ -52,8 +57,9 @@ export function buildSelectedWorkTimelineV01(input: {
   selected_candidate: SelectedCandidateV01;
 }): SelectedWorkTimelineV01 {
   const { read, selected_candidate: selected } = input;
-  const decisions = selectedDecisionLineageV01(read, selected).slice(-3);
-  const effective = decisions.at(-1) ?? null;
+  const decisionEntries = selectedDecisionLineageV01(read, selected).slice(-3);
+  const effectiveEntry = decisionEntries.at(-1) ?? null;
+  const effective = effectiveEntry?.decision ?? null;
   const receipt = effective
     ? exactTransitionReceiptV01(read, selected, effective)
     : null;
@@ -61,14 +67,14 @@ export function buildSelectedWorkTimelineV01(input: {
     read,
     selected.candidate.candidate_id,
   );
-  const laterOutcome = receipt
-    ? exactLaterOutcomeV01(read, receipt.transition_receipt_id)
+  const laterOutcome = receipt && effective
+    ? exactLaterOutcomeV01(read, selected, effective, receipt)
     : null;
   const nextCandidate = nextCandidateRequiringReviewV01(read, selected);
   const current = currentPositionV01({
     read,
     selected,
-    effective,
+    effectiveEntry,
     receipt,
     lifecycle,
     laterOutcome,
@@ -149,7 +155,8 @@ export function buildSelectedWorkTimelineV01(input: {
     }),
   );
 
-  decisions.forEach((decision, index) => {
+  decisionEntries.forEach((entry, index) => {
+    const decision = entry.decision;
     const isEffective = decision.decision_id === effective?.decision_id &&
       decision.integrity.fingerprint === effective.integrity.fingerprint;
     addItemV01(
@@ -243,7 +250,7 @@ export function buildSelectedWorkTimelineV01(input: {
     current.stage === "review_focused"
       ? "review-focused"
       : current.stage === "decision_recorded"
-        ? `decision-recorded-${Math.max(decisions.length, 1)}`
+        ? `decision-recorded-${Math.max(decisionEntries.length, 1)}`
         : "current-position";
   const boundedItems = items.slice(0, SELECTED_WORK_TIMELINE_MAX_ITEMS_V01);
   if (!boundedItems.some((item) => item.item_id === currentItemId)) {
@@ -302,7 +309,9 @@ export function selectedWorkTimelineDecisionStatusV01(
           ? "needs_decision"
           : "blocked";
     case "decision_recorded":
-      return timeline.current_position.title.startsWith("Rejected")
+      return timeline.current_position.primary_action_owner === "decision"
+        ? "needs_decision"
+        : timeline.current_position.title.startsWith("Rejected")
         ? "rejected"
         : "blocked";
     case "deferred_until_condition":
@@ -365,8 +374,8 @@ export function selectSelectedWorkLifecycleV01(
 function currentPositionV01(input: {
   read: SemanticReviewProposalDetailV01;
   selected: SelectedCandidateV01;
-  effective: ReviewDecisionV01 | null;
-  receipt: SemanticReviewProposalDetailV01["transition_receipts"][number] | null;
+  effectiveEntry: SelectedDecisionLineageEntryV01 | null;
+  receipt: SelectedTransitionReceiptV01 | null;
   lifecycle: ProjectVerifyRevisionLifecycleV01 | null;
   laterOutcome: LaterOutcomeV01 | null;
   nextCandidatePresent: boolean;
@@ -374,12 +383,13 @@ function currentPositionV01(input: {
   const {
     read,
     selected,
-    effective,
+    effectiveEntry,
     receipt,
     lifecycle,
     laterOutcome,
     nextCandidatePresent,
   } = input;
+  const effective = effectiveEntry?.decision ?? null;
   const strategicDecisionUnavailable =
     Boolean(read.proposal.strategic_advantage_transfer) &&
     read.strategic_analysis.status !== "available";
@@ -539,6 +549,36 @@ function currentPositionV01(input: {
     };
   }
 
+  const applyingActionable =
+    effectiveEntry !== null &&
+    selectedApplyingDecisionIsActionableV01(
+      read,
+      selected,
+      effectiveEntry,
+    );
+  if (!applyingActionable) {
+    return {
+      stage: "decision_recorded",
+      title: "Decision recorded · current review required",
+      summary:
+        "The earlier decision remains in history, but it cannot authorize a project update from the current review session.",
+      next_meaningful_step:
+        "Review this exact suggestion again in the current session before any project update.",
+      primary_action_owner: strategicDecisionUnavailable ? "none" : "decision",
+      destination: strategicDecisionUnavailable
+        ? null
+        : "#selected-work-decision",
+      status: "current",
+      occurred_at: exactTimestampOrNullV01(effective.decided_at),
+      time_status: exactTimestampOrNullV01(effective.decided_at)
+        ? "exact"
+        : "not_established",
+      order_basis: "source_lineage",
+      basis: "user_decision",
+      source_refs: decisionSourceRefsV01(effective),
+    };
+  }
+
   const blocked =
     selected.pilot_admission.decision_allowed.accept === false ||
     selected.pilot_admission.blocking_reasons.length > 0 ||
@@ -547,28 +587,15 @@ function currentPositionV01(input: {
     lifecycle?.transition.status === "source_conflict" ||
     Boolean(lifecycle?.conflicts.length);
   if (blocked) {
-    const canReviewExactImpact = read.decision_history.some(
-      (entry) =>
-        entry.status === "valid" &&
-        entry.pilot_session_bound &&
-        entry.pilot_actionable &&
-        entry.decision.decision_id === effective.decision_id &&
-        entry.decision.integrity.fingerprint ===
-          effective.integrity.fingerprint,
-    );
     return {
       stage: "transition_blocked",
       title: "Project update blocked",
       summary:
         "The decision is saved, but exact source, eligibility, current-state, or conflict checks prevent a safe project update.",
       next_meaningful_step:
-        canReviewExactImpact
-          ? "Review the exact impact and blocker before applying any project update."
-          : "Resolve the exact blocker before reviewing or applying the project update.",
-      primary_action_owner: canReviewExactImpact ? "transition" : "none",
-      destination: canReviewExactImpact
-        ? "#selected-work-transition"
-        : "#selected-work-support",
+        "Review the exact impact and blocker before applying any project update.",
+      primary_action_owner: "transition",
+      destination: "#selected-work-transition",
       status: "blocked",
       occurred_at: null,
       time_status: "not_established",
@@ -638,8 +665,8 @@ function currentPositionV01(input: {
 function selectedDecisionLineageV01(
   read: SemanticReviewProposalDetailV01,
   selected: SelectedCandidateV01,
-): ReviewDecisionV01[] {
-  const exact = new Map<string, ReviewDecisionV01>();
+): SelectedDecisionLineageEntryV01[] {
+  const exact = new Map<string, SelectedDecisionLineageEntryV01>();
   for (const entry of read.decision_history) {
     if (
       entry.status !== "valid" ||
@@ -651,36 +678,44 @@ function selectedDecisionLineageV01(
     ) {
       continue;
     }
-    exact.set(
-      `${entry.decision.decision_id}\0${entry.decision.integrity.fingerprint}`,
-      entry.decision,
-    );
+    const key =
+      `${entry.decision.decision_id}\0${entry.decision.integrity.fingerprint}`;
+    const existing = exact.get(key);
+    if (!existing || compareDecisionProvenanceV01(entry, existing) < 0) {
+      exact.set(key, entry);
+    }
   }
   const orderedNewestFirst = [...exact.values()].sort(
-    compareEffectiveReviewDecisionsV01,
+    (left, right) =>
+      compareEffectiveReviewDecisionsV01(left.decision, right.decision),
   );
   const effective = orderedNewestFirst[0];
   if (!effective) return [];
   const byKey = new Map(
-    orderedNewestFirst.map((decision) => [
-      `${decision.decision_id}\0${decision.integrity.fingerprint}`,
-      decision,
+    orderedNewestFirst.map((entry) => [
+      `${entry.decision.decision_id}\0${entry.decision.integrity.fingerprint}`,
+      entry,
     ]),
   );
-  const lineage = new Map<string, ReviewDecisionV01>();
-  const visit = (decision: ReviewDecisionV01): void => {
+  const lineage = new Map<string, SelectedDecisionLineageEntryV01>();
+  const visit = (entry: SelectedDecisionLineageEntryV01): void => {
+    const decision = entry.decision;
     const key = `${decision.decision_id}\0${decision.integrity.fingerprint}`;
     if (lineage.has(key)) return;
-    lineage.set(key, decision);
+    lineage.set(key, entry);
     for (const prior of decision.lineage.prior_decisions) {
-      const priorDecision = byKey.get(
+      const priorEntry = byKey.get(
         `${prior.decision_id}\0${prior.decision_fingerprint}`,
       );
-      if (priorDecision) visit(priorDecision);
+      if (priorEntry) visit(priorEntry);
     }
   };
   visit(effective);
-  return [...lineage.values()].sort(compareEffectiveReviewDecisionsV01).reverse();
+  return [...lineage.values()]
+    .sort((left, right) =>
+      compareEffectiveReviewDecisionsV01(left.decision, right.decision),
+    )
+    .reverse();
 }
 
 function exactTransitionReceiptV01(
@@ -692,6 +727,9 @@ function exactTransitionReceiptV01(
     [...read.transition_receipts]
       .filter(
         (receipt) =>
+          receipt.source_proposal.proposal_id === read.proposal.proposal_id &&
+          receipt.source_proposal.proposal_fingerprint ===
+            read.proposal.integrity.fingerprint &&
           receipt.source_decision.decision_id === effective.decision_id &&
           receipt.source_decision.decision_fingerprint ===
             effective.integrity.fingerprint &&
@@ -723,7 +761,8 @@ function nextCandidateRequiringReviewV01(
       continue;
     }
     const decisions = selectedDecisionLineageV01(read, candidate);
-    const effective = decisions.at(-1) ?? null;
+    const effectiveEntry = decisions.at(-1) ?? null;
+    const effective = effectiveEntry?.decision ?? null;
     const receipt = effective
       ? exactTransitionReceiptV01(read, candidate, effective)
       : null;
@@ -752,17 +791,58 @@ interface LaterOutcomeV01 {
 
 function exactLaterOutcomeV01(
   read: SemanticReviewProposalDetailV01,
-  transitionReceiptId: string,
+  selected: SelectedCandidateV01,
+  effective: ReviewDecisionV01,
+  transitionReceipt: SelectedTransitionReceiptV01,
 ): LaterOutcomeV01 | null {
   const latestTransition = read.project_continuity.latest_applied_transition;
   if (
-    latestTransition?.transition_receipt_id !== transitionReceiptId ||
-    latestTransition.proposal_id !== read.proposal.proposal_id
+    latestTransition?.transition_receipt_id !==
+      transitionReceipt.transition_receipt_id ||
+    latestTransition.transition_receipt_fingerprint !==
+      transitionReceipt.integrity.fingerprint ||
+    latestTransition.proposal_id !== read.proposal.proposal_id ||
+    latestTransition.decision_id !== effective.decision_id ||
+    read.durable_lineage.proposal_id !== read.proposal.proposal_id ||
+    read.durable_lineage.proposal_fingerprint !==
+      read.proposal.integrity.fingerprint
   ) {
     return null;
   }
+  const exactChains = read.durable_lineage.chains.filter(
+    (chain) =>
+      chain.stage_status === "packet_compiled" &&
+      chain.transition.receipt_id ===
+        transitionReceipt.transition_receipt_id &&
+      chain.transition.receipt_fingerprint ===
+        transitionReceipt.integrity.fingerprint &&
+      chain.transition.decision_id === effective.decision_id &&
+      chain.transition.decision_fingerprint ===
+        effective.integrity.fingerprint &&
+      chain.transition.candidate_id === selected.candidate.candidate_id &&
+      chain.transition.candidate_fingerprint ===
+        selected.candidate_fingerprint,
+  );
+  const exactPackets = new Map(
+    exactChains.flatMap((chain) =>
+      chain.compiled_packet
+        ? [[
+            `${chain.compiled_packet.packet_id}\0${chain.compiled_packet.packet_fingerprint}`,
+            chain.compiled_packet,
+          ] as const]
+        : [],
+    ),
+  );
+  if (exactPackets.size !== 1) return null;
+  const packet = [...exactPackets.values()][0]!;
   const receipt = read.project_continuity.latest_context_use_receipt;
-  if (!receipt) return null;
+  if (
+    !receipt ||
+    receipt.task_context_packet_id !== packet.packet_id ||
+    receipt.task_context_packet_fingerprint !== packet.packet_fingerprint
+  ) {
+    return null;
+  }
   const review = read.project_continuity.latest_context_use_review_status;
   const exactReview =
     review?.later_task_run_receipt_id === receipt.receipt_id &&
@@ -790,6 +870,68 @@ function exactLaterOutcomeV01(
         : []),
     ],
   };
+}
+
+function selectedApplyingDecisionIsActionableV01(
+  read: SemanticReviewProposalDetailV01,
+  selected: SelectedCandidateV01,
+  entry: SelectedDecisionLineageEntryV01,
+): boolean {
+  const decision = entry.decision;
+  const summary = read.decision_application_summary;
+  const binding = summary.effective_decision;
+  return (
+    isApplyingDecisionV01(decision) &&
+    entry.status === "valid" &&
+    entry.pilot_session_bound &&
+    entry.pilot_actionable &&
+    summary.status === "ready_to_complete" &&
+    summary.applying_decision_pending &&
+    !summary.matching_transition_receipt_present &&
+    binding !== null &&
+    binding.decision === decision.decision &&
+    binding.decision_id === decision.decision_id &&
+    binding.decision_fingerprint === decision.integrity.fingerprint &&
+    binding.candidate_id === selected.candidate.candidate_id &&
+    binding.candidate_fingerprint === selected.candidate_fingerprint &&
+    binding.pilot_actionable &&
+    binding.requested_project_change &&
+    binding.matching_transition_receipt_id === null &&
+    binding.matching_transition_receipt_fingerprint === null
+  );
+}
+
+function isApplyingDecisionV01(decision: ReviewDecisionV01): boolean {
+  return (
+    decision.decision === "accept" ||
+    decision.decision === "supersede" ||
+    decision.decision === "retract"
+  );
+}
+
+function compareDecisionProvenanceV01(
+  left: SelectedDecisionLineageEntryV01,
+  right: SelectedDecisionLineageEntryV01,
+): number {
+  if (left.pilot_actionable !== right.pilot_actionable) {
+    return left.pilot_actionable ? 1 : -1;
+  }
+  return compareCodeUnitsV01(
+    [
+      left.status,
+      String(left.pilot_session_bound),
+      left.session_id ?? "",
+      left.request_fingerprint ?? "",
+      ...left.errors,
+    ].join("\0"),
+    [
+      right.status,
+      String(right.pilot_session_bound),
+      right.session_id ?? "",
+      right.request_fingerprint ?? "",
+      ...right.errors,
+    ].join("\0"),
+  );
 }
 
 function proposalSourceRefsV01(
@@ -985,8 +1127,7 @@ function exactTimestampOrNullV01(value: string | null | undefined): string | nul
 
 function timestampMillisecondsV01(value: string | null | undefined): number | null {
   if (!value) return null;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseStrictIsoTimestampV01(value);
 }
 
 function timestampOrderV01(left: string, right: string): number {

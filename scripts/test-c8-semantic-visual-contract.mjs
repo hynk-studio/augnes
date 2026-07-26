@@ -223,6 +223,10 @@ assert.match(
   proposalReview,
   /data-vnext-review-next-change="true"[\s\S]*data-ai-workplane-primary-action="review-next-change"[\s\S]*data-augnes-primary-action="review-next-change"/u,
 );
+assert.match(
+  proposalReview,
+  /timeline\?\.current_position\.primary_action_owner === "transition"[\s\S]*id="selected-work-transition"[\s\S]*<SemanticTransitionActions/u,
+);
 const decisionForm = read(
   "components/workbench/semantic-review/review-decision-form.tsx",
 );

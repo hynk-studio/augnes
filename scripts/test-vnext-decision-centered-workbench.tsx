@@ -857,9 +857,23 @@ try {
     project_continuity: aiWorkplaneContinuityV01(),
     durable_lineage: { chains: [] } as never,
   } satisfies SemanticReviewProposalDetailV01;
+  const withTimelineSourceSummary = (
+    read: SemanticReviewProposalDetailV01,
+  ): SemanticReviewProposalDetailV01 => ({
+    ...read,
+    decision_application_summary:
+      deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01({
+        source_currentness: read.source_currentness,
+        candidate_admissions: read.candidates.map(
+          (candidate) => candidate.pilot_admission,
+        ),
+        decision_history: read.decision_history,
+        transition_receipts: read.transition_receipts,
+      }),
+  });
   const timelineFor = (read: SemanticReviewProposalDetailV01) =>
     buildSelectedWorkTimelineV01({
-      read,
+      read: withTimelineSourceSummary(read),
       selected_candidate: read.candidates[0]!,
     });
   const noDecisionTimeline = timelineFor(timelineBaseRead);
@@ -905,6 +919,16 @@ try {
     decisions: [acceptedTimelineDecision],
     decision_history: [historyFor(acceptedTimelineDecision)],
   } satisfies SemanticReviewProposalDetailV01;
+  const currentSessionAcceptedRead = withTimelineSourceSummary(acceptedRead);
+  assert.equal(
+    currentSessionAcceptedRead.decision_application_summary.status,
+    "ready_to_complete",
+  );
+  assert.equal(
+    currentSessionAcceptedRead.decision_application_summary
+      .effective_decision?.pilot_actionable,
+    true,
+  );
   const acceptedTimeline = timelineFor(acceptedRead);
   assert.equal(acceptedTimeline.current_position.stage, "awaiting_application");
   assert.equal(acceptedTimeline.current_position.primary_action_owner, "transition");
@@ -918,6 +942,64 @@ try {
       timelineCandidate.candidate.candidate_id,
     ).state,
     "decided_proposal",
+  );
+
+  const priorSessionAcceptedRead = withTimelineSourceSummary({
+    ...acceptedRead,
+    decision_history: [historyFor(acceptedTimelineDecision, false)],
+  });
+  assert.equal(
+    priorSessionAcceptedRead.decision_application_summary.status,
+    "continue_review",
+  );
+  assert.equal(
+    priorSessionAcceptedRead.decision_application_summary.effective_decision
+      ?.pilot_actionable,
+    false,
+  );
+  const priorSessionAcceptedTimeline = timelineFor(
+    priorSessionAcceptedRead,
+  );
+  assert.equal(
+    priorSessionAcceptedTimeline.items.some(
+      (item) =>
+        item.stage === "decision_recorded" &&
+        item.source_refs.some(
+          (ref) =>
+            ref.record_id === acceptedTimelineDecision.decision_id,
+        ),
+    ),
+    true,
+  );
+  assert.equal(
+    priorSessionAcceptedTimeline.current_position.stage,
+    "decision_recorded",
+  );
+  assert.equal(
+    priorSessionAcceptedTimeline.current_position.primary_action_owner,
+    "decision",
+  );
+  assert.equal(
+    priorSessionAcceptedTimeline.items.some(
+      (item) => item.stage === "awaiting_application",
+    ),
+    false,
+  );
+  const priorSessionAcceptedView = buildAIWorkplaneChangeReviewViewV01({
+    read: priorSessionAcceptedRead,
+    selected_candidate_id: timelineCandidate.candidate.candidate_id,
+  });
+  assert.equal(priorSessionAcceptedView.decision_status, "needs_decision");
+  assert.equal(
+    priorSessionAcceptedView.primary_action?.label,
+    "Save decision",
+  );
+  assert.equal(
+    semanticReviewDetailEntryPresentationV01(
+      priorSessionAcceptedRead,
+      timelineCandidate.candidate.candidate_id,
+    ).state,
+    "pending_proposal",
   );
 
   const rejectedDecision = {
@@ -937,11 +1019,16 @@ try {
       fingerprint: `sha256:${"1".repeat(64)}`,
     },
   };
-  const rejectedTimeline = timelineFor({
+  const rejectedRead = withTimelineSourceSummary({
     ...timelineBaseRead,
     decisions: [rejectedDecision],
     decision_history: [historyFor(rejectedDecision, false)],
   });
+  assert.equal(
+    rejectedRead.decision_application_summary.status,
+    "rejected",
+  );
+  const rejectedTimeline = timelineFor(rejectedRead);
   assert.equal(rejectedTimeline.current_position.stage, "decision_recorded");
   assert.match(rejectedTimeline.current_position.title, /Rejected/u);
   assert.equal(rejectedTimeline.current_position.primary_action_owner, "none");
@@ -962,12 +1049,16 @@ try {
       fingerprint: `sha256:${"2".repeat(64)}`,
     },
   };
-  const deferredRead = {
+  const deferredRead = withTimelineSourceSummary({
     ...timelineBaseRead,
     projection_observed_at: "2026-07-20T04:00:00.000Z",
     decisions: [deferredDecision],
     decision_history: [historyFor(deferredDecision, false)],
-  } satisfies SemanticReviewProposalDetailV01;
+  } satisfies SemanticReviewProposalDetailV01);
+  assert.equal(
+    deferredRead.decision_application_summary.status,
+    "deferred",
+  );
   const deferredTimeline = timelineFor(deferredRead);
   assert.equal(
     deferredTimeline.current_position.stage,
@@ -1097,6 +1188,11 @@ try {
 
   const appliedReceipt = {
     ...structuredClone(appliedMultiCandidateReceipt),
+    source_proposal: {
+      proposal_version: acceptedRead.proposal.proposal_version,
+      proposal_id: acceptedRead.proposal.proposal_id,
+      proposal_fingerprint: acceptedRead.proposal.integrity.fingerprint,
+    },
     source_decision: {
       ...appliedMultiCandidateReceipt.source_decision,
       decision_id: acceptedTimelineDecision.decision_id,
@@ -1128,6 +1224,23 @@ try {
     ),
     true,
   );
+  const priorSessionAppliedRead = withTimelineSourceSummary({
+    ...appliedRead,
+    decision_history: [historyFor(acceptedTimelineDecision, false)],
+  });
+  assert.equal(
+    priorSessionAppliedRead.decision_application_summary.status,
+    "project_updated",
+  );
+  const priorSessionAppliedTimeline = timelineFor(priorSessionAppliedRead);
+  assert.equal(
+    priorSessionAppliedTimeline.current_position.stage,
+    "project_updated",
+  );
+  assert.equal(
+    priorSessionAppliedTimeline.current_position.primary_action_owner,
+    "none",
+  );
 
   const replayTimeline = timelineFor({
     ...appliedRead,
@@ -1156,8 +1269,52 @@ try {
     task_context_packet_fingerprint: `sha256:${"7".repeat(64)}`,
     trust_summary: productionSource.receipt.trust_summary,
   };
+  const exactLaterLineage = {
+    lineage_version: "vnext_operator_pilot_workbench_lineage.v0.1",
+    workspace_id: appliedRead.proposal.workspace_id,
+    project_id: appliedRead.proposal.project_id,
+    proposal_id: appliedRead.proposal.proposal_id,
+    proposal_fingerprint: appliedRead.proposal.integrity.fingerprint,
+    overall_status: "packet_compiled" as const,
+    chains: [
+      {
+        transition: {
+          receipt_id: appliedReceipt.transition_receipt_id,
+          receipt_fingerprint: appliedReceipt.integrity.fingerprint,
+          decision_id: acceptedTimelineDecision.decision_id,
+          decision_fingerprint:
+            acceptedTimelineDecision.integrity.fingerprint,
+          candidate_id: timelineCandidate.candidate.candidate_id,
+          candidate_fingerprint: timelineCandidate.candidate_fingerprint,
+          applied_at: appliedReceipt.applied_at,
+          recorded_at: appliedReceipt.recorded_at,
+        },
+        semantic_gate: {
+          gate_id: "semantic-commit-gate:pc2-later",
+          gate_fingerprint: `sha256:${"9".repeat(64)}`,
+          status: "authorized" as const,
+          confirmed_at: "2026-07-21T01:00:00.000Z",
+          evaluated_at: "2026-07-21T01:00:00.000Z",
+          expires_at: "2026-07-22T01:00:00.000Z",
+        },
+        compiled_packet: {
+          packet_id: laterReceipt.task_context_packet_id,
+          packet_fingerprint:
+            laterReceipt.task_context_packet_fingerprint,
+          generated_at: "2026-07-21T01:01:00.000Z",
+          expires_at: null,
+          currentness: "fresh" as const,
+          projection_current: true,
+        },
+        stage_status: "packet_compiled" as const,
+      },
+    ],
+    read_only: true as const,
+    semantic_authority_granted: false as const,
+  } satisfies SemanticReviewProposalDetailV01["durable_lineage"];
   const laterAvailableRead = {
     ...appliedRead,
+    durable_lineage: exactLaterLineage,
     project_continuity: {
       ...appliedRead.project_continuity,
       latest_applied_transition: {
@@ -1172,6 +1329,64 @@ try {
       latest_context_use_receipt: laterReceipt,
     },
   } satisfies SemanticReviewProposalDetailV01;
+  const expectPriorProjectUpdated = (
+    read: SemanticReviewProposalDetailV01,
+  ) => {
+    const timeline = timelineFor(read);
+    assert.equal(timeline.current_position.stage, "project_updated");
+    assert.equal(
+      timeline.items.some(
+        (item) =>
+          item.stage === "later_outcome_available" ||
+          item.stage === "later_outcome_reviewed",
+      ),
+      false,
+    );
+  };
+  expectPriorProjectUpdated({
+    ...laterAvailableRead,
+    project_continuity: {
+      ...laterAvailableRead.project_continuity,
+      latest_applied_transition: {
+        ...laterAvailableRead.project_continuity.latest_applied_transition!,
+        transition_receipt_fingerprint: `sha256:${"0".repeat(64)}`,
+      },
+    },
+  });
+  expectPriorProjectUpdated({
+    ...laterAvailableRead,
+    durable_lineage: {
+      ...laterAvailableRead.durable_lineage,
+      chains: laterAvailableRead.durable_lineage.chains.map((chain) => ({
+        ...chain,
+        transition: {
+          ...chain.transition,
+          receipt_fingerprint: `sha256:${"0".repeat(64)}`,
+        },
+      })),
+    },
+  });
+  expectPriorProjectUpdated({
+    ...laterAvailableRead,
+    project_continuity: {
+      ...laterAvailableRead.project_continuity,
+      latest_context_use_receipt: {
+        ...laterReceipt,
+        task_context_packet_id: "task-context-packet:pc2-older",
+        task_context_packet_fingerprint: `sha256:${"1".repeat(64)}`,
+      },
+    },
+  });
+  expectPriorProjectUpdated({
+    ...laterAvailableRead,
+    project_continuity: {
+      ...laterAvailableRead.project_continuity,
+      latest_context_use_receipt: {
+        ...laterReceipt,
+        task_context_packet_fingerprint: `sha256:${"1".repeat(64)}`,
+      },
+    },
+  });
   const laterAvailableTimeline = timelineFor(laterAvailableRead);
   assert.equal(
     laterAvailableTimeline.current_position.stage,
@@ -1210,6 +1425,21 @@ try {
       },
     },
   } satisfies SemanticReviewProposalDetailV01;
+  const reviewFingerprintMismatchTimeline = timelineFor({
+    ...laterReviewedRead,
+    project_continuity: {
+      ...laterReviewedRead.project_continuity,
+      latest_context_use_review_status: {
+        ...laterReviewedRead.project_continuity
+          .latest_context_use_review_status!,
+        later_task_run_receipt_fingerprint: `sha256:${"0".repeat(64)}`,
+      },
+    },
+  });
+  assert.equal(
+    reviewFingerprintMismatchTimeline.current_position.stage,
+    "later_outcome_available",
+  );
   const laterReviewedTimeline = timelineFor(laterReviewedRead);
   assert.equal(
     laterReviewedTimeline.current_position.stage,
@@ -1239,6 +1469,97 @@ try {
       (item) => item.stage === "review_focused",
     )?.order_basis,
     "partial_order",
+  );
+  const strictUtcSourceTime = "2026-07-20T03:00:00.000Z";
+  const strictOffsetSourceTime = "2026-07-20T12:00:00+09:00";
+  for (const validTimestamp of [
+    strictUtcSourceTime,
+    strictOffsetSourceTime,
+  ]) {
+    const strictTimeline = timelineFor({
+      ...timelineBaseRead,
+      source_run_receipts: timelineBaseRead.source_run_receipts.map(
+        (receipt) => ({
+          ...receipt,
+          finished_at: validTimestamp,
+        }),
+      ),
+    });
+    const strictSource = strictTimeline.items.find(
+      (item) => item.stage === "source_observed",
+    );
+    assert.equal(strictSource?.occurred_at, validTimestamp);
+    assert.equal(strictSource?.time_status, "exact");
+  }
+  for (const invalidTimestamp of [
+    "2026-07-20",
+    "July 20, 2026 03:00:00",
+    "2026-02-30T03:00:00.000Z",
+    "2026-07-20T03:00:00+24:00",
+  ]) {
+    const invalidTimeline = timelineFor({
+      ...timelineBaseRead,
+      source_run_receipts: timelineBaseRead.source_run_receipts.map(
+        (receipt) => ({
+          ...receipt,
+          finished_at: invalidTimestamp,
+        }),
+      ),
+    });
+    const invalidSource = invalidTimeline.items.find(
+      (item) => item.stage === "source_observed",
+    );
+    assert.equal(invalidSource?.occurred_at, null, invalidTimestamp);
+    assert.equal(
+      invalidSource?.time_status,
+      "not_established",
+      invalidTimestamp,
+    );
+  }
+  const invalidObservedDeferTimeline = timelineFor({
+    ...deferredRead,
+    projection_observed_at: "July 22, 2026 03:12:00",
+  });
+  assert.equal(
+    invalidObservedDeferTimeline.current_position.stage,
+    "deferred_until_condition",
+  );
+  assert.equal(
+    invalidObservedDeferTimeline.current_position.primary_action_owner,
+    "none",
+  );
+  assert.match(
+    invalidObservedDeferTimeline.current_position.title,
+    /Deferred until/u,
+  );
+  const invalidRevisitDecision = {
+    ...structuredClone(deferredDecision),
+    revisit: {
+      ...structuredClone(deferredDecision.revisit!),
+      revisit_at: "2026-07-21",
+      expires_at: "2026-02-30T03:12:00.000Z",
+    },
+  };
+  const invalidRevisitTimeline = timelineFor({
+    ...deferredRead,
+    projection_observed_at: "2026-07-30T03:12:00.000Z",
+    decisions: [invalidRevisitDecision],
+    decision_history: [historyFor(invalidRevisitDecision, false)],
+  });
+  assert.equal(
+    invalidRevisitTimeline.current_position.primary_action_owner,
+    "none",
+  );
+  assert.match(
+    invalidRevisitTimeline.current_position.title,
+    /Deferred until/u,
+  );
+  assert.equal(
+    timelineFor({
+      ...deferredRead,
+      projection_observed_at: "2026-07-21T12:12:00+09:00",
+    }).current_position.primary_action_owner,
+    "decision",
   );
   const unavailableSourceTimeline = timelineFor({
     ...timelineBaseRead,
@@ -1487,9 +1808,13 @@ try {
         post_application_exact_then_guide_refresh_checked: true,
         change_verification_and_uncertainty_projection_checked: true,
         selected_work_timeline_stage_matrix_checked: true,
+        prior_session_applying_decision_requires_current_review_checked: true,
+        applied_receipt_overrides_session_actionability_checked: true,
         selected_candidate_timeline_isolation_checked: true,
         partial_order_and_unknown_time_checked: true,
+        strict_protocol_timestamps_checked: true,
         unavailable_source_does_not_fabricate_observation_checked: true,
+        exact_transition_packet_outcome_chain_checked: true,
         later_outcome_preserves_project_update_checked: true,
         timeline_public_copy_protocol_safe_checked: true,
         timeline_projection_authority_all_false_checked: true,

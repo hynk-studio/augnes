@@ -43,7 +43,10 @@ export function semanticReviewDetailEntryPresentationV01(
       };
     case "decision_recorded":
       return {
-        state: "decided_proposal",
+        state:
+          current.primary_action_owner === "decision"
+            ? "pending_proposal"
+            : "decided_proposal",
         label: current.title,
       };
     case "deferred_until_condition":
