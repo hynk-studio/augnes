@@ -26,6 +26,7 @@ import {
   genericCliBuilderInputFixture,
 } from "../fixtures/vnext/protocol/task-context-packet-v0-1.ts";
 import {
+  buildSemanticReviewLoopTaskContextPacketFixture,
   buildSemanticReviewLoopProposalFixture,
   buildSemanticReviewLoopRunReceiptFixture,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1.ts";
@@ -37,6 +38,7 @@ import {
   CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01,
 } from "../lib/vnext/model-gateway/canonical-test-strategic-transport.ts";
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet.ts";
+import { buildRunReceiptV01 } from "../lib/vnext/run-receipt.ts";
 import { commitVNextSemanticTransitionV01 } from "../lib/vnext/runtime/durable-semantic-transition.ts";
 import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler.ts";
 import { selectPersonalPerspectiveContextV01 } from "../lib/vnext/project-controls/project-controls.ts";
@@ -48,12 +50,20 @@ import {
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
+  parseStrictIsoTimestampV01,
 } from "../lib/vnext/protocol-primitives.ts";
 import { evaluateCriterionAssessmentV01 } from "../lib/vnext/criterion-assessment.ts";
 import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal.ts";
 import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission.ts";
 import { createSharedInspectorHrefV01 } from "../lib/vnext/shared-project-inspector-href.ts";
+import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision.ts";
+import {
+  buildSelectedWorkTimelineV01,
+} from "../lib/vnext/ai-workplane/selected-work-timeline.ts";
 import { DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
+import { VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract.ts";
+import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
+import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage.ts";
 import { insertAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger.ts";
 import {
   buildDefaultRunnerAuthorityBoundary,
@@ -139,6 +149,10 @@ const onboardingFolder = path.join(tempRoot, "Browser Onboarding Project");
 const onboardingFolderB = path.join(tempRoot, "Browser Second Project");
 const onboardingFolderBRecovered = path.join(tempRoot, "Browser Second Project recovered");
 const onboardingFolderBMissingResidue = path.join(tempRoot, "Browser Second Project moved away");
+const positiveLineageProjectRoot = path.join(
+  tempRoot,
+  "Browser Positive Lineage Project",
+);
 const folderPickerSequencePath = path.join(
   tempRoot,
   "canonical-folder-picker-sequence.json",
@@ -292,6 +306,16 @@ const result = {
   late_preview_response_discarded: false,
   applying_decision_wording_truthful: false,
   context_use_feedback_waits_for_real_later_run: false,
+  bounded_automation_packet_excluded_from_workbench_lineage: false,
+  positive_generic_prior_packet_seeded: false,
+  positive_bootstrap_proposal_admitted: false,
+  positive_transition_compiled_eligible_packet: false,
+  positive_latest_compiled_packet_precondition_passed: false,
+  positive_proposal_has_one_packet_compiled_chain: false,
+  positive_first_real_host_action_used_latest_packet: false,
+  positive_latest_packet_bound_result_recognized: false,
+  positive_later_outcome_relationship_is_exact: false,
+  positive_and_mixed_projects_remain_isolated: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
   folder_onboarding_restart_reopen: false,
@@ -569,6 +593,10 @@ async function main() {
     databasePath,
     manifest,
   });
+  let validateExactLaterOutcomeV01 = null;
+  let mixedReturnTarget = null;
+  let mixedGenericValidationProposalId = null;
+  let mixedBoundedAutomationPacketTarget = null;
   writeFileSync(
     strategicTransportFixturePath,
     `${JSON.stringify({
@@ -586,6 +614,7 @@ async function main() {
   mkdirSync(onboardingFolder, { recursive: true });
   mkdirSync(onboardingFolderB, { recursive: true });
   mkdirSync(onboardingFolderBRecovered, { recursive: true });
+  mkdirSync(positiveLineageProjectRoot, { recursive: true });
   writeFileSync(
     folderPickerSequencePath,
     `${JSON.stringify({
@@ -3596,11 +3625,13 @@ async function main() {
           const timeline = detail?.querySelector('[data-selected-work-timeline-items]');
           const currentPosition = timeline?.querySelector('[data-selected-work-next-step]');
           const decision = detail?.querySelector('#selected-work-decision');
+          const relationships = detail?.querySelector('#selected-work-relationships');
           const support = detail?.querySelector('#selected-work-support');
-          return Boolean(identity && timeline && currentPosition && decision && support) &&
+          return Boolean(identity && timeline && currentPosition && decision && relationships && support) &&
             Boolean(identity.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING) &&
             Boolean(timeline.compareDocumentPosition(decision) & Node.DOCUMENT_POSITION_FOLLOWING) &&
-            Boolean(decision.compareDocumentPosition(support) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+            Boolean(decision.compareDocumentPosition(relationships) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+            Boolean(relationships.compareDocumentPosition(support) & Node.DOCUMENT_POSITION_FOLLOWING) &&
             currentPosition.textContent?.includes('Current position') === true &&
             currentPosition.textContent?.includes('What happens next') === true;
         })(),
@@ -3614,6 +3645,56 @@ async function main() {
           Array.from(detail?.querySelectorAll('[data-selected-work-timeline-item]') ?? []).every(
             (item) => item.getAttribute('data-selected-work-timeline-authority') === 'false'
           ),
+        relationship_support_question: (() => {
+          const relationships = detail?.querySelector(
+            '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+          );
+          const selector = relationships?.querySelector(
+            '[data-selected-work-relationship-question-selector="true"]'
+          );
+          const connections = relationships?.querySelectorAll(
+            '[data-selected-work-relationship-connection]'
+          );
+          return relationships?.getAttribute(
+            'data-selected-work-relationship-question'
+          ) === 'support_and_source' &&
+            selector instanceof HTMLSelectElement &&
+            selector.value === 'support_and_source' &&
+            selector.options.length > 0 &&
+            selector.options.length <= 4 &&
+            (connections?.length ?? 0) > 0 &&
+            (connections?.length ?? 0) <= 6 &&
+            relationships.querySelectorAll(
+              '[data-selected-work-relationship-highlighted="true"]'
+            ).length === 1;
+        })(),
+        relationship_partial_or_unavailable:
+          ['partial', 'unavailable', 'conflicted'].includes(
+            detail?.querySelector('[data-selected-work-relationships]')?.getAttribute(
+              'data-selected-work-relationship-answer'
+            ) ?? ''
+          ) &&
+          detail?.querySelector(
+            '[data-selected-work-relationship-incomplete="true"], [data-selected-work-relationship-unavailable="true"]'
+          ) !== null,
+        relationship_public_boundary: (() => {
+          const relationships = detail?.querySelector(
+            '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+          );
+          const relationshipText = relationships?.innerText ?? '';
+          return relationships?.getAttribute(
+            'data-selected-work-relationship-semantic-authority'
+          ) === 'false' &&
+            relationships?.getAttribute(
+              'data-selected-work-relationship-timeline-owner'
+            ) === 'true' &&
+            relationships?.querySelector(
+              '[data-ai-workplane-primary-action], canvas, [data-graph-control]'
+            ) === null &&
+            !/(sha256:|episode-delta-proposal:|review-decision:|state-transition-receipt:|TaskContextPacket|RunReceipt)/i.test(
+              relationshipText
+            );
+        })(),
         one_default_timeline_surface:
           detail?.querySelectorAll('[data-augnes-independent-surface]').length === 1 &&
           detail?.querySelectorAll('[data-augnes-state-badge]').length === 0,
@@ -3705,6 +3786,9 @@ async function main() {
       human_review_order: true,
       timeline_first: true,
       timeline_non_authoritative: true,
+      relationship_support_question: true,
+      relationship_partial_or_unavailable: true,
+      relationship_public_boundary: true,
       one_default_timeline_surface: true,
       primary_action_count: 1,
       default_two_interaction_defer_ready: true,
@@ -3866,6 +3950,30 @@ async function main() {
     });
     result.explicit_review_decision_created = true;
     record("workbench_records_explicit_decision_without_applying_transition");
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+        const relationships = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        const selector = relationships?.querySelector(
+          '[data-selected-work-relationship-question-selector="true"]'
+        );
+        const highlighted = relationships?.querySelectorAll(
+          '[data-selected-work-relationship-highlighted="true"]'
+        );
+        return detail?.getAttribute('data-selected-work-current-stage') === 'awaiting_application' &&
+          relationships?.getAttribute('data-selected-work-relationship-question') === 'candidate_and_decision' &&
+          selector instanceof HTMLSelectElement &&
+          selector.value === 'candidate_and_decision' &&
+          highlighted?.length === 1 &&
+          relationships.querySelectorAll('[data-ai-workplane-primary-action]').length === 0 &&
+          detail.querySelectorAll('[data-ai-workplane-primary-action]').length === 1;
+      })()`),
+      true,
+      "accepted selected decision must explain its exact connection without owning another primary action",
+    );
+    record("selected_work_relationship_explains_awaiting_application_decision");
     await validateSemanticReviewViewports();
 
     await waitForCondition(
@@ -4026,6 +4134,16 @@ async function main() {
           timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1,
         no_competing_transition_panel:
           detail?.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null,
+        relationship_project_change:
+          detail?.querySelector(
+            '[data-selected-work-relationships="selected_work_relationships.v0.1"][data-selected-work-relationship-question="decision_and_project_change"]'
+          ) !== null &&
+          detail?.querySelectorAll(
+            '[data-selected-work-relationship-highlighted="true"]'
+          ).length === 1 &&
+          detail?.querySelector(
+            '[data-selected-work-relationship-basis="authorized_project_change"]'
+          ) !== null,
         exact_material_optional:
           advanced instanceof HTMLDetailsElement &&
           advanced.open === false &&
@@ -4037,6 +4155,7 @@ async function main() {
       timeline_project_updated: true,
       one_current_position: true,
       no_competing_transition_panel: true,
+      relationship_project_change: true,
       exact_material_optional: true,
       feedback_waiting_for_run: true,
     });
@@ -4051,6 +4170,7 @@ async function main() {
     result.later_packet_compiled = true;
     result.context_use_feedback_waits_for_real_later_run = true;
     record("reviewed_create_transition_receipt_and_later_packet_apply_atomically");
+    record("selected_work_relationship_explains_exact_project_update");
 
     await validateSemanticReviewViewports();
     const beforeClosureReload = databaseSnapshot(database);
@@ -4079,6 +4199,2095 @@ async function main() {
     assert.equal(result.semantic_transitions_created, 1);
     assert.equal(result.internal_id_entry_actions, 0);
     record("workbench_reload_reads_durable_lineage_without_duplicate_writes");
+
+    validateExactLaterOutcomeV01 = async () => {
+      const exactLaterProposalId =
+        revisionPath.split("/").at(-1)?.replace("~", ":") ?? "";
+      const exactLaterProposalRow = database
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'episode_delta_proposal'
+             AND project_id = ?
+             AND record_id = ?`,
+        )
+        .get(manifest.project_id, exactLaterProposalId);
+      assert(exactLaterProposalRow, "applied proposal fixture missing");
+      const exactLaterProposal = JSON.parse(exactLaterProposalRow.payload_json);
+      const exactLaterLineage =
+        readVNextOperatorPilotProposalDurableLineageV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(runtimeEnvironment),
+          proposal: exactLaterProposal,
+        });
+      const exactLaterChains = exactLaterLineage.chains.filter(
+        (chain) =>
+          chain.stage_status === "packet_compiled" &&
+          chain.compiled_packet !== null,
+      );
+      assert.equal(
+        exactLaterChains.length,
+        1,
+        "selected applied proposal must expose one exact compiled-packet chain",
+      );
+      const exactLaterPacketBinding = exactLaterChains[0]?.compiled_packet;
+      assert(exactLaterPacketBinding, "applied Transition packet binding missing");
+      const exactLaterPacketRow = database
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'task_context_packet'
+             AND project_id = ?
+             AND record_id = ?
+             AND fingerprint = ?`,
+        )
+        .get(
+          manifest.project_id,
+          exactLaterPacketBinding.packet_id,
+          exactLaterPacketBinding.packet_fingerprint,
+      );
+      assert(exactLaterPacketRow, "applied Transition packet fixture missing");
+      const exactLaterPacket = JSON.parse(exactLaterPacketRow.payload_json);
+      const continuityBeforeExactLater =
+        projectVNextOperatorPilotContinuityV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(runtimeEnvironment),
+        });
+      const priorContextUseRecordedAt =
+        continuityBeforeExactLater.latest_context_use_receipt?.recorded_at ??
+        exactLaterPacket.generated_at;
+      const exactLaterAnchorAt = new Date(
+        Math.max(
+          Date.parse(exactLaterPacket.generated_at),
+          Date.parse(priorContextUseRecordedAt),
+        ) + 1_000,
+      ).toISOString();
+      const exactLaterReceiptSeed =
+        buildSemanticReviewLoopRunReceiptFixture(
+          {
+            fixture_id: "pc3-exact-later-outcome",
+            workspace_id: manifest.workspace_id,
+            project_id: manifest.project_id,
+            run_id: "run:operator-browser-pc3-exact-later-outcome",
+          },
+          exactLaterPacket,
+          { timeline_anchor_at: exactLaterAnchorAt },
+        );
+      const exactLaterReceiptInput = structuredClone(exactLaterReceiptSeed);
+      delete exactLaterReceiptInput.receipt_version;
+      delete exactLaterReceiptInput.receipt_id;
+      delete exactLaterReceiptInput.trust_summary;
+      delete exactLaterReceiptInput.authority_summary;
+      delete exactLaterReceiptInput.idempotency_key;
+      delete exactLaterReceiptInput.integrity;
+      exactLaterReceiptInput.compatibility.source_contracts.push(
+        VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01,
+      );
+      const exactLaterTransitionRef = {
+        ref_version: "external_ref.v0.1",
+        ref_type: "state_transition_receipt",
+        external_id: exactLaterChains[0].transition.receipt_id,
+        trust_class: "direct_local_observation",
+        observed_at: exactLaterPacket.generated_at,
+        source_ref: exactLaterChains[0].transition.receipt_fingerprint,
+        compatibility_namespace:
+          "augnes.vnext.state-transition-receipt.v0.1",
+      };
+      exactLaterReceiptInput.external_refs.push(exactLaterTransitionRef);
+      exactLaterReceiptInput.source_refs.push(exactLaterTransitionRef);
+      exactLaterReceiptInput.checks.push({
+        check_id: "validated_packet_delivery",
+        required: false,
+        status: "passed",
+        basis: "observed",
+        summary:
+          "The synthetic later-run fixture presented the exact compiled packet.",
+        source_refs: [
+          ...exactLaterReceiptInput.checks[0].source_refs,
+        ],
+      });
+      exactLaterReceiptInput.authority_notes =
+        exactLaterReceiptSeed.authority_summary.notes;
+      const exactLaterReceipt = buildRunReceiptV01(exactLaterReceiptInput);
+      const exactLaterWriter = new Database(databasePath);
+      try {
+        exactLaterWriter.pragma("foreign_keys = ON");
+        admitStructuredRunReceiptV01(exactLaterWriter, exactLaterReceipt);
+      } finally {
+        exactLaterWriter.close();
+      }
+      const exactLaterContinuity = projectVNextOperatorPilotContinuityV01(
+        database,
+        {
+          config: readVNextLocalOperatorPilotConfigV01(runtimeEnvironment),
+        },
+      );
+      assert.deepEqual(
+        exactLaterContinuity.latest_compiled_packet,
+        continuityBeforeExactLater.latest_compiled_packet,
+        "recording later use of an exact older packet must not replace the newer compiled-packet projection",
+      );
+      assert.notEqual(
+        exactLaterContinuity.latest_compiled_packet?.packet_id,
+        exactLaterPacket.packet_id,
+        "the selected Transition packet must be older than the actual latest compiled packet",
+      );
+      assert.equal(
+        exactLaterReceipt.task_context_packet_ref?.external_id,
+        exactLaterPacket.packet_id,
+        "the negative receipt must remain bound to the older packet ID",
+      );
+      assert.equal(
+        exactLaterReceipt.task_context_packet_ref?.source_ref,
+        exactLaterPacket.integrity.fingerprint,
+        "the negative receipt must remain bound to the older packet fingerprint",
+      );
+      assert.notEqual(
+        exactLaterContinuity.latest_context_use_receipt?.receipt_id,
+        exactLaterReceipt.receipt_id,
+        "an older packet-bound receipt must not become latest continuity",
+      );
+      if (exactLaterContinuity.latest_context_use_receipt) {
+        assert.equal(
+          exactLaterContinuity.latest_context_use_receipt
+            .task_context_packet_id,
+          exactLaterContinuity.latest_compiled_packet?.packet_id,
+          "the retained latest receipt must bind the actual latest packet ID",
+        );
+        assert.equal(
+          exactLaterContinuity.latest_context_use_receipt
+            .task_context_packet_fingerprint,
+          exactLaterContinuity.latest_compiled_packet?.packet_fingerprint,
+          "the retained latest receipt must bind the actual latest packet fingerprint",
+        );
+      }
+      record("older_packet_bound_later_result_is_not_latest_continuity");
+
+      const mixedLatestPacketRow = database
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'task_context_packet'
+             AND project_id = ?
+             AND record_id = ?
+             AND fingerprint = ?`,
+        )
+        .get(
+          manifest.project_id,
+          exactLaterContinuity.latest_compiled_packet?.packet_id,
+          exactLaterContinuity.latest_compiled_packet?.packet_fingerprint,
+        );
+      assert(
+        mixedLatestPacketRow,
+        "mixed-lineage latest compiled packet missing",
+      );
+      const mixedLatestPacket = JSON.parse(
+        mixedLatestPacketRow.payload_json,
+      );
+      assert(
+        mixedBoundedAutomationPacketTarget,
+        "the exact bounded-automation packet must be captured before later mixed-project Transitions",
+      );
+      const mixedBoundedAutomationPacketRow = database
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'task_context_packet'
+             AND project_id = ?
+             AND record_id = ?
+             AND fingerprint = ?`,
+        )
+        .get(
+          manifest.project_id,
+          mixedBoundedAutomationPacketTarget.packet_id,
+          mixedBoundedAutomationPacketTarget.packet_fingerprint,
+        );
+      assert(
+        mixedBoundedAutomationPacketRow,
+        "captured mixed bounded-automation packet missing",
+      );
+      const mixedBoundedAutomationPacket = JSON.parse(
+        mixedBoundedAutomationPacketRow.payload_json,
+      );
+      assert.equal(
+        mixedBoundedAutomationPacket.compatibility.source_contracts.includes(
+          "vnext_bounded_automation_context_compiler.v0.1",
+        ),
+        true,
+        "the exact captured mixed packet must preserve its bounded-automation class",
+      );
+      assert.equal(
+        exactLaterLineage.chains.some(
+          (chain) =>
+            chain.compiled_packet?.packet_id ===
+              mixedBoundedAutomationPacket.packet_id &&
+            chain.compiled_packet?.packet_fingerprint ===
+              mixedBoundedAutomationPacket.integrity.fingerprint,
+        ),
+        false,
+        "a bounded-automation packet must remain excluded from workbench durable lineage",
+      );
+      result.bounded_automation_packet_excluded_from_workbench_lineage = true;
+      record("bounded_automation_packet_excluded_from_workbench_lineage");
+
+      assert.equal(existsSync(folderPickerSequencePath), true);
+      renameSync(
+        folderPickerSequencePath,
+        `${folderPickerSequencePath}.reconnect-consumed`,
+      );
+      writeFileSync(
+        folderPickerSequencePath,
+        `${JSON.stringify({
+          sequence_version:
+            "augnes_canonical_folder_picker_sequence.v0.1",
+          next_index: 0,
+          entries: [
+            {
+              id: "positive-lineage-project",
+              outcome: "selected",
+              absolute_path: positiveLineageProjectRoot,
+            },
+          ],
+        })}\n`,
+        { encoding: "utf8", flag: "wx", mode: 0o600 },
+      );
+      await navigate(`${appOrigin}/projects`);
+      await waitForCondition(
+        `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
+        "positive-lineage project onboarding surface",
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === 'Choose another folder'
+          );
+          if (!(button instanceof HTMLButtonElement) || button.disabled) {
+            return false;
+          }
+          button.click();
+          return true;
+        })()`),
+        true,
+        "the positive-lineage project must use the normal folder picker",
+      );
+      await waitForCondition(
+        `document.body.textContent.includes('Browser Positive Lineage Project') && document.body.textContent.includes('Plain folder')`,
+        "positive-lineage project inspection",
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === 'Confirm project'
+          );
+          if (!(button instanceof HTMLButtonElement) || button.disabled) {
+            return false;
+          }
+          button.click();
+          return true;
+        })()`),
+        true,
+        "the positive-lineage project confirmation must remain explicit",
+      );
+      await waitForCondition(
+        `location.pathname.startsWith('/projects/project%3A') && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Browser Positive Lineage Project')`,
+        "positive-lineage active project",
+      );
+      const positiveProjectDestination =
+        await evaluateString("location.pathname");
+      const positiveProjectId = decodeURIComponent(
+        positiveProjectDestination.split("/").at(-1),
+      );
+      assert.notEqual(positiveProjectId, manifest.project_id);
+
+      const positiveFixtureProject = {
+        fixture_id: "pc3-positive-later-outcome",
+        workspace_id: manifest.workspace_id,
+        project_id: positiveProjectId,
+        run_id: "run:pc3-positive-bootstrap-source",
+      };
+      const positivePacketTemplate =
+        buildSemanticReviewLoopTaskContextPacketFixture(
+          positiveFixtureProject,
+          { data_classification: "public_safe" },
+        );
+      const {
+        packet_version: _positivePacketVersion,
+        packet_id: _positivePacketId,
+        authority_summary: positivePacketAuthority,
+        integrity: _positivePacketIntegrity,
+        ...positivePacketInput
+      } = positivePacketTemplate;
+      const positivePriorGeneratedAt = new Date(
+        Date.now() - 1_000,
+      ).toISOString();
+      const positivePriorPacket = buildTaskContextPacketV01({
+        ...positivePacketInput,
+        generated_at: positivePriorGeneratedAt,
+        expires_at: new Date(
+          Date.parse(positivePriorGeneratedAt) + 2 * 60 * 60_000,
+        ).toISOString(),
+        selected_context: positivePacketInput.selected_context.map(
+          (entry) => ({
+            ...entry,
+            currentness: {
+              ...entry.currentness,
+              as_of: positivePriorGeneratedAt,
+            },
+          }),
+        ),
+        source_status: {
+          ...positivePacketInput.source_status,
+          currentness: {
+            ...positivePacketInput.source_status.currentness,
+            as_of: positivePriorGeneratedAt,
+          },
+        },
+        authority_notes: positivePacketAuthority.notes,
+      });
+      assert.equal(
+        positivePriorPacket.workspace_id,
+        manifest.workspace_id,
+      );
+      assert.equal(positivePriorPacket.project_id, positiveProjectId);
+      assert.equal(
+        positivePriorPacket.compatibility.source_contracts.includes(
+          "generic_cli.task_input.v0.1",
+        ),
+        true,
+      );
+      assert.equal(
+        positivePriorPacket.compatibility.source_contracts.includes(
+          "vnext_bounded_automation_context_compiler.v0.1",
+        ),
+        false,
+        "the positive project must fail before inheriting bounded-automation packet class",
+      );
+      assert.equal(
+        positivePriorPacket.compatibility.source_contracts.includes(
+          "vnext_persisted_semantic_context_compiler.v0.1",
+        ),
+        false,
+        "the generic positive prior packet must not impersonate a compiler-produced packet",
+      );
+      const positiveBootstrapReceipt =
+        buildSemanticReviewLoopRunReceiptFixture(
+          positiveFixtureProject,
+          positivePriorPacket,
+          { timeline_anchor_at: positivePriorGeneratedAt },
+        );
+      const positiveBootstrapProposal =
+        buildSemanticReviewLoopProposalFixture(
+          positiveFixtureProject,
+          positivePriorPacket,
+          positiveBootstrapReceipt,
+          {
+            primary_delta_type: "agent_plan_delta",
+            candidate_namespace: "pc3-positive-bootstrap",
+            timeline_anchor_at: positivePriorGeneratedAt,
+          },
+        );
+      const positivePriorWriter = new Database(databasePath, {
+        fileMustExist: true,
+      });
+      try {
+        positivePriorWriter.pragma("foreign_keys = ON");
+        positivePriorWriter.transaction(() => {
+          const packetWrite = insertVNextCoreRecordV01(
+            positivePriorWriter,
+            {
+              record_kind: "task_context_packet",
+              record_id: positivePriorPacket.packet_id,
+              workspace_id: positivePriorPacket.workspace_id,
+              project_id: positivePriorPacket.project_id,
+              fingerprint: positivePriorPacket.integrity.fingerprint,
+              idempotency_key: null,
+              payload: positivePriorPacket,
+              created_at: positivePriorPacket.generated_at,
+            },
+          );
+          assert.equal(packetWrite.status, "inserted");
+          const receiptAdmission = admitStructuredRunReceiptV01(
+            positivePriorWriter,
+            positiveBootstrapReceipt,
+          );
+          assert.equal(receiptAdmission.status, "inserted");
+          const proposalWrite = insertVNextCoreRecordV01(
+            positivePriorWriter,
+            {
+              record_kind: "episode_delta_proposal",
+              record_id: positiveBootstrapProposal.proposal_id,
+              workspace_id: positiveBootstrapProposal.workspace_id,
+              project_id: positiveBootstrapProposal.project_id,
+              fingerprint:
+                positiveBootstrapProposal.integrity.fingerprint,
+              idempotency_key: null,
+              payload: positiveBootstrapProposal,
+              created_at: positiveBootstrapProposal.created_at,
+            },
+          );
+          assert.equal(proposalWrite.status, "inserted");
+        })();
+      } finally {
+        positivePriorWriter.close();
+      }
+      result.positive_generic_prior_packet_seeded = true;
+      record("positive_generic_prior_packet_seeded");
+      result.positive_bootstrap_proposal_admitted = true;
+      record("positive_bootstrap_proposal_admitted");
+
+      const positiveRuntimeEnvironment = {
+        ...runtimeEnvironment,
+        AUGNES_VNEXT_OPERATOR_PROJECT_ID: positiveProjectId,
+      };
+      await navigate("about:blank");
+      await terminateProcess(serverProcess, 15_000);
+      serverProcess = null;
+      startDevServer(positiveRuntimeEnvironment);
+      await waitForHttp(
+        `${appOrigin}/workbench/semantic-review`,
+        DEFAULT_TIMEOUT_MS,
+      );
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await waitForCondition(
+        `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
+        "locked positive-lineage operator session",
+      );
+      bootstrapToken = await issueBootstrap(positiveRuntimeEnvironment);
+      await setBootstrapInput(bootstrapToken);
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const form = document.querySelector(
+            '#vnext-operator-bootstrap-token'
+          )?.closest('form');
+          if (!form) return false;
+          form.requestSubmit();
+          return true;
+        })()`),
+        true,
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null`,
+        "authenticated positive-lineage operator session",
+      );
+      assert.equal(
+        await evaluateBoolean(
+          `document.documentElement.innerHTML.includes(${JSON.stringify(
+            bootstrapToken,
+          )})`,
+        ),
+        false,
+      );
+      assert.equal(serverLog.includes(bootstrapToken), false);
+      bootstrapToken = null;
+
+      const beforePositiveTransition =
+        readDirectHostBrowserState(positiveProjectId);
+      const positiveProposal = positiveBootstrapProposal;
+      const positiveProposalPath = `/workbench/semantic-review/${positiveProposal.proposal_id.replace(
+        ":",
+        "~",
+      )}`;
+      await navigate(`${appOrigin}${positiveProposalPath}`);
+      await waitForCondition(
+        `location.pathname === ${JSON.stringify(positiveProposalPath)} && document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null`,
+        "admitted positive bootstrap proposal detail",
+      );
+      const positiveDetailResponse = await evaluateJson(`(async () => {
+        const response = await fetch(
+          '/api/vnext/operator/semantic-review?' + new URLSearchParams({
+            proposal_id: ${JSON.stringify(positiveProposal.proposal_id)}
+          }),
+          { cache: 'no-store', credentials: 'same-origin' }
+        );
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        positiveDetailResponse.status,
+        200,
+        `positive bootstrap detail failed: ${JSON.stringify(
+          positiveDetailResponse.body,
+        )}`,
+      );
+      assert.equal(
+        positiveDetailResponse.body.proposal?.proposal?.proposal_id,
+        positiveProposal.proposal_id,
+      );
+      assert.equal(
+        positiveDetailResponse.body.proposal?.proposal?.integrity?.fingerprint,
+        positiveProposal.integrity.fingerprint,
+      );
+      const positiveSelectedCandidate =
+        positiveDetailResponse.body.proposal?.candidates?.find(
+          (entry) =>
+            entry.pilot_admission?.decision_allowed?.accept === true,
+        );
+      assert(
+        positiveSelectedCandidate,
+        "positive bootstrap requires one exactly admitted accept candidate",
+      );
+      const positiveCandidate = positiveSelectedCandidate.candidate;
+      const positiveCandidateBinding = {
+        candidate_id: positiveCandidate.candidate_id,
+        candidate_fingerprint:
+          positiveSelectedCandidate.candidate_fingerprint,
+      };
+      assert.equal(
+        createEpisodeDeltaCandidateFingerprintV01(positiveCandidate),
+        positiveCandidateBinding.candidate_fingerprint,
+        "positive bootstrap candidate fingerprint must remain exact",
+      );
+      const positiveDecisionRequest = {
+        proposal_id: positiveProposal.proposal_id,
+        proposal_fingerprint: positiveProposal.integrity.fingerprint,
+        candidate_id: positiveCandidateBinding.candidate_id,
+        candidate_fingerprint:
+          positiveCandidateBinding.candidate_fingerprint,
+        decision: "accept",
+        rationale_summary:
+          "Accept the exact positive bootstrap candidate so an ordinary reviewed Transition can compile the first eligible project packet.",
+        revisit: null,
+      };
+      const positiveDecisionResponse = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/operator/semantic-review', {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(${JSON.stringify(positiveDecisionRequest)})
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        positiveDecisionResponse.status,
+        201,
+        `positive bootstrap decision failed: ${JSON.stringify(
+          positiveDecisionResponse.body,
+        )}`,
+      );
+      assert.equal(positiveDecisionResponse.body.status, "inserted");
+      assert.equal(positiveDecisionResponse.body.transition_requested, true);
+      assert.equal(positiveDecisionResponse.body.transition_applied, false);
+      const positiveDecision = positiveDecisionResponse.body.decision;
+      assert.equal(positiveDecision.decision, "accept");
+      assert.equal(
+        positiveDecision.candidate.candidate_id,
+        positiveCandidateBinding.candidate_id,
+      );
+      assert.equal(
+        positiveDecision.candidate.candidate_fingerprint,
+        positiveCandidateBinding.candidate_fingerprint,
+      );
+      const positiveDecisionBinding = {
+        proposal_id: positiveProposal.proposal_id,
+        proposal_fingerprint: positiveProposal.integrity.fingerprint,
+        decision_id: positiveDecision.decision_id,
+        decision_fingerprint: positiveDecision.integrity.fingerprint,
+      };
+      const positivePreviewQuery = new URLSearchParams(
+        positiveDecisionBinding,
+      ).toString();
+      const positivePreviewResponse = await evaluateJson(`(async () => {
+        const response = await fetch(
+          ${JSON.stringify(
+            `/api/vnext/operator/semantic-transition?${positivePreviewQuery}`,
+          )},
+          {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin'
+          }
+        );
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        positivePreviewResponse.status,
+        200,
+        `positive bootstrap preview failed: ${JSON.stringify(
+          positivePreviewResponse.body,
+        )}`,
+      );
+      assert.equal(positivePreviewResponse.body.status, "preview");
+      assert.equal(positivePreviewResponse.body.preview_is_write, false);
+      assert.equal(
+        positivePreviewResponse.body.preview.candidate_fingerprint,
+        positiveCandidateBinding.candidate_fingerprint,
+      );
+      const positiveConfirmationRequest = {
+        action: "confirm",
+        ...positiveDecisionBinding,
+        confirmation_digest:
+          positivePreviewResponse.body.preview.confirmation_digest,
+      };
+      const positiveConfirmationResponse = await evaluateJson(`(async () => {
+        const response = await fetch(
+          '/api/vnext/operator/semantic-transition',
+          {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(${JSON.stringify(
+              positiveConfirmationRequest,
+            )})
+          }
+        );
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        positiveConfirmationResponse.status,
+        201,
+        `positive bootstrap confirmation failed: ${JSON.stringify(
+          positiveConfirmationResponse.body,
+        )}`,
+      );
+      assert.equal(positiveConfirmationResponse.body.status, "inserted");
+      assert.equal(positiveConfirmationResponse.body.state_applied, false);
+      const positiveGate = positiveConfirmationResponse.body.gate_record;
+      assert.equal(
+        positiveGate.candidate_fingerprint,
+        positiveCandidateBinding.candidate_fingerprint,
+      );
+      const positiveApplyRequest = {
+        action: "apply",
+        ...positiveDecisionBinding,
+        gate_record_id: positiveGate.gate_record_id,
+        gate_record_fingerprint: positiveGate.integrity.fingerprint,
+        prior_packet_id: positivePriorPacket.packet_id,
+        prior_packet_fingerprint:
+          positivePriorPacket.integrity.fingerprint,
+      };
+      const positiveApplyResponse = await evaluateJson(`(async () => {
+        const response = await fetch(
+          '/api/vnext/operator/semantic-transition',
+          {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(${JSON.stringify(positiveApplyRequest)})
+          }
+        );
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        positiveApplyResponse.status,
+        201,
+        `positive bootstrap application failed: ${JSON.stringify(
+          positiveApplyResponse.body,
+        )}`,
+      );
+      assert.equal(positiveApplyResponse.body.status, "applied");
+      assert.equal(positiveApplyResponse.body.packet_compiled, true);
+      const positiveTransitionReceipt =
+        positiveApplyResponse.body.transition_receipt;
+      const positiveLaterPacket = positiveApplyResponse.body.later_packet;
+      assert(positiveTransitionReceipt);
+      assert(positiveLaterPacket);
+      assert.equal(
+        positiveTransitionReceipt.source_proposal.proposal_id,
+        positiveProposal.proposal_id,
+      );
+      assert.equal(
+        positiveTransitionReceipt.source_proposal.proposal_fingerprint,
+        positiveProposal.integrity.fingerprint,
+      );
+      assert.equal(
+        positiveTransitionReceipt.source_decision.decision_id,
+        positiveDecision.decision_id,
+      );
+      assert.equal(
+        positiveTransitionReceipt.source_decision.decision_fingerprint,
+        positiveDecision.integrity.fingerprint,
+      );
+      assert.equal(
+        positiveTransitionReceipt.source_candidate.candidate_id,
+        positiveCandidateBinding.candidate_id,
+      );
+      assert.equal(
+        positiveTransitionReceipt.source_candidate.candidate_fingerprint,
+        positiveCandidateBinding.candidate_fingerprint,
+      );
+      assert.equal(positiveLaterPacket.workspace_id, manifest.workspace_id);
+      assert.equal(positiveLaterPacket.project_id, positiveProjectId);
+      assert.equal(
+        positiveLaterPacket.compatibility.source_contracts.includes(
+          "vnext_persisted_semantic_context_compiler.v0.1",
+        ),
+        true,
+      );
+      assert.equal(
+        positiveLaterPacket.compatibility.source_contracts.includes(
+          "vnext_bounded_automation_context_compiler.v0.1",
+        ),
+        false,
+        "the real positive Transition packet must remain eligible for workbench durable lineage",
+      );
+      assert.equal(
+        positiveLaterPacket.compatibility.source_refs.some(
+          (ref) =>
+            ref.ref_type === "task_context_packet" &&
+            ref.external_id === positivePriorPacket.packet_id &&
+            ref.source_ref ===
+              positivePriorPacket.integrity.fingerprint,
+        ),
+        true,
+        "the real positive Transition packet must bind the exact generic prior packet",
+      );
+      assert.equal(
+        positiveLaterPacket.compatibility.source_refs.some(
+          (ref) =>
+            ref.ref_type === "state_transition_receipt" &&
+            ref.external_id ===
+              positiveTransitionReceipt.transition_receipt_id &&
+            ref.source_ref ===
+              positiveTransitionReceipt.integrity.fingerprint,
+        ),
+        true,
+        "the real positive Transition packet must bind the exact authorized Transition",
+      );
+      result.positive_transition_compiled_eligible_packet = true;
+      record("positive_transition_compiled_eligible_packet");
+
+      await navigate(`${appOrigin}${positiveProposalPath}`);
+      await waitForCondition(
+        `location.pathname === ${JSON.stringify(positiveProposalPath)} && document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled) option[value=${JSON.stringify(
+          positiveCandidateBinding.candidate_id,
+        )}]') !== null`,
+        "positive bootstrap candidate selector after Transition",
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const selector = document.querySelector(
+            '[data-vnext-candidate-selector="v0.1"]'
+          );
+          if (!(selector instanceof HTMLSelectElement) || selector.disabled) {
+            return false;
+          }
+          selector.value = ${JSON.stringify(
+            positiveCandidateBinding.candidate_id,
+          )};
+          selector.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })()`),
+        true,
+        "the positive applied candidate must remain explicitly selectable",
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(
+          positiveCandidateBinding.candidate_id,
+        )} && document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="project_updated"]') !== null && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1`,
+        "positive bootstrap Transition application",
+      );
+      const afterPositiveTransition =
+        readDirectHostBrowserState(positiveProjectId);
+      assert.deepEqual(afterPositiveTransition.semantic_authority_counts, {
+        ...beforePositiveTransition.semantic_authority_counts,
+        semantic_state:
+          beforePositiveTransition.semantic_authority_counts.semantic_state + 1,
+        decisions:
+          beforePositiveTransition.semantic_authority_counts.decisions + 1,
+        commit_gates:
+          beforePositiveTransition.semantic_authority_counts.commit_gates + 1,
+        transitions:
+          beforePositiveTransition.semantic_authority_counts.transitions + 1,
+        packets:
+          beforePositiveTransition.semantic_authority_counts.packets + 1,
+      });
+
+      const positiveLineage =
+        readVNextOperatorPilotProposalDurableLineageV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(
+            positiveRuntimeEnvironment,
+          ),
+          proposal: positiveProposal,
+        });
+      assert.equal(positiveLineage.overall_status, "packet_compiled");
+      assert.equal(
+        positiveLineage.proposal_id,
+        positiveProposal.proposal_id,
+        "dedicated latest-packet lineage must preserve the exact proposal ID",
+      );
+      assert.equal(
+        positiveLineage.proposal_fingerprint,
+        positiveProposal.integrity.fingerprint,
+        "dedicated latest-packet lineage must preserve the exact proposal fingerprint",
+      );
+      const positiveChains = positiveLineage.chains.filter(
+        (chain) =>
+          chain.stage_status === "packet_compiled" &&
+          chain.compiled_packet !== null &&
+          chain.transition.receipt_id ===
+            positiveTransitionReceipt.transition_receipt_id &&
+          chain.transition.receipt_fingerprint ===
+            positiveTransitionReceipt.integrity.fingerprint &&
+          chain.transition.decision_id ===
+            positiveDecision.decision_id &&
+          chain.transition.decision_fingerprint ===
+            positiveDecision.integrity.fingerprint &&
+          chain.transition.candidate_id ===
+            positiveCandidateBinding.candidate_id &&
+          chain.transition.candidate_fingerprint ===
+            positiveCandidateBinding.candidate_fingerprint,
+      );
+      assert.equal(
+        positiveChains.length,
+        1,
+        "dedicated latest-packet proposal must expose one exact applied chain",
+      );
+      const positiveChain = positiveChains[0];
+      assert.equal(
+        positiveChain?.transition.candidate_id,
+        positiveCandidateBinding.candidate_id,
+        "dedicated latest-packet Transition must preserve the exact candidate ID",
+      );
+      assert.equal(
+        positiveChain?.transition.candidate_fingerprint,
+        positiveCandidateBinding.candidate_fingerprint,
+        "dedicated latest-packet Transition must preserve the exact candidate fingerprint",
+      );
+      assert.equal(
+        positiveChain?.transition.decision_id,
+        positiveDecision.decision_id,
+        "dedicated latest-packet Transition must preserve the exact decision ID",
+      );
+      assert.equal(
+        positiveChain?.transition.decision_fingerprint,
+        positiveDecision.integrity.fingerprint,
+        "dedicated latest-packet Transition must preserve the exact decision fingerprint",
+      );
+      assert.equal(
+        positiveChain?.transition.receipt_id,
+        positiveTransitionReceipt.transition_receipt_id,
+        "dedicated latest-packet lineage must preserve the exact Transition receipt ID",
+      );
+      assert.equal(
+        positiveChain?.transition.receipt_fingerprint,
+        positiveTransitionReceipt.integrity.fingerprint,
+        "dedicated latest-packet lineage must preserve the exact Transition receipt fingerprint",
+      );
+      const positivePacketBinding = positiveChain?.compiled_packet;
+      assert(
+        positivePacketBinding,
+        "dedicated latest-packet compiled packet binding missing",
+      );
+      const positivePacketRow = database
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'task_context_packet'
+             AND project_id = ?
+             AND record_id = ?
+             AND fingerprint = ?`,
+        )
+        .get(
+          positiveProjectId,
+          positivePacketBinding.packet_id,
+          positivePacketBinding.packet_fingerprint,
+        );
+      assert(
+        positivePacketRow,
+        "dedicated latest-packet compiled packet missing",
+      );
+      const positivePacket = JSON.parse(positivePacketRow.payload_json);
+      assert.equal(positivePacket.packet_id, positiveLaterPacket.packet_id);
+      assert.equal(
+        positivePacket.integrity.fingerprint,
+        positiveLaterPacket.integrity.fingerprint,
+      );
+      assert.equal(positivePacket.workspace_id, manifest.workspace_id);
+      assert.equal(positivePacket.project_id, positiveProjectId);
+      assert.equal(
+        positivePacket.compatibility.source_contracts.includes(
+          "vnext_persisted_semantic_context_compiler.v0.1",
+        ),
+        true,
+      );
+      assert.equal(
+        positivePacket.compatibility.source_contracts.includes(
+          "vnext_bounded_automation_context_compiler.v0.1",
+        ),
+        false,
+        "the positive Transition packet must remain eligible for workbench durable lineage",
+      );
+      assert.equal(
+        positivePacket.compatibility.source_refs.some(
+          (ref) =>
+            ref.ref_type === "task_context_packet" &&
+            ref.external_id === positivePriorPacket.packet_id &&
+            ref.source_ref ===
+              positivePriorPacket.integrity.fingerprint,
+        ),
+        true,
+        "the positive packet must retain its exact same-project prior-packet lineage",
+      );
+      assert.equal(
+        positivePacket.compatibility.source_refs.some(
+          (ref) =>
+            ref.ref_type === "state_transition_receipt" &&
+            ref.external_id === positiveChain?.transition.receipt_id &&
+            ref.source_ref ===
+              positiveChain?.transition.receipt_fingerprint,
+        ),
+        true,
+        "the positive packet must retain its exact Transition lineage",
+      );
+      assert.equal(positiveChain?.compiled_packet?.projection_current, true);
+      const positiveContinuityBeforeLater =
+        projectVNextOperatorPilotContinuityV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(
+            positiveRuntimeEnvironment,
+          ),
+        });
+      assert.equal(
+        positiveContinuityBeforeLater.latest_compiled_packet?.packet_id,
+        positivePacket.packet_id,
+        "positive later-result intake requires the exact selected packet to be latest",
+      );
+      assert.equal(
+        positiveContinuityBeforeLater.latest_compiled_packet
+          ?.packet_fingerprint,
+        positivePacket.integrity.fingerprint,
+        "positive later-result intake requires the latest packet fingerprint to remain exact",
+      );
+      assert.equal(
+        positiveContinuityBeforeLater.packet_currentness,
+        "fresh",
+        "the positive compiled packet must be fresh before the first real host action",
+      );
+      assert.equal(
+        positiveContinuityBeforeLater.latest_context_use_receipt,
+        null,
+        "a newly compiled latest packet must not inherit an older packet receipt",
+      );
+      result.positive_latest_compiled_packet_precondition_passed = true;
+      record("positive_latest_compiled_packet_precondition_passed");
+      result.positive_proposal_has_one_packet_compiled_chain = true;
+      record("positive_proposal_has_one_packet_compiled_chain");
+
+      await navigate(`${appOrigin}${positiveProjectDestination}`);
+      await waitForCondition(
+        `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Browser Positive Lineage Project')`,
+        "positive-lineage project before real later-result intake",
+      );
+      await openBlankStateProjectOptions();
+      await waitForCondition(
+        `document.querySelector('[data-direct-host-round-trip="v0.3"] [data-direct-host-action="deterministic"]:not(:disabled)') !== null`,
+        "positive-lineage real later-result action",
+      );
+      const positiveLaterBefore =
+        readDirectHostBrowserState(positiveProjectId);
+      const positiveLaterResponseStart = responses.length;
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const button = document.querySelector(
+            '[data-direct-host-round-trip="v0.3"] [data-direct-host-action="deterministic"]'
+          );
+          if (!(button instanceof HTMLButtonElement) || button.disabled) {
+            return false;
+          }
+          button.click();
+          return true;
+        })()`),
+        true,
+        "the positive later result must use the real interactive host path",
+      );
+      await waitForHostCondition(
+        () =>
+          responses.slice(positiveLaterResponseStart).some(
+            (entry) =>
+              entry.path === "/api/vnext/operator/host-round-trip" &&
+              entry.type === "Fetch" &&
+              entry.method === "POST",
+          ),
+        "positive-lineage later host result",
+      );
+      const positiveLaterResponse = responses
+        .slice(positiveLaterResponseStart)
+        .find(
+          (entry) =>
+            entry.path === "/api/vnext/operator/host-round-trip" &&
+            entry.type === "Fetch" &&
+            entry.method === "POST",
+        );
+      assert.equal(positiveLaterResponse?.status, 201);
+      await waitForCondition(
+        `document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null && document.body.textContent.includes('Result saved')`,
+        "positive-lineage real later result",
+      );
+      const positiveLaterAfter =
+        readDirectHostBrowserState(positiveProjectId);
+      assert.equal(
+        positiveLaterAfter.direct_receipt_count,
+        positiveLaterBefore.direct_receipt_count + 1,
+      );
+      assert.equal(
+        positiveLaterAfter.semantic_authority_counts.packets,
+        positiveLaterBefore.semantic_authority_counts.packets,
+        "the first real positive host action must not compile another packet",
+      );
+      const positiveLaterReceipt = positiveLaterAfter.latest_receipt;
+      assert(
+        positiveLaterReceipt,
+        "positive latest-packet real later receipt missing",
+      );
+      assert.equal(
+        positiveLaterReceipt.task_context_packet_ref?.external_id,
+        positivePacket.packet_id,
+      );
+      assert.equal(
+        positiveLaterReceipt.task_context_packet_ref?.source_ref,
+        positivePacket.integrity.fingerprint,
+      );
+      assert.equal(
+        positiveLaterReceipt.compatibility.source_contracts.includes(
+          VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01,
+        ),
+        true,
+      );
+      assert.equal(
+        positiveLaterReceipt.source_refs.some(
+          (ref) =>
+            ref.ref_type === "state_transition_receipt" &&
+            ref.external_id === positiveChain.transition.receipt_id &&
+            ref.source_ref ===
+              positiveChain.transition.receipt_fingerprint,
+        ),
+        true,
+        "the real later receipt must retain the exact selected Transition binding",
+      );
+      result.positive_first_real_host_action_used_latest_packet = true;
+      record("positive_first_real_host_action_used_latest_packet");
+      const positiveContinuityAfterLater =
+        projectVNextOperatorPilotContinuityV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(
+            positiveRuntimeEnvironment,
+          ),
+        });
+      assert.deepEqual(
+        positiveContinuityAfterLater.latest_compiled_packet,
+        positiveContinuityBeforeLater.latest_compiled_packet,
+        "later-result intake must not create or select another packet",
+      );
+      assert.equal(
+        positiveContinuityAfterLater.latest_context_use_receipt?.receipt_id,
+        positiveLaterReceipt.receipt_id,
+        "the real continuity producer must recognize the exact latest-packet receipt ID",
+      );
+      assert.equal(
+        positiveContinuityAfterLater.latest_context_use_receipt
+          ?.receipt_fingerprint,
+        positiveLaterReceipt.integrity.fingerprint,
+        "the real continuity producer must recognize the exact latest-packet receipt fingerprint",
+      );
+      assert.equal(
+        positiveContinuityAfterLater.latest_context_use_receipt
+          ?.task_context_packet_id,
+        positivePacket.packet_id,
+        "the real continuity producer must retain the exact latest packet ID",
+      );
+      assert.equal(
+        positiveContinuityAfterLater.latest_context_use_receipt
+          ?.task_context_packet_fingerprint,
+        positivePacket.integrity.fingerprint,
+        "the real continuity producer must retain the exact latest packet fingerprint",
+      );
+      assert.equal(
+        positiveContinuityAfterLater.latest_context_use_review_status,
+        null,
+        "the positive latest-packet result must remain unreviewed before Browser feedback",
+      );
+      result.positive_latest_packet_bound_result_recognized = true;
+      record("positive_latest_packet_bound_result_recognized");
+
+      await navigate(`${appOrigin}${positiveProposalPath}`);
+      await waitForCondition(
+        `location.pathname === ${JSON.stringify(positiveProposalPath)} && document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null`,
+        "reloaded dedicated latest-packet proposal detail",
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled) option[value=${JSON.stringify(
+          positiveCandidateBinding.candidate_id,
+        )}]') !== null`,
+        "dedicated latest-packet candidate selector",
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const selector = document.querySelector(
+            '[data-vnext-candidate-selector="v0.1"]'
+          );
+          if (!(selector instanceof HTMLSelectElement) || selector.disabled) {
+            return false;
+          }
+          selector.value = ${JSON.stringify(
+            positiveCandidateBinding.candidate_id,
+          )};
+          selector.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })()`),
+        true,
+        "the positive later outcome must remain scoped to the exact applied candidate",
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="later_outcome_available"]') !== null`,
+        "exact latest-packet candidate later-outcome timeline",
+      );
+      const positiveLaterBrowserShape = await evaluateJson(`(() => {
+        const detail = document.querySelector(
+          '[data-vnext-semantic-review-detail="v0.1"]'
+        );
+        const feedback = detail?.querySelector(
+          '[data-vnext-context-use-feedback]'
+        );
+        const relationships = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        const relationshipText = relationships?.textContent ?? '';
+        return {
+          stage: detail?.getAttribute('data-selected-work-current-stage') ?? null,
+          feedback:
+            feedback?.getAttribute('data-vnext-context-use-feedback') ?? null,
+          form:
+            feedback?.querySelector(
+              '[data-vnext-context-use-review-form="v0.1"]'
+            ) !== null,
+          question:
+            relationships?.getAttribute(
+              'data-selected-work-relationship-question'
+            ) ?? null,
+          highlighted_count:
+            relationships?.querySelectorAll(
+              '[data-selected-work-relationship-highlighted="true"]'
+            ).length ?? -1,
+          exact_later_basis:
+            relationships?.querySelector(
+              '[data-selected-work-relationship-kind="used_by_later_work"][data-selected-work-relationship-basis="later_outcome"][data-selected-work-relationship-support="exact"]'
+            ) !== null,
+          reviewed_connection_absent:
+            relationships?.querySelector(
+              '[data-selected-work-relationship-kind="reviewed_by_later_feedback"]'
+            ) === null,
+          raw_protocol_copy_absent:
+            !/(sha256:|episode-delta-proposal:|review-decision:|state-transition-receipt:|task-context-packet:|run-receipt:|TaskContextPacket|RunReceipt)/i.test(
+              relationshipText
+            ),
+          primary_action_count:
+            detail?.querySelectorAll('[data-ai-workplane-primary-action]')
+              .length ?? -1,
+        };
+      })()`);
+      assert.deepEqual(
+        positiveLaterBrowserShape,
+        {
+          stage: "later_outcome_available",
+          feedback: "available",
+          form: true,
+          question: "project_change_and_later_outcome",
+          highlighted_count: 1,
+          exact_later_basis: true,
+          reviewed_connection_absent: true,
+          raw_protocol_copy_absent: true,
+          primary_action_count: 0,
+        },
+        "the dedicated exact Transition later run must remain bounded and optional",
+      );
+      result.positive_later_outcome_relationship_is_exact = true;
+      record("positive_later_outcome_relationship_is_exact");
+      await validateSemanticReviewViewports();
+      const beforePositiveLaterFeedback =
+        readDirectHostBrowserState(positiveProjectId);
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const form = document.querySelector('[data-vnext-context-use-review-form="v0.1"]');
+          const selects = form?.querySelectorAll('select');
+          if (!form || !selects || selects.length !== 2) return false;
+          selects[0].value = 'yes';
+          selects[0].dispatchEvent(new Event('change', { bubbles: true }));
+          selects[1].value = 'helpful';
+          selects[1].dispatchEvent(new Event('change', { bubbles: true }));
+          const button = Array.from(form.querySelectorAll('button')).find(
+            (candidate) => candidate.textContent?.trim() === 'Save feedback'
+          );
+          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+          button.click();
+          return true;
+        })()`),
+        true,
+      );
+      await waitForHostCondition(
+        () =>
+          readDirectHostBrowserState(positiveProjectId)
+            .semantic_authority_counts.context_use_reviews ===
+          beforePositiveLaterFeedback.semantic_authority_counts
+            .context_use_reviews +
+            1,
+        "exact latest-packet later-result feedback admission",
+      );
+      const positiveReviewedContinuity =
+        projectVNextOperatorPilotContinuityV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(
+            positiveRuntimeEnvironment,
+          ),
+        });
+      assert.equal(
+        positiveReviewedContinuity.latest_context_use_review_status
+          ?.later_task_run_receipt_id,
+        positiveLaterReceipt.receipt_id,
+        "the real continuity producer must bind feedback to the exact latest-packet later result",
+      );
+      assert.equal(
+        positiveReviewedContinuity.latest_context_use_review_status
+          ?.later_task_run_receipt_fingerprint,
+        positiveLaterReceipt.integrity.fingerprint,
+        "the real continuity producer must preserve the exact reviewed receipt fingerprint",
+      );
+      assert.equal(
+        positiveReviewedContinuity.latest_context_use_receipt
+          ?.task_context_packet_id,
+        positivePacket.packet_id,
+        "the reviewed later result must remain bound to the exact latest packet ID",
+      );
+      assert.equal(
+        positiveReviewedContinuity.latest_context_use_receipt
+          ?.task_context_packet_fingerprint,
+        positivePacket.integrity.fingerprint,
+        "the reviewed later result must remain bound to the exact latest packet fingerprint",
+      );
+      const positiveReviewRows = database
+        .prepare(
+          `SELECT payload_json
+           FROM vnext_core_records
+           WHERE record_kind = 'context_use_review'
+             AND project_id = ?`,
+        )
+        .all(positiveProjectId)
+        .map((row) => JSON.parse(row.payload_json))
+        .filter(
+          (review) =>
+            review.later_task_run_receipt?.receipt_id ===
+              positiveLaterReceipt.receipt_id &&
+            review.later_task_run_receipt?.receipt_fingerprint ===
+              positiveLaterReceipt.integrity.fingerprint,
+        );
+      assert.equal(
+        positiveReviewRows.length,
+        1,
+        "the positive review must bind one exact later receipt",
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled) option[value=${JSON.stringify(
+          positiveCandidateBinding.candidate_id,
+        )}]') !== null`,
+        "exact reviewed latest-packet candidate selector",
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const selector = document.querySelector(
+            '[data-vnext-candidate-selector="v0.1"]'
+          );
+          if (!(selector instanceof HTMLSelectElement) || selector.disabled) {
+            return false;
+          }
+          selector.value = ${JSON.stringify(
+            positiveCandidateBinding.candidate_id,
+          )};
+          selector.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })()`),
+        true,
+        "the reviewed latest-packet outcome must remain scoped to the exact applied candidate",
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="later_outcome_reviewed"] [data-context-use-review-actually-used-basis="user_declaration"][data-context-use-review-presentation-basis]') !== null`,
+        "exact latest-packet later-result feedback provenance",
+      );
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const detail = document.querySelector(
+            '[data-vnext-semantic-review-detail="v0.1"]'
+          );
+          const relationships = detail?.querySelector(
+            '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+          );
+          return detail?.getAttribute(
+              'data-selected-work-primary-action-owner'
+            ) === 'candidate_selection' &&
+            detail.querySelectorAll('[data-ai-workplane-primary-action]')
+              .length === 1 &&
+            relationships?.getAttribute(
+              'data-selected-work-relationship-question'
+            ) === 'project_change_and_later_outcome' &&
+            relationships.querySelectorAll(
+              '[data-selected-work-relationship-highlighted="true"]'
+            ).length === 1 &&
+            relationships.querySelector(
+              '[data-selected-work-relationship-kind="reviewed_by_later_feedback"][data-selected-work-relationship-basis="later_outcome"][data-selected-work-relationship-support="exact"]'
+            ) !== null;
+        })()`),
+        true,
+        "the exact later-result review must preserve one exact feedback connection and one action owner",
+      );
+      const afterPositiveLaterFeedback =
+        readDirectHostBrowserState(positiveProjectId);
+      assert.deepEqual(afterPositiveLaterFeedback.semantic_authority_counts, {
+        ...beforePositiveLaterFeedback.semantic_authority_counts,
+        context_use_reviews:
+          beforePositiveLaterFeedback.semantic_authority_counts
+            .context_use_reviews + 1,
+      });
+      record("selected_work_relationship_exposes_exact_later_feedback_review");
+      await validateSemanticReviewViewports();
+
+      const positiveActiveSnapshot = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/projects', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(positiveActiveSnapshot.status, 200);
+      assert.equal(positiveActiveSnapshot.body.ok, true);
+      const positiveRecentProjects =
+        positiveActiveSnapshot.body.recent_projects;
+      assert(Array.isArray(positiveRecentProjects));
+      const positiveActiveEntries = positiveRecentProjects.filter(
+        (entry) => entry.is_active,
+      );
+      assert.equal(
+        positiveActiveEntries.length,
+        1,
+        "the positive project snapshot must expose exactly one active project",
+      );
+      const positiveActiveEntry = positiveActiveEntries[0];
+      const mixedBeforeRestore = positiveRecentProjects.find(
+        (entry) => entry.project?.project_id === manifest.project_id,
+      );
+      const positiveBeforeRestore = positiveRecentProjects.find(
+        (entry) => entry.project?.project_id === positiveProjectId,
+      );
+      assert(mixedBeforeRestore, "mixed project must remain registered");
+      assert(positiveBeforeRestore, "positive project must remain registered");
+      assert.equal(
+        positiveActiveEntry.project.project_id,
+        positiveProjectId,
+      );
+      assert.equal(
+        positiveActiveEntry.active_project_id,
+        positiveProjectId,
+      );
+      assert.equal(
+        positiveBeforeRestore.root_availability,
+        "available",
+      );
+      assert.equal(mixedBeforeRestore.root_availability, "available");
+      const positiveActiveProjectId = positiveProjectId;
+      const positiveActiveRevision =
+        positiveActiveEntry.active_selection_revision;
+      assert.equal(
+        Number.isSafeInteger(positiveActiveRevision) &&
+          positiveActiveRevision > 0,
+        true,
+        "the positive active-project revision must be a positive safe integer",
+      );
+      record("positive_project_active_snapshot_read");
+
+      const mixedOpenResponse = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/projects', {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'open',
+            project_id: ${JSON.stringify(manifest.project_id)},
+            expected_project_id: ${JSON.stringify(positiveActiveProjectId)},
+            expected_revision: ${JSON.stringify(positiveActiveRevision)}
+          })
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        mixedOpenResponse.status,
+        200,
+        `mixed project open failed: ${JSON.stringify(
+          mixedOpenResponse.body,
+        )}`,
+      );
+      assert.equal(mixedOpenResponse.body.ok, true);
+      const mixedOpenResult = mixedOpenResponse.body.result;
+      assert.equal(mixedOpenResult.project.project_id, manifest.project_id);
+      assert.equal(mixedOpenResult.selection.project_id, manifest.project_id);
+      assert.equal(
+        mixedOpenResult.selection.workspace_id,
+        manifest.workspace_id,
+      );
+      assert.equal(
+        mixedOpenResult.selection.selection_revision,
+        positiveActiveRevision + 1,
+      );
+      assert.notEqual(
+        parseStrictIsoTimestampV01(
+          mixedOpenResult.selection.selected_at,
+        ),
+        null,
+        "mixed project activation must expose an exact protocol timestamp",
+      );
+      assert.equal(
+        mixedOpenResult.destination,
+        `/projects/${encodeURIComponent(manifest.project_id)}`,
+      );
+      record("mixed_project_open_mutation_succeeded");
+
+      const mixedActiveReadback = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/projects', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(mixedActiveReadback.status, 200);
+      assert.equal(mixedActiveReadback.body.ok, true);
+      const restoredRecentProjects =
+        mixedActiveReadback.body.recent_projects;
+      assert(Array.isArray(restoredRecentProjects));
+      assert.equal(
+        restoredRecentProjects.length,
+        positiveRecentProjects.length,
+        "project activation must not remove a recent project",
+      );
+      const restoredActiveEntries = restoredRecentProjects.filter(
+        (entry) => entry.is_active,
+      );
+      assert.equal(
+        restoredActiveEntries.length,
+        1,
+        "mixed project readback must expose exactly one active project",
+      );
+      const restoredMixedEntry = restoredRecentProjects.find(
+        (entry) => entry.project?.project_id === manifest.project_id,
+      );
+      const restoredPositiveEntry = restoredRecentProjects.find(
+        (entry) => entry.project?.project_id === positiveProjectId,
+      );
+      assert(restoredMixedEntry);
+      assert(restoredPositiveEntry);
+      assert.equal(restoredMixedEntry.is_active, true);
+      assert.equal(restoredPositiveEntry.is_active, false);
+      assert.equal(
+        restoredActiveEntries[0].project.project_id,
+        manifest.project_id,
+      );
+      assert.equal(
+        restoredActiveEntries[0].active_project_id,
+        manifest.project_id,
+      );
+      assert.equal(
+        restoredActiveEntries[0].active_selection_revision,
+        mixedOpenResult.selection.selection_revision,
+      );
+      assert.equal(restoredMixedEntry.root_availability, "available");
+      assert.equal(restoredPositiveEntry.root_availability, "available");
+      assert.deepEqual(
+        restoredMixedEntry.project,
+        mixedBeforeRestore.project,
+        "mixed project identity must not change during activation",
+      );
+      assert.deepEqual(
+        restoredMixedEntry.local_root,
+        mixedBeforeRestore.local_root,
+        "mixed project root must not be rebound during activation",
+      );
+      assert.deepEqual(
+        restoredPositiveEntry.project,
+        positiveBeforeRestore.project,
+        "positive project identity must remain registered",
+      );
+      assert.deepEqual(
+        restoredPositiveEntry.local_root,
+        positiveBeforeRestore.local_root,
+        "positive project root must not be rebound during mixed activation",
+      );
+      record("mixed_project_active_readback_confirmed");
+      assert(
+        mixedReturnTarget,
+        "the exact mixed return target must be captured before positive-project work",
+      );
+      assert.equal(
+        mixedReturnTarget.workspace_id,
+        manifest.workspace_id,
+      );
+      assert.equal(
+        mixedReturnTarget.project_id,
+        manifest.project_id,
+      );
+      assert.notEqual(
+        mixedGenericValidationProposalId,
+        mixedReturnTarget.proposal_id,
+        "the generic validation proposal must remain excluded after mixed-project restoration",
+      );
+
+      await navigate(`${appOrigin}${mixedOpenResult.destination}`);
+      await waitForCondition(
+        `location.pathname === ${JSON.stringify(
+          mixedOpenResult.destination,
+        )} && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null`,
+        "mixed-lineage project active after production open",
+      );
+      await navigate("about:blank");
+      await terminateProcess(serverProcess, 15_000);
+      serverProcess = null;
+      startDevServer(runtimeEnvironment);
+      await waitForHttp(
+        `${appOrigin}/workbench/semantic-review`,
+        DEFAULT_TIMEOUT_MS,
+      );
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await waitForCondition(
+        `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
+        "locked mixed-lineage operator session after positive project",
+      );
+      bootstrapToken = await issueBootstrap(runtimeEnvironment);
+      await setBootstrapInput(bootstrapToken);
+      assert.equal(
+        await evaluateBoolean(`(() => {
+          const form = document.querySelector(
+            '#vnext-operator-bootstrap-token'
+          )?.closest('form');
+          if (!form) return false;
+          form.requestSubmit();
+          return true;
+        })()`),
+        true,
+      );
+      await waitForCondition(
+        `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null`,
+        "reauthenticated mixed-lineage operator session",
+      );
+      assert.equal(
+        await evaluateBoolean(
+          `document.documentElement.innerHTML.includes(${JSON.stringify(
+            bootstrapToken,
+          )})`,
+        ),
+        false,
+      );
+      assert.equal(serverLog.includes(bootstrapToken), false);
+      bootstrapToken = null;
+
+      const mixedReturnRouteReadback = await evaluateJson(`(async () => {
+        const [sessionResponse, detailResponse, projectsResponse] =
+          await Promise.all([
+          fetch('/api/vnext/operator/session', {
+            cache: 'no-store',
+            credentials: 'same-origin'
+          }),
+          fetch(
+            '/api/vnext/operator/semantic-review?' + new URLSearchParams({
+              proposal_id: ${JSON.stringify(
+                mixedReturnTarget.proposal_id,
+              )}
+            }),
+            { cache: 'no-store', credentials: 'same-origin' }
+          ),
+          fetch('/api/vnext/projects', {
+            cache: 'no-store',
+            credentials: 'same-origin'
+          })
+        ]);
+        const sessionBody = await sessionResponse.json();
+        const detailBody = await detailResponse.json();
+        const projectsBody = await projectsResponse.json();
+        return {
+          session_status: sessionResponse.status,
+          session: sessionBody,
+          detail_status: detailResponse.status,
+          detail: detailBody,
+          projects_status: projectsResponse.status,
+          projects: projectsBody
+        };
+      })()`);
+      assert.equal(mixedReturnRouteReadback.session_status, 200);
+      assert.equal(mixedReturnRouteReadback.session.ok, true);
+      assert.equal(
+        mixedReturnRouteReadback.session.status,
+        "authenticated",
+      );
+      const mixedReturnCurrentSessionId =
+        mixedReturnRouteReadback.session.session?.session_id;
+      assert.equal(typeof mixedReturnCurrentSessionId, "string");
+      assert.notEqual(
+        mixedReturnCurrentSessionId,
+        mixedReturnTarget.unapplied_candidate
+          .decision_session_id,
+        "the restored mixed runtime must authenticate a new local operator session",
+      );
+      assert.equal(mixedReturnRouteReadback.detail_status, 200);
+      assert.equal(mixedReturnRouteReadback.projects_status, 200);
+      assert.equal(mixedReturnRouteReadback.detail.ok, true);
+      assert.equal(mixedReturnRouteReadback.projects.ok, true);
+      assert.equal(
+        mixedReturnRouteReadback.detail.project.workspace_id,
+        mixedReturnTarget.workspace_id,
+      );
+      assert.equal(
+        mixedReturnRouteReadback.detail.project.project_id,
+        mixedReturnTarget.project_id,
+      );
+      const mixedReturnRead =
+        mixedReturnRouteReadback.detail.proposal;
+      assert.equal(
+        mixedReturnRead.proposal.proposal_id,
+        mixedReturnTarget.proposal_id,
+      );
+      assert.equal(
+        mixedReturnRead.proposal.integrity.fingerprint,
+        mixedReturnTarget.proposal_fingerprint,
+      );
+      const exactMixedReturnCandidate = (binding) =>
+        mixedReturnRead.candidates.find(
+          (candidate) =>
+            candidate.candidate.candidate_id ===
+              binding.candidate_id &&
+            candidate.candidate_fingerprint ===
+              binding.candidate_fingerprint,
+        ) ?? null;
+      const mixedAppliedCandidate = exactMixedReturnCandidate(
+        mixedReturnTarget.applied_candidate,
+      );
+      const mixedUnappliedCandidate = exactMixedReturnCandidate(
+        mixedReturnTarget.unapplied_candidate,
+      );
+      assert(mixedAppliedCandidate);
+      assert(mixedUnappliedCandidate);
+      const exactMixedReturnDecisionEntry = (binding) =>
+        mixedReturnRead.decision_history.find(
+          (entry) =>
+            entry.status === "valid" &&
+            entry.pilot_session_bound &&
+            entry.decision.source_proposal.proposal_id ===
+              mixedReturnTarget.proposal_id &&
+            entry.decision.source_proposal.proposal_fingerprint ===
+              mixedReturnTarget.proposal_fingerprint &&
+            entry.decision.candidate.candidate_id ===
+              binding.candidate_id &&
+            entry.decision.candidate.candidate_fingerprint ===
+              binding.candidate_fingerprint &&
+            entry.decision.decision_id === binding.decision_id &&
+            entry.decision.integrity.fingerprint ===
+              binding.decision_fingerprint,
+        ) ?? null;
+      const mixedAppliedDecisionEntry =
+        exactMixedReturnDecisionEntry(
+          mixedReturnTarget.applied_candidate,
+        );
+      const mixedUnappliedDecisionEntry =
+        exactMixedReturnDecisionEntry(
+          mixedReturnTarget.unapplied_candidate,
+        );
+      assert(mixedAppliedDecisionEntry);
+      assert(mixedUnappliedDecisionEntry);
+      const mixedAppliedReceipt =
+        mixedReturnRead.transition_receipts.find(
+          (receipt) =>
+            receipt.source_proposal.proposal_id ===
+              mixedReturnTarget.proposal_id &&
+            receipt.source_proposal.proposal_fingerprint ===
+              mixedReturnTarget.proposal_fingerprint &&
+            receipt.source_candidate.candidate_id ===
+              mixedReturnTarget.applied_candidate.candidate_id &&
+            receipt.source_candidate.candidate_fingerprint ===
+              mixedReturnTarget.applied_candidate
+                .candidate_fingerprint &&
+            receipt.source_decision.decision_id ===
+              mixedReturnTarget.applied_candidate.decision_id &&
+            receipt.source_decision.decision_fingerprint ===
+              mixedReturnTarget.applied_candidate
+                .decision_fingerprint &&
+            receipt.transition_receipt_id ===
+              mixedReturnTarget.applied_candidate
+                .transition_receipt_id &&
+            receipt.integrity.fingerprint ===
+              mixedReturnTarget.applied_candidate
+                .transition_receipt_fingerprint,
+        ) ?? null;
+      assert(
+        mixedAppliedReceipt,
+        "the applied mixed candidate must retain its exact durable Transition proof",
+      );
+      assert.equal(
+        mixedReturnRead.transition_receipts.some(
+          (receipt) =>
+            receipt.source_proposal.proposal_id ===
+              mixedReturnTarget.proposal_id &&
+            receipt.source_proposal.proposal_fingerprint ===
+              mixedReturnTarget.proposal_fingerprint &&
+            receipt.source_candidate.candidate_id ===
+              mixedReturnTarget.unapplied_candidate.candidate_id &&
+            receipt.source_candidate.candidate_fingerprint ===
+              mixedReturnTarget.unapplied_candidate
+                .candidate_fingerprint &&
+            receipt.source_decision.decision_id ===
+              mixedReturnTarget.unapplied_candidate.decision_id &&
+            receipt.source_decision.decision_fingerprint ===
+              mixedReturnTarget.unapplied_candidate
+                .decision_fingerprint,
+        ),
+        false,
+        "the unapplied mixed candidate must not acquire another candidate's receipt",
+      );
+      assert.equal(mixedUnappliedDecisionEntry.status, "valid");
+      assert.equal(
+        mixedUnappliedDecisionEntry.pilot_session_bound,
+        true,
+      );
+      assert.equal(
+        mixedUnappliedDecisionEntry.session_id,
+        mixedReturnTarget.unapplied_candidate
+          .decision_session_id,
+      );
+      assert.equal(
+        mixedUnappliedDecisionEntry.pilot_actionable,
+        false,
+        "the prior-session applying decision must not retain current-session Transition authority",
+      );
+      const mixedDetailActiveEntries =
+        mixedReturnRouteReadback.projects.recent_projects.filter(
+          (entry) => entry.is_active,
+        );
+      assert.equal(mixedDetailActiveEntries.length, 1);
+      assert.equal(
+        mixedDetailActiveEntries[0].project.project_id,
+        manifest.project_id,
+      );
+      assert.equal(
+        mixedDetailActiveEntries[0].active_selection_revision,
+        mixedOpenResult.selection.selection_revision,
+      );
+      const positiveRouteIdentifiers = [
+        positiveProposal.proposal_id,
+        positiveProposal.integrity.fingerprint,
+        positiveCandidateBinding.candidate_id,
+        positiveCandidateBinding.candidate_fingerprint,
+        positiveDecision.decision_id,
+        positiveDecision.integrity.fingerprint,
+        positiveTransitionReceipt.transition_receipt_id,
+        positiveTransitionReceipt.integrity.fingerprint,
+        positivePacket.packet_id,
+        positivePacket.integrity.fingerprint,
+        positiveLaterReceipt.receipt_id,
+        positiveLaterReceipt.integrity.fingerprint,
+        positiveReviewRows[0]?.review_id,
+        positiveReviewRows[0]?.integrity?.fingerprint,
+      ].filter(Boolean);
+      const mixedReturnRoutePayload = JSON.stringify(
+        mixedReturnRead,
+      );
+      assert.equal(
+        positiveRouteIdentifiers.some((identifier) =>
+          mixedReturnRoutePayload.includes(identifier),
+        ),
+        false,
+        "the exact mixed proposal read must exclude every positive-project binding",
+      );
+      assert.equal(
+        mixedReturnRoutePayload.includes(
+          mixedGenericValidationProposalId,
+        ),
+        false,
+        "the generic validation proposal must not appear in the captured multi-candidate read",
+      );
+
+      const mixedReturnPath =
+        `/workbench/semantic-review/${mixedReturnTarget.proposal_id.replace(
+          ":",
+          "~",
+        )}`;
+      await navigate(`${appOrigin}${mixedReturnPath}`);
+      await waitForCondition(
+        `location.pathname === ${JSON.stringify(
+          mixedReturnPath,
+        )} && document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null && document.querySelector('[data-ai-workplane-shell="v0.1"]') !== null && document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null`,
+        "exact captured mixed proposal detail after session restart",
+      );
+      record("mixed_project_detail_reloaded_after_activation");
+
+      const selectMixedReturnCandidate = async (
+        binding,
+        expectedStage,
+      ) => {
+        await waitForCondition(
+          `document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled) option[value=${JSON.stringify(
+            binding.candidate_id,
+          )}]') !== null`,
+          `mixed return candidate ${binding.candidate_id} option`,
+        );
+        assert.equal(
+          await evaluateBoolean(`(() => {
+            const selector = document.querySelector(
+              '[data-vnext-candidate-selector="v0.1"]'
+            );
+            if (
+              !(selector instanceof HTMLSelectElement) ||
+              selector.disabled
+            ) {
+              return false;
+            }
+            selector.value = ${JSON.stringify(binding.candidate_id)};
+            selector.dispatchEvent(
+              new Event('change', { bubbles: true })
+            );
+            return true;
+          })()`),
+          true,
+        );
+        await waitForCondition(
+          `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(
+            binding.candidate_id,
+          )} && document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage=${JSON.stringify(
+            expectedStage,
+          )}]') !== null && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1`,
+          `mixed return candidate ${binding.candidate_id} ${expectedStage}`,
+        );
+      };
+
+      const mixedAppliedTimeline = buildSelectedWorkTimelineV01({
+        read: mixedReturnRead,
+        selected_candidate: mixedAppliedCandidate,
+      });
+      assert.equal(
+        mixedAppliedTimeline.current_position.stage,
+        "project_updated",
+      );
+      await selectMixedReturnCandidate(
+        mixedReturnTarget.applied_candidate,
+        "project_updated",
+      );
+      const mixedAppliedReturnShape = await evaluateJson(`(() => {
+        const detail = document.querySelector(
+          '[data-vnext-semantic-review-detail="v0.1"]'
+        );
+        const relationships = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        const relationshipText = relationships?.textContent ?? '';
+        const normalCopy = detail?.innerText ?? '';
+        const positiveIdentifiers = ${JSON.stringify(
+          positiveRouteIdentifiers,
+        )};
+        return {
+          selected_candidate:
+            detail?.querySelector(
+              '[data-vnext-candidate-selector="v0.1"]'
+            )?.value ?? null,
+          stage:
+            detail?.getAttribute('data-selected-work-current-stage') ?? null,
+          primary_action_owner:
+            detail?.getAttribute(
+              'data-selected-work-primary-action-owner'
+            ) ?? null,
+          question:
+            relationships?.getAttribute(
+              'data-selected-work-relationship-question'
+            ) ?? null,
+          highlight_count:
+            relationships?.querySelectorAll(
+              '[data-selected-work-relationship-highlighted="true"]'
+            ).length ?? -1,
+          authorized_change:
+            relationships?.querySelector(
+              '[data-selected-work-relationship-kind="applied_as"][data-selected-work-relationship-basis="authorized_project_change"][data-selected-work-relationship-highlighted="true"]'
+            ) !== null,
+          positive_project_copy_absent:
+            !relationshipText.includes('Browser Positive Lineage Project') &&
+            !relationshipText.includes(${JSON.stringify(
+              positiveCandidate.title,
+            )}) &&
+            positiveIdentifiers.every(
+              (identifier) => !normalCopy.includes(identifier)
+            ),
+          raw_protocol_copy_absent:
+            !/(sha256:|episode-delta-proposal:|review-decision:|state-transition-receipt:|task-context-packet:|run-receipt:|TaskContextPacket|RunReceipt)/i.test(
+              normalCopy
+            ),
+          primary_action_count:
+            detail?.querySelectorAll(
+              '[data-ai-workplane-primary-action]'
+            ).length ?? -1,
+        };
+      })()`);
+      assert.deepEqual(mixedAppliedReturnShape, {
+        selected_candidate:
+          mixedReturnTarget.applied_candidate.candidate_id,
+        stage: "project_updated",
+        primary_action_owner: "candidate_selection",
+        question: "decision_and_project_change",
+        highlight_count: 1,
+        authorized_change: true,
+        positive_project_copy_absent: true,
+        raw_protocol_copy_absent: true,
+        primary_action_count: 1,
+      });
+      record("mixed_applied_candidate_survives_session_restart");
+
+      const mixedUnappliedTimeline =
+        buildSelectedWorkTimelineV01({
+          read: mixedReturnRead,
+          selected_candidate: mixedUnappliedCandidate,
+        });
+      assert.equal(
+        mixedUnappliedTimeline.current_position.stage,
+        "decision_recorded",
+      );
+      assert.equal(
+        mixedUnappliedTimeline.current_position
+          .primary_action_owner,
+        "decision",
+      );
+      await selectMixedReturnCandidate(
+        mixedReturnTarget.unapplied_candidate,
+        "decision_recorded",
+      );
+      const mixedUnappliedReturnShape = await evaluateJson(`(() => {
+        const detail = document.querySelector(
+          '[data-vnext-semantic-review-detail="v0.1"]'
+        );
+        const relationships = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        const normalCopy = detail?.innerText ?? '';
+        const relationshipText = relationships?.innerText ?? '';
+        const positiveIdentifiers = ${JSON.stringify(
+          positiveRouteIdentifiers,
+        )};
+        return {
+          selected_candidate:
+            detail?.querySelector(
+              '[data-vnext-candidate-selector="v0.1"]'
+            )?.value ?? null,
+          stage:
+            detail?.getAttribute(
+              'data-selected-work-current-stage'
+            ) ?? null,
+          primary_action_owner:
+            detail?.getAttribute(
+              'data-selected-work-primary-action-owner'
+            ) ?? null,
+          question:
+            relationships?.getAttribute(
+              'data-selected-work-relationship-question'
+            ) ?? null,
+          highlighted_count:
+            relationships?.querySelectorAll(
+              '[data-selected-work-relationship-highlighted="true"]'
+            ).length ?? -1,
+          historical_decision:
+            relationships?.querySelector(
+              '[data-selected-work-relationship-kind="decided_by"][data-selected-work-relationship-basis="user_decision"]'
+            ) !== null &&
+            detail?.querySelector(
+              '[data-vnext-decision-history="v0.1"]'
+            ) !== null,
+          current_review_required:
+            /current review required/i.test(normalCopy),
+          transition_actions_absent:
+            detail?.querySelector(
+              '[data-vnext-semantic-transition-actions="v0.1"]'
+            ) === null,
+          transition_blocked_absent:
+            !normalCopy.includes('Project update blocked'),
+          applied_candidate_answer_absent:
+            !relationshipText.includes(
+              ${JSON.stringify(
+                mixedAppliedCandidate.candidate.title,
+              )}
+            ),
+          positive_project_copy_absent:
+            !relationshipText.includes('Browser Positive Lineage Project') &&
+            !relationshipText.includes(${JSON.stringify(
+              positiveCandidate.title,
+            )}) &&
+            positiveIdentifiers.every(
+              (identifier) => !normalCopy.includes(identifier)
+            ),
+          raw_protocol_copy_absent:
+            !/(sha256:|episode-delta-proposal:|review-decision:|state-transition-receipt:|task-context-packet:|run-receipt:|TaskContextPacket|RunReceipt)/i.test(
+              normalCopy
+            ),
+          primary_action_count:
+            detail?.querySelectorAll(
+              '[data-ai-workplane-primary-action]'
+            ).length ?? -1,
+        };
+      })()`);
+      assert.deepEqual(mixedUnappliedReturnShape, {
+        selected_candidate:
+          mixedReturnTarget.unapplied_candidate.candidate_id,
+        stage: "decision_recorded",
+        primary_action_owner: "decision",
+        question: "candidate_and_decision",
+        highlighted_count: 1,
+        historical_decision: true,
+        current_review_required: true,
+        transition_actions_absent: true,
+        transition_blocked_absent: true,
+        applied_candidate_answer_absent: true,
+        positive_project_copy_absent: true,
+        raw_protocol_copy_absent: true,
+        primary_action_count: 1,
+      });
+      record("mixed_unapplied_candidate_loses_current_session_actionability");
+      record("mixed_prior_session_decision_remains_visible");
+      record("mixed_return_relationships_rebuilt_without_positive_leak");
+      const mixedContinuityAfterPositive =
+        projectVNextOperatorPilotContinuityV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(runtimeEnvironment),
+        });
+      assert.equal(
+        mixedContinuityAfterPositive.latest_compiled_packet?.packet_id,
+        mixedLatestPacket.packet_id,
+      );
+      assert.equal(
+        mixedContinuityAfterPositive.latest_compiled_packet
+          ?.packet_fingerprint,
+        mixedLatestPacket.integrity.fingerprint,
+      );
+      assert.notEqual(
+        mixedContinuityAfterPositive.latest_context_use_receipt?.receipt_id,
+        exactLaterReceipt.receipt_id,
+        "the mixed project must retain the older-packet negative contract",
+      );
+      assert.equal(
+        exactLaterLineage.chains.some(
+          (chain) =>
+            chain.compiled_packet?.packet_id ===
+              mixedBoundedAutomationPacket.packet_id &&
+            chain.compiled_packet?.packet_fingerprint ===
+              mixedBoundedAutomationPacket.integrity.fingerprint,
+        ),
+        false,
+        "the mixed bounded-automation packet must remain excluded after project restoration",
+      );
+      const positiveContinuityAfterReturn =
+        projectVNextOperatorPilotContinuityV01(database, {
+          config: readVNextLocalOperatorPilotConfigV01(
+            positiveRuntimeEnvironment,
+          ),
+        });
+      assert.equal(
+        positiveContinuityAfterReturn.latest_compiled_packet?.packet_id,
+        positivePacket.packet_id,
+      );
+      assert.equal(
+        positiveContinuityAfterReturn.latest_context_use_receipt?.receipt_id,
+        positiveLaterReceipt.receipt_id,
+      );
+      assert.equal(
+        positiveContinuityAfterReturn.latest_context_use_review_status
+          ?.later_task_run_receipt_id,
+        positiveLaterReceipt.receipt_id,
+      );
+      result.positive_and_mixed_projects_remain_isolated = true;
+      record("positive_and_mixed_projects_remain_isolated");
+    };
 
     const beforeAppliedInspector = databaseSnapshot(database);
     assert.equal(
@@ -4350,6 +6559,48 @@ async function main() {
       ),
       true,
     );
+    const boundedAutomationContinuity =
+      projectVNextOperatorPilotContinuityV01(database, {
+        config: readVNextLocalOperatorPilotConfigV01(runtimeEnvironment),
+      });
+    assert(
+      boundedAutomationContinuity.latest_compiled_packet,
+      "bounded automation must expose its exact current compiled packet",
+    );
+    const boundedAutomationPacketRow = database
+      .prepare(
+        `SELECT payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'task_context_packet'
+           AND project_id = ?
+           AND record_id = ?
+           AND fingerprint = ?`,
+      )
+      .get(
+        manifest.project_id,
+        boundedAutomationContinuity.latest_compiled_packet.packet_id,
+        boundedAutomationContinuity.latest_compiled_packet
+          .packet_fingerprint,
+      );
+    assert(
+      boundedAutomationPacketRow,
+      "bounded automation current packet missing",
+    );
+    const boundedAutomationPacket = JSON.parse(
+      boundedAutomationPacketRow.payload_json,
+    );
+    assert.equal(
+      boundedAutomationPacket.compatibility.source_contracts.includes(
+        "vnext_bounded_automation_context_compiler.v0.1",
+      ),
+      true,
+      "the captured mixed packet must carry the bounded-automation compiler contract",
+    );
+    mixedBoundedAutomationPacketTarget = {
+      packet_id: boundedAutomationPacket.packet_id,
+      packet_fingerprint:
+        boundedAutomationPacket.integrity.fingerprint,
+    };
     result.bounded_automation_cycle_started = true;
     result.bounded_automation_review_needed = true;
     record("bounded_policy_cycle_stops_at_one_pending_review_proposal");
@@ -4440,6 +6691,9 @@ async function main() {
       boundedReviewProposalHref,
       /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/,
     );
+    mixedGenericValidationProposalId =
+      boundedReviewProposalHref.split("/").at(-1)?.replace("~", ":") ??
+      null;
     const boundedResultHref = `/workbench/results/${afterBoundedCycle.latest_receipt.receipt_id.replace(":", "~")}`;
     const beforeBoundedResultRead = databaseSnapshot(database);
     const boundedResultRequestStart = requests.length;
@@ -4620,8 +6874,28 @@ async function main() {
     );
     await waitForCondition(
       `document.querySelector('[data-vnext-context-use-feedback="available"] [data-vnext-context-use-review-form="v0.1"]') !== null`,
-      "policy-triggered later-run feedback form",
+      "project-level later-run feedback form",
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+        const relationships = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        return !['later_outcome_available', 'later_outcome_reviewed'].includes(
+            detail?.getAttribute('data-selected-work-current-stage') ?? ''
+          ) &&
+          relationships?.querySelector(
+            '[data-selected-work-relationship-kind="used_by_later_work"]'
+          ) === null &&
+          relationships?.querySelector(
+            '[data-selected-work-relationship-kind="reviewed_by_later_feedback"]'
+          ) === null;
+      })()`),
+      true,
+      "a later result from a newer independently compiled packet must not attach to the selected Transition timeline",
+    );
+    record("selected_work_relationship_suppresses_newer_packet_without_exact_transition_lineage");
     await validateSemanticReviewViewports();
     const beforeBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
     assert.equal(
@@ -4652,6 +6926,23 @@ async function main() {
       `document.querySelector('[data-context-use-review-actually-used-basis="user_declaration"][data-context-use-review-presentation-basis="direct_local_observation"]') !== null`,
       "policy-triggered context-use provenance",
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+        const relationships = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        return !['later_outcome_available', 'later_outcome_reviewed'].includes(
+            detail?.getAttribute('data-selected-work-current-stage') ?? ''
+          ) &&
+          relationships?.querySelector(
+            '[data-selected-work-relationship-kind="used_by_later_work"], [data-selected-work-relationship-kind="reviewed_by_later_feedback"]'
+          ) === null;
+      })()`),
+      true,
+      "feedback about a newer independently compiled packet must not retroactively attach to the selected Transition",
+    );
+    record("selected_work_relationship_keeps_mismatched_packet_feedback_out_of_selected_timeline");
     await validateSemanticReviewViewports();
     const afterBoundedFeedback = readDirectHostBrowserState(manifest.project_id);
     assert.deepEqual(afterBoundedFeedback.semantic_authority_counts, {
@@ -4665,7 +6956,7 @@ async function main() {
 
   }
 
-  if (RUN_CONTINUITY_SCOPE) {
+  if (RUN_CONTINUITY_SCOPE || RUN_CORE_SCOPE) {
     database ??= new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
@@ -4827,6 +7118,20 @@ async function main() {
     const candidateATitle = candidateOptions[0].title;
     const candidateBTitle = candidateOptions[1].title;
     assert.notEqual(candidateATitle, candidateBTitle);
+    const candidateARecord =
+      currentMultiCandidateProposal.proposed_deltas.find(
+        (candidate) => candidate.candidate_id === candidateA,
+      );
+    const candidateBRecord =
+      currentMultiCandidateProposal.proposed_deltas.find(
+        (candidate) => candidate.candidate_id === candidateB,
+      );
+    assert(candidateARecord, "candidate A fixture missing");
+    assert(candidateBRecord, "candidate B fixture missing");
+    const candidateAFingerprint =
+      createEpisodeDeltaCandidateFingerprintV01(candidateARecord);
+    const candidateBFingerprint =
+      createEpisodeDeltaCandidateFingerprintV01(candidateBRecord);
 
     const recordSelectedAcceptDecision = async (candidateId, rationale) => {
       await waitForCondition(
@@ -4858,7 +7163,10 @@ async function main() {
         `persisted exact accept decision for ${candidateId}`,
       );
     };
-    const selectCandidate = async (candidateId) => {
+    const selectCandidate = async (
+      candidateId,
+      { expectedStage = null } = {},
+    ) => {
       await setFormControlValue(
         '[data-vnext-candidate-selector="v0.1"]',
         0,
@@ -4872,11 +7180,21 @@ async function main() {
             ? selector.options[selector.selectedIndex]?.textContent?.trim() ?? ''
             : '';
           return selector?.value === ${JSON.stringify(candidateId)} &&
-            optionLabel.startsWith(selectedTitle) &&
-            document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="false"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)};
+            optionLabel.startsWith(selectedTitle);
         })()`,
         `selected candidate ${candidateId}`,
       );
+      if (expectedStage) {
+        await waitForCondition(
+          `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage=${JSON.stringify(expectedStage)}] [data-selected-work-timeline-current="true"]') !== null && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1`,
+          `selected candidate ${candidateId} ${expectedStage} current position`,
+        );
+      } else {
+        await waitForCondition(
+          `document.querySelector('[data-vnext-operator-decision-form="v0.1"][data-vnext-proposal-local-controls-busy="false"]')?.getAttribute('data-vnext-operator-decision-candidate') === ${JSON.stringify(candidateId)}`,
+          `selected candidate ${candidateId} decision controls`,
+        );
+      }
     };
     const clickTransitionAction = async (action) => {
       assert.equal(
@@ -4930,6 +7248,32 @@ async function main() {
       "return to exact multi-candidate review",
     );
     await selectCandidate(candidateA);
+    const beforeRelationshipQuestion = databaseSnapshot(database);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const selector = document.querySelector(
+          '[data-selected-work-relationship-question-selector="true"]'
+        );
+        if (!(selector instanceof HTMLSelectElement)) return false;
+        if (!Array.from(selector.options).some(
+          (option) => option.value === 'support_and_source'
+        )) return false;
+        selector.value = 'support_and_source';
+        selector.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`),
+      true,
+      "candidate A must offer its exact source-supported relationship question",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-selected-work-relationships="selected_work_relationships.v0.1"][data-selected-work-relationship-question="support_and_source"]') !== null`,
+      "candidate A selected relationship question",
+    );
+    assert.deepEqual(
+      databaseSnapshot(database),
+      beforeRelationshipQuestion,
+      "relationship-question selection must remain projection-local UI state",
+    );
     const beforeLatePreview = databaseSnapshot(database);
     pauseNextSemanticTransitionRequest("preview");
     await clickTransitionAction("preview");
@@ -4971,6 +7315,22 @@ async function main() {
         timeline_stage: detail?.getAttribute('data-selected-work-current-stage') ?? null,
         timeline_current_count:
           timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length ?? -1,
+        relationship_question:
+          detail?.querySelector('[data-selected-work-relationships]')?.getAttribute(
+            'data-selected-work-relationship-question'
+          ) ?? null,
+        relationship_highlight_count:
+          detail?.querySelectorAll(
+            '[data-selected-work-relationship-highlighted="true"]'
+          ).length ?? -1,
+        relationship_connection_count:
+          detail?.querySelectorAll(
+            '[data-selected-work-relationship-connection]'
+          ).length ?? -1,
+        relationship_primary_action_count:
+          detail?.querySelector(
+            '[data-selected-work-relationships]'
+          )?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? -1,
       };
     })()`);
     assert.deepEqual(candidateBShapeBeforeLateResponse, {
@@ -4990,6 +7350,10 @@ async function main() {
       timeline_selected_title: candidateBTitle,
       timeline_stage: "awaiting_application",
       timeline_current_count: 1,
+      relationship_question: "candidate_and_decision",
+      relationship_highlight_count: 1,
+      relationship_connection_count: 1,
+      relationship_primary_action_count: 0,
     });
     result.selected_work_timeline_candidate_switching = true;
     await releasePausedSemanticTransitionRequest("preview");
@@ -5018,10 +7382,59 @@ async function main() {
           transition.querySelectorAll('[role="alert"], [role="status"]').length === 0 &&
           detail?.getAttribute('data-selected-work-current-stage') === 'awaiting_application' &&
           detail.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 &&
-          detail.querySelector('[data-vnext-candidate-id="selected"] h3')?.textContent?.trim() === ${JSON.stringify(candidateATitle)};
+          detail.querySelector('[data-vnext-candidate-id="selected"] h3')?.textContent?.trim() === ${JSON.stringify(candidateATitle)} &&
+          detail.querySelector('[data-selected-work-relationships]')?.getAttribute('data-selected-work-relationship-question') === 'candidate_and_decision' &&
+          detail.querySelectorAll('[data-selected-work-relationship-highlighted="true"]').length === 1;
       })()`),
       true,
-      "switching back must not resurrect candidate A ephemeral preview state",
+      "switching back must rebuild candidate A's deterministic relationship default without resurrecting cross-scope question or preview state",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const selector = document.querySelector(
+          '[data-selected-work-relationship-question-selector="true"]'
+        );
+        if (!(selector instanceof HTMLSelectElement)) return false;
+        if (!Array.from(selector.options).some(
+          (option) => option.value === 'support_and_source'
+        )) return false;
+        selector.value = 'support_and_source';
+        selector.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`),
+      true,
+      "candidate A must permit a fresh projection-local support question after returning to its scope",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-selected-work-relationships="selected_work_relationships.v0.1"][data-selected-work-relationship-question="support_and_source"]') !== null`,
+      "candidate A fresh relationship question after switch-back",
+    );
+    const proposalARelationshipCopy = await evaluateJson(`(() => {
+      const relationships = document.querySelector(
+        '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+      );
+      const selector = relationships?.querySelector(
+        '[data-selected-work-relationship-question-selector="true"]'
+      );
+      const highlighted = relationships?.querySelector(
+        '[data-selected-work-relationship-highlighted="true"]'
+      );
+      return {
+        selected_option:
+          selector instanceof HTMLSelectElement ? selector.value : null,
+        highlighted_copy: highlighted?.textContent?.trim() ?? null,
+        highlighted_kind:
+          highlighted?.getAttribute('data-selected-work-relationship-kind') ?? null,
+        highlighted_basis:
+          highlighted?.getAttribute('data-selected-work-relationship-basis') ?? null,
+      };
+    })()`);
+    assert.equal(proposalARelationshipCopy.selected_option, "support_and_source");
+    assert.equal(
+      typeof proposalARelationshipCopy.highlighted_copy === "string" &&
+        proposalARelationshipCopy.highlighted_copy.length > 0,
+      true,
+      "proposal A must render an exact support answer before leaving its scope",
     );
     await clickTransitionAction("preview");
     await waitForCondition(
@@ -5103,17 +7516,699 @@ async function main() {
       await evaluateBoolean(`(() => {
         const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
         const timeline = detail?.querySelector('[data-selected-work-timeline-items]');
+        const relationships = detail?.querySelector('[data-selected-work-relationships]');
+        const selector = relationships?.querySelector(
+          '[data-selected-work-relationship-question-selector="true"]'
+        );
+        const highlighted = relationships?.querySelector(
+          '[data-selected-work-relationship-highlighted="true"]'
+        );
         const visibleText = detail?.innerText ?? '';
         return timeline?.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 &&
           visibleText.includes('Project update blocked') &&
           visibleText.includes('project update') &&
+          relationships?.getAttribute('data-selected-work-relationship-question') === 'blocker_and_conflict' &&
+          selector instanceof HTMLSelectElement &&
+          selector.value === 'blocker_and_conflict' &&
+          detail.querySelectorAll('[data-selected-work-relationship-highlighted="true"]').length === 1 &&
+          detail.querySelector('[data-selected-work-relationship-kind="blocked_by"]') !== null &&
+          highlighted?.getAttribute('data-selected-work-relationship-basis') === 'blocker_or_conflict' &&
+          highlighted?.textContent?.includes('A current safeguard blocks this project update') === true &&
+          relationships?.textContent?.includes(${JSON.stringify(proposalARelationshipCopy.highlighted_copy)}) === false &&
+          detail.querySelector('[data-selected-work-relationships] [data-ai-workplane-primary-action]') === null &&
           detail?.querySelectorAll('[data-ai-workplane-primary-action]').length <= 1;
       })()`),
       true,
       "blocked timeline must identify one current position without fabricating application",
     );
+    const proposalBRelationshipCopy = await evaluateJson(`(() => {
+      const relationships = document.querySelector(
+        '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+      );
+      const highlighted = relationships?.querySelector(
+        '[data-selected-work-relationship-highlighted="true"]'
+      );
+      return {
+        highlighted_copy: highlighted?.textContent?.trim() ?? null,
+        highlighted_kind:
+          highlighted?.getAttribute('data-selected-work-relationship-kind') ?? null,
+        highlighted_basis:
+          highlighted?.getAttribute('data-selected-work-relationship-basis') ?? null,
+      };
+    })()`);
+    assert.deepEqual(
+      {
+        copy_present:
+          typeof proposalBRelationshipCopy.highlighted_copy === "string" &&
+          proposalBRelationshipCopy.highlighted_copy.length > 0,
+        kind: proposalBRelationshipCopy.highlighted_kind,
+        basis: proposalBRelationshipCopy.highlighted_basis,
+      },
+      {
+        copy_present: true,
+        kind: "blocked_by",
+        basis: "blocker_or_conflict",
+      },
+      "proposal B must preserve its exact blocker relationship evidence",
+    );
     await validateSemanticReviewViewports();
+    await navigate(`${appOrigin}${path}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateB)} && document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="awaiting_application"]') !== null && document.querySelector('[data-selected-work-relationships="selected_work_relationships.v0.1"][data-selected-work-relationship-question="candidate_and_decision"]') !== null`,
+      "return navigation respects proposal A actionable candidate policy",
+    );
+    const returnedProposalBinding = await evaluateJson(`(async () => {
+      const response = await fetch(
+        '/api/vnext/operator/semantic-review?' + new URLSearchParams({
+          proposal_id: ${JSON.stringify(currentMultiCandidateProposal.proposal_id)}
+        }),
+        { cache: 'no-store', credentials: 'same-origin' }
+      );
+      const body = await response.json();
+      const proposal = body.proposal?.proposal ?? null;
+      const candidates = body.proposal?.candidates ?? [];
+      const candidateARead = candidates.find(
+        (entry) => entry.candidate?.candidate_id === ${JSON.stringify(candidateA)}
+      );
+      const candidateBRead = candidates.find(
+        (entry) => entry.candidate?.candidate_id === ${JSON.stringify(candidateB)}
+      );
+      const transitionA = (body.proposal?.transition_receipts ?? []).find(
+        (receipt) =>
+          receipt.source_proposal?.proposal_id === proposal?.proposal_id &&
+          receipt.source_proposal?.proposal_fingerprint ===
+            proposal?.integrity?.fingerprint &&
+          receipt.source_candidate?.candidate_id ===
+            candidateARead?.candidate?.candidate_id &&
+          receipt.source_candidate?.candidate_fingerprint ===
+            candidateARead?.candidate_fingerprint
+      );
+      const decisionA = (body.proposal?.decision_history ?? []).find(
+        (entry) =>
+          entry.status === 'valid' &&
+          entry.decision?.decision_id ===
+            transitionA?.source_decision?.decision_id &&
+          entry.decision?.integrity?.fingerprint ===
+            transitionA?.source_decision?.decision_fingerprint &&
+          entry.decision?.candidate?.candidate_id ===
+            candidateARead?.candidate?.candidate_id &&
+          entry.decision?.candidate?.candidate_fingerprint ===
+            candidateARead?.candidate_fingerprint
+      );
+      return {
+        status: response.status,
+        proposal_id: proposal?.proposal_id ?? null,
+        proposal_fingerprint: proposal?.integrity?.fingerprint ?? null,
+        candidate_a_id: candidateARead?.candidate?.candidate_id ?? null,
+        candidate_a_fingerprint:
+          candidateARead?.candidate_fingerprint ?? null,
+        candidate_b_id: candidateBRead?.candidate?.candidate_id ?? null,
+        candidate_b_fingerprint:
+          candidateBRead?.candidate_fingerprint ?? null,
+        candidate_a_exact_decision_transition_chain:
+          Boolean(transitionA && decisionA),
+      };
+    })()`);
+    assert.deepEqual(returnedProposalBinding, {
+      status: 200,
+      proposal_id: currentMultiCandidateProposal.proposal_id,
+      proposal_fingerprint:
+        currentMultiCandidateProposal.integrity.fingerprint,
+      candidate_a_id: candidateA,
+      candidate_a_fingerprint: candidateAFingerprint,
+      candidate_b_id: candidateB,
+      candidate_b_fingerprint: candidateBFingerprint,
+      candidate_a_exact_decision_transition_chain: true,
+    });
+    const returnedCandidateBShape = await evaluateJson(`(() => {
+      const detail = document.querySelector(
+        '[data-vnext-semantic-review-detail="v0.1"]'
+      );
+      const candidateSelector = detail?.querySelector(
+        '[data-vnext-candidate-selector="v0.1"]'
+      );
+      const relationships = detail?.querySelector(
+        '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+      );
+      const relationshipSelector = relationships?.querySelector(
+        '[data-selected-work-relationship-question-selector="true"]'
+      );
+      const highlighted = relationships?.querySelector(
+        '[data-selected-work-relationship-highlighted="true"]'
+      );
+      const relationshipText = relationships?.innerText ?? '';
+      return {
+        selected_candidate:
+          candidateSelector instanceof HTMLSelectElement
+            ? candidateSelector.value
+            : null,
+        selected_title:
+          detail?.querySelector('[data-vnext-candidate-id="selected"] h3')
+            ?.textContent?.trim() ?? null,
+        stage: detail?.getAttribute('data-selected-work-current-stage') ?? null,
+        current_count:
+          detail?.querySelectorAll(
+            '[data-selected-work-timeline-current="true"]'
+          ).length ?? -1,
+        question:
+          relationships?.getAttribute(
+            'data-selected-work-relationship-question'
+          ) ?? null,
+        selected_question:
+          relationshipSelector instanceof HTMLSelectElement
+            ? relationshipSelector.value
+            : null,
+        highlighted_count:
+          relationships?.querySelectorAll(
+            '[data-selected-work-relationship-highlighted="true"]'
+          ).length ?? -1,
+        highlighted_copy: highlighted?.textContent?.trim() ?? null,
+        highlighted_kind:
+          highlighted?.getAttribute(
+            'data-selected-work-relationship-kind'
+          ) ?? null,
+        highlighted_basis:
+          highlighted?.getAttribute(
+            'data-selected-work-relationship-basis'
+          ) ?? null,
+        proposal_a_support_absent:
+          !relationshipText.includes(
+            ${JSON.stringify(proposalARelationshipCopy.highlighted_copy)}
+          ),
+        proposal_b_blocker_absent:
+          !relationshipText.includes(
+            ${JSON.stringify(proposalBRelationshipCopy.highlighted_copy)}
+          ) &&
+          !relationshipText.includes('A current safeguard blocks this project update'),
+        primary_action_count:
+          detail?.querySelectorAll('[data-ai-workplane-primary-action]')
+            .length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(returnedCandidateBShape, {
+      selected_candidate: candidateB,
+      selected_title: candidateBTitle,
+      stage: "awaiting_application",
+      current_count: 1,
+      question: "candidate_and_decision",
+      selected_question: "candidate_and_decision",
+      highlighted_count: 1,
+      highlighted_copy: returnedCandidateBShape.highlighted_copy,
+      highlighted_kind: "decided_by",
+      highlighted_basis: "user_decision",
+      proposal_a_support_absent: true,
+      proposal_b_blocker_absent: true,
+      primary_action_count: 1,
+    });
+    assert.equal(
+      typeof returnedCandidateBShape.highlighted_copy === "string" &&
+        returnedCandidateBShape.highlighted_copy.length > 0,
+      true,
+      "proposal A candidate B must render its exact decision relationship",
+    );
+    await selectCandidate(candidateA, { expectedStage: "project_updated" });
+    const returnedCandidateAShape = await evaluateJson(`(() => {
+        const relationships = document.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        const detail = document.querySelector(
+          '[data-vnext-semantic-review-detail="v0.1"]'
+        );
+        const candidateSelector = detail?.querySelector(
+          '[data-vnext-candidate-selector="v0.1"]'
+        );
+        const selector = relationships?.querySelector(
+          '[data-selected-work-relationship-question-selector="true"]'
+        );
+        const highlighted = relationships?.querySelector(
+          '[data-selected-work-relationship-highlighted="true"]'
+        );
+        const relationshipText = relationships?.innerText ?? '';
+        return {
+          selected_candidate:
+            candidateSelector instanceof HTMLSelectElement
+              ? candidateSelector.value
+              : null,
+          selected_title:
+            detail?.querySelector('[data-vnext-candidate-id="selected"] h3')
+              ?.textContent?.trim() ?? null,
+          stage:
+            detail?.getAttribute('data-selected-work-current-stage') ?? null,
+          primary_action_owner:
+            detail?.getAttribute(
+              'data-selected-work-primary-action-owner'
+            ) ?? null,
+          current_count:
+            detail?.querySelectorAll(
+              '[data-selected-work-timeline-current="true"]'
+            ).length ?? -1,
+          question:
+            relationships?.getAttribute(
+              'data-selected-work-relationship-question'
+            ) ?? null,
+          selected_question:
+            selector instanceof HTMLSelectElement ? selector.value : null,
+          highlighted_count:
+            relationships?.querySelectorAll(
+              '[data-selected-work-relationship-highlighted="true"]'
+            ).length ?? -1,
+          highlighted_copy: highlighted?.textContent?.trim() ?? null,
+          highlighted_kind:
+            highlighted?.getAttribute(
+              'data-selected-work-relationship-kind'
+            ) ?? null,
+          highlighted_basis:
+            highlighted?.getAttribute(
+              'data-selected-work-relationship-basis'
+            ) ?? null,
+          proposal_a_support_absent:
+            !relationshipText.includes(
+              ${JSON.stringify(proposalARelationshipCopy.highlighted_copy)}
+            ),
+          proposal_b_blocker_absent:
+            !relationshipText.includes(
+              ${JSON.stringify(proposalBRelationshipCopy.highlighted_copy)}
+            ) &&
+            !relationshipText.includes(
+              'A current safeguard blocks this project update'
+            ),
+          candidate_b_answer_absent:
+            !relationshipText.includes(
+              ${JSON.stringify(returnedCandidateBShape.highlighted_copy)}
+            ),
+          raw_protocol_copy_absent:
+            !/(sha256:|episode-delta-proposal:|review-decision:|state-transition-receipt:|TaskContextPacket|RunReceipt)/i.test(
+              relationshipText
+            ),
+          primary_action_count:
+            detail?.querySelectorAll('[data-ai-workplane-primary-action]')
+              .length ?? -1,
+          review_next_change_label:
+            detail?.querySelector(
+              '[data-vnext-review-next-change="true"][data-ai-workplane-primary-action="review-next-change"]'
+            )?.textContent?.trim() ?? null,
+        };
+      })()`);
+    const expectedReturnedCandidateAShape = {
+      selected_candidate: candidateA,
+      selected_title: candidateATitle,
+      stage: "project_updated",
+      primary_action_owner: "candidate_selection",
+      current_count: 1,
+      question: "decision_and_project_change",
+      selected_question: "decision_and_project_change",
+      highlighted_count: 1,
+      highlighted_copy: returnedCandidateAShape.highlighted_copy,
+      highlighted_kind: "applied_as",
+      highlighted_basis: "authorized_project_change",
+      proposal_a_support_absent: true,
+      proposal_b_blocker_absent: true,
+      candidate_b_answer_absent: true,
+      raw_protocol_copy_absent: true,
+      primary_action_count: 1,
+      review_next_change_label: "Review next change",
+    };
+    assert.deepEqual(
+      returnedCandidateAShape,
+      expectedReturnedCandidateAShape,
+      "returning to proposal A must rebuild from its current deterministic default without restoring the prior support selection",
+    );
+    assert.equal(
+      typeof returnedCandidateAShape.highlighted_copy === "string" &&
+        returnedCandidateAShape.highlighted_copy.length > 0,
+      true,
+      "proposal A candidate A must render its exact decision-to-project-update relationship",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector(
+          '[data-vnext-review-next-change="true"][data-ai-workplane-primary-action="review-next-change"]'
+        );
+        if (
+          !(button instanceof HTMLButtonElement) ||
+          button.disabled ||
+          button.textContent?.trim() !== 'Review next change'
+        ) {
+          return false;
+        }
+        button.click();
+        return true;
+      })()`),
+      true,
+      "candidate A must expose one enabled bounded action to review candidate B",
+    );
+    await waitForCondition(
+      `(() => {
+        const detail = document.querySelector(
+          '[data-vnext-semantic-review-detail="v0.1"]'
+        );
+        const selector = detail?.querySelector(
+          '[data-vnext-candidate-selector="v0.1"]'
+        );
+        const relationship = detail?.querySelector(
+          '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+        );
+        return location.pathname === ${JSON.stringify(path)} &&
+          selector?.value === ${JSON.stringify(candidateB)} &&
+          detail?.getAttribute('data-selected-work-current-stage') ===
+            'awaiting_application' &&
+          detail?.getAttribute('data-selected-work-primary-action-owner') ===
+            'transition' &&
+          relationship?.getAttribute(
+            'data-selected-work-relationship-question'
+          ) === 'candidate_and_decision' &&
+          detail?.querySelectorAll(
+            '[data-selected-work-timeline-current="true"]'
+          ).length === 1 &&
+          detail?.querySelectorAll(
+            '[data-ai-workplane-primary-action]'
+          ).length === 1;
+      })()`,
+      "Review next change selects candidate B exact current state",
+    );
+    const reviewNextCandidateShape = await evaluateJson(`(() => {
+      const detail = document.querySelector(
+        '[data-vnext-semantic-review-detail="v0.1"]'
+      );
+      const candidateSelector = detail?.querySelector(
+        '[data-vnext-candidate-selector="v0.1"]'
+      );
+      const relationships = detail?.querySelector(
+        '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+      );
+      const relationshipSelector = relationships?.querySelector(
+        '[data-selected-work-relationship-question-selector="true"]'
+      );
+      const highlighted = relationships?.querySelector(
+        '[data-selected-work-relationship-highlighted="true"]'
+      );
+      const relationshipText = relationships?.innerText ?? '';
+      return {
+        path: location.pathname,
+        selected_candidate:
+          candidateSelector instanceof HTMLSelectElement
+            ? candidateSelector.value
+            : null,
+        selected_title:
+          detail?.querySelector('[data-vnext-candidate-id="selected"] h3')
+            ?.textContent?.trim() ?? null,
+        stage:
+          detail?.getAttribute('data-selected-work-current-stage') ?? null,
+        primary_action_owner:
+          detail?.getAttribute(
+            'data-selected-work-primary-action-owner'
+          ) ?? null,
+        current_count:
+          detail?.querySelectorAll(
+            '[data-selected-work-timeline-current="true"]'
+          ).length ?? -1,
+        question:
+          relationships?.getAttribute(
+            'data-selected-work-relationship-question'
+          ) ?? null,
+        selected_question:
+          relationshipSelector instanceof HTMLSelectElement
+            ? relationshipSelector.value
+            : null,
+        highlighted_count:
+          relationships?.querySelectorAll(
+            '[data-selected-work-relationship-highlighted="true"]'
+          ).length ?? -1,
+        highlighted_copy: highlighted?.textContent?.trim() ?? null,
+        highlighted_kind:
+          highlighted?.getAttribute(
+            'data-selected-work-relationship-kind'
+          ) ?? null,
+        highlighted_basis:
+          highlighted?.getAttribute(
+            'data-selected-work-relationship-basis'
+          ) ?? null,
+        candidate_a_answer_absent:
+          !relationshipText.includes(
+            ${JSON.stringify(returnedCandidateAShape.highlighted_copy)}
+          ),
+        proposal_b_blocker_absent:
+          !relationshipText.includes(
+            ${JSON.stringify(proposalBRelationshipCopy.highlighted_copy)}
+          ),
+        primary_action_count:
+          detail?.querySelectorAll('[data-ai-workplane-primary-action]')
+            .length ?? -1,
+      };
+    })()`);
+    assert.deepEqual(reviewNextCandidateShape, {
+      path,
+      selected_candidate: candidateB,
+      selected_title: candidateBTitle,
+      stage: "awaiting_application",
+      primary_action_owner: "transition",
+      current_count: 1,
+      question: "candidate_and_decision",
+      selected_question: "candidate_and_decision",
+      highlighted_count: 1,
+      highlighted_copy: reviewNextCandidateShape.highlighted_copy,
+      highlighted_kind: "decided_by",
+      highlighted_basis: "user_decision",
+      candidate_a_answer_absent: true,
+      proposal_b_blocker_absent: true,
+      primary_action_count: 1,
+    });
+    assert.equal(
+      typeof reviewNextCandidateShape.highlighted_copy === "string" &&
+        reviewNextCandidateShape.highlighted_copy.length > 0,
+      true,
+      "Review next change must rebuild candidate B's exact relationship answer",
+    );
+    const mixedReturnCaptureResponse = await evaluateJson(`(async () => {
+      const response = await fetch(
+        '/api/vnext/operator/semantic-review?' + new URLSearchParams({
+          proposal_id: ${JSON.stringify(
+            currentMultiCandidateProposal.proposal_id,
+          )}
+        }),
+        { cache: 'no-store', credentials: 'same-origin' }
+      );
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(mixedReturnCaptureResponse.status, 200);
+    assert.equal(mixedReturnCaptureResponse.body.ok, true);
+    const mixedReturnRead = mixedReturnCaptureResponse.body.proposal;
+    assert.equal(
+      mixedReturnCaptureResponse.body.project.workspace_id,
+      currentMultiCandidateProposal.workspace_id,
+    );
+    assert.equal(
+      mixedReturnCaptureResponse.body.project.project_id,
+      currentMultiCandidateProposal.project_id,
+    );
+    assert.equal(
+      mixedReturnRead.proposal.proposal_id,
+      currentMultiCandidateProposal.proposal_id,
+    );
+    assert.equal(
+      mixedReturnRead.proposal.integrity.fingerprint,
+      currentMultiCandidateProposal.integrity.fingerprint,
+    );
+    const mixedReturnCandidateTimelines = mixedReturnRead.candidates.map(
+      (candidate) => ({
+        candidate,
+        timeline: buildSelectedWorkTimelineV01({
+          read: mixedReturnRead,
+          selected_candidate: candidate,
+        }),
+      }),
+    );
+    const mixedReturnAppliedCandidates =
+      mixedReturnCandidateTimelines.filter(
+        (entry) =>
+          entry.timeline.current_position.stage === "project_updated",
+      );
+    assert.equal(
+      mixedReturnAppliedCandidates.length,
+      1,
+      "the exact mutated proposal must expose one durably applied candidate",
+    );
+    const mixedReturnAppliedCandidate =
+      mixedReturnAppliedCandidates[0].candidate;
+    const mixedReturnAppliedReceipts =
+      mixedReturnRead.transition_receipts.filter(
+        (receipt) =>
+          receipt.source_proposal.proposal_id ===
+            mixedReturnRead.proposal.proposal_id &&
+          receipt.source_proposal.proposal_fingerprint ===
+            mixedReturnRead.proposal.integrity.fingerprint &&
+          receipt.source_candidate.candidate_id ===
+            mixedReturnAppliedCandidate.candidate.candidate_id &&
+          receipt.source_candidate.candidate_fingerprint ===
+            mixedReturnAppliedCandidate.candidate_fingerprint,
+      );
+    assert.equal(
+      mixedReturnAppliedReceipts.length,
+      1,
+      "the applied candidate must retain one exact Transition receipt",
+    );
+    const mixedReturnAppliedReceipt =
+      mixedReturnAppliedReceipts[0];
+    const mixedReturnAppliedDecisionEntries =
+      mixedReturnRead.decision_history.filter(
+        (entry) =>
+          entry.status === "valid" &&
+          entry.pilot_session_bound &&
+          entry.decision.source_proposal.proposal_id ===
+            mixedReturnRead.proposal.proposal_id &&
+          entry.decision.source_proposal.proposal_fingerprint ===
+            mixedReturnRead.proposal.integrity.fingerprint &&
+          entry.decision.candidate.candidate_id ===
+            mixedReturnAppliedCandidate.candidate.candidate_id &&
+          entry.decision.candidate.candidate_fingerprint ===
+            mixedReturnAppliedCandidate.candidate_fingerprint &&
+          entry.decision.decision_id ===
+            mixedReturnAppliedReceipt.source_decision.decision_id &&
+          entry.decision.integrity.fingerprint ===
+            mixedReturnAppliedReceipt.source_decision
+              .decision_fingerprint,
+      );
+    assert.equal(
+      mixedReturnAppliedDecisionEntries.length,
+      1,
+      "the applied candidate receipt must bind one exact decision",
+    );
+    const mixedReturnAppliedDecisionEntry =
+      mixedReturnAppliedDecisionEntries[0];
+    const mixedReturnUnappliedCandidates =
+      mixedReturnCandidateTimelines.flatMap(({ candidate, timeline }) => {
+        if (
+          candidate.candidate.candidate_id ===
+            mixedReturnAppliedCandidate.candidate.candidate_id &&
+          candidate.candidate_fingerprint ===
+            mixedReturnAppliedCandidate.candidate_fingerprint
+        ) {
+          return [];
+        }
+        const applyingEntries =
+          mixedReturnRead.decision_history.filter(
+            (entry) =>
+              entry.status === "valid" &&
+              entry.pilot_session_bound &&
+              entry.pilot_actionable &&
+              ["accept", "supersede", "retract"].includes(
+                entry.decision.decision,
+              ) &&
+              entry.decision.source_proposal.proposal_id ===
+                mixedReturnRead.proposal.proposal_id &&
+              entry.decision.source_proposal
+                .proposal_fingerprint ===
+                mixedReturnRead.proposal.integrity.fingerprint &&
+              entry.decision.candidate.candidate_id ===
+                candidate.candidate.candidate_id &&
+              entry.decision.candidate.candidate_fingerprint ===
+                candidate.candidate_fingerprint &&
+              entry.decision.requested_transition_intent !== null &&
+              entry.decision.requested_transition_intent.applied ===
+                false,
+          );
+        const matchingReceipts =
+          mixedReturnRead.transition_receipts.filter(
+            (receipt) =>
+              applyingEntries.some(
+                (entry) =>
+                  receipt.source_proposal.proposal_id ===
+                    mixedReturnRead.proposal.proposal_id &&
+                  receipt.source_proposal.proposal_fingerprint ===
+                    mixedReturnRead.proposal.integrity.fingerprint &&
+                  receipt.source_candidate.candidate_id ===
+                    candidate.candidate.candidate_id &&
+                  receipt.source_candidate.candidate_fingerprint ===
+                    candidate.candidate_fingerprint &&
+                  receipt.source_decision.decision_id ===
+                    entry.decision.decision_id &&
+                  receipt.source_decision.decision_fingerprint ===
+                    entry.decision.integrity.fingerprint,
+              ),
+          );
+        return applyingEntries.length === 1 &&
+          matchingReceipts.length === 0
+          ? [{
+              candidate,
+              timeline,
+              decision_entry: applyingEntries[0],
+            }]
+          : [];
+      });
+    assert.equal(
+      mixedReturnUnappliedCandidates.length,
+      1,
+      "the exact mutated proposal must expose one unapplied applying decision",
+    );
+    const mixedReturnUnapplied =
+      mixedReturnUnappliedCandidates[0];
+    assert.equal(
+      mixedReturnUnapplied.timeline.current_position.stage,
+      "awaiting_application",
+      "the captured unapplied candidate must remain same-session actionable before restart",
+    );
+    assert.equal(
+      proposalBRelationshipCopy.highlighted_basis,
+      "blocker_or_conflict",
+      "the separate same-session transition-blocked regression must pass before return-target capture",
+    );
+    mixedReturnTarget = {
+      workspace_id: mixedReturnRead.proposal.workspace_id,
+      project_id: mixedReturnRead.proposal.project_id,
+      proposal_id: mixedReturnRead.proposal.proposal_id,
+      proposal_fingerprint:
+        mixedReturnRead.proposal.integrity.fingerprint,
+      applied_candidate: {
+        candidate_id:
+          mixedReturnAppliedCandidate.candidate.candidate_id,
+        candidate_fingerprint:
+          mixedReturnAppliedCandidate.candidate_fingerprint,
+        decision_id:
+          mixedReturnAppliedDecisionEntry.decision.decision_id,
+        decision_fingerprint:
+          mixedReturnAppliedDecisionEntry.decision.integrity
+            .fingerprint,
+        transition_receipt_id:
+          mixedReturnAppliedReceipt.transition_receipt_id,
+        transition_receipt_fingerprint:
+          mixedReturnAppliedReceipt.integrity.fingerprint,
+      },
+      unapplied_candidate: {
+        candidate_id:
+          mixedReturnUnapplied.candidate.candidate.candidate_id,
+        candidate_fingerprint:
+          mixedReturnUnapplied.candidate.candidate_fingerprint,
+        decision_id:
+          mixedReturnUnapplied.decision_entry.decision.decision_id,
+        decision_fingerprint:
+          mixedReturnUnapplied.decision_entry.decision.integrity
+            .fingerprint,
+        decision_session_id:
+          mixedReturnUnapplied.decision_entry.session_id,
+      },
+    };
+    assert(mixedGenericValidationProposalId);
+    assert.notEqual(
+      mixedGenericValidationProposalId,
+      mixedReturnTarget.proposal_id,
+      "the generic validation proposal must not become the mixed return target",
+    );
+    record("mixed_return_target_captured_from_exact_mutated_proposal");
+    record("generic_validation_proposal_excluded_as_return_target");
+    record("selected_work_relationship_questions_remain_candidate_local");
+    record("selected_work_relationship_questions_remain_exact_proposal_local");
+    record("selected_work_relationship_return_navigation_rebuilds_default");
+    record("selected_work_candidate_selection_owner_renders_exact_action");
+    record("selected_work_relationship_explains_exact_transition_blocker");
     record("selected_work_timeline_exposes_exact_post_decision_application_blocker");
+    if (RUN_CORE_SCOPE) {
+      assert.equal(
+        typeof validateExactLaterOutcomeV01,
+        "function",
+        "the exact later-outcome return fixture must be available after target capture",
+      );
+      await validateExactLaterOutcomeV01();
+    }
   });
 
   }
@@ -6656,9 +9751,9 @@ async function main() {
   }
 
   if (VALIDATION_SCOPE === "core") {
-    assert.equal(result.multi_candidate_transition_scope, false);
-    assert.equal(result.candidate_switch_mutation_locking, false);
-    assert.equal(result.late_preview_response_discarded, false);
+    assert.equal(result.multi_candidate_transition_scope, true);
+    assert.equal(result.candidate_switch_mutation_locking, true);
+    assert.equal(result.late_preview_response_discarded, true);
     assert.equal(result.exact_ready_to_complete_navigation, false);
     assert.equal(result.pending_applying_candidate_default_selection, false);
     assert.equal(result.personal_perspective_shared_inspector_exact, false);
@@ -6858,7 +9953,9 @@ async function main() {
       !(
         request.phase === "multi_candidate_transition_scope" &&
         (request.path === "/api/vnext/operator/semantic-review" ||
-          request.path === "/api/vnext/operator/semantic-transition")
+          request.path === "/api/vnext/operator/semantic-transition" ||
+          request.path === "/api/vnext/operator/host-round-trip" ||
+          request.path === "/api/vnext/projects")
       ) &&
       !(
         request.phase === "personal_perspective_inspector" &&
@@ -7973,6 +11070,23 @@ async function validateSemanticReviewViewports() {
       const identity = review?.querySelector(':scope > section:first-child');
       const current = timeline?.querySelector('[data-selected-work-timeline-current="true"]');
       const next = timeline?.querySelector('[data-selected-work-next-step]');
+      const relationships = review?.querySelector(
+        '[data-selected-work-relationships="selected_work_relationships.v0.1"]'
+      );
+      const relationshipSelector = relationships?.querySelector(
+        '[data-selected-work-relationship-question-selector="true"]'
+      );
+      const relationshipAnswer = relationships?.querySelector(
+        '[data-selected-work-relationship-answer-region="true"]'
+      );
+      const relationshipConnections = Array.from(
+        relationships?.querySelectorAll('[data-selected-work-relationship-connection]') ?? []
+      );
+      const relationshipHighlights = relationshipConnections.filter(
+        (connection) =>
+          connection.getAttribute('data-selected-work-relationship-highlighted') === 'true'
+      );
+      const relationshipRect = relationships?.getBoundingClientRect();
       const advanced = Array.from(review?.querySelectorAll('details') ?? []).find(
         (item) => item.querySelector(':scope > summary')?.textContent?.includes('Advanced review')
       );
@@ -8005,6 +11119,73 @@ async function validateSemanticReviewViewports() {
         chronology_text_backed:
           Boolean(current?.textContent?.includes('Current')) &&
           current?.getAttribute('aria-current') === 'step',
+        relationship_present: Boolean(relationships && relationshipAnswer),
+        relationship_selected_question_count:
+          relationshipSelector instanceof HTMLSelectElement &&
+          relationshipSelector.selectedOptions.length === 1
+            ? 1
+            : 0,
+        relationship_question_count:
+          relationshipSelector instanceof HTMLSelectElement
+            ? relationshipSelector.options.length
+            : 0,
+        relationship_connection_count: relationshipConnections.length,
+        relationship_highlight_count: relationshipHighlights.length,
+        relationship_answer_availability:
+          relationships?.getAttribute('data-selected-work-relationship-answer') ?? null,
+        relationship_bounded:
+          relationshipConnections.length <= 6 &&
+          relationshipHighlights.length <= 1,
+        relationship_text_backed:
+          relationshipConnections.every(
+            (connection) =>
+              connection.textContent?.includes('Why it matters now') === true
+          ),
+        relationship_non_authoritative:
+          relationships?.getAttribute(
+            'data-selected-work-relationship-projection-only'
+          ) === 'true' &&
+          relationships?.getAttribute(
+            'data-selected-work-relationship-semantic-authority'
+          ) === 'false' &&
+          relationships?.getAttribute(
+            'data-selected-work-relationship-timeline-owner'
+          ) === 'true' &&
+          relationshipConnections.every(
+            (connection) =>
+              connection.getAttribute(
+                'data-selected-work-relationship-authority'
+              ) === 'false'
+          ),
+        relationship_after_timeline:
+          Boolean(timeline && relationships) &&
+          Boolean(
+            timeline.compareDocumentPosition(relationships) &
+              Node.DOCUMENT_POSITION_FOLLOWING
+          ),
+        relationship_before_advanced:
+          Boolean(relationships && advanced) &&
+          Boolean(
+            relationships.compareDocumentPosition(advanced) &
+              Node.DOCUMENT_POSITION_FOLLOWING
+          ),
+        relationship_inside_viewport:
+          Boolean(relationshipRect) &&
+          relationshipRect.left >= -1 &&
+          relationshipRect.right <= window.innerWidth + 1,
+        relationship_no_primary_action:
+          relationships?.querySelector('[data-ai-workplane-primary-action]') === null,
+        relationship_no_chronology_authority:
+          relationships?.querySelector(
+            '[data-selected-work-timeline-current], [data-selected-work-next-step]'
+          ) === null,
+        relationship_no_graph_controls:
+          relationships?.querySelector(
+            'canvas, svg, [data-relationship-node], [data-relationship-edge], [data-graph-control]'
+          ) === null &&
+          !/\b(?:pan|zoom|force layout|graph editor)\b/i.test(
+            relationships?.textContent ?? ''
+          ),
         advanced_optional: advanced instanceof HTMLDetailsElement && advanced.open === false,
         protocol_vocabulary_absent:
           !/(ReviewDecision|StateTransitionReceipt|EpisodeDeltaProposal|CriterionAssessment|semantic gate|packet fingerprint)/i.test(visibleText),
@@ -8050,6 +11231,60 @@ async function validateSemanticReviewViewports() {
     assert.equal(metrics.timeline_first_reading_path, true, JSON.stringify(metrics));
     assert.equal(metrics.current_position_textual, true, JSON.stringify(metrics));
     assert.equal(metrics.chronology_text_backed, true, JSON.stringify(metrics));
+    assert.equal(metrics.relationship_present, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.relationship_selected_question_count,
+      metrics.relationship_question_count > 0 ? 1 : 0,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.relationship_question_count > 0 &&
+        metrics.relationship_question_count <= 4,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.relationship_bounded, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.relationship_answer_availability === "unavailable"
+        ? metrics.relationship_highlight_count === 0
+        : metrics.relationship_highlight_count === 1,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.relationship_connection_count > 0 ||
+        metrics.relationship_answer_availability === "unavailable",
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.relationship_text_backed, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.relationship_non_authoritative,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.relationship_after_timeline, true, JSON.stringify(metrics));
+    assert.equal(metrics.relationship_before_advanced, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.relationship_inside_viewport,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.relationship_no_primary_action,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.relationship_no_chronology_authority,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.relationship_no_graph_controls,
+      true,
+      JSON.stringify(metrics),
+    );
     assert.equal(metrics.advanced_optional, true, JSON.stringify(metrics));
     assert.equal(
       metrics.protocol_vocabulary_absent,

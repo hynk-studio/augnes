@@ -17,16 +17,27 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 173);
-assert.equal(recordNames.length, 47);
+assert.equal(resultKeys.length, 183);
+assert.equal(recordNames.length, 78);
 assert.equal(
   hashInventory(resultKeys),
-  "40549da6610335d0c6dbcba5e845d659586cd7746d26102364ed228db23e93fb",
+  "c582143a357629758e33b1bfeb3978921cb8eef55f2666db19f7cd174dc821ff",
 );
 assert.equal(
   hashInventory(recordNames),
-  "c2ac43411f6cc0702be13eb1b9ddda32bcd70039cc64a48884daf9b3fa0acfd7",
+  "e1149d94fbe5df0bdaa5172904621b6f5cc666c5efbb00abd9a47ceed7fb744d",
 );
+for (const marker of [
+  "mixed_return_target_captured_from_exact_mutated_proposal",
+  "generic_validation_proposal_excluded_as_return_target",
+  "mixed_applied_candidate_survives_session_restart",
+  "mixed_unapplied_candidate_loses_current_session_actionability",
+  "mixed_prior_session_decision_remains_visible",
+  "mixed_return_relationships_rebuilt_without_positive_leak",
+  "positive_and_mixed_projects_remain_isolated",
+]) {
+  assert.equal(source.includes(`record("${marker}")`), true);
+}
 assert.match(
   source,
   /async function runPhase\(phase, action, options = \{\}\)[\s\S]*options\.terminalRequestQuiet !== false/u,
@@ -45,7 +56,12 @@ assert.match(
 );
 assert.equal(
   [...source.matchAll(/startDevServer\(runtimeEnvironment\)/gu)].length,
-  2,
+  3,
+);
+assert.equal(
+  [...source.matchAll(/startDevServer\(positiveRuntimeEnvironment\)/gu)]
+    .length,
+  1,
 );
 assert.match(source, /const DEFAULT_TIMEOUT_MS = 45_000;/u);
 assert.match(
@@ -119,7 +135,9 @@ assert.match(
   source,
   /guideAfterImpactCount, guideBeforeImpact\.count[\s\S]*guideAfterConfirmationCount, guideBeforeImpact\.count[\s\S]*guideAfterApplication\.count,[\s\S]*guideBeforeImpact\.count \+ 1/u,
 );
-const continuityScopeStart = source.indexOf("if (RUN_CONTINUITY_SCOPE)");
+const continuityScopeStart = source.indexOf(
+  "if (RUN_CONTINUITY_SCOPE || RUN_CORE_SCOPE)",
+);
 const multiCandidateTransitionPhase = source.indexOf(
   'runPhase("multi_candidate_transition_scope"',
 );
@@ -153,7 +171,7 @@ assert.match(
 );
 assert.match(
   source,
-  /VALIDATION_SCOPE === "core"[\s\S]*result\.multi_candidate_transition_scope, false[\s\S]*result\.exact_ready_to_complete_navigation, false[\s\S]*result\.personal_perspective_shared_inspector_exact, false[\s\S]*VALIDATION_SCOPE === "continuity"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, true[\s\S]*result\.personal_perspective_shared_inspector_exact, true/u,
+  /VALIDATION_SCOPE === "core"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, false[\s\S]*result\.personal_perspective_shared_inspector_exact, false[\s\S]*VALIDATION_SCOPE === "continuity"[\s\S]*result\.multi_candidate_transition_scope, true[\s\S]*result\.exact_ready_to_complete_navigation, true[\s\S]*result\.personal_perspective_shared_inspector_exact, true/u,
 );
 assert(continuityScopeStart >= 0 && exactBindingRecord > continuityScopeStart);
 assert.match(
@@ -225,7 +243,36 @@ assert.match(
   source,
   /async function waitForHttp[\s\S]*const waitNumber = waitCount;[\s\S]*String\(waitNumber\)/u,
 );
-
+assert.match(
+  source,
+  /validateExactLaterOutcomeV01 = async \(\) => \{[\s\S]*recording later use of an exact older packet must not replace the newer compiled-packet projection[\s\S]*an older packet-bound receipt must not become latest continuity[\s\S]*record\("older_packet_bound_later_result_is_not_latest_continuity"\)[\s\S]*vnext_bounded_automation_context_compiler\.v0\.1[\s\S]*record\("bounded_automation_packet_excluded_from_workbench_lineage"\)[\s\S]*positive-lineage project confirmation must remain explicit[\s\S]*buildSemanticReviewLoopTaskContextPacketFixture[\s\S]*buildSemanticReviewLoopRunReceiptFixture[\s\S]*buildSemanticReviewLoopProposalFixture[\s\S]*admitStructuredRunReceiptV01[\s\S]*record\("positive_generic_prior_packet_seeded"\)[\s\S]*record\("positive_bootstrap_proposal_admitted"\)[\s\S]*AUGNES_VNEXT_OPERATOR_PROJECT_ID: positiveProjectId[\s\S]*positive bootstrap detail failed[\s\S]*positive bootstrap decision failed[\s\S]*positive bootstrap confirmation failed[\s\S]*prior_packet_id: positivePriorPacket\.packet_id[\s\S]*positive bootstrap application failed[\s\S]*positiveApplyResponse\.body\.packet_compiled, true[\s\S]*vnext_persisted_semantic_context_compiler\.v0\.1[\s\S]*vnext_bounded_automation_context_compiler\.v0\.1[\s\S]*record\("positive_transition_compiled_eligible_packet"\)[\s\S]*positiveLineage\.overall_status, "packet_compiled"[\s\S]*positiveChains\.length,[\s\S]*1,[\s\S]*positiveContinuityBeforeLater\.packet_currentness,[\s\S]*"fresh"[\s\S]*record\("positive_latest_compiled_packet_precondition_passed"\)[\s\S]*record\("positive_proposal_has_one_packet_compiled_chain"\)[\s\S]*positive later result must use the real interactive host path[\s\S]*first real positive host action must not compile another packet[\s\S]*record\("positive_first_real_host_action_used_latest_packet"\)[\s\S]*later-result intake must not create or select another packet[\s\S]*record\("positive_latest_packet_bound_result_recognized"\)[\s\S]*record\("positive_later_outcome_relationship_is_exact"\)[\s\S]*data-selected-work-current-stage="later_outcome_reviewed"[\s\S]*record\("positive_project_active_snapshot_read"\)[\s\S]*record\("mixed_project_open_mutation_succeeded"\)[\s\S]*record\("mixed_project_active_readback_confirmed"\)[\s\S]*record\("mixed_project_detail_reloaded_after_activation"\)[\s\S]*record\("positive_and_mixed_projects_remain_isolated"\)[\s\S]*await validateExactLaterOutcomeV01\(\);/u,
+);
+assert.match(
+  source,
+  /const positiveActiveSnapshot = await evaluateJson[\s\S]*positiveActiveEntries\.length,[\s\S]*1,[\s\S]*positiveActiveEntry\.project\.project_id,[\s\S]*positiveProjectId[\s\S]*Number\.isSafeInteger\(positiveActiveRevision\)[\s\S]*record\("positive_project_active_snapshot_read"\)[\s\S]*const mixedOpenResponse = await evaluateJson[\s\S]*action: 'open'[\s\S]*project_id: \$\{JSON\.stringify\(manifest\.project_id\)\}[\s\S]*expected_project_id: \$\{JSON\.stringify\(positiveActiveProjectId\)\}[\s\S]*expected_revision: \$\{JSON\.stringify\(positiveActiveRevision\)\}[\s\S]*mixedOpenResponse\.status,[\s\S]*200[\s\S]*mixedOpenResult\.selection\.selection_revision,[\s\S]*positiveActiveRevision \+ 1[\s\S]*parseStrictIsoTimestampV01[\s\S]*record\("mixed_project_open_mutation_succeeded"\)[\s\S]*const mixedActiveReadback = await evaluateJson[\s\S]*restoredActiveEntries\.length,[\s\S]*1[\s\S]*restoredPositiveEntry\.is_active, false[\s\S]*record\("mixed_project_active_readback_confirmed"\)[\s\S]*await navigate\(`\$\{appOrigin\}\$\{mixedOpenResult\.destination\}`\)[\s\S]*record\("mixed_project_detail_reloaded_after_activation"\)/u,
+);
+const positivePacketPrecondition = source.indexOf(
+  'record("positive_latest_compiled_packet_precondition_passed")',
+);
+const positiveFirstHostAction = source.indexOf(
+  "the positive later result must use the real interactive host path",
+);
+assert(
+  positivePacketPrecondition >= 0 &&
+    positiveFirstHostAction > positivePacketPrecondition,
+);
+assert.doesNotMatch(
+  source,
+  /the positive source must use the real interactive host path/u,
+);
+assert.doesNotMatch(
+  source,
+  /pc3-latest-packet-later-outcome|positiveLaterWriter/u,
+);
+assert.doesNotMatch(
+  source,
+  /pc3_exact_later_outcome_fixture_removed_before_shared_automation|DELETE FROM vnext_core_records/u,
+);
 process.stdout.write(
   `${JSON.stringify({
     test: "browser-e2e-harness-contract",
