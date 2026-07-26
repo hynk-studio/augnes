@@ -8,12 +8,22 @@ import {
 } from "@/lib/vnext/ai-workplane/ai-workplane-view";
 import {
   buildSelectedWorkTimelineV01,
+  selectNextSelectedWorkCandidateV01,
   selectSelectedCandidateActionableApplyingDecisionV01,
   selectSelectedWorkLifecycleV01,
 } from "@/lib/vnext/ai-workplane/selected-work-timeline";
+import {
+  buildSelectedWorkRelationshipsV01,
+} from "@/lib/vnext/ai-workplane/selected-work-relationships";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
+import type {
+  SelectedWorkConnectionStatementV01,
+  SelectedWorkRelationshipBasisV01,
+  SelectedWorkRelationshipQuestionKeyV01,
+  SelectedWorkRelationshipsV01,
+} from "@/types/vnext/selected-work-relationships";
 import type {
   SelectedWorkTimelineItemV01,
   SelectedWorkTimelineV01,
@@ -25,6 +35,11 @@ import { ProjectVerificationWorkbench } from "./project-verification-workbench";
 import { ReviewDecisionForm } from "./review-decision-form";
 import { SemanticTransitionActions } from "./semantic-transition-actions";
 import { StrategicAdvantageTransferPanel } from "./strategic-advantage-transfer-panel";
+import {
+  effectiveSelectedWorkRelationshipQuestionV01,
+  selectedWorkRelationshipScopeKeyV01,
+  type SelectedWorkRelationshipQuestionSelectionV01,
+} from "./selected-work-relationship-selection";
 import type {
   SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
@@ -89,6 +104,16 @@ export function DecisionCenteredProposalDetail({
         selected_candidate: selected,
       })
     : null;
+  const relationshipScopeKey = selected
+    ? selectedWorkRelationshipScopeKeyV01({
+        workspace_id: proposal.workspace_id,
+        project_id: proposal.project_id,
+        proposal_id: proposal.proposal_id,
+        proposal_fingerprint: proposal.integrity.fingerprint,
+        candidate_id: selected.candidate.candidate_id,
+        candidate_fingerprint: selected.candidate_fingerprint,
+      })
+    : null;
   const selectedActionableApplyingDecision = selected
     ? selectSelectedCandidateActionableApplyingDecisionV01({
         read,
@@ -114,24 +139,23 @@ export function DecisionCenteredProposalDetail({
     expected_fingerprint: proposal.integrity.fingerprint,
   });
   const nextDecisionCandidate =
-    timeline?.current_position.primary_action_owner === "candidate_selection"
-      ? read.candidates.find((candidate) => {
-          if (
-            candidate.candidate.candidate_id ===
-            selected?.candidate.candidate_id
-          ) {
-            return false;
-          }
-          const candidateView = buildAIWorkplaneChangeReviewViewV01({
-            read,
-            selected_candidate_id: candidate.candidate.candidate_id,
-          });
-          return (
-            candidateView.decision_status === "needs_decision" ||
-            candidateView.decision_status === "blocked"
-          );
-        }) ?? null
+    timeline?.current_position.primary_action_owner ===
+      "candidate_selection" &&
+    selected
+      ? selectNextSelectedWorkCandidateV01({
+          read,
+          selected_candidate: selected,
+        })
       : null;
+  if (
+    timeline?.current_position.primary_action_owner ===
+      "candidate_selection" &&
+    !nextDecisionCandidate
+  ) {
+    throw new Error(
+      "selected_work_candidate_selection_owner_without_candidate",
+    );
+  }
 
   return (
     <section
@@ -314,6 +338,16 @@ export function DecisionCenteredProposalDetail({
         </div>
       ) : null}
 
+      {selected && timeline && relationshipScopeKey ? (
+        <SelectedWorkRelationshipExploration
+          key={relationshipScopeKey}
+          read={read}
+          selected={selected}
+          timeline={timeline}
+          relationshipScopeKey={relationshipScopeKey}
+        />
+      ) : null}
+
       <SelectedWorkSupport view={view} />
 
       <div
@@ -329,6 +363,7 @@ export function DecisionCenteredProposalDetail({
       </div>
 
       <details
+        id="selected-work-advanced"
         className={styles.advancedDisclosure}
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
       >
@@ -429,6 +464,271 @@ export function DecisionCenteredProposalDetail({
         ) : null}
       </details>
     </section>
+  );
+}
+
+function SelectedWorkRelationshipExploration({
+  read,
+  selected,
+  timeline,
+  relationshipScopeKey,
+}: {
+  read: SemanticReviewProposalDetailV01;
+  selected: SemanticReviewProposalDetailV01["candidates"][number];
+  timeline: SelectedWorkTimelineV01;
+  relationshipScopeKey: string;
+}) {
+  const [relationshipSelection, setRelationshipSelection] =
+    useState<SelectedWorkRelationshipQuestionSelectionV01 | null>(null);
+  const defaultRelationships = buildSelectedWorkRelationshipsV01({
+    read,
+    selected_candidate: selected,
+    timeline,
+    selected_question_key: null,
+  });
+  const effectiveQuestionKey =
+    effectiveSelectedWorkRelationshipQuestionV01({
+      scope_key: relationshipScopeKey,
+      selection: relationshipSelection,
+      available_questions: defaultRelationships.questions,
+      default_question_key: defaultRelationships.selected_question_key,
+    });
+  const relationships =
+    effectiveQuestionKey === defaultRelationships.selected_question_key
+      ? defaultRelationships
+      : buildSelectedWorkRelationshipsV01({
+          read,
+          selected_candidate: selected,
+          timeline,
+          selected_question_key: effectiveQuestionKey,
+        });
+
+  return (
+    <SelectedWorkRelationships
+      relationships={relationships}
+      onQuestionChange={(questionKey) =>
+        setRelationshipSelection({
+          scope_key: relationshipScopeKey,
+          question_key: questionKey,
+        })
+      }
+    />
+  );
+}
+
+function SelectedWorkRelationships({
+  relationships,
+  onQuestionChange,
+}: {
+  relationships: SelectedWorkRelationshipsV01;
+  onQuestionChange: (
+    questionKey: SelectedWorkRelationshipQuestionKeyV01,
+  ) => void;
+}) {
+  const highlighted = relationships.connections.find(
+    (connection) =>
+      connection.connection_id === relationships.highlighted_connection_id,
+  ) ?? null;
+  const remaining = relationships.connections.filter(
+    (connection) =>
+      connection.connection_id !== relationships.highlighted_connection_id,
+  );
+  return (
+    <section
+      id="selected-work-relationships"
+      className={`${styles.panel} ${styles.selectedWorkRelationships}`}
+      aria-labelledby="selected-work-relationships-title"
+      data-selected-work-relationships={relationships.relationships_version}
+      data-selected-work-relationship-question={
+        relationships.selected_question_key ?? "unavailable"
+      }
+      data-selected-work-relationship-answer={
+        relationships.answer_availability
+      }
+      data-selected-work-relationship-visible-count={
+        relationships.visible_connection_count
+      }
+      data-selected-work-relationship-known-count={
+        relationships.known_connection_count
+      }
+      data-selected-work-relationship-omitted-count={
+        relationships.locally_omitted_connection_count
+      }
+      data-selected-work-relationship-completeness={
+        relationships.completeness.status
+      }
+      data-selected-work-relationship-highlight={
+        relationships.highlighted_connection_id ?? "none"
+      }
+      data-selected-work-relationship-projection-only={String(
+        relationships.authority.projection_only,
+      )}
+      data-selected-work-relationship-semantic-authority="false"
+      data-selected-work-relationship-timeline-owner={String(
+        relationships.selected_work_anchor
+          .timeline_remains_current_position_owner,
+      )}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>Why this work is connected</p>
+        <h2 id="selected-work-relationships-title">
+          Relationship exploration
+        </h2>
+        <p className={styles.copy}>
+          Ask one source-supported connection question about the selected
+          change. The timeline still explains sequence and the current
+          position.
+        </p>
+      </div>
+
+      {relationships.questions.length > 0 &&
+      relationships.selected_question_key ? (
+        <label className={styles.fieldLabel}>
+          Connection question
+          <select
+            className={styles.selectControl}
+            data-selected-work-relationship-question-selector="true"
+            value={relationships.selected_question_key}
+            onChange={(event) =>
+              onQuestionChange(
+                event.target.value as SelectedWorkRelationshipQuestionKeyV01,
+              )
+            }
+          >
+            {relationships.questions.map((question) => (
+              <option
+                key={question.question_key}
+                value={question.question_key}
+              >
+                {question.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
+      <section
+        className={styles.relationshipAnswer}
+        aria-labelledby="selected-work-relationship-answer-title"
+        data-selected-work-relationship-answer-region="true"
+      >
+        <div>
+          <p className={styles.kicker}>Selected question</p>
+          <h3 id="selected-work-relationship-answer-title">
+            {relationships.selected_question_label}
+          </h3>
+        </div>
+        {highlighted ? (
+          <SelectedWorkConnection
+            connection={highlighted}
+            highlighted
+          />
+        ) : (
+          <p
+            className={styles.empty}
+            data-selected-work-relationship-unavailable="true"
+          >
+            No exact source-supported connection is available for this
+            question. Missing material remains unknown rather than inferred.
+          </p>
+        )}
+        {remaining.length > 0 ? (
+          <ol
+            className={styles.relationshipConnectionList}
+            aria-label="Additional bounded connections"
+          >
+            {remaining.map((connection) => (
+              <li key={connection.connection_id}>
+                <SelectedWorkConnection
+                  connection={connection}
+                  highlighted={false}
+                />
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </section>
+
+      {relationships.completeness.status !== "complete" ? (
+        <p
+          className={styles.notice}
+          data-selected-work-relationship-incomplete="true"
+        >
+          {relationships.completeness.summary}
+        </p>
+      ) : null}
+      {relationships.suggested_destinations.length > 0 ? (
+        <nav
+          className={styles.relationshipDestinations}
+          aria-label="Related exact and supporting detail"
+        >
+          {relationships.suggested_destinations.map((destination) => (
+            <a
+              key={destination.href}
+              className={styles.inlineLink}
+              href={destination.href}
+              data-selected-work-relationship-secondary-destination="true"
+            >
+              {destination.label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+      <p className={styles.muted}>
+        This projection explains a bounded connection. It does not establish
+        truth, accept evidence, make a decision, authorize or apply a project
+        update, or change later context.
+      </p>
+    </section>
+  );
+}
+
+function SelectedWorkConnection({
+  connection,
+  highlighted,
+}: {
+  connection: SelectedWorkConnectionStatementV01;
+  highlighted: boolean;
+}) {
+  return (
+    <article
+      className={
+        highlighted
+          ? styles.relationshipHighlight
+          : styles.relationshipConnection
+      }
+      data-selected-work-relationship-connection={connection.connection_id}
+      data-selected-work-relationship-kind={connection.relation_kind}
+      data-selected-work-relationship-basis={connection.basis}
+      data-selected-work-relationship-support={connection.support_status}
+      data-selected-work-relationship-highlighted={String(highlighted)}
+      data-selected-work-relationship-authority="false"
+    >
+      <div className={styles.relationshipConnectionHeader}>
+        <div>
+          <span className={styles.timelineBasis}>
+            {relationshipBasisLabel(connection.basis)}
+          </span>
+          <h3>{connection.title}</h3>
+        </div>
+        <span className={styles.timelineStatus}>
+          {highlighted
+            ? "Matters most now"
+            : relationshipSupportLabel(connection.support_status)}
+        </span>
+      </div>
+      <p className={styles.copy}>{connection.explanation}</p>
+      <div className={styles.relationshipWhy}>
+        <strong>Why it matters now</strong>
+        <p className={styles.copy}>{connection.why_it_matters_now}</p>
+      </div>
+      {connection.uncertainty_or_conflict ? (
+        <p className={styles.notice}>
+          {connection.uncertainty_or_conflict}
+        </p>
+      ) : null}
+    </article>
   );
 }
 
@@ -779,6 +1079,36 @@ function basisLabel(item: SelectedWorkTimelineItemV01): string {
         : item.basis === "authorized_change"
           ? "Authorized change"
           : "Later outcome";
+}
+
+function relationshipBasisLabel(
+  basis: SelectedWorkRelationshipBasisV01,
+): string {
+  return basis === "observed_source"
+    ? "Observed source"
+    : basis === "reported_source"
+      ? "Reported source"
+      : basis === "exact_recorded_relation"
+        ? "Exact recorded connection"
+        : basis === "bounded_interpretation"
+          ? "Bounded interpretation"
+          : basis === "user_decision"
+            ? "User decision"
+            : basis === "authorized_project_change"
+              ? "Authorized project change"
+              : basis === "blocker_or_conflict"
+                ? "Blocker or conflict"
+                : "Later outcome";
+}
+
+function relationshipSupportLabel(
+  support: SelectedWorkConnectionStatementV01["support_status"],
+): string {
+  return support === "exact"
+    ? "Exact"
+    : support === "partial"
+      ? "Partial"
+      : "Conflicting";
 }
 
 function statusLabel(

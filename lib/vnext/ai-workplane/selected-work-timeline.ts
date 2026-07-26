@@ -30,7 +30,7 @@ const AUTHORITY = {
   performs_external_action: false,
 } as const;
 
-type SelectedCandidateV01 =
+export type SelectedCandidateV01 =
   SemanticReviewProposalDetailV01["candidates"][number];
 type SelectedDecisionLineageEntryV01 =
   SemanticReviewProposalDetailV01["decision_history"][number];
@@ -70,7 +70,10 @@ export function buildSelectedWorkTimelineV01(input: {
   const laterOutcome = receipt && effective
     ? exactLaterOutcomeV01(read, selected, effective, receipt)
     : null;
-  const nextCandidate = nextCandidateRequiringReviewV01(read, selected);
+  const nextCandidate = selectNextSelectedWorkCandidateV01({
+    read,
+    selected_candidate: selected,
+  });
   const current = currentPositionV01({
     read,
     selected,
@@ -773,10 +776,11 @@ export function selectSelectedCandidateActionableApplyingDecisionV01(input: {
     : null;
 }
 
-function nextCandidateRequiringReviewV01(
-  read: SemanticReviewProposalDetailV01,
-  selected: SelectedCandidateV01,
-): SelectedCandidateV01 | null {
+export function selectNextSelectedWorkCandidateV01(input: {
+  read: SemanticReviewProposalDetailV01;
+  selected_candidate: SelectedCandidateV01;
+}): SelectedCandidateV01 | null {
+  const { read, selected_candidate: selected } = input;
   for (const candidate of read.candidates) {
     if (
       candidate.candidate.candidate_id === selected.candidate.candidate_id &&
@@ -798,6 +802,8 @@ function nextCandidateRequiringReviewV01(
       (effective.decision === "accept" ||
         effective.decision === "supersede" ||
         effective.decision === "retract") &&
+      effective.requested_transition_intent !== null &&
+      effective.requested_transition_intent.applied === false &&
       !receipt
     ) {
       return candidate;
