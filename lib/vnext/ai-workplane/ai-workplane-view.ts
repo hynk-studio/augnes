@@ -1,8 +1,11 @@
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
-import { compareEffectiveReviewDecisionsV01 } from "@/lib/vnext/review-decision-lineage";
 import type { VNextOperatorPilotReviewListItemV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
+import {
+  buildSelectedWorkTimelineV01,
+  selectedWorkTimelineDecisionStatusV01,
+} from "@/lib/vnext/ai-workplane/selected-work-timeline";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type {
@@ -380,40 +383,12 @@ function changeReviewDecisionStatusV01(
   read: SemanticReviewProposalDetailV01,
   selected: SemanticReviewProposalDetailV01["candidates"][number],
 ): AIWorkplaneChangeReviewViewV01["decision_status"] {
-  const decisions = read.decision_history
-    .filter(
-      (entry) =>
-        entry.status === "valid" &&
-        entry.pilot_session_bound &&
-        entry.decision.candidate.candidate_id ===
-          selected.candidate.candidate_id,
-    )
-    .map((entry) => entry.decision)
-    .sort(compareEffectiveReviewDecisionsV01);
-  const effective = decisions[0] ?? null;
-  const receipt = effective
-    ? read.transition_receipts.find(
-        (entry) =>
-          entry.source_decision.decision_id === effective.decision_id &&
-          entry.source_decision.decision_fingerprint === effective.integrity.fingerprint &&
-          entry.source_candidate.candidate_id === selected.candidate.candidate_id &&
-          entry.source_candidate.candidate_fingerprint === selected.candidate_fingerprint,
-      ) ?? null
-    : null;
-  const blocked = selected.pilot_admission.decision_allowed.accept === false;
-  return receipt
-    ? "project_updated"
-    : !effective
-      ? blocked
-        ? "blocked"
-        : "needs_decision"
-      : effective.decision === "reject"
-        ? "rejected"
-        : effective.decision === "defer"
-          ? "deferred"
-          : blocked
-            ? "blocked"
-            : "decision_saved";
+  return selectedWorkTimelineDecisionStatusV01(
+    buildSelectedWorkTimelineV01({
+      read,
+      selected_candidate: selected,
+    }),
+  );
 }
 
 export function selectAIWorkplaneChangeCandidateV01(
@@ -659,12 +634,22 @@ function boundedUnique(values: string[], limit: number): string[] {
 }
 
 function bounded(value: string): string {
-  const compact = value.replace(/\s+/gu, " ").trim();
+  const compact = humanize(value).replace(/\s+/gu, " ").trim();
   return compact.length <= MAX_TEXT ? compact : `${compact.slice(0, MAX_TEXT - 1)}…`;
 }
 
 function humanize(value: string): string {
-  return value.replaceAll("_", " ");
+  return value
+    .replaceAll("EpisodeDeltaProposal", "suggested change")
+    .replaceAll("ReviewDecision", "saved decision")
+    .replaceAll("StateTransitionReceipt", "project update record")
+    .replaceAll("CriterionAssessment", "requirement assessment")
+    .replaceAll("RunReceipt", "source result")
+    .replaceAll("TaskContextPacket", "work context")
+    .replaceAll("semantic commit gate", "project-change safeguard")
+    .replaceAll("semantic gate", "project-change safeguard")
+    .replaceAll("packet fingerprint", "exact source match")
+    .replaceAll("_", " ");
 }
 
 function compareCodeUnits(left: string, right: string): number {

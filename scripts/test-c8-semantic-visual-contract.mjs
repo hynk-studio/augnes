@@ -207,16 +207,35 @@ assert.equal(
 const proposalReview = read(
   "components/workbench/semantic-review/decision-centered-proposal-detail.tsx",
 );
+const selectedWorkTimeline = read(
+  "lib/vnext/ai-workplane/selected-work-timeline.ts",
+);
+const strictIsoTimestamp = read("lib/vnext/strict-iso-timestamp.ts");
+assert.match(
+  selectedWorkTimeline,
+  /@\/lib\/vnext\/strict-iso-timestamp/u,
+);
+assert.doesNotMatch(selectedWorkTimeline, /protocol-primitives|node:/u);
+assert.doesNotMatch(strictIsoTimestamp, /node:/u);
 assertOrdered(proposalReview, [
   'id="what-would-change-title"',
+  "{timeline ? <SelectedWorkTimeline timeline={timeline} /> : null}",
   'id="your-decision-title"',
-  'id="why-suggested-title"',
-  'id="verified-title"',
-  'id="uncertain-title"',
+  "<SelectedWorkSupport view={view} />",
+  'id="selected-work-later-feedback"',
+  "<summary>Advanced review</summary>",
+]);
+assertOrdered(proposalReview, [
+  'id="selected-work-timeline-title"',
+  'id="selected-work-next-step-title"',
 ]);
 assert.match(
   proposalReview,
   /data-vnext-review-next-change="true"[\s\S]*data-ai-workplane-primary-action="review-next-change"[\s\S]*data-augnes-primary-action="review-next-change"/u,
+);
+assert.match(
+  proposalReview,
+  /timeline\?\.current_position\.primary_action_owner === "transition"[\s\S]*id="selected-work-transition"[\s\S]*<SemanticTransitionActions/u,
 );
 const decisionForm = read(
   "components/workbench/semantic-review/review-decision-form.tsx",
@@ -241,11 +260,15 @@ assert.match(
 for (const source of [
   blankState,
   workplaneShell,
-  proposalReview,
   read("components/workbench/semantic-review/proposal-list.tsx"),
 ]) {
   assert.match(source, /data-augnes-state-badge/u);
 }
+assert.doesNotMatch(proposalReview, /data-augnes-state-badge/u);
+assert.match(
+  proposalReview,
+  /aria-current=\{current \? "step" : undefined\}[\s\S]*statusLabel\(item\.status, current\)/u,
+);
 
 const inspector = read(
   "components/workbench/inspector/shared-project-inspector-surface.tsx",

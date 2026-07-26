@@ -17,15 +17,15 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 170);
-assert.equal(recordNames.length, 46);
+assert.equal(resultKeys.length, 173);
+assert.equal(recordNames.length, 47);
 assert.equal(
   hashInventory(resultKeys),
-  "2f52e2fd3b06d2b690a52bd6b963ace6119d906f7dd6859377b505b7b047300c",
+  "40549da6610335d0c6dbcba5e845d659586cd7746d26102364ed228db23e93fb",
 );
 assert.equal(
   hashInventory(recordNames),
-  "712cee8616f22226319e4bc05246d48d8bb62c11674a106e454d9352a9ebb128",
+  "c2ac43411f6cc0702be13eb1b9ddda32bcd70039cc64a48884daf9b3fa0acfd7",
 );
 assert.match(
   source,
@@ -47,9 +47,10 @@ assert.equal(
   [...source.matchAll(/startDevServer\(runtimeEnvironment\)/gu)].length,
   2,
 );
+assert.match(source, /const DEFAULT_TIMEOUT_MS = 45_000;/u);
 assert.match(
   source,
-  /"paused project automation before retained restart"[\s\S]*await navigate\("about:blank"\)[\s\S]*"project and control persistence after retained restart"[\s\S]*result\.project_automation_restart_persisted = true;[\s\S]*result\.minimum_project_home_restart_root_resolution = true;[\s\S]*result\.project_controls_restart_persisted = true;[\s\S]*"resumed project automation after retained restart"[\s\S]*"same destination after retained restart"[\s\S]*result\.folder_onboarding_restart_reopen = true;/u,
+  /"paused project automation before retained restart"[\s\S]*await navigate\("about:blank"\)[\s\S]*startDevServer\(runtimeEnvironment\);[\s\S]*await waitForHttp\(`\$\{appOrigin\}\/`, DEFAULT_TIMEOUT_MS\);[\s\S]*timing\.milestone\("retained runtime ready within 45 second bound"\);[\s\S]*"project and control persistence after retained restart"[\s\S]*result\.project_automation_restart_persisted = true;[\s\S]*result\.minimum_project_home_restart_root_resolution = true;[\s\S]*result\.project_controls_restart_persisted = true;[\s\S]*"resumed project automation after retained restart"[\s\S]*"same destination after retained restart"[\s\S]*result\.folder_onboarding_restart_reopen = true;/u,
 );
 assert.match(
   source,
@@ -218,7 +219,7 @@ assert.match(
 );
 assert.match(
   source,
-  /const primaryActionRequired = shellState === 'change_decision'[\s\S]*\['change_decision', 'change_applied'\]\.includes\(metrics\.shell_state\)[\s\S]*metrics\.primary_action_required \? 1 : 0/u,
+  /const actionOwner = review\?\.getAttribute\('data-selected-work-primary-action-owner'\)[\s\S]*const primaryActionRequired =[\s\S]*actionOwner === 'decision'[\s\S]*actionOwner === 'transition'[\s\S]*actionOwner === 'candidate_selection'[\s\S]*metrics\.primary_action_count,[\s\S]*metrics\.primary_action_required \? 1 : 0/u,
 );
 assert.match(
   source,
