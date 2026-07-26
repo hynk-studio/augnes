@@ -620,7 +620,13 @@ async function main() {
   });
   let validateExactLaterOutcomeV01 = null;
   let mixedReturnTarget = null;
-  let mixedGenericValidationProposalId = null;
+  // Continuity intentionally skips the core-owned bounded-automation UI that
+  // captures this exclusion identity. Keep its assertion exact by binding the
+  // transferred fixture's deterministic generic validation proposal instead.
+  let mixedGenericValidationProposalId =
+    RUN_CONTINUITY_SCOPE && !RUN_CORE_SCOPE
+      ? manifest.strategic_source_proposal_id
+      : null;
   let mixedBoundedAutomationPacketTarget = null;
   writeFileSync(
     strategicTransportFixturePath,
