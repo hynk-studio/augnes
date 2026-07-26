@@ -93,6 +93,10 @@ const suites = {
       ...rootNode("scripts/test-browser-e2e-timing.mjs"),
     },
     {
+      label: "browser expected-refusal accounting",
+      ...rootNode("scripts/test-browser-expected-refusal-accounting.mjs"),
+    },
+    {
       label: "race-safe browser file-signal observation",
       ...rootNode("scripts/test-bounded-file-signal.mjs"),
     },
