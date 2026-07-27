@@ -120,38 +120,52 @@ PC2 did not create a separate History product, a global or cross-project
 timeline, graph or constellation, broad GuideBrief redesign, new persistence
 or protocol authority, or C9.
 
-## PC3 phase lifecycle
+## PC3 completed lifecycle
 
 ### Selected-work bounded relationship exploration
 
 [Issue #78](https://github.com/hynk-studio/augnes-perspective-lab/issues/78)
-defines PC3: one bounded implementation slice that explains why the exact
-selected candidate is connected to its source, support, decision, project
-consequence, blocker or later outcome inside the existing selected-detail
-route.
-
-While its linked Draft pull request is open, PC3 is the current authorized
-implementation slice. If that pull request merges, PC3 becomes completed. The
-pull request is the review packet while open and the outcome record if merged.
-No PC4 implementation, later product-continuity slice or C9 phase becomes
-authorized automatically.
+defined PC3. [PR #81](https://github.com/hynk-studio/augnes-perspective-lab/pull/81)
+is its completed and merged implementation and outcome record. PC3 explains
+why the exact selected candidate is connected to its source, support, decision,
+project consequence, blocker or later outcome inside the existing
+selected-detail route. Its merge commit
+`090e251cb49f3ab91078d42998b4c4bc72204fcf` is the exact implementation
+baseline for PC4.
 
 PC3 does not authorize a graph canvas, graph or relation persistence, a new
 route, global or cross-project relationship exploration, relationship
 authority, provider egress, broad GuideBrief redesign, PC4 or C9.
 
-## Next separately authorized work
+## PC4 phase lifecycle
+
+### Conversational GuideBrief around current work
 
 [Issue #79](https://github.com/hynk-studio/augnes-perspective-lab/issues/79)
-is a blocked PC4 candidate specification. It does not authorize
-implementation. PC4 remains blocked until PC3 merges and a separate explicit
-authorization is issued. Its existence does not change GuideBrief, provider,
-conversation, persistence or authority behavior.
+defines the current explicitly authorized PC4 implementation slice.
+[Draft PR #83](https://github.com/hynk-studio/augnes-perspective-lab/pull/83)
+is the current review packet while open. PC4 becomes completed only if that
+pull request merges; an open Draft does not establish completion.
+
+PC4 is a bounded, deterministic and zero-model conversational composition over
+the existing GuideBrief, PC1 attention, PC2 selected-work timeline and PC3
+relationship projections. It does not authorize model-assisted conversation,
+durable transcript storage, cross-project chat, a general chatbot, a new route,
+new protocol or persistence authority, or a second attention, current-position,
+relationship, decision, Transition or action owner.
+
+## Next separately authorized work
+
+PC5 and later product-continuity phases remain pending separate explicit
+authorization. Issue #79 and Draft PR #83 do not authorize them, and they do
+not authorize C9, model-assisted GuideBrief phrasing or routing, durable
+conversation storage, or cross-project conversation.
 
 ## Pending C9
 
 C9 compatibility and obsolete-surface reduction remains pending separate
-explicit authorization. RR0, RR1, PC1, PC2 and PC3 do not authorize it.
+explicit authorization. RR0, RR1, PC1, PC2, PC3 and the bounded PC4 review
+slice do not authorize it.
 
 Before C9 can begin, each proposed removal, redirect, demotion, or retained
 compatibility path needs the proof defined in the temporary correction charter:
@@ -170,8 +184,9 @@ a bounded part is implemented:
   slice, including any global or cross-project history;
 - relationship maturity beyond PC3's bounded exact selected-candidate
   connection slice, including any graph, global or cross-project exploration;
-- an always-available, fully conversational, source-anchored,
-  non-authoritative GuideBrief;
+- conversation maturity beyond PC4's bounded deterministic current-scope
+  GuideBrief slice, including model assistance, durable transcripts, general
+  chat, or cross-project conversation;
 - a fuller long-horizon research substrate for temporal continuity, goal
   tracking, perspective formation and revision, falsification pressure,
   provenance and causal analysis, bounded strategic transfer, outcome learning,
@@ -194,7 +209,7 @@ surface, or user experience.
 | Handoff and context reuse | Current native task-context/receipt path plus older compatibility/history. | Preserve the native path; retire older layers only with consumer proof. |
 | Automation | Bounded current automation plus legacy autonomy/Autohunt compatibility and research. | Do not treat legacy autonomy surfaces as the current product spine. |
 | Arena, actor, challenger, and debate substrate | Deferred candidate. | No persistent actor/debate system or automatic winner without separate authorization. |
-| Relationship / “constellation” | PC3 owns one bounded selected-candidate connection slice through the issue/PR lifecycle; legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or PC4 authorization. |
+| Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 may only interpret that projection conversationally while its Draft review is open. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
 
 Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,
