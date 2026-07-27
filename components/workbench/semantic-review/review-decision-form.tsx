@@ -1,7 +1,12 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import type {
   SemanticReviewCandidateReadV01,
@@ -15,7 +20,25 @@ const DEFAULT_DEFER_RATIONALE =
 const DEFAULT_REVISIT_CONDITION =
   "Review again when the missing verification or current project information is available.";
 
-export function ReviewDecisionForm({
+export interface ReviewDecisionPreparationHandleV01 {
+  prepareApplying: (
+    applyingDecision: "accept" | "supersede" | "retract",
+  ) => boolean;
+  focusOwner: () => boolean;
+}
+
+export const ReviewDecisionForm = forwardRef<
+  ReviewDecisionPreparationHandleV01,
+  {
+    proposalId: string;
+    proposalFingerprint: string;
+    candidateRead: SemanticReviewCandidateReadV01;
+    applyingDecision?: "accept" | "supersede" | "retract";
+    primary?: boolean;
+    busy: boolean;
+    onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
+  }
+>(function ReviewDecisionForm({
   proposalId,
   proposalFingerprint,
   candidateRead,
@@ -23,15 +46,7 @@ export function ReviewDecisionForm({
   primary = true,
   busy,
   onSubmit,
-}: {
-  proposalId: string;
-  proposalFingerprint: string;
-  candidateRead: SemanticReviewCandidateReadV01;
-  applyingDecision?: "accept" | "supersede" | "retract";
-  primary?: boolean;
-  busy: boolean;
-  onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
-}) {
+}, ref) {
   const [decision, setDecision] = useState<SupportedDecision>("defer");
   const [rationaleSummary, setRationaleSummary] = useState(
     DEFAULT_DEFER_RATIONALE,
@@ -39,6 +54,7 @@ export function ReviewDecisionForm({
   const [revisitCondition, setRevisitCondition] = useState(
     DEFAULT_REVISIT_CONDITION,
   );
+  const decisionControlRef = useRef<HTMLSelectElement | null>(null);
 
   const applyAllowed = candidateRead.pilot_admission.decision_allowed.accept;
   const selectedDecisionAllowed =
@@ -48,6 +64,30 @@ export function ReviewDecisionForm({
     selectedDecisionAllowed &&
     rationaleSummary.trim().length > 0 &&
     (decision !== "defer" || revisitCondition.trim().length > 0);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      prepareApplying: (requestedDecision) => {
+        if (
+          busy ||
+          !applyAllowed ||
+          requestedDecision !== applyingDecision
+        ) {
+          return false;
+        }
+        setDecision(applyingDecision);
+        decisionControlRef.current?.focus();
+        return true;
+      },
+      focusOwner: () => {
+        if (busy || !decisionControlRef.current) return false;
+        decisionControlRef.current.focus();
+        return true;
+      },
+    }),
+    [applyAllowed, applyingDecision, busy],
+  );
 
   async function submitDecision(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,6 +120,7 @@ export function ReviewDecisionForm({
         Decision
       </label>
       <select
+        ref={decisionControlRef}
         id={`decision-${candidateRead.candidate.candidate_id}`}
         value={decision}
         disabled={busy}
@@ -164,4 +205,4 @@ export function ReviewDecisionForm({
       </button>
     </form>
   );
-}
+});

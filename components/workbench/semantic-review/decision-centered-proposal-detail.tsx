@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import {
+  type RefObject,
+  useRef,
+  useState,
+} from "react";
 
-import { GuideBriefConversation } from "@/components/guide/guide-brief-conversation";
+import {
+  GuideBriefConversation,
+  type GuideBriefInteractionHostV01,
+} from "@/components/guide/guide-brief-conversation";
 import {
   buildAIWorkplaneChangeReviewViewV01,
   selectAIWorkplaneChangeCandidateV01,
@@ -14,11 +21,22 @@ import {
   selectSelectedWorkLifecycleV01,
 } from "@/lib/vnext/ai-workplane/selected-work-timeline";
 import {
+  createOpaqueGuideBriefInteractionTargetHandleV01,
+} from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
+import {
+  buildGuideBriefConversationScopeKeyV01,
+} from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
+import {
   buildSelectedWorkRelationshipsV01,
 } from "@/lib/vnext/ai-workplane/selected-work-relationships";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
+import type {
+  BrowserActionCapabilityV01,
+  BrowserActionRouteKeyV01,
+  GuideBriefInteractionAdapterV01,
+} from "@/types/vnext/guide-brief-interaction";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 import type {
   SelectedWorkConnectionStatementV01,
@@ -34,8 +52,14 @@ import type {
 import { ContextUseReviewForm } from "./context-use-review-form";
 import { OperationAwareRevisionForm } from "./operation-aware-revision-form";
 import { ProjectVerificationWorkbench } from "./project-verification-workbench";
-import { ReviewDecisionForm } from "./review-decision-form";
-import { SemanticTransitionActions } from "./semantic-transition-actions";
+import {
+  ReviewDecisionForm,
+  type ReviewDecisionPreparationHandleV01,
+} from "./review-decision-form";
+import {
+  SemanticTransitionActions,
+  type SemanticTransitionPreparationHandleV01,
+} from "./semantic-transition-actions";
 import { StrategicAdvantageTransferPanel } from "./strategic-advantage-transfer-panel";
 import {
   effectiveSelectedWorkRelationshipQuestionV01,
@@ -86,6 +110,20 @@ export function DecisionCenteredProposalDetail({
 }) {
   const proposal = read.proposal;
   const [transitionMutationBusy, setTransitionMutationBusy] = useState(false);
+  const [
+    transitionPreviewAvailability,
+    setTransitionPreviewAvailability,
+  ] = useState<{
+    scope_key: string;
+    available: boolean;
+  } | null>(null);
+  const decisionPreparationRef =
+    useRef<ReviewDecisionPreparationHandleV01 | null>(null);
+  const transitionPreparationRef =
+    useRef<SemanticTransitionPreparationHandleV01 | null>(null);
+  const nextCandidateActionRef = useRef<HTMLButtonElement | null>(null);
+  const advancedReviewRef = useRef<HTMLDetailsElement | null>(null);
+  const advancedReviewSummaryRef = useRef<HTMLElement | null>(null);
   const selected = selectAIWorkplaneChangeCandidateV01(
     read,
     selectedCandidateId,
@@ -128,6 +166,22 @@ export function DecisionCenteredProposalDetail({
         selected_candidate: selected,
       })
     : null;
+  const transitionPreviewOwnerScopeKey =
+    selected && selectedActionableApplyingDecision
+      ? [
+          proposal.proposal_id,
+          proposal.integrity.fingerprint,
+          selected.candidate.candidate_id,
+          selected.candidate_fingerprint,
+          selectedActionableApplyingDecision.decision_id,
+          selectedActionableApplyingDecision.integrity.fingerprint,
+        ].join("|")
+      : null;
+  const transitionPreviewAvailable =
+    transitionPreviewOwnerScopeKey !== null &&
+    transitionPreviewAvailability?.scope_key ===
+      transitionPreviewOwnerScopeKey &&
+    transitionPreviewAvailability.available;
   const applyingDecision = selected
     ? selectedApplyingDecisionV01(read, selected.candidate.candidate_id)
     : "accept";
@@ -264,6 +318,7 @@ export function DecisionCenteredProposalDetail({
           </p>
           {strategicActionsAvailable ? (
             <ReviewDecisionForm
+              ref={decisionPreparationRef}
               key={selected.candidate.candidate_id}
               proposalId={proposal.proposal_id}
               proposalFingerprint={proposal.integrity.fingerprint}
@@ -299,6 +354,7 @@ export function DecisionCenteredProposalDetail({
             candidate without mixing its history into this timeline.
           </p>
           <button
+            ref={nextCandidateActionRef}
             className={styles.button}
             type="button"
             data-vnext-review-next-change="true"
@@ -319,6 +375,7 @@ export function DecisionCenteredProposalDetail({
       timeline?.current_position.primary_action_owner === "transition" ? (
         <div id="selected-work-transition">
           <SemanticTransitionActions
+            ref={transitionPreparationRef}
             key={[
               proposal.proposal_id,
               proposal.integrity.fingerprint,
@@ -342,6 +399,19 @@ export function DecisionCenteredProposalDetail({
             tryBeginOperatorMutation={tryBeginOperatorMutation}
             endOperatorMutation={endOperatorMutation}
             onApplyingMutationBusyChange={setTransitionMutationBusy}
+            onPreviewAvailabilityChange={(available) => {
+              if (!transitionPreviewOwnerScopeKey) return;
+              setTransitionPreviewAvailability((current) =>
+                current?.scope_key ===
+                    transitionPreviewOwnerScopeKey &&
+                  current.available === available
+                  ? current
+                  : {
+                      scope_key: transitionPreviewOwnerScopeKey,
+                      available,
+                    }
+              );
+            }}
           />
         </div>
       ) : null}
@@ -354,6 +424,27 @@ export function DecisionCenteredProposalDetail({
           timeline={timeline}
           relationshipScopeKey={relationshipScopeKey}
           guide={guide}
+          nextDecisionCandidate={nextDecisionCandidate}
+          applyingDecision={applyingDecision}
+          decisionEligible={Boolean(
+            timeline.current_position.primary_action_owner === "decision" &&
+              strategicActionsAvailable &&
+              selected.pilot_admission.decision_allowed.accept &&
+              !proposalLocalBusy,
+          )}
+          transitionPreviewAvailable={
+            timeline.current_position.primary_action_owner === "transition" &&
+            transitionPreviewAvailable &&
+            !proposalLocalBusy
+          }
+          ownerBusy={proposalLocalBusy}
+          proposalInspectorHref={proposalInspectorHref}
+          onSelectedCandidateChange={onSelectedCandidateChange}
+          decisionPreparationRef={decisionPreparationRef}
+          transitionPreparationRef={transitionPreparationRef}
+          nextCandidateActionRef={nextCandidateActionRef}
+          advancedReviewRef={advancedReviewRef}
+          advancedReviewSummaryRef={advancedReviewSummaryRef}
         />
       ) : null}
 
@@ -372,11 +463,12 @@ export function DecisionCenteredProposalDetail({
       </div>
 
       <details
+        ref={advancedReviewRef}
         id="selected-work-advanced"
         className={styles.advancedDisclosure}
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
       >
-        <summary>Advanced review</summary>
+        <summary ref={advancedReviewSummaryRef}>Advanced review</summary>
         <p className={styles.muted}>
           Exact verification, decision history, project-change safeguards, and source
           history are available here. They are not required for the normal review.
@@ -482,12 +574,42 @@ function SelectedWorkRelationshipExploration({
   timeline,
   relationshipScopeKey,
   guide,
+  nextDecisionCandidate,
+  applyingDecision,
+  decisionEligible,
+  transitionPreviewAvailable,
+  ownerBusy,
+  proposalInspectorHref,
+  onSelectedCandidateChange,
+  decisionPreparationRef,
+  transitionPreparationRef,
+  nextCandidateActionRef,
+  advancedReviewRef,
+  advancedReviewSummaryRef,
 }: {
   read: SemanticReviewProposalDetailV01;
   selected: SemanticReviewProposalDetailV01["candidates"][number];
   timeline: SelectedWorkTimelineV01;
   relationshipScopeKey: string;
   guide: ProjectGuideBriefV02 | null;
+  nextDecisionCandidate:
+    | SemanticReviewProposalDetailV01["candidates"][number]
+    | null;
+  applyingDecision: "accept" | "supersede" | "retract";
+  decisionEligible: boolean;
+  transitionPreviewAvailable: boolean;
+  ownerBusy: boolean;
+  proposalInspectorHref: string;
+  onSelectedCandidateChange: (candidateId: string) => void;
+  decisionPreparationRef: RefObject<
+    ReviewDecisionPreparationHandleV01 | null
+  >;
+  transitionPreparationRef: RefObject<
+    SemanticTransitionPreparationHandleV01 | null
+  >;
+  nextCandidateActionRef: RefObject<HTMLButtonElement | null>;
+  advancedReviewRef: RefObject<HTMLDetailsElement | null>;
+  advancedReviewSummaryRef: RefObject<HTMLElement | null>;
 }) {
   const [relationshipSelection, setRelationshipSelection] =
     useState<SelectedWorkRelationshipQuestionSelectionV01 | null>(null);
@@ -531,6 +653,34 @@ function SelectedWorkRelationshipExploration({
       SelectedWorkRelationshipsV01
     >
   >;
+  const interaction = guide
+    ? selectedWorkInteractionHostV01({
+        guide,
+        read,
+        selected,
+        timeline,
+        relationships,
+        relationshipsByQuestion,
+        relationshipScopeKey,
+        nextDecisionCandidate,
+        applyingDecision,
+        decisionEligible,
+        transitionPreviewAvailable,
+        ownerBusy,
+        proposalInspectorHref,
+        onSelectedCandidateChange,
+        onRelationshipQuestionChange: (questionKey) =>
+          setRelationshipSelection({
+            scope_key: relationshipScopeKey,
+            question_key: questionKey,
+          }),
+        decisionPreparationRef,
+        transitionPreparationRef,
+        nextCandidateActionRef,
+        advancedReviewRef,
+        advancedReviewSummaryRef,
+      })
+    : null;
 
   return (
     <>
@@ -560,10 +710,584 @@ function SelectedWorkRelationshipExploration({
           selected_relationship_question_key={
             relationships.selected_question_key
           }
+          interaction={interaction}
         />
       ) : null}
     </>
   );
+}
+
+function selectedWorkInteractionHostV01(input: {
+  guide: ProjectGuideBriefV02;
+  read: SemanticReviewProposalDetailV01;
+  selected: SemanticReviewProposalDetailV01["candidates"][number];
+  timeline: SelectedWorkTimelineV01;
+  relationships: SelectedWorkRelationshipsV01;
+  relationshipsByQuestion: Partial<
+    Record<
+      SelectedWorkRelationshipQuestionKeyV01,
+      SelectedWorkRelationshipsV01
+    >
+  >;
+  relationshipScopeKey: string;
+  nextDecisionCandidate:
+    | SemanticReviewProposalDetailV01["candidates"][number]
+    | null;
+  applyingDecision: "accept" | "supersede" | "retract";
+  decisionEligible: boolean;
+  transitionPreviewAvailable: boolean;
+  ownerBusy: boolean;
+  proposalInspectorHref: string;
+  onSelectedCandidateChange: (candidateId: string) => void;
+  onRelationshipQuestionChange: (
+    questionKey: SelectedWorkRelationshipQuestionKeyV01,
+  ) => void;
+  decisionPreparationRef: RefObject<
+    ReviewDecisionPreparationHandleV01 | null
+  >;
+  transitionPreparationRef: RefObject<
+    SemanticTransitionPreparationHandleV01 | null
+  >;
+  nextCandidateActionRef: RefObject<HTMLButtonElement | null>;
+  advancedReviewRef: RefObject<HTMLDetailsElement | null>;
+  advancedReviewSummaryRef: RefObject<HTMLElement | null>;
+}): GuideBriefInteractionHostV01 {
+  const {
+    guide,
+    read,
+    selected,
+    timeline,
+    relationships,
+  } = input;
+  const selectedWorkScope = {
+    workspace_id: read.proposal.workspace_id,
+    project_id: read.proposal.project_id,
+    proposal_id: read.proposal.proposal_id,
+    proposal_fingerprint: read.proposal.integrity.fingerprint,
+    candidate_id: selected.candidate.candidate_id,
+    candidate_fingerprint: selected.candidate_fingerprint,
+  };
+  const scopeKey = buildGuideBriefConversationScopeKeyV01({
+    guide,
+    question: "",
+    selected_work_scope: selectedWorkScope,
+    timeline,
+    relationships: input.relationshipsByQuestion,
+    selected_relationship_question_key:
+      relationships.selected_question_key,
+    conversation_context: null,
+  });
+  const context: GuideBriefInteractionHostV01["context"] = {
+    pc4_scope_key: scopeKey,
+    workspace_id: selectedWorkScope.workspace_id,
+    project_id: selectedWorkScope.project_id,
+    project_context: guide.identity.project_context,
+    active_project_id: guide.identity.active_project_id,
+    proposal_id: selectedWorkScope.proposal_id,
+    proposal_fingerprint: selectedWorkScope.proposal_fingerprint,
+    candidate_id: selectedWorkScope.candidate_id,
+    candidate_fingerprint: selectedWorkScope.candidate_fingerprint,
+    pc2: {
+      current_item_id: timeline.current_item_id,
+      stage: timeline.current_position.stage,
+      primary_action_owner:
+        timeline.current_position.primary_action_owner,
+      material_identity: `${scopeKey}:pc2`,
+    },
+    pc3: {
+      selected_question_key: relationships.selected_question_key,
+      highlighted_connection_id:
+        relationships.highlighted_connection_id,
+      material_identity: `${scopeKey}:pc3`,
+    },
+    owner_state: {
+      busy: input.ownerBusy,
+      decision_applying_kind:
+        timeline.current_position.primary_action_owner === "decision"
+          ? input.applyingDecision
+          : null,
+      decision_eligible: input.decisionEligible,
+      transition_preview_available:
+        input.transitionPreviewAvailable,
+    },
+  };
+  const capabilities: BrowserActionCapabilityV01[] = [];
+  const adapters: GuideBriefInteractionAdapterV01[] = [];
+  const targetScope = {
+    workspace_id: selectedWorkScope.workspace_id,
+    project_id: selectedWorkScope.project_id,
+    proposal_id: selectedWorkScope.proposal_id,
+    proposal_fingerprint: selectedWorkScope.proposal_fingerprint,
+    candidate_id: selectedWorkScope.candidate_id,
+    candidate_fingerprint: selectedWorkScope.candidate_fingerprint,
+  };
+  const register = (
+    capability: BrowserActionCapabilityV01,
+    adapter: GuideBriefInteractionAdapterV01,
+  ) => {
+    capabilities.push(capability);
+    adapters.push(adapter);
+  };
+  const targetHandle = (
+    actionKey: BrowserActionCapabilityV01["action_key"],
+    routeKey: BrowserActionRouteKeyV01,
+    targetCandidateId = selectedWorkScope.candidate_id,
+    targetCandidateFingerprint =
+      selectedWorkScope.candidate_fingerprint,
+  ) =>
+    createOpaqueGuideBriefInteractionTargetHandleV01([
+      scopeKey,
+      actionKey,
+      routeKey,
+      targetCandidateId,
+      targetCandidateFingerprint,
+    ]);
+
+  if (
+    timeline.current_position.primary_action_owner ===
+      "candidate_selection" &&
+    input.nextDecisionCandidate &&
+    !input.ownerBusy
+  ) {
+    const next = input.nextDecisionCandidate;
+    const handle = targetHandle(
+      "selected_work.select_next_candidate",
+      "next_candidate",
+      next.candidate.candidate_id,
+      next.candidate_fingerprint,
+    );
+    register(
+      capabilityV01({
+        actionKey: "selected_work.select_next_candidate",
+        handle,
+        label: "Show the next change",
+        preview: "Select the exact next unresolved change.",
+        owner: "selected_candidate_surface",
+        effectClass: "ui_selection",
+        routeKey: "next_candidate",
+        scopeKey,
+        ownerIdentity: [
+          "candidate-selection",
+          next.candidate.candidate_id,
+          next.candidate_fingerprint,
+        ].join(":"),
+        destination: "#selected-work-next-candidate",
+        targetScope: {
+          ...targetScope,
+          candidate_id: next.candidate.candidate_id,
+          candidate_fingerprint: next.candidate_fingerprint,
+        },
+      }),
+      {
+        action_key: "selected_work.select_next_candidate",
+        target_handle: handle,
+        owner: "selected_candidate_surface",
+        effect_class: "ui_selection",
+        invoke: async () => {
+          input.onSelectedCandidateChange(
+            next.candidate.candidate_id,
+          );
+          return {
+            status: "completed",
+            public_observed_effect:
+              "The next unresolved change is now selected. No decision or project update was made.",
+            durable_state_changed: false,
+            exact_result_ref: null,
+          };
+        },
+      },
+    );
+  }
+
+  if (!input.ownerBusy) {
+    for (const question of relationships.questions) {
+      const routeKey = relationshipRouteKeyV01(question.question_key);
+      const handle = targetHandle(
+        "relationship.select_question",
+        routeKey,
+      );
+      register(
+        capabilityV01({
+          actionKey: "relationship.select_question",
+          handle,
+          label: relationshipCommandLabelV01(question.question_key),
+          preview:
+            "Show the exact currently advertised relationship question.",
+          owner: "pc3_relationship_surface",
+          effectClass: "ui_selection",
+          routeKey,
+          scopeKey,
+          ownerIdentity: `${input.relationshipScopeKey}:${question.question_key}`,
+          destination: "#selected-work-relationships",
+          targetScope,
+        }),
+        {
+          action_key: "relationship.select_question",
+          target_handle: handle,
+          owner: "pc3_relationship_surface",
+          effect_class: "ui_selection",
+          invoke: async () => {
+            input.onRelationshipQuestionChange(question.question_key);
+            return {
+              status: "completed",
+              public_observed_effect:
+                "The requested source-supported relationship is now shown. The existing relationship surface remains the owner.",
+              durable_state_changed: false,
+              exact_result_ref: null,
+            };
+          },
+        },
+      );
+    }
+  }
+
+  if (
+    timeline.current_position.primary_action_owner !== "none" &&
+    !input.ownerBusy
+  ) {
+    const handle = targetHandle(
+      "surface.open_current_action",
+      "current_action",
+    );
+    register(
+      capabilityV01({
+        actionKey: "surface.open_current_action",
+        handle,
+        label: "Take me to the current action",
+        preview:
+          "Focus the existing current action without activating it.",
+        owner: "pc2_current_action_surface",
+        effectClass: "navigation",
+        routeKey: "current_action",
+        scopeKey,
+        ownerIdentity: [
+          timeline.current_item_id,
+          timeline.current_position.primary_action_owner,
+          timeline.current_position.destination ?? "local-owner",
+        ].join(":"),
+        destination: timeline.current_position.destination,
+        targetScope,
+      }),
+      {
+        action_key: "surface.open_current_action",
+        target_handle: handle,
+        owner: "pc2_current_action_surface",
+        effect_class: "navigation",
+        invoke: async () => {
+          const owner = timeline.current_position.primary_action_owner;
+          const focused =
+            owner === "candidate_selection"
+              ? focusElementV01(input.nextCandidateActionRef.current)
+              : owner === "decision"
+                ? input.decisionPreparationRef.current?.focusOwner() ??
+                  false
+                : owner === "transition"
+                  ? input.transitionPreparationRef.current?.focusOwner() ??
+                    false
+                  : false;
+          return {
+            status: focused ? "handed_off" : "failed",
+            public_observed_effect: focused
+              ? "The existing current action now has focus. It was not activated."
+              : "The current action owner could not be focused.",
+            durable_state_changed: false,
+            exact_result_ref: null,
+          };
+        },
+      },
+    );
+  }
+
+  {
+    const handle = targetHandle(
+      "panel.open_advanced_review",
+      "advanced_review",
+    );
+    register(
+      capabilityV01({
+        actionKey: "panel.open_advanced_review",
+        handle,
+        label: "Open advanced review",
+        preview:
+          "Open the existing Advanced review disclosure and focus it.",
+        owner: "advanced_review_surface",
+        effectClass: "navigation",
+        routeKey: "advanced_review",
+        scopeKey,
+        ownerIdentity: `${scopeKey}:advanced-review`,
+        destination: "#selected-work-advanced",
+        targetScope,
+      }),
+      {
+        action_key: "panel.open_advanced_review",
+        target_handle: handle,
+        owner: "advanced_review_surface",
+        effect_class: "navigation",
+        invoke: async () => {
+          if (
+            !input.advancedReviewRef.current ||
+            !input.advancedReviewSummaryRef.current
+          ) {
+            return failedAdapterResultV01(
+              "Advanced review is unavailable.",
+            );
+          }
+          input.advancedReviewRef.current.open = true;
+          input.advancedReviewSummaryRef.current.focus();
+          return {
+            status: "completed",
+            public_observed_effect:
+              "The existing Advanced review is open. No project state changed.",
+            durable_state_changed: false,
+            exact_result_ref: null,
+          };
+        },
+      },
+    );
+  }
+
+  {
+    const handle = targetHandle(
+      "inspector.open_selected_work",
+      "selected_work_inspector",
+    );
+    register(
+      capabilityV01({
+        actionKey: "inspector.open_selected_work",
+        handle,
+        label: "Open exact details",
+        preview:
+          "Open the exact registered Inspector destination.",
+        owner: "inspector_surface",
+        effectClass: "navigation",
+        routeKey: "selected_work_inspector",
+        scopeKey,
+        ownerIdentity: input.proposalInspectorHref,
+        destination: input.proposalInspectorHref,
+        targetScope,
+      }),
+      {
+        action_key: "inspector.open_selected_work",
+        target_handle: handle,
+        owner: "inspector_surface",
+        effect_class: "navigation",
+        invoke: async () => {
+          window.location.assign(input.proposalInspectorHref);
+          return {
+            status: "completed",
+            public_observed_effect:
+              "The exact registered details are now open. Inspector remains read-only.",
+            durable_state_changed: false,
+            exact_result_ref: null,
+          };
+        },
+      },
+    );
+  }
+
+  if (input.decisionEligible && !input.ownerBusy) {
+    const routeKey =
+      input.applyingDecision === "accept"
+        ? "decision_accept"
+        : input.applyingDecision === "supersede"
+          ? "decision_supersede"
+          : "decision_retract";
+    const handle = targetHandle(
+      "decision.prepare_applying",
+      routeKey,
+    );
+    register(
+      capabilityV01({
+        actionKey: "decision.prepare_applying",
+        handle,
+        label:
+          input.applyingDecision === "accept"
+            ? "Prepare an accept decision"
+            : input.applyingDecision === "supersede"
+              ? "Prepare a replace decision"
+              : "Prepare a remove decision",
+        preview:
+          "Prepare the currently valid applying choice in the existing decision form. Nothing will be saved.",
+        owner: "review_decision_form",
+        effectClass: "prepare",
+        routeKey,
+        scopeKey,
+        ownerIdentity: [
+          selectedWorkScope.candidate_id,
+          selectedWorkScope.candidate_fingerprint,
+          input.applyingDecision,
+          "eligible",
+        ].join(":"),
+        destination: "#selected-work-decision",
+        targetScope,
+        confirmationPolicy: "owner_preparation_only",
+      }),
+      {
+        action_key: "decision.prepare_applying",
+        target_handle: handle,
+        owner: "review_decision_form",
+        effect_class: "prepare",
+        invoke: async () => {
+          const prepared =
+            input.decisionPreparationRef.current?.prepareApplying(
+              input.applyingDecision,
+            ) ?? false;
+          return prepared
+            ? {
+                status: "handed_off",
+                public_observed_effect:
+                  "The applying decision is prepared in the existing decision form. Nothing has been saved.",
+                durable_state_changed: false,
+                exact_result_ref: null,
+              }
+            : failedAdapterResultV01(
+                "The current decision owner could not be prepared.",
+              );
+        },
+      },
+    );
+  }
+
+  if (input.transitionPreviewAvailable && !input.ownerBusy) {
+    const handle = targetHandle(
+      "transition.prepare_preview",
+      "transition_preview",
+    );
+    register(
+      capabilityV01({
+        actionKey: "transition.prepare_preview",
+        handle,
+        label: "Show what would change before applying",
+        preview:
+          "Ask the existing project-change owner for one read-only impact preview.",
+        owner: "semantic_transition_actions",
+        effectClass: "read",
+        routeKey: "transition_preview",
+        scopeKey,
+        ownerIdentity: `${scopeKey}:transition-preview:available`,
+        destination: "#selected-work-transition",
+        targetScope,
+        confirmationPolicy: "read_only_owner_preview",
+      }),
+      {
+        action_key: "transition.prepare_preview",
+        target_handle: handle,
+        owner: "semantic_transition_actions",
+        effect_class: "read",
+        invoke: async () => {
+          const result =
+            await input.transitionPreparationRef.current?.preparePreview();
+          if (!result || result.status !== "prepared") {
+            return failedAdapterResultV01(
+              result?.public_observed_effect ??
+                "Impact review is unavailable.",
+            );
+          }
+          return {
+            status: "preview_prepared",
+            public_observed_effect: result.public_observed_effect,
+            durable_state_changed: false,
+            exact_result_ref: null,
+          };
+        },
+      },
+    );
+  }
+
+  return { context, capabilities, adapters };
+}
+
+function capabilityV01(input: {
+  actionKey: BrowserActionCapabilityV01["action_key"];
+  handle: string;
+  label: string;
+  preview: string;
+  owner: BrowserActionCapabilityV01["owner"];
+  effectClass: BrowserActionCapabilityV01["effect_class"];
+  routeKey: BrowserActionRouteKeyV01;
+  scopeKey: string;
+  ownerIdentity: string;
+  destination: string | null;
+  targetScope: BrowserActionCapabilityV01["target_scope"];
+  confirmationPolicy?: BrowserActionCapabilityV01["confirmation_policy"];
+}): BrowserActionCapabilityV01 {
+  return {
+    capability_version: "browser_action_capability.v0.1",
+    action_key: input.actionKey,
+    target_handle: input.handle,
+    public_label: input.label,
+    public_effect_preview: input.preview,
+    owner: input.owner,
+    effect_class: input.effectClass,
+    availability: "available",
+    unavailable_reason: null,
+    interaction_scope_key: input.scopeKey,
+    owner_actionability_identity: input.ownerIdentity,
+    confirmation_policy:
+      input.confirmationPolicy ?? "immediate_current_scope",
+    destination: input.destination,
+    may_propose: true,
+    may_execute_immediately: true,
+    route_key: input.routeKey,
+    target_scope: input.targetScope,
+    authority: {
+      projection_only: true,
+      durable: false,
+      semantic_authority: false,
+      transition_authority: false,
+      execution_authority: false,
+      external_action_authority: false,
+    },
+  };
+}
+
+function relationshipRouteKeyV01(
+  questionKey: SelectedWorkRelationshipQuestionKeyV01,
+): BrowserActionRouteKeyV01 {
+  return questionKey === "support_and_source"
+    ? "relationship_support_and_source"
+    : questionKey === "candidate_and_decision"
+      ? "relationship_candidate_and_decision"
+      : questionKey === "blocker_and_conflict"
+        ? "relationship_blocker_and_conflict"
+        : questionKey === "decision_and_project_change"
+          ? "relationship_decision_and_project_change"
+          : "relationship_project_change_and_later_outcome";
+}
+
+function relationshipCommandLabelV01(
+  questionKey: SelectedWorkRelationshipQuestionKeyV01,
+): string {
+  return questionKey === "support_and_source"
+    ? "Show the source connection"
+    : questionKey === "candidate_and_decision"
+      ? "Show the decision connection"
+      : questionKey === "blocker_and_conflict"
+        ? "Show the blocker"
+        : questionKey === "decision_and_project_change"
+          ? "Show the project change connection"
+          : "Show the later outcome";
+}
+
+function focusElementV01(
+  element: HTMLElement | null,
+): boolean {
+  if (!element) return false;
+  element.focus();
+  return true;
+}
+
+function failedAdapterResultV01(
+  message: string,
+): Awaited<
+  ReturnType<GuideBriefInteractionAdapterV01["invoke"]>
+> {
+  return {
+    status: "failed",
+    public_observed_effect: message,
+    durable_state_changed: false,
+    exact_result_ref: null,
+  };
 }
 
 function SelectedWorkRelationships({

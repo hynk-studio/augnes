@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
@@ -25,21 +32,17 @@ export interface SemanticTransitionPriorPacketBindingV01 {
   packet_fingerprint: string;
 }
 
-export function SemanticTransitionActions({
-  proposalId,
-  proposalFingerprint,
-  selectedCandidateId,
-  selectedCandidateFingerprint,
-  decisions,
-  persistedReceipts,
-  priorPacket,
-  onSessionInvalid,
-  onExactReviewMaterialChanged,
-  onProjectApplicationCompleted,
-  tryBeginOperatorMutation,
-  endOperatorMutation,
-  onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
-}: {
+export interface SemanticTransitionPreviewPreparationResultV01 {
+  status: "prepared" | "unavailable" | "stale" | "failed";
+  public_observed_effect: string;
+}
+
+export interface SemanticTransitionPreparationHandleV01 {
+  preparePreview: () => Promise<SemanticTransitionPreviewPreparationResultV01>;
+  focusOwner: () => boolean;
+}
+
+interface SemanticTransitionActionsPropsV01 {
   proposalId: string;
   proposalFingerprint: string;
   selectedCandidateId?: string;
@@ -53,7 +56,28 @@ export function SemanticTransitionActions({
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
   onApplyingMutationBusyChange?: (busy: boolean) => void;
-}) {
+  onPreviewAvailabilityChange?: (available: boolean) => void;
+}
+
+export const SemanticTransitionActions = forwardRef<
+  SemanticTransitionPreparationHandleV01,
+  SemanticTransitionActionsPropsV01
+>(function SemanticTransitionActions({
+  proposalId,
+  proposalFingerprint,
+  selectedCandidateId,
+  selectedCandidateFingerprint,
+  decisions,
+  persistedReceipts,
+  priorPacket,
+  onSessionInvalid,
+  onExactReviewMaterialChanged,
+  onProjectApplicationCompleted,
+  tryBeginOperatorMutation,
+  endOperatorMutation,
+  onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
+  onPreviewAvailabilityChange,
+}, ref) {
   const applyingDecisions = useMemo(
     () =>
       decisions.filter(
@@ -118,6 +142,7 @@ export function SemanticTransitionActions({
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const requestInFlight = useRef(false);
+  const previewButtonRef = useRef<HTMLButtonElement | null>(null);
   const mounted = useRef(true);
   const requestGeneration = useRef(0);
   const selectedDecisionScope = selectedDecision
@@ -200,8 +225,14 @@ export function SemanticTransitionActions({
     }
   }
 
-  async function preparePreview(): Promise<void> {
-    if (!selectedDecision || requestInFlight.current) return;
+  async function preparePreview(): Promise<SemanticTransitionPreviewPreparationResultV01> {
+    if (!selectedDecision || requestInFlight.current) {
+      return {
+        status: "unavailable",
+        public_observed_effect:
+          "Impact review is not currently available from its owner.",
+      };
+    }
     const requestGeneration = beginRequest("preview");
     setErrorCode(null);
     setStatusMessage(null);
@@ -224,10 +255,20 @@ export function SemanticTransitionActions({
       const body = (await response.json()) as
         | SemanticTransitionPreviewRouteResponseV01
         | SemanticTransitionRouteErrorV01;
-      if (!requestIsCurrent(requestGeneration)) return;
+      if (!requestIsCurrent(requestGeneration)) {
+        return {
+          status: "stale",
+          public_observed_effect:
+            "The selected work changed before impact review completed.",
+        };
+      }
       if (!response.ok) {
         handleRouteError(response.status, body);
-        return;
+        return {
+          status: "failed",
+          public_observed_effect:
+            "Impact review was not prepared. The project remains unchanged.",
+        };
       }
       if (
         body.status !== "preview" ||
@@ -269,14 +310,28 @@ export function SemanticTransitionActions({
         !isSha256Fingerprint(body.preview.confirmation_digest)
       ) {
         setErrorCode("semantic_transition_preview_response_invalid");
-        return;
+        return {
+          status: "failed",
+          public_observed_effect:
+            "The current impact response was invalid. The project remains unchanged.",
+        };
       }
       setPreviewResponse(body);
       setStatusMessage("Impact is ready. Reviewing it changed nothing.");
+      return {
+        status: "prepared",
+        public_observed_effect:
+          "Impact is ready for review. The project remains unchanged, and confirmation was not performed.",
+      };
     } catch {
       if (requestIsCurrent(requestGeneration)) {
         setErrorCode("semantic_transition_preview_request_failed");
       }
+      return {
+        status: "failed",
+        public_observed_effect:
+          "Impact review could not be prepared. The project remains unchanged.",
+      };
     } finally {
       finishRequest(requestGeneration, "preview");
     }
@@ -469,6 +524,24 @@ export function SemanticTransitionActions({
     (selectedDecision ? null : persistedReceiptForSelectedCandidate);
   const laterPacket = applyResponse?.later_packet ?? null;
   const allBusy = busyStep !== null;
+  const previewAvailable =
+    Boolean(selectedDecision) && !preview && !receipt && !allBusy;
+
+  useEffect(() => {
+    onPreviewAvailabilityChange?.(previewAvailable);
+  }, [onPreviewAvailabilityChange, previewAvailable]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      preparePreview,
+      focusOwner: () => {
+        if (!previewButtonRef.current) return false;
+        previewButtonRef.current.focus();
+        return true;
+      },
+    }),
+  );
 
   return (
     <section
@@ -567,6 +640,7 @@ export function SemanticTransitionActions({
             then describe the bounded effect and any blocker. This writes nothing.
           </p>
           <button
+            ref={previewButtonRef}
             className={styles.button}
             type="button"
             data-vnext-transition-action="preview"
@@ -731,7 +805,7 @@ export function SemanticTransitionActions({
       </details>
     </section>
   );
-}
+});
 
 function ExactValue({ label, value }: { label: string; value: string }) {
   return (

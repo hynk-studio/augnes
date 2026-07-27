@@ -82,6 +82,20 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label:
+        "GuideBrief bounded Browser interaction registry, plan, and execution contract",
+      ...rootNode("scripts/test-vnext-guide-brief-interaction.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded Browser interaction component and owner contract",
+      ...rootNode(
+        "scripts/test-vnext-guide-brief-interaction-component.ts",
+      ),
+      timeoutMs: 30_000,
+    },
+    {
       label: "C8 semantic visual hierarchy and regression contract",
       ...rootNode("scripts/test-c8-semantic-visual-contract.mjs"),
       timeoutMs: 30_000,
