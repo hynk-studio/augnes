@@ -17,15 +17,15 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 183);
-assert.equal(recordNames.length, 78);
+assert.equal(resultKeys.length, 189);
+assert.equal(recordNames.length, 81);
 assert.equal(
   hashInventory(resultKeys),
-  "c582143a357629758e33b1bfeb3978921cb8eef55f2666db19f7cd174dc821ff",
+  "33d28805fde6cc18e5f66f7b939c9e593f03fbae9a989f163943a43007466818",
 );
 assert.equal(
   hashInventory(recordNames),
-  "e1149d94fbe5df0bdaa5172904621b6f5cc666c5efbb00abd9a47ceed7fb744d",
+  "342722588285be1224c60a8902560a28d4f9b9fcde8246237fd29c808706187a",
 );
 for (const marker of [
   "mixed_return_target_captured_from_exact_mutated_proposal",
@@ -168,6 +168,69 @@ assert.equal(
 assert.match(
   source,
   /isExpectedSyntheticSessionRefusal[\s\S]*entry\.phase === "synthetic_session_bootstrap"[\s\S]*entry\.path === "\/api\/vnext\/operator\/session"[\s\S]*response\.method === "GET"[\s\S]*response\.status === 401/u,
+);
+assert.match(
+  source,
+  /createExpectedRefusalAccounting,[\s\S]*unexpectedConsoleErrorsForExpectedRefusals,[\s\S]*from "\.\/browser-expected-refusal-accounting\.mjs"/u,
+);
+assert.equal(
+  [...source.matchAll(/registerExpectedSessionRefusal\(\{/gu)].length,
+  3,
+);
+assert.match(
+  source,
+  /const mixedSessionLogout = await evaluateJson[\s\S]*action: 'logout'[\s\S]*mixedSessionLogout\.body\.status, "revoked"[\s\S]*tokenId: POSITIVE_LOCKED_SESSION_REFUSAL_TOKEN,[\s\S]*status: 401/u,
+);
+assert.match(
+  source,
+  /tokenId: STALE_MIXED_SESSION_REFUSAL_TOKEN,[\s\S]*status: 403,[\s\S]*await waitForExpectedRefusalSettlement\([\s\S]*STALE_MIXED_SESSION_REFUSAL_TOKEN/u,
+);
+assert.match(
+  source,
+  /typeof logEntry\?\.networkRequestId === "string"[\s\S]*log_network_request_id: logNetworkRequestId/u,
+);
+assert.match(
+  source,
+  /isRelevantNetworkError =[\s\S]*Network\.responseReceived[\s\S]*response\?\.status[\s\S]*expectedRefusalAccountingPhases\.has\(currentPhase\)/u,
+);
+assert.match(
+  source,
+  /async function waitForExpectedRefusalSettlement[\s\S]*expectedRefusalAccounting\.assertHealthy\(\)[\s\S]*lastObserverActivityAt >= REQUEST_QUIET_MS[\s\S]*expectedRefusalAccounting\.isSettled\(tokenId\)/u,
+);
+assert.match(
+  source,
+  /expectedRefusalAccounting\.finalize\(\)[\s\S]*staleRefusal\.refusal\.response_count, 1[\s\S]*staleRefusal\.chrome_log\.expected_count, 1/u,
+);
+assert.match(
+  source,
+  /expectedRecoveryRequestIds = new Set[\s\S]*expectedRecoveryRequestIds\.has\(request\.request_id\)[\s\S]*sessionMutationAction\(request\) === "bootstrap"[\s\S]*expectedHarnessMutations = new Set/u,
+);
+assert.match(
+  source,
+  /expectedFixtureLogoutRequests = RUN_CORE_SCOPE[\s\S]*sessionMutationAction\(request\) === "logout"[\s\S]*expectedFixtureLogoutRequests\.length, RUN_CORE_SCOPE \? 1 : 0/u,
+);
+assert.match(
+  source,
+  /const positiveLaterFeedbackRequestStart = requests\.length[\s\S]*positiveLaterFeedbackRequests\.length, 1[\s\S]*action: "record_context_use_review"[\s\S]*later_run_receipt_id: positiveLaterReceipt\.receipt_id[\s\S]*actually_used: "yes"[\s\S]*assessment: "helpful"[\s\S]*expectedPositiveContextUseReviewRequestId =[\s\S]*positiveLaterFeedbackRequest\.request_id/u,
+);
+assert.match(
+  source,
+  /expectedPositiveContextUseReviewRequests = RUN_CORE_SCOPE[\s\S]*request\.request_id ===[\s\S]*expectedPositiveContextUseReviewRequestId[\s\S]*requestJsonBody\(request\)\?\.action ===[\s\S]*"record_context_use_review"[\s\S]*expectedHarnessMutations = new Set/u,
+);
+assert.match(
+  source,
+  /unexpectedConsoleErrorsForExpectedRefusals\(\{[\s\S]*rawConsoleErrors: consoleErrors,[\s\S]*accounting: expectedRefusalAccounting[\s\S]*assert\.deepEqual\(unexpectedConsoleErrors, \[\]\)/u,
+);
+for (const marker of [
+  "expected_refusal_accounting_tracks_exact_request_identity",
+  "stale_session_refusal_recovers_as_separate_authenticated_request",
+  "raw_console_events_preserved_for_global_audit",
+]) {
+  assert.equal(source.includes(`record("${marker}")`), true);
+}
+assert.doesNotMatch(
+  source,
+  /entry\.path === "\/api\/vnext\/operator\/session"[\s\S]{0,240}\/403/u,
 );
 assert.match(
   source,

@@ -78,6 +78,10 @@ import {
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
+import {
+  createExpectedRefusalAccounting,
+  unexpectedConsoleErrorsForExpectedRefusals,
+} from "./browser-expected-refusal-accounting.mjs";
 import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
 import {
   registerOwnedChild,
@@ -111,6 +115,10 @@ const LIVE_HOST_APPROVAL_TIMEOUT_MS = 90_000;
 const OPERATOR_FIXTURE_EXPORT_TIMEOUT_MS = 45_000;
 const REQUEST_QUIET_MS = 500;
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+const POSITIVE_LOCKED_SESSION_REFUSAL_TOKEN =
+  "expected:positive-project-missing-session";
+const STALE_MIXED_SESSION_REFUSAL_TOKEN =
+  "expected:mixed-project-stale-session";
 const originalUmask = process.umask(0o077);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-native-host-result-browser-v0-1-"),
@@ -194,7 +202,7 @@ let cdp = null;
 let database = null;
 let bootstrapToken = null;
 let currentPhase = "setup";
-let lastRequestAt = Date.now();
+let lastObserverActivityAt = Date.now();
 let serverLog = "";
 let pausedSemanticTransitionRequest = null;
 let interceptedInspectorResponse = null;
@@ -203,6 +211,17 @@ const requests = [];
 const responses = [];
 const requestMethods = new Map();
 const consoleErrors = [];
+const expectedRefusalAccounting = createExpectedRefusalAccounting({
+  maximumTokens: 4,
+  maximumEvents: 256,
+});
+const expectedRefusalRequestLifecycles = new Map();
+const expectedRefusalAccountingPhases = new Set();
+const expectedRefusalObserverStartedAt = process.hrtime.bigint();
+let expectedRefusalAccountingActive = false;
+let expectedRefusalObserverSequence = 0;
+let finalizedExpectedRefusalReport = null;
+let expectedPositiveContextUseReviewRequestId = null;
 const pageErrors = [];
 const failedRequests = [];
 const externalRequests = [];
@@ -389,6 +408,12 @@ const result = {
   credential_material_in_server_log: false,
   default_database_accessed: false,
   provider_or_external_network_call: false,
+  expected_refusal_accounting_complete: false,
+  expected_stale_session_refusal_response_count: 0,
+  expected_stale_session_refusal_log_count: 0,
+  expected_refusal_duplicate_delivery_count: 0,
+  authenticated_session_recovery_response_count: 0,
+  expected_refusal_accounting_summary: null,
   temporary_root_removed: false,
   temporary_process_root_removed: false,
   temporary_profile_removed: false,
@@ -595,7 +620,13 @@ async function main() {
   });
   let validateExactLaterOutcomeV01 = null;
   let mixedReturnTarget = null;
-  let mixedGenericValidationProposalId = null;
+  // Continuity intentionally skips the core-owned bounded-automation UI that
+  // captures this exclusion identity. Keep its assertion exact by binding the
+  // transferred fixture's deterministic generic validation proposal instead.
+  let mixedGenericValidationProposalId =
+    RUN_CONTINUITY_SCOPE && !RUN_CORE_SCOPE
+      ? manifest.strategic_source_proposal_id
+      : null;
   let mixedBoundedAutomationPacketTarget = null;
   writeFileSync(
     strategicTransportFixturePath,
@@ -4637,6 +4668,25 @@ async function main() {
         ...runtimeEnvironment,
         AUGNES_VNEXT_OPERATOR_PROJECT_ID: positiveProjectId,
       };
+      const mixedSessionLogout = await evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/operator/session', {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'logout' })
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(mixedSessionLogout.status, 200);
+      assert.equal(mixedSessionLogout.body.ok, true);
+      assert.equal(mixedSessionLogout.body.status, "revoked");
+      registerExpectedSessionRefusal({
+        tokenId: POSITIVE_LOCKED_SESSION_REFUSAL_TOKEN,
+        status: 401,
+        chromeLogText:
+          "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      });
       await navigate("about:blank");
       await terminateProcess(serverProcess, 15_000);
       serverProcess = null;
@@ -4677,6 +4727,14 @@ async function main() {
       );
       assert.equal(serverLog.includes(bootstrapToken), false);
       bootstrapToken = null;
+      const positiveSessionRecovery = await readAuthenticatedSessionInBrowser();
+      assert.equal(positiveSessionRecovery.status, 200);
+      assert.equal(positiveSessionRecovery.body.ok, true);
+      assert.equal(positiveSessionRecovery.body.status, "authenticated");
+      await waitForExpectedRefusalSettlement(
+        POSITIVE_LOCKED_SESSION_REFUSAL_TOKEN,
+        "positive-project missing-session refusal and recovery",
+      );
 
       const beforePositiveTransition =
         readDirectHostBrowserState(positiveProjectId);
@@ -5393,6 +5451,7 @@ async function main() {
       await validateSemanticReviewViewports();
       const beforePositiveLaterFeedback =
         readDirectHostBrowserState(positiveProjectId);
+      const positiveLaterFeedbackRequestStart = requests.length;
       assert.equal(
         await evaluateBoolean(`(() => {
           const form = document.querySelector('[data-vnext-context-use-review-form="v0.1"]');
@@ -5420,6 +5479,38 @@ async function main() {
             1,
         "exact latest-packet later-result feedback admission",
       );
+      const positiveLaterFeedbackRequests = requests
+        .slice(positiveLaterFeedbackRequestStart)
+        .filter(
+          (request) =>
+            request.phase === "multi_candidate_transition_scope" &&
+            request.method === "POST" &&
+            request.path ===
+              "/api/vnext/operator/project-continuity" &&
+            requestJsonBody(request)?.action ===
+              "record_context_use_review",
+        );
+      assert.equal(positiveLaterFeedbackRequests.length, 1);
+      const positiveLaterFeedbackRequest =
+        positiveLaterFeedbackRequests[0];
+      assert.deepEqual(requestJsonBody(positiveLaterFeedbackRequest), {
+        action: "record_context_use_review",
+        later_run_receipt_id: positiveLaterReceipt.receipt_id,
+        later_run_receipt_fingerprint:
+          positiveLaterReceipt.integrity.fingerprint,
+        actually_used: "yes",
+        assessment: "helpful",
+        correction_summaries: [],
+        notes: [],
+        metrics: {
+          wrong_context_correction_count: 0,
+          repeated_explanation_estimate: null,
+          missing_critical_context_count: 0,
+          context_refs_used_count: 1,
+        },
+      });
+      expectedPositiveContextUseReviewRequestId =
+        positiveLaterFeedbackRequest.request_id;
       const positiveReviewedContinuity =
         projectVNextOperatorPilotContinuityV01(database, {
           config: readVNextLocalOperatorPilotConfigV01(
@@ -5740,6 +5831,12 @@ async function main() {
         `${appOrigin}/workbench/semantic-review`,
         DEFAULT_TIMEOUT_MS,
       );
+      registerExpectedSessionRefusal({
+        tokenId: STALE_MIXED_SESSION_REFUSAL_TOKEN,
+        status: 403,
+        chromeLogText:
+          "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      });
       await navigate(`${appOrigin}/workbench/semantic-review`);
       await waitForCondition(
         `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
@@ -5819,6 +5916,10 @@ async function main() {
         mixedReturnTarget.unapplied_candidate
           .decision_session_id,
         "the restored mixed runtime must authenticate a new local operator session",
+      );
+      await waitForExpectedRefusalSettlement(
+        STALE_MIXED_SESSION_REFUSAL_TOKEN,
+        "mixed-project stale-session refusal and recovery",
       );
       assert.equal(mixedReturnRouteReadback.detail_status, 200);
       assert.equal(mixedReturnRouteReadback.projects_status, 200);
@@ -9768,6 +9869,73 @@ async function main() {
 
   await waitForRequestQuiet();
   timing.milestone("final global request quiet observed");
+  if (RUN_CORE_SCOPE) {
+    assert.equal(expectedRefusalAccountingActive, true);
+    finalizedExpectedRefusalReport =
+      expectedRefusalAccounting.finalize();
+    const staleRefusal = finalizedExpectedRefusalReport.tokens.find(
+      (token) => token.token_id === STALE_MIXED_SESSION_REFUSAL_TOKEN,
+    );
+    assert(staleRefusal);
+    assert.equal(staleRefusal.refusal.response_count, 1);
+    assert.equal(staleRefusal.refusal.status, 403);
+    assert.equal(staleRefusal.chrome_log.expected_count, 1);
+    assert.notEqual(
+      staleRefusal.refusal.request_id,
+      staleRefusal.recovery.request_id,
+    );
+    assert.notEqual(
+      staleRefusal.refusal.request_id,
+      staleRefusal.authenticated.request_id,
+    );
+    result.expected_refusal_accounting_complete =
+      finalizedExpectedRefusalReport.ok;
+    result.expected_stale_session_refusal_response_count =
+      staleRefusal.refusal.response_count;
+    result.expected_stale_session_refusal_log_count =
+      staleRefusal.chrome_log.expected_count;
+    result.expected_refusal_duplicate_delivery_count =
+      finalizedExpectedRefusalReport.duplicate_deliveries.length;
+    result.authenticated_session_recovery_response_count =
+      staleRefusal.authenticated.response_count;
+    result.expected_refusal_accounting_summary = {
+      raw_console_events_preserved: true,
+      classified_console_event_count:
+        finalizedExpectedRefusalReport.classified_console_indexes.length,
+      tokens: finalizedExpectedRefusalReport.tokens,
+      duplicate_deliveries:
+        finalizedExpectedRefusalReport.duplicate_deliveries,
+      event_ledger: finalizedExpectedRefusalReport.event_ledger,
+    };
+    record("expected_refusal_accounting_tracks_exact_request_identity");
+    record("stale_session_refusal_recovers_as_separate_authenticated_request");
+    record("raw_console_events_preserved_for_global_audit");
+    process.stdout.write(
+      `[browser-e2e] expected_refusal_result ${JSON.stringify({
+        token_id: staleRefusal.token_id,
+        refusal_request_id: staleRefusal.refusal.request_id,
+        refusal_response_count: staleRefusal.refusal.response_count,
+        chrome_log_count: staleRefusal.chrome_log.expected_count,
+        chrome_log_request_id: staleRefusal.chrome_log.network_request_id,
+        chrome_log_correlation: staleRefusal.chrome_log.correlation,
+        recovery_request_id: staleRefusal.recovery.request_id,
+        authenticated_request_id: staleRefusal.authenticated.request_id,
+        event_sequence: finalizedExpectedRefusalReport.event_ledger
+          .filter((event) => event.token_id === staleRefusal.token_id)
+          .map((event) => ({
+            sequence: event.sequence,
+            event_name: event.event_name,
+            request_id: event.request_id,
+            log_network_request_id: event.log_network_request_id,
+            phase_started: event.phase_started,
+            phase_observed: event.phase_observed,
+            disposition: event.disposition,
+          })),
+      })}\n`,
+    );
+  } else {
+    assert.equal(expectedRefusalAccountingActive, false);
+  }
   const isExpectedSyntheticSessionRefusal = (entry) =>
     entry.phase === "synthetic_session_bootstrap" &&
     entry.path === "/api/vnext/operator/session" &&
@@ -9809,9 +9977,11 @@ async function main() {
         response.status === status,
     );
   };
-  const unexpectedConsoleErrors = consoleErrors.filter(
-    (entry) =>
-      !(
+  const unexpectedConsoleErrors =
+    unexpectedConsoleErrorsForExpectedRefusals({
+      rawConsoleErrors: consoleErrors,
+      accounting: expectedRefusalAccounting,
+      isOtherExpected: (entry) =>
         (entry.path === "/favicon.ico" && /404/i.test(entry.text)) ||
         (entry.phase === "retired_routes" && /404|405/i.test(entry.text)) ||
         (entry.phase === "locked_workbench" &&
@@ -9886,9 +10056,8 @@ async function main() {
         (entry.phase === "folder_onboarding" &&
           entry.path?.endsWith("/next/dist/client/dev/hot-reloader/app/web-socket.js") &&
           entry.text.includes("/_next/webpack-hmr") &&
-          entry.text.includes("ERR_CONNECTION_REFUSED"))
-      ),
-  );
+          entry.text.includes("ERR_CONNECTION_REFUSED")),
+    });
   const unexpectedFailedRequests = failedRequests.filter(
     (entry) =>
       entry.error_text !== "net::ERR_ABORTED" &&
@@ -9911,9 +10080,59 @@ async function main() {
     ),
     false,
   );
+  const expectedFixtureLogoutRequests = RUN_CORE_SCOPE
+    ? requests.filter(
+        (request) =>
+          request.phase === "multi_candidate_transition_scope" &&
+          request.method === "POST" &&
+          request.path === "/api/vnext/operator/session" &&
+          sessionMutationAction(request) === "logout",
+      )
+    : [];
+  assert.equal(expectedFixtureLogoutRequests.length, RUN_CORE_SCOPE ? 1 : 0);
+  const expectedRecoveryRequestIds = new Set(
+    (finalizedExpectedRefusalReport?.tokens ?? []).map(
+      (token) => token.recovery.request_id,
+    ),
+  );
+  const expectedRecoveryRequests = requests.filter(
+    (request) =>
+      expectedRecoveryRequestIds.has(request.request_id) &&
+      request.phase === "multi_candidate_transition_scope" &&
+      request.method === "POST" &&
+      request.path === "/api/vnext/operator/session" &&
+      sessionMutationAction(request) === "bootstrap",
+  );
+  assert.equal(
+    expectedRecoveryRequests.length,
+    expectedRecoveryRequestIds.size,
+  );
+  const expectedPositiveContextUseReviewRequests = RUN_CORE_SCOPE
+    ? requests.filter(
+        (request) =>
+          request.request_id ===
+            expectedPositiveContextUseReviewRequestId &&
+          request.phase === "multi_candidate_transition_scope" &&
+          request.method === "POST" &&
+          request.path ===
+            "/api/vnext/operator/project-continuity" &&
+          requestJsonBody(request)?.action ===
+            "record_context_use_review",
+      )
+    : [];
+  assert.equal(
+    expectedPositiveContextUseReviewRequests.length,
+    RUN_CORE_SCOPE ? 1 : 0,
+  );
+  const expectedHarnessMutations = new Set([
+    ...expectedFixtureLogoutRequests,
+    ...expectedRecoveryRequests,
+    ...expectedPositiveContextUseReviewRequests,
+  ]);
   const postBootstrapMutations = requests.filter(
     (request) =>
       request.method === "POST" &&
+      !expectedHarnessMutations.has(request) &&
       !(
         request.phase === "synthetic_session_bootstrap" &&
         request.path === "/api/vnext/operator/session"
@@ -11609,6 +11828,14 @@ async function enableCdpDomains() {
 
 function attachCdpObservers() {
   cdp.onEvent((event) => {
+    const rawConsoleIndex =
+      (event.method === "Runtime.consoleAPICalled" &&
+        event.params?.type === "error") ||
+      (event.method === "Log.entryAdded" &&
+        event.params?.entry?.level === "error")
+        ? consoleErrors.length
+        : null;
+    observeExpectedRefusalCdpEvent(event, { rawConsoleIndex });
     if (event.method === "Fetch.requestPaused") {
       const url = String(event.params?.request?.url ?? "");
       const classification = classifyUrl(url);
@@ -11672,8 +11899,10 @@ function attachCdpObservers() {
       const request = event.params?.request ?? {};
       const classification = classifyUrl(String(request.url ?? ""));
       const method = String(request.method ?? "GET").toUpperCase();
-      requestMethods.set(String(event.params?.requestId ?? ""), method);
+      const requestId = String(event.params?.requestId ?? "");
+      requestMethods.set(requestId, method);
       requests.push({
+        request_id: requestId,
         phase: currentPhase,
         method,
         path: classification.path,
@@ -11684,7 +11913,6 @@ function attachCdpObservers() {
       if (classification.external) {
         externalRequests.push({ phase: currentPhase, path: classification.path });
       }
-      lastRequestAt = Date.now();
       return;
     }
     if (event.method === "Network.responseReceived") {
@@ -11699,7 +11927,6 @@ function attachCdpObservers() {
         method:
           requestMethods.get(String(event.params?.requestId ?? "")) ?? null,
       });
-      lastRequestAt = Date.now();
       return;
     }
     if (event.method === "Network.loadingFailed") {
@@ -11709,7 +11936,6 @@ function attachCdpObservers() {
         phase: currentPhase,
         error_text: String(event.params?.errorText ?? "request_failed"),
       });
-      lastRequestAt = Date.now();
       return;
     }
     if (event.method === "Network.loadingFinished") {
@@ -11745,6 +11971,129 @@ function attachCdpObservers() {
   });
 }
 
+function observeExpectedRefusalCdpEvent(
+  event,
+  { rawConsoleIndex = null } = {},
+) {
+  const method = String(event.method ?? "");
+  if (/^(Network|Log|Runtime)\./u.test(method)) {
+    lastObserverActivityAt = Date.now();
+  }
+  if (
+    ![
+      "Network.requestWillBeSent",
+      "Network.responseReceived",
+      "Network.loadingFinished",
+      "Network.loadingFailed",
+      "Log.entryAdded",
+      "Runtime.consoleAPICalled",
+    ].includes(method)
+  ) {
+    return;
+  }
+  expectedRefusalObserverSequence += 1;
+
+  const requestId =
+    typeof event.params?.requestId === "string"
+      ? event.params.requestId
+      : null;
+  const logEntry = event.params?.entry ?? null;
+  const logNetworkRequestId =
+    typeof logEntry?.networkRequestId === "string"
+      ? logEntry.networkRequestId
+      : null;
+  const request = event.params?.request ?? null;
+  const response = event.params?.response ?? null;
+  const eventUrl = String(
+    request?.url ?? response?.url ?? logEntry?.url ?? "",
+  );
+  const eventPath = classifyUrl(eventUrl).path;
+  const lifecycleRequestId = requestId ?? logNetworkRequestId;
+  let lifecycle = lifecycleRequestId
+    ? expectedRefusalRequestLifecycles.get(lifecycleRequestId) ?? null
+    : null;
+
+  if (
+    method === "Network.requestWillBeSent" &&
+    requestId &&
+    eventPath === "/api/vnext/operator/session"
+  ) {
+    lifecycle = {
+      request_id: requestId,
+      method: String(request?.method ?? "GET").toUpperCase(),
+      url: eventUrl,
+      path: eventPath,
+      status: null,
+      phase_started: currentPhase,
+    };
+    expectedRefusalRequestLifecycles.set(requestId, lifecycle);
+  } else if (method === "Network.responseReceived" && lifecycle) {
+    lifecycle.status = Number(response?.status ?? 0);
+  }
+
+  const path = eventPath ?? lifecycle?.path ?? null;
+  const isSessionLifecycle =
+    path === "/api/vnext/operator/session" ||
+    lifecycle?.path === "/api/vnext/operator/session";
+  const isRelevantConsole =
+    (method === "Runtime.consoleAPICalled" &&
+      event.params?.type === "error") ||
+    (method === "Log.entryAdded" && logEntry?.level === "error");
+  const isRelevantNetworkError =
+    method === "Network.responseReceived" &&
+    Number(response?.status ?? 0) >= 400 &&
+    expectedRefusalAccountingPhases.has(currentPhase);
+  if (
+    !expectedRefusalAccountingActive ||
+    (!isSessionLifecycle &&
+      !isRelevantConsole &&
+      !isRelevantNetworkError)
+  ) {
+    return;
+  }
+
+  const rawText =
+    method === "Log.entryAdded"
+      ? String(logEntry?.text ?? "")
+      : method === "Runtime.consoleAPICalled"
+        ? (event.params?.args ?? [])
+            .map((argument) =>
+              String(argument.value ?? argument.description ?? ""),
+            )
+            .join(" ")
+        : null;
+  expectedRefusalAccounting.observe({
+    sequence: expectedRefusalObserverSequence,
+    observer_channel: method.split(".", 1)[0] ?? null,
+    event_name: method,
+    request_id: requestId,
+    log_network_request_id: logNetworkRequestId,
+    cdp_timestamp:
+      event.params?.timestamp ?? logEntry?.timestamp ?? null,
+    observation_monotonic_ms: Number(
+      (process.hrtime.bigint() - expectedRefusalObserverStartedAt) /
+        1_000_000n,
+    ),
+    method:
+      method === "Network.requestWillBeSent"
+        ? String(request?.method ?? "GET").toUpperCase()
+        : lifecycle?.method ?? null,
+    status:
+      method === "Network.responseReceived"
+        ? Number(response?.status ?? 0)
+        : lifecycle?.status ?? null,
+    url: eventUrl || lifecycle?.url || null,
+    path,
+    phase_started: lifecycle?.phase_started ?? null,
+    phase_observed: currentPhase,
+    raw_text: rawText,
+    raw_console_index: rawConsoleIndex,
+    event_fingerprint: createHash("sha256")
+      .update(JSON.stringify(event))
+      .digest("hex"),
+  });
+}
+
 function semanticTransitionRequestAction(request) {
   const method = String(request?.method ?? "GET").toUpperCase();
   if (method === "GET") return "preview";
@@ -11753,6 +12102,29 @@ function semanticTransitionRequestAction(request) {
     return body.action === "confirm" || body.action === "apply"
       ? body.action
       : null;
+  } catch {
+    return null;
+  }
+}
+
+function sessionMutationAction(request) {
+  if (
+    request?.method !== "POST" ||
+    request?.path !== "/api/vnext/operator/session"
+  ) {
+    return null;
+  }
+  const body = requestJsonBody(request);
+  return body?.action === "bootstrap" || body?.action === "logout"
+    ? body.action
+    : null;
+}
+
+function requestJsonBody(request) {
+  if (typeof request?.post_data !== "string") return null;
+  try {
+    const body = JSON.parse(request.post_data);
+    return body && typeof body === "object" ? body : null;
   } catch {
     return null;
   }
@@ -11887,6 +12259,67 @@ async function evaluateJson(expression) {
   return await evaluate(expression);
 }
 
+function registerExpectedSessionRefusal({
+  tokenId,
+  status,
+  chromeLogText,
+}) {
+  expectedRefusalRequestLifecycles.clear();
+  expectedRefusalAccountingPhases.add(currentPhase);
+  expectedRefusalAccounting.register({
+    token_id: tokenId,
+    phase: currentPhase,
+    refusal: {
+      method: "GET",
+      path: "/api/vnext/operator/session",
+      status,
+      chrome_log_text: chromeLogText,
+    },
+    recovery: {
+      method: "POST",
+      path: "/api/vnext/operator/session",
+      status: 200,
+    },
+    authenticated: {
+      method: "GET",
+      path: "/api/vnext/operator/session",
+      status: 200,
+    },
+  });
+  expectedRefusalAccountingActive = true;
+}
+
+async function readAuthenticatedSessionInBrowser() {
+  return evaluateJson(`(async () => {
+    const response = await fetch('/api/vnext/operator/session', {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    });
+    return { status: response.status, body: await response.json() };
+  })()`);
+}
+
+async function waitForExpectedRefusalSettlement(tokenId, label) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
+    expectedRefusalAccounting.assertHealthy();
+    if (Date.now() - lastObserverActivityAt >= REQUEST_QUIET_MS) {
+      if (expectedRefusalAccounting.isSettled(tokenId)) {
+        recordLongWait(
+          "wait_for_expected_refusal_settlement",
+          label,
+          startedAt,
+        );
+        return;
+      }
+      expectedRefusalAccounting.finalize();
+    }
+    await delay(100);
+  }
+  expectedRefusalAccounting.finalize();
+  throw new Error(`Timed out waiting for ${label}.`);
+}
+
 async function waitForCondition(expression, label, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
@@ -11979,7 +12412,7 @@ async function waitForRequestQuiet() {
   requestQuietCount += 1;
   const startedAt = Date.now();
   while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
-    if (Date.now() - lastRequestAt >= REQUEST_QUIET_MS) {
+    if (Date.now() - lastObserverActivityAt >= REQUEST_QUIET_MS) {
       timing.duration(
         "request_quiet",
         `request quiet ${String(requestQuietCount).padStart(2, "0")}`,
