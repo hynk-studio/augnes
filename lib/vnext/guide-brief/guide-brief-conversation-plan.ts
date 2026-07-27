@@ -781,10 +781,12 @@ function humanAttentionAnswerV01(
   input: GuideBriefConversationPlanInputV01,
 ): AnswerDraftV01 {
   const attention = input.guide.coordinate.human_attention;
+  const projectChoiceMeaning = projectChoiceAttentionMeaningV01(input.guide);
   const direct = attention.required
     ? attention.blocked_or_awaiting ??
       "A consequential intervention in the current attention projection requires you."
-    : "Nothing in the current attention projection requires your intervention right now.";
+    : projectChoiceMeaning ??
+      "Nothing in the current attention projection requires your intervention right now.";
   return {
     availability:
       input.guide.source_status === "partial" ? "partial" : "available",
@@ -793,7 +795,9 @@ function humanAttentionAnswerV01(
       observed_or_exact_basis:
         attention.required
           ? "The current attention projection marks this as a genuine human responsibility."
-          : "The current attention projection does not require human intervention.",
+          : projectChoiceMeaning
+            ? "No current project is selected; Augnes cannot start or resume project work until you choose one."
+            : "The current attention projection does not require human intervention.",
       bounded_interpretation: null,
       uncertainty_conflict_or_limitation:
         input.guide.source_status === "partial"
@@ -1471,10 +1475,23 @@ function answerAnchorV01(
 function attentionMeaningV01(guide: ProjectGuideBriefV02): string {
   const attention = guide.coordinate.human_attention;
   if (!attention.required) {
-    return "The current attention projection does not require human intervention.";
+    return projectChoiceAttentionMeaningV01(guide) ??
+      "The current attention projection does not require human intervention.";
   }
   return attention.blocked_or_awaiting ??
     "The current attention projection marks a consequential intervention as requiring human attention.";
+}
+
+function projectChoiceAttentionMeaningV01(
+  guide: ProjectGuideBriefV02,
+): string | null {
+  if (
+    guide.source_status !== "project_choice" ||
+    guide.coordinate.human_attention.required
+  ) {
+    return null;
+  }
+  return "Choose a local project to start or resume work. No consequential review or project decision is pending.";
 }
 
 function nextMeaningfulActionV01(

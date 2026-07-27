@@ -950,6 +950,48 @@ assert.equal(falseAttention.availability, "available");
 assert.match(falseAttention.direct_answer, /does not require|nothing.*requires/i);
 assert.doesNotMatch(falseAttention.direct_answer, /urgent|blocked.*you/i);
 
+const projectChoiceGuide = guide({
+  source_status: "project_choice",
+  attention_required: false,
+  attention_reason: null,
+  blocker: null,
+  judgment: null,
+  primary_label: "Choose a local project",
+  primary_reason: "A local project is needed before work can start.",
+});
+const projectChoiceCurrent = buildGuideBriefConversationPlanV01(planInput({
+  guide: projectChoiceGuide,
+  timeline: null,
+  selected_work_scope: null,
+  relationships: {},
+  selected_relationship_question_key: null,
+  question: "What is happening now?",
+}));
+assert.match(
+  projectChoiceCurrent.sections.human_attention_meaning ?? "",
+  /choose a local project.*no consequential review or project decision is pending/i,
+);
+assert.doesNotMatch(
+  projectChoiceCurrent.sections.human_attention_meaning ?? "",
+  /does not require human intervention/i,
+);
+const projectChoiceAttention = buildGuideBriefConversationPlanV01(planInput({
+  guide: projectChoiceGuide,
+  timeline: null,
+  selected_work_scope: null,
+  relationships: {},
+  selected_relationship_question_key: null,
+  question: "Why does this need me?",
+}));
+assert.match(
+  projectChoiceAttention.direct_answer,
+  /choose a local project.*no consequential review or project decision is pending/i,
+);
+assert.match(
+  projectChoiceAttention.sections.observed_or_exact_basis ?? "",
+  /cannot start or resume project work until you choose one/i,
+);
+
 const exactSupport = buildGuideBriefConversationPlanV01(planInput({
   question: "What supports this suggestion?",
 }));

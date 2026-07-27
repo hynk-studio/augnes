@@ -9,7 +9,10 @@ import {
   type GuideBriefInteractionHostV01,
 } from "@/components/guide/guide-brief-conversation";
 import { ProjectControls } from "@/components/project-controls";
-import { publicBlankStateTextV01 } from "@/lib/vnext/blank-state/blank-state-view";
+import {
+  blankStateAttentionLabelV01,
+  publicBlankStateTextV01,
+} from "@/lib/vnext/blank-state/blank-state-view";
 import {
   createOpaqueGuideBriefInteractionTargetHandleV01,
 } from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
@@ -614,17 +617,7 @@ function ContinuityItem({
           href: item.next_action.href,
         }
       : null);
-  const attentionLabel = item.attention_category
-    ? {
-        access_judgment: "Needs you: access decision",
-        explicit_resume: "Needs you: explicit resume",
-        reconciliation: "Needs you: reconcile observation",
-        result_review: "Needs you: review saved result",
-        project_recovery: "Needs you: reconnect project",
-        project_activation: "Needs you: activate viewed project",
-        pending_review: "Needs you: consequential review",
-      }[item.attention_category]
-    : "No intervention required";
+  const attentionLabel = blankStateAttentionLabelV01(item);
 
   return (
     <article
