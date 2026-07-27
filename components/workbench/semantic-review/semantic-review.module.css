@@ -611,6 +611,92 @@
   font-size: 0.78rem;
 }
 
+.selectedWorkRelationships {
+  gap: 18px;
+}
+
+.relationshipAnswer {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.relationshipAnswer > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.relationshipAnswer h3,
+.relationshipHighlight h3,
+.relationshipConnection h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 0.96rem;
+  overflow-wrap: anywhere;
+}
+
+.relationshipHighlight,
+.relationshipConnection {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.relationshipHighlight {
+  padding: 15px;
+  border: 1px solid rgba(18, 112, 82, 0.3);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+}
+
+.relationshipConnection {
+  padding: 13px 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.relationshipConnectionHeader {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.relationshipConnectionHeader > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.relationshipWhy {
+  display: grid;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 2px solid var(--panel-border);
+}
+
+.relationshipWhy strong {
+  color: var(--foreground);
+  font-size: 0.78rem;
+}
+
+.relationshipConnectionList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relationshipDestinations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+
 .secondaryDangerButton {
   min-height: 38px;
   padding: 8px 12px;

@@ -72,6 +72,8 @@ export interface SelectedWorkTimelineV01 {
     title: string;
     operation_label: string;
     current_meaning: string;
+    selected_candidate_id: string;
+    selected_candidate_fingerprint: string;
     selected_candidate_scope: true;
   };
   items: SelectedWorkTimelineItemV01[];
