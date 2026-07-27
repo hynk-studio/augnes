@@ -236,4 +236,36 @@ a bounded part is implemented:
   without replicating one interface.
 
 These directions do not imply a completed route, schema, engine, record,
-authority path, or provider integration.
+surface, or user experience.
+
+## Research status
+
+| Program | Current classification | Sequencing boundary |
+|---|---|---|
+| Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
+| Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
+| `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
+| Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
+| Sidecar | Paused/dormant research residue. | Do not import its older branch topology wholesale. |
+| Handoff and context reuse | Current native task-context/receipt path plus older compatibility/history. | Preserve the native path; retire older layers only with consumer proof. |
+| Automation | Bounded current automation plus legacy autonomy/Autohunt compatibility and research. | Do not treat legacy autonomy surfaces as the current product spine. |
+| Arena, actor, challenger, and debate substrate | Deferred candidate. | No persistent actor/debate system or automatic winner without separate authorization. |
+| Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
+
+Research engines may explore, compare, challenge, infer, predict, and propose.
+Their output is not truth, accepted Perspective, user decision, Transition,
+execution authority, or authority expansion.
+
+## Compatibility and historical work
+
+Current compatibility paths remain until a separately authorized phase proves
+replacement and safe retirement. Historical plans, milestone records,
+submission material, fixtures, archived packages, old Workplane/Cockpit names,
+legacy MCP tools, and unmerged research branch residue do not become current
+authority because they remain reachable or referenced.
+
+Later documentation, code, fixture, script, schema, route, package, or branch
+reduction must be split into reviewed proof-backed batches. Unknown external
+consumers, data population, dynamic imports, archived evaluation use, and
+retention requirements remain unresolved rather than being converted into
+deletion claims.
