@@ -69,7 +69,7 @@ assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
   'className="blank-state-focus"',
   'data-blank-state-continuity-list="v0.1"',
-  '<GuideBriefConversation guide={guide} surface="blank_state" />',
+  "<GuideBriefConversation\n          guide={guide}",
   "<ManagementSafety",
 ]);
 const guideConversation = read(
@@ -243,7 +243,7 @@ assertOrdered(proposalReview, [
   "<SelectedWorkRelationshipExploration",
   "<SelectedWorkSupport view={view} />",
   'id="selected-work-later-feedback"',
-  "<summary>Advanced review</summary>",
+  "<summary ref={advancedReviewSummaryRef}>Advanced review</summary>",
 ]);
 assertOrdered(proposalReview, [
   'id="selected-work-timeline-title"',

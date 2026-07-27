@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
-import { GuideBriefConversation } from "@/components/guide/guide-brief-conversation";
+import {
+  GuideBriefConversation,
+  type GuideBriefInteractionHostV01,
+} from "@/components/guide/guide-brief-conversation";
 import { ProjectControls } from "@/components/project-controls";
 import { publicBlankStateTextV01 } from "@/lib/vnext/blank-state/blank-state-view";
+import {
+  createOpaqueGuideBriefInteractionTargetHandleV01,
+} from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
+import {
+  buildGuideBriefConversationScopeKeyV01,
+} from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
 import {
   SEMANTIC_SURFACE_ROLE,
   SEMANTIC_VISUAL_PRIORITY,
@@ -221,6 +230,110 @@ export function BlankStateClient({
 
   const projection = source.projection;
   const primaryEntry = primaryRecentEntry(view.primary_action, recent);
+  const blankInteraction = useMemo<GuideBriefInteractionHostV01>(() => {
+    const scopeKey = buildGuideBriefConversationScopeKeyV01({
+      guide,
+      question: "",
+      conversation_context: null,
+    });
+    const exactDestination =
+      view.primary_action?.kind === "link"
+        ? view.primary_action.href
+        : null;
+    const targetHandle =
+      exactDestination === null
+          ? null
+          : createOpaqueGuideBriefInteractionTargetHandleV01([
+            guide.identity.workspace_id ?? "no-workspace",
+            guide.identity.project_id ?? "no-project",
+            scopeKey,
+            exactDestination,
+          ]);
+    return {
+      context: {
+        pc4_scope_key: scopeKey,
+        workspace_id: guide.identity.workspace_id,
+        project_id: guide.identity.project_id,
+        project_context: guide.identity.project_context,
+        active_project_id: guide.identity.active_project_id,
+        proposal_id: null,
+        proposal_fingerprint: null,
+        candidate_id: null,
+        candidate_fingerprint: null,
+        pc2: null,
+        pc3: null,
+        owner_state: {
+          busy,
+          decision_applying_kind: null,
+          decision_eligible: false,
+          transition_preview_available: false,
+        },
+      },
+      capabilities:
+        exactDestination && targetHandle
+          ? [{
+              capability_version: "browser_action_capability.v0.1",
+              action_key: "surface.open_current_action",
+              target_handle: targetHandle,
+              public_label: "Take me to the current action",
+              public_effect_preview:
+                "Open the exact current destination without activating its action.",
+              owner: "pc2_current_action_surface",
+              effect_class: "navigation",
+              availability: busy ? "blocked" : "available",
+              unavailable_reason: busy
+                ? "The current action owner is busy."
+                : null,
+              interaction_scope_key: scopeKey,
+              owner_actionability_identity: [
+                view.primary_action?.kind,
+                exactDestination,
+                busy ? "busy" : "available",
+              ].join(":"),
+              confirmation_policy: "immediate_current_scope",
+              destination: exactDestination,
+              may_propose: !busy,
+              may_execute_immediately: !busy,
+              route_key: "current_action",
+              target_scope: {
+                workspace_id: guide.identity.workspace_id,
+                project_id: guide.identity.project_id,
+                proposal_id: null,
+                proposal_fingerprint: null,
+                candidate_id: null,
+                candidate_fingerprint: null,
+              },
+              authority: {
+                projection_only: true,
+                durable: false,
+                semantic_authority: false,
+                transition_authority: false,
+                execution_authority: false,
+                external_action_authority: false,
+              },
+            }]
+          : [],
+      adapters:
+        exactDestination && targetHandle
+          ? [{
+              action_key: "surface.open_current_action",
+              target_handle: targetHandle,
+              owner: "pc2_current_action_surface",
+              effect_class: "navigation",
+              invoke: async () => {
+                window.location.assign(exactDestination);
+                return {
+                  status: "completed",
+                  public_observed_effect:
+                    "The existing current-action destination is now open. No project action was performed.",
+                  durable_state_changed: false,
+                  exact_result_ref: null,
+                };
+              },
+            }]
+          : [],
+    };
+  }, [busy, guide, view.primary_action]);
   const projectManagement = (
     <ProjectManagement
       recent={recent}
@@ -390,7 +503,11 @@ export function BlankStateClient({
           ) : null}
         </section>
 
-        <GuideBriefConversation guide={guide} surface="blank_state" />
+        <GuideBriefConversation
+          guide={guide}
+          surface="blank_state"
+          interaction={blankInteraction}
+        />
 
         {view.project_management_emphasized ? projectManagement : (
           <details className="blank-state-disclosure" data-blank-state-project-management="collapsed">

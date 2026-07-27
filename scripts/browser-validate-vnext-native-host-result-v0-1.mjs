@@ -1163,7 +1163,7 @@ async function main() {
             'data-guidebrief-conversation-active-answer'
           ) === 'false' &&
           conversation.querySelectorAll(
-            '[data-guidebrief-conversation-answer]'
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
           ).length === 0;
       })()`,
       "GuideBrief conversation resets immediately for an explicitly viewed project",
@@ -7352,6 +7352,135 @@ async function main() {
       );
     };
 
+    const beforeDecisionPreparation = databaseSnapshot(database);
+    const decisionPreparationRequestStart = requests.length;
+    await openGuideBriefConversationAndAnswerSuggestedQuestion();
+    await submitGuideBriefInteractionCommand(
+      "Prepare an accept decision.",
+    );
+    await waitForCondition(
+      `(() => {
+        const form = document.querySelector(
+          '[data-vnext-operator-decision-form="v0.1"]'
+        );
+        const select = form?.querySelector('select');
+        const rationale = form?.querySelector('textarea');
+        const submit = form?.querySelector('button[type="submit"]');
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return select instanceof HTMLSelectElement &&
+          select.value === 'accept' &&
+          rationale instanceof HTMLTextAreaElement &&
+          rationale.value === '' &&
+          submit instanceof HTMLButtonElement &&
+          submit.disabled &&
+          document.activeElement === select &&
+          conversation?.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"][data-guidebrief-interaction-durable-state-changed="false"]'
+          ) !== null;
+      })()`,
+      "GuideBrief prepares the exact applying decision in the existing owner",
+    );
+    assert.deepEqual(
+      databaseSnapshot(database),
+      beforeDecisionPreparation,
+      "GuideBrief decision preparation must not write a decision or project state",
+    );
+    assert.equal(
+      requests.slice(decisionPreparationRequestStart).length,
+      0,
+      "GuideBrief decision preparation must perform zero network requests",
+    );
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const form = document.querySelector(
+          '[data-vnext-operator-decision-form="v0.1"]'
+        );
+        const select = form?.querySelector('select');
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return select instanceof HTMLSelectElement &&
+          document.activeElement === select &&
+          conversation?.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null &&
+          document.querySelectorAll('[data-ai-workplane-primary-action]').length === 1;
+      })()`,
+      "GuideBrief focuses but does not activate the existing current action",
+    );
+    await submitGuideBriefInteractionCommand("Open advanced review.");
+    await waitForCondition(
+      `(() => {
+        const advanced = document.querySelector(
+          'details#selected-work-advanced'
+        );
+        const summary = advanced?.querySelector(':scope > summary');
+        return advanced instanceof HTMLDetailsElement &&
+          advanced.open &&
+          summary instanceof HTMLElement &&
+          document.activeElement === summary &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="completed"]'
+          ) !== null;
+      })()`,
+      "GuideBrief opens and focuses the existing Advanced owner",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const advanced = document.querySelector(
+          'details#selected-work-advanced'
+        );
+        if (!(advanced instanceof HTMLDetailsElement)) return false;
+        advanced.open = false;
+        return !advanced.open;
+      })()`),
+      true,
+      "Advanced review must be closed before the partial-utterance refusal proof",
+    );
+    await submitGuideBriefInteractionCommand(
+      "Open advanced review and merge the PR.",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null && document.querySelector('details#selected-work-advanced:not([open])') !== null`,
+      "GuideBrief refuses a supported action with a forbidden tail without invoking its owner",
+    );
+    await submitGuideBriefInteractionCommand("Apply this.");
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null`,
+      "GuideBrief refuses an unsupported mutation command",
+    );
+    await submitGuideBriefInteractionCommand("Show the blocker.");
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-interaction-plan="unavailable"]') !== null`,
+      "GuideBrief refuses an unavailable relationship question",
+    );
+    assert.deepEqual(
+      databaseSnapshot(database),
+      beforeDecisionPreparation,
+      "unsupported GuideBrief mutation command must leave durable state unchanged",
+    );
+    assert.equal(
+      requests.slice(decisionPreparationRequestStart).length,
+      0,
+      "bounded Decision, focus, Advanced, and refusal interactions perform zero network requests",
+    );
+    result.guide_brief_decision_preparation_zero_write = true;
+    result.guide_brief_current_action_focus_only = true;
+    result.guide_brief_advanced_owner_handoff = true;
+    result.guide_brief_mutation_refusal = true;
+    result.guide_brief_unavailable_relationship_refusal = true;
+    record("guidebrief_decision_preparation_has_zero_submit_and_zero_network");
+    record("guidebrief_current_action_focus_does_not_activate_owner");
+    record("guidebrief_advanced_review_uses_existing_disclosure_owner");
+    record("guidebrief_partial_utterance_does_not_invoke_supported_owner");
+    record("guidebrief_unsupported_mutation_command_is_refused");
+    record("guidebrief_unavailable_relationship_question_is_refused");
+
     await recordSelectedAcceptDecision(
       candidateA,
       "Accept candidate A for a separately previewed and authorized transition interaction-scope proof.",
@@ -7380,31 +7509,35 @@ async function main() {
     );
     await selectCandidate(candidateA);
     const beforeRelationshipQuestion = databaseSnapshot(database);
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const selector = document.querySelector(
-          '[data-selected-work-relationship-question-selector="true"]'
-        );
-        if (!(selector instanceof HTMLSelectElement)) return false;
-        if (!Array.from(selector.options).some(
-          (option) => option.value === 'support_and_source'
-        )) return false;
-        selector.value = 'support_and_source';
-        selector.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-      })()`),
-      true,
-      "candidate A must offer its exact source-supported relationship question",
+    await submitGuideBriefInteractionCommand(
+      "Show the source connection.",
     );
     await waitForCondition(
       `document.querySelector('[data-selected-work-relationships="selected_work_relationships.v0.1"][data-selected-work-relationship-question="support_and_source"]') !== null`,
-      "candidate A selected relationship question",
+      "GuideBrief delegates the exact source question to the existing PC3 owner",
     );
     assert.deepEqual(
       databaseSnapshot(database),
       beforeRelationshipQuestion,
       "relationship-question selection must remain projection-local UI state",
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-conversation-active-answer'
+        ) === 'false' &&
+          conversation.querySelectorAll(
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
+          ).length === 0;
+      })()`),
+      true,
+      "relationship selection must synchronously discard the old interaction presentation",
+    );
+    result.guide_brief_relationship_selection_owner_reused = true;
+    record("guidebrief_relationship_selection_reuses_pc3_owner");
     const candidateAGuideAnswer =
       await openGuideBriefConversationAndAnswerSuggestedQuestion();
     assert.equal(candidateAGuideAnswer.answer_count, 1);
@@ -7432,7 +7565,7 @@ async function main() {
             'data-guidebrief-conversation-active-answer'
           ) === 'false' &&
           conversation.querySelectorAll(
-            '[data-guidebrief-conversation-answer]'
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
           ).length === 0;
       })()`,
       "GuideBrief conversation resets immediately for a different exact candidate scope",
@@ -7603,11 +7736,202 @@ async function main() {
       "PC4 visible relationship answer must use the PC3-highlighted connection",
     );
     result.guide_brief_highlighted_relationship_agreement = true;
-    await clickTransitionAction("preview");
+    const guideBriefPreviewRequestStart = requests.length;
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const preview = document.querySelector(
+          '[data-vnext-transition-action="preview"]'
+        );
+        return preview instanceof HTMLButtonElement &&
+          document.activeElement === preview &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "pre-preview current action focuses the existing read-only preview owner without activating it",
+    );
+    assert.equal(
+      requests.slice(guideBriefPreviewRequestStart).length,
+      0,
+      "focusing the pre-preview current action must issue no request",
+    );
+    record("guidebrief_pre_preview_current_action_focus_only");
+    await waitForCondition(
+      `(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        const details = conversation?.querySelector(':scope > details');
+        if (!(details instanceof HTMLDetailsElement)) return false;
+        details.open = true;
+        return Array.from(
+          conversation.querySelectorAll(
+            '[aria-label="Interactions supported by current owners"] button'
+          )
+        ).some(
+          (button) =>
+            button.textContent?.trim() ===
+              'Show what would change before applying' &&
+            button instanceof HTMLButtonElement &&
+            !button.disabled
+        );
+      })()`,
+      "GuideBrief advertises the exact current Transition preview owner",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const advanced = document.querySelector(
+          'details#selected-work-advanced'
+        );
+        if (!(advanced instanceof HTMLDetailsElement)) return false;
+        advanced.open = false;
+        return !advanced.open;
+      })()`),
+      true,
+      "Advanced owner must begin closed for the host single-flight proof",
+    );
+    pauseNextSemanticTransitionRequest("preview");
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        const button = Array.from(
+          conversation?.querySelectorAll(
+            '[aria-label="Interactions supported by current owners"] button'
+          ) ?? []
+        ).find(
+          (candidate) =>
+            candidate.textContent?.trim() ===
+            'Show what would change before applying'
+        );
+        if (!(button instanceof HTMLButtonElement) || button.disabled) {
+          return false;
+        }
+        button.click();
+        button.click();
+        return true;
+      })()`),
+      true,
+      "double activation must still invoke one owner preview",
+    );
+    await waitForPausedSemanticTransitionRequest("preview");
+    await waitForCondition(
+      `(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-interaction-in-flight'
+        ) === 'true' &&
+          !Array.from(
+            conversation.querySelectorAll(
+              '[aria-label="Interactions supported by current owners"] button'
+            )
+          ).some(
+            (button) =>
+              button.textContent?.trim() ===
+                'Show what would change before applying'
+          );
+      })()`,
+      "Transition preview snapshot changes while the mounted host remains in flight",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        const input = conversation?.querySelector(
+          'input[name="guidebrief-question"]'
+        );
+        const form = input?.closest('form');
+        const setter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value'
+        )?.set;
+        if (!(input instanceof HTMLInputElement) ||
+            !(form instanceof HTMLFormElement) ||
+            !setter) {
+          return false;
+        }
+        setter.call(input, 'Open advanced review.');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        form.dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true })
+        );
+        return true;
+      })()`),
+      true,
+      "a second bounded action is submitted while the original owner read remains pending",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('details#selected-work-advanced:not([open])') !== null`,
+      ),
+      true,
+      "snapshot refresh must not permit a second owner adapter while preview is pending",
+    );
+    await releasePausedSemanticTransitionRequest("preview");
     await waitForCondition(
       `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]') !== null`,
-      "fresh candidate A preview after switch-back",
+      "GuideBrief-prepared candidate A preview after switch-back",
     );
+    const guideBriefPreviewRequests = requests.slice(
+      guideBriefPreviewRequestStart,
+    ).filter(
+      (request) =>
+        request.path === "/api/vnext/operator/semantic-transition",
+    );
+    assert.deepEqual(
+      guideBriefPreviewRequests.map((request) => request.method),
+      ["GET"],
+      "GuideBrief Transition preparation must issue one preview GET and zero POST",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const transition = document.querySelector(
+          '[data-vnext-semantic-transition-actions="v0.1"]'
+        );
+        return transition?.querySelector(
+          '[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]'
+        ) !== null &&
+          transition.querySelector(
+            '[data-vnext-transition-step="confirmation"][data-vnext-transition-step-status="recorded"]'
+          ) === null &&
+          transition.querySelector(
+            '[data-vnext-transition-step="apply"][data-vnext-transition-step-status="applied"]'
+          ) === null;
+      })()`),
+      true,
+      "GuideBrief preview preparation performs no confirmation or application",
+    );
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const checkbox = document.querySelector(
+          '[data-vnext-transition-step="preview"] input[type="checkbox"]'
+        );
+        return checkbox instanceof HTMLInputElement &&
+          document.activeElement === checkbox &&
+          !checkbox.checked &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "post-preview current action focuses the owner-selected review prerequisite without activating it",
+    );
+    result.guide_brief_transition_preview_get_count = 1;
+    result.guide_brief_transition_preview_post_count = 0;
+    result.guide_brief_transition_preview_double_activation_count = 1;
+    record("guidebrief_transition_preview_one_get_zero_post");
+    record("guidebrief_transition_preview_duplicate_activation_executes_once");
+    record("guidebrief_host_single_flight_survives_snapshot_change");
+    record("guidebrief_post_preview_current_action_focuses_owner_prerequisite");
     await reviewTransitionCheckbox("preview");
 
     pauseNextSemanticTransitionRequest("confirm");
@@ -7631,6 +7955,24 @@ async function main() {
       `document.querySelector('[data-vnext-transition-step="confirmation"][data-vnext-transition-step-status="recorded"]') !== null && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
       "candidate A gate completion unlocks selector",
     );
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const review = document.querySelector(
+          '[data-vnext-transition-step="confirmation"] input[type="checkbox"]'
+        );
+        return review instanceof HTMLInputElement &&
+          document.activeElement === review &&
+          !review.checked &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "post-confirmation current action focuses the owner-selected review prerequisite without applying",
+    );
+    record("guidebrief_post_confirmation_current_action_focus_only");
     await reviewTransitionCheckbox("confirmation");
 
     pauseNextSemanticTransitionRequest("apply");
@@ -7662,7 +8004,7 @@ async function main() {
             'data-guidebrief-conversation-active-answer'
           ) === 'false' &&
           conversation.querySelectorAll(
-            '[data-guidebrief-conversation-answer]'
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
           ).length === 0;
       })()`,
       "GuideBrief conversation clears an answer when same-candidate current material changes",
@@ -7693,6 +8035,33 @@ async function main() {
     record("late_preview_response_is_discarded_after_candidate_switch");
     record("gate_and_apply_mutations_lock_candidate_and_proposal_local_controls");
     record("applying_decision_wording_and_exact_values_remain_truthful");
+
+    const beforeGuideBriefInspector = databaseSnapshot(database);
+    const guideBriefInspectorRequestStart = requests.length;
+    await submitGuideBriefInteractionCommand("Open exact details.");
+    await waitForCondition(
+      `location.pathname === '/workbench/inspector' && new URLSearchParams(location.search).get('target') === 'episode_delta_proposal'`,
+      "GuideBrief opens only the exact registered selected-work Inspector destination",
+    );
+    const guideBriefInspectorRequests = requests.slice(
+      guideBriefInspectorRequestStart,
+    );
+    assert.equal(
+      guideBriefInspectorRequests.some(
+        (request) =>
+          request.method !== "GET" &&
+          request.method !== "HEAD",
+      ),
+      false,
+      "GuideBrief Inspector handoff must issue no mutating request",
+    );
+    assert.deepEqual(
+      databaseSnapshot(database),
+      beforeGuideBriefInspector,
+      "GuideBrief Inspector handoff must remain read-only",
+    );
+    result.guide_brief_exact_inspector_registered_destination = true;
+    record("guidebrief_inspector_uses_registered_exact_destination_only");
 
     await navigate(`${appOrigin}${blockedAfterApplicationPath}`);
     await waitForCondition(
@@ -8026,24 +8395,28 @@ async function main() {
       true,
       "proposal A candidate A must render its exact decision-to-project-update relationship",
     );
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const button = document.querySelector(
-          '[data-vnext-review-next-change="true"][data-ai-workplane-primary-action="review-next-change"]'
-        );
-        if (
-          !(button instanceof HTMLButtonElement) ||
-          button.disabled ||
-          button.textContent?.trim() !== 'Review next change'
-        ) {
-          return false;
-        }
-        button.click();
-        return true;
-      })()`),
-      true,
-      "candidate A must expose one enabled bounded action to review candidate B",
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
     );
+    await waitForCondition(
+      `(() => {
+        const next = document.querySelector(
+          '[data-vnext-review-next-change="true"]'
+        );
+        const selector = document.querySelector(
+          '[data-vnext-candidate-selector="v0.1"]'
+        );
+        return next instanceof HTMLButtonElement &&
+          document.activeElement === next &&
+          selector?.value === ${JSON.stringify(candidateA)} &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "candidate-selection current action focuses the exact existing control without changing candidate",
+    );
+    record("guidebrief_candidate_selection_current_action_focus_only");
+    await submitGuideBriefInteractionCommand("Show the next change.");
     await waitForCondition(
       `(() => {
         const detail = document.querySelector(
@@ -8072,6 +8445,21 @@ async function main() {
           ).length === 1;
       })()`,
       "Review next change selects candidate B exact current state",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-conversation-active-answer'
+        ) === 'false' &&
+          conversation.querySelectorAll(
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
+          ).length === 0;
+      })()`),
+      true,
+      "next-candidate selection must discard the consumed prior-scope interaction",
     );
     const reviewNextCandidateShape = await evaluateJson(`(() => {
       const detail = document.querySelector(
@@ -8166,6 +8554,8 @@ async function main() {
       true,
       "Review next change must rebuild candidate B's exact relationship answer",
     );
+    result.guide_brief_next_candidate_owner_reused = true;
+    record("guidebrief_next_candidate_selection_reuses_pc2_owner");
     const mixedReturnCaptureResponse = await evaluateJson(`(async () => {
       const response = await fetch(
         '/api/vnext/operator/semantic-review?' + new URLSearchParams({
@@ -11012,8 +11402,14 @@ async function askGuideBriefConversationQuestion(question) {
         const bounds = candidate.getBoundingClientRect();
         return bounds.width > 0 && bounds.height > 0;
       });
+      const answerCount =
+        conversation?.querySelectorAll('[data-guidebrief-conversation-answer]').length ?? 0;
+      const interactionCount =
+        conversation?.querySelectorAll(
+          '[data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
+        ).length ?? 0;
       return conversation?.getAttribute('data-guidebrief-conversation-active-answer') === 'true' &&
-        conversation.querySelectorAll('[data-guidebrief-conversation-answer]').length === 1;
+        answerCount + interactionCount === 1;
     })()`,
     `GuideBrief answer for ${question}`,
   );
@@ -11025,6 +11421,9 @@ async function askGuideBriefConversationQuestion(question) {
       return bounds.width > 0 && bounds.height > 0;
     });
     const answer = conversation?.querySelector('[data-guidebrief-conversation-answer]');
+    const interaction = conversation?.querySelector(
+      '[data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
+    );
     return {
       scope: conversation?.getAttribute('data-guidebrief-conversation-scope') ?? null,
       availability:
@@ -11033,12 +11432,70 @@ async function askGuideBriefConversationQuestion(question) {
         answer?.getAttribute('data-guidebrief-conversation-intent') ?? null,
       answer_count:
         conversation?.querySelectorAll('[data-guidebrief-conversation-answer]').length ?? -1,
+      presentation_count:
+        conversation?.querySelectorAll(
+          '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
+        ).length ?? -1,
+      interaction_status:
+        interaction?.getAttribute('data-guidebrief-interaction-plan') ??
+        interaction?.getAttribute('data-guidebrief-interaction-outcome') ??
+        null,
       direct_answer:
         answer?.querySelector('.answerHeader strong, strong')?.textContent?.trim() ??
         null,
-      public_text: answer?.textContent?.trim() ?? '',
+      public_text:
+        answer?.textContent?.trim() ??
+        interaction?.textContent?.trim() ??
+        '',
     };
   })()`);
+}
+
+async function submitGuideBriefInteractionCommand(command) {
+  await waitForCondition(
+    `(() => {
+      const conversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      const details = conversation?.querySelector(':scope > details');
+      const input = conversation?.querySelector('input[name="guidebrief-question"]');
+      if (!(details instanceof HTMLDetailsElement) ||
+          !(input instanceof HTMLInputElement) ||
+          conversation?.getAttribute('data-guidebrief-conversation-hydrated') !== 'true' ||
+          conversation?.getAttribute('data-guidebrief-interaction') !== 'bounded-browser-v0.1') {
+        return false;
+      }
+      details.open = true;
+      const setter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      if (!setter) return false;
+      setter.call(input, ${JSON.stringify(command)});
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return input.value === ${JSON.stringify(command)};
+    })()`,
+    `enter bounded GuideBrief interaction ${command}`,
+  );
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const conversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      const submit = conversation?.querySelector('form button[type="submit"]');
+      if (!(submit instanceof HTMLButtonElement) || submit.disabled) return false;
+      submit.click();
+      return true;
+    })()`),
+    true,
+    `bounded GuideBrief interaction ${command} must submit once`,
+  );
 }
 
 async function validateBlankStateViewports(
@@ -11223,6 +11680,13 @@ async function validateBlankStateViewports(
           conversation?.querySelectorAll(
             '[aria-label="Questions supported by current sources"] button'
           ).length ?? -1,
+        conversation_interaction_host:
+          conversation?.getAttribute('data-guidebrief-interaction') ===
+            'bounded-browser-v0.1',
+        conversation_interaction_suggestion_count:
+          conversation?.querySelectorAll(
+            '[aria-label="Interactions supported by current owners"] button'
+          ).length ?? -1,
         conversation_answer_count:
           conversation?.querySelectorAll(
             '[data-guidebrief-conversation-answer]'
@@ -11261,7 +11725,7 @@ async function validateBlankStateViewports(
           ),
         conversation_boundary_textual:
           conversation?.textContent?.includes(
-            'This conversation does not decide'
+            'This surface does not save a decision'
           ) === true,
         protocol_vocabulary_absent:
           !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|packet fingerprint|approval_ref|run_ref)/i.test(visibleText),
@@ -11341,6 +11805,13 @@ async function validateBlankStateViewports(
     assert.equal(
       metrics.conversation_suggestion_count >= 3 &&
         metrics.conversation_suggestion_count <= 5,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.conversation_interaction_host, true);
+    assert.equal(
+      metrics.conversation_interaction_suggestion_count >= 0 &&
+        metrics.conversation_interaction_suggestion_count <= 1,
       true,
       JSON.stringify(metrics),
     );
@@ -11427,7 +11898,7 @@ async function validateBlankStateViewports(
             'data-guidebrief-conversation-active-answer'
           ) === 'false' &&
           conversation.querySelectorAll(
-            '[data-guidebrief-conversation-answer]'
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
           ).length === 0;
       })()`,
       "GuideBrief conversation reload clears ephemeral turns without changing project meaning",
@@ -11437,27 +11908,23 @@ async function validateBlankStateViewports(
     );
     assert.deepEqual(
       {
-        availability: unsupported.availability,
-        intent: unsupported.intent,
-        answer_count: unsupported.answer_count,
+        interaction_status: unsupported.interaction_status,
+        presentation_count: unsupported.presentation_count,
       },
       {
-        availability: "unavailable",
-        intent: "unsupported",
-        answer_count: 1,
+        interaction_status: "unsupported",
+        presentation_count: 1,
       },
     );
     const ambiguous = await askGuideBriefConversationQuestion("Why?");
     assert.deepEqual(
       {
-        availability: ambiguous.availability,
-        intent: ambiguous.intent,
-        answer_count: ambiguous.answer_count,
+        interaction_status: ambiguous.interaction_status,
+        presentation_count: ambiguous.presentation_count,
       },
       {
-        availability: "ambiguous",
-        intent: "ambiguous",
-        answer_count: 1,
+        interaction_status: "ambiguous",
+        presentation_count: 1,
       },
     );
     result.viewport_results.push({
@@ -11466,7 +11933,7 @@ async function validateBlankStateViewports(
       ephemeral_answer_cleared: true,
       unsupported_question_honest: true,
       ambiguous_follow_up_honest: true,
-      one_answer_at_a_time: ambiguous.answer_count === 1,
+      one_answer_at_a_time: ambiguous.presentation_count === 1,
     });
   }
   await evaluateBoolean(`(() => {
@@ -11906,6 +12373,17 @@ async function validateSemanticReviewViewports() {
           conversation?.querySelectorAll(
             '[aria-label="Questions supported by current sources"] button'
           ).length ?? -1,
+        conversation_interaction_host:
+          conversation?.getAttribute('data-guidebrief-interaction') ===
+            'bounded-browser-v0.1',
+        conversation_interaction_suggestion_count:
+          conversation?.querySelectorAll(
+            '[aria-label="Interactions supported by current owners"] button'
+          ).length ?? -1,
+        conversation_presentation_count:
+          conversation?.querySelectorAll(
+            '[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]'
+          ).length ?? -1,
         conversation_answer_count:
           conversation?.querySelectorAll(
             '[data-guidebrief-conversation-answer]'
@@ -11950,7 +12428,7 @@ async function validateSemanticReviewViewports() {
           ),
         conversation_boundary_textual:
           conversation?.textContent?.includes(
-            'This conversation does not decide'
+            'This surface does not save a decision'
           ) === true,
         advanced_optional: advanced instanceof HTMLDetailsElement && advanced.open === false,
         protocol_vocabulary_absent:
@@ -12063,6 +12541,18 @@ async function validateSemanticReviewViewports() {
       metrics.conversation_suggestion_count >= 3 &&
         metrics.conversation_suggestion_count <= 5,
       true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.conversation_interaction_host, true);
+    assert.equal(
+      metrics.conversation_interaction_suggestion_count >= 2 &&
+        metrics.conversation_interaction_suggestion_count <= 8,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_presentation_count,
+      1,
       JSON.stringify(metrics),
     );
     assert.equal(metrics.conversation_answer_count, 1, JSON.stringify(metrics));

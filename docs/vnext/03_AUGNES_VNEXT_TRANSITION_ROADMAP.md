@@ -137,15 +137,15 @@ PC3 does not authorize a graph canvas, graph or relation persistence, a new
 route, global or cross-project relationship exploration, relationship
 authority, provider egress, broad GuideBrief redesign, PC4 or C9.
 
-## PC4 phase lifecycle
+## PC4 completed lifecycle
 
 ### Conversational GuideBrief around current work
 
 [Issue #79](https://github.com/hynk-studio/augnes-perspective-lab/issues/79)
-defines the current explicitly authorized PC4 implementation slice.
-[Draft PR #83](https://github.com/hynk-studio/augnes-perspective-lab/pull/83)
-is the current review packet while open. PC4 becomes completed only if that
-pull request merges; an open Draft does not establish completion.
+defined PC4. [PR #83](https://github.com/hynk-studio/augnes-perspective-lab/pull/83)
+is its completed and merged implementation and outcome record. PC4's merge
+commit `2ee2515eaa33e46be030d6e877f9ec9b8a3e2f86` is the exact implementation
+baseline for the separately authorized first PC5 slice.
 
 PC4 is a bounded, deterministic and zero-model conversational composition over
 the existing GuideBrief, PC1 attention, PC2 selected-work timeline and PC3
@@ -154,18 +154,37 @@ durable transcript storage, cross-project chat, a general chatbot, a new route,
 new protocol or persistence authority, or a second attention, current-position,
 relationship, decision, Transition or action owner.
 
+## PC5 phase lifecycle
+
+### Bounded GuideBrief Browser interaction plane
+
+[Issue #84](https://github.com/hynk-studio/augnes-perspective-lab/issues/84)
+owns the PC5 specification. Its implementation-kickoff comment authorizes only
+the first bounded, deterministic Browser interaction slice above PC4.
+[Draft PR #85](https://github.com/hynk-studio/augnes-perspective-lab/pull/85)
+is the current review packet while open. PC5 becomes completed only if that
+pull request merges; an open Draft does not establish completion.
+
+This slice may compose exact current Browser capabilities, compile one
+single-use interaction plan, and invoke an existing owner-supplied local
+adapter for the authorized selection, navigation, preparation, or read-only
+preview families. It does not create Decision, Transition, execution,
+project-management, or external-action authority.
+
 ## Next separately authorized work
 
-PC5 and later product-continuity phases remain pending separate explicit
-authorization. Issue #79 and Draft PR #83 do not authorize them, and they do
-not authorize C9, model-assisted GuideBrief phrasing or routing, durable
-conversation storage, or cross-project conversation.
+Model assistance, owner-confirmation embedding, direct mutation,
+cross-project interaction, broader host-action integration, later PC5 slices,
+and later product-continuity phases remain pending separate explicit
+authorization. Issue #84 and its bounded Draft review packet do not authorize
+them, and they do not authorize C9, durable conversation or pending-plan
+storage, or cross-project conversation.
 
 ## Pending C9
 
 C9 compatibility and obsolete-surface reduction remains pending separate
-explicit authorization. RR0, RR1, PC1, PC2, PC3 and the bounded PC4 review
-slice do not authorize it.
+explicit authorization. RR0, RR1, PC1, PC2, PC3, PC4 and the bounded first PC5
+review slice do not authorize it.
 
 Before C9 can begin, each proposed removal, redirect, demotion, or retained
 compatibility path needs the proof defined in the temporary correction charter:
@@ -187,6 +206,10 @@ a bounded part is implemented:
 - conversation maturity beyond PC4's bounded deterministic current-scope
   GuideBrief slice, including model assistance, durable transcripts, general
   chat, or cross-project conversation;
+- interaction maturity beyond the first bounded deterministic PC5 Browser
+  slice, including owner-confirmation embedding, direct mutation,
+  cross-project interaction, broader host actions, or model-assisted
+  interpretation;
 - a fuller long-horizon research substrate for temporal continuity, goal
   tracking, perspective formation and revision, falsification pressure,
   provenance and causal analysis, bounded strategic transfer, outcome learning,
@@ -209,7 +232,7 @@ surface, or user experience.
 | Handoff and context reuse | Current native task-context/receipt path plus older compatibility/history. | Preserve the native path; retire older layers only with consumer proof. |
 | Automation | Bounded current automation plus legacy autonomy/Autohunt compatibility and research. | Do not treat legacy autonomy surfaces as the current product spine. |
 | Arena, actor, challenger, and debate substrate | Deferred candidate. | No persistent actor/debate system or automatic winner without separate authorization. |
-| Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 may only interpret that projection conversationally while its Draft review is open. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
+| Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
 
 Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,

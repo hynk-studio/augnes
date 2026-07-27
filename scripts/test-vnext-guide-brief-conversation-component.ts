@@ -47,7 +47,7 @@ assert.match(
 );
 assert.match(component, /data-guidebrief-conversation-hydrated=\{String\(hydrated\)\}/);
 assert.match(component, /setContext\(createGuideBriefConversationContextV01\(scopeKey\)\)/);
-assert.match(component, /Guidance only\./);
+assert.match(component, /Guidance and bounded Browser handoffs only\./);
 assert.match(
   component,
   /data-augnes-visual-priority=\{SEMANTIC_VISUAL_PRIORITY\.supporting\}/,
@@ -61,7 +61,7 @@ assert.match(css, /min-width:\s*0/);
 assert.match(css, /overflow-wrap:\s*anywhere/);
 assert.match(css, /@media \(max-width:\s*760px\)/);
 
-assert.match(blankState, /<GuideBriefConversation guide=\{guide\} surface="blank_state" \/>/);
+assert.match(blankState, /surface="blank_state"[\s\S]*interaction=\{blankInteraction\}/);
 assert.match(detail, /surface="ai_workplane"/);
 assert.match(detail, /buildSelectedWorkRelationshipsV01\(\{/);
 assert.match(detail, /selected_relationship_question_key=/);

@@ -18,14 +18,14 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
 assert.equal(resultKeys.length, 191);
-assert.equal(recordNames.length, 83);
+assert.equal(recordNames.length, 99);
 assert.equal(
   hashInventory(resultKeys),
   "78b2f07117876bbbe86c45755fa746acab7352bc13120c9f8990231fa8daea1b",
 );
 assert.equal(
   hashInventory(recordNames),
-  "90d0d8da3d55ab132206e2a6a34e6b31b6ab9ea7ebef675982cad1226a8c130a",
+  "ea74434806ffb6a3d7adb72756433716acfd89cee8715c2d010db9f202bc4605",
 );
 for (const marker of [
   "mixed_return_target_captured_from_exact_mutated_proposal",
@@ -37,6 +37,22 @@ for (const marker of [
   "positive_and_mixed_projects_remain_isolated",
   "guidebrief_same_candidate_material_change_clears_stale_answer",
   "guidebrief_relationship_answer_matches_pc3_highlight",
+  "guidebrief_decision_preparation_has_zero_submit_and_zero_network",
+  "guidebrief_current_action_focus_does_not_activate_owner",
+  "guidebrief_candidate_selection_current_action_focus_only",
+  "guidebrief_advanced_review_uses_existing_disclosure_owner",
+  "guidebrief_partial_utterance_does_not_invoke_supported_owner",
+  "guidebrief_unsupported_mutation_command_is_refused",
+  "guidebrief_unavailable_relationship_question_is_refused",
+  "guidebrief_relationship_selection_reuses_pc3_owner",
+  "guidebrief_transition_preview_one_get_zero_post",
+  "guidebrief_transition_preview_duplicate_activation_executes_once",
+  "guidebrief_host_single_flight_survives_snapshot_change",
+  "guidebrief_pre_preview_current_action_focus_only",
+  "guidebrief_post_preview_current_action_focuses_owner_prerequisite",
+  "guidebrief_post_confirmation_current_action_focus_only",
+  "guidebrief_inspector_uses_registered_exact_destination_only",
+  "guidebrief_next_candidate_selection_reuses_pc2_owner",
 ]) {
   assert.equal(source.includes(`record("${marker}")`), true);
 }
