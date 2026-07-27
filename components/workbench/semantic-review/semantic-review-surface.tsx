@@ -650,6 +650,7 @@ export function SemanticReviewSurface({
         {exactReviewAvailable && privateView.kind === "detail" ? (
           <DecisionCenteredProposalDetail
             read={privateView.value.proposal}
+            guide={guideState.guide}
             selectedCandidateId={
               selectedCandidateBinding?.proposal_id ===
               privateView.value.proposal.proposal.proposal_id

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { GuideBriefConversation } from "@/components/guide/guide-brief-conversation";
 import {
   buildAIWorkplaneChangeReviewViewV01,
   selectAIWorkplaneChangeCandidateV01,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/vnext/ai-workplane/selected-work-relationships";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
+import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
 import type {
   SelectedWorkConnectionStatementV01,
@@ -51,6 +53,7 @@ import styles from "./semantic-review.module.css";
 
 export function DecisionCenteredProposalDetail({
   read,
+  guide,
   selectedCandidateId,
   onSelectedCandidateChange,
   busyCandidateId,
@@ -66,6 +69,7 @@ export function DecisionCenteredProposalDetail({
   endOperatorMutation,
 }: {
   read: SemanticReviewProposalDetailV01;
+  guide: ProjectGuideBriefV02 | null;
   selectedCandidateId: string | null;
   onSelectedCandidateChange: (candidateId: string) => void;
   busyCandidateId: string | null;
@@ -349,6 +353,7 @@ export function DecisionCenteredProposalDetail({
           selected={selected}
           timeline={timeline}
           relationshipScopeKey={relationshipScopeKey}
+          guide={guide}
         />
       ) : null}
 
@@ -476,11 +481,13 @@ function SelectedWorkRelationshipExploration({
   selected,
   timeline,
   relationshipScopeKey,
+  guide,
 }: {
   read: SemanticReviewProposalDetailV01;
   selected: SemanticReviewProposalDetailV01["candidates"][number];
   timeline: SelectedWorkTimelineV01;
   relationshipScopeKey: string;
+  guide: ProjectGuideBriefV02 | null;
 }) {
   const [relationshipSelection, setRelationshipSelection] =
     useState<SelectedWorkRelationshipQuestionSelectionV01 | null>(null);
@@ -506,17 +513,54 @@ function SelectedWorkRelationshipExploration({
           timeline,
           selected_question_key: effectiveQuestionKey,
         });
+  const relationshipsByQuestion = Object.fromEntries(
+    defaultRelationships.questions.map(({ question_key }) => [
+      question_key,
+      question_key === relationships.selected_question_key
+        ? relationships
+        : buildSelectedWorkRelationshipsV01({
+            read,
+            selected_candidate: selected,
+            timeline,
+            selected_question_key: question_key,
+          }),
+    ]),
+  ) as Partial<
+    Record<
+      SelectedWorkRelationshipQuestionKeyV01,
+      SelectedWorkRelationshipsV01
+    >
+  >;
 
   return (
-    <SelectedWorkRelationships
-      relationships={relationships}
-      onQuestionChange={(questionKey) =>
-        setRelationshipSelection({
-          scope_key: relationshipScopeKey,
-          question_key: questionKey,
-        })
-      }
-    />
+    <>
+      <SelectedWorkRelationships
+        relationships={relationships}
+        onQuestionChange={(questionKey) =>
+          setRelationshipSelection({
+            scope_key: relationshipScopeKey,
+            question_key: questionKey,
+          })
+        }
+      />
+      {guide ? (
+        <GuideBriefConversation
+          guide={guide}
+          surface="ai_workplane"
+          selected_work_scope={{
+            proposal_id: read.proposal.proposal_id,
+            proposal_fingerprint: read.proposal.integrity.fingerprint,
+            candidate_id: selected.candidate.candidate_id,
+            candidate_fingerprint: selected.candidate_fingerprint,
+          }}
+          timeline={timeline}
+          relationships={relationshipsByQuestion}
+          selected_relationship_question_key={
+            relationships.selected_question_key
+          }
+        />
+      ) : null}
+    </>
   );
 }
 

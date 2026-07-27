@@ -69,8 +69,21 @@ assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
   'className="blank-state-focus"',
   'data-blank-state-continuity-list="v0.1"',
+  '<GuideBriefConversation guide={guide} surface="blank_state" />',
   "<ManagementSafety",
 ]);
+const guideConversation = read(
+  "components/guide/guide-brief-conversation.tsx",
+);
+assert.match(guideConversation, /<summary>Ask about this work<\/summary>/u);
+assert.match(
+  guideConversation,
+  /data-augnes-visual-priority=\{SEMANTIC_VISUAL_PRIORITY\.supporting\}/u,
+);
+assert.doesNotMatch(
+  guideConversation,
+  /data-augnes-primary-action|data-augnes-independent-surface/u,
+);
 const guidePublicText = read(
   "lib/vnext/guide-brief/public-guide-text.ts",
 );
@@ -277,6 +290,10 @@ assert.match(
   proposalReview,
   /data-selected-work-relationship-semantic-authority="false"/u,
 );
+assertOrdered(proposalReview, [
+  "<SelectedWorkRelationships",
+  "<GuideBriefConversation",
+]);
 assert.match(
   proposalReview,
   /SEMANTIC_VISUAL_PRIORITY\.supporting/u,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
+import { GuideBriefConversation } from "@/components/guide/guide-brief-conversation";
 import { ProjectControls } from "@/components/project-controls";
 import { publicBlankStateTextV01 } from "@/lib/vnext/blank-state/blank-state-view";
 import {
@@ -388,6 +389,8 @@ export function BlankStateClient({
             </p>
           ) : null}
         </section>
+
+        <GuideBriefConversation guide={guide} surface="blank_state" />
 
         {view.project_management_emphasized ? projectManagement : (
           <details className="blank-state-disclosure" data-blank-state-project-management="collapsed">

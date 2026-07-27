@@ -68,6 +68,20 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label:
+        "GuideBrief bounded conversation routing, scope, meaning, and authority contract",
+      ...rootNode("scripts/test-vnext-guide-brief-conversation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded conversation Browser composition contract",
+      ...rootNode(
+        "scripts/test-vnext-guide-brief-conversation-component.ts",
+      ),
+      timeoutMs: 30_000,
+    },
+    {
       label: "C8 semantic visual hierarchy and regression contract",
       ...rootNode("scripts/test-c8-semantic-visual-contract.mjs"),
       timeoutMs: 30_000,

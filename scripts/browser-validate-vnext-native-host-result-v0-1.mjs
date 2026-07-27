@@ -776,7 +776,14 @@ async function main() {
       `location.pathname === '/' && document.querySelector('[data-blank-state-project-management-hydrated="true"] [data-blank-state-primary-action="choose_folder"]') !== null`,
       "no-project Blank State after management route",
     );
-    assert.equal(await evaluateBoolean(`document.querySelector('input[type="text"]') === null`), true);
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+        return inputs.length === 1 &&
+          inputs[0]?.getAttribute('name') === 'guidebrief-question';
+      })()`),
+      true,
+    );
     const cancelledPickerResponseStart = responses.length;
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
     await waitForHostCondition(
@@ -812,6 +819,7 @@ async function main() {
       attentionCount: 0,
       attentionCategory: "none",
       primaryActions: 1,
+      verifyConversationReload: true,
     });
     const emptyProjectHome = await evaluateJson(`(() => {
       const surface = document.querySelector('[data-blank-state="v0.1"]');
@@ -1135,9 +1143,29 @@ async function main() {
     })()`);
     const activeSecond = activeBeforeDeepLink.recent_projects.find((entry) => entry.is_active);
     assert.equal(activeSecond?.project.display_name, "Browser Second Project");
+    const secondProjectGuideAnswer =
+      await openGuideBriefConversationAndAnswerSuggestedQuestion();
+    assert.equal(secondProjectGuideAnswer.answer_count, 1);
 
     await navigate(`${appOrigin}${destination}`);
     await waitForCondition(`Array.from(document.querySelectorAll('[data-blank-state="v0.1"][data-blank-state-active="false"]')).some((element) => element.getBoundingClientRect().width > 0)`, "non-active first-project deep link");
+    await waitForCondition(
+      `(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-conversation-scope'
+        ) !== ${JSON.stringify(secondProjectGuideAnswer.scope)} &&
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) === 'false' &&
+          conversation.querySelectorAll(
+            '[data-guidebrief-conversation-answer]'
+          ).length === 0;
+      })()`,
+      "GuideBrief conversation resets immediately for an explicitly viewed project",
+    );
     assert.equal(await evaluateBoolean(`document.body.textContent.includes('Opening this link did not switch your current project.')`), true);
     assert.equal(
       await evaluateBoolean(
@@ -7375,6 +7403,9 @@ async function main() {
       beforeRelationshipQuestion,
       "relationship-question selection must remain projection-local UI state",
     );
+    const candidateAGuideAnswer =
+      await openGuideBriefConversationAndAnswerSuggestedQuestion();
+    assert.equal(candidateAGuideAnswer.answer_count, 1);
     const beforeLatePreview = databaseSnapshot(database);
     pauseNextSemanticTransitionRequest("preview");
     await clickTransitionAction("preview");
@@ -7387,6 +7418,23 @@ async function main() {
       "read-only preview permits safe candidate switching while its response is discarded by exact scope",
     );
     await selectCandidate(candidateB);
+    await waitForCondition(
+      `(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-conversation-scope'
+        ) !== ${JSON.stringify(candidateAGuideAnswer.scope)} &&
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) === 'false' &&
+          conversation.querySelectorAll(
+            '[data-guidebrief-conversation-answer]'
+          ).length === 0;
+      })()`,
+      "GuideBrief conversation resets immediately for a different exact candidate scope",
+    );
     const candidateBShapeBeforeLateResponse = await evaluateJson(`(() => {
       const transition = document.querySelector('[data-vnext-semantic-transition-actions="v0.1"]');
       const preview = transition?.querySelector('[data-vnext-transition-step="preview"]');
@@ -10813,6 +10861,145 @@ async function closeBlankStateProjectOptions() {
   );
 }
 
+async function openGuideBriefConversationAndAnswerSuggestedQuestion() {
+  await waitForCondition(
+    `(() => {
+      const conversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      const details = conversation?.querySelector(':scope > details');
+      if (!(details instanceof HTMLDetailsElement) ||
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-hydrated'
+          ) !== 'true') return false;
+      details.open = true;
+      if (conversation?.getAttribute('data-guidebrief-conversation-active-answer') !== 'true') {
+        const suggestion = conversation.querySelector(
+          '[aria-label="Questions supported by current sources"] button'
+        );
+        if (!(suggestion instanceof HTMLButtonElement)) return false;
+        suggestion.click();
+      }
+      return true;
+    })()`,
+    "open GuideBrief conversation and ask a source-supported question",
+  );
+  await waitForCondition(
+    `(() => {
+      const conversations = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).filter((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      return conversations.length === 1 &&
+        conversations[0]?.getAttribute('data-guidebrief-conversation-active-answer') === 'true' &&
+        conversations[0]?.querySelectorAll('[data-guidebrief-conversation-answer]').length === 1;
+    })()`,
+    "one active GuideBrief conversation answer",
+  );
+  return evaluateJson(`(() => {
+    const conversation = Array.from(
+      document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+    ).find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+    const answer = conversation?.querySelector('[data-guidebrief-conversation-answer]');
+    return {
+      scope: conversation?.getAttribute('data-guidebrief-conversation-scope') ?? null,
+      availability:
+        answer?.getAttribute('data-guidebrief-conversation-answer') ?? null,
+      intent:
+        answer?.getAttribute('data-guidebrief-conversation-intent') ?? null,
+      answer_count:
+        conversation?.querySelectorAll('[data-guidebrief-conversation-answer]').length ?? -1,
+    };
+  })()`);
+}
+
+async function askGuideBriefConversationQuestion(question) {
+  await waitForCondition(
+    `(() => {
+      const conversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      const details = conversation?.querySelector(':scope > details');
+      const input = conversation?.querySelector('input[name="guidebrief-question"]');
+      const submit = conversation?.querySelector('form button[type="submit"]');
+      if (!(details instanceof HTMLDetailsElement) ||
+          !(input instanceof HTMLInputElement) ||
+          !(submit instanceof HTMLButtonElement) ||
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-hydrated'
+          ) !== 'true') return false;
+      details.open = true;
+      const setter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      if (!setter) return false;
+      setter.call(input, ${JSON.stringify(question)});
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()`,
+    `enter GuideBrief question ${question}`,
+  );
+  await waitForCondition(
+    `(() => {
+      const conversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      const submit = conversation?.querySelector('form button[type="submit"]');
+      if (!(submit instanceof HTMLButtonElement) || submit.disabled) return false;
+      submit.click();
+      return true;
+    })()`,
+    `submit GuideBrief question ${question}`,
+  );
+  await waitForCondition(
+    `(() => {
+      const conversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      return conversation?.getAttribute('data-guidebrief-conversation-active-answer') === 'true' &&
+        conversation.querySelectorAll('[data-guidebrief-conversation-answer]').length === 1;
+    })()`,
+    `GuideBrief answer for ${question}`,
+  );
+  return evaluateJson(`(() => {
+    const conversation = Array.from(
+      document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+    ).find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+    const answer = conversation?.querySelector('[data-guidebrief-conversation-answer]');
+    return {
+      scope: conversation?.getAttribute('data-guidebrief-conversation-scope') ?? null,
+      availability:
+        answer?.getAttribute('data-guidebrief-conversation-answer') ?? null,
+      intent:
+        answer?.getAttribute('data-guidebrief-conversation-intent') ?? null,
+      answer_count:
+        conversation?.querySelectorAll('[data-guidebrief-conversation-answer]').length ?? -1,
+      public_text: answer?.textContent?.trim() ?? '',
+    };
+  })()`);
+}
+
 async function validateBlankStateViewports(
   projectContextRequired = true,
   {
@@ -10821,6 +11008,7 @@ async function validateBlankStateViewports(
     attentionCategory = null,
     primaryActions = 1,
     secondaryActionRequired = null,
+    verifyConversationReload = false,
   } = {},
 ) {
   for (const width of [390, 430, 1440]) {
@@ -10836,6 +11024,7 @@ async function validateBlankStateViewports(
       width,
       "Blank State",
     );
+    await openGuideBriefConversationAndAnswerSuggestedQuestion();
     const metrics = await evaluateJson(`(() => {
       const visibleElement = (selector) => Array.from(document.querySelectorAll(selector)).find((element) => {
         const bounds = element.getBoundingClientRect();
@@ -10865,6 +11054,26 @@ async function validateBlankStateViewports(
       const controls = Array.from(
         continuity?.querySelectorAll('a, button, summary') ?? [],
       ).filter(visible);
+      const conversation = home?.querySelector(
+        '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+      );
+      const conversationDisclosure =
+        conversation?.querySelector(':scope > details');
+      const conversationControls = Array.from(
+        conversation?.querySelectorAll('a, button, input, summary') ?? [],
+      ).filter(visible);
+      const conversationRect = conversation?.getBoundingClientRect();
+      const conversationOverlaps = conversationControls.flatMap(
+        (control, index) =>
+          conversationControls.slice(index + 1).filter((candidate) => {
+            const left = control.getBoundingClientRect();
+            const right = candidate.getBoundingClientRect();
+            return Math.min(left.right, right.right) -
+                Math.max(left.left, right.left) > 1 &&
+              Math.min(left.bottom, right.bottom) -
+                Math.max(left.top, right.top) > 1;
+          }),
+      ).length;
       const overlappingControlCount = controls.flatMap((control, index) =>
         controls.slice(index + 1).filter((candidate) => {
           const left = control.getBoundingClientRect();
@@ -10943,7 +11152,76 @@ async function validateBlankStateViewports(
             home?.getAttribute('data-blank-state-focus') === 'no_projects' ||
             home?.getAttribute('data-blank-state-focus') === 'project_root_unavailable'),
         internal_id_input_absent:
-          home?.querySelector('input[type="text"], textarea, [contenteditable="true"]') === null,
+          Array.from(
+            home?.querySelectorAll(
+              'input[type="text"], textarea, [contenteditable="true"]'
+            ) ?? [],
+          ).every(
+            (control) =>
+              control instanceof HTMLInputElement &&
+              control.name === 'guidebrief-question' &&
+              !/(?:^|[-_])(id|fingerprint|nonce|ttl)(?:$|[-_])/i.test(
+                [control.name, control.id, control.placeholder].join(' ')
+              ),
+          ),
+        conversation_present:
+          conversation?.getAttribute('data-guidebrief-conversation-surface') ===
+            'blank_state',
+        conversation_open:
+          conversationDisclosure instanceof HTMLDetailsElement &&
+          conversationDisclosure.open,
+        conversation_secondary:
+          conversation?.querySelector('[data-augnes-primary-action]') === null &&
+          conversation?.querySelector('[data-blank-state-primary-action]') === null &&
+          conversation?.hasAttribute('data-augnes-independent-surface') === false,
+        conversation_question_input_count:
+          conversation?.querySelectorAll(
+            'input[name="guidebrief-question"][type="text"]'
+          ).length ?? -1,
+        conversation_suggestion_count:
+          conversation?.querySelectorAll(
+            '[aria-label="Questions supported by current sources"] button'
+          ).length ?? -1,
+        conversation_answer_count:
+          conversation?.querySelectorAll(
+            '[data-guidebrief-conversation-answer]'
+          ).length ?? -1,
+        conversation_active_answer:
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) === 'true',
+        conversation_scope_present:
+          (conversation?.getAttribute(
+            'data-guidebrief-conversation-scope'
+          )?.length ?? 0) > 0,
+        conversation_controls_minimum_size:
+          conversationControls.every((control) => {
+            const bounds = control.getBoundingClientRect();
+            return bounds.width >= 40 && bounds.height >= 40;
+          }),
+        conversation_overlapping_control_count: conversationOverlaps,
+        conversation_inside_viewport:
+          Boolean(conversationRect) &&
+          conversationRect.left >= -1 &&
+          conversationRect.right <= window.innerWidth + 1,
+        conversation_after_continuity:
+          Boolean(continuity && conversation) &&
+          Boolean(
+            continuity.compareDocumentPosition(conversation) &
+              Node.DOCUMENT_POSITION_FOLLOWING
+          ),
+        conversation_no_duplicate_timeline_or_relationship:
+          conversation?.querySelector(
+            '[data-selected-work-timeline], [data-selected-work-relationships]'
+          ) === null,
+        conversation_public_copy_safe:
+          !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|packet fingerprint|sha256:|proposal-candidate:|nonce|TTL|database path)/i.test(
+            conversation?.innerText ?? ''
+          ),
+        conversation_boundary_textual:
+          conversation?.textContent?.includes(
+            'This conversation does not decide'
+          ) === true,
         protocol_vocabulary_absent:
           !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|packet fingerprint|approval_ref|run_ref)/i.test(visibleText),
         continuity_after_context:
@@ -11011,6 +11289,58 @@ async function validateBlankStateViewports(
     assert.equal(metrics.legacy_competing_regions_absent, true);
     assert.equal(metrics.management_secondary, true);
     assert.equal(metrics.internal_id_input_absent, true);
+    assert.equal(metrics.conversation_present, true, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_open, true, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_secondary, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.conversation_question_input_count,
+      1,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_suggestion_count >= 3 &&
+        metrics.conversation_suggestion_count <= 5,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.conversation_answer_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_active_answer, true, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_scope_present, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.conversation_controls_minimum_size,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_overlapping_control_count,
+      0,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_inside_viewport,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_after_continuity,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_no_duplicate_timeline_or_relationship,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_public_copy_safe,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_boundary_textual,
+      true,
+      JSON.stringify(metrics),
+    );
     assert.equal(metrics.protocol_vocabulary_absent, true);
     assert.equal(metrics.continuity_after_context, true);
     assert.equal(metrics.independent_surface_count <= 1, true);
@@ -11019,6 +11349,97 @@ async function validateBlankStateViewports(
     assert.equal(metrics.project_context_visible, projectContextRequired);
     result.viewport_results.push({ ...metrics, pc1_state: state });
   }
+  if (verifyConversationReload) {
+    const beforeReload = await evaluateJson(`(() => {
+      const home = document.querySelector('[data-blank-state="v0.1"]');
+      const conversation = home?.querySelector(
+        '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+      );
+      return {
+        project_context:
+          home?.getAttribute('data-guide-brief-project-context') ?? null,
+        scope:
+          conversation?.getAttribute('data-guidebrief-conversation-scope') ??
+          null,
+        active_answer:
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) ?? null,
+      };
+    })()`);
+    assert.equal(beforeReload.active_answer, "true");
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `(() => {
+        const home = document.querySelector('[data-blank-state="v0.1"]');
+        const conversation = home?.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return home?.getAttribute('data-guide-brief-project-context') ===
+            ${JSON.stringify(beforeReload.project_context)} &&
+          conversation?.getAttribute('data-guidebrief-conversation-scope') ===
+            ${JSON.stringify(beforeReload.scope)} &&
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-hydrated'
+          ) === 'true' &&
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) === 'false' &&
+          conversation.querySelectorAll(
+            '[data-guidebrief-conversation-answer]'
+          ).length === 0;
+      })()`,
+      "GuideBrief conversation reload clears ephemeral turns without changing project meaning",
+    );
+    const unsupported = await askGuideBriefConversationQuestion(
+      "Write a haiku about the repository.",
+    );
+    assert.deepEqual(
+      {
+        availability: unsupported.availability,
+        intent: unsupported.intent,
+        answer_count: unsupported.answer_count,
+      },
+      {
+        availability: "unavailable",
+        intent: "unsupported",
+        answer_count: 1,
+      },
+    );
+    const ambiguous = await askGuideBriefConversationQuestion("Why?");
+    assert.deepEqual(
+      {
+        availability: ambiguous.availability,
+        intent: ambiguous.intent,
+        answer_count: ambiguous.answer_count,
+      },
+      {
+        availability: "ambiguous",
+        intent: "ambiguous",
+        answer_count: 1,
+      },
+    );
+    result.viewport_results.push({
+      surface: "guidebrief_conversation_reload",
+      scope_preserved: ambiguous.scope === beforeReload.scope,
+      ephemeral_answer_cleared: true,
+      unsupported_question_honest: true,
+      ambiguous_follow_up_honest: true,
+      one_answer_at_a_time: ambiguous.answer_count === 1,
+    });
+  }
+  await evaluateBoolean(`(() => {
+    const conversation = Array.from(
+      document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+    ).find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+    const details = conversation?.querySelector(':scope > details');
+    if (!(details instanceof HTMLDetailsElement)) return false;
+    details.open = false;
+    return true;
+  })()`);
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 1000,
@@ -11263,6 +11684,7 @@ async function validateSemanticReviewViewports() {
       width,
       "suggested-change review",
     );
+    await openGuideBriefConversationAndAnswerSuggestedQuestion();
     const metrics = await evaluateJson(`(() => {
       const review = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
       const shell = document.querySelector('[data-ai-workplane-shell="v0.1"]');
@@ -11306,6 +11728,26 @@ async function validateSemanticReviewViewports() {
           connection.getAttribute('data-selected-work-relationship-highlighted') === 'true'
       );
       const relationshipRect = relationships?.getBoundingClientRect();
+      const conversation = review?.querySelector(
+        '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+      );
+      const conversationDisclosure =
+        conversation?.querySelector(':scope > details');
+      const conversationControls = Array.from(
+        conversation?.querySelectorAll('a, button, input, summary') ?? []
+      ).filter(visible);
+      const conversationRect = conversation?.getBoundingClientRect();
+      const conversationOverlaps = conversationControls.flatMap(
+        (control, index) =>
+          conversationControls.slice(index + 1).filter((candidate) => {
+            const left = control.getBoundingClientRect();
+            const right = candidate.getBoundingClientRect();
+            return Math.min(left.right, right.right) -
+                Math.max(left.left, right.left) > 1 &&
+              Math.min(left.bottom, right.bottom) -
+                Math.max(left.top, right.top) > 1;
+          })
+      ).length;
       const advanced = Array.from(review?.querySelectorAll('details') ?? []).find(
         (item) => item.querySelector(':scope > summary')?.textContent?.includes('Advanced review')
       );
@@ -11405,6 +11847,70 @@ async function validateSemanticReviewViewports() {
           !/\b(?:pan|zoom|force layout|graph editor)\b/i.test(
             relationships?.textContent ?? ''
           ),
+        conversation_present:
+          conversation?.getAttribute('data-guidebrief-conversation-surface') ===
+            'ai_workplane',
+        conversation_open:
+          conversationDisclosure instanceof HTMLDetailsElement &&
+          conversationDisclosure.open,
+        conversation_secondary:
+          conversation?.querySelector('[data-ai-workplane-primary-action]') === null &&
+          conversation?.querySelector('[data-augnes-primary-action]') === null &&
+          conversation?.hasAttribute('data-augnes-independent-surface') === false,
+        conversation_question_input_count:
+          conversation?.querySelectorAll(
+            'input[name="guidebrief-question"][type="text"]'
+          ).length ?? -1,
+        conversation_suggestion_count:
+          conversation?.querySelectorAll(
+            '[aria-label="Questions supported by current sources"] button'
+          ).length ?? -1,
+        conversation_answer_count:
+          conversation?.querySelectorAll(
+            '[data-guidebrief-conversation-answer]'
+          ).length ?? -1,
+        conversation_active_answer:
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) === 'true',
+        conversation_scope_present:
+          (conversation?.getAttribute(
+            'data-guidebrief-conversation-scope'
+          )?.length ?? 0) > 0,
+        conversation_controls_minimum_size:
+          conversationControls.every((control) => {
+            const bounds = control.getBoundingClientRect();
+            return bounds.width >= 40 && bounds.height >= 40;
+          }),
+        conversation_overlapping_control_count: conversationOverlaps,
+        conversation_inside_viewport:
+          Boolean(conversationRect) &&
+          conversationRect.left >= -1 &&
+          conversationRect.right <= window.innerWidth + 1,
+        conversation_after_relationship:
+          Boolean(relationships && conversation) &&
+          Boolean(
+            relationships.compareDocumentPosition(conversation) &
+              Node.DOCUMENT_POSITION_FOLLOWING
+          ),
+        conversation_before_advanced:
+          Boolean(conversation && advanced) &&
+          Boolean(
+            conversation.compareDocumentPosition(advanced) &
+              Node.DOCUMENT_POSITION_FOLLOWING
+          ),
+        conversation_no_duplicate_timeline_or_relationship:
+          conversation?.querySelector(
+            '[data-selected-work-timeline], [data-selected-work-relationships]'
+          ) === null,
+        conversation_public_copy_safe:
+          !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|packet fingerprint|sha256:|proposal-candidate:|nonce|TTL|database path)/i.test(
+            conversation?.innerText ?? ''
+          ),
+        conversation_boundary_textual:
+          conversation?.textContent?.includes(
+            'This conversation does not decide'
+          ) === true,
         advanced_optional: advanced instanceof HTMLDetailsElement && advanced.open === false,
         protocol_vocabulary_absent:
           !/(ReviewDecision|StateTransitionReceipt|EpisodeDeltaProposal|CriterionAssessment|semantic gate|packet fingerprint)/i.test(visibleText),
@@ -11504,6 +12010,63 @@ async function validateSemanticReviewViewports() {
       true,
       JSON.stringify(metrics),
     );
+    assert.equal(metrics.conversation_present, true, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_open, true, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_secondary, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.conversation_question_input_count,
+      1,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_suggestion_count >= 3 &&
+        metrics.conversation_suggestion_count <= 5,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.conversation_answer_count, 1, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_active_answer, true, JSON.stringify(metrics));
+    assert.equal(metrics.conversation_scope_present, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.conversation_controls_minimum_size,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_overlapping_control_count,
+      0,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_inside_viewport,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_after_relationship,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_before_advanced,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_no_duplicate_timeline_or_relationship,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_public_copy_safe,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.conversation_boundary_textual,
+      true,
+      JSON.stringify(metrics),
+    );
     assert.equal(metrics.advanced_optional, true, JSON.stringify(metrics));
     assert.equal(
       metrics.protocol_vocabulary_absent,
@@ -11541,6 +12104,18 @@ async function validateSemanticReviewViewports() {
       );
     }
   }
+  await evaluateBoolean(`(() => {
+    const conversation = Array.from(
+      document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+    ).find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+    const details = conversation?.querySelector(':scope > details');
+    if (!(details instanceof HTMLDetailsElement)) return false;
+    details.open = false;
+    return true;
+  })()`);
 }
 
 async function waitForResponsiveSurface(selector, width, label) {

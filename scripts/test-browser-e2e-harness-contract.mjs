@@ -109,6 +109,22 @@ assert.match(
 );
 assert.match(
   source,
+  /async function openGuideBriefConversationAndAnswerSuggestedQuestion[\s\S]*guidebrief_conversation_plan\.v0\.1[\s\S]*one active GuideBrief conversation answer/u,
+);
+assert.match(
+  source,
+  /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1440\]\)[\s\S]*conversation_suggestion_count[\s\S]*conversation_answer_count[\s\S]*conversation_controls_minimum_size[\s\S]*conversation_no_duplicate_timeline_or_relationship[\s\S]*GuideBrief conversation reload clears ephemeral turns/u,
+);
+assert.match(
+  source,
+  /async function validateSemanticReviewViewports[\s\S]*for \(const width of \[390, 430, 768, 1440\]\)[\s\S]*conversation_after_relationship[\s\S]*conversation_before_advanced[\s\S]*conversation_no_duplicate_timeline_or_relationship[\s\S]*conversation_secondary/u,
+);
+assert.match(
+  source,
+  /GuideBrief conversation resets immediately for an explicitly viewed project[\s\S]*GuideBrief conversation resets immediately for a different exact candidate scope/u,
+);
+assert.match(
+  source,
   /async function validateManagementSafetyKeyboardNavigation[\s\S]*details\[data-management-safety\][\s\S]*keyboard-opened Manage and protect[\s\S]*"\/projects#project-management"[\s\S]*visible project-management section/u,
 );
 assert.match(
