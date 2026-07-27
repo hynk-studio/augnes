@@ -37,7 +37,14 @@ const owner = readFileSync(
 assert.match(component, /<summary>Ask about this work<\/summary>/);
 assert.match(component, /Questions supported by current sources/);
 assert.match(component, /visibleAnswer \?[\s\S]*ConversationAnswer/);
-assert.match(component, /answer\?\.scope\.scope_key === scopeKey/);
+assert.match(
+  component,
+  /selectVisibleGuideBriefConversationAnswerV01\(\s*answer,\s*scopeKey,\s*\)/,
+);
+assert.match(
+  component,
+  /scopeGuideBriefConversationContextV01\(\s*context,\s*scopeKey,\s*\)/,
+);
 assert.match(component, /data-guidebrief-conversation-hydrated=\{String\(hydrated\)\}/);
 assert.match(component, /setContext\(createGuideBriefConversationContextV01\(scopeKey\)\)/);
 assert.match(component, /Guidance only\./);
@@ -58,10 +65,15 @@ assert.match(blankState, /<GuideBriefConversation guide=\{guide\} surface="blank
 assert.match(detail, /surface="ai_workplane"/);
 assert.match(detail, /buildSelectedWorkRelationshipsV01\(\{/);
 assert.match(detail, /selected_relationship_question_key=/);
+assert.match(detail, /workspace_id:\s*read\.proposal\.workspace_id/);
+assert.match(detail, /project_id:\s*read\.proposal\.project_id/);
 assert.doesNotMatch(detail, /guidebrief.*primary-action/i);
 
 assert.match(owner, /routeGuideBriefConversationQuestionV01/);
 assert.match(owner, /slice\(-GUIDE_BRIEF_CONVERSATION_MAX_TURNS_V01\)/);
+assert.match(owner, /assertGuideBriefConversationInputBindingsV01/);
+assert.match(owner, /highlightedRelationshipConnectionV01/);
+assert.doesNotMatch(owner, /relationship\.connections\[0\]/);
 assert.doesNotMatch(owner, /localStorage|sessionStorage|indexedDB/);
 assert.doesNotMatch(owner, /\bfetch\s*\(|openai|anthropic|provider\(/i);
 

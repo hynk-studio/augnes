@@ -17,15 +17,15 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 189);
-assert.equal(recordNames.length, 81);
+assert.equal(resultKeys.length, 191);
+assert.equal(recordNames.length, 83);
 assert.equal(
   hashInventory(resultKeys),
-  "33d28805fde6cc18e5f66f7b939c9e593f03fbae9a989f163943a43007466818",
+  "78b2f07117876bbbe86c45755fa746acab7352bc13120c9f8990231fa8daea1b",
 );
 assert.equal(
   hashInventory(recordNames),
-  "342722588285be1224c60a8902560a28d4f9b9fcde8246237fd29c808706187a",
+  "90d0d8da3d55ab132206e2a6a34e6b31b6ab9ea7ebef675982cad1226a8c130a",
 );
 for (const marker of [
   "mixed_return_target_captured_from_exact_mutated_proposal",
@@ -35,6 +35,8 @@ for (const marker of [
   "mixed_prior_session_decision_remains_visible",
   "mixed_return_relationships_rebuilt_without_positive_leak",
   "positive_and_mixed_projects_remain_isolated",
+  "guidebrief_same_candidate_material_change_clears_stale_answer",
+  "guidebrief_relationship_answer_matches_pc3_highlight",
 ]) {
   assert.equal(source.includes(`record("${marker}")`), true);
 }
@@ -122,6 +124,10 @@ assert.match(
 assert.match(
   source,
   /GuideBrief conversation resets immediately for an explicitly viewed project[\s\S]*GuideBrief conversation resets immediately for a different exact candidate scope/u,
+);
+assert.match(
+  source,
+  /PC4 visible relationship answer must use the PC3-highlighted connection[\s\S]*GuideBrief conversation clears an answer when same-candidate current material changes/u,
 );
 assert.match(
   source,

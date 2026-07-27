@@ -297,6 +297,8 @@ const result = {
   selected_work_timeline_first: false,
   selected_work_timeline_state_coverage: [],
   selected_work_timeline_candidate_switching: false,
+  guide_brief_same_candidate_material_reset: false,
+  guide_brief_highlighted_relationship_agreement: false,
   strategic_profile_optional_unavailable: false,
   strategic_profile_no_analysis_on_load: false,
   strategic_profile_no_internal_id_input: false,
@@ -7585,6 +7587,22 @@ async function main() {
       true,
       "proposal A must render an exact support answer before leaving its scope",
     );
+    const candidateABeforeApplicationGuideAnswer =
+      await askGuideBriefConversationQuestion("How is this connected?");
+    assert.equal(
+      candidateABeforeApplicationGuideAnswer.intent,
+      "relationship_explanation",
+    );
+    assert.equal(
+      typeof candidateABeforeApplicationGuideAnswer.direct_answer ===
+          "string" &&
+        proposalARelationshipCopy.highlighted_copy.includes(
+          candidateABeforeApplicationGuideAnswer.direct_answer,
+        ),
+      true,
+      "PC4 visible relationship answer must use the PC3-highlighted connection",
+    );
+    result.guide_brief_highlighted_relationship_agreement = true;
     await clickTransitionAction("preview");
     await waitForCondition(
       `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]') !== null`,
@@ -7632,6 +7650,26 @@ async function main() {
       `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="project_updated"]') !== null && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1 && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
       "candidate A Transition completion unlocks selector",
     );
+    await waitForCondition(
+      `(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-conversation-scope'
+        ) !== ${JSON.stringify(candidateABeforeApplicationGuideAnswer.scope)} &&
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-active-answer'
+          ) === 'false' &&
+          conversation.querySelectorAll(
+            '[data-guidebrief-conversation-answer]'
+          ).length === 0;
+      })()`,
+      "GuideBrief conversation clears an answer when same-candidate current material changes",
+    );
+    result.guide_brief_same_candidate_material_reset = true;
+    record("guidebrief_same_candidate_material_change_clears_stale_answer");
+    record("guidebrief_relationship_answer_matches_pc3_highlight");
 
     const afterMultiCandidate = readDirectHostBrowserState(manifest.project_id);
     assert.deepEqual(afterMultiCandidate.semantic_authority_counts, {
@@ -10995,6 +11033,9 @@ async function askGuideBriefConversationQuestion(question) {
         answer?.getAttribute('data-guidebrief-conversation-intent') ?? null,
       answer_count:
         conversation?.querySelectorAll('[data-guidebrief-conversation-answer]').length ?? -1,
+      direct_answer:
+        answer?.querySelector('.answerHeader strong, strong')?.textContent?.trim() ??
+        null,
       public_text: answer?.textContent?.trim() ?? '',
     };
   })()`);

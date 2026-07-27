@@ -6,10 +6,13 @@ import {
   buildGuideBriefConversationScopeKeyV01,
   createGuideBriefConversationContextV01,
   normalizeGuideBriefConversationQuestionV01,
+  scopeGuideBriefConversationContextV01,
+  selectVisibleGuideBriefConversationAnswerV01,
 } from "../lib/vnext/guide-brief/guide-brief-conversation-plan";
 import type {
   GuideBriefConversationIntentV01,
   GuideBriefConversationPlanInputV01,
+  GuideBriefConversationSelectedWorkScopeV01,
 } from "../types/vnext/guide-brief-conversation";
 import type { ProjectGuideBriefV02 } from "../types/vnext/guide-brief";
 import type {
@@ -21,6 +24,7 @@ import type { SelectedWorkTimelineV01 } from "../types/vnext/selected-work-timel
 const PROJECT_A = "project:11111111-1111-4111-8111-111111111111";
 const PROJECT_B = "project:22222222-2222-4222-8222-222222222222";
 const WORKSPACE_A = "workspace:conversation-a";
+const WORKSPACE_B = "workspace:conversation-b";
 const PROPOSAL_A = "episode-delta-proposal:aaaaaaaaaaaaaaaaaaaaaaaa";
 const PROPOSAL_B = "episode-delta-proposal:bbbbbbbbbbbbbbbbbbbbbbbb";
 const CANDIDATE_A = "proposal-candidate:aaaaaaaaaaaaaaaaaaaaaaaa";
@@ -468,6 +472,9 @@ function relationship(
     uncertainty?: string | null;
     exact_refs?: SelectedWorkRelationshipsV01["connections"][number]["exact_refs"];
     stage?: SelectedWorkTimelineV01["current_position"]["stage"];
+    current_item_id?: string;
+    candidate_id?: string;
+    candidate_fingerprint?: string;
   } = {},
 ): SelectedWorkRelationshipsV01 {
   const availability = overrides.availability ?? "available";
@@ -481,10 +488,13 @@ function relationship(
     relationships_version: "selected_work_relationships.v0.1",
     selected_work_anchor: {
       title: "Keep reviewed project context",
-      selected_candidate_id: CANDIDATE_A,
-      selected_candidate_fingerprint: FP_A,
+      selected_candidate_id: overrides.candidate_id ?? CANDIDATE_A,
+      selected_candidate_fingerprint:
+        overrides.candidate_fingerprint ?? FP_A,
       timeline_stage: overrides.stage ?? "awaiting_application",
-      timeline_current_item_id: `current:${overrides.stage ?? "awaiting_application"}`,
+      timeline_current_item_id:
+        overrides.current_item_id ??
+        `current:${overrides.stage ?? "awaiting_application"}`,
       timeline_remains_current_position_owner: true,
     },
     questions: [{ question_key: key, label: questionLabel(key), source_supported: true }],
@@ -603,37 +613,77 @@ function questionLabel(key: SelectedWorkRelationshipQuestionKeyV01): string {
 }
 
 function planInput(overrides: Partial<GuideBriefConversationPlanInputV01> = {}): GuideBriefConversationPlanInputV01 {
+  const selectedGuide = overrides.guide ?? guide();
   const selectedTimeline = overrides.timeline === undefined
     ? timeline()
     : overrides.timeline;
+  const selectedScope =
+    overrides.selected_work_scope === undefined
+      ? selectedTimeline
+        ? {
+            workspace_id: selectedGuide.identity.workspace_id!,
+            project_id: selectedGuide.identity.project_id!,
+            proposal_id: PROPOSAL_A,
+            proposal_fingerprint: FP_B,
+            candidate_id:
+              selectedTimeline.selected_work.selected_candidate_id,
+            candidate_fingerprint:
+              selectedTimeline.selected_work.selected_candidate_fingerprint,
+          } as GuideBriefConversationSelectedWorkScopeV01
+        : null
+      : overrides.selected_work_scope;
+  const relationshipDefaults = selectedTimeline
+    ? Object.fromEntries(
+        ([
+          "support_and_source",
+          "candidate_and_decision",
+          "blocker_and_conflict",
+          "decision_and_project_change",
+          "project_change_and_later_outcome",
+        ] as SelectedWorkRelationshipQuestionKeyV01[]).map((key) => [
+          key,
+          relationship(key, {
+            availability:
+              key === "blocker_and_conflict" ? "conflicted" : "available",
+            stage: selectedTimeline.current_position.stage,
+            current_item_id: selectedTimeline.current_item_id,
+            candidate_id:
+              selectedTimeline.selected_work.selected_candidate_id,
+            candidate_fingerprint:
+              selectedTimeline.selected_work.selected_candidate_fingerprint,
+          }),
+        ]),
+      ) as Partial<
+        Record<
+          SelectedWorkRelationshipQuestionKeyV01,
+          SelectedWorkRelationshipsV01
+        >
+      >
+    : {};
+  const selectedRelationships =
+    overrides.relationships === undefined
+      ? relationshipDefaults
+      : overrides.relationships;
+  const selectedRelationshipQuestion =
+    overrides.selected_relationship_question_key !== undefined
+      ? overrides.selected_relationship_question_key
+      : selectedRelationships?.support_and_source
+        ? "support_and_source"
+        : (Object.keys(selectedRelationships ?? {})[0] as
+            | SelectedWorkRelationshipQuestionKeyV01
+            | undefined) ?? null;
   return {
-    guide: guide(),
-    question: "What is happening now?",
-    guide_source_fingerprint: FP_C,
-    selected_work_scope: selectedTimeline
-      ? {
-          proposal_id: PROPOSAL_A,
-          proposal_fingerprint: FP_B,
-          candidate_id: selectedTimeline.selected_work.selected_candidate_id,
-          candidate_fingerprint: selectedTimeline.selected_work.selected_candidate_fingerprint,
-        }
-      : null,
+    guide: selectedGuide,
+    question: overrides.question ?? "What is happening now?",
+    guide_source_fingerprint:
+      overrides.guide_source_fingerprint === undefined
+        ? FP_C
+        : overrides.guide_source_fingerprint,
+    selected_work_scope: selectedScope,
     timeline: selectedTimeline,
-    relationships: {
-      support_and_source: relationship("support_and_source"),
-      candidate_and_decision: relationship("candidate_and_decision"),
-      blocker_and_conflict: relationship("blocker_and_conflict", {
-        availability: "conflicted",
-        stage: "transition_blocked",
-      }),
-      decision_and_project_change: relationship("decision_and_project_change"),
-      project_change_and_later_outcome: relationship("project_change_and_later_outcome", {
-        stage: "later_outcome_available",
-      }),
-    },
-    selected_relationship_question_key: "support_and_source",
-    conversation_context: null,
-    ...overrides,
+    relationships: selectedRelationships,
+    selected_relationship_question_key: selectedRelationshipQuestion,
+    conversation_context: overrides.conversation_context ?? null,
   };
 }
 
@@ -1031,21 +1081,25 @@ assert.equal(
   })).availability,
   "unavailable",
 );
-assert.equal(
-  buildGuideBriefConversationPlanV01(planInput({
+assert.throws(
+  () => buildGuideBriefConversationPlanV01(planInput({
     timeline: null,
     selected_work_scope: baseScopeInput.selected_work_scope,
+    relationships: {},
+    selected_relationship_question_key: null,
     question: "What changed?",
-  })).availability,
-  "unavailable",
+  })),
+  /guidebrief_conversation_binding_timeline_required/u,
 );
-assert.equal(
-  buildGuideBriefConversationPlanV01(planInput({
+assert.throws(
+  () => buildGuideBriefConversationPlanV01(planInput({
     timeline: null,
     selected_work_scope: baseScopeInput.selected_work_scope,
+    relationships: {},
+    selected_relationship_question_key: null,
     question: "What should I do next?",
-  })).availability,
-  "unavailable",
+  })),
+  /guidebrief_conversation_binding_timeline_required/u,
 );
 
 const publicText = [
@@ -1132,5 +1186,577 @@ assert.ok(
     (ref) => ref.record_id === allSurfaceGuide.source_refs[0]!.ref_id,
   ),
 );
+
+const remediationFailures: Array<{ name: string; error: unknown }> = [];
+function remediationCheck(name: string, check: () => void): void {
+  try {
+    check();
+  } catch (error) {
+    remediationFailures.push({ name, error });
+  }
+}
+
+function expectContractError(
+  input: GuideBriefConversationPlanInputV01,
+  code: string,
+): void {
+  assert.throws(
+    () => buildGuideBriefConversationPlanV01(input),
+    (error: unknown) =>
+      error instanceof Error && error.message === code,
+    code,
+  );
+}
+
+function clonedPlanInput(): GuideBriefConversationPlanInputV01 {
+  return structuredClone(planInput());
+}
+
+function assertMaterialScopeChanges(
+  name: string,
+  mutate: (input: GuideBriefConversationPlanInputV01) => void,
+): void {
+  const before = planInput();
+  const after = clonedPlanInput();
+  mutate(after);
+  assert.notEqual(
+    buildGuideBriefConversationScopeKeyV01(before),
+    buildGuideBriefConversationScopeKeyV01(after),
+    name,
+  );
+}
+
+remediationCheck("binding rejects GuideBrief project A with selected work project B", () => {
+  const input = planInput();
+  input.selected_work_scope = {
+    ...input.selected_work_scope!,
+    workspace_id: WORKSPACE_B,
+    project_id: PROJECT_B,
+  };
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_selected_work_workspace_mismatch",
+  );
+});
+
+remediationCheck("binding independently rejects selected-work project mismatch", () => {
+  const input = planInput();
+  input.selected_work_scope = {
+    ...input.selected_work_scope!,
+    project_id: PROJECT_B,
+  };
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_selected_work_project_mismatch",
+  );
+});
+
+remediationCheck("binding rejects selected scope candidate A with timeline candidate B", () => {
+  const input = planInput();
+  input.timeline = timeline({
+    candidate_id: CANDIDATE_B,
+    candidate_fingerprint: FP_B,
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_timeline_candidate_id_mismatch",
+  );
+});
+
+remediationCheck("binding rejects correct candidate ID with wrong fingerprint", () => {
+  const input = planInput();
+  input.timeline = timeline({ candidate_fingerprint: FP_B });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_timeline_candidate_fingerprint_mismatch",
+  );
+});
+
+remediationCheck("binding rejects relationship candidate anchor mismatch", () => {
+  const input = planInput({
+    relationships: {
+      support_and_source: relationship("support_and_source", {
+        candidate_id: CANDIDATE_B,
+      }),
+    },
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_relationship_candidate_id_mismatch",
+  );
+});
+
+remediationCheck("binding rejects relationship candidate fingerprint mismatch", () => {
+  const input = planInput({
+    relationships: {
+      support_and_source: relationship("support_and_source", {
+        candidate_fingerprint: FP_B,
+      }),
+    },
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_relationship_candidate_fingerprint_mismatch",
+  );
+});
+
+remediationCheck("binding rejects relationship timeline stage mismatch", () => {
+  const input = planInput({
+    relationships: {
+      support_and_source: relationship("support_and_source", {
+        stage: "transition_blocked",
+      }),
+    },
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_relationship_timeline_stage_mismatch",
+  );
+});
+
+remediationCheck("binding rejects relationship current item mismatch", () => {
+  const input = planInput({
+    relationships: {
+      support_and_source: relationship("support_and_source", {
+        current_item_id: "current:foreign",
+      }),
+    },
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_relationship_current_item_mismatch",
+  );
+});
+
+remediationCheck("binding rejects relationship map key mismatch", () => {
+  const input = planInput({
+    relationships: {
+      support_and_source: relationship("candidate_and_decision"),
+    },
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_relationship_map_key_mismatch",
+  );
+});
+
+remediationCheck("binding rejects selected relationship question missing from map", () => {
+  const input = planInput({
+    relationships: {},
+    selected_relationship_question_key: "support_and_source",
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_selected_relationship_missing",
+  );
+});
+
+remediationCheck("binding rejects selected-work material without exact scope", () => {
+  const input = planInput({ selected_work_scope: null });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_selected_work_scope_required",
+  );
+});
+
+remediationCheck("binding rejects selected scope without timeline", () => {
+  const input = planInput({
+    timeline: null,
+    selected_work_scope: planInput().selected_work_scope,
+    relationships: {},
+    selected_relationship_question_key: null,
+  });
+  expectContractError(
+    input,
+    "guidebrief_conversation_binding_timeline_required",
+  );
+});
+
+remediationCheck("exact coherent bindings continue to pass", () => {
+  assert.doesNotThrow(() =>
+    buildGuideBriefConversationPlanV01(planInput())
+  );
+});
+
+remediationCheck("same-title candidates remain isolated by exact identity", () => {
+  const candidateBTimeline = timeline({
+    candidate_id: CANDIDATE_B,
+    candidate_fingerprint: FP_B,
+  });
+  const candidateBInput = planInput({
+    timeline: candidateBTimeline,
+    selected_work_scope: {
+      workspace_id: WORKSPACE_A,
+      project_id: PROJECT_A,
+      proposal_id: PROPOSAL_A,
+      proposal_fingerprint: FP_B,
+      candidate_id: CANDIDATE_B,
+      candidate_fingerprint: FP_B,
+    },
+    relationships: {
+      support_and_source: relationship("support_and_source", {
+        candidate_id: CANDIDATE_B,
+        candidate_fingerprint: FP_B,
+      }),
+    },
+  });
+  assert.notEqual(
+    buildGuideBriefConversationScopeKeyV01(planInput()),
+    buildGuideBriefConversationScopeKeyV01(candidateBInput),
+  );
+});
+
+const materialCases: Array<{
+  name: string;
+  mutate: (input: GuideBriefConversationPlanInputV01) => void;
+}> = [
+  {
+    name: "GuideBrief ChatGPT summary",
+    mutate: (input) => {
+      input.guide.projections.chatgpt.summary = "A refreshed current summary.";
+    },
+  },
+  {
+    name: "first observed statement",
+    mutate: (input) => {
+      input.guide.observed[0]!.statement = "A refreshed observation.";
+    },
+  },
+  {
+    name: "inferred statement or caveat",
+    mutate: (input) => {
+      input.guide.inferred[0]!.caveats = ["A refreshed caveat."];
+    },
+  },
+  {
+    name: "user judgment",
+    mutate: (input) => {
+      input.guide.coordinate.unresolved_user_judgment =
+        "Should the refreshed exact change be accepted?";
+    },
+  },
+  {
+    name: "primary guidance reason or destination",
+    mutate: (input) => {
+      input.guide.primary_guidance.reason = "A refreshed guidance reason.";
+      input.guide.primary_guidance.href = "/workbench/semantic-review/refreshed";
+    },
+  },
+  {
+    name: "timeline current summary",
+    mutate: (input) => {
+      input.timeline!.current_position.summary =
+        "A refreshed exact current-position summary.";
+    },
+  },
+  {
+    name: "timeline next meaningful step",
+    mutate: (input) => {
+      input.timeline!.current_position.next_meaningful_step =
+        "Use the refreshed exact next step.";
+    },
+  },
+  {
+    name: "timeline meaning change",
+    mutate: (input) => {
+      input.timeline!.items[0]!.meaning_change =
+        "The refreshed exact meaning changed.";
+    },
+  },
+  {
+    name: "timeline source ref or destination",
+    mutate: (input) => {
+      input.timeline!.items[0]!.source_refs[0]!.record_id =
+        "decision:refreshed";
+      input.timeline!.items[0]!.destination = "#refreshed-timeline";
+    },
+  },
+  {
+    name: "relationship highlighted connection",
+    mutate: (input) => {
+      const relationshipInput = input.relationships!.support_and_source!;
+      const alternate = {
+        ...structuredClone(relationshipInput.connections[0]!),
+        connection_id: "connection-support_and_source-alternate",
+        explanation: "The alternate exact connection is highlighted.",
+      };
+      relationshipInput.connections.push(alternate);
+      relationshipInput.highlighted_connection_id = alternate.connection_id;
+    },
+  },
+  {
+    name: "relationship explanation",
+    mutate: (input) => {
+      input.relationships!.support_and_source!.connections[0]!.explanation =
+        "A refreshed exact relationship explanation.";
+    },
+  },
+  {
+    name: "relationship uncertainty",
+    mutate: (input) => {
+      input.relationships!.support_and_source!.connections[0]!
+        .uncertainty_or_conflict = "A refreshed exact uncertainty.";
+    },
+  },
+  {
+    name: "relationship destination",
+    mutate: (input) => {
+      input.relationships!.support_and_source!.connections[0]!.destination =
+        "#refreshed-relationship";
+    },
+  },
+  {
+    name: "suggested destination",
+    mutate: (input) => {
+      input.relationships!.support_and_source!.suggested_destinations[0]!.href =
+        "#refreshed-destination";
+    },
+  },
+  {
+    name: "supplied upstream fingerprint",
+    mutate: (input) => {
+      input.guide_source_fingerprint = FP_A;
+    },
+  },
+  {
+    name: "projection material while supplied fingerprint stays unchanged",
+    mutate: (input) => {
+      input.guide.projections.ai_workplane.recommended_review_focus =
+        "Review the refreshed exact material.";
+      input.guide_source_fingerprint = FP_C;
+    },
+  },
+];
+
+for (const materialCase of materialCases) {
+  remediationCheck(
+    `scope changes for ${materialCase.name}`,
+    () => assertMaterialScopeChanges(materialCase.name, materialCase.mutate),
+  );
+}
+
+remediationCheck("GuideBrief read timestamp alone preserves material scope", () => {
+  const left = clonedPlanInput();
+  const right = structuredClone(left);
+  right.guide.generated_at = "2026-07-27T08:00:00.000Z";
+  assert.equal(
+    buildGuideBriefConversationScopeKeyV01(left),
+    buildGuideBriefConversationScopeKeyV01(right),
+  );
+});
+
+remediationCheck("reordered semantically unordered exact refs keep the same scope", () => {
+  const left = clonedPlanInput();
+  const right = clonedPlanInput();
+  const refs = [
+    {
+      source_kind: "run_receipt" as const,
+      record_id: "run-receipt:b",
+      record_fingerprint: FP_B,
+    },
+    {
+      source_kind: "run_receipt" as const,
+      record_id: "run-receipt:a",
+      record_fingerprint: FP_A,
+    },
+  ];
+  left.relationships!.support_and_source!.connections[0]!.exact_refs = refs;
+  right.relationships!.support_and_source!.connections[0]!.exact_refs =
+    [...refs].reverse();
+  assert.equal(
+    buildGuideBriefConversationScopeKeyV01(left),
+    buildGuideBriefConversationScopeKeyV01(right),
+  );
+});
+
+remediationCheck("PC2 timeline order remains semantically distinguishable", () => {
+  const left = clonedPlanInput();
+  const historical = {
+    ...structuredClone(left.timeline!.items[0]!),
+    item_id: "historical:before-current",
+    status: "completed" as const,
+    summary: "A prior exact timeline item.",
+  };
+  left.timeline!.items = [historical, left.timeline!.items[0]!];
+  left.timeline!.bounded_item_count = 2;
+  const right = structuredClone(left);
+  right.timeline!.items.reverse();
+  assert.notEqual(
+    buildGuideBriefConversationScopeKeyV01(left),
+    buildGuideBriefConversationScopeKeyV01(right),
+  );
+});
+
+remediationCheck("component visibility guard removes a same-identity stale answer", () => {
+  const beforeInput = planInput({ question: "What is happening now?" });
+  const priorAnswer = buildGuideBriefConversationPlanV01(beforeInput);
+  const afterInput = structuredClone(beforeInput);
+  afterInput.guide.projections.chatgpt.summary =
+    "The same project and candidate now have refreshed current meaning.";
+  const nextScope = buildGuideBriefConversationScopeKeyV01(afterInput);
+  const visibleAnswer =
+    selectVisibleGuideBriefConversationAnswerV01(priorAnswer, nextScope);
+  const staleContext = appendGuideBriefConversationTurnV01(
+    createGuideBriefConversationContextV01(priorAnswer.scope.scope_key),
+    priorAnswer,
+  );
+  const currentContext = scopeGuideBriefConversationContextV01(
+    staleContext,
+    nextScope,
+  );
+  assert.equal(visibleAnswer, null);
+  assert.equal(currentContext.scope_key, nextScope);
+  assert.equal(currentContext.turns.length, 0);
+});
+
+remediationCheck("PC3 highlighted connection owns the answer even when second", () => {
+  const exactRelationship = relationship("support_and_source");
+  const highlighted = exactRelationship.connections[0]!;
+  const firstButNotHighlighted = {
+    ...structuredClone(highlighted),
+    connection_id: "connection-support_and_source-first",
+    explanation: "This first connection must not own the PC4 answer.",
+    exact_refs: [{
+      source_kind: "run_receipt" as const,
+      record_id: "run-receipt:not-highlighted",
+      record_fingerprint: FP_A,
+    }],
+  };
+  exactRelationship.connections = [firstButNotHighlighted, highlighted];
+  exactRelationship.visible_connection_count = 2;
+  exactRelationship.known_connection_count = 2;
+  const plan = buildGuideBriefConversationPlanV01(planInput({
+    question: "What supports this suggestion?",
+    relationships: { support_and_source: exactRelationship },
+  }));
+  assert.equal(plan.direct_answer, highlighted.explanation);
+  assert.equal(plan.facts.selected_relationship_meaning, highlighted.explanation);
+  assert.ok(
+    plan.internal_source_refs.some(
+      (ref) => ref.record_id === highlighted.exact_refs[0]!.record_id,
+    ),
+  );
+  assert.ok(
+    plan.internal_source_refs.every(
+      (ref) => ref.record_id !== firstButNotHighlighted.exact_refs[0]!.record_id,
+    ),
+  );
+});
+
+remediationCheck("reversing connection order preserves the highlighted answer", () => {
+  const exactRelationship = relationship("support_and_source");
+  const highlighted = exactRelationship.connections[0]!;
+  const other = {
+    ...structuredClone(highlighted),
+    connection_id: "connection-support_and_source-other",
+    explanation: "A non-highlighted connection.",
+  };
+  exactRelationship.connections = [other, highlighted];
+  exactRelationship.visible_connection_count = 2;
+  exactRelationship.known_connection_count = 2;
+  const reversed = structuredClone(exactRelationship);
+  reversed.connections.reverse();
+  const left = buildGuideBriefConversationPlanV01(planInput({
+    question: "What supports this suggestion?",
+    relationships: { support_and_source: exactRelationship },
+  }));
+  const right = buildGuideBriefConversationPlanV01(planInput({
+    question: "What supports this suggestion?",
+    relationships: { support_and_source: reversed },
+  }));
+  assert.deepEqual(left, right);
+});
+
+remediationCheck("missing highlighted connection fails closed", () => {
+  const malformed = relationship("support_and_source");
+  malformed.highlighted_connection_id = "connection:missing";
+  expectContractError(
+    planInput({ relationships: { support_and_source: malformed } }),
+    "guidebrief_conversation_binding_highlighted_connection_missing",
+  );
+});
+
+remediationCheck("null highlight on answerable relationship fails closed", () => {
+  const malformed = relationship("support_and_source");
+  malformed.highlighted_connection_id = null;
+  expectContractError(
+    planInput({ relationships: { support_and_source: malformed } }),
+    "guidebrief_conversation_binding_highlighted_connection_required",
+  );
+});
+
+remediationCheck("duplicate highlighted connection identity fails closed", () => {
+  const malformed = relationship("support_and_source");
+  malformed.connections.push(structuredClone(malformed.connections[0]!));
+  expectContractError(
+    planInput({ relationships: { support_and_source: malformed } }),
+    "guidebrief_conversation_binding_highlighted_connection_ambiguous",
+  );
+});
+
+remediationCheck("unavailable relationship with no highlight remains unavailable", () => {
+  const unavailable = relationship("support_and_source", {
+    availability: "unavailable",
+  });
+  const plan = buildGuideBriefConversationPlanV01(planInput({
+    question: "What supports this suggestion?",
+    relationships: { support_and_source: unavailable },
+  }));
+  assert.equal(plan.availability, "unavailable");
+  assert.equal(plan.facts.selected_relationship_meaning, null);
+});
+
+remediationCheck("unavailable relationship cannot retain fabricated connections", () => {
+  const malformed = relationship("support_and_source", {
+    availability: "unavailable",
+  });
+  malformed.connections = [
+    relationship("support_and_source").connections[0]!,
+  ];
+  expectContractError(
+    planInput({ relationships: { support_and_source: malformed } }),
+    "guidebrief_conversation_binding_unavailable_relationship_invalid",
+  );
+});
+
+remediationCheck("raw question length is enforced by the pure owner", () => {
+  expectContractError(
+    planInput({ question: "x".repeat(241) }),
+    "guidebrief_conversation_question_too_long",
+  );
+});
+
+remediationCheck("externally supplied contexts over four turns fail closed", () => {
+  const seed = buildGuideBriefConversationPlanV01(planInput({
+    question: "What is happening now?",
+  }));
+  const turn = appendGuideBriefConversationTurnV01(
+    createGuideBriefConversationContextV01(seed.scope.scope_key),
+    seed,
+  ).turns[0]!;
+  expectContractError(
+    planInput({
+      question: "Why?",
+      conversation_context: {
+        scope_key: seed.scope.scope_key,
+        turns: [turn, turn, turn, turn, turn],
+      },
+    }),
+    "guidebrief_conversation_context_turn_limit_exceeded",
+  );
+});
+
+if (remediationFailures.length > 0) {
+  for (const failure of remediationFailures) {
+    const detail =
+      failure.error instanceof Error
+        ? `${failure.error.name}: ${failure.error.message}`
+        : String(failure.error);
+    console.error(`[pc4-remediation-red] ${failure.name}: ${detail}`);
+  }
+  throw new Error(
+    `PC4 remediation regressions failed: ${remediationFailures.length}`,
+  );
+}
 
 console.log("vNext GuideBrief conversation plan contract tests passed.");

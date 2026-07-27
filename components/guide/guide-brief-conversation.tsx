@@ -12,9 +12,12 @@ import {
   buildGuideBriefConversationPlanV01,
   buildGuideBriefConversationScopeKeyV01,
   createGuideBriefConversationContextV01,
+  scopeGuideBriefConversationContextV01,
+  selectVisibleGuideBriefConversationAnswerV01,
 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import {
+  GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01,
   GUIDE_BRIEF_CONVERSATION_PLAN_VERSION_V01,
   type GuideBriefConversationContextV01,
   type GuideBriefConversationPlanInputV01,
@@ -98,16 +101,18 @@ export function GuideBriefConversation({
     setContext(createGuideBriefConversationContextV01(scopeKey));
   }, [scopeKey]);
 
-  const visibleAnswer =
-    answer?.scope.scope_key === scopeKey ? answer : null;
+  const visibleAnswer = selectVisibleGuideBriefConversationAnswerV01(
+    answer,
+    scopeKey,
+  );
 
   function ask(nextQuestion: string) {
     const trimmed = nextQuestion.trim();
     if (!trimmed) return;
-    const currentContext =
-      context.scope_key === scopeKey
-        ? context
-        : createGuideBriefConversationContextV01(scopeKey);
+    const currentContext = scopeGuideBriefConversationContextV01(
+      context,
+      scopeKey,
+    );
     const plan = buildGuideBriefConversationPlanV01({
       ...sourceInput,
       question: trimmed,
@@ -157,7 +162,9 @@ export function GuideBriefConversation({
                 name="guidebrief-question"
                 type="text"
                 value={question}
-                maxLength={240}
+                maxLength={
+                  GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01
+                }
                 autoComplete="off"
                 placeholder="What is happening now?"
                 onChange={(event) => setQuestion(event.target.value)}

@@ -3,6 +3,8 @@ import type {
   ProjectGuideBriefV02,
 } from "@/types/vnext/guide-brief";
 import {
+  GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01,
+  GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01,
   GUIDE_BRIEF_CONVERSATION_MAX_SUGGESTIONS_V01,
   GUIDE_BRIEF_CONVERSATION_MAX_TURNS_V01,
   GUIDE_BRIEF_CONVERSATION_PLAN_VERSION_V01,
@@ -116,51 +118,161 @@ export function normalizeGuideBriefConversationQuestionV01(
 export function buildGuideBriefConversationScopeKeyV01(
   input: GuideBriefConversationPlanInputV01,
 ): string {
-  const guideSourceFingerprint =
-    exactFingerprintV01(input.guide_source_fingerprint) ??
-    `derived:${hashV01(stableCanonicalV01(guideSourceIdentityV01(input.guide)))}`;
-  const timeline = input.timeline ?? null;
+  assertGuideBriefConversationInputBindingsV01(input);
+  assertGuideBriefConversationBoundsV01(input);
+  return buildValidatedGuideBriefConversationScopeKeyV01(input);
+}
+
+export function assertGuideBriefConversationInputBindingsV01(
+  input: GuideBriefConversationPlanInputV01,
+): void {
+  if (
+    input.guide_source_fingerprint !== undefined &&
+    input.guide_source_fingerprint !== null &&
+    exactFingerprintV01(input.guide_source_fingerprint) === null
+  ) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .guide_source_fingerprint_invalid,
+    );
+  }
+
   const selectedWork = input.selected_work_scope ?? null;
-  const relationshipIdentity = Object.entries(input.relationships ?? {})
-    .map(([key, value]) => ({
-      key,
-      version: value?.relationships_version ?? null,
-      selected_question_key: value?.selected_question_key ?? null,
-      answer_availability: value?.answer_availability ?? null,
-      completeness: value?.completeness.status ?? null,
-      anchor: value?.selected_work_anchor ?? null,
-      exact_refs: (value?.connections ?? []).flatMap((connection) =>
-        connection.exact_refs.map((ref) => ({
-          source_kind: ref.source_kind,
-          record_id: ref.record_id,
-          record_fingerprint: ref.record_fingerprint,
-        })),
-      ),
-    }))
-    .sort((left, right) => compareCodeUnitsV01(left.key, right.key));
-  return `guidebrief-conversation-scope:${hashV01(stableCanonicalV01({
-    workspace_id: input.guide.identity.workspace_id,
-    project_id: input.guide.identity.project_id,
-    project_context: input.guide.identity.project_context,
-    active_project_id: input.guide.identity.active_project_id,
-    requested_project_id: input.guide.request.requested_project_id,
-    guide_source_fingerprint: guideSourceFingerprint,
-    proposal_id: selectedWork?.proposal_id ?? null,
-    proposal_fingerprint: selectedWork?.proposal_fingerprint ?? null,
-    candidate_id:
-      selectedWork?.candidate_id ??
-      timeline?.selected_work.selected_candidate_id ??
-      null,
-    candidate_fingerprint:
-      selectedWork?.candidate_fingerprint ??
-      timeline?.selected_work.selected_candidate_fingerprint ??
-      null,
-    timeline_current_item_id: timeline?.current_item_id ?? null,
-    timeline_current_stage: timeline?.current_position.stage ?? null,
-    relationship_question:
-      input.selected_relationship_question_key ?? null,
-    relationship_identity: relationshipIdentity,
-  }))}`;
+  const timeline = input.timeline ?? null;
+  const relationshipEntries = Object.entries(input.relationships ?? {}).filter(
+    (
+      entry,
+    ): entry is [string, SelectedWorkRelationshipsV01] =>
+      Boolean(entry[1]),
+  );
+  const hasSelectedWorkMaterial =
+    timeline !== null ||
+    relationshipEntries.length > 0 ||
+    input.selected_relationship_question_key != null;
+
+  if (!selectedWork) {
+    if (hasSelectedWorkMaterial) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .selected_work_scope_required,
+      );
+    }
+    return;
+  }
+
+  if (
+    !requiredTextV01(selectedWork.workspace_id) ||
+    !requiredTextV01(selectedWork.project_id) ||
+    !requiredTextV01(selectedWork.proposal_id) ||
+    exactFingerprintV01(selectedWork.proposal_fingerprint) === null ||
+    !requiredTextV01(selectedWork.candidate_id) ||
+    exactFingerprintV01(selectedWork.candidate_fingerprint) === null
+  ) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .selected_work_scope_invalid,
+    );
+  }
+  if (selectedWork.workspace_id !== input.guide.identity.workspace_id) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .selected_work_workspace_mismatch,
+    );
+  }
+  if (selectedWork.project_id !== input.guide.identity.project_id) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .selected_work_project_mismatch,
+    );
+  }
+  if (!timeline) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01.timeline_required,
+    );
+  }
+  if (
+    timeline.selected_work.selected_candidate_id !==
+    selectedWork.candidate_id
+  ) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .timeline_candidate_id_mismatch,
+    );
+  }
+  if (
+    timeline.selected_work.selected_candidate_fingerprint !==
+    selectedWork.candidate_fingerprint
+  ) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .timeline_candidate_fingerprint_mismatch,
+    );
+  }
+
+  for (const [mapKey, relationship] of relationshipEntries) {
+    if (relationship.selected_question_key !== mapKey) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .relationship_map_key_mismatch,
+      );
+    }
+    if (
+      relationship.selected_work_anchor.selected_candidate_id !==
+      selectedWork.candidate_id
+    ) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .relationship_candidate_id_mismatch,
+      );
+    }
+    if (
+      relationship.selected_work_anchor.selected_candidate_fingerprint !==
+      selectedWork.candidate_fingerprint
+    ) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .relationship_candidate_fingerprint_mismatch,
+      );
+    }
+    if (
+      relationship.selected_work_anchor.timeline_stage !==
+      timeline.current_position.stage
+    ) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .relationship_timeline_stage_mismatch,
+      );
+    }
+    if (
+      relationship.selected_work_anchor.timeline_current_item_id !==
+      timeline.current_item_id
+    ) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .relationship_current_item_mismatch,
+      );
+    }
+    validateHighlightedConnectionBindingV01(relationship);
+  }
+
+  const selectedQuestion = input.selected_relationship_question_key ?? null;
+  if (
+    selectedQuestion !== null &&
+    !input.relationships?.[selectedQuestion]
+  ) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .selected_relationship_missing,
+    );
+  }
+}
+
+function buildValidatedGuideBriefConversationScopeKeyV01(
+  input: GuideBriefConversationPlanInputV01,
+): string {
+  return `guidebrief-conversation-scope:${hashV01(
+    stableCanonicalV01(conversationMaterialIdentityV01(input)),
+  )}`;
 }
 
 export function createGuideBriefConversationContextV01(
@@ -169,14 +281,30 @@ export function createGuideBriefConversationContextV01(
   return { scope_key: scopeKey, turns: [] };
 }
 
+export function scopeGuideBriefConversationContextV01(
+  context: GuideBriefConversationContextV01,
+  scopeKey: string,
+): GuideBriefConversationContextV01 {
+  return context.scope_key === scopeKey
+    ? context
+    : createGuideBriefConversationContextV01(scopeKey);
+}
+
+export function selectVisibleGuideBriefConversationAnswerV01(
+  answer: GuideBriefConversationPlanV01 | null,
+  scopeKey: string,
+): GuideBriefConversationPlanV01 | null {
+  return answer?.scope.scope_key === scopeKey ? answer : null;
+}
+
 export function appendGuideBriefConversationTurnV01(
   context: GuideBriefConversationContextV01,
   plan: GuideBriefConversationPlanV01,
 ): GuideBriefConversationContextV01 {
-  const base =
-    context.scope_key === plan.scope.scope_key
-      ? context
-      : createGuideBriefConversationContextV01(plan.scope.scope_key);
+  const base = scopeGuideBriefConversationContextV01(
+    context,
+    plan.scope.scope_key,
+  );
   if (
     plan.routing.status !== "supported" ||
     plan.availability === "ambiguous" ||
@@ -204,6 +332,8 @@ export function routeGuideBriefConversationQuestionV01(input: {
 }): GuideBriefConversationPlanV01["routing"] & {
   resolved_from_previous_turn: boolean;
 } {
+  assertGuideBriefConversationQuestionV01(input.question);
+  assertGuideBriefConversationContextV01(input.conversation_context);
   const normalizedQuestion =
     normalizeGuideBriefConversationQuestionV01(input.question);
   const context =
@@ -226,10 +356,14 @@ export function routeGuideBriefConversationQuestionV01(input: {
 export function buildGuideBriefConversationPlanV01(
   input: GuideBriefConversationPlanInputV01,
 ): GuideBriefConversationPlanV01 {
-  const scopeKey = buildGuideBriefConversationScopeKeyV01(input);
-  const guideSourceFingerprint =
-    exactFingerprintV01(input.guide_source_fingerprint) ??
-    `derived:${hashV01(stableCanonicalV01(guideSourceIdentityV01(input.guide)))}`;
+  assertGuideBriefConversationInputBindingsV01(input);
+  assertGuideBriefConversationBoundsV01(input);
+  const scopeKey = buildValidatedGuideBriefConversationScopeKeyV01(input);
+  const guideSourceFingerprint = guideProjectionMaterialFingerprintV01(
+    input.guide,
+  );
+  const guideUpstreamSourceFingerprint =
+    exactFingerprintV01(input.guide_source_fingerprint);
   const contextReset =
     Boolean(input.conversation_context) &&
     input.conversation_context!.scope_key !== scopeKey;
@@ -244,6 +378,9 @@ export function buildGuideBriefConversationPlanV01(
   });
   const normalizedQuestion = route.normalized_question;
   const relationship = selectedRelationshipV01(input);
+  const selectedConnection = relationship
+    ? highlightedRelationshipConnectionV01(relationship)
+    : null;
   const answer =
     route.status === "supported" && route.intent
       ? answerForIntentV01(input, route.intent, normalizedQuestion)
@@ -284,16 +421,13 @@ export function buildGuideBriefConversationPlanV01(
       project_context: input.guide.identity.project_context,
       active_project_id: input.guide.identity.active_project_id,
       guide_source_fingerprint: guideSourceFingerprint,
+      guide_upstream_source_fingerprint:
+        guideUpstreamSourceFingerprint,
       proposal_id: selectedWork?.proposal_id ?? null,
       proposal_fingerprint: selectedWork?.proposal_fingerprint ?? null,
-      candidate_id:
-        selectedWork?.candidate_id ??
-        timeline?.selected_work.selected_candidate_id ??
-        null,
+      candidate_id: selectedWork?.candidate_id ?? null,
       candidate_fingerprint:
-        selectedWork?.candidate_fingerprint ??
-        timeline?.selected_work.selected_candidate_fingerprint ??
-        null,
+        selectedWork?.candidate_fingerprint ?? null,
       pc2_current_position_identity: timeline
         ? `${timeline.current_item_id}:${timeline.current_position.stage}`
         : null,
@@ -328,9 +462,9 @@ export function buildGuideBriefConversationPlanV01(
       human_attention: input.guide.coordinate.human_attention,
       selected_timeline_position: timeline?.current_position ?? null,
       selected_relationship_meaning:
-        relationship?.connections[0]?.explanation ?? null,
+        selectedConnection?.explanation ?? null,
       uncertainty:
-        relationship?.connections[0]?.uncertainty_or_conflict ??
+        selectedConnection?.uncertainty_or_conflict ??
         input.guide.coordinate.material_blocker_or_uncertainty,
       next_action_label:
         input.guide.projections.codex.suggested_next_action,
@@ -690,14 +824,14 @@ function relationshipAnswerV01(
   if (
     !relationship ||
     relationship.answer_availability === "unavailable" ||
-    relationship.connections.length === 0
+    !relationshipIsAnswerableV01(relationship)
   ) {
     return unavailableAnswerV01(
       "The exact relationship source needed for this question is unavailable, so Augnes cannot answer it safely.",
       "A required relationship projection is missing or unavailable.",
     );
   }
-  const connection = relationship.connections[0]!;
+  const connection = highlightedRelationshipConnectionV01(relationship)!;
   const availability = relationshipAvailabilityV01(
     relationship.answer_availability,
   );
@@ -891,7 +1025,9 @@ function transitionAnswerV01(
       : stage === "transition_blocked"
         ? input.relationships?.blocker_and_conflict ?? null
         : input.relationships?.candidate_and_decision ?? null;
-  const relationConnection = relationship?.connections[0] ?? null;
+  const relationConnection = relationship
+    ? highlightedRelationshipConnectionV01(relationship)
+    : null;
   const relationAvailability = relationship
     ? relationshipAvailabilityV01(relationship.answer_availability)
     : "available";
@@ -1248,8 +1384,64 @@ function relationshipIsAnswerableV01(
   return Boolean(
     relationship &&
       relationship.answer_availability !== "unavailable" &&
-      relationship.connections.length > 0,
+      highlightedRelationshipConnectionV01(relationship),
   );
+}
+
+function highlightedRelationshipConnectionV01(
+  relationship: SelectedWorkRelationshipsV01,
+): SelectedWorkConnectionStatementV01 | null {
+  if (
+    relationship.answer_availability === "unavailable" ||
+    relationship.highlighted_connection_id === null
+  ) {
+    return null;
+  }
+  return relationship.connections.find(
+    (connection) =>
+      connection.connection_id ===
+      relationship.highlighted_connection_id,
+  ) ?? null;
+}
+
+function validateHighlightedConnectionBindingV01(
+  relationship: SelectedWorkRelationshipsV01,
+): void {
+  if (relationship.answer_availability === "unavailable") {
+    if (
+      relationship.highlighted_connection_id !== null ||
+      relationship.connections.length !== 0
+    ) {
+      contractErrorV01(
+        GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+          .unavailable_relationship_invalid,
+      );
+    }
+    return;
+  }
+  if (relationship.highlighted_connection_id === null) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .highlighted_connection_required,
+    );
+  }
+  const matches = relationship.connections.filter(
+    (connection) =>
+      connection.connection_id ===
+      relationship.highlighted_connection_id,
+  );
+  if (matches.length === 0) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .highlighted_connection_missing,
+    );
+  }
+  if (matches.length !== 1) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .highlighted_connection_ambiguous,
+    );
+  }
 }
 
 function answerAnchorV01(
@@ -1406,37 +1598,139 @@ function uniqueDestinationsV01(
   return [...unique.values()].slice(0, 3);
 }
 
-function guideSourceIdentityV01(guide: ProjectGuideBriefV02): unknown {
+function conversationMaterialIdentityV01(
+  input: GuideBriefConversationPlanInputV01,
+): unknown {
+  const relationships = Object.entries(input.relationships ?? {})
+    .filter(
+      (
+        entry,
+      ): entry is [string, SelectedWorkRelationshipsV01] =>
+        Boolean(entry[1]),
+    )
+    .sort(([left], [right]) => compareCodeUnitsV01(left, right))
+    .map(([questionKey, relationship]) => ({
+      question_key: questionKey,
+      projection: relationshipMaterialIdentityV01(relationship),
+    }));
   return {
-    identity: guide.identity,
-    request: guide.request,
-    source_status: guide.source_status,
-    gaps: [...guide.gaps].sort(compareCodeUnitsV01),
-    coordinate: guide.coordinate,
-    primary_guidance: {
-      label: guide.primary_guidance.label,
-      reason: guide.primary_guidance.reason,
-      href: guide.primary_guidance.href,
-      source_refs: [...guide.primary_guidance.source_refs].sort(
-        compareCodeUnitsV01,
-      ),
-    },
-    source_refs: guide.source_refs
-      .map((ref) => ({
-        ref_id: ref.ref_id,
-        kind: ref.kind,
-        href: ref.href,
-      }))
-      .sort((left, right) =>
-        compareCodeUnitsV01(left.ref_id, right.ref_id),
-      ),
+    guide_upstream_source_fingerprint:
+      exactFingerprintV01(input.guide_source_fingerprint),
+    guide_projection: guideProjectionMaterialIdentityV01(input.guide),
+    selected_work_scope: input.selected_work_scope ?? null,
+    pc2_timeline: input.timeline
+      ? normalizeSourceRefCollectionsV01(input.timeline)
+      : null,
+    pc3_relationships: relationships,
+    selected_relationship_question_key:
+      input.selected_relationship_question_key ?? null,
   };
+}
+
+function guideProjectionMaterialFingerprintV01(
+  guide: ProjectGuideBriefV02,
+): string {
+  return `derived:${hashV01(
+    stableCanonicalV01(guideProjectionMaterialIdentityV01(guide)),
+  )}`;
+}
+
+function guideProjectionMaterialIdentityV01(
+  guide: ProjectGuideBriefV02,
+): unknown {
+  const { generated_at: _readTimestamp, ...boundedProjection } = guide;
+  return normalizeSourceRefCollectionsV01(boundedProjection);
+}
+
+function relationshipMaterialIdentityV01(
+  relationship: SelectedWorkRelationshipsV01,
+): unknown {
+  return normalizeSourceRefCollectionsV01({
+    ...relationship,
+    connections: [...relationship.connections].sort((left, right) =>
+      compareCodeUnitsV01(left.connection_id, right.connection_id)
+    ),
+  });
+}
+
+function normalizeSourceRefCollectionsV01(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeSourceRefCollectionsV01);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(
+        ([key, nested]) => {
+          if (
+            (key === "source_refs" || key === "exact_refs") &&
+            Array.isArray(nested)
+          ) {
+            const unique = new Map<string, unknown>();
+            for (const ref of nested) {
+              const normalized =
+                normalizeSourceRefCollectionsV01(ref);
+              unique.set(stableCanonicalV01(normalized), normalized);
+            }
+            return [
+              key,
+              [...unique.entries()]
+                .sort(([left], [right]) =>
+                  compareCodeUnitsV01(left, right)
+                )
+                .map(([, ref]) => ref),
+            ];
+          }
+          return [key, normalizeSourceRefCollectionsV01(nested)];
+        },
+      ),
+    );
+  }
+  return value;
 }
 
 function exactFingerprintV01(
   value: string | null | undefined,
 ): string | null {
   return value && /^sha256:[a-f0-9]{64}$/u.test(value) ? value : null;
+}
+
+function requiredTextV01(value: string): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function assertGuideBriefConversationBoundsV01(
+  input: GuideBriefConversationPlanInputV01,
+): void {
+  assertGuideBriefConversationQuestionV01(input.question);
+  assertGuideBriefConversationContextV01(input.conversation_context);
+}
+
+function assertGuideBriefConversationQuestionV01(
+  question: string,
+): void {
+  if (question.length > GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01.question_too_long,
+    );
+  }
+}
+
+function assertGuideBriefConversationContextV01(
+  context: GuideBriefConversationContextV01 | null | undefined,
+): void {
+  if (
+    context &&
+    context.turns.length > GUIDE_BRIEF_CONVERSATION_MAX_TURNS_V01
+  ) {
+    contractErrorV01(
+      GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01
+        .context_turn_limit_exceeded,
+    );
+  }
+}
+
+function contractErrorV01(code: string): never {
+  throw new Error(code);
 }
 
 function publicTextV01(value: string): string {
@@ -1479,11 +1773,7 @@ function stableCanonicalV01(value: unknown): string {
 
 function canonicalValueV01(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value
-      .map(canonicalValueV01)
-      .sort((left, right) =>
-        compareCodeUnitsV01(JSON.stringify(left), JSON.stringify(right)),
-      );
+    return value.map(canonicalValueV01);
   }
   if (value && typeof value === "object") {
     return Object.fromEntries(

@@ -548,6 +548,8 @@ function SelectedWorkRelationshipExploration({
           guide={guide}
           surface="ai_workplane"
           selected_work_scope={{
+            workspace_id: read.proposal.workspace_id,
+            project_id: read.proposal.project_id,
             proposal_id: read.proposal.proposal_id,
             proposal_fingerprint: read.proposal.integrity.fingerprint,
             candidate_id: selected.candidate.candidate_id,

@@ -9,6 +9,53 @@ export const GUIDE_BRIEF_CONVERSATION_PLAN_VERSION_V01 =
   "guidebrief_conversation_plan.v0.1" as const;
 export const GUIDE_BRIEF_CONVERSATION_MAX_TURNS_V01 = 4 as const;
 export const GUIDE_BRIEF_CONVERSATION_MAX_SUGGESTIONS_V01 = 5 as const;
+export const GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01 = 240 as const;
+
+export const GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01 = {
+  selected_work_scope_invalid:
+    "guidebrief_conversation_binding_selected_work_scope_invalid",
+  selected_work_scope_required:
+    "guidebrief_conversation_binding_selected_work_scope_required",
+  selected_work_workspace_mismatch:
+    "guidebrief_conversation_binding_selected_work_workspace_mismatch",
+  selected_work_project_mismatch:
+    "guidebrief_conversation_binding_selected_work_project_mismatch",
+  timeline_required:
+    "guidebrief_conversation_binding_timeline_required",
+  timeline_candidate_id_mismatch:
+    "guidebrief_conversation_binding_timeline_candidate_id_mismatch",
+  timeline_candidate_fingerprint_mismatch:
+    "guidebrief_conversation_binding_timeline_candidate_fingerprint_mismatch",
+  relationship_candidate_id_mismatch:
+    "guidebrief_conversation_binding_relationship_candidate_id_mismatch",
+  relationship_candidate_fingerprint_mismatch:
+    "guidebrief_conversation_binding_relationship_candidate_fingerprint_mismatch",
+  relationship_timeline_stage_mismatch:
+    "guidebrief_conversation_binding_relationship_timeline_stage_mismatch",
+  relationship_current_item_mismatch:
+    "guidebrief_conversation_binding_relationship_current_item_mismatch",
+  relationship_map_key_mismatch:
+    "guidebrief_conversation_binding_relationship_map_key_mismatch",
+  selected_relationship_missing:
+    "guidebrief_conversation_binding_selected_relationship_missing",
+  highlighted_connection_required:
+    "guidebrief_conversation_binding_highlighted_connection_required",
+  highlighted_connection_missing:
+    "guidebrief_conversation_binding_highlighted_connection_missing",
+  highlighted_connection_ambiguous:
+    "guidebrief_conversation_binding_highlighted_connection_ambiguous",
+  unavailable_relationship_invalid:
+    "guidebrief_conversation_binding_unavailable_relationship_invalid",
+  guide_source_fingerprint_invalid:
+    "guidebrief_conversation_guide_source_fingerprint_invalid",
+  question_too_long:
+    "guidebrief_conversation_question_too_long",
+  context_turn_limit_exceeded:
+    "guidebrief_conversation_context_turn_limit_exceeded",
+} as const;
+
+export type GuideBriefConversationContractErrorCodeV01 =
+  (typeof GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01)[keyof typeof GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01];
 
 export type GuideBriefConversationIntentV01 =
   | "current_situation"
@@ -35,6 +82,8 @@ export type GuideBriefConversationAvailabilityV01 =
   | "ambiguous";
 
 export interface GuideBriefConversationSelectedWorkScopeV01 {
+  workspace_id: string;
+  project_id: string;
   proposal_id: string;
   proposal_fingerprint: string;
   candidate_id: string;
@@ -104,6 +153,7 @@ export interface GuideBriefConversationPlanV01 {
     project_context: ProjectGuideBriefV02["identity"]["project_context"];
     active_project_id: string | null;
     guide_source_fingerprint: string;
+    guide_upstream_source_fingerprint: string | null;
     proposal_id: string | null;
     proposal_fingerprint: string | null;
     candidate_id: string | null;
