@@ -51,6 +51,7 @@ import {
 import { buildProjectVerifyWorkbenchFixtureV01 } from "@/fixtures/vnext/protocol/project-verify-workbench-v0-1";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
+  ProjectVerifyExactProtocolKindV01,
   ProjectVerifyExactProtocolRefV01,
   ProjectVerifyReconciliationV01,
   ProjectVerifyRevisionLifecycleV01,
@@ -2501,6 +2502,17 @@ try {
     ),
     true,
   );
+  assert.equal(
+    sourceRelationships.connections.some(
+      (connection) =>
+        connection.source_role !== "later_work" &&
+        connection.exact_refs.some(
+          (ref) => ref.source_kind === "run_receipt",
+        ),
+    ),
+    true,
+    "a source receipt must preserve its canonical kind without being mislabeled as a later result",
+  );
   assert.deepEqual(sourceRelationships.authority, {
     projection_only: true,
     rebuildable: true,
@@ -2662,6 +2674,466 @@ try {
       (connection) => connection.basis === "observed_source",
     ).length,
     1,
+  );
+
+  const sourceScopedCandidate = (
+    candidateId: string,
+    sourceRefs: ExternalRefV01[],
+    basisMaterialIds: string[] = [],
+  ) => {
+    const candidate = {
+      ...structuredClone(timelineCandidate),
+      candidate: {
+        ...structuredClone(timelineCandidate.candidate),
+        candidate_id: candidateId,
+        basis_material_ids: basisMaterialIds,
+        source_refs: sourceRefs,
+      },
+    };
+    candidate.candidate_fingerprint =
+      createEpisodeDeltaCandidateFingerprintV01(candidate.candidate);
+    candidate.pilot_admission = {
+      ...candidate.pilot_admission,
+      candidate_id: candidate.candidate.candidate_id,
+      candidate_fingerprint: candidate.candidate_fingerprint,
+    };
+    return candidate;
+  };
+  const proposalSourceRefs =
+    timelineBaseRead.proposal.source_refs.map((ref) => structuredClone(ref));
+  const exactReceiptSourceRef = proposalSourceRefs.find(
+    (ref) => ref.ref_type === "run_receipt",
+  )!;
+  const exactPacketSourceRef = proposalSourceRefs.find(
+    (ref) => ref.ref_type === "task_context_packet",
+  )!;
+  assert.ok(exactReceiptSourceRef);
+  assert.ok(exactPacketSourceRef);
+  const sourceRefOnlyCandidate = sourceScopedCandidate(
+    "delta:pc3-source-ref-only",
+    [exactPacketSourceRef],
+  );
+  const sourceRefOnlyRead = {
+    ...timelineBaseRead,
+    candidates: [sourceRefOnlyCandidate],
+    source_run_receipts: [],
+    source_lanes: {
+      observations: [],
+      attestations: [],
+      inferences: [],
+    },
+    proposal: {
+      ...timelineBaseRead.proposal,
+      project_verify_lifecycle: undefined,
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const sourceRefOnlyRelationships = relationshipsFor(sourceRefOnlyRead);
+  assert.equal(
+    sourceRefOnlyRelationships.questions.some(
+      (question) => question.question_key === "support_and_source",
+    ),
+    true,
+    "an exact candidate-local source pointer present in the validated read must expose a truthful source question",
+  );
+  assert.equal(sourceRefOnlyRelationships.answer_availability, "partial");
+  assert.equal(sourceRefOnlyRelationships.known_connection_count, 1);
+  assert.equal(
+    sourceRefOnlyRelationships.connections[0]?.exact_refs.some(
+      (ref) => ref.record_id === exactPacketSourceRef.external_id,
+    ),
+    true,
+  );
+  assert.match(
+    sourceRefOnlyRelationships.connections[0]?.why_it_matters_now ?? "",
+    /does not.*proof|does not.*success|not.*proof/iu,
+  );
+
+  const unresolvedSourceCandidate = sourceScopedCandidate(
+    "delta:pc3-unresolved-source-ref",
+    [
+      externalRef(
+        "unresolved_external_source",
+        "external-source:pc3-not-in-read",
+        "imported_unverified",
+      ),
+    ],
+  );
+  const unresolvedSourceRelationships = relationshipsFor({
+    ...sourceRefOnlyRead,
+    candidates: [unresolvedSourceCandidate],
+  });
+  assert.equal(
+    unresolvedSourceRelationships.questions.some(
+      (question) => question.question_key === "support_and_source",
+    ),
+    false,
+    "an unresolved candidate ref must not expose a source-supported question",
+  );
+
+  const candidateLocalSourceA = sourceScopedCandidate(
+    "delta:pc3-source-isolation-a",
+    [exactReceiptSourceRef],
+  );
+  const secondSourceReceipt = {
+    ...structuredClone(timelineBaseRead.source_run_receipts[0]!),
+    receipt_id: "run-receipt:pc3-source-isolation-b",
+    integrity: {
+      ...structuredClone(
+        timelineBaseRead.source_run_receipts[0]!.integrity,
+      ),
+      fingerprint: `sha256:${"b".repeat(64)}`,
+    },
+  };
+  const secondReceiptSourceRef = {
+    ...structuredClone(exactReceiptSourceRef),
+    external_id: secondSourceReceipt.receipt_id,
+    source_ref: secondSourceReceipt.integrity.fingerprint,
+  };
+  const candidateLocalSourceB = sourceScopedCandidate(
+    "delta:pc3-source-isolation-b",
+    [secondReceiptSourceRef],
+  );
+  const isolatedSourceRead = {
+    ...sourceRefOnlyRead,
+    candidates: [candidateLocalSourceA, candidateLocalSourceB],
+    source_run_receipts: [
+      timelineBaseRead.source_run_receipts[0]!,
+      secondSourceReceipt,
+    ],
+    proposal: {
+      ...sourceRefOnlyRead.proposal,
+      source_refs: [
+        ...sourceRefOnlyRead.proposal.source_refs,
+        secondReceiptSourceRef,
+      ],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const isolatedSourceA = relationshipsForSelected(
+    isolatedSourceRead,
+    candidateLocalSourceA,
+  );
+  const isolatedSourceB = relationshipsForSelected(
+    isolatedSourceRead,
+    candidateLocalSourceB,
+  );
+  assert.equal(
+    JSON.stringify(isolatedSourceA).includes(
+      secondReceiptSourceRef.external_id,
+    ),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(isolatedSourceB).includes(
+      exactReceiptSourceRef.external_id,
+    ),
+    false,
+  );
+  assert.equal(
+    [isolatedSourceA, isolatedSourceB].some((relationships) =>
+      relationships.connections.some((connection) =>
+        /shared proposal source context/iu.test(connection.title)
+      )
+    ),
+    false,
+    "different exact candidate-local receipts must not be presented as shared context",
+  );
+
+  const sharedSourceCandidateA = sourceScopedCandidate(
+    "delta:pc3-shared-source-a",
+    [exactReceiptSourceRef],
+  );
+  const sharedSourceCandidateB = sourceScopedCandidate(
+    "delta:pc3-shared-source-b",
+    [exactReceiptSourceRef],
+  );
+  const sharedSourceRead = {
+    ...timelineBaseRead,
+    candidates: [sharedSourceCandidateA, sharedSourceCandidateB],
+    source_lanes: {
+      observations: [],
+      attestations: [],
+      inferences: [],
+    },
+    proposal: {
+      ...timelineBaseRead.proposal,
+      project_verify_lifecycle: undefined,
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const sharedSourceRelationships = relationshipsForSelected(
+    sharedSourceRead,
+    sharedSourceCandidateA,
+  );
+  assert.equal(
+    sharedSourceRelationships.connections.some((connection) =>
+      /shared proposal source context/iu.test(connection.title)
+    ),
+    true,
+    "a source receipt shared by every candidate must be labeled as shared proposal context",
+  );
+
+  const unboundReceiptCandidate = sourceScopedCandidate(
+    "delta:pc3-unbound-proposal-receipt",
+    [],
+  );
+  const unboundReceiptRelationships = relationshipsFor({
+    ...timelineBaseRead,
+    candidates: [unboundReceiptCandidate],
+    source_lanes: {
+      observations: [],
+      attestations: [],
+      inferences: [],
+    },
+    proposal: {
+      ...timelineBaseRead.proposal,
+      project_verify_lifecycle: undefined,
+    },
+  });
+  assert.equal(
+    unboundReceiptRelationships.questions.some(
+      (question) => question.question_key === "support_and_source",
+    ),
+    false,
+    "proposal-wide receipts without a selected-candidate binding must not become candidate-local support",
+  );
+
+  const missingIntermediateCandidate = sourceScopedCandidate(
+    "delta:pc3-missing-intermediate-source",
+    [exactPacketSourceRef],
+    ["material:pc3-not-in-bounded-read"],
+  );
+  const missingIntermediateRelationships = relationshipsFor({
+    ...sourceRefOnlyRead,
+    candidates: [missingIntermediateCandidate],
+  });
+  assert.equal(missingIntermediateRelationships.answer_availability, "partial");
+  assert.equal(
+    missingIntermediateRelationships.connections.some(
+      (connection) => connection.support_status === "partial",
+    ),
+    true,
+    "missing intermediate source material must remain partial",
+  );
+
+  const orderedSourceCandidate = sourceScopedCandidate(
+    "delta:pc3-deterministic-source-refs",
+    [exactPacketSourceRef, exactReceiptSourceRef],
+  );
+  const replayedSourceCandidate = sourceScopedCandidate(
+    "delta:pc3-deterministic-source-refs",
+    [
+      exactReceiptSourceRef,
+      exactPacketSourceRef,
+      exactReceiptSourceRef,
+      exactPacketSourceRef,
+    ],
+  );
+  replayedSourceCandidate.candidate_fingerprint =
+    orderedSourceCandidate.candidate_fingerprint;
+  replayedSourceCandidate.pilot_admission = {
+    ...replayedSourceCandidate.pilot_admission,
+    candidate_fingerprint: orderedSourceCandidate.candidate_fingerprint,
+  };
+  assert.deepEqual(
+    relationshipsFor({
+      ...sourceRefOnlyRead,
+      candidates: [replayedSourceCandidate],
+    }),
+    relationshipsFor({
+      ...sourceRefOnlyRead,
+      candidates: [orderedSourceCandidate],
+    }),
+    "candidate source-ref order and replay duplication must not affect deterministic output",
+  );
+  assert.equal(
+    relationshipsFor({
+      ...sourceRefOnlyRead,
+      candidates: [orderedSourceCandidate],
+    }).known_connection_count,
+    2,
+  );
+
+  const identicalTitleCandidateA = sourceScopedCandidate(
+    "delta:pc3-identical-title-a",
+    [exactPacketSourceRef],
+  );
+  const identicalTitleCandidateB = sourceScopedCandidate(
+    "delta:pc3-identical-title-b",
+    [exactReceiptSourceRef],
+  );
+  identicalTitleCandidateB.candidate.title =
+    identicalTitleCandidateA.candidate.title;
+  identicalTitleCandidateB.candidate_fingerprint =
+    createEpisodeDeltaCandidateFingerprintV01(
+      identicalTitleCandidateB.candidate,
+    );
+  identicalTitleCandidateB.pilot_admission = {
+    ...identicalTitleCandidateB.pilot_admission,
+    candidate_fingerprint:
+      identicalTitleCandidateB.candidate_fingerprint,
+  };
+  const identicalTitleRead = {
+    ...sourceRefOnlyRead,
+    candidates: [identicalTitleCandidateA, identicalTitleCandidateB],
+  } satisfies SemanticReviewProposalDetailV01;
+  const candidateATimeline = timelineForSelected(
+    identicalTitleRead,
+    identicalTitleCandidateA,
+  );
+  const candidateBTimeline = timelineForSelected(
+    identicalTitleRead,
+    identicalTitleCandidateB,
+  );
+  assert.throws(
+    () =>
+      buildSelectedWorkRelationshipsV01({
+        read: identicalTitleRead,
+        selected_candidate: identicalTitleCandidateA,
+        timeline: candidateBTimeline,
+      }),
+    /selected_work_relationship_timeline_scope_invalid/u,
+    "matching public titles must not permit candidate B's timeline to be combined with candidate A",
+  );
+  const exactCandidateARelationships =
+    buildSelectedWorkRelationshipsV01({
+      read: identicalTitleRead,
+      selected_candidate: identicalTitleCandidateA,
+      timeline: candidateATimeline,
+    });
+  assert.equal(
+    candidateATimeline.selected_work.selected_candidate_id,
+    identicalTitleCandidateA.candidate.candidate_id,
+  );
+  assert.equal(
+    candidateATimeline.selected_work.selected_candidate_fingerprint,
+    identicalTitleCandidateA.candidate_fingerprint,
+  );
+  assert.equal(
+    exactCandidateARelationships.selected_work_anchor
+      .timeline_remains_current_position_owner,
+    true,
+  );
+
+  const wrongTimelineFingerprint = {
+    ...candidateATimeline,
+    selected_work: {
+      ...candidateATimeline.selected_work,
+      selected_candidate_fingerprint: `sha256:${"0".repeat(64)}`,
+    },
+  } as SelectedWorkTimelineV01;
+  assert.throws(
+    () =>
+      buildSelectedWorkRelationshipsV01({
+        read: identicalTitleRead,
+        selected_candidate: identicalTitleCandidateA,
+        timeline: wrongTimelineFingerprint,
+      }),
+    /selected_work_relationship_timeline_scope_invalid/u,
+    "the correct candidate ID with the wrong fingerprint must fail closed",
+  );
+  const wrongTimelineId = {
+    ...candidateATimeline,
+    selected_work: {
+      ...candidateATimeline.selected_work,
+      selected_candidate_id:
+        identicalTitleCandidateB.candidate.candidate_id,
+    },
+  } as SelectedWorkTimelineV01;
+  assert.throws(
+    () =>
+      buildSelectedWorkRelationshipsV01({
+        read: identicalTitleRead,
+        selected_candidate: identicalTitleCandidateA,
+        timeline: wrongTimelineId,
+      }),
+    /selected_work_relationship_timeline_scope_invalid/u,
+    "the correct fingerprint with the wrong candidate ID must fail closed",
+  );
+
+  const candidateRefAbsentTimeline = {
+    ...candidateATimeline,
+    items: candidateATimeline.items.map((item) => ({
+      ...item,
+      source_refs: item.source_refs.filter(
+        (ref) => ref.source_kind !== "candidate",
+      ),
+    })),
+  } satisfies SelectedWorkTimelineV01;
+  assert.throws(
+    () =>
+      buildSelectedWorkRelationshipsV01({
+        read: identicalTitleRead,
+        selected_candidate: identicalTitleCandidateA,
+        timeline: candidateRefAbsentTimeline,
+      }),
+    /selected_work_relationship_timeline_scope_invalid/u,
+    "a timeline with no exact candidate ref must fail closed",
+  );
+  const ambiguousCandidateRefTimeline = {
+    ...candidateATimeline,
+    items: candidateATimeline.items.map((item) =>
+      item.item_id === candidateATimeline.current_item_id
+        ? {
+            ...item,
+            source_refs: [
+              ...item.source_refs,
+              {
+                source_kind: "candidate" as const,
+                record_id:
+                  identicalTitleCandidateB.candidate.candidate_id,
+                record_fingerprint:
+                  identicalTitleCandidateB.candidate_fingerprint,
+              },
+            ],
+          }
+        : item,
+    ),
+  } satisfies SelectedWorkTimelineV01;
+  assert.throws(
+    () =>
+      buildSelectedWorkRelationshipsV01({
+        read: identicalTitleRead,
+        selected_candidate: identicalTitleCandidateA,
+        timeline: ambiguousCandidateRefTimeline,
+      }),
+    /selected_work_relationship_timeline_scope_invalid/u,
+    "multiple distinct candidate refs make timeline scope ambiguous",
+  );
+
+  const candidateBExactRelationships =
+    buildSelectedWorkRelationshipsV01({
+      read: identicalTitleRead,
+      selected_candidate: identicalTitleCandidateB,
+      timeline: candidateBTimeline,
+    });
+  assert.notEqual(
+    exactCandidateARelationships.selected_work_anchor
+      .selected_candidate_fingerprint,
+    candidateBExactRelationships.selected_work_anchor
+      .selected_candidate_fingerprint,
+    "candidate switching must rebuild both timeline and relationship identity",
+  );
+  const identicalTitlePublicCopy = [
+    candidateATimeline.selected_work.title,
+    candidateATimeline.selected_work.current_meaning,
+    candidateATimeline.current_position.title,
+    candidateATimeline.current_position.summary,
+    ...exactCandidateARelationships.connections.flatMap((connection) => [
+      connection.title,
+      connection.explanation,
+      connection.why_it_matters_now,
+    ]),
+  ].join(" ");
+  assert.equal(
+    identicalTitlePublicCopy.includes(
+      identicalTitleCandidateA.candidate.candidate_id,
+    ),
+    false,
+  );
+  assert.equal(
+    identicalTitlePublicCopy.includes(
+      identicalTitleCandidateA.candidate_fingerprint,
+    ),
+    false,
   );
 
   const exactRelationFamily = structuredClone(
@@ -2954,6 +3426,135 @@ try {
     true,
   );
 
+  const exactProtocolKinds = [
+    "task_context_packet",
+    "run_receipt",
+    "criterion_assessment",
+    "evidence_record",
+    "claim_record",
+    "claim_evidence_relation",
+    "episode_delta_proposal",
+    "episode_delta_proposal_candidate",
+    "review_decision",
+    "semantic_commit_gate",
+    "state_transition_receipt",
+    "semantic_state",
+    "semantic_target_head",
+    "context_use_review",
+  ] as const satisfies readonly ProjectVerifyExactProtocolKindV01[];
+  const exhaustiveConflictFamily = structuredClone(exactRelationFamily);
+  exhaustiveConflictFamily.revisions[0]!.lifecycle.conflicts = [
+    {
+      conflict_kind: "current_head",
+      code: "project_verify_exact_kind_mapping",
+      exact_refs: exactProtocolKinds.map((kind) =>
+        exactRef(kind, `exact-kind:${kind}`)
+      ),
+      source_refs: [],
+    },
+  ];
+  const exhaustiveKindRead = {
+    ...relationBoundRead,
+    project_verify_reconciliation: {
+      ...relationBoundRead.project_verify_reconciliation,
+      relation_families: [exhaustiveConflictFamily],
+    },
+  } satisfies SemanticReviewProposalDetailV01;
+  const exhaustiveKindRelationships = relationshipsFor(
+    exhaustiveKindRead,
+    "blocker_and_conflict",
+  );
+  const exhaustiveKindConnection =
+    exhaustiveKindRelationships.connections.find((connection) =>
+      connection.exact_refs.some((ref) =>
+        ref.record_id.startsWith("exact-kind:")
+      )
+    );
+  assert.ok(exhaustiveKindConnection);
+  for (const kind of exactProtocolKinds) {
+    assert.equal(
+      exhaustiveKindConnection.exact_refs.find(
+        (ref) => ref.record_id === `exact-kind:${kind}`,
+      )?.source_kind,
+      kind,
+      `${kind} must preserve its exact canonical protocol kind`,
+    );
+  }
+
+  const sameExactFingerprint = fingerprint(
+    "pc3-exact-kind-deduplication",
+  );
+  const exactKindDeduplicationFamily =
+    structuredClone(exactRelationFamily);
+  exactKindDeduplicationFamily.revisions[0]!.lifecycle.conflicts = [
+    {
+      conflict_kind: "current_head",
+      code: "project_verify_exact_kind_deduplication",
+      exact_refs: [
+        {
+          record_kind: "criterion_assessment",
+          record_id: "exact-kind:shared-id",
+          record_fingerprint: sameExactFingerprint,
+        },
+        {
+          record_kind: "semantic_state",
+          record_id: "exact-kind:shared-id",
+          record_fingerprint: sameExactFingerprint,
+        },
+      ],
+      source_refs: [],
+    },
+  ];
+  const exactKindDeduplicationRelationships = relationshipsFor(
+    {
+      ...relationBoundRead,
+      project_verify_reconciliation: {
+        ...relationBoundRead.project_verify_reconciliation,
+        relation_families: [exactKindDeduplicationFamily],
+      },
+    },
+    "blocker_and_conflict",
+  );
+  assert.deepEqual(
+    exactKindDeduplicationRelationships.connections
+      .flatMap((connection) => connection.exact_refs)
+      .filter((ref) => ref.record_id === "exact-kind:shared-id")
+      .map((ref) => ref.source_kind)
+      .sort(),
+    ["criterion_assessment", "semantic_state"],
+    "exact-ref deduplication must retain refs that differ by canonical kind",
+  );
+
+  const unsupportedKindFamily = structuredClone(exactRelationFamily);
+  unsupportedKindFamily.revisions[0]!.lifecycle.conflicts = [
+    {
+      conflict_kind: "current_head",
+      code: "project_verify_unsupported_exact_kind",
+      exact_refs: [
+        {
+          ...exactRef("semantic_state", "exact-kind:unsupported"),
+          record_kind: "future_protocol_kind",
+        } as unknown as ProjectVerifyExactProtocolRefV01,
+      ],
+      source_refs: [],
+    },
+  ];
+  assert.throws(
+    () =>
+      relationshipsFor(
+        {
+          ...relationBoundRead,
+          project_verify_reconciliation: {
+            ...relationBoundRead.project_verify_reconciliation,
+            relation_families: [unsupportedKindFamily],
+          },
+        },
+        "blocker_and_conflict",
+      ),
+    /selected_work_relationship_exact_ref_kind_unsupported/u,
+    "an unsupported future protocol kind must fail closed instead of becoming a proposal",
+  );
+
   const appliedRelationships = relationshipsFor(appliedRead);
   assert.equal(
     appliedRelationships.selected_question_key,
@@ -3030,10 +3631,22 @@ try {
       (connection) =>
         connection.relation_kind === "used_by_later_work" &&
         connection.exact_refs.some(
-          (ref) => ref.source_kind === "compiled_context",
+          (ref) => ref.source_kind === "task_context_packet",
         ),
     ),
     true,
+  );
+  assert.equal(
+    laterRelationships.connections.some(
+      (connection) =>
+        connection.relation_kind === "used_by_later_work" &&
+        connection.target_role === "later_work" &&
+        connection.exact_refs.some(
+          (ref) => ref.source_kind === "run_receipt",
+        ),
+    ),
+    true,
+    "a later receipt remains distinguishable through relationship role while retaining its canonical protocol kind",
   );
   assert.equal(
     laterRelationships.connections.some(
@@ -3282,6 +3895,10 @@ try {
         timeline_projection_authority_all_false_checked: true,
         selected_work_relationship_question_derivation_checked: true,
         selected_work_relationship_exact_scope_selection_checked: true,
+        selected_work_relationship_candidate_source_ref_binding_checked: true,
+        selected_work_relationship_shared_source_policy_checked: true,
+        selected_work_relationship_exact_timeline_candidate_anchor_checked: true,
+        selected_work_relationship_protocol_kind_exhaustiveness_checked: true,
         selected_work_relationship_basis_separation_checked: true,
         selected_work_relationship_candidate_isolation_checked: true,
         selected_work_relationship_exact_later_chain_checked: true,

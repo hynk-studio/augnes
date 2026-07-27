@@ -66,6 +66,7 @@ export function buildSelectedWorkTimelineV01(input: {
   const lifecycle = selectSelectedWorkLifecycleV01(
     read,
     selected.candidate.candidate_id,
+    selected.candidate_fingerprint,
   );
   const laterOutcome = receipt && effective
     ? exactLaterOutcomeV01(read, selected, effective, receipt)
@@ -275,6 +276,8 @@ export function buildSelectedWorkTimelineV01(input: {
       title: bounded(selected.candidate.title),
       operation_label: operationLabelV01(selected.candidate.operation),
       current_meaning: bounded(selected.candidate.proposed_state_summary),
+      selected_candidate_id: selected.candidate.candidate_id,
+      selected_candidate_fingerprint: selected.candidate_fingerprint,
       selected_candidate_scope: true,
     },
     items: normalizedItems,
@@ -337,11 +340,15 @@ export function selectedWorkTimelineDecisionStatusV01(
 export function selectSelectedWorkLifecycleV01(
   read: SemanticReviewProposalDetailV01,
   candidateId: string,
+  candidateFingerprint: string,
 ): ProjectVerifyRevisionLifecycleV01 | null {
   const profile = read.proposal.project_verify_lifecycle;
   if (
     !profile ||
-    profile.lifecycle_binding.selected_candidate.candidate_id !== candidateId
+    profile.lifecycle_binding.selected_candidate.candidate_id !==
+      candidateId ||
+    profile.lifecycle_binding.selected_candidate.candidate_fingerprint !==
+      candidateFingerprint
   ) {
     return null;
   }

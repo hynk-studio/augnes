@@ -2,6 +2,11 @@ import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/sem
 import {
   selectSelectedWorkLifecycleV01,
 } from "@/lib/vnext/ai-workplane/selected-work-timeline";
+import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type {
+  ProjectVerifyExactProtocolKindV01,
+  ProjectVerifyExactProtocolRefV01,
+} from "@/types/vnext/project-verify-reconciliation";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import {
   SELECTED_WORK_RELATIONSHIPS_MAX_CONNECTIONS_V01,
@@ -19,6 +24,7 @@ import {
 } from "@/types/vnext/selected-work-relationships";
 import type {
   SelectedWorkTimelineItemV01,
+  SelectedWorkTimelineSourceRefV01,
   SelectedWorkTimelineV01,
 } from "@/types/vnext/selected-work-timeline";
 
@@ -310,7 +316,7 @@ function supportAnswerV01(
       support_status: "exact",
       uncertainty_or_conflict: null,
       exact_refs: item.source_run_receipt_refs.map((ref) => ({
-        source_kind: "source_result",
+        source_kind: "run_receipt",
         record_id: ref.external_id,
         record_fingerprint: exactFingerprintV01(ref.source_ref),
       })),
@@ -325,10 +331,62 @@ function supportAnswerV01(
   );
   read.source_lanes.inferences.forEach((item) => addMaterial("inference", item));
 
-  if (candidates.length === 0 && read.source_run_receipts.length > 0) {
-    for (const receipt of [...read.source_run_receipts].sort((left, right) =>
-      compareCodeUnitsV01(left.receipt_id, right.receipt_id)
-    )) {
+  if (candidates.length === 0) {
+    for (const ref of candidateLocalSourceRefsV01(read, selected)) {
+      const observed =
+        ref.trust_class === "direct_local_observation" ||
+        ref.trust_class === "verified_external_observation";
+      const interpreted = ref.trust_class === "derived_interpretation";
+      candidates.push({
+        identity_key: `candidate-source-ref\0${externalRefIdentityKeyV01(ref)}`,
+        rank: observed ? 45 : interpreted ? 47 : 46,
+        relation_kind: observed ? "derived_from" : "interpreted_as",
+        source_role: observed
+          ? "observed_material"
+          : interpreted
+            ? "interpreted_material"
+            : "reported_material",
+        target_role: "selected_suggestion",
+        title: observed
+          ? "A candidate-local source pointer informs this suggestion"
+          : interpreted
+            ? "A candidate-local interpretation pointer informs this suggestion"
+            : "A candidate-local reported-source pointer informs this suggestion",
+        explanation:
+          "The selected candidate preserves this exact source pointer, and the same pointer is present in the validated proposal read.",
+        why_it_matters_now:
+          "The pointer establishes candidate-local lineage only; it does not establish proof, verified success, accepted evidence, or approval.",
+        basis: observed
+          ? "observed_source"
+          : interpreted
+            ? "bounded_interpretation"
+            : "reported_source",
+        support_status: "partial",
+        uncertainty_or_conflict:
+          "The reference preserves provenance and trust class, but a reference alone does not authenticate or prove its source.",
+        exact_refs: [
+          {
+            source_kind: "external_ref",
+            record_id: ref.external_id,
+            record_fingerprint: exactFingerprintV01(ref.source_ref),
+          },
+          ...proposalCandidateRefsV01(read, selected),
+        ],
+        destination: "#selected-work-support",
+      });
+    }
+
+    for (const receipt of boundSourceReceiptsV01(read, selected)) {
+      const shared =
+        read.candidates.length > 1 &&
+        read.candidates.every((candidate) =>
+          boundSourceReceiptsV01(read, candidate).some(
+            (candidateReceipt) =>
+              candidateReceipt.receipt_id === receipt.receipt_id &&
+              candidateReceipt.integrity.fingerprint ===
+                receipt.integrity.fingerprint,
+          )
+        );
       candidates.push({
         identity_key:
           `source-result\0${receipt.receipt_id}\0${receipt.integrity.fingerprint}`,
@@ -336,20 +394,24 @@ function supportAnswerV01(
         relation_kind: "derived_from",
         source_role: "source_work",
         target_role: "selected_suggestion",
-        title: "Exact source work anchors this suggestion",
-        explanation:
-          "The selected suggestion belongs to a proposal created from an exact saved source result.",
+        title: shared
+          ? "Shared proposal source context anchors every suggestion"
+          : "Exact source work is bound to this suggestion",
+        explanation: shared
+          ? "Every candidate in this proposal is exactly bound to the same saved source result, so it is shared proposal context rather than exclusive candidate support."
+          : "The selected candidate is exactly bound to this saved source result through its own source pointer or basis material.",
         why_it_matters_now:
-          "The result anchors the review, but host completion remains distinct from verified success.",
+          "The result anchors review provenance, but completion remains distinct from verified success, accepted evidence, or approval.",
         basis: "observed_source",
         support_status: "exact",
         uncertainty_or_conflict: null,
         exact_refs: [
           {
-            source_kind: "source_result",
+            source_kind: "run_receipt",
             record_id: receipt.receipt_id,
             record_fingerprint: receipt.integrity.fingerprint,
           },
+          ...proposalCandidateRefsV01(read, selected),
         ],
         destination: "#selected-work-support",
       });
@@ -469,7 +531,7 @@ function decisionAnswerV01(
       support_status: "exact",
       uncertainty_or_conflict: null,
       exact_refs: decision.lineage.prior_decisions.map((prior) => ({
-        source_kind: "decision",
+        source_kind: "review_decision",
         record_id: prior.decision_id,
         record_fingerprint: prior.decision_fingerprint,
       })),
@@ -497,7 +559,7 @@ function decisionAnswerV01(
       uncertainty_or_conflict: null,
       exact_refs: [
         {
-          source_kind: "decision",
+          source_kind: "review_decision",
           record_id: decision.lineage.retracted_decision.decision_id,
           record_fingerprint:
             decision.lineage.retracted_decision.decision_fingerprint,
@@ -546,6 +608,7 @@ function blockerAnswerV01(
   const lifecycle = selectSelectedWorkLifecycleV01(
     read,
     selected.candidate.candidate_id,
+    selected.candidate_fingerprint,
   );
   for (const [index, conflict] of (lifecycle?.conflicts ?? []).entries()) {
     candidates.push({
@@ -668,7 +731,7 @@ function projectChangeAnswerV01(
         exact_refs: [
           ...decisionRefsV01(read, selected, decision.decision),
           {
-            source_kind: "project_update",
+            source_kind: "state_transition_receipt",
             record_id: receipt.transition_receipt_id,
             record_fingerprint: receipt.integrity.fingerprint,
           },
@@ -776,17 +839,17 @@ function laterOutcomeAnswerV01(
       uncertainty_or_conflict: null,
       exact_refs: [
         {
-          source_kind: "project_update",
+          source_kind: "state_transition_receipt",
           record_id: receipt.transition_receipt_id,
           record_fingerprint: receipt.integrity.fingerprint,
         },
         {
-          source_kind: "compiled_context",
+          source_kind: "task_context_packet",
           record_id: packet.packet_id,
           record_fingerprint: packet.packet_fingerprint,
         },
         {
-          source_kind: "later_result",
+          source_kind: "run_receipt",
           record_id: laterRef.record_id,
           record_fingerprint: laterRef.record_fingerprint,
         },
@@ -822,12 +885,12 @@ function laterOutcomeAnswerV01(
       uncertainty_or_conflict: null,
       exact_refs: [
         {
-          source_kind: "later_result",
+          source_kind: "run_receipt",
           record_id: laterRef.record_id,
           record_fingerprint: laterRef.record_fingerprint,
         },
         {
-          source_kind: "later_feedback",
+          source_kind: "context_use_review",
           record_id: feedbackRef.record_id,
           record_fingerprint: feedbackRef.record_fingerprint,
         },
@@ -936,7 +999,7 @@ function selectedProjectVerifyMaterialV01(
           : null,
       exact_refs: [
         {
-          source_kind: "claim",
+          source_kind: "claim_record",
           record_id: revision.claim_ref.record_id,
           record_fingerprint: revision.claim_ref.record_fingerprint,
         },
@@ -1043,12 +1106,12 @@ function exactRelationConnectionV01(
         record_fingerprint: relation.integrity.fingerprint,
       },
       {
-        source_kind: "claim",
+        source_kind: "claim_record",
         record_id: relation.claim_ref.record_id,
         record_fingerprint: relation.claim_ref.record_fingerprint,
       },
       {
-        source_kind: "evidence",
+        source_kind: "evidence_record",
         record_id: relation.evidence_ref.record_id,
         record_fingerprint: relation.evidence_ref.record_fingerprint,
       },
@@ -1090,13 +1153,125 @@ function hasSupportQuestionSourceV01(
   read: SemanticReviewProposalDetailV01,
   selected: SelectedCandidateV01,
 ): boolean {
+  const lifecycleCandidate =
+    read.proposal.project_verify_lifecycle?.lifecycle_binding
+      .selected_candidate;
   return (
     selected.candidate.basis_material_ids.length > 0 ||
-    selected.candidate.source_refs.length > 0 ||
-    read.source_run_receipts.length > 0 ||
-    read.proposal.project_verify_lifecycle?.lifecycle_binding.selected_candidate
-      .candidate_id === selected.candidate.candidate_id
+    candidateLocalSourceRefsV01(read, selected).length > 0 ||
+    boundSourceReceiptsV01(read, selected).length > 0 ||
+    (lifecycleCandidate?.candidate_id === selected.candidate.candidate_id &&
+      lifecycleCandidate.candidate_fingerprint ===
+        selected.candidate_fingerprint)
   );
+}
+
+function candidateLocalSourceRefsV01(
+  read: SemanticReviewProposalDetailV01,
+  selected: SelectedCandidateV01,
+): ExternalRefV01[] {
+  const available = new Set(
+    proposalSourceCatalogV01(read).map(externalRefIdentityKeyV01),
+  );
+  return uniqueExternalRefsV01(
+    selected.candidate.source_refs.filter((ref) =>
+      available.has(externalRefIdentityKeyV01(ref))
+    ),
+  );
+}
+
+function proposalSourceCatalogV01(
+  read: SemanticReviewProposalDetailV01,
+): ExternalRefV01[] {
+  return uniqueExternalRefsV01([
+    ...(read.proposal.task_context_packet_ref
+      ? [read.proposal.task_context_packet_ref]
+      : []),
+    ...read.proposal.run_receipt_refs,
+    ...read.proposal.source_status.source_refs,
+    ...read.proposal.source_refs,
+    ...read.source_lanes.observations.flatMap((item) => [
+      item.observer_ref,
+      ...item.source_run_receipt_refs,
+      ...item.source_refs,
+      ...item.subject_refs,
+    ]),
+    ...read.source_lanes.attestations.flatMap((item) => [
+      item.reporter_ref,
+      ...item.source_run_receipt_refs,
+      ...item.source_refs,
+      ...item.subject_refs,
+    ]),
+    ...read.source_lanes.inferences.flatMap((item) => [
+      item.interpreter_ref,
+      ...item.source_run_receipt_refs,
+      ...item.source_refs,
+      ...item.subject_refs,
+    ]),
+  ]);
+}
+
+function boundSourceReceiptsV01(
+  read: SemanticReviewProposalDetailV01,
+  selected: SelectedCandidateV01,
+): SemanticReviewProposalDetailV01["source_run_receipts"] {
+  const materialIds = new Set(selected.candidate.basis_material_ids);
+  const refs = [
+    ...candidateLocalSourceRefsV01(read, selected),
+    ...read.source_lanes.observations.flatMap((item) =>
+      materialIds.has(item.material_id) ? item.source_run_receipt_refs : []
+    ),
+    ...read.source_lanes.attestations.flatMap((item) =>
+      materialIds.has(item.material_id) ? item.source_run_receipt_refs : []
+    ),
+    ...read.source_lanes.inferences.flatMap((item) =>
+      materialIds.has(item.material_id) ? item.source_run_receipt_refs : []
+    ),
+  ];
+  const exactReceiptKeys = new Set(
+    refs
+      .filter((ref) => ref.ref_type === "run_receipt")
+      .map((ref) => `${ref.external_id}\0${ref.source_ref ?? ""}`),
+  );
+  return [...read.source_run_receipts]
+    .filter((receipt) =>
+      exactReceiptKeys.has(
+        `${receipt.receipt_id}\0${receipt.integrity.fingerprint}`,
+      )
+    )
+    .sort((left, right) =>
+      compareCodeUnitsV01(
+        `${left.receipt_id}\0${left.integrity.fingerprint}`,
+        `${right.receipt_id}\0${right.integrity.fingerprint}`,
+      )
+    );
+}
+
+function uniqueExternalRefsV01(refs: ExternalRefV01[]): ExternalRefV01[] {
+  const unique = new Map<string, ExternalRefV01>();
+  for (const ref of refs) {
+    unique.set(externalRefIdentityKeyV01(ref), ref);
+  }
+  return [...unique.values()].sort((left, right) =>
+    compareCodeUnitsV01(
+      externalRefIdentityKeyV01(left),
+      externalRefIdentityKeyV01(right),
+    )
+  );
+}
+
+function externalRefIdentityKeyV01(ref: ExternalRefV01): string {
+  return [
+    ref.ref_version,
+    ref.ref_type,
+    ref.external_id,
+    ref.provider ?? "",
+    ref.host ?? "",
+    ref.observed_at ?? "",
+    ref.source_ref ?? "",
+    ref.compatibility_namespace ?? "",
+    ref.trust_class,
+  ].join("\0");
 }
 
 function hasBlockerQuestionSourceV01(
@@ -1114,6 +1289,7 @@ function hasBlockerQuestionSourceV01(
   const lifecycle = selectSelectedWorkLifecycleV01(
     read,
     selected.candidate.candidate_id,
+    selected.candidate_fingerprint,
   );
   if ((lifecycle?.conflicts.length ?? 0) > 0) return true;
   const materialIds = new Set(selected.candidate.basis_material_ids);
@@ -1371,18 +1547,131 @@ function assertTimelineScopeV01(
   selected: SelectedCandidateV01,
   timeline: SelectedWorkTimelineV01,
 ): void {
-  if (
-    timeline.selected_work.selected_candidate_scope !== true ||
-    timeline.selected_work.title !== publicTextV01(selected.candidate.title) ||
+  const currentItems = timeline.items.filter(
+    (item) => item.item_id === timeline.current_item_id,
+  );
+  const current = currentItems[0] ?? null;
+  const selectedCandidateKey =
+    `${selected.candidate.candidate_id}\0${selected.candidate_fingerprint}`;
+  const timelineCandidateKeys = new Set(
+    timeline.items.flatMap((item) =>
+      item.source_refs
+        .filter((ref) => ref.source_kind === "candidate")
+        .map((ref) =>
+          `${ref.record_id}\0${ref.record_fingerprint ?? ""}`
+        ),
+    ),
+  );
+  const lifecycle = selectSelectedWorkLifecycleV01(
+    read,
+    selected.candidate.candidate_id,
+    selected.candidate_fingerprint,
+  );
+  const scopedRefsAreExact = timeline.items.every((item) =>
+    item.source_refs.every((ref) => {
+      if (ref.source_kind === "candidate") {
+        return (
+          ref.record_id === selected.candidate.candidate_id &&
+          ref.record_fingerprint === selected.candidate_fingerprint
+        );
+      }
+      if (ref.source_kind === "decision") {
+        return [
+          ...read.decision_history.map((entry) => entry.decision),
+          ...read.decisions,
+        ].some(
+          (decision) =>
+            decision.decision_id === ref.record_id &&
+            decision.integrity.fingerprint === ref.record_fingerprint &&
+            decision.source_proposal.proposal_id ===
+              read.proposal.proposal_id &&
+            decision.source_proposal.proposal_fingerprint ===
+              read.proposal.integrity.fingerprint &&
+            decision.candidate.candidate_id ===
+              selected.candidate.candidate_id &&
+            decision.candidate.candidate_fingerprint ===
+              selected.candidate_fingerprint,
+        );
+      }
+      if (ref.source_kind === "project_update") {
+        return read.transition_receipts.some(
+          (receipt) =>
+            receipt.transition_receipt_id === ref.record_id &&
+            receipt.integrity.fingerprint === ref.record_fingerprint &&
+            receipt.source_proposal.proposal_id ===
+              read.proposal.proposal_id &&
+            receipt.source_proposal.proposal_fingerprint ===
+              read.proposal.integrity.fingerprint &&
+            receipt.source_candidate.candidate_id ===
+              selected.candidate.candidate_id &&
+            receipt.source_candidate.candidate_fingerprint ===
+              selected.candidate_fingerprint,
+        );
+      }
+      if (ref.source_kind === "semantic_gate") {
+        return (
+          lifecycle?.gate.gate_ref?.record_id === ref.record_id &&
+          lifecycle.gate.gate_ref.record_fingerprint ===
+            ref.record_fingerprint
+        );
+      }
+      return true;
+    })
+  );
+  const currentScopeIsExact =
+    current !== null &&
+    (current.source_refs.some(
+      (ref) =>
+        ref.source_kind === "candidate" ||
+        ref.source_kind === "decision" ||
+        ref.source_kind === "project_update",
+    ) ||
+      ((current.stage === "later_outcome_available" ||
+        current.stage === "later_outcome_reviewed") &&
+        timeline.items.some((item) =>
+          item.source_refs.some(
+            (ref) => ref.source_kind === "project_update",
+          )
+        )));
+  const failures = [
+    timeline.selected_work.selected_candidate_scope !== true
+      ? "candidate_scope"
+      : null,
+    timeline.selected_work.selected_candidate_id !==
+      selected.candidate.candidate_id
+      ? "candidate_id"
+      : null,
+    timeline.selected_work.selected_candidate_fingerprint !==
+      selected.candidate_fingerprint
+      ? "candidate_fingerprint"
+      : null,
+    timeline.selected_work.title !== publicTextV01(selected.candidate.title)
+      ? "public_title"
+      : null,
     !read.candidates.some(
       (candidate) =>
         candidate.candidate.candidate_id === selected.candidate.candidate_id &&
         candidate.candidate_fingerprint === selected.candidate_fingerprint,
-    ) ||
-    timeline.items.filter((item) => item.item_id === timeline.current_item_id)
-      .length !== 1
-  ) {
-    throw new Error("selected_work_relationship_timeline_scope_invalid");
+    )
+      ? "selected_candidate_absent"
+      : null,
+    currentItems.length !== 1 ? "current_item_count" : null,
+    current?.stage !== timeline.current_position.stage
+      ? "current_stage"
+      : null,
+    timelineCandidateKeys.size !== 1
+      ? "candidate_ref_ambiguity"
+      : null,
+    !timelineCandidateKeys.has(selectedCandidateKey)
+      ? "candidate_ref_mismatch"
+      : null,
+    !scopedRefsAreExact ? "scoped_ref_mismatch" : null,
+    !currentScopeIsExact ? "current_scope" : null,
+  ].filter((failure): failure is string => failure !== null);
+  if (failures.length > 0) {
+    throw new Error(
+      `selected_work_relationship_timeline_scope_invalid:${failures.join(",")}`,
+    );
   }
 }
 
@@ -1392,12 +1681,12 @@ function proposalCandidateRefsV01(
 ): SelectedWorkRelationshipExactRefV01[] {
   return [
     {
-      source_kind: "proposal",
+      source_kind: "episode_delta_proposal",
       record_id: read.proposal.proposal_id,
       record_fingerprint: read.proposal.integrity.fingerprint,
     },
     {
-      source_kind: "candidate",
+      source_kind: "episode_delta_proposal_candidate",
       record_id: selected.candidate.candidate_id,
       record_fingerprint: selected.candidate_fingerprint,
     },
@@ -1412,52 +1701,73 @@ function decisionRefsV01(
   return [
     ...proposalCandidateRefsV01(read, selected),
     {
-      source_kind: "decision",
+      source_kind: "review_decision",
       record_id: decision.decision_id,
       record_fingerprint: decision.integrity.fingerprint,
     },
   ];
 }
 
+const TIMELINE_RELATIONSHIP_EXACT_KIND_V01 = {
+  source_result: "run_receipt",
+  proposal: "episode_delta_proposal",
+  candidate: "episode_delta_proposal_candidate",
+  decision: "review_decision",
+  semantic_gate: "semantic_commit_gate",
+  project_update: "state_transition_receipt",
+  later_result: "run_receipt",
+  later_feedback: "context_use_review",
+} as const satisfies Record<
+  SelectedWorkTimelineSourceRefV01["source_kind"],
+  SelectedWorkRelationshipExactRefV01["source_kind"]
+>;
+
 function timelineRefsV01(
   item: SelectedWorkTimelineItemV01,
 ): SelectedWorkRelationshipExactRefV01[] {
   return item.source_refs.map((ref) => ({
-    source_kind: ref.source_kind,
+    source_kind: TIMELINE_RELATIONSHIP_EXACT_KIND_V01[ref.source_kind],
     record_id: ref.record_id,
     record_fingerprint: ref.record_fingerprint,
   }));
 }
 
-function projectVerifyRefV01(ref: {
-  record_kind: string;
-  record_id: string;
-  record_fingerprint: string;
-}): SelectedWorkRelationshipExactRefV01 {
-  const sourceKind: SelectedWorkRelationshipExactRefV01["source_kind"] =
-    ref.record_kind === "evidence_record"
-      ? "evidence"
-      : ref.record_kind === "claim_record"
-        ? "claim"
-        : ref.record_kind === "claim_evidence_relation"
-          ? "claim_evidence_relation"
-          : ref.record_kind === "review_decision"
-            ? "decision"
-            : ref.record_kind === "semantic_commit_gate"
-              ? "semantic_gate"
-              : ref.record_kind === "state_transition_receipt"
-                ? "project_update"
-                : ref.record_kind === "task_context_packet"
-                  ? "compiled_context"
-                  : ref.record_kind === "run_receipt"
-                    ? "later_result"
-                    : ref.record_kind === "context_use_review"
-                      ? "later_feedback"
-                      : ref.record_kind === "episode_delta_proposal_candidate"
-                        ? "candidate"
-                        : "proposal";
+const PROJECT_VERIFY_RELATIONSHIP_EXACT_KIND_V01 = {
+  task_context_packet: "task_context_packet",
+  run_receipt: "run_receipt",
+  criterion_assessment: "criterion_assessment",
+  evidence_record: "evidence_record",
+  claim_record: "claim_record",
+  claim_evidence_relation: "claim_evidence_relation",
+  episode_delta_proposal: "episode_delta_proposal",
+  episode_delta_proposal_candidate: "episode_delta_proposal_candidate",
+  review_decision: "review_decision",
+  semantic_commit_gate: "semantic_commit_gate",
+  state_transition_receipt: "state_transition_receipt",
+  semantic_state: "semantic_state",
+  semantic_target_head: "semantic_target_head",
+  context_use_review: "context_use_review",
+} as const satisfies Record<
+  ProjectVerifyExactProtocolKindV01,
+  ProjectVerifyExactProtocolKindV01
+>;
+
+function projectVerifyRefV01(
+  ref: ProjectVerifyExactProtocolRefV01,
+): SelectedWorkRelationshipExactRefV01 {
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      PROJECT_VERIFY_RELATIONSHIP_EXACT_KIND_V01,
+      ref.record_kind,
+    )
+  ) {
+    throw new Error(
+      "selected_work_relationship_exact_ref_kind_unsupported",
+    );
+  }
   return {
-    source_kind: sourceKind,
+    source_kind:
+      PROJECT_VERIFY_RELATIONSHIP_EXACT_KIND_V01[ref.record_kind],
     record_id: ref.record_id,
     record_fingerprint: ref.record_fingerprint,
   };

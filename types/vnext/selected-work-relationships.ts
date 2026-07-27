@@ -1,4 +1,5 @@
 import type { SelectedWorkTimelineStageV01 } from "./selected-work-timeline";
+import type { ProjectVerifyExactProtocolKindV01 } from "./project-verify-reconciliation";
 
 export const SELECTED_WORK_RELATIONSHIPS_VERSION_V01 =
   "selected_work_relationships.v0.1" as const;
@@ -63,19 +64,7 @@ export type SelectedWorkRelationshipRoleV01 =
   | "later_feedback";
 
 export interface SelectedWorkRelationshipExactRefV01 {
-  source_kind:
-    | "source_result"
-    | "proposal"
-    | "candidate"
-    | "evidence"
-    | "claim"
-    | "claim_evidence_relation"
-    | "decision"
-    | "semantic_gate"
-    | "project_update"
-    | "compiled_context"
-    | "later_result"
-    | "later_feedback";
+  source_kind: ProjectVerifyExactProtocolKindV01 | "external_ref";
   record_id: string;
   record_fingerprint: string | null;
 }

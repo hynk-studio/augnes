@@ -96,7 +96,11 @@ export function DecisionCenteredProposalDetail({
       )
     : [];
   const lifecycle = selected
-    ? selectSelectedWorkLifecycleV01(read, selected.candidate.candidate_id)
+    ? selectSelectedWorkLifecycleV01(
+        read,
+        selected.candidate.candidate_id,
+        selected.candidate_fingerprint,
+      )
     : null;
   const timeline = selected
     ? buildSelectedWorkTimelineV01({
