@@ -8,6 +8,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import {
+  blankStateAttentionLabelV01,
   buildBlankStateViewV01,
   ordinaryActionLabel,
   publicBlankStateTextV01,
@@ -249,6 +250,10 @@ async function main() {
     kind: "choose_folder",
     label: "Choose a local project",
   });
+  assert.equal(
+    blankStateAttentionLabelV01(noProjects.highlighted_item),
+    "Start by choosing a project",
+  );
 
   const recent = recentEntry();
   const projectChoice = view(source(null, {
@@ -413,6 +418,10 @@ async function main() {
   assert.equal(idle.known_attention_count, 0);
   assert.equal(idle.projection_only, true);
   assert.equal(idle.semantic_authority_granted, false);
+  assert.equal(
+    blankStateAttentionLabelV01(idle.highlighted_item),
+    "No intervention required",
+  );
 
   for (const stage of ["preparing", "working", "cancelling"] as const) {
     const ordinary = view(
