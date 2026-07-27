@@ -160,10 +160,10 @@ relationship, decision, Transition or action owner.
 
 [Issue #84](https://github.com/hynk-studio/augnes-perspective-lab/issues/84)
 owns the PC5 specification. Its implementation-kickoff comment authorizes only
-the first bounded, deterministic Browser interaction slice above PC4. The
-linked Draft pull request is the current review packet while open. PC5 becomes
-completed only if that pull request merges; an open Draft does not establish
-completion.
+the first bounded, deterministic Browser interaction slice above PC4.
+[Draft PR #85](https://github.com/hynk-studio/augnes-perspective-lab/pull/85)
+is the current review packet while open. PC5 becomes completed only if that
+pull request merges; an open Draft does not establish completion.
 
 This slice may compose exact current Browser capabilities, compile one
 single-use interaction plan, and invoke an existing owner-supplied local
