@@ -7364,11 +7364,17 @@ async function main() {
           '[data-vnext-operator-decision-form="v0.1"]'
         );
         const select = form?.querySelector('select');
+        const rationale = form?.querySelector('textarea');
+        const submit = form?.querySelector('button[type="submit"]');
         const conversation = document.querySelector(
           '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
         );
         return select instanceof HTMLSelectElement &&
           select.value === 'accept' &&
+          rationale instanceof HTMLTextAreaElement &&
+          rationale.value === '' &&
+          submit instanceof HTMLButtonElement &&
+          submit.disabled &&
           document.activeElement === select &&
           conversation?.querySelector(
             '[data-guidebrief-interaction-outcome="handed_off"][data-guidebrief-interaction-durable-state-changed="false"]'
@@ -7424,6 +7430,25 @@ async function main() {
       })()`,
       "GuideBrief opens and focuses the existing Advanced owner",
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const advanced = document.querySelector(
+          'details#selected-work-advanced'
+        );
+        if (!(advanced instanceof HTMLDetailsElement)) return false;
+        advanced.open = false;
+        return !advanced.open;
+      })()`),
+      true,
+      "Advanced review must be closed before the partial-utterance refusal proof",
+    );
+    await submitGuideBriefInteractionCommand(
+      "Open advanced review and merge the PR.",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null && document.querySelector('details#selected-work-advanced:not([open])') !== null`,
+      "GuideBrief refuses a supported action with a forbidden tail without invoking its owner",
+    );
     await submitGuideBriefInteractionCommand("Apply this.");
     await waitForCondition(
       `document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null`,
@@ -7452,6 +7477,7 @@ async function main() {
     record("guidebrief_decision_preparation_has_zero_submit_and_zero_network");
     record("guidebrief_current_action_focus_does_not_activate_owner");
     record("guidebrief_advanced_review_uses_existing_disclosure_owner");
+    record("guidebrief_partial_utterance_does_not_invoke_supported_owner");
     record("guidebrief_unsupported_mutation_command_is_refused");
     record("guidebrief_unavailable_relationship_question_is_refused");
 
@@ -7711,6 +7737,28 @@ async function main() {
     );
     result.guide_brief_highlighted_relationship_agreement = true;
     const guideBriefPreviewRequestStart = requests.length;
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const preview = document.querySelector(
+          '[data-vnext-transition-action="preview"]'
+        );
+        return preview instanceof HTMLButtonElement &&
+          document.activeElement === preview &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "pre-preview current action focuses the existing read-only preview owner without activating it",
+    );
+    assert.equal(
+      requests.slice(guideBriefPreviewRequestStart).length,
+      0,
+      "focusing the pre-preview current action must issue no request",
+    );
+    record("guidebrief_pre_preview_current_action_focus_only");
     await waitForCondition(
       `(() => {
         const conversation = document.querySelector(
@@ -7735,6 +7783,19 @@ async function main() {
     );
     assert.equal(
       await evaluateBoolean(`(() => {
+        const advanced = document.querySelector(
+          'details#selected-work-advanced'
+        );
+        if (!(advanced instanceof HTMLDetailsElement)) return false;
+        advanced.open = false;
+        return !advanced.open;
+      })()`),
+      true,
+      "Advanced owner must begin closed for the host single-flight proof",
+    );
+    pauseNextSemanticTransitionRequest("preview");
+    assert.equal(
+      await evaluateBoolean(`(() => {
         const conversation = document.querySelector(
           '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
         );
@@ -7757,6 +7818,63 @@ async function main() {
       true,
       "double activation must still invoke one owner preview",
     );
+    await waitForPausedSemanticTransitionRequest("preview");
+    await waitForCondition(
+      `(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        return conversation?.getAttribute(
+          'data-guidebrief-interaction-in-flight'
+        ) === 'true' &&
+          !Array.from(
+            conversation.querySelectorAll(
+              '[aria-label="Interactions supported by current owners"] button'
+            )
+          ).some(
+            (button) =>
+              button.textContent?.trim() ===
+                'Show what would change before applying'
+          );
+      })()`,
+      "Transition preview snapshot changes while the mounted host remains in flight",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const conversation = document.querySelector(
+          '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
+        );
+        const input = conversation?.querySelector(
+          'input[name="guidebrief-question"]'
+        );
+        const form = input?.closest('form');
+        const setter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value'
+        )?.set;
+        if (!(input instanceof HTMLInputElement) ||
+            !(form instanceof HTMLFormElement) ||
+            !setter) {
+          return false;
+        }
+        setter.call(input, 'Open advanced review.');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        form.dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true })
+        );
+        return true;
+      })()`),
+      true,
+      "a second bounded action is submitted while the original owner read remains pending",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('details#selected-work-advanced:not([open])') !== null`,
+      ),
+      true,
+      "snapshot refresh must not permit a second owner adapter while preview is pending",
+    );
+    await releasePausedSemanticTransitionRequest("preview");
     await waitForCondition(
       `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]') !== null`,
       "GuideBrief-prepared candidate A preview after switch-back",
@@ -7790,11 +7908,30 @@ async function main() {
       true,
       "GuideBrief preview preparation performs no confirmation or application",
     );
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const checkbox = document.querySelector(
+          '[data-vnext-transition-step="preview"] input[type="checkbox"]'
+        );
+        return checkbox instanceof HTMLInputElement &&
+          document.activeElement === checkbox &&
+          !checkbox.checked &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "post-preview current action focuses the owner-selected review prerequisite without activating it",
+    );
     result.guide_brief_transition_preview_get_count = 1;
     result.guide_brief_transition_preview_post_count = 0;
     result.guide_brief_transition_preview_double_activation_count = 1;
     record("guidebrief_transition_preview_one_get_zero_post");
     record("guidebrief_transition_preview_duplicate_activation_executes_once");
+    record("guidebrief_host_single_flight_survives_snapshot_change");
+    record("guidebrief_post_preview_current_action_focuses_owner_prerequisite");
     await reviewTransitionCheckbox("preview");
 
     pauseNextSemanticTransitionRequest("confirm");
@@ -7818,6 +7955,24 @@ async function main() {
       `document.querySelector('[data-vnext-transition-step="confirmation"][data-vnext-transition-step-status="recorded"]') !== null && document.querySelector('[data-vnext-candidate-selector="v0.1"]:not(:disabled)') !== null`,
       "candidate A gate completion unlocks selector",
     );
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const review = document.querySelector(
+          '[data-vnext-transition-step="confirmation"] input[type="checkbox"]'
+        );
+        return review instanceof HTMLInputElement &&
+          document.activeElement === review &&
+          !review.checked &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "post-confirmation current action focuses the owner-selected review prerequisite without applying",
+    );
+    record("guidebrief_post_confirmation_current_action_focus_only");
     await reviewTransitionCheckbox("confirmation");
 
     pauseNextSemanticTransitionRequest("apply");
@@ -8240,6 +8395,27 @@ async function main() {
       true,
       "proposal A candidate A must render its exact decision-to-project-update relationship",
     );
+    await submitGuideBriefInteractionCommand(
+      "Take me to the current action.",
+    );
+    await waitForCondition(
+      `(() => {
+        const next = document.querySelector(
+          '[data-vnext-review-next-change="true"]'
+        );
+        const selector = document.querySelector(
+          '[data-vnext-candidate-selector="v0.1"]'
+        );
+        return next instanceof HTMLButtonElement &&
+          document.activeElement === next &&
+          selector?.value === ${JSON.stringify(candidateA)} &&
+          document.querySelector(
+            '[data-guidebrief-interaction-outcome="handed_off"]'
+          ) !== null;
+      })()`,
+      "candidate-selection current action focuses the exact existing control without changing candidate",
+    );
+    record("guidebrief_candidate_selection_current_action_focus_only");
     await submitGuideBriefInteractionCommand("Show the next change.");
     await waitForCondition(
       `(() => {

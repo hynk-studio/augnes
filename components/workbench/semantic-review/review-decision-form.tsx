@@ -3,20 +3,27 @@
 import type { FormEvent } from "react";
 import {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
 
+import type { BrowserOwnerCurrentFocusCapabilityV01 } from "@/types/vnext/guide-brief-interaction";
+
 import type {
   SemanticReviewCandidateReadV01,
   SemanticReviewDecisionRequestV01,
 } from "./semantic-review-types";
+import {
+  applyReviewDecisionSelectionV01,
+  canSubmitReviewDecisionFormV01,
+  DEFAULT_DEFER_RATIONALE_V01,
+  type ReviewDecisionFormOwnerStateV01,
+} from "./review-decision-form-state";
 import styles from "./semantic-review.module.css";
 
 type SupportedDecision = SemanticReviewDecisionRequestV01["decision"];
-const DEFAULT_DEFER_RATIONALE =
-  "Defer this suggested change until its unresolved questions are addressed.";
 const DEFAULT_REVISIT_CONDITION =
   "Review again when the missing verification or current project information is available.";
 
@@ -24,6 +31,7 @@ export interface ReviewDecisionPreparationHandleV01 {
   prepareApplying: (
     applyingDecision: "accept" | "supersede" | "retract",
   ) => boolean;
+  getCurrentFocusCapability: () => BrowserOwnerCurrentFocusCapabilityV01;
   focusOwner: () => boolean;
 }
 
@@ -37,6 +45,9 @@ export const ReviewDecisionForm = forwardRef<
     primary?: boolean;
     busy: boolean;
     onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
+    onCurrentFocusCapabilityChange?: (
+      capability: BrowserOwnerCurrentFocusCapabilityV01,
+    ) => void;
   }
 >(function ReviewDecisionForm({
   proposalId,
@@ -46,11 +57,14 @@ export const ReviewDecisionForm = forwardRef<
   primary = true,
   busy,
   onSubmit,
+  onCurrentFocusCapabilityChange,
 }, ref) {
   const [decision, setDecision] = useState<SupportedDecision>("defer");
   const [rationaleSummary, setRationaleSummary] = useState(
-    DEFAULT_DEFER_RATIONALE,
+    DEFAULT_DEFER_RATIONALE_V01,
   );
+  const [rationaleBoundDecision, setRationaleBoundDecision] =
+    useState<SupportedDecision | null>("defer");
   const [revisitCondition, setRevisitCondition] = useState(
     DEFAULT_REVISIT_CONDITION,
   );
@@ -59,11 +73,49 @@ export const ReviewDecisionForm = forwardRef<
   const applyAllowed = candidateRead.pilot_admission.decision_allowed.accept;
   const selectedDecisionAllowed =
     decision !== applyingDecision || applyAllowed;
-  const canSubmit =
-    !busy &&
-    selectedDecisionAllowed &&
-    rationaleSummary.trim().length > 0 &&
-    (decision !== "defer" || revisitCondition.trim().length > 0);
+  const ownerState: ReviewDecisionFormOwnerStateV01 = {
+    decision,
+    rationale_summary: rationaleSummary,
+    rationale_bound_decision: rationaleBoundDecision,
+    revisit_condition: revisitCondition,
+  };
+  const canSubmit = canSubmitReviewDecisionFormV01(ownerState, {
+    busy,
+    selected_decision_allowed: selectedDecisionAllowed,
+  });
+  const currentFocusCapability: BrowserOwnerCurrentFocusCapabilityV01 = {
+    available: !busy,
+    owner_focus_identity: [
+      "decision-control",
+      candidateRead.candidate.candidate_id,
+      candidateRead.candidate_fingerprint,
+      applyingDecision,
+      busy ? "busy" : "available",
+    ].join(":"),
+    unavailable_reason: busy
+      ? "The current decision control is busy."
+      : null,
+  };
+
+  useEffect(() => {
+    onCurrentFocusCapabilityChange?.(currentFocusCapability);
+  }, [
+    currentFocusCapability.available,
+    currentFocusCapability.owner_focus_identity,
+    currentFocusCapability.unavailable_reason,
+    onCurrentFocusCapabilityChange,
+  ]);
+
+  function selectDecision(nextDecision: SupportedDecision): void {
+    const nextState = applyReviewDecisionSelectionV01(
+      ownerState,
+      nextDecision,
+    );
+    setDecision(nextState.decision);
+    setRationaleSummary(nextState.rationale_summary);
+    setRationaleBoundDecision(nextState.rationale_bound_decision);
+    setRevisitCondition(nextState.revisit_condition);
+  }
 
   useImperativeHandle(
     ref,
@@ -76,17 +128,28 @@ export const ReviewDecisionForm = forwardRef<
         ) {
           return false;
         }
-        setDecision(applyingDecision);
+        selectDecision(applyingDecision);
         decisionControlRef.current?.focus();
         return true;
       },
+      getCurrentFocusCapability: () => currentFocusCapability,
       focusOwner: () => {
-        if (busy || !decisionControlRef.current) return false;
+        if (
+          !currentFocusCapability.available ||
+          !decisionControlRef.current
+        ) {
+          return false;
+        }
         decisionControlRef.current.focus();
         return true;
       },
     }),
-    [applyAllowed, applyingDecision, busy],
+    [
+      applyAllowed,
+      applyingDecision,
+      currentFocusCapability,
+      ownerState,
+    ],
   );
 
   async function submitDecision(event: FormEvent<HTMLFormElement>) {
@@ -124,7 +187,9 @@ export const ReviewDecisionForm = forwardRef<
         id={`decision-${candidateRead.candidate.candidate_id}`}
         value={decision}
         disabled={busy}
-        onChange={(event) => setDecision(event.target.value as SupportedDecision)}
+        onChange={(event) =>
+          selectDecision(event.target.value as SupportedDecision)
+        }
       >
         <option value="defer">Decide later</option>
         <option value="reject">Reject this change</option>
@@ -146,8 +211,16 @@ export const ReviewDecisionForm = forwardRef<
         required
         value={rationaleSummary}
         disabled={busy}
-        onChange={(event) => setRationaleSummary(event.target.value)}
+        onChange={(event) => {
+          setRationaleSummary(event.target.value);
+          setRationaleBoundDecision(decision);
+        }}
       />
+      {rationaleBoundDecision !== decision ? (
+        <p className={styles.notice}>
+          Edit this decision note for the selected choice before saving.
+        </p>
+      ) : null}
 
       {decision === "defer" ? (
         <>

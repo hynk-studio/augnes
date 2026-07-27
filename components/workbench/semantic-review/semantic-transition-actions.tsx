@@ -11,6 +11,7 @@ import {
 
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
+import type { BrowserOwnerCurrentFocusCapabilityV01 } from "@/types/vnext/guide-brief-interaction";
 
 import type {
   SemanticTransitionApplyRouteResponseV01,
@@ -39,6 +40,7 @@ export interface SemanticTransitionPreviewPreparationResultV01 {
 
 export interface SemanticTransitionPreparationHandleV01 {
   preparePreview: () => Promise<SemanticTransitionPreviewPreparationResultV01>;
+  getCurrentFocusCapability: () => BrowserOwnerCurrentFocusCapabilityV01;
   focusOwner: () => boolean;
 }
 
@@ -57,6 +59,9 @@ interface SemanticTransitionActionsPropsV01 {
   endOperatorMutation: () => void;
   onApplyingMutationBusyChange?: (busy: boolean) => void;
   onPreviewAvailabilityChange?: (available: boolean) => void;
+  onCurrentFocusCapabilityChange?: (
+    capability: BrowserOwnerCurrentFocusCapabilityV01,
+  ) => void;
 }
 
 export const SemanticTransitionActions = forwardRef<
@@ -77,6 +82,7 @@ export const SemanticTransitionActions = forwardRef<
   endOperatorMutation,
   onApplyingMutationBusyChange = ignoreApplyingMutationBusyChange,
   onPreviewAvailabilityChange,
+  onCurrentFocusCapabilityChange,
 }, ref) {
   const applyingDecisions = useMemo(
     () =>
@@ -143,6 +149,10 @@ export const SemanticTransitionActions = forwardRef<
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const requestInFlight = useRef(false);
   const previewButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previewReviewedRef = useRef<HTMLInputElement | null>(null);
+  const confirmationButtonRef = useRef<HTMLButtonElement | null>(null);
+  const gateReviewedRef = useRef<HTMLInputElement | null>(null);
+  const applyButtonRef = useRef<HTMLButtonElement | null>(null);
   const mounted = useRef(true);
   const requestGeneration = useRef(0);
   const selectedDecisionScope = selectedDecision
@@ -526,18 +536,76 @@ export const SemanticTransitionActions = forwardRef<
   const allBusy = busyStep !== null;
   const previewAvailable =
     Boolean(selectedDecision) && !preview && !receipt && !allBusy;
+  const ownerFocusStage:
+    | "preview"
+    | "preview_review"
+    | "confirmation"
+    | "confirmation_review"
+    | "application"
+    | "unavailable" =
+    !selectedDecision || receipt || allBusy
+      ? "unavailable"
+      : !preview
+        ? "preview"
+        : !gate
+          ? previewReviewed
+            ? "confirmation"
+            : "preview_review"
+          : !gateReviewed
+            ? "confirmation_review"
+            : priorPacket
+              ? "application"
+              : "unavailable";
+  const currentFocusCapability: BrowserOwnerCurrentFocusCapabilityV01 = {
+    available: ownerFocusStage !== "unavailable",
+    owner_focus_identity: [
+      "transition-control",
+      selectedDecisionScope,
+      ownerFocusStage,
+    ].join(":"),
+    unavailable_reason:
+      ownerFocusStage !== "unavailable"
+        ? null
+        : allBusy
+          ? "The current project-change control is busy."
+          : gate && gateReviewed && !priorPacket
+            ? "Exact prior work context is unavailable."
+            : "No current project-change control can be focused.",
+  };
 
   useEffect(() => {
     onPreviewAvailabilityChange?.(previewAvailable);
   }, [onPreviewAvailabilityChange, previewAvailable]);
+  useEffect(() => {
+    onCurrentFocusCapabilityChange?.(currentFocusCapability);
+  }, [
+    currentFocusCapability.available,
+    currentFocusCapability.owner_focus_identity,
+    currentFocusCapability.unavailable_reason,
+    onCurrentFocusCapabilityChange,
+  ]);
 
   useImperativeHandle(
     ref,
     () => ({
       preparePreview,
+      getCurrentFocusCapability: () => currentFocusCapability,
       focusOwner: () => {
-        if (!previewButtonRef.current) return false;
-        previewButtonRef.current.focus();
+        if (!currentFocusCapability.available) return false;
+        const target =
+          ownerFocusStage === "preview"
+            ? previewButtonRef.current
+            : ownerFocusStage === "preview_review"
+              ? previewReviewedRef.current
+              : ownerFocusStage === "confirmation"
+                ? confirmationButtonRef.current
+                : ownerFocusStage === "confirmation_review"
+                  ? gateReviewedRef.current
+                  : ownerFocusStage === "application"
+                    ? applyButtonRef.current
+                    : null;
+        if (!target) return false;
+        target.focus();
         return true;
       },
     }),
@@ -669,6 +737,7 @@ export const SemanticTransitionActions = forwardRef<
           {!gate ? (
             <label className={styles.checkRow}>
               <input
+                ref={previewReviewedRef}
                 type="checkbox"
                 checked={previewReviewed}
                 disabled={allBusy}
@@ -688,6 +757,7 @@ export const SemanticTransitionActions = forwardRef<
           data-vnext-transition-confirm-state-applied="false"
         >
           <button
+            ref={confirmationButtonRef}
             className={styles.button}
             type="button"
             data-vnext-transition-action="confirm"
@@ -712,6 +782,7 @@ export const SemanticTransitionActions = forwardRef<
           {!receipt ? (
             <label className={styles.checkRow}>
               <input
+                ref={gateReviewedRef}
                 type="checkbox"
                 checked={gateReviewed}
                 disabled={allBusy}
@@ -734,6 +805,7 @@ export const SemanticTransitionActions = forwardRef<
             <p className={styles.notice}>Exact prior work context is unavailable, so this change cannot be applied safely.</p>
           ) : null}
           <button
+            ref={applyButtonRef}
             className={styles.button}
             type="button"
             data-vnext-transition-action="apply"

@@ -76,6 +76,34 @@ const DESCRIPTOR_KEYS = new Set([
   "target_scope",
   "authority",
 ]);
+const TARGET_SCOPE_KEYS = new Set([
+  "workspace_id",
+  "project_id",
+  "proposal_id",
+  "proposal_fingerprint",
+  "candidate_id",
+  "candidate_fingerprint",
+]);
+const DESCRIPTOR_AUTHORITY_KEYS = new Set([
+  "projection_only",
+  "durable",
+  "semantic_authority",
+  "transition_authority",
+  "execution_authority",
+  "external_action_authority",
+]);
+const FORBIDDEN_DESCRIPTOR_KEYS = new Set([
+  "callback",
+  "endpoint",
+  "method",
+  "body",
+  "selector",
+  "nonce",
+  "credential",
+  "provider",
+  "api_key",
+  "cookie",
+]);
 const RELATIONSHIP_ROUTE_KEYS = new Set<BrowserActionRouteKeyV01>([
   "relationship_support_and_source",
   "relationship_candidate_and_decision",
@@ -250,47 +278,20 @@ export function buildGuideBriefInteractionRequestV01(
   const normalized = normalizeGuideBriefInteractionUtteranceV01(
     input.raw_utterance,
   );
-  const actionRoutes = matchedActionRouteKeysV01(normalized);
-  const questionRouting = supportedQuestionRoutesV01(
+  const routing = classifyCompleteUtteranceV01(
     normalized,
     input.scope_key,
     input.conversation_context,
   );
-  const questionRoutes = questionRouting.intents;
-  let classification: GuideBriefInteractionRequestV01["classification"];
-  let pc4Intent =
-    questionRoutes.length === 1 && !questionRouting.ambiguous
-      ? questionRoutes[0]!
-      : null;
-
-  if (!normalized || MUTATION_OR_ARBITRARY_REQUEST.test(normalized)) {
-    classification = "unsupported";
-    pc4Intent = null;
-  } else if (actionRoutes.length > 1) {
-    classification = "ambiguous";
-  } else if (
-    actionRoutes.length === 1 &&
-    (questionRoutes.length > 0 || questionRouting.ambiguous)
-  ) {
-    classification = "mixed";
-  } else if (actionRoutes.length === 1) {
-    classification = "action";
-  } else if (questionRouting.ambiguous || questionRoutes.length > 1) {
-    classification = "ambiguous";
-  } else if (questionRoutes.length === 1) {
-    classification = "question";
-  } else {
-    classification = "unsupported";
-  }
 
   return {
     request_version: GUIDE_BRIEF_INTERACTION_REQUEST_VERSION_V01,
     request_id: input.request_id,
     raw_utterance: input.raw_utterance,
     normalized_utterance: normalized,
-    classification,
-    pc4_intent: pc4Intent,
-    candidate_route_keys: actionRoutes,
+    classification: routing.classification,
+    pc4_intent: routing.pc4_intent,
+    candidate_route_keys: routing.action_routes,
     scope_key: input.scope_key,
     capability_snapshot_fingerprint:
       input.capability_snapshot_fingerprint,
@@ -548,7 +549,7 @@ export async function executeGuideBriefInteractionPlanV01(input: {
   }
 }
 
-function matchedActionRouteKeysV01(
+function exactActionRouteKeysV01(
   normalized: string,
 ): Array<BrowserActionRouteKeyV01 | "relationship_any"> {
   const matches = new Set<
@@ -559,13 +560,7 @@ function matchedActionRouteKeysV01(
   }
   for (const family of ACTION_PHRASES) {
     if (
-      family.phrases.some(
-        (phrase) =>
-          normalized === phrase ||
-          normalized.startsWith(`${phrase} and `) ||
-          normalized.endsWith(` and ${phrase}`) ||
-          normalized.includes(` and ${phrase} and `),
-      )
+      family.phrases.some((phrase) => normalized === phrase)
     ) {
       matches.add(family.route_key);
     }
@@ -573,39 +568,105 @@ function matchedActionRouteKeysV01(
   return [...matches];
 }
 
-function supportedQuestionRoutesV01(
+function classifyCompleteUtteranceV01(
   normalized: string,
   scopeKey: string,
   context: GuideBriefInteractionRequestInputV01["conversation_context"],
 ): {
-  intents: NonNullable<GuideBriefInteractionRequestV01["pc4_intent"]>[];
-  ambiguous: boolean;
+  classification: GuideBriefInteractionRequestV01["classification"];
+  pc4_intent: GuideBriefInteractionRequestV01["pc4_intent"];
+  action_routes: Array<
+    BrowserActionRouteKeyV01 | "relationship_any"
+  >;
 } {
-  const candidates = [
-    normalized,
-    ...normalized.split(/\s+(?:and|then)\s+/u),
-  ].filter((value, index, values) =>
-    Boolean(value) && values.indexOf(value) === index
-  );
-  const result = new Set<
+  if (!normalized) {
+    return {
+      classification: "unsupported",
+      pc4_intent: null,
+      action_routes: [],
+    };
+  }
+  const segments = normalized.split(/\s+(?:and|then)\s+/u);
+  const actionRoutes: Array<
+    BrowserActionRouteKeyV01 | "relationship_any"
+  > = [];
+  const questionIntents: Array<
     NonNullable<GuideBriefInteractionRequestV01["pc4_intent"]>
-  >();
-  let ambiguous = false;
-  for (const candidate of candidates) {
+  > = [];
+  let containsUnsupported = false;
+  let containsAmbiguous = false;
+
+  for (const segment of segments) {
+    if (!segment || MUTATION_OR_ARBITRARY_REQUEST.test(segment)) {
+      containsUnsupported = true;
+      continue;
+    }
+    const exactActions = exactActionRouteKeysV01(segment);
+    if (exactActions.length === 1) {
+      actionRoutes.push(exactActions[0]!);
+      continue;
+    }
+    if (exactActions.length > 1) {
+      containsAmbiguous = true;
+      continue;
+    }
     const route = routeGuideBriefConversationQuestionV01({
-      question: candidate,
+      question: segment,
       scope_key: scopeKey,
       conversation_context: context,
     });
     if (route.status === "supported" && route.intent) {
-      result.add(route.intent);
+      questionIntents.push(route.intent);
     } else if (route.status === "ambiguous") {
-      ambiguous = true;
+      containsAmbiguous = true;
+    } else {
+      containsUnsupported = true;
     }
   }
+
+  if (containsUnsupported) {
+    return {
+      classification: "unsupported",
+      pc4_intent: null,
+      action_routes: [],
+    };
+  }
+  if (
+    containsAmbiguous ||
+    actionRoutes.length > 1 ||
+    questionIntents.length > 1
+  ) {
+    return {
+      classification: "ambiguous",
+      pc4_intent: null,
+      action_routes: [...new Set(actionRoutes)],
+    };
+  }
+  if (actionRoutes.length === 1 && questionIntents.length === 1) {
+    return {
+      classification: "mixed",
+      pc4_intent: questionIntents[0]!,
+      action_routes: actionRoutes,
+    };
+  }
+  if (actionRoutes.length === 1) {
+    return {
+      classification: "action",
+      pc4_intent: null,
+      action_routes: actionRoutes,
+    };
+  }
+  if (questionIntents.length === 1) {
+    return {
+      classification: "question",
+      pc4_intent: questionIntents[0]!,
+      action_routes: [],
+    };
+  }
   return {
-    intents: [...result],
-    ambiguous,
+    classification: "unsupported",
+    pc4_intent: null,
+    action_routes: [],
   };
 }
 
@@ -632,7 +693,14 @@ function validateCapabilityV01(
 ): void {
   if (
     Object.keys(capability).some((key) => !DESCRIPTOR_KEYS.has(key)) ||
-    containsFunctionV01(capability)
+    containsFunctionV01(capability) ||
+    containsForbiddenDescriptorKeyV01(capability) ||
+    Object.keys(capability.target_scope).some(
+      (key) => !TARGET_SCOPE_KEYS.has(key),
+    ) ||
+    Object.keys(capability.authority).some(
+      (key) => !DESCRIPTOR_AUTHORITY_KEYS.has(key),
+    )
   ) {
     contractErrorV01(
       "guidebrief_interaction_forbidden_descriptor_material",
@@ -937,6 +1005,18 @@ function containsFunctionV01(value: unknown): boolean {
       Object.values(value as Record<string, unknown>).some(
         containsFunctionV01,
       ),
+  );
+}
+
+function containsForbiddenDescriptorKeyV01(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsForbiddenDescriptorKeyV01);
+  }
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(
+    ([key, nested]) =>
+      FORBIDDEN_DESCRIPTOR_KEYS.has(key.toLocaleLowerCase("en-US")) ||
+      containsForbiddenDescriptorKeyV01(nested),
   );
 }
 

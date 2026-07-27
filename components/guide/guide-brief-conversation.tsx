@@ -138,6 +138,7 @@ export function GuideBriefConversation({
   const [interactionBusy, setInteractionBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const requestSequence = useRef(0);
+  const mountedHost = useRef(false);
   const executionLedger = useRef(
     createGuideBriefInteractionExecutionLedgerV01(),
   );
@@ -155,18 +156,21 @@ export function GuideBriefConversation({
     capabilitySnapshot?.fingerprint ?? "conversation-only"
   }`;
 
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    mountedHost.current = true;
+    setHydrated(true);
+    return () => {
+      mountedHost.current = false;
+    };
+  }, []);
   useEffect(() => {
     setQuestion("");
     setAnswer(null);
     setContext(createGuideBriefConversationContextV01(scopeKey));
   }, [scopeKey]);
   useEffect(() => {
-    executionLedger.current =
-      createGuideBriefInteractionExecutionLedgerV01();
     setInteractionPlan(null);
     setInteractionOutcome(null);
-    setInteractionBusy(false);
   }, [interactionIdentity]);
 
   const visibleAnswer = selectVisibleGuideBriefConversationAnswerV01(
@@ -215,7 +219,13 @@ export function GuideBriefConversation({
 
   async function submitUtterance(nextUtterance: string) {
     const trimmed = nextUtterance.trim();
-    if (!trimmed || interactionBusy) return;
+    if (
+      !trimmed ||
+      interactionBusy ||
+      executionLedger.current.in_flight_plan_id !== null
+    ) {
+      return;
+    }
     if (!interaction || !capabilitySnapshot) {
       ask(trimmed);
       return;
@@ -255,9 +265,13 @@ export function GuideBriefConversation({
         ledger: executionLedger.current,
         read_current_binding: () => currentBinding.current,
       });
-      setInteractionOutcome(outcome);
+      if (mountedHost.current) {
+        setInteractionOutcome(outcome);
+      }
     } finally {
-      setInteractionBusy(false);
+      if (mountedHost.current) {
+        setInteractionBusy(false);
+      }
     }
   }
 

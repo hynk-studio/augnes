@@ -35,6 +35,7 @@ import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import type {
   BrowserActionCapabilityV01,
   BrowserActionRouteKeyV01,
+  BrowserOwnerCurrentFocusCapabilityV01,
   GuideBriefInteractionAdapterV01,
 } from "@/types/vnext/guide-brief-interaction";
 import type { ProjectVerifyRevisionLifecycleV01 } from "@/types/vnext/project-verify-reconciliation";
@@ -117,6 +118,14 @@ export function DecisionCenteredProposalDetail({
     scope_key: string;
     available: boolean;
   } | null>(null);
+  const [decisionCurrentFocus, setDecisionCurrentFocus] = useState<{
+    scope_key: string;
+    capability: BrowserOwnerCurrentFocusCapabilityV01;
+  } | null>(null);
+  const [transitionCurrentFocus, setTransitionCurrentFocus] = useState<{
+    scope_key: string;
+    capability: BrowserOwnerCurrentFocusCapabilityV01;
+  } | null>(null);
   const decisionPreparationRef =
     useRef<ReviewDecisionPreparationHandleV01 | null>(null);
   const transitionPreparationRef =
@@ -188,6 +197,28 @@ export function DecisionCenteredProposalDetail({
   const proposalLocalBusy = busyCandidateId !== null || transitionMutationBusy;
   const strategicActionsAvailable =
     !proposal.strategic_advantage_transfer || read.strategic_analysis.status === "available";
+  const decisionFocusOwnerScopeKey =
+    selected &&
+    timeline?.current_position.primary_action_owner === "decision" &&
+    strategicActionsAvailable
+      ? [
+          proposal.proposal_id,
+          proposal.integrity.fingerprint,
+          selected.candidate.candidate_id,
+          selected.candidate_fingerprint,
+          applyingDecision,
+        ].join("|")
+      : null;
+  const decisionCurrentFocusCapability =
+    decisionFocusOwnerScopeKey !== null &&
+    decisionCurrentFocus?.scope_key === decisionFocusOwnerScopeKey
+      ? decisionCurrentFocus.capability
+      : null;
+  const transitionCurrentFocusCapability =
+    transitionPreviewOwnerScopeKey !== null &&
+    transitionCurrentFocus?.scope_key === transitionPreviewOwnerScopeKey
+      ? transitionCurrentFocus.capability
+      : null;
   const packetRef = proposal.task_context_packet_ref;
   const priorPacket =
     packetRef?.ref_type === "task_context_packet" &&
@@ -327,6 +358,22 @@ export function DecisionCenteredProposalDetail({
               primary
               busy={proposalLocalBusy}
               onSubmit={onDecision}
+              onCurrentFocusCapabilityChange={(capability) => {
+                if (!decisionFocusOwnerScopeKey) return;
+                setDecisionCurrentFocus((current) =>
+                  current?.scope_key === decisionFocusOwnerScopeKey &&
+                  current.capability.owner_focus_identity ===
+                    capability.owner_focus_identity &&
+                  current.capability.available === capability.available &&
+                  current.capability.unavailable_reason ===
+                    capability.unavailable_reason
+                    ? current
+                    : {
+                        scope_key: decisionFocusOwnerScopeKey,
+                        capability,
+                      }
+                );
+              }}
             />
           ) : (
             <p className={styles.notice} data-vnext-strategic-candidate-actions="blocked">
@@ -412,6 +459,22 @@ export function DecisionCenteredProposalDetail({
                     }
               );
             }}
+            onCurrentFocusCapabilityChange={(capability) => {
+              if (!transitionPreviewOwnerScopeKey) return;
+              setTransitionCurrentFocus((current) =>
+                current?.scope_key === transitionPreviewOwnerScopeKey &&
+                current.capability.owner_focus_identity ===
+                  capability.owner_focus_identity &&
+                current.capability.available === capability.available &&
+                current.capability.unavailable_reason ===
+                  capability.unavailable_reason
+                  ? current
+                  : {
+                      scope_key: transitionPreviewOwnerScopeKey,
+                      capability,
+                    }
+              );
+            }}
           />
         </div>
       ) : null}
@@ -436,6 +499,16 @@ export function DecisionCenteredProposalDetail({
             timeline.current_position.primary_action_owner === "transition" &&
             transitionPreviewAvailable &&
             !proposalLocalBusy
+          }
+          decisionCurrentFocusCapability={
+            decisionPreparationRef.current
+              ? decisionCurrentFocusCapability
+              : null
+          }
+          transitionCurrentFocusCapability={
+            transitionPreparationRef.current
+              ? transitionCurrentFocusCapability
+              : null
           }
           ownerBusy={proposalLocalBusy}
           proposalInspectorHref={proposalInspectorHref}
@@ -578,6 +651,8 @@ function SelectedWorkRelationshipExploration({
   applyingDecision,
   decisionEligible,
   transitionPreviewAvailable,
+  decisionCurrentFocusCapability,
+  transitionCurrentFocusCapability,
   ownerBusy,
   proposalInspectorHref,
   onSelectedCandidateChange,
@@ -598,6 +673,12 @@ function SelectedWorkRelationshipExploration({
   applyingDecision: "accept" | "supersede" | "retract";
   decisionEligible: boolean;
   transitionPreviewAvailable: boolean;
+  decisionCurrentFocusCapability:
+    | BrowserOwnerCurrentFocusCapabilityV01
+    | null;
+  transitionCurrentFocusCapability:
+    | BrowserOwnerCurrentFocusCapabilityV01
+    | null;
   ownerBusy: boolean;
   proposalInspectorHref: string;
   onSelectedCandidateChange: (candidateId: string) => void;
@@ -666,6 +747,8 @@ function SelectedWorkRelationshipExploration({
         applyingDecision,
         decisionEligible,
         transitionPreviewAvailable,
+        decisionCurrentFocusCapability,
+        transitionCurrentFocusCapability,
         ownerBusy,
         proposalInspectorHref,
         onSelectedCandidateChange,
@@ -736,6 +819,12 @@ function selectedWorkInteractionHostV01(input: {
   applyingDecision: "accept" | "supersede" | "retract";
   decisionEligible: boolean;
   transitionPreviewAvailable: boolean;
+  decisionCurrentFocusCapability:
+    | BrowserOwnerCurrentFocusCapabilityV01
+    | null;
+  transitionCurrentFocusCapability:
+    | BrowserOwnerCurrentFocusCapabilityV01
+    | null;
   ownerBusy: boolean;
   proposalInspectorHref: string;
   onSelectedCandidateChange: (candidateId: string) => void;
@@ -941,10 +1030,36 @@ function selectedWorkInteractionHostV01(input: {
     }
   }
 
-  if (
-    timeline.current_position.primary_action_owner !== "none" &&
-    !input.ownerBusy
-  ) {
+  const currentActionOwner =
+    timeline.current_position.primary_action_owner;
+  const ownerFocusCapability:
+    | BrowserOwnerCurrentFocusCapabilityV01
+    | null =
+    currentActionOwner === "candidate_selection"
+      ? {
+          available:
+            Boolean(input.nextDecisionCandidate) && !input.ownerBusy,
+          owner_focus_identity: [
+            "candidate-selection-control",
+            input.nextDecisionCandidate?.candidate.candidate_id ??
+              "unavailable",
+            input.nextDecisionCandidate?.candidate_fingerprint ??
+              "unavailable",
+            input.ownerBusy ? "busy" : "available",
+          ].join(":"),
+          unavailable_reason: input.ownerBusy
+            ? "The candidate-selection control is busy."
+            : input.nextDecisionCandidate
+              ? null
+              : "No exact next candidate can be focused.",
+        }
+      : currentActionOwner === "decision"
+        ? input.decisionCurrentFocusCapability
+        : currentActionOwner === "transition"
+          ? input.transitionCurrentFocusCapability
+          : null;
+
+  if (ownerFocusCapability?.available && !input.ownerBusy) {
     const handle = targetHandle(
       "surface.open_current_action",
       "current_action",
@@ -962,8 +1077,9 @@ function selectedWorkInteractionHostV01(input: {
         scopeKey,
         ownerIdentity: [
           timeline.current_item_id,
-          timeline.current_position.primary_action_owner,
+          currentActionOwner,
           timeline.current_position.destination ?? "local-owner",
+          ownerFocusCapability.owner_focus_identity,
         ].join(":"),
         destination: timeline.current_position.destination,
         targetScope,
@@ -974,16 +1090,24 @@ function selectedWorkInteractionHostV01(input: {
         owner: "pc2_current_action_surface",
         effect_class: "navigation",
         invoke: async () => {
-          const owner = timeline.current_position.primary_action_owner;
+          const owner = currentActionOwner;
           const focused =
             owner === "candidate_selection"
               ? focusElementV01(input.nextCandidateActionRef.current)
               : owner === "decision"
-                ? input.decisionPreparationRef.current?.focusOwner() ??
-                  false
+                ? input.decisionPreparationRef.current
+                    ?.getCurrentFocusCapability()
+                    .owner_focus_identity ===
+                    ownerFocusCapability.owner_focus_identity &&
+                  (input.decisionPreparationRef.current?.focusOwner() ??
+                    false)
                 : owner === "transition"
-                  ? input.transitionPreparationRef.current?.focusOwner() ??
-                    false
+                  ? input.transitionPreparationRef.current
+                      ?.getCurrentFocusCapability()
+                      .owner_focus_identity ===
+                      ownerFocusCapability.owner_focus_identity &&
+                    (input.transitionPreparationRef.current
+                      ?.focusOwner() ?? false)
                   : false;
           return {
             status: focused ? "handed_off" : "failed",
@@ -1136,7 +1260,7 @@ function selectedWorkInteractionHostV01(input: {
             ? {
                 status: "handed_off",
                 public_observed_effect:
-                  "The applying decision is prepared in the existing decision form. Nothing has been saved.",
+                  "The applying choice is prepared in the existing decision form. Review or enter its decision note before saving. Nothing has been saved.",
                 durable_state_changed: false,
                 exact_result_ref: null,
               }

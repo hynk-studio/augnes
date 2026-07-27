@@ -7,6 +7,11 @@ import {
   createGuideBriefInteractionExecutionLedgerV01,
   executeGuideBriefInteractionPlanV01,
 } from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
+import {
+  applyReviewDecisionSelectionV01,
+  canSubmitReviewDecisionFormV01,
+  DEFAULT_DEFER_RATIONALE_V01,
+} from "@/components/workbench/semantic-review/review-decision-form-state";
 import type {
   BrowserActionCapabilitySnapshotInputV01,
   BrowserActionCapabilityV01,
@@ -45,6 +50,57 @@ const context: BrowserActionCapabilitySnapshotInputV01["context"] = {
     transition_preview_available: false,
   },
 };
+
+for (const applyingDecision of [
+  "accept",
+  "supersede",
+  "retract",
+] as const) {
+  const prepared = applyReviewDecisionSelectionV01(
+    {
+      decision: "defer",
+      rationale_summary: DEFAULT_DEFER_RATIONALE_V01,
+      rationale_bound_decision: "defer",
+      revisit_condition: "Review when exact source material is available.",
+    },
+    applyingDecision,
+  );
+  assert.equal(prepared.decision, applyingDecision);
+  assert.equal(prepared.rationale_summary, "");
+  assert.equal(prepared.rationale_bound_decision, null);
+  assert.equal(
+    canSubmitReviewDecisionFormV01(prepared, {
+      busy: false,
+      selected_decision_allowed: true,
+    }),
+    false,
+  );
+}
+const preservedUserRationale = applyReviewDecisionSelectionV01(
+  {
+    decision: "defer",
+    rationale_summary: "My own exact review note.",
+    rationale_bound_decision: "defer",
+    revisit_condition: "Review next week.",
+  },
+  "accept",
+);
+assert.equal(
+  preservedUserRationale.rationale_summary,
+  "My own exact review note.",
+);
+assert.equal(
+  preservedUserRationale.rationale_bound_decision,
+  null,
+  "preserved user text must be explicitly reviewed under the new decision",
+);
+assert.equal(
+  canSubmitReviewDecisionFormV01(preservedUserRationale, {
+    busy: false,
+    selected_decision_allowed: true,
+  }),
+  false,
+);
 
 const capability = (
   overrides: Partial<BrowserActionCapabilityV01> = {},
@@ -450,6 +506,34 @@ assert.throws(
     }),
   /guidebrief_interaction_forbidden_descriptor_material/,
 );
+for (const nestedForbidden of [
+  {
+    target_scope: {
+      ...capability().target_scope,
+      selector: "#unsafe",
+    },
+  },
+  {
+    authority: {
+      ...capability().authority,
+      endpoint: "/api/unsafe",
+    },
+  },
+]) {
+  assert.throws(
+    () =>
+      buildBrowserActionCapabilitySnapshotV01({
+        context,
+        capabilities: [
+          {
+            ...capability(),
+            ...nestedForbidden,
+          } as BrowserActionCapabilityV01,
+        ],
+      }),
+    /guidebrief_interaction_forbidden_descriptor_material/,
+  );
+}
 
 const blockedSnapshot = buildBrowserActionCapabilitySnapshotV01({
   context,
@@ -802,6 +886,39 @@ for (const utterance of [
   assert.equal(unsupported.classification, "unsupported", utterance);
 }
 
+for (const utterance of [
+  "Show the next change and apply this.",
+  "Show the next change and confirm this.",
+  "Open advanced review and merge the PR.",
+  "Show the blocker and write a poem.",
+  "Run something arbitrary and open exact details.",
+  "Show the next change then confirm this.",
+  "Open exact details and write a poem.",
+]) {
+  const partiallyUnderstood =
+    buildGuideBriefInteractionRequestV01({
+      request_id: `partial:${utterance}`,
+      raw_utterance: utterance,
+      scope_key: context.pc4_scope_key,
+      capability_snapshot_fingerprint: orderedA.fingerprint,
+      previous_turn_anchor: null,
+      conversation_context: null,
+    });
+  assert.equal(
+    partiallyUnderstood.classification,
+    "unsupported",
+    utterance,
+  );
+  assert.equal(
+    compileGuideBriefInteractionPlanV01({
+      request: partiallyUnderstood,
+      snapshot: orderedA,
+    }).status,
+    "unsupported",
+    utterance,
+  );
+}
+
 const multiAction = buildGuideBriefInteractionRequestV01({
   request_id: "request-multi",
   raw_utterance: "Open advanced review and show the next change.",
@@ -818,6 +935,15 @@ assert.equal(
   }).status,
   "ambiguous",
 );
+const multiActionThen = buildGuideBriefInteractionRequestV01({
+  request_id: "request-multi-then",
+  raw_utterance: "Open advanced review then show the next change.",
+  scope_key: context.pc4_scope_key,
+  capability_snapshot_fingerprint: orderedA.fingerprint,
+  previous_turn_anchor: null,
+  conversation_context: null,
+});
+assert.equal(multiActionThen.classification, "ambiguous");
 
 const ambiguousRelationshipSnapshot =
   buildBrowserActionCapabilitySnapshotV01({
@@ -988,6 +1114,120 @@ assert.doesNotMatch(
 const reloadedLedger = createGuideBriefInteractionExecutionLedgerV01();
 assert.equal(reloadedLedger.consumed_plan_ids.size, 0);
 assert.equal(reloadedLedger.in_flight_plan_id, null);
+
+const changedSnapshot = buildBrowserActionCapabilitySnapshotV01({
+  context,
+  capabilities: [
+    capability({
+      owner_actionability_identity: "candidate-selection:changed",
+    }),
+  ],
+});
+let hostBinding = current();
+let releaseDeferred!: () => void;
+const deferred = new Promise<void>((resolve) => {
+  releaseDeferred = resolve;
+});
+let activeAdapters = 0;
+let maximumAdapterConcurrency = 0;
+let deferredCalls = 0;
+const hostLedger = createGuideBriefInteractionExecutionLedgerV01();
+const deferredAdapter: GuideBriefInteractionAdapterV01 = {
+  ...adapter,
+  invoke: async () => {
+    deferredCalls += 1;
+    activeAdapters += 1;
+    maximumAdapterConcurrency = Math.max(
+      maximumAdapterConcurrency,
+      activeAdapters,
+    );
+    await deferred;
+    activeAdapters -= 1;
+    return {
+      status: "preview_prepared",
+      public_observed_effect:
+        "Impact is ready and the project remains unchanged.",
+      durable_state_changed: false,
+      exact_result_ref: null,
+    };
+  },
+};
+const firstDeferredPlan = compileGuideBriefInteractionPlanV01({
+  request: {
+    ...request,
+    request_id: "request-host-first",
+  },
+  snapshot: one,
+});
+const deferredOutcomePromise = executeGuideBriefInteractionPlanV01({
+  plan: firstDeferredPlan,
+  current_snapshot: one,
+  adapters: [deferredAdapter],
+  ledger: hostLedger,
+  read_current_binding: () => hostBinding,
+});
+await Promise.resolve();
+hostBinding = {
+  scope_key: context.pc4_scope_key,
+  capability_snapshot_fingerprint: changedSnapshot.fingerprint,
+};
+const changedRequest = buildGuideBriefInteractionRequestV01({
+  request_id: "request-host-second",
+  raw_utterance: "Show the next change.",
+  scope_key: context.pc4_scope_key,
+  capability_snapshot_fingerprint: changedSnapshot.fingerprint,
+  previous_turn_anchor: null,
+  conversation_context: null,
+});
+const changedPlan = compileGuideBriefInteractionPlanV01({
+  request: changedRequest,
+  snapshot: changedSnapshot,
+});
+const blockedDuringSnapshotChange =
+  await executeGuideBriefInteractionPlanV01({
+    plan: changedPlan,
+    current_snapshot: changedSnapshot,
+    adapters: [deferredAdapter],
+    ledger: hostLedger,
+    read_current_binding: () => hostBinding,
+  });
+assert.equal(blockedDuringSnapshotChange.status, "blocked");
+assert.equal(deferredCalls, 1);
+releaseDeferred();
+assert.equal((await deferredOutcomePromise).status, "stale");
+assert.equal(maximumAdapterConcurrency, 1);
+const freshAdapter = {
+  ...deferredAdapter,
+  invoke: async () => {
+    deferredCalls += 1;
+    activeAdapters += 1;
+    maximumAdapterConcurrency = Math.max(
+      maximumAdapterConcurrency,
+      activeAdapters,
+    );
+    activeAdapters -= 1;
+    return {
+      status: "completed" as const,
+      public_observed_effect:
+        "The next unresolved change is now selected.",
+      durable_state_changed: false as const,
+      exact_result_ref: null,
+    };
+  },
+};
+const afterSettlement = await executeGuideBriefInteractionPlanV01({
+  plan: {
+    ...changedPlan,
+    plan_id: `${changedPlan.plan_id}:after-settlement`,
+  },
+  current_snapshot: changedSnapshot,
+  adapters: [freshAdapter],
+  ledger: hostLedger,
+  read_current_binding: () => hostBinding,
+});
+assert.equal(afterSettlement.status, "completed");
+assert.equal(deferredCalls, 2);
+assert.equal(maximumAdapterConcurrency, 1);
 
 console.log(
   "vNext GuideBrief bounded Browser interaction substrate tests passed.",

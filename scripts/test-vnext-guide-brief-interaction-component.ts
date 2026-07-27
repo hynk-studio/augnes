@@ -29,6 +29,22 @@ assert.match(
   conversation,
   /createGuideBriefInteractionExecutionLedgerV01/,
 );
+assert.doesNotMatch(
+  conversation,
+  /executionLedger\.current\s*=\s*createGuideBriefInteractionExecutionLedgerV01\(\)/,
+  "snapshot refresh must not replace the mounted host execution coordinator",
+);
+assert.doesNotMatch(
+  conversation,
+  /setInteractionBusy\(false\);[\s\S]{0,80}\}, \[interactionIdentity\]\)/,
+  "snapshot refresh must not clear actual in-flight host state",
+);
+assert.match(conversation, /mountedHost\.current/);
+assert.match(
+  conversation,
+  /executionLedger\.current\.in_flight_plan_id !== null/,
+  "submission must synchronously honor the mounted-host in-flight lock",
+);
 assert.match(conversation, /data-guidebrief-interaction-in-flight/);
 assert.match(
   conversation,
@@ -93,22 +109,49 @@ assert.match(
   /transitionPreviewAvailability\?\.scope_key ===\s*transitionPreviewOwnerScopeKey/,
   "Transition preparation availability must be bound to the exact current owner scope",
 );
+assert.match(detail, /onCurrentFocusCapabilityChange/);
+assert.match(detail, /ownerFocusCapability/);
+assert.match(detail, /owner_focus_identity/);
+assert.match(
+  detail,
+  /decisionFocusOwnerScopeKey[\s\S]{0,320}strategicActionsAvailable/,
+  "strategically blocked Decision UI must not publish a focus-owner scope",
+);
+assert.match(
+  detail,
+  /decisionPreparationRef\.current\s*\?\s*decisionCurrentFocusCapability\s*:\s*null/,
+  "an absent Decision owner ref must fail closed",
+);
+assert.match(
+  detail,
+  /ownerFocusCapability\.owner_focus_identity/,
+  "owner-local focus-stage identity must affect the registered capability",
+);
+assert.doesNotMatch(
+  detail,
+  /timeline\.current_position\.primary_action_owner !== "none" &&\s*!input\.ownerBusy/,
+  "PC2 owner identity alone must not advertise a focusable current action",
+);
 assert.doesNotMatch(detail, /querySelector|querySelectorAll|document\./);
 assert.doesNotMatch(detail, /\bfetch\s*\(/);
 
 assert.match(decision, /ReviewDecisionPreparationHandleV01/);
 assert.match(decision, /requestedDecision !== applyingDecision/);
-assert.match(decision, /setDecision\(applyingDecision\)/);
+assert.match(decision, /applyReviewDecisionSelectionV01/);
+assert.match(decision, /rationaleBoundDecision/);
 assert.match(decision, /decisionControlRef\.current\?\.focus\(\)/);
 const prepareDecisionBody =
   decision.match(
-    /prepareApplying:\s*\(requestedDecision\) => \{([\s\S]*?)\n\s*\},\n\s*focusOwner/,
+    /prepareApplying:\s*\(requestedDecision\) => \{([\s\S]*?)\n\s*\},\n\s*getCurrentFocusCapability/,
   )?.[1] ?? "";
 assert.ok(prepareDecisionBody.length > 0);
 assert.doesNotMatch(prepareDecisionBody, /onSubmit|submitDecision|fetch/);
 
 assert.match(transition, /SemanticTransitionPreparationHandleV01/);
-assert.match(transition, /preparePreview,\n\s*focusOwner/);
+assert.match(transition, /preparePreview,[\s\S]*getCurrentFocusCapability/);
+assert.match(transition, /confirmationButtonRef/);
+assert.match(transition, /applyButtonRef/);
+assert.match(transition, /onCurrentFocusCapabilityChange/);
 assert.match(transition, /method:\s*"GET"/);
 assert.match(transition, /requestInFlight\.current/);
 assert.match(transition, /requestIsCurrent\(requestGeneration\)/);

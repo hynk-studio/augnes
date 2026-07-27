@@ -55,6 +55,12 @@ export type BrowserActionAvailabilityV01 =
   | "blocked"
   | "unavailable";
 
+export interface BrowserOwnerCurrentFocusCapabilityV01 {
+  available: boolean;
+  owner_focus_identity: string;
+  unavailable_reason: string | null;
+}
+
 export type BrowserActionRouteKeyV01 =
   | "next_candidate"
   | "relationship_support_and_source"
