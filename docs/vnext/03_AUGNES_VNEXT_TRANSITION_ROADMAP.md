@@ -154,37 +154,55 @@ durable transcript storage, cross-project chat, a general chatbot, a new route,
 new protocol or persistence authority, or a second attention, current-position,
 relationship, decision, Transition or action owner.
 
-## PC5 phase lifecycle
+## PC5 completed lifecycle
 
 ### Bounded GuideBrief Browser interaction plane
 
 [Issue #84](https://github.com/hynk-studio/augnes-perspective-lab/issues/84)
-owns the PC5 specification. Its implementation-kickoff comment authorizes only
-the first bounded, deterministic Browser interaction slice above PC4.
-[Draft PR #85](https://github.com/hynk-studio/augnes-perspective-lab/pull/85)
-is the current review packet while open. PC5 becomes completed only if that
-pull request merges; an open Draft does not establish completion.
+defined PC5. [PR #85](https://github.com/hynk-studio/augnes-perspective-lab/pull/85)
+is its completed and merged implementation and outcome record. PC5's merge
+commit `ef366f1609d84cff51aa00d5270a725b1054beb5` is the exact implementation
+baseline for the next separately authorized phase.
 
-This slice may compose exact current Browser capabilities, compile one
-single-use interaction plan, and invoke an existing owner-supplied local
-adapter for the authorized selection, navigation, preparation, or read-only
-preview families. It does not create Decision, Transition, execution,
-project-management, or external-action authority.
+The first PC5 slice composes exact current Browser capabilities, compiles one
+single-use interaction plan, and invokes an existing owner-supplied local
+adapter for bounded selection, navigation, preparation, or read-only preview
+families. It preserves PC1–PC4 ownership and creates no Decision, Transition,
+execution, project-management, persistence, provider, or external-action
+authority.
 
 ## Next separately authorized work
 
-Model assistance, owner-confirmation embedding, direct mutation,
-cross-project interaction, broader host-action integration, later PC5 slices,
-and later product-continuity phases remain pending separate explicit
-authorization. Issue #84 and its bounded Draft review packet do not authorize
-them, and they do not authorize C9, durable conversation or pending-plan
-storage, or cross-project conversation.
+The next candidate phase is a model-assisted GuideBrief interpreter above the
+merged deterministic PC4 explanation and PC5 capability/plan compiler.
+
+A bounded implementation may improve Korean and English natural-language
+interpretation, omission, paraphrase, reference resolution, and one-step goal
+decomposition only by proposing a registered PC4 question intent or PC5 action
+key and opaque current target. Model output must remain untrusted candidate
+input to the deterministic exact-scope compiler. The model may not create
+capabilities, choose availability, lower effect class or confirmation policy,
+construct URLs or requests, add unsupported facts or source refs, grant
+authority, or execute its own output. Deterministic PC4/PC5 behavior must remain
+available when the provider is unavailable.
+
+This candidate is not authorized merely by appearing here. Its issue must define
+provider egress, model choice, structured-output contract, latency, cost,
+privacy, retention, failure, deterministic fallback, exact test boundary, and
+an implementation baseline from current `main` before any branch or runtime
+change begins.
+
+Owner-confirmation embedding, direct mutation, cross-project interaction,
+broader host-action integration, durable conversation or pending-plan storage,
+later PC5 slices, and later product-continuity phases remain pending separate
+explicit authorization. They do not become authorized by the interpreter
+candidate, and neither does C9.
 
 ## Pending C9
 
 C9 compatibility and obsolete-surface reduction remains pending separate
 explicit authorization. RR0, RR1, PC1, PC2, PC3, PC4 and the bounded first PC5
-review slice do not authorize it.
+slice do not authorize it.
 
 Before C9 can begin, each proposed removal, redirect, demotion, or retained
 compatibility path needs the proof defined in the temporary correction charter:
@@ -218,36 +236,4 @@ a bounded part is implemented:
   without replicating one interface.
 
 These directions do not imply a completed route, schema, engine, record,
-surface, or user experience.
-
-## Research status
-
-| Program | Current classification | Sequencing boundary |
-|---|---|---|
-| Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
-| `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
-| Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
-| Sidecar | Paused/dormant research residue. | Do not import its older branch topology wholesale. |
-| Handoff and context reuse | Current native task-context/receipt path plus older compatibility/history. | Preserve the native path; retire older layers only with consumer proof. |
-| Automation | Bounded current automation plus legacy autonomy/Autohunt compatibility and research. | Do not treat legacy autonomy surfaces as the current product spine. |
-| Arena, actor, challenger, and debate substrate | Deferred candidate. | No persistent actor/debate system or automatic winner without separate authorization. |
-| Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
-
-Research engines may explore, compare, challenge, infer, predict, and propose.
-Their output is not truth, accepted Perspective, user decision, Transition,
-execution authority, or authority expansion.
-
-## Compatibility and historical work
-
-Current compatibility paths remain until a separately authorized phase proves
-replacement and safe retirement. Historical plans, milestone records,
-submission material, fixtures, archived packages, old Workplane/Cockpit names,
-legacy MCP tools, and unmerged research branch residue do not become current
-authority because they remain reachable or referenced.
-
-Later documentation, code, fixture, script, schema, route, package, or branch
-reduction must be split into reviewed proof-backed batches. Unknown external
-consumers, data population, dynamic imports, archived evaluation use, and
-retention requirements remain unresolved rather than being converted into
-deletion claims.
+authority path, or provider integration.
