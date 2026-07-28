@@ -60,6 +60,7 @@ export interface GuideBriefConversationPropsV01
   guide: ProjectGuideBriefV02;
   surface: "blank_state" | "ai_workplane";
   interaction?: GuideBriefInteractionHostV01 | null;
+  initiallyExpanded?: boolean;
 }
 
 export function GuideBriefConversation({
@@ -71,6 +72,7 @@ export function GuideBriefConversation({
   relationships = {},
   selected_relationship_question_key = null,
   interaction = null,
+  initiallyExpanded = false,
 }: GuideBriefConversationPropsV01) {
   const sourceInput = useMemo(
     () => ({
@@ -300,7 +302,7 @@ export function GuideBriefConversation({
       data-guidebrief-conversation-hydrated={String(hydrated)}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
-      <details className={styles.disclosure}>
+      <details className={styles.disclosure} open={initiallyExpanded || undefined}>
         <summary>Ask about this work</summary>
         <div className={styles.body}>
           <p className={styles.intro}>

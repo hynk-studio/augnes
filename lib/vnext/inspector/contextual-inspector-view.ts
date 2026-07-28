@@ -262,10 +262,10 @@ export function deriveSafeContextualInspectorRelatedContextV01(
   ) {
     return {
       kind: "blank_state",
-      label: "Back to Blank State",
+      label: "Back to Continuities",
       href: "/",
       explanation:
-        "Blank State is the closest safe project context available before local review access is established.",
+        "Continuities is the closest safe project context available before local review access is established.",
     };
   }
   return {
@@ -590,10 +590,10 @@ function relatedContextFromTargetV01(
   ) {
     return {
       kind: "blank_state",
-      label: "Back to Blank State",
+      label: "Back to Continuities",
       href: "/",
       explanation:
-        "This exact detail belongs to project options in Blank State.",
+        "This exact detail belongs to project options in Continuities.",
     };
   }
   if (proposalId) {

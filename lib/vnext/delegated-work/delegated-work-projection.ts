@@ -776,7 +776,7 @@ function nextActionV01(
       href: "/workbench/semantic-review#delegated-work",
     },
     review_result: { label: "Review result", href: null },
-    return_to_blank_state: { label: "Return to Blank State", href: "/" },
+    return_to_blank_state: { label: "Return to Continuities", href: "/" },
     none: { label: null, href: null },
   };
   return { kind, ...values[kind], executes: false };

@@ -626,7 +626,7 @@ export function SemanticReviewSurface({
               data-ai-workplane-primary-action="open-blank-state"
               data-augnes-primary-action="open-blank-state"
             >
-              Open Blank State
+              Open Continuities
             </a>
           </section>
         ) : null}

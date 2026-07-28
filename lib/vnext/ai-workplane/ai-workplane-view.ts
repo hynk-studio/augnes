@@ -75,8 +75,8 @@ export function buildAIWorkplaneHomeViewV01(input: {
       "guidance_unavailable",
       "Current guidance is unavailable",
       "Augnes cannot verify the current project coordinate, so no work or decision is inferred.",
-      "Return to Blank State to check the current project.",
-      { kind: "link", label: "Open Blank State", href: "/" },
+      "Return to Continuities to check the current project.",
+      { kind: "link", label: "Open Continuities", href: "/" },
     );
   }
   if (!guide.identity.project_id || guide.source_status === "project_choice") {
@@ -84,9 +84,9 @@ export function buildAIWorkplaneHomeViewV01(input: {
       base,
       "no_project",
       "Choose a project before reviewing work",
-      "AI Workplane needs a current project from Blank State.",
+      "AI Workplane needs a current project from Continuities.",
       null,
-      { kind: "link", label: "Open Blank State", href: "/" },
+      { kind: "link", label: "Open Continuities", href: "/" },
     );
   }
   const delegated = input.delegated_work;
@@ -297,7 +297,7 @@ export function buildAIWorkplaneHomeViewV01(input: {
     "No project decision needs you now",
     guide.coordinate.work_status,
     guide.coordinate.material_blocker_or_uncertainty,
-    { kind: "link", label: "Return to Blank State", href: "/" },
+    { kind: "link", label: "Return to Continuities", href: "/" },
   );
 }
 
@@ -677,7 +677,7 @@ export function compareAIWorkplaneGuideProjectV01(
       status: "source_mismatch",
       blocks_actions: true,
       message:
-        "Current guidance and exact review state do not fully agree. Return to Blank State before changing the project.",
+        "Current guidance and exact review state do not fully agree. Return to Continuities before changing the project.",
     };
   }
   return { status: "consistent", blocks_actions: false, message: null };

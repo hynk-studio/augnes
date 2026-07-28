@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
@@ -28,6 +28,7 @@ import type {
   BlankStatePrimaryActionV01,
   BlankStateSourceV01,
   BlankStateViewV01,
+  ContinuitiesTemporalContextV01,
 } from "@/types/vnext/blank-state";
 import type {
   LocalFolderPickerOutcomeV01,
@@ -42,11 +43,13 @@ export function BlankStateClient({
   source,
   view,
   guide,
+  temporalContext,
   managementSafety,
 }: {
   source: BlankStateSourceV01;
   view: BlankStateViewV01;
   guide: ProjectGuideBriefV02;
+  temporalContext: ContinuitiesTemporalContextV01;
   managementSafety: ManagementSafetyViewV01;
 }) {
   const [recent, setRecent] = useState(source.recent_projects);
@@ -60,9 +63,22 @@ export function BlankStateClient({
   } | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<RecentProjectEntryV01 | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [continuityFilter, setContinuityFilter] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
+  const guideDialogRef = useRef<HTMLDialogElement>(null);
+  const guideLauncherRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => setRecent(source.recent_projects), [source.recent_projects]);
+  useEffect(() => {
+    const dialog = guideDialogRef.current;
+    if (!dialog) return;
+    if (guideOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!guideOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [guideOpen]);
 
   async function mutate(body: Record<string, unknown>) {
     const response = await fetch("/api/vnext/projects", {
@@ -356,6 +372,21 @@ export function BlankStateClient({
       onCancelInspection={() => setPicker(null)}
     />
   );
+  const normalizedContinuityFilter = continuityFilter.trim().toLocaleLowerCase();
+  const highlightedVisible = continuityItemMatchesV01(
+    view.highlighted_item,
+    normalizedContinuityFilter,
+  );
+  const visibleContinuityItems = view.continuity_items.filter((item) =>
+    continuityItemMatchesV01(item, normalizedContinuityFilter)
+  );
+
+  function closeGuide() {
+    const dialog = guideDialogRef.current;
+    setGuideOpen(false);
+    if (dialog?.open) dialog.close();
+    window.requestAnimationFrame(() => guideLauncherRef.current?.focus());
+  }
 
   return (
     <>
@@ -375,142 +406,237 @@ export function BlankStateClient({
           aria-labelledby="blank-state-title"
           data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
         >
-          <p className="blank-state-eyebrow">Blank State</p>
-          {view.project_name ? (
-            <p className="blank-state-project-context">
-              {view.project_context_label} · <strong>{view.project_name}</strong>
-            </p>
-          ) : null}
-          <h1 id="blank-state-title">{view.heading}</h1>
-          <p className="blank-state-situation">{view.situation}</p>
-          {view.material_note ? (
-            <p
-              className="blank-state-material-note"
-              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
-            >
-              {view.material_note}
-            </p>
-          ) : null}
-          {view.why_this_is_next.observed.length ? (
-            <details
-              className="blank-state-guide-disclosure"
-              data-guide-brief-disclosure="v0.2"
-              data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
-              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
-            >
-              <summary>Why this is next</summary>
-              <div>
-                <p>{view.why_this_is_next.observed[0]}</p>
-                {view.why_this_is_next.inferred[0] ? (
-                  <p>
-                    {view.why_this_is_next.inferred[0].statement}{" "}
-                    <span>{view.why_this_is_next.inferred[0].caveats[0]}</span>
-                  </p>
-                ) : null}
-                {view.why_this_is_next.needs_user_judgment[0] ? (
-                  <p>Waiting for your judgment: {view.why_this_is_next.needs_user_judgment[0]}</p>
-                ) : null}
-                <p>This guidance is read-only and does not make the decision for you.</p>
-              </div>
-            </details>
-          ) : null}
+          <p className="blank-state-eyebrow">Current-project continuity</p>
+          <h1 id="blank-state-title">Continuities</h1>
+          <p className="continuities-tagline">
+            Work and perspective you carry forward.
+          </p>
+          <div className="continuities-current-situation">
+            {view.project_name ? (
+              <p className="blank-state-project-context">
+                {view.project_context_label} · <strong>{view.project_name}</strong>
+              </p>
+            ) : null}
+            <p className="blank-state-region-label">Current situation</p>
+            <h2>{view.heading}</h2>
+            <p className="blank-state-situation">{view.situation}</p>
+            {view.material_note ? (
+              <p
+                className="blank-state-material-note"
+                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+              >
+                {view.material_note}
+              </p>
+            ) : null}
+            {view.why_this_is_next.observed.length ? (
+              <details
+                className="blank-state-guide-disclosure"
+                data-guide-brief-disclosure="v0.2"
+                data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
+                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+              >
+                <summary>Why this is next</summary>
+                <div>
+                  <p>{view.why_this_is_next.observed[0]}</p>
+                  {view.why_this_is_next.inferred[0] ? (
+                    <p>
+                      {view.why_this_is_next.inferred[0].statement}{" "}
+                      <span>{view.why_this_is_next.inferred[0].caveats[0]}</span>
+                    </p>
+                  ) : null}
+                  {view.why_this_is_next.needs_user_judgment[0] ? (
+                    <p>Waiting for your judgment: {view.why_this_is_next.needs_user_judgment[0]}</p>
+                  ) : null}
+                  <p>This guidance is read-only and does not make the decision for you.</p>
+                </div>
+              </details>
+            ) : null}
+          </div>
           {message ? <p className="blank-state-message" role="status">{message}</p> : null}
         </section>
 
-        <section
-          className="blank-state-continuity"
-          aria-labelledby="continuity-list-title"
-          data-blank-state-continuity-list="v0.1"
-          data-blank-state-known-attention-count={view.known_attention_count}
-          data-blank-state-attention-count-status={view.attention_count_status}
-          data-blank-state-source-omitted-attention-count={
-            view.source_omitted_attention_count ?? "unknown"
-          }
-          data-augnes-independent-surface="continuous-work"
-          data-augnes-visual-priority={
-            view.known_attention_count > 0 ||
-            (view.source_omitted_attention_count ?? 0) > 0
-              ? SEMANTIC_VISUAL_PRIORITY.risk
-              : SEMANTIC_VISUAL_PRIORITY.aiSummary
-          }
-        >
-          <div className="blank-state-continuity-heading">
-            <div>
-              <p className="blank-state-region-label">Continuous work</p>
-              <h2 id="continuity-list-title">What is happening now</h2>
-            </div>
-            <p
-              className="blank-state-attention-summary"
-              data-blank-state-attention-summary="true"
-            >
-              {view.continuity_summary}
-            </p>
-          </div>
-          <ContinuityItem
-            item={view.highlighted_item}
-            highlighted
-            source={source}
-            primaryAction={view.primary_action}
-            primaryEntry={primaryEntry}
-            busy={busy}
-            onChoose={() => void choose()}
-            onOpen={(entry) => void open(entry)}
-            onLocate={(entry) => void locate(entry)}
-            onActivate={(projectId) => void activate(projectId)}
-          />
-          {view.continuity_items.length ? (
-            <ol className="blank-state-continuity-list">
-              {view.continuity_items.map((item) => (
-                <li key={item.item_id}>
-                  <ContinuityItem
-                    item={item}
-                    highlighted={false}
-                    source={source}
-                    primaryAction={null}
-                    primaryEntry={null}
-                    busy={busy}
-                    onChoose={() => void choose()}
-                    onOpen={(entry) => void open(entry)}
-                    onLocate={(entry) => void locate(entry)}
-                    onActivate={(projectId) => void activate(projectId)}
-                  />
-                </li>
-              ))}
-            </ol>
-          ) : null}
-          {view.locally_omitted_item_count > 0 ? (
-            <p className="blank-state-meta">
-              {view.locally_omitted_item_count} additional{" "}
-              {view.locally_omitted_item_count === 1 ? "item is" : "items are"}{" "}
-              available from the existing project destinations.
-            </p>
-          ) : null}
-          {view.source_attention_destination &&
-          view.attention_count_status !== "complete" ? (
-            <p
-              className="blank-state-meta"
-              data-blank-state-source-attention-omitted="true"
-            >
-              {view.attention_count_status === "lower_bound" &&
-              view.source_omitted_attention_count !== null
-                ? `${view.source_omitted_attention_count} additional project ${
-                    view.source_omitted_attention_count === 1
-                      ? "attention item exists"
-                      : "attention items exist"
-                  } outside this view. `
-                : "Additional project attention may exist outside this view. "}
-              <a href={view.source_attention_destination.href}>
-                {view.source_attention_destination.label}
-              </a>
-            </p>
-          ) : null}
-        </section>
+        <div className="continuities-layout">
+          <div className="continuities-workstream">
+            <label className="continuities-filter">
+              <span>Filter shown continuities</span>
+              <input
+                type="search"
+                value={continuityFilter}
+                onChange={(event) => setContinuityFilter(event.target.value)}
+                placeholder="Filter shown continuities"
+                data-continuities-filter="shown-items"
+              />
+              <small>
+                Filters this bounded current-project presentation only.
+              </small>
+            </label>
 
-        <GuideBriefConversation
-          guide={guide}
-          surface="blank_state"
-          interaction={blankInteraction}
-        />
+            <section
+              className="blank-state-continuity"
+              aria-labelledby="continuity-list-title"
+              data-blank-state-continuity-list="v0.1"
+              data-blank-state-known-attention-count={view.known_attention_count}
+              data-blank-state-attention-count-status={view.attention_count_status}
+              data-blank-state-source-omitted-attention-count={
+                view.source_omitted_attention_count ?? "unknown"
+              }
+              data-augnes-independent-surface="continuous-work"
+              data-augnes-visual-priority={
+                view.known_attention_count > 0 ||
+                (view.source_omitted_attention_count ?? 0) > 0
+                  ? SEMANTIC_VISUAL_PRIORITY.risk
+                  : SEMANTIC_VISUAL_PRIORITY.aiSummary
+              }
+            >
+              <div className="blank-state-continuity-heading">
+                <div>
+                  <p className="blank-state-region-label">Continuity stream</p>
+                  <h2 id="continuity-list-title">Work carrying forward</h2>
+                </div>
+                <p
+                  className="blank-state-attention-summary"
+                  data-blank-state-attention-summary="true"
+                >
+                  {view.continuity_summary}
+                </p>
+              </div>
+              {highlightedVisible ? (
+                <ContinuityItem
+                  item={view.highlighted_item}
+                  highlighted
+                  source={source}
+                  primaryAction={view.primary_action}
+                  primaryEntry={primaryEntry}
+                  busy={busy}
+                  onChoose={() => void choose()}
+                  onOpen={(entry) => void open(entry)}
+                  onLocate={(entry) => void locate(entry)}
+                  onActivate={(projectId) => void activate(projectId)}
+                />
+              ) : null}
+              {visibleContinuityItems.length ? (
+                <ol className="blank-state-continuity-list">
+                  {visibleContinuityItems.map((item) => (
+                    <li key={item.item_id}>
+                      <ContinuityItem
+                        item={item}
+                        highlighted={false}
+                        source={source}
+                        primaryAction={null}
+                        primaryEntry={null}
+                        busy={busy}
+                        onChoose={() => void choose()}
+                        onOpen={(entry) => void open(entry)}
+                        onLocate={(entry) => void locate(entry)}
+                        onActivate={(projectId) => void activate(projectId)}
+                      />
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+              {!highlightedVisible && visibleContinuityItems.length === 0 ? (
+                <p className="continuities-filter-empty" role="status">
+                  No shown continuities match this filter.
+                </p>
+              ) : null}
+              {view.locally_omitted_item_count > 0 ? (
+                <p className="blank-state-meta">
+                  {view.locally_omitted_item_count} additional{" "}
+                  {view.locally_omitted_item_count === 1 ? "item is" : "items are"}{" "}
+                  available from the existing project destinations.
+                </p>
+              ) : null}
+              {view.source_attention_destination &&
+              view.attention_count_status !== "complete" ? (
+                <p
+                  className="blank-state-meta"
+                  data-blank-state-source-attention-omitted="true"
+                >
+                  {view.attention_count_status === "lower_bound" &&
+                  view.source_omitted_attention_count !== null
+                    ? `${view.source_omitted_attention_count} additional project ${
+                        view.source_omitted_attention_count === 1
+                          ? "attention item exists"
+                          : "attention items exist"
+                      } outside this view. `
+                    : "Additional project attention may exist outside this view. "}
+                  <a href={view.source_attention_destination.href}>
+                    {view.source_attention_destination.label}
+                  </a>
+                </p>
+              ) : null}
+            </section>
+          </div>
+
+          <aside
+            className="continuities-supporting-rail"
+            aria-label="Project context and GuideBrief"
+          >
+            <ContinuitiesTemporalContext view={temporalContext} />
+            <section
+              className="continuities-guide-launcher"
+              data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+            >
+              <p className="blank-state-region-label">Contextual support</p>
+              <h2>Ask GuideBrief</h2>
+              <p>
+                Ask about the current project or the continuity recommended
+                next. Existing sources and action owners remain in control.
+              </p>
+              <button
+                ref={guideLauncherRef}
+                type="button"
+                aria-haspopup="dialog"
+                aria-controls="continuities-guide-dialog"
+                aria-expanded={guideOpen}
+                data-continuities-guidebrief-launcher="true"
+                onClick={() => setGuideOpen(true)}
+              >
+                Open GuideBrief
+              </button>
+            </section>
+          </aside>
+        </div>
+
+        <dialog
+          ref={guideDialogRef}
+          id="continuities-guide-dialog"
+          className="continuities-guide-dialog"
+          aria-labelledby="continuities-guide-title"
+          data-continuities-guidebrief-dialog="true"
+          onCancel={(event) => {
+            event.preventDefault();
+            closeGuide();
+          }}
+          onClose={() => {
+            setGuideOpen(false);
+            window.requestAnimationFrame(() =>
+              guideLauncherRef.current?.focus()
+            );
+          }}
+        >
+          <div className="continuities-guide-dialog-heading">
+            <div>
+              <p className="blank-state-region-label">Current context</p>
+              <h2 id="continuities-guide-title">Ask GuideBrief</h2>
+            </div>
+            <button
+              type="button"
+              aria-label="Close GuideBrief"
+              data-continuities-guidebrief-close="true"
+              onClick={closeGuide}
+            >
+              Close
+            </button>
+          </div>
+          <GuideBriefConversation
+            guide={guide}
+            surface="blank_state"
+            interaction={blankInteraction}
+            initiallyExpanded
+          />
+        </dialog>
 
         {view.project_management_emphasized ? projectManagement : (
           <details className="blank-state-disclosure" data-blank-state-project-management="collapsed">
@@ -565,6 +691,92 @@ export function BlankStateClient({
         onConfirm={confirmRemoval}
       />
     </>
+  );
+}
+
+function ContinuitiesTemporalContext({
+  view,
+}: {
+  view: ContinuitiesTemporalContextV01;
+}) {
+  return (
+    <section
+      className="continuities-temporal-context"
+      aria-labelledby="continuities-temporal-title"
+      data-continuities-temporal-context={view.temporal_context_version}
+      data-continuities-temporal-projection-only={String(view.projection_only)}
+      data-continuities-temporal-semantic-authority={String(
+        view.semantic_authority_granted,
+      )}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+    >
+      <p className="blank-state-region-label">Project context</p>
+      <h2 id="continuities-temporal-title">Recent and next</h2>
+      <p className="continuities-temporal-intro">
+        Source-backed movement around the current project. No future time is
+        inferred.
+      </p>
+      <div className="continuities-temporal-track">
+        <div className="continuities-temporal-group">
+          <p className="continuities-temporal-label">Next</p>
+          {view.next_items.length ? (
+            <ol>
+              {view.next_items.map((item) => (
+                <li key={item.item_id}>
+                  <span aria-hidden="true" />
+                  <div>
+                    {item.href ? (
+                      <a href={item.href}>{item.label}</a>
+                    ) : (
+                      <strong>{item.label}</strong>
+                    )}
+                    <p>{item.reason}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="continuities-temporal-empty">
+              No next action is asserted by the current source.
+            </p>
+          )}
+        </div>
+        <div className="continuities-temporal-now">
+          <span aria-hidden="true" />
+          <div>
+            <p className="continuities-temporal-label">Now</p>
+            <strong>{view.current.label}</strong>
+            <p>{view.current.summary}</p>
+          </div>
+        </div>
+        <div className="continuities-temporal-group">
+          <p className="continuities-temporal-label">Recent</p>
+          {view.recent_items.length ? (
+            <ol>
+              {view.recent_items.map((item) => (
+                <li key={item.item_id}>
+                  <span aria-hidden="true" />
+                  <div>
+                    {item.href ? (
+                      <a href={item.href}>{item.summary}</a>
+                    ) : (
+                      <strong>{item.summary}</strong>
+                    )}
+                    <time dateTime={item.occurred_at}>
+                      {formatTimestamp(item.occurred_at)}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="continuities-temporal-empty">
+              No source-backed recent change is available in this projection.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -632,10 +844,17 @@ function ContinuityItem({
         item.requires_human_attention ? "true" : "false"
       }
       data-blank-state-attention-category={item.attention_category ?? "none"}
+      data-continuities-recommended={highlighted ? "true" : "false"}
+      data-continuities-tone={continuityToneV01(item)}
       data-delegated-work-summary={delegatedStage}
       data-current-host-run={currentRunStatus}
       data-latest-run-result={resultOutcome}
     >
+      {highlighted ? (
+        <p className="continuities-recommendation-label">
+          Recommended next
+        </p>
+      ) : null}
       <p
         className={
           item.requires_human_attention
@@ -1043,6 +1262,27 @@ function capabilityLabel(value: string): string {
     mcp: "MCP",
     scheduler: "Scheduler",
   } as Record<string, string>)[value] ?? value;
+}
+
+function continuityItemMatchesV01(
+  item: BlankStateContinuityItemV01,
+  normalizedFilter: string,
+): boolean {
+  if (!normalizedFilter) return true;
+  return [
+    item.work_name,
+    item.meaningful_state,
+    item.last_meaningful_change?.summary,
+    item.consequential_detail,
+  ].some((value) => value?.toLocaleLowerCase().includes(normalizedFilter));
+}
+
+function continuityToneV01(
+  item: BlankStateContinuityItemV01,
+): "amber" | "blue" | "quiet" {
+  if (item.requires_human_attention) return "amber";
+  if (item.source_family === "recent_change") return "quiet";
+  return "blue";
 }
 
 function formatTimestamp(value: string): string {

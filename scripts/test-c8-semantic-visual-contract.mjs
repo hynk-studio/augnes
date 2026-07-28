@@ -52,6 +52,11 @@ assert.equal(
   [...productShell.matchAll(/zone: "(?:blank-state|ai-workplane)"/gu)].length,
   2,
 );
+assert.match(
+  productShell,
+  /label: "Continuities"[\s\S]*zone: "blank-state"/u,
+);
+assert.doesNotMatch(productShell, /label: "Blank State"/u);
 assert.doesNotMatch(productShell, /Project tools|Portability|Recovery/u);
 
 const blankState = read("components/blank-state/blank-state-client.tsx");
@@ -65,13 +70,36 @@ assert.match(blankState, /data-blank-state-continuity-list/u);
 assert.match(blankState, /data-blank-state-continuity-highlighted/u);
 assert.match(blankState, /data-blank-state-human-attention/u);
 assert.match(blankState, /data-blank-state-attention-summary/u);
+assert.match(blankState, />Continuities<\/h1>/u);
+assert.match(blankState, /Work and perspective you carry forward\./u);
+assert.match(blankState, /data-continuities-filter="shown-items"/u);
+assert.match(blankState, /data-continuities-recommended=\{highlighted/u);
+assert.match(blankState, /data-continuities-temporal-context/u);
+assert.match(blankState, /data-continuities-guidebrief-launcher="true"/u);
+assert.match(blankState, /data-continuities-guidebrief-dialog="true"/u);
+assert.match(blankState, /showModal\(\)/u);
+assert.match(blankState, /initiallyExpanded/u);
+assert.doesNotMatch(blankState, /aria-selected|localStorage|PINNED|Pinned/u);
 assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
   'className="blank-state-focus"',
+  'data-continuities-filter="shown-items"',
   'data-blank-state-continuity-list="v0.1"',
-  "<GuideBriefConversation\n          guide={guide}",
+  "<ContinuitiesTemporalContext view={temporalContext} />",
+  'data-continuities-guidebrief-launcher="true"',
+  "<GuideBriefConversation\n            guide={guide}",
   "<ManagementSafety",
 ]);
+const temporalContext = read(
+  "lib/vnext/blank-state/continuities-temporal-context.ts",
+);
+assert.match(temporalContext, /projection\.next_moves/u);
+assert.match(temporalContext, /projection\.recent_activity\.items/u);
+assert.match(temporalContext, /activity\.occurred_at/u);
+assert.doesNotMatch(
+  temporalContext,
+  /Date\(|Date\.now|setTimeout|localStorage|openDatabase|fetch\(/u,
+);
 const guideConversation = read(
   "components/guide/guide-brief-conversation.tsx",
 );

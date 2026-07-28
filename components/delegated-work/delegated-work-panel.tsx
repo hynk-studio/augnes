@@ -342,7 +342,7 @@ function PrimaryDelegatedAction({
         data-augnes-primary-action="return-to-blank-state"
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
-        Return to Blank State
+        Return to Continuities
       </a>
     );
   }

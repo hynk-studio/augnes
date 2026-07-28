@@ -6,7 +6,7 @@ export default function BlankStateProjectError({ reset }: { reset: () => void })
   return (
     <ProductShell primaryZone="blank-state">
       <main className="blank-state-shell product-route-state product-route-state--danger" role="alert">
-        <p className="blank-state-eyebrow">Blank State</p>
+        <p className="blank-state-eyebrow">Continuities</p>
         <h1>This project could not be opened</h1>
         <p>No project data was changed. Retry the read or choose another project.</p>
         <div className="blank-state-error-actions">

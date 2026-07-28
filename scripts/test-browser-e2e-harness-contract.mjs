@@ -123,7 +123,7 @@ for (const state of [
 }
 assert.match(
   source,
-  /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1440\]\)[\s\S]*highlighted_item_count[\s\S]*human_attention_count[\s\S]*legacy_competing_regions_absent[\s\S]*protocol_vocabulary_absent/u,
+  /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1280, 1440\]\)[\s\S]*highlighted_item_count[\s\S]*human_attention_count[\s\S]*legacy_competing_regions_absent[\s\S]*protocol_vocabulary_absent/u,
 );
 assert.match(
   source,
@@ -131,7 +131,7 @@ assert.match(
 );
 assert.match(
   source,
-  /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1440\]\)[\s\S]*conversation_suggestion_count[\s\S]*conversation_answer_count[\s\S]*conversation_controls_minimum_size[\s\S]*conversation_no_duplicate_timeline_or_relationship[\s\S]*GuideBrief conversation reload clears ephemeral turns/u,
+  /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1280, 1440\]\)[\s\S]*conversation_suggestion_count[\s\S]*conversation_answer_count[\s\S]*conversation_controls_minimum_size[\s\S]*conversation_no_duplicate_timeline_or_relationship[\s\S]*GuideBrief conversation reload clears ephemeral turns/u,
 );
 assert.match(
   source,

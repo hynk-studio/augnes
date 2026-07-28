@@ -847,7 +847,7 @@ async function main() {
     })()`);
     assert.deepEqual(emptyProjectHome, {
       name: true,
-      heading: "What would you like to do next?",
+      heading: "Continuities",
       primary_action_count: 1,
       project_home_absent: true,
       metric_grid_absent: true,
@@ -1281,7 +1281,7 @@ async function main() {
       risk: "Only consequential attention is promoted.",
       supportingInformation: "Recent change and management remain secondary.",
       rawRecordDisclosure: "Project options remain collapsed.",
-      interactionPath: ["Open Blank State", "Continue current work"],
+      interactionPath: ["Open Continuities", "Continue current work"],
       knownLimitations: [
         "Aesthetic quality and ten-second comprehension require user review.",
       ],
@@ -11073,7 +11073,7 @@ async function validateProductShell({
   assert.equal(shell.primary_label, "Primary navigation");
   assert.deepEqual(shell.primary_links, [
     {
-      label: "Blank State",
+      label: "Continuities",
       href: "/",
       current: expectedPrimaryZone === "blank-state" ? "page" : null,
     },
@@ -11130,7 +11130,7 @@ async function validateProductShellResponsive(route) {
       primary_link_count: 2,
       primary_links_visible: true,
       project_tools_count: 0,
-      primary_labels: ["Blank State", "AI Workplane"],
+      primary_labels: ["Continuities", "AI Workplane"],
     });
     result.product_shell_responsive_results.push(metrics);
   }
@@ -11289,7 +11289,32 @@ async function closeBlankStateProjectOptions() {
   );
 }
 
+async function ensureBlankStateGuideBriefVisible() {
+  await waitForCondition(
+    `(() => {
+      const visibleConversation = Array.from(
+        document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      if (visibleConversation) return true;
+      const launcher = Array.from(
+        document.querySelectorAll('[data-continuities-guidebrief-launcher="true"]')
+      ).find((candidate) => {
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
+      if (!(launcher instanceof HTMLButtonElement)) return false;
+      launcher.click();
+      return false;
+    })()`,
+    "open the contextual GuideBrief dialog",
+  );
+}
+
 async function openGuideBriefConversationAndAnswerSuggestedQuestion() {
+  await ensureBlankStateGuideBriefVisible();
   await waitForCondition(
     `(() => {
       const conversation = Array.from(
@@ -11350,6 +11375,7 @@ async function openGuideBriefConversationAndAnswerSuggestedQuestion() {
 }
 
 async function askGuideBriefConversationQuestion(question) {
+  await ensureBlankStateGuideBriefVisible();
   await waitForCondition(
     `(() => {
       const conversation = Array.from(
@@ -11452,6 +11478,7 @@ async function askGuideBriefConversationQuestion(question) {
 }
 
 async function submitGuideBriefInteractionCommand(command) {
+  await ensureBlankStateGuideBriefVisible();
   await waitForCondition(
     `(() => {
       const conversation = Array.from(
@@ -11509,7 +11536,7 @@ async function validateBlankStateViewports(
     verifyConversationReload = false,
   } = {},
 ) {
-  for (const width of [390, 430, 1440]) {
+  for (const width of [390, 430, 1280, 1440]) {
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
       height: 1000,
@@ -11520,7 +11547,7 @@ async function validateBlankStateViewports(
     await waitForResponsiveSurface(
       '[data-blank-state="v0.1"]',
       width,
-      "Blank State",
+      "Continuities",
     );
     await openGuideBriefConversationAndAnswerSuggestedQuestion();
     const metrics = await evaluateJson(`(() => {
@@ -11546,12 +11573,16 @@ async function validateBlankStateViewports(
         const bounds = element?.getBoundingClientRect();
         return Boolean(bounds && bounds.width > 0 && bounds.height > 0 && bounds.top < window.innerHeight);
       };
+      const rendered = (element) => {
+        const bounds = element?.getBoundingClientRect();
+        return Boolean(bounds && bounds.width > 0 && bounds.height > 0);
+      };
       const raw = Array.from(home?.querySelectorAll('[data-augnes-visual-priority="raw-record"]') ?? [])
         .find(visible);
       const primaryRect = primaryAction?.getBoundingClientRect();
       const controls = Array.from(
         continuity?.querySelectorAll('a, button, summary') ?? [],
-      ).filter(visible);
+      ).filter(rendered);
       const conversation = home?.querySelector(
         '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
       );
@@ -11652,16 +11683,50 @@ async function validateBlankStateViewports(
         internal_id_input_absent:
           Array.from(
             home?.querySelectorAll(
-              'input[type="text"], textarea, [contenteditable="true"]'
+              'input[type="text"], input[type="search"], textarea, [contenteditable="true"]'
             ) ?? [],
           ).every(
             (control) =>
               control instanceof HTMLInputElement &&
-              control.name === 'guidebrief-question' &&
+              (
+                control.name === 'guidebrief-question' ||
+                control.getAttribute('data-continuities-filter') === 'shown-items'
+              ) &&
               !/(?:^|[-_])(id|fingerprint|nonce|ttl)(?:$|[-_])/i.test(
                 [control.name, control.id, control.placeholder].join(' ')
               ),
           ),
+        continuities_title_exact:
+          heading?.textContent?.trim() === 'Continuities',
+        continuities_tagline_exact:
+          home?.querySelector('.continuities-tagline')?.textContent?.trim() ===
+            'Work and perspective you carry forward.',
+        shown_continuities_filter_present:
+          home?.querySelector(
+            'input[type="search"][data-continuities-filter="shown-items"]'
+          ) !== null,
+        temporal_context_present:
+          home?.querySelector(
+            '[data-continuities-temporal-context="continuities_temporal_context.v0.1"]'
+          ) !== null,
+        highlighted_is_recommendation_not_selection:
+          highlighted[0]?.getAttribute('data-continuities-recommended') ===
+            'true' &&
+          highlighted[0]?.hasAttribute('aria-selected') === false,
+        guide_dialog_modal:
+          (() => {
+            const dialog = home?.querySelector(
+              'dialog[data-continuities-guidebrief-dialog="true"]'
+            );
+            return dialog instanceof HTMLDialogElement &&
+              dialog.open &&
+              dialog.matches(':modal') &&
+              dialog.contains(document.activeElement);
+          })(),
+        guide_launcher_expanded:
+          home?.querySelector(
+            '[data-continuities-guidebrief-launcher="true"]'
+          )?.getAttribute('aria-expanded') === 'true',
         conversation_present:
           conversation?.getAttribute('data-guidebrief-conversation-surface') ===
             'blank_state',
@@ -11702,7 +11767,7 @@ async function validateBlankStateViewports(
         conversation_controls_minimum_size:
           conversationControls.every((control) => {
             const bounds = control.getBoundingClientRect();
-            return bounds.width >= 40 && bounds.height >= 40;
+            return bounds.width >= 44 && bounds.height >= 44;
           }),
         conversation_overlapping_control_count: conversationOverlaps,
         conversation_inside_viewport:
@@ -11741,6 +11806,7 @@ async function validateBlankStateViewports(
           !raw || !primaryRect || raw.getBoundingClientRect().top >= primaryRect.top
       };
     })()`);
+    result.viewport_results.push({ ...metrics, pc1_state: state });
     assert.equal(metrics.width, width);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.home_horizontal_overflow, false);
@@ -11794,6 +11860,21 @@ async function validateBlankStateViewports(
     assert.equal(metrics.legacy_competing_regions_absent, true);
     assert.equal(metrics.management_secondary, true);
     assert.equal(metrics.internal_id_input_absent, true);
+    assert.equal(metrics.continuities_title_exact, true, JSON.stringify(metrics));
+    assert.equal(metrics.continuities_tagline_exact, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.shown_continuities_filter_present,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.temporal_context_present, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.highlighted_is_recommendation_not_selection,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(metrics.guide_dialog_modal, true, JSON.stringify(metrics));
+    assert.equal(metrics.guide_launcher_expanded, true, JSON.stringify(metrics));
     assert.equal(metrics.conversation_present, true, JSON.stringify(metrics));
     assert.equal(metrics.conversation_open, true, JSON.stringify(metrics));
     assert.equal(metrics.conversation_secondary, true, JSON.stringify(metrics));
@@ -11859,7 +11940,6 @@ async function validateBlankStateViewports(
     assert.equal(metrics.state_badge_count <= 1, true);
     assert.equal(metrics.raw_record_after_primary, true);
     assert.equal(metrics.project_context_visible, projectContextRequired);
-    result.viewport_results.push({ ...metrics, pc1_state: state });
   }
   if (verifyConversationReload) {
     const beforeReload = await evaluateJson(`(() => {
@@ -11946,8 +12026,25 @@ async function validateBlankStateViewports(
     const details = conversation?.querySelector(':scope > details');
     if (!(details instanceof HTMLDetailsElement)) return false;
     details.open = false;
+    const close = document.querySelector(
+      '[data-continuities-guidebrief-close="true"]'
+    );
+    if (close instanceof HTMLButtonElement) close.click();
     return true;
   })()`);
+  await waitForCondition(
+    `(() => {
+      const dialog = document.querySelector(
+        'dialog[data-continuities-guidebrief-dialog="true"]'
+      );
+      if (!(dialog instanceof HTMLDialogElement)) return true;
+      const launcher = document.querySelector(
+        '[data-continuities-guidebrief-launcher="true"]'
+      );
+      return !dialog.open && document.activeElement === launcher;
+    })()`,
+    "GuideBrief dialog closes and returns focus",
+  );
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 1000,

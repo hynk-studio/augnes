@@ -160,7 +160,7 @@ export default function PortabilityPage() {
         data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.portability}
       >
         <a className={styles.returnLink} href="/">
-          Back to Blank State
+          Back to Continuities
         </a>
         <header
           className={styles.hero}
@@ -320,7 +320,7 @@ export default function PortabilityPage() {
               onImport={(file) => void importProject(file)}
             />
             <a className={styles.secondaryLink} href="/#project-management">
-              Back to Blank State to choose a folder
+              Back to Continuities to choose a folder
             </a>
           </section>
         )}

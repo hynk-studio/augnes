@@ -1,5 +1,6 @@
 import { BlankStateClient } from "@/components/blank-state/blank-state-client";
 import { ProductShell } from "@/components/product-shell";
+import { buildContinuitiesTemporalContextV01 } from "@/lib/vnext/blank-state/continuities-temporal-context";
 import { buildBlankStateViewV01 } from "@/lib/vnext/blank-state/blank-state-view";
 import { buildManagementSafetyViewV01 } from "@/lib/vnext/management-safety/management-safety-view";
 import type { BlankStateSourceV01 } from "@/types/vnext/blank-state";
@@ -13,6 +14,10 @@ export function BlankStateSurface({
   guide: ProjectGuideBriefV02;
 }) {
   const view = buildBlankStateViewV01(guide);
+  const temporalContext = buildContinuitiesTemporalContextV01({
+    source,
+    view,
+  });
   const managementSafety = buildManagementSafetyViewV01({
     project_context: source.projection === null
       ? "no_active_project"
@@ -31,6 +36,7 @@ export function BlankStateSurface({
         source={source}
         view={view}
         guide={guide}
+        temporalContext={temporalContext}
         managementSafety={managementSafety}
       />
     </ProductShell>

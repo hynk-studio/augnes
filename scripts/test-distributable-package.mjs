@@ -1315,7 +1315,7 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     await onboardDisposableProject(ready.effective_url, scenario);
     const blankState = await fetchText(`${ready.effective_url}/`);
     assert.equal(blankState.status, 200);
-    assert.match(blankState.body, /Blank State/);
+    assert.match(blankState.body, /Continuities/);
     assert.match(blankState.body, /data-primary-product-zone="blank-state"/);
     assert.match(blankState.body, /No local OpenAI credential is configured/);
     assert.match(blankState.body, /No trusted local Codex or native-host readiness status is available/);
@@ -1353,7 +1353,7 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assertDistributionMetadata(current, manifest);
   const homeAfterRestart = await fetchText(`${current.effective_url}/`);
   assert.equal(homeAfterRestart.status, 200);
-  assert.match(homeAfterRestart.body, /Blank State/);
+  assert.match(homeAfterRestart.body, /Continuities/);
   assert.match(homeAfterRestart.body, /data-primary-product-zone="blank-state"/);
   const currentLocalPaths = packagedLocalPaths(
     root,
@@ -3917,7 +3917,7 @@ function assertPackagedProjectSurface(body, expectedSurface) {
     return;
   }
   assert.equal(expectedSurface, "blank-state");
-  assert.match(body, /Blank State/);
+  assert.match(body, /Continuities/);
   assert.match(body, /data-primary-product-zone="blank-state"/);
 }
 

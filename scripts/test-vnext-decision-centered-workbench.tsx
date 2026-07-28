@@ -422,7 +422,7 @@ try {
     continuity,
   });
   assert.equal(idle.state, "no_current_decision");
-  assert.equal(idle.primary_action?.label, "Return to Blank State");
+  assert.equal(idle.primary_action?.label, "Return to Continuities");
 
   const delegatedApprovalHome = buildAIWorkplaneHomeViewV01({
     access: "authenticated",
