@@ -11,6 +11,14 @@
   background: var(--panel);
 }
 
+.embedded {
+  min-width: 0;
+}
+
+.embedded .body {
+  padding: 0;
+}
+
 .disclosure > summary {
   min-height: 44px;
   padding: var(--space-2) var(--space-3);

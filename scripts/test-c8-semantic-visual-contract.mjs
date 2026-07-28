@@ -76,9 +76,15 @@ assert.match(blankState, /data-continuities-filter="shown-items"/u);
 assert.match(blankState, /data-continuities-recommended=\{highlighted/u);
 assert.match(blankState, /data-continuities-temporal-context/u);
 assert.match(blankState, /data-continuities-guidebrief-launcher="true"/u);
+assert.match(blankState, /aria-label="Open GuideBrief"/u);
+assert.match(blankState, /aria-label=\{busy \? "Working…" : action\.label\}/u);
 assert.match(blankState, /data-continuities-guidebrief-dialog="true"/u);
 assert.match(blankState, /showModal\(\)/u);
-assert.match(blankState, /initiallyExpanded/u);
+assert.match(blankState, /event\.key !== "Escape"/u);
+assert.match(blankState, /presentation="embedded"/u);
+assert.match(blankState, /data-continuities-filter-chip="all"/u);
+assert.match(blankState, /data-continuities-filter-chip="attention"/u);
+assert.match(blankState, /<details className="continuities-item-details">/u);
 assert.doesNotMatch(blankState, /aria-selected|localStorage|PINNED|Pinned/u);
 assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
@@ -106,12 +112,30 @@ const guideConversation = read(
 assert.match(guideConversation, /<summary>Ask about this work<\/summary>/u);
 assert.match(
   guideConversation,
+  /presentation\?: "disclosure" \| "embedded"/u,
+);
+assert.match(guideConversation, /presentation === "embedded"/u);
+assert.match(
+  guideConversation,
   /data-augnes-visual-priority=\{SEMANTIC_VISUAL_PRIORITY\.supporting\}/u,
 );
 assert.doesNotMatch(
   guideConversation,
   /data-augnes-primary-action|data-augnes-independent-surface/u,
 );
+const continuitiesCss = read("app/continuities.css");
+assert.match(
+  continuitiesCss,
+  /\.product-shell\[data-primary-product-zone="blank-state"\]/u,
+);
+assert.match(continuitiesCss, /grid-template-columns: 244px minmax\(0, 1fr\)/u);
+assert.match(continuitiesCss, /width: min\(620px, calc\(100% - 32px\)\)/u);
+assert.match(continuitiesCss, /max-height: 82dvh/u);
+assert.match(
+  continuitiesCss,
+  /\.continuities-item-details:not\(\[open\]\)[\s\S]*display:\s*none/u,
+);
+assert.match(continuitiesCss, /prefers-reduced-motion: reduce/u);
 const guidePublicText = read(
   "lib/vnext/guide-brief/public-guide-text.ts",
 );

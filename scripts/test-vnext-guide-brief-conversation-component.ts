@@ -46,6 +46,7 @@ assert.match(
   /scopeGuideBriefConversationContextV01\(\s*context,\s*scopeKey,\s*\)/,
 );
 assert.match(component, /data-guidebrief-conversation-hydrated=\{String\(hydrated\)\}/);
+assert.match(component, /data-guidebrief-conversation-presentation=\{presentation\}/);
 assert.match(component, /setContext\(createGuideBriefConversationContextV01\(scopeKey\)\)/);
 assert.match(component, /Guidance and bounded Browser handoffs only\./);
 assert.match(

@@ -64,6 +64,9 @@ export function BlankStateClient({
   const [pendingRemoval, setPendingRemoval] = useState<RecentProjectEntryV01 | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [continuityFilter, setContinuityFilter] = useState("");
+  const [continuityMode, setContinuityMode] = useState<"all" | "attention">(
+    "all",
+  );
   const [guideOpen, setGuideOpen] = useState(false);
   const guideDialogRef = useRef<HTMLDialogElement>(null);
   const guideLauncherRef = useRef<HTMLButtonElement>(null);
@@ -373,12 +376,19 @@ export function BlankStateClient({
     />
   );
   const normalizedContinuityFilter = continuityFilter.trim().toLocaleLowerCase();
-  const highlightedVisible = continuityItemMatchesV01(
+  const shownContinuityItems = [
     view.highlighted_item,
-    normalizedContinuityFilter,
-  );
+    ...view.continuity_items,
+  ];
+  const attentionContinuityCount = shownContinuityItems.filter(
+    (item) => item.requires_human_attention,
+  ).length;
+  const itemMatchesCurrentFilters = (item: BlankStateContinuityItemV01) =>
+    (continuityMode === "all" || item.requires_human_attention) &&
+    continuityItemMatchesV01(item, normalizedContinuityFilter);
+  const highlightedVisible = itemMatchesCurrentFilters(view.highlighted_item);
   const visibleContinuityItems = view.continuity_items.filter((item) =>
-    continuityItemMatchesV01(item, normalizedContinuityFilter)
+    itemMatchesCurrentFilters(item)
   );
 
   function closeGuide() {
@@ -401,75 +411,119 @@ export function BlankStateClient({
         data-blank-state-project-management-hydrated={hydrated ? "true" : "false"}
         data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.blankState}
       >
-        <section
-          className="blank-state-focus"
-          aria-labelledby="blank-state-title"
-          data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
-        >
-          <p className="blank-state-eyebrow">Current-project continuity</p>
-          <h1 id="blank-state-title">Continuities</h1>
-          <p className="continuities-tagline">
-            Work and perspective you carry forward.
-          </p>
-          <div className="continuities-current-situation">
-            {view.project_name ? (
-              <p className="blank-state-project-context">
-                {view.project_context_label} · <strong>{view.project_name}</strong>
-              </p>
-            ) : null}
-            <p className="blank-state-region-label">Current situation</p>
-            <h2>{view.heading}</h2>
-            <p className="blank-state-situation">{view.situation}</p>
-            {view.material_note ? (
-              <p
-                className="blank-state-material-note"
-                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
-              >
-                {view.material_note}
-              </p>
-            ) : null}
-            {view.why_this_is_next.observed.length ? (
-              <details
-                className="blank-state-guide-disclosure"
-                data-guide-brief-disclosure="v0.2"
-                data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
-                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
-              >
-                <summary>Why this is next</summary>
-                <div>
-                  <p>{view.why_this_is_next.observed[0]}</p>
-                  {view.why_this_is_next.inferred[0] ? (
-                    <p>
-                      {view.why_this_is_next.inferred[0].statement}{" "}
-                      <span>{view.why_this_is_next.inferred[0].caveats[0]}</span>
-                    </p>
-                  ) : null}
-                  {view.why_this_is_next.needs_user_judgment[0] ? (
-                    <p>Waiting for your judgment: {view.why_this_is_next.needs_user_judgment[0]}</p>
-                  ) : null}
-                  <p>This guidance is read-only and does not make the decision for you.</p>
-                </div>
-              </details>
-            ) : null}
-          </div>
-          {message ? <p className="blank-state-message" role="status">{message}</p> : null}
-        </section>
-
         <div className="continuities-layout">
           <div className="continuities-workstream">
-            <label className="continuities-filter">
-              <span>Filter shown continuities</span>
-              <input
-                type="search"
-                value={continuityFilter}
-                onChange={(event) => setContinuityFilter(event.target.value)}
-                placeholder="Filter shown continuities"
-                data-continuities-filter="shown-items"
-              />
-              <small>
-                Filters this bounded current-project presentation only.
-              </small>
-            </label>
+            <section
+              className="blank-state-focus"
+              aria-labelledby="blank-state-title"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
+            >
+              <p className="blank-state-eyebrow">Current-project continuity</p>
+              <h1 id="blank-state-title">Continuities</h1>
+              <p className="continuities-tagline">
+                Work and perspective you carry forward.
+              </p>
+              <div className="continuities-current-situation">
+                {view.project_name ? (
+                  <p className="blank-state-project-context">
+                    {view.project_context_label} ·{" "}
+                    <strong>{view.project_name}</strong>
+                  </p>
+                ) : null}
+                <div className="continuities-current-situation-copy">
+                  <p className="blank-state-region-label">Current situation</p>
+                  <h2>{view.heading}</h2>
+                  <p className="blank-state-situation">{view.situation}</p>
+                </div>
+                {view.material_note ? (
+                  <p
+                    className="blank-state-material-note"
+                    data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+                  >
+                    {view.material_note}
+                  </p>
+                ) : null}
+                {view.why_this_is_next.observed.length ? (
+                  <details
+                    className="blank-state-guide-disclosure"
+                    data-guide-brief-disclosure="v0.2"
+                    data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
+                    data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+                  >
+                    <summary>Why this is next</summary>
+                    <div>
+                      <p>{view.why_this_is_next.observed[0]}</p>
+                      {view.why_this_is_next.inferred[0] ? (
+                        <p>
+                          {view.why_this_is_next.inferred[0].statement}{" "}
+                          <span>
+                            {view.why_this_is_next.inferred[0].caveats[0]}
+                          </span>
+                        </p>
+                      ) : null}
+                      {view.why_this_is_next.needs_user_judgment[0] ? (
+                        <p>
+                          Waiting for your judgment:{" "}
+                          {view.why_this_is_next.needs_user_judgment[0]}
+                        </p>
+                      ) : null}
+                      <p>
+                        This guidance is read-only and does not make the
+                        decision for you.
+                      </p>
+                    </div>
+                  </details>
+                ) : null}
+              </div>
+              {message ? (
+                <p className="blank-state-message" role="status">
+                  {message}
+                </p>
+              ) : null}
+            </section>
+
+            <div className="continuities-filter-controls">
+              <label className="continuities-filter">
+                <span className="continuities-visually-hidden">
+                  Search shown continuities
+                </span>
+                <input
+                  type="search"
+                  value={continuityFilter}
+                  onChange={(event) => setContinuityFilter(event.target.value)}
+                  placeholder="Search shown continuities"
+                  aria-describedby="continuities-filter-boundary"
+                  data-continuities-filter="shown-items"
+                />
+                <small
+                  id="continuities-filter-boundary"
+                  className="continuities-visually-hidden"
+                >
+                  Searches this bounded current-project presentation only.
+                </small>
+              </label>
+              <div
+                className="continuities-filter-chips"
+                aria-label="Filter shown continuities"
+              >
+                <button
+                  type="button"
+                  aria-pressed={continuityMode === "all"}
+                  data-continuities-filter-chip="all"
+                  onClick={() => setContinuityMode("all")}
+                >
+                  All <span>{shownContinuityItems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={continuityMode === "attention"}
+                  data-continuities-filter-chip="attention"
+                  onClick={() => setContinuityMode("attention")}
+                >
+                  Attention <span>{attentionContinuityCount}</span>
+                </button>
+              </div>
+            </div>
 
             <section
               className="blank-state-continuity"
@@ -591,9 +645,18 @@ export function BlankStateClient({
                 aria-controls="continuities-guide-dialog"
                 aria-expanded={guideOpen}
                 data-continuities-guidebrief-launcher="true"
+                aria-label="Open GuideBrief"
                 onClick={() => setGuideOpen(true)}
               >
-                Open GuideBrief
+                <span className="continuities-action-label-full">
+                  Open GuideBrief
+                </span>
+                <span
+                  className="continuities-action-label-compact"
+                  aria-hidden="true"
+                >
+                  GuideBrief
+                </span>
               </button>
             </section>
           </aside>
@@ -606,6 +669,11 @@ export function BlankStateClient({
           aria-labelledby="continuities-guide-title"
           data-continuities-guidebrief-dialog="true"
           onCancel={(event) => {
+            event.preventDefault();
+            closeGuide();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
             event.preventDefault();
             closeGuide();
           }}
@@ -634,7 +702,7 @@ export function BlankStateClient({
             guide={guide}
             surface="blank_state"
             interaction={blankInteraction}
-            initiallyExpanded
+            presentation="embedded"
           />
         </dialog>
 
@@ -855,73 +923,137 @@ function ContinuityItem({
           Recommended next
         </p>
       ) : null}
-      <p
-        className={
-          item.requires_human_attention
-            ? "blank-state-attention-label blank-state-attention-label--required"
-            : "blank-state-attention-label"
-        }
-      >
-        {attentionLabel}
-      </p>
-      <h3>{item.work_name}</h3>
-      <p className="blank-state-continuity-state">{item.meaningful_state}</p>
-      {item.last_meaningful_change ? (
-        <p className="blank-state-continuity-change">
-          <span>Meaningfully changed</span>{" "}
-          {item.last_meaningful_change.summary}{" "}
-          <time dateTime={item.last_meaningful_change.occurred_at}>
-            {formatTimestamp(item.last_meaningful_change.occurred_at)}
-          </time>
-        </p>
-      ) : null}
-      {item.consequential_detail ? (
-        <p className="blank-state-continuity-detail">
-          {item.consequential_detail}
-        </p>
-      ) : null}
-      {item.verification ? (
-        <p className="blank-state-meta" data-blank-state-verification="true">
-          Verification: {item.verification.passed} passed,{" "}
-          {item.verification.failed} failed, {item.verification.skipped} skipped.
-        </p>
-      ) : null}
-      <div className="blank-state-continuity-actions">
-        {highlighted && primaryAction ? (
-          <PrimaryAction
-            action={primaryAction}
-            item={item}
-            busy={busy}
-            recentEntry={primaryEntry}
-            onChoose={onChoose}
-            onOpen={onOpen}
-            onLocate={onLocate}
-            onActivate={onActivate}
-          />
-        ) : null}
-        {secondaryAction ? (
-          <a
-            className="blank-state-secondary-link"
-            href={secondaryAction.href}
-            data-blank-state-delegated-work-link={
-              item.source_family === "delegated_work" ? "true" : undefined
+      <div className="continuities-item-row">
+        <span className="continuities-item-indicator" aria-hidden="true" />
+        <div className="continuities-item-copy">
+          <p
+            className={
+              item.requires_human_attention
+                ? "blank-state-attention-label blank-state-attention-label--required"
+                : "blank-state-attention-label"
             }
-            data-review-result-link={isResultItem ? "true" : undefined}
           >
-            {secondaryAction.label}
-          </a>
-        ) : null}
-        {item.exact_detail_href &&
-        item.exact_detail_href !== secondaryAction?.href ? (
-          <a
-            className="blank-state-exact-detail-link"
-            href={item.exact_detail_href}
-            data-blank-state-exact-detail="true"
-          >
-            View exact details
-          </a>
-        ) : null}
+            {attentionLabel}
+          </p>
+          <h3>{item.work_name}</h3>
+          <p className="blank-state-continuity-state">
+            {item.meaningful_state}
+          </p>
+          {item.last_meaningful_change ? (
+            <p className="continuities-last-change-summary">
+              {item.last_meaningful_change.summary}
+            </p>
+          ) : null}
+        </div>
+        <div className="continuities-item-entry">
+          {item.last_meaningful_change ? (
+            <time dateTime={item.last_meaningful_change.occurred_at}>
+              {formatTimestamp(item.last_meaningful_change.occurred_at)}
+            </time>
+          ) : null}
+          {highlighted && primaryAction ? (
+            <div className="blank-state-continuity-actions">
+              <PrimaryAction
+                action={primaryAction}
+                item={item}
+                busy={busy}
+                recentEntry={primaryEntry}
+                onChoose={onChoose}
+                onOpen={onOpen}
+                onLocate={onLocate}
+                onActivate={onActivate}
+              />
+            </div>
+          ) : secondaryAction ? (
+            <a
+              className="blank-state-secondary-link"
+              href={secondaryAction.href}
+              aria-label={secondaryAction.label}
+              data-blank-state-delegated-work-link={
+                item.source_family === "delegated_work" ? "true" : undefined
+              }
+              data-review-result-link={isResultItem ? "true" : undefined}
+            >
+              <span className="continuities-action-label-full">
+                {secondaryAction.label}
+              </span>
+              <span
+                className="continuities-action-label-compact"
+                aria-hidden="true"
+              >
+                Open
+              </span>
+            </a>
+          ) : null}
+        </div>
       </div>
+      {item.consequential_detail ||
+      item.last_meaningful_change ||
+      item.verification ||
+      (highlighted && secondaryAction) ||
+      (item.exact_detail_href &&
+        item.exact_detail_href !== secondaryAction?.href) ? (
+        <details className="continuities-item-details">
+          <summary>More context</summary>
+          <div>
+            {item.consequential_detail ? (
+              <p className="blank-state-continuity-detail">
+                {item.consequential_detail}
+              </p>
+            ) : null}
+            {item.last_meaningful_change ? (
+              <p className="blank-state-continuity-change">
+                <span>Meaningfully changed</span>{" "}
+                {item.last_meaningful_change.summary}{" "}
+                <time dateTime={item.last_meaningful_change.occurred_at}>
+                  {formatTimestamp(item.last_meaningful_change.occurred_at)}
+                </time>
+              </p>
+            ) : null}
+            {item.verification ? (
+              <p
+                className="blank-state-meta"
+                data-blank-state-verification="true"
+              >
+                Verification: {item.verification.passed} passed,{" "}
+                {item.verification.failed} failed,{" "}
+                {item.verification.skipped} skipped.
+              </p>
+            ) : null}
+            {highlighted && secondaryAction ? (
+              <a
+                className="blank-state-secondary-link"
+                href={secondaryAction.href}
+                aria-label={secondaryAction.label}
+                data-blank-state-delegated-work-link={
+                  item.source_family === "delegated_work" ? "true" : undefined
+                }
+                data-review-result-link={isResultItem ? "true" : undefined}
+              >
+                <span className="continuities-action-label-full">
+                  {secondaryAction.label}
+                </span>
+                <span
+                  className="continuities-action-label-compact"
+                  aria-hidden="true"
+                >
+                  Open
+                </span>
+              </a>
+            ) : null}
+            {item.exact_detail_href &&
+            item.exact_detail_href !== secondaryAction?.href ? (
+              <a
+                className="blank-state-exact-detail-link"
+                href={item.exact_detail_href}
+                data-blank-state-exact-detail="true"
+              >
+                View exact details
+              </a>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
     </article>
   );
 }
@@ -987,6 +1119,7 @@ function PrimaryAction({
       <a
         className="blank-state-primary-action"
         href={action.href}
+        aria-label={action.label}
         data-blank-state-primary-action={action.kind}
         data-workbench-entry-state={action.entry_state ?? undefined}
         data-blank-state-delegated-work-link={
@@ -998,7 +1131,13 @@ function PrimaryAction({
         data-augnes-primary-action={action.kind}
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
-        {action.label}
+        <span className="continuities-action-label-full">{action.label}</span>
+        <span
+          className="continuities-action-label-compact"
+          aria-hidden="true"
+        >
+          Open
+        </span>
       </a>
     );
   }
@@ -1015,13 +1154,32 @@ function PrimaryAction({
     <button
       type="button"
       className="blank-state-primary-action"
+      aria-label={busy ? "Working…" : action.label}
       data-blank-state-primary-action={action.kind}
       data-augnes-primary-action={action.kind}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       onClick={callback}
       disabled={busy || (action.kind !== "choose_folder" && action.kind !== "make_active" && !recentEntry)}
     >
-      {busy ? "Working…" : action.label}
+      {busy ? (
+        "Working…"
+      ) : (
+        <>
+          <span className="continuities-action-label-full">{action.label}</span>
+          <span
+            className="continuities-action-label-compact"
+            aria-hidden="true"
+          >
+            {action.kind === "choose_folder"
+              ? "Choose"
+              : action.kind === "locate_folder"
+                ? "Locate"
+                : action.kind === "make_active"
+                  ? "Activate"
+                  : "Open"}
+          </span>
+        </>
+      )}
     </button>
   );
 }

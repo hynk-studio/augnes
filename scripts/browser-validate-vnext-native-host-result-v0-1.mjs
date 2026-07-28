@@ -1254,11 +1254,11 @@ async function main() {
       "hydrated non-active first-project controls before activation",
     );
     await waitForCondition(
-      `Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Make active' && !button.disabled)`,
+      `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some((button) => button.getBoundingClientRect().width > 0 && !button.disabled)`,
       "explicit first-project activation ready",
     );
     const activationResponseStart = responses.length;
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Make active'); if (!(button instanceof HTMLButtonElement) || button.disabled) return false; button.click(); return true; })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).find((candidate) => candidate.getBoundingClientRect().width > 0); if (!(button instanceof HTMLButtonElement) || button.disabled) return false; button.click(); return true; })()`), true);
     await waitForHostCondition(
       () => responses.slice(activationResponseStart).some(
         (entry) => entry.path === "/api/vnext/projects" && entry.type === "Fetch",
@@ -1780,9 +1780,9 @@ async function main() {
     ) {
       await waitForCondition(
         `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 &&
-          Array.from(document.querySelectorAll('button')).some(
-          (candidate) => candidate.textContent?.trim() === 'Make active' &&
-            candidate instanceof HTMLButtonElement &&
+          Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some(
+          (candidate) => candidate instanceof HTMLButtonElement &&
+            candidate.getBoundingClientRect().width > 0 &&
             !candidate.disabled
         )`,
         "hydrated strategic source project activation control",
@@ -1790,8 +1790,10 @@ async function main() {
       const activationResponseStart = responses.length;
       assert.equal(
         await evaluateBoolean(`(() => {
-          const button = Array.from(document.querySelectorAll('button')).find(
-            (candidate) => candidate.textContent?.trim() === 'Make active'
+          const button = Array.from(
+            document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')
+          ).find(
+            (candidate) => candidate.getBoundingClientRect().width > 0
           );
           if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
           button.click();
@@ -2369,11 +2371,14 @@ async function main() {
       const activationResponseStart = responses.length;
       assert.equal(
         await evaluateBoolean(`(() => {
-          const button = Array.from(document.querySelectorAll('button')).find(
-            (candidate) => candidate.textContent?.trim() === 'Make active'
+          const button = Array.from(
+            document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')
+          ).find(
+            (candidate) => candidate.getBoundingClientRect().width > 0
           );
-          button?.click();
-          return Boolean(button);
+          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+          button.click();
+          return true;
         })()`),
         true,
       );
@@ -11324,11 +11329,16 @@ async function openGuideBriefConversationAndAnswerSuggestedQuestion() {
         return bounds.width > 0 && bounds.height > 0;
       });
       const details = conversation?.querySelector(':scope > details');
-      if (!(details instanceof HTMLDetailsElement) ||
+      const presentation = conversation?.getAttribute(
+        'data-guidebrief-conversation-presentation'
+      );
+      if (
+          (!(details instanceof HTMLDetailsElement) &&
+            presentation !== 'embedded') ||
           conversation?.getAttribute(
             'data-guidebrief-conversation-hydrated'
           ) !== 'true') return false;
-      details.open = true;
+      if (details instanceof HTMLDetailsElement) details.open = true;
       if (conversation?.getAttribute('data-guidebrief-conversation-active-answer') !== 'true') {
         const suggestion = conversation.querySelector(
           '[aria-label="Questions supported by current sources"] button'
@@ -11385,15 +11395,20 @@ async function askGuideBriefConversationQuestion(question) {
         return bounds.width > 0 && bounds.height > 0;
       });
       const details = conversation?.querySelector(':scope > details');
+      const presentation = conversation?.getAttribute(
+        'data-guidebrief-conversation-presentation'
+      );
       const input = conversation?.querySelector('input[name="guidebrief-question"]');
       const submit = conversation?.querySelector('form button[type="submit"]');
-      if (!(details instanceof HTMLDetailsElement) ||
+      if (
+          (!(details instanceof HTMLDetailsElement) &&
+            presentation !== 'embedded') ||
           !(input instanceof HTMLInputElement) ||
           !(submit instanceof HTMLButtonElement) ||
           conversation?.getAttribute(
             'data-guidebrief-conversation-hydrated'
           ) !== 'true') return false;
-      details.open = true;
+      if (details instanceof HTMLDetailsElement) details.open = true;
       const setter = Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         'value'
@@ -11488,14 +11503,19 @@ async function submitGuideBriefInteractionCommand(command) {
         return bounds.width > 0 && bounds.height > 0;
       });
       const details = conversation?.querySelector(':scope > details');
+      const presentation = conversation?.getAttribute(
+        'data-guidebrief-conversation-presentation'
+      );
       const input = conversation?.querySelector('input[name="guidebrief-question"]');
-      if (!(details instanceof HTMLDetailsElement) ||
+      if (
+          (!(details instanceof HTMLDetailsElement) &&
+            presentation !== 'embedded') ||
           !(input instanceof HTMLInputElement) ||
           conversation?.getAttribute('data-guidebrief-conversation-hydrated') !== 'true' ||
           conversation?.getAttribute('data-guidebrief-interaction') !== 'bounded-browser-v0.1') {
         return false;
       }
-      details.open = true;
+      if (details instanceof HTMLDetailsElement) details.open = true;
       const setter = Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         'value'
@@ -11731,8 +11751,13 @@ async function validateBlankStateViewports(
           conversation?.getAttribute('data-guidebrief-conversation-surface') ===
             'blank_state',
         conversation_open:
-          conversationDisclosure instanceof HTMLDetailsElement &&
-          conversationDisclosure.open,
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-presentation'
+          ) === 'embedded' ||
+          (
+            conversationDisclosure instanceof HTMLDetailsElement &&
+            conversationDisclosure.open
+          ),
         conversation_secondary:
           conversation?.querySelector('[data-augnes-primary-action]') === null &&
           conversation?.querySelector('[data-blank-state-primary-action]') === null &&
@@ -12024,8 +12049,14 @@ async function validateBlankStateViewports(
       return bounds.width > 0 && bounds.height > 0;
     });
     const details = conversation?.querySelector(':scope > details');
-    if (!(details instanceof HTMLDetailsElement)) return false;
-    details.open = false;
+    const presentation = conversation?.getAttribute(
+      'data-guidebrief-conversation-presentation'
+    );
+    if (
+      !(details instanceof HTMLDetailsElement) &&
+      presentation !== 'embedded'
+    ) return false;
+    if (details instanceof HTMLDetailsElement) details.open = false;
     const close = document.querySelector(
       '[data-continuities-guidebrief-close="true"]'
     );
@@ -12456,8 +12487,13 @@ async function validateSemanticReviewViewports() {
           conversation?.getAttribute('data-guidebrief-conversation-surface') ===
             'ai_workplane',
         conversation_open:
-          conversationDisclosure instanceof HTMLDetailsElement &&
-          conversationDisclosure.open,
+          conversation?.getAttribute(
+            'data-guidebrief-conversation-presentation'
+          ) === 'embedded' ||
+          (
+            conversationDisclosure instanceof HTMLDetailsElement &&
+            conversationDisclosure.open
+          ),
         conversation_secondary:
           conversation?.querySelector('[data-ai-workplane-primary-action]') === null &&
           conversation?.querySelector('[data-augnes-primary-action]') === null &&
