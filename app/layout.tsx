@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./continuities.css";
 
 export const metadata: Metadata = {
   title: "Augnes",

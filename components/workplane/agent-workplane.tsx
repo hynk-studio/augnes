@@ -43,7 +43,7 @@ export function AgentWorkplane({ guide }: { guide?: GuideBriefAIWorkplaneProject
         </p>
         <h1 style={{ margin: 0 }}>Review project-scoped native-host results</h1>
         <p style={{ margin: 0, lineHeight: 1.6 }}>
-          Start from the current Blank State. Augnes admits the exact persisted
+          Start from the current Continuities view. Augnes admits the exact persisted
           task context, supervises the native-host lifecycle, and returns one
           structured result automatically. The Semantic Workbench and shared
           Inspector then separate responsibility: Workbench owns explicit
@@ -52,7 +52,7 @@ export function AgentWorkplane({ guide }: { guide?: GuideBriefAIWorkplaneProject
         </p>
         <div style={linkRowStyle}>
           <Link href="/" style={linkStyle}>
-            Open Blank State
+            Open Continuities
           </Link>
           <Link href="/workbench/semantic-review" style={linkStyle}>
             Open Semantic Workbench

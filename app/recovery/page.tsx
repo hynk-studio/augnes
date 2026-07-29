@@ -311,7 +311,7 @@ export default function RecoveryPage() {
       >
         {status && !status.recovery_mode ? (
           <a className={styles.returnLink} href="/">
-            Back to Blank State
+            Back to Continuities
           </a>
         ) : null}
         <header

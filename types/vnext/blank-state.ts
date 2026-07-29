@@ -89,6 +89,36 @@ export interface BlankStateContinuityItemV01 {
   semantic_authority_granted: false;
 }
 
+export const CONTINUITIES_TEMPORAL_CONTEXT_VERSION_V01 =
+  "continuities_temporal_context.v0.1" as const;
+
+export interface ContinuitiesTemporalNextItemV01 {
+  item_id: string;
+  label: string;
+  reason: string;
+  href: string | null;
+}
+
+export interface ContinuitiesTemporalRecentItemV01 {
+  item_id: string;
+  summary: string;
+  occurred_at: string;
+  href: string | null;
+}
+
+export interface ContinuitiesTemporalContextV01 {
+  temporal_context_version:
+    typeof CONTINUITIES_TEMPORAL_CONTEXT_VERSION_V01;
+  current: {
+    label: string;
+    summary: string;
+  };
+  next_items: ContinuitiesTemporalNextItemV01[];
+  recent_items: ContinuitiesTemporalRecentItemV01[];
+  projection_only: true;
+  semantic_authority_granted: false;
+}
+
 export interface BlankStateSourceV01 {
   route_mode: BlankStateRouteModeV01;
   requested_project_id: string | null;

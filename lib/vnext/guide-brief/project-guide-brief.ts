@@ -371,7 +371,7 @@ function buildSourceRefsV02(
   const add = (value: GuideBriefSourceRefV02) => {
     if (!values.some((item) => item.ref_id === value.ref_id)) values.push(value);
   };
-  add({ ref_id: "route:blank-state", kind: "route", label: "Current Blank State route", href: "/" });
+  add({ ref_id: "route:blank-state", kind: "route", label: "Current Continuities route", href: "/" });
   if (projection) {
     add({
       ref_id: stableRefV02("project", projection.project_id),

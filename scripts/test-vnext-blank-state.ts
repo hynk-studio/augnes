@@ -16,6 +16,9 @@ import {
 import {
   loadBlankStateSourceV01,
 } from "../lib/vnext/blank-state/blank-state-source";
+import {
+  buildContinuitiesTemporalContextV01,
+} from "../lib/vnext/blank-state/continuities-temporal-context";
 import { buildProjectGuideBriefV02 } from "../lib/vnext/guide-brief/project-guide-brief";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
@@ -75,6 +78,7 @@ function projection(overrides: {
   attentionTotalCount?: number;
   attentionStateStatus?: ProjectHomeProjectionV01["attention"]["state"]["status"];
   recent?: ProjectHomeProjectionV01["recent_activity"]["items"];
+  next?: ProjectHomeProjectionV01["next_moves"];
   goal?: string | null;
 } = {}): ProjectHomeProjectionV01 {
   const active = overrides.active ?? true;
@@ -116,6 +120,7 @@ function projection(overrides: {
       items: attentionItems,
     },
     recent_activity: { items: overrides.recent ?? [] },
+    next_moves: overrides.next ?? [],
   } as unknown as ProjectHomeProjectionV01;
 }
 
@@ -254,6 +259,23 @@ async function main() {
     blankStateAttentionLabelV01(noProjects.highlighted_item),
     "Start by choosing a project",
   );
+  const noProjectTemporal = buildContinuitiesTemporalContextV01({
+    source: source(null),
+    view: noProjects,
+  });
+  assert.equal(
+    noProjectTemporal.temporal_context_version,
+    "continuities_temporal_context.v0.1",
+  );
+  assert.deepEqual(noProjectTemporal.next_items, [{
+    item_id: `next:${noProjects.highlighted_item.item_id}`,
+    label: "Choose a local project",
+    reason: "No local project is selected",
+    href: null,
+  }]);
+  assert.equal(noProjectTemporal.current.label, "Local workspace");
+  assert.deepEqual(noProjectTemporal.recent_items, []);
+  assert.equal(noProjectTemporal.semantic_authority_granted, false);
 
   const recent = recentEntry();
   const projectChoice = view(source(null, {
@@ -304,6 +326,46 @@ async function main() {
   assert.equal(running.primary_action, null);
   assert.equal(running.known_attention_count, 0);
   assert.equal(running.highlighted_item.secondary_action?.label, "View progress");
+
+  const temporalSource = source(projection({
+    goal: "Finish the bounded work",
+    next: [{
+      move_id: "open_workbench",
+      label: "Continue in AI Workplane",
+      reason: "The current project has bounded work ready to continue.",
+      href: "/workbench/semantic-review",
+      caused_by: ["project:test"],
+    }],
+    recent: [{
+      activity_kind: "run_receipt",
+      summary: "Saved result became available",
+      occurred_at: "2026-07-23T00:04:00.000Z",
+      outcome: "completed",
+      workbench_entry: null,
+      lineage: [],
+    }],
+  }));
+  const temporalView = view(temporalSource);
+  const temporal = buildContinuitiesTemporalContextV01({
+    source: temporalSource,
+    view: temporalView,
+  });
+  assert.deepEqual(temporal.next_items, [{
+    item_id: "next:open_workbench",
+    label: "Continue in AI Workplane",
+    reason: "The current project has bounded work ready to continue.",
+    href: "/workbench/semantic-review",
+  }]);
+  assert.equal("occurred_at" in temporal.next_items[0]!, false);
+  assert.deepEqual(temporal.recent_items, [{
+    item_id:
+      "recent:run_receipt:2026-07-23T00:04:00.000Z:Saved result became available",
+    summary: "Saved result became available",
+    occurred_at: "2026-07-23T00:04:00.000Z",
+    href: null,
+  }]);
+  assert.equal(temporal.current.label, "Test Project");
+  assert.equal(temporal.projection_only, true);
 
   const delegatedWaiting = view(
     source(projection(), {

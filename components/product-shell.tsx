@@ -20,8 +20,8 @@ const PRIMARY_NAVIGATION: Array<{
 }> = [
   {
     href: "/",
-    label: "Blank State",
-    role: "Start · Resume",
+    label: "Continuities",
+    role: "Carry · Resume",
     zone: "blank-state",
   },
   {

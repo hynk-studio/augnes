@@ -66,7 +66,7 @@ export function RunResultReviewSurface({
                 data-augnes-primary-action="open-blank-state"
                 data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
               >
-                Open Blank State
+                Open Continuities
               </a>
             </section>
           </AIWorkplaneShell>

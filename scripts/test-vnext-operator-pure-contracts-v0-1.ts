@@ -185,7 +185,7 @@ for (const primaryNavigation of [
   portabilityPrimaryNavigation,
 ]) {
   assert.equal(count(primaryNavigation, /<a /gu), 2);
-  assert.equal(primaryNavigation.includes("<strong>Blank State</strong>"), true);
+  assert.equal(primaryNavigation.includes("<strong>Continuities</strong>"), true);
   assert.equal(primaryNavigation.includes("<strong>AI Workplane</strong>"), true);
   assert.equal(primaryNavigation.includes('href="/"'), true);
   assert.equal(
@@ -269,7 +269,7 @@ assert.equal(blankStateClientSource.includes('href={item.href}'), true);
 assert.equal(blankStateClientSource.includes("/api/vnext/portability"), false);
 assert.equal(blankStateClientSource.includes("/api/recovery"), false);
 assert.equal(portabilityPageSource.includes("Move or import a project"), true);
-assert.equal(portabilityPageSource.includes("Back to Blank State"), true);
+assert.equal(portabilityPageSource.includes("Back to Continuities"), true);
 assert.equal(portabilityPageSource.includes("Open imported project"), true);
 assert.equal(portabilityPageSource.includes("Open imported Project Home"), false);
 assert.equal(portabilityPageSource.includes("Export current project"), true);

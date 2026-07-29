@@ -51,7 +51,7 @@ export function SemanticWorkbenchShell({
           <p className={styles.headerCopy}>{description}</p>
         </div>
         <nav className={styles.nav} aria-label="Current review destinations">
-          <a href={projectHref}>Blank State</a>
+          <a href={projectHref}>Continuities</a>
           <a href="/workbench/semantic-review">Proposal queue</a>
           {inspectorHref ? (
             <a href={inspectorHref} data-semantic-workbench-inspector="true">

@@ -22,6 +22,12 @@ import {
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { CANONICAL_DATABASE_MIGRATION_IDS } from "./canonical-database-migrations.mjs";
 import { inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
+import { buildBlankStateContinuityV01 } from "../lib/vnext/blank-state/blank-state-continuity";
+import { readBlankStateSourceV01 } from "../lib/vnext/blank-state/blank-state-source";
+import {
+  selectActiveProjectV01,
+  touchRecentProjectV01,
+} from "../lib/vnext/persistence/project-lifecycle-registry";
 
 import {
   buildVNextOperatorBrowserFixtureV01,
@@ -279,6 +285,76 @@ try {
     manifestSource,
   ) as VNextOperatorBrowserFixtureManifestV01;
   const databasePath = path.join(fixtureDirectory, typedManifest.database_file);
+  const continuityDb = new Database(databasePath, { fileMustExist: true });
+  continuityDb.pragma("foreign_keys = ON");
+  touchRecentProjectV01(continuityDb, {
+    workspace_id: typedManifest.workspace_id,
+    project_id: typedManifest.project_id,
+    now: "2026-07-17T12:05:00.000Z",
+  });
+  selectActiveProjectV01(continuityDb, {
+    workspace_id: typedManifest.workspace_id,
+    project_id: typedManifest.project_id,
+    now: "2026-07-17T12:05:00.000Z",
+    expected_project_id: null,
+    expected_revision: null,
+  });
+  const continuityEnvironment = {
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED:
+      process.env.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED,
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID:
+      process.env.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID:
+      process.env.AUGNES_VNEXT_OPERATOR_PROJECT_ID,
+    AUGNES_VNEXT_OPERATOR_ID: process.env.AUGNES_VNEXT_OPERATOR_ID,
+    AUGNES_DB_PATH: process.env.AUGNES_DB_PATH,
+  };
+  Object.assign(process.env, {
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: typedManifest.workspace_id,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: typedManifest.project_id,
+    AUGNES_VNEXT_OPERATOR_ID: typedManifest.operator_id,
+    AUGNES_DB_PATH: databasePath,
+  });
+  let continuitySource: Awaited<
+    ReturnType<typeof readBlankStateSourceV01>
+  >;
+  try {
+    continuitySource = await readBlankStateSourceV01(continuityDb, {
+      route_mode: "canonical",
+    });
+  } finally {
+    continuityDb.close();
+    for (const [key, value] of Object.entries(continuityEnvironment)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+  const continuityFixture = buildBlankStateContinuityV01(continuitySource);
+  const continuityFamilies = new Set([
+    continuityFixture.highlighted_item.source_family,
+    ...continuityFixture.continuity_items.map((item) => item.source_family),
+  ]);
+  assert.equal(
+    continuityFixture.known_continuity_item_count >= 3,
+    true,
+    "browser fixture must project several source-backed continuities",
+  );
+  assert.equal(
+    continuityFamilies.has("saved_result") ||
+      continuityFamilies.has("recent_change"),
+    true,
+    "browser fixture must include result or recent-change continuity",
+  );
+  assert.equal(
+    continuityFixture.highlighted_item.projection_only,
+    true,
+  );
+  assert.equal(
+    continuityFixture.highlighted_item.semantic_authority_granted,
+    false,
+  );
+  record("browser_fixture_projects_multiple_source_backed_continuities");
   const inspectorObservedAt = "2026-07-17T13:00:00.000Z";
   const inspectorConfig: VNextLocalOperatorPilotConfigV01 = {
     enabled: true,

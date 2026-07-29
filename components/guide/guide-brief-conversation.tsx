@@ -60,6 +60,8 @@ export interface GuideBriefConversationPropsV01
   guide: ProjectGuideBriefV02;
   surface: "blank_state" | "ai_workplane";
   interaction?: GuideBriefInteractionHostV01 | null;
+  initiallyExpanded?: boolean;
+  presentation?: "disclosure" | "embedded";
 }
 
 export function GuideBriefConversation({
@@ -71,6 +73,8 @@ export function GuideBriefConversation({
   relationships = {},
   selected_relationship_question_key = null,
   interaction = null,
+  initiallyExpanded = false,
+  presentation = "disclosure",
 }: GuideBriefConversationPropsV01) {
   const sourceInput = useMemo(
     () => ({
@@ -280,6 +284,109 @@ export function GuideBriefConversation({
     void submitUtterance(question);
   }
 
+  const body = (
+    <div className={styles.body}>
+      <p className={styles.intro}>
+        Ask one bounded question or request one currently supported Browser
+        interaction. Explanations and interactions use the same exact
+        current-work projections and existing action owners.
+      </p>
+      <form className={styles.form} onSubmit={submit}>
+        <label htmlFor={`guidebrief-question-${surface}`}>
+          Question or supported action about the current work
+        </label>
+        <div className={styles.questionRow}>
+          <input
+            id={`guidebrief-question-${surface}`}
+            name="guidebrief-question"
+            type="text"
+            value={question}
+            maxLength={GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01}
+            autoComplete="off"
+            placeholder="What is happening now?"
+            onChange={(event) => setQuestion(event.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={!question.trim() || interactionBusy}
+          >
+            {interactionBusy ? "Working…" : "Ask or act"}
+          </button>
+        </div>
+      </form>
+
+      {supportPlan.suggested_questions.length > 0 ? (
+        <div
+          className={styles.suggestions}
+          aria-label="Questions supported by current sources"
+        >
+          <span>Available questions</span>
+          <div>
+            {supportPlan.suggested_questions.map((suggestion) => (
+              <button
+                key={suggestion.intent}
+                type="button"
+                onClick={() => ask(suggestion.question)}
+              >
+                {suggestion.question}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {capabilitySnapshot &&
+      capabilitySnapshot.capabilities.some(
+        (capability) =>
+          capability.availability === "available" &&
+          capability.may_propose,
+      ) ? (
+        <div
+          className={styles.suggestions}
+          aria-label="Interactions supported by current owners"
+        >
+          <span>Available interactions</span>
+          <div>
+            {capabilitySnapshot.capabilities
+              .filter(
+                (capability) =>
+                  capability.availability === "available" &&
+                  capability.may_propose,
+              )
+              .slice(0, 8)
+              .map((capability) => (
+                <button
+                  key={`${capability.action_key}:${capability.target_handle}`}
+                  type="button"
+                  disabled={interactionBusy}
+                  onClick={() =>
+                    void submitUtterance(capability.public_label)
+                  }
+                >
+                  {capability.public_label}
+                </button>
+              ))}
+          </div>
+        </div>
+      ) : null}
+
+      {visibleAnswer ? (
+        <ConversationAnswer plan={visibleAnswer} />
+      ) : null}
+      {!visibleAnswer && visibleInteractionOutcome ? (
+        <InteractionOutcome outcome={visibleInteractionOutcome} />
+      ) : !visibleAnswer && visibleInteractionPlan ? (
+        <InteractionPlan plan={visibleInteractionPlan} />
+      ) : null}
+
+      <p className={styles.boundary}>
+        Guidance and bounded Browser handoffs only. This surface does not save
+        a decision, confirm or apply a project change, run work, or replace the
+        existing action owner.
+      </p>
+    </div>
+  );
+
   return (
     <section
       className={styles.shell}
@@ -298,113 +405,20 @@ export function GuideBriefConversation({
       }
       data-guidebrief-interaction-in-flight={String(interactionBusy)}
       data-guidebrief-conversation-hydrated={String(hydrated)}
+      data-guidebrief-conversation-presentation={presentation}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
-      <details className={styles.disclosure}>
-        <summary>Ask about this work</summary>
-        <div className={styles.body}>
-          <p className={styles.intro}>
-            Ask one bounded question or request one currently supported
-            Browser interaction. Explanations and interactions use the same
-            exact current-work projections and existing action owners.
-          </p>
-          <form className={styles.form} onSubmit={submit}>
-            <label htmlFor={`guidebrief-question-${surface}`}>
-              Question or supported action about the current work
-            </label>
-            <div className={styles.questionRow}>
-              <input
-                id={`guidebrief-question-${surface}`}
-                name="guidebrief-question"
-                type="text"
-                value={question}
-                maxLength={
-                  GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01
-                }
-                autoComplete="off"
-                placeholder="What is happening now?"
-                onChange={(event) => setQuestion(event.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={!question.trim() || interactionBusy}
-              >
-                {interactionBusy ? "Working…" : "Ask or act"}
-              </button>
-            </div>
-          </form>
-
-          {supportPlan.suggested_questions.length > 0 ? (
-            <div
-              className={styles.suggestions}
-              aria-label="Questions supported by current sources"
-            >
-              <span>Available questions</span>
-              <div>
-                {supportPlan.suggested_questions.map((suggestion) => (
-                  <button
-                    key={suggestion.intent}
-                    type="button"
-                    onClick={() => ask(suggestion.question)}
-                  >
-                    {suggestion.question}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {capabilitySnapshot &&
-          capabilitySnapshot.capabilities.some(
-            (capability) =>
-              capability.availability === "available" &&
-              capability.may_propose,
-          ) ? (
-            <div
-              className={styles.suggestions}
-              aria-label="Interactions supported by current owners"
-            >
-              <span>Available interactions</span>
-              <div>
-                {capabilitySnapshot.capabilities
-                  .filter(
-                    (capability) =>
-                      capability.availability === "available" &&
-                      capability.may_propose,
-                  )
-                  .slice(0, 8)
-                  .map((capability) => (
-                    <button
-                      key={`${capability.action_key}:${capability.target_handle}`}
-                      type="button"
-                      disabled={interactionBusy}
-                      onClick={() =>
-                        void submitUtterance(capability.public_label)
-                      }
-                    >
-                      {capability.public_label}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          ) : null}
-
-          {visibleAnswer ? (
-            <ConversationAnswer plan={visibleAnswer} />
-          ) : null}
-          {!visibleAnswer && visibleInteractionOutcome ? (
-            <InteractionOutcome outcome={visibleInteractionOutcome} />
-          ) : !visibleAnswer && visibleInteractionPlan ? (
-            <InteractionPlan plan={visibleInteractionPlan} />
-          ) : null}
-
-          <p className={styles.boundary}>
-            Guidance and bounded Browser handoffs only. This surface does not
-            save a decision, confirm or apply a project change, run work, or
-            replace the existing action owner.
-          </p>
-        </div>
-      </details>
+      {presentation === "embedded" ? (
+        <div className={styles.embedded}>{body}</div>
+      ) : (
+        <details
+          className={styles.disclosure}
+          open={initiallyExpanded || undefined}
+        >
+          <summary>Ask about this work</summary>
+          {body}
+        </details>
+      )}
     </section>
   );
 }
