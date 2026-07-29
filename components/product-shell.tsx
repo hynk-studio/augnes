@@ -57,15 +57,6 @@ export function ProductShell({
       <header className="product-shell-header">
         <div className="product-shell-bar">
           <a className="product-brand" href="/" aria-label="Augnes home">
-            <span className="product-brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 32 32" focusable="false">
-                <path d="M7 24V9l9-4 9 4v14" />
-                <path d="m7 13 9 4 9-4M16 17v10" />
-                <circle cx="7" cy="24" r="2.25" />
-                <circle cx="16" cy="27" r="2.25" />
-                <circle cx="25" cy="23" r="2.25" />
-              </svg>
-            </span>
             <span>
               <strong>Augnes</strong>
               <small>Local project continuity</small>

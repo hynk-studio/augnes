@@ -423,7 +423,6 @@ export function BlankStateClient({
               aria-labelledby="blank-state-title"
               data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
             >
-              <p className="blank-state-eyebrow">Current-project continuity</p>
               <h1 id="blank-state-title">Continuities</h1>
               <p className="continuities-tagline">
                 Work and perspective you carry forward.

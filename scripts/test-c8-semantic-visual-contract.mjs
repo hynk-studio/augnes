@@ -58,6 +58,11 @@ assert.match(
 );
 assert.match(
   productShell,
+  /<a className="product-brand" href="\/" aria-label="Augnes home">[\s\S]*<strong>Augnes<\/strong>/u,
+);
+assert.doesNotMatch(productShell, /product-brand-mark|<svg/u);
+assert.match(
+  productShell,
   /<div className="product-navigation-rail">[\s\S]*<nav className="product-navigation" aria-label="Primary navigation">[\s\S]*<\/nav>\s*\{secondaryNavigation\}\s*<\/div>/u,
 );
 const primaryNavigationSource =
@@ -87,6 +92,10 @@ assert.match(blankState, /data-blank-state-human-attention/u);
 assert.match(blankState, /data-blank-state-attention-summary/u);
 assert.match(blankState, />Continuities<\/h1>/u);
 assert.match(blankState, /Work and perspective you carry forward\./u);
+assert.doesNotMatch(
+  blankState,
+  /Current-project continuity|blank-state-eyebrow/u,
+);
 assert.match(blankState, /data-continuities-filter="shown-items"/u);
 assert.match(blankState, /data-continuities-recommended=\{highlighted/u);
 assert.match(blankState, /data-continuities-temporal-context/u);
@@ -146,8 +155,29 @@ assert.match(
   /\.product-shell\[data-primary-product-zone="blank-state"\]/u,
 );
 assert.match(continuitiesCss, /grid-template-columns: 244px minmax\(0, 1fr\)/u);
+assert.match(
+  continuitiesCss,
+  /grid-template-columns: minmax\(0, 1fr\) minmax\(304px, 336px\)/u,
+);
 assert.match(continuitiesCss, /width: min\(620px, calc\(100% - 32px\)\)/u);
 assert.match(continuitiesCss, /max-height: 82dvh/u);
+for (const scopedToken of [
+  "--continuities-canvas-high",
+  "--continuities-panel",
+  "--continuities-text",
+  "--continuities-blue",
+  "--continuities-violet",
+  "--continuities-amber",
+  "--continuities-border",
+  "--continuities-shadow",
+]) {
+  assert.match(continuitiesCss, new RegExp(scopedToken, "u"));
+}
+assert.match(
+  continuitiesCss,
+  /Inter, ui-sans-serif, system-ui, -apple-system/u,
+);
+assert.doesNotMatch(continuitiesCss, /\.product-brand-mark/u);
 assert.match(
   continuitiesCss,
   /\.continuities-item-details:not\(\[open\]\)[\s\S]*display:\s*none/u,

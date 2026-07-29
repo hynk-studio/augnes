@@ -868,6 +868,8 @@ function testProductShellPinnedLandmarkV01(): void {
       },
     ),
   );
+  assert.match(withPins, /aria-label="Augnes home"[\s\S]*<strong>Augnes<\/strong>/u);
+  assert.doesNotMatch(withPins, /product-brand-mark|<svg/u);
   const primaryNavigationMatches = [
     ...withPins.matchAll(
       /<nav class="product-navigation" aria-label="Primary navigation">([\s\S]*?)<\/nav>/gu,
