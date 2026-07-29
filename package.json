@@ -71,6 +71,7 @@
     "test:operability:fast": "node scripts/run-canonical-test-suite.mjs operability-fast",
     "test:operability:recovery-validator": "node scripts/run-canonical-test-suite.mjs operability-recovery-validator",
     "test:operability:recovery-storage": "node scripts/run-canonical-test-suite.mjs operability-recovery-storage",
+    "test:continuity-pins": "node --import tsx scripts/test-vnext-continuity-pins.ts",
     "test:operability:supervisor": "node scripts/run-canonical-test-suite.mjs operability-supervisor",
     "test:operability:runtime-reconciliation": "node scripts/run-canonical-test-suite.mjs operability-runtime-reconciliation",
     "test:operability:package": "node scripts/run-canonical-test-suite.mjs operability-package",

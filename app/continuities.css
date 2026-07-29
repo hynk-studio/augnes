@@ -544,6 +544,236 @@
   background: rgba(4, 14, 24, 0.48);
 }
 
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-navigation,
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-mobile {
+  display: none;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-navigation {
+  min-width: 0;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(151, 192, 220, 0.17);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-navigation
+  > p {
+  margin: 0 0 10px 7px;
+  color: #7897ad;
+  font-size: 0.62rem;
+  font-weight: 760;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-list
+  > li {
+  min-width: 0;
+  padding: 8px 8px 7px;
+  border: 1px solid rgba(151, 192, 220, 0.13);
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(223, 244, 255, 0.025), transparent 44%),
+    rgba(12, 30, 46, 0.54);
+  box-shadow:
+    inset 0 1px rgba(223, 244, 255, 0.025),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-destination {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-destination
+  > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-indicator {
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #79c9f3;
+  box-shadow: 0 0 0 3px rgba(105, 194, 247, 0.09);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-list
+  [data-continuity-pin-resolution="temporarily_unavailable"]
+  .continuity-pin-indicator,
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pins-list
+  [data-continuity-pin-resolution="no_longer_supported"]
+  .continuity-pin-indicator {
+  background: #a99bd5;
+  box-shadow: 0 0 0 3px rgba(153, 132, 205, 0.11);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-destination
+  :is(a, strong) {
+  min-height: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  color: #e9f6ff;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 680;
+  line-height: 1.35;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-destination
+  a:hover {
+  color: #ffffff;
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-destination
+  small {
+  overflow: hidden;
+  color: #7897ad;
+  font-size: 0.59rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-controls {
+  display: flex;
+  gap: 3px;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-controls
+  button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid rgba(151, 192, 220, 0.14);
+  border-radius: 5px;
+  color: #9db9ca;
+  background: rgba(5, 18, 30, 0.52);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-controls
+  button:hover:not(:disabled) {
+  color: #f3f9fd;
+  border-color: rgba(121, 201, 243, 0.38);
+  background: rgba(105, 194, 247, 0.09);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-controls
+  button:disabled {
+  opacity: 0.32;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-recovery
+  :is(a, button),
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-item-action {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(151, 192, 220, 0.22);
+  border-radius: 6px;
+  color: #b9d5e5;
+  background: rgba(7, 23, 37, 0.62);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-item-action {
+  min-height: 44px;
+  margin-top: 8px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-unavailable-reason {
+  margin: 9px 0 0;
+  color: #9f94c8;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-feedback {
+  margin: -1px 0 0;
+  padding: 9px 12px;
+  border-inline-start: 3px solid rgba(121, 201, 243, 0.72);
+  border-radius: 2px 6px 6px 2px;
+  color: #c9e0ed;
+  background: rgba(11, 29, 45, 0.68);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+@media (min-width: 901px) {
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-navigation {
+    display: block;
+  }
+}
+
 @media (min-width: 1121px) {
   .product-shell[data-primary-product-zone="blank-state"] {
     display: grid;
@@ -848,6 +1078,11 @@
   }
 
   .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-navigation {
+    display: none;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
     .blank-state-shell {
     width: min(100% - 48px, 760px);
     padding: 34px 0 58px;
@@ -858,6 +1093,86 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 22px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-mobile {
+    display: block;
+    margin-top: -3px;
+    border: 1px solid rgba(151, 192, 220, 0.2);
+    border-radius: 8px;
+    background:
+      linear-gradient(130deg, rgba(215, 241, 255, 0.035), transparent 48%),
+      rgba(11, 28, 44, 0.68);
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-mobile
+    > summary {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 13px;
+    color: #cce3f0;
+    font-size: 0.73rem;
+    font-weight: 710;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-mobile
+    > summary
+    strong {
+    min-width: 24px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #b8def2;
+    background: rgba(105, 194, 247, 0.1);
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-list--mobile {
+    gap: 8px;
+    padding: 0 9px 10px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-list--mobile
+    > li {
+    padding: 10px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-list--mobile
+    .continuity-pin-destination
+    :is(a, strong) {
+    font-size: 0.79rem;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-list--mobile
+    .continuity-pin-destination
+    small {
+    font-size: 0.66rem;
+    white-space: normal;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-list--mobile
+    .continuity-pin-controls
+    button,
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-list--mobile
+    .continuity-pin-recovery
+    :is(a, button) {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .product-shell[data-primary-product-zone="blank-state"]

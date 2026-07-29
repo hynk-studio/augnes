@@ -354,7 +354,27 @@ try {
     continuityFixture.highlighted_item.semantic_authority_granted,
     false,
   );
+  const pinnableContinuities = [
+    continuityFixture.highlighted_item,
+    ...continuityFixture.continuity_items,
+  ].filter((item) => item.pinning.status === "eligible");
+  assert.equal(
+    pinnableContinuities.length >= 3,
+    true,
+    "browser fixture must expose at least three source-backed durable pin targets",
+  );
+  assert.equal(
+    pinnableContinuities.every(
+      (item) =>
+        item.pinning.status === "eligible" &&
+        item.pinning.target.project_id === typedManifest.project_id &&
+        item.pinning.target.workspace_id === typedManifest.workspace_id,
+    ),
+    true,
+    "browser fixture pin targets must remain scoped to the current project and workspace",
+  );
   record("browser_fixture_projects_multiple_source_backed_continuities");
+  record("browser_fixture_projects_three_durable_pin_targets");
   const inspectorObservedAt = "2026-07-17T13:00:00.000Z";
   const inspectorConfig: VNextLocalOperatorPilotConfigV01 = {
     enabled: true,

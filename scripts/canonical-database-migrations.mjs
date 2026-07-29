@@ -43,6 +43,7 @@ import {
   migrateVNextProjectIdentityRegistryV01,
   migrateVNextProjectLifecycleV01,
   migrateVNextProjectControlsV01,
+  migrateVNextProjectContinuityPinsV01,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -65,6 +66,10 @@ export const CANONICAL_DATABASE_RECORD_CONTRACT_VERSION = 1;
 export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
   Object.freeze([
     "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
+    // Exact CUX1 pre-Pinned schema. CUX2 migrates it additively.
+    "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
+    // Exact CUX2 structural predecessor used by the ledgerless recovery lane.
+    "a6fb21f4cf5a33df52d130f4b05b9b26094ac151afff274592979f9fe535d302",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",
@@ -86,6 +91,8 @@ export function applyCanonicalDatabaseMigrations(db) {
     migrateVNextProjectIdentityRegistryV01(db);
   const vNextProjectLifecycleResult = migrateVNextProjectLifecycleV01(db);
   const vNextProjectControlResult = migrateVNextProjectControlsV01(db);
+  const vNextProjectContinuityPinResult =
+    migrateVNextProjectContinuityPinsV01(db);
 
   db.exec(schema);
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
@@ -154,6 +161,7 @@ export function applyCanonicalDatabaseMigrations(db) {
     vNextProjectIdentityRegistryResult,
     vNextProjectLifecycleResult,
     vNextProjectControlResult,
+    vNextProjectContinuityPinResult,
     mailboxResult,
     sessionBindingResult,
     deliveryArtifactsResult,

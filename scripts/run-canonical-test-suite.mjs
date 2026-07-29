@@ -191,6 +191,20 @@ const suites = {
       ...rootNode("scripts/test-vnext-project-controls.ts"),
     },
     {
+      id: "continuity-pins",
+      group: "supporting-serial",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "mutable-module-state",
+      ],
+      label:
+        "project-scoped Continuities pins, CAS, unresolved retention, recovery, portability, and authority isolation",
+      ...rootNode("scripts/test-vnext-continuity-pins.ts"),
+      timeoutMs: 120_000,
+    },
+    {
       id: "policy-triggered-model-run",
       group: "supporting-serial",
       requirements: ["database", "migrations", "deterministic-fake-transport"],

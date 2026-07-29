@@ -7,6 +7,7 @@ import {
   readDefaultWorkspaceIdentityV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { readProjectContinuityPinProjectionV01 } from "@/lib/vnext/persistence/project-continuity-pin-store";
 import {
   ProjectHomeProjectionErrorV01,
   readProjectHomeProjectionV01,
@@ -80,6 +81,7 @@ export async function readBlankStateSourceV01(
       project_resolution: "none",
       direct_host_round_trip_available: false,
       delegated_work: null,
+      continuity_pins: null,
     };
   }
 
@@ -135,6 +137,12 @@ export async function readBlankStateSourceV01(
       ? directHostRoundTripAvailableV01(projection)
       : false,
     delegated_work: delegatedWork,
+    continuity_pins: projection?.project_summary.is_active
+      ? readProjectContinuityPinProjectionV01(db, {
+          workspace_id: projection.workspace_id,
+          project_id: projection.project_id,
+        })
+      : null,
   };
 }
 

@@ -15,6 +15,7 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { ensureVNextProjectLifecycleSchemaV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { ensureVNextProjectControlSchemaV01 } from "@/lib/vnext/persistence/project-control-store";
+import { ensureVNextProjectContinuityPinSchemaV01 } from "@/lib/vnext/persistence/project-continuity-pin-store";
 import { ensureVNextDurableSemanticStoreSchemaV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -273,6 +274,7 @@ export function openDatabase() {
   ensureVNextProjectIdentityRegistrySchemaV01(db);
   ensureVNextProjectLifecycleSchemaV01(db);
   ensureVNextProjectControlSchemaV01(db);
+  ensureVNextProjectContinuityPinSchemaV01(db);
   return db;
 }
 
