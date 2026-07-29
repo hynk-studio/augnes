@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +16,7 @@ const repoRoot = path.resolve(
   "..",
 );
 const read = (file) => readFileSync(path.join(repoRoot, file), "utf8");
+const readBuffer = (file) => readFileSync(path.join(repoRoot, file));
 
 assert.deepEqual(SEMANTIC_VISUAL_PRIORITIES, [
   "situation",
@@ -150,6 +152,53 @@ assert.doesNotMatch(
   /data-augnes-primary-action|data-augnes-independent-surface/u,
 );
 const continuitiesCss = read("app/continuities.css");
+const rootLayout = read("app/layout.tsx");
+const interFont = readBuffer(
+  "app/fonts/inter-latin-wght-normal.woff2",
+);
+const interLicense = read("app/fonts/Inter-OFL-1.1.txt");
+const interProvenance = read("app/fonts/README.md");
+assert.equal(interFont.subarray(0, 4).toString("ascii"), "wOF2");
+assert.equal(interFont.byteLength, 48_256);
+assert.equal(
+  createHash("sha256").update(interFont).digest("hex"),
+  "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+);
+assert.equal(
+  createHash("sha256").update(interLicense).digest("hex"),
+  "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
+);
+assert.deepEqual(
+  readdirSync(path.join(repoRoot, "app", "fonts")).filter((file) =>
+    file.endsWith(".woff2"),
+  ),
+  ["inter-latin-wght-normal.woff2"],
+);
+assert.match(
+  interLicense,
+  /Copyright 2016 The Inter Project Authors/u,
+);
+assert.match(interLicense, /SIL OPEN FONT LICENSE Version 1\.1/u);
+assert.match(interProvenance, /@fontsource-variable\/inter@5\.3\.0/u);
+assert.match(
+  interProvenance,
+  /3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62/u,
+);
+assert.match(rootLayout, /import localFont from "next\/font\/local"/u);
+assert.doesNotMatch(rootLayout, /next\/font\/google/u);
+assert.match(
+  rootLayout,
+  /src: "\.\/fonts\/inter-latin-wght-normal\.woff2"/u,
+);
+assert.match(rootLayout, /variable: "--font-continuities-inter"/u);
+assert.match(rootLayout, /display: "swap"/u);
+assert.match(rootLayout, /weight: "100 900"/u);
+assert.match(rootLayout, /style: "normal"/u);
+assert.match(rootLayout, /"Apple SD Gothic Neo"/u);
+assert.match(rootLayout, /"Noto Sans CJK KR"/u);
+assert.match(rootLayout, /"Malgun Gothic"/u);
+assert.match(rootLayout, /adjustFontFallback: false/u);
+assert.match(rootLayout, /<body className=\{interLatin\.variable\}>/u);
 assert.match(
   continuitiesCss,
   /\.product-shell\[data-primary-product-zone="blank-state"\]/u,
@@ -175,8 +224,9 @@ for (const scopedToken of [
 }
 assert.match(
   continuitiesCss,
-  /Inter, ui-sans-serif, system-ui, -apple-system/u,
+  /var\([\s\S]*--font-continuities-inter,[\s\S]*"Apple SD Gothic Neo",[\s\S]*"Noto Sans CJK KR",[\s\S]*"Malgun Gothic",[\s\S]*ui-sans-serif/u,
 );
+assert.doesNotMatch(continuitiesCss, /\bInter,\s*ui-sans-serif/u);
 assert.doesNotMatch(continuitiesCss, /\.product-brand-mark/u);
 assert.match(
   continuitiesCss,
