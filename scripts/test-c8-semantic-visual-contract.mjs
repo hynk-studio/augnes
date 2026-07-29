@@ -56,7 +56,21 @@ assert.match(
   productShell,
   /label: "Continuities"[\s\S]*zone: "blank-state"/u,
 );
-assert.match(productShell, /\{secondaryNavigation\}/u);
+assert.match(
+  productShell,
+  /<div className="product-navigation-rail">[\s\S]*<nav className="product-navigation" aria-label="Primary navigation">[\s\S]*<\/nav>\s*\{secondaryNavigation\}\s*<\/div>/u,
+);
+const primaryNavigationSource =
+  productShell.match(
+    /<nav className="product-navigation" aria-label="Primary navigation">([\s\S]*?)<\/nav>/u,
+  )?.[1] ?? "";
+assert.notEqual(primaryNavigationSource, "");
+assert.doesNotMatch(primaryNavigationSource, /secondaryNavigation|Pinned/u);
+assert.equal(
+  [...primaryNavigationSource.matchAll(/<a[\s>]/gu)].length,
+  1,
+  "the single mapped destination anchor must remain the only primary-nav anchor source",
+);
 assert.doesNotMatch(productShell, /label: "Blank State"/u);
 assert.doesNotMatch(productShell, /Project tools|Portability|Recovery/u);
 

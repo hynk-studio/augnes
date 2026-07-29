@@ -87,22 +87,24 @@ export function ProductShell({
             </p>
           )}
         </div>
-        <nav className="product-navigation" aria-label="Primary navigation">
-          {PRIMARY_NAVIGATION.map((item) => (
-            <a
-              href={item.href}
-              key={item.zone}
-              aria-current={item.zone === primaryZone ? "page" : undefined}
-            >
-              <span aria-hidden="true" className="product-navigation-node" />
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.role}</small>
-              </span>
-            </a>
-          ))}
+        <div className="product-navigation-rail">
+          <nav className="product-navigation" aria-label="Primary navigation">
+            {PRIMARY_NAVIGATION.map((item) => (
+              <a
+                href={item.href}
+                key={item.zone}
+                aria-current={item.zone === primaryZone ? "page" : undefined}
+              >
+                <span aria-hidden="true" className="product-navigation-node" />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.role}</small>
+                </span>
+              </a>
+            ))}
+          </nav>
           {secondaryNavigation}
-        </nav>
+        </div>
       </header>
       <div id="augnes-main-content" className="product-shell-content" tabIndex={-1}>
         {children}

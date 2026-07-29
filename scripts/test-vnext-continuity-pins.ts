@@ -5,9 +5,12 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import Database from "better-sqlite3";
 
+import { ProductShell } from "../components/product-shell";
 import {
   GET as pinsGET,
   POST as pinsPOST,
@@ -109,6 +112,7 @@ async function main(): Promise<void> {
   try {
   mkdirSync(projectARoot);
   mkdirSync(projectBRoot);
+  testProductShellPinnedLandmarkV01();
   testMigrationParityAndPrePinnedUpgradeV01();
 
   db = openDatabase();
@@ -711,6 +715,7 @@ async function main(): Promise<void> {
       {
         status: "ok",
         assertions: {
+          product_shell_primary_landmark_isolation: true,
           migration_from_pre_pinned_schema: true,
           migration_idempotency: true,
           pin_unpin_idempotency: true,
@@ -837,6 +842,77 @@ function authoritySnapshotV01(
     ].map((item) => item.item_id),
     primary_action: composition.primary_action,
   };
+}
+
+function testProductShellPinnedLandmarkV01(): void {
+  const pinnedSection = createElement(
+    "section",
+    {
+      "aria-labelledby": "test-pinned-heading",
+      "data-continuity-pins-navigation": "desktop",
+    },
+    createElement("p", { id: "test-pinned-heading" }, "Pinned"),
+    createElement("a", { href: "/workbench/inspector" }, "Pinned destination"),
+    createElement("button", { type: "button" }, "Move up"),
+    createElement("button", { type: "button" }, "Move down"),
+    createElement("button", { type: "button" }, "Unpin"),
+    createElement("button", { type: "button" }, "Retry resolution"),
+  );
+  const withPins = renderToStaticMarkup(
+    createElement(
+      ProductShell,
+      {
+        primaryZone: "blank-state",
+        secondaryNavigation: pinnedSection,
+        children: createElement("p", null, "Continuity content"),
+      },
+    ),
+  );
+  const primaryNavigationMatches = [
+    ...withPins.matchAll(
+      /<nav class="product-navigation" aria-label="Primary navigation">([\s\S]*?)<\/nav>/gu,
+    ),
+  ];
+  assert.equal(primaryNavigationMatches.length, 1);
+  const primaryNavigation = primaryNavigationMatches[0]?.[1] ?? "";
+  assert.deepEqual(
+    [...primaryNavigation.matchAll(/<strong>([^<]+)<\/strong>/gu)].map(
+      (match) => match[1],
+    ),
+    ["Continuities", "AI Workplane"],
+  );
+  assert.equal([...primaryNavigation.matchAll(/<a /gu)].length, 2);
+  assert.doesNotMatch(
+    primaryNavigation,
+    /Pinned|Move up|Move down|Unpin|Retry resolution|<button/u,
+  );
+  assert(
+    withPins.indexOf("data-continuity-pins-navigation") >
+      withPins.indexOf("</nav>"),
+    "Pinned must render after, rather than inside, Primary navigation",
+  );
+
+  function EmptySecondaryNavigation() {
+    return null;
+  }
+  const withoutPins = renderToStaticMarkup(
+    createElement(
+      ProductShell,
+      {
+        primaryZone: "blank-state",
+        secondaryNavigation: createElement(EmptySecondaryNavigation),
+        children: createElement("p", null, "Continuity content"),
+      },
+    ),
+  );
+  assert.doesNotMatch(
+    withoutPins,
+    /data-continuity-pins-navigation|Pinned|secondary-navigation/u,
+  );
+  assert.match(
+    withoutPins,
+    /<div class="product-navigation-rail"><nav class="product-navigation" aria-label="Primary navigation">[\s\S]*?<\/nav><\/div>/u,
+  );
 }
 
 function insertRetainedPinV01(
