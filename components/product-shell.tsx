@@ -36,11 +36,13 @@ export function ProductShell({
   primaryZone,
   utilityContext = null,
   projectContext,
+  secondaryNavigation = null,
   children,
 }: {
   primaryZone: PrimaryProductZone | null;
   utilityContext?: ProductUtilityContext | null;
   projectContext?: ProductProjectContext | null;
+  secondaryNavigation?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -85,21 +87,24 @@ export function ProductShell({
             </p>
           )}
         </div>
-        <nav className="product-navigation" aria-label="Primary navigation">
-          {PRIMARY_NAVIGATION.map((item) => (
-            <a
-              href={item.href}
-              key={item.zone}
-              aria-current={item.zone === primaryZone ? "page" : undefined}
-            >
-              <span aria-hidden="true" className="product-navigation-node" />
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.role}</small>
-              </span>
-            </a>
-          ))}
-        </nav>
+        <div className="product-navigation-rail">
+          <nav className="product-navigation" aria-label="Primary navigation">
+            {PRIMARY_NAVIGATION.map((item) => (
+              <a
+                href={item.href}
+                key={item.zone}
+                aria-current={item.zone === primaryZone ? "page" : undefined}
+              >
+                <span aria-hidden="true" className="product-navigation-node" />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.role}</small>
+                </span>
+              </a>
+            ))}
+          </nav>
+          {secondaryNavigation}
+        </div>
       </header>
       <div id="augnes-main-content" className="product-shell-content" tabIndex={-1}>
         {children}

@@ -1,6 +1,10 @@
 import type { RecentProjectEntryV01 } from "./project-onboarding";
 import type { ProjectHomeProjectionV01 } from "./project-home";
 import type { DelegatedWorkProjectionV01 } from "./delegated-work";
+import type {
+  ContinuityPinEligibilityV01,
+  ProjectContinuityPinProjectionV01,
+} from "./continuity-pins";
 
 export const BLANK_STATE_VIEW_VERSION_V01 = "blank_state_view.v0.1" as const;
 
@@ -85,6 +89,7 @@ export interface BlankStateContinuityItemV01 {
     skipped: number;
   };
   exact_detail_href: string | null;
+  pinning: ContinuityPinEligibilityV01;
   projection_only: true;
   semantic_authority_granted: false;
 }
@@ -128,6 +133,7 @@ export interface BlankStateSourceV01 {
   project_resolution: "none" | "resolved" | "not_found" | "unavailable";
   direct_host_round_trip_available: boolean;
   delegated_work: DelegatedWorkProjectionV01 | null;
+  continuity_pins?: ProjectContinuityPinProjectionV01 | null;
 }
 
 export interface BlankStateViewV01 {

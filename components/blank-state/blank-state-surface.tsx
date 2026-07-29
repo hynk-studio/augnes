@@ -1,5 +1,11 @@
 import { BlankStateClient } from "@/components/blank-state/blank-state-client";
 import { ProductShell } from "@/components/product-shell";
+import {
+  ContinuityPinsProvider,
+} from "@/components/continuity-pins/continuity-pins-provider";
+import {
+  PinnedContinuitiesNavigation,
+} from "@/components/continuity-pins/continuity-pins-ui";
 import { buildContinuitiesTemporalContextV01 } from "@/lib/vnext/blank-state/continuities-temporal-context";
 import { buildBlankStateViewV01 } from "@/lib/vnext/blank-state/blank-state-view";
 import { buildManagementSafetyViewV01 } from "@/lib/vnext/management-safety/management-safety-view";
@@ -26,19 +32,22 @@ export function BlankStateSurface({
         : "viewed_inactive_project",
   });
   return (
-    <ProductShell
-      primaryZone="blank-state"
-      projectContext={view.project_name && view.project_context_label
-        ? { label: view.project_context_label, name: view.project_name }
-        : null}
-    >
-      <BlankStateClient
-        source={source}
-        view={view}
-        guide={guide}
-        temporalContext={temporalContext}
-        managementSafety={managementSafety}
-      />
-    </ProductShell>
+    <ContinuityPinsProvider initialCollection={source.continuity_pins ?? null}>
+      <ProductShell
+        primaryZone="blank-state"
+        projectContext={view.project_name && view.project_context_label
+          ? { label: view.project_context_label, name: view.project_name }
+          : null}
+        secondaryNavigation={<PinnedContinuitiesNavigation />}
+      >
+        <BlankStateClient
+          source={source}
+          view={view}
+          guide={guide}
+          temporalContext={temporalContext}
+          managementSafety={managementSafety}
+        />
+      </ProductShell>
+    </ContinuityPinsProvider>
   );
 }

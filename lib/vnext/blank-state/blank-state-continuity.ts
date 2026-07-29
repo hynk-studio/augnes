@@ -4,6 +4,9 @@ import {
   ordinaryActionLabelV02,
   publicGuideBriefTextV02,
 } from "@/lib/vnext/guide-brief/public-guide-text";
+import {
+  buildContinuityPinEligibilityV01,
+} from "@/lib/vnext/continuity-pins/continuity-pin-target";
 import type {
   BlankStateAttentionCategoryV01,
   BlankStateAttentionCountStatusV01,
@@ -13,7 +16,13 @@ import type {
   BlankStatePrimaryActionV01,
   BlankStateSourceV01,
 } from "@/types/vnext/blank-state";
-import type { ProjectHomePendingAttentionItemV01 } from "@/types/vnext/project-home";
+import type {
+  ProjectHomeActivityItemV01,
+  ProjectHomePendingAttentionItemV01,
+} from "@/types/vnext/project-home";
+import type {
+  ContinuityPinSupportedOwnerV01,
+} from "@/types/vnext/continuity-pins";
 
 const WORKPLANE_HREF = "/workbench/semantic-review";
 const MAX_VISIBLE_ITEMS = 5;
@@ -370,6 +379,7 @@ function delegatedCandidateV01(
           ? { label: "View exact details", href: delegated.exact_detail_href }
           : null,
         exact_detail_href: delegated.exact_detail_href,
+        pinning: pinningInputV01(source, delegatedPinOwnerV01(source)),
       }),
       focus: "work_requires_attention",
       heading: "Codex needs your decision",
@@ -408,6 +418,7 @@ function delegatedCandidateV01(
           "Runtime ownership was lost. Augnes will not assume that the work continued or retry it automatically.",
         next_action: action,
         exact_detail_href: delegated.exact_detail_href,
+        pinning: pinningInputV01(source, delegatedPinOwnerV01(source)),
       }),
       focus: "work_requires_attention",
       heading: "Codex work was interrupted",
@@ -442,6 +453,7 @@ function delegatedCandidateV01(
           "Host completion alone was not treated as a result; this review step is available because a trusted result was saved.",
         next_action: action,
         exact_detail_href: delegated.exact_detail_href,
+        pinning: pinningInputV01(source, delegatedPinOwnerV01(source)),
       }),
       focus: "result_ready",
       heading: "A result is ready",
@@ -485,6 +497,7 @@ function delegatedCandidateV01(
           : delegated.gap_notes[0] ?? null),
       secondary_action: { label: guideAction.label, href: guideAction.href },
       exact_detail_href: delegated.exact_detail_href,
+      pinning: pinningInputV01(source, delegatedPinOwnerV01(source)),
     }),
     focus: ordinaryStage ? "work_in_progress" : "ready_to_continue",
     heading: delegated.stage === "cancelling"
@@ -537,6 +550,10 @@ function currentRunCandidateV01(
         consequential_detail:
           "No result will be inferred until the recorded lifecycle and current observation are reconciled.",
         next_action: action,
+        pinning: pinningInputV01(source, {
+          kind: "managed_run",
+          run_ref: run.run_ref,
+        }),
       }),
       focus: "work_requires_attention",
       heading: "Current work needs to be checked",
@@ -565,6 +582,10 @@ function currentRunCandidateV01(
       consequential_detail:
         "The running host process has not produced a trusted saved result and does not require intervention.",
       secondary_action: { label: "View progress", href: WORKPLANE_HREF },
+      pinning: pinningInputV01(source, {
+        kind: "managed_run",
+        run_ref: run.run_ref,
+      }),
     }),
     focus: "work_in_progress",
     heading: "Work is in progress",
@@ -616,6 +637,10 @@ function savedResultCandidateV01(
         skipped: result.check_counts.skipped,
       },
       exact_detail_href: result.inspector_href,
+      pinning: pinningInputV01(source, {
+        kind: "managed_run",
+        run_ref: result.run_ref,
+      }),
     }),
     focus: "result_ready",
     heading: "A result is ready",
@@ -711,6 +736,11 @@ function projectAttentionCandidateV01(
       secondary_action: !action && href
         ? { label: guideAction.label, href }
         : null,
+      pinning: pinningInputV01(
+        source,
+        projectAttentionPinOwnerV01(attention),
+        "This attention projection has no stable source owner and cannot be pinned without risking a false retarget.",
+      ),
     }),
     focus: requiresAttention
       ? isReconciliation
@@ -782,6 +812,11 @@ function recentChangeCandidateV01(
       consequential_detail:
         "This change is visible for continuity and does not create an approval requirement.",
       secondary_action: href ? { label: action.label, href } : null,
+      pinning: pinningInputV01(
+        source,
+        recentChangePinOwnerV01(change),
+        "This recent-change projection has no stable lineage owner and cannot be pinned safely.",
+      ),
     }),
     focus: "ready_to_continue",
     heading: "Ready to continue",
@@ -958,9 +993,16 @@ function itemV01(input: {
   secondary_action?: BlankStateContinuityItemV01["secondary_action"];
   verification?: BlankStateContinuityItemV01["verification"];
   exact_detail_href?: string | null;
+  pinning?: {
+    workspace_id: string | null;
+    project_id: string | null;
+    owner: ContinuityPinSupportedOwnerV01 | null;
+    unsupported_reason?: string;
+  };
 }): BlankStateContinuityItemV01 {
+  const itemId = stableItemIdV01(input.family, input.stable_basis);
   return {
-    item_id: stableItemIdV01(input.family, input.stable_basis),
+    item_id: itemId,
     source_family: input.family,
     work_name: textV01(input.work_name),
     meaningful_state: textV01(input.meaningful_state),
@@ -974,9 +1016,151 @@ function itemV01(input: {
     secondary_action: input.secondary_action ?? null,
     verification: input.verification ?? null,
     exact_detail_href: input.exact_detail_href ?? null,
+    pinning: buildContinuityPinEligibilityV01({
+      workspace_id: input.pinning?.workspace_id ?? null,
+      project_id: input.pinning?.project_id ?? null,
+      owner: input.pinning?.owner ?? null,
+      source_item_id: itemId,
+      unsupported_reason:
+        input.pinning?.unsupported_reason ??
+        "This is a transient project projection rather than a durable continuity owner.",
+    }),
     projection_only: true,
     semantic_authority_granted: false,
   };
+}
+
+function pinningInputV01(
+  source: BlankStateSourceV01,
+  owner: ContinuityPinSupportedOwnerV01 | null,
+  unsupportedReason?: string,
+): {
+  workspace_id: string | null;
+  project_id: string | null;
+  owner: ContinuityPinSupportedOwnerV01 | null;
+  unsupported_reason?: string;
+} {
+  const projection = source.projection;
+  if (!projection?.project_summary.is_active) {
+    return {
+      workspace_id: null,
+      project_id: null,
+      owner: null,
+      unsupported_reason:
+        "Only continuities from the current project can be pinned.",
+    };
+  }
+  return {
+    workspace_id: projection.workspace_id,
+    project_id: projection.project_id,
+    owner,
+    unsupported_reason: unsupportedReason,
+  };
+}
+
+function delegatedPinOwnerV01(
+  source: BlankStateSourceV01,
+): ContinuityPinSupportedOwnerV01 | null {
+  const delegated = source.delegated_work;
+  if (!delegated) return null;
+  if (delegated.run_ref) {
+    return { kind: "managed_run", run_ref: delegated.run_ref };
+  }
+  if (delegated.result?.receipt_ref) {
+    return {
+      kind: "core_record",
+      record_kind: "run_receipt",
+      record_id: delegated.result.receipt_ref,
+    };
+  }
+  return null;
+}
+
+function projectAttentionPinOwnerV01(
+  attention: ProjectHomePendingAttentionItemV01,
+): ContinuityPinSupportedOwnerV01 | null {
+  const workbenchSource = attention.workbench_entry?.source;
+  if (
+    workbenchSource?.record_id &&
+    ["episode_delta_proposal", "run_receipt"].includes(
+      workbenchSource.record_kind,
+    )
+  ) {
+    return {
+      kind: "core_record",
+      record_kind: workbenchSource.record_kind,
+      record_id: workbenchSource.record_id,
+    };
+  }
+  if (attention.proposal_id) {
+    return {
+      kind: "core_record",
+      record_kind: "episode_delta_proposal",
+      record_id: attention.proposal_id,
+    };
+  }
+  if (attention.attention_id.startsWith("result:")) {
+    const recordId = attention.attention_id.slice("result:".length);
+    return recordId
+      ? {
+          kind: "core_record",
+          record_kind: "run_receipt",
+          record_id: recordId,
+        }
+      : null;
+  }
+  if (attention.attention_id.startsWith("run-reconciliation:")) {
+    const runRef = attention.attention_id.slice(
+      "run-reconciliation:".length,
+    );
+    return runRef ? { kind: "managed_run", run_ref: runRef } : null;
+  }
+  return pinOwnerFromLineageV01(attention.lineage ?? []);
+}
+
+function recentChangePinOwnerV01(
+  change: ProjectHomeActivityItemV01,
+): ContinuityPinSupportedOwnerV01 | null {
+  const desiredKind =
+    change.activity_kind === "accepted_transition"
+      ? "state_transition_receipt"
+      : change.activity_kind === "review_decision"
+        ? "review_decision"
+        : "run_receipt";
+  const lineage = change.lineage ?? [];
+  const exact = lineage.find(
+    (anchor) => anchor.record_kind === desiredKind,
+  );
+  return exact
+    ? {
+        kind: "core_record",
+        record_kind: desiredKind,
+        record_id: exact.record_id,
+      }
+    : pinOwnerFromLineageV01(lineage);
+}
+
+function pinOwnerFromLineageV01(
+  lineage: ProjectHomePendingAttentionItemV01["lineage"],
+): ContinuityPinSupportedOwnerV01 | null {
+  for (const recordKind of [
+    "state_transition_receipt",
+    "review_decision",
+    "run_receipt",
+    "episode_delta_proposal",
+  ] as const) {
+    const anchor = lineage.find(
+      (candidate) => candidate.record_kind === recordKind,
+    );
+    if (anchor) {
+      return {
+        kind: "core_record",
+        record_kind: recordKind,
+        record_id: anchor.record_id,
+      };
+    }
+  }
+  return null;
 }
 
 function candidateV01(input: {

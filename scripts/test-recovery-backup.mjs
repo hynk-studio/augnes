@@ -616,6 +616,10 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
   const database = new Database(databasePath, { fileMustExist: true });
   try {
     database.pragma("foreign_keys = ON");
+    database.exec(
+      "DROP TABLE vnext_project_continuity_pins;" +
+        "DROP TABLE vnext_project_continuity_pin_collections;",
+    );
     database.exec("DROP TABLE perspective_memory_items");
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);

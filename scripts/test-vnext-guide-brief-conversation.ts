@@ -162,6 +162,11 @@ function guide(overrides: {
         : { label: "Open AI Workplane", href: "/workbench/semantic-review" },
       verification: null,
       exact_detail_href: "/workbench/inspector",
+      pinning: {
+        status: "unsupported" as const,
+        reason_code: "source_family_unsupported" as const,
+        reason: "The test fixture does not expose a durable pin owner.",
+      },
       projection_only: true as const,
       semantic_authority_granted: false as const,
     },

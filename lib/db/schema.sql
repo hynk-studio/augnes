@@ -4109,6 +4109,66 @@ CREATE TABLE IF NOT EXISTS vnext_project_personal_perspective_scopes (
     ON UPDATE RESTRICT ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS vnext_project_continuity_pin_collections (
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  collection_version TEXT NOT NULL CHECK (
+    collection_version = 'project_continuity_pin_collection.v0.1'
+  ),
+  revision INTEGER NOT NULL CHECK (revision > 0),
+  created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+  updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  PRIMARY KEY (workspace_id, project_id),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS vnext_project_continuity_pins (
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  target_key TEXT NOT NULL CHECK (
+    length(target_key) = 71 AND substr(target_key, 1, 7) = 'sha256:'
+  ),
+  target_ref_json TEXT NOT NULL CHECK (
+    json_valid(target_ref_json) AND json_type(target_ref_json) = 'object'
+  ),
+  source_family_snapshot TEXT NOT NULL CHECK (
+    source_family_snapshot IN (
+      'project_lifecycle',
+      'delegated_work',
+      'current_run',
+      'saved_result',
+      'project_attention',
+      'recent_change',
+      'continuation'
+    )
+  ),
+  source_item_id_snapshot TEXT NOT NULL CHECK (
+    length(trim(source_item_id_snapshot)) > 0 AND
+    length(source_item_id_snapshot) <= 512
+  ),
+  label_snapshot TEXT NOT NULL CHECK (
+    length(trim(label_snapshot)) > 0 AND length(label_snapshot) <= 1024
+  ),
+  state_snapshot TEXT NOT NULL CHECK (
+    length(trim(state_snapshot)) > 0 AND length(state_snapshot) <= 1024
+  ),
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+  pinned_at TEXT NOT NULL CHECK (length(trim(pinned_at)) > 0),
+  updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  PRIMARY KEY (workspace_id, project_id, target_key),
+  UNIQUE (workspace_id, project_id, sort_order),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_continuity_pin_collections(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_vnext_project_continuity_pins_project_order
+  ON vnext_project_continuity_pins(
+    workspace_id, project_id, sort_order, target_key
+  );
+
 CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
   session_id TEXT PRIMARY KEY CHECK (
     length(trim(session_id)) > 0 AND length(session_id) <= 256

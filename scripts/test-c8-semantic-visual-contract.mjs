@@ -56,6 +56,21 @@ assert.match(
   productShell,
   /label: "Continuities"[\s\S]*zone: "blank-state"/u,
 );
+assert.match(
+  productShell,
+  /<div className="product-navigation-rail">[\s\S]*<nav className="product-navigation" aria-label="Primary navigation">[\s\S]*<\/nav>\s*\{secondaryNavigation\}\s*<\/div>/u,
+);
+const primaryNavigationSource =
+  productShell.match(
+    /<nav className="product-navigation" aria-label="Primary navigation">([\s\S]*?)<\/nav>/u,
+  )?.[1] ?? "";
+assert.notEqual(primaryNavigationSource, "");
+assert.doesNotMatch(primaryNavigationSource, /secondaryNavigation|Pinned/u);
+assert.equal(
+  [...primaryNavigationSource.matchAll(/<a[\s>]/gu)].length,
+  1,
+  "the single mapped destination anchor must remain the only primary-nav anchor source",
+);
 assert.doesNotMatch(productShell, /label: "Blank State"/u);
 assert.doesNotMatch(productShell, /Project tools|Portability|Recovery/u);
 
@@ -85,7 +100,9 @@ assert.match(blankState, /presentation="embedded"/u);
 assert.match(blankState, /data-continuities-filter-chip="all"/u);
 assert.match(blankState, /data-continuities-filter-chip="attention"/u);
 assert.match(blankState, /<details className="continuities-item-details">/u);
-assert.doesNotMatch(blankState, /aria-selected|localStorage|PINNED|Pinned/u);
+assert.match(blankState, /<ContinuityPinAction item=\{item\} \/>/u);
+assert.match(blankState, /<MobilePinnedContinuities \/>/u);
+assert.doesNotMatch(blankState, /aria-selected|localStorage/u);
 assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
   'className="blank-state-focus"',
@@ -136,6 +153,19 @@ assert.match(
   /\.continuities-item-details:not\(\[open\]\)[\s\S]*display:\s*none/u,
 );
 assert.match(continuitiesCss, /prefers-reduced-motion: reduce/u);
+assert.match(continuitiesCss, /\.continuity-pins-navigation/u);
+assert.match(continuitiesCss, /\.continuity-pins-mobile/u);
+assert.match(continuitiesCss, /min-width:\s*44px/u);
+const continuityPinsUi = read(
+  "components/continuity-pins/continuity-pins-ui.tsx",
+);
+assert.match(continuityPinsUi, />Pinned<\/p>/u);
+assert.match(continuityPinsUi, /data-continuity-pin-move="up"/u);
+assert.match(continuityPinsUi, /data-continuity-pin-move="down"/u);
+assert.match(continuityPinsUi, /Pin \$\{item\.work_name\} to sidebar/u);
+assert.match(continuityPinsUi, /collection\.revision < reorderFocus\.after_revision/u);
+assert.match(continuityPinsUi, /control\?\.focus\(\)/u);
+assert.doesNotMatch(continuityPinsUi, /aria-selected|localStorage/u);
 const guidePublicText = read(
   "lib/vnext/guide-brief/public-guide-text.ts",
 );

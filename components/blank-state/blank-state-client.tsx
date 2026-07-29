@@ -10,6 +10,11 @@ import {
 } from "@/components/guide/guide-brief-conversation";
 import { ProjectControls } from "@/components/project-controls";
 import {
+  ContinuityPinAction,
+  ContinuityPinFeedback,
+  MobilePinnedContinuities,
+} from "@/components/continuity-pins/continuity-pins-ui";
+import {
   blankStateAttentionLabelV01,
   publicBlankStateTextV01,
 } from "@/lib/vnext/blank-state/blank-state-view";
@@ -481,6 +486,9 @@ export function BlankStateClient({
                 </p>
               ) : null}
             </section>
+
+            <ContinuityPinFeedback />
+            <MobilePinnedContinuities />
 
             <div className="continuities-filter-controls">
               <label className="continuities-filter">
@@ -990,6 +998,7 @@ function ContinuityItem({
       {item.consequential_detail ||
       item.last_meaningful_change ||
       item.verification ||
+      item.pinning.status ||
       (highlighted && secondaryAction) ||
       (item.exact_detail_href &&
         item.exact_detail_href !== secondaryAction?.href) ? (
@@ -1051,6 +1060,7 @@ function ContinuityItem({
                 View exact details
               </a>
             ) : null}
+            <ContinuityPinAction item={item} />
           </div>
         </details>
       ) : null}

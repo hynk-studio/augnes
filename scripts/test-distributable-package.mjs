@@ -643,6 +643,8 @@ function validatePackageContents(root) {
   ]);
   assert.deepEqual(manifest.database?.supported_source_schema_signatures, [
     "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
+    "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
+    "a6fb21f4cf5a33df52d130f4b05b9b26094ac151afff274592979f9fe535d302",
   ]);
   assert(Array.isArray(manifest.files) && manifest.files.length > 0);
 
