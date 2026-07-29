@@ -37,12 +37,14 @@ export function ProductShell({
   utilityContext = null,
   projectContext,
   secondaryNavigation = null,
+  railSupport = null,
   children,
 }: {
   primaryZone: PrimaryProductZone | null;
   utilityContext?: ProductUtilityContext | null;
   projectContext?: ProductProjectContext | null;
   secondaryNavigation?: ReactNode;
+  railSupport?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -95,6 +97,7 @@ export function ProductShell({
             ))}
           </nav>
           {secondaryNavigation}
+          {railSupport}
         </div>
       </header>
       <div id="augnes-main-content" className="product-shell-content" tabIndex={-1}>

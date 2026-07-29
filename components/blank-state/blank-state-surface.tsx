@@ -39,6 +39,12 @@ export function BlankStateSurface({
           ? { label: view.project_context_label, name: view.project_name }
           : null}
         secondaryNavigation={<PinnedContinuitiesNavigation />}
+        railSupport={(
+          <div
+            className="product-shell-rail-support"
+            id="continuities-guide-rail-support"
+          />
+        )}
       >
         <BlankStateClient
           source={source}

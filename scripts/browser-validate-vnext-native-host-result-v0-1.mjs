@@ -705,35 +705,67 @@ async function main() {
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelectorAll('[data-blank-state-primary-action]').length === 1`,
       "single project-selection action",
     );
+    const onboardingComposition = await evaluateJson(`(() => {
+      const home = document.querySelector('[data-blank-state="v0.1"]');
+      const launcher = document.querySelector(
+        '[data-continuities-guidebrief-launcher="true"]'
+      );
+      return {
+        presentation: home?.getAttribute('data-blank-state-presentation'),
+        title: home?.querySelector('h1')?.textContent?.trim(),
+        tagline: home?.querySelector('.continuities-tagline')?.textContent?.trim(),
+        onboarding_title:
+          home?.querySelector('#project-management-title')?.textContent?.trim(),
+        onboarding_copy:
+          home?.querySelector('#local-project-onboarding-description')?.textContent?.replace(/\\s+/g, ' ').trim(),
+        supporting_copy:
+          home?.querySelector('#local-project-onboarding-support')?.textContent?.replace(/\\s+/g, ' ').trim(),
+        choose_label:
+          home?.querySelector('[data-blank-state-primary-action="choose_folder"]')?.textContent?.trim(),
+        search_absent:
+          home?.querySelector('[data-continuities-filter="shown-items"]') === null,
+        stream_absent:
+          home?.querySelector('[data-blank-state-continuity-list]') === null,
+        temporal_absent:
+          home?.querySelector('[data-continuities-temporal-context]') === null,
+        recommendation_absent:
+          !home?.innerText.includes('Recommended next'),
+        launcher_outside_main: Boolean(launcher) && !home?.contains(launcher),
+        launcher_in_rail:
+          launcher?.closest('.product-navigation-rail') !== null,
+        launcher_outside_primary_navigation:
+          launcher?.closest('nav[aria-label="Primary navigation"]') === null,
+      };
+    })()`);
+    assert.deepEqual(onboardingComposition, {
+      presentation: "local_project_onboarding",
+      title: "Continuities",
+      tagline: "Work and perspective you carry forward.",
+      onboarding_title: "Open a local project folder",
+      onboarding_copy:
+        "Select an existing folder on this computer. Augnes links it as the local project root; this step does not upload the folder.",
+      supporting_copy: "Use a regular folder or a Git repository.",
+      choose_label: "Choose a folder",
+      search_absent: true,
+      stream_absent: true,
+      temporal_absent: true,
+      recommendation_absent: true,
+      launcher_outside_main: true,
+      launcher_in_rail: true,
+      launcher_outside_primary_navigation: true,
+    });
     await validateBlankStateViewports(false, {
       state: "no-project-onboarding",
       attentionCount: 0,
       attentionCategory: "none",
       primaryActions: 1,
     });
-    const noProjectManagementSafety = await evaluateJson(`(() => {
-      const details = document.querySelector('details[data-management-safety]');
-      return {
-        open: details instanceof HTMLDetailsElement ? details.open : null,
-        context: details?.getAttribute('data-management-safety-project-context') ?? null,
-        links: Array.from(details?.querySelectorAll('a') ?? []).map((link) => ({
-          label: link.textContent?.trim() ?? '',
-          href: link.getAttribute('href')
-        }))
-      };
-    })()`);
-    assert.deepEqual(noProjectManagementSafety, {
-      open: false,
-      context: "no_active_project",
-      links: [
-        {
-          label: "Manage project",
-          href: "/projects#project-management",
-        },
-        { label: "Move or import a project", href: "/portability" },
-        { label: "Backups and recovery", href: "/recovery" },
-      ],
-    });
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('details[data-management-safety]') === null`,
+      ),
+      true,
+    );
     const noProjectUtilityRequests = requests
       .slice(noProjectUtilityRequestStart)
       .filter((request) =>
@@ -741,43 +773,6 @@ async function main() {
         request.path === "/api/recovery"
       );
     assert.deepEqual(noProjectUtilityRequests, []);
-    const noProjectManagementRequestStart = requests.length;
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const details = document.querySelector('details[data-management-safety]');
-        if (!(details instanceof HTMLDetailsElement)) return false;
-        details.open = true;
-        const link = Array.from(details.querySelectorAll('a')).find(
-          (candidate) => candidate.textContent?.trim() === 'Manage project',
-        );
-        link?.click();
-        return Boolean(link);
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `location.pathname === '/projects' && location.hash === '#project-management' && document.querySelector('#project-management')?.getClientRects().length > 0`,
-      "no-project deterministic management route",
-    );
-    assert.equal(
-      await evaluateBoolean(
-        `document.querySelector('[data-blank-state-primary-action="choose_folder"]') !== null`,
-      ),
-      true,
-    );
-    assert.deepEqual(
-      requests.slice(noProjectManagementRequestStart).filter(
-        (request) =>
-          request.path === "/api/vnext/portability" ||
-          request.path === "/api/recovery",
-      ),
-      [],
-    );
-    await navigate(`${appOrigin}/`);
-    await waitForCondition(
-      `location.pathname === '/' && document.querySelector('[data-blank-state-project-management-hydrated="true"] [data-blank-state-primary-action="choose_folder"]') !== null`,
-      "no-project Blank State after management route",
-    );
     assert.equal(
       await evaluateBoolean(`(() => {
         const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
@@ -810,7 +805,7 @@ async function main() {
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
     const destination = await evaluateString("location.pathname");
     const firstProjectId = decodeURIComponent(destination.split("/").at(-1));
@@ -1065,7 +1060,7 @@ async function main() {
     await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose another folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-blank-state="v0.1"]') !== null`, "duplicate root stable destination");
 
     await openBlankStateProjectOptions();
@@ -1111,7 +1106,7 @@ async function main() {
     await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "second-project onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose another folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Second Project') && document.body.textContent.includes('Plain folder')`, "second-project inspection");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Confirm project'); button?.click(); return Boolean(button); })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelector('[data-project-context-label]')?.parentElement?.textContent?.includes('Browser Second Project')`, "second active Project Home");
     const secondDestination = await evaluateString("location.pathname");
     assert.notEqual(secondDestination, destination);
@@ -1168,11 +1163,22 @@ async function main() {
       })()`,
       "GuideBrief conversation resets immediately for an explicitly viewed project",
     );
-    assert.equal(await evaluateBoolean(`document.body.textContent.includes('Opening this link did not switch your current project.')`), true);
     assert.equal(
-      await evaluateBoolean(
-        `document.body.textContent.includes('Control layer eligible') && document.body.textContent.includes('Eligible reviewed Personal Perspective material may enter normal project context selection') && document.body.textContent.includes('Make this project active before changing its controls.')`,
-      ),
+      await evaluateBoolean(`(() => {
+        const home = document.querySelector(
+          '[data-blank-state="v0.1"][data-blank-state-presentation="viewed_project_inactive"]'
+        );
+        return Boolean(home) &&
+          document.body.textContent.includes(
+            'Opening this link did not switch your current project.'
+          ) &&
+          home.querySelectorAll(
+            '[data-blank-state-primary-action="make_active"]'
+          ).length === 1 &&
+          home.querySelector(
+            'details[data-management-safety], [data-project-controls-hydrated="true"]'
+          ) === null;
+      })()`),
       true,
     );
     const activeAfterDeepLink = await evaluateJson(`(async () => {
@@ -1180,45 +1186,6 @@ async function main() {
       return await response.json();
     })()`);
     assert.equal(activeAfterDeepLink.recent_projects.find((entry) => entry.is_active)?.project.display_name, "Browser Second Project");
-    const inactiveManagementUtilityRequestStart = requests.length;
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const details = document.querySelector('details[data-management-safety]');
-        if (!(details instanceof HTMLDetailsElement)) return false;
-        details.open = true;
-        const link = Array.from(details.querySelectorAll('a')).find(
-          (candidate) => candidate.textContent?.trim() === 'Manage project',
-        );
-        link?.click();
-        return Boolean(link);
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `location.pathname === '/projects' && location.hash === '#project-management' && document.querySelector('#project-management')?.getClientRects().length > 0`,
-      "inactive-view deterministic management route",
-    );
-    const activeAfterInactiveManagement = await evaluateJson(`(async () => {
-      const response = await fetch('/api/vnext/projects');
-      return await response.json();
-    })()`);
-    assert.equal(
-      activeAfterInactiveManagement.recent_projects.find((entry) => entry.is_active)?.project.display_name,
-      "Browser Second Project",
-    );
-    assert.deepEqual(
-      requests.slice(inactiveManagementUtilityRequestStart).filter(
-        (request) =>
-          request.path === "/api/vnext/portability" ||
-          request.path === "/api/recovery",
-      ),
-      [],
-    );
-    await navigate(`${appOrigin}${destination}`);
-    await waitForCondition(
-      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="false"]') !== null`,
-      "return to inactive project after management route",
-    );
     result.minimum_project_home_non_active_deep_link_read_only = true;
     await validateBlankStateViewports(true, {
       state: "viewed-inactive-project",
@@ -1234,8 +1201,8 @@ async function main() {
       primaryAction: "Make the viewed project current.",
       aiSummary: "GuideBrief explains the viewed-project state.",
       risk: "Activation remains an explicit user action.",
-      supportingInformation: "Management and recent-project controls remain secondary.",
-      rawRecordDisclosure: "Project options remain collapsed.",
+      supportingInformation: "Project identity and activation guidance remain focused.",
+      rawRecordDisclosure: "Active-only project controls remain absent.",
       interactionPath: ["Open a recognized project", "Make active"],
       knownLimitations: [
         "Aesthetic quality and ten-second comprehension require user review.",
@@ -1246,13 +1213,9 @@ async function main() {
     });
     result.minimum_project_home_narrow_viewport_no_overflow = true;
     // Viewport sampling can overlap the server-component refresh that exposed
-    // this control. Require both request quiet and the controls' own hydration
-    // signal before activating the retained non-active project.
+    // this control. Require request quiet and the action's own enabled state
+    // before activating the retained non-active project.
     await waitForRequestQuiet();
-    await waitForCondition(
-      `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2`,
-      "hydrated non-active first-project controls before activation",
-    );
     await waitForCondition(
       `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some((button) => button.getBoundingClientRect().width > 0 && !button.disabled)`,
       "explicit first-project activation ready",
@@ -1779,13 +1742,12 @@ async function main() {
       )
     ) {
       await waitForCondition(
-        `document.querySelectorAll('[data-project-controls-hydrated="true"]').length === 2 &&
-          Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some(
+        `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some(
           (candidate) => candidate instanceof HTMLButtonElement &&
             candidate.getBoundingClientRect().width > 0 &&
             !candidate.disabled
         )`,
-        "hydrated strategic source project activation control",
+        "strategic source project activation control",
       );
       const activationResponseStart = responses.length;
       assert.equal(
@@ -4541,7 +4503,7 @@ async function main() {
       assert.equal(
         await evaluateBoolean(`(() => {
           const button = Array.from(document.querySelectorAll('button')).find(
-            (candidate) => candidate.textContent?.trim() === 'Confirm project'
+            (candidate) => candidate.textContent?.trim() === 'Use this folder'
           );
           if (!(button instanceof HTMLButtonElement) || button.disabled) {
             return false;
@@ -11612,6 +11574,9 @@ async function validateBlankStateViewports(
         conversation?.querySelectorAll('a, button, input, summary') ?? [],
       ).filter(visible);
       const conversationRect = conversation?.getBoundingClientRect();
+      const guideLauncher = visibleElement(
+        '[data-continuities-guidebrief-launcher="true"]'
+      );
       const conversationOverlaps = conversationControls.flatMap(
         (control, index) =>
           conversationControls.slice(index + 1).filter((candidate) => {
@@ -11639,6 +11604,8 @@ async function validateBlankStateViewports(
       );
       return {
         surface: 'blank_state',
+        presentation:
+          home?.getAttribute('data-blank-state-presentation') ?? null,
         width: window.innerWidth,
         document_scroll_width: document.documentElement.scrollWidth,
         document_client_width: document.documentElement.clientWidth,
@@ -11696,10 +11663,11 @@ async function validateBlankStateViewports(
         legacy_competing_regions_absent:
           home?.querySelector('#current-work-title, #attention-title, #recent-change-title') === null,
         management_secondary:
-          home?.querySelector('details[data-management-safety]')?.open === false &&
-          (home?.querySelector('details[data-blank-state-project-management="collapsed"]')?.open === false ||
-            home?.getAttribute('data-blank-state-focus') === 'no_projects' ||
-            home?.getAttribute('data-blank-state-focus') === 'project_root_unavailable'),
+          home?.getAttribute('data-blank-state-presentation') ===
+              'active_continuities'
+            ? home?.querySelector('details[data-management-safety]')?.open === false &&
+              home?.querySelector('details[data-blank-state-project-management="collapsed"]')?.open === false
+            : home?.querySelector('details[data-management-safety], details[data-blank-state-project-management="collapsed"]') === null,
         internal_id_input_absent:
           Array.from(
             home?.querySelectorAll(
@@ -11744,9 +11712,12 @@ async function validateBlankStateViewports(
               dialog.contains(document.activeElement);
           })(),
         guide_launcher_expanded:
-          home?.querySelector(
-            '[data-continuities-guidebrief-launcher="true"]'
-          )?.getAttribute('aria-expanded') === 'true',
+          guideLauncher?.getAttribute('aria-expanded') === 'true',
+        guide_launcher_outside_primary_navigation:
+          guideLauncher?.closest('nav[aria-label="Primary navigation"]') ===
+            null,
+        guide_launcher_in_mobile_or_desktop_shell:
+          guideLauncher?.closest('.product-navigation-rail') !== null,
         conversation_present:
           conversation?.getAttribute('data-guidebrief-conversation-surface') ===
             'blank_state',
@@ -11832,6 +11803,8 @@ async function validateBlankStateViewports(
       };
     })()`);
     result.viewport_results.push({ ...metrics, pc1_state: state });
+    const activePresentation =
+      metrics.presentation === "active_continuities";
     assert.equal(metrics.width, width);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.home_horizontal_overflow, false);
@@ -11848,38 +11821,43 @@ async function validateBlankStateViewports(
       assert.equal(metrics.primary_action_within_first_scroll, true);
       assert.equal(metrics.primary_action_touch_target, true);
     }
-    assert.equal(metrics.continuity_present, true);
-    assert.equal(metrics.continuity_item_count >= 1, true);
-    assert.equal(metrics.continuity_item_count <= 5, true);
-    assert.equal(metrics.highlighted_item_count, 1);
-    assert.equal(metrics.highlighted_not_repeated, true);
-    assert.equal(metrics.unique_item_ids, true);
-    assert.equal(
-      ["complete", "lower_bound", "source_incomplete"].includes(
-        metrics.attention_count_status,
-      ),
-      true,
-    );
-    if (metrics.attention_count_status === "lower_bound") {
-      assert.equal(Number(metrics.source_omitted_attention_count) > 0, true);
-      assert.equal(metrics.source_attention_omitted_rendered, true);
-    }
-    if (attentionCount !== null) {
-      assert.equal(metrics.human_attention_count, attentionCount);
-    }
-    if (attentionCategory !== null) {
+    assert.equal(metrics.continuity_present, activePresentation);
+    if (activePresentation) {
+      assert.equal(metrics.continuity_item_count >= 1, true);
+      assert.equal(metrics.continuity_item_count <= 5, true);
+      assert.equal(metrics.highlighted_item_count, 1);
+      assert.equal(metrics.highlighted_not_repeated, true);
+      assert.equal(metrics.unique_item_ids, true);
       assert.equal(
-        metrics.highlighted_attention_category,
-        attentionCategory,
+        ["complete", "lower_bound", "source_incomplete"].includes(
+          metrics.attention_count_status,
+        ),
+        true,
       );
-    }
-    assert.equal(metrics.highlighted_attention_text_backed, true);
-    if (secondaryActionRequired !== null) {
-      assert.equal(
-        metrics.secondary_action_visible,
-        secondaryActionRequired,
-        JSON.stringify(metrics),
-      );
+      if (metrics.attention_count_status === "lower_bound") {
+        assert.equal(Number(metrics.source_omitted_attention_count) > 0, true);
+        assert.equal(metrics.source_attention_omitted_rendered, true);
+      }
+      if (attentionCount !== null) {
+        assert.equal(metrics.human_attention_count, attentionCount);
+      }
+      if (attentionCategory !== null) {
+        assert.equal(
+          metrics.highlighted_attention_category,
+          attentionCategory,
+        );
+      }
+      assert.equal(metrics.highlighted_attention_text_backed, true);
+      if (secondaryActionRequired !== null) {
+        assert.equal(
+          metrics.secondary_action_visible,
+          secondaryActionRequired,
+          JSON.stringify(metrics),
+        );
+      }
+    } else {
+      assert.equal(metrics.continuity_item_count, 0);
+      assert.equal(metrics.highlighted_item_count, 0);
     }
     assert.equal(metrics.overlapping_control_count, 0);
     assert.equal(metrics.legacy_competing_regions_absent, true);
@@ -11889,17 +11867,31 @@ async function validateBlankStateViewports(
     assert.equal(metrics.continuities_tagline_exact, true, JSON.stringify(metrics));
     assert.equal(
       metrics.shown_continuities_filter_present,
-      true,
+      activePresentation,
       JSON.stringify(metrics),
     );
-    assert.equal(metrics.temporal_context_present, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.temporal_context_present,
+      activePresentation,
+      JSON.stringify(metrics),
+    );
     assert.equal(
       metrics.highlighted_is_recommendation_not_selection,
-      true,
+      activePresentation,
       JSON.stringify(metrics),
     );
     assert.equal(metrics.guide_dialog_modal, true, JSON.stringify(metrics));
     assert.equal(metrics.guide_launcher_expanded, true, JSON.stringify(metrics));
+    assert.equal(
+      metrics.guide_launcher_outside_primary_navigation,
+      true,
+      JSON.stringify(metrics),
+    );
+    assert.equal(
+      metrics.guide_launcher_in_mobile_or_desktop_shell,
+      true,
+      JSON.stringify(metrics),
+    );
     assert.equal(metrics.conversation_present, true, JSON.stringify(metrics));
     assert.equal(metrics.conversation_open, true, JSON.stringify(metrics));
     assert.equal(metrics.conversation_secondary, true, JSON.stringify(metrics));
@@ -11941,7 +11933,7 @@ async function validateBlankStateViewports(
     );
     assert.equal(
       metrics.conversation_after_continuity,
-      true,
+      activePresentation,
       JSON.stringify(metrics),
     );
     assert.equal(
@@ -11960,7 +11952,11 @@ async function validateBlankStateViewports(
       JSON.stringify(metrics),
     );
     assert.equal(metrics.protocol_vocabulary_absent, true);
-    assert.equal(metrics.continuity_after_context, true);
+    assert.equal(
+      metrics.continuity_after_context,
+      activePresentation,
+      JSON.stringify(metrics),
+    );
     assert.equal(metrics.independent_surface_count <= 1, true);
     assert.equal(metrics.state_badge_count <= 1, true);
     assert.equal(metrics.raw_record_after_primary, true);

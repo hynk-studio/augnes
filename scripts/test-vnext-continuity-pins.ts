@@ -915,6 +915,32 @@ function testProductShellPinnedLandmarkV01(): void {
     withoutPins,
     /<div class="product-navigation-rail"><nav class="product-navigation" aria-label="Primary navigation">[\s\S]*?<\/nav><\/div>/u,
   );
+
+  const withRailSupport = renderToStaticMarkup(
+    createElement(
+      ProductShell,
+      {
+        primaryZone: "blank-state",
+        railSupport: createElement(
+          "section",
+          { "data-product-rail-support": "guidebrief" },
+          "Ask GuideBrief",
+        ),
+        children: createElement("p", null, "Continuity content"),
+      },
+    ),
+  );
+  assert(
+    withRailSupport.indexOf("data-product-rail-support") >
+      withRailSupport.indexOf("</nav>"),
+    "GuideBrief support must remain a sibling after Primary navigation",
+  );
+  assert.doesNotMatch(
+    withRailSupport.match(
+      /<nav class="product-navigation" aria-label="Primary navigation">([\s\S]*?)<\/nav>/u,
+    )?.[1] ?? "",
+    /GuideBrief/u,
+  );
 }
 
 function insertRetainedPinV01(

@@ -135,11 +135,11 @@ export async function chooseLocalProjectFolderV01(options: {
   const runner = options.process ?? SYSTEM_PICKER_PROCESS;
   const timeout = options.timeout_ms ?? 120_000;
   const commands = platform === "darwin"
-    ? [["/usr/bin/osascript", ["-e", "POSIX path of (choose folder with prompt \"Choose an Augnes project folder\")"]]] as const
+    ? [["/usr/bin/osascript", ["-e", "POSIX path of (choose folder with prompt \"Open a local project folder\")"]]] as const
     : platform === "win32"
       ? [["powershell.exe", ["-NoProfile", "-NonInteractive", "-STA", "-Command", "Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; if($d.ShowDialog() -eq 'OK'){[Console]::Out.Write($d.SelectedPath)}else{exit 2}"]]] as const
       : platform === "linux"
-        ? [["zenity", ["--file-selection", "--directory", "--title=Choose an Augnes project folder"]], ["kdialog", ["--getexistingdirectory", ".", "--title", "Choose an Augnes project folder"]]] as const
+        ? [["zenity", ["--file-selection", "--directory", "--title=Open a local project folder"]], ["kdialog", ["--getexistingdirectory", ".", "--title", "Open a local project folder"]]] as const
         : [];
   if (commands.length === 0) return { status: "unavailable", reason: "unsupported_platform" };
   for (const [command, args] of commands) {
