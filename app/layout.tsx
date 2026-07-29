@@ -1,6 +1,25 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import "./continuities.css";
+
+const interLatin = localFont({
+  src: "./fonts/inter-latin-wght-normal.woff2",
+  variable: "--font-continuities-inter",
+  display: "swap",
+  weight: "100 900",
+  style: "normal",
+  fallback: [
+    "Apple SD Gothic Neo",
+    "Noto Sans CJK KR",
+    "Malgun Gothic",
+    "Segoe UI",
+    "system-ui",
+    "sans-serif",
+  ],
+  adjustFontFallback: false,
+  preload: true,
+});
 
 export const metadata: Metadata = {
   title: "Augnes",
@@ -14,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={interLatin.variable}>{children}</body>
     </html>
   );
 }
