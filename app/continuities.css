@@ -6,19 +6,19 @@
  */
 
 .product-shell[data-primary-product-zone="blank-state"] {
-  --continuities-material-canvas-high: #17242e;
-  --continuities-material-canvas-mid: #111d27;
-  --continuities-material-canvas-low: #0c151d;
-  --continuities-material-header: #101a24;
-  --continuities-material-rail: #09131c;
-  --continuities-material-rail-high: #0e1923;
-  --continuities-material-card: #1c2d3a;
-  --continuities-material-card-high: #243847;
-  --continuities-material-card-highlight: #294052;
-  --continuities-material-onboarding: #202a31;
-  --continuities-material-onboarding-high: #283138;
-  --continuities-material-temporal: #202b34;
-  --continuities-material-temporal-high: #29343c;
+  --continuities-material-canvas-high: #22323d;
+  --continuities-material-canvas-mid: #182832;
+  --continuities-material-canvas-low: #101c24;
+  --continuities-material-header: #14232d;
+  --continuities-material-rail: #0c1922;
+  --continuities-material-rail-high: #14232d;
+  --continuities-material-card: #223542;
+  --continuities-material-card-high: #2a4050;
+  --continuities-material-card-highlight: #304b5d;
+  --continuities-material-onboarding: #273239;
+  --continuities-material-onboarding-high: #303b42;
+  --continuities-material-temporal: #26343d;
+  --continuities-material-temporal-high: #303d45;
   --continuities-material-control: #0b1721;
   --continuities-material-control-high: #10202b;
   --continuities-material-modal: #122533;
@@ -2032,7 +2032,6 @@
     transparent
   );
   box-shadow:
-    inset 2px 0 var(--continuities-selected-edge),
     inset 0 1px rgba(225, 240, 248, 0.045);
 }
 
@@ -2051,6 +2050,50 @@
     linear-gradient(180deg, rgba(225, 240, 248, 0.035), transparent 48%),
     var(--continuities-material-control);
   box-shadow: var(--continuities-inset-depth);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .product-project-context--neutral {
+  width: fit-content;
+  max-width: min(44vw, 520px);
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-inline: 13px;
+  white-space: nowrap;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .product-project-context--neutral
+  :is(span, strong) {
+  line-height: 1.1;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  :is(.project-selector-message, .blank-state-message, .project-selector-notice) {
+  padding: 10px 12px;
+  border: 1px solid var(--continuities-border-soft);
+  border-top-color: var(--continuities-reflection-soft);
+  border-radius: 6px;
+  color: var(--continuities-text-secondary);
+  background:
+    linear-gradient(180deg, rgba(225, 240, 248, 0.025), transparent 46%),
+    var(--continuities-material-control);
+  box-shadow: var(--continuities-inset-depth);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  :is(.project-selector-message, .blank-state-message)[data-project-message-tone="error"] {
+  border-inline-start: 2px solid rgba(214, 160, 75, 0.66);
+  color: #e7c692;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  :is(.project-selector-message, .blank-state-message)[data-project-message-tone="info"],
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-selector-notice {
+  border-inline-start: 2px solid rgba(118, 188, 228, 0.32);
 }
 
 .product-shell[data-primary-product-zone="blank-state"]
@@ -2465,7 +2508,7 @@
       146deg,
       var(--continuities-material-onboarding-high),
       var(--continuities-material-onboarding) 68%,
-      #1a242a
+      #222d33
     );
   box-shadow: var(--continuities-shadow-onboarding);
 }
@@ -2483,7 +2526,7 @@
       146deg,
       var(--continuities-material-onboarding-high),
       var(--continuities-material-onboarding) 68%,
-      #1a242a
+      #222d33
     );
 }
 
@@ -2693,8 +2736,20 @@
   }
 
   .product-shell[data-primary-product-zone="blank-state"]
+    .product-project-context--neutral {
+    width: fit-content;
+    max-width: 100%;
+    min-height: 36px;
+    display: inline-flex;
+    grid-column: 2;
+    justify-self: end;
+    gap: 7px;
+    padding-inline: 11px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
     .product-navigation {
-    background: rgba(7, 15, 22, 0.985);
+    background: rgba(12, 25, 34, 0.985);
   }
 
   .product-shell[data-primary-product-zone="blank-state"]
@@ -2718,7 +2773,7 @@
 
   .product-shell[data-primary-product-zone="blank-state"]
     .continuities-guide-launcher {
-    background: rgba(7, 15, 22, 0.99);
+    background: rgba(12, 25, 34, 0.99);
   }
 
   .product-shell[data-primary-product-zone="blank-state"]

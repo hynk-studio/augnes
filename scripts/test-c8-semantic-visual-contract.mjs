@@ -290,6 +290,45 @@ for (const materialToken of [
 ]) {
   assert.match(continuitiesCss, new RegExp(materialToken, "u"));
 }
+for (const raisedNeutralToken of [
+  "--continuities-material-canvas-high: #22323d",
+  "--continuities-material-canvas-mid: #182832",
+  "--continuities-material-canvas-low: #101c24",
+  "--continuities-material-header: #14232d",
+  "--continuities-material-rail: #0c1922",
+  "--continuities-material-onboarding: #273239",
+]) {
+  assert.match(continuitiesCss, new RegExp(raisedNeutralToken, "u"));
+}
+const cux5ActiveNavigationRule = [
+  ...continuitiesCss.matchAll(
+    /\.product-navigation\s+a\[aria-current="page"\]\s*\{(?<declarations>[^}]*)\}/gu,
+  ),
+].find((match) =>
+  match.groups?.declarations.includes("rgba(118, 188, 228, 0.095)")
+);
+assert.ok(cux5ActiveNavigationRule?.groups?.declarations);
+assert.doesNotMatch(
+  cux5ActiveNavigationRule.groups.declarations,
+  /inset\s+(?:2|3)px\s+0|--continuities-selected-edge/u,
+  "the desktop active row must not duplicate the selected node with a cyan leading edge",
+);
+assert.match(
+  continuitiesCss,
+  /\.product-project-context--neutral\s*\{[\s\S]{0,280}display:\s*inline-flex[\s\S]{0,160}align-items:\s*baseline[\s\S]{0,160}gap:\s*8px/u,
+);
+assert.match(
+  blankState,
+  /data-project-message-tone=\{message\.tone\}[\s\S]{0,120}\{message\.text\}/u,
+);
+assert.match(
+  continuitiesCss,
+  /\[data-project-message-tone="error"\]\s*\{[\s\S]{0,220}border-inline-start:\s*2px solid rgba\(214, 160, 75, 0\.66\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /\[data-project-message-tone="info"\][\s\S]{0,180}border-inline-start:\s*2px solid rgba\(118, 188, 228, 0\.32\)/u,
+);
 assert.match(
   continuitiesCss,
   /\.blank-state-continuity-item\[data-continuities-tone="amber"\]\s*\{[\s\S]{0,260}border-inline-start:\s*2px solid rgba\(214, 160, 75, 0\.58\)/u,
