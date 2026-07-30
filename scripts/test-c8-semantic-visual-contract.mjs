@@ -127,6 +127,32 @@ assert.match(blankState, /data-continuities-filter-chip="attention"/u);
 assert.match(blankState, /<details className="continuities-item-details">/u);
 assert.match(blankState, /<ContinuityPinAction item=\{item\} \/>/u);
 assert.match(blankState, /<MobilePinnedContinuities \/>/u);
+assert.match(
+  blankState,
+  /data-blank-state-project-settings-recovery="true"[\s\S]*<summary>Project settings and recovery<\/summary>/u,
+);
+assert.equal(
+  [...blankState.matchAll(/<summary>Project settings and recovery<\/summary>/gu)]
+    .length,
+  1,
+);
+assert.match(
+  blankState,
+  /<ManagementSafety view=\{managementSafety\} embedded \/>/u,
+);
+assert.match(
+  blankState,
+  /<ProjectOptions[\s\S]*embedded[\s\S]*\/>/u,
+);
+assert.match(
+  blankState,
+  /className="continuities-temporal-title"[\s\S]*title=\{item\.(?:label|summary)\}/u,
+);
+assert.doesNotMatch(blankState, /className="continuities-last-change-summary"/u);
+assert.match(
+  blankState,
+  /className="blank-state-continuity-change"[\s\S]*item\.last_meaningful_change\.summary/u,
+);
 assert.doesNotMatch(blankState, /aria-selected|localStorage/u);
 assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
@@ -250,6 +276,31 @@ assert.match(
   continuitiesCss,
   /\.product-shell-rail-support:empty[\s\S]*display:\s*none/u,
 );
+assert.match(
+  continuitiesCss,
+  /\.blank-state-project-management--focused\s*\{[\s\S]{0,120}gap:\s*0/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.project-onboarding-copy\s*\{[\s\S]{0,180}margin-top:\s*28px/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.blank-state-project-settings\s*\{[\s\S]{0,420}rgba\(14, 29, 40, 0\.7\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /a\.continuities-temporal-title\s*\{[\s\S]{0,240}text-decoration:\s*none/u,
+);
+assert.match(
+  continuitiesCss,
+  /a\.continuities-temporal-title:is\(:hover, :focus-visible\)\s*\{[\s\S]{0,160}text-decoration:\s*underline/u,
+);
+assert.match(continuitiesCss, /-webkit-line-clamp:\s*2/u);
+assert.match(
+  continuitiesCss,
+  /\.product-project-context\s*\{[\s\S]{0,120}width:\s*fit-content[\s\S]{0,100}max-width:\s*min\(390px, 42vw\)/u,
+);
 assert.doesNotMatch(
   continuitiesCss,
   /\.continuities-recommendation-label\s*\{[\s\S]{0,180}position:\s*absolute/u,
@@ -261,6 +312,26 @@ assert.doesNotMatch(
 assert.match(continuitiesCss, /\.continuity-pins-navigation/u);
 assert.match(continuitiesCss, /\.continuity-pins-mobile/u);
 assert.match(continuitiesCss, /min-width:\s*44px/u);
+const browserValidation = read(
+  "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
+);
+for (const assertion of [
+  "onboarding_compact_order",
+  "management_collapsed_height",
+  "temporal_links_unadorned_until_interaction",
+  "temporal_timestamps_separate",
+  "continuity_copy_action_nonoverlap",
+  "recommendation_action_nonoverlap",
+  "temporal_stream_nonoverlap",
+  "pinned_guide_nonoverlap",
+  "augnes_owned_lower_left_overlay_absent",
+]) {
+  assert.match(browserValidation, new RegExp(assertion, "u"));
+}
+assert.match(
+  browserValidation,
+  /width === 390 \? 844 : width === 430 \? 932 : width === 1280 \? 900 : 1000/u,
+);
 const continuityPinsUi = read(
   "components/continuity-pins/continuity-pins-ui.tsx",
 );

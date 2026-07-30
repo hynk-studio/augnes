@@ -763,21 +763,45 @@ export function BlankStateClient({
           />
         </dialog>
 
-        {activeContinuities &&
-          (view.project_management_emphasized ? projectManagement : (
-            <details className="blank-state-disclosure" data-blank-state-project-management="collapsed">
-              <summary>Manage project</summary>
+        {activeContinuities ? (
+          view.project_management_emphasized ? (
+            <>
               {projectManagement}
+              <ManagementSafety view={managementSafety} />
+              {projection ? (
+                <ProjectOptions
+                  projection={projection}
+                  directHostRoundTripAvailable={
+                    source.direct_host_round_trip_available
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <details
+              className="blank-state-disclosure blank-state-project-settings"
+              data-blank-state-project-settings-recovery="true"
+              data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+              data-augnes-visual-priority={
+                SEMANTIC_VISUAL_PRIORITY.supporting
+              }
+            >
+              <summary>Project settings and recovery</summary>
+              <div className="blank-state-project-settings-content">
+                {projectManagement}
+                <ManagementSafety view={managementSafety} embedded />
+                {projection ? (
+                  <ProjectOptions
+                    projection={projection}
+                    directHostRoundTripAvailable={
+                      source.direct_host_round_trip_available
+                    }
+                    embedded
+                  />
+                ) : null}
+              </div>
             </details>
-          ))}
-
-        {activeContinuities ? <ManagementSafety view={managementSafety} /> : null}
-
-        {activeContinuities && projection ? (
-          <ProjectOptions
-            projection={projection}
-            directHostRoundTripAvailable={source.direct_host_round_trip_available}
-          />
+          )
         ) : null}
       </main>
 
@@ -852,9 +876,20 @@ function ContinuitiesTemporalContext({
                   <span aria-hidden="true" />
                   <div>
                     {item.href ? (
-                      <a href={item.href}>{item.label}</a>
+                      <a
+                        className="continuities-temporal-title"
+                        href={item.href}
+                        title={item.label}
+                      >
+                        {item.label}
+                      </a>
                     ) : (
-                      <strong>{item.label}</strong>
+                      <strong
+                        className="continuities-temporal-title"
+                        title={item.label}
+                      >
+                        {item.label}
+                      </strong>
                     )}
                     <p>{item.reason}</p>
                   </div>
@@ -884,9 +919,20 @@ function ContinuitiesTemporalContext({
                   <span aria-hidden="true" />
                   <div>
                     {item.href ? (
-                      <a href={item.href}>{item.summary}</a>
+                      <a
+                        className="continuities-temporal-title"
+                        href={item.href}
+                        title={item.summary}
+                      >
+                        {item.summary}
+                      </a>
                     ) : (
-                      <strong>{item.summary}</strong>
+                      <strong
+                        className="continuities-temporal-title"
+                        title={item.summary}
+                      >
+                        {item.summary}
+                      </strong>
                     )}
                     <time dateTime={item.occurred_at}>
                       {formatTimestamp(item.occurred_at)}
@@ -997,11 +1043,6 @@ function ContinuityItem({
           <p className="blank-state-continuity-state">
             {item.meaningful_state}
           </p>
-          {item.last_meaningful_change ? (
-            <p className="continuities-last-change-summary">
-              {item.last_meaningful_change.summary}
-            </p>
-          ) : null}
         </div>
         <div className="continuities-item-entry">
           {item.last_meaningful_change ? (
@@ -1120,14 +1161,47 @@ function ContinuityItem({
 
 function ManagementSafety({
   view,
+  embedded = false,
 }: {
   view: ManagementSafetyViewV01;
+  embedded?: boolean;
 }) {
   const items = [
     view.project_management,
     view.project_transfer,
     view.local_recovery,
   ];
+  const content = (
+    <div className="blank-state-management-safety">
+      <p>
+        Move local project continuity or review application-data safety
+        without changing the current work.
+      </p>
+      <ul>
+        {items.map((item) => (
+          <li key={item.kind}>
+            <a href={item.href}>{item.label}</a>
+            <p>{item.summary}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  if (embedded) {
+    return (
+      <section
+        className="blank-state-management-section"
+        aria-labelledby="management-safety-title"
+        data-management-safety={view.view_version}
+        data-management-safety-project-context={view.project_context}
+        data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+      >
+        <h2 id="management-safety-title">Management and safety</h2>
+        {content}
+      </section>
+    );
+  }
   return (
     <details
       className="blank-state-disclosure"
@@ -1137,20 +1211,7 @@ function ManagementSafety({
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
       <summary>Manage and protect</summary>
-      <div className="blank-state-management-safety">
-        <p>
-          Move local project continuity or review application-data safety
-          without changing the current work.
-        </p>
-        <ul>
-          {items.map((item) => (
-            <li key={item.kind}>
-              <a href={item.href}>{item.label}</a>
-              <p>{item.summary}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {content}
     </details>
   );
 }
@@ -1437,22 +1498,18 @@ function ProjectManagement({
 function ProjectOptions({
   projection,
   directHostRoundTripAvailable,
+  embedded = false,
 }: {
   projection: NonNullable<BlankStateSourceV01["projection"]>;
   directHostRoundTripAvailable: boolean;
+  embedded?: boolean;
 }) {
   const active = projection.project_summary.is_active;
-  return (
-    <details
-      className="blank-state-disclosure"
-      data-blank-state-project-options="true"
-      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
-    >
-      <summary>Project options</summary>
-      <div className="blank-state-options-grid">
-        <section aria-labelledby="automation-options-title">
-          <h2 id="automation-options-title">Automation</h2>
-          <p>{automationSummary(projection.automation.status)}</p>
+  const content = (
+    <div className="blank-state-options-grid">
+      <section aria-labelledby="automation-options-title">
+        <h2 id="automation-options-title">Automation</h2>
+        <p>{automationSummary(projection.automation.status)}</p>
           <p>{projection.automation.state.message}</p>
           <p className="blank-state-meta">
             {projection.automation.policy_control_eligible ? "Control layer eligible" : "Control layer unavailable"}
@@ -1528,8 +1585,30 @@ function ProjectOptions({
               <li key={item.capability}><strong>{capabilityLabel(item.capability)}</strong><span>{item.status.replaceAll("_", " ")}</span></li>
             ))}
           </ul>
-        </section>
-      </div>
+      </section>
+    </div>
+  );
+  if (embedded) {
+    return (
+      <section
+        className="blank-state-management-section blank-state-management-section--technical"
+        aria-labelledby="project-options-title"
+        data-blank-state-project-options="true"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+      >
+        <h2 id="project-options-title">Project options</h2>
+        {content}
+      </section>
+    );
+  }
+  return (
+    <details
+      className="blank-state-disclosure"
+      data-blank-state-project-options="true"
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+    >
+      <summary>Project options</summary>
+      {content}
     </details>
   );
 }

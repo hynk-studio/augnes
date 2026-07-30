@@ -762,7 +762,7 @@ async function main() {
     });
     assert.equal(
       await evaluateBoolean(
-        `document.querySelector('details[data-management-safety]') === null`,
+        `document.querySelector('[data-management-safety], [data-blank-state-project-settings-recovery]') === null`,
       ),
       true,
     );
@@ -835,9 +835,9 @@ async function main() {
         operator_proposal_leaked: visibleText.includes(${JSON.stringify(manifest.proposal_id)}),
         operator_packet_leaked: visibleText.includes(${JSON.stringify(manifest.packet_id)}),
         management_safety_closed:
-          document.querySelector('details[data-management-safety]')?.open === false,
+          document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === false,
         management_safety_context:
-          document.querySelector('details[data-management-safety]')?.getAttribute('data-management-safety-project-context') ?? null
+          document.querySelector('[data-management-safety]')?.getAttribute('data-management-safety-project-context') ?? null
       };
     })()`);
     assert.deepEqual(emptyProjectHome, {
@@ -6483,7 +6483,7 @@ async function main() {
     );
     await waitForCondition(
       `(() => {
-        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.textContent?.includes('Queue bounded project verification'));
+        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-settings-recovery="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.textContent?.includes('Queue bounded project verification'));
         if (!(details instanceof HTMLDetailsElement)) return false;
         details.open = true;
         return details.open;
@@ -6526,7 +6526,7 @@ async function main() {
     );
     await waitForCondition(
       `(() => {
-        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.textContent?.includes('Run one bounded cycle'));
+        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-settings-recovery="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.textContent?.includes('Run one bounded cycle'));
         if (!(details instanceof HTMLDetailsElement)) return false;
         details.open = true;
         return details.open;
@@ -6626,7 +6626,7 @@ async function main() {
     );
     await waitForCondition(
       `(() => {
-        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.querySelector('[data-blank-state-automation-run="review_needed"]'));
+        const details = Array.from(document.querySelectorAll('details[data-blank-state-project-settings-recovery="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]') && candidate.querySelector('[data-blank-state-automation-run="review_needed"]'));
         if (!(details instanceof HTMLDetailsElement)) return false;
         details.open = true;
         return details.open;
@@ -11235,10 +11235,11 @@ async function dispatchKeyboardKey(key, code, keyCode, modifiers = 0) {
 async function openBlankStateProjectOptions() {
   await waitForCondition(
     `(() => {
-      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.getBoundingClientRect().width > 0 && candidate.closest('[data-blank-state-project-management-hydrated="true"]'));
+      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-settings-recovery="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]'));
       if (!(details instanceof HTMLDetailsElement)) return false;
       details.open = true;
-      return details.open;
+      const options = details.querySelector('[data-blank-state-project-options="true"]');
+      return details.open && options?.getBoundingClientRect().width > 0;
     })()`,
     "visible Blank State project options",
   );
@@ -11247,7 +11248,7 @@ async function openBlankStateProjectOptions() {
 async function closeBlankStateProjectOptions() {
   await waitForCondition(
     `(() => {
-      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-options="true"]')).find((candidate) => candidate.getBoundingClientRect().width > 0 && candidate.closest('[data-blank-state-project-management-hydrated="true"]'));
+      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-settings-recovery="true"]')).find((candidate) => candidate.closest('[data-blank-state-project-management-hydrated="true"]'));
       if (!(details instanceof HTMLDetailsElement)) return false;
       details.open = false;
       return !details.open;
@@ -11519,9 +11520,11 @@ async function validateBlankStateViewports(
   } = {},
 ) {
   for (const width of [390, 430, 1280, 1440]) {
+    const height =
+      width === 390 ? 844 : width === 430 ? 932 : width === 1280 ? 900 : 1000;
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width,
-      height: 1000,
+      height,
       deviceScaleFactor: 1,
       mobile: false,
     });
@@ -11577,6 +11580,57 @@ async function validateBlankStateViewports(
       const guideLauncher = visibleElement(
         '[data-continuities-guidebrief-launcher="true"]'
       );
+      const projectPanel = home?.querySelector('#project-management');
+      const onboardingLabel = projectPanel?.querySelector(
+        '.blank-state-region-label'
+      );
+      const onboardingTitle = projectPanel?.querySelector(
+        '#project-management-title'
+      );
+      const onboardingDescription = projectPanel?.querySelector(
+        '#local-project-onboarding-description'
+      );
+      const onboardingSupport = projectPanel?.querySelector(
+        '#local-project-onboarding-support'
+      );
+      const onboardingCancellation = projectPanel?.querySelector(
+        '#local-project-onboarding-cancellation'
+      );
+      const onboardingAction = projectPanel?.querySelector(
+        '[data-blank-state-primary-action="choose_folder"]'
+      );
+      const projectContextRect = projectContext?.getBoundingClientRect();
+      const navigationRail = visibleElement('.product-navigation-rail');
+      const navigationRailRect = navigationRail?.getBoundingClientRect();
+      const settings = home?.querySelector(
+        'details[data-blank-state-project-settings-recovery="true"]'
+      );
+      const settingsSummary = settings?.querySelector(':scope > summary');
+      const settingsRect = settings?.getBoundingClientRect();
+      const temporal = home?.querySelector(
+        '[data-continuities-temporal-context]'
+      );
+      const temporalRect = temporal?.getBoundingClientRect();
+      const temporalLinks = Array.from(
+        temporal?.querySelectorAll('a.continuities-temporal-title') ?? []
+      );
+      const temporalTimes = Array.from(
+        temporal?.querySelectorAll('time') ?? []
+      );
+      const temporalRecentItems = Array.from(
+        temporal?.querySelectorAll('.continuities-temporal-group:last-child li') ?? []
+      );
+      const pinnedNavigation = visibleElement(
+        '.continuity-pins-navigation, .continuity-pins-mobile'
+      );
+      const pinnedNavigationRect = pinnedNavigation?.getBoundingClientRect();
+      const guideLauncherRect = guideLauncher?.getBoundingClientRect();
+      const continuityRect = continuity?.getBoundingClientRect();
+      const bounds = (element) => element?.getBoundingClientRect() ?? null;
+      const intersects = (left, right) =>
+        Boolean(left && right) &&
+        Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 &&
+        Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1;
       const conversationOverlaps = conversationControls.flatMap(
         (control, index) =>
           conversationControls.slice(index + 1).filter((candidate) => {
@@ -11607,6 +11661,7 @@ async function validateBlankStateViewports(
         presentation:
           home?.getAttribute('data-blank-state-presentation') ?? null,
         width: window.innerWidth,
+        height: window.innerHeight,
         document_scroll_width: document.documentElement.scrollWidth,
         document_client_width: document.documentElement.clientWidth,
         document_horizontal_overflow:
@@ -11665,9 +11720,193 @@ async function validateBlankStateViewports(
         management_secondary:
           home?.getAttribute('data-blank-state-presentation') ===
               'active_continuities'
-            ? home?.querySelector('details[data-management-safety]')?.open === false &&
-              home?.querySelector('details[data-blank-state-project-management="collapsed"]')?.open === false
-            : home?.querySelector('details[data-management-safety], details[data-blank-state-project-management="collapsed"]') === null,
+            ? settings instanceof HTMLDetailsElement &&
+              settings.open === false &&
+              home?.querySelectorAll(
+                ':scope > details.blank-state-disclosure'
+              ).length === 1 &&
+              settingsSummary?.textContent?.trim() ===
+                'Project settings and recovery'
+            : home?.querySelector(
+                '[data-blank-state-project-settings-recovery], [data-management-safety], [data-blank-state-project-options]'
+              ) === null,
+        management_collapsed_height:
+          settingsRect ? Math.round(settingsRect.height) : null,
+        management_summary_touch_target:
+          !settingsSummary || settingsSummary.getBoundingClientRect().height >= 44,
+        management_surface_not_black:
+          !settings ||
+          !['rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)'].includes(
+            getComputedStyle(settings).backgroundColor
+          ),
+        onboarding_compact_order:
+          home?.getAttribute('data-blank-state-presentation') !==
+            'local_project_onboarding' ||
+          (() => {
+            const labelRect = bounds(onboardingLabel);
+            const titleRect = bounds(onboardingTitle);
+            const descriptionRect = bounds(onboardingDescription);
+            const supportRect = bounds(onboardingSupport);
+            const cancellationRect = bounds(onboardingCancellation);
+            const actionRect = bounds(onboardingAction);
+            if (
+              !labelRect ||
+              !titleRect ||
+              !descriptionRect ||
+              !supportRect ||
+              !cancellationRect ||
+              !actionRect
+            ) return false;
+            const titleToDescription =
+              descriptionRect.top - titleRect.bottom;
+            const contentHeight = actionRect.bottom - labelRect.top;
+            return (
+              labelRect.bottom <= titleRect.top + 12 &&
+              titleRect.bottom < descriptionRect.top &&
+              titleToDescription >= 20 &&
+              titleToDescription <= 40 &&
+              descriptionRect.bottom <= supportRect.top &&
+              supportRect.bottom <= cancellationRect.top &&
+              cancellationRect.bottom < actionRect.top &&
+              actionRect.height >= 44 &&
+              actionRect.bottom <= projectPanel.getBoundingClientRect().bottom &&
+              projectPanel.getBoundingClientRect().height - contentHeight <= 92 &&
+              projectPanel.getBoundingClientRect().bottom - actionRect.bottom >=
+                (window.innerWidth <= 900 ? 20 : 24) &&
+              projectPanel.getBoundingClientRect().bottom - actionRect.bottom <= 44
+            );
+          })(),
+        onboarding_panel_height:
+          projectPanel ? Math.round(projectPanel.getBoundingClientRect().height) : null,
+        onboarding_vertical_metrics:
+          home?.getAttribute('data-blank-state-presentation') ===
+            'local_project_onboarding'
+            ? (() => {
+                const labelRect = bounds(onboardingLabel);
+                const titleRect = bounds(onboardingTitle);
+                const descriptionRect = bounds(onboardingDescription);
+                const supportRect = bounds(onboardingSupport);
+                const cancellationRect = bounds(onboardingCancellation);
+                const actionRect = bounds(onboardingAction);
+                const panelRect = bounds(projectPanel);
+                return {
+                  label_to_title:
+                    labelRect && titleRect
+                      ? Math.round(titleRect.top - labelRect.bottom)
+                      : null,
+                  title_to_description:
+                    titleRect && descriptionRect
+                      ? Math.round(descriptionRect.top - titleRect.bottom)
+                      : null,
+                  description_to_support:
+                    descriptionRect && supportRect
+                      ? Math.round(supportRect.top - descriptionRect.bottom)
+                      : null,
+                  support_to_cancellation:
+                    supportRect && cancellationRect
+                      ? Math.round(cancellationRect.top - supportRect.bottom)
+                      : null,
+                  cancellation_to_action:
+                    cancellationRect && actionRect
+                      ? Math.round(actionRect.top - cancellationRect.bottom)
+                      : null,
+                  action_to_panel_bottom:
+                    actionRect && panelRect
+                      ? Math.round(panelRect.bottom - actionRect.bottom)
+                      : null,
+                  content_height:
+                    labelRect && actionRect
+                      ? Math.round(actionRect.bottom - labelRect.top)
+                      : null,
+                };
+              })()
+            : null,
+        onboarding_main_rail_nonoverlap:
+          !projectPanel ||
+          !navigationRail ||
+          !intersects(projectPanel.getBoundingClientRect(), navigationRailRect),
+        neutral_project_context_content_driven:
+          projectContext?.classList.contains('product-project-context--neutral') !== true ||
+          window.innerWidth <= 900 ||
+          Boolean(projectContextRect && projectContextRect.width <= 240),
+        temporal_inside_viewport:
+          !temporalRect ||
+          (temporalRect.left >= -1 && temporalRect.right <= window.innerWidth + 1),
+        temporal_links_unadorned_until_interaction:
+          temporalLinks.every((link) => {
+            const style = getComputedStyle(link);
+            return (
+              style.textDecorationLine === 'none' &&
+              style.webkitLineClamp === '2' &&
+              link.getAttribute('title') === link.textContent?.trim()
+            );
+          }),
+        temporal_timestamps_separate:
+          temporalTimes.every((time) => {
+            const title = time.parentElement?.querySelector(
+              '.continuities-temporal-title'
+            );
+            return (
+              getComputedStyle(time).display === 'block' &&
+              !intersects(bounds(title), bounds(time))
+            );
+          }),
+        temporal_recent_items_separated:
+          window.innerWidth <= 900 ||
+          temporalRecentItems.every((item, index) => {
+            if (index === 0) return true;
+            const previous = temporalRecentItems[index - 1];
+            return (
+              item.getBoundingClientRect().top -
+                previous.getBoundingClientRect().bottom >=
+              10
+            );
+          }),
+        continuity_copy_action_nonoverlap:
+          Array.from(
+            continuity?.querySelectorAll('[data-blank-state-continuity-item]') ?? []
+          ).every((item) =>
+            !intersects(
+              bounds(item.querySelector('.continuities-item-copy')),
+              bounds(item.querySelector('.continuities-item-entry'))
+            )
+          ),
+        recommendation_action_nonoverlap:
+          highlighted.every((item) =>
+            !intersects(
+              bounds(item.querySelector('.continuities-recommendation-label')),
+              bounds(item.querySelector('.continuities-item-entry'))
+            )
+          ),
+        temporal_stream_nonoverlap:
+          !intersects(temporalRect, continuityRect),
+        pinned_guide_nonoverlap:
+          !intersects(pinnedNavigationRect, guideLauncherRect),
+        desktop_guide_not_fixed:
+          window.innerWidth <= 900 ||
+          !guideLauncher ||
+          !guideLauncher.closest('.continuities-guide-launcher') ||
+          getComputedStyle(
+            guideLauncher.closest('.continuities-guide-launcher')
+          ).position !== 'fixed',
+        augnes_owned_lower_left_overlay_absent:
+          Array.from(document.body.querySelectorAll('*')).every((element) => {
+            if (
+              element.closest('nextjs-portal') ||
+              element.classList.contains('product-skip-link')
+            ) return true;
+            const elementRect = element.getBoundingClientRect();
+            if (
+              elementRect.width <= 0 ||
+              elementRect.height <= 0 ||
+              getComputedStyle(element).position !== 'fixed' ||
+              elementRect.left >= 80 ||
+              elementRect.bottom <= window.innerHeight - 80
+            ) return true;
+            return element.textContent?.trim() !== 'N';
+          }),
+        next_development_portal_present:
+          document.querySelector('nextjs-portal') !== null,
         internal_id_input_absent:
           Array.from(
             home?.querySelectorAll(
@@ -11805,7 +12044,9 @@ async function validateBlankStateViewports(
     result.viewport_results.push({ ...metrics, pc1_state: state });
     const activePresentation =
       metrics.presentation === "active_continuities";
+    const metricMessage = (name) => `${name}:${JSON.stringify(metrics)}`;
     assert.equal(metrics.width, width);
+    assert.equal(metrics.height, height);
     assert.equal(metrics.document_horizontal_overflow, false);
     assert.equal(metrics.home_horizontal_overflow, false);
     assert.equal(metrics.home_inside_viewport, true);
@@ -11862,6 +12103,88 @@ async function validateBlankStateViewports(
     assert.equal(metrics.overlapping_control_count, 0);
     assert.equal(metrics.legacy_competing_regions_absent, true);
     assert.equal(metrics.management_secondary, true);
+    assert.equal(metrics.management_summary_touch_target, true);
+    assert.equal(metrics.management_surface_not_black, true);
+    if (activePresentation) {
+      assert.equal(
+        metrics.management_collapsed_height <= 60,
+        true,
+        JSON.stringify(metrics),
+      );
+    } else {
+      assert.equal(metrics.management_collapsed_height, null);
+    }
+    assert.equal(
+      metrics.onboarding_compact_order,
+      true,
+      metricMessage("onboarding_compact_order"),
+    );
+    if (
+      metrics.presentation === "local_project_onboarding" &&
+      metrics.width > 900
+    ) {
+      assert.equal(
+        metrics.onboarding_panel_height <= 350,
+        true,
+        metricMessage("onboarding_panel_height"),
+      );
+    }
+    assert.equal(metrics.onboarding_main_rail_nonoverlap, true);
+    assert.equal(
+      metrics.neutral_project_context_content_driven,
+      true,
+      metricMessage("neutral_project_context_content_driven"),
+    );
+    assert.equal(
+      metrics.temporal_inside_viewport,
+      true,
+      metricMessage("temporal_inside_viewport"),
+    );
+    assert.equal(
+      metrics.temporal_links_unadorned_until_interaction,
+      true,
+      metricMessage("temporal_links_unadorned_until_interaction"),
+    );
+    assert.equal(
+      metrics.temporal_timestamps_separate,
+      true,
+      metricMessage("temporal_timestamps_separate"),
+    );
+    assert.equal(
+      metrics.temporal_recent_items_separated,
+      true,
+      metricMessage("temporal_recent_items_separated"),
+    );
+    assert.equal(
+      metrics.continuity_copy_action_nonoverlap,
+      true,
+      metricMessage("continuity_copy_action_nonoverlap"),
+    );
+    assert.equal(
+      metrics.recommendation_action_nonoverlap,
+      true,
+      metricMessage("recommendation_action_nonoverlap"),
+    );
+    assert.equal(
+      metrics.temporal_stream_nonoverlap,
+      true,
+      metricMessage("temporal_stream_nonoverlap"),
+    );
+    assert.equal(
+      metrics.pinned_guide_nonoverlap,
+      true,
+      metricMessage("pinned_guide_nonoverlap"),
+    );
+    assert.equal(
+      metrics.desktop_guide_not_fixed,
+      true,
+      metricMessage("desktop_guide_not_fixed"),
+    );
+    assert.equal(
+      metrics.augnes_owned_lower_left_overlay_absent,
+      true,
+      metricMessage("augnes_owned_lower_left_overlay_absent"),
+    );
     assert.equal(metrics.internal_id_input_absent, true);
     assert.equal(metrics.continuities_title_exact, true, JSON.stringify(metrics));
     assert.equal(metrics.continuities_tagline_exact, true, JSON.stringify(metrics));
@@ -13458,7 +13781,11 @@ async function evaluate(expression) {
   });
   if (response.exceptionDetails) {
     throw new Error(
-      `Browser evaluation failed: ${response.exceptionDetails.text ?? "exception"}`,
+      `Browser evaluation failed: ${
+        response.exceptionDetails.exception?.description ??
+        response.exceptionDetails.text ??
+        "exception"
+      }`,
     );
   }
   return response.result?.value;
