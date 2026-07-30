@@ -8,6 +8,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import {
+  blankStatePresentationModeV01,
   blankStateAttentionLabelV01,
   buildBlankStateViewV01,
   ordinaryActionLabel,
@@ -249,6 +250,10 @@ function view(sourceValue: BlankStateSourceV01) {
 async function main() {
   const noProjects = view(source(null));
   assert.equal(noProjects.focus, "no_projects");
+  assert.equal(
+    blankStatePresentationModeV01(noProjects),
+    "local_project_onboarding",
+  );
   assert.equal(noProjects.known_attention_count, 0);
   assert.equal(noProjects.highlighted_item.source_family, "project_lifecycle");
   assert.deepEqual(noProjects.primary_action, {
@@ -282,6 +287,10 @@ async function main() {
     recent_projects: [recent],
   }));
   assert.equal(projectChoice.focus, "project_choice");
+  assert.equal(
+    blankStatePresentationModeV01(projectChoice),
+    "project_choice",
+  );
   assert.equal(projectChoice.primary_action?.kind, "open_recent");
 
   const unavailableActive = view(source(null, {
@@ -298,6 +307,10 @@ async function main() {
 
   const inactive = view(source(projection({ active: false })));
   assert.equal(inactive.focus, "viewed_project_inactive");
+  assert.equal(
+    blankStatePresentationModeV01(inactive),
+    "viewed_project_inactive",
+  );
   assert.equal(inactive.primary_action?.kind, "make_active");
   assert.equal(inactive.highlighted_item.attention_category, "project_activation");
 
@@ -305,6 +318,10 @@ async function main() {
     recent_projects: [recentEntry({ root_availability: "missing", is_active: true })],
   }));
   assert.equal(missingRoot.focus, "project_root_unavailable");
+  assert.equal(
+    blankStatePresentationModeV01(missingRoot),
+    "project_recovery",
+  );
   assert.equal(missingRoot.primary_action?.kind, "locate_folder");
   assert.equal(missingRoot.known_attention_count, 1);
 
@@ -323,6 +340,10 @@ async function main() {
     },
   })));
   assert.equal(running.focus, "work_in_progress");
+  assert.equal(
+    blankStatePresentationModeV01(running),
+    "active_continuities",
+  );
   assert.equal(running.primary_action, null);
   assert.equal(running.known_attention_count, 0);
   assert.equal(running.highlighted_item.secondary_action?.label, "View progress");

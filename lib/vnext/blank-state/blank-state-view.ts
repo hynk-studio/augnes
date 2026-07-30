@@ -4,6 +4,7 @@ import {
 } from "@/lib/vnext/guide-brief/public-guide-text";
 import type {
   BlankStateContinuityItemV01,
+  BlankStatePresentationModeV01,
   BlankStateViewV01,
 } from "@/types/vnext/blank-state";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
@@ -16,6 +17,18 @@ export function buildBlankStateViewV01(
   guide: ProjectGuideBriefV02,
 ): BlankStateViewV01 {
   return guide.projections.blank_state;
+}
+
+export function blankStatePresentationModeV01(
+  view: Pick<BlankStateViewV01, "focus">,
+): BlankStatePresentationModeV01 {
+  if (view.focus === "no_projects") return "local_project_onboarding";
+  if (view.focus === "project_choice") return "project_choice";
+  if (view.focus === "project_root_unavailable") return "project_recovery";
+  if (view.focus === "viewed_project_inactive") {
+    return "viewed_project_inactive";
+  }
+  return "active_continuities";
 }
 
 export function ordinaryActionLabel(entryState: string, fallback?: string): string {

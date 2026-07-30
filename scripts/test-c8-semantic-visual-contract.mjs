@@ -65,7 +65,7 @@ assert.match(
 assert.doesNotMatch(productShell, /product-brand-mark|<svg/u);
 assert.match(
   productShell,
-  /<div className="product-navigation-rail">[\s\S]*<nav className="product-navigation" aria-label="Primary navigation">[\s\S]*<\/nav>\s*\{secondaryNavigation\}\s*<\/div>/u,
+  /<div className="product-navigation-rail">[\s\S]*<nav className="product-navigation" aria-label="Primary navigation">[\s\S]*<\/nav>\s*\{secondaryNavigation\}\s*\{railSupport\}\s*<\/div>/u,
 );
 const primaryNavigationSource =
   productShell.match(
@@ -102,6 +102,20 @@ assert.match(blankState, /data-continuities-filter="shown-items"/u);
 assert.match(blankState, /data-continuities-recommended=\{highlighted/u);
 assert.match(blankState, /data-continuities-temporal-context/u);
 assert.match(blankState, /data-continuities-guidebrief-launcher="true"/u);
+assert.match(blankState, /continuities-guide-rail-support/u);
+assert.match(blankState, /createPortal\(guideLauncher, guideRailTarget\)/u);
+assert.match(blankState, /data-blank-state-presentation=\{presentationMode\}/u);
+assert.match(blankState, /presentationMode === "active_continuities"/u);
+assert.match(blankState, /presentationMode === "local_project_onboarding"/u);
+assert.match(blankState, /presentationMode === "project_choice"/u);
+assert.match(blankState, /Open a local project folder/u);
+assert.match(
+  blankState,
+  /Select an existing folder on this computer\. Augnes links it as the[\s\S]*local project root; this step does not upload the folder\./u,
+);
+assert.match(blankState, /Use a regular folder or a Git repository\./u);
+assert.match(blankState, /Choose a folder/u);
+assert.match(blankState, /Use this folder/u);
 assert.match(blankState, /aria-label="Open GuideBrief"/u);
 assert.match(blankState, /aria-label=\{busy \? "Working…" : action\.label\}/u);
 assert.match(blankState, /data-continuities-guidebrief-dialog="true"/u);
@@ -113,6 +127,32 @@ assert.match(blankState, /data-continuities-filter-chip="attention"/u);
 assert.match(blankState, /<details className="continuities-item-details">/u);
 assert.match(blankState, /<ContinuityPinAction item=\{item\} \/>/u);
 assert.match(blankState, /<MobilePinnedContinuities \/>/u);
+assert.match(
+  blankState,
+  /data-blank-state-project-settings-recovery="true"[\s\S]*<summary>Project settings and recovery<\/summary>/u,
+);
+assert.equal(
+  [...blankState.matchAll(/<summary>Project settings and recovery<\/summary>/gu)]
+    .length,
+  1,
+);
+assert.match(
+  blankState,
+  /<ManagementSafety view=\{managementSafety\} embedded \/>/u,
+);
+assert.match(
+  blankState,
+  /<ProjectOptions[\s\S]*embedded[\s\S]*\/>/u,
+);
+assert.match(
+  blankState,
+  /className="continuities-temporal-title"[\s\S]*title=\{item\.(?:label|summary)\}/u,
+);
+assert.doesNotMatch(blankState, /className="continuities-last-change-summary"/u);
+assert.match(
+  blankState,
+  /className="blank-state-continuity-change"[\s\S]*item\.last_meaningful_change\.summary/u,
+);
 assert.doesNotMatch(blankState, /aria-selected|localStorage/u);
 assert.doesNotMatch(blankState, /Other items to review|Since you last looked/u);
 assertOrdered(blankState, [
@@ -120,7 +160,6 @@ assertOrdered(blankState, [
   'data-continuities-filter="shown-items"',
   'data-blank-state-continuity-list="v0.1"',
   "<ContinuitiesTemporalContext view={temporalContext} />",
-  'data-continuities-guidebrief-launcher="true"',
   "<GuideBriefConversation\n            guide={guide}",
   "<ManagementSafety",
 ]);
@@ -233,9 +272,71 @@ assert.match(
   /\.continuities-item-details:not\(\[open\]\)[\s\S]*display:\s*none/u,
 );
 assert.match(continuitiesCss, /prefers-reduced-motion: reduce/u);
+assert.match(
+  continuitiesCss,
+  /\.product-shell-rail-support:empty[\s\S]*display:\s*none/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.blank-state-project-management--focused\s*\{[\s\S]{0,120}gap:\s*0/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.project-onboarding-copy\s*\{[\s\S]{0,180}margin-top:\s*28px/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.blank-state-project-settings\s*\{[\s\S]{0,420}rgba\(14, 29, 40, 0\.7\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /a\.continuities-temporal-title\s*\{[\s\S]{0,240}text-decoration:\s*none/u,
+);
+assert.match(
+  continuitiesCss,
+  /a\.continuities-temporal-title:is\(:hover, :focus-visible\)\s*\{[\s\S]{0,160}text-decoration:\s*underline/u,
+);
+assert.match(continuitiesCss, /-webkit-line-clamp:\s*2/u);
+assert.match(
+  continuitiesCss,
+  /\.product-project-context\s*\{[\s\S]{0,120}width:\s*fit-content[\s\S]{0,100}max-width:\s*min\(390px, 42vw\)/u,
+);
+assert.doesNotMatch(
+  continuitiesCss,
+  /\.continuities-recommendation-label\s*\{[\s\S]{0,180}position:\s*absolute/u,
+);
+assert.doesNotMatch(
+  continuitiesCss,
+  /repeating-(?:linear|radial)-gradient/u,
+);
 assert.match(continuitiesCss, /\.continuity-pins-navigation/u);
 assert.match(continuitiesCss, /\.continuity-pins-mobile/u);
 assert.match(continuitiesCss, /min-width:\s*44px/u);
+assert.match(
+  continuitiesCss,
+  /@media \(max-width: 900px\)[\s\S]*\.continuities-item-details[\s\S]*>\s*summary[\s\S]*a\.continuities-temporal-title[\s\S]*min-height:\s*44px/u,
+);
+const browserValidation = read(
+  "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
+);
+for (const assertion of [
+  "onboarding_compact_order",
+  "management_collapsed_height",
+  "temporal_links_unadorned_until_interaction",
+  "temporal_timestamps_separate",
+  "continuity_copy_action_nonoverlap",
+  "recommendation_action_nonoverlap",
+  "temporal_stream_nonoverlap",
+  "pinned_guide_nonoverlap",
+  "augnes_owned_lower_left_overlay_absent",
+  "mobile_touch_targets_minimum_size",
+]) {
+  assert.match(browserValidation, new RegExp(assertion, "u"));
+}
+assert.match(
+  browserValidation,
+  /width === 390 \? 844 : width === 430 \? 932 : width === 1280 \? 900 : 1000/u,
+);
 const continuityPinsUi = read(
   "components/continuity-pins/continuity-pins-ui.tsx",
 );

@@ -24,6 +24,13 @@ export type BlankStateFocusV01 =
   | "attention_required"
   | "ready_to_continue";
 
+export type BlankStatePresentationModeV01 =
+  | "local_project_onboarding"
+  | "project_choice"
+  | "project_recovery"
+  | "viewed_project_inactive"
+  | "active_continuities";
+
 export type BlankStatePrimaryActionV01 =
   | {
       kind: "choose_folder";

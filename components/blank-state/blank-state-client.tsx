@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { DirectHostRoundTripAction } from "@/components/direct-host-round-trip-action";
@@ -15,6 +16,7 @@ import {
   MobilePinnedContinuities,
 } from "@/components/continuity-pins/continuity-pins-ui";
 import {
+  blankStatePresentationModeV01,
   blankStateAttentionLabelV01,
   publicBlankStateTextV01,
 } from "@/lib/vnext/blank-state/blank-state-view";
@@ -30,6 +32,7 @@ import {
 } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import type {
   BlankStateContinuityItemV01,
+  BlankStatePresentationModeV01,
   BlankStatePrimaryActionV01,
   BlankStateSourceV01,
   BlankStateViewV01,
@@ -256,6 +259,11 @@ export function BlankStateClient({
   }
 
   const projection = source.projection;
+  const presentationMode = blankStatePresentationModeV01(view);
+  const activeContinuities = presentationMode === "active_continuities";
+  const projectSelection =
+    presentationMode === "local_project_onboarding" ||
+    presentationMode === "project_choice";
   const primaryEntry = primaryRecentEntry(view.primary_action, recent);
   const blankInteraction = useMemo<GuideBriefInteractionHostV01>(() => {
     const scopeKey = buildGuideBriefConversationScopeKeyV01({
@@ -363,6 +371,7 @@ export function BlankStateClient({
   }, [busy, guide, view.primary_action]);
   const projectManagement = (
     <ProjectManagement
+      presentationMode={presentationMode}
       recent={recent}
       picker={picker}
       busy={busy}
@@ -403,6 +412,49 @@ export function BlankStateClient({
     window.requestAnimationFrame(() => guideLauncherRef.current?.focus());
   }
 
+  const guideSupportText =
+    presentationMode === "active_continuities"
+      ? "Get context on the current project and what comes next."
+      : presentationMode === "local_project_onboarding" ||
+          presentationMode === "project_choice"
+        ? "Learn how to begin with a local project."
+        : "Get context on this project and the next available step.";
+  const guideRailTarget =
+    hydrated && typeof document !== "undefined"
+      ? document.getElementById("continuities-guide-rail-support")
+      : null;
+  const guideLauncher = (
+    <section
+      className="continuities-guide-launcher"
+      data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+    >
+      <p className="blank-state-region-label">Contextual support</p>
+      <h2>Ask GuideBrief</h2>
+      <p>{guideSupportText}</p>
+      <button
+        ref={guideLauncherRef}
+        type="button"
+        aria-haspopup="dialog"
+        aria-controls="continuities-guide-dialog"
+        aria-expanded={guideOpen}
+        data-continuities-guidebrief-launcher="true"
+        aria-label="Open GuideBrief"
+        onClick={() => setGuideOpen(true)}
+      >
+        <span className="continuities-action-label-full">
+          Open GuideBrief
+        </span>
+        <span
+          className="continuities-action-label-compact"
+          aria-hidden="true"
+        >
+          GuideBrief
+        </span>
+      </button>
+    </section>
+  );
+
   return (
     <>
       <main
@@ -414,6 +466,7 @@ export function BlankStateClient({
         data-guide-brief-project-context={guide.identity.project_context}
         data-blank-state-active={projection?.project_summary.is_active ? "true" : "false"}
         data-blank-state-project-management-hydrated={hydrated ? "true" : "false"}
+        data-blank-state-presentation={presentationMode}
         data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.blankState}
       >
         <div className="continuities-layout">
@@ -427,67 +480,88 @@ export function BlankStateClient({
               <p className="continuities-tagline">
                 Work and perspective you carry forward.
               </p>
-              <div className="continuities-current-situation">
-                {view.project_name ? (
-                  <p className="blank-state-project-context">
-                    {view.project_context_label} ·{" "}
-                    <strong>{view.project_name}</strong>
-                  </p>
-                ) : null}
-                <div className="continuities-current-situation-copy">
-                  <p className="blank-state-region-label">Current situation</p>
-                  <h2>{view.heading}</h2>
-                  <p className="blank-state-situation">{view.situation}</p>
-                </div>
-                {view.material_note ? (
-                  <p
-                    className="blank-state-material-note"
-                    data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
-                  >
-                    {view.material_note}
-                  </p>
-                ) : null}
-                {view.why_this_is_next.observed.length ? (
-                  <details
-                    className="blank-state-guide-disclosure"
-                    data-guide-brief-disclosure="v0.2"
-                    data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
-                    data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
-                  >
-                    <summary>Why this is next</summary>
-                    <div>
-                      <p>{view.why_this_is_next.observed[0]}</p>
-                      {view.why_this_is_next.inferred[0] ? (
+              {!projectSelection ? (
+                <div className="continuities-current-situation">
+                  {view.project_name ? (
+                    <p className="blank-state-project-context">
+                      {view.project_context_label} ·{" "}
+                      <strong>{view.project_name}</strong>
+                    </p>
+                  ) : null}
+                  <div className="continuities-current-situation-copy">
+                    <p className="blank-state-region-label">Current situation</p>
+                    <h2>{view.heading}</h2>
+                    <p className="blank-state-situation">{view.situation}</p>
+                  </div>
+                  {view.material_note ? (
+                    <p
+                      className="blank-state-material-note"
+                      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.risk}
+                    >
+                      {view.material_note}
+                    </p>
+                  ) : null}
+                  {activeContinuities &&
+                  view.why_this_is_next.observed.length ? (
+                    <details
+                      className="blank-state-guide-disclosure"
+                      data-guide-brief-disclosure="v0.2"
+                      data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
+                      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.aiSummary}
+                    >
+                      <summary>Why this is next</summary>
+                      <div>
+                        <p>{view.why_this_is_next.observed[0]}</p>
+                        {view.why_this_is_next.inferred[0] ? (
+                          <p>
+                            {view.why_this_is_next.inferred[0].statement}{" "}
+                            <span>
+                              {view.why_this_is_next.inferred[0].caveats[0]}
+                            </span>
+                          </p>
+                        ) : null}
+                        {view.why_this_is_next.needs_user_judgment[0] ? (
+                          <p>
+                            Waiting for your judgment:{" "}
+                            {view.why_this_is_next.needs_user_judgment[0]}
+                          </p>
+                        ) : null}
                         <p>
-                          {view.why_this_is_next.inferred[0].statement}{" "}
-                          <span>
-                            {view.why_this_is_next.inferred[0].caveats[0]}
-                          </span>
+                          This guidance is read-only and does not make the
+                          decision for you.
                         </p>
-                      ) : null}
-                      {view.why_this_is_next.needs_user_judgment[0] ? (
-                        <p>
-                          Waiting for your judgment:{" "}
-                          {view.why_this_is_next.needs_user_judgment[0]}
-                        </p>
-                      ) : null}
-                      <p>
-                        This guidance is read-only and does not make the
-                        decision for you.
-                      </p>
+                      </div>
+                    </details>
+                  ) : null}
+                  {!activeContinuities && view.primary_action ? (
+                    <div className="continuities-focused-actions">
+                      <PrimaryAction
+                        action={view.primary_action}
+                        item={view.highlighted_item}
+                        busy={busy}
+                        recentEntry={primaryEntry}
+                        onChoose={() => void choose()}
+                        onOpen={(entry) => void open(entry)}
+                        onLocate={(entry) => void locate(entry)}
+                        onActivate={(projectId) => void activate(projectId)}
+                      />
                     </div>
-                  </details>
-                ) : null}
-              </div>
-              {message ? (
+                  ) : null}
+                </div>
+              ) : null}
+              {!projectSelection && message ? (
                 <p className="blank-state-message" role="status">
                   {message}
                 </p>
               ) : null}
             </section>
 
-            <ContinuityPinFeedback />
-            <MobilePinnedContinuities />
+            {projectSelection ? projectManagement : null}
+
+            {activeContinuities ? (
+              <>
+                <ContinuityPinFeedback />
+                <MobilePinnedContinuities />
 
             <div className="continuities-filter-controls">
               <label className="continuities-filter">
@@ -626,48 +700,24 @@ export function BlankStateClient({
                   </a>
                 </p>
               ) : null}
-            </section>
+              </section>
+              </>
+            ) : null}
           </div>
 
-          <aside
-            className="continuities-supporting-rail"
-            aria-label="Project context and GuideBrief"
-          >
-            <ContinuitiesTemporalContext view={temporalContext} />
-            <section
-              className="continuities-guide-launcher"
-              data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
-              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+          {activeContinuities ? (
+            <aside
+              className="continuities-supporting-rail"
+              aria-label="Project temporal context"
             >
-              <p className="blank-state-region-label">Contextual support</p>
-              <h2>Ask GuideBrief</h2>
-              <p>
-                Ask about the current project or the continuity recommended
-                next. Existing sources and action owners remain in control.
-              </p>
-              <button
-                ref={guideLauncherRef}
-                type="button"
-                aria-haspopup="dialog"
-                aria-controls="continuities-guide-dialog"
-                aria-expanded={guideOpen}
-                data-continuities-guidebrief-launcher="true"
-                aria-label="Open GuideBrief"
-                onClick={() => setGuideOpen(true)}
-              >
-                <span className="continuities-action-label-full">
-                  Open GuideBrief
-                </span>
-                <span
-                  className="continuities-action-label-compact"
-                  aria-hidden="true"
-                >
-                  GuideBrief
-                </span>
-              </button>
-            </section>
-          </aside>
+              <ContinuitiesTemporalContext view={temporalContext} />
+            </aside>
+          ) : null}
         </div>
+
+        {guideRailTarget
+          ? createPortal(guideLauncher, guideRailTarget)
+          : null}
 
         <dialog
           ref={guideDialogRef}
@@ -713,20 +763,45 @@ export function BlankStateClient({
           />
         </dialog>
 
-        {view.project_management_emphasized ? projectManagement : (
-          <details className="blank-state-disclosure" data-blank-state-project-management="collapsed">
-            <summary>Manage project</summary>
-            {projectManagement}
-          </details>
-        )}
-
-        <ManagementSafety view={managementSafety} />
-
-        {projection ? (
-          <ProjectOptions
-            projection={projection}
-            directHostRoundTripAvailable={source.direct_host_round_trip_available}
-          />
+        {activeContinuities ? (
+          view.project_management_emphasized ? (
+            <>
+              {projectManagement}
+              <ManagementSafety view={managementSafety} />
+              {projection ? (
+                <ProjectOptions
+                  projection={projection}
+                  directHostRoundTripAvailable={
+                    source.direct_host_round_trip_available
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <details
+              className="blank-state-disclosure blank-state-project-settings"
+              data-blank-state-project-settings-recovery="true"
+              data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+              data-augnes-visual-priority={
+                SEMANTIC_VISUAL_PRIORITY.supporting
+              }
+            >
+              <summary>Project settings and recovery</summary>
+              <div className="blank-state-project-settings-content">
+                {projectManagement}
+                <ManagementSafety view={managementSafety} embedded />
+                {projection ? (
+                  <ProjectOptions
+                    projection={projection}
+                    directHostRoundTripAvailable={
+                      source.direct_host_round_trip_available
+                    }
+                    embedded
+                  />
+                ) : null}
+              </div>
+            </details>
+          )
         ) : null}
       </main>
 
@@ -801,9 +876,20 @@ function ContinuitiesTemporalContext({
                   <span aria-hidden="true" />
                   <div>
                     {item.href ? (
-                      <a href={item.href}>{item.label}</a>
+                      <a
+                        className="continuities-temporal-title"
+                        href={item.href}
+                        title={item.label}
+                      >
+                        {item.label}
+                      </a>
                     ) : (
-                      <strong>{item.label}</strong>
+                      <strong
+                        className="continuities-temporal-title"
+                        title={item.label}
+                      >
+                        {item.label}
+                      </strong>
                     )}
                     <p>{item.reason}</p>
                   </div>
@@ -833,9 +919,20 @@ function ContinuitiesTemporalContext({
                   <span aria-hidden="true" />
                   <div>
                     {item.href ? (
-                      <a href={item.href}>{item.summary}</a>
+                      <a
+                        className="continuities-temporal-title"
+                        href={item.href}
+                        title={item.summary}
+                      >
+                        {item.summary}
+                      </a>
                     ) : (
-                      <strong>{item.summary}</strong>
+                      <strong
+                        className="continuities-temporal-title"
+                        title={item.summary}
+                      >
+                        {item.summary}
+                      </strong>
                     )}
                     <time dateTime={item.occurred_at}>
                       {formatTimestamp(item.occurred_at)}
@@ -946,11 +1043,6 @@ function ContinuityItem({
           <p className="blank-state-continuity-state">
             {item.meaningful_state}
           </p>
-          {item.last_meaningful_change ? (
-            <p className="continuities-last-change-summary">
-              {item.last_meaningful_change.summary}
-            </p>
-          ) : null}
         </div>
         <div className="continuities-item-entry">
           {item.last_meaningful_change ? (
@@ -1069,14 +1161,47 @@ function ContinuityItem({
 
 function ManagementSafety({
   view,
+  embedded = false,
 }: {
   view: ManagementSafetyViewV01;
+  embedded?: boolean;
 }) {
   const items = [
     view.project_management,
     view.project_transfer,
     view.local_recovery,
   ];
+  const content = (
+    <div className="blank-state-management-safety">
+      <p>
+        Move local project continuity or review application-data safety
+        without changing the current work.
+      </p>
+      <ul>
+        {items.map((item) => (
+          <li key={item.kind}>
+            <a href={item.href}>{item.label}</a>
+            <p>{item.summary}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  if (embedded) {
+    return (
+      <section
+        className="blank-state-management-section"
+        aria-labelledby="management-safety-title"
+        data-management-safety={view.view_version}
+        data-management-safety-project-context={view.project_context}
+        data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+      >
+        <h2 id="management-safety-title">Management and safety</h2>
+        {content}
+      </section>
+    );
+  }
   return (
     <details
       className="blank-state-disclosure"
@@ -1086,20 +1211,7 @@ function ManagementSafety({
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
       <summary>Manage and protect</summary>
-      <div className="blank-state-management-safety">
-        <p>
-          Move local project continuity or review application-data safety
-          without changing the current work.
-        </p>
-        <ul>
-          {items.map((item) => (
-            <li key={item.kind}>
-              <a href={item.href}>{item.label}</a>
-              <p>{item.summary}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {content}
     </details>
   );
 }
@@ -1194,6 +1306,7 @@ function PrimaryAction({
 }
 
 function ProjectManagement({
+  presentationMode,
   recent,
   picker,
   busy,
@@ -1206,6 +1319,7 @@ function ProjectManagement({
   onRemove,
   onCancelInspection,
 }: {
+  presentationMode: BlankStatePresentationModeV01;
   recent: RecentProjectEntryV01[];
   picker: LocalFolderPickerOutcomeV01 | null;
   busy: boolean;
@@ -1218,28 +1332,77 @@ function ProjectManagement({
   onRemove: (entry: RecentProjectEntryV01) => void;
   onCancelInspection: () => void;
 }) {
+  const onboarding = presentationMode === "local_project_onboarding";
+  const choosingProject = presentationMode === "project_choice";
+  const selectedFolder = picker?.status === "selected";
   return (
     <section
       id="project-management"
-      className="blank-state-project-management"
+      className={
+        onboarding || choosingProject
+          ? "blank-state-project-management blank-state-project-management--focused"
+          : "blank-state-project-management"
+      }
       aria-labelledby="project-management-title"
       aria-busy={busy}
+      data-project-selection-presentation={presentationMode}
       data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
       <div className="blank-state-region-heading">
         <div>
-          <p className="blank-state-region-label">Project options</p>
-          <h2 id="project-management-title">Choose or manage a local project</h2>
+          <p className="blank-state-region-label">
+            {onboarding ? "Local project" : "Project options"}
+          </p>
+          <h2 id="project-management-title">
+            {onboarding
+              ? "Open a local project folder"
+              : choosingProject
+                ? "Choose a local project"
+                : "Choose or manage a local project"}
+          </h2>
         </div>
-        {primaryAction?.kind !== "choose_folder" ? (
+        {!onboarding && primaryAction?.kind !== "choose_folder" ? (
           <button type="button" className="blank-state-secondary-button" onClick={onChoose} disabled={busy}>
             Choose another folder
           </button>
         ) : null}
       </div>
+      {onboarding ? (
+        <div className="project-onboarding-copy">
+          <p id="local-project-onboarding-description">
+            Select an existing folder on this computer. Augnes links it as the
+            local project root; this step does not upload the folder.
+          </p>
+          <p id="local-project-onboarding-support">
+            Use a regular folder or a Git repository.
+          </p>
+          <p id="local-project-onboarding-cancellation">
+            Cancelling the folder picker leaves the workspace unchanged.
+          </p>
+          {!selectedFolder ? (
+            <button
+              type="button"
+              className="blank-state-primary-action project-onboarding-action"
+              aria-label={busy ? "Working…" : "Choose a folder"}
+              aria-describedby={[
+                "local-project-onboarding-description",
+                "local-project-onboarding-support",
+                "local-project-onboarding-cancellation",
+              ].join(" ")}
+              data-blank-state-primary-action="choose_folder"
+              data-augnes-primary-action="choose_folder"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+              onClick={onChoose}
+              disabled={busy}
+            >
+              {busy ? "Working…" : "Choose a folder"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {message ? <p className="project-selector-message" role="status">{message}</p> : null}
-      {picker?.status === "selected" ? (
+      {selectedFolder ? (
         <div className="project-inspection" aria-live="polite">
           <p className="blank-state-region-label">Folder found</p>
           <h3>{picker.inspection.display_name}</h3>
@@ -1253,12 +1416,23 @@ function ProjectManagement({
           ) : null}
           <p>Confirming makes this the current local project.</p>
           <div className="project-actions">
-            <button type="button" className="blank-state-secondary-button" onClick={onConfirm} disabled={busy}>Confirm project</button>
+            <button
+              type="button"
+              className="blank-state-primary-action"
+              data-blank-state-primary-action="confirm_folder"
+              data-augnes-primary-action="confirm_folder"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+              onClick={onConfirm}
+              disabled={busy}
+            >
+              {busy ? "Working…" : "Use this folder"}
+            </button>
             <button type="button" className="blank-state-tertiary-button" onClick={onCancelInspection} disabled={busy}>Cancel</button>
           </div>
         </div>
       ) : null}
 
+      {!onboarding || recent.length > 0 ? (
       <div id="recent-projects">
         <h3>Recent projects</h3>
         {recent.length === 0 ? (
@@ -1284,7 +1458,26 @@ function ProjectManagement({
                 </div>
                 <div className="project-actions">
                   {entry.root_availability === "available" ? (
-                    <button type="button" className="blank-state-secondary-button" onClick={() => onOpen(entry)} disabled={busy}>
+                    <button
+                      type="button"
+                      className="blank-state-secondary-button"
+                      data-blank-state-primary-action={
+                        !selectedFolder &&
+                        primaryAction?.kind === "open_recent" &&
+                        primaryAction.project_id === entry.project.project_id
+                          ? "open_recent"
+                          : undefined
+                      }
+                      data-augnes-primary-action={
+                        !selectedFolder &&
+                        primaryAction?.kind === "open_recent" &&
+                        primaryAction.project_id === entry.project.project_id
+                          ? "open_recent"
+                          : undefined
+                      }
+                      onClick={() => onOpen(entry)}
+                      disabled={busy}
+                    >
                       {entry.is_active ? "Open" : "Make current and open"}
                     </button>
                   ) : (
@@ -1297,6 +1490,7 @@ function ProjectManagement({
           </ul>
         )}
       </div>
+      ) : null}
     </section>
   );
 }
@@ -1304,22 +1498,18 @@ function ProjectManagement({
 function ProjectOptions({
   projection,
   directHostRoundTripAvailable,
+  embedded = false,
 }: {
   projection: NonNullable<BlankStateSourceV01["projection"]>;
   directHostRoundTripAvailable: boolean;
+  embedded?: boolean;
 }) {
   const active = projection.project_summary.is_active;
-  return (
-    <details
-      className="blank-state-disclosure"
-      data-blank-state-project-options="true"
-      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
-    >
-      <summary>Project options</summary>
-      <div className="blank-state-options-grid">
-        <section aria-labelledby="automation-options-title">
-          <h2 id="automation-options-title">Automation</h2>
-          <p>{automationSummary(projection.automation.status)}</p>
+  const content = (
+    <div className="blank-state-options-grid">
+      <section aria-labelledby="automation-options-title">
+        <h2 id="automation-options-title">Automation</h2>
+        <p>{automationSummary(projection.automation.status)}</p>
           <p>{projection.automation.state.message}</p>
           <p className="blank-state-meta">
             {projection.automation.policy_control_eligible ? "Control layer eligible" : "Control layer unavailable"}
@@ -1395,8 +1585,30 @@ function ProjectOptions({
               <li key={item.capability}><strong>{capabilityLabel(item.capability)}</strong><span>{item.status.replaceAll("_", " ")}</span></li>
             ))}
           </ul>
-        </section>
-      </div>
+      </section>
+    </div>
+  );
+  if (embedded) {
+    return (
+      <section
+        className="blank-state-management-section blank-state-management-section--technical"
+        aria-labelledby="project-options-title"
+        data-blank-state-project-options="true"
+        data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+      >
+        <h2 id="project-options-title">Project options</h2>
+        {content}
+      </section>
+    );
+  }
+  return (
+    <details
+      className="blank-state-disclosure"
+      data-blank-state-project-options="true"
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}
+    >
+      <summary>Project options</summary>
+      {content}
     </details>
   );
 }
