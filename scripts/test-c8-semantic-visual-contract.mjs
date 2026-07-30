@@ -291,15 +291,73 @@ for (const materialToken of [
   assert.match(continuitiesCss, new RegExp(materialToken, "u"));
 }
 for (const raisedNeutralToken of [
-  "--continuities-material-canvas-high: #22323d",
-  "--continuities-material-canvas-mid: #182832",
-  "--continuities-material-canvas-low: #101c24",
-  "--continuities-material-header: #14232d",
-  "--continuities-material-rail: #0c1922",
-  "--continuities-material-onboarding: #273239",
+  "--continuities-material-canvas-high: #314653",
+  "--continuities-material-canvas-mid: #253945",
+  "--continuities-material-canvas-low: #192a34",
+  "--continuities-material-header: #1b2c37",
+  "--continuities-material-rail: #10212c",
+  "--continuities-material-card: #2a4050",
+  "--continuities-material-onboarding: #303a41",
+  "--continuities-material-temporal: #303d45",
 ]) {
   assert.match(continuitiesCss, new RegExp(raisedNeutralToken, "u"));
 }
+const materialHex = (name) => {
+  const value = continuitiesCss.match(
+    new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "u"),
+  )?.[1];
+  assert.ok(value, `missing ${name} material token`);
+  return value;
+};
+const materialRgb = (hex) => [
+  Number.parseInt(hex.slice(1, 3), 16),
+  Number.parseInt(hex.slice(3, 5), 16),
+  Number.parseInt(hex.slice(5, 7), 16),
+];
+const materialLuminance = (hex) => {
+  const channels = materialRgb(hex).map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return (
+    0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  );
+};
+const canvasMid = materialHex("--continuities-material-canvas-mid");
+const rail = materialHex("--continuities-material-rail");
+const card = materialHex("--continuities-material-card");
+const onboarding = materialHex("--continuities-material-onboarding");
+const temporal = materialHex("--continuities-material-temporal");
+const control = materialHex("--continuities-material-control");
+assert.ok(
+  materialLuminance(canvasMid) > materialLuminance("#182832"),
+  "the refined canvas must remain brighter than the prior CUX5 field",
+);
+assert.ok(
+  materialLuminance(rail) < materialLuminance(canvasMid),
+  "the dry navigation rail must remain darker than the graphite canvas",
+);
+assert.ok(
+  materialLuminance(card) > materialLuminance(canvasMid),
+  "metallic continuity cards must remain raised above the canvas",
+);
+assert.ok(
+  materialLuminance(control) < materialLuminance(card),
+  "controls must remain inset relative to continuity cards",
+);
+const [cardRed, , cardBlue] = materialRgb(card);
+const [onboardingRed, , onboardingBlue] = materialRgb(onboarding);
+const [temporalRed, , temporalBlue] = materialRgb(temporal);
+assert.ok(
+  cardBlue - cardRed > onboardingBlue - onboardingRed,
+  "the onboarding slate must remain more neutral than metallic cards",
+);
+assert.ok(
+  cardBlue - cardRed > temporalBlue - temporalRed,
+  "Temporal must remain greyer and quieter than metallic cards",
+);
 const cux5ActiveNavigationRule = [
   ...continuitiesCss.matchAll(
     /\.product-navigation\s+a\[aria-current="page"\]\s*\{(?<declarations>[^}]*)\}/gu,
