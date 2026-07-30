@@ -148,6 +148,11 @@ assert.match(
   blankState,
   /className="continuities-temporal-title"[\s\S]*title=\{item\.(?:label|summary)\}/u,
 );
+assert.match(blankState, /<h3 title=\{item\.work_name\}>/u);
+assert.match(
+  blankState,
+  /className="blank-state-continuity-state"[\s\S]*title=\{item\.meaningful_state\}/u,
+);
 assert.doesNotMatch(blankState, /className="continuities-last-change-summary"/u);
 assert.match(
   blankState,
@@ -261,6 +266,40 @@ for (const scopedToken of [
 ]) {
   assert.match(continuitiesCss, new RegExp(scopedToken, "u"));
 }
+for (const materialToken of [
+  "--continuities-material-canvas-high",
+  "--continuities-material-header",
+  "--continuities-material-rail",
+  "--continuities-material-card",
+  "--continuities-material-onboarding",
+  "--continuities-material-temporal",
+  "--continuities-material-control",
+  "--continuities-material-modal",
+  "--continuities-reflection-soft",
+  "--continuities-reflection-raised",
+  "--continuities-lower-edge",
+  "--continuities-shadow-card",
+  "--continuities-shadow-temporal",
+  "--continuities-shadow-onboarding",
+  "--continuities-shadow-modal",
+  "--continuities-inset-depth",
+  "--continuities-selected-edge",
+]) {
+  assert.match(continuitiesCss, new RegExp(materialToken, "u"));
+}
+assert.match(
+  continuitiesCss,
+  /\.blank-state-continuity-item\[data-continuities-tone="amber"\]\s*\{[\s\S]{0,260}border-inline-start:\s*2px solid rgba\(214, 160, 75, 0\.58\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.blank-state-continuity-item:hover\s*\{[\s\S]{0,260}filter:\s*brightness\(1\.025\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /:is\([\s\S]{0,120}button:disabled,[\s\S]{0,80}\[aria-disabled="true"\][\s\S]{0,340}filter:\s*saturate\(0\.45\)/u,
+);
+assert.doesNotMatch(continuitiesCss, /animation:\s*[^;]*(?:noise|grain)/iu);
 assert.match(
   continuitiesCss,
   /var\([\s\S]*--font-continuities-inter,[\s\S]*"Apple SD Gothic Neo",[\s\S]*"Noto Sans CJK KR",[\s\S]*"Malgun Gothic",[\s\S]*ui-sans-serif/u,
@@ -330,6 +369,11 @@ for (const assertion of [
   "pinned_guide_nonoverlap",
   "augnes_owned_lower_left_overlay_absent",
   "mobile_touch_targets_minimum_size",
+  "material_surfaces_differentiated",
+  "attention_material_bounded",
+  "continuity_titles_preserve_full_text",
+  "more_context_default_secondary",
+  "more_context_keyboard_focus_visible",
 ]) {
   assert.match(browserValidation, new RegExp(assertion, "u"));
 }

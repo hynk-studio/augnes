@@ -11631,6 +11631,60 @@ async function validateBlankStateViewports(
       const pinnedNavigationRect = pinnedNavigation?.getBoundingClientRect();
       const guideLauncherRect = guideLauncher?.getBoundingClientRect();
       const continuityRect = continuity?.getBoundingClientRect();
+      const productShell = home?.closest(
+        '.product-shell[data-primary-product-zone="blank-state"]'
+      );
+      const firstContinuityItem = continuity?.querySelector(
+        '[data-blank-state-continuity-item]'
+      );
+      const firstControl = home?.querySelector(
+        '.continuities-filter input, .continuities-filter-chips button'
+      );
+      const guideDialog = home?.querySelector(
+        'dialog[data-continuities-guidebrief-dialog="true"]'
+      );
+      const materialSignature = (element) => {
+        if (!(element instanceof HTMLElement)) return null;
+        const style = getComputedStyle(element);
+        return [
+          style.backgroundColor,
+          style.backgroundImage,
+          style.borderTopColor,
+          style.boxShadow,
+        ].join('|');
+      };
+      const expectedMaterialSurfaces =
+        home?.getAttribute('data-blank-state-presentation') ===
+        'active_continuities'
+          ? [
+              productShell,
+              navigationRail,
+              firstContinuityItem,
+              temporal,
+              firstControl,
+              guideDialog,
+            ]
+          : [
+              productShell,
+              navigationRail,
+              projectPanel ?? projectContext,
+              guideDialog,
+            ];
+      const renderedMaterialSurfaces = expectedMaterialSurfaces.filter(
+        rendered
+      );
+      const materialSignatures = renderedMaterialSurfaces
+        .map(materialSignature)
+        .filter(Boolean);
+      const attentionItems = Array.from(
+        continuity?.querySelectorAll(
+          '[data-blank-state-human-attention="true"]'
+        ) ?? []
+      );
+      const moreContextSummaries = Array.from(
+        continuity?.querySelectorAll('.continuities-item-details > summary') ??
+          []
+      );
       const bounds = (element) => element?.getBoundingClientRect() ?? null;
       const intersects = (left, right) =>
         Boolean(left && right) &&
@@ -11893,6 +11947,49 @@ async function validateBlankStateViewports(
           !intersects(temporalRect, continuityRect),
         pinned_guide_nonoverlap:
           !intersects(pinnedNavigationRect, guideLauncherRect),
+        material_surfaces_differentiated:
+          materialSignatures.length === renderedMaterialSurfaces.length &&
+          materialSignatures.length >=
+            (home?.getAttribute('data-blank-state-presentation') ===
+            'active_continuities'
+              ? 5
+              : 3) &&
+          new Set(materialSignatures).size === materialSignatures.length,
+        attention_material_bounded:
+          attentionItems.every((item) => {
+            const style = getComputedStyle(item);
+            const action = item.querySelector(
+              '.blank-state-primary-action, .blank-state-secondary-link'
+            );
+            const actionStyle = action ? getComputedStyle(action) : null;
+            return (
+              style.borderLeftColor !== style.borderRightColor &&
+              style.borderRightColor === style.borderBottomColor &&
+              (!actionStyle ||
+                !actionStyle.backgroundImage.includes('214, 160, 75'))
+            );
+          }),
+        continuity_titles_preserve_full_text:
+          Array.from(
+            continuity?.querySelectorAll('[data-blank-state-continuity-item]') ??
+              []
+          ).every((item) => {
+            const title = item.querySelector('h3');
+            const state = item.querySelector('.blank-state-continuity-state');
+            return (
+              title?.getAttribute('title') === title?.textContent?.trim() &&
+              state?.getAttribute('title') === state?.textContent?.trim()
+            );
+          }),
+        more_context_default_secondary:
+          moreContextSummaries.every((summary) => {
+            const style = getComputedStyle(summary);
+            return (
+              summary !== document.activeElement &&
+              summary.hasAttribute('aria-selected') === false &&
+              style.outlineStyle === 'none'
+            );
+          }),
         desktop_guide_not_fixed:
           window.innerWidth <= 900 ||
           !guideLauncher ||
@@ -12192,6 +12289,26 @@ async function validateBlankStateViewports(
       metricMessage("pinned_guide_nonoverlap"),
     );
     assert.equal(
+      metrics.material_surfaces_differentiated,
+      true,
+      metricMessage("material_surfaces_differentiated"),
+    );
+    assert.equal(
+      metrics.attention_material_bounded,
+      true,
+      metricMessage("attention_material_bounded"),
+    );
+    assert.equal(
+      metrics.continuity_titles_preserve_full_text,
+      true,
+      metricMessage("continuity_titles_preserve_full_text"),
+    );
+    assert.equal(
+      metrics.more_context_default_secondary,
+      true,
+      metricMessage("more_context_default_secondary"),
+    );
+    assert.equal(
       metrics.desktop_guide_not_fixed,
       true,
       metricMessage("desktop_guide_not_fixed"),
@@ -12411,6 +12528,68 @@ async function validateBlankStateViewports(
     })()`,
     "GuideBrief dialog closes and returns focus",
   );
+  const moreContextPresent = await evaluateBoolean(`(() =>
+    document.querySelector('.continuities-item-details > summary') !== null
+  )()`);
+  if (moreContextPresent) {
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const summary = document.querySelector(
+          '.continuities-item-details > summary'
+        );
+        const item = summary?.closest('[data-blank-state-continuity-item]');
+        const previous = item?.querySelector(
+          '.blank-state-primary-action, .blank-state-secondary-link'
+        );
+        if (!(summary instanceof HTMLElement) ||
+            !(previous instanceof HTMLElement)) return false;
+        previous.focus();
+        return document.activeElement === previous;
+      })()`),
+      true,
+      "More context needs a preceding source-owned action for keyboard focus validation",
+    );
+    await cdp.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+    });
+    await cdp.send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+    });
+    const moreContextFocus = await evaluateJson(`(() => {
+      const summary = document.querySelector(
+        '.continuities-item-details > summary'
+      );
+      const style =
+        summary instanceof HTMLElement ? getComputedStyle(summary) : null;
+      return {
+        focused: summary === document.activeElement,
+        outline_style: style?.outlineStyle ?? null,
+        outline_width: style?.outlineWidth ?? null,
+        aria_selected_absent:
+          summary instanceof HTMLElement &&
+          summary.hasAttribute('aria-selected') === false,
+      };
+    })()`);
+    assert.equal(
+      moreContextFocus.focused &&
+        moreContextFocus.outline_style === "solid" &&
+        moreContextFocus.outline_width === "3px" &&
+        moreContextFocus.aria_selected_absent,
+      true,
+      `more_context_keyboard_focus_visible:${JSON.stringify(moreContextFocus)}`,
+    );
+    result.viewport_results.push({
+      surface: "blank_state_more_context_focus",
+      more_context_keyboard_focus_visible: true,
+      aria_selected_absent: true,
+    });
+  }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 1000,

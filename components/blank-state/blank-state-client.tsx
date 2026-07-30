@@ -1039,8 +1039,11 @@ function ContinuityItem({
           >
             {attentionLabel}
           </p>
-          <h3>{item.work_name}</h3>
-          <p className="blank-state-continuity-state">
+          <h3 title={item.work_name}>{item.work_name}</h3>
+          <p
+            className="blank-state-continuity-state"
+            title={item.meaningful_state}
+          >
             {item.meaningful_state}
           </p>
         </div>
