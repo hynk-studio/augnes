@@ -312,6 +312,10 @@ assert.doesNotMatch(
 assert.match(continuitiesCss, /\.continuity-pins-navigation/u);
 assert.match(continuitiesCss, /\.continuity-pins-mobile/u);
 assert.match(continuitiesCss, /min-width:\s*44px/u);
+assert.match(
+  continuitiesCss,
+  /@media \(max-width: 900px\)[\s\S]*\.continuities-item-details[\s\S]*>\s*summary[\s\S]*a\.continuities-temporal-title[\s\S]*min-height:\s*44px/u,
+);
 const browserValidation = read(
   "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
 );
@@ -325,6 +329,7 @@ for (const assertion of [
   "temporal_stream_nonoverlap",
   "pinned_guide_nonoverlap",
   "augnes_owned_lower_left_overlay_absent",
+  "mobile_touch_targets_minimum_size",
 ]) {
   assert.match(browserValidation, new RegExp(assertion, "u"));
 }

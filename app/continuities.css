@@ -1365,6 +1365,27 @@
 }
 
 @media (max-width: 900px) {
+  .product-shell[data-primary-product-zone="blank-state"]
+    :is(.product-skip-link, .product-brand),
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuities-item-details
+    > summary,
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuities-temporal-group
+    a.continuities-temporal-title,
+  .product-shell[data-primary-product-zone="blank-state"]
+    .blank-state-project-settings-content
+    :is(a, button, summary) {
+    min-height: 44px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .blank-state-project-settings-content
+    a {
+    display: inline-flex;
+    align-items: center;
+  }
+
   .product-shell[data-primary-product-zone="blank-state"] {
     display: block;
     padding-bottom: 72px;

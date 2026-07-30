@@ -11568,6 +11568,11 @@ async function validateBlankStateViewports(
       const controls = Array.from(
         continuity?.querySelectorAll('a, button, summary') ?? [],
       ).filter(rendered);
+      const mobileTouchTargets = Array.from(
+        document.querySelectorAll(
+          '.product-skip-link, .product-brand, .continuities-item-details > summary, a.continuities-temporal-title, .blank-state-project-settings-content a, .blank-state-project-settings-content button, .blank-state-project-settings-content summary'
+        )
+      ).filter(rendered);
       const conversation = home?.querySelector(
         '[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'
       );
@@ -11734,6 +11739,12 @@ async function validateBlankStateViewports(
           settingsRect ? Math.round(settingsRect.height) : null,
         management_summary_touch_target:
           !settingsSummary || settingsSummary.getBoundingClientRect().height >= 44,
+        mobile_touch_targets_minimum_size:
+          window.innerWidth > 900 ||
+          mobileTouchTargets.every((control) => {
+            const bounds = control.getBoundingClientRect();
+            return bounds.width >= 44 && bounds.height >= 44;
+          }),
         management_surface_not_black:
           !settings ||
           !['rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)'].includes(
@@ -12104,6 +12115,11 @@ async function validateBlankStateViewports(
     assert.equal(metrics.legacy_competing_regions_absent, true);
     assert.equal(metrics.management_secondary, true);
     assert.equal(metrics.management_summary_touch_target, true);
+    assert.equal(
+      metrics.mobile_touch_targets_minimum_size,
+      true,
+      metricMessage("mobile_touch_targets_minimum_size"),
+    );
     assert.equal(metrics.management_surface_not_black, true);
     if (activePresentation) {
       assert.equal(
