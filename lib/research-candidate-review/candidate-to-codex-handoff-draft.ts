@@ -10,6 +10,10 @@ import type {
   CandidateToCodexHandoffDraftValidationResult,
 } from "@/types/candidate-to-codex-handoff-draft";
 import type { ResearchCandidateAIContextPacketGeometrySubstrateUpgrade } from "@/types/research-candidate-ai-context-packet";
+import {
+  containsAbsoluteUserHomePath,
+  RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
+} from "@/lib/research-candidate-review/operator-bound-checkout";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -153,6 +157,10 @@ export function validateCandidateToCodexHandoffDraftGeometrySubstrate(
   }
   for (const [label, expectedText] of [
     ["source_packet_fingerprint", draft.source_ai_context_packet_fingerprint],
+    [
+      "operator_bound_checkout",
+      RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
+    ],
     ["source_refs_summary", "Source refs summary:"],
     ["unresolved_tensions_summary", "Unresolved tensions summary:"],
     ["geometry_substrate_folded_audit_summary", "Geometry/Substrate/Folded audit summary:"],
@@ -172,6 +180,9 @@ export function validateCandidateToCodexHandoffDraftGeometrySubstrate(
     if (!draft.copyable_prompt.includes(expectedText)) {
       failureCodes.push(`copyable_prompt_${label}_missing`);
     }
+  }
+  if (containsAbsoluteUserHomePath(draft.copyable_prompt)) {
+    failureCodes.push("copyable_prompt_private_checkout_path_present");
   }
   if (!draft.structured_handoff) {
     failureCodes.push("structured_handoff_missing");
@@ -283,8 +294,7 @@ function buildCopyablePrompt({
   const lines = [
     "Candidate-to-Codex handoff draft preview",
     `Repo: hynk-studio/augnes`,
-    `Canonical checkout: /Users/hynk/code/augnes`,
-    `Do not touch: /Users/hynk/Documents/augnes`,
+    RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
     `Source packet ref: ${sourcePacketRef}`,
     `Source packet fingerprint: ${packet.packet_fingerprint}`,
     `Source packet next slice: ${packet.next_recommended_slice}`,

@@ -2,7 +2,7 @@
   "implementation_kind": "codex_handoff_draft_implementation",
   "implementation_version": "codex_handoff_draft_implementation.v0.1",
   "source_contract_ref": "codex_handoff_draft_contract.v0.1:fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
-  "source_contract_fingerprint": "fnv1a32:e31fda3e",
+  "source_contract_fingerprint": "fnv1a32:e1eed66c",
   "implemented_contract": {
     "contract_kind": "codex_handoff_draft_contract",
     "contract_version": "codex_handoff_draft_contract.v0.1",
@@ -78,7 +78,7 @@
       "draft_id": "codex_handoff_draft_ref:public:contract_preview",
       "draft_version": "codex_handoff_draft.v0.1",
       "target_repository": "hynk-studio/augnes",
-      "canonical_checkout": "/Users/hynk/code/augnes",
+      "canonical_checkout": "Authorized checkout: use the repository checkout explicitly supplied by the human operator for this Codex task. Do not assume a machine-specific path.",
       "branch_name_hint": "codex/codex-handoff-draft-contract-v0-1",
       "pr_title_hint": "Add Codex Handoff Draft contract v0.1",
       "mission_brief": {
@@ -744,5 +744,5 @@
   "recommendation_status": "ready_for_codex_handoff_draft_browser_validation_v0_1",
   "next_recommended_slice": "codex_handoff_draft_browser_validation_v0_1",
   "fingerprint_algorithm": "fnv1a32_canonical_json",
-  "implementation_fingerprint": "fnv1a32:6db76735"
+  "implementation_fingerprint": "fnv1a32:50dc154e"
 }
