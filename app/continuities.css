@@ -2315,16 +2315,24 @@
 }
 
 .product-shell[data-primary-product-zone="blank-state"]
-  :is(
-    button:disabled,
-    [aria-disabled="true"]
-  ) {
+  button:disabled {
   border-color: rgba(145, 167, 180, 0.1);
   color: rgba(188, 203, 211, 0.52);
   background: #0c1720;
   box-shadow: inset 0 2px 5px rgba(0, 5, 10, 0.27);
   filter: saturate(0.45);
   opacity: 0.74;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuity-pin-destination
+  strong[aria-disabled="true"] {
+  border: 0;
+  color: var(--continuities-text);
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
 }
 
 .product-shell[data-primary-product-zone="blank-state"]

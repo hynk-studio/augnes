@@ -82,6 +82,9 @@ assert.doesNotMatch(productShell, /label: "Blank State"/u);
 assert.doesNotMatch(productShell, /Project tools|Portability|Recovery/u);
 
 const blankState = read("components/blank-state/blank-state-client.tsx");
+const continuityPinsMarkup = read(
+  "components/continuity-pins/continuity-pins-ui.tsx",
+);
 assert.match(blankState, /data-augnes-surface-role/u);
 assert.match(blankState, /data-augnes-primary-action/u);
 assert.match(blankState, /SEMANTIC_VISUAL_PRIORITY\.situation/u);
@@ -296,8 +299,35 @@ assert.match(
   /\.blank-state-continuity-item:hover\s*\{[\s\S]{0,260}filter:\s*brightness\(1\.025\)/u,
 );
 assert.match(
+  continuityPinsMarkup,
+  /<strong aria-disabled="true">\{pin\.label\}<\/strong>/u,
+);
+const disabledControlMaterialRule = continuitiesCss.match(
+  /\.product-shell\[data-primary-product-zone="blank-state"\]\s+button:disabled\s*\{(?<declarations>[^}]*filter:\s*saturate\(0\.45\)[^}]*)\}/u,
+);
+assert.ok(disabledControlMaterialRule?.groups?.declarations);
+assert.doesNotMatch(
+  disabledControlMaterialRule[0],
+  /\[aria-disabled="true"\]/u,
+  "disabled material must remain scoped to interactive controls",
+);
+const unresolvedPinnedLabelRule = continuitiesCss.match(
+  /\.product-shell\[data-primary-product-zone="blank-state"\]\s+\.continuity-pin-destination\s+strong\[aria-disabled="true"\]\s*\{(?<declarations>[^}]*)\}/u,
+);
+assert.ok(unresolvedPinnedLabelRule?.groups?.declarations);
+for (const declaration of [
+  /border:\s*0/u,
+  /color:\s*var\(--continuities-text\)/u,
+  /background:\s*transparent/u,
+  /box-shadow:\s*none/u,
+  /filter:\s*none/u,
+  /opacity:\s*1/u,
+]) {
+  assert.match(unresolvedPinnedLabelRule.groups.declarations, declaration);
+}
+assert.match(
   continuitiesCss,
-  /:is\([\s\S]{0,120}button:disabled,[\s\S]{0,80}\[aria-disabled="true"\][\s\S]{0,340}filter:\s*saturate\(0\.45\)/u,
+  /\[data-continuity-pin-resolution="temporarily_unavailable"\][\s\S]{0,240}\[data-continuity-pin-resolution="no_longer_supported"\][\s\S]{0,180}\.continuity-pin-indicator\s*\{[\s\S]{0,120}background:\s*var\(--continuities-violet\)/u,
 );
 assert.doesNotMatch(continuitiesCss, /animation:\s*[^;]*(?:noise|grain)/iu);
 assert.match(
