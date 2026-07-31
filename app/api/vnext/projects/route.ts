@@ -8,6 +8,7 @@ import {
   openRecentProjectV01,
   pickAndInspectLocalProjectV01,
   readProjectDestinationV01,
+  renameActiveProjectDisplayNameV01,
   rebindLocalProjectRootFromSelectionV01,
   removeProjectFromRecentV01,
 } from "@/lib/vnext/onboarding/local-project-onboarding";
@@ -52,6 +53,16 @@ export async function POST(request: Request) {
       return json({ ok: true, result: await confirmLocalProjectOnboardingV01(db, {
         selection_token: requiredString(body.selection_token),
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
+        display_name: requiredText(body.display_name),
+      }) });
+    }
+    if (body.action === "rename") {
+      return json({ ok: true, result: renameActiveProjectDisplayNameV01(db, {
+        project_id: requiredString(body.project_id),
+        expected_active_project_id: requiredString(body.expected_active_project_id),
+        expected_active_selection_revision: requiredRevision(body.expected_active_selection_revision),
+        expected_current_display_name: requiredNullableString(body, "expected_current_display_name"),
+        requested_display_name: requiredText(body.requested_display_name),
       }) });
     }
     if (body.action === "open") {
@@ -82,6 +93,10 @@ export async function POST(request: Request) {
 
 function requiredString(value: unknown): string {
   if (typeof value !== "string" || !value) throw new ProjectOnboardingErrorV01("selection_invalid");
+  return value;
+}
+function requiredText(value: unknown): string {
+  if (typeof value !== "string") throw new ProjectOnboardingErrorV01("selection_invalid");
   return value;
 }
 async function readBoundedBody(request: Request): Promise<Record<string, unknown>> {
@@ -146,10 +161,21 @@ function requiredNullableRevision(record: Record<string, unknown>, key: string):
   if (value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0)) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
+function requiredRevision(value: unknown): number {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
+  throw new ProjectOnboardingErrorV01("selection_invalid");
+}
 function routeError(error: unknown) {
   if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404);
-  if (error instanceof ProjectIdentityRegistryErrorV01) return json({ ok: false, error_code: error.code }, error.code.includes("conflict") ? 409 : 400);
+  if (error instanceof ProjectIdentityRegistryErrorV01) {
+    const status = error.code.includes("conflict")
+      ? 409
+      : error.code === "project_identity_scope_mismatch"
+        ? 404
+        : 400;
+    return json({ ok: false, error_code: error.code }, status);
+  }
   if (error instanceof VNextLocalOperatorSessionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   return json({ ok: false, error_code: "onboarding_unavailable" }, 500);
 }

@@ -544,7 +544,12 @@ export function SemanticReviewSurface({
     : "/";
 
   return (
-    <ProductShell primaryZone="ai-workplane">
+    <ProductShell
+      primaryZone="ai-workplane"
+      projectContext={homeView.project_name
+        ? { label: "Current project", name: homeView.project_name }
+        : null}
+    >
       <main
         className={styles.page}
         data-vnext-semantic-review="v0.1"

@@ -17,12 +17,14 @@ import {
   DEFAULT_LOCAL_WORKSPACE_ROLE_V01,
   LOCAL_PROJECT_ROOT_REF_VERSION_V01,
   PROJECT_EXTERNAL_REF_BINDING_VERSION_V01,
+  PROJECT_DISPLAY_NAME_MAX_LENGTH_V01,
   PROJECT_IDENTITY_VERSION_V01,
   PROJECT_LOCAL_ROOT_BINDING_VERSION_V01,
   WORKSPACE_IDENTITY_VERSION_V01,
   type LocalProjectPathFlavorV01,
   type LocalProjectRootRefV01,
   type ProjectExternalRefBindingV01,
+  type ProjectDisplayNameWriteResultV01,
   type ProjectIdentityV01,
   type ProjectLocalRootBindingV01,
   type WorkspaceIdentityV01,
@@ -38,6 +40,8 @@ export type ProjectIdentityRegistryErrorCodeV01 =
   | "project_identity_registry_uninitialized"
   | "project_identity_replay_conflict"
   | "project_identity_scope_mismatch"
+  | "project_display_name_invalid"
+  | "project_display_name_conflict"
   | "local_project_root_invalid"
   | "project_external_ref_invalid"
   | "project_external_ref_conflict"
@@ -358,7 +362,6 @@ export function getOrCreateCanonicalProjectForLocalRootV01(
   assertVNextProjectIdentityRegistrySchemaV01(db);
   const workspaceId = normalizeWorkspaceId(input.workspace_id);
   const localRoot = normalizeStoredLocalRoot(input.local_root);
-  const assertedDisplayName = Object.hasOwn(input, "display_name");
   const displayName = normalizeDisplayName(input.display_name ?? null);
 
   return runImmediateTransaction(db, () => {
@@ -368,12 +371,6 @@ export function getOrCreateCanonicalProjectForLocalRootV01(
     const existing = selectRegistrationByRoot(db, workspaceId, localRoot);
     if (existing) {
       const registration = parseRegistration(existing.project, existing.root);
-      if (
-        assertedDisplayName &&
-        registration.project.display_name !== displayName
-      ) {
-        fail("project_identity_replay_conflict", "display_name");
-      }
       return { status: "exact_replay", ...registration };
     }
 
@@ -508,15 +505,14 @@ export function admitPortableProjectIdentityInsideTransactionV01(
     });
     if (
       !registration ||
-      canonicalizeProtocolValueV01(registration.project) !==
-        canonicalizeProtocolValueV01(project)
+      !sameImmutableProjectIdentityV01(registration.project, project)
     ) {
       fail("project_identity_replay_conflict", "project");
     }
     return {
       status: "exact_replay",
       workspace,
-      project,
+      project: registration.project,
       root_binding: registration.root_binding,
     };
   }
@@ -551,6 +547,62 @@ export function readCanonicalProjectIdentityV01(
     normalizeProjectId(input.project_id),
   );
   return row ? parseProject(row) : null;
+}
+
+export function normalizeProjectDisplayNameV01(value: unknown): string {
+  const normalized = normalizeDisplayName(value);
+  if (normalized === null) {
+    fail("project_display_name_invalid", "display_name");
+  }
+  return normalized;
+}
+
+export function renameCanonicalProjectDisplayNameV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    requested_display_name: string;
+    expected_current_display_name: string | null;
+  },
+): ProjectDisplayNameWriteResultV01 {
+  assertVNextProjectIdentityRegistrySchemaV01(db);
+  const workspaceId = normalizeWorkspaceId(input.workspace_id);
+  const projectId = normalizeProjectId(input.project_id);
+  const requestedDisplayName = normalizeProjectDisplayNameV01(
+    input.requested_display_name,
+  );
+  const expectedCurrentDisplayName = normalizeDisplayName(
+    input.expected_current_display_name,
+  );
+
+  return runImmediateTransaction(db, () => {
+    const row = selectProjectByScope(db, workspaceId, projectId);
+    if (!row) fail("project_identity_scope_mismatch", "project_id");
+    const current = parseProject(row);
+    if (current.display_name !== expectedCurrentDisplayName) {
+      fail("project_display_name_conflict", "display_name");
+    }
+    if (current.display_name === requestedDisplayName) {
+      return { status: "exact_replay", project: current };
+    }
+    const updated = db.prepare(
+      `UPDATE vnext_project_identities
+       SET display_name = ?
+       WHERE workspace_id = ? AND project_id = ? AND display_name IS ?`,
+    ).run(
+      requestedDisplayName,
+      workspaceId,
+      projectId,
+      expectedCurrentDisplayName,
+    );
+    if (updated.changes !== 1) {
+      fail("project_display_name_conflict", "display_name");
+    }
+    const updatedRow = selectProjectByScope(db, workspaceId, projectId);
+    if (!updatedRow) fail("project_identity_registry_corrupt", "project");
+    return { status: "updated", project: parseProject(updatedRow) };
+  });
 }
 
 export function readCanonicalProjectWithRootV01(
@@ -896,6 +948,20 @@ function parseRegistration(
   return { project: parsedProject, root_binding: rootBinding };
 }
 
+function sameImmutableProjectIdentityV01(
+  left: ProjectIdentityV01,
+  right: ProjectIdentityV01,
+): boolean {
+  return (
+    left.workspace_id === right.workspace_id &&
+    left.project_id === right.project_id &&
+    left.project_identity_version === right.project_identity_version &&
+    left.identity_kind === right.identity_kind &&
+    left.identity_source === right.identity_source &&
+    left.created_at === right.created_at
+  );
+}
+
 function parseWorkspace(row: WorkspaceRowV01): WorkspaceIdentityV01 {
   if (
     row.workspace_identity_version !== WORKSPACE_IDENTITY_VERSION_V01 ||
@@ -1074,8 +1140,11 @@ function normalizeTimestamp(value: unknown): string {
 
 function normalizeDisplayName(value: unknown): string | null {
   const normalized = normalizeProtocolNullableTextV01(value);
-  if (normalized !== null && normalized.length > 240) {
-    fail("project_identity_invalid", "display_name");
+  if (
+    normalized !== null &&
+    normalized.length > PROJECT_DISPLAY_NAME_MAX_LENGTH_V01
+  ) {
+    fail("project_display_name_invalid", "display_name");
   }
   return normalized;
 }

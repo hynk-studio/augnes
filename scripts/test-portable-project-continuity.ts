@@ -21,6 +21,10 @@ import {
   previewActivePortableProjectV01,
 } from "../lib/vnext/portability/portable-project";
 import { mutateProjectControlV01 } from "../lib/vnext/persistence/project-control-store";
+import {
+  readCanonicalProjectIdentityV01,
+  renameCanonicalProjectDisplayNameV01,
+} from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01, selectActiveProjectV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectHomeDatabaseCompatibilityV01, readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
@@ -87,6 +91,21 @@ try {
       expected_revision: null,
     });
   }
+  const projectBeforePortableRename = readCanonicalProjectIdentityV01(source, {
+    workspace_id: fixtureManifest.workspace_id,
+    project_id: fixtureManifest.project_id,
+  });
+  assert(projectBeforePortableRename?.display_name);
+  const exportedProjectName = "포터블 프로젝트 Current 2026";
+  assert.equal(
+    renameCanonicalProjectDisplayNameV01(source, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+      requested_display_name: exportedProjectName,
+      expected_current_display_name: projectBeforePortableRename.display_name,
+    }).status,
+    "updated",
+  );
   mutateProjectControlV01(source, {
     workspace_id: fixtureManifest.workspace_id,
     project_id: fixtureManifest.project_id,
@@ -116,6 +135,8 @@ try {
     include_personal_perspective: true,
     exported_at: observedAt,
   });
+  assert.equal(exported.package.manifest.project.display_name, exportedProjectName);
+  assert.equal(exported.filename, "포터블-프로젝트-current-2026.augnes-project.json");
   assert.equal(exported.package.personal_perspective_scope?.selection, "included");
   assert.deepEqual(parseAndValidatePortableProjectV01(exported.bytes), exported.package);
   assert.equal(new TextDecoder().decode(exported.bytes).includes(sourceRoot), false);
@@ -133,6 +154,14 @@ try {
   assert.equal(imported.semantic_authority_created, false);
   assert.equal(imported.automation_authority_created, false);
   assert.equal(imported.external_action_created, false);
+  assert.equal(
+    readCanonicalProjectIdentityV01(destination, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+    })?.display_name,
+    exportedProjectName,
+    "new import must use the exported display name",
+  );
 
   const replay = importPortableProjectV01(destination, {
     bytes: exported.bytes,
@@ -207,6 +236,31 @@ try {
   assert.equal(inspector.authority.writes_database, false);
   assert.equal(inspector.authority.creates_review_decision, false);
   assert.equal(inspector.authority.applies_transition, false);
+
+  const localCurrentName = "Local newer project name";
+  assert.equal(
+    renameCanonicalProjectDisplayNameV01(destination, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+      requested_display_name: localCurrentName,
+      expected_current_display_name: exportedProjectName,
+    }).status,
+    "updated",
+  );
+  const replayWithOlderPortableName = importPortableProjectV01(destination, {
+    bytes: exported.bytes,
+    destination_root_base: destinationProjects,
+    imported_at: "2026-07-21T03:08:00.000Z",
+  });
+  assert.equal(replayWithOlderPortableName.status, "exact_replay");
+  assert.equal(
+    readCanonicalProjectIdentityV01(destination, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+    })?.display_name,
+    localCurrentName,
+    "existing replay must preserve the newer local mutable name",
+  );
 
   initializeDatabase(rollbackDbPath);
   const rollback = new Database(rollbackDbPath, { fileMustExist: true });
@@ -291,6 +345,10 @@ try {
     }));
     assert.equal(routeExport.status, 200);
     assert.match(routeExport.headers.get("content-disposition") ?? "", /\.augnes-project\.json/u);
+    assert.match(
+      routeExport.headers.get("content-disposition") ?? "",
+      /filename\*=UTF-8''/u,
+    );
     const routeBytes = new Uint8Array(await routeExport.arrayBuffer());
     assert.equal(parseAndValidatePortableProjectV01(routeBytes).contract, "augnes.portable-project.v1");
     const routeImport = await portabilityPost(localRequestV01("POST", {
@@ -476,6 +534,10 @@ try {
     exported_records: exported.package.records.length,
     imported_records: imported.record_count,
     exact_replay: true,
+    export_current_display_name: true,
+    safe_display_name_filename: true,
+    new_import_display_name: true,
+    existing_replay_preserves_local_display_name: true,
     atomic_rollback: true,
     project_home_fidelity: true,
     workbench_fidelity: true,

@@ -10,6 +10,7 @@ export type ProductUtilityContext =
 export interface ProductProjectContext {
   label: "Current project" | "Viewed project";
   name: string;
+  managementHref?: string;
 }
 
 const PRIMARY_NAVIGATION: Array<{
@@ -65,14 +66,27 @@ export function ProductShell({
             </span>
           </a>
           {projectContext ? (
-            <p
-              className="product-project-context"
-              title={projectContext.name}
-              data-project-context-label={projectContext.label}
-            >
-              <span>{projectContext.label}</span>
-              <strong>{projectContext.name}</strong>
-            </p>
+            projectContext.label === "Current project" ? (
+              <a
+                className="product-project-context product-project-context--action"
+                href={projectContext.managementHref ?? "/#project-settings"}
+                title={`Manage ${projectContext.name}`}
+                aria-label={`Manage current project: ${projectContext.name}`}
+                data-project-context-label={projectContext.label}
+              >
+                <span>{projectContext.label}</span>
+                <strong>{projectContext.name}</strong>
+              </a>
+            ) : (
+              <p
+                className="product-project-context"
+                title={projectContext.name}
+                data-project-context-label={projectContext.label}
+              >
+                <span>{projectContext.label}</span>
+                <strong>{projectContext.name}</strong>
+              </p>
+            )
           ) : (
             <p className="product-project-context product-project-context--neutral">
               <span>Workspace</span>

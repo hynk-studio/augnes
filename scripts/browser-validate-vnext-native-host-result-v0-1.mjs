@@ -805,12 +805,178 @@ async function main() {
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder'); button?.click(); return Boolean(button); })()`), true);
+    const onboardingEditedProjectName = "처음 이어지는 Browser Onboarding Project";
+    assert.equal(
+      await evaluateString(`document.querySelector('input[name="project-display-name"]')?.value ?? ''`),
+      "Browser Onboarding Project",
+      "new-project name must be prefilled from the inspected basename",
+    );
+    assert.equal(
+      await evaluateBoolean(`document.body.textContent.includes('The Augnes project name does not rename the local folder.') && document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`),
+      true,
+    );
+    await setFormControlValue('input[name="project-display-name"]', 0, "");
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-primary-action="confirm_folder"]')?.disabled === true && document.body.textContent.includes('Enter a project name.')`,
+      "invalid onboarding name blocks confirmation",
+    );
+    await setFormControlValue(
+      'input[name="project-display-name"]',
+      0,
+      onboardingEditedProjectName,
+    );
+    await waitForCondition(
+      `document.querySelector('input[name="project-display-name"]')?.value === ${JSON.stringify(onboardingEditedProjectName)} && document.querySelector('[data-blank-state-primary-action="confirm_folder"]:not(:disabled)')?.textContent?.trim() === 'Add project'`,
+      "edited project name before Add project",
+    );
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Add project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
     const destination = await evaluateString("location.pathname");
     const firstProjectId = decodeURIComponent(destination.split("/").at(-1));
     result.folder_onboarding_destination = destination;
     await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-focus="ready_to_continue"]') !== null`, "active Blank State destination");
+    await waitForCondition(
+      `document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes(${JSON.stringify(onboardingEditedProjectName)}) === true`,
+      "edited onboarding name reaches ProductShell",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === false`,
+      ),
+      true,
+      "project settings must remain closed by default",
+    );
+    assert.equal(await evaluateBoolean(`(() => {
+      const link = document.querySelector('a[data-project-context-label="Current project"]');
+      if (!(link instanceof HTMLAnchorElement)) return false;
+      link.click();
+      return true;
+    })()`), true);
+    await waitForCondition(
+      `location.hash === '#project-settings' && (() => {
+        const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
+        return details?.open === true && details.querySelector(':scope > summary') === document.activeElement;
+      })()`,
+      "current-project context opens and focuses project settings",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-project-identity-management="true"]') !== null && document.querySelector('input[name="current-project-display-name"]')?.value === ${JSON.stringify(onboardingEditedProjectName)} && document.querySelector('[data-project-name-save="true"]')?.disabled === true && document.body.textContent.includes('Renaming the Augnes project does not rename the local folder.')`,
+      ),
+      true,
+    );
+    await setFormControlValue(
+      'input[name="current-project-display-name"]',
+      0,
+      "",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-project-name-save="true"]')?.disabled === true && document.body.textContent.includes('Enter a project name.')`,
+      "invalid rename remains disabled",
+    );
+    await setFormControlValue(
+      'input[name="current-project-display-name"]',
+      0,
+      onboardingEditedProjectName,
+    );
+    const staleRenameSnapshot = await evaluateJson(`(async () => {
+      const recent = await (await fetch('/api/vnext/projects')).json();
+      const active = recent.recent_projects.find((entry) => entry.is_active);
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'rename',
+          project_id: active.project.project_id,
+          expected_active_project_id: active.active_project_id,
+          expected_active_selection_revision: active.active_selection_revision,
+          expected_current_display_name: active.project.display_name,
+          requested_display_name: 'Stale rename source'
+        })
+      });
+      return { status: response.status, active };
+    })()`);
+    assert.equal(staleRenameSnapshot.status, 200);
+    await setFormControlValue(
+      'input[name="current-project-display-name"]',
+      0,
+      "Stale UI rename",
+    );
+    assert.equal(await evaluateBoolean(`(() => {
+      const save = document.querySelector('[data-project-name-save="true"]');
+      if (!(save instanceof HTMLButtonElement) || save.disabled) return false;
+      save.click();
+      return true;
+    })()`), true);
+    await waitForCondition(
+      `document.body.textContent.includes('The project name changed in another view. Refresh and try again.')`,
+      "stale rename conflict is public and actionable",
+    );
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('input[name="current-project-display-name"]')?.value === 'Stale rename source'`,
+      "stale rename source refresh",
+    );
+    const longKoreanProjectName = `장기 연속성 프로젝트 ${"가".repeat(72)} English continuity`;
+    await setFormControlValue(
+      'input[name="current-project-display-name"]',
+      0,
+      longKoreanProjectName,
+    );
+    await waitForCondition(
+      `document.querySelector('input[name="current-project-display-name"]')?.value === ${JSON.stringify(longKoreanProjectName)} && document.querySelector('[data-project-name-save="true"]')?.disabled === false`,
+      "long Korean project name is ready to save",
+    );
+    assert.equal(await evaluateBoolean(`(() => {
+      const save = document.querySelector('[data-project-name-save="true"]');
+      if (!(save instanceof HTMLButtonElement) || save.disabled) return false;
+      save.click();
+      return true;
+    })()`), true);
+    await waitForCondition(
+      `location.hash === '#project-settings' && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes(${JSON.stringify(longKoreanProjectName)}) === true && Array.from(document.querySelectorAll('.recent-project-list strong')).some((entry) => entry.textContent?.trim() === ${JSON.stringify(longKoreanProjectName)})`,
+      "successful long Korean project rename",
+    );
+    const recentAfterLongRename = await evaluateJson(`(async () => await (await fetch('/api/vnext/projects')).json())()`);
+    assert.equal(
+      recentAfterLongRename.recent_projects.find((entry) => entry.is_active)?.project.display_name,
+      longKoreanProjectName,
+    );
+    assert.equal(
+      recentAfterLongRename.recent_projects.find((entry) => entry.is_active)?.local_root.normalized_path,
+      onboardingFolder,
+      "rename must not change the local root",
+    );
+    await setFormControlValue(
+      'input[name="current-project-display-name"]',
+      0,
+      "Browser Onboarding Project",
+    );
+    await waitForCondition(
+      `document.querySelector('input[name="current-project-display-name"]')?.value === 'Browser Onboarding Project' && document.querySelector('[data-project-name-save="true"]')?.disabled === false`,
+      "restored project name is ready to save",
+    );
+    assert.equal(await evaluateBoolean(`(() => {
+      const save = document.querySelector('[data-project-name-save="true"]');
+      if (!(save instanceof HTMLButtonElement) || save.disabled) return false;
+      save.click();
+      return true;
+    })()`), true);
+    await waitForCondition(
+      `document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Browser Onboarding Project') === true && document.querySelector('input[name="current-project-display-name"]')?.value === 'Browser Onboarding Project'`,
+      "project name restored for retained lifecycle coverage",
+    );
+    await evaluateBoolean(`(() => {
+      const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
+      if (details instanceof HTMLDetailsElement) details.open = false;
+      history.replaceState(null, '', location.pathname);
+      return true;
+    })()`);
+    result.project_name_onboarding_prefill_and_edit = true;
+    result.project_name_invalid_blocked = true;
+    result.project_name_stale_conflict_visible = true;
+    result.project_name_long_korean_propagated = true;
+    result.project_context_opens_settings = true;
     await validateBlankStateViewports(true, {
       state: "ready-to-continue",
       attentionCount: 0,
@@ -1060,7 +1226,7 @@ async function main() {
     await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated duplicate onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose another folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('This folder is already added.')`, "duplicate root identity replay");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder'); button?.click(); return Boolean(button); })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Reopen project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname === ${JSON.stringify(destination)} && document.querySelector('[data-blank-state="v0.1"]') !== null`, "duplicate root stable destination");
 
     await openBlankStateProjectOptions();
@@ -1106,7 +1272,7 @@ async function main() {
     await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`, "second-project onboarding surface");
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Choose another folder'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Second Project') && document.body.textContent.includes('Plain folder')`, "second-project inspection");
-    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Use this folder'); button?.click(); return Boolean(button); })()`), true);
+    assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Add project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelector('[data-project-context-label]')?.parentElement?.textContent?.includes('Browser Second Project')`, "second active Project Home");
     const secondDestination = await evaluateString("location.pathname");
     assert.notEqual(secondDestination, destination);
@@ -1628,6 +1794,20 @@ async function main() {
       false,
     );
     assert.equal(documentStatusSince(responseStart, "/workbench/semantic-review"), 200);
+    assert.equal(await evaluateBoolean(`(() => {
+      const link = document.querySelector('a[data-project-context-label="Current project"]');
+      if (!(link instanceof HTMLAnchorElement) || !link.textContent?.includes('Browser Onboarding Project')) return false;
+      link.click();
+      return true;
+    })()`), true);
+    await waitForCondition(
+      `location.pathname === '/' && location.hash === '#project-settings' && (() => {
+        const settings = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
+        return settings?.open === true && settings.querySelector(':scope > summary') === document.activeElement;
+      })()`,
+      "AI Workplane current-project context returns to focused project settings",
+    );
+    result.ai_workplane_project_context_opens_settings = true;
     record("locked_workbench_renders_no_private_material");
   });
 
@@ -4611,7 +4791,7 @@ async function main() {
       assert.equal(
         await evaluateBoolean(`(() => {
           const button = Array.from(document.querySelectorAll('button')).find(
-            (candidate) => candidate.textContent?.trim() === 'Use this folder'
+            (candidate) => candidate.textContent?.trim() === 'Add project'
           );
           if (!(button instanceof HTMLButtonElement) || button.disabled) {
             return false;
@@ -11678,7 +11858,7 @@ async function validateBlankStateViewports(
       ).filter(rendered);
       const mobileTouchTargets = Array.from(
         document.querySelectorAll(
-          '.product-skip-link, .product-brand, .continuities-item-details > summary, a.continuities-temporal-title, .blank-state-project-settings-content a, .blank-state-project-settings-content button, .blank-state-project-settings-content summary'
+          '.product-skip-link, .product-brand, a.product-project-context--action, .continuities-item-details > summary, a.continuities-temporal-title, .blank-state-project-settings-content a, .blank-state-project-settings-content button, .blank-state-project-settings-content input, .blank-state-project-settings-content summary'
         )
       ).filter(rendered);
       const conversation = home?.querySelector(
@@ -12133,6 +12313,7 @@ async function validateBlankStateViewports(
               control instanceof HTMLInputElement &&
               (
                 control.name === 'guidebrief-question' ||
+                control.name === 'current-project-display-name' ||
                 control.getAttribute('data-continuities-filter') === 'shown-items'
               ) &&
               !/(?:^|[-_])(id|fingerprint|nonce|ttl)(?:$|[-_])/i.test(

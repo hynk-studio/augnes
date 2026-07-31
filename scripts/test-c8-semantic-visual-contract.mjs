@@ -118,7 +118,13 @@ assert.match(
 );
 assert.match(blankState, /Use a regular folder or a Git repository\./u);
 assert.match(blankState, /Choose a folder/u);
-assert.match(blankState, /Use this folder/u);
+assert.match(blankState, /Add project/u);
+assert.match(blankState, /Reopen project/u);
+assert.match(blankState, /Project identity/u);
+assert.match(blankState, /does not rename the local folder/u);
+assert.match(blankState, /data-project-name-save="true"/u);
+assert.match(productShell, /"\/#project-settings"/u);
+assert.match(productShell, /Manage current project/u);
 assert.match(blankState, /aria-label="Open GuideBrief"/u);
 assert.match(blankState, /aria-label=\{busy \? "Working…" : action\.label\}/u);
 assert.match(blankState, /data-continuities-guidebrief-dialog="true"/u);

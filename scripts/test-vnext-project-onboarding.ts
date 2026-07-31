@@ -22,6 +22,7 @@ import {
   readProjectDestinationV01,
   readRootAvailabilityV01,
   rebindLocalProjectRootFromSelectionV01,
+  renameActiveProjectDisplayNameV01,
   removeProjectFromRecentV01,
   sanitizeRepositoryRemoteV01,
   type LocalProjectMetadataFileReaderV01,
@@ -41,9 +42,13 @@ const worktreeGitDir = path.join(root, "worktree metadata");
 const disappearingFolder = path.join(root, "Disappearing selection");
 const staleFolder = path.join(root, "Stale project C");
 const nullConflictFolder = path.join(root, "Null conflict project D");
+const plainDefaultFolder = path.join(root, "Plain default project");
+const plainEditedFolder = path.join(root, "Plain edited folder");
+const invalidNameFolder = path.join(root, "Invalid name folder");
 mkdirSync(folderA); mkdirSync(folderB); mkdirSync(folderA2); mkdirSync(folderNoRemote);
 mkdirSync(worktreeFolder); mkdirSync(worktreeGitDir); mkdirSync(disappearingFolder);
 mkdirSync(staleFolder); mkdirSync(nullConflictFolder);
+mkdirSync(plainDefaultFolder); mkdirSync(plainEditedFolder); mkdirSync(invalidNameFolder);
 const originalEnvironment = { ...process.env };
 const MAX_GIT_METADATA_BYTES = 64 * 1024;
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;
@@ -167,6 +172,7 @@ try {
         inspected_at: "2026-07-15T00:00:00.000Z",
         inspection_fingerprint: "inspection-fingerprint",
         already_added: false,
+        existing_project: null,
       },
     }),
     null,
@@ -390,12 +396,84 @@ try {
     assert.equal(result.status, "selected");
     return result;
   }
+  async function assertIsolatedPlainOnboarding(
+    folder: string,
+    databaseName: string,
+    displayName?: string,
+  ) {
+    const isolatedPath = path.join(root, databaseName);
+    const openIsolated = () => {
+      const isolated = new Database(isolatedPath);
+      isolated.pragma("foreign_keys = ON");
+      applyCanonicalDatabaseMigrations(isolated);
+      return isolated;
+    };
+    process.env.AUGNES_TEST_FOLDER_PICKER_PATH = folder;
+    const selected = await pickAndInspectLocalProjectV01({
+      open_database: openIsolated,
+      now: () => "2026-07-15T00:00:30.000Z",
+    });
+    assert.equal(selected.status, "selected");
+    assert.equal(selected.inspection.folder_kind, "plain_folder");
+    const isolated = openIsolated();
+    try {
+      const confirmed = await confirmLocalProjectOnboardingV01(isolated, {
+        selection_token: selected.selection_token,
+        inspection_fingerprint: selected.inspection.inspection_fingerprint,
+        ...(displayName === undefined ? {} : { display_name: displayName }),
+      }, { now: () => "2026-07-15T00:00:31.000Z" });
+      assert.equal(
+        confirmed.project.display_name,
+        displayName?.trim() ?? path.basename(folder),
+      );
+    } finally {
+      isolated.close();
+    }
+  }
+  await assertIsolatedPlainOnboarding(
+    plainDefaultFolder,
+    "plain-default-onboarding.db",
+  );
+  await assertIsolatedPlainOnboarding(
+    plainEditedFolder,
+    "plain-edited-onboarding.db",
+    "  Edited plain project  ",
+  );
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = invalidNameFolder;
+  const invalidNameSelection = await pickAndInspectLocalProjectV01({
+    open_database: open,
+    now: () => "2026-07-15T00:00:40.000Z",
+  });
+  assert.equal(invalidNameSelection.status, "selected");
+  db = open();
+  const projectCountBeforeInvalidName = (db.prepare(
+    "SELECT COUNT(*) AS count FROM vnext_project_identities",
+  ).get() as { count: number }).count;
+  await assert.rejects(
+    confirmLocalProjectOnboardingV01(db, {
+      selection_token: invalidNameSelection.selection_token,
+      inspection_fingerprint:
+        invalidNameSelection.inspection.inspection_fingerprint,
+      display_name: "   ",
+    }),
+    /project_display_name_invalid/,
+  );
+  assert.equal(
+    (db.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count,
+    projectCountBeforeInvalidName,
+  );
+  db.close();
   const selectedA = await selection(folderA, "2026-07-15T00:01:00.000Z");
   assert.equal(selectedA.status, "selected");
   db = open();
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_workspace_identities").get() as { count: number }).count, 0, "inspection must not create workspace identity rows");
-  const confirmedA = await confirmLocalProjectOnboardingV01(db, { selection_token: selectedA.selection_token, inspection_fingerprint: selectedA.inspection.inspection_fingerprint }, { now: () => "2026-07-15T00:01:00.000Z" });
+  const confirmedA = await confirmLocalProjectOnboardingV01(db, {
+    selection_token: selectedA.selection_token,
+    inspection_fingerprint: selectedA.inspection.inspection_fingerprint,
+    display_name: "  Git project A  ",
+  }, { now: () => "2026-07-15T00:01:00.000Z" });
   assert.equal(confirmedA.status, "created");
+  assert.equal(confirmedA.project.display_name, "Git project A");
   assert.equal((await listRecentProjectsV01(db)).length, 1);
   assert.equal((await listRecentProjectsV01(db))[0].is_active, true);
   const credentialInspectionAndConfirmation = JSON.stringify({ inspection: selectedA.inspection, confirmation: confirmedA });
@@ -406,22 +484,43 @@ try {
   writeFileSync(path.join(folderA, ".git", "config"), `[remote "origin"]\n  url = https://example.test/shared/repo.git\n`);
   const cleanReplaySelection = await selection(folderA, "2026-07-15T00:01:15.000Z");
   assert.equal(cleanReplaySelection.status, "selected");
+  assert.equal(cleanReplaySelection.inspection.already_added, true);
+  assert.equal(cleanReplaySelection.inspection.existing_project?.display_name, "Git project A");
   const cleanReplay = await confirmLocalProjectOnboardingV01(db, {
     selection_token: cleanReplaySelection.selection_token,
     inspection_fingerprint: cleanReplaySelection.inspection.inspection_fingerprint,
   }, { now: () => "2026-07-15T00:01:15.000Z" });
   assert.equal(cleanReplay.project.project_id, confirmedA.project.project_id);
+  assert.equal(cleanReplay.project.display_name, "Git project A");
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_project_external_ref_bindings").get() as { count: number }).count, 1, "sanitized and clean remotes must replay one binding");
   db.close();
 
   db = open();
+  const activeBeforeRename = activeSnapshot(await listRecentProjectsV01(db));
+  assert(activeBeforeRename.expected_project_id);
+  assert(activeBeforeRename.expected_revision);
+  const renamedProjectName = "이어지는 프로젝트 Alpha";
+  assert.equal(renameActiveProjectDisplayNameV01(db, {
+    project_id: confirmedA.project.project_id,
+    expected_active_project_id: activeBeforeRename.expected_project_id,
+    expected_active_selection_revision: activeBeforeRename.expected_revision,
+    expected_current_display_name: "Git project A",
+    requested_display_name: renamedProjectName,
+  }).status, "updated");
   const reopened = await readProjectDestinationV01(db, confirmedA.project.project_id);
   assert(reopened);
+  assert.equal(reopened.project.display_name, renamedProjectName);
+  assert.equal((await listRecentProjectsV01(db))[0]?.project.display_name, renamedProjectName);
   assert.equal(reopened.external_refs.length, 1);
   for (const secret of removedCredentialMaterial) assert.equal(JSON.stringify(reopened).includes(secret), false);
   const selectedB = await selection(folderB, "2026-07-15T00:02:00.000Z");
   assert.equal(selectedB.status, "selected");
-  const confirmedB = await confirmLocalProjectOnboardingV01(db, { selection_token: selectedB.selection_token, inspection_fingerprint: selectedB.inspection.inspection_fingerprint }, { now: () => "2026-07-15T00:02:00.000Z" });
+  const confirmedB = await confirmLocalProjectOnboardingV01(db, {
+    selection_token: selectedB.selection_token,
+    inspection_fingerprint: selectedB.inspection.inspection_fingerprint,
+    display_name: "Edited Git project B",
+  }, { now: () => "2026-07-15T00:02:00.000Z" });
+  assert.equal(confirmedB.project.display_name, "Edited Git project B");
   assert.notEqual(confirmedA.project.project_id, confirmedB.project.project_id);
   assert.equal((await listRecentProjectsV01(db)).length, 2);
   assert.equal((await readProjectDestinationV01(db, confirmedB.project.project_id))?.external_refs.length, 1);
@@ -579,14 +678,22 @@ try {
   assert.equal(recovery.status, "selected");
   const rebound = await rebindLocalProjectRootFromSelectionV01(db, { project_id: confirmedA.project.project_id, selection_token: recovery.selection_token, inspection_fingerprint: recovery.inspection.inspection_fingerprint }, { now: () => "2026-07-15T00:05:00.000Z" });
   assert.equal(rebound.project.project_id, confirmedA.project.project_id);
+  assert.equal(rebound.project.display_name, renamedProjectName);
   assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.root_binding.local_root.normalized_path, folderA2);
   assert.equal((await listRecentProjectsV01(db)).find((entry) => entry.project.project_id === confirmedA.project.project_id)?.is_active, true);
 
   const replaySelection = await selection(folderA2, "2026-07-15T00:05:10.000Z");
   assert.equal(replaySelection.status, "selected");
-  const replay = await confirmLocalProjectOnboardingV01(db, { selection_token: replaySelection.selection_token, inspection_fingerprint: replaySelection.inspection.inspection_fingerprint }, { now: () => "2026-07-15T00:05:10.000Z" });
+  assert.equal(replaySelection.inspection.display_name, "Project A moved");
+  assert.equal(replaySelection.inspection.existing_project?.display_name, renamedProjectName);
+  const replay = await confirmLocalProjectOnboardingV01(db, {
+    selection_token: replaySelection.selection_token,
+    inspection_fingerprint: replaySelection.inspection.inspection_fingerprint,
+    display_name: replaySelection.inspection.display_name,
+  }, { now: () => "2026-07-15T00:05:10.000Z" });
   assert.equal(replay.status, "already_added");
   assert.equal(replay.project.project_id, confirmedA.project.project_id);
+  assert.equal(replay.project.display_name, renamedProjectName);
   assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.external_refs.length, 1);
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count, 2);
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_recent_projects").get() as { count: number }).count, 2);
@@ -596,6 +703,66 @@ try {
     recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
     active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
   });
+  const exactRenameReplayResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "rename",
+    project_id: confirmedA.project.project_id,
+    expected_active_project_id: activeForRoute.expected_project_id,
+    expected_active_selection_revision: activeForRoute.expected_revision,
+    expected_current_display_name: renamedProjectName,
+    requested_display_name: renamedProjectName,
+  })));
+  assert.equal(exactRenameReplayResponse.status, 200);
+  assert.equal(
+    (await exactRenameReplayResponse.json() as { result: { status: string } }).result.status,
+    "exact_replay",
+  );
+  const staleRenameResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "rename",
+    project_id: confirmedA.project.project_id,
+    expected_active_project_id: activeForRoute.expected_project_id,
+    expected_active_selection_revision: activeForRoute.expected_revision,
+    expected_current_display_name: "Old project name",
+    requested_display_name: "Must not be written",
+  })));
+  assert.equal(staleRenameResponse.status, 409);
+  assert.equal(
+    (await staleRenameResponse.json() as { error_code: string }).error_code,
+    "project_display_name_conflict",
+  );
+  const invalidRenameResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "rename",
+    project_id: confirmedA.project.project_id,
+    expected_active_project_id: activeForRoute.expected_project_id,
+    expected_active_selection_revision: activeForRoute.expected_revision,
+    expected_current_display_name: renamedProjectName,
+    requested_display_name: "",
+  })));
+  assert.equal(invalidRenameResponse.status, 400);
+  assert.equal(
+    (await invalidRenameResponse.json() as { error_code: string }).error_code,
+    "project_display_name_invalid",
+  );
+  const inactiveRenameResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "rename",
+    project_id: confirmedB.project.project_id,
+    expected_active_project_id: activeForRoute.expected_project_id,
+    expected_active_selection_revision: activeForRoute.expected_revision,
+    expected_current_display_name: "Edited Git project B",
+    requested_display_name: "Must not rename inactive project",
+  })));
+  assert.equal(inactiveRenameResponse.status, 409);
+  assert.equal(
+    (await inactiveRenameResponse.json() as { error_code: string }).error_code,
+    "active_selection_conflict",
+  );
+  assert.equal(
+    (await readProjectDestinationV01(db, confirmedA.project.project_id))?.project.display_name,
+    renamedProjectName,
+  );
+  assert.equal(
+    (await readProjectDestinationV01(db, confirmedB.project.project_id))?.project.display_name,
+    "Edited Git project B",
+  );
   const missingRevisionResponse = await projectRoutePost(routeRequest(JSON.stringify({
     action: "open",
     project_id: confirmedB.project.project_id,
@@ -656,7 +823,7 @@ try {
   assert.deepEqual(artifactSql(runtimeSchema), artifactSql(canonicalSchema));
   runtimeSchema.close(); migrationSchema.close(); canonicalSchema.close();
 
-  console.log(JSON.stringify({ status: "pass", picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
+  console.log(JSON.stringify({ status: "pass", picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
 } finally {
   process.env = originalEnvironment;
   rmSync(root, { recursive: true, force: true });

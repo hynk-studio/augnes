@@ -36,7 +36,11 @@ export function BlankStateSurface({
       <ProductShell
         primaryZone="blank-state"
         projectContext={view.project_name && view.project_context_label
-          ? { label: view.project_context_label, name: view.project_name }
+          ? {
+            label: view.project_context_label,
+            name: view.project_name,
+            managementHref: "#project-settings",
+          }
           : null}
         secondaryNavigation={<PinnedContinuitiesNavigation />}
         railSupport={(

@@ -1200,8 +1200,12 @@ function validSha256V01(value: unknown): value is string {
 }
 
 function portableFilenameSegmentV01(value: string): string {
-  const normalized = value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-+|-+$/gu, "");
-  return (normalized || "project").slice(0, 80);
+  const normalized = value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+    .replace(/^-+|-+$/gu, "");
+  return [...(normalized || "project")].slice(0, 80).join("");
 }
 
 function ensureSafeExistingDirectoryV01(directory: string, code: string): void {

@@ -38,7 +38,14 @@ import {
   readCanonicalProjectIdentityV01,
   readCanonicalProjectWithRootV01,
   readProjectExternalRefV01,
+  renameCanonicalProjectDisplayNameV01,
 } from "../lib/vnext/persistence/project-identity-registry";
+import {
+  ensureVNextProjectLifecycleSchemaV01,
+  readActiveProjectSelectionV01,
+  selectActiveProjectV01,
+  touchRecentProjectV01,
+} from "../lib/vnext/persistence/project-lifecycle-registry";
 import { createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import { LEGACY_AUGNES_PROJECT_SCOPE_V01 } from "../types/vnext/project-identity";
@@ -451,6 +458,193 @@ function assertRegistryLifecycleAndIsolation() {
       }),
       0,
     );
+
+    ensureVNextProjectLifecycleSchemaV01(database);
+    touchRecentProjectV01(database, {
+      workspace_id: workspaceId,
+      project_id: projectAId,
+      now: "2026-07-14T10:11:00.000Z",
+    });
+    const activeBeforeRename = selectActiveProjectV01(database, {
+      workspace_id: workspaceId,
+      project_id: projectAId,
+      now: "2026-07-14T10:11:00.000Z",
+      expected_project_id: null,
+      expected_revision: null,
+    });
+    const invariantRowsBeforeRename = JSON.stringify({
+      root: database.prepare(
+        "SELECT * FROM vnext_project_root_bindings WHERE workspace_id = ? AND project_id = ?",
+      ).get(workspaceId, projectAId),
+      refs: database.prepare(
+        "SELECT * FROM vnext_project_external_ref_bindings WHERE workspace_id = ? AND project_id = ? ORDER BY ref_fingerprint",
+      ).all(workspaceId, projectAId),
+      recent: database.prepare(
+        "SELECT * FROM vnext_recent_projects WHERE workspace_id = ? AND project_id = ?",
+      ).get(workspaceId, projectAId),
+      active: database.prepare(
+        "SELECT * FROM vnext_active_project_selections WHERE workspace_id = ?",
+      ).get(workspaceId),
+      core: database.prepare(
+        "SELECT * FROM vnext_core_records WHERE workspace_id = ? AND project_id = ? ORDER BY record_kind, record_id",
+      ).all(workspaceId, projectAId),
+    });
+    const originalCreatedAt = projectA.project.created_at;
+    assert.deepEqual(
+      renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "  알파 프로젝트  ",
+        expected_current_display_name: "Alpha",
+      }),
+      {
+        status: "updated",
+        project: { ...projectA.project, display_name: "알파 프로젝트" },
+      },
+    );
+    assert.equal(
+      renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "알파 프로젝트",
+        expected_current_display_name: "알파 프로젝트",
+      }).status,
+      "exact_replay",
+    );
+    const afterKorean = readCanonicalProjectIdentityV01(database, {
+      workspace_id: workspaceId,
+      project_id: projectAId,
+    });
+    assert.equal(afterKorean?.created_at, originalCreatedAt);
+    assert.equal(
+      readCanonicalProjectIdentityV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectBId,
+      })?.display_name,
+      "Beta",
+      "rename must remain project-scoped",
+    );
+    assert.equal(
+      JSON.stringify({
+        root: database.prepare(
+          "SELECT * FROM vnext_project_root_bindings WHERE workspace_id = ? AND project_id = ?",
+        ).get(workspaceId, projectAId),
+        refs: database.prepare(
+          "SELECT * FROM vnext_project_external_ref_bindings WHERE workspace_id = ? AND project_id = ? ORDER BY ref_fingerprint",
+        ).all(workspaceId, projectAId),
+        recent: database.prepare(
+          "SELECT * FROM vnext_recent_projects WHERE workspace_id = ? AND project_id = ?",
+        ).get(workspaceId, projectAId),
+        active: database.prepare(
+          "SELECT * FROM vnext_active_project_selections WHERE workspace_id = ?",
+        ).get(workspaceId),
+        core: database.prepare(
+          "SELECT * FROM vnext_core_records WHERE workspace_id = ? AND project_id = ? ORDER BY record_kind, record_id",
+        ).all(workspaceId, projectAId),
+      }),
+      invariantRowsBeforeRename,
+      "rename must update only display_name",
+    );
+    assert.deepEqual(
+      readActiveProjectSelectionV01(database, workspaceId),
+      activeBeforeRename,
+    );
+
+    const rollbackSnapshot = JSON.stringify(
+      database.prepare(
+        "SELECT * FROM vnext_project_identities ORDER BY workspace_id, project_id",
+      ).all(),
+    );
+    for (const refusal of [
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "Stale write",
+        expected_current_display_name: "Alpha",
+      }),
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "   ",
+        expected_current_display_name: "알파 프로젝트",
+      }),
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "x".repeat(241),
+        expected_current_display_name: "알파 프로젝트",
+      }),
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: canonicalWorkspaceId(999),
+        project_id: projectAId,
+        requested_display_name: "Wrong workspace",
+        expected_current_display_name: "알파 프로젝트",
+      }),
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: "project:00000000-0000-4000-8000-000000000999",
+        requested_display_name: "Missing project",
+        expected_current_display_name: "알파 프로젝트",
+      }),
+    ]) {
+      assert.throws(refusal, ProjectIdentityRegistryErrorV01);
+      assert.equal(
+        JSON.stringify(database.prepare(
+          "SELECT * FROM vnext_project_identities ORDER BY workspace_id, project_id",
+        ).all()),
+        rollbackSnapshot,
+        "rename refusal must roll back transactionally",
+      );
+    }
+    assert.throws(
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "Stale write",
+        expected_current_display_name: "Alpha",
+      }),
+      isRegistryError("project_display_name_conflict"),
+    );
+    assert.throws(
+      () => renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "",
+        expected_current_display_name: "알파 프로젝트",
+      }),
+      isRegistryError("project_display_name_invalid"),
+    );
+    const longUnicodeName = "가".repeat(240);
+    assert.equal(
+      renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: longUnicodeName,
+        expected_current_display_name: "알파 프로젝트",
+      }).project.display_name,
+      longUnicodeName,
+    );
+    const longEnglishPrefix = "Long English project ";
+    const longEnglishName =
+      longEnglishPrefix + "x".repeat(240 - longEnglishPrefix.length);
+    assert.equal(
+      renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: longEnglishName,
+        expected_current_display_name: longUnicodeName,
+      }).project.display_name,
+      longEnglishName,
+    );
+    assert.equal(
+      renameCanonicalProjectDisplayNameV01(database, {
+        workspace_id: workspaceId,
+        project_id: projectAId,
+        requested_display_name: "Alpha",
+        expected_current_display_name: longEnglishName,
+      }).status,
+      "updated",
+    );
   } finally {
     database.close();
   }
@@ -516,15 +710,14 @@ function assertRegistryLifecycleAndIsolation() {
     assert.equal(replay.project.project_id, projectAId);
     assert.equal(tableCount(database, "vnext_project_identities"), 2);
     assert.equal(tableCount(database, "vnext_project_root_bindings"), 2);
-    assert.throws(
-      () =>
-        getOrCreateCanonicalProjectForLocalRootV01(database, {
-          workspace_id: workspaceId,
-          local_root: replayRoot,
-          display_name: "Conflicting immutable replay metadata",
-        }),
-      isRegistryError("project_identity_replay_conflict"),
-    );
+    const replayWithDifferentSuggestion =
+      getOrCreateCanonicalProjectForLocalRootV01(database, {
+        workspace_id: workspaceId,
+        local_root: replayRoot,
+        display_name: "Different folder suggestion",
+      });
+    assert.equal(replayWithDifferentSuggestion.status, "exact_replay");
+    assert.equal(replayWithDifferentSuggestion.project.display_name, "Alpha");
     assert.equal(
       readCanonicalProjectIdentityV01(database, {
         workspace_id: canonicalWorkspaceId(999),
@@ -548,7 +741,12 @@ function assertRegistryLifecycleAndIsolation() {
     workspace_restart_stability: true,
     project_restart_stability: true,
     exact_root_replay: true,
-    replay_conflict_typed: true,
+    replay_preserves_mutable_display_name: true,
+    rename_compare_and_set: true,
+    rename_exact_replay: true,
+    rename_unicode_and_bound: true,
+    rename_only_display_name: true,
+    rename_transactional_refusal: true,
     two_root_isolation: true,
     same_repository_independence: true,
     external_ref_exact_replay: true,

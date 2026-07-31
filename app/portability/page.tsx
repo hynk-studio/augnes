@@ -82,9 +82,13 @@ export default function PortabilityPage() {
       }
       const blob = await response.blob();
       const disposition = response.headers.get("content-disposition") ?? "";
-      const filename =
-        /filename="([^"]+)"/u.exec(disposition)?.[1] ??
-        "project.augnes-project.json";
+      const encodedFilename = /filename\*=UTF-8''([^;]+)/iu.exec(
+        disposition,
+      )?.[1];
+      const filename = encodedFilename
+        ? decodeURIComponent(encodedFilename)
+        : /filename="([^"]+)"/u.exec(disposition)?.[1] ??
+          "project.augnes-project.json";
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

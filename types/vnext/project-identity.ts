@@ -12,6 +12,7 @@ export const PROJECT_EXTERNAL_REF_BINDING_VERSION_V01 =
   "project_external_ref_binding.v0.1" as const;
 export const LEGACY_PROJECT_COMPATIBILITY_IDENTITY_VERSION_V01 =
   "legacy_project_compatibility_identity.v0.1" as const;
+export const PROJECT_DISPLAY_NAME_MAX_LENGTH_V01 = 240;
 
 export const DEFAULT_LOCAL_WORKSPACE_ROLE_V01 = "default_local" as const;
 export const LEGACY_AUGNES_PROJECT_SCOPE_V01 = "project:augnes" as const;
@@ -35,6 +36,11 @@ export interface ProjectIdentityV01 {
   project_id: string;
   display_name: string | null;
   created_at: string;
+}
+
+export interface ProjectDisplayNameWriteResultV01 {
+  status: "updated" | "exact_replay";
+  project: ProjectIdentityV01;
 }
 
 export interface LocalProjectRootRefV01 {

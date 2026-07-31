@@ -171,6 +171,31 @@ families. It preserves PC1–PC4 ownership and creates no Decision, Transition,
 execution, project-management, persistence, provider, or external-action
 authority.
 
+## Current
+
+### CUX6A mutable project naming and lifecycle management
+
+[Issue #99](https://github.com/hynk-studio/augnes-perspective-lab/issues/99)
+defines the currently authorized CUX6A slice. Its implementation makes the
+existing canonical project `display_name` an explicit mutable local label,
+adds user-chosen naming during folder onboarding, and composes current-project
+rename management into the existing Continuities settings owner. It preserves
+immutable project identity, root and repository bindings, active selection,
+continuity and Pinned records, portable record integrity, and every semantic,
+execution, external-effect, and merge authority boundary.
+
+CUX6A remains **Current** until its linked pull request is reviewed and merged.
+Its Draft PR is an outcome candidate, not completed runtime. It adds no schema
+migration or portable contract version and does not authorize first-work
+activation.
+
+### CUX6B remains separate later work
+
+First-work activation for an uninitialized project remains a separately
+authorized future slice. CUX6A does not add a goal composer, create or compile
+a `TaskContextPacket`, change Codex start eligibility, synthesize a different
+continuation candidate, or create work from project onboarding or rename.
+
 ## Next separately authorized work
 
 The next candidate phase is a model-assisted GuideBrief interpreter above the

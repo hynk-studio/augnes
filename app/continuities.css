@@ -772,6 +772,67 @@
 }
 
 .product-shell[data-primary-product-zone="blank-state"]
+  .project-identity-management {
+  border-top: 0;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-identity-management
+  form {
+  display: grid;
+  gap: 10px;
+  max-width: 680px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-name-field {
+  display: grid;
+  gap: 7px;
+  color: var(--continuities-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-name-field
+  input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--continuities-border);
+  border-radius: 6px;
+  color: var(--continuities-text);
+  background: var(--continuities-material-control);
+  box-shadow: var(--continuities-inset-depth);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-field-error {
+  margin: 0;
+  color: var(--continuities-amber);
+  font-size: 0.8rem;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-inspection-saved-name {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-inspection-saved-name
+  span {
+  color: var(--continuities-text-muted);
+  font-size: 0.72rem;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-identity-details {
+  margin-top: 18px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
   .blank-state-project-settings-content
   > .blank-state-project-management {
   padding: 20px 0;

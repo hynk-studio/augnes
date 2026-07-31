@@ -48,6 +48,7 @@ import type {
 } from "@/types/vnext/project-onboarding";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import type { ManagementSafetyViewV01 } from "@/types/vnext/management-safety";
+import { PROJECT_DISPLAY_NAME_MAX_LENGTH_V01 } from "@/types/vnext/project-identity";
 
 type SelectedFolder = Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>;
 
@@ -94,6 +95,8 @@ export function BlankStateClient({
   } | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<RecentProjectEntryV01 | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [renameMessage, setRenameMessage] =
+    useState<ProjectFolderSelectionMessageV01 | null>(null);
   const [continuityFilter, setContinuityFilter] = useState("");
   const [continuityMode, setContinuityMode] = useState<"all" | "attention">(
     "all",
@@ -101,9 +104,25 @@ export function BlankStateClient({
   const [guideOpen, setGuideOpen] = useState(false);
   const guideDialogRef = useRef<HTMLDialogElement>(null);
   const guideLauncherRef = useRef<HTMLButtonElement>(null);
+  const projectSettingsRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => setRecent(source.recent_projects), [source.recent_projects]);
+  useEffect(() => {
+    const openAndFocusProjectSettings = () => {
+      if (window.location.hash !== "#project-settings") return;
+      const settings = projectSettingsRef.current;
+      if (!settings) return;
+      settings.open = true;
+      window.requestAnimationFrame(() =>
+        settings.querySelector<HTMLElement>(":scope > summary")?.focus()
+      );
+    };
+    openAndFocusProjectSettings();
+    window.addEventListener("hashchange", openAndFocusProjectSettings);
+    return () =>
+      window.removeEventListener("hashchange", openAndFocusProjectSettings);
+  }, []);
   useEffect(() => {
     const dialog = guideDialogRef.current;
     if (!dialog) return;
@@ -130,6 +149,7 @@ export function BlankStateClient({
   async function choose() {
     setBusy(true);
     setMessage(null);
+    setRenameMessage(null);
     try {
       const value = await mutate({ action: "choose_folder" });
       setPicker(value.picker);
@@ -145,7 +165,7 @@ export function BlankStateClient({
     }
   }
 
-  async function confirm() {
+  async function confirm(displayName: string) {
     if (!picker || picker.status !== "selected") return;
     setBusy(true);
     try {
@@ -153,6 +173,7 @@ export function BlankStateClient({
         action: "confirm",
         selection_token: picker.selection_token,
         inspection_fingerprint: picker.inspection.inspection_fingerprint,
+        display_name: displayName,
       });
       window.location.assign(value.result.destination);
     } catch (error) {
@@ -162,6 +183,59 @@ export function BlankStateClient({
           ? errorMessage("The folder changed. Choose it again before confirming.")
           : errorMessage("The project could not be added."));
       setPicker(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function renameProject(displayName: string) {
+    const activeEntry = recent.find((entry) => entry.is_active);
+    if (
+      !activeEntry ||
+      !activeEntry.active_project_id ||
+      !activeEntry.active_selection_revision
+    ) {
+      setRenameMessage(errorMessage(
+        "The current project changed. Refresh before renaming it.",
+      ));
+      return;
+    }
+    setBusy(true);
+    setRenameMessage(null);
+    try {
+      await mutate({
+        action: "rename",
+        project_id: activeEntry.project.project_id,
+        expected_active_project_id: activeEntry.active_project_id,
+        expected_active_selection_revision:
+          activeEntry.active_selection_revision,
+        expected_current_display_name: activeEntry.project.display_name,
+        requested_display_name: displayName,
+      });
+      if (window.location.pathname === "/") {
+        window.history.replaceState(null, "", "/#project-settings");
+        window.location.reload();
+      } else {
+        window.location.assign("/#project-settings");
+      }
+    } catch (error) {
+      setRenameMessage(
+        error instanceof Error && error.message === "project_display_name_conflict"
+          ? errorMessage(
+            "The project name changed in another view. Refresh and try again.",
+          )
+          : error instanceof Error && error.message === "active_selection_conflict"
+            ? errorMessage(
+              "The current project changed. Refresh before renaming it.",
+            )
+            : error instanceof Error && error.message === "project_display_name_invalid"
+              ? errorMessage(
+                `Enter a project name between 1 and ${PROJECT_DISPLAY_NAME_MAX_LENGTH_V01} characters.`,
+              )
+              : errorMessage(
+                "The project name could not be saved. Nothing else changed.",
+              ),
+      );
     } finally {
       setBusy(false);
     }
@@ -402,7 +476,7 @@ export function BlankStateClient({
       message={message}
       primaryAction={view.primary_action}
       onChoose={() => void choose()}
-      onConfirm={() => void confirm()}
+      onConfirm={(displayName) => void confirm(displayName)}
       onOpen={(entry) => void open(entry)}
       onLocate={(entry) => void locate(entry)}
       onRemove={(entry) => {
@@ -413,6 +487,15 @@ export function BlankStateClient({
       onCancelInspection={() => setPicker(null)}
     />
   );
+  const activeProjectEntry = recent.find((entry) => entry.is_active) ?? null;
+  const projectIdentityManagement = activeProjectEntry ? (
+    <ProjectIdentityManagement
+      entry={activeProjectEntry}
+      busy={busy}
+      message={renameMessage}
+      onSave={(displayName) => void renameProject(displayName)}
+    />
+  ) : null;
   const normalizedContinuityFilter = continuityFilter.trim().toLocaleLowerCase();
   const shownContinuityItems = [
     view.highlighted_item,
@@ -794,6 +877,7 @@ export function BlankStateClient({
         {activeContinuities ? (
           view.project_management_emphasized ? (
             <>
+              {projectIdentityManagement}
               {projectManagement}
               <ManagementSafety view={managementSafety} />
               {projection ? (
@@ -807,6 +891,8 @@ export function BlankStateClient({
             </>
           ) : (
             <details
+              ref={projectSettingsRef}
+              id="project-settings"
               className="blank-state-disclosure blank-state-project-settings"
               data-blank-state-project-settings-recovery="true"
               data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
@@ -816,6 +902,7 @@ export function BlankStateClient({
             >
               <summary>Project settings and recovery</summary>
               <div className="blank-state-project-settings-content">
+                {projectIdentityManagement}
                 {projectManagement}
                 <ManagementSafety view={managementSafety} embedded />
                 {projection ? (
@@ -1357,7 +1444,7 @@ function ProjectManagement({
   message: ProjectFolderSelectionMessageV01 | null;
   primaryAction: BlankStatePrimaryActionV01 | null;
   onChoose: () => void;
-  onConfirm: () => void;
+  onConfirm: (displayName: string) => void;
   onOpen: (entry: RecentProjectEntryV01) => void;
   onLocate: (entry: RecentProjectEntryV01) => void;
   onRemove: (entry: RecentProjectEntryV01) => void;
@@ -1366,6 +1453,26 @@ function ProjectManagement({
   const onboarding = presentationMode === "local_project_onboarding";
   const choosingProject = presentationMode === "project_choice";
   const selectedFolder = picker?.status === "selected";
+  const selectedToken = picker?.status === "selected"
+    ? picker.selection_token
+    : null;
+  const [projectName, setProjectName] = useState("");
+  useEffect(() => {
+    if (!picker || picker.status !== "selected") {
+      setProjectName("");
+      return;
+    }
+    setProjectName(
+      picker.inspection.existing_project?.display_name ??
+        picker.inspection.display_name,
+    );
+  }, [picker, selectedToken]);
+  const normalizedProjectName = projectName.trim();
+  const projectNameError = !normalizedProjectName
+    ? "Enter a project name."
+    : normalizedProjectName.length > PROJECT_DISPLAY_NAME_MAX_LENGTH_V01
+      ? `Project names can be up to ${PROJECT_DISPLAY_NAME_MAX_LENGTH_V01} characters.`
+      : null;
   return (
     <section
       id="project-management"
@@ -1444,16 +1551,53 @@ function ProjectManagement({
       {selectedFolder ? (
         <div className="project-inspection" aria-live="polite">
           <p className="blank-state-region-label">Folder found</p>
-          <h3>{picker.inspection.display_name}</h3>
+          <h3>
+            {picker.inspection.existing_project?.display_name ??
+              picker.inspection.display_name}
+          </h3>
+          {picker.inspection.already_added ? (
+            <div className="project-inspection-saved-name">
+              <span>Project name</span>
+              <strong>
+                {picker.inspection.existing_project?.display_name ??
+                  "Unnamed project"}
+              </strong>
+            </div>
+          ) : (
+            <label className="project-name-field">
+              <span>Project name</span>
+              <input
+                type="text"
+                name="project-display-name"
+                value={projectName}
+                aria-invalid={projectNameError ? "true" : undefined}
+                aria-describedby="project-name-help project-name-error"
+                onChange={(event) => setProjectName(event.target.value)}
+                disabled={busy}
+              />
+            </label>
+          )}
+          <p id="project-name-help" className="blank-state-meta">
+            The Augnes project name does not rename the local folder.
+          </p>
+          {!picker.inspection.already_added && projectNameError ? (
+            <p id="project-name-error" className="project-field-error" role="alert">
+              {projectNameError}
+            </p>
+          ) : null}
           <dl>
-            <div><dt>Folder</dt><dd>{picker.inspection.local_root.normalized_path}</dd></div>
+            <div><dt>Local folder</dt><dd>{picker.inspection.local_root.normalized_path}</dd></div>
             <div><dt>Type</dt><dd>{picker.inspection.folder_kind === "git_repository" ? "Git repository" : "Plain folder"}</dd></div>
             <div><dt>Repository</dt><dd>{picker.inspection.repository_display ?? (picker.inspection.folder_kind === "git_repository" ? "No remote configured" : "Not a repository")}</dd></div>
           </dl>
           {picker.inspection.already_added ? (
-            <p className="project-selector-notice">This folder is already added. Confirming will reopen the same project.</p>
+            <p className="project-selector-notice">This folder is already added. Reopening keeps its saved project name.</p>
           ) : null}
-          <p>Confirming makes this the current local project.</p>
+          <p>
+            {picker.inspection.already_added
+              ? "Reopening makes this the current local project."
+              : "Adding makes this the current local project."}
+          </p>
           <div className="project-actions">
             <button
               type="button"
@@ -1461,10 +1605,14 @@ function ProjectManagement({
               data-blank-state-primary-action="confirm_folder"
               data-augnes-primary-action="confirm_folder"
               data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
-              onClick={onConfirm}
-              disabled={busy}
+              onClick={() => onConfirm(normalizedProjectName)}
+              disabled={busy || (!picker.inspection.already_added && projectNameError !== null)}
             >
-              {busy ? "Working…" : "Use this folder"}
+              {busy
+                ? "Working…"
+                : picker.inspection.already_added
+                  ? "Reopen project"
+                  : "Add project"}
             </button>
             <button type="button" className="blank-state-tertiary-button" onClick={onCancelInspection} disabled={busy}>Cancel</button>
           </div>
@@ -1530,6 +1678,97 @@ function ProjectManagement({
         )}
       </div>
       ) : null}
+    </section>
+  );
+}
+
+function ProjectIdentityManagement({
+  entry,
+  busy,
+  message,
+  onSave,
+}: {
+  entry: RecentProjectEntryV01;
+  busy: boolean;
+  message: ProjectFolderSelectionMessageV01 | null;
+  onSave: (displayName: string) => void;
+}) {
+  const savedName = entry.project.display_name ?? "";
+  const [name, setName] = useState(savedName);
+  useEffect(() => setName(savedName), [savedName]);
+  const normalizedName = name.trim();
+  const validationMessage = !normalizedName
+    ? "Enter a project name."
+    : normalizedName.length > PROJECT_DISPLAY_NAME_MAX_LENGTH_V01
+      ? `Project names can be up to ${PROJECT_DISPLAY_NAME_MAX_LENGTH_V01} characters.`
+      : null;
+  const unchanged = normalizedName === savedName;
+  return (
+    <section
+      className="blank-state-management-section project-identity-management"
+      aria-labelledby="project-identity-title"
+      data-project-identity-management="true"
+    >
+      <p className="blank-state-region-label">Current project</p>
+      <h2 id="project-identity-title">Project identity</h2>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!validationMessage && !unchanged && !busy) onSave(normalizedName);
+        }}
+      >
+        <label className="project-name-field">
+          <span>Project name</span>
+          <input
+            type="text"
+            name="current-project-display-name"
+            value={name}
+            aria-invalid={validationMessage ? "true" : undefined}
+            aria-describedby="current-project-name-help current-project-name-error"
+            onChange={(event) => setName(event.target.value)}
+            disabled={busy}
+          />
+        </label>
+        <p id="current-project-name-help" className="blank-state-meta">
+          Renaming the Augnes project does not rename the local folder.
+        </p>
+        {validationMessage ? (
+          <p id="current-project-name-error" className="project-field-error" role="alert">
+            {validationMessage}
+          </p>
+        ) : null}
+        {message ? (
+          <p
+            className="project-selector-message"
+            role={message.tone === "error" ? "alert" : "status"}
+            data-project-message-tone={message.tone}
+          >
+            {message.text}
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          className="blank-state-secondary-button"
+          data-project-name-save="true"
+          disabled={busy || validationMessage !== null || unchanged}
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </form>
+      <dl className="blank-state-detail-list project-identity-details">
+        <div>
+          <dt>Local folder</dt>
+          <dd>{entry.local_root.normalized_path}</dd>
+        </div>
+        <div>
+          <dt>Root availability</dt>
+          <dd>{entry.root_availability === "available" ? "Available" : "Needs attention"}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>Current project</dd>
+        </div>
+      </dl>
     </section>
   );
 }
