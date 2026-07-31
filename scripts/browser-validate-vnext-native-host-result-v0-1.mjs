@@ -342,6 +342,7 @@ const result = {
   project_context_repeat_activation: false,
   project_context_keyboard_activation: false,
   project_context_emphasized_owner: false,
+  project_recovery_context_passive: false,
   folder_onboarding_restart_reopen: false,
   folder_onboarding_stale_active_conflict: false,
   minimum_project_home_empty_state: false,
@@ -1467,6 +1468,39 @@ async function main() {
     assert.equal(secondControlState.personal_perspective?.selection, "excluded");
     result.project_controls_two_project_isolation = true;
 
+    await navigate(`${appOrigin}${secondDestination}`);
+    const activateSecondForRecovery = await evaluateJson(`(async () => {
+      const currentResponse = await fetch('/api/vnext/projects');
+      const current = await currentResponse.json();
+      const active = current.recent_projects.find((entry) => entry.is_active);
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'open',
+          project_id: ${JSON.stringify(secondProjectId)},
+          expected_project_id: active?.active_project_id ?? null,
+          expected_revision: active?.active_selection_revision ?? null,
+        }),
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(activateSecondForRecovery.status, 200);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Browser Second Project')`,
+      "second project active before root recovery",
+    );
+    const activeBeforeRootRecovery = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/projects');
+      return await response.json();
+    })()`);
+    assert.equal(
+      activeBeforeRootRecovery.recent_projects.find((entry) => entry.is_active)
+        ?.project.project_id,
+      secondProjectId,
+    );
+
     renameSync(onboardingFolderB, onboardingFolderBMissingResidue);
     renameSync(folderPickerSequencePath, `${folderPickerSequencePath}.onboarding-consumed`);
     writeFileSync(
@@ -1499,11 +1533,53 @@ async function main() {
       ),
       true,
     );
+    const recoveryProjectContext = await evaluateJson(`(() => {
+        const context = document.querySelector('[data-project-context-label="Current project"]');
+        const locateActions = Array.from(
+          document.querySelectorAll('[data-blank-state-primary-action="locate_folder"]')
+        ).filter((candidate) => candidate.getBoundingClientRect().width > 0);
+        return {
+          context_tag: context?.tagName ?? null,
+          context_matches_control: context?.matches('a, button') ?? null,
+          nested_context_controls: context?.querySelectorAll('a, button').length ?? -1,
+          context_href: context?.getAttribute('href') ?? null,
+          nonexistent_settings_actions: document.querySelectorAll(
+            'a[data-project-context-label="Current project"][href*="#project-settings"], button[data-project-context-label="Current project"]'
+          ).length,
+          settings_targets: document.querySelectorAll('#project-settings').length,
+          management_owners: document.querySelectorAll(
+            '[data-project-settings-owner], [data-project-identity-management], [data-blank-state-project-settings-recovery]'
+          ).length,
+          locate_action_count: locateActions.length,
+          locate_action_tag: locateActions[0]?.tagName ?? null,
+          semantic_primary_action_count: document.querySelectorAll(
+            '[data-augnes-primary-action]'
+          ).length,
+        };
+      })()`);
+    assert.deepEqual(
+      recoveryProjectContext,
+      {
+        context_tag: "P",
+        context_matches_control: false,
+        nested_context_controls: 0,
+        context_href: null,
+        nonexistent_settings_actions: 0,
+        settings_targets: 0,
+        management_owners: 0,
+        locate_action_count: 1,
+        locate_action_tag: "BUTTON",
+        semantic_primary_action_count: 1,
+      },
+      "root-recovery Current project context must stay passive without a settings owner",
+    );
+    result.project_recovery_context_passive = true;
     await validateBlankStateViewports(true, {
       state: "project-root-recovery",
       attentionCount: 1,
       attentionCategory: "project_recovery",
       primaryActions: 1,
+      primaryActionMinimumHeight: 44,
     });
     const rebindPickerResponseStart = responses.length;
     assert.equal(
@@ -11847,6 +11923,7 @@ async function validateBlankStateViewports(
     attentionCount = null,
     attentionCategory = null,
     primaryActions = 1,
+    primaryActionMinimumHeight = 40,
     secondaryActionRequired = null,
     verifyConversationReload = false,
   } = {},
@@ -12073,7 +12150,8 @@ async function validateBlankStateViewports(
         primary_action_within_first_scroll:
           Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2,
         primary_action_touch_target:
-          Boolean(primaryRect) && primaryRect.height >= 40,
+          Boolean(primaryRect) &&
+          primaryRect.height >= ${primaryActionMinimumHeight},
         continuity_present: Boolean(continuity),
         continuity_item_count:
           continuity?.querySelectorAll('[data-blank-state-continuity-item]').length ?? 0,

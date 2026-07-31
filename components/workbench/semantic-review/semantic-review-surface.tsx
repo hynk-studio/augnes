@@ -547,7 +547,11 @@ export function SemanticReviewSurface({
     <ProductShell
       primaryZone="ai-workplane"
       projectContext={homeView.project_name
-        ? { label: "Current project", name: homeView.project_name }
+        ? {
+          label: "Current project",
+          name: homeView.project_name,
+          managementHref: "/#project-settings",
+        }
         : null}
     >
       <main

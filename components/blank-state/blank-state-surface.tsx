@@ -7,7 +7,10 @@ import {
   PinnedContinuitiesNavigation,
 } from "@/components/continuity-pins/continuity-pins-ui";
 import { buildContinuitiesTemporalContextV01 } from "@/lib/vnext/blank-state/continuities-temporal-context";
-import { buildBlankStateViewV01 } from "@/lib/vnext/blank-state/blank-state-view";
+import {
+  blankStatePresentationModeV01,
+  buildBlankStateViewV01,
+} from "@/lib/vnext/blank-state/blank-state-view";
 import { buildManagementSafetyViewV01 } from "@/lib/vnext/management-safety/management-safety-view";
 import type { BlankStateSourceV01 } from "@/types/vnext/blank-state";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
@@ -20,6 +23,7 @@ export function BlankStateSurface({
   guide: ProjectGuideBriefV02;
 }) {
   const view = buildBlankStateViewV01(guide);
+  const presentationMode = blankStatePresentationModeV01(view);
   const temporalContext = buildContinuitiesTemporalContextV01({
     source,
     view,
@@ -39,7 +43,9 @@ export function BlankStateSurface({
           ? {
             label: view.project_context_label,
             name: view.project_name,
-            managementHref: "#project-settings",
+            managementHref: presentationMode === "active_continuities"
+              ? "#project-settings"
+              : undefined,
           }
           : null}
         secondaryNavigation={<PinnedContinuitiesNavigation />}

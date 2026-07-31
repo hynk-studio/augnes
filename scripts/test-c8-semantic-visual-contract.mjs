@@ -51,6 +51,12 @@ for (const priority of SEMANTIC_VISUAL_PRIORITIES) {
 
 const productShell = read("components/product-shell.tsx");
 const projectSettingsLink = read("components/project-settings-link.tsx");
+const blankStateSurface = read(
+  "components/blank-state/blank-state-surface.tsx",
+);
+const semanticReviewSurface = read(
+  "components/workbench/semantic-review/semantic-review-surface.tsx",
+);
 assert.equal(
   [...productShell.matchAll(/zone: "(?:blank-state|ai-workplane)"/gu)].length,
   2,
@@ -124,8 +130,24 @@ assert.match(blankState, /Reopen project/u);
 assert.match(blankState, /Project identity/u);
 assert.match(blankState, /does not rename the local folder/u);
 assert.match(blankState, /data-project-name-save="true"/u);
-assert.match(productShell, /"\/#project-settings"/u);
 assert.match(productShell, /<ProjectSettingsLink/u);
+assert.match(
+  productShell,
+  /projectContext\.label === "Current project" &&\s*projectContext\.managementHref/u,
+);
+assert.match(
+  productShell,
+  /<ProjectSettingsLink[\s\S]*href=\{projectContext\.managementHref\}/u,
+);
+assert.doesNotMatch(productShell, /\?\? "\/#project-settings"/u);
+assert.match(
+  blankStateSurface,
+  /managementHref: presentationMode === "active_continuities"[\s\S]*\? "#project-settings"[\s\S]*: undefined/u,
+);
+assert.match(
+  semanticReviewSurface,
+  /label: "Current project"[\s\S]*managementHref: "\/#project-settings"/u,
+);
 assert.match(projectSettingsLink, /Manage current project/u);
 assert.match(
   projectSettingsLink,

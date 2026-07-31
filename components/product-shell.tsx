@@ -68,9 +68,10 @@ export function ProductShell({
             </span>
           </a>
           {projectContext ? (
-            projectContext.label === "Current project" ? (
+            projectContext.label === "Current project" &&
+            projectContext.managementHref ? (
               <ProjectSettingsLink
-                href={projectContext.managementHref ?? "/#project-settings"}
+                href={projectContext.managementHref}
                 name={projectContext.name}
                 label={projectContext.label}
               >
