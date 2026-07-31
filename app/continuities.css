@@ -21,6 +21,9 @@
   --continuities-material-temporal-high: #3b4850;
   --continuities-material-control: #101e28;
   --continuities-material-control-high: #162a37;
+  --continuities-material-current: #17282f;
+  --continuities-material-current-high: #1e323a;
+  --continuities-material-search: #14242c;
   --continuities-material-modal: #182f3d;
   --continuities-material-modal-high: #223c4b;
   --continuities-ambient-light: rgba(232, 234, 235, 0.055);
@@ -29,6 +32,7 @@
   --continuities-ambient-shade-soft: rgba(4, 6, 8, 0.026);
   --continuities-ambient-sheen: rgba(231, 235, 237, 0.018);
   --continuities-header-reflection: rgba(232, 235, 237, 0.028);
+  --continuities-header-edge: rgba(194, 222, 236, 0.11);
   --continuities-rail-reflection: rgba(232, 235, 237, 0.022);
   --continuities-modal-backdrop: rgba(7, 9, 11, 0.78);
   --continuities-reflection-soft: rgba(225, 240, 248, 0.16);
@@ -2850,6 +2854,103 @@
         var(--continuities-material-modal) 68%,
         #122733
       );
+  }
+}
+
+/*
+ * CUX5.3 mobile density and dark-control micro-polish.
+ *
+ * The raised work plates, Project context, Temporal, GuideBrief dialog/sheet,
+ * semantic accents, and ownership remain on the established CUX5 materials.
+ */
+.product-shell[data-primary-product-zone="blank-state"]
+  .product-shell-bar {
+  border-bottom-color: var(--continuities-header-edge);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuities-current-situation {
+  background:
+    linear-gradient(180deg, rgba(225, 240, 248, 0.065), transparent 34%),
+    linear-gradient(
+      112deg,
+      var(--continuities-material-current-high),
+      var(--continuities-material-current)
+    );
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuities-filter
+  input {
+  background:
+    linear-gradient(180deg, rgba(225, 240, 248, 0.038), transparent 58%),
+    linear-gradient(90deg, rgba(118, 188, 228, 0.014), transparent 72%),
+    var(--continuities-material-search);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .continuities-filter-chips
+  button:not([aria-pressed="true"]) {
+  background:
+    linear-gradient(180deg, rgba(225, 240, 248, 0.026), transparent 52%),
+    var(--continuities-material-search);
+}
+
+@media (max-width: 900px) {
+  .product-shell[data-primary-product-zone="blank-state"]
+    .product-shell-header {
+    border-bottom-color: var(--continuities-header-edge);
+    box-shadow: inset 0 -1px rgba(0, 5, 10, 0.24);
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .product-shell-bar {
+    min-height: 102px;
+    padding-block: 12px 13px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuities-guide-launcher {
+    border-top-color: var(--continuities-border-soft);
+    border-left-color: rgba(174, 205, 222, 0.1);
+  }
+}
+
+@media (max-width: 620px) {
+  .product-shell[data-primary-product-zone="blank-state"]
+    .blank-state-shell {
+    padding-top: 20px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuities-current-situation {
+    gap: 3px;
+    margin-top: 11px;
+    padding: 9px 11px 10px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuities-current-situation
+    .blank-state-material-note {
+    margin-top: 0;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuity-pins-mobile
+    > summary {
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .continuities-filter-controls {
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .product-shell[data-primary-product-zone="blank-state"]
+    .blank-state-continuity {
+    padding-top: 9px;
   }
 }
 

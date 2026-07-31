@@ -277,6 +277,9 @@ for (const materialToken of [
   "--continuities-material-onboarding",
   "--continuities-material-temporal",
   "--continuities-material-control",
+  "--continuities-material-current",
+  "--continuities-material-current-high",
+  "--continuities-material-search",
   "--continuities-material-modal",
   "--continuities-ambient-light",
   "--continuities-ambient-light-soft",
@@ -284,6 +287,7 @@ for (const materialToken of [
   "--continuities-ambient-shade-soft",
   "--continuities-ambient-sheen",
   "--continuities-header-reflection",
+  "--continuities-header-edge",
   "--continuities-rail-reflection",
   "--continuities-modal-backdrop",
   "--continuities-reflection-soft",
@@ -344,6 +348,8 @@ const card = materialHex("--continuities-material-card");
 const onboarding = materialHex("--continuities-material-onboarding");
 const temporal = materialHex("--continuities-material-temporal");
 const control = materialHex("--continuities-material-control");
+const currentSituation = materialHex("--continuities-material-current");
+const searchControl = materialHex("--continuities-material-search");
 assert.ok(
   materialLuminance(canvasMid) > materialLuminance("#182832"),
   "the refined canvas must remain brighter than the prior CUX5 field",
@@ -378,6 +384,18 @@ assert.ok(
 assert.ok(
   materialLuminance(control) < materialLuminance(card),
   "controls must remain inset relative to continuity cards",
+);
+assert.ok(
+  materialLuminance(currentSituation) > materialLuminance(control) &&
+    materialLuminance(currentSituation) < materialLuminance(canvasMid) &&
+    materialLuminance(currentSituation) < materialLuminance(card),
+  "Current situation must lift above the deepest control while remaining recessed below canvas and cards",
+);
+assert.ok(
+  materialLuminance(searchControl) > materialLuminance(control) &&
+    materialLuminance(searchControl) < materialLuminance(canvasMid) &&
+    materialLuminance(searchControl) < materialLuminance(card),
+  "search must remain inset without returning to the deepest control material",
 );
 assert.ok(
   materialBlueDominance(card) > materialBlueDominance(canvasMid) + 15,
@@ -425,6 +443,56 @@ for (const protectedSurfaceRule of [
     "protected material surfaces must not receive a neutralization filter",
   );
 }
+const cux53MicroPolish = continuitiesCss.match(
+  /CUX5\.3 mobile density and dark-control micro-polish\.[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\))/u,
+)?.[0];
+assert.ok(cux53MicroPolish, "missing bounded CUX5.3 micro-polish rules");
+for (const protectedSelector of [
+  ".blank-state-continuity-item",
+  ".continuities-temporal-context",
+  ".continuities-guide-dialog",
+  ".product-project-context",
+]) {
+  assert.equal(
+    cux53MicroPolish.includes(protectedSelector),
+    false,
+    `${protectedSelector} must remain outside the CUX5.3 correction`,
+  );
+}
+assert.doesNotMatch(
+  cux53MicroPolish,
+  /(?:^|[;{])\s*(?:display:\s*none|height:\s*\d|overflow:\s*hidden)/mu,
+  "CUX5.3 must not hide or fixed-height clip semantic content",
+);
+assert.match(
+  cux53MicroPolish,
+  /\.continuities-current-situation\s*\{[\s\S]{0,260}var\(--continuities-material-current-high\)[\s\S]{0,120}var\(--continuities-material-current\)/u,
+);
+assert.match(
+  cux53MicroPolish,
+  /\.continuities-filter\s+input\s*\{[\s\S]{0,300}var\(--continuities-material-search\)/u,
+);
+assert.match(
+  cux53MicroPolish,
+  /\.product-shell-bar\s*\{[\s\S]{0,100}border-bottom-color:\s*var\(--continuities-header-edge\)/u,
+);
+assert.match(
+  cux53MicroPolish,
+  /@media \(max-width: 620px\)[\s\S]*\.blank-state-shell\s*\{[\s\S]{0,80}padding-top:\s*20px[\s\S]*\.continuity-pins-mobile\s+>\s+summary\s*\{[\s\S]{0,100}min-height:\s*44px[\s\S]*\.continuities-filter-controls\s*\{[\s\S]{0,100}gap:\s*6px;[\s\S]{0,60}margin-top:\s*10px[\s\S]*\.blank-state-continuity\s*\{[\s\S]{0,80}padding-top:\s*9px/u,
+);
+const ordinaryMobileGuideSupport = cux53MicroPolish.match(
+  /\.continuities-guide-launcher\s*\{(?<declarations>[^}]*)\}/u,
+)?.groups?.declarations;
+assert.ok(ordinaryMobileGuideSupport);
+assert.match(
+  ordinaryMobileGuideSupport,
+  /border-top-color:\s*var\(--continuities-border-soft\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /:is\(a, button, input, summary\):focus-visible\s*\{[\s\S]{0,180}outline-color:\s*rgba\(160, 212, 238, 0\.84\)/u,
+  "focus-visible precision treatment must remain stronger than ordinary support",
+);
 const precisionAccentUseCount = [
   ...continuitiesCss.matchAll(
     /var\(--continuities-(?:blue(?:-strong)?|selected-edge)\)/gu,
