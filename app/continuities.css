@@ -6,12 +6,12 @@
  */
 
 .product-shell[data-primary-product-zone="blank-state"] {
-  --continuities-material-canvas-high: #314653;
-  --continuities-material-canvas-mid: #253945;
-  --continuities-material-canvas-low: #192a34;
-  --continuities-material-header: #1b2c37;
-  --continuities-material-rail: #10212c;
-  --continuities-material-rail-high: #192b35;
+  --continuities-material-canvas-high: #3a454c;
+  --continuities-material-canvas-mid: #2d383f;
+  --continuities-material-canvas-low: #20292f;
+  --continuities-material-header: #222b31;
+  --continuities-material-rail: #182028;
+  --continuities-material-rail-high: #222a30;
   --continuities-material-card: #2a4050;
   --continuities-material-card-high: #354f60;
   --continuities-material-card-highlight: #3d5a6d;
@@ -23,6 +23,14 @@
   --continuities-material-control-high: #162a37;
   --continuities-material-modal: #182f3d;
   --continuities-material-modal-high: #223c4b;
+  --continuities-ambient-light: rgba(232, 234, 235, 0.055);
+  --continuities-ambient-light-soft: rgba(230, 234, 236, 0.036);
+  --continuities-ambient-shade: rgba(4, 6, 8, 0.048);
+  --continuities-ambient-shade-soft: rgba(4, 6, 8, 0.026);
+  --continuities-ambient-sheen: rgba(231, 235, 237, 0.018);
+  --continuities-header-reflection: rgba(232, 235, 237, 0.028);
+  --continuities-rail-reflection: rgba(232, 235, 237, 0.022);
+  --continuities-modal-backdrop: rgba(7, 9, 11, 0.78);
   --continuities-reflection-soft: rgba(225, 240, 248, 0.16);
   --continuities-reflection-raised: rgba(225, 240, 248, 0.25);
   --continuities-lower-edge: rgba(0, 5, 10, 0.4);
@@ -82,8 +90,8 @@
   isolation: isolate;
   color: var(--continuities-text);
   background:
-    radial-gradient(ellipse at 66% -14%, rgba(221, 232, 238, 0.055), transparent 51%),
-    radial-gradient(ellipse at 18% 76%, rgba(0, 5, 10, 0.048), transparent 58%),
+    radial-gradient(ellipse at 66% -14%, var(--continuities-ambient-light), transparent 51%),
+    radial-gradient(ellipse at 18% 76%, var(--continuities-ambient-shade), transparent 58%),
     linear-gradient(
       148deg,
       var(--continuities-canvas-high) 0%,
@@ -114,9 +122,22 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 9% 17%, rgba(225, 236, 242, 0.036), transparent 34%),
-    radial-gradient(ellipse at 86% 71%, rgba(0, 5, 10, 0.026), transparent 41%),
-    linear-gradient(117deg, transparent 18%, rgba(226, 238, 244, 0.018) 49%, transparent 79%);
+    radial-gradient(
+      ellipse at 9% 17%,
+      var(--continuities-ambient-light-soft),
+      transparent 34%
+    ),
+    radial-gradient(
+      ellipse at 86% 71%,
+      var(--continuities-ambient-shade-soft),
+      transparent 41%
+    ),
+    linear-gradient(
+      117deg,
+      transparent 18%,
+      var(--continuities-ambient-sheen) 49%,
+      transparent 79%
+    );
   content: "";
   opacity: 0.74;
 }
@@ -2565,7 +2586,7 @@
 
 .product-shell[data-primary-product-zone="blank-state"]
   .continuities-guide-dialog::backdrop {
-  background: rgba(2, 7, 11, 0.78);
+  background: var(--continuities-modal-backdrop);
   backdrop-filter: blur(3px);
 }
 
@@ -2660,7 +2681,7 @@
     background:
       linear-gradient(
         90deg,
-        rgba(225, 240, 248, 0.028),
+        var(--continuities-header-reflection),
         transparent 38%
       ),
       var(--continuities-material-header);
@@ -2675,7 +2696,7 @@
     background:
       linear-gradient(
         96deg,
-        rgba(225, 240, 248, 0.022),
+        var(--continuities-rail-reflection),
         transparent 82%
       ),
       linear-gradient(

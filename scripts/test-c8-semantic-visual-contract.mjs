@@ -278,6 +278,14 @@ for (const materialToken of [
   "--continuities-material-temporal",
   "--continuities-material-control",
   "--continuities-material-modal",
+  "--continuities-ambient-light",
+  "--continuities-ambient-light-soft",
+  "--continuities-ambient-shade",
+  "--continuities-ambient-shade-soft",
+  "--continuities-ambient-sheen",
+  "--continuities-header-reflection",
+  "--continuities-rail-reflection",
+  "--continuities-modal-backdrop",
   "--continuities-reflection-soft",
   "--continuities-reflection-raised",
   "--continuities-lower-edge",
@@ -291,11 +299,12 @@ for (const materialToken of [
   assert.match(continuitiesCss, new RegExp(materialToken, "u"));
 }
 for (const raisedNeutralToken of [
-  "--continuities-material-canvas-high: #314653",
-  "--continuities-material-canvas-mid: #253945",
-  "--continuities-material-canvas-low: #192a34",
-  "--continuities-material-header: #1b2c37",
-  "--continuities-material-rail: #10212c",
+  "--continuities-material-canvas-high: #3a454c",
+  "--continuities-material-canvas-mid: #2d383f",
+  "--continuities-material-canvas-low: #20292f",
+  "--continuities-material-header: #222b31",
+  "--continuities-material-rail: #182028",
+  "--continuities-material-rail-high: #222a30",
   "--continuities-material-card: #2a4050",
   "--continuities-material-onboarding: #303a41",
   "--continuities-material-temporal: #303d45",
@@ -325,6 +334,10 @@ const materialLuminance = (hex) => {
     0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
   );
 };
+const materialBlueDominance = (hex) => {
+  const [red, , blue] = materialRgb(hex);
+  return blue - red;
+};
 const canvasMid = materialHex("--continuities-material-canvas-mid");
 const rail = materialHex("--continuities-material-rail");
 const card = materialHex("--continuities-material-card");
@@ -334,6 +347,25 @@ const control = materialHex("--continuities-material-control");
 assert.ok(
   materialLuminance(canvasMid) > materialLuminance("#182832"),
   "the refined canvas must remain brighter than the prior CUX5 field",
+);
+assert.ok(
+  Math.abs(
+    materialLuminance(canvasMid) - materialLuminance("#253945"),
+  ) < 0.001,
+  "canvas neutralization must preserve the 9dbceb2 canvas luminance",
+);
+assert.ok(
+  Math.abs(materialLuminance(rail) - materialLuminance("#10212c")) < 0.001,
+  "rail neutralization must preserve the 9dbceb2 rail luminance",
+);
+assert.ok(
+  materialBlueDominance(canvasMid) <
+    materialBlueDominance("#253945") - 10,
+  "canvas blue dominance must be materially lower than at 9dbceb2",
+);
+assert.ok(
+  materialBlueDominance(rail) < materialBlueDominance("#10212c") - 10,
+  "rail blue dominance must be materially lower than at 9dbceb2",
 );
 assert.ok(
   materialLuminance(rail) < materialLuminance(canvasMid),
@@ -347,6 +379,10 @@ assert.ok(
   materialLuminance(control) < materialLuminance(card),
   "controls must remain inset relative to continuity cards",
 );
+assert.ok(
+  materialBlueDominance(card) > materialBlueDominance(canvasMid) + 15,
+  "continuity cards must remain perceptually cooler than the neutral canvas",
+);
 const [cardRed, , cardBlue] = materialRgb(card);
 const [onboardingRed, , onboardingBlue] = materialRgb(onboarding);
 const [temporalRed, , temporalBlue] = materialRgb(temporal);
@@ -357,6 +393,47 @@ assert.ok(
 assert.ok(
   cardBlue - cardRed > temporalBlue - temporalRed,
   "Temporal must remain greyer and quieter than metallic cards",
+);
+for (const protectedMaterialToken of [
+  "--continuities-material-card: #2a4050",
+  "--continuities-material-card-high: #354f60",
+  "--continuities-material-card-highlight: #3d5a6d",
+  "--continuities-material-temporal: #303d45",
+  "--continuities-material-temporal-high: #3b4850",
+  "--continuities-material-control: #101e28",
+  "--continuities-material-control-high: #162a37",
+  "--continuities-material-modal: #182f3d",
+  "--continuities-material-modal-high: #223c4b",
+  "--continuities-blue: #76bce4",
+  "--continuities-blue-strong: #a0d4ee",
+  "--continuities-violet: #a88ad5",
+  "--continuities-amber: #d6a04b",
+]) {
+  assert.match(continuitiesCss, new RegExp(protectedMaterialToken, "u"));
+}
+for (const protectedSurfaceRule of [
+  /\.blank-state-continuity-item\s*\{(?<declarations>[^}]*)\}/u,
+  /\.continuities-temporal-context\s*\{(?<declarations>[^}]*)\}/u,
+  /\.continuities-guide-dialog\s*\{(?<declarations>[^}]*)\}/u,
+]) {
+  const declarations = continuitiesCss.match(protectedSurfaceRule)?.groups
+    ?.declarations;
+  assert.ok(declarations, "missing protected material surface rule");
+  assert.doesNotMatch(
+    declarations,
+    /filter:\s*(?:saturate|grayscale|opacity)/u,
+    "protected material surfaces must not receive a neutralization filter",
+  );
+}
+const precisionAccentUseCount = [
+  ...continuitiesCss.matchAll(
+    /var\(--continuities-(?:blue(?:-strong)?|selected-edge)\)/gu,
+  ),
+].length;
+assert.equal(
+  precisionAccentUseCount,
+  13,
+  "ambient neutralization must not expand precision-accent token coverage",
 );
 const cux5ActiveNavigationRule = [
   ...continuitiesCss.matchAll(
