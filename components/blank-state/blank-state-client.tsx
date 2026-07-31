@@ -18,7 +18,10 @@ import {
 import {
   blankStatePresentationModeV01,
   blankStateAttentionLabelV01,
+  projectFolderPickerMessageV01,
+  projectFolderSelectionErrorMessageV01,
   publicBlankStateTextV01,
+  type ProjectFolderSelectionMessageV01,
 } from "@/lib/vnext/blank-state/blank-state-view";
 import {
   createOpaqueGuideBriefInteractionTargetHandleV01,
@@ -40,12 +43,31 @@ import type {
 } from "@/types/vnext/blank-state";
 import type {
   LocalFolderPickerOutcomeV01,
+  ProjectOnboardingErrorCodeV01,
   RecentProjectEntryV01,
 } from "@/types/vnext/project-onboarding";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import type { ManagementSafetyViewV01 } from "@/types/vnext/management-safety";
 
 type SelectedFolder = Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>;
+
+function infoMessage(text: string): ProjectFolderSelectionMessageV01 {
+  return { tone: "info", text };
+}
+
+function errorMessage(text: string): ProjectFolderSelectionMessageV01 {
+  return { tone: "error", text };
+}
+
+function projectMutationErrorCode(error: unknown):
+  | ProjectOnboardingErrorCodeV01
+  | "project_management_unavailable" {
+  if (!(error instanceof Error)) return "project_management_unavailable";
+  const errorCode = error.message as
+    | ProjectOnboardingErrorCodeV01
+    | "project_management_unavailable";
+  return errorCode;
+}
 
 export function BlankStateClient({
   source,
@@ -63,7 +85,8 @@ export function BlankStateClient({
   const [recent, setRecent] = useState(source.recent_projects);
   const [picker, setPicker] = useState<LocalFolderPickerOutcomeV01 | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] =
+    useState<ProjectFolderSelectionMessageV01 | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [pendingRebind, setPendingRebind] = useState<{
     entry: RecentProjectEntryV01;
@@ -110,14 +133,13 @@ export function BlankStateClient({
     try {
       const value = await mutate({ action: "choose_folder" });
       setPicker(value.picker);
-      if (value.picker.status === "cancelled") {
-        setMessage("Folder selection was cancelled. Nothing changed.");
-      }
-      if (value.picker.status === "unavailable") {
-        setMessage("A native folder picker is unavailable on this system.");
-      }
-    } catch {
-      setMessage("The folder picker could not be opened.");
+      setMessage(projectFolderPickerMessageV01(value.picker));
+    } catch (error) {
+      setMessage(
+        projectFolderSelectionErrorMessageV01(
+          projectMutationErrorCode(error),
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -135,10 +157,10 @@ export function BlankStateClient({
       window.location.assign(value.result.destination);
     } catch (error) {
       setMessage(error instanceof Error && error.message === "active_selection_conflict"
-        ? "The current project changed. Refresh and choose the folder again."
+        ? errorMessage("The current project changed. Refresh and choose the folder again.")
         : error instanceof Error && error.message === "inspection_stale"
-          ? "The folder changed. Choose it again before confirming."
-          : "The project could not be added.");
+          ? errorMessage("The folder changed. Choose it again before confirming.")
+          : errorMessage("The project could not be added."));
       setPicker(null);
     } finally {
       setBusy(false);
@@ -147,7 +169,7 @@ export function BlankStateClient({
 
   async function open(entry: RecentProjectEntryV01) {
     if (entry.root_availability !== "available") {
-      setMessage("Locate the folder before opening this project.");
+      setMessage(errorMessage("Locate the folder before opening this project."));
       return;
     }
     setBusy(true);
@@ -161,7 +183,7 @@ export function BlankStateClient({
       });
       window.location.assign(value.result.destination);
     } catch {
-      setMessage("The current project changed. Refresh and try again.");
+      setMessage(errorMessage("The current project changed. Refresh and try again."));
     } finally {
       setBusy(false);
     }
@@ -180,7 +202,7 @@ export function BlankStateClient({
       });
       window.location.reload();
     } catch {
-      setMessage("The current project changed. Refresh and try again.");
+      setMessage(errorMessage("The current project changed. Refresh and try again."));
     } finally {
       setBusy(false);
     }
@@ -204,7 +226,7 @@ export function BlankStateClient({
         .map((item) => entry.is_active
           ? { ...item, is_active: false, active_project_id: null, active_selection_revision: null }
           : item));
-      setMessage("Removed from recent projects. Project data remains stored.");
+      setMessage(infoMessage("Removed from recent projects. Project data remains stored."));
       setPendingRemoval(null);
     } catch (error) {
       setDialogError(error instanceof Error && error.message === "active_selection_conflict"
@@ -221,15 +243,17 @@ export function BlankStateClient({
     try {
       const chosen = (await mutate({ action: "choose_folder" })).picker as LocalFolderPickerOutcomeV01;
       if (chosen.status !== "selected") {
-        setMessage(chosen.status === "cancelled"
-          ? "Folder selection was cancelled. Nothing changed."
-          : "A replacement folder could not be selected.");
+        setMessage(projectFolderPickerMessageV01(chosen));
         return;
       }
       setDialogError(null);
       setPendingRebind({ entry, chosen });
-    } catch {
-      setMessage("The replacement folder could not be inspected.");
+    } catch (error) {
+      setMessage(
+        projectFolderSelectionErrorMessageV01(
+          projectMutationErrorCode(error),
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -550,8 +574,12 @@ export function BlankStateClient({
                 </div>
               ) : null}
               {!projectSelection && message ? (
-                <p className="blank-state-message" role="status">
-                  {message}
+                <p
+                  className="blank-state-message"
+                  role={message.tone === "error" ? "alert" : "status"}
+                  data-project-message-tone={message.tone}
+                >
+                  {message.text}
                 </p>
               ) : null}
             </section>
@@ -1039,8 +1067,11 @@ function ContinuityItem({
           >
             {attentionLabel}
           </p>
-          <h3>{item.work_name}</h3>
-          <p className="blank-state-continuity-state">
+          <h3 title={item.work_name}>{item.work_name}</h3>
+          <p
+            className="blank-state-continuity-state"
+            title={item.meaningful_state}
+          >
             {item.meaningful_state}
           </p>
         </div>
@@ -1323,7 +1354,7 @@ function ProjectManagement({
   recent: RecentProjectEntryV01[];
   picker: LocalFolderPickerOutcomeV01 | null;
   busy: boolean;
-  message: string | null;
+  message: ProjectFolderSelectionMessageV01 | null;
   primaryAction: BlankStatePrimaryActionV01 | null;
   onChoose: () => void;
   onConfirm: () => void;
@@ -1401,7 +1432,15 @@ function ProjectManagement({
           ) : null}
         </div>
       ) : null}
-      {message ? <p className="project-selector-message" role="status">{message}</p> : null}
+      {message ? (
+        <p
+          className="project-selector-message"
+          role={message.tone === "error" ? "alert" : "status"}
+          data-project-message-tone={message.tone}
+        >
+          {message.text}
+        </p>
+      ) : null}
       {selectedFolder ? (
         <div className="project-inspection" aria-live="polite">
           <p className="blank-state-region-label">Folder found</p>

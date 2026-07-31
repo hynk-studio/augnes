@@ -9,6 +9,10 @@ import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { vNextProjectLifecycleSchemaSqlV01 } from "./db-migrations.mjs";
 import {
+  projectFolderPickerMessageV01,
+  projectFolderSelectionErrorMessageV01,
+} from "../lib/vnext/blank-state/blank-state-view";
+import {
   chooseLocalProjectFolderV01,
   confirmLocalProjectOnboardingV01,
   inspectLocalProjectRootV01,
@@ -143,6 +147,85 @@ try {
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = new Error("timeout") as Error & { code: string }; error.code = "ETIMEDOUT"; throw error; } } }), { status: "error", error_code: "picker_timeout" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = Object.assign(new Error("killed"), { code: null, killed: true, signal: "SIGKILL" }); throw error; } } }), { status: "error", error_code: "picker_timeout" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = Object.assign(new Error("bounded"), { code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" }); throw error; } } }), { status: "error", error_code: "picker_failed" });
+  assert.equal(
+    projectFolderPickerMessageV01({
+      status: "selected",
+      selection_token: "selection-token",
+      inspection: {
+        inspection_version: "local_project_inspection.v0.1",
+        display_name: "Plain project",
+        local_root: {
+          local_root_ref_version: "local_project_root_ref.v0.1",
+          ref_kind: "local_project_root",
+          path_flavor: "posix",
+          normalized_path: folderA,
+        },
+        folder_kind: "plain_folder",
+        repository_ref: null,
+        repository_display: null,
+        repository_status: "not_repository",
+        inspected_at: "2026-07-15T00:00:00.000Z",
+        inspection_fingerprint: "inspection-fingerprint",
+        already_added: false,
+      },
+    }),
+    null,
+    "valid plain and Git selections must not create an error message",
+  );
+  assert.deepEqual(
+    projectFolderPickerMessageV01({ status: "cancelled" }),
+    {
+      tone: "info",
+      text: "Folder selection was cancelled. Nothing changed.",
+    },
+  );
+  assert.deepEqual(
+    projectFolderPickerMessageV01({
+      status: "error",
+      error_code: "picker_timeout",
+    }),
+    {
+      tone: "error",
+      text: "The folder picker timed out before returning a selection. Try again.",
+    },
+  );
+  assert.deepEqual(
+    projectFolderPickerMessageV01({
+      status: "error",
+      error_code: "picker_failed",
+    }),
+    {
+      tone: "error",
+      text: "The folder picker could not be opened. Try again.",
+    },
+  );
+  const missingSelectionMessage =
+    projectFolderSelectionErrorMessageV01("selection_missing");
+  const inaccessibleSelectionMessage =
+    projectFolderSelectionErrorMessageV01("selection_inaccessible");
+  const inspectionFailureMessage =
+    projectFolderSelectionErrorMessageV01("inspection_failed");
+  assert.match(missingSelectionMessage.text, /no longer available/u);
+  assert.match(inaccessibleSelectionMessage.text, /cannot read/u);
+  assert.match(inspectionFailureMessage.text, /could not inspect/u);
+  assert.notEqual(
+    missingSelectionMessage.text,
+    projectFolderPickerMessageV01({
+      status: "error",
+      error_code: "picker_failed",
+    })?.text,
+  );
+  for (const message of [
+    missingSelectionMessage,
+    inaccessibleSelectionMessage,
+    inspectionFailureMessage,
+  ]) {
+    assert.equal(message.tone, "error");
+    assert.doesNotMatch(
+      message.text,
+      /selection_missing|selection_inaccessible|inspection_failed/u,
+    );
+  }
 
   const regularFile = path.join(root, "not-a-directory.txt");
   writeFileSync(regularFile, "fixture");

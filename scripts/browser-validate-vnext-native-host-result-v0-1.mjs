@@ -1220,6 +1220,10 @@ async function main() {
       `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some((button) => button.getBoundingClientRect().width > 0 && !button.disabled)`,
       "explicit first-project activation ready",
     );
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
+      "hydrated strategic source project activation",
+    );
     const activationResponseStart = responses.length;
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).find((candidate) => candidate.getBoundingClientRect().width > 0); if (!(button instanceof HTMLButtonElement) || button.disabled) return false; button.click(); return true; })()`), true);
     await waitForHostCondition(
@@ -1742,31 +1746,121 @@ async function main() {
       )
     ) {
       await waitForCondition(
-        `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some(
-          (candidate) => candidate instanceof HTMLButtonElement &&
-            candidate.getBoundingClientRect().width > 0 &&
-            !candidate.disabled
-        )`,
-        "strategic source project activation control",
+        `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
+        "hydrated strategic proposal source project activation",
       );
+      const strategicProjectPath =
+        `/projects/${encodeURIComponent(manifest.project_id)}`;
+      const activationTarget = await evaluateJson(`(() => {
+        const roots = Array.from(
+          document.querySelectorAll(
+            '[data-blank-state="v0.1"][data-blank-state-project-management-hydrated="true"]'
+          )
+        );
+        const root = roots.length === 1 ? roots[0] : null;
+        const buttons = root
+          ? Array.from(
+              root.querySelectorAll(
+                'button[data-blank-state-primary-action="make_active"]'
+              )
+            ).filter((candidate) => {
+              const rect = candidate.getBoundingClientRect();
+              return (
+                candidate instanceof HTMLButtonElement &&
+                candidate.isConnected &&
+                !candidate.disabled &&
+                rect.width > 0 &&
+                rect.height > 0
+              );
+            })
+          : [];
+        const button = buttons.length === 1 ? buttons[0] : null;
+        const rect = button?.getBoundingClientRect() ?? null;
+        const x = rect ? rect.left + rect.width / 2 : null;
+        const y = rect ? rect.top + rect.height / 2 : null;
+        const pointOwner =
+          x !== null && y !== null ? document.elementFromPoint(x, y) : null;
+        const routeProjectId =
+          location.pathname.startsWith('/projects/')
+            ? decodeURIComponent(location.pathname.slice('/projects/'.length))
+            : null;
+        return {
+          actual_path: location.pathname,
+          route_project_id: routeProjectId,
+          root_count: roots.length,
+          action_owner_count: buttons.length,
+          target_connected: button?.isConnected ?? false,
+          target_disabled:
+            button instanceof HTMLButtonElement ? button.disabled : null,
+          point_owner_is_target:
+            button !== null &&
+            (pointOwner === button || button.contains(pointOwner)),
+          x,
+          y,
+        };
+      })()`);
+      assert.equal(activationTarget.actual_path, strategicProjectPath);
+      assert.equal(activationTarget.route_project_id, manifest.project_id);
+      assert.equal(activationTarget.root_count, 1);
+      assert.equal(activationTarget.action_owner_count, 1);
+      assert.equal(activationTarget.target_connected, true);
+      assert.equal(activationTarget.target_disabled, false);
+      assert.equal(activationTarget.point_owner_is_target, true);
+      assert.equal(Number.isFinite(activationTarget.x), true);
+      assert.equal(Number.isFinite(activationTarget.y), true);
+      const activationControlStateBefore = readProjectControlState(
+        manifest.project_id,
+      );
+      const activationRequestStart = requests.length;
       const activationResponseStart = responses.length;
-      assert.equal(
-        await evaluateBoolean(`(() => {
-          const button = Array.from(
-            document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')
-          ).find(
-            (candidate) => candidate.getBoundingClientRect().width > 0
-          );
-          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
-          button.click();
-          return true;
-        })()`),
-        true,
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: activationTarget.x,
+        y: activationTarget.y,
+      });
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mousePressed",
+        x: activationTarget.x,
+        y: activationTarget.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        x: activationTarget.x,
+        y: activationTarget.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await waitForHostCondition(
+        () =>
+          requests.slice(activationRequestStart).some(
+            (entry) =>
+              entry.method === "POST" &&
+              entry.path === "/api/vnext/projects" &&
+              entry.type === "Fetch" &&
+              requestJsonBody(entry)?.action === "open" &&
+              requestJsonBody(entry)?.project_id === manifest.project_id,
+          ),
+        "strategic source project activation request",
       );
+      const activationRequest = requests
+        .slice(activationRequestStart)
+        .find(
+          (entry) =>
+            entry.method === "POST" &&
+            entry.path === "/api/vnext/projects" &&
+            entry.type === "Fetch" &&
+            requestJsonBody(entry)?.action === "open" &&
+            requestJsonBody(entry)?.project_id === manifest.project_id,
+        );
+      assert(activationRequest);
       await waitForHostCondition(
         () =>
           responses.slice(activationResponseStart).some(
             (entry) =>
+              entry.request_id === activationRequest.request_id &&
+              entry.method === "POST" &&
               entry.path === "/api/vnext/projects" &&
               entry.type === "Fetch",
           ),
@@ -1776,9 +1870,23 @@ async function main() {
         .slice(activationResponseStart)
         .find(
           (entry) =>
-            entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+            entry.request_id === activationRequest.request_id &&
+            entry.method === "POST" &&
+            entry.path === "/api/vnext/projects" &&
+            entry.type === "Fetch",
         );
       assert.equal(activationResponse?.status, 200);
+      const activationControlStateAfter = readProjectControlState(
+        manifest.project_id,
+      );
+      assert.equal(
+        activationControlStateAfter.active?.project_id,
+        manifest.project_id,
+      );
+      assert.equal(
+        activationControlStateAfter.active?.selection_revision,
+        Number(activationControlStateBefore.active?.selection_revision) + 1,
+      );
     }
     await waitForCondition(
       `document.querySelector('[data-blank-state-active="true"]') !== null`,
@@ -11631,6 +11739,60 @@ async function validateBlankStateViewports(
       const pinnedNavigationRect = pinnedNavigation?.getBoundingClientRect();
       const guideLauncherRect = guideLauncher?.getBoundingClientRect();
       const continuityRect = continuity?.getBoundingClientRect();
+      const productShell = home?.closest(
+        '.product-shell[data-primary-product-zone="blank-state"]'
+      );
+      const firstContinuityItem = continuity?.querySelector(
+        '[data-blank-state-continuity-item]'
+      );
+      const firstControl = home?.querySelector(
+        '.continuities-filter input, .continuities-filter-chips button'
+      );
+      const guideDialog = home?.querySelector(
+        'dialog[data-continuities-guidebrief-dialog="true"]'
+      );
+      const materialSignature = (element) => {
+        if (!(element instanceof HTMLElement)) return null;
+        const style = getComputedStyle(element);
+        return [
+          style.backgroundColor,
+          style.backgroundImage,
+          style.borderTopColor,
+          style.boxShadow,
+        ].join('|');
+      };
+      const expectedMaterialSurfaces =
+        home?.getAttribute('data-blank-state-presentation') ===
+        'active_continuities'
+          ? [
+              productShell,
+              navigationRail,
+              firstContinuityItem,
+              temporal,
+              firstControl,
+              guideDialog,
+            ]
+          : [
+              productShell,
+              navigationRail,
+              projectPanel ?? projectContext,
+              guideDialog,
+            ];
+      const renderedMaterialSurfaces = expectedMaterialSurfaces.filter(
+        rendered
+      );
+      const materialSignatures = renderedMaterialSurfaces
+        .map(materialSignature)
+        .filter(Boolean);
+      const attentionItems = Array.from(
+        continuity?.querySelectorAll(
+          '[data-blank-state-human-attention="true"]'
+        ) ?? []
+      );
+      const moreContextSummaries = Array.from(
+        continuity?.querySelectorAll('.continuities-item-details > summary') ??
+          []
+      );
       const bounds = (element) => element?.getBoundingClientRect() ?? null;
       const intersects = (left, right) =>
         Boolean(left && right) &&
@@ -11893,6 +12055,49 @@ async function validateBlankStateViewports(
           !intersects(temporalRect, continuityRect),
         pinned_guide_nonoverlap:
           !intersects(pinnedNavigationRect, guideLauncherRect),
+        material_surfaces_differentiated:
+          materialSignatures.length === renderedMaterialSurfaces.length &&
+          materialSignatures.length >=
+            (home?.getAttribute('data-blank-state-presentation') ===
+            'active_continuities'
+              ? 5
+              : 3) &&
+          new Set(materialSignatures).size === materialSignatures.length,
+        attention_material_bounded:
+          attentionItems.every((item) => {
+            const style = getComputedStyle(item);
+            const action = item.querySelector(
+              '.blank-state-primary-action, .blank-state-secondary-link'
+            );
+            const actionStyle = action ? getComputedStyle(action) : null;
+            return (
+              style.borderLeftColor !== style.borderRightColor &&
+              style.borderRightColor === style.borderBottomColor &&
+              (!actionStyle ||
+                !actionStyle.backgroundImage.includes('214, 160, 75'))
+            );
+          }),
+        continuity_titles_preserve_full_text:
+          Array.from(
+            continuity?.querySelectorAll('[data-blank-state-continuity-item]') ??
+              []
+          ).every((item) => {
+            const title = item.querySelector('h3');
+            const state = item.querySelector('.blank-state-continuity-state');
+            return (
+              title?.getAttribute('title') === title?.textContent?.trim() &&
+              state?.getAttribute('title') === state?.textContent?.trim()
+            );
+          }),
+        more_context_default_secondary:
+          moreContextSummaries.every((summary) => {
+            const style = getComputedStyle(summary);
+            return (
+              summary !== document.activeElement &&
+              summary.hasAttribute('aria-selected') === false &&
+              style.outlineStyle === 'none'
+            );
+          }),
         desktop_guide_not_fixed:
           window.innerWidth <= 900 ||
           !guideLauncher ||
@@ -12192,6 +12397,26 @@ async function validateBlankStateViewports(
       metricMessage("pinned_guide_nonoverlap"),
     );
     assert.equal(
+      metrics.material_surfaces_differentiated,
+      true,
+      metricMessage("material_surfaces_differentiated"),
+    );
+    assert.equal(
+      metrics.attention_material_bounded,
+      true,
+      metricMessage("attention_material_bounded"),
+    );
+    assert.equal(
+      metrics.continuity_titles_preserve_full_text,
+      true,
+      metricMessage("continuity_titles_preserve_full_text"),
+    );
+    assert.equal(
+      metrics.more_context_default_secondary,
+      true,
+      metricMessage("more_context_default_secondary"),
+    );
+    assert.equal(
       metrics.desktop_guide_not_fixed,
       true,
       metricMessage("desktop_guide_not_fixed"),
@@ -12411,6 +12636,68 @@ async function validateBlankStateViewports(
     })()`,
     "GuideBrief dialog closes and returns focus",
   );
+  const moreContextPresent = await evaluateBoolean(`(() =>
+    document.querySelector('.continuities-item-details > summary') !== null
+  )()`);
+  if (moreContextPresent) {
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const summary = document.querySelector(
+          '.continuities-item-details > summary'
+        );
+        const item = summary?.closest('[data-blank-state-continuity-item]');
+        const previous = item?.querySelector(
+          '.blank-state-primary-action, .blank-state-secondary-link'
+        );
+        if (!(summary instanceof HTMLElement) ||
+            !(previous instanceof HTMLElement)) return false;
+        previous.focus();
+        return document.activeElement === previous;
+      })()`),
+      true,
+      "More context needs a preceding source-owned action for keyboard focus validation",
+    );
+    await cdp.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+    });
+    await cdp.send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+    });
+    const moreContextFocus = await evaluateJson(`(() => {
+      const summary = document.querySelector(
+        '.continuities-item-details > summary'
+      );
+      const style =
+        summary instanceof HTMLElement ? getComputedStyle(summary) : null;
+      return {
+        focused: summary === document.activeElement,
+        outline_style: style?.outlineStyle ?? null,
+        outline_width: style?.outlineWidth ?? null,
+        aria_selected_absent:
+          summary instanceof HTMLElement &&
+          summary.hasAttribute('aria-selected') === false,
+      };
+    })()`);
+    assert.equal(
+      moreContextFocus.focused &&
+        moreContextFocus.outline_style === "solid" &&
+        moreContextFocus.outline_width === "3px" &&
+        moreContextFocus.aria_selected_absent,
+      true,
+      `more_context_keyboard_focus_visible:${JSON.stringify(moreContextFocus)}`,
+    );
+    result.viewport_results.push({
+      surface: "blank_state_more_context_focus",
+      more_context_keyboard_focus_visible: true,
+      aria_selected_absent: true,
+    });
+  }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 1000,

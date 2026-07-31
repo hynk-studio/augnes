@@ -82,6 +82,9 @@ assert.doesNotMatch(productShell, /label: "Blank State"/u);
 assert.doesNotMatch(productShell, /Project tools|Portability|Recovery/u);
 
 const blankState = read("components/blank-state/blank-state-client.tsx");
+const continuityPinsMarkup = read(
+  "components/continuity-pins/continuity-pins-ui.tsx",
+);
 assert.match(blankState, /data-augnes-surface-role/u);
 assert.match(blankState, /data-augnes-primary-action/u);
 assert.match(blankState, /SEMANTIC_VISUAL_PRIORITY\.situation/u);
@@ -147,6 +150,11 @@ assert.match(
 assert.match(
   blankState,
   /className="continuities-temporal-title"[\s\S]*title=\{item\.(?:label|summary)\}/u,
+);
+assert.match(blankState, /<h3 title=\{item\.work_name\}>/u);
+assert.match(
+  blankState,
+  /className="blank-state-continuity-state"[\s\S]*title=\{item\.meaningful_state\}/u,
 );
 assert.doesNotMatch(blankState, /className="continuities-last-change-summary"/u);
 assert.match(
@@ -261,6 +269,309 @@ for (const scopedToken of [
 ]) {
   assert.match(continuitiesCss, new RegExp(scopedToken, "u"));
 }
+for (const materialToken of [
+  "--continuities-material-canvas-high",
+  "--continuities-material-header",
+  "--continuities-material-rail",
+  "--continuities-material-card",
+  "--continuities-material-onboarding",
+  "--continuities-material-temporal",
+  "--continuities-material-control",
+  "--continuities-material-current",
+  "--continuities-material-current-high",
+  "--continuities-material-search",
+  "--continuities-material-modal",
+  "--continuities-ambient-light",
+  "--continuities-ambient-light-soft",
+  "--continuities-ambient-shade",
+  "--continuities-ambient-shade-soft",
+  "--continuities-ambient-sheen",
+  "--continuities-header-reflection",
+  "--continuities-header-edge",
+  "--continuities-rail-reflection",
+  "--continuities-modal-backdrop",
+  "--continuities-reflection-soft",
+  "--continuities-reflection-raised",
+  "--continuities-lower-edge",
+  "--continuities-shadow-card",
+  "--continuities-shadow-temporal",
+  "--continuities-shadow-onboarding",
+  "--continuities-shadow-modal",
+  "--continuities-inset-depth",
+  "--continuities-selected-edge",
+]) {
+  assert.match(continuitiesCss, new RegExp(materialToken, "u"));
+}
+for (const raisedNeutralToken of [
+  "--continuities-material-canvas-high: #3a454c",
+  "--continuities-material-canvas-mid: #2d383f",
+  "--continuities-material-canvas-low: #20292f",
+  "--continuities-material-header: #222b31",
+  "--continuities-material-rail: #182028",
+  "--continuities-material-rail-high: #222a30",
+  "--continuities-material-card: #2a4050",
+  "--continuities-material-onboarding: #303a41",
+  "--continuities-material-temporal: #303d45",
+]) {
+  assert.match(continuitiesCss, new RegExp(raisedNeutralToken, "u"));
+}
+const materialHex = (name) => {
+  const value = continuitiesCss.match(
+    new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "u"),
+  )?.[1];
+  assert.ok(value, `missing ${name} material token`);
+  return value;
+};
+const materialRgb = (hex) => [
+  Number.parseInt(hex.slice(1, 3), 16),
+  Number.parseInt(hex.slice(3, 5), 16),
+  Number.parseInt(hex.slice(5, 7), 16),
+];
+const materialLuminance = (hex) => {
+  const channels = materialRgb(hex).map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return (
+    0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  );
+};
+const materialBlueDominance = (hex) => {
+  const [red, , blue] = materialRgb(hex);
+  return blue - red;
+};
+const canvasMid = materialHex("--continuities-material-canvas-mid");
+const rail = materialHex("--continuities-material-rail");
+const card = materialHex("--continuities-material-card");
+const onboarding = materialHex("--continuities-material-onboarding");
+const temporal = materialHex("--continuities-material-temporal");
+const control = materialHex("--continuities-material-control");
+const currentSituation = materialHex("--continuities-material-current");
+const searchControl = materialHex("--continuities-material-search");
+assert.ok(
+  materialLuminance(canvasMid) > materialLuminance("#182832"),
+  "the refined canvas must remain brighter than the prior CUX5 field",
+);
+assert.ok(
+  Math.abs(
+    materialLuminance(canvasMid) - materialLuminance("#253945"),
+  ) < 0.001,
+  "canvas neutralization must preserve the 9dbceb2 canvas luminance",
+);
+assert.ok(
+  Math.abs(materialLuminance(rail) - materialLuminance("#10212c")) < 0.001,
+  "rail neutralization must preserve the 9dbceb2 rail luminance",
+);
+assert.ok(
+  materialBlueDominance(canvasMid) <
+    materialBlueDominance("#253945") - 10,
+  "canvas blue dominance must be materially lower than at 9dbceb2",
+);
+assert.ok(
+  materialBlueDominance(rail) < materialBlueDominance("#10212c") - 10,
+  "rail blue dominance must be materially lower than at 9dbceb2",
+);
+assert.ok(
+  materialLuminance(rail) < materialLuminance(canvasMid),
+  "the dry navigation rail must remain darker than the graphite canvas",
+);
+assert.ok(
+  materialLuminance(card) > materialLuminance(canvasMid),
+  "metallic continuity cards must remain raised above the canvas",
+);
+assert.ok(
+  materialLuminance(control) < materialLuminance(card),
+  "controls must remain inset relative to continuity cards",
+);
+assert.ok(
+  materialLuminance(currentSituation) > materialLuminance(control) &&
+    materialLuminance(currentSituation) < materialLuminance(canvasMid) &&
+    materialLuminance(currentSituation) < materialLuminance(card),
+  "Current situation must lift above the deepest control while remaining recessed below canvas and cards",
+);
+assert.ok(
+  materialLuminance(searchControl) > materialLuminance(control) &&
+    materialLuminance(searchControl) < materialLuminance(canvasMid) &&
+    materialLuminance(searchControl) < materialLuminance(card),
+  "search must remain inset without returning to the deepest control material",
+);
+assert.ok(
+  materialBlueDominance(card) > materialBlueDominance(canvasMid) + 15,
+  "continuity cards must remain perceptually cooler than the neutral canvas",
+);
+const [cardRed, , cardBlue] = materialRgb(card);
+const [onboardingRed, , onboardingBlue] = materialRgb(onboarding);
+const [temporalRed, , temporalBlue] = materialRgb(temporal);
+assert.ok(
+  cardBlue - cardRed > onboardingBlue - onboardingRed,
+  "the onboarding slate must remain more neutral than metallic cards",
+);
+assert.ok(
+  cardBlue - cardRed > temporalBlue - temporalRed,
+  "Temporal must remain greyer and quieter than metallic cards",
+);
+for (const protectedMaterialToken of [
+  "--continuities-material-card: #2a4050",
+  "--continuities-material-card-high: #354f60",
+  "--continuities-material-card-highlight: #3d5a6d",
+  "--continuities-material-temporal: #303d45",
+  "--continuities-material-temporal-high: #3b4850",
+  "--continuities-material-control: #101e28",
+  "--continuities-material-control-high: #162a37",
+  "--continuities-material-modal: #182f3d",
+  "--continuities-material-modal-high: #223c4b",
+  "--continuities-blue: #76bce4",
+  "--continuities-blue-strong: #a0d4ee",
+  "--continuities-violet: #a88ad5",
+  "--continuities-amber: #d6a04b",
+]) {
+  assert.match(continuitiesCss, new RegExp(protectedMaterialToken, "u"));
+}
+for (const protectedSurfaceRule of [
+  /\.blank-state-continuity-item\s*\{(?<declarations>[^}]*)\}/u,
+  /\.continuities-temporal-context\s*\{(?<declarations>[^}]*)\}/u,
+  /\.continuities-guide-dialog\s*\{(?<declarations>[^}]*)\}/u,
+]) {
+  const declarations = continuitiesCss.match(protectedSurfaceRule)?.groups
+    ?.declarations;
+  assert.ok(declarations, "missing protected material surface rule");
+  assert.doesNotMatch(
+    declarations,
+    /filter:\s*(?:saturate|grayscale|opacity)/u,
+    "protected material surfaces must not receive a neutralization filter",
+  );
+}
+const cux53MicroPolish = continuitiesCss.match(
+  /CUX5\.3 mobile density and dark-control micro-polish\.[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\))/u,
+)?.[0];
+assert.ok(cux53MicroPolish, "missing bounded CUX5.3 micro-polish rules");
+for (const protectedSelector of [
+  ".blank-state-continuity-item",
+  ".continuities-temporal-context",
+  ".continuities-guide-dialog",
+  ".product-project-context",
+]) {
+  assert.equal(
+    cux53MicroPolish.includes(protectedSelector),
+    false,
+    `${protectedSelector} must remain outside the CUX5.3 correction`,
+  );
+}
+assert.doesNotMatch(
+  cux53MicroPolish,
+  /(?:^|[;{])\s*(?:display:\s*none|height:\s*\d|overflow:\s*hidden)/mu,
+  "CUX5.3 must not hide or fixed-height clip semantic content",
+);
+assert.match(
+  cux53MicroPolish,
+  /\.continuities-current-situation\s*\{[\s\S]{0,260}var\(--continuities-material-current-high\)[\s\S]{0,120}var\(--continuities-material-current\)/u,
+);
+assert.match(
+  cux53MicroPolish,
+  /\.continuities-filter\s+input\s*\{[\s\S]{0,300}var\(--continuities-material-search\)/u,
+);
+assert.match(
+  cux53MicroPolish,
+  /\.product-shell-bar\s*\{[\s\S]{0,100}border-bottom-color:\s*var\(--continuities-header-edge\)/u,
+);
+assert.match(
+  cux53MicroPolish,
+  /@media \(max-width: 620px\)[\s\S]*\.blank-state-shell\s*\{[\s\S]{0,80}padding-top:\s*20px[\s\S]*\.continuity-pins-mobile\s+>\s+summary\s*\{[\s\S]{0,100}min-height:\s*44px[\s\S]*\.continuities-filter-controls\s*\{[\s\S]{0,100}gap:\s*6px;[\s\S]{0,60}margin-top:\s*10px[\s\S]*\.blank-state-continuity\s*\{[\s\S]{0,80}padding-top:\s*9px/u,
+);
+const ordinaryMobileGuideSupport = cux53MicroPolish.match(
+  /\.continuities-guide-launcher\s*\{(?<declarations>[^}]*)\}/u,
+)?.groups?.declarations;
+assert.ok(ordinaryMobileGuideSupport);
+assert.match(
+  ordinaryMobileGuideSupport,
+  /border-top-color:\s*var\(--continuities-border-soft\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /:is\(a, button, input, summary\):focus-visible\s*\{[\s\S]{0,180}outline-color:\s*rgba\(160, 212, 238, 0\.84\)/u,
+  "focus-visible precision treatment must remain stronger than ordinary support",
+);
+const precisionAccentUseCount = [
+  ...continuitiesCss.matchAll(
+    /var\(--continuities-(?:blue(?:-strong)?|selected-edge)\)/gu,
+  ),
+].length;
+assert.equal(
+  precisionAccentUseCount,
+  13,
+  "ambient neutralization must not expand precision-accent token coverage",
+);
+const cux5ActiveNavigationRule = [
+  ...continuitiesCss.matchAll(
+    /\.product-navigation\s+a\[aria-current="page"\]\s*\{(?<declarations>[^}]*)\}/gu,
+  ),
+].find((match) =>
+  match.groups?.declarations.includes("rgba(118, 188, 228, 0.095)")
+);
+assert.ok(cux5ActiveNavigationRule?.groups?.declarations);
+assert.doesNotMatch(
+  cux5ActiveNavigationRule.groups.declarations,
+  /inset\s+(?:2|3)px\s+0|--continuities-selected-edge/u,
+  "the desktop active row must not duplicate the selected node with a cyan leading edge",
+);
+assert.match(
+  continuitiesCss,
+  /\.product-project-context--neutral\s*\{[\s\S]{0,280}display:\s*inline-flex[\s\S]{0,160}align-items:\s*baseline[\s\S]{0,160}gap:\s*8px/u,
+);
+assert.match(
+  blankState,
+  /data-project-message-tone=\{message\.tone\}[\s\S]{0,120}\{message\.text\}/u,
+);
+assert.match(
+  continuitiesCss,
+  /\[data-project-message-tone="error"\]\s*\{[\s\S]{0,220}border-inline-start:\s*2px solid rgba\(214, 160, 75, 0\.66\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /\[data-project-message-tone="info"\][\s\S]{0,180}border-inline-start:\s*2px solid rgba\(118, 188, 228, 0\.32\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.blank-state-continuity-item\[data-continuities-tone="amber"\]\s*\{[\s\S]{0,260}border-inline-start:\s*2px solid rgba\(214, 160, 75, 0\.58\)/u,
+);
+assert.match(
+  continuitiesCss,
+  /\.blank-state-continuity-item:hover\s*\{[\s\S]{0,260}filter:\s*brightness\(1\.025\)/u,
+);
+assert.match(
+  continuityPinsMarkup,
+  /<strong aria-disabled="true">\{pin\.label\}<\/strong>/u,
+);
+const disabledControlMaterialRule = continuitiesCss.match(
+  /\.product-shell\[data-primary-product-zone="blank-state"\]\s+button:disabled\s*\{(?<declarations>[^}]*filter:\s*saturate\(0\.45\)[^}]*)\}/u,
+);
+assert.ok(disabledControlMaterialRule?.groups?.declarations);
+assert.doesNotMatch(
+  disabledControlMaterialRule[0],
+  /\[aria-disabled="true"\]/u,
+  "disabled material must remain scoped to interactive controls",
+);
+const unresolvedPinnedLabelRule = continuitiesCss.match(
+  /\.product-shell\[data-primary-product-zone="blank-state"\]\s+\.continuity-pin-destination\s+strong\[aria-disabled="true"\]\s*\{(?<declarations>[^}]*)\}/u,
+);
+assert.ok(unresolvedPinnedLabelRule?.groups?.declarations);
+for (const declaration of [
+  /border:\s*0/u,
+  /color:\s*var\(--continuities-text\)/u,
+  /background:\s*transparent/u,
+  /box-shadow:\s*none/u,
+  /filter:\s*none/u,
+  /opacity:\s*1/u,
+]) {
+  assert.match(unresolvedPinnedLabelRule.groups.declarations, declaration);
+}
+assert.match(
+  continuitiesCss,
+  /\[data-continuity-pin-resolution="temporarily_unavailable"\][\s\S]{0,240}\[data-continuity-pin-resolution="no_longer_supported"\][\s\S]{0,180}\.continuity-pin-indicator\s*\{[\s\S]{0,120}background:\s*var\(--continuities-violet\)/u,
+);
+assert.doesNotMatch(continuitiesCss, /animation:\s*[^;]*(?:noise|grain)/iu);
 assert.match(
   continuitiesCss,
   /var\([\s\S]*--font-continuities-inter,[\s\S]*"Apple SD Gothic Neo",[\s\S]*"Noto Sans CJK KR",[\s\S]*"Malgun Gothic",[\s\S]*ui-sans-serif/u,
@@ -330,6 +641,11 @@ for (const assertion of [
   "pinned_guide_nonoverlap",
   "augnes_owned_lower_left_overlay_absent",
   "mobile_touch_targets_minimum_size",
+  "material_surfaces_differentiated",
+  "attention_material_bounded",
+  "continuity_titles_preserve_full_text",
+  "more_context_default_secondary",
+  "more_context_keyboard_focus_visible",
 ]) {
   assert.match(browserValidation, new RegExp(assertion, "u"));
 }
