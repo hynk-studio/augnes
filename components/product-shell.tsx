@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { ProjectSettingsLink } from "@/components/project-settings-link";
+
 export type PrimaryProductZone = "blank-state" | "ai-workplane";
 
 export type ProductUtilityContext =
@@ -67,16 +69,14 @@ export function ProductShell({
           </a>
           {projectContext ? (
             projectContext.label === "Current project" ? (
-              <a
-                className="product-project-context product-project-context--action"
+              <ProjectSettingsLink
                 href={projectContext.managementHref ?? "/#project-settings"}
-                title={`Manage ${projectContext.name}`}
-                aria-label={`Manage current project: ${projectContext.name}`}
-                data-project-context-label={projectContext.label}
+                name={projectContext.name}
+                label={projectContext.label}
               >
                 <span>{projectContext.label}</span>
                 <strong>{projectContext.name}</strong>
-              </a>
+              </ProjectSettingsLink>
             ) : (
               <p
                 className="product-project-context"

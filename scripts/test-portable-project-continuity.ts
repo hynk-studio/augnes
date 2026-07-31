@@ -336,6 +336,89 @@ try {
     const routePreview = await routeGet.json() as { contract: string; project_id: string };
     assert.equal(routePreview.contract, "augnes.portable-project-preview.v1");
     assert.equal(routePreview.project_id, fixtureManifest.project_id);
+
+    const headerCases = [
+      {
+        projectName: "한글 전용 프로젝트",
+        unicodeFilename: "한글-전용-프로젝트.augnes-project.json",
+        asciiFallback: "project.augnes-project.json",
+      },
+      {
+        projectName: "🚀✨",
+        unicodeFilename: "project.augnes-project.json",
+        asciiFallback: "project.augnes-project.json",
+      },
+      {
+        projectName: "한글 Mixed Project",
+        unicodeFilename: "한글-mixed-project.augnes-project.json",
+        asciiFallback: "mixed-project.augnes-project.json",
+      },
+      {
+        projectName: "Ordinary ASCII Project",
+        unicodeFilename: "ordinary-ascii-project.augnes-project.json",
+        asciiFallback: "ordinary-ascii-project.augnes-project.json",
+      },
+      {
+        projectName: "Header\r\nInjected\"/Path",
+        unicodeFilename: "header-injected-path.augnes-project.json",
+        asciiFallback: "header-injected-path.augnes-project.json",
+      },
+    ] as const;
+    let headerCurrentName = exportedProjectName;
+    for (const headerCase of headerCases) {
+      const renamed = renameCanonicalProjectDisplayNameV01(source, {
+        workspace_id: fixtureManifest.workspace_id,
+        project_id: fixtureManifest.project_id,
+        requested_display_name: headerCase.projectName,
+        expected_current_display_name: headerCurrentName,
+      });
+      assert.equal(renamed.status, "updated");
+      headerCurrentName = headerCase.projectName.trim();
+      const namedExport = exportActivePortableProjectV01(source, {
+        include_personal_perspective: true,
+        exported_at: observedAt,
+      });
+      assert.equal(namedExport.filename, headerCase.unicodeFilename);
+      const namedResponse = await portabilityPost(localRequestV01("POST", {
+        contentType: "application/json",
+        body: JSON.stringify({
+          action: "export",
+          include_personal_perspective: true,
+        }),
+      }));
+      assert.equal(namedResponse.status, 200);
+      const disposition = namedResponse.headers.get("content-disposition") ?? "";
+      const expectedEncodedFilename = encodeURIComponent(
+        headerCase.unicodeFilename,
+      ).replace(
+        /['()*]/gu,
+        (character) =>
+          `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+      );
+      assert.equal(
+        disposition,
+        `attachment; filename="${headerCase.asciiFallback}"; filename*=UTF-8''${expectedEncodedFilename}`,
+      );
+      const fallback = /filename="([^"]+)"/u.exec(disposition)?.[1] ?? "";
+      const encoded = /filename\*=UTF-8''([^;]+)/u.exec(disposition)?.[1] ?? "";
+      assert.match(
+        fallback,
+        /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.augnes-project\.json$/u,
+      );
+      assert.equal(fallback.startsWith("."), false);
+      assert.equal(decodeURIComponent(encoded), headerCase.unicodeFilename);
+      assert.equal(/["\\/\r\n]/u.test(fallback), false);
+      assert.equal(/[\r\n]/u.test(disposition), false);
+    }
+    assert.equal(
+      renameCanonicalProjectDisplayNameV01(source, {
+        workspace_id: fixtureManifest.workspace_id,
+        project_id: fixtureManifest.project_id,
+        requested_display_name: exportedProjectName,
+        expected_current_display_name: headerCurrentName,
+      }).status,
+      "updated",
+    );
     const routeExport = await portabilityPost(localRequestV01("POST", {
       contentType: "application/json",
       body: JSON.stringify({
@@ -536,6 +619,9 @@ try {
     exact_replay: true,
     export_current_display_name: true,
     safe_display_name_filename: true,
+    safe_ascii_content_disposition_fallback: true,
+    unicode_content_disposition_filename: true,
+    content_disposition_header_injection_refused: true,
     new_import_display_name: true,
     existing_replay_preserves_local_display_name: true,
     atomic_rollback: true,

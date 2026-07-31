@@ -137,10 +137,18 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 function portableAttachmentDispositionV01(filename: string): string {
-  const asciiFallback = filename
+  const extension = ".augnes-project.json";
+  const filenameStem = filename.endsWith(extension)
+    ? filename.slice(0, -extension.length)
+    : filename;
+  const normalizedAsciiStem = filenameStem
     .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9._-]+/gu, "-")
-    .replace(/^-+|-+$/gu, "") || "project.augnes-project.json";
+    .replace(/[^a-zA-Z0-9]+/gu, "-")
+    .replace(/^-+|-+$/gu, "");
+  const asciiStem = /[a-zA-Z0-9]/u.test(normalizedAsciiStem)
+    ? normalizedAsciiStem
+    : "project";
+  const asciiFallback = `${asciiStem}${extension}`;
   const encoded = encodeURIComponent(filename).replace(
     /['()*]/gu,
     (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,

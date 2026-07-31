@@ -339,6 +339,9 @@ const result = {
   positive_and_mixed_projects_remain_isolated: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
+  project_context_repeat_activation: false,
+  project_context_keyboard_activation: false,
+  project_context_emphasized_owner: false,
   folder_onboarding_restart_reopen: false,
   folder_onboarding_stale_active_conflict: false,
   minimum_project_home_empty_state: false,
@@ -855,10 +858,31 @@ async function main() {
     await waitForCondition(
       `location.hash === '#project-settings' && (() => {
         const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
-        return details?.open === true && details.querySelector(':scope > summary') === document.activeElement;
+        const input = details?.querySelector('input[name="current-project-display-name"]');
+        return details?.open === true && [details.querySelector(':scope > summary'), input].includes(document.activeElement);
       })()`,
       "current-project context opens and focuses project settings",
     );
+    assert.equal(await evaluateBoolean(`(() => {
+      const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
+      if (!(details instanceof HTMLDetailsElement) || location.hash !== '#project-settings') return false;
+      details.open = false;
+      const link = document.querySelector('a[data-project-context-label="Current project"]');
+      if (!(link instanceof HTMLAnchorElement)) return false;
+      link.focus();
+      return document.activeElement === link && location.hash === '#project-settings';
+    })()`), true);
+    await dispatchKeyboardKey("Enter", "Enter", 13);
+    await waitForCondition(
+      `location.hash === '#project-settings' && (() => {
+        const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
+        const input = details?.querySelector('input[name="current-project-display-name"]');
+        return details?.open === true && [details.querySelector(':scope > summary'), input].includes(document.activeElement);
+      })()`,
+      "same-hash keyboard activation reopens and refocuses project settings",
+    );
+    result.project_context_repeat_activation = true;
+    result.project_context_keyboard_activation = true;
     assert.equal(
       await evaluateBoolean(
         `document.querySelector('[data-project-identity-management="true"]') !== null && document.querySelector('input[name="current-project-display-name"]')?.value === ${JSON.stringify(onboardingEditedProjectName)} && document.querySelector('[data-project-name-save="true"]')?.disabled === true && document.body.textContent.includes('Renaming the Augnes project does not rename the local folder.')`,
@@ -9673,6 +9697,26 @@ async function main() {
       true,
       await evaluateString(`document.body.innerText`),
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const owner = document.querySelector('#project-settings[data-project-settings-owner="emphasized"][data-project-identity-management="true"]');
+        return owner !== null && owner.getClientRects().length > 0 && document.querySelectorAll('#project-settings').length === 1 && document.querySelector('details#project-settings') === null;
+      })()`),
+      true,
+      "emphasized project management must expose one visible Project identity target",
+    );
+    assert.equal(await evaluateBoolean(`(() => {
+      const link = document.querySelector('a[data-project-context-label="Current project"]');
+      if (!(link instanceof HTMLAnchorElement)) return false;
+      link.focus();
+      return document.activeElement === link;
+    })()`), true);
+    await dispatchKeyboardKey("Enter", "Enter", 13);
+    await waitForCondition(
+      `location.pathname === '/projects' && location.hash === '#project-settings' && document.querySelector('#project-settings input[name="current-project-display-name"]') === document.activeElement`,
+      "emphasized current-project context focuses visible Project identity",
+    );
+    result.project_context_emphasized_owner = true;
     await validateProductShellResponsive("/projects");
     assert.deepEqual(
       requests.slice(projectManagementUtilityRequestStart).filter(

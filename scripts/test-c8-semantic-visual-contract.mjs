@@ -50,6 +50,7 @@ for (const priority of SEMANTIC_VISUAL_PRIORITIES) {
 }
 
 const productShell = read("components/product-shell.tsx");
+const projectSettingsLink = read("components/project-settings-link.tsx");
 assert.equal(
   [...productShell.matchAll(/zone: "(?:blank-state|ai-workplane)"/gu)].length,
   2,
@@ -124,7 +125,19 @@ assert.match(blankState, /Project identity/u);
 assert.match(blankState, /does not rename the local folder/u);
 assert.match(blankState, /data-project-name-save="true"/u);
 assert.match(productShell, /"\/#project-settings"/u);
-assert.match(productShell, /Manage current project/u);
+assert.match(productShell, /<ProjectSettingsLink/u);
+assert.match(projectSettingsLink, /Manage current project/u);
+assert.match(
+  projectSettingsLink,
+  /window\.dispatchEvent\(new Event\(PROJECT_SETTINGS_ACTIVATION_EVENT\)\)/u,
+);
+assert.doesNotMatch(projectSettingsLink, /preventDefault/u);
+assert.match(
+  blankState,
+  /window\.addEventListener\([\s\S]*PROJECT_SETTINGS_ACTIVATION_EVENT[\s\S]*openAndFocusProjectSettings/u,
+);
+assert.match(blankState, /ownerId=\{/u);
+assert.match(blankState, /\? "project-settings"/u);
 assert.match(blankState, /aria-label="Open GuideBrief"/u);
 assert.match(blankState, /aria-label=\{busy \? "Working…" : action\.label\}/u);
 assert.match(blankState, /data-continuities-guidebrief-dialog="true"/u);

@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
@@ -10,6 +16,9 @@ import {
   type GuideBriefInteractionHostV01,
 } from "@/components/guide/guide-brief-conversation";
 import { ProjectControls } from "@/components/project-controls";
+import {
+  PROJECT_SETTINGS_ACTIVATION_EVENT,
+} from "@/components/project-settings-link";
 import {
   ContinuityPinAction,
   ContinuityPinFeedback,
@@ -105,23 +114,44 @@ export function BlankStateClient({
   const guideDialogRef = useRef<HTMLDialogElement>(null);
   const guideLauncherRef = useRef<HTMLButtonElement>(null);
   const projectSettingsRef = useRef<HTMLDetailsElement>(null);
+  const projectIdentityRef = useRef<HTMLElement>(null);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => setRecent(source.recent_projects), [source.recent_projects]);
   useEffect(() => {
     const openAndFocusProjectSettings = () => {
-      if (window.location.hash !== "#project-settings") return;
       const settings = projectSettingsRef.current;
-      if (!settings) return;
-      settings.open = true;
-      window.requestAnimationFrame(() =>
-        settings.querySelector<HTMLElement>(":scope > summary")?.focus()
+      const identity = projectIdentityRef.current;
+      if (!settings && !identity) return;
+      const wasOpen = settings?.open ?? true;
+      if (settings) settings.open = true;
+      window.requestAnimationFrame(() => {
+        const identityInput = identity?.querySelector<HTMLElement>(
+          'input[name="current-project-display-name"]',
+        );
+        const summary = settings?.querySelector<HTMLElement>(":scope > summary");
+        (settings && !wasOpen ? summary : identityInput ?? summary ?? identity)
+          ?.focus();
+      });
+    };
+    const openFromHash = () => {
+      if (window.location.hash === "#project-settings") {
+        openAndFocusProjectSettings();
+      }
+    };
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    window.addEventListener(
+      PROJECT_SETTINGS_ACTIVATION_EVENT,
+      openAndFocusProjectSettings,
+    );
+    return () => {
+      window.removeEventListener("hashchange", openFromHash);
+      window.removeEventListener(
+        PROJECT_SETTINGS_ACTIVATION_EVENT,
+        openAndFocusProjectSettings,
       );
     };
-    openAndFocusProjectSettings();
-    window.addEventListener("hashchange", openAndFocusProjectSettings);
-    return () =>
-      window.removeEventListener("hashchange", openAndFocusProjectSettings);
   }, []);
   useEffect(() => {
     const dialog = guideDialogRef.current;
@@ -490,6 +520,12 @@ export function BlankStateClient({
   const activeProjectEntry = recent.find((entry) => entry.is_active) ?? null;
   const projectIdentityManagement = activeProjectEntry ? (
     <ProjectIdentityManagement
+      ownerId={
+        activeContinuities && view.project_management_emphasized
+          ? "project-settings"
+          : undefined
+      }
+      ownerRef={projectIdentityRef}
       entry={activeProjectEntry}
       busy={busy}
       message={renameMessage}
@@ -1683,11 +1719,15 @@ function ProjectManagement({
 }
 
 function ProjectIdentityManagement({
+  ownerId,
+  ownerRef,
   entry,
   busy,
   message,
   onSave,
 }: {
+  ownerId?: string;
+  ownerRef: RefObject<HTMLElement | null>;
   entry: RecentProjectEntryV01;
   busy: boolean;
   message: ProjectFolderSelectionMessageV01 | null;
@@ -1705,9 +1745,12 @@ function ProjectIdentityManagement({
   const unchanged = normalizedName === savedName;
   return (
     <section
+      id={ownerId}
+      ref={ownerRef}
       className="blank-state-management-section project-identity-management"
       aria-labelledby="project-identity-title"
       data-project-identity-management="true"
+      data-project-settings-owner={ownerId ? "emphasized" : undefined}
     >
       <p className="blank-state-region-label">Current project</p>
       <h2 id="project-identity-title">Project identity</h2>
