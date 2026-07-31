@@ -90,6 +90,49 @@ assert.match(
   source,
   /await validateBlankStateViewports\(true, \{[\s\S]*state: "viewed-inactive-project"[\s\S]*attentionCategory: "project_activation"[\s\S]*\}\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
 );
+const strategicActivationStart = source.indexOf(
+  '"explicit first-project activation ready"',
+);
+const strategicActivationEnd = source.indexOf(
+  "result.minimum_project_home_explicit_activation = true;",
+  strategicActivationStart,
+);
+assert(
+  strategicActivationStart >= 0 &&
+    strategicActivationEnd > strategicActivationStart,
+);
+const strategicActivationSource = source.slice(
+  strategicActivationStart,
+  strategicActivationEnd,
+);
+assert.match(
+  strategicActivationSource,
+  /await waitForCondition\(\s*`document\.querySelector\('\[data-blank-state-project-management-hydrated="true"\]'\) !== null`,\s*"hydrated strategic source project activation",\s*\);/u,
+);
+const strategicHydrationWait = strategicActivationSource.indexOf(
+  '"hydrated strategic source project activation"',
+);
+const strategicResponseTracking = strategicActivationSource.indexOf(
+  "const activationResponseStart = responses.length;",
+);
+const strategicActivationClick = strategicActivationSource.indexOf(
+  "button.click();",
+);
+const strategicActivationResponseAssertion = strategicActivationSource.indexOf(
+  "assert.equal(activationResponse?.status, 200);",
+);
+assert(
+  strategicHydrationWait >= 0 &&
+    strategicResponseTracking > strategicHydrationWait &&
+    strategicActivationClick > strategicResponseTracking &&
+    strategicActivationResponseAssertion > strategicActivationClick,
+);
+assert.doesNotMatch(strategicActivationSource, /\bretry\b/iu);
+assert.doesNotMatch(strategicActivationSource, /await delay\(/u);
+assert.doesNotMatch(
+  strategicActivationSource,
+  /DEFAULT_TIMEOUT_MS|timeoutMs|timeout_ms/u,
+);
 assert.equal(
   [...source.matchAll(/await validateProductShell\(\{/gu)].length,
   6,

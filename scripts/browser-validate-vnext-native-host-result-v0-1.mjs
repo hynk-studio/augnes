@@ -1220,6 +1220,10 @@ async function main() {
       `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some((button) => button.getBoundingClientRect().width > 0 && !button.disabled)`,
       "explicit first-project activation ready",
     );
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
+      "hydrated strategic source project activation",
+    );
     const activationResponseStart = responses.length;
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).find((candidate) => candidate.getBoundingClientRect().width > 0); if (!(button instanceof HTMLButtonElement) || button.disabled) return false; button.click(); return true; })()`), true);
     await waitForHostCondition(
