@@ -1746,31 +1746,121 @@ async function main() {
       )
     ) {
       await waitForCondition(
-        `Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some(
-          (candidate) => candidate instanceof HTMLButtonElement &&
-            candidate.getBoundingClientRect().width > 0 &&
-            !candidate.disabled
-        )`,
-        "strategic source project activation control",
+        `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
+        "hydrated strategic proposal source project activation",
       );
+      const strategicProjectPath =
+        `/projects/${encodeURIComponent(manifest.project_id)}`;
+      const activationTarget = await evaluateJson(`(() => {
+        const roots = Array.from(
+          document.querySelectorAll(
+            '[data-blank-state="v0.1"][data-blank-state-project-management-hydrated="true"]'
+          )
+        );
+        const root = roots.length === 1 ? roots[0] : null;
+        const buttons = root
+          ? Array.from(
+              root.querySelectorAll(
+                'button[data-blank-state-primary-action="make_active"]'
+              )
+            ).filter((candidate) => {
+              const rect = candidate.getBoundingClientRect();
+              return (
+                candidate instanceof HTMLButtonElement &&
+                candidate.isConnected &&
+                !candidate.disabled &&
+                rect.width > 0 &&
+                rect.height > 0
+              );
+            })
+          : [];
+        const button = buttons.length === 1 ? buttons[0] : null;
+        const rect = button?.getBoundingClientRect() ?? null;
+        const x = rect ? rect.left + rect.width / 2 : null;
+        const y = rect ? rect.top + rect.height / 2 : null;
+        const pointOwner =
+          x !== null && y !== null ? document.elementFromPoint(x, y) : null;
+        const routeProjectId =
+          location.pathname.startsWith('/projects/')
+            ? decodeURIComponent(location.pathname.slice('/projects/'.length))
+            : null;
+        return {
+          actual_path: location.pathname,
+          route_project_id: routeProjectId,
+          root_count: roots.length,
+          action_owner_count: buttons.length,
+          target_connected: button?.isConnected ?? false,
+          target_disabled:
+            button instanceof HTMLButtonElement ? button.disabled : null,
+          point_owner_is_target:
+            button !== null &&
+            (pointOwner === button || button.contains(pointOwner)),
+          x,
+          y,
+        };
+      })()`);
+      assert.equal(activationTarget.actual_path, strategicProjectPath);
+      assert.equal(activationTarget.route_project_id, manifest.project_id);
+      assert.equal(activationTarget.root_count, 1);
+      assert.equal(activationTarget.action_owner_count, 1);
+      assert.equal(activationTarget.target_connected, true);
+      assert.equal(activationTarget.target_disabled, false);
+      assert.equal(activationTarget.point_owner_is_target, true);
+      assert.equal(Number.isFinite(activationTarget.x), true);
+      assert.equal(Number.isFinite(activationTarget.y), true);
+      const activationControlStateBefore = readProjectControlState(
+        manifest.project_id,
+      );
+      const activationRequestStart = requests.length;
       const activationResponseStart = responses.length;
-      assert.equal(
-        await evaluateBoolean(`(() => {
-          const button = Array.from(
-            document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')
-          ).find(
-            (candidate) => candidate.getBoundingClientRect().width > 0
-          );
-          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
-          button.click();
-          return true;
-        })()`),
-        true,
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: activationTarget.x,
+        y: activationTarget.y,
+      });
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mousePressed",
+        x: activationTarget.x,
+        y: activationTarget.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        x: activationTarget.x,
+        y: activationTarget.y,
+        button: "left",
+        clickCount: 1,
+      });
+      await waitForHostCondition(
+        () =>
+          requests.slice(activationRequestStart).some(
+            (entry) =>
+              entry.method === "POST" &&
+              entry.path === "/api/vnext/projects" &&
+              entry.type === "Fetch" &&
+              requestJsonBody(entry)?.action === "open" &&
+              requestJsonBody(entry)?.project_id === manifest.project_id,
+          ),
+        "strategic source project activation request",
       );
+      const activationRequest = requests
+        .slice(activationRequestStart)
+        .find(
+          (entry) =>
+            entry.method === "POST" &&
+            entry.path === "/api/vnext/projects" &&
+            entry.type === "Fetch" &&
+            requestJsonBody(entry)?.action === "open" &&
+            requestJsonBody(entry)?.project_id === manifest.project_id,
+        );
+      assert(activationRequest);
       await waitForHostCondition(
         () =>
           responses.slice(activationResponseStart).some(
             (entry) =>
+              entry.request_id === activationRequest.request_id &&
+              entry.method === "POST" &&
               entry.path === "/api/vnext/projects" &&
               entry.type === "Fetch",
           ),
@@ -1780,9 +1870,23 @@ async function main() {
         .slice(activationResponseStart)
         .find(
           (entry) =>
-            entry.path === "/api/vnext/projects" && entry.type === "Fetch",
+            entry.request_id === activationRequest.request_id &&
+            entry.method === "POST" &&
+            entry.path === "/api/vnext/projects" &&
+            entry.type === "Fetch",
         );
       assert.equal(activationResponse?.status, 200);
+      const activationControlStateAfter = readProjectControlState(
+        manifest.project_id,
+      );
+      assert.equal(
+        activationControlStateAfter.active?.project_id,
+        manifest.project_id,
+      );
+      assert.equal(
+        activationControlStateAfter.active?.selection_revision,
+        Number(activationControlStateBefore.active?.selection_revision) + 1,
+      );
     }
     await waitForCondition(
       `document.querySelector('[data-blank-state-active="true"]') !== null`,

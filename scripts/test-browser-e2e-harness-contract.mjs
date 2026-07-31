@@ -90,47 +90,137 @@ assert.match(
   source,
   /await validateBlankStateViewports\(true, \{[\s\S]*state: "viewed-inactive-project"[\s\S]*attentionCategory: "project_activation"[\s\S]*\}\);[\s\S]*"explicit first-project activation ready"[\s\S]*const activationResponseStart/u,
 );
-const strategicActivationStart = source.indexOf(
+const onboardingActivationStart = source.indexOf(
   '"explicit first-project activation ready"',
 );
-const strategicActivationEnd = source.indexOf(
+const onboardingActivationEnd = source.indexOf(
   "result.minimum_project_home_explicit_activation = true;",
-  strategicActivationStart,
+  onboardingActivationStart,
 );
 assert(
-  strategicActivationStart >= 0 &&
-    strategicActivationEnd > strategicActivationStart,
+  onboardingActivationStart >= 0 &&
+    onboardingActivationEnd > onboardingActivationStart,
 );
-const strategicActivationSource = source.slice(
-  strategicActivationStart,
-  strategicActivationEnd,
+const onboardingActivationSource = source.slice(
+  onboardingActivationStart,
+  onboardingActivationEnd,
 );
 assert.match(
-  strategicActivationSource,
+  onboardingActivationSource,
   /await waitForCondition\(\s*`document\.querySelector\('\[data-blank-state-project-management-hydrated="true"\]'\) !== null`,\s*"hydrated strategic source project activation",\s*\);/u,
 );
-const strategicHydrationWait = strategicActivationSource.indexOf(
+const onboardingHydrationWait = onboardingActivationSource.indexOf(
   '"hydrated strategic source project activation"',
 );
-const strategicResponseTracking = strategicActivationSource.indexOf(
+const onboardingResponseTracking = onboardingActivationSource.indexOf(
   "const activationResponseStart = responses.length;",
 );
-const strategicActivationClick = strategicActivationSource.indexOf(
+const onboardingActivationClick = onboardingActivationSource.indexOf(
   "button.click();",
 );
-const strategicActivationResponseAssertion = strategicActivationSource.indexOf(
+const onboardingActivationResponseAssertion = onboardingActivationSource.indexOf(
   "assert.equal(activationResponse?.status, 200);",
 );
 assert(
-  strategicHydrationWait >= 0 &&
-    strategicResponseTracking > strategicHydrationWait &&
-    strategicActivationClick > strategicResponseTracking &&
-    strategicActivationResponseAssertion > strategicActivationClick,
+  onboardingHydrationWait >= 0 &&
+    onboardingResponseTracking > onboardingHydrationWait &&
+    onboardingActivationClick > onboardingResponseTracking &&
+    onboardingActivationResponseAssertion > onboardingActivationClick,
 );
-assert.doesNotMatch(strategicActivationSource, /\bretry\b/iu);
-assert.doesNotMatch(strategicActivationSource, /await delay\(/u);
+assert.doesNotMatch(onboardingActivationSource, /\bretry\b/iu);
+assert.doesNotMatch(onboardingActivationSource, /await delay\(/u);
 assert.doesNotMatch(
-  strategicActivationSource,
+  onboardingActivationSource,
+  /DEFAULT_TIMEOUT_MS|timeoutMs|timeout_ms/u,
+);
+const strategicProposalReviewStart = source.indexOf(
+  'await runPhase("strategic_proposal_review"',
+);
+const strategicProposalReviewEnd = source.indexOf(
+  'await runPhase("retired_routes"',
+  strategicProposalReviewStart,
+);
+assert(
+  strategicProposalReviewStart >= 0 &&
+    strategicProposalReviewEnd > strategicProposalReviewStart,
+);
+const strategicProposalReviewSource = source.slice(
+  strategicProposalReviewStart,
+  strategicProposalReviewEnd,
+);
+const strategicActivationEnd = strategicProposalReviewSource.indexOf(
+  "const beforeStrategicRead = databaseSnapshot(database);",
+);
+assert(strategicActivationEnd > 0);
+const strategicProposalActivationSource = strategicProposalReviewSource.slice(
+  0,
+  strategicActivationEnd,
+);
+assert.match(
+  strategicProposalActivationSource,
+  /await waitForCondition\(\s*`document\.querySelector\('\[data-blank-state-project-management-hydrated="true"\]'\) !== null`,\s*"hydrated strategic proposal source project activation",\s*\);/u,
+);
+assert.match(
+  strategicProposalActivationSource,
+  /const activationTarget = await evaluateJson[\s\S]*const roots = Array\.from\([\s\S]*\[data-blank-state="v0\.1"\]\[data-blank-state-project-management-hydrated="true"\][\s\S]*root\.querySelectorAll\([\s\S]*button\[data-blank-state-primary-action="make_active"\][\s\S]*routeProjectId[\s\S]*root_count: roots\.length[\s\S]*action_owner_count: buttons\.length/u,
+);
+assert.match(
+  strategicProposalActivationSource,
+  /assert\.equal\(activationTarget\.route_project_id, manifest\.project_id\);[\s\S]*assert\.equal\(activationTarget\.root_count, 1\);[\s\S]*assert\.equal\(activationTarget\.action_owner_count, 1\);/u,
+);
+const strategicHydrationWait = strategicProposalActivationSource.indexOf(
+  '"hydrated strategic proposal source project activation"',
+);
+const strategicTargetLookup = strategicProposalActivationSource.indexOf(
+  "const activationTarget = await evaluateJson",
+);
+const strategicRequestTracking = strategicProposalActivationSource.indexOf(
+  "const activationRequestStart = requests.length;",
+);
+const strategicResponseTracking = strategicProposalActivationSource.indexOf(
+  "const activationResponseStart = responses.length;",
+);
+const strategicPointerClick = strategicProposalActivationSource.indexOf(
+  'type: "mousePressed"',
+);
+const strategicActivationRequestWait = strategicProposalActivationSource.indexOf(
+  '"strategic source project activation request"',
+);
+const strategicActivationResponseWait = strategicProposalActivationSource.indexOf(
+  '"strategic source project activation response"',
+);
+const strategicActivationResponseAssertion =
+  strategicProposalActivationSource.indexOf(
+    "assert.equal(activationResponse?.status, 200);",
+  );
+const strategicActivationStateAssertion =
+  strategicProposalActivationSource.indexOf(
+    "activationControlStateAfter.active?.project_id",
+  );
+assert(
+  strategicHydrationWait >= 0 &&
+    strategicTargetLookup > strategicHydrationWait &&
+    strategicRequestTracking > strategicTargetLookup &&
+    strategicResponseTracking > strategicRequestTracking &&
+    strategicPointerClick > strategicResponseTracking &&
+    strategicActivationRequestWait > strategicPointerClick &&
+    strategicActivationResponseWait > strategicActivationRequestWait &&
+    strategicActivationResponseAssertion > strategicActivationResponseWait &&
+    strategicActivationStateAssertion > strategicActivationResponseAssertion,
+);
+assert.match(
+  strategicProposalActivationSource,
+  /entry\.method === "POST"[\s\S]*entry\.path === "\/api\/vnext\/projects"[\s\S]*requestJsonBody\(entry\)\?\.action === "open"[\s\S]*requestJsonBody\(entry\)\?\.project_id === manifest\.project_id[\s\S]*entry\.request_id === activationRequest\.request_id[\s\S]*assert\.equal\(activationResponse\?\.status, 200\);/u,
+);
+assert.match(
+  strategicProposalActivationSource,
+  /Input\.dispatchMouseEvent[\s\S]*type: "mousePressed"[\s\S]*type: "mouseReleased"/u,
+);
+assert.doesNotMatch(strategicProposalActivationSource, /button\.click\(\)/u);
+assert.doesNotMatch(strategicProposalActivationSource, /\bretry\b/iu);
+assert.doesNotMatch(strategicProposalActivationSource, /await delay\(/u);
+assert.doesNotMatch(
+  strategicProposalActivationSource,
   /DEFAULT_TIMEOUT_MS|timeoutMs|timeout_ms/u,
 );
 assert.equal(
