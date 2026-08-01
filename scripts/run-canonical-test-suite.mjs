@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  canonicalChildFailure,
+  canonicalChildAcceptanceFailure,
   DEFAULT_CANONICAL_CHILD_TIMEOUT_MS,
   runCanonicalChild,
   runCanonicalChildGroups,
@@ -65,6 +65,11 @@ const suites = {
     {
       label: "project experience immutable Browser fixture contract",
       ...rootNode("scripts/test-project-experience-browser-fixture-v1.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "project experience keyed result and finalization contract",
+      ...rootNode("scripts/test-project-experience-result-contract-v1.mjs"),
       timeoutMs: 30_000,
     },
     {
@@ -587,6 +592,7 @@ const suites = {
       label: "independent project experience Browser owner",
       ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
       timeoutMs: 360_000,
+      requireNaturalExit: true,
     },
   ],
   "e2e-continuity": [
@@ -696,6 +702,7 @@ try {
       cwd: step.cwd,
       env: childEnvironment,
       timeoutMs,
+      requireNaturalExit: step.requireNaturalExit === true,
       resourceRoot,
     };
   });
@@ -751,16 +758,12 @@ try {
       console.log();
       const result = await runCanonicalChild(step);
       completedResults.push(result);
-      if (
-        result.timed_out ||
-        result.spawn_error_code ||
-        result.exit_code !== 0
-      ) {
-        throw canonicalChildFailure(result, {
-          suite: suiteName,
-          timeoutMs: step.timeoutMs,
-        });
-      }
+      const acceptanceFailure = canonicalChildAcceptanceFailure(result, {
+        suite: suiteName,
+        timeoutMs: step.timeoutMs,
+        requireNaturalExit: step.requireNaturalExit,
+      });
+      if (acceptanceFailure) throw acceptanceFailure;
     }
   }
 

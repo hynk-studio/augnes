@@ -16,6 +16,11 @@ import {
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
   genericCliBuilderInputFixture,
 } from "../fixtures/vnext/protocol/task-context-packet-v0-1";
+import {
+  buildSemanticReviewLoopProposalFixture,
+  buildSemanticReviewLoopRunReceiptFixture,
+  buildSemanticReviewLoopTaskContextPacketFixture,
+} from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import { insertAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
 import {
   buildDefaultRunnerAuthorityBoundary,
@@ -23,6 +28,7 @@ import {
   buildDefaultRunnerSourceRefs,
 } from "../lib/autonomy/runner-state";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
+import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
@@ -57,7 +63,16 @@ export interface ProjectExperienceBrowserFixtureManifestV1 {
   operator_id: string;
   rendered_state_inputs: {
     first_work_not_defined: "created_by_project_onboarding";
-    delegated_work: typeof PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1;
+    delegated_work: {
+      run_id: typeof PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1;
+      status: "paused";
+      timeline_event_count: 2;
+      execution_capable: false;
+    };
+    proposal_list_supplements: Array<{
+      proposal_id: string;
+      proposal_fingerprint: string;
+    }>;
     result_ready: {
       receipt_id: string;
       receipt_fingerprint: string;
@@ -177,6 +192,10 @@ export async function buildProjectExperienceBrowserFixtureV1(input: {
     record_id: proposalId,
     expected_fingerprint: proposalFingerprint,
   });
+  const proposalListSupplements = buildProposalListSupplements({
+    workspace_id: requiredString(sourceManifest.workspace_id),
+    project_id: requiredString(sourceManifest.project_id),
+  });
   const manifestWithoutFingerprint: Omit<
     ProjectExperienceBrowserFixtureManifestV1,
     "fixture_fingerprint"
@@ -193,7 +212,16 @@ export async function buildProjectExperienceBrowserFixtureV1(input: {
     operator_id: requiredString(sourceManifest.operator_id),
     rendered_state_inputs: {
       first_work_not_defined: "created_by_project_onboarding" as const,
-      delegated_work: PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
+      delegated_work: {
+        run_id: PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
+        status: "paused" as const,
+        timeline_event_count: 2 as const,
+        execution_capable: false as const,
+      },
+      proposal_list_supplements: proposalListSupplements.map((entry) => ({
+        proposal_id: entry.proposal.proposal_id,
+        proposal_fingerprint: entry.proposal.integrity.fingerprint,
+      })),
       result_ready: {
         receipt_id: latestResult.receipt_ref,
         receipt_fingerprint: resultDetail.identity.receipt_fingerprint,
@@ -218,6 +246,8 @@ export async function buildProjectExperienceBrowserFixtureV1(input: {
       "shared_project_inspector_href_v0_1",
       "task_context_packet_builder_v0_1",
       "durable_semantic_store_v0_1",
+      "structured_run_receipt_admission_v0_1",
+      "semantic_review_loop_fixture_v0_1",
     ],
     source_bound: true as const,
     presentation_only: true as const,
@@ -275,13 +305,58 @@ export function admitProjectExperienceRenderedStateV1(input: {
       expected_project_id: active?.project_id ?? null,
       expected_revision: active?.selection_revision ?? null,
     });
+    const proposalListSupplements = buildProposalListSupplements({
+      workspace_id: input.manifest.workspace_id,
+      project_id: input.manifest.project_id,
+    });
+    assert.deepEqual(
+      proposalListSupplements.map((entry) => ({
+        proposal_id: entry.proposal.proposal_id,
+        proposal_fingerprint: entry.proposal.integrity.fingerprint,
+      })),
+      input.manifest.rendered_state_inputs.proposal_list_supplements,
+    );
+    for (const supplement of proposalListSupplements) {
+      const packetWrite = insertVNextCoreRecordV01(database, {
+        record_kind: "task_context_packet",
+        record_id: supplement.packet.packet_id,
+        workspace_id: supplement.packet.workspace_id,
+        project_id: supplement.packet.project_id,
+        fingerprint: supplement.packet.integrity.fingerprint,
+        idempotency_key: null,
+        payload: supplement.packet,
+        created_at: supplement.packet.generated_at,
+      });
+      assert.equal(
+        ["inserted", "exact_replay"].includes(packetWrite.status),
+        true,
+      );
+      const receiptWrite = admitStructuredRunReceiptV01(
+        database,
+        supplement.receipt,
+      );
+      assert.equal(receiptWrite.status, "inserted");
+      const proposalWrite = insertVNextCoreRecordV01(database, {
+        record_kind: "episode_delta_proposal",
+        record_id: supplement.proposal.proposal_id,
+        workspace_id: supplement.proposal.workspace_id,
+        project_id: supplement.proposal.project_id,
+        fingerprint: supplement.proposal.integrity.fingerprint,
+        idempotency_key: null,
+        payload: supplement.proposal,
+        created_at: supplement.proposal.created_at,
+      });
+      assert.equal(proposalWrite.status, "inserted");
+    }
+    const admittedAtMs = Date.parse(input.admitted_at);
+    assert.equal(Number.isFinite(admittedAtMs), true);
     insertAutonomyRunLedgerRecord(
       {
         run_id: PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
         scope: input.manifest.project_id,
         autonomy_contract_ref: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
         title: "Rendered delegated work fixture",
-        status: "running",
+        status: "paused",
         scheduled_for: null,
         started_at: input.admitted_at,
         finished_at: null,
@@ -299,8 +374,8 @@ export function admitProjectExperienceRenderedStateV1(input: {
           workspace_id: input.manifest.workspace_id,
           project_id: input.manifest.project_id,
           invocation_origin: "interactive",
-          lifecycle_mode: "deterministic_local",
-          reconciliation_required: false,
+          lifecycle_mode: "managed_live",
+          reconciliation_required: true,
           automatic_retry: false,
           presentation_fixture_version: PROJECT_EXPERIENCE_FIXTURE_VERSION_V1,
           execution_authority: false,
@@ -308,7 +383,28 @@ export function admitProjectExperienceRenderedStateV1(input: {
         },
       },
       [],
-      [],
+      [
+        {
+          event_id: "event:project-experience-rendered-state-delegated",
+          run_id: PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
+          step_id: null,
+          event_type: "run_created",
+          status: "running",
+          message: "Presentation fixture admitted delegated work.",
+          payload: { presentation_only: true },
+          created_at: new Date(admittedAtMs - 1_000).toISOString(),
+        },
+        {
+          event_id: "event:project-experience-rendered-state-interrupted",
+          run_id: PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
+          step_id: null,
+          event_type: "run_reconciliation_required",
+          status: "paused",
+          message: "Presentation fixture requires explicit resume.",
+          payload: { presentation_only: true },
+          created_at: input.admitted_at,
+        },
+      ],
       { db: database },
     );
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
@@ -316,6 +412,37 @@ export function admitProjectExperienceRenderedStateV1(input: {
     database.close();
   }
   return { delegated_run_id: PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1 };
+}
+
+function buildProposalListSupplements(input: {
+  workspace_id: string;
+  project_id: string;
+}) {
+  return [1, 2].map((index) => {
+    const project = {
+      fixture_id: `project-experience-proposal-list-${index}`,
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      run_id: `run:project-experience-proposal-list-${index}`,
+    };
+    const packet = buildSemanticReviewLoopTaskContextPacketFixture(project, {
+      data_classification: "public_safe",
+    });
+    const anchor = `2026-07-0${index}T00:00:00.000Z`;
+    const receipt = buildSemanticReviewLoopRunReceiptFixture(project, packet, {
+      timeline_anchor_at: anchor,
+    });
+    const proposal = buildSemanticReviewLoopProposalFixture(
+      project,
+      packet,
+      receipt,
+      {
+        candidate_namespace: `project-experience-${index}`,
+        timeline_anchor_at: anchor,
+      },
+    );
+    return { packet, receipt, proposal };
+  });
 }
 
 export function admitExpiredProjectContextPresentationV1(input: {

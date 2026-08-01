@@ -169,6 +169,86 @@ export function hashStringInventory(values) {
     .digest("hex");
 }
 
+export function extractBrowserDetailedFieldCompletionMetadata(source) {
+  if (typeof source !== "string" || source.length === 0) {
+    throw metadataError(
+      "browser_verification_source_empty",
+      "browser verification source must be non-empty",
+    );
+  }
+  const lexical = tokenizeJavaScript(source);
+  if (lexical.nextIndex !== source.length) {
+    throw metadataError(
+      "browser_verification_lexical_scan_incomplete",
+      "browser verification lexical scan did not consume the source",
+    );
+  }
+  const tokens = lexical.tokens;
+  const calls = extractUnqualifiedLiteralCalls({
+    source,
+    tokens,
+    name: "completeDetailedField",
+    identifierPattern: INVENTORY_IDENTIFIER_PATTERN,
+    requireSingleArgument: true,
+  });
+  const declarations = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (
+      tokens[index].value !== "completeDetailedField" ||
+      tokens[index - 1]?.value !== "function"
+    ) {
+      continue;
+    }
+    if (!matchesTokenValues(tokens, index + 1, ["(", "id", ")", "{"])) {
+      throw metadataErrorAt(
+        source,
+        tokens[index],
+        "browser_verification_detailed_completion_declaration_unsupported",
+        "completeDetailedField must retain its exact canonical function declaration",
+      );
+    }
+    declarations.push(index);
+  }
+  if (declarations.length !== 1) {
+    throw metadataError(
+      "browser_verification_detailed_completion_declaration_unsupported",
+      `expected exactly one canonical completeDetailedField declaration; observed ${declarations.length}`,
+    );
+  }
+  const directCalls = new Set(calls.callIndexes);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (
+      tokens[index].type !== "identifier" ||
+      tokens[index].value !== "completeDetailedField"
+    ) {
+      continue;
+    }
+    if (index === declarations[0] || directCalls.has(index)) continue;
+    throw metadataErrorAt(
+      source,
+      tokens[index],
+      "browser_verification_detailed_completion_reference_unsupported",
+      "completeDetailedField may appear only as its canonical declaration or a canonical direct literal call",
+    );
+  }
+  assertNoComputedSensitivePropertyAccess(source, tokens);
+  if (calls.values.length !== new Set(calls.values).size) {
+    throw metadataError(
+      "browser_verification_detailed_completion_duplicate",
+      "detailed field completion IDs must be unique",
+    );
+  }
+  return {
+    completion_ids: calls.values,
+    raw_call_count: calls.rawCount,
+    sensitive_reference_counts: {
+      canonical_declaration: 1,
+      canonical_direct_call: calls.callIndexes.length,
+      supported_non_extraction_reference: 0,
+    },
+  };
+}
+
 function extractResultSurface(source, tokens) {
   const declarations = [];
   for (let index = 0; index < tokens.length - 3; index += 1) {
@@ -814,6 +894,7 @@ function assertNoComputedSensitivePropertyAccess(source, tokens) {
     "record",
     "runPhase",
     "recordLongWait",
+    "completeDetailedField",
     "start",
     "duration",
     "milestone",

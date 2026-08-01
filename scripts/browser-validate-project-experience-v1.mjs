@@ -31,6 +31,11 @@ import {
   buildProjectExperienceBrowserFixtureV1,
 } from "./project-experience-browser-fixture-v1.ts";
 import {
+  assertProjectExperienceFinalSuccessV1,
+  createDetailedFieldCompletionOwnerV1,
+  loadProjectExperienceResultContractV1,
+} from "./project-experience-result-contract-v1.mjs";
+import {
   registerOwnedChild,
   settleOwnedProcessAfterExit,
   terminateOwnedProcessTree,
@@ -114,7 +119,6 @@ let requestQuietCount = 0;
 let waitCount = 0;
 let runtimeStartCount = 0;
 let runtimeShutdownCount = 0;
-let detailedAssertionCount = 0;
 const requests = [];
 const responses = [];
 const consoleErrors = [];
@@ -128,6 +132,9 @@ const productShellRouteClassifications = [];
 const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
+const detailedFieldContract = loadProjectExperienceResultContractV1();
+const detailedFieldCompletionOwner =
+  createDetailedFieldCompletionOwnerV1(detailedFieldContract);
 
 const result = {
   ok: false,
@@ -137,8 +144,10 @@ const result = {
   fixture_fingerprint: null,
   fixture_source_database_sha256: null,
   fixture_writable_seed_sha256: null,
-  detailed_field_count: 40,
-  detailed_marker_count: 5,
+  detailed_field_count: detailedFieldContract.field_ids.length,
+  detailed_marker_count: detailedFieldContract.marker_ids.length,
+  completed_detailed_field_ids: [],
+  completed_detailed_field_fingerprint: null,
   semantic_markers: [],
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
@@ -184,6 +193,8 @@ const result = {
   viewport_collection: [],
   unexpected_external_request_count: 0,
   unexpected_console_failure_count: 0,
+  unexpected_page_failure_count: 0,
+  unexpected_request_failure_count: 0,
   known_harness_console_warning_count: 0,
   credential_private_material_boundary: false,
   default_database_isolated: false,
@@ -308,9 +319,10 @@ class CdpClient {
   }
 }
 
+let functionalExecutionSucceeded = false;
 try {
   await main();
-  result.ok = true;
+  functionalExecutionSucceeded = true;
 } catch (error) {
   result.failure = safeError(error);
   process.exitCode = 1;
@@ -319,12 +331,27 @@ try {
     `[browser-e2e] cleanup_start scope=${VALIDATION_SCOPE} phase=${currentPhase} owned_processes=${ownedBrowserProcesses.size}\n`,
   );
   const finishCleanupTiming = timing.start("cleanup", "global cleanup");
-  await cleanup();
-  finishCleanupTiming();
-  result.cleanup_complete = true;
+  try {
+    await cleanup();
+    result.cleanup_complete = true;
+  } catch (error) {
+    if (!result.failure) {
+      result.failure = safeError(error);
+    }
+    process.exitCode = 1;
+  } finally {
+    finishCleanupTiming();
+  }
   result.owned_streams_settled = ownedBrowserProcesses.size === 0;
   result.owned_process_residue_count = ownedBrowserProcesses.size;
-  result.listener_residue_count = await listenerResidueCount();
+  try {
+    result.listener_residue_count = await listenerResidueCount();
+  } catch (error) {
+    if (!result.failure) {
+      result.failure = safeError(error);
+    }
+    process.exitCode = 1;
+  }
   result.temporary_root_removed = !existsSync(tempRoot);
   result.temporary_process_root_removed = !existsSync(processTempRoot);
   result.temporary_profile_removed = !existsSync(chromeProfileDir);
@@ -339,6 +366,10 @@ try {
   result.chrome_cdp_shutdown_complete =
     chromeProcess === null && cdp === null;
   result.semantic_markers = semanticMarkers;
+  result.completed_detailed_field_ids =
+    detailedFieldCompletionOwner.completedIds();
+  result.completed_detailed_field_fingerprint =
+    detailedFieldCompletionOwner.completedFingerprint();
   result.product_shell_route_classifications =
     productShellRouteClassifications;
   result.product_shell_responsive_results = productShellResponsiveResults;
@@ -365,6 +396,22 @@ try {
     0,
     REFERENCE_BROWSER_BOUND_MS - result.total_duration_ms,
   );
+  try {
+    const finalizationResult = JSON.parse(JSON.stringify(result));
+    assertProjectExperienceFinalSuccessV1({
+      result: finalizationResult,
+      contract: detailedFieldContract,
+      completion_owner: detailedFieldCompletionOwner,
+      functional_execution_succeeded: functionalExecutionSucceeded,
+    });
+    result.ok = true;
+  } catch (error) {
+    result.ok = false;
+    if (!result.failure) {
+      result.failure = safeError(error);
+    }
+    process.exitCode = 1;
+  }
   process.umask(originalUmask);
   process.stdout.write(
     `[browser-e2e] cleanup_result scope=${VALIDATION_SCOPE} owned_processes=${ownedBrowserProcesses.size} listener_residue=${result.listener_residue_count}\n`,
@@ -428,7 +475,7 @@ async function main() {
     path.resolve(fixture.writable_database_path) !==
       path.resolve(appRepo, "data", "augnes.db");
   assert.equal(result.default_database_isolated, true);
-  const semanticAuthorityBaseline = semanticAuthorityCounts(
+  let semanticAuthorityBaseline = semanticAuthorityCounts(
     fixture.writable_database_path,
   );
 
@@ -455,6 +502,7 @@ async function main() {
   let projectAlphaDestination;
   let projectBetaId;
   let projectBetaDestination;
+  let blankStateGuideProjection;
 
   await runPhase("project_onboarding_and_naming", async () => {
     await navigate(`${appOrigin}/`);
@@ -480,18 +528,38 @@ async function main() {
       navigation_links: 2,
       private_material_absent: true,
     });
+    const cancelledPickerResponseStart = responses.length;
     await clickSelector('[data-blank-state-primary-action="choose_folder"]');
     await waitForCondition(
       `document.body.textContent.includes('Folder selection was cancelled. Nothing changed.') && document.querySelector('[data-blank-state-primary-action="choose_folder"]:not(:disabled)') !== null`,
       "cancelled folder picker remains usable",
     );
+    const cancelledPickerResponse = responses
+      .slice(cancelledPickerResponseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/projects" &&
+          entry.type === "Fetch" &&
+          entry.method === "POST",
+      );
+    assert.equal(cancelledPickerResponse?.status, 200);
+    const cancelledPickerBody = await cdp.send("Network.getResponseBody", {
+      requestId: cancelledPickerResponse.request_id,
+    });
+    assert.equal(JSON.parse(cancelledPickerBody.body).picker.status, "cancelled");
     result.folder_picker_cancelled_usable = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("folder_picker_cancelled_usable");
 
     await clickSelector('[data-blank-state-primary-action="choose_folder"]');
     await waitForCondition(
       `document.querySelector('input[name="project-display-name"]')?.value === 'Project Experience Alpha'`,
       "project name prefill",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.body.textContent.includes('The Augnes project name does not rename the local folder.') && document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`,
+      ),
+      true,
     );
     await setFormControlValue('input[name="project-display-name"]', "");
     await waitForCondition(
@@ -512,7 +580,7 @@ async function main() {
     projectAlphaId = decodeURIComponent(projectAlphaDestination.split("/").at(-1));
     assert.match(projectAlphaId, /^project:/u);
     result.folder_onboarding_destination = projectAlphaDestination;
-    detailedAssertionCount += 1;
+    completeDetailedField("folder_onboarding_destination");
     await waitForCondition(
       `document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes(${JSON.stringify(editedName)}) === true`,
       "edited project name propagation",
@@ -520,7 +588,7 @@ async function main() {
 
     await clickSelector('a[data-project-context-label="Current project"]');
     await waitForCondition(
-      `location.hash === '#project-settings' && document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === true`,
+      `location.hash === '#project-settings' && (() => { const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]'); const input = details?.querySelector('input[name="current-project-display-name"]'); return details?.open === true && [details.querySelector(':scope > summary'), input].includes(document.activeElement); })()`,
       "project settings entry",
     );
     assert.equal(
@@ -536,11 +604,11 @@ async function main() {
       true,
     );
     await waitForCondition(
-      `document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === true`,
+      `location.hash === '#project-settings' && (() => { const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]'); const input = details?.querySelector('input[name="current-project-display-name"]'); return details?.open === true && [details.querySelector(':scope > summary'), input].includes(document.activeElement); })()`,
       "repeat project context activation",
     );
     result.project_context_repeat_activation = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_context_repeat_activation");
     assert.equal(
       await evaluateBoolean(`(() => {
         const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
@@ -555,13 +623,13 @@ async function main() {
     );
     await dispatchKeyboardKey("Enter", "Enter", 13);
     await waitForCondition(
-      `document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === true`,
+      `location.hash === '#project-settings' && (() => { const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]'); const input = details?.querySelector('input[name="current-project-display-name"]'); return details?.open === true && [details.querySelector(':scope > summary'), input].includes(document.activeElement); })()`,
       "keyboard project context activation",
     );
     result.project_context_keyboard_activation = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_context_keyboard_activation");
     result.project_context_opens_settings = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_context_opens_settings");
 
     await setFormControlValue('input[name="current-project-display-name"]', "");
     await waitForCondition(
@@ -569,7 +637,7 @@ async function main() {
       "invalid project rename refusal",
     );
     result.project_name_invalid_blocked = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_name_invalid_blocked");
     await setFormControlValue(
       'input[name="current-project-display-name"]',
       editedName,
@@ -598,7 +666,7 @@ async function main() {
       "stale project naming conflict",
     );
     result.project_name_stale_conflict_visible = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_name_stale_conflict_visible");
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('input[name="current-project-display-name"]')?.value === 'Stale rename source'`,
@@ -618,8 +686,18 @@ async function main() {
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('input[name="current-project-display-name"]')?.value === ${JSON.stringify(longKoreanName)} && document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes(${JSON.stringify(longKoreanName)}) === true`,
       "long Korean project name propagation",
     );
+    const recentAfterLongRename = await readRecentProjectsInBrowser();
+    const activeAfterLongRename = recentAfterLongRename.recent_projects.find(
+      (entry) => entry.is_active,
+    );
+    assert.equal(activeAfterLongRename?.project.display_name, longKoreanName);
+    assert.equal(
+      activeAfterLongRename?.local_root.normalized_path,
+      onboardingFolder,
+      "rename must not change the local root",
+    );
     result.project_name_long_korean_propagated = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_name_long_korean_propagated");
     await setFormControlValue(
       'input[name="current-project-display-name"]',
       "Project Experience Alpha",
@@ -630,35 +708,55 @@ async function main() {
     );
     await clickSelector('[data-project-name-save="true"]');
     await waitForCondition(
-      `document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Project Experience Alpha') === true`,
+      `document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Project Experience Alpha') === true && document.querySelector('input[name="current-project-display-name"]')?.value === 'Project Experience Alpha'`,
       "restored project name",
     );
+    await evaluateBoolean(`(() => {
+      const details = document.querySelector('details[data-blank-state-project-settings-recovery="true"]');
+      if (details instanceof HTMLDetailsElement) details.open = false;
+      history.replaceState(null, '', location.pathname);
+      return true;
+    })()`);
     result.project_name_onboarding_prefill_and_edit = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_name_onboarding_prefill_and_edit");
 
     const emptyState = await evaluateJson(`(() => {
       const home = document.querySelector('[data-blank-state="v0.1"]');
       const text = home?.innerText ?? '';
       return {
-        active: home?.getAttribute('data-blank-state-active'),
+        name: document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Project Experience Alpha') === true,
+        heading: home?.querySelector('h1')?.textContent?.trim(),
+        primary_action_count: home?.querySelectorAll('[data-blank-state-primary-action]').length,
+        project_home_absent: !text.includes('Project Home'),
+        metric_grid_absent: home?.querySelector('.project-home-coordinate-grid') === null,
+        internal_vocabulary_absent: !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|Decision debt|Accepted state|Working projection|Exact coordination|Inspector lineage|packet fingerprint)/i.test(text),
+        active: home?.getAttribute('data-blank-state-active') === 'true',
         focus: home?.getAttribute('data-blank-state-focus'),
         guide_version: home?.getAttribute('data-guide-brief-version'),
         guide_source: home?.getAttribute('data-guide-brief-source-status'),
         project_context: home?.getAttribute('data-guide-brief-project-context'),
         proposal_absent: !text.includes(${JSON.stringify(manifest.rendered_state_inputs.proposal_review.proposal_id)}),
         packet_absent: !text.includes('task-context-packet:'),
-        primary_actions: home?.querySelectorAll('[data-blank-state-primary-action]').length
+        management_safety_closed: document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === false,
+        management_safety_context: document.querySelector('[data-management-safety]')?.getAttribute('data-management-safety-project-context') ?? null
       };
     })()`);
     assert.deepEqual(emptyState, {
-      active: "true",
+      name: true,
+      heading: "Continuities",
+      primary_action_count: 1,
+      project_home_absent: true,
+      metric_grid_absent: true,
+      internal_vocabulary_absent: true,
+      active: true,
       focus: "first_work_not_defined",
       guide_version: "guide_brief.v0.2",
       guide_source: "live_current_project",
       project_context: "current",
       proposal_absent: true,
       packet_absent: true,
-      primary_actions: 1,
+      management_safety_closed: true,
+      management_safety_context: "active_project",
     });
     const guideRead = await evaluateJson(`(async () => {
       const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
@@ -669,34 +767,58 @@ async function main() {
       const serialized = JSON.stringify(body);
       return {
         status: response.status,
+        cache_control: response.headers.get('cache-control'),
         version: body.guide_version,
+        project_id: body.identity?.project_id,
         project: body.identity?.project_display_name,
         context: body.identity?.project_context,
         focus: body.coordinate?.focus,
+        browser_focus: document.querySelector('[data-blank-state="v0.1"]')?.getAttribute('data-blank-state-focus'),
         authority: body.authority?.source_of_truth,
-        private_material_absent: !/(OPENAI_API_KEY|GITHUB_TOKEN|sk-|ghp_|sha256:)/i.test(serialized)
+        private_path_absent: !/(\\/Users\\/|\\/home\\/|[A-Za-z]:\\\\)/u.test(serialized),
+        credential_absent: !/(OPENAI_API_KEY|GITHUB_TOKEN|sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_-]{8,})/u.test(serialized),
+        projection_identity: {
+          identity: {
+            project_id: body.identity?.project_id ?? null,
+            project_display_name: body.identity?.project_display_name ?? null,
+            project_context: body.identity?.project_context ?? null
+          },
+          coordinate_goal: body.coordinate?.goal ?? null,
+          coordinate_human_attention: body.coordinate?.human_attention ?? null,
+          blank_state_highlighted_item: body.projections?.blank_state?.highlighted_item ?? null,
+          ai_workplane: body.projections?.ai_workplane ?? null,
+          chatgpt: body.projections?.chatgpt ?? null,
+          codex: body.projections?.codex ?? null
+        }
       };
     })()`);
-    assert.deepEqual(guideRead, {
-      status: 200,
-      version: "guide_brief.v0.2",
-      project: "Project Experience Alpha",
-      context: "current",
-      focus: "first_work_not_defined",
-      authority: false,
-      private_material_absent: true,
-    });
+    assert.equal(guideRead.status, 200);
+    assert.equal(guideRead.cache_control, "no-store");
+    assert.equal(guideRead.version, "guide_brief.v0.2");
+    assert.equal(guideRead.project_id, projectAlphaId);
+    assert.equal(guideRead.project, "Project Experience Alpha");
+    assert.equal(guideRead.context, "current");
+    assert.equal(guideRead.focus, "first_work_not_defined");
+    assert.equal(guideRead.browser_focus, "first_work_not_defined");
+    assert.equal(guideRead.authority, false);
+    assert.equal(guideRead.private_path_absent, true);
+    assert.equal(guideRead.credential_absent, true);
+    blankStateGuideProjection = guideRead.projection_identity;
     result.guide_brief_blank_state_v0_2 = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("guide_brief_blank_state_v0_2");
     result.minimum_project_home_empty_state = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_empty_state");
     result.project_home_coordination_visible = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_home_coordination_visible");
     result.minimum_project_home_project_isolation = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_project_isolation");
     await validateProjectHomeViewports("first-work-not-defined");
-    result.minimum_project_home_narrow_viewport_no_overflow = true;
-    detailedAssertionCount += 1;
+    await validateProductShell({
+      route: "/projects/[projectId]",
+      primaryZone: "blank-state",
+      projectContextRequired: true,
+    });
+    await validateProductShellResponsive("/projects/[projectId]");
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
   });
 
@@ -710,31 +832,114 @@ async function main() {
       `document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"]') !== null`,
       "locked AI Workplane GuideBrief",
     );
-    const lockedShape = await evaluateJson(`(() => {
+    const workplaneGuide = await evaluateJson(`(async () => {
       const main = document.querySelector('main');
       const guide = document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"]');
       const text = main?.innerText ?? '';
+      const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
+        headers: { 'x-augnes-local-readonly': 'guide-brief-v0.2' },
+        cache: 'no-store'
+      });
+      const body = await response.json();
+      const textWithoutLabel = (selector, label) =>
+        guide?.querySelector(selector)?.textContent?.replace(label, '')?.trim() ?? null;
       return {
         private_material_rendered: main?.getAttribute('data-vnext-private-material-rendered'),
         project: guide?.querySelector('[data-guide-brief-project-name="true"]')?.textContent?.trim(),
+        status: guide?.getAttribute('data-ai-workplane-guide-status'),
         guide_controls: guide?.querySelectorAll('button, input, textarea, select').length,
         exact_detail_absent: document.querySelector('[data-ai-workplane-exact-details]') === null,
-        private_identity_absent: !/(sha256:|episode-delta-proposal:|task-context-packet:)/i.test(text)
+        private_identity_absent: !/(sha256:|episode-delta-proposal:|task-context-packet:)/i.test(text),
+        goal_consistent:
+          textWithoutLabel('[data-guide-brief-core-goal="true"]', 'Goal') ===
+          body.projections?.ai_workplane?.current_goal,
+        constraint_consistent:
+          textWithoutLabel('[data-guide-brief-core-constraint="true"]', 'Important constraint') ===
+          (body.projections?.ai_workplane?.important_constraints?.[0] ?? null),
+        judgment_consistent:
+          textWithoutLabel('[data-guide-brief-core-judgment="true"]', 'Needs judgment') ===
+          (body.projections?.ai_workplane?.unresolved_user_judgments?.[0] ??
+            body.projections?.ai_workplane?.material_blocker_or_judgment ??
+            null),
+        chatgpt_codex_goal_consistent:
+          body.projections?.chatgpt?.goal === body.projections?.codex?.current_goal,
+        chatgpt_codex_constraints_consistent:
+          JSON.stringify(body.projections?.chatgpt?.constraints ?? []) ===
+          JSON.stringify(body.projections?.codex?.constraints ?? []),
+        chatgpt_codex_judgment_consistent:
+          JSON.stringify(
+            (body.projections?.chatgpt?.needs_user_judgment ?? []).map(
+              (item) => item.question
+            )
+          ) === JSON.stringify(body.projections?.codex?.unresolved_user_judgments ?? []),
+        human_attention_consistent:
+          JSON.stringify(body.coordinate?.human_attention ?? null) ===
+            JSON.stringify(body.projections?.ai_workplane?.human_attention ?? null) &&
+          JSON.stringify(body.coordinate?.human_attention ?? null) ===
+            JSON.stringify(body.projections?.chatgpt?.human_attention ?? null) &&
+          JSON.stringify(body.coordinate?.human_attention ?? null) ===
+            JSON.stringify(body.projections?.codex?.human_attention ?? null) &&
+          body.coordinate?.human_attention?.required ===
+            body.projections?.blank_state?.highlighted_item?.requires_human_attention &&
+          body.coordinate?.human_attention?.category ===
+            body.projections?.blank_state?.highlighted_item?.attention_category,
+        projection_identity: {
+          identity: {
+            project_id: body.identity?.project_id ?? null,
+            project_display_name: body.identity?.project_display_name ?? null,
+            project_context: body.identity?.project_context ?? null
+          },
+          coordinate_goal: body.coordinate?.goal ?? null,
+          coordinate_human_attention: body.coordinate?.human_attention ?? null,
+          blank_state_highlighted_item: body.projections?.blank_state?.highlighted_item ?? null,
+          ai_workplane: body.projections?.ai_workplane ?? null,
+          chatgpt: body.projections?.chatgpt ?? null,
+          codex: body.projections?.codex ?? null
+        }
       };
     })()`);
-    assert.deepEqual(lockedShape, {
+    assert.deepEqual(workplaneGuide.projection_identity, blankStateGuideProjection);
+    assert.deepEqual(
+      {
+        private_material_rendered: workplaneGuide.private_material_rendered,
+        project: workplaneGuide.project,
+        status: workplaneGuide.status,
+        guide_controls: workplaneGuide.guide_controls,
+        exact_detail_absent: workplaneGuide.exact_detail_absent,
+        private_identity_absent: workplaneGuide.private_identity_absent,
+        goal_consistent: workplaneGuide.goal_consistent,
+        constraint_consistent: workplaneGuide.constraint_consistent,
+        judgment_consistent: workplaneGuide.judgment_consistent,
+        chatgpt_codex_goal_consistent:
+          workplaneGuide.chatgpt_codex_goal_consistent,
+        chatgpt_codex_constraints_consistent:
+          workplaneGuide.chatgpt_codex_constraints_consistent,
+        chatgpt_codex_judgment_consistent:
+          workplaneGuide.chatgpt_codex_judgment_consistent,
+        human_attention_consistent: workplaneGuide.human_attention_consistent,
+      },
+      {
       private_material_rendered: "false",
       project: "Project Experience Alpha",
+      status: "available",
       guide_controls: 0,
       exact_detail_absent: true,
       private_identity_absent: true,
-    });
+      goal_consistent: true,
+      constraint_consistent: true,
+      judgment_consistent: true,
+      chatgpt_codex_goal_consistent: true,
+      chatgpt_codex_constraints_consistent: true,
+      chatgpt_codex_judgment_consistent: true,
+      human_attention_consistent: true,
+      },
+    );
     result.guide_brief_ai_workplane_v0_2 = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("guide_brief_ai_workplane_v0_2");
     result.guide_brief_cross_surface_consistency = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("guide_brief_cross_surface_consistency");
     result.workbench_compatibility_redirect = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("workbench_compatibility_redirect");
     await validateProductShell({
       route: "/workbench/semantic-review",
       primaryZone: "ai-workplane",
@@ -743,11 +948,11 @@ async function main() {
     await validateProductShellResponsive("/workbench/semantic-review");
     await clickSelector('a[data-project-context-label="Current project"]');
     await waitForCondition(
-      `location.pathname === '/' && location.hash === '#project-settings' && document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === true`,
+      `location.pathname === '/' && location.hash === '#project-settings' && (() => { const settings = document.querySelector('details[data-blank-state-project-settings-recovery="true"]'); return settings?.open === true && settings.querySelector(':scope > summary') === document.activeElement; })()`,
       "AI Workplane project settings return",
     );
     result.ai_workplane_project_context_opens_settings = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("ai_workplane_project_context_opens_settings");
 
     await navigate(`${appOrigin}/workbench/inspector`);
     await waitForCondition(
@@ -796,7 +1001,7 @@ async function main() {
     );
     await validateFirstWorkComposerViewports();
     result.first_work_browser_viewports = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("first_work_browser_viewports");
     await cdp.send("Network.clearBrowserCookies");
   });
 
@@ -837,22 +1042,49 @@ async function main() {
         ?.project.project_id,
       projectBetaId,
     );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const home = document.querySelector('[data-blank-state="v0.1"][data-blank-state-presentation="viewed_project_inactive"]');
+        const conversation = document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]');
+        return Boolean(home) &&
+          document.body.textContent.includes('Opening this link did not switch your current project.') &&
+          home.querySelectorAll('[data-blank-state-primary-action="make_active"]').length === 1 &&
+          home.querySelector('details[data-management-safety], [data-project-controls-hydrated="true"]') === null &&
+          conversation?.getAttribute('data-guidebrief-conversation-active-answer') === 'false' &&
+          conversation.querySelectorAll('[data-guidebrief-conversation-answer], [data-guidebrief-interaction-plan], [data-guidebrief-interaction-outcome]').length === 0;
+      })()`),
+      true,
+    );
     result.minimum_project_home_non_active_deep_link_read_only = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_non_active_deep_link_read_only");
     await waitForRequestQuiet();
     await validateProjectHomeViewports("viewed-inactive-project");
+    result.minimum_project_home_narrow_viewport_no_overflow = true;
+    completeDetailedField("minimum_project_home_narrow_viewport_no_overflow");
     await waitForRequestQuiet();
     await waitForCondition(
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && Array.from(document.querySelectorAll('button[data-blank-state-primary-action="make_active"]')).some((button) => button.getBoundingClientRect().width > 0 && !button.disabled)`,
       "explicit project activation ready",
     );
+    const activationResponseStart = responses.length;
     await clickSelector('[data-blank-state-primary-action="make_active"]');
     await waitForCondition(
       `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Project Experience Alpha')`,
       "explicit project activation",
     );
+    assert.equal(
+      responses
+        .slice(activationResponseStart)
+        .some(
+          (entry) =>
+            entry.path === "/api/vnext/projects" &&
+            entry.method === "POST" &&
+            entry.status === 200,
+        ),
+      true,
+    );
     result.minimum_project_home_explicit_activation = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_explicit_activation");
 
     const expiredMarker = "PROJECT EXPERIENCE EXPIRED CONTEXT MUST STAY HIDDEN";
     admitExpiredProjectContextPresentationV1({
@@ -872,7 +1104,7 @@ async function main() {
       true,
     );
     result.minimum_project_home_expired_context_withheld = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_expired_context_withheld");
     const beforeRefresh = databaseSnapshot(fixture.writable_database_path);
     const refreshRequestIndex = requests.length;
     await cdp.send("Page.reload", { ignoreCache: true });
@@ -891,7 +1123,7 @@ async function main() {
       false,
     );
     result.minimum_project_home_refresh_read_only = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_refresh_read_only");
 
     const activateBeta = await openProjectInBrowser(projectBetaId);
     assert.equal(activateBeta.status, 200);
@@ -931,7 +1163,7 @@ async function main() {
       locate_actions: 1,
     });
     result.project_recovery_context_passive = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_recovery_context_passive");
     await waitForRequestQuiet();
     await clickSelectorByMouse(
       '[data-blank-state-primary-action="locate_folder"]',
@@ -958,6 +1190,11 @@ async function main() {
     await waitForCondition(
       `document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.body.textContent.includes('Project Experience Alpha')`,
       "project reopen after runtime restart",
+    );
+    await navigate(`${appOrigin}${projectAlphaDestination}`);
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(projectAlphaDestination)} && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null`,
+      "same project destination after runtime restart",
     );
     const recent = await readRecentProjectsInBrowser();
     const alpha = recent.recent_projects.find(
@@ -986,9 +1223,9 @@ async function main() {
     assert.equal(staleOpen.status, 409);
     assert.equal(staleOpen.body.error_code, "active_selection_conflict");
     result.folder_onboarding_stale_active_conflict = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("folder_onboarding_stale_active_conflict");
     result.folder_onboarding_restart_reopen = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("folder_onboarding_restart_reopen");
 
     const unknownResponseIndex = responses.length;
     await navigate(`${appOrigin}/projects/project%3Aunknown-project-experience`);
@@ -1001,9 +1238,9 @@ async function main() {
       "/projects/project%3Aunknown-project-experience",
     );
     assert.equal(result.minimum_project_home_unknown_project_status, 200);
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_unknown_project_status");
     result.minimum_project_home_unknown_project_safe_not_found = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("minimum_project_home_unknown_project_safe_not_found");
     const activeAfterUnknown = await readRecentProjectsInBrowser();
     assert.equal(
       activeAfterUnknown.recent_projects.find((entry) => entry.is_active)
@@ -1016,11 +1253,22 @@ async function main() {
   await runPhase("rendered_state_responsive_matrix", async () => {
     await navigate("about:blank");
     await terminateRuntime();
+    const beforeRenderedStateAdmission = semanticAuthorityBaseline;
     admitProjectExperienceRenderedStateV1({
       database_path: fixture.writable_database_path,
       manifest,
       admitted_at: new Date().toISOString(),
     });
+    const afterRenderedStateAdmission = semanticAuthorityCounts(
+      fixture.writable_database_path,
+    );
+    assert.deepEqual(afterRenderedStateAdmission, {
+      ...beforeRenderedStateAdmission,
+      episode_delta_proposal:
+        beforeRenderedStateAdmission.episode_delta_proposal +
+        manifest.rendered_state_inputs.proposal_list_supplements.length,
+    });
+    semanticAuthorityBaseline = afterRenderedStateAdmission;
     startRuntime(
       fixture.writable_database_path,
       manifest,
@@ -1039,7 +1287,7 @@ async function main() {
     );
     await validateDelegatedWorkViewports();
     result.delegated_work_narrow_viewport_no_overflow = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("delegated_work_narrow_viewport_no_overflow");
 
     await navigate(
       `${appOrigin}${manifest.rendered_state_inputs.result_ready.review_href}`,
@@ -1050,7 +1298,7 @@ async function main() {
     );
     await validateResultViewports();
     result.workbench_result_narrow_viewport_no_overflow = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("workbench_result_narrow_viewport_no_overflow");
 
     await navigate(
       `${appOrigin}${manifest.rendered_state_inputs.proposal_review.review_href}`,
@@ -1061,7 +1309,7 @@ async function main() {
     );
     await validateProposalViewports();
     result.proposal_review_narrow_viewport_no_overflow = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("proposal_review_narrow_viewport_no_overflow");
 
     await navigate(
       new URL(manifest.rendered_state_inputs.inspector.href, appOrigin).toString(),
@@ -1072,7 +1320,7 @@ async function main() {
     );
     await validateInspectorViewports();
     result.shared_inspector_narrow_viewport_no_overflow = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("shared_inspector_narrow_viewport_no_overflow");
     await validateProductShell({
       route: "/workbench/inspector",
       primaryZone: "ai-workplane",
@@ -1086,7 +1334,7 @@ async function main() {
       "emphasized project identity owner",
     );
     result.project_context_emphasized_owner = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("project_context_emphasized_owner");
     await validateProductShell({
       route: "/projects",
       primaryZone: "blank-state",
@@ -1095,21 +1343,21 @@ async function main() {
     await validateProductShellResponsive("/projects");
     await validateManagementSafetyKeyboardNavigation();
     result.management_safety_keyboard_navigation = true;
-    detailedAssertionCount += 1;
-    assert.equal(productShellRouteClassifications.length, 3);
+    completeDetailedField("management_safety_keyboard_navigation");
+    assert.equal(productShellRouteClassifications.length, 4);
     result.product_shell_route_classifications =
       productShellRouteClassifications;
-    detailedAssertionCount += 1;
-    assert.equal(productShellResponsiveResults.length, 6);
+    completeDetailedField("product_shell_route_classifications");
+    assert.equal(productShellResponsiveResults.length, 8);
     result.product_shell_responsive_results =
       productShellResponsiveResults;
-    detailedAssertionCount += 1;
+    completeDetailedField("product_shell_responsive_results");
     assert.equal(viewportResults.length, 26);
     result.viewport_results = viewportResults;
-    detailedAssertionCount += 1;
+    completeDetailedField("viewport_results");
     assert.deepEqual(viewportWarnings, []);
     result.viewport_warnings = viewportWarnings;
-    detailedAssertionCount += 1;
+    completeDetailedField("viewport_warnings");
     record("management_safety_reaches_visible_project_management_without_switching");
   });
 
@@ -1181,7 +1429,11 @@ async function main() {
         result[entry.name] = {
           status: response.status,
           redirected: response.status >= 300 && response.status < 400,
-          private_material: /(sha256:|task-context-packet:|episode-delta-proposal:|bootstrap token)/i.test(text)
+          private_material:
+            text.includes(${JSON.stringify(manifest.rendered_state_inputs.proposal_review.proposal_id)}) ||
+            text.includes(${JSON.stringify(manifest.rendered_state_inputs.proposal_review.proposal_fingerprint)}) ||
+            text.includes(${JSON.stringify(path.dirname(fixture.writable_database_path))}) ||
+            /(sha256:|task-context-packet:|episode-delta-proposal:|bootstrap token)/i.test(text)
         };
       }
       return result;
@@ -1195,9 +1447,9 @@ async function main() {
     }
     assert.deepEqual(databaseSnapshot(fixture.writable_database_path), before);
     result.retired_route_statuses = publicStatuses;
-    detailedAssertionCount += 1;
+    completeDetailedField("retired_route_statuses");
     result.retired_routes_non_mutating = true;
-    detailedAssertionCount += 1;
+    completeDetailedField("retired_routes_non_mutating");
     record("retired_native_host_transport_routes_return_non_mutating_404");
   }, {
     terminalRequestQuiet: false,
@@ -1213,18 +1465,18 @@ async function main() {
       (entry) => !expectedConsoleError(entry),
     );
     const unexpectedFailedRequests = failedRequests.filter(
-      (entry) =>
-        entry.error_text !== "net::ERR_ABORTED" &&
-        entry.error_text !== "net::ERR_INCOMPLETE_CHUNKED_ENCODING" &&
-        !entry.path?.includes("/_next/webpack-hmr"),
+      (entry) => !expectedFailedRequest(entry),
     );
     assert.deepEqual(pageErrors, []);
     assert.equal(knownHarnessConsoleWarnings.length <= 1, true);
     assert.deepEqual(unexpectedConsoleErrors, []);
     assert.deepEqual(unexpectedFailedRequests, []);
     assert.deepEqual(externalRequests, []);
-    assert.equal(detailedAssertionCount, 40);
-    assert.equal(semanticMarkers.length, 5);
+    detailedFieldCompletionOwner.assertExact();
+    assert.deepEqual(
+      new Set(semanticMarkers),
+      new Set(detailedFieldContract.marker_ids),
+    );
     assert.equal(
       requests.some((entry) => {
         const requestPath = entry.path ?? "";
@@ -1252,6 +1504,8 @@ async function main() {
     );
     result.unexpected_external_request_count = externalRequests.length;
     result.unexpected_console_failure_count = unexpectedConsoleErrors.length;
+    result.unexpected_page_failure_count = pageErrors.length;
+    result.unexpected_request_failure_count = unexpectedFailedRequests.length;
     result.known_harness_console_warning_count =
       knownHarnessConsoleWarnings.length;
     result.credential_private_material_boundary =
@@ -1838,17 +2092,69 @@ async function validateFirstWorkComposerViewports() {
     { width: 390, height: 844 },
   ]) {
     await setViewport(width, height);
-    const metrics = await responsiveMetrics(
-      "first_work_composer",
-      '[data-first-work-composer="project_work_initialization.v0.1"]',
-      true,
+    await waitForCondition(
+      `document.querySelector('[data-first-work-composer="project_work_initialization.v0.1"]') !== null && window.innerWidth === ${width}`,
+      "first-work composer responsive surface",
     );
-    assert.equal(metrics.document_horizontal_overflow, false);
-    assert.equal(metrics.surface_horizontal_overflow, false);
-    assert.equal(metrics.inside_viewport, true);
-    assert.equal(metrics.primary_navigation_count, 2);
-    assert.equal(metrics.primary_action_count, 1);
-    assert.equal(metrics.minimum_control_size, true);
+    const metrics = await evaluateJson(`(() => {
+      const composer = document.querySelector('[data-first-work-composer]');
+      const form = composer?.querySelector('form');
+      const controls = Array.from(form?.querySelectorAll('textarea, button') ?? []);
+      const visible = (element) => {
+        const rect = element?.getBoundingClientRect();
+        return Boolean(rect && rect.width > 0 && rect.height > 0);
+      };
+      const intersections = controls.flatMap((control, index) =>
+        controls.slice(index + 1).filter((candidate) => {
+          const left = control.getBoundingClientRect();
+          const right = candidate.getBoundingClientRect();
+          return Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 &&
+            Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1;
+        })
+      ).length;
+      const text = composer?.innerText ?? '';
+      return {
+        surface: 'first_work_composer',
+        width: window.innerWidth,
+        height: window.innerHeight,
+        document_overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        composer_overflow: (composer?.scrollWidth ?? 0) > (composer?.clientWidth ?? 0) + 1,
+        composer_inside_viewport: (() => {
+          const rect = composer?.getBoundingClientRect();
+          return Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1);
+        })(),
+        controls_visible: controls.length === 4 && controls.every(visible),
+        controls_minimum_size: window.innerWidth > 900 || controls.every((control) => {
+          const rect = control.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44;
+        }),
+        collision_count: intersections,
+        primary_action_count: composer?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        navigation_link_count: document.querySelectorAll('nav[aria-label="Primary navigation"] > a').length,
+        labels_exact: Array.from(form?.querySelectorAll('label') ?? []).map((label) => label.textContent?.trim()).join('|') === 'Goal|Success criteria|Out of scope',
+        protocol_copy_absent: !/(TaskContextPacket|RunReceipt|packet fingerprint|session id|operator nonce|first_work_definition)/i.test(text),
+        visible_development_overlay_absent: Array.from(document.querySelectorAll('nextjs-portal')).every((portal) => {
+          const rect = portal.getBoundingClientRect();
+          return rect.width === 0 || rect.height === 0;
+        })
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      surface: "first_work_composer",
+      width,
+      height,
+      document_overflow: false,
+      composer_overflow: false,
+      composer_inside_viewport: true,
+      controls_visible: true,
+      controls_minimum_size: true,
+      collision_count: 0,
+      primary_action_count: 1,
+      navigation_link_count: 2,
+      labels_exact: true,
+      protocol_copy_absent: true,
+      visible_development_overlay_absent: true,
+    });
     viewportResults.push(metrics);
   }
   await setViewport(1440, 1000);
@@ -1880,15 +2186,55 @@ async function validateProjectHomeViewports(state) {
 async function validateDelegatedWorkViewports() {
   for (const width of [390, 430]) {
     await setViewport(width, 1000);
-    const metrics = await responsiveMetrics(
-      "delegated_work",
-      '[data-delegated-work="delegated_work_projection.v0.1"]',
-      true,
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]') !== null && window.innerWidth === ${width}`,
+      "delegated work responsive surface",
     );
-    assert.equal(metrics.document_horizontal_overflow, false);
-    assert.equal(metrics.surface_horizontal_overflow, false);
-    assert.equal(metrics.primary_navigation_count, 2);
-    assert.equal(metrics.minimum_control_size, true);
+    const metrics = await evaluateJson(`(() => {
+      const panel = document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]');
+      const heading = panel?.querySelector('h2');
+      const primary = panel?.querySelector('[data-ai-workplane-primary-action]');
+      const navigation = document.querySelector('nav[aria-label="Primary navigation"]');
+      const visible = (element) => {
+        const rect = element?.getBoundingClientRect();
+        return Boolean(rect && rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight);
+      };
+      const primaryRect = primary?.getBoundingClientRect();
+      return {
+        surface: 'delegated_work',
+        width: window.innerWidth,
+        height: window.innerHeight,
+        document_horizontal_overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        panel_horizontal_overflow: (panel?.scrollWidth ?? 0) > (panel?.clientWidth ?? 0) + 1,
+        heading_visible: visible(heading),
+        primary_visible: visible(primary),
+        primary_count: panel?.querySelectorAll('[data-ai-workplane-primary-action]').length ?? 0,
+        semantic_primary_count: panel?.querySelectorAll('[data-augnes-primary-action]').length ?? 0,
+        primary_within_first_scroll: Boolean(primaryRect) && primaryRect.top >= -1 && primaryRect.top <= window.innerHeight * 2,
+        primary_touch_target: Boolean(primaryRect) && primaryRect.height >= 40,
+        independent_surface_count: panel?.querySelectorAll('[data-augnes-independent-surface]').length ?? 0,
+        state_badge_count: panel?.closest('[data-ai-workplane-shell]')?.querySelectorAll('[data-augnes-state-badge]').length ?? 0,
+        navigation_link_count: navigation?.querySelectorAll(':scope > a').length ?? 0,
+        timeline_semantic: panel?.querySelector('ol[aria-label="Delegated Codex work progress"]') !== null
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      surface: "delegated_work",
+      width,
+      height: 1000,
+      document_horizontal_overflow: false,
+      panel_horizontal_overflow: false,
+      heading_visible: true,
+      primary_visible: true,
+      primary_count: 1,
+      semantic_primary_count: 1,
+      primary_within_first_scroll: true,
+      primary_touch_target: true,
+      independent_surface_count: 0,
+      state_badge_count: 5,
+      navigation_link_count: 2,
+      timeline_semantic: true,
+    });
     viewportResults.push(metrics);
   }
   await setViewport(1440, 1000);
@@ -2089,32 +2435,67 @@ async function responsiveMetrics(surface, selector, primaryActionExpected) {
 
 async function validateProductShell({ route, primaryZone, projectContextRequired }) {
   await waitForCondition(
-    `document.querySelector('.product-shell[data-primary-product-zone=${JSON.stringify(primaryZone)}]') !== null && document.querySelectorAll('nav[aria-label="Primary navigation"] > a').length === 2`,
-    `${route} ProductShell`,
+    `Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] > a')).filter((link) => { const rect = link.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; }).length === 2`,
+    `two visible primary destinations for ${route}`,
+  );
+  await waitForCondition(
+    `Array.from(document.querySelectorAll('.product-shell')).some((candidate) => candidate.getAttribute('data-primary-product-zone') === ${JSON.stringify(primaryZone)} && candidate.getAttribute('data-product-utility-context') === 'none' && ${projectContextRequired ? "['Current project', 'Viewed project'].includes(candidate.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label'))" : "true"})`,
+    `classified ProductShell for ${route}`,
   );
   const shell = await evaluateJson(`(() => {
-    const root = document.querySelector('.product-shell[data-primary-product-zone=${JSON.stringify(primaryZone)}]');
-    const links = Array.from(root?.querySelectorAll('nav[aria-label="Primary navigation"] > a') ?? []);
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const roots = Array.from(document.querySelectorAll('.product-shell'));
+    const root = roots.find((candidate) =>
+      candidate.getAttribute('data-primary-product-zone') === ${JSON.stringify(primaryZone)} &&
+      candidate.getAttribute('data-product-utility-context') === 'none' &&
+      ${projectContextRequired ? "candidate.querySelector('[data-project-context-label]') !== null" : "true"}
+    ) ?? null;
+    const primary = root?.querySelector('nav[aria-label="Primary navigation"]');
+    const primaryLinks = Array.from(primary?.querySelectorAll(':scope > a') ?? []);
     return {
       route: ${JSON.stringify(route)},
       primary_zone: root?.getAttribute('data-primary-product-zone'),
       utility_context: root?.getAttribute('data-product-utility-context'),
-      labels: links.map((link) => link.querySelector('strong')?.textContent?.trim()),
-      hrefs: links.map((link) => link.getAttribute('href')),
-      current_count: links.filter((link) => link.getAttribute('aria-current') === 'page').length,
-      project_context: root?.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label') ?? null,
-      global_utility_links: Array.from(root?.querySelectorAll('header a') ?? []).filter((link) => ['/projects', '/portability', '/recovery'].includes(link.getAttribute('href') ?? '')).length
+      brand_href: root?.querySelector('.product-brand')?.getAttribute('href') ?? null,
+      primary_label: primary?.getAttribute('aria-label') ?? null,
+      primary_links: primaryLinks.map((link) => ({
+        label: link.querySelector('strong')?.textContent?.trim() ?? '',
+        href: link.getAttribute('href'),
+        current: link.getAttribute('aria-current')
+      })),
+      project_tools_count: root?.querySelectorAll('details.product-project-tools, nav[aria-label="Project tools"]').length ?? -1,
+      visible_primary_link_count: Array.from(document.querySelectorAll('nav[aria-label="Primary navigation"] > a')).filter(visible).length,
+      global_utility_link_count: Array.from(root?.querySelectorAll('header a') ?? []).filter((link) => ['/projects', '/portability', '/recovery'].includes(link.getAttribute('href') ?? '')).length,
+      project_context_label: root?.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label') ?? null
     };
   })()`);
-  assert.deepEqual(shell.labels, ["Continuities", "AI Workplane"]);
-  assert.deepEqual(shell.hrefs, ["/", "/workbench/semantic-review"]);
   assert.equal(shell.primary_zone, primaryZone);
   assert.equal(shell.utility_context, "none");
-  assert.equal(shell.current_count, 1);
-  assert.equal(shell.global_utility_links, 0);
+  assert.equal(shell.brand_href, "/");
+  assert.equal(shell.primary_label, "Primary navigation");
+  assert.deepEqual(shell.primary_links, [
+    {
+      label: "Continuities",
+      href: "/",
+      current: primaryZone === "blank-state" ? "page" : null,
+    },
+    {
+      label: "AI Workplane",
+      href: "/workbench/semantic-review",
+      current: primaryZone === "ai-workplane" ? "page" : null,
+    },
+  ]);
+  assert.equal(shell.visible_primary_link_count, 2);
+  assert.equal(shell.project_tools_count, 0);
+  assert.equal(shell.global_utility_link_count, 0);
   if (projectContextRequired) {
     assert.equal(
-      ["Current project", "Viewed project"].includes(shell.project_context),
+      ["Current project", "Viewed project"].includes(
+        shell.project_context_label,
+      ),
       true,
     );
   }
@@ -2135,6 +2516,7 @@ async function validateProductShellResponsive(route) {
           const rect = link.getBoundingClientRect();
           return rect.width > 0 && rect.height >= 40 && rect.left >= -1 && rect.right <= window.innerWidth + 1;
         }),
+        project_tools_count: document.querySelectorAll('details.product-project-tools, nav[aria-label="Project tools"]').length,
         primary_labels: links.map((link) => link.querySelector('strong')?.textContent?.trim())
       };
     })()`);
@@ -2144,6 +2526,7 @@ async function validateProductShellResponsive(route) {
       document_horizontal_overflow: false,
       primary_link_count: 2,
       primary_links_visible: true,
+      project_tools_count: 0,
       primary_labels: ["Continuities", "AI Workplane"],
     });
     productShellResponsiveResults.push(metrics);
@@ -2357,13 +2740,92 @@ function documentStatusSince(startIndex, pathname) {
 
 function expectedConsoleError(entry) {
   if (expectedManagementSafetyHydrationWarning(entry)) return true;
-  if (/favicon\.ico|401 \(Unauthorized\)|404 \(Not Found\)|409 \(Conflict\)/iu.test(entry.text)) {
-    return true;
+  const expectedStatus = [
+    [401, "Unauthorized"],
+    [404, "Not Found"],
+    [405, "Method Not Allowed"],
+    [409, "Conflict"],
+  ].find(([status, label]) =>
+    entry.text.includes(`${status} (${label})`),
+  )?.[0];
+  if (!Number.isInteger(expectedStatus)) return false;
+  return responses.some(
+    (response) =>
+      response.phase === entry.phase &&
+      response.status === expectedStatus &&
+      expectedStatusResponseIdentity(response),
+  );
+}
+
+function expectedStatusResponseIdentity(response) {
+  if (
+    response.status === 409 &&
+    ["project_onboarding_and_naming", "project_home_lifecycle_presentation"].includes(
+      response.phase,
+    )
+  ) {
+    return response.path === "/api/vnext/projects" && response.method === "POST";
   }
-  if (/ERR_INCOMPLETE_CHUNKED_ENCODING|ERR_CONNECTION_REFUSED|webpack-hmr/iu.test(entry.text)) {
-    return true;
+  if (
+    response.status === 401 &&
+    ["project_shell_and_locked_entry", "rendered_state_responsive_matrix"].includes(
+      response.phase,
+    )
+  ) {
+    return [
+      "/api/vnext/operator/session",
+      "/api/vnext/operator/host-round-trip",
+      "/api/vnext/operator/inspector",
+      "/api/vnext/operator/semantic-review",
+    ].includes(response.path);
+  }
+  if (
+    [404, 405].includes(response.status) &&
+    response.phase === "retired_route_safety"
+  ) {
+    return [
+      "/api/vnext/operator/packet-handoff",
+      "/api/vnext/operator/later-result",
+      "/api/intake/codex-result-report/records",
+      "/api/augnes/read/handoff-capsule",
+      "/api/augnes/read/codex-launch-card",
+      "/api/handoffs/generate",
+      "/api/handoffs/review",
+      "/api/workplane/handoff-packet-copy-exports",
+      "/workbench/semantic-review/packet-handoff/retired",
+    ].includes(response.path);
   }
   return false;
+}
+
+function expectedFailedRequest(entry) {
+  if (
+    entry.path === "/_next/webpack-hmr" &&
+    ["net::ERR_ABORTED", "net::ERR_CONNECTION_REFUSED"].includes(
+      entry.error_text,
+    )
+  ) {
+    return true;
+  }
+  if (
+    !["net::ERR_ABORTED", "net::ERR_INCOMPLETE_CHUNKED_ENCODING"].includes(
+      entry.error_text,
+    )
+  ) {
+    return false;
+  }
+  const phasePaths = {
+    project_onboarding_and_naming: ["/", "/projects"],
+    project_shell_and_locked_entry: ["/workbench", "/workbench/semantic-review", "/workbench/inspector"],
+    responsive_first_work_presentation: ["/workbench/semantic-review"],
+    project_home_lifecycle_presentation: ["/", "/projects"],
+    rendered_state_responsive_matrix: ["/workbench/semantic-review", "/workbench/inspector", "/projects"],
+  };
+  return (phasePaths[entry.phase] ?? []).some(
+    (expectedPath) =>
+      entry.path === expectedPath ||
+      (expectedPath === "/projects" && entry.path?.startsWith("/projects/")),
+  );
 }
 
 function expectedManagementSafetyHydrationWarning(entry) {
@@ -2509,6 +2971,10 @@ function recordLongWait(kind, label, startedAt) {
 function record(id) {
   assert.equal(semanticMarkers.includes(id), false, `duplicate_marker:${id}`);
   semanticMarkers.push(id);
+}
+
+function completeDetailedField(id) {
+  detailedFieldCompletionOwner.complete(id);
 }
 
 function safeError(error) {

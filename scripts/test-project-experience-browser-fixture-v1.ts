@@ -11,6 +11,10 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import { readDelegatedWorkProjectionV01 } from "../lib/vnext/delegated-work/delegated-work-source";
+import { LiveNativeHostRunServiceV01 } from "../lib/vnext/runtime/live-native-host-run-service";
+import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
+
 import {
   PROJECT_EXPERIENCE_FIXTURE_VERSION_V1,
   PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
@@ -72,6 +76,22 @@ async function main() {
       fixture.manifest.rendered_state_inputs.inspector.href,
       /^\/workbench\/inspector\?target=episode_delta_proposal&/u,
     );
+    assert.equal(
+      fixture.manifest.rendered_state_inputs.delegated_work.run_id,
+      PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1,
+    );
+    assert.equal(
+      fixture.manifest.rendered_state_inputs.delegated_work.status,
+      "paused",
+    );
+    assert.equal(
+      fixture.manifest.rendered_state_inputs.delegated_work.execution_capable,
+      false,
+    );
+    assert.equal(
+      fixture.manifest.rendered_state_inputs.proposal_list_supplements.length,
+      2,
+    );
 
     const sourceBeforeAdmission = sha256(fixture.source_database_path);
     const admitted = admitProjectExperienceRenderedStateV1({
@@ -101,6 +121,10 @@ async function main() {
     });
     try {
       assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+      assert.equal(
+        validateRecoveryCanonicalDatabaseV01(database).status,
+        "valid",
+      );
       const run = database
         .prepare(
           "SELECT scope, status, metadata_json FROM autonomy_runs WHERE run_id = ?",
@@ -111,11 +135,64 @@ async function main() {
         metadata_json: string;
       };
       assert.equal(run.scope, fixture.manifest.project_id);
-      assert.equal(run.status, "running");
+      assert.equal(run.status, "paused");
+      const metadata = JSON.parse(run.metadata_json) as Record<string, unknown>;
       assert.deepEqual(
-        JSON.parse(run.metadata_json),
-        expectPresentationMetadata(JSON.parse(run.metadata_json)),
+        metadata,
+        expectPresentationMetadata(metadata),
       );
+      assert.equal(metadata.lifecycle_mode, "managed_live");
+      assert.equal(metadata.reconciliation_required, true);
+      assert.equal(Object.hasOwn(metadata, "packet_id"), false);
+      assert.equal(Object.hasOwn(metadata, "packet_fingerprint"), false);
+      assert.equal(Object.hasOwn(metadata, "root_fingerprint"), false);
+      const eventCount = Number(
+        (
+          database
+            .prepare(
+              "SELECT COUNT(*) AS count FROM autonomy_run_events WHERE run_id = ?",
+            )
+            .get(PROJECT_EXPERIENCE_PRESENTATION_RUN_ID_V1) as { count: number }
+        ).count,
+      );
+      assert.equal(eventCount, 2);
+      for (const supplement of fixture.manifest.rendered_state_inputs
+        .proposal_list_supplements) {
+        const row = database
+          .prepare(
+            `SELECT fingerprint
+               FROM vnext_core_records
+              WHERE record_kind = 'episode_delta_proposal'
+                AND record_id = ?`,
+          )
+          .get(supplement.proposal_id) as { fingerprint: string } | undefined;
+        assert.equal(row?.fingerprint, supplement.proposal_fingerprint);
+      }
+      const operatorConfig = {
+        enabled: true as const,
+        workspace_id: fixture.manifest.workspace_id,
+        project_id: fixture.manifest.project_id,
+        operator_id: fixture.manifest.operator_id,
+        database_path: fixture.writable_database_path,
+      };
+      const liveService = new LiveNativeHostRunServiceV01({
+        open_database: () =>
+          new Database(fixture.writable_database_path, {
+            fileMustExist: true,
+          }),
+        now: () => "2026-08-01T00:00:02.000Z",
+      });
+      const liveRun = liveService.read(operatorConfig);
+      assert.equal(liveRun.status, "paused");
+      const delegated = readDelegatedWorkProjectionV01(database, {
+        config: operatorConfig,
+        live_run: liveRun,
+        now: () => "2026-08-01T00:00:02.000Z",
+      });
+      assert.equal(delegated.stage, "resume_required");
+      assert.equal(delegated.next_action.kind, "resume_codex_work");
+      assert.equal(delegated.timeline.length, 2);
+      assert.equal(delegated.can_cancel, false);
     } finally {
       database.close();
     }

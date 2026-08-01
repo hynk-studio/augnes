@@ -156,7 +156,7 @@ calls; `recordLongWait` has one declaration and six direct calls; `timing` has
 one declaration, 27 direct tracked-method calls, and one supported
 `timing.summary()` reference.
 
-The dependency-free contract contains 52 synthetic negative fixtures covering
+The dependency-free contract contains 57 synthetic negative fixtures covering
 the refusal matrix below:
 
 | Unsupported form | Contract result |
@@ -175,6 +175,7 @@ the refusal matrix below:
 | Computed timing kind or milestone | fail |
 | Aliased timing object, extracted/bound method, optional call, or bracket/computed method | fail |
 | Noncanonical validation-scope declaration | fail |
+| Computed, alternate-quote, aliased, or duplicate detailed-field completion | fail |
 
 The harness SHA-256 remains a broad whole-source change tripwire. A SHA change
 is not coverage classification, and updating the stored SHA alone can never
@@ -217,7 +218,7 @@ fields, and five semantic markers:
 | `retired_route_safety` | 2 | 1 |
 | `responsive_product_shell` | 12 | 1 |
 
-The fail-closed static profile extracts one validation scope, 83 classified
+The fail-closed static profile extracts one validation scope, 87 classified
 top-level output fields, five literal markers, seven phase calls over seven
 phase identifiers, 12 timing kinds, and two milestones from the new source.
 The contract rejects foreign operator/execution or continuity detailed fields,
@@ -226,15 +227,71 @@ to have one classification, verifies the command/suite/source binding and
 resource declarations, and records the old core coverage as temporary shadow
 rather than a second primary owner.
 
+### Field-keyed completion and semantic equivalence
+
+Detailed completion is no longer an integer counter. The child loads the exact
+40-field owner set from the inventory, records each successful assertion as
+`completeDetailedField("literal_field_id")`, refuses duplicate or foreign
+fields, and requires exact final set equality. The bounded static extractor
+allows only that canonical double-quoted direct-call grammar and its one exact
+function declaration. Computed IDs, aliases, alternate quotes, indirect calls,
+duplicate call sites, missing fields, and foreign-owner fields fail the
+contract. The successful result exposes the sorted completed IDs and their
+SHA-256 set fingerprint.
+
+The inventory's `detailed_field_equivalence` array is the exact 40-row
+legacy/new map. Every row binds its coverage family, legacy phase and source
+anchor, new-shard phase and source anchor, externally observable invariant,
+fixture difference, exact-or-stronger status, mechanism justification, and
+runtime value contract. Thirty-eight rows are exact; the management keyboard
+and inspectable viewport collection rows are deliberately stronger without
+weakening the legacy shadow.
+
+In particular, `guide_brief_cross_surface_consistency` once again requires the
+complete legacy invariant: ChatGPT and Codex agree on goal, constraints, and
+judgment; AI Workplane and both host projections agree on human attention; and
+the Blank State and AI Workplane GuideBrief project, focus, authority, and
+projection identities agree. Locked-shell shape or private-material absence
+alone cannot complete that field.
+
+The final-value gate is also field-aware. Boolean details must be exactly
+`true`; the onboarding destination must be a canonical project route; unknown
+Project Home status must meet the exact accepted status contract; retired
+routes must equal the complete nine-route matrix; ProductShell route and
+responsive results must equal their four-route/eight-entry matrices; viewport
+results must equal the exact 26-entry surface/viewport matrix; and viewport
+warnings must be empty.
+
+### Staged success, cleanup, and outer child acceptance
+
+The child keeps `ok: false` throughout functional execution and cleanup. It
+then finalizes result, timing, resource, and cleanup evidence and evaluates one
+success gate. Only that gate may set `ok: true`. It requires the exact 40-field
+completion set, all five markers, exact value predicates, zero unexpected
+external requests or console/page/request failures, credential and
+private-material safety, no execution or authority-bearing effects, complete
+runtime and Chrome/CDP shutdown, closed owned streams, zero owned process and
+listener residue, removal of every temporary/profile/database/fixture/picker
+root, and total duration below `360000ms`. Failure remains public-safe, exits
+nonzero, and preserves all cleanup evidence that could be finalized.
+
+The Canonical suite marks only `e2e-project-experience` as requiring exact
+natural exit. Its outer acceptance rejects timeout, nonzero exit, absent exit
+observation, open streams, incomplete cleanup, remaining owned processes, and
+both descendant-cleanup termination modes. Synthetic runner tests cover every
+refusal. Unrelated legacy suites retain their established acceptance behavior.
+
 The result contract identifies the validation owner and fixture version and
 fingerprints; preserves the exact 40 legacy field names and meanings; emits
 route, viewport, ProductShell, request/response/console, timing, cleanup, and
 failure material; and separates product behavior from infrastructure
-invariants. The raw console ledger also counts one narrowly identified
-harness-induced React diagnostic when Chrome restores the deliberately opened
-`data-management-safety` disclosure during the keyboard fragment proof. That
-diagnostic remains visible as `known_harness_console_warning_count`; every
-other console error remains unexpected and fails the child.
+invariants. The raw console ledger permits at most one narrowly identified,
+phase-and-signature-bounded React diagnostic if Chrome restores the
+deliberately opened `data-management-safety` disclosure during the keyboard
+fragment proof. Any such diagnostic remains visible as
+`known_harness_console_warning_count`; every other console error remains
+unexpected and fails the child. The finalized correction run observed zero
+such warnings.
 
 The legacy `e2e-core` path remains byte-for-byte unchanged and continues to
 own its complete 221-field, 101-marker output surface during the migration.
@@ -520,9 +577,10 @@ limit.
 
 The policy forbids equal-duration-half sharding, pass-chasing retries,
 arbitrary sleeps, assertion weakening, and automatic timeout widening. VFY1-B
-changes no legacy timeout. The finalized focused child exited naturally in
-`109758ms` through the Canonical child runner, leaving `370242ms` against the
-unchanged `480000ms` reference bound and `250242ms` against its `360000ms`
+changes no legacy timeout. The finalized correction run completed its inner
+child in `101030ms` and exited naturally through the Canonical child runner in
+`111490ms`. The inner child therefore retained `378970ms` against the
+unchanged `480000ms` reference bound and `258970ms` against its `360000ms`
 acceptance bound. Its result separately attributes fixture construction,
 runtime startup, Chrome/CDP startup, seven semantic phases, navigation,
 request quiet, runtime shutdown, Chrome/CDP shutdown, global cleanup, stream

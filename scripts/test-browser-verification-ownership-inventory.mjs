@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { extractBrowserVerificationStaticMetadata } from "./browser-verification-static-metadata.mjs";
+import {
+  extractBrowserDetailedFieldCompletionMetadata,
+  extractBrowserVerificationStaticMetadata,
+} from "./browser-verification-static-metadata.mjs";
 
 const source = readFileSync(
   new URL("./browser-validate-vnext-native-host-result-v0-1.mjs", import.meta.url),
@@ -23,6 +26,8 @@ const projectExperienceSource = readFileSync(
 );
 const projectExperienceMetadata =
   extractBrowserVerificationStaticMetadata(projectExperienceSource);
+const projectExperienceCompletionMetadata =
+  extractBrowserDetailedFieldCompletionMetadata(projectExperienceSource);
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
@@ -89,6 +94,26 @@ function assertUnsupported(label, fixtureSource, expectedCode) {
     label,
   );
   negativeFixtureCount += 1;
+}
+
+function assertUnsupportedCompletion(label, fixtureSource, expectedCode) {
+  assert.throws(
+    () => extractBrowserDetailedFieldCompletionMetadata(fixtureSource),
+    (error) => {
+      assert.equal(error?.code, expectedCode, label);
+      return true;
+    },
+    label,
+  );
+  negativeFixtureCount += 1;
+}
+
+function syntheticCompletionSource() {
+  return [
+    "function completeDetailedField(id) { return id; }",
+    'completeDetailedField("field_one");',
+    'completeDetailedField("field_two");',
+  ].join("\n");
 }
 
 const supportedFixtureSource = syntheticHarnessSource();
@@ -372,6 +397,59 @@ for (const [label, replacement] of [
     "browser_verification_sensitive_reference_unsupported",
   );
 }
+
+const supportedCompletionSource = syntheticCompletionSource();
+assert.deepEqual(
+  extractBrowserDetailedFieldCompletionMetadata(supportedCompletionSource),
+  {
+    completion_ids: ["field_one", "field_two"],
+    raw_call_count: 2,
+    sensitive_reference_counts: {
+      canonical_declaration: 1,
+      canonical_direct_call: 2,
+      supported_non_extraction_reference: 0,
+    },
+  },
+);
+for (const [label, replacement, expectedCode] of [
+  [
+    "computed detailed completion ID",
+    'const fieldId = "field_one";\ncompleteDetailedField(fieldId);',
+    "browser_verification_complete_detailed_field_argument_unsupported",
+  ],
+  [
+    "single-quoted detailed completion ID",
+    "completeDetailedField('field_one');",
+    "browser_verification_complete_detailed_field_argument_unsupported",
+  ],
+  [
+    "template detailed completion ID",
+    "completeDetailedField(`field_one`);",
+    "browser_verification_complete_detailed_field_argument_unsupported",
+  ],
+  [
+    "aliased detailed completion owner",
+    'const complete = completeDetailedField;\ncomplete("field_one");',
+    "browser_verification_detailed_completion_reference_unsupported",
+  ],
+]) {
+  assertUnsupportedCompletion(
+    label,
+    supportedCompletionSource.replace(
+      'completeDetailedField("field_one");',
+      replacement,
+    ),
+    expectedCode,
+  );
+}
+assertUnsupportedCompletion(
+  "duplicate detailed completion ID",
+  supportedCompletionSource.replace(
+    'completeDetailedField("field_two");',
+    'completeDetailedField("field_one");',
+  ),
+  "browser_verification_detailed_completion_duplicate",
+);
 assertUnsupported(
   "computed timing kind",
   supportedFixtureSource.replace(
@@ -857,6 +935,57 @@ assert.equal(projectDetailedFields.length, 40);
 assert.equal(projectDetailedMarkers.length, 5);
 assert.equal(projectDetailedFields.length, new Set(projectDetailedFields).size);
 assert.equal(projectDetailedMarkers.length, new Set(projectDetailedMarkers).size);
+assert.equal(projectImplementation.detailed_field_equivalence.length, 40);
+assert.deepEqual(
+  new Set(
+    projectImplementation.detailed_field_equivalence.map(
+      (entry) => entry.detailed_field_id,
+    ),
+  ),
+  new Set(projectDetailedFields),
+);
+for (const entry of projectImplementation.detailed_field_equivalence) {
+  assert.equal(
+    projectExperienceShard.detailed_family_ids.includes(entry.coverage_family),
+    true,
+    entry.detailed_field_id,
+  );
+  assert.match(entry.legacy_source_phase, /\S/u, entry.detailed_field_id);
+  assert.match(entry.new_shard_source_phase, /\S/u, entry.detailed_field_id);
+  assert.match(entry.invariant, /\S/u, entry.detailed_field_id);
+  assert.match(entry.fixture_differences, /\S/u, entry.detailed_field_id);
+  assert.match(
+    entry.changed_mechanism_justification,
+    /\S/u,
+    entry.detailed_field_id,
+  );
+  assert.equal(
+    ["exact", "deliberately_stronger"].includes(entry.equivalence),
+    true,
+    entry.detailed_field_id,
+  );
+  assert.equal(
+    source.includes(entry.legacy_source_anchor),
+    true,
+    `legacy_anchor:${entry.detailed_field_id}`,
+  );
+  assert.equal(
+    projectExperienceSource.includes(entry.new_shard_source_anchor),
+    true,
+    `new_anchor:${entry.detailed_field_id}`,
+  );
+}
+assert.deepEqual(
+  new Set(projectExperienceCompletionMetadata.completion_ids),
+  new Set(projectDetailedFields),
+);
+assert.equal(projectExperienceCompletionMetadata.raw_call_count, 40);
+assert.equal(projectExperienceCompletionMetadata.completion_ids.length, 40);
+assert.deepEqual(projectExperienceCompletionMetadata.sensitive_reference_counts, {
+  canonical_declaration: 1,
+  canonical_direct_call: 40,
+  supported_non_extraction_reference: 0,
+});
 assert.equal(
   projectImplementation.detailed_field_count,
   projectDetailedFields.length,
@@ -919,7 +1048,7 @@ assert.equal(
   projectImplementation.total_output_field_count,
   projectExperienceMetadata.output_result_fields.length,
 );
-assert.equal(projectExperienceMetadata.output_result_fields.length, 83);
+assert.equal(projectExperienceMetadata.output_result_fields.length, 87);
 assert.equal(projectExperienceMetadata.raw_call_counts.record, 5);
 assert.equal(projectExperienceMetadata.raw_call_counts.run_phase, 7);
 assert.equal(projectExperienceMetadata.phase_ids.length, 7);
@@ -933,7 +1062,7 @@ assert.match(
 );
 assert.match(
   canonicalSuiteSource,
-  /rootNode\("scripts\/browser-validate-project-experience-v1\.mjs"\),\n\s+timeoutMs: 360_000,/u,
+  /rootNode\("scripts\/browser-validate-project-experience-v1\.mjs"\),\n\s+timeoutMs: 360_000,\n\s+requireNaturalExit: true,/u,
 );
 for (const requiredResource of resourceProfiles.future_independent_shard
   .required_resources) {
@@ -955,6 +1084,12 @@ for (const forbiddenResource of resourceProfiles.future_independent_shard
 }
 assert.equal(projectImplementation.legacy_core_shadow.retained, true);
 assert.equal(projectImplementation.legacy_core_shadow.second_primary_owner, false);
+assert.equal(projectImplementation.completion_contract.duplicate_refusal, true);
+assert.equal(projectImplementation.completion_contract.foreign_owner_refusal, true);
+assert.equal(projectImplementation.completion_contract.missing_field_refusal, true);
+assert.equal(projectImplementation.completion_contract.exact_set_required, true);
+assert.equal(projectImplementation.completion_contract.natural_exit_required, true);
+assert.equal(projectImplementation.completion_contract.success_after_cleanup_only, true);
 assert.equal(projectImplementation.planner_selected, false);
 assert.equal(projectImplementation.receipt_aggregated, false);
 assert.equal(projectImplementation.planner_receipt_semantics_changed, false);
@@ -1082,7 +1217,7 @@ assert.equal(
   true,
 );
 assert.equal(inventory.non_goals.length >= 6, true);
-assert.equal(negativeFixtureCount, 52);
+assert.equal(negativeFixtureCount, 57);
 
 process.stdout.write(
   `${JSON.stringify({

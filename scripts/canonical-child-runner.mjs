@@ -334,6 +334,56 @@ export function canonicalChildFailure(result, { suite, timeoutMs }) {
   return error;
 }
 
+export function canonicalChildAcceptanceFailure(
+  result,
+  { suite, timeoutMs, requireNaturalExit = false },
+) {
+  if (
+    result?.timed_out === true ||
+    result?.spawn_error_code ||
+    result?.exit_code !== 0
+  ) {
+    return canonicalChildFailure(result, { suite, timeoutMs });
+  }
+  if (!requireNaturalExit) return null;
+  const lifecycleIssue = [
+    [
+      result?.termination_reason !== "natural_exit",
+      "termination_not_natural",
+    ],
+    [result?.exit_observed !== true, "exit_not_observed"],
+    [result?.streams_closed !== true, "streams_not_closed"],
+    [result?.cleanup_completed !== true, "cleanup_incomplete"],
+    [result?.remaining_owned_processes !== 0, "owned_process_residue"],
+  ].find(([failed]) => failed)?.[1];
+  if (!lifecycleIssue) return null;
+  const safeSuite = safeIdentifier(suite, "unknown");
+  const safeLabel = safeText(result?.label, "unnamed child");
+  const error = new Error(
+    `canonical child natural-exit contract failed: suite=${safeSuite} label=${safeLabel} issue=${lifecycleIssue}`,
+  );
+  error.code = "canonical_child_natural_exit_required";
+  error.canonicalResult = {
+    label: safeLabel,
+    exit_code: result?.exit_code ?? null,
+    timed_out: result?.timed_out === true,
+    exit_observed: result?.exit_observed === true,
+    streams_closed: result?.streams_closed === true,
+    cleanup_completed: result?.cleanup_completed === true,
+    remaining_owned_processes: Number.isInteger(
+      result?.remaining_owned_processes,
+    )
+      ? result.remaining_owned_processes
+      : null,
+    termination_reason: safeIdentifier(
+      result?.termination_reason,
+      "unknown",
+    ),
+    issue: lifecycleIssue,
+  };
+  return error;
+}
+
 function safeIdentifier(value, fallback) {
   return typeof value === "string" && /^[a-zA-Z0-9_.:-]{1,80}$/.test(value)
     ? value
