@@ -1,31 +1,38 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+
+import {
+  extractBrowserVerificationStaticMetadata,
+  hashStringInventory,
+} from "./browser-verification-static-metadata.mjs";
 
 const source = readFileSync(
   new URL("./browser-validate-vnext-native-host-result-v0-1.mjs", import.meta.url),
   "utf8",
 );
-const resultStart = source.indexOf("const result = {");
-const resultEnd = source.indexOf("\n};", resultStart);
-assert(resultStart >= 0 && resultEnd > resultStart);
-const resultKeys = [...source.slice(resultStart, resultEnd).matchAll(/^  ([a-z0-9_]+):/gmu)]
-  .map((match) => match[1]);
-const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
-  .map((match) => match[1]);
+const metadata = extractBrowserVerificationStaticMetadata(source);
+const resultKeys = metadata.declared_result_fields;
+const outputResultKeys = metadata.output_result_fields;
+const recordNames = metadata.record_markers;
 assert.equal(resultKeys.length, new Set(resultKeys).size);
+assert.equal(outputResultKeys.length, new Set(outputResultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
 assert.equal(resultKeys.length, 204);
-assert.equal(recordNames.length, 99);
+assert.equal(outputResultKeys.length, 221);
+assert.equal(recordNames.length, 101);
 assert.equal(
-  hashInventory(resultKeys),
+  hashStringInventory(resultKeys),
   "ca9f940d6f000fdaf132e34f22f6fff7892c595a71c557dc8b4f0a096ee3218b",
 );
 assert.equal(
-  hashInventory(recordNames),
-  "ea74434806ffb6a3d7adb72756433716acfd89cee8715c2d010db9f202bc4605",
+  hashStringInventory(outputResultKeys),
+  "0cecf44c0d9802260b2369346155ca5ee7165d9ee59482b7e5af46db0d937c1d",
+);
+assert.equal(
+  hashStringInventory(recordNames),
+  "47cfd8bacb9dd92a65983c21a8a41bb3e072cc06f65bdf528133e7f2431e804d",
 );
 for (const marker of [
   "mixed_return_target_captured_from_exact_mutated_proposal",
@@ -539,14 +546,11 @@ process.stdout.write(
   `${JSON.stringify({
     test: "browser-e2e-harness-contract",
     status: "pass",
-    result_flags: resultKeys.length,
+    declared_result_flags: resultKeys.length,
+    result_fields: outputResultKeys.length,
+    dynamically_declared_result_fields:
+      metadata.dynamically_declared_result_fields.length,
     record_names: recordNames.length,
     final_request_quiet: true,
   })}\n`,
 );
-
-function hashInventory(values) {
-  return createHash("sha256")
-    .update(JSON.stringify([...values].sort()))
-    .digest("hex");
-}

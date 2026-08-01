@@ -132,6 +132,12 @@ const suites = {
       label: "browser E2E responsibility and quiet-policy contract",
       ...rootNode("scripts/test-browser-e2e-harness-contract.mjs"),
     },
+    {
+      label: "browser verification ownership inventory contract",
+      ...rootNode(
+        "scripts/test-browser-verification-ownership-inventory.mjs",
+      ),
+    },
   ],
   integration: [
     {
