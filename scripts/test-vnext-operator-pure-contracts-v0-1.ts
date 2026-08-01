@@ -148,6 +148,20 @@ const blankStateShell = renderToStaticMarkup(
     },
   ),
 );
+const actionableProjectContextShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: "blank-state",
+      projectContext: {
+        label: "Current project",
+        name: "Shell contract project",
+        managementHref: "#project-settings",
+      },
+      children: createElement("main", null, "Managed Blank State route"),
+    },
+  ),
+);
 const aiWorkplaneShell = renderToStaticMarkup(
   createElement(
     ProductShell,
@@ -226,6 +240,20 @@ assert.match(aiWorkplaneShell, /data-primary-product-zone="ai-workplane"/u);
 assert.match(portabilityShell, /data-primary-product-zone="none"/u);
 assert.match(portabilityShell, /data-product-utility-context="portability"/u);
 record("product_shell_has_only_two_primary_zones_and_no_global_project_tools");
+
+assert.match(
+  blankStateShell,
+  /<p class="product-project-context"[^>]*data-project-context-label="Current project"/u,
+);
+assert.doesNotMatch(
+  blankStateShell,
+  /product-project-context--action|href="[^"]*#project-settings"/u,
+);
+assert.match(
+  actionableProjectContextShell,
+  /<a class="product-project-context product-project-context--action" href="#project-settings"[^>]*data-project-context-label="Current project"/u,
+);
+record("current_project_context_requires_explicit_management_destination");
 
 const activeManagement = buildManagementSafetyViewV01({
   project_context: "active_project",
@@ -774,6 +802,7 @@ assert.deepEqual(assertions, [
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
   "product_shell_has_only_two_primary_zones_and_no_global_project_tools",
+  "current_project_context_requires_explicit_management_destination",
   "management_safety_navigation_is_fixed_deterministic_and_non_authoritative",
   "management_and_safety_surfaces_use_contextual_human_hierarchy",
   "ai_workplane_replaces_active_agent_and_semantic_workbench_presentations",

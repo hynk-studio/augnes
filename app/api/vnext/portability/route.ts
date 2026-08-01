@@ -88,7 +88,9 @@ export async function POST(request: Request): Promise<Response> {
           headers: {
             ...RESPONSE_HEADERS,
             "Content-Type": "application/vnd.augnes.portable-project+json",
-            "Content-Disposition": `attachment; filename="${result.filename}"`,
+            "Content-Disposition": portableAttachmentDispositionV01(
+              result.filename,
+            ),
           },
         });
       } finally {
@@ -132,6 +134,26 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     return portableErrorResponseV01(error, operation);
   }
+}
+
+function portableAttachmentDispositionV01(filename: string): string {
+  const extension = ".augnes-project.json";
+  const filenameStem = filename.endsWith(extension)
+    ? filename.slice(0, -extension.length)
+    : filename;
+  const normalizedAsciiStem = filenameStem
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9]+/gu, "-")
+    .replace(/^-+|-+$/gu, "");
+  const asciiStem = /[a-zA-Z0-9]/u.test(normalizedAsciiStem)
+    ? normalizedAsciiStem
+    : "project";
+  const asciiFallback = `${asciiStem}${extension}`;
+  const encoded = encodeURIComponent(filename).replace(
+    /['()*]/gu,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }
 
 function recordPortableResultBestEffortV01(event: {

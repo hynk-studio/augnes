@@ -27,6 +27,8 @@ import {
   readDefaultWorkspaceIdentityV01,
   readCanonicalProjectWithRootV01,
   rebindCanonicalProjectLocalRootV01,
+  renameCanonicalProjectDisplayNameV01,
+  normalizeProjectDisplayNameV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   ensureVNextProjectLifecycleSchemaV01,
@@ -334,9 +336,12 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     displayName,
     repository: { is_repository: git.isRepository, display: git.display },
   });
-  const alreadyAdded = Boolean(options.db && options.workspace_id && findCanonicalProjectByLocalRootV01(options.db, {
-    workspace_id: options.workspace_id, local_root: localRoot,
-  }));
+  const existingRegistration = options.db && options.workspace_id
+    ? findCanonicalProjectByLocalRootV01(options.db, {
+      workspace_id: options.workspace_id,
+      local_root: localRoot,
+    })
+    : null;
   return {
     inspection_version: LOCAL_PROJECT_INSPECTION_VERSION_V01,
     display_name: displayName,
@@ -347,7 +352,8 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     repository_status: !git.isRepository ? "not_repository" : git.ref ? "configured" : "no_remote",
     inspected_at: inspectedAt,
     inspection_fingerprint: `sha256:${createHash("sha256").update(fingerprintPayload).digest("hex")}`,
-    already_added: alreadyAdded,
+    already_added: existingRegistration !== null,
+    existing_project: existingRegistration?.project ?? null,
   };
 }
 
@@ -400,23 +406,38 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
 }
 
 export async function confirmLocalProjectOnboardingV01(db: Database.Database, input: {
-  selection_token: string; inspection_fingerprint: string;
+  selection_token: string;
+  inspection_fingerprint: string;
+  display_name?: string;
 }, options: { now?: () => string; now_ms?: () => number; create_uuid?: () => string } = {}): Promise<ProjectOnboardingConfirmationV01> {
   const record = consumeSelection(input.selection_token, options.now_ms);
   if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
-  const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, {
+  const existingWorkspace = readDefaultWorkspaceIdentityV01(db);
+  const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
+    now: options.now,
+    ...(existingWorkspace
+      ? { db, workspace_id: existingWorkspace.workspace_id }
+      : {}),
+  });
+  if (inspection.inspection_fingerprint !== record.fingerprint) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  const displayName = inspection.already_added
+    ? undefined
+    : normalizeProjectDisplayNameV01(
+      input.display_name === undefined
+        ? inspection.display_name
+        : input.display_name,
+    );
+  const workspace = existingWorkspace ?? getOrCreateDefaultWorkspaceIdentityV01(db, {
     now: options.now,
     create_uuid: options.create_uuid,
   });
-  const inspection = await inspectLocalProjectRootV01(record.absolute_path, { now: options.now, db, workspace_id: workspace.workspace_id });
-  if (inspection.inspection_fingerprint !== record.fingerprint) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
   const now = (options.now ?? (() => new Date().toISOString()))();
   return db.transaction(() => {
     ensureVNextProjectLifecycleSchemaV01(db);
     const registration = getOrCreateCanonicalProjectForLocalRootV01(db, {
       workspace_id: workspace.workspace_id,
       local_root: inspection.local_root,
-      ...(inspection.already_added ? {} : { display_name: inspection.display_name }),
+      ...(displayName === undefined ? {} : { display_name: displayName }),
     }, { now: options.now, create_uuid: options.create_uuid });
     const existingRepositoryRefs = listProjectExternalRefsV01(db, {
       workspace_id: workspace.workspace_id,
@@ -446,6 +467,40 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
       project: registration.project,
       destination: projectDestination(registration.project.project_id),
     };
+  }).immediate();
+}
+
+export function renameActiveProjectDisplayNameV01(
+  db: Database.Database,
+  input: {
+    project_id: string;
+    expected_active_project_id: string;
+    expected_active_selection_revision: number;
+    expected_current_display_name: string | null;
+    requested_display_name: string;
+  },
+) {
+  const workspace = readDefaultWorkspaceIdentityV01(db);
+  if (!workspace) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  return db.transaction(() => {
+    const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+    if (
+      !active ||
+      input.project_id !== input.expected_active_project_id ||
+      active.project_id !== input.project_id ||
+      active.project_id !== input.expected_active_project_id ||
+      active.selection_revision !== input.expected_active_selection_revision
+    ) {
+      throw new ProjectOnboardingErrorV01("active_selection_conflict", 409);
+    }
+    return renameCanonicalProjectDisplayNameV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: input.project_id,
+      requested_display_name: input.requested_display_name,
+      expected_current_display_name: input.expected_current_display_name,
+    });
   }).immediate();
 }
 

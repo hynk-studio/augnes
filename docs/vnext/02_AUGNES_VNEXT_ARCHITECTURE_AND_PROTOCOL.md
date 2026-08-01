@@ -227,6 +227,28 @@ Repository
 - grant와 automation policy는 project 범위를 벗어나지 않는다.
 - export, archive, restore와 delete rehearsal은 project별로 검증한다.
 
+### 2.5 canonical project identity and mutable display label
+
+`ProjectIdentityV01`의 canonical identity는 `workspace_id`, `project_id`,
+`project_identity_version`, `identity_kind`, `identity_source`, `created_at`으로
+구성되며 이 필드들은 immutable이다. 기존
+`vnext_project_identities.display_name`은 같은 project를 사용자가 알아보기 쉽게
+부르는 mutable local label이다. Label 변경은 새 project, profile, semantic record,
+activity event, Decision 또는 Transition을 만들지 않는다.
+
+Display-name 변경은 exact workspace/project, expected current display name과 current
+active-project selection revision에 bind된 명시적 compare-and-set operation으로만
+수행한다. 같은 normalized name은 exact replay이고 stale name 또는 active-selection
+drift는 fail closed한다. 변경은 project ID, local root/folder, external refs, recent 또는
+active selection, continuity/Pinned/Core record, TaskContextPacket, RunReceipt, Evidence,
+Claim, proposal, ReviewDecision, Transition, feedback와 어떤 authority도 수정하지 않는다.
+
+Local root registration replay는 root binding으로 기존 project를 식별하고 저장된 local
+display name을 유지한다. Portable package는 export 시 현재 display name을 포함하고 새
+import의 초기 label로 사용하지만, 이미 존재하는 project의 package replay는 immutable
+identity와 project-scoped record/integrity 검증을 exact하게 유지하면서 local mutable
+label 차이만 conflict 또는 overwrite로 취급하지 않는다.
+
 ---
 
 ## 3. Actor, Capability and Coverage Model

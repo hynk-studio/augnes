@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { ProjectSettingsLink } from "@/components/project-settings-link";
+
 export type PrimaryProductZone = "blank-state" | "ai-workplane";
 
 export type ProductUtilityContext =
@@ -10,6 +12,7 @@ export type ProductUtilityContext =
 export interface ProductProjectContext {
   label: "Current project" | "Viewed project";
   name: string;
+  managementHref?: string;
 }
 
 const PRIMARY_NAVIGATION: Array<{
@@ -65,14 +68,26 @@ export function ProductShell({
             </span>
           </a>
           {projectContext ? (
-            <p
-              className="product-project-context"
-              title={projectContext.name}
-              data-project-context-label={projectContext.label}
-            >
-              <span>{projectContext.label}</span>
-              <strong>{projectContext.name}</strong>
-            </p>
+            projectContext.label === "Current project" &&
+            projectContext.managementHref ? (
+              <ProjectSettingsLink
+                href={projectContext.managementHref}
+                name={projectContext.name}
+                label={projectContext.label}
+              >
+                <span>{projectContext.label}</span>
+                <strong>{projectContext.name}</strong>
+              </ProjectSettingsLink>
+            ) : (
+              <p
+                className="product-project-context"
+                title={projectContext.name}
+                data-project-context-label={projectContext.label}
+              >
+                <span>{projectContext.label}</span>
+                <strong>{projectContext.name}</strong>
+              </p>
+            )
           ) : (
             <p className="product-project-context product-project-context--neutral">
               <span>Workspace</span>

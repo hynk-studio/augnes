@@ -3845,6 +3845,7 @@ async function onboardDisposableProject(
       action: "confirm",
       selection_token: selected.picker.selection_token,
       inspection_fingerprint: selected.picker.inspection.inspection_fingerprint,
+      display_name: selected.picker.inspection.display_name,
     }),
     signal: AbortSignal.timeout(10_000),
   });

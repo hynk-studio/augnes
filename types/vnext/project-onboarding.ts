@@ -35,6 +35,7 @@ export interface LocalProjectInspectionV01 {
   inspected_at: string;
   inspection_fingerprint: string;
   already_added: boolean;
+  existing_project: ProjectIdentityV01 | null;
 }
 
 export interface RecentProjectEntryV01 {

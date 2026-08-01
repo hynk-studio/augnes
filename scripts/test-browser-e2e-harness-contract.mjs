@@ -17,11 +17,11 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 191);
+assert.equal(resultKeys.length, 195);
 assert.equal(recordNames.length, 99);
 assert.equal(
   hashInventory(resultKeys),
-  "78b2f07117876bbbe86c45755fa746acab7352bc13120c9f8990231fa8daea1b",
+  "24c24c467d230b796a3206d8a4a68e022643fdb0b6052f0e849c2b88ea504f08",
 );
 assert.equal(
   hashInventory(recordNames),
@@ -254,6 +254,22 @@ for (const state of [
 ]) {
   assert.match(source, new RegExp(`state: "${state}"`, "u"));
 }
+assert.match(
+  source,
+  /project_recovery_context_passive: false[\s\S]*context_tag: context\?\.tagName[\s\S]*nonexistent_settings_actions[\s\S]*settings_targets[\s\S]*management_owners[\s\S]*locate_action_count[\s\S]*context_tag: "P"[\s\S]*semantic_primary_action_count: 1[\s\S]*result\.project_recovery_context_passive = true/u,
+);
+assert.match(
+  source,
+  /activateSecondForRecovery[\s\S]*action: 'open'[\s\S]*expected_project_id: active\?\.active_project_id[\s\S]*assert\.equal\(activateSecondForRecovery\.status, 200\)[\s\S]*second project active before root recovery[\s\S]*activeBeforeRootRecovery[\s\S]*secondProjectId[\s\S]*renameSync\(onboardingFolderB/u,
+);
+assert.match(
+  source,
+  /state: "project-root-recovery"[\s\S]*primaryActionMinimumHeight: 44/u,
+);
+assert.match(
+  source,
+  /primaryActionMinimumHeight = 40[\s\S]*primary_action_touch_target:[\s\S]*primaryRect\.height >= \$\{primaryActionMinimumHeight\}/u,
+);
 assert.match(
   source,
   /async function validateBlankStateViewports[\s\S]*for \(const width of \[390, 430, 1280, 1440\]\)[\s\S]*highlighted_item_count[\s\S]*human_attention_count[\s\S]*legacy_competing_regions_absent[\s\S]*protocol_vocabulary_absent/u,
