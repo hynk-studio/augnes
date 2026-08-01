@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { extractBrowserVerificationStaticMetadata } from "./browser-verification-static-metadata.mjs";
@@ -16,7 +17,28 @@ const inventory = JSON.parse(
   ),
 );
 const metadata = extractBrowserVerificationStaticMetadata(source);
+const projectExperienceSource = readFileSync(
+  new URL("./browser-validate-project-experience-v1.mjs", import.meta.url),
+  "utf8",
+);
+const projectExperienceMetadata =
+  extractBrowserVerificationStaticMetadata(projectExperienceSource);
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+);
+const canonicalSuiteSource = readFileSync(
+  new URL("./run-canonical-test-suite.mjs", import.meta.url),
+  "utf8",
+);
 let negativeFixtureCount = 0;
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function stableSetSha256(values) {
+  return sha256(JSON.stringify([...values].sort()));
+}
 
 function syntheticHarnessSource() {
   return [
@@ -762,6 +784,8 @@ for (const shard of inventory.future_shards) {
   assert.equal(allowedOwners.has(shard.id), true, shard.id);
   assert.match(shard.proposed_command, /^npm run test:e2e:/u, shard.id);
   assert.equal(shard.implemented_in_vfy1a, false, shard.id);
+  assert.equal(typeof shard.implemented_in_vfy1b, "boolean", shard.id);
+  assert.match(shard.implementation_status, /\S/u, shard.id);
   assert.match(shard.primary_question, /\?$/u, shard.id);
   assert.equal(
     shard.resource_ownership_profile in resourceProfiles,
@@ -787,6 +811,161 @@ assert.equal(shardOwnedFamilies.length, new Set(shardOwnedFamilies).size);
 assert.deepEqual(
   new Set(shardOwnedFamilies),
   new Set(behavioralFamilies.map((family) => family.id)),
+);
+
+const projectExperienceShard = inventory.future_shards.find(
+  (shard) => shard.id === "project_experience",
+);
+assert(projectExperienceShard);
+assert.equal(projectExperienceShard.implemented_in_vfy1b, true);
+assert.equal(
+  projectExperienceShard.implementation_status,
+  "vfy1b_extracted_legacy_core_shadow_retained",
+);
+assert.equal(
+  inventory.future_shards
+    .filter((shard) => shard.id !== "project_experience")
+    .every((shard) => shard.implemented_in_vfy1b === false),
+  true,
+);
+
+const projectImplementation = inventory.implemented_shards.project_experience;
+assert.equal(projectImplementation.command, "npm run test:e2e:project-experience");
+assert.equal(projectImplementation.canonical_suite, "e2e-project-experience");
+assert.equal(
+  projectImplementation.executable_source,
+  "scripts/browser-validate-project-experience-v1.mjs",
+);
+assert.equal(
+  projectImplementation.executable_source_sha256,
+  projectExperienceMetadata.source_sha256,
+);
+assert.equal(projectImplementation.static_grammar_profile, metadata.grammar_version);
+assert.deepEqual(projectExperienceMetadata.scopes, ["project-experience"]);
+
+const projectFamilies = projectExperienceShard.detailed_family_ids.map(
+  (familyId) => inventory.coverage_equivalence.find((family) => family.id === familyId),
+);
+assert.equal(projectFamilies.every(Boolean), true);
+const projectDetailedFields = projectFamilies.flatMap((family) =>
+  Object.keys(family.result_fields),
+);
+const projectDetailedMarkers = projectFamilies.flatMap(
+  (family) => family.record_markers,
+);
+assert.equal(projectDetailedFields.length, 40);
+assert.equal(projectDetailedMarkers.length, 5);
+assert.equal(projectDetailedFields.length, new Set(projectDetailedFields).size);
+assert.equal(projectDetailedMarkers.length, new Set(projectDetailedMarkers).size);
+assert.equal(
+  projectImplementation.detailed_field_count,
+  projectDetailedFields.length,
+);
+assert.equal(
+  projectImplementation.detailed_field_set_sha256,
+  stableSetSha256(projectDetailedFields),
+);
+assert.equal(
+  projectImplementation.semantic_marker_count,
+  projectDetailedMarkers.length,
+);
+assert.equal(
+  projectImplementation.semantic_marker_set_sha256,
+  stableSetSha256(projectDetailedMarkers),
+);
+assert.deepEqual(
+  new Set(projectExperienceMetadata.record_markers),
+  new Set(projectDetailedMarkers),
+);
+assert.equal(
+  projectExperienceMetadata.record_markers.length,
+  projectDetailedMarkers.length,
+);
+assert.deepEqual(
+  new Set(
+    projectExperienceMetadata.output_result_fields.filter((field) =>
+      projectDetailedFields.includes(field),
+    ),
+  ),
+  new Set(projectDetailedFields),
+);
+const foreignDetailedFields = inventory.coverage_equivalence
+  .filter((family) => ["operator_execution", "continuity"].includes(family.primary_owner))
+  .flatMap((family) => Object.keys(family.result_fields));
+assert.deepEqual(
+  projectExperienceMetadata.output_result_fields.filter((field) =>
+    foreignDetailedFields.includes(field),
+  ),
+  [],
+);
+
+const classifiedProjectFields = [...projectDetailedFields];
+for (const [classification, fields] of Object.entries(
+  projectImplementation.output_field_classifications,
+)) {
+  assert.equal(allowedClassifications.has(classification), true, classification);
+  classifiedProjectFields.push(...fields);
+}
+assert.equal(
+  classifiedProjectFields.length,
+  new Set(classifiedProjectFields).size,
+  "project experience output fields must have one classification",
+);
+assert.deepEqual(
+  new Set(classifiedProjectFields),
+  new Set(projectExperienceMetadata.output_result_fields),
+);
+assert.equal(
+  projectImplementation.total_output_field_count,
+  projectExperienceMetadata.output_result_fields.length,
+);
+assert.equal(projectExperienceMetadata.output_result_fields.length, 83);
+assert.equal(projectExperienceMetadata.raw_call_counts.record, 5);
+assert.equal(projectExperienceMetadata.raw_call_counts.run_phase, 7);
+assert.equal(projectExperienceMetadata.phase_ids.length, 7);
+assert.equal(
+  packageJson.scripts["test:e2e:project-experience"],
+  "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+);
+assert.match(
+  canonicalSuiteSource,
+  /"e2e-project-experience": \[/u,
+);
+assert.match(
+  canonicalSuiteSource,
+  /rootNode\("scripts\/browser-validate-project-experience-v1\.mjs"\),\n\s+timeoutMs: 360_000,/u,
+);
+for (const requiredResource of resourceProfiles.future_independent_shard
+  .required_resources) {
+  assert.equal(
+    projectImplementation.owned_mutable_resources.includes(requiredResource),
+    true,
+    `project_experience:${requiredResource}`,
+  );
+}
+for (const forbiddenResource of resourceProfiles.future_independent_shard
+  .forbidden_shared_mutable_resources) {
+  assert.equal(
+    projectImplementation.forbidden_shared_mutable_resources.includes(
+      forbiddenResource,
+    ),
+    true,
+    `project_experience:${forbiddenResource}`,
+  );
+}
+assert.equal(projectImplementation.legacy_core_shadow.retained, true);
+assert.equal(projectImplementation.legacy_core_shadow.second_primary_owner, false);
+assert.equal(projectImplementation.planner_selected, false);
+assert.equal(projectImplementation.receipt_aggregated, false);
+assert.equal(projectImplementation.planner_receipt_semantics_changed, false);
+assert.equal(projectImplementation.rendered_state_fixture_boundary.route_mocking, false);
+assert.equal(
+  projectImplementation.rendered_state_fixture_boundary.fabricated_json_interception,
+  false,
+);
+assert.equal(
+  projectImplementation.rendered_state_fixture_boundary.execution_capable,
+  false,
 );
 
 assert.equal(inventory.thin_golden_path.owner, "cross_boundary_golden");
@@ -891,9 +1070,13 @@ assert.deepEqual(
   inventory.sequencing.map((entry) => entry.id),
   ["VFY1-A", "VFY1-B", "VFY1-C", "VFY1-D"],
 );
-assert.equal(inventory.sequencing[0].status, "this_inventory_only");
+assert.equal(inventory.sequencing[0].status, "complete_inventory_owner");
 assert.equal(
-  inventory.sequencing.slice(1).every(
+  inventory.sequencing[1].status,
+  "implemented_legacy_core_shadow_retained",
+);
+assert.equal(
+  inventory.sequencing.slice(2).every(
     (entry) => entry.status === "deferred_separate_authorization",
   ),
   true,
@@ -922,8 +1105,9 @@ process.stdout.write(
     dependency_edges: inventory.dependency_graph.length,
     classification_counts: classificationCounts,
     owner_field_counts: ownerCounts,
-    future_commands_documented_only: inventory.future_shards.map(
-      (shard) => shard.proposed_command,
-    ),
+    implemented_owner_commands: [projectImplementation.command],
+    future_commands_documented_only: inventory.future_shards
+      .filter((shard) => !shard.implemented_in_vfy1b)
+      .map((shard) => shard.proposed_command),
   })}\n`,
 );

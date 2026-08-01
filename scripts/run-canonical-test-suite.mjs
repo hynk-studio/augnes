@@ -63,6 +63,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "project experience immutable Browser fixture contract",
+      ...rootNode("scripts/test-project-experience-browser-fixture-v1.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "AI Workplane human projection and exact-detail contract",
       ...rootNode("scripts/test-vnext-decision-centered-workbench.tsx"),
       timeoutMs: 30_000,
@@ -562,6 +567,26 @@ const suites = {
       ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
       env: { AUGNES_BROWSER_E2E_SCOPE: "cux6b" },
       timeoutMs: 480_000,
+    },
+  ],
+  "e2e-project-experience": [
+    {
+      id: "project-experience",
+      group: "project-experience",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "project-root",
+        "process-owning",
+        "listener-port-owning",
+        "browser-profile-owning",
+        "cdp-session-owning",
+        "immutable-fixture-input",
+      ],
+      label: "independent project experience Browser owner",
+      ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
+      timeoutMs: 360_000,
     },
   ],
   "e2e-continuity": [

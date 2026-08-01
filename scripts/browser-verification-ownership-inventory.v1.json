@@ -1419,6 +1419,8 @@
       "id": "project_experience",
       "proposed_command": "npm run test:e2e:project-experience",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": true,
+      "implementation_status": "vfy1b_extracted_legacy_core_shadow_retained",
       "primary_question": "Can the user connect, identify, recover, and navigate a project correctly?",
       "detailed_family_ids": ["project_onboarding_and_naming", "project_home_lifecycle_presentation", "project_shell_and_locked_entry", "retired_route_safety", "responsive_product_shell"],
       "resource_ownership_profile": "future_independent_shard"
@@ -1427,6 +1429,8 @@
       "id": "operator_execution",
       "proposed_command": "npm run test:e2e:operator-execution",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": false,
+      "implementation_status": "deferred_vfy1c",
       "primary_question": "Does an authenticated explicit operation follow the exact packet and lineage through execution, result, and semantic review without authority collapse?",
       "detailed_family_ids": ["first_work_definition_and_start", "project_controls_and_automation", "operator_session_bootstrap", "strategic_analysis_and_proposal_review", "direct_native_host_round_trip", "live_native_host_approval_lifecycle", "result_review_and_inspector", "review_decision_and_transition", "bounded_automation_execution", "multi_candidate_and_guidebrief_semantic_scope", "operator_session_refusal_recovery"],
       "resource_ownership_profile": "future_independent_shard"
@@ -1435,6 +1439,8 @@
       "id": "continuity",
       "proposed_command": "npm run test:e2e:continuity",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": false,
+      "implementation_status": "existing_continuity_owner_unchanged_vfy1b",
       "primary_question": "Does durable project meaning survive later use, portability, import, restart, recovery, and reconciliation with exact lineage?",
       "detailed_family_ids": ["long_term_lineage_and_cross_project_isolation", "personal_perspective_continuity", "portability_restart_and_recovery"],
       "resource_ownership_profile": "future_independent_shard"
@@ -1443,11 +1449,138 @@
       "id": "cross_boundary_golden",
       "proposed_command": "npm run test:e2e:golden",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": false,
+      "implementation_status": "deferred_vfy1d",
       "primary_question": "Do the independent detailed owners still compose through one minimal happy path?",
       "detailed_family_ids": [],
       "resource_ownership_profile": "future_independent_shard"
     }
   ],
+  "implemented_shards": {
+    "project_experience": {
+      "implementation_baseline": "a22430027c3a48da60a30d9e38ea2dcde41dd49a",
+      "command": "npm run test:e2e:project-experience",
+      "canonical_suite": "e2e-project-experience",
+      "executable_source": "scripts/browser-validate-project-experience-v1.mjs",
+      "executable_source_sha256": "7cddf2a50657cc73d96f07b84fc5ef6e013364caa0ee137a3a42491f23f6949d",
+      "fixture_owner_source": "scripts/project-experience-browser-fixture-v1.ts",
+      "fixture_contract_source": "scripts/test-project-experience-browser-fixture-v1.ts",
+      "fixture_version": "project_experience_browser_fixture.v1",
+      "static_grammar_profile": "browser_verification_static_grammar.v1",
+      "detailed_family_ids_source": "future_shards.project_experience.detailed_family_ids",
+      "detailed_field_count": 40,
+      "detailed_field_set_sha256": "c080951e5918f64a0b02188fef9a440034b418e61e483b507a239853f95761b4",
+      "semantic_marker_count": 5,
+      "semantic_marker_set_sha256": "c60f0c2717f1e576e5181ce97905528312db49cda37932414eb64d9254fedd3a",
+      "total_output_field_count": 83,
+      "output_field_classifications": {
+        "identity": [
+          "validation_version",
+          "owner",
+          "fixture_version",
+          "fixture_fingerprint",
+          "fixture_source_database_sha256",
+          "fixture_writable_seed_sha256"
+        ],
+        "counter": [
+          "detailed_field_count",
+          "detailed_marker_count",
+          "unexpected_external_request_count",
+          "unexpected_console_failure_count",
+          "known_harness_console_warning_count",
+          "owned_process_residue_count",
+          "listener_residue_count"
+        ],
+        "timing_diagnostic": [
+          "total_duration_ms",
+          "reference_headroom_ms",
+          "acceptance_bound_ms",
+          "supervisor_exit_diagnostic",
+          "e2e_timing_summary"
+        ],
+        "cleanup_invariant": [
+          "ok",
+          "credential_private_material_boundary",
+          "default_database_isolated",
+          "provider_or_external_network_call",
+          "semantic_proposal_created",
+          "review_decision_created",
+          "transition_created",
+          "work_closure_created",
+          "native_host_execution_started",
+          "resource_ownership",
+          "cleanup_complete",
+          "owned_streams_settled",
+          "temporary_root_removed",
+          "temporary_process_root_removed",
+          "temporary_profile_removed",
+          "temporary_database_removed",
+          "temporary_fixture_removed",
+          "temporary_picker_sequence_removed",
+          "runtime_shutdown_complete",
+          "chrome_cdp_shutdown_complete"
+        ],
+        "failure_material": ["failure"],
+        "collection_result_array": [
+          "semantic_markers",
+          "route_collection",
+          "viewport_collection",
+          "request_response_console_ledger_summary"
+        ]
+      },
+      "legacy_core_shadow": {
+        "retained": true,
+        "second_primary_owner": false,
+        "source": "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
+        "removal_owner": "VFY1-D",
+        "removal_condition": "Remove only after operator execution, composition golden, planner selection, and aggregate receipt semantics exist and exact equivalence remains proven."
+      },
+      "rendered_state_fixture_boundary": {
+        "source_kind": "versioned immutable production-owner database seed",
+        "admission_time": "before Browser execution",
+        "read_path": "real production readers and routes",
+        "route_mocking": false,
+        "fabricated_json_interception": false,
+        "execution_capable": false,
+        "detailed_semantics_owned_here": false
+      },
+      "owned_mutable_resources": [
+        "writable_database",
+        "runtime_supervisor",
+        "application_listener_port",
+        "bridge_debug_ports",
+        "browser_process",
+        "cdp_session",
+        "browser_profile",
+        "temporary_root",
+        "project_roots",
+        "download_directory",
+        "local_session_action_credentials",
+        "file_signal_barriers",
+        "request_response_console_ledgers",
+        "owned_process_tree",
+        "stream_and_cleanup_settlement"
+      ],
+      "forbidden_shared_mutable_resources": [
+        "live_database",
+        "runtime",
+        "listener",
+        "browser",
+        "cdp_session",
+        "browser_profile",
+        "active_project_selection",
+        "operator_session",
+        "approval_signal",
+        "mutable_fixture_directory"
+      ],
+      "timeout_ms": 360000,
+      "reference_bound_ms": 480000,
+      "required_reference_headroom_ms": 120000,
+      "planner_selected": false,
+      "receipt_aggregated": false,
+      "planner_receipt_semantics_changed": false
+    }
+  },
   "thin_golden_path": {
     "owner": "cross_boundary_golden",
     "proposed_command": "npm run test:e2e:golden",
@@ -1514,17 +1647,17 @@
     "current_limits_changed": false
   },
   "sequencing": [
-    {"id": "VFY1-A", "status": "this_inventory_only", "responsibility": "Inventory, ownership, dependencies, fixture boundary, golden specification, and static completeness contracts."},
-    {"id": "VFY1-B", "status": "deferred_separate_authorization", "responsibility": "Extract independent project experience shard."},
+    {"id": "VFY1-A", "status": "complete_inventory_owner", "responsibility": "Inventory, ownership, dependencies, fixture boundary, golden specification, and static completeness contracts."},
+    {"id": "VFY1-B", "status": "implemented_legacy_core_shadow_retained", "responsibility": "Extract independent project experience shard."},
     {"id": "VFY1-C", "status": "deferred_separate_authorization", "responsibility": "Extract independent operator and execution shard."},
     {"id": "VFY1-D", "status": "deferred_separate_authorization", "responsibility": "Wire planner selection, thin golden path, per-shard receipt material, aggregation, and old-owner removal after equivalence proof."}
   ],
   "non_goals": [
-    "No Browser shard extraction or new executable Browser owner command.",
-    "No Browser assertion, scope, execution ordering, timeout, retry, or sleep change.",
+    "No operator-execution, golden-path, or additional Browser shard extraction.",
+    "No legacy Browser assertion, scope, execution ordering, timeout, retry, or sleep change.",
     "No deletion or shortening of e2e-core.",
     "No Local Canonical planner selection or receipt deciding-semantics change.",
     "No product, UI, API, schema, Core, protocol, native-host, authority, or runtime behavior change.",
-    "No VFY1-B, VFY1-C, VFY1-D, C9, or PC6 implementation."
+    "No VFY1-C, VFY1-D, C9, or PC6 implementation."
   ]
 }
