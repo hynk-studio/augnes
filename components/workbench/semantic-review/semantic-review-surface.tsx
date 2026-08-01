@@ -886,7 +886,8 @@ function firstWorkErrorCopyV01(value: unknown): string {
         ? "Project work changed before this definition was saved. Reload to continue from the current work."
         : value === "first_work_goal_invalid"
           ? "Enter a goal between 1 and 2,000 characters."
-          : value === "first_work_definition_too_large"
+          : value === "first_work_definition_too_large" ||
+              value === "first_work_packet_budget_exceeded"
             ? "Shorten the complete definition before saving."
           : value === "first_work_success_criteria_invalid"
             ? "Add 1 to 12 success criteria, each no longer than 500 characters."

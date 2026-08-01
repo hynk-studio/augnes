@@ -39,6 +39,7 @@ import {
   type ProjectWorkInitializationV01,
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 
 const MAX_PROJECT_WORK_RECORDS = 4_096;
 const REQUEST_KEYS = [
@@ -225,7 +226,10 @@ function readProjectWorkInitializationStrictV01(
     return unavailableV01(db, input, "root_unavailable");
   }
   const records = readBoundedProjectWorkRecordsV01(db, input);
-  const runCount = countManagedProjectRunsV01(db, input);
+  const runHistory = inspectProjectManagedRunHistoryV01(db, input);
+  if (runHistory.status === "unavailable") {
+    refuse("first_work_run_history_unavailable", 409);
+  }
   const stateCount = countScopedRowsV01(
     db,
     "vnext_semantic_state_entries",
@@ -302,7 +306,7 @@ function readProjectWorkInitializationStrictV01(
   }
   if (
     records.length === 0 &&
-    runCount === 0 &&
+    runHistory.status === "none" &&
     stateCount === 0 &&
     headCount === 0
   ) {
@@ -367,23 +371,6 @@ function readBoundedProjectWorkRecordsV01(
     payload: JSON.parse(row.payload_json) as unknown,
     created_at: row.created_at,
   }));
-}
-
-function countManagedProjectRunsV01(
-  db: Database.Database,
-  input: { workspace_id: string; project_id: string },
-): number {
-  const row = db
-    .prepare(
-      `SELECT COUNT(*) AS count FROM autonomy_runs
-        WHERE scope = ?
-          AND json_extract(metadata_json, '$.workspace_id') = ?
-          AND json_extract(metadata_json, '$.project_id') = ?`,
-    )
-    .get(input.project_id, input.workspace_id, input.project_id) as {
-    count: number;
-  };
-  return row.count;
 }
 
 function countScopedRowsV01(

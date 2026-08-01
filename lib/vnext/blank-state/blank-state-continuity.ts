@@ -191,15 +191,7 @@ function workInitializationCompositionV01(
     });
   }
   if (initialization.state === "existing_history_without_current_packet") {
-    const projection = source.projection;
-    const hasOwnedCurrentPresentation = Boolean(
-      (source.delegated_work &&
-        source.delegated_work.stage !== "not_started") ||
-        projection?.run_results.current_run ||
-        projection?.run_results.latest_result ||
-        projection?.attention.items.length,
-    );
-    if (hasOwnedCurrentPresentation) return null;
+    if (hasOwnedCurrentPresentationV01(source)) return null;
     const action = linkActionV01(
       "Open AI Workplane",
       WORKPLANE_HREF,
@@ -231,10 +223,8 @@ function workInitializationCompositionV01(
         source.route_mode === "project_management",
     });
   }
-  if (
-    initialization.state === "unavailable" &&
-    !source.projection?.coordination.task_frame.goal
-  ) {
+  if (initialization.state === "unavailable") {
+    if (hasOwnedCurrentPresentationV01(source)) return null;
     const action = linkActionV01(
       "Open AI Workplane",
       WORKPLANE_HREF,
@@ -266,6 +256,15 @@ function workInitializationCompositionV01(
     });
   }
   return null;
+}
+
+function hasOwnedCurrentPresentationV01(source: BlankStateSourceV01): boolean {
+  return Boolean(
+    (source.delegated_work && source.delegated_work.stage !== "not_started") ||
+      source.projection?.run_results.current_run ||
+      source.projection?.run_results.latest_result ||
+      source.projection?.attention.items.length,
+  );
 }
 
 function projectLifecycleCompositionV01(

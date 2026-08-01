@@ -104,19 +104,6 @@ export function buildAIWorkplaneHomeViewV01(input: {
       { kind: "save_first_work", label: "Save first work", href: null },
     );
   }
-  if (
-    input.work_initialization?.state ===
-    "existing_history_without_current_packet"
-  ) {
-    return state(
-      base,
-      "work_instructions_unavailable",
-      "Current work instructions are unavailable",
-      "This project already has durable work history, so a new first-work definition cannot replace it.",
-      "Refresh or recover the current work context before starting delegated work.",
-      { kind: "link", label: "Return to Continuities", href: "/" },
-    );
-  }
   const delegated = input.delegated_work;
   if (delegated?.stage === "waiting_for_approval") {
     return state(
@@ -303,6 +290,28 @@ export function buildAIWorkplaneHomeViewV01(input: {
       queue[0]!.title,
       queue[0]!.reason,
       { kind: "link", label: "Continue review", href: queue[0]!.href },
+    );
+  }
+  if (
+    input.work_initialization?.state ===
+      "existing_history_without_current_packet" ||
+    input.work_initialization?.state === "unavailable"
+  ) {
+    const sourceUnavailable =
+      input.work_initialization.state === "unavailable";
+    return state(
+      base,
+      "work_instructions_unavailable",
+      sourceUnavailable
+        ? "Current work status is unavailable"
+        : "Current work instructions are unavailable",
+      sourceUnavailable
+        ? "Augnes cannot safely determine whether this project is new or already has work history."
+        : "This project already has durable work history, so a new first-work definition cannot replace it.",
+      sourceUnavailable
+        ? "No first-work definition is offered until project history can be verified."
+        : "Refresh or recover the current work context before starting delegated work.",
+      { kind: "link", label: "Return to Continuities", href: "/" },
     );
   }
   if (delegated?.stage === "not_started" && delegated.start_eligible) {

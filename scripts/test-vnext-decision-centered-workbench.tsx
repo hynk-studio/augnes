@@ -468,6 +468,104 @@ try {
   assert.equal(unavailableWorkHome.state, "work_instructions_unavailable");
   assert.notEqual(unavailableWorkHome.primary_action?.label, "Save first work");
 
+  const unavailableInitialization = {
+    ...firstWorkInitialization,
+    state: "unavailable" as const,
+    reason: "source_unavailable" as const,
+    mutation_eligible: false,
+  };
+  for (const workInitialization of [
+    {
+      ...firstWorkInitialization,
+      state: "existing_history_without_current_packet" as const,
+      reason: "durable_history_without_current_packet" as const,
+      mutation_eligible: false,
+    },
+    unavailableInitialization,
+  ]) {
+    for (const [stage, expected] of [
+      ["waiting_for_approval", "delegated_approval"],
+      ["working", "work_in_progress"],
+      ["result_ready", "result_ready"],
+    ] as const) {
+      assert.equal(
+        buildAIWorkplaneHomeViewV01({
+          access: "authenticated",
+          loading: false,
+          guide,
+          proposals: [],
+          continuity,
+          delegated_work: delegatedWorkV01(stage),
+          work_initialization: workInitialization,
+        }).state,
+        expected,
+        `${workInitialization.state}:${stage}`,
+      );
+    }
+    const proposalOwner = buildAIWorkplaneHomeViewV01({
+      access: "authenticated",
+      loading: false,
+      guide,
+      proposals: [
+        {
+          ...reviewListItem,
+          decision_application_summary: {
+            ...reviewListItem.decision_application_summary,
+            status: "needs_decision",
+          },
+        },
+      ],
+      continuity,
+      work_initialization: workInitialization,
+    });
+    assert.equal(proposalOwner.state, "change_decision");
+    const completionOwner = buildAIWorkplaneHomeViewV01({
+      access: "authenticated",
+      loading: false,
+      guide,
+      proposals: [
+        {
+          ...reviewListItem,
+          decision_application_summary: {
+            ...reviewListItem.decision_application_summary,
+            status: "ready_to_complete",
+          },
+        },
+      ],
+      continuity,
+      work_initialization: workInitialization,
+    });
+    assert.equal(completionOwner.state, "change_completion");
+    const delegatedReady = {
+      ...delegatedWorkV01("not_started"),
+      start_eligible: true,
+      start_blocker: null,
+    };
+    assert.equal(
+      buildAIWorkplaneHomeViewV01({
+        access: "authenticated",
+        loading: false,
+        guide,
+        proposals: [],
+        continuity,
+        delegated_work: delegatedReady,
+        work_initialization: workInitialization,
+      }).state,
+      "work_instructions_unavailable",
+    );
+    assert.equal(
+      buildAIWorkplaneHomeViewV01({
+        access: "authenticated",
+        loading: false,
+        guide,
+        proposals: [],
+        continuity,
+        work_initialization: workInitialization,
+      }).state,
+      "work_instructions_unavailable",
+    );
+  }
+
   const delegatedApprovalHome = buildAIWorkplaneHomeViewV01({
     access: "authenticated",
     loading: false,

@@ -78,7 +78,7 @@ assert.equal(
 );
 assert.match(
   source,
-  /data-blank-state-focus="first_work_not_defined"[\s\S]*locked first-work operator state[\s\S]*authenticated first-work composer[\s\S]*validateFirstWorkComposerViewports\(\)[\s\S]*form\.requestSubmit\(\);[\s\S]*form\.requestSubmit\(\);[\s\S]*First work defined\. No execution has started\.[\s\S]*separate first-work host start action[\s\S]*initial packet live host admission/u,
+  /data-blank-state-focus="first_work_not_defined"[\s\S]*locked first-work operator state[\s\S]*authenticated first-work composer[\s\S]*2,000-code-point Unicode first-work boundary[\s\S]*one-code-point-over first-work refusal[\s\S]*exact 12,000-byte first-work boundary[\s\S]*one-byte-over first-work refusal[\s\S]*validateFirstWorkComposerViewports\(\)[\s\S]*form\.requestSubmit\(\);[\s\S]*form\.requestSubmit\(\);[\s\S]*First work defined\. No execution has started\.[\s\S]*separate first-work host start action[\s\S]*initial packet live host admission[\s\S]*guide_brief_section/u,
 );
 assert.match(
   source,

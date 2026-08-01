@@ -1264,6 +1264,73 @@ async function main() {
       0,
       firstWorkNonGoals.join("\n"),
     );
+    await setFormControlValue(
+      'textarea[name="first-work-goal"]',
+      0,
+      "🚀".repeat(2_000),
+    );
+    await setFormControlValue(
+      'textarea[name="first-work-success-criteria"]',
+      0,
+      "The complete Unicode goal remains executable",
+    );
+    await setFormControlValue('textarea[name="first-work-non-goals"]', 0, "");
+    await waitForCondition(
+      `document.querySelector('[data-first-work-action="save"]:not(:disabled)') !== null`,
+      "2,000-code-point Unicode first-work boundary",
+    );
+    await setFormControlValue(
+      'textarea[name="first-work-goal"]',
+      0,
+      "🚀".repeat(2_001),
+    );
+    await waitForCondition(
+      `document.querySelector('[data-first-work-action="save"]')?.disabled === true && document.body.textContent.includes('Shorten the goal to 2,000 characters or fewer.')`,
+      "one-code-point-over first-work refusal",
+    );
+    const exactDefinition = firstWorkDefinitionAtJsonBytes(12_000);
+    await setFormControlValue(
+      'textarea[name="first-work-goal"]',
+      0,
+      exactDefinition.goal,
+    );
+    await setFormControlValue(
+      'textarea[name="first-work-success-criteria"]',
+      0,
+      exactDefinition.success_criteria.join("\n"),
+    );
+    await setFormControlValue(
+      'textarea[name="first-work-non-goals"]',
+      0,
+      exactDefinition.non_goals.join("\n"),
+    );
+    await waitForCondition(
+      `document.querySelector('[data-first-work-action="save"]:not(:disabled)') !== null`,
+      "exact 12,000-byte first-work boundary",
+    );
+    await setFormControlValue(
+      'textarea[name="first-work-non-goals"]',
+      0,
+      [
+        ...exactDefinition.non_goals.slice(0, -1),
+        `${exactDefinition.non_goals.at(-1)}x`,
+      ].join("\n"),
+    );
+    await waitForCondition(
+      `document.querySelector('[data-first-work-action="save"]')?.disabled === true && document.body.textContent.includes('Shorten the complete definition')`,
+      "one-byte-over first-work refusal",
+    );
+    await setFormControlValue('textarea[name="first-work-goal"]', 0, firstWorkGoal);
+    await setFormControlValue(
+      'textarea[name="first-work-success-criteria"]',
+      0,
+      firstWorkCriteria.join("\n"),
+    );
+    await setFormControlValue(
+      'textarea[name="first-work-non-goals"]',
+      0,
+      firstWorkNonGoals.join("\n"),
+    );
     await waitForCondition(
       `document.querySelector('[data-first-work-action="save"]:not(:disabled)') !== null`,
       "valid Korean and English first-work definition",
@@ -1435,6 +1502,22 @@ async function main() {
     assert.equal(firstWorkLiveState.packet_lineage_kind, "initial_user_defined");
     assert.equal(firstWorkLiveState.source_transition_receipt_id, null);
     assert.match(firstWorkLiveState.first_work_definition_id, /^first-work-definition:/u);
+    const initialTurnStart = readFileSync(
+      browserApprovalBarrierTracePath,
+      "utf8",
+    )
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .find(
+        (entry) =>
+          entry.kind === "received" && entry.value?.method === "turn/start",
+      );
+    assert.equal(initialTurnStart?.value.guide_brief_section, true);
+    assert.equal(initialTurnStart?.value.guide_brief_version_v0_2, true);
+    assert.equal(initialTurnStart?.value.task_context_packet_section, true);
+    assert.equal(initialTurnStart?.value.guide_before_task_context_packet, true);
     await waitForCondition(
       `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="cancel"]:not(:disabled)') !== null`,
       "initial packet start reaches admitted live state",
@@ -12021,6 +12104,33 @@ async function setFormControlValue(selector, index, value) {
     return true;
   })()`);
   assert.equal(changed, true, `failed to set ${selector}[${index}]`);
+}
+
+function firstWorkDefinitionAtJsonBytes(targetBytes) {
+  const goal = "g".repeat(2_000);
+  const successCriteria = Array.from({ length: 12 }, (_, index) => {
+    const prefix = `criterion-${String(index).padStart(2, "0")}:`;
+    return `${prefix}${"c".repeat(500 - prefix.length)}`;
+  });
+  const nonGoals = [];
+  const value = () => ({
+    goal,
+    success_criteria: successCriteria,
+    non_goals: [...nonGoals],
+  });
+  while (Buffer.byteLength(JSON.stringify(value()), "utf8") < targetBytes) {
+    const current = nonGoals.at(-1);
+    if (current === undefined || [...current].length >= 500) {
+      nonGoals.push(`non-goal-${String(nonGoals.length).padStart(2, "0")}:`);
+    } else {
+      nonGoals[nonGoals.length - 1] = `${current}n`;
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(value()), "utf8");
+    if (bytes > targetBytes) {
+      throw new Error(`unable_to_construct_exact_first_work_definition:${bytes}`);
+    }
+  }
+  return value();
 }
 
 async function validateFirstWorkComposerViewports() {

@@ -49,16 +49,24 @@ import {
   readProjectWorkInitializationV01,
 } from "../lib/vnext/runtime/project-work-initialization";
 import {
+  buildDirectNativeHostRunIdentityV01,
   admitPersistedHostTaskContextPacketV01,
   runDirectNativeHostRoundTripV01,
+  shouldAttachNativeHostTaskStartGuideV01,
+  type PersistedHostPacketAdmissionV01,
 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { NativeHostRequestV01 } from "../types/vnext/native-host-adapter";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
-import type { DefineInitialProjectWorkRequestV01 } from "../types/vnext/project-work-initialization";
+import {
+  INITIAL_PROJECT_WORK_LIMITS_V01,
+  type DefineInitialProjectWorkRequestV01,
+  type ProjectWorkDefinitionV01,
+} from "../types/vnext/project-work-initialization";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 
@@ -75,6 +83,7 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   try {
     assertNormalizationAndCompilerV01();
+    assertNativeHostRunIdentityCompatibilityV01();
     assertInitializationReadPolicyV01();
     assertMutationAndReplayV01();
     assertMutationRefusalsAndRollbackV01();
@@ -206,6 +215,64 @@ function assertNormalizationAndCompilerV01(): void {
     errorCode("first_work_definition_too_large"),
   );
 
+  const rocketDefinition = normalizeInitialProjectWorkDefinitionV01({
+    goal: "🚀".repeat(2_000),
+    success_criteria: ["The complete Unicode goal remains executable"],
+    non_goals: [],
+  });
+  const maximalAscii = definitionAtCanonicalBytesV01(
+    INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes,
+    "ascii",
+  );
+  const maximalMixed = definitionAtCanonicalBytesV01(
+    INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes,
+    "mixed",
+  );
+  for (const definition of [rocketDefinition, maximalAscii, maximalMixed]) {
+    const normalizedBoundary = normalizeInitialProjectWorkDefinitionV01({
+      goal: definition.goal,
+      success_criteria: definition.success_criteria,
+      non_goals: definition.non_goals,
+    });
+    const builtBoundary = buildInitialProjectWorkTaskContextPacketV01({
+      workspace_id: "workspace:11111111-1111-4111-8111-111111111111",
+      project_id: "project:22222222-2222-4222-8222-222222222222",
+      operator_id: "operator:first-work-boundary",
+      session_id: "local-operator-session:boundary",
+      expected_active_selection_revision: 1,
+      definition: normalizedBoundary,
+      generated_at: T2,
+    });
+    assert.equal(
+      validateTaskContextPacketV01(builtBoundary.packet, {
+        evaluated_at: T2,
+      }).status,
+      "valid",
+    );
+  }
+  assert.equal(maximalAscii.goal.length, 2_000);
+  assert.equal(maximalAscii.success_criteria.length, 12);
+  assert(maximalAscii.non_goals.length > 0);
+  assert.equal(
+    Buffer.byteLength(canonicalizeProtocolValueV01(maximalAscii), "utf8"),
+    INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes,
+  );
+  assert.equal(
+    Buffer.byteLength(canonicalizeProtocolValueV01(maximalMixed), "utf8"),
+    INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes,
+  );
+  assert.throws(
+    () =>
+      normalizeInitialProjectWorkDefinitionV01({
+        ...maximalAscii,
+        non_goals: [
+          ...maximalAscii.non_goals.slice(0, -1),
+          `${maximalAscii.non_goals.at(-1)}x`,
+        ],
+      }),
+    errorCode("first_work_definition_too_large"),
+  );
+
   const one = buildInitialProjectWorkTaskContextPacketV01({
     workspace_id: "workspace:11111111-1111-4111-8111-111111111111",
     project_id: "project:22222222-2222-4222-8222-222222222222",
@@ -242,6 +309,128 @@ function assertNormalizationAndCompilerV01(): void {
   assert.equal(/credential|cookie|hidden_reasoning|transcript|provider_output/u.test(serialized), false);
 }
 
+function assertNativeHostRunIdentityCompatibilityV01(): void {
+  assert.equal(
+    shouldAttachNativeHostTaskStartGuideV01({
+      adapter: { provider_egress: "forbidden" },
+      resume_existing_run: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldAttachNativeHostTaskStartGuideV01({
+      adapter: { provider_egress: "native_host_managed" },
+      resume_existing_run: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldAttachNativeHostTaskStartGuideV01({
+      adapter: { provider_egress: "native_host_managed" },
+      resume_existing_run: true,
+    }),
+    false,
+  );
+  const ref = (refType: string, externalId: string) => ({
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: refType,
+    external_id: externalId,
+    trust_class: "derived_interpretation" as const,
+    observed_at: T1,
+    source_ref: createProtocolSha256V01(externalId),
+    compatibility_namespace: "identity-golden.v0.1",
+  });
+  const transitionRef = ref(
+    "state_transition_receipt",
+    "transition:identity-golden",
+  );
+  const baseAdmission = {
+    admission_version: "persisted_host_packet_admission.v0.1",
+    packet: {
+      packet_id: "task-context-packet:identity-golden",
+      integrity: {
+        fingerprint: createProtocolSha256V01("packet:identity-golden"),
+      },
+    } as TaskContextPacketV01,
+    packet_ref: ref("task_context_packet", "task-context-packet:identity-golden"),
+    work_ref: ref("work", "work:identity-golden"),
+    task_ref: ref("task", "task:identity-golden"),
+    packet_lineage: {
+      lineage_kind: "semantic_transition",
+      source_transition_receipt_ref: transitionRef,
+    },
+    root_scope: {
+      canonical_root: "/identity-golden-root",
+      path_flavor: "posix",
+      root_kind: "plain_folder",
+      root_fingerprint: createProtocolSha256V01("root:identity-golden"),
+      physical_root_identity: {
+        identity_version: "native_host_physical_root_identity.v0.1",
+        canonical_realpath_fingerprint: createProtocolSha256V01(
+          "/identity-golden-root",
+        ),
+        device: "101",
+        inode: "202",
+      },
+      root_scope_ref: ref("project_root_scope", "root:identity-golden"),
+      repository_ref: null,
+      selected_worktree_ref: null,
+    },
+  } satisfies PersistedHostPacketAdmissionV01;
+  const config = {
+    enabled: true as const,
+    workspace_id: "workspace:11111111-1111-4111-8111-111111111111",
+    project_id: "project:22222222-2222-4222-8222-222222222222",
+    operator_id: "operator:identity-golden",
+    database_path: ":memory:",
+  };
+  const adapter = createDeterministicCodexAdapterV01();
+  const transition = buildDirectNativeHostRunIdentityV01({
+    config,
+    mode: "interactive",
+    admission: baseAdmission,
+    adapter,
+    automation_context: null,
+  });
+  assert.deepEqual(transition, {
+    run_id: "host-run:91e4f4dd44b89028e09acdcc",
+    request_id: "host-request:91e4f4dd44b89028e09acdcc",
+    idempotency_key:
+      "sha256:91e4f4dd44b89028e09acdcca3de36aea562db72f2dfc558b06ae9b7bf189d7e",
+  });
+  const initial = buildDirectNativeHostRunIdentityV01({
+    config,
+    mode: "interactive",
+    admission: {
+      ...baseAdmission,
+      packet_lineage: {
+        lineage_kind: "initial_user_defined",
+        first_work_definition_ref: ref(
+          "first_work_definition",
+          "first-work-definition:identity-golden",
+        ),
+        first_work_request_ref: ref(
+          "first_work_request",
+          "first-work-request:identity-golden",
+        ),
+        operator_action_ref: ref(
+          "local_operator_session_action",
+          "operator-action:identity-golden",
+        ),
+      },
+    },
+    adapter,
+    automation_context: null,
+  });
+  assert.deepEqual(initial, {
+    run_id: "host-run:1a06eb237240a656aac42dc0",
+    request_id: "host-request:1a06eb237240a656aac42dc0",
+    idempotency_key:
+      "sha256:1a06eb237240a656aac42dc044a1b95d9228a556e200e49290cac8f140299059",
+  });
+  assert.notEqual(initial.idempotency_key, transition.idempotency_key);
+}
+
 function assertInitializationReadPolicyV01(): void {
   for (const kind of ["plain", "git"] as const) {
     const fixture = createFixtureV01(`new-${kind}`, kind === "git");
@@ -274,30 +463,100 @@ function assertInitializationReadPolicyV01(): void {
 
   const runFixture = createFixtureV01("run-history");
   try {
-    runFixture.db.prepare(
-      `INSERT INTO autonomy_runs (
-        run_id, scope, title, status, created_at, updated_at,
-        source_refs_json, authority_boundary_json, budget_snapshot_json,
-        metadata_json
-      ) VALUES (?, ?, ?, ?, ?, ?, '[]', '{}', '{}', ?)`,
-    ).run(
-      "run:first-work-history",
-      runFixture.project_id,
-      "Historical managed work",
-      "completed",
-      T1,
-      T1,
-      JSON.stringify({
-        workspace_id: runFixture.workspace_id,
-        project_id: runFixture.project_id,
-      }),
-    );
+    insertManagedRunV01(runFixture, {
+      run_id: "run:first-work-history",
+      scope: runFixture.project_id,
+      metadata_json: "{}",
+    });
     assert.equal(
       readProjectWorkInitializationV01(runFixture.db, runFixture.config).state,
       "existing_history_without_current_packet",
     );
   } finally {
     runFixture.db.close();
+  }
+
+  for (const [name, metadata] of [
+    ["null-metadata", { workspace_id: null, project_id: null }],
+    [
+      "contradictory-metadata",
+      { workspace_id: "workspace:other", project_id: "project:other" },
+    ],
+  ] as const) {
+    const fixture = createFixtureV01(`run-${name}`);
+    try {
+      insertManagedRunV01(fixture, {
+        run_id: `run:${name}`,
+        scope: fixture.project_id,
+        metadata_json: JSON.stringify(metadata),
+      });
+      assert.equal(
+        readProjectWorkInitializationV01(fixture.db, fixture.config).state,
+        "existing_history_without_current_packet",
+      );
+    } finally {
+      fixture.db.close();
+    }
+  }
+
+  const conflictFixture = createFixtureV01("run-metadata-scope-conflict");
+  try {
+    insertManagedRunV01(conflictFixture, {
+      run_id: "run:metadata-scope-conflict",
+      scope: "project:other-scope",
+      metadata_json: JSON.stringify({
+        workspace_id: conflictFixture.workspace_id,
+        project_id: conflictFixture.project_id,
+      }),
+    });
+    assert.equal(
+      readProjectWorkInitializationV01(
+        conflictFixture.db,
+        conflictFixture.config,
+      ).state,
+      "unavailable",
+    );
+  } finally {
+    conflictFixture.db.close();
+  }
+
+  const malformedFixture = createFixtureV01("run-malformed-metadata");
+  try {
+    insertManagedRunV01(malformedFixture, {
+      run_id: "run:malformed-metadata",
+      scope: "project:unrelated",
+      metadata_json: "{not-json",
+    });
+    assert.equal(
+      readProjectWorkInitializationV01(
+        malformedFixture.db,
+        malformedFixture.config,
+      ).state,
+      "unavailable",
+    );
+  } finally {
+    malformedFixture.db.close();
+  }
+
+  const unrelatedFixture = createFixtureV01("run-unrelated");
+  try {
+    insertManagedRunV01(unrelatedFixture, {
+      run_id: "run:unrelated",
+      scope: "project:unrelated",
+      metadata_json: JSON.stringify({
+        workspace_id: "workspace:unrelated",
+        project_id: "project:unrelated",
+      }),
+    });
+    assert.equal(
+      readProjectWorkInitializationV01(
+        unrelatedFixture.db,
+        unrelatedFixture.config,
+      ).state,
+      "not_defined",
+    );
+  } finally {
+    unrelatedFixture.db.close();
   }
 
   const semanticFixture = createFixtureV01("semantic-history");
@@ -450,6 +709,96 @@ function assertMutationAndReplayV01(): void {
   } finally {
     fixture.db.close();
   }
+
+  for (const [name, boundary] of [
+    [
+      "rocket",
+      normalizeInitialProjectWorkDefinitionV01({
+        goal: "🚀".repeat(2_000),
+        success_criteria: ["The complete Unicode goal remains executable"],
+        non_goals: [],
+      }),
+    ],
+    [
+      "ascii",
+      definitionAtCanonicalBytesV01(
+        INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes,
+        "ascii",
+      ),
+    ],
+    [
+      "mixed",
+      definitionAtCanonicalBytesV01(
+        INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes,
+        "mixed",
+      ),
+    ],
+  ] as const) {
+    const boundaryFixture = createFixtureV01(`boundary-insert-${name}`);
+    try {
+      const request = requestV01(boundaryFixture, boundary);
+      const inserted = defineInitialProjectWorkV01(boundaryFixture.db, {
+        config: boundaryFixture.config,
+        credential: authenticatedSessionV01(boundaryFixture, `boundary-${name}`),
+        request,
+        clock: fixedClock(T2),
+      });
+      assert.equal(inserted.status, "inserted");
+      assert.deepEqual(inserted.definition, boundary);
+      const replay = defineInitialProjectWorkV01(boundaryFixture.db, {
+        config: boundaryFixture.config,
+        credential: credentialFromCookieV01(
+          inserted.session_admission.cookie_value,
+        ),
+        request,
+        clock: fixedClock("2026-08-01T00:00:03.000Z"),
+      });
+      assert.equal(replay.status, "exact_replay");
+      assert.equal(replay.packet.packet_id, inserted.packet.packet_id);
+    } finally {
+      boundaryFixture.db.close();
+    }
+  }
+}
+
+function definitionAtCanonicalBytesV01(
+  targetBytes: number,
+  variant: "ascii" | "mixed",
+): ProjectWorkDefinitionV01 {
+  const goal =
+    variant === "ascii"
+      ? "g".repeat(2_000)
+      : `${"한글".repeat(500)}${"g".repeat(500)}`;
+  const successCriteria = Array.from({ length: 12 }, (_, index) => {
+    const prefix = `criterion-${String(index).padStart(2, "0")}:`;
+    return `${prefix}${"c".repeat(500 - prefix.length)}`;
+  });
+  const nonGoals: string[] = [];
+  const value = (): ProjectWorkDefinitionV01 => ({
+    goal,
+    success_criteria: successCriteria,
+    non_goals: [...nonGoals],
+  });
+  while (
+    Buffer.byteLength(canonicalizeProtocolValueV01(value()), "utf8") <
+    targetBytes
+  ) {
+    const current = nonGoals.at(-1);
+    if (current === undefined || [...current].length >= 500) {
+      const prefix = `non-goal-${String(nonGoals.length).padStart(2, "0")}:`;
+      nonGoals.push(prefix);
+    } else {
+      nonGoals[nonGoals.length - 1] = `${current}n`;
+    }
+    const bytes = Buffer.byteLength(
+      canonicalizeProtocolValueV01(value()),
+      "utf8",
+    );
+    if (bytes > targetBytes) {
+      throw new Error(`unable_to_construct_exact_definition:${bytes}`);
+    }
+  }
+  return value();
 }
 
 function assertMutationRefusalsAndRollbackV01(): void {
@@ -558,6 +907,58 @@ function assertMutationRefusalsAndRollbackV01(): void {
   } finally {
     isolation.db.close();
   }
+
+  const genesisHistory = createFixtureV01("genesis-history");
+  try {
+    insertManagedRunV01(genesisHistory, {
+      run_id: "run:genesis-history",
+      scope: genesisHistory.project_id,
+      metadata_json: "{}",
+    });
+    assert.throws(
+      () =>
+        defineInitialProjectWorkV01(genesisHistory.db, {
+          config: genesisHistory.config,
+          credential: authenticatedSessionV01(genesisHistory, "history"),
+          request: requestV01(genesisHistory),
+          clock: fixedClock(T2),
+        }),
+      errorCode("first_work_state_changed"),
+    );
+    assert.equal(
+      listVNextCoreRecordsV01(genesisHistory.db, {
+        workspace_id: genesisHistory.workspace_id,
+        project_id: genesisHistory.project_id,
+        record_kinds: ["task_context_packet"],
+        limit: 1,
+      }).length,
+      0,
+    );
+  } finally {
+    genesisHistory.db.close();
+  }
+
+  const recoveryHistory = createFixtureV01("recovery-genesis-history");
+  try {
+    defineInitialProjectWorkV01(recoveryHistory.db, {
+      config: recoveryHistory.config,
+      credential: authenticatedSessionV01(recoveryHistory, "recovery"),
+      request: requestV01(recoveryHistory),
+      clock: fixedClock(T2),
+    });
+    insertManagedRunV01(recoveryHistory, {
+      run_id: "run:predated-genesis-history",
+      scope: recoveryHistory.project_id,
+      metadata_json: "{}",
+      created_at: T1,
+    });
+    assert.equal(
+      validateRecoveryCanonicalDatabaseV01(recoveryHistory.db).status,
+      "invalid",
+    );
+  } finally {
+    recoveryHistory.db.close();
+  }
 }
 
 async function assertSeparateNativeHostStartV01(): Promise<void> {
@@ -641,10 +1042,15 @@ async function assertSeparateNativeHostStartV01(): Promise<void> {
     assert("lineage_kind" in request.packet_lineage);
     assert.equal(request.packet_lineage.lineage_kind, "initial_user_defined");
     assert.equal("source_transition_receipt_ref" in request.packet_lineage, false);
-    assert.equal(
-      canonicalizeProtocolValueV01(request.guide_brief).includes(inserted.definition.goal),
-      true,
-    );
+    assert.deepEqual(Object.keys(request.packet_lineage).sort(), [
+      "first_work_definition_ref",
+      "first_work_request_ref",
+      "lineage_kind",
+      "operator_action_ref",
+      "packet_source_refs",
+      "selected_context_refs",
+    ]);
+    assert.equal(request.guide_brief, undefined);
     assert.equal(
       result.receipt.external_refs.some((ref) => ref.ref_type === "first_work_definition"),
       true,
@@ -694,6 +1100,35 @@ interface FixtureV01 {
   workspace_id: string;
   project_id: string;
   config: VNextLocalOperatorPilotConfigV01;
+}
+
+function insertManagedRunV01(
+  fixture: FixtureV01,
+  input: {
+    run_id: string;
+    scope: string;
+    metadata_json: string;
+    created_at?: string;
+  },
+): void {
+  const createdAt = input.created_at ?? T1;
+  fixture.db
+    .prepare(
+      `INSERT INTO autonomy_runs (
+        run_id, scope, title, status, created_at, updated_at,
+        source_refs_json, authority_boundary_json, budget_snapshot_json,
+        metadata_json
+      ) VALUES (?, ?, ?, ?, ?, ?, '[]', '{}', '{}', ?)`,
+    )
+    .run(
+      input.run_id,
+      input.scope,
+      "Historical managed work",
+      "completed",
+      createdAt,
+      createdAt,
+      input.metadata_json,
+    );
 }
 
 function createFixtureV01(name: string, git = false): FixtureV01 {

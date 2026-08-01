@@ -557,6 +557,108 @@ async function main() {
   assert.equal(historyWithoutPacket.focus, "work_instructions_unavailable");
   assert.notEqual(historyWithoutPacket.primary_action?.label, "Define first work");
 
+  for (const initialization of [
+    {
+      initialization_version: "project_work_initialization.v0.1" as const,
+      workspace_id: "workspace:test",
+      project_id: "project:test",
+      state: "existing_history_without_current_packet" as const,
+      reason: "durable_history_without_current_packet" as const,
+      active_project_id: "project:test",
+      active_selection_revision: 3,
+      current_work: null,
+      current_packet: null,
+      mutation_eligible: false,
+      projection_only: true as const,
+      semantic_authority_granted: false as const,
+      execution_authority_granted: false as const,
+    },
+    {
+      initialization_version: "project_work_initialization.v0.1" as const,
+      workspace_id: "workspace:test",
+      project_id: "project:test",
+      state: "unavailable" as const,
+      reason: "source_unavailable" as const,
+      active_project_id: "project:test",
+      active_selection_revision: 3,
+      current_work: null,
+      current_packet: null,
+      mutation_eligible: false,
+      projection_only: true as const,
+      semantic_authority_granted: false as const,
+      execution_authority_granted: false as const,
+    },
+  ]) {
+    for (const [stage, expectedFocus] of [
+      ["waiting_for_approval", "work_requires_attention"],
+      ["working", "work_in_progress"],
+      ["result_ready", "result_ready"],
+    ] as const) {
+      assert.equal(
+        view(
+          source(projection(), {
+            delegated_work: delegatedWork(stage),
+            work_initialization: initialization,
+          }),
+        ).focus,
+        expectedFocus,
+        `${initialization.state}:delegated:${stage}`,
+      );
+    }
+    assert.equal(
+      view(
+        source(
+          projection({
+            run: {
+              run_ref: "run:owned-current",
+              status: "running",
+              mode: "interactive",
+              started_at: "2026-07-23T00:00:00.000Z",
+              updated_at: "2026-07-23T00:01:00.000Z",
+              public_reason: null,
+              reconciliation_required: false,
+              packet_ref: null,
+              receipt_available: false,
+            },
+          }),
+          { work_initialization: initialization },
+        ),
+      ).focus,
+      "work_in_progress",
+      `${initialization.state}:run`,
+    );
+    assert.equal(
+      view(
+        source(projection({ result: latestResult, entry: resultEntry }), {
+          work_initialization: initialization,
+        }),
+      ).focus,
+      "result_ready",
+      `${initialization.state}:result`,
+    );
+    assert.equal(
+      view(
+        source(
+          projection({
+            attention: [
+              {
+                attention_id: "attention:owned-current",
+                summary: "A saved decision needs review",
+                reason: "The exact current decision remains pending.",
+                workbench_entry: null,
+                action_href: "/workbench/semantic-review",
+                action_label: "Review decision",
+              },
+            ] as ProjectHomeProjectionV01["attention"]["items"],
+          }),
+          { work_initialization: initialization },
+        ),
+      ).focus,
+      "attention_required",
+      `${initialization.state}:attention`,
+    );
+  }
+
   for (const stage of ["preparing", "working", "cancelling"] as const) {
     const ordinary = view(
       source(projection(), { delegated_work: delegatedWork(stage) }),

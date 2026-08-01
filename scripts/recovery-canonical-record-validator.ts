@@ -50,6 +50,9 @@ import {
 } from "../lib/vnext/runtime/durable-semantic-transition";
 import type { VNextLocalOperatorPilotConfigV01 } from "../lib/vnext/runtime/local-operator-session";
 import { initialProjectWorkIdempotencyKeyV01 } from "../lib/vnext/runtime/initial-project-work-context";
+import {
+  inspectProjectManagedRunHistoryV01,
+} from "../lib/vnext/runtime/project-managed-run-history";
 import { createVNextOperatorPilotContextUseReviewLogicalIdentityV01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
@@ -1016,6 +1019,23 @@ function validateDatabaseRelationsV01(
   }
 }
 
+function validateInitialProjectWorkGenesisV01(
+  db: Database.Database,
+  records: ParsedCanonicalRecordV01[],
+): void {
+  for (const record of records) {
+    if (record.record_kind !== "task_context_packet") continue;
+    const packet = record.payload as unknown as TaskContextPacketV01;
+    if (initialProjectWorkIdempotencyKeyV01(packet) === null) continue;
+    const history = inspectProjectManagedRunHistoryV01(db, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+      created_at_lte: packet.generated_at,
+    });
+    if (history.status !== "none") refuseV01();
+  }
+}
+
 interface ProductReaderProjectScopeV01 {
   workspace_id: string;
   project_id: string;
@@ -1305,6 +1325,7 @@ export function validateRecoveryCanonicalDatabaseV01(
       byIdentity.set(key, record);
       validatePayloadAndEnvelopeV01(record);
     }
+    validateInitialProjectWorkGenesisV01(db, records);
     validateDatabaseRelationsV01(db, records, byIdentity);
     validateProductReaderCompatibilityV01(db, records);
     return validResultV01(records.length);

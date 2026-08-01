@@ -14,11 +14,32 @@ import {
   type ProjectWorkDefinitionV01,
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 
 export const INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 =
   "augnes.vnext.initial-work-context-compiler.v0.1" as const;
 export const INITIAL_PROJECT_WORK_REQUEST_NAMESPACE_V01 =
   "augnes.vnext.initial-work-request.v0.1" as const;
+
+// The accepted definition domain is capped at 12,000 canonical UTF-8 bytes.
+// Canonical JSON escaping and the three additional goal projections are
+// included conservatively so every accepted definition can compile.
+const INITIAL_PROJECT_WORK_PACKET_FIXED_CHARACTERS_V01 = 16_000;
+const INITIAL_PROJECT_WORK_PACKET_DERIVED_CHARACTERS_V01 =
+  INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes * 2 +
+  INITIAL_PROJECT_WORK_LIMITS_V01.goal_characters * 2 * 3;
+export const INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01 = {
+  max_selected_entries: 3,
+  max_projection_items: 1,
+  max_characters:
+    INITIAL_PROJECT_WORK_PACKET_FIXED_CHARACTERS_V01 +
+    INITIAL_PROJECT_WORK_PACKET_DERIVED_CHARACTERS_V01,
+  max_estimated_tokens: Math.ceil(
+    (INITIAL_PROJECT_WORK_PACKET_FIXED_CHARACTERS_V01 +
+      INITIAL_PROJECT_WORK_PACKET_DERIVED_CHARACTERS_V01) /
+      4,
+  ),
+} as const;
 
 const REQUEST_ID_PATTERN = /^first-work-request:(\d+):([a-f0-9]{24})$/u;
 const DEFINITION_ID_PATTERN = /^first-work-definition:[a-f0-9]{24}$/u;
@@ -197,7 +218,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
     basis: "Bound to the exact authenticated first-work declaration.",
     source_ref: lineage.definition_ref,
   };
-  const packet = buildTaskContextPacketV01({
+  const packet = buildInitialProjectWorkPacketWithinBudgetV01({
     workspace_id: input.workspace_id,
     project_id: input.project_id,
     work_ref: lineage.definition_ref,
@@ -276,12 +297,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
       required_checks: [],
       forbidden_actions: [],
       data_classification: "private",
-      context_budget: {
-        max_selected_entries: 3,
-        max_projection_items: 1,
-        max_characters: 16_000,
-        max_estimated_tokens: 4_000,
-      },
+      context_budget: INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01,
     },
     capability_grant: null,
     return_contract: {
@@ -326,6 +342,19 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
     ],
   });
   return { packet, lineage };
+}
+
+function buildInitialProjectWorkPacketWithinBudgetV01(
+  input: Parameters<typeof buildTaskContextPacketV01>[0],
+): TaskContextPacketV01 {
+  try {
+    return buildTaskContextPacketV01(input);
+  } catch (error) {
+    if (error instanceof RangeError) {
+      refuse("first_work_packet_budget_exceeded");
+    }
+    throw error;
+  }
 }
 
 export function initialProjectWorkIdempotencyKeyV01(
@@ -490,21 +519,15 @@ export function inspectInitialProjectWorkPacketLineageV01(
       packet.packet_id,
       packet.generated_at,
     ) as { count: number };
-  const priorRuns = db
-    .prepare(
-      `SELECT COUNT(*) AS count FROM autonomy_runs
-        WHERE scope = ?
-          AND json_extract(metadata_json, '$.workspace_id') = ?
-          AND json_extract(metadata_json, '$.project_id') = ?
-          AND created_at <= ?`,
-    )
-    .get(
-      input.project_id,
-      input.workspace_id,
-      input.project_id,
-      packet.generated_at,
-    ) as { count: number };
-  if (priorCore.count !== 0 || priorRuns.count !== 0) {
+  const priorRuns = inspectProjectManagedRunHistoryV01(db, {
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    created_at_lte: packet.generated_at,
+  });
+  if (priorRuns.status === "unavailable") {
+    refuse("initial_project_work_run_history_unavailable", 409);
+  }
+  if (priorCore.count !== 0 || priorRuns.status === "present") {
     refuse("initial_project_work_prior_history_invalid", 409);
   }
   const semanticState = countRowsV01(

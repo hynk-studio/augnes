@@ -478,7 +478,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     automation_context: null,
     run_id: "preparing",
   });
-  const identity = buildRunIdentity({
+  const identity = buildDirectNativeHostRunIdentityV01({
     config: input.config,
     mode: input.mode,
     admission,
@@ -638,19 +638,24 @@ export async function runDirectNativeHostRoundTripV01(
     });
   }
   let taskStartGuide: NativeHostRequestV01["guide_brief"];
-  try {
-    const registration = readCanonicalProjectWithRootV01(db, input.config);
-    taskStartGuide = buildTaskStartGuideBriefCodexProjectionV02({
-      packet: admitted.packet,
-      project_name: registration?.project.display_name ?? null,
-    });
-  } catch {
-    taskStartGuide = unavailableGuideBriefCodexProjectionV02(
-      admitted.packet,
-      "current_project_guide_unavailable",
-    );
+  if (shouldAttachNativeHostTaskStartGuideV01({
+    adapter,
+    resume_existing_run: dependencies.resume_existing_run === true,
+  })) {
+    try {
+      const registration = readCanonicalProjectWithRootV01(db, input.config);
+      taskStartGuide = buildTaskStartGuideBriefCodexProjectionV02({
+        packet: admitted.packet,
+        project_name: registration?.project.display_name ?? null,
+      });
+    } catch {
+      taskStartGuide = unavailableGuideBriefCodexProjectionV02(
+        admitted.packet,
+        "current_project_guide_unavailable",
+      );
+    }
   }
-  const identity = buildRunIdentity({
+  const identity = buildDirectNativeHostRunIdentityV01({
     config: input.config,
     mode: input.mode,
     admission: admitted,
@@ -2716,13 +2721,37 @@ function buildBoundaryTerminalResult(input: {
   };
 }
 
-function buildRunIdentity(input: {
+export function shouldAttachNativeHostTaskStartGuideV01(input: {
+  adapter: Pick<NativeHostAdapterV01, "provider_egress">;
+  resume_existing_run: boolean;
+}): boolean {
+  return (
+    input.adapter.provider_egress === "native_host_managed" &&
+    !input.resume_existing_run
+  );
+}
+
+export function buildDirectNativeHostRunIdentityV01(input: {
   config: VNextLocalOperatorPilotConfigV01;
   mode: NativeHostRunModeV01;
   admission: PersistedHostPacketAdmissionV01;
   adapter: NativeHostAdapterV01;
   automation_context: NativeHostAutomationContextV01 | null;
 }) {
+  const lineageMaterial =
+    input.admission.packet_lineage.lineage_kind === "semantic_transition"
+      ? {
+          source_transition_receipt_ref:
+            input.admission.packet_lineage.source_transition_receipt_ref,
+        }
+      : {
+          initial_work_definition_ref:
+            input.admission.packet_lineage.first_work_definition_ref,
+          initial_work_request_ref:
+            input.admission.packet_lineage.first_work_request_ref,
+          initial_operator_action_ref:
+            input.admission.packet_lineage.operator_action_ref,
+        };
   const material = canonicalizeProtocolValueV01({
     contract: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
     workspace_id: input.config.workspace_id,
@@ -2732,7 +2761,7 @@ function buildRunIdentity(input: {
     packet_fingerprint: input.admission.packet.integrity.fingerprint,
     work_ref: input.admission.work_ref,
     task_ref: input.admission.task_ref,
-    packet_lineage: input.admission.packet_lineage,
+    ...lineageMaterial,
     root_fingerprint: input.admission.root_scope.root_fingerprint,
     root_physical_identity: input.admission.root_scope.physical_root_identity,
     root_kind: input.admission.root_scope.root_kind,
