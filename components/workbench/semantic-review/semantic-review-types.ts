@@ -17,6 +17,7 @@ import type {
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verify-reconciliation";
 import type { ProjectVerifyLineageV01 } from "@/types/vnext/project-verify-lineage";
+import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 
 export type SemanticReviewProposalListItemV01 =
   VNextOperatorPilotReviewListItemV01;
@@ -48,6 +49,7 @@ export interface SemanticReviewListRouteResponseV01 {
   proposals: SemanticReviewProposalListItemV01[];
   project_verify_reconciliation: ProjectVerifyReconciliationV01;
   project_continuity: VNextOperatorPilotProjectContinuityV01;
+  work_initialization?: ProjectWorkInitializationV01;
   inspector_href: string;
 }
 

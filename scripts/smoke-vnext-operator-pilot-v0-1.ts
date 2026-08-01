@@ -2347,9 +2347,18 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     canonicalizeProtocolValueV01(input.packet.work_ref),
   );
   assert.equal(
-    observed.packet_lineage.source_transition_receipt_ref.external_id,
+    "source_transition_receipt_ref" in observed.packet_lineage
+      ? observed.packet_lineage.source_transition_receipt_ref.external_id
+      : null,
     input.transition_receipt.transition_receipt_id,
   );
+  assert.deepEqual(Object.keys(observed.packet_lineage).sort(), [
+    "packet_source_refs",
+    "selected_context_refs",
+    "source_transition_receipt_ref",
+  ]);
+  assert.equal("lineage_kind" in observed.packet_lineage, false);
+  assert.equal(observed.guide_brief, undefined);
   assert.equal(observed.root_scope.canonical_root, operatorProjectRoot);
   assert.equal(observed.root_scope.root_kind, "plain_folder");
   assert.equal(observed.root_scope.repository_ref, null);

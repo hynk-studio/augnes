@@ -22,9 +22,10 @@ import {
   type VNextLocalRuntimeClockV01,
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
+import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
-  type VNextOperatorPilotPacketLineageInspectionV01,
+  type VNextOperatorPilotTransitionPacketLineageInspectionV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
@@ -105,7 +106,7 @@ export interface VNextOperatorPilotProposalDurableLineageChainV01 {
 }
 
 interface ValidatedCompiledPacketV01 {
-  inspection: VNextOperatorPilotPacketLineageInspectionV01;
+  inspection: VNextOperatorPilotTransitionPacketLineageInspectionV01;
 }
 
 export function readVNextOperatorPilotProposalDurableLineageV01(
@@ -268,7 +269,7 @@ function loadValidatedCompiledPackets(
     assertRecordEnvelope(record, {
       record_id: packet.packet_id,
       fingerprint: packet.integrity.fingerprint,
-      idempotency_key: null,
+      idempotency_key: initialProjectWorkIdempotencyKeyV01(packet),
       created_at: packet.generated_at,
       workspace_id: packet.workspace_id,
       project_id: packet.project_id,
@@ -283,13 +284,17 @@ function loadValidatedCompiledPackets(
     ) {
       continue;
     }
-    compiled.push({
-      inspection: inspectVNextOperatorPilotPacketLineageV01(db, {
+    const inspection = inspectVNextOperatorPilotPacketLineageV01(db, {
         config,
         packet_id: packet.packet_id,
         packet_fingerprint: packet.integrity.fingerprint,
-      }),
-    });
+      });
+    if (inspection.lineage_kind !== "semantic_transition") {
+      throw lineageError(
+        "operator_pilot_workbench_lineage_packet_kind_invalid",
+      );
+    }
+    compiled.push({ inspection });
   }
   return compiled;
 }
@@ -343,7 +348,7 @@ function buildLineageChain(input: {
 }
 
 function summarizePacket(
-  inspection: VNextOperatorPilotPacketLineageInspectionV01,
+  inspection: VNextOperatorPilotTransitionPacketLineageInspectionV01,
   observedAt: string,
 ): NonNullable<
   VNextOperatorPilotProposalDurableLineageChainV01["compiled_packet"]

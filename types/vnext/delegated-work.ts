@@ -11,6 +11,7 @@ export const DELEGATED_WORK_LIMITS_V01 = {
   timeline_items: 12,
   checkpoint_items: 6,
   text_characters: 320,
+  goal_characters: 2_000,
   source_refs: 16,
   serialized_bytes: 48 * 1_024,
 } as const;

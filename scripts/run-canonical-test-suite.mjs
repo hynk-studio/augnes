@@ -222,6 +222,15 @@ const suites = {
       ...rootNode("scripts/test-vnext-project-home.ts"),
     },
     {
+      id: "project-work-initialization",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label:
+        "authenticated first-work initialization, packet lineage, and separate native-host start",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "blank-state",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],
@@ -538,6 +547,14 @@ const suites = {
       label: "Resume, Verify, and Decide browser golden path",
       ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
       env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
+      timeoutMs: 480_000,
+    },
+  ],
+  "e2e-cux6b": [
+    {
+      label: "CUX6B first-work definition and separate activation browser path",
+      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
+      env: { AUGNES_BROWSER_E2E_SCOPE: "cux6b" },
       timeoutMs: 480_000,
     },
   ],

@@ -83,6 +83,22 @@ export interface NativeHostAutomationContextV01 {
   };
 }
 
+export type NativeHostPacketLineageV01 =
+  | {
+      /** Historical v0.1 transition-derived shape remains byte-compatible. */
+      source_transition_receipt_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
+    }
+  | {
+      lineage_kind: "initial_user_defined";
+      first_work_definition_ref: ExternalRefV01;
+      first_work_request_ref: ExternalRefV01;
+      operator_action_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
+    };
+
 export interface NativeHostRequestV01 {
   request_version: typeof NATIVE_HOST_REQUEST_VERSION_V01;
   request_id: string;
@@ -96,11 +112,7 @@ export interface NativeHostRequestV01 {
   packet: TaskContextPacketV01;
   /** Non-authoritative in-memory guidance; excluded from packet integrity. */
   guide_brief?: GuideBriefCodexProjectionV02;
-  packet_lineage: {
-    source_transition_receipt_ref: ExternalRefV01;
-    packet_source_refs: ExternalRefV01[];
-    selected_context_refs: ExternalRefV01[];
-  };
+  packet_lineage: NativeHostPacketLineageV01;
   mode: NativeHostRunModeV01;
   root_scope: NativeHostRootScopeV01;
   requested_capability: string;

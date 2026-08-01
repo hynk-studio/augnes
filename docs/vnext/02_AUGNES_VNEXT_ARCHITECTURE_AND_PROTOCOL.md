@@ -428,6 +428,79 @@ These are data-mapping inputs only. They are not packet export/copy surfaces or
 native-host transport paths. The normal R5 path admits the exact persisted
 `TaskContextPacket` server-side.
 
+#### Initial-work packet and lineage boundary
+
+`project_work_initialization.v0.1` is the shared deterministic, project-scoped,
+zero-model read owner for a project's work-initialization status. It returns
+`not_defined` only when the registered active project has an available local
+root and exact reads prove that no TaskContextPacket, managed delegated run,
+RunReceipt, EpisodeDeltaProposal, ReviewDecision, StateTransitionReceipt,
+semantic-state projection, semantic target head, or other owned current
+run/result source exists. Durable history without a usable current packet is
+`existing_history_without_current_packet`; a failed source read or unavailable
+project/root is `unavailable`. Neither state permits genesis creation.
+
+`defineInitialProjectWorkV01` is the authenticated operator mutation for the
+one allowed genesis definition. Its bounded request binds the exact workspace,
+project, active project, active-selection revision, expected `not_defined`
+state, normalized user goal, success criteria, and optional non-goals. The
+owner revalidates those facts in one immediate transaction and inserts exactly
+one existing `task_context_packet` Core record. The same normalized logical
+definition is `exact_replay`; a different later definition or concurrent state
+change refuses. Validation, session, root, database, or packet failure leaves
+no partial record.
+
+The compiler contract
+`augnes.vnext.initial-work-context-compiler.v0.1` uses the canonical
+TaskContextPacket builder and validator. It maps only the authenticated user
+declaration into task fields and a projection-only active-goal summary. Its
+selected context contains exact `user_declaration` and admitted
+`direct_local_observation` provenance, no accepted-state refs, no fabricated
+Evidence, Claim, risk, check, artifact, permission, or semantic state. The
+packet remains private user-authored project context, has a null capability
+grant, carries no absolute root, credential, transcript, provider material, or
+automatic expiry, and grants no execution, semantic, or external-effect
+authority.
+
+Executable packet lineage is an explicit union:
+
+```text
+initial_user_defined
+  → exact first-work definition ref
+  → exact authenticated operator-action provenance
+  → no prior packet and no StateTransitionReceipt
+
+semantic_transition
+  → exact prior TaskContextPacket
+  → exact applied StateTransitionReceipt
+  → existing full-chain and semantic-currentness validation
+```
+
+NativeHostRequest v0.1 admits this additive lineage union without overloading a
+transition-named field. Initial lineage must omit a source Transition receipt;
+transition lineage retains its existing exact relation unchanged. The initial
+packet is current only while it is the one genesis packet, no later
+transition-compiled packet supersedes it, and no semantic state/head drift
+requires a later compiler result. A later normal semantic Transition may use
+the initial packet as its prior packet, after which the existing persisted
+compiler produces the successor and full-chain validation remains exact.
+
+Saving first work does not start a host run, invoke a provider/model, write the
+project root, or create a proposal, ReviewDecision, Transition, semantic state,
+or RunReceipt. The existing separately authenticated `Start Codex work`
+activation supplies execution authority and may admit a current initial packet
+through the same active-project, selection, root, packet-fingerprint,
+approval, idempotency, cancellation, reconciliation, and cleanup gates used by
+transition-compiled packets. Result and proposal lineage may reference the
+initial definition truthfully; they may not fabricate a Transition receipt.
+
+Portable project v0.1 preserves the existing TaskContextPacket plus the exact
+initial-definition and operator-action provenance rows. A new import remains
+`defined_initial_work`, requires a new local operator action before execution,
+and transports no source-machine root or credentials. This additive
+interpretation requires neither a schema migration nor a TaskContextPacket,
+NativeHostRequest, or portable-project version bump.
+
 ---
 
 ### 5.2 RunReceipt

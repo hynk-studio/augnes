@@ -74,6 +74,8 @@ export function buildBlankStateContinuityV01(
 ): BlankStateContinuityCompositionV01 {
   const projectLifecycle = projectLifecycleCompositionV01(source);
   if (projectLifecycle) return projectLifecycle;
+  const workInitialization = workInitializationCompositionV01(source);
+  if (workInitialization) return workInitialization;
 
   const projection = source.projection!;
   const candidates: ContinuityCandidateV01[] = [];
@@ -150,6 +152,119 @@ export function buildBlankStateContinuityV01(
       source.route_mode === "project_management",
     user_judgment: highlighted.user_judgment,
   };
+}
+
+function workInitializationCompositionV01(
+  source: BlankStateSourceV01,
+): BlankStateContinuityCompositionV01 | null {
+  const initialization = source.work_initialization;
+  if (!initialization) return null;
+  if (initialization.state === "not_defined") {
+    const action = linkActionV01(
+      "Define first work",
+      `${WORKPLANE_HREF}#first-work`,
+      "define_first_work",
+    );
+    return singleItemCompositionV01({
+      source,
+      item: itemV01({
+        family: "work_initialization",
+        stable_basis: `first-work:${initialization.project_id}`,
+        work_name: "Define the first project work",
+        meaningful_state: "No work has been defined yet",
+        consequential_detail:
+          "Define the first goal and what success should look like before starting delegated work.",
+        next_action: action,
+      }),
+      focus: "first_work_not_defined",
+      heading: "No work has been defined for this project yet",
+      situation:
+        "Define the first goal and what success should look like before starting delegated work.",
+      material_note: null,
+      continuity_summary:
+        "Project setup is ready. No work or execution has started.",
+      guide_action: action,
+      action_reason:
+        "A bounded first-work definition is required before delegated work can start.",
+      project_management_emphasized:
+        source.route_mode === "project_management",
+    });
+  }
+  if (initialization.state === "existing_history_without_current_packet") {
+    if (hasOwnedCurrentPresentationV01(source)) return null;
+    const action = linkActionV01(
+      "Open AI Workplane",
+      WORKPLANE_HREF,
+      "work_instructions_unavailable",
+    );
+    return singleItemCompositionV01({
+      source,
+      item: itemV01({
+        family: "work_initialization",
+        stable_basis: `work-unavailable:${initialization.project_id}`,
+        work_name: "Current work instructions",
+        meaningful_state: "Current work instructions need refresh",
+        consequential_detail:
+          "Existing durable work history prevents creating a new first-work definition.",
+        next_action: action,
+      }),
+      focus: "work_instructions_unavailable",
+      heading: "Current work instructions are unavailable",
+      situation:
+        "This project has durable work history, so Augnes will not replace it with a new first-work definition.",
+      material_note:
+        "Refresh or recover the current work context before starting delegated work.",
+      continuity_summary:
+        "Existing work history is preserved while current instructions are recovered.",
+      guide_action: action,
+      action_reason:
+        "Existing project history must remain intact while current work context is recovered.",
+      project_management_emphasized:
+        source.route_mode === "project_management",
+    });
+  }
+  if (initialization.state === "unavailable") {
+    if (hasOwnedCurrentPresentationV01(source)) return null;
+    const action = linkActionV01(
+      "Open AI Workplane",
+      WORKPLANE_HREF,
+      "work_instructions_unavailable",
+    );
+    return singleItemCompositionV01({
+      source,
+      item: itemV01({
+        family: "work_initialization",
+        stable_basis: `work-source-unavailable:${initialization.project_id}`,
+        work_name: "Current work instructions",
+        meaningful_state: "Current work status could not be verified",
+        consequential_detail:
+          "Augnes did not infer that this is a new project while durable work sources were unavailable.",
+        next_action: action,
+      }),
+      focus: "work_instructions_unavailable",
+      heading: "Current work status is unavailable",
+      situation:
+        "Augnes cannot safely determine whether this project is new or already has work history.",
+      material_note: null,
+      continuity_summary:
+        "No first-work definition is offered until project history can be verified.",
+      guide_action: action,
+      action_reason:
+        "Failing closed avoids replacing unknown project history.",
+      project_management_emphasized:
+        source.route_mode === "project_management",
+    });
+  }
+  return null;
+}
+
+function hasOwnedCurrentPresentationV01(source: BlankStateSourceV01): boolean {
+  return Boolean(
+    (source.delegated_work && source.delegated_work.stage !== "not_started") ||
+      source.projection?.run_results.current_run ||
+      source.projection?.run_results.latest_result ||
+      source.projection?.attention.items.length,
+  );
 }
 
 function projectLifecycleCompositionV01(

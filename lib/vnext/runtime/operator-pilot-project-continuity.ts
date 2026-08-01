@@ -41,6 +41,11 @@ import {
 import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
+import {
+  INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+  initialProjectWorkIdempotencyKeyV01,
+  inspectInitialProjectWorkPacketLineageV01,
+} from "@/lib/vnext/runtime/initial-project-work-context";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { validateVNextOperatorPilotReviewDecisionProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import { validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
@@ -114,6 +119,7 @@ export interface VNextOperatorPilotProjectContinuityV01 {
     generated_at: string;
     expires_at: string | null;
     accepted_state_count: number;
+    lineage_kind?: "initial_user_defined" | "semantic_transition";
   } | null;
   packet_currentness: "fresh" | "stale" | "expired" | "not_available";
   latest_context_use_receipt: {
@@ -147,7 +153,8 @@ export interface VNextOperatorPilotProjectContinuityV01 {
   semantic_authority_granted: false;
 }
 
-export interface VNextOperatorPilotPacketLineageInspectionV01 {
+export interface VNextOperatorPilotTransitionPacketLineageInspectionV01 {
+  lineage_kind: "semantic_transition";
   packet: TaskContextPacketV01;
   prior_packet: {
     packet_id: string;
@@ -159,6 +166,21 @@ export interface VNextOperatorPilotPacketLineageInspectionV01 {
     transition_receipt_fingerprint: string;
   };
 }
+
+export interface VNextOperatorPilotInitialPacketLineageInspectionV01 {
+  lineage_kind: "initial_user_defined";
+  packet: TaskContextPacketV01;
+  prior_packet: null;
+  projection_current: boolean;
+  source_transition_receipt: null;
+  first_work_definition_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+  first_work_request_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+  operator_action_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+}
+
+export type VNextOperatorPilotPacketLineageInspectionV01 =
+  | VNextOperatorPilotTransitionPacketLineageInspectionV01
+  | VNextOperatorPilotInitialPacketLineageInspectionV01;
 
 export interface VNextOperatorPilotPendingContextUseReviewV01 {
   later_run_receipt_id: string;
@@ -209,7 +231,7 @@ export function projectVNextOperatorPilotContinuityV01(
     throw continuityError("operator_pilot_target_head_bound_exceeded", 422);
   }
   validateTargetHeads(db, input.config, targetHeads);
-  const packets = loadCompiledPackets(db, input.config);
+  const packets = loadCurrentWorkPackets(db, input.config);
   const latestPacketBinding = packets.at(-1) ?? null;
   const latestPacket = latestPacketBinding?.packet ?? null;
   const contextUseReceipts = loadContextUseReceipts(db, input.config);
@@ -288,6 +310,7 @@ export function projectVNextOperatorPilotContinuityV01(
           accepted_state_count: latestPacket.selected_context.filter(
             (entry) => entry.entry_kind === "accepted_state_ref",
           ).length,
+          lineage_kind: latestPacketBinding!.lineage_kind,
         }
       : null,
     packet_currentness: latestPacket
@@ -348,6 +371,27 @@ export function inspectVNextOperatorPilotPacketLineageV01(
     input.packet_fingerprint,
   );
   validateCurrentSemanticState(db, input.config);
+  if (
+    packet.compatibility.source_contracts.includes(
+      INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+    )
+  ) {
+    const lineage = inspectInitialProjectWorkPacketLineageV01(db, {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      packet,
+    });
+    return {
+      lineage_kind: "initial_user_defined",
+      packet,
+      prior_packet: null,
+      projection_current: lineage.projection_current,
+      source_transition_receipt: null,
+      first_work_definition_ref: lineage.definition_ref,
+      first_work_request_ref: lineage.request_ref,
+      operator_action_ref: lineage.operator_action_ref,
+    };
+  }
   return validateCompiledPacketLineage(db, input.config, packet);
 }
 
@@ -382,6 +426,7 @@ export function resolveVNextOperatorPilotPendingContextUseReviewV01(
     packet_id: packet.packet_id,
     packet_fingerprint: packet.packet_fingerprint,
   });
+  if (packetLineage.lineage_kind !== "semantic_transition") return null;
   const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
     workspace_id: input.config.workspace_id,
     project_id: input.config.project_id,
@@ -641,29 +686,32 @@ function validateTargetHeads(
   }
 }
 
-function loadCompiledPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
+function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
   return loadRecords(db, config, "task_context_packet")
     .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
-    .filter((packet) => packet.compatibility.source_contracts.includes(VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01))
-    .map((packet) => validateCompiledPacketLineage(db, config, packet));
+    .filter(
+      (packet) =>
+        packet.compatibility.source_contracts.includes(
+          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+        ) ||
+        packet.compatibility.source_contracts.includes(
+          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+        ),
+    )
+    .map((packet) =>
+      inspectVNextOperatorPilotPacketLineageV01(db, {
+        config,
+        packet_id: packet.packet_id,
+        packet_fingerprint: packet.integrity.fingerprint,
+      }),
+    );
 }
 
 function validateCompiledPacketLineage(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   packet: TaskContextPacketV01,
-): {
-  packet: TaskContextPacketV01;
-  prior_packet: {
-    packet_id: string;
-    packet_fingerprint: string;
-  };
-  projection_current: boolean;
-  source_transition_receipt: {
-    transition_receipt_id: string;
-    transition_receipt_fingerprint: string;
-  };
-} {
+): VNextOperatorPilotTransitionPacketLineageInspectionV01 {
   if (
     !packet.compatibility.source_contracts.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -804,6 +852,7 @@ function validateCompiledPacketLineage(
       ),
     );
   return {
+    lineage_kind: "semantic_transition",
     packet,
     prior_packet: {
       packet_id: priorPacket.packet_id,
@@ -835,7 +884,15 @@ function loadPacket(
   if (validateTaskContextPacketV01(packet, { evaluated_at: packet?.generated_at ?? "" }).status !== "valid") {
     throw continuityError("operator_pilot_packet_invalid", 422);
   }
-  assertEnvelope(record, packet.workspace_id, packet.project_id, packet.integrity.fingerprint, packet.packet_id, packet.generated_at, null);
+  assertEnvelope(
+    record,
+    packet.workspace_id,
+    packet.project_id,
+    packet.integrity.fingerprint,
+    packet.packet_id,
+    packet.generated_at,
+    initialProjectWorkIdempotencyKeyV01(packet),
+  );
   return packet;
 }
 

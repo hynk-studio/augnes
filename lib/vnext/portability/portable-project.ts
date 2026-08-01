@@ -50,6 +50,7 @@ import { applyCanonicalDatabaseMigrations } from "@/scripts/canonical-database-m
 import type { VNextSemanticCommitGateRecordV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/initial-project-work-context";
 import {
   PORTABLE_PROJECT_CANONICALIZATION_V01,
   PORTABLE_PROJECT_CONTRACT_V01,
@@ -1014,13 +1015,33 @@ function readPortableOperatorProvenanceSessionsV01(
 ): PortableProjectV01["operator_provenance_sessions"] {
   const ids = new Set<string>();
   for (const record of records) {
-    if (record.record_kind !== "review_decision") continue;
-    const decision = record.payload as {
-      authorization_basis_refs?: Array<{ ref_type?: string; external_id?: string }>;
-    };
-    const refs = decision.authorization_basis_refs?.filter(
-      (ref) => ref.ref_type === "local_operator_session_action",
-    ) ?? [];
+    let refs: Array<{ ref_type?: string; external_id?: string }> = [];
+    let provenanceRequired = false;
+    if (record.record_kind === "review_decision") {
+      provenanceRequired = true;
+      const decision = record.payload as {
+        authorization_basis_refs?: Array<{
+          ref_type?: string;
+          external_id?: string;
+        }>;
+      };
+      refs = decision.authorization_basis_refs?.filter(
+        (ref) => ref.ref_type === "local_operator_session_action",
+      ) ?? [];
+    } else if (record.record_kind === "task_context_packet") {
+      const packet = record.payload as TaskContextPacketV01;
+      if (
+        packet.compatibility?.source_contracts?.includes(
+          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+        )
+      ) {
+        provenanceRequired = true;
+        refs = packet.compatibility.source_refs.filter(
+          (ref) => ref.ref_type === "local_operator_session_action",
+        );
+      }
+    }
+    if (!provenanceRequired) continue;
     if (refs.length !== 1 || typeof refs[0]!.external_id !== "string") {
       refuseV01("portable_project_provenance_invalid");
     }

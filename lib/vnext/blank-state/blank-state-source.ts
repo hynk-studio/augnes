@@ -25,6 +25,7 @@ import { getLiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-
 import { readDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-source";
 import { readVNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { VNextOperatorPilotContinuityErrorV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
 import type { BoundedAutomationHostContractV01 } from "@/lib/vnext/runtime/bounded-automation-cycle";
 import type {
   BlankStateRouteModeV01,
@@ -81,6 +82,7 @@ export async function readBlankStateSourceV01(
       project_resolution: "none",
       direct_host_round_trip_available: false,
       delegated_work: null,
+      work_initialization: null,
       continuity_pins: null,
     };
   }
@@ -137,6 +139,12 @@ export async function readBlankStateSourceV01(
       ? directHostRoundTripAvailableV01(projection)
       : false,
     delegated_work: delegatedWork,
+    work_initialization: projection
+      ? readProjectWorkInitializationV01(db, {
+          workspace_id: workspace.workspace_id,
+          project_id: targetProjectId,
+        })
+      : null,
     continuity_pins: projection?.project_summary.is_active
       ? readProjectContinuityPinProjectionV01(db, {
           workspace_id: projection.workspace_id,

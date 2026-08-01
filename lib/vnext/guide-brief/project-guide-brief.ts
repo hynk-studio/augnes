@@ -700,6 +700,8 @@ function workStatusV02(source: BlankStateSourceV01, decision: BlankStateContinui
   if (projection.run_results.current_run) return "Work in progress";
   if (projection.run_results.latest_result) return "Result ready for review";
   if (decision.known_attention_count > 0) return "User attention required";
+  if (decision.focus === "first_work_not_defined") return "First work has not been defined";
+  if (decision.focus === "work_instructions_unavailable") return "Current work instructions are unavailable";
   return decision.focus === "ready_to_continue" ? "Ready to continue" : decision.heading;
 }
 

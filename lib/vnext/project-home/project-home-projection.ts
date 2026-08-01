@@ -67,6 +67,10 @@ import {
   createRunResultWorkbenchEntryV01,
 } from "@/lib/vnext/runtime/semantic-workbench-entry";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import {
+  INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+  inspectInitialProjectWorkPacketLineageV01,
+} from "@/lib/vnext/runtime/initial-project-work-context";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -106,6 +110,7 @@ const DECISION_SCAN_LIMIT = 128;
 const TRANSITION_SCAN_LIMIT = 128;
 const ACTIVITY_SCAN_LIMIT = 24;
 const SUMMARY_LIMIT = 320;
+const TASK_GOAL_LIMIT = 2_000;
 const TASK_DETAIL_LIMIT = 6;
 const PERSONAL_BASIS_LIMIT = 3;
 
@@ -765,6 +770,9 @@ function readWorkingProjection(
   const packetResult = validatedPacket(record, input, evaluationTimestamp);
   if (packetResult.status === "expired") return expiredWorkingProjection();
   const packet = packetResult.packet;
+  if (!initialPacketProjectionCurrentV01(db, input, packet)) {
+    return emptyWorkingProjection();
+  }
   if (!packet.current_projection) return emptyWorkingProjection();
   return {
     state: sectionState(
@@ -822,6 +830,15 @@ function readTaskFrame(
   }
   const packetResult = validatedPacket(record, input, evaluationTimestamp);
   const packet = packetResult.packet;
+  if (!initialPacketProjectionCurrentV01(db, input, packet)) {
+    return {
+      ...taskFrameError(),
+      state: sectionState(
+        "action_required",
+        "The initial work packet was superseded or semantic state changed before later context was compiled.",
+      ),
+    };
+  }
   return {
     state: sectionState(
       packetResult.status === "expired" ||
@@ -832,19 +849,19 @@ function readTaskFrame(
         ? "The latest selected working context is expired and must not be treated as current."
         : "Task intent and selected working context are available from the latest exact packet.",
     ),
-    goal: safeSummary(packet.task.goal),
+    goal: safeSummary(packet.task.goal, TASK_GOAL_LIMIT),
     success_criteria: packet.task.success_criteria
       .slice(0, TASK_DETAIL_LIMIT)
-      .map(safeSummary),
+      .map((entry) => safeSummary(entry)),
     non_goals: packet.task.non_goals
       .slice(0, TASK_DETAIL_LIMIT)
-      .map(safeSummary),
+      .map((entry) => safeSummary(entry)),
     required_checks: packet.constraints.required_checks
       .slice(0, TASK_DETAIL_LIMIT)
-      .map(safeSummary),
+      .map((entry) => safeSummary(entry)),
     forbidden_actions: packet.constraints.forbidden_actions
       .slice(0, TASK_DETAIL_LIMIT)
-      .map(safeSummary),
+      .map((entry) => safeSummary(entry)),
     tensions: packet.tensions
       .slice(0, TASK_DETAIL_LIMIT)
       .map((item) => safeSummary(item.summary)),
@@ -1992,6 +2009,24 @@ function validatedPacket(
     : { status: "available", packet };
 }
 
+function initialPacketProjectionCurrentV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  packet: TaskContextPacketV01,
+): boolean {
+  if (
+    !packet.compatibility.source_contracts.includes(
+      INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+    )
+  ) {
+    return true;
+  }
+  return inspectInitialProjectWorkPacketLineageV01(db, {
+    ...input,
+    packet,
+  }).projection_current;
+}
+
 function assertRecordBinding(
   record: VNextCoreRecordEnvelopeV01,
   input: { workspace_id: string; project_id: string },
@@ -2324,7 +2359,7 @@ function decisionLabel(value: ReviewDecisionV01["decision"]): string {
   } as const)[value];
 }
 
-function safeSummary(value: string): string {
+function safeSummary(value: string, limit = SUMMARY_LIMIT): string {
   const normalized = typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
   if (!normalized) return "No safe summary is available.";
   if (
@@ -2335,7 +2370,7 @@ function safeSummary(value: string): string {
   ) {
     return "Summary withheld because it contains private or credential-like material.";
   }
-  return normalized.slice(0, SUMMARY_LIMIT);
+  return normalized.slice(0, limit);
 }
 
 function safeOptionalReference(value: string | null): string | null {

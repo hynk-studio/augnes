@@ -134,7 +134,10 @@ export function buildDelegatedWorkProjectionV01(
       updated_at: null,
       finished_at: null,
       current: {
-        goal: boundedTextV01(input.current_goal),
+        goal: boundedTextV01(
+          input.current_goal,
+          DELEGATED_WORK_LIMITS_V01.goal_characters,
+        ),
         stage_label:
           sourceStatus === "unavailable"
             ? "Current progress is unavailable"
@@ -247,7 +250,10 @@ export function buildDelegatedWorkProjectionV01(
     finished_at: run.finished_at,
     current: {
       goal:
-        boundedTextV01(input.current_goal) ??
+        boundedTextV01(
+          input.current_goal,
+          DELEGATED_WORK_LIMITS_V01.goal_characters,
+        ) ??
         boundedTextV01(stringValueV01(run.metadata.task_goal)) ??
         boundedTextV01(run.title),
       stage_label: stageCopy.label,
@@ -803,11 +809,14 @@ function stableIdV01(...parts: string[]): string {
   return `delegated:${createHash("sha256").update(parts.join("\u0000")).digest("hex").slice(0, 24)}`;
 }
 
-function boundedTextV01(value: string | null | undefined): string | null {
+function boundedTextV01(
+  value: string | null | undefined,
+  limit: number = DELEGATED_WORK_LIMITS_V01.text_characters,
+): string | null {
   if (!value) return null;
   const normalized = value.replace(/\s+/gu, " ").trim();
   if (!normalized) return null;
-  return normalized.slice(0, DELEGATED_WORK_LIMITS_V01.text_characters);
+  return normalized.slice(0, limit);
 }
 
 function stringValueV01(value: unknown): string | null {

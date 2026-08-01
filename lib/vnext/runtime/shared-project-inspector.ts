@@ -1565,13 +1565,15 @@ function validateAndDescribeCoreRecordV01(
           packet_id: packet.packet_id,
           packet_fingerprint: packet.integrity.fingerprint,
         });
-        const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-          workspace_id: config.workspace_id,
-          project_id: config.project_id,
-          transition_receipt_id: packetLineage.source_transition_receipt.transition_receipt_id,
-          transition_receipt_fingerprint: packetLineage.source_transition_receipt.transition_receipt_fingerprint,
-        });
-        proposalId = transition.proposal.proposal_id;
+        if (packetLineage.lineage_kind === "semantic_transition") {
+          const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+            transition_receipt_id: packetLineage.source_transition_receipt.transition_receipt_id,
+            transition_receipt_fingerprint: packetLineage.source_transition_receipt.transition_receipt_fingerprint,
+          });
+          proposalId = transition.proposal.proposal_id;
+        }
       } catch (error) {
         if (
           !(error instanceof VNextOperatorPilotContinuityErrorV01) ||
