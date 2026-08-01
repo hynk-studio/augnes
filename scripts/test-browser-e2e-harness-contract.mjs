@@ -21,7 +21,7 @@ assert.equal(outputResultKeys.length, new Set(outputResultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
 assert.equal(resultKeys.length, 204);
 assert.equal(outputResultKeys.length, 221);
-assert.equal(recordNames.length, 99);
+assert.equal(recordNames.length, 101);
 assert.equal(
   hashStringInventory(resultKeys),
   "ca9f940d6f000fdaf132e34f22f6fff7892c595a71c557dc8b4f0a096ee3218b",
@@ -32,7 +32,7 @@ assert.equal(
 );
 assert.equal(
   hashStringInventory(recordNames),
-  "ea74434806ffb6a3d7adb72756433716acfd89cee8715c2d010db9f202bc4605",
+  "47cfd8bacb9dd92a65983c21a8a41bb3e072cc06f65bdf528133e7f2431e804d",
 );
 for (const marker of [
   "mixed_return_target_captured_from_exact_mutated_proposal",

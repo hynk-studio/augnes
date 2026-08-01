@@ -68,7 +68,7 @@ At the authorized VFY1-A baseline, the contract records:
 | Result fields declared in the initializer | 204 |
 | Result fields added later by direct assignment | 17 |
 | Complete top-level output field surface | 221 |
-| Significant `record(...)` markers | 99 |
+| Significant `record(...)` markers | 101 |
 | Timing kinds | 14 |
 | Timing milestones | 17 |
 | Coverage-equivalence families | 22 |
@@ -78,6 +78,70 @@ The distinction between 204 declared and 221 actual output fields matters. The
 prior harness contract fingerprinted only the initializer. VFY1-A adds a shared
 dependency-free extractor so both the existing harness contract and the new
 ownership contract cover the complete static output surface.
+
+The reviewed extractor reported 99 markers because its one-line regular
+expression omitted two existing multiline calls:
+`contextual_inspector_route_errors_preserve_missing_conflict_and_unavailable`
+and
+`contextual_inspector_exact_status_remains_primary_for_inactive_projects`.
+The corrected count is 101. Both values and their executable call sites already
+existed in the reviewed harness; this correction changes no Browser behavior.
+
+## Fail-closed source grammar
+
+The shared extractor is a bounded lexical scanner, not a general JavaScript
+parser. It removes comments and string/template contents from the source token
+stream, balances call arguments, and accepts only these declared forms:
+
+- exactly one `const result = { ... }` initializer with unquoted identifier
+  keys and explicit colons;
+- line-leading `result.identifier = value` assignments, plus the established
+  `+=` update for already-declared counters; only `=` may introduce one of the
+  17 dynamic output fields;
+- line-leading mutation of an already-declared result collection by the
+  existing bracket assignment or `.push(...)` form;
+- direct `record(...)`, `runPhase(...)`, `timing.start(...)`,
+  `timing.duration(...)`, `timing.milestone(...)`, and
+  `recordLongWait(...)` calls with an unescaped double-quoted literal in every
+  extraction-bearing argument position;
+- the single exact `timing.duration(kind, ...)` forwarder inside the declared
+  `recordLongWait(kind, label, startedAt)` helper;
+- exactly one inline double-quoted validation-scope array followed by
+  `.includes(VALIDATION_SCOPE)`.
+
+The initializer and dynamic field sets remain separate and their union is the
+221-field output surface. Ordinary declared `result.field` reads do not add
+fields. Bracket/computed top-level assignment, `Object.assign`,
+`defineProperty`, object spread, aliases, destructuring, helper mutation,
+unknown collection mutation, computed call identifiers, alternate quote
+forms, and alternate validation-scope declarations fail as unsupported
+syntax. Raw relevant-call counts must equal the successfully extracted call
+counts; no call may silently disappear.
+
+The current raw call-site inventory is 101 `record` calls, 12 `runPhase`
+calls over 11 stable identifiers, 4 `timing.start` calls, 6
+`timing.duration` calls including one declared forwarder, 17
+`timing.milestone` calls, 6 `recordLongWait` calls, and one validation-scope
+declaration.
+
+Synthetic negative fixtures prove rejection of:
+
+| Unsupported form | Contract result |
+| --- | --- |
+| Bracket/computed result assignment | fail |
+| `Object.assign` or `Object.defineProperty` result mutation | fail |
+| Aliased, helper, destructured, or spread result mutation | fail |
+| Computed `record` marker | fail |
+| Single-quoted or template-literal marker | fail |
+| Computed `runPhase` identifier | fail |
+| Computed timing kind or milestone | fail |
+| Noncanonical validation-scope declaration | fail |
+
+The harness SHA-256 remains a broad whole-source change tripwire. A SHA change
+is not coverage classification, and updating the stored SHA alone can never
+restore completeness. Every newly supported output field, marker, phase,
+scope, timing kind, and milestone must first be extracted and assigned in the
+inventory; unsupported syntax fails instead of disappearing from metadata.
 
 ## Current scopes
 
@@ -150,7 +214,7 @@ rationale.
 ## Coverage equivalence
 
 No current result field or semantic marker is dropped. Each of the 221 output
-fields and 99 markers appears in exactly one family. Potential redundancy is
+fields and 101 markers appears in exactly one family. Potential redundancy is
 documented but is not removed.
 
 | Assertion family | Owner | Result fields | Markers | Future disposition |
@@ -167,7 +231,7 @@ documented but is not removed.
 | Retired-route safety | project experience | 2 | 1 | Detailed project shard |
 | Direct native-host round trip | operator/execution | 6 | 2 | Detailed operator shard; one reduced golden result |
 | Live approval lifecycle | operator/execution | 15 | 3 | Detailed operator shard only |
-| Result review and Inspector | operator/execution | 34 | 4 | Detailed operator shard; golden stops at proposal visibility |
+| Result review and Inspector | operator/execution | 34 | 6 | Detailed operator shard; golden stops at proposal visibility |
 | ReviewDecision and Transition | operator/execution | 9 | 7 | Detailed operator shard only |
 | Long-term lineage/isolation | continuity | 11 | 20 | Detailed continuity shard |
 | Bounded automation execution | operator/execution | 6 | 5 | Detailed operator shard |

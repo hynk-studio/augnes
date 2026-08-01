@@ -17,6 +17,221 @@ const inventory = JSON.parse(
 );
 const metadata = extractBrowserVerificationStaticMetadata(source);
 
+function syntheticHarnessSource() {
+  return [
+    'const VALIDATION_SCOPE = process.env.AUGNES_BROWSER_E2E_SCOPE ?? "complete";',
+    'assert(["complete", "core", "continuity", "cux6b"].includes(VALIDATION_SCOPE), "scope");',
+    "const result = {",
+    "  declared: false,",
+    "  entries: [],",
+    "};",
+    "function record(marker) { return marker; }",
+    "function recordLongWait(kind, label, startedAt) {",
+    "  timing.duration(kind, label, Date.now() - startedAt);",
+    "}",
+    "result.dynamic = true;",
+    'result.entries.push("entry");',
+    "assert.equal(result.declared, false);",
+    "const ordinaryRead = result.dynamic;",
+    'const markerText = \'record("string_content_is_not_a_call")\';',
+    'const templateText = `runPhase("template_content_is_not_a_call", action)`;',
+    '// record("line_comment_is_not_a_call");',
+    '/* timing.milestone("block_comment_is_not_a_call"); */',
+    'record("synthetic_marker");',
+    'runPhase("synthetic_phase", async () => {});',
+    'timing.start("phase", "synthetic");',
+    'timing.duration("cleanup", "synthetic", 1);',
+    'timing.milestone("synthetic milestone");',
+    'recordLongWait("wait_for_condition", "synthetic", 0);',
+    "process.stdout.write(JSON.stringify(result));",
+    "void ordinaryRead;",
+    "void markerText;",
+    "void templateText;",
+  ].join("\n");
+}
+
+function assertUnsupported(label, fixtureSource, expectedCode) {
+  assert.throws(
+    () => extractBrowserVerificationStaticMetadata(fixtureSource),
+    (error) => {
+      assert.equal(error?.code, expectedCode, label);
+      return true;
+    },
+    label,
+  );
+}
+
+const supportedFixtureSource = syntheticHarnessSource();
+const supportedFixtureMetadata =
+  extractBrowserVerificationStaticMetadata(supportedFixtureSource);
+assert.deepEqual(supportedFixtureMetadata.declared_result_fields, [
+  "declared",
+  "entries",
+]);
+assert.deepEqual(supportedFixtureMetadata.dynamically_declared_result_fields, [
+  "dynamic",
+]);
+assert.deepEqual(supportedFixtureMetadata.output_result_fields, [
+  "declared",
+  "entries",
+  "dynamic",
+]);
+assert.deepEqual(supportedFixtureMetadata.record_markers, ["synthetic_marker"]);
+assert.deepEqual(supportedFixtureMetadata.phase_call_ids, ["synthetic_phase"]);
+assert.deepEqual(supportedFixtureMetadata.timing_kinds, [
+  "phase",
+  "cleanup",
+  "wait_for_condition",
+]);
+assert.deepEqual(supportedFixtureMetadata.timing_milestones, [
+  "synthetic milestone",
+]);
+assert.deepEqual(supportedFixtureMetadata.raw_call_counts, {
+  record: 1,
+  run_phase: 1,
+  timing_start: 1,
+  timing_duration: 2,
+  timing_duration_forwarded: 1,
+  timing_milestone: 1,
+  record_long_wait: 1,
+  validation_scope_declaration: 1,
+});
+assert.deepEqual(supportedFixtureMetadata.result_mutation_counts, {
+  direct_property_assignment: 1,
+  dynamic_field_assignment: 1,
+  nested_collection_mutation: 1,
+});
+
+const resultMutationCode = "browser_verification_result_mutation_unsupported";
+assertUnsupported(
+  "bracket-notation result assignment",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    'result["dynamic"] = true;',
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "Object.assign result mutation",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    "Object.assign(result, { dynamic: true });",
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "Object.defineProperty result mutation",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    'Object.defineProperty(result, "dynamic", { value: true });',
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "aliased result mutation",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    "const resultAlias = result;\nresultAlias.dynamic = true;",
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "helper-based result mutation",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    "mutateResult(result);",
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "destructuring result mutation",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    "({ dynamic: result.dynamic } = sourceValue);",
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "result spread",
+  supportedFixtureSource.replace(
+    "result.dynamic = true;",
+    "const resultCopy = { ...result, dynamic: true };",
+  ),
+  resultMutationCode,
+);
+assertUnsupported(
+  "computed record marker",
+  supportedFixtureSource.replace(
+    'record("synthetic_marker");',
+    'const marker = "synthetic_marker";\nrecord(marker);',
+  ),
+  "browser_verification_record_argument_unsupported",
+);
+assertUnsupported(
+  "single-quoted record marker",
+  supportedFixtureSource.replace(
+    'record("synthetic_marker");',
+    "record('synthetic_marker');",
+  ),
+  "browser_verification_record_argument_unsupported",
+);
+assertUnsupported(
+  "template-literal record marker",
+  supportedFixtureSource.replace(
+    'record("synthetic_marker");',
+    "record(`synthetic_marker`);",
+  ),
+  "browser_verification_record_argument_unsupported",
+);
+assertUnsupported(
+  "computed runPhase identifier",
+  supportedFixtureSource.replace(
+    'runPhase("synthetic_phase", async () => {});',
+    'const phaseId = "synthetic_phase";\nrunPhase(phaseId, async () => {});',
+  ),
+  "browser_verification_run_phase_argument_unsupported",
+);
+assertUnsupported(
+  "computed timing kind",
+  supportedFixtureSource.replace(
+    'timing.start("phase", "synthetic");',
+    'const timingKind = "phase";\ntiming.start(timingKind, "synthetic");',
+  ),
+  "browser_verification_timing_start_argument_unsupported",
+);
+assertUnsupported(
+  "computed timing duration kind",
+  supportedFixtureSource.replace(
+    'timing.duration("cleanup", "synthetic", 1);',
+    'const durationKind = "cleanup";\ntiming.duration(durationKind, "synthetic", 1);',
+  ),
+  "browser_verification_timing_duration_argument_unsupported",
+);
+assertUnsupported(
+  "computed recordLongWait kind",
+  supportedFixtureSource.replace(
+    'recordLongWait("wait_for_condition", "synthetic", 0);',
+    'const waitKind = "wait_for_condition";\nrecordLongWait(waitKind, "synthetic", 0);',
+  ),
+  "browser_verification_record_long_wait_argument_unsupported",
+);
+assertUnsupported(
+  "computed timing milestone",
+  supportedFixtureSource.replace(
+    'timing.milestone("synthetic milestone");',
+    'const milestone = "synthetic milestone";\ntiming.milestone(milestone);',
+  ),
+  "browser_verification_timing_milestone_argument_unsupported",
+);
+assertUnsupported(
+  "unsupported validation-scope declaration",
+  supportedFixtureSource.replace(
+    'assert(["complete", "core", "continuity", "cux6b"].includes(VALIDATION_SCOPE), "scope");',
+    'const validationScopes = ["complete", "core", "continuity", "cux6b"];\nassert(validationScopes.includes(VALIDATION_SCOPE), "scope");',
+  ),
+  "browser_verification_validation_scope_declaration_unsupported",
+);
+
 assert.equal(
   inventory.schema,
   "augnes.browser-verification-ownership-inventory.v1",
@@ -27,6 +242,19 @@ assert.match(inventory.authorized_baseline, /^[0-9a-f]{40}$/u);
 
 assert.equal(inventory.source_contract.file, "scripts/browser-validate-vnext-native-host-result-v0-1.mjs");
 assert.equal(inventory.source_contract.sha256, metadata.source_sha256);
+assert.equal(
+  inventory.source_contract.extraction_grammar.version,
+  metadata.grammar_version,
+);
+assert.equal(inventory.source_contract.extraction_grammar.fail_closed, true);
+assert.deepEqual(
+  inventory.source_contract.extraction_grammar.result_mutation_counts,
+  metadata.result_mutation_counts,
+);
+assert.deepEqual(
+  inventory.source_contract.extraction_grammar.raw_call_counts,
+  metadata.raw_call_counts,
+);
 assert.equal(
   inventory.source_contract.assertion_call_count,
   metadata.assertion_call_count,
@@ -54,11 +282,18 @@ assert.equal(metadata.declared_result_fields.length, 204);
 assert.equal(metadata.dynamically_declared_result_fields.length, 17);
 assert.equal(metadata.output_result_fields.length, 221);
 assert.equal(metadata.phase_ids.length, 11);
-assert.equal(metadata.record_markers.length, 99);
+assert.equal(metadata.phase_call_ids.length, 12);
+assert.equal(metadata.record_markers.length, 101);
 assert.equal(metadata.timing_kinds.length, 14);
 assert.equal(metadata.timing_milestones.length, 17);
 assert.equal(metadata.assertion_call_count, 1070);
 assert.equal(metadata.record_markers.length, new Set(metadata.record_markers).size);
+assert.equal(metadata.raw_call_counts.record, metadata.record_markers.length);
+assert.equal(metadata.raw_call_counts.run_phase, metadata.phase_call_ids.length);
+assert.equal(
+  metadata.raw_call_counts.timing_milestone,
+  metadata.timing_milestones.length,
+);
 
 const allowedOwners = new Set([
   "project_experience",

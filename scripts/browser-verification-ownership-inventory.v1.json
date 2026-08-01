@@ -6,6 +6,29 @@
   "source_contract": {
     "file": "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
     "sha256": "599d366e62f7c6949e03356735cf4585477a31ef8dc086793e7e16543a94f891",
+    "extraction_grammar": {
+      "version": "browser_verification_static_grammar.v1",
+      "fail_closed": true,
+      "result_initializer_form": "one const result object literal with unquoted identifier keys followed by colons",
+      "dynamic_result_field_form": "line-leading direct result.identifier = value for new fields; declared fields also permit the established += counter update",
+      "call_identifier_form": "unescaped double-quoted literal first arguments for record, runPhase, timing.start, timing.duration, timing.milestone, and recordLongWait",
+      "validation_scope_form": "one inline double-quoted literal array followed by .includes(VALIDATION_SCOPE)",
+      "result_mutation_counts": {
+        "direct_property_assignment": 216,
+        "dynamic_field_assignment": 17,
+        "nested_collection_mutation": 11
+      },
+      "raw_call_counts": {
+        "record": 101,
+        "run_phase": 12,
+        "timing_start": 4,
+        "timing_duration": 6,
+        "timing_duration_forwarded": 1,
+        "timing_milestone": 17,
+        "record_long_wait": 6,
+        "validation_scope_declaration": 1
+      }
+    },
     "assertion_call_count": 1070,
     "declared_result_field_count": 204,
     "output_result_field_count": 221,
@@ -913,7 +936,9 @@
         "workbench_result_review_and_inspector_reload_from_immutable_durable_state",
         "result_links_to_exact_pending_run_assessment_proposal_without_manual_ids",
         "result_review_creates_no_proposal_decision_transition_evidence_or_work_closure",
-        "optional_strategic_profile_load_is_read_only_unavailable_and_zero_model_safe"
+        "optional_strategic_profile_load_is_read_only_unavailable_and_zero_model_safe",
+        "contextual_inspector_route_errors_preserve_missing_conflict_and_unavailable",
+        "contextual_inspector_exact_status_remains_primary_for_inactive_projects"
       ],
       "future_disposition": "remain detailed in operator/execution",
       "fixture_setup_change_required": "Seed one exact receipt/proposal pair and immutable Inspector target inside the shard.",
