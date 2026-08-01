@@ -26,7 +26,7 @@ export function buildContinuitiesTemporalContextV01({
   view: BlankStateViewV01;
 }): ContinuitiesTemporalContextV01 {
   const projection = source.projection;
-  const nextItems = projection
+  const nextItems = projection && view.focus !== "first_work_not_defined"
     ? projection.next_moves.slice(0, MAX_NEXT_ITEMS).map((move) => ({
         item_id: `next:${move.move_id}`,
         label: publicGuideBriefTextV02(move.label),

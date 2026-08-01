@@ -133,6 +133,9 @@ export function blankStateAttentionLabelV01(
   ) {
     return "Start by choosing a project";
   }
+  if (item.source_family === "work_initialization") {
+    return "Project setup";
+  }
   return "No intervention required";
 }
 

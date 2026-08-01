@@ -2347,7 +2347,9 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     canonicalizeProtocolValueV01(input.packet.work_ref),
   );
   assert.equal(
-    observed.packet_lineage.source_transition_receipt_ref.external_id,
+    "source_transition_receipt_ref" in observed.packet_lineage
+      ? observed.packet_lineage.source_transition_receipt_ref.external_id
+      : null,
     input.transition_receipt.transition_receipt_id,
   );
   assert.equal(observed.root_scope.canonical_root, operatorProjectRoot);

@@ -419,9 +419,15 @@ function resolveContextUseSource(
   });
   if (
     canonicalizeProtocolValueV01(inspection.packet) !==
-    canonicalizeProtocolValueV01(laterPacket)
+      canonicalizeProtocolValueV01(laterPacket)
   ) {
     throw reviewError("operator_pilot_context_use_packet_lineage_invalid", 422);
+  }
+  if (inspection.lineage_kind !== "semantic_transition") {
+    throw reviewError(
+      "operator_pilot_context_use_transition_lineage_required",
+      409,
+    );
   }
   const priorPacket = loadPacket(
     db,

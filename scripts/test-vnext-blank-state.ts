@@ -506,6 +506,57 @@ async function main() {
     "No intervention required",
   );
 
+  const firstWork = view(source(projection(), {
+    work_initialization: {
+      initialization_version: "project_work_initialization.v0.1",
+      workspace_id: "workspace:test",
+      project_id: "project:test",
+      state: "not_defined",
+      reason: "zero_durable_work_history",
+      active_project_id: "project:test",
+      active_selection_revision: 3,
+      current_work: null,
+      current_packet: null,
+      mutation_eligible: true,
+      projection_only: true,
+      semantic_authority_granted: false,
+      execution_authority_granted: false,
+    },
+  }));
+  assert.equal(firstWork.focus, "first_work_not_defined");
+  assert.equal(firstWork.heading, "No work has been defined for this project yet");
+  assert.equal(firstWork.primary_action?.label, "Define first work");
+  assert.equal(firstWork.primary_action?.kind, "link");
+  assert.equal(
+    firstWork.primary_action?.kind === "link"
+      ? firstWork.primary_action.href
+      : null,
+    "/workbench/semantic-review#first-work",
+  );
+  assert.equal(firstWork.known_attention_count, 0);
+  assert.equal(firstWork.highlighted_item.requires_human_attention, false);
+  assert.equal(firstWork.situation.includes("ready for the next piece of work"), false);
+
+  const historyWithoutPacket = view(source(projection(), {
+    work_initialization: {
+      initialization_version: "project_work_initialization.v0.1",
+      workspace_id: "workspace:test",
+      project_id: "project:test",
+      state: "existing_history_without_current_packet",
+      reason: "durable_history_without_current_packet",
+      active_project_id: "project:test",
+      active_selection_revision: 3,
+      current_work: null,
+      current_packet: null,
+      mutation_eligible: false,
+      projection_only: true,
+      semantic_authority_granted: false,
+      execution_authority_granted: false,
+    },
+  }));
+  assert.equal(historyWithoutPacket.focus, "work_instructions_unavailable");
+  assert.notEqual(historyWithoutPacket.primary_action?.label, "Define first work");
+
   for (const stage of ["preparing", "working", "cancelling"] as const) {
     const ordinary = view(
       source(projection(), { delegated_work: delegatedWork(stage) }),

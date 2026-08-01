@@ -44,6 +44,7 @@ import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vn
 import { selectPersonalPerspectiveContextV01 } from "../lib/vnext/project-controls/project-controls.ts";
 import { readPersonalPerspectiveEffectiveScopeV01 } from "../lib/vnext/persistence/project-control-store.ts";
 import {
+  readActiveProjectSelectionV01,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
@@ -61,6 +62,7 @@ import {
   buildSelectedWorkTimelineV01,
 } from "../lib/vnext/ai-workplane/selected-work-timeline.ts";
 import { DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
+import { readProjectRunResultOverviewV01 } from "../lib/vnext/runtime/project-run-result-read-model.ts";
 import { VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract.ts";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage.ts";
@@ -71,10 +73,12 @@ import {
   buildDefaultRunnerSourceRefs,
 } from "../lib/autonomy/runner-state.ts";
 import {
+  consumeVNextLocalOperatorBootstrapV01,
   issueVNextLocalOperatorBootstrapV01,
   openVNextLocalOperatorDatabaseV01,
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
+import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization.ts";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
@@ -98,11 +102,13 @@ const VALIDATION_VERSION =
 const VALIDATION_SCOPE =
   process.env.AUGNES_BROWSER_E2E_SCOPE?.trim() || "complete";
 assert(
-  ["complete", "core", "continuity"].includes(VALIDATION_SCOPE),
+  ["complete", "core", "continuity", "cux6b"].includes(VALIDATION_SCOPE),
   "unsupported browser E2E validation scope",
 );
+const RUN_CUX6B_ONLY = VALIDATION_SCOPE === "cux6b";
 const RUN_CORE_SCOPE = VALIDATION_SCOPE !== "continuity";
-const RUN_CONTINUITY_SCOPE = VALIDATION_SCOPE !== "core";
+const RUN_CONTINUITY_SCOPE =
+  VALIDATION_SCOPE !== "core" && !RUN_CUX6B_ONLY;
 const CAPTURE_C8_REVIEW =
   process.env.AUGNES_C8_CAPTURE_REVIEW?.trim() === "1";
 const DEFAULT_TIMEOUT_MS = 45_000;
@@ -339,6 +345,15 @@ const result = {
   positive_and_mixed_projects_remain_isolated: false,
   folder_picker_cancelled_usable: false,
   folder_onboarding_destination: null,
+  first_work_setup_state: false,
+  first_work_locked_operator_state: false,
+  first_work_composer_validation: false,
+  first_work_saved_without_execution: false,
+  first_work_goal_cross_surface: false,
+  first_work_reload_persisted: false,
+  first_work_start_eligible: false,
+  first_work_explicit_start_admitted: false,
+  first_work_browser_viewports: false,
   project_context_repeat_activation: false,
   project_context_keyboard_activation: false,
   project_context_emphasized_owner: false,
@@ -624,6 +639,8 @@ async function main() {
     databasePath,
     manifest,
   });
+  let firstProjectId = null;
+  let onboardingEditedProjectName = null;
   let validateExactLaterOutcomeV01 = null;
   let mixedReturnTarget = null;
   // Continuity intentionally skips the core-owned bounded-automation UI that
@@ -809,7 +826,7 @@ async function main() {
     assert.equal(await evaluateBoolean(`(() => { const button = document.querySelector('[data-blank-state-primary-action="choose_folder"]'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`document.body.textContent.includes('Browser Onboarding Project') && document.body.textContent.includes('Plain folder')`, "local folder inspection surface");
     assert.equal(await evaluateBoolean(`document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`), true);
-    const onboardingEditedProjectName = "처음 이어지는 Browser Onboarding Project";
+    onboardingEditedProjectName = "처음 이어지는 Browser Onboarding Project";
     assert.equal(
       await evaluateString(`document.querySelector('input[name="project-display-name"]')?.value ?? ''`),
       "Browser Onboarding Project",
@@ -836,9 +853,9 @@ async function main() {
     assert.equal(await evaluateBoolean(`(() => { const button = Array.from(document.querySelectorAll('button')).find((candidate) => candidate.textContent?.trim() === 'Add project'); button?.click(); return Boolean(button); })()`), true);
     await waitForCondition(`location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`, "stable project destination");
     const destination = await evaluateString("location.pathname");
-    const firstProjectId = decodeURIComponent(destination.split("/").at(-1));
+    firstProjectId = decodeURIComponent(destination.split("/").at(-1));
     result.folder_onboarding_destination = destination;
-    await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-focus="ready_to_continue"]') !== null`, "active Blank State destination");
+    await waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-focus="first_work_not_defined"]') !== null`, "active first-work setup destination");
     await waitForCondition(
       `document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes(${JSON.stringify(onboardingEditedProjectName)}) === true`,
       "edited onboarding name reaches ProductShell",
@@ -1002,18 +1019,21 @@ async function main() {
     result.project_name_stale_conflict_visible = true;
     result.project_name_long_korean_propagated = true;
     result.project_context_opens_settings = true;
-    await validateBlankStateViewports(true, {
-      state: "ready-to-continue",
-      attentionCount: 0,
-      attentionCategory: "none",
-      primaryActions: 1,
-      verifyConversationReload: true,
-    });
+    if (RUN_CUX6B_ONLY) {
+      await validateBlankStateViewports(true, {
+        state: "first-work-not-defined",
+        attentionCount: 0,
+        attentionCategory: "none",
+        primaryActions: 1,
+        verifyConversationReload: true,
+      });
+    }
     const emptyProjectHome = await evaluateJson(`(() => {
       const surface = document.querySelector('[data-blank-state="v0.1"]');
       const visibleText = surface?.innerText ?? '';
       return {
-        name: visibleText.includes('Browser Onboarding Project'),
+        name:
+          document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Browser Onboarding Project') === true,
         heading: surface?.querySelector('h1')?.textContent?.trim(),
         primary_action_count: surface?.querySelectorAll('[data-blank-state-primary-action]').length,
         project_home_absent: !visibleText.includes('Project Home'),
@@ -1073,17 +1093,433 @@ async function main() {
       version: "guide_brief.v0.2",
       project: "Browser Onboarding Project",
       context: "current",
-      focus: "ready_to_continue",
-      browser_focus: "ready_to_continue",
+      focus: "first_work_not_defined",
+      browser_focus: "first_work_not_defined",
       authority: false,
       private_path_absent: true,
       credential_absent: true,
     });
+
+    const firstWorkGoal =
+      "새 프로젝트의 첫 작업 목표를 실제 소스와 검증 결과에 맞춰 완성하고 English success criteria와 사용자 권한 경계를 함께 보존한다. ".repeat(2).trim();
+    const firstWorkCriteria = [
+      "Continuities와 AI Workplane이 저장된 실제 목표를 동일하게 보여 준다.",
+      "Saving the definition creates no run and explicit Start Codex work remains separate.",
+    ];
+    const firstWorkNonGoals = [
+      "프로젝트 파일 자동 변경",
+      "Automatic provider or model selection",
+    ];
+    const firstWorkCoreBefore = readFirstWorkBrowserState(firstProjectId);
+    assert.deepEqual(firstWorkCoreBefore, {
+      packets: 0,
+      receipts: 0,
+      proposals: 0,
+      decisions: 0,
+      transitions: 0,
+      semantic_state: 0,
+      runs: 0,
+    });
+    result.first_work_setup_state = true;
+
+    if (RUN_CUX6B_ONLY) {
+    await navigate("about:blank");
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    const firstWorkStrategicFixtureHoldPath = path.join(
+      tempRoot,
+      "strategic-model-transport-fixture-v0-1.first-work-disabled",
+    );
+    renameSync(
+      strategicTransportFixturePath,
+      firstWorkStrategicFixtureHoldPath,
+    );
+    runtimeEnvironment.AUGNES_VNEXT_OPERATOR_PROJECT_ID = firstProjectId;
+    startDevServer(runtimeEnvironment);
+    await waitForHttp(`${appOrigin}/workbench/semantic-review`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/workbench/semantic-review#first-work`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-operator-session="locked"]') !== null && document.querySelector('[data-first-work-composer]') === null`,
+      "locked first-work operator state",
+    );
+    result.first_work_locked_operator_state = true;
+
+    bootstrapToken = await issueBootstrap(runtimeEnvironment);
+    await setBootstrapInput(bootstrapToken);
+    await waitForCondition(
+      `document.querySelector('#vnext-operator-bootstrap-token')?.value.length > 0 && !document.querySelector('#vnext-operator-bootstrap-token')?.closest('form')?.querySelector('button[type="submit"]')?.disabled`,
+      "enabled first-work bootstrap submit control",
+    );
+    const firstWorkBootstrapResponseStart = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('#vnext-operator-bootstrap-token')?.closest('form');
+        if (!(form instanceof HTMLFormElement)) return false;
+        form.requestSubmit();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () => responses.slice(firstWorkBootstrapResponseStart).some(
+        (entry) =>
+          entry.path === "/api/vnext/operator/session" &&
+          entry.method === "POST",
+      ),
+      "first-work bootstrap response",
+    );
+    const firstWorkBootstrapResponse = responses
+      .slice(firstWorkBootstrapResponseStart)
+      .find(
+        (entry) =>
+          entry.path === "/api/vnext/operator/session" &&
+          entry.method === "POST",
+      );
+    assert.equal(
+      firstWorkBootstrapResponse?.status,
+      200,
+      `first-work bootstrap refused with status ${firstWorkBootstrapResponse?.status ?? "missing"}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-operator-session="authenticated"]') !== null`,
+      "authenticated first-work operator session",
+    );
+    const firstWorkAuthenticatedRead = await evaluateJson(`(async () => {
+      const [continuityResponse, reviewResponse] = await Promise.all([
+        fetch('/api/vnext/operator/project-continuity', { cache: 'no-store' }),
+        fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' }),
+      ]);
+      const continuityText = await continuityResponse.text();
+      const reviewText = await reviewResponse.text();
+      const parse = (value) => {
+        try { return JSON.parse(value); } catch { return null; }
+      };
+      const continuity = parse(continuityText);
+      const review = parse(reviewText);
+      if (!review) {
+        const errorIndex = reviewText.search(/(?:Error|ReferenceError|TypeError):/u);
+        throw new Error(
+          'semantic-review read failed status=' + reviewResponse.status +
+          ' body=' + reviewText.slice(
+            errorIndex >= 0 ? errorIndex : 0,
+            (errorIndex >= 0 ? errorIndex : 0) + 2200,
+          )
+        );
+      }
+      return {
+        continuity_status: continuityResponse.status,
+        continuity_state: continuity.work_initialization?.state ?? null,
+        continuity_project: continuity.project?.project_id ?? null,
+        review_status: reviewResponse.status,
+        review_state: review?.work_initialization?.state ??
+          review?.view?.work_initialization?.state ??
+          review?.project_continuity?.work_initialization?.state ?? null,
+        review_preview: review ? null : reviewText.slice(0, 240),
+        composer_present: document.querySelector('[data-first-work-composer]') !== null,
+        visible_error: document.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
+      };
+    })()`);
+    assert.deepEqual(firstWorkAuthenticatedRead, {
+      continuity_status: 200,
+      continuity_state: "not_defined",
+      continuity_project: firstProjectId,
+      review_status: 200,
+      review_state: "not_defined",
+      review_preview: null,
+      composer_present: true,
+      visible_error: null,
+    });
+    await waitForCondition(
+      `document.querySelector('[data-first-work-composer="project_work_initialization.v0.1"][data-first-work-state="not_defined"]') !== null`,
+      "authenticated first-work composer",
+    );
+    await waitForCondition(
+      `document.activeElement?.id === 'first-work-goal'`,
+      "first-work goal focus",
+    );
+    bootstrapToken = null;
+    assert.equal(
+      await evaluateBoolean(`document.querySelector('[data-first-work-action="save"]')?.disabled === true`),
+      true,
+      "empty first-work definition must not be saveable",
+    );
+    await setFormControlValue('textarea[name="first-work-goal"]', 0, firstWorkGoal);
+    await waitForCondition(
+      `document.body.textContent.includes('Add at least one success criterion.') && document.querySelector('[data-first-work-action="save"]')?.disabled === true`,
+      "missing first-work success criteria",
+    );
+    await setFormControlValue('textarea[name="first-work-goal"]', 0, "");
+    await setFormControlValue(
+      'textarea[name="first-work-success-criteria"]',
+      0,
+      firstWorkCriteria.join("\n"),
+    );
+    await waitForCondition(
+      `document.body.textContent.includes('Enter the project goal before saving.') && document.querySelector('[data-first-work-action="save"]')?.disabled === true`,
+      "missing first-work goal",
+    );
+    await setFormControlValue('textarea[name="first-work-goal"]', 0, firstWorkGoal);
+    await setFormControlValue(
+      'textarea[name="first-work-non-goals"]',
+      0,
+      firstWorkNonGoals.join("\n"),
+    );
+    await waitForCondition(
+      `document.querySelector('[data-first-work-action="save"]:not(:disabled)') !== null`,
+      "valid Korean and English first-work definition",
+    );
+    await validateFirstWorkComposerViewports();
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const goal = document.querySelector('textarea[name="first-work-goal"]');
+        const criteria = document.querySelector('textarea[name="first-work-success-criteria"]');
+        const nonGoals = document.querySelector('textarea[name="first-work-non-goals"]');
+        const save = document.querySelector('[data-first-work-action="save"]');
+        return [goal, criteria, nonGoals, save].every((control) => control instanceof HTMLElement) &&
+          goal.compareDocumentPosition(criteria) & Node.DOCUMENT_POSITION_FOLLOWING &&
+          criteria.compareDocumentPosition(nonGoals) & Node.DOCUMENT_POSITION_FOLLOWING &&
+          nonGoals.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING;
+      })()`),
+      true,
+      "first-work keyboard order follows goal, criteria, non-goals, save",
+    );
+    result.first_work_composer_validation = true;
+
+    const firstWorkResponseStart = responses.length;
+    const firstWorkRequestStart = requests.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('[data-first-work-composer] form');
+        if (!(form instanceof HTMLFormElement)) return false;
+        form.requestSubmit();
+        form.requestSubmit();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () => responses.slice(firstWorkResponseStart).some(
+        (entry) =>
+          entry.path === "/api/vnext/operator/project-continuity" &&
+          entry.method === "POST" &&
+          entry.status === 201,
+      ),
+      "first-work save response",
+    );
+    const firstWorkResponse = responses.slice(firstWorkResponseStart).find(
+      (entry) =>
+        entry.path === "/api/vnext/operator/project-continuity" &&
+        entry.method === "POST",
+    );
+    assert(firstWorkResponse, "The first-work mutation response was not observed.");
+    const firstWorkResponseBody = await cdp.send("Network.getResponseBody", {
+      requestId: firstWorkResponse.request_id,
+    });
+    const firstWorkSaved = JSON.parse(firstWorkResponseBody.body);
+    assert.deepEqual(
+      {
+        status: firstWorkSaved.status,
+        run_created: firstWorkSaved.run_created,
+        execution_started: firstWorkSaved.execution_started,
+        provider_called: firstWorkSaved.provider_called,
+        project_files_written: firstWorkSaved.project_files_written,
+        proposal_created: firstWorkSaved.proposal_created,
+        review_decision_created: firstWorkSaved.review_decision_created,
+        transition_created: firstWorkSaved.transition_created,
+        semantic_state_changed: firstWorkSaved.semantic_state_changed,
+      },
+      {
+        status: "inserted",
+        run_created: false,
+        execution_started: false,
+        provider_called: false,
+        project_files_written: false,
+        proposal_created: false,
+        review_decision_created: false,
+        transition_created: false,
+        semantic_state_changed: false,
+      },
+    );
+    assert.equal(
+      requests.slice(firstWorkRequestStart).filter(
+        (entry) =>
+          entry.path === "/api/vnext/operator/project-continuity" &&
+          entry.method === "POST",
+      ).length,
+      1,
+      "double submit must be admitted once by the existing mutation lock",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-first-work-composer]') === null && document.body.textContent.includes('First work defined. No execution has started.') && document.querySelector('[data-delegated-work-action="start"]:not(:disabled)')?.textContent?.trim() === 'Start Codex work'`,
+      "first work saved without execution and separate start available",
+    );
+    const firstWorkCoreAfterSave = readFirstWorkBrowserState(firstProjectId);
+    assert.deepEqual(firstWorkCoreAfterSave, {
+      packets: 1,
+      receipts: 0,
+      proposals: 0,
+      decisions: 0,
+      transitions: 0,
+      semantic_state: 0,
+      runs: 0,
+    });
+    assert.equal(
+      await evaluateBoolean(`document.querySelector('[data-delegated-work]')?.textContent?.includes(${JSON.stringify(firstWorkGoal)}) === true`),
+      true,
+      "AI Workplane must show the exact saved goal",
+    );
+    result.first_work_saved_without_execution = true;
+    result.first_work_start_eligible = true;
+
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null && document.querySelector('[data-first-work-composer]') === null && document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null && document.body.textContent.includes(${JSON.stringify(firstWorkGoal)})`,
+      "first-work definition survives refresh",
+    );
+    result.first_work_reload_persisted = true;
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"]')?.textContent?.includes(${JSON.stringify(firstWorkGoal)}) === true && document.querySelector('[data-blank-state-focus="first_work_not_defined"]') === null`,
+      "Continuities shows the saved first-work goal",
+    );
+    const savedGuide = await evaluateJson(`(async () => {
+      const body = await (await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
+        headers: { 'x-augnes-local-readonly': 'guide-brief-v0.2' },
+        cache: 'no-store',
+      })).json();
+      return {
+        coordinate_goal: body.coordinate?.goal ?? null,
+        chatgpt_goal: body.projections?.chatgpt?.goal ?? null,
+        workplane_goal: body.projections?.ai_workplane?.current_goal ?? null,
+        codex_goal: body.projections?.codex?.current_goal ?? null,
+      };
+    })()`);
+    for (const [surface, goal] of Object.entries(savedGuide)) {
+      assert.equal(
+        goal,
+        firstWorkGoal,
+        `${surface} must preserve the exact saved first-work goal`,
+      );
+    }
+    result.first_work_goal_cross_surface = true;
+
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null`,
+      "separate first-work host start action",
+    );
+    const firstWorkStartResponse = responses.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-delegated-work-action="start"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+      true,
+    );
+    await waitForHostCondition(
+      () => responses.slice(firstWorkStartResponse).some(
+        (entry) =>
+          entry.path === "/api/vnext/operator/host-round-trip" &&
+          entry.method === "POST" &&
+          entry.status === 202,
+      ),
+      "initial packet live host admission",
+    );
+    const firstWorkLiveState = await waitForLiveRunStatus(
+      firstProjectId,
+      "waiting_for_approval",
+      LIVE_HOST_APPROVAL_TIMEOUT_MS,
+    );
+    assert.equal(firstWorkLiveState.packet_lineage_kind, "initial_user_defined");
+    assert.equal(firstWorkLiveState.source_transition_receipt_id, null);
+    assert.match(firstWorkLiveState.first_work_definition_id, /^first-work-definition:/u);
+    await waitForCondition(
+      `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="cancel"]:not(:disabled)') !== null`,
+      "initial packet start reaches admitted live state",
+    );
+    result.first_work_explicit_start_admitted = true;
+
+    await navigate("about:blank");
+    await cdp.send("Network.clearBrowserCookies");
+    await terminateProcess(serverProcess, 15_000);
+    serverProcess = null;
+    removeBrowserNormalWorkRun({
+      databasePath,
+      runId: firstWorkLiveState.run_ref,
+    });
+    rmSync(browserApprovalBarrierTracePath, { force: true });
+    runtimeEnvironment.AUGNES_VNEXT_OPERATOR_PROJECT_ID = manifest.project_id;
+    renameSync(
+      firstWorkStrategicFixtureHoldPath,
+      strategicTransportFixturePath,
+    );
+    startDevServer(runtimeEnvironment);
+    await waitForHttp(`${appOrigin}/`, DEFAULT_TIMEOUT_MS);
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"]')?.textContent?.includes(${JSON.stringify(firstWorkGoal)}) === true`,
+      "first-work goal persists after runtime restart",
+    );
+    result.first_work_browser_viewports = true;
+    return;
+    }
+
+    const seededFirstWork = seedInitialProjectWorkForCoreV01({
+      databasePath,
+      manifest,
+      projectId: firstProjectId,
+      goal: firstWorkGoal,
+      successCriteria: firstWorkCriteria,
+      nonGoals: firstWorkNonGoals,
+    });
+    assert.equal(seededFirstWork.status, "inserted");
+    assert.equal(seededFirstWork.execution_started, false);
+    assert.equal(seededFirstWork.run_created, false);
+    assert.equal(seededFirstWork.provider_called, false);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"]')?.textContent?.includes(${JSON.stringify(firstWorkGoal)}) === true`,
+      "directly seeded first-work definition visible before retained core flow",
+    );
+
     const cleanCurrentRunId = seedBrowserNormalWorkRun({
       databasePath,
       projectId: firstProjectId,
     });
+    {
+      const readableDatabase = new Database(databasePath, {
+        readonly: true,
+        fileMustExist: true,
+      });
+      try {
+        assert.equal(
+          readProjectRunResultOverviewV01(readableDatabase, {
+            workspace_id: manifest.workspace_id,
+            project_id: firstProjectId,
+          }).current_run?.run_ref,
+          cleanCurrentRunId,
+        );
+      } finally {
+        readableDatabase.close();
+      }
+    }
     await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
+      "reloaded first-work project after seeding normal work",
+    );
+    const seededRunSurface = await evaluateJson(`(() => ({
+      focus: document.querySelector('[data-blank-state="v0.1"]')?.getAttribute('data-blank-state-focus') ?? null,
+      current_run: document.querySelector('[data-current-host-run]')?.getAttribute('data-current-host-run') ?? null,
+      text: document.querySelector('[data-blank-state="v0.1"]')?.textContent?.slice(0, 500) ?? null,
+    }))()`);
+    assert.equal(
+      seededRunSurface.current_run,
+      "running",
+      `Seeded current run was not projected: ${JSON.stringify(seededRunSurface)}`,
+    );
     await waitForCondition(
       `document.querySelector('[data-current-host-run]') !== null`,
       "clean current-project work in progress",
@@ -1102,7 +1538,7 @@ async function main() {
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
       `document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="ready_to_continue"]') !== null`,
-      "clean project after normal-work fixture removal",
+      "defined first work remains current after normal-work fixture removal",
     );
     result.guide_brief_blank_state_v0_2 = true;
     result.minimum_project_home_empty_state = true;
@@ -1223,7 +1659,20 @@ async function main() {
     });
     await cdp.send("Page.reload", { ignoreCache: true });
     await waitForCondition(
-      `document.querySelector('[data-blank-state="v0.1"]') !== null && document.body.textContent.includes('The latest selected working context has expired.')`,
+      `document.querySelector('[data-blank-state="v0.1"]') !== null`,
+      "expired selected working context surface reload",
+    );
+    const expiredContextSurface = await evaluateJson(`(() => ({
+      focus: document.querySelector('[data-blank-state="v0.1"]')?.getAttribute('data-blank-state-focus') ?? null,
+      text: document.querySelector('[data-blank-state="v0.1"]')?.textContent?.slice(0, 900) ?? null,
+    }))()`);
+    assert.equal(
+      expiredContextSurface.focus,
+      "work_instructions_unavailable",
+      `Expired current context did not fail closed: ${JSON.stringify(expiredContextSurface)}`,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-blank-state="v0.1"][data-blank-state-focus="work_instructions_unavailable"]') !== null && document.body.textContent.includes('Current work instructions are unavailable') && document.body.textContent.includes('durable work history')`,
       "expired selected working context unavailable state",
     );
     assert.equal(
@@ -1787,6 +2236,11 @@ async function main() {
     record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
     record("project_controls_enable_pause_resume_scope_restart_conflict_and_isolation");
   });
+
+  if (RUN_CUX6B_ONLY) {
+    await assertFocusedFirstWorkBrowserResultV01();
+    return;
+  }
 
   await runPhase("locked_workbench", async () => {
     const responseStart = responses.length;
@@ -10857,6 +11311,15 @@ async function main() {
         (entry.phase === "folder_onboarding" &&
           entry.path === "/api/vnext/project-controls" &&
           /409/i.test(entry.text)) ||
+        (entry.phase === "folder_onboarding" &&
+          entry.path?.startsWith("/api/vnext/operator/") &&
+          /401 \(Unauthorized\)/i.test(entry.text) &&
+          responses.some(
+            (response) =>
+              response.phase === entry.phase &&
+              response.path === entry.path &&
+              response.status === 401,
+          )) ||
         (entry.phase === "final_r8_portability_reconciliation" &&
           entry.path === "/api/vnext/portability" &&
           /409/i.test(entry.text) &&
@@ -10995,6 +11458,12 @@ async function main() {
       !(
         request.phase === "folder_onboarding" &&
         request.path === "/api/vnext/project-controls"
+      ) &&
+      !(
+        request.phase === "folder_onboarding" &&
+        (request.path === "/api/vnext/operator/session" ||
+          request.path === "/api/vnext/operator/project-continuity" ||
+          request.path === "/api/vnext/operator/host-round-trip")
       ) &&
       !(
         request.phase === "direct_host_round_trip" &&
@@ -11360,6 +11829,169 @@ async function issueBootstrap(environment) {
   }
 }
 
+function seedInitialProjectWorkForCoreV01({
+  databasePath,
+  manifest,
+  projectId,
+  goal,
+  successCriteria,
+  nonGoals,
+}) {
+  const config = readVNextLocalOperatorPilotConfigV01({
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: manifest.workspace_id,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: projectId,
+    AUGNES_VNEXT_OPERATOR_ID: manifest.operator_id,
+    AUGNES_DB_PATH: databasePath,
+  });
+  const writableDatabase = openVNextLocalOperatorDatabaseV01(config);
+  try {
+    const active = readActiveProjectSelectionV01(
+      writableDatabase,
+      manifest.workspace_id,
+    );
+    assert.equal(active?.project_id, projectId);
+    assert.equal(Number.isSafeInteger(active?.selection_revision), true);
+    const issuedAt = new Date().toISOString();
+    const consumedAt = new Date(Date.parse(issuedAt) + 1).toISOString();
+    const definedAt = new Date(Date.parse(issuedAt) + 2).toISOString();
+    const issued = issueVNextLocalOperatorBootstrapV01(writableDatabase, {
+      config,
+      clock: { now: () => issuedAt },
+    });
+    const session = consumeVNextLocalOperatorBootstrapV01(writableDatabase, {
+      config,
+      bootstrap_token: issued.bootstrap_token,
+      clock: { now: () => consumedAt },
+    });
+    return defineInitialProjectWorkV01(writableDatabase, {
+      config,
+      credential: session.credential,
+      request: {
+        action: "define_initial_project_work",
+        workspace_id: manifest.workspace_id,
+        project_id: projectId,
+        expected_active_project_id: projectId,
+        expected_active_selection_revision: active.selection_revision,
+        expected_initialization_state: "not_defined",
+        goal,
+        success_criteria: successCriteria,
+        non_goals: nonGoals,
+      },
+      clock: { now: () => definedAt },
+    });
+  } finally {
+    writableDatabase.close();
+  }
+}
+
+async function assertFocusedFirstWorkBrowserResultV01() {
+  await waitForRequestQuiet();
+  timing.milestone("focused first-work global request quiet observed");
+  for (const key of [
+    "first_work_setup_state",
+    "first_work_locked_operator_state",
+    "first_work_composer_validation",
+    "first_work_saved_without_execution",
+    "first_work_goal_cross_surface",
+    "first_work_reload_persisted",
+    "first_work_start_eligible",
+    "first_work_explicit_start_admitted",
+    "first_work_browser_viewports",
+  ]) {
+    assert.equal(result[key], true, `${key} must be proven by the CUX6B shard`);
+  }
+  const hasBoundedResponse = (entry, statuses) =>
+    responses.some(
+      (response) =>
+        response.phase === entry.phase &&
+        response.path === entry.path &&
+        response.method === "GET" &&
+        statuses.includes(response.status),
+    );
+  const unexpectedFocusedConsoleErrors = consoleErrors.filter(
+    (entry) =>
+      !(
+        entry.path === "/favicon.ico" &&
+        /404/u.test(entry.text) &&
+        hasBoundedResponse(entry, [404])
+      ) &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        [
+          "/api/vnext/operator/session",
+          "/api/vnext/operator/semantic-review",
+          "/api/vnext/operator/project-continuity",
+        ].includes(entry.path) &&
+        /401 \(Unauthorized\)/u.test(entry.text) &&
+        hasBoundedResponse(entry, [401])
+      ) &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        ["/api/vnext/projects", "/api/vnext/project-controls"].includes(
+          entry.path,
+        ) &&
+        /409 \(Conflict\)/u.test(entry.text) &&
+        responses.some(
+          (response) =>
+            response.phase === entry.phase &&
+            response.path === entry.path &&
+            response.status === 409,
+        )
+      ) &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        entry.path?.startsWith("/_next/") &&
+        entry.text.includes("ERR_INCOMPLETE_CHUNKED_ENCODING")
+      ) &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        /^\/_next\/static\/webpack\/webpack\.[a-f0-9]+\.hot-update\.js$/u.test(
+          entry.path ?? "",
+        ) &&
+        entry.text.includes("ERR_CONNECTION_REFUSED")
+      ) &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        entry.path?.endsWith(
+          "/next/dist/client/dev/hot-reloader/app/web-socket.js",
+        ) &&
+        entry.text.includes("/_next/webpack-hmr") &&
+        entry.text.includes("ERR_CONNECTION_REFUSED")
+      ),
+  );
+  const unexpectedFocusedFailedRequests = failedRequests.filter(
+    (entry) =>
+      entry.error_text !== "net::ERR_ABORTED" &&
+      !(
+        entry.phase === "folder_onboarding" &&
+        entry.error_text === "net::ERR_INCOMPLETE_CHUNKED_ENCODING"
+      ),
+  );
+  assert.deepEqual(pageErrors, []);
+  assert.deepEqual(unexpectedFocusedConsoleErrors, []);
+  assert.deepEqual(unexpectedFocusedFailedRequests, []);
+  assert.deepEqual(externalRequests, []);
+  assert.equal(interceptedInspectorResponse, null);
+  assert.deepEqual(interceptedRecoveryResponses, []);
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    assert.equal(
+      readableDatabase.pragma("integrity_check", { simple: true }),
+      "ok",
+    );
+  } finally {
+    readableDatabase.close();
+  }
+  result.unexpected_external_request_count = 0;
+  result.unexpected_console_error_count = 0;
+  result.provider_or_external_network_call = false;
+  result.default_database_accessed = false;
+}
+
 async function setBootstrapInput(token) {
   const changed = await evaluateBoolean(`(() => {
     const input = document.querySelector('#vnext-operator-bootstrap-token');
@@ -11389,6 +12021,106 @@ async function setFormControlValue(selector, index, value) {
     return true;
   })()`);
   assert.equal(changed, true, `failed to set ${selector}[${index}]`);
+}
+
+async function validateFirstWorkComposerViewports() {
+  const viewports = [
+    { width: 1440, height: 1000 },
+    { width: 1280, height: 900 },
+    { width: 430, height: 932 },
+    { width: 390, height: 844 },
+  ];
+  for (const { width, height } of viewports) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await evaluateBoolean(
+      `(() => { window.scrollTo(0, 0); return window.scrollY === 0; })()`,
+    );
+    await waitForResponsiveSurface(
+      '[data-first-work-composer="project_work_initialization.v0.1"]',
+      width,
+      "first-work composer",
+    );
+    const metrics = await evaluateJson(`(() => {
+      const composer = document.querySelector('[data-first-work-composer]');
+      const form = composer?.querySelector('form');
+      const controls = Array.from(form?.querySelectorAll('textarea, button') ?? []);
+      const visible = (element) => {
+        const rect = element?.getBoundingClientRect();
+        return Boolean(rect && rect.width > 0 && rect.height > 0);
+      };
+      const intersections = controls.flatMap((control, index) =>
+        controls.slice(index + 1).filter((candidate) => {
+          const left = control.getBoundingClientRect();
+          const right = candidate.getBoundingClientRect();
+          return Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 &&
+            Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1;
+        })
+      ).length;
+      const text = composer?.innerText ?? '';
+      return {
+        surface: 'first_work_composer',
+        width: window.innerWidth,
+        height: window.innerHeight,
+        document_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        composer_overflow:
+          (composer?.scrollWidth ?? 0) > (composer?.clientWidth ?? 0) + 1,
+        composer_inside_viewport: (() => {
+          const rect = composer?.getBoundingClientRect();
+          return Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1);
+        })(),
+        controls_visible: controls.length === 4 && controls.every(visible),
+        controls_minimum_size:
+          window.innerWidth > 900 || controls.every((control) => {
+            const rect = control.getBoundingClientRect();
+            return rect.width >= 44 && rect.height >= 44;
+          }),
+        collision_count: intersections,
+        primary_action_count:
+          composer?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        navigation_link_count:
+          document.querySelectorAll('nav[aria-label="Primary navigation"] > a').length,
+        labels_exact:
+          Array.from(form?.querySelectorAll('label') ?? []).map((label) => label.textContent?.trim()).join('|') ===
+          'Goal|Success criteria|Out of scope',
+        protocol_copy_absent:
+          !/(TaskContextPacket|RunReceipt|packet fingerprint|session id|operator nonce|first_work_definition)/i.test(text),
+        visible_development_overlay_absent:
+          Array.from(document.querySelectorAll('nextjs-portal')).every((portal) => {
+            const rect = portal.getBoundingClientRect();
+            return rect.width === 0 || rect.height === 0;
+          }),
+      };
+    })()`);
+    result.viewport_results.push(metrics);
+    assert.deepEqual(metrics, {
+      surface: "first_work_composer",
+      width,
+      height,
+      document_overflow: false,
+      composer_overflow: false,
+      composer_inside_viewport: true,
+      controls_visible: true,
+      controls_minimum_size: true,
+      collision_count: 0,
+      primary_action_count: 1,
+      navigation_link_count: 2,
+      labels_exact: true,
+      protocol_copy_absent: true,
+      visible_development_overlay_absent: true,
+    });
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 }
 
 async function validateProductShell({
@@ -12065,7 +12797,15 @@ async function validateBlankStateViewports(
       const expectedMaterialSurfaces =
         home?.getAttribute('data-blank-state-presentation') ===
         'active_continuities'
-          ? [
+          ? home?.getAttribute('data-blank-state-focus') ===
+            'first_work_not_defined'
+            ? [
+                productShell,
+                navigationRail,
+                firstContinuityItem,
+                guideDialog,
+              ]
+            : [
               productShell,
               navigationRail,
               firstContinuityItem,
@@ -12128,6 +12868,7 @@ async function validateBlankStateViewports(
         surface: 'blank_state',
         presentation:
           home?.getAttribute('data-blank-state-presentation') ?? null,
+        focus: home?.getAttribute('data-blank-state-focus') ?? null,
         width: window.innerWidth,
         height: window.innerHeight,
         document_scroll_width: document.documentElement.scrollWidth,
@@ -12357,14 +13098,22 @@ async function validateBlankStateViewports(
           !intersects(temporalRect, continuityRect),
         pinned_guide_nonoverlap:
           !intersects(pinnedNavigationRect, guideLauncherRect),
+        material_surface_count: renderedMaterialSurfaces.length,
+        material_signature_count: materialSignatures.length,
+        material_unique_count: new Set(materialSignatures).size,
         material_surfaces_differentiated:
-          materialSignatures.length === renderedMaterialSurfaces.length &&
-          materialSignatures.length >=
-            (home?.getAttribute('data-blank-state-presentation') ===
-            'active_continuities'
-              ? 5
-              : 3) &&
-          new Set(materialSignatures).size === materialSignatures.length,
+          home?.getAttribute('data-blank-state-focus') ===
+          'first_work_not_defined'
+            ? materialSignatures.length === renderedMaterialSurfaces.length &&
+              materialSignatures.length >= 3 &&
+              new Set(materialSignatures).size >= 2
+            : materialSignatures.length === renderedMaterialSurfaces.length &&
+              materialSignatures.length >=
+                (home?.getAttribute('data-blank-state-presentation') ===
+                'active_continuities'
+                  ? 5
+                  : 3) &&
+              new Set(materialSignatures).size === materialSignatures.length,
         attention_material_bounded:
           attentionItems.every((item) => {
             const style = getComputedStyle(item);
@@ -12563,6 +13312,7 @@ async function validateBlankStateViewports(
     result.viewport_results.push({ ...metrics, pc1_state: state });
     const activePresentation =
       metrics.presentation === "active_continuities";
+    const firstWorkSetup = metrics.focus === "first_work_not_defined";
     const metricMessage = (name) => `${name}:${JSON.stringify(metrics)}`;
     assert.equal(metrics.width, width);
     assert.equal(metrics.height, height);
@@ -12734,12 +13484,12 @@ async function validateBlankStateViewports(
     assert.equal(metrics.continuities_tagline_exact, true, JSON.stringify(metrics));
     assert.equal(
       metrics.shown_continuities_filter_present,
-      activePresentation,
+      activePresentation && !firstWorkSetup,
       JSON.stringify(metrics),
     );
     assert.equal(
       metrics.temporal_context_present,
-      activePresentation,
+      activePresentation && !firstWorkSetup,
       JSON.stringify(metrics),
     );
     assert.equal(
@@ -14632,19 +15382,35 @@ function seedExpiredProjectHomePacket({ projectId, marker }) {
       )
       .get(projectId);
     assert(project, "Browser Project Home fixture project must exist.");
+    const latestPacket = writableDatabase
+      .prepare(
+        `SELECT created_at
+           FROM vnext_core_records
+          WHERE workspace_id = ? AND project_id = ?
+            AND record_kind = 'task_context_packet'
+          ORDER BY created_at DESC, record_id DESC
+          LIMIT 1`,
+      )
+      .get(project.workspace_id, project.project_id);
+    const generatedAt = latestPacket
+      ? new Date(Date.parse(latestPacket.created_at) + 1).toISOString()
+      : TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
+    const expiresAt = latestPacket
+      ? new Date(Date.parse(generatedAt) + 1).toISOString()
+      : TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT;
     const input = structuredClone(genericCliBuilderInputFixture);
     const currentness = structuredClone(input.source_status.currentness);
     input.workspace_id = project.workspace_id;
     input.project_id = project.project_id;
-    input.generated_at = TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT;
-    input.expires_at = TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT;
+    input.generated_at = generatedAt;
+    input.expires_at = expiresAt;
     input.current_projection = {
       projection_kind: "current_working_perspective",
       projection_only: true,
       canonical_state: false,
       perspective_ref: "perspective:browser-expired-context",
       bounded_summary: marker,
-      as_of: TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+      as_of: generatedAt,
       items: [
         {
           item_kind: "frame",
@@ -14691,7 +15457,19 @@ function seedBrowserNormalWorkRun({ databasePath, projectId }) {
     assert.equal(identities.length, 1);
     const workspaceId = identities[0].workspace_id;
     const runId = "run:browser-pc1-normal-progress";
-    const startedAt = "2026-07-21T06:00:00.000Z";
+    const latestPacket = writableDatabase
+      .prepare(
+        `SELECT created_at
+           FROM vnext_core_records
+          WHERE workspace_id = ? AND project_id = ?
+            AND record_kind = 'task_context_packet'
+          ORDER BY created_at DESC, record_id DESC
+          LIMIT 1`,
+      )
+      .get(workspaceId, projectId);
+    const startedAt = latestPacket
+      ? new Date(Date.parse(latestPacket.created_at) + 1_000).toISOString()
+      : "2026-07-21T06:00:00.000Z";
     insertAutonomyRunLedgerRecord(
       {
         run_id: runId,
@@ -14984,6 +15762,50 @@ function readControlAuthorityCounts() {
   }
 }
 
+function readFirstWorkBrowserState(projectId) {
+  const readableDatabase = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const coreCount = (recordKind) =>
+      Number(
+        readableDatabase
+          .prepare(
+            `SELECT COUNT(*) AS count
+             FROM vnext_core_records
+             WHERE project_id = ? AND record_kind = ?`,
+          )
+          .get(projectId, recordKind).count,
+      );
+    return {
+      packets: coreCount("task_context_packet"),
+      receipts: coreCount("run_receipt"),
+      proposals: coreCount("episode_delta_proposal"),
+      decisions: coreCount("review_decision"),
+      transitions: coreCount("state_transition_receipt"),
+      semantic_state: Number(
+        readableDatabase
+          .prepare(
+            `SELECT COUNT(*) AS count
+             FROM vnext_semantic_state_entries
+             WHERE project_id = ?`,
+          )
+          .get(projectId).count,
+      ),
+      runs: Number(
+        readableDatabase
+          .prepare(
+            `SELECT COUNT(*) AS count FROM autonomy_runs WHERE scope = ?`,
+          )
+          .get(projectId).count,
+      ),
+    };
+  } finally {
+    readableDatabase.close();
+  }
+}
+
 function readDirectHostBrowserState(projectId) {
   const readableDatabase = new Database(databasePath, {
     readonly: true,
@@ -15117,6 +15939,18 @@ function readLatestManagedLiveRunState(projectId) {
       receipt_ref:
         typeof metadata.run_receipt_id === "string"
           ? metadata.run_receipt_id
+          : null,
+      packet_lineage_kind:
+        typeof metadata.packet_lineage_kind === "string"
+          ? metadata.packet_lineage_kind
+          : null,
+      source_transition_receipt_id:
+        typeof metadata.source_transition_receipt_id === "string"
+          ? metadata.source_transition_receipt_id
+          : null,
+      first_work_definition_id:
+        typeof metadata.first_work_definition_id === "string"
+          ? metadata.first_work_definition_id
           : null,
     };
   } finally {

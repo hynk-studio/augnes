@@ -49,6 +49,7 @@ import {
   loadValidatedVNextSemanticTransitionRelationV01,
 } from "../lib/vnext/runtime/durable-semantic-transition";
 import type { VNextLocalOperatorPilotConfigV01 } from "../lib/vnext/runtime/local-operator-session";
+import { initialProjectWorkIdempotencyKeyV01 } from "../lib/vnext/runtime/initial-project-work-context";
 import { createVNextOperatorPilotContextUseReviewLogicalIdentityV01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
@@ -540,7 +541,9 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
         workspace_id: payload.workspace_id,
         project_id: payload.project_id,
         fingerprint: exactFingerprintV01(payload),
-        idempotency_key: null,
+        idempotency_key: initialProjectWorkIdempotencyKeyV01(
+          payload as unknown as TaskContextPacketV01,
+        ),
         created_at: payload.generated_at,
       });
       return;

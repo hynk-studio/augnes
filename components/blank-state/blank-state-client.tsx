@@ -547,6 +547,7 @@ export function BlankStateClient({
   const visibleContinuityItems = view.continuity_items.filter((item) =>
     itemMatchesCurrentFilters(item)
   );
+  const firstWorkSetup = view.focus === "first_work_not_defined";
 
   function closeGuide() {
     const dialog = guideDialogRef.current;
@@ -710,6 +711,7 @@ export function BlankStateClient({
                 <ContinuityPinFeedback />
                 <MobilePinnedContinuities />
 
+            {!firstWorkSetup ? (
             <div className="continuities-filter-controls">
               <label className="continuities-filter">
                 <span className="continuities-visually-hidden">
@@ -752,6 +754,7 @@ export function BlankStateClient({
                 </button>
               </div>
             </div>
+            ) : null}
 
             <section
               className="blank-state-continuity"
@@ -762,7 +765,9 @@ export function BlankStateClient({
               data-blank-state-source-omitted-attention-count={
                 view.source_omitted_attention_count ?? "unknown"
               }
-              data-augnes-independent-surface="continuous-work"
+              data-augnes-independent-surface={
+                firstWorkSetup ? "first-work-setup" : "continuous-work"
+              }
               data-augnes-visual-priority={
                 view.known_attention_count > 0 ||
                 (view.source_omitted_attention_count ?? 0) > 0
@@ -772,8 +777,12 @@ export function BlankStateClient({
             >
               <div className="blank-state-continuity-heading">
                 <div>
-                  <p className="blank-state-region-label">Continuity stream</p>
-                  <h2 id="continuity-list-title">Work carrying forward</h2>
+                  <p className="blank-state-region-label">
+                    {firstWorkSetup ? "Project setup" : "Continuity stream"}
+                  </p>
+                  <h2 id="continuity-list-title">
+                    {firstWorkSetup ? "Define the first work" : "Work carrying forward"}
+                  </h2>
                 </div>
                 <p
                   className="blank-state-attention-summary"
@@ -852,7 +861,7 @@ export function BlankStateClient({
             ) : null}
           </div>
 
-          {activeContinuities ? (
+          {activeContinuities && !firstWorkSetup ? (
             <aside
               className="continuities-supporting-rail"
               aria-label="Project temporal context"

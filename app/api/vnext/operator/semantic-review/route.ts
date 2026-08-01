@@ -49,6 +49,7 @@ import {
   readProjectVerifyLineageV01,
 } from "@/lib/vnext/runtime/project-verify-lineage";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
+import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -193,6 +194,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           config,
           clock: options.clock,
         }),
+        work_initialization: readProjectWorkInitializationV01(db, config),
         inspector_href: createSharedInspectorHrefV01({
           target_kind: "project_coordination",
         }),

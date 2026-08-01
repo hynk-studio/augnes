@@ -5,6 +5,7 @@ import type {
   ContinuityPinEligibilityV01,
   ProjectContinuityPinProjectionV01,
 } from "./continuity-pins";
+import type { ProjectWorkInitializationV01 } from "./project-work-initialization";
 
 export const BLANK_STATE_VIEW_VERSION_V01 = "blank_state_view.v0.1" as const;
 
@@ -22,6 +23,8 @@ export type BlankStateFocusV01 =
   | "work_in_progress"
   | "result_ready"
   | "attention_required"
+  | "first_work_not_defined"
+  | "work_instructions_unavailable"
   | "ready_to_continue";
 
 export type BlankStatePresentationModeV01 =
@@ -50,6 +53,7 @@ export type BlankStatePrimaryActionV01 =
 
 export type BlankStateContinuitySourceFamilyV01 =
   | "project_lifecycle"
+  | "work_initialization"
   | "delegated_work"
   | "current_run"
   | "saved_result"
@@ -140,6 +144,7 @@ export interface BlankStateSourceV01 {
   project_resolution: "none" | "resolved" | "not_found" | "unavailable";
   direct_host_round_trip_available: boolean;
   delegated_work: DelegatedWorkProjectionV01 | null;
+  work_initialization?: ProjectWorkInitializationV01 | null;
   continuity_pins?: ProjectContinuityPinProjectionV01 | null;
 }
 

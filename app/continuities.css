@@ -233,6 +233,18 @@
 }
 
 .product-shell[data-primary-product-zone="blank-state"]
+  [data-blank-state-focus="first_work_not_defined"]
+  .continuities-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  [data-blank-state-focus="first_work_not_defined"]
+  .continuities-workstream {
+  width: min(100%, 820px);
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
   [data-blank-state-presentation]:not(
     [data-blank-state-presentation="active_continuities"]
   )

@@ -47,6 +47,7 @@
     "typecheck": "npm run typegen && tsc --noEmit",
     "test:operator-pure-contracts": "node --import tsx scripts/test-vnext-operator-pure-contracts-v0-1.ts",
     "test:operator-browser-fixture": "node --import tsx scripts/test-vnext-operator-browser-fixture-v0-1.ts",
+    "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
     "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",
     "test:local-canonical-executor": "node scripts/test-local-canonical-executor.mjs",
     "test:local-canonical-receipt": "node scripts/test-local-canonical-receipt.mjs",
@@ -77,6 +78,7 @@
     "test:operability:package": "node scripts/run-canonical-test-suite.mjs operability-package",
     "test:e2e": "node scripts/run-canonical-test-suite.mjs e2e",
     "test:e2e:core": "node scripts/run-canonical-test-suite.mjs e2e-core",
+    "test:e2e:cux6b": "node scripts/run-canonical-test-suite.mjs e2e-cux6b",
     "test:e2e:continuity": "node scripts/run-canonical-test-suite.mjs e2e-continuity"
   }
 }

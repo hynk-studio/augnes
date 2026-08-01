@@ -170,7 +170,17 @@ export interface PersistedHostPacketAdmissionV01 {
   packet_ref: ExternalRefV01;
   work_ref: ExternalRefV01;
   task_ref: ExternalRefV01;
-  source_transition_receipt_ref: ExternalRefV01;
+  packet_lineage:
+    | {
+        lineage_kind: "semantic_transition";
+        source_transition_receipt_ref: ExternalRefV01;
+      }
+    | {
+        lineage_kind: "initial_user_defined";
+        first_work_definition_ref: ExternalRefV01;
+        first_work_request_ref: ExternalRefV01;
+        operator_action_ref: ExternalRefV01;
+      };
   root_scope: NativeHostRootScopeV01;
 }
 
@@ -386,13 +396,25 @@ export async function admitPersistedHostTaskContextPacketV01(
       taskFingerprint,
       packet.packet_version,
     ),
-    source_transition_receipt_ref: localRef(
-      "state_transition_receipt",
-      lineage.source_transition_receipt.transition_receipt_id,
-      packet.generated_at,
-      lineage.source_transition_receipt.transition_receipt_fingerprint,
-      "augnes.vnext.state-transition-receipt.v0.1",
-    ),
+    packet_lineage:
+      lineage.lineage_kind === "semantic_transition"
+        ? {
+            lineage_kind: "semantic_transition",
+            source_transition_receipt_ref: localRef(
+              "state_transition_receipt",
+              lineage.source_transition_receipt.transition_receipt_id,
+              packet.generated_at,
+              lineage.source_transition_receipt
+                .transition_receipt_fingerprint,
+              "augnes.vnext.state-transition-receipt.v0.1",
+            ),
+          }
+        : {
+            lineage_kind: "initial_user_defined",
+            first_work_definition_ref: lineage.first_work_definition_ref,
+            first_work_request_ref: lineage.first_work_request_ref,
+            operator_action_ref: lineage.operator_action_ref,
+          },
     root_scope: {
       canonical_root: registration.root_binding.local_root.normalized_path,
       path_flavor: registration.root_binding.local_root.path_flavor,
@@ -616,22 +638,17 @@ export async function runDirectNativeHostRoundTripV01(
     });
   }
   let taskStartGuide: NativeHostRequestV01["guide_brief"];
-  if (
-    adapter.provider_egress === "native_host_managed" &&
-    dependencies.resume_existing_run !== true
-  ) {
-    try {
-      const registration = readCanonicalProjectWithRootV01(db, input.config);
-      taskStartGuide = buildTaskStartGuideBriefCodexProjectionV02({
-        packet: admitted.packet,
-        project_name: registration?.project.display_name ?? null,
-      });
-    } catch {
-      taskStartGuide = unavailableGuideBriefCodexProjectionV02(
-        admitted.packet,
-        "current_project_guide_unavailable",
-      );
-    }
+  try {
+    const registration = readCanonicalProjectWithRootV01(db, input.config);
+    taskStartGuide = buildTaskStartGuideBriefCodexProjectionV02({
+      packet: admitted.packet,
+      project_name: registration?.project.display_name ?? null,
+    });
+  } catch {
+    taskStartGuide = unavailableGuideBriefCodexProjectionV02(
+      admitted.packet,
+      "current_project_guide_unavailable",
+    );
   }
   const identity = buildRunIdentity({
     config: input.config,
@@ -1334,14 +1351,29 @@ function buildNativeHostRequest(input: {
     task_context_packet_ref: input.admission.packet_ref,
     packet,
     guide_brief: input.guide_brief,
-    packet_lineage: {
-      source_transition_receipt_ref:
-        input.admission.source_transition_receipt_ref,
-      packet_source_refs: packet.compatibility.source_refs,
-      selected_context_refs: packet.selected_context.flatMap((entry) =>
-        entry.external_ref ? [entry.external_ref] : [],
-      ),
-    },
+    packet_lineage:
+      input.admission.packet_lineage.lineage_kind === "semantic_transition"
+        ? {
+            source_transition_receipt_ref:
+              input.admission.packet_lineage.source_transition_receipt_ref,
+            packet_source_refs: packet.compatibility.source_refs,
+            selected_context_refs: packet.selected_context.flatMap((entry) =>
+              entry.external_ref ? [entry.external_ref] : [],
+            ),
+          }
+        : {
+            lineage_kind: "initial_user_defined",
+            first_work_definition_ref:
+              input.admission.packet_lineage.first_work_definition_ref,
+            first_work_request_ref:
+              input.admission.packet_lineage.first_work_request_ref,
+            operator_action_ref:
+              input.admission.packet_lineage.operator_action_ref,
+            packet_source_refs: packet.compatibility.source_refs,
+            selected_context_refs: packet.selected_context.flatMap((entry) =>
+              entry.external_ref ? [entry.external_ref] : [],
+            ),
+          },
     mode: input.mode,
     root_scope: input.admission.root_scope,
     requested_capability: HOST_CAPABILITY,
@@ -1478,9 +1510,18 @@ function createRunLedgerRecord(
       packet_id: packet.packet_id,
       packet_fingerprint: packet.integrity.fingerprint,
       source_transition_receipt_id:
-        input.admission.source_transition_receipt_ref.external_id,
+        sourceTransitionReceiptRefV01(input.admission)?.external_id ?? null,
       source_transition_receipt_fingerprint:
-        input.admission.source_transition_receipt_ref.source_ref,
+        sourceTransitionReceiptRefV01(input.admission)?.source_ref ?? null,
+      packet_lineage_kind: input.admission.packet_lineage.lineage_kind,
+      first_work_definition_id:
+        input.admission.packet_lineage.lineage_kind === "initial_user_defined"
+          ? input.admission.packet_lineage.first_work_definition_ref.external_id
+          : null,
+      first_work_definition_fingerprint:
+        input.admission.packet_lineage.lineage_kind === "initial_user_defined"
+          ? input.admission.packet_lineage.first_work_definition_ref.source_ref
+          : null,
       root_kind: input.admission.root_scope.root_kind,
       root_fingerprint: input.admission.root_scope.root_fingerprint,
       root_physical_identity_fingerprint:
@@ -1900,7 +1941,7 @@ function buildDirectHostRunReceipt(input: {
     admission.packet_ref,
     admission.work_ref,
     admission.task_ref,
-    admission.source_transition_receipt_ref,
+    ...admissionLineageRefsV01(admission),
     admission.root_scope.root_scope_ref,
     admission.root_scope.repository_ref,
     admission.root_scope.selected_worktree_ref,
@@ -1964,7 +2005,7 @@ function buildDirectHostRunReceipt(input: {
         runRef,
         adapterRef,
         request.execution_grant_ref,
-        admission.source_transition_receipt_ref,
+        ...admissionLineageRefsV01(admission),
         admission.root_scope.root_scope_ref,
         ...request.packet_lineage.packet_source_refs,
         ...request.packet_lineage.selected_context_refs,
@@ -2167,7 +2208,7 @@ function buildDirectHostRunReceipt(input: {
       ...result.host_refs,
       ...result.artifacts.map((artifact) => artifact.artifact_ref),
       ...result.model_invocation_receipt_refs,
-      admission.source_transition_receipt_ref,
+      ...admissionLineageRefsV01(admission),
       admission.root_scope.repository_ref,
       admission.root_scope.selected_worktree_ref,
       adapterRef,
@@ -2311,7 +2352,7 @@ function buildDirectHostRunReceipt(input: {
         NATIVE_HOST_RESULT_VERSION_V01,
         result.adapter_version,
         result.capability_version,
-        ...(admission.source_transition_receipt_ref
+        ...(admission.packet_lineage.lineage_kind === "semantic_transition"
           ? [VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01]
           : []),
         ...(hostApprovals.length ? ["native_host_approval.v0.1"] : []),
@@ -2691,8 +2732,7 @@ function buildRunIdentity(input: {
     packet_fingerprint: input.admission.packet.integrity.fingerprint,
     work_ref: input.admission.work_ref,
     task_ref: input.admission.task_ref,
-    source_transition_receipt_ref:
-      input.admission.source_transition_receipt_ref,
+    packet_lineage: input.admission.packet_lineage,
     root_fingerprint: input.admission.root_scope.root_fingerprint,
     root_physical_identity: input.admission.root_scope.physical_root_identity,
     root_kind: input.admission.root_scope.root_kind,
@@ -2706,6 +2746,26 @@ function buildRunIdentity(input: {
     request_id: `host-request:${digest.slice(0, 24)}`,
     idempotency_key: `sha256:${digest}`,
   };
+}
+
+function sourceTransitionReceiptRefV01(
+  admission: PersistedHostPacketAdmissionV01,
+): ExternalRefV01 | null {
+  return admission.packet_lineage.lineage_kind === "semantic_transition"
+    ? admission.packet_lineage.source_transition_receipt_ref
+    : null;
+}
+
+function admissionLineageRefsV01(
+  admission: PersistedHostPacketAdmissionV01,
+): ExternalRefV01[] {
+  return admission.packet_lineage.lineage_kind === "semantic_transition"
+    ? [admission.packet_lineage.source_transition_receipt_ref]
+    : [
+        admission.packet_lineage.first_work_definition_ref,
+        admission.packet_lineage.first_work_request_ref,
+        admission.packet_lineage.operator_action_ref,
+      ];
 }
 
 function readReceiptForRun(
@@ -2751,11 +2811,13 @@ function assertReceiptBindsAdmission(
     receipt.task_context_packet_ref?.external_id !== admission.packet.packet_id ||
     receipt.task_context_packet_ref.source_ref !==
       admission.packet.integrity.fingerprint ||
-    !receipt.source_refs.some(
-      (ref) =>
-        ref.ref_type === "state_transition_receipt" &&
-        ref.external_id === admission.source_transition_receipt_ref.external_id &&
-        ref.source_ref === admission.source_transition_receipt_ref.source_ref,
+    !admissionLineageRefsV01(admission).every((lineageRef) =>
+      receipt.source_refs.some(
+        (ref) =>
+          ref.ref_type === lineageRef.ref_type &&
+          ref.external_id === lineageRef.external_id &&
+          ref.source_ref === lineageRef.source_ref,
+      ),
     ) ||
     !receipt.source_refs.some(
       (ref) =>

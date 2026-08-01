@@ -21,6 +21,7 @@ import type {
 import { AI_WORKPLANE_PRESENTATION_VERSION_V01 } from "@/types/vnext/ai-workplane";
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
+import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 
 const MAX_QUEUE_ITEMS = 5;
 const MAX_UNCERTAINTIES = 6;
@@ -43,6 +44,7 @@ export function buildAIWorkplaneHomeViewV01(input: {
   proposals: VNextOperatorPilotReviewListItemV01[];
   continuity: VNextOperatorPilotProjectContinuityV01 | null;
   delegated_work?: DelegatedWorkProjectionV01 | null;
+  work_initialization?: ProjectWorkInitializationV01 | null;
 }): AIWorkplaneHomeViewV01 {
   const guide = input.guide;
   const projectName = guide?.identity.project_display_name ?? null;
@@ -50,7 +52,10 @@ export function buildAIWorkplaneHomeViewV01(input: {
   const base = {
     presentation_version: AI_WORKPLANE_PRESENTATION_VERSION_V01,
     project_name: projectName,
-    goal: guide?.coordinate.goal ?? null,
+    goal:
+      input.work_initialization?.current_work?.goal ??
+      guide?.coordinate.goal ??
+      null,
     focused_item: queue[0] ?? null,
     additional_items: queue.slice(1, MAX_QUEUE_ITEMS),
     authority: PRESENTATION_AUTHORITY,
@@ -87,6 +92,29 @@ export function buildAIWorkplaneHomeViewV01(input: {
       "AI Workplane needs a current project from Continuities.",
       null,
       { kind: "link", label: "Open Continuities", href: "/" },
+    );
+  }
+  if (input.work_initialization?.state === "not_defined") {
+    return state(
+      base,
+      "first_work_definition",
+      "Define the first work",
+      "Set one goal, what success should look like, and any optional boundaries before delegated work starts.",
+      "Saving this definition will not start Codex or change project files.",
+      { kind: "save_first_work", label: "Save first work", href: null },
+    );
+  }
+  if (
+    input.work_initialization?.state ===
+    "existing_history_without_current_packet"
+  ) {
+    return state(
+      base,
+      "work_instructions_unavailable",
+      "Current work instructions are unavailable",
+      "This project already has durable work history, so a new first-work definition cannot replace it.",
+      "Refresh or recover the current work context before starting delegated work.",
+      { kind: "link", label: "Return to Continuities", href: "/" },
     );
   }
   const delegated = input.delegated_work;

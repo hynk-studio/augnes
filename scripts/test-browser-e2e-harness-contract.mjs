@@ -17,11 +17,11 @@ const recordNames = [...source.matchAll(/record\("([^"]+)"\)/gu)]
   .map((match) => match[1]);
 assert.equal(resultKeys.length, new Set(resultKeys).size);
 assert.equal(recordNames.length, new Set(recordNames).size);
-assert.equal(resultKeys.length, 195);
+assert.equal(resultKeys.length, 204);
 assert.equal(recordNames.length, 99);
 assert.equal(
   hashInventory(resultKeys),
-  "24c24c467d230b796a3206d8a4a68e022643fdb0b6052f0e849c2b88ea504f08",
+  "ca9f940d6f000fdaf132e34f22f6fff7892c595a71c557dc8b4f0a096ee3218b",
 );
 assert.equal(
   hashInventory(recordNames),
@@ -74,7 +74,19 @@ assert.match(
 );
 assert.equal(
   [...source.matchAll(/startDevServer\(runtimeEnvironment\)/gu)].length,
-  3,
+  5,
+);
+assert.match(
+  source,
+  /data-blank-state-focus="first_work_not_defined"[\s\S]*locked first-work operator state[\s\S]*authenticated first-work composer[\s\S]*validateFirstWorkComposerViewports\(\)[\s\S]*form\.requestSubmit\(\);[\s\S]*form\.requestSubmit\(\);[\s\S]*First work defined\. No execution has started\.[\s\S]*separate first-work host start action[\s\S]*initial packet live host admission/u,
+);
+assert.match(
+  source,
+  /const viewports = \[[\s\S]*width: 1440, height: 1000[\s\S]*width: 1280, height: 900[\s\S]*width: 430, height: 932[\s\S]*width: 390, height: 844/u,
+);
+assert.match(
+  source,
+  /runtimeEnvironment\.AUGNES_VNEXT_OPERATOR_PROJECT_ID = firstProjectId;[\s\S]*runtimeEnvironment\.AUGNES_VNEXT_OPERATOR_PROJECT_ID = manifest\.project_id;/u,
 );
 assert.equal(
   [...source.matchAll(/startDevServer\(positiveRuntimeEnvironment\)/gu)]
@@ -245,7 +257,7 @@ assert.match(
 );
 for (const state of [
   "no-project-onboarding",
-  "ready-to-continue",
+  "first-work-not-defined",
   "viewed-inactive-project",
   "project-root-recovery",
   "genuine-human-attention",

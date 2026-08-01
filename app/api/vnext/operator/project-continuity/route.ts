@@ -22,6 +22,11 @@ import {
   VNextOperatorPilotContextUseReviewErrorV01,
   recordVNextOperatorPilotContextUseReviewV01,
 } from "@/lib/vnext/runtime/operator-pilot-context-use-review";
+import {
+  defineInitialProjectWorkV01,
+  isProjectWorkInitializationErrorV01,
+  readProjectWorkInitializationV01,
+} from "@/lib/vnext/runtime/project-work-initialization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +86,7 @@ export function createVNextOperatorProjectContinuityHandlerV01(
           project_id: config.project_id,
         },
         continuity,
+        work_initialization: readProjectWorkInitializationV01(db, config),
         projection_is_read_only: true,
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",
@@ -116,10 +122,47 @@ export function createVNextOperatorContextUseReviewHandlerV01(
       const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
+      const body = await readBoundedVNextLocalOperatorBodyV01(request);
+      if (body.action === "define_initial_project_work") {
+        const result = defineInitialProjectWorkV01(db, {
+          config,
+          credential,
+          request: body,
+          clock: options.clock,
+          secret_source: options.secret_source,
+        });
+        return jsonResponse(
+          {
+            ok: true,
+            route_version: ROUTE_VERSION,
+            status: result.status,
+            work_initialization: readProjectWorkInitializationV01(db, config),
+            definition: result.definition,
+            run_created: result.run_created,
+            execution_started: result.execution_started,
+            provider_called: result.provider_called,
+            project_files_written: result.project_files_written,
+            proposal_created: result.proposal_created,
+            review_decision_created: result.review_decision_created,
+            transition_created: result.transition_created,
+            semantic_state_changed: result.semantic_state_changed,
+            semantic_authority_granted: false,
+            execution_authority_granted: false,
+          },
+          result.status === "inserted" ? 201 : 200,
+          serializeVNextLocalOperatorSessionCookieV01({
+            value: result.session_admission.cookie_value,
+            expires_at: result.session_admission.cookie_expires_at,
+            max_age_seconds:
+              result.session_admission.cookie_max_age_seconds,
+            secure: url.protocol === "https:",
+          }),
+        );
+      }
       const result = recordVNextOperatorPilotContextUseReviewV01(db, {
         config,
         credential,
-        request: await readBoundedVNextLocalOperatorBodyV01(request),
+        request: body,
         clock: options.clock,
         secret_source: options.secret_source,
       });
@@ -164,7 +207,8 @@ function errorResponse(error: unknown): NextResponse {
   const known =
     error instanceof VNextLocalOperatorSessionErrorV01 ||
     error instanceof VNextOperatorPilotContinuityErrorV01 ||
-    error instanceof VNextOperatorPilotContextUseReviewErrorV01;
+    error instanceof VNextOperatorPilotContextUseReviewErrorV01 ||
+    isProjectWorkInitializationErrorV01(error);
   const disabled =
     error instanceof VNextLocalOperatorSessionErrorV01 &&
     error.code === "operator_pilot_disabled";

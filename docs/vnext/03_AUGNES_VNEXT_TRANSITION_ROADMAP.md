@@ -171,9 +171,9 @@ families. It preserves PC1–PC4 ownership and creates no Decision, Transition,
 execution, project-management, persistence, provider, or external-action
 authority.
 
-## Current
+## CUX6A completed lifecycle
 
-### CUX6A mutable project naming and lifecycle management
+### Mutable project naming and lifecycle management
 
 [Issue #99](https://github.com/hynk-studio/augnes-perspective-lab/issues/99)
 defines the currently authorized CUX6A slice. Its implementation makes the
@@ -184,17 +184,38 @@ immutable project identity, root and repository bindings, active selection,
 continuity and Pinned records, portable record integrity, and every semantic,
 execution, external-effect, and merge authority boundary.
 
-CUX6A remains **Current** until its linked pull request is reviewed and merged.
-Its Draft PR is an outcome candidate, not completed runtime. It adds no schema
-migration or portable contract version and does not authorize first-work
+CUX6A was completed and merged by
+[PR #100](https://github.com/hynk-studio/augnes-perspective-lab/pull/100) at
+merge commit `b61ef980124f707b9b9ec417afcc5366ab7a4481`. It added no schema
+migration or portable contract version and did not authorize first-work
 activation.
 
-### CUX6B remains separate later work
+## Current
 
-First-work activation for an uninitialized project remains a separately
-authorized future slice. CUX6A does not add a goal composer, create or compile
-a `TaskContextPacket`, change Codex start eligibility, synthesize a different
-continuation candidate, or create work from project onboarding or rename.
+### CUX6B first-work definition and activation
+
+[Issue #101](https://github.com/hynk-studio/augnes-perspective-lab/issues/101)
+defines the currently authorized CUX6B slice. It replaces the synthetic
+ready-to-continue dead end for a genuinely new active project with one neutral
+`Define first work` path into AI Workplane. An authenticated user can save one
+bounded goal, success-criteria list, and optional non-goals as the project's
+single initial TaskContextPacket. Save and execution remain separate: saving
+creates no run, proposal, Decision, Transition, semantic state, project-file
+write, or provider call; the existing `Start Codex work` owner separately
+admits the initial packet.
+
+The shared initialization read owner is conservative. Any prior packet, run,
+receipt, proposal, decision, Transition, semantic state/head, current
+run/result, corrupt/incomplete lineage, or failed source read prevents genesis
+creation. Initial packet lineage explicitly names the user definition and
+authenticated local operator action without inventing a prior packet or
+StateTransitionReceipt. Existing semantic-transition lineage and its full-chain
+validation remain unchanged; a later normal Transition may compile a successor
+from the initial packet.
+
+CUX6B remains **Current** until its linked pull request is reviewed and merged.
+Its Draft PR is an outcome candidate, not completed runtime. First-work editing
+or replacement, model-authored planning, C9, and PC6 remain separate work.
 
 ## Next separately authorized work
 

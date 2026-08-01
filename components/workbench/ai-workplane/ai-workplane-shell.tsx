@@ -14,6 +14,8 @@ export type AIWorkplaneShellStateV01 =
   | "access_required"
   | "no_project"
   | "guidance_unavailable"
+  | "first_work_definition"
+  | "work_instructions_unavailable"
   | "no_current_decision"
   | "work_in_progress"
   | "delegated_approval"

@@ -6,6 +6,8 @@ export type AIWorkplaneHomeStateV01 =
   | "access_required"
   | "no_project"
   | "guidance_unavailable"
+  | "first_work_definition"
+  | "work_instructions_unavailable"
   | "change_completion"
   | "change_decision"
   | "result_ready"
@@ -34,7 +36,8 @@ export interface AIWorkplanePrimaryActionV01 {
     | "review_impact"
     | "confirm"
     | "apply"
-    | "delegated_work";
+    | "delegated_work"
+    | "save_first_work";
   label: string;
   href: string | null;
 }

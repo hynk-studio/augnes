@@ -25,6 +25,8 @@ import {
 import { DecisionCenteredProposalDetail } from "./decision-centered-proposal-detail";
 import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
+import { FirstWorkComposer } from "./first-work-composer";
+import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
 import type {
   SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
@@ -68,6 +70,7 @@ export function SemanticReviewSurface({
     candidate_id: string;
   } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
+  const [firstWorkBusy, setFirstWorkBusy] = useState(false);
   const operatorMutationInFlight = useRef(false);
   const lastGuideSyncKey = useRef<string | null>(null);
   const lastTrustedResultRef = useRef<string | null>(null);
@@ -414,6 +417,76 @@ export function SemanticReviewSurface({
     }
   }
 
+  async function saveFirstWork(
+    definition: ProjectWorkDefinitionV01,
+  ): Promise<void> {
+    const initialization =
+      privateView?.kind === "list"
+        ? privateView.value.work_initialization
+        : null;
+    if (
+      sessionState.status !== "authenticated" ||
+      !initialization ||
+      initialization.state !== "not_defined" ||
+      !initialization.mutation_eligible ||
+      initialization.active_project_id !== initialization.project_id ||
+      initialization.active_selection_revision === null ||
+      operatorMutationInFlight.current
+    ) {
+      return;
+    }
+    operatorMutationInFlight.current = true;
+    setFirstWorkBusy(true);
+    setDecisionStatus(null);
+    setPrivateError(null);
+    try {
+      const response = await fetch(PROJECT_CONTINUITY_ROUTE, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "define_initial_project_work",
+          workspace_id: initialization.workspace_id,
+          project_id: initialization.project_id,
+          expected_active_project_id: initialization.active_project_id,
+          expected_active_selection_revision:
+            initialization.active_selection_revision,
+          expected_initialization_state: "not_defined",
+          ...definition,
+        }),
+      });
+      const body = (await response.json()) as FirstWorkMutationResponseV01;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          locked(publicErrorCode(body.error_code));
+          return;
+        }
+        setPrivateError(firstWorkErrorCopyV01(body.error_code));
+        await loadPrivateView({ announceLoading: false });
+        return;
+      }
+      if (body.status !== "inserted" && body.status !== "exact_replay") {
+        setPrivateError("First work could not be confirmed. Reload and try again.");
+        return;
+      }
+      setDecisionStatus(
+        body.status === "exact_replay"
+          ? "First work was already defined. No duplicate was created and no execution started."
+          : "First work defined. No execution has started.",
+      );
+      await loadPrivateView({ announceLoading: false });
+      await guideState.refresh();
+      await delegatedState.refresh();
+      router.refresh();
+    } catch {
+      setPrivateError("First work could not be saved. Nothing was started; try again.");
+    } finally {
+      operatorMutationInFlight.current = false;
+      setFirstWorkBusy(false);
+    }
+  }
+
   function authenticated(session: OperatorSessionViewV01) {
     setPrivateView(null);
     setSessionState({
@@ -524,7 +597,19 @@ export function SemanticReviewSurface({
           ? privateView.value.proposal.project_continuity
           : null,
     delegated_work: !proposalId ? delegatedState.projection : null,
+    work_initialization:
+      privateView?.kind === "list"
+        ? privateView.value.work_initialization ?? null
+        : null,
   });
+  const firstWorkInitialization =
+    !proposalId && privateView?.kind === "list"
+      ? privateView.value.work_initialization ?? null
+      : null;
+  const firstWorkOwnsFocus =
+    exactReviewAvailable &&
+    firstWorkInitialization?.state === "not_defined" &&
+    firstWorkInitialization.mutation_eligible;
   const delegatedOwnsFocus =
     !proposalId &&
     Boolean(
@@ -571,7 +656,13 @@ export function SemanticReviewSurface({
         guideLoading={guideState.status === "loading"}
         guideRequestCount={guideState.requestCountRef.current}
         priorityContent={
-          exactReviewAvailable &&
+          firstWorkOwnsFocus && firstWorkInitialization ? (
+            <FirstWorkComposer
+              initialization={firstWorkInitialization}
+              busy={firstWorkBusy}
+              onSave={saveFirstWork}
+            />
+          ) : exactReviewAvailable &&
           privateView?.kind === "list" &&
           delegatedState.projection ? (
             <DelegatedWorkPanel
@@ -652,7 +743,7 @@ export function SemanticReviewSurface({
             reconciliation={privateView.value.project_verify_reconciliation}
             continuity={privateView.value.project_continuity}
             view={homeView}
-            showCurrentFocus={!delegatedOwnsFocus}
+            showCurrentFocus={!delegatedOwnsFocus && !firstWorkOwnsFocus}
           />
         ) : null}
 
@@ -760,6 +851,13 @@ interface SemanticReviewMutationResponseV01 {
   error_code?: string | null;
 }
 
+interface FirstWorkMutationResponseV01 {
+  status?: "inserted" | "exact_replay" | "error";
+  error_code?: string | null;
+  execution_started?: false;
+  run_created?: false;
+}
+
 function publicErrorCode(value: unknown): string {
   if (typeof value !== "string" || value.length === 0 || value.length > 96) {
     return "semantic_review_request_failed";
@@ -776,6 +874,25 @@ function publicStrategicReason(value: unknown): string {
   return /^[a-z0-9_:-]+$/.test(value)
     ? value.replaceAll("_", " ")
     : "bounded request unavailable";
+}
+
+function firstWorkErrorCopyV01(value: unknown): string {
+  return value === "first_work_active_selection_conflict"
+    ? "The current project changed before first work was saved. Reload and review the current project."
+    : value === "first_work_root_unavailable"
+      ? "The project folder is unavailable. Reconnect it from Continuities before defining work."
+      : value === "first_work_already_defined" ||
+          value === "first_work_state_changed"
+        ? "Project work changed before this definition was saved. Reload to continue from the current work."
+        : value === "first_work_goal_invalid"
+          ? "Enter a goal between 1 and 2,000 characters."
+          : value === "first_work_definition_too_large"
+            ? "Shorten the complete definition before saving."
+          : value === "first_work_success_criteria_invalid"
+            ? "Add 1 to 12 success criteria, each no longer than 500 characters."
+            : value === "first_work_non_goals_invalid"
+              ? "Use no more than 12 out-of-scope entries, each no longer than 500 characters."
+              : "First work could not be saved. Nothing was started; review the fields and try again.";
 }
 
 function semanticReviewProposalHref(proposalId: string | undefined): string {
@@ -823,8 +940,12 @@ function aiWorkplaneEntryPresentation(
                 ? "Work in progress"
                 : homeState === "no_project"
                   ? "No current project"
-                  : homeState === "guidance_unavailable"
-                    ? "Current guidance unavailable"
+                : homeState === "guidance_unavailable"
+                  ? "Current guidance unavailable"
+                  : homeState === "first_work_definition"
+                    ? "First work not defined"
+                    : homeState === "work_instructions_unavailable"
+                      ? "Current work needs refresh"
                     : "No current decision",
     };
   }

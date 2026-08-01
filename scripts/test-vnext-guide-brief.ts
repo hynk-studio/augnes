@@ -47,7 +47,10 @@ function projection(overrides: {
     },
     coordination: {
       task_frame: {
-        goal: overrides.goal ?? "Ship the bounded current-project guide",
+        goal:
+          "goal" in overrides
+            ? (overrides.goal ?? null)
+            : "Ship the bounded current-project guide",
         success_criteria: ["Browser and Codex agree"],
         non_goals: ["Do not redesign AI Workplane"],
         required_checks: ["npm run typecheck"],
@@ -223,6 +226,7 @@ async function main() {
     [build(source(projection({ run: { run_ref: "run:test", status: "running", mode: "interactive", started_at: NOW, updated_at: NOW, public_reason: null, reconciliation_required: false, packet_ref: null, receipt_available: false } }))), "work_in_progress"],
     [build(source(resultProjection())), "result_ready"],
     [build(source(projection({ attention: [{ attention_id: "attention:test", summary: "A decision is waiting", reason: "The next change needs user judgment", workbench_entry: null, action_href: "/workbench/semantic-review", action_label: "Review", priority: 1 }] as ProjectHomeProjectionV01["attention"]["items"] }))), "attention_required"],
+    [build(source(projection({ goal: null }), { work_initialization: { initialization_version: "project_work_initialization.v0.1", workspace_id: "workspace:00000000-0000-4000-8000-000000000001", project_id: PROJECT_ID, state: "not_defined", reason: "zero_durable_work_history", active_project_id: PROJECT_ID, active_selection_revision: 1, current_work: null, current_packet: null, mutation_eligible: true, projection_only: true, semantic_authority_granted: false, execution_authority_granted: false } })), "first_work_not_defined"],
     [build(source(projection())), "ready_to_continue"],
   ] as const;
 
@@ -257,6 +261,16 @@ async function main() {
     assert.equal(guide.authority.can_write_db, false);
     assert.equal(guide.safety.persisted, false);
   }
+
+  const firstWorkGuide = states.find(([, focus]) => focus === "first_work_not_defined")![0];
+  assert.equal(firstWorkGuide.coordinate.goal, null);
+  assert.equal(firstWorkGuide.coordinate.human_attention.required, false);
+  assert.equal(firstWorkGuide.primary_guidance.label, "Define first work");
+  assert.equal(firstWorkGuide.primary_guidance.href, "/workbench/semantic-review#first-work");
+  assert.equal(
+    firstWorkGuide.projections.ai_workplane.recommended_review_focus,
+    "Define first work",
+  );
 
   const resultGuide = states[6][0];
   assert.equal(JSON.stringify(resultGuide).includes("/Users/private"), false);
