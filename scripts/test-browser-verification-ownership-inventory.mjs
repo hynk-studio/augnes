@@ -16,18 +16,23 @@ const inventory = JSON.parse(
   ),
 );
 const metadata = extractBrowserVerificationStaticMetadata(source);
+let negativeFixtureCount = 0;
 
 function syntheticHarnessSource() {
   return [
     'const VALIDATION_SCOPE = process.env.AUGNES_BROWSER_E2E_SCOPE ?? "complete";',
     'assert(["complete", "core", "continuity", "cux6b"].includes(VALIDATION_SCOPE), "scope");',
+    "const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });",
     "const result = {",
     "  declared: false,",
     "  entries: [],",
     "};",
-    "function record(marker) { return marker; }",
+    "function record(id) { return id; }",
     "function recordLongWait(kind, label, startedAt) {",
     "  timing.duration(kind, label, Date.now() - startedAt);",
+    "}",
+    "async function runPhase(phase, action, options = {}) {",
+    "  await action(options);",
     "}",
     "result.dynamic = true;",
     'result.entries.push("entry");',
@@ -43,10 +48,12 @@ function syntheticHarnessSource() {
     'timing.duration("cleanup", "synthetic", 1);',
     'timing.milestone("synthetic milestone");',
     'recordLongWait("wait_for_condition", "synthetic", 0);',
+    "const timingSummary = timing.summary();",
     "process.stdout.write(JSON.stringify(result));",
     "void ordinaryRead;",
     "void markerText;",
     "void templateText;",
+    "void timingSummary;",
   ].join("\n");
 }
 
@@ -59,6 +66,7 @@ function assertUnsupported(label, fixtureSource, expectedCode) {
     },
     label,
   );
+  negativeFixtureCount += 1;
 }
 
 const supportedFixtureSource = syntheticHarnessSource();
@@ -100,6 +108,28 @@ assert.deepEqual(supportedFixtureMetadata.result_mutation_counts, {
   direct_property_assignment: 1,
   dynamic_field_assignment: 1,
   nested_collection_mutation: 1,
+});
+assert.deepEqual(supportedFixtureMetadata.sensitive_reference_counts, {
+  record: {
+    canonical_declaration: 1,
+    canonical_direct_call: 1,
+    supported_non_extraction_reference: 0,
+  },
+  runPhase: {
+    canonical_declaration: 1,
+    canonical_direct_call: 1,
+    supported_non_extraction_reference: 0,
+  },
+  recordLongWait: {
+    canonical_declaration: 1,
+    canonical_direct_call: 1,
+    supported_non_extraction_reference: 0,
+  },
+  timing: {
+    canonical_declaration: 1,
+    canonical_direct_call: 4,
+    supported_non_extraction_reference: 1,
+  },
 });
 
 const resultMutationCode = "browser_verification_result_mutation_unsupported";
@@ -159,6 +189,58 @@ assertUnsupported(
   ),
   resultMutationCode,
 );
+for (const [label, statement] of [
+  ["delete result field", "delete result.declared;"],
+  ["delete bracket result field", 'delete result["declared"];'],
+  ["parenthesized delete result field", "delete (result.declared);"],
+  ["prefix increment result field", "++result.declared;"],
+  ["prefix decrement result field", "--result.declared;"],
+  ["postfix increment result field", "result.declared++;"],
+  ["postfix decrement result field", "result.declared--;"],
+  [
+    "parenthesized postfix result field",
+    "(result.declared)++;",
+  ],
+  [
+    "chained bracket result assignment",
+    'result["declared"]["nested"] = true;',
+  ],
+  [
+    "nested collection chained bracket assignment",
+    "result.entries[0][0] = true;",
+  ],
+  [
+    "computed result field invocation",
+    'result["declared"]();',
+  ],
+  ["for-of result field target", "for (result.declared of values) {}"],
+  ["for-in result field target", "for (result.declared in values) {}"],
+  [
+    "for-of bracket result target",
+    'for (result["declared"] of values) {}',
+  ],
+  [
+    "for-in bracket result target",
+    'for (result["declared"] in values) {}',
+  ],
+  [
+    "destructured for-of result target",
+    "for ({ value: result.declared } of values) {}",
+  ],
+  [
+    "destructured for-in result target",
+    "for ([result.declared] in values) {}",
+  ],
+]) {
+  assertUnsupported(
+    label,
+    supportedFixtureSource.replace(
+      "const ordinaryRead = result.dynamic;",
+      `${statement}\nconst ordinaryRead = result.dynamic;`,
+    ),
+    resultMutationCode,
+  );
+}
 assertUnsupported(
   "computed record marker",
   supportedFixtureSource.replace(
@@ -183,6 +265,64 @@ assertUnsupported(
   ),
   "browser_verification_record_argument_unsupported",
 );
+for (const [label, replacement, expectedCode] of [
+  [
+    "aliased record",
+    'const emitMarker = record;\nemitMarker("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record.call",
+    'record.call(null, "synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record.apply",
+    'record.apply(null, ["synthetic_marker"]);',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record optional invocation",
+    'record?.("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record passed as value",
+    'consume(record);\nrecord("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record returned as value",
+    'function exposeRecord() { return record; }\nrecord("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record reassignment",
+    'record = replacement;\nrecord("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "record destructuring capture",
+    'const { marker: emitMarker } = { marker: record };\nrecord("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "computed record property invocation",
+    'globalThis["record"]("synthetic_marker");',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+  [
+    "template-interpolated computed record property invocation",
+    '`value=${globalThis["record"]("synthetic_marker")}`;',
+    "browser_verification_sensitive_reference_unsupported",
+  ],
+]) {
+  assertUnsupported(
+    label,
+    supportedFixtureSource.replace('record("synthetic_marker");', replacement),
+    expectedCode,
+  );
+}
 assertUnsupported(
   "computed runPhase identifier",
   supportedFixtureSource.replace(
@@ -191,6 +331,25 @@ assertUnsupported(
   ),
   "browser_verification_run_phase_argument_unsupported",
 );
+for (const [label, replacement] of [
+  [
+    "aliased runPhase",
+    'const executePhase = runPhase;\nexecutePhase("synthetic_phase", async () => {});',
+  ],
+  [
+    "runPhase.apply",
+    'runPhase.apply(null, ["synthetic_phase", async () => {}]);',
+  ],
+]) {
+  assertUnsupported(
+    label,
+    supportedFixtureSource.replace(
+      'runPhase("synthetic_phase", async () => {});',
+      replacement,
+    ),
+    "browser_verification_sensitive_reference_unsupported",
+  );
+}
 assertUnsupported(
   "computed timing kind",
   supportedFixtureSource.replace(
@@ -216,6 +375,14 @@ assertUnsupported(
   "browser_verification_record_long_wait_argument_unsupported",
 );
 assertUnsupported(
+  "aliased recordLongWait",
+  supportedFixtureSource.replace(
+    'recordLongWait("wait_for_condition", "synthetic", 0);',
+    'const waitRecorder = recordLongWait;\nwaitRecorder("wait_for_condition", "synthetic", 0);',
+  ),
+  "browser_verification_sensitive_reference_unsupported",
+);
+assertUnsupported(
   "computed timing milestone",
   supportedFixtureSource.replace(
     'timing.milestone("synthetic milestone");',
@@ -231,6 +398,41 @@ assertUnsupported(
   ),
   "browser_verification_validation_scope_declaration_unsupported",
 );
+for (const [label, replacement] of [
+  [
+    "aliased timing object",
+    'const timingAlias = timing;\ntimingAlias.start("phase", "synthetic");',
+  ],
+  [
+    "extracted timing method",
+    'const startTiming = timing.start;\nstartTiming("phase", "synthetic");',
+  ],
+  [
+    "bound timing method",
+    'const boundTiming = timing.start.bind(timing);\nboundTiming("phase", "synthetic");',
+  ],
+  [
+    "bracket timing method invocation",
+    'timing["start"]("phase", "synthetic");',
+  ],
+  [
+    "computed timing method invocation",
+    'const method = "start";\ntiming[method]("phase", "synthetic");',
+  ],
+  [
+    "optional timing method invocation",
+    'timing?.start("phase", "synthetic");',
+  ],
+]) {
+  assertUnsupported(
+    label,
+    supportedFixtureSource.replace(
+      'timing.start("phase", "synthetic");',
+      replacement,
+    ),
+    "browser_verification_timing_reference_unsupported",
+  );
+}
 
 assert.equal(
   inventory.schema,
@@ -254,6 +456,10 @@ assert.deepEqual(
 assert.deepEqual(
   inventory.source_contract.extraction_grammar.raw_call_counts,
   metadata.raw_call_counts,
+);
+assert.deepEqual(
+  inventory.source_contract.extraction_grammar.sensitive_reference_counts,
+  metadata.sensitive_reference_counts,
 );
 assert.equal(
   inventory.source_contract.assertion_call_count,
@@ -287,6 +493,28 @@ assert.equal(metadata.record_markers.length, 101);
 assert.equal(metadata.timing_kinds.length, 14);
 assert.equal(metadata.timing_milestones.length, 17);
 assert.equal(metadata.assertion_call_count, 1070);
+assert.deepEqual(metadata.sensitive_reference_counts, {
+  record: {
+    canonical_declaration: 1,
+    canonical_direct_call: 101,
+    supported_non_extraction_reference: 6,
+  },
+  runPhase: {
+    canonical_declaration: 1,
+    canonical_direct_call: 12,
+    supported_non_extraction_reference: 0,
+  },
+  recordLongWait: {
+    canonical_declaration: 1,
+    canonical_direct_call: 6,
+    supported_non_extraction_reference: 0,
+  },
+  timing: {
+    canonical_declaration: 1,
+    canonical_direct_call: 27,
+    supported_non_extraction_reference: 1,
+  },
+});
 assert.equal(metadata.record_markers.length, new Set(metadata.record_markers).size);
 assert.equal(metadata.raw_call_counts.record, metadata.record_markers.length);
 assert.equal(metadata.raw_call_counts.run_phase, metadata.phase_call_ids.length);
@@ -671,6 +899,7 @@ assert.equal(
   true,
 );
 assert.equal(inventory.non_goals.length >= 6, true);
+assert.equal(negativeFixtureCount, 52);
 
 process.stdout.write(
   `${JSON.stringify({
@@ -678,6 +907,7 @@ process.stdout.write(
     status: "pass",
     scopes: metadata.scopes.length,
     source_phase_ids: metadata.phase_ids.length,
+    source_phase_calls: metadata.phase_call_ids.length,
     coherent_phase_groups: inventory.current_phase_groups.length,
     assertion_calls: metadata.assertion_call_count,
     declared_result_fields: metadata.declared_result_fields.length,
@@ -686,6 +916,8 @@ process.stdout.write(
     record_markers: metadata.record_markers.length,
     timing_kinds: metadata.timing_kinds.length,
     timing_milestones: metadata.timing_milestones.length,
+    negative_fixtures: negativeFixtureCount,
+    sensitive_reference_counts: metadata.sensitive_reference_counts,
     coverage_families: inventory.coverage_equivalence.length,
     dependency_edges: inventory.dependency_graph.length,
     classification_counts: classificationCounts,

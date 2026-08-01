@@ -100,12 +100,22 @@ stream, balances call arguments, and accepts only these declared forms:
   17 dynamic output fields;
 - line-leading mutation of an already-declared result collection by the
   existing bracket assignment or `.push(...)` form;
+- no other `result` assignment target: whole-result, computed top-level,
+  parenthesized, destructured, `delete`, prefix/postfix update, `for...of`,
+  `for...in`, alias, spread, helper, and indirect targets all fail;
 - direct `record(...)`, `runPhase(...)`, `timing.start(...)`,
   `timing.duration(...)`, `timing.milestone(...)`, and
   `recordLongWait(...)` calls with an unescaped double-quoted literal in every
   extraction-bearing argument position;
 - the single exact `timing.duration(kind, ...)` forwarder inside the declared
   `recordLongWait(kind, label, startedAt)` helper;
+- exact canonical declarations for `record`, `runPhase`, `recordLongWait`, and
+  the `timing` recorder; every reference to those extraction-sensitive owners
+  must be a declaration, a directly extracted call, or an explicitly declared
+  non-extraction reference;
+- the only non-extraction references are the six lexically scoped uses of the
+  established local process-record variable inside `terminateProcess(...)`
+  and the one exact `timing.summary()` result projection;
 - exactly one inline double-quoted validation-scope array followed by
   `.includes(VALIDATION_SCOPE)`.
 
@@ -118,23 +128,45 @@ forms, and alternate validation-scope declarations fail as unsupported
 syntax. Raw relevant-call counts must equal the successfully extracted call
 counts; no call may silently disappear.
 
+The callee-reference audit is direct-call-only. Aliasing or extracting an
+owner or tracked timing method, passing or returning it as a value,
+reassigning it, destructuring it, optional or bracket access, computed
+invocation, and `.call`, `.apply`, or `.bind` all fail. The audit permits the
+current `timing.summary()` path without treating unrelated `timing` methods as
+extraction calls. Template-expression references are audited separately so
+they cannot disappear behind the scanner's template-content exclusion.
+
 The current raw call-site inventory is 101 `record` calls, 12 `runPhase`
 calls over 11 stable identifiers, 4 `timing.start` calls, 6
 `timing.duration` calls including one declared forwarder, 17
 `timing.milestone` calls, 6 `recordLongWait` calls, and one validation-scope
 declaration.
 
-Synthetic negative fixtures prove rejection of:
+The current sensitive-reference classification is: `record` has one
+canonical declaration, 101 canonical direct calls, and six explicitly scoped
+local process-record references; `runPhase` has one declaration and 12 direct
+calls; `recordLongWait` has one declaration and six direct calls; `timing` has
+one declaration, 27 direct tracked-method calls, and one supported
+`timing.summary()` reference.
+
+The dependency-free contract contains 52 synthetic negative fixtures covering
+the refusal matrix below:
 
 | Unsupported form | Contract result |
 | --- | --- |
 | Bracket/computed result assignment | fail |
 | `Object.assign` or `Object.defineProperty` result mutation | fail |
 | Aliased, helper, destructured, or spread result mutation | fail |
+| `delete`, prefix/postfix update, or parenthesized result target | fail |
+| Direct, bracket, or destructured `for...of` / `for...in` result target | fail |
 | Computed `record` marker | fail |
 | Single-quoted or template-literal marker | fail |
+| Aliased, passed, returned, reassigned, optional, or computed `record` reference | fail |
+| `record.call(...)`, `record.apply(...)`, or equivalent indirect invocation | fail |
 | Computed `runPhase` identifier | fail |
+| Aliased or indirect `runPhase` / `recordLongWait` invocation | fail |
 | Computed timing kind or milestone | fail |
+| Aliased timing object, extracted/bound method, optional call, or bracket/computed method | fail |
 | Noncanonical validation-scope declaration | fail |
 
 The harness SHA-256 remains a broad whole-source change tripwire. A SHA change

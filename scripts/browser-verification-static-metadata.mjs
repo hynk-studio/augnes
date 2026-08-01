@@ -108,6 +108,20 @@ export function extractBrowserVerificationStaticMetadata(source) {
     identifierPattern: null,
     requireSingleArgument: true,
   });
+  const sensitiveReferenceCounts = auditExtractionSensitiveReferences({
+    source,
+    tokens,
+    directCallIndexes: {
+      record: recordCalls.callIndexes,
+      runPhase: phaseCalls.callIndexes,
+      recordLongWait: longWaitCalls.callIndexes,
+      timing: [
+        ...timingStartCalls.callIndexes,
+        ...timingDurationCalls.callIndexes,
+        ...timingMilestoneCalls.callIndexes,
+      ],
+    },
+  });
   const assertionCallCount = countAssertionCalls(tokens);
 
   const recordMarkers = recordCalls.values;
@@ -128,6 +142,7 @@ export function extractBrowserVerificationStaticMetadata(source) {
       ...resultSurface.dynamicFields,
     ]),
     result_mutation_counts: resultSurface.mutationCounts,
+    sensitive_reference_counts: sensitiveReferenceCounts,
     scopes: validationScopes.values,
     phase_call_ids: phaseCallIds,
     phase_ids: uniqueInOrder(phaseCallIds),
@@ -206,6 +221,14 @@ function extractResultSurface(source, tokens) {
     const next = tokens[index + 1] ?? null;
     if (previous?.value === "." || previous?.value === "?.") continue;
     if (next?.value === ":") continue;
+    const prefixMutation = findPrefixMutationOperator(tokens, index);
+    if (prefixMutation !== null) {
+      throw unsupportedResultMutation(
+        source,
+        token,
+        `unsupported prefix mutation ${prefixMutation}`,
+      );
+    }
     if (previous?.value === "...") {
       throw unsupportedResultMutation(source, token, "object spread");
     }
@@ -220,9 +243,12 @@ function extractResultSurface(source, tokens) {
       const closeBracket = findMatchingToken(tokens, index + 1, "[", "]");
       const afterBracket = tokens[closeBracket + 1] ?? null;
       if (
-        RESULT_MUTATION_OPERATORS.has(afterBracket?.value) ||
+        findFollowingMutationOperator(tokens, closeBracket) !== null ||
+        isDestructuringMutationTarget(tokens, index, closeBracket) ||
         afterBracket?.value === "." ||
-        afterBracket?.value === "?."
+        afterBracket?.value === "?." ||
+        afterBracket?.value === "[" ||
+        afterBracket?.value === "("
       ) {
         throw unsupportedResultMutation(
           source,
@@ -248,6 +274,20 @@ function extractResultSurface(source, tokens) {
     }
     referencedFields.push(field.value);
     const afterField = tokens[index + 3] ?? null;
+    const followingMutation = findFollowingMutationOperator(tokens, index + 2);
+
+    if (
+      (followingMutation !== null &&
+        followingMutation !== afterField?.value) ||
+      ["of", "in"].includes(followingMutation) ||
+      isDestructuringMutationTarget(tokens, index, index + 2)
+    ) {
+      throw unsupportedResultMutation(
+        source,
+        token,
+        "for-loop or destructuring assignment target",
+      );
+    }
 
     if (RESULT_MUTATION_OPERATORS.has(afterField?.value)) {
       if (!isLineLeading(source, token.start)) {
@@ -282,9 +322,14 @@ function extractResultSurface(source, tokens) {
     if (afterField?.value === "[") {
       const closeBracket = findMatchingToken(tokens, index + 3, "[", "]");
       const afterBracket = tokens[closeBracket + 1] ?? null;
-      if (RESULT_MUTATION_OPERATORS.has(afterBracket?.value)) {
+      const followingNestedMutation = findFollowingMutationOperator(
+        tokens,
+        closeBracket,
+      );
+      if (followingNestedMutation !== null) {
         if (
-          afterBracket.value !== "=" ||
+          followingNestedMutation !== afterBracket?.value ||
+          followingNestedMutation !== "=" ||
           !declaredSet.has(field.value) ||
           !isLineLeading(source, token.start)
         ) {
@@ -295,7 +340,12 @@ function extractResultSurface(source, tokens) {
           );
         }
         mutationCounts.nested_collection_mutation += 1;
-      } else if (afterBracket?.value === "." || afterBracket?.value === "?.") {
+      } else if (
+        afterBracket?.value === "." ||
+        afterBracket?.value === "?." ||
+        afterBracket?.value === "[" ||
+        afterBracket?.value === "("
+      ) {
         throw unsupportedResultMutation(
           source,
           token,
@@ -336,9 +386,6 @@ function extractResultSurface(source, tokens) {
 
     if (afterField?.value === "(") {
       throw unsupportedResultMutation(source, token, "direct result field call");
-    }
-    if (isDestructuringAssignmentTarget(tokens, index, index + 2)) {
-      throw unsupportedResultMutation(source, token, "destructuring assignment target");
     }
   }
 
@@ -523,6 +570,7 @@ function extractUnqualifiedLiteralCalls({
   requireFollowingComma = false,
 }) {
   const values = [];
+  const callIndexes = [];
   let rawCount = 0;
   for (let index = 0; index < tokens.length - 1; index += 1) {
     if (
@@ -568,8 +616,9 @@ function extractUnqualifiedLiteralCalls({
       );
     }
     values.push(literal);
+    callIndexes.push(index);
   }
-  return { values, rawCount };
+  return { values, rawCount, callIndexes };
 }
 
 function extractTimingLiteralCalls({
@@ -580,6 +629,7 @@ function extractTimingLiteralCalls({
   requireSingleArgument = false,
 }) {
   const values = [];
+  const callIndexes = [];
   let rawCount = 0;
   for (let index = 0; index < tokens.length - 3; index += 1) {
     if (
@@ -622,12 +672,14 @@ function extractTimingLiteralCalls({
       );
     }
     values.push(literal);
+    callIndexes.push(index);
   }
-  return { values, rawCount };
+  return { values, rawCount, callIndexes };
 }
 
 function extractTimingDurationCalls(source, tokens) {
   const literalValues = [];
+  const callIndexes = [];
   let rawCount = 0;
   let forwardedCount = 0;
   const forwardingRange = findRecordLongWaitForwardingRange(source, tokens);
@@ -648,6 +700,7 @@ function extractTimingDurationCalls(source, tokens) {
       );
     }
     rawCount += 1;
+    callIndexes.push(index);
     const closeIndex = findMatchingToken(tokens, index + 3, "(", ")");
     const firstArgument = extractFirstArgument(tokens, index + 3, closeIndex);
     if (
@@ -675,7 +728,288 @@ function extractTimingDurationCalls(source, tokens) {
       `expected exactly one timing.duration(kind, ...) forwarding call inside recordLongWait; observed ${forwardedCount}`,
     );
   }
-  return { literalValues, rawCount, forwardedCount };
+  return { literalValues, rawCount, forwardedCount, callIndexes };
+}
+
+function auditExtractionSensitiveReferences({
+  source,
+  tokens,
+  directCallIndexes,
+}) {
+  const declarationIndexes = findSensitiveDeclarationIndexes(source, tokens);
+  const localRecordRange = findSupportedLocalRecordRange(source, tokens);
+  const directCallSets = Object.fromEntries(
+    Object.entries(directCallIndexes).map(([name, indexes]) => [
+      name,
+      new Set(indexes),
+    ]),
+  );
+  const counts = Object.fromEntries(
+    ["record", "runPhase", "recordLongWait", "timing"].map((name) => [
+      name,
+      {
+        canonical_declaration: 0,
+        canonical_direct_call: 0,
+        supported_non_extraction_reference: 0,
+      },
+    ]),
+  );
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const name = tokens[index].value;
+    if (
+      tokens[index].type !== "identifier" ||
+      !Object.hasOwn(counts, name)
+    ) {
+      continue;
+    }
+    if (declarationIndexes[name] === index) {
+      counts[name].canonical_declaration += 1;
+      continue;
+    }
+    if (
+      name === "record" &&
+      localRecordRange !== null &&
+      index >= localRecordRange.declarationIndex &&
+      index < localRecordRange.closeIndex
+    ) {
+      if (
+        !isSupportedLocalProcessRecordReference(tokens, index, localRecordRange)
+      ) {
+        throw metadataErrorAt(
+          source,
+          tokens[index],
+          "browser_verification_local_record_reference_unsupported",
+          "the terminateProcess local record shadow may use only its exact established non-extraction references",
+        );
+      }
+      counts.record.supported_non_extraction_reference += 1;
+      continue;
+    }
+    if (directCallSets[name].has(index)) {
+      counts[name].canonical_direct_call += 1;
+      continue;
+    }
+    if (name === "timing" && isSupportedTimingSummaryCall(tokens, index)) {
+      counts.timing.supported_non_extraction_reference += 1;
+      continue;
+    }
+    throw metadataErrorAt(
+      source,
+      tokens[index],
+      name === "timing"
+        ? "browser_verification_timing_reference_unsupported"
+        : "browser_verification_sensitive_reference_unsupported",
+      `${name} may appear only as its canonical declaration, a canonical directly extracted call, or an explicitly supported non-extraction reference`,
+    );
+  }
+
+  assertNoComputedSensitivePropertyAccess(source, tokens);
+
+  return counts;
+}
+
+function assertNoComputedSensitivePropertyAccess(source, tokens) {
+  const sensitiveNames = new Set([
+    "record",
+    "runPhase",
+    "recordLongWait",
+    "start",
+    "duration",
+    "milestone",
+  ]);
+  for (let index = 1; index < tokens.length - 1; index += 1) {
+    const token = tokens[index];
+    if (
+      token.type !== "string" ||
+      !sensitiveNames.has(token.value) ||
+      tokens[index - 1]?.value !== "[" ||
+      tokens[index + 1]?.value !== "]"
+    ) {
+      continue;
+    }
+    const owner = tokens[index - 2] ?? null;
+    if (
+      owner?.type === "identifier" ||
+      ["]", ")", "}"].includes(owner?.value)
+    ) {
+      throw metadataErrorAt(
+        source,
+        token,
+        "browser_verification_sensitive_reference_unsupported",
+        `computed access to extraction-sensitive property ${token.value} is unsupported`,
+      );
+    }
+  }
+}
+
+function findSensitiveDeclarationIndexes(source, tokens) {
+  const specs = {
+    record: {
+      async: false,
+      tail: ["(", "id", ")", "{"],
+    },
+    runPhase: {
+      async: true,
+      tail: [
+        "(",
+        "phase",
+        ",",
+        "action",
+        ",",
+        "options",
+        "=",
+        "{",
+        "}",
+        ")",
+        "{",
+      ],
+    },
+    recordLongWait: {
+      async: false,
+      tail: ["(", "kind", ",", "label", ",", "startedAt", ")", "{"],
+    },
+  };
+  const declarationIndexes = {};
+
+  for (const [name, spec] of Object.entries(specs)) {
+    const candidates = [];
+    for (let index = 0; index < tokens.length; index += 1) {
+      if (tokens[index].value !== name || tokens[index - 1]?.value !== "function") {
+        continue;
+      }
+      const hasAsync = tokens[index - 2]?.value === "async";
+      if (hasAsync !== spec.async || !matchesTokenValues(tokens, index + 1, spec.tail)) {
+        throw metadataErrorAt(
+          source,
+          tokens[index],
+          "browser_verification_sensitive_declaration_unsupported",
+          `${name} must retain its exact canonical function declaration`,
+        );
+      }
+      candidates.push(index);
+    }
+    if (candidates.length !== 1) {
+      throw metadataError(
+        "browser_verification_sensitive_declaration_unsupported",
+        `expected exactly one canonical ${name} declaration; observed ${candidates.length}`,
+      );
+    }
+    declarationIndexes[name] = candidates[0];
+  }
+
+  const timingCandidates = [];
+  const timingTail = [
+    "=",
+    "createBrowserE2ETimingRecorder",
+    "(",
+    "{",
+    "scope",
+    ":",
+    "VALIDATION_SCOPE",
+    "}",
+    ")",
+  ];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (
+      tokens[index].value === "timing" &&
+      tokens[index - 1]?.value === "const"
+    ) {
+      if (!matchesTokenValues(tokens, index + 1, timingTail)) {
+        throw metadataErrorAt(
+          source,
+          tokens[index],
+          "browser_verification_timing_declaration_unsupported",
+          "timing must retain its exact canonical recorder declaration",
+        );
+      }
+      timingCandidates.push(index);
+    }
+  }
+  if (timingCandidates.length !== 1) {
+    throw metadataError(
+      "browser_verification_timing_declaration_unsupported",
+      `expected exactly one canonical timing declaration; observed ${timingCandidates.length}`,
+    );
+  }
+  declarationIndexes.timing = timingCandidates[0];
+  return declarationIndexes;
+}
+
+function findSupportedLocalRecordRange(source, tokens) {
+  const functionTail = ["(", "child", ",", "gracefulTimeoutMs", ")", "{"];
+  const candidates = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (
+      tokens[index].value === "terminateProcess" &&
+      tokens[index - 1]?.value === "function" &&
+      tokens[index - 2]?.value === "async" &&
+      matchesTokenValues(tokens, index + 1, functionTail)
+    ) {
+      candidates.push(index);
+    }
+  }
+  if (candidates.length === 0) return null;
+  if (candidates.length !== 1) {
+    throw metadataError(
+      "browser_verification_local_record_reference_unsupported",
+      `expected at most one canonical terminateProcess declaration; observed ${candidates.length}`,
+    );
+  }
+  const openIndex = candidates[0] + functionTail.length;
+  const closeIndex = findMatchingToken(tokens, openIndex, "{", "}");
+  const declarations = [];
+  for (let index = openIndex + 1; index < closeIndex; index += 1) {
+    if (
+      tokens[index].value === "record" &&
+      tokens[index - 1]?.value === "const" &&
+      tokens[index + 1]?.value === "="
+    ) {
+      declarations.push(index);
+    }
+  }
+  if (declarations.length !== 1) {
+    throw metadataErrorAt(
+      source,
+      tokens[candidates[0]],
+      "browser_verification_local_record_reference_unsupported",
+      `canonical terminateProcess must contain exactly one local process record declaration; observed ${declarations.length}`,
+    );
+  }
+  return { declarationIndex: declarations[0], closeIndex };
+}
+
+function isSupportedLocalProcessRecordReference(tokens, index, range) {
+  if (index === range.declarationIndex) return true;
+  if (tokens[index - 1]?.value === "!") return true;
+  if (
+    tokens[index + 1]?.value === "." &&
+    ["exited", "closed"].includes(tokens[index + 2]?.value)
+  ) {
+    return true;
+  }
+  if (tokens[index - 1]?.value === "(") {
+    return [
+      "settleOwnedProcessAfterExit",
+      "terminateOwnedProcessTree",
+    ].includes(callPathAt(tokens, index - 1));
+  }
+  return false;
+}
+
+function isSupportedTimingSummaryCall(tokens, index) {
+  return (
+    tokens[index + 1]?.value === "." &&
+    tokens[index + 2]?.value === "summary" &&
+    tokens[index + 3]?.value === "(" &&
+    tokens[index + 4]?.value === ")"
+  );
+}
+
+function matchesTokenValues(tokens, startIndex, expectedValues) {
+  return expectedValues.every(
+    (value, offset) => tokens[startIndex + offset]?.value === value,
+  );
 }
 
 function findRecordLongWaitForwardingRange(source, tokens) {
@@ -818,31 +1152,20 @@ function countAssertionCalls(tokens) {
 
 function assertNoSensitiveTemplateExpressionSyntax(source, groups) {
   for (const tokens of groups) {
+    assertNoComputedSensitivePropertyAccess(source, tokens);
     for (let index = 0; index < tokens.length; index += 1) {
       const token = tokens[index];
       if (
-        ["record", "runPhase", "recordLongWait"].includes(token.value) &&
-        tokens[index + 1]?.value === "(" &&
-        tokens[index - 1]?.value !== "." &&
-        tokens[index - 1]?.value !== "?."
+        token.type === "identifier" &&
+        ["record", "runPhase", "recordLongWait", "timing"].includes(
+          token.value,
+        )
       ) {
         throw metadataErrorAt(
           source,
           token,
-          "browser_verification_template_expression_call_unsupported",
-          `${token.value} calls inside template interpolation are unsupported and may not disappear from extraction`,
-        );
-      }
-      if (
-        token.value === "timing" &&
-        tokens[index + 1]?.value === "." &&
-        ["start", "duration", "milestone"].includes(tokens[index + 2]?.value)
-      ) {
-        throw metadataErrorAt(
-          source,
-          token,
-          "browser_verification_template_expression_call_unsupported",
-          "timing extraction calls inside template interpolation are unsupported",
+          "browser_verification_template_expression_reference_unsupported",
+          `${token.value} references inside template interpolation are unsupported and may not disappear from extraction`,
         );
       }
       if (
@@ -864,18 +1187,28 @@ function assertNoSensitiveTemplateExpressionSyntax(source, groups) {
 }
 
 function templateResultReferenceMutates(tokens, index) {
+  const prefixMutation = findPrefixMutationOperator(tokens, index);
+  if (prefixMutation !== null) return true;
   const next = tokens[index + 1] ?? null;
   if (RESULT_MUTATION_OPERATORS.has(next?.value)) return true;
   if (next?.value === "[") {
     const close = findMatchingToken(tokens, index + 1, "[", "]");
-    return RESULT_MUTATION_OPERATORS.has(tokens[close + 1]?.value);
+    return (
+      findFollowingMutationOperator(tokens, close) !== null ||
+      isDestructuringMutationTarget(tokens, index, close)
+    );
   }
   if (next?.value === "." || next?.value === "?.") {
     const afterField = tokens[index + 3] ?? null;
-    if (RESULT_MUTATION_OPERATORS.has(afterField?.value)) return true;
+    if (
+      findFollowingMutationOperator(tokens, index + 2) !== null ||
+      isDestructuringMutationTarget(tokens, index, index + 2)
+    ) {
+      return true;
+    }
     if (afterField?.value === "[") {
       const close = findMatchingToken(tokens, index + 3, "[", "]");
-      return RESULT_MUTATION_OPERATORS.has(tokens[close + 1]?.value);
+      return findFollowingMutationOperator(tokens, close) !== null;
     }
     if (
       (afterField?.value === "." || afterField?.value === "?.") &&
@@ -1165,16 +1498,59 @@ function findMatchingToken(tokens, openIndex, openValue, closeValue) {
   );
 }
 
-function isDestructuringAssignmentTarget(tokens, resultIndex, fieldIndex) {
+function isDestructuringMutationTarget(tokens, resultIndex, fieldIndex) {
   for (let openIndex = resultIndex - 1; openIndex >= 0; openIndex -= 1) {
     const open = tokens[openIndex].value;
     if (open === ";") return false;
     if (open !== "{" && open !== "[") continue;
     const closeValue = open === "{" ? "}" : "]";
     const closeIndex = findMatchingToken(tokens, openIndex, open, closeValue);
-    return closeIndex > fieldIndex && tokens[closeIndex + 1]?.value === "=";
+    if (closeIndex <= fieldIndex) continue;
+    const following = findFollowingMutationOperator(tokens, closeIndex);
+    if (!["=", "of", "in"].includes(following)) continue;
+    return !isInsideDestructuringDefaultValue(
+      tokens,
+      openIndex,
+      resultIndex,
+    );
   }
   return false;
+}
+
+function isInsideDestructuringDefaultValue(tokens, openIndex, resultIndex) {
+  const stack = [{ open: tokens[openIndex].value, defaultValue: false }];
+  for (let index = openIndex + 1; index < resultIndex; index += 1) {
+    const value = tokens[index].value;
+    if (["(", "[", "{"].includes(value)) {
+      stack.push({ open: value, defaultValue: false });
+      continue;
+    }
+    if ([")", "]", "}"].includes(value)) {
+      stack.pop();
+      continue;
+    }
+    const current = stack.at(-1);
+    if (!current) continue;
+    if (value === ",") current.defaultValue = false;
+    else if (value === "=") current.defaultValue = true;
+  }
+  return stack.some((level) => level.defaultValue);
+}
+
+function findPrefixMutationOperator(tokens, index) {
+  let candidateIndex = index - 1;
+  while (tokens[candidateIndex]?.value === "(") candidateIndex -= 1;
+  const candidate = tokens[candidateIndex]?.value ?? null;
+  return ["delete", "++", "--"].includes(candidate) ? candidate : null;
+}
+
+function findFollowingMutationOperator(tokens, index) {
+  let candidateIndex = index + 1;
+  while (tokens[candidateIndex]?.value === ")") candidateIndex += 1;
+  const candidate = tokens[candidateIndex]?.value ?? null;
+  return RESULT_MUTATION_OPERATORS.has(candidate) || ["of", "in"].includes(candidate)
+    ? candidate
+    : null;
 }
 
 function isKnownBareResultRead(tokens, index) {

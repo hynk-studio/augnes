@@ -11,7 +11,9 @@
       "fail_closed": true,
       "result_initializer_form": "one const result object literal with unquoted identifier keys followed by colons",
       "dynamic_result_field_form": "line-leading direct result.identifier = value for new fields; declared fields also permit the established += counter update",
+      "result_assignment_target_form": "delete, prefix/postfix update, for-of, for-in, parenthesized, computed, destructured, whole-result, aliased, helper, and indirect targets are refused; only the declared direct-property and collection-mutation forms may write result",
       "call_identifier_form": "unescaped double-quoted literal first arguments for record, runPhase, timing.start, timing.duration, timing.milestone, and recordLongWait",
+      "sensitive_reference_form": "record, runPhase, and recordLongWait permit only their exact canonical declarations and canonical direct calls; timing permits its exact declaration, canonical direct tracked-method calls, the declared timing.duration(kind, ...) forwarder, and the exact timing.summary() result projection; aliases, value capture, indirect invocation, optional/computed access, call/apply/bind, and reassignment fail",
       "validation_scope_form": "one inline double-quoted literal array followed by .includes(VALIDATION_SCOPE)",
       "result_mutation_counts": {
         "direct_property_assignment": 216,
@@ -27,6 +29,28 @@
         "timing_milestone": 17,
         "record_long_wait": 6,
         "validation_scope_declaration": 1
+      },
+      "sensitive_reference_counts": {
+        "record": {
+          "canonical_declaration": 1,
+          "canonical_direct_call": 101,
+          "supported_non_extraction_reference": 6
+        },
+        "runPhase": {
+          "canonical_declaration": 1,
+          "canonical_direct_call": 12,
+          "supported_non_extraction_reference": 0
+        },
+        "recordLongWait": {
+          "canonical_declaration": 1,
+          "canonical_direct_call": 6,
+          "supported_non_extraction_reference": 0
+        },
+        "timing": {
+          "canonical_declaration": 1,
+          "canonical_direct_call": 27,
+          "supported_non_extraction_reference": 1
+        }
       }
     },
     "assertion_call_count": 1070,
