@@ -421,8 +421,17 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   if (revisionRecords.length > MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01) {
     refuse("work_revision_limit_reached", 409);
   }
+  const recordsById = new Map(
+    records.map((record) => [record.packet.packet_id, record] as const),
+  );
   const revisions = revisionRecords.map((record) =>
-    inspectRevisionPacketV01(db, input, record, genesisLineage.definition_ref),
+    inspectRevisionPacketV01(
+      db,
+      input,
+      record,
+      genesisLineage.definition_ref,
+      recordsById,
+    ),
   );
   const byPrior = new Map<string, PreExecutionProjectWorkRevisionLineageV01[]>();
   for (const revision of revisions) {
@@ -528,11 +537,15 @@ export function inspectPreExecutionProjectWorkRevisionPacketV01(
     ...input,
     packet: initialRecords[0]!.packet,
   });
+  const recordsById = new Map(
+    records.map((candidate) => [candidate.packet.packet_id, candidate] as const),
+  );
   const inspected = inspectRevisionPacketV01(
     db,
     input,
     record,
     genesisLineage.definition_ref,
+    recordsById,
   );
   const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, input);
   const projectionCurrent =
@@ -548,6 +561,7 @@ function inspectRevisionPacketV01(
   input: { workspace_id: string; project_id: string },
   record: PacketRecordV01,
   originDefinitionRef: ExternalRefV01,
+  recordsById: ReadonlyMap<string, PacketRecordV01>,
 ): PreExecutionProjectWorkRevisionLineageV01 {
   const packet = record.packet;
   const definitionRef = exactRef(packet, "work_definition_revision");
@@ -585,9 +599,8 @@ function inspectRevisionPacketV01(
   ) {
     refuse("work_revision_provenance_invalid", 409);
   }
-  const priorRecord = readPacketRecordByIdentity(
-    db,
-    input,
+  const priorRecord = readValidatedPacketRecordByIdentity(
+    recordsById,
     priorRef.external_id,
     priorRef.source_ref!,
   );
@@ -748,15 +761,12 @@ function loadPacketRecords(
   });
 }
 
-function readPacketRecordByIdentity(
-  db: Database.Database,
-  input: { workspace_id: string; project_id: string },
+function readValidatedPacketRecordByIdentity(
+  recordsById: ReadonlyMap<string, PacketRecordV01>,
   packetId: string,
   fingerprint: string | null,
 ): PacketRecordV01 {
-  const record = loadPacketRecords(db, input).find(
-    (entry) => entry.record_id === packetId,
-  );
+  const record = recordsById.get(packetId);
   if (!record || record.fingerprint !== fingerprint) {
     refuse("work_revision_prior_packet_missing", 409);
   }

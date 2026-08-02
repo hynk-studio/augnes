@@ -1203,43 +1203,65 @@ function assertRevisionRecoveryRefusalsV01(): void {
 function assertRevisionLimitV01(): void {
   const fixture = createFixtureV01("revision-limit");
   try {
+    const initialCredential = authenticatedSessionV01(fixture, "limit");
     const initial = defineInitialProjectWorkV01(fixture.db, {
       config: fixture.config,
-      credential: authenticatedSessionV01(fixture, "limit"),
+      credential: initialCredential,
       request: requestV01(fixture),
       clock: fixedClock(T2),
     });
+    const originFirstWorkDefinitionRef =
+      inspectInitialProjectWorkPacketLineageV01(fixture.db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        packet: initial.packet,
+      }).definition_ref;
     let currentPacket = initial.packet;
     let currentLineage:
       | "initial_user_defined"
       | "pre_execution_user_revision" = "initial_user_defined";
-    let credential = credentialFromCookieV01(
+    const credential = credentialFromCookieV01(
       initial.session_admission.cookie_value,
     );
+    // Build the canonical 32-packet fixture directly so this boundary test does
+    // not re-run the full authenticated chain inspection after every prefix.
+    // The mutation owner is still exercised for the actual limit refusal below.
     for (let index = 1; index <= 32; index += 1) {
       const definition = {
         goal: `Bounded revision ${index}`,
         success_criteria: [`Revision ${index} is the exact linear tip`],
         non_goals: [],
       };
-      const revised = revisePreExecutionProjectWorkV01(fixture.db, {
-        config: fixture.config,
-        credential,
+      const generatedAt = new Date(
+        Date.parse(T2) + index * 1_000,
+      ).toISOString();
+      const revised = buildPreExecutionProjectWorkRevisionPacketV01({
         request: revisionRequestV01(
           fixture,
           currentPacket,
           currentLineage,
           definition,
         ),
-        clock: fixedClock(
-          new Date(Date.parse(T2) + index * 1_000).toISOString(),
-        ),
+        operator_id: fixture.config.operator_id,
+        session_id: initialCredential.session_id,
+        revision_number: index,
+        definition,
+        prior_packet: currentPacket,
+        origin_first_work_definition_ref: originFirstWorkDefinitionRef,
+        generated_at: generatedAt,
+      });
+      insertVNextCoreRecordV01(fixture.db, {
+        record_kind: "task_context_packet",
+        record_id: revised.packet.packet_id,
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        fingerprint: revised.packet.integrity.fingerprint,
+        idempotency_key: revised.lineage.idempotency_key,
+        payload: revised.packet,
+        created_at: generatedAt,
       });
       currentPacket = revised.packet;
       currentLineage = "pre_execution_user_revision";
-      credential = credentialFromCookieV01(
-        revised.session_admission.cookie_value,
-      );
     }
     const eligibility = readProjectWorkRevisionEligibilityV01(
       fixture.db,
