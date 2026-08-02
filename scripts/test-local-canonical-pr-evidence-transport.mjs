@@ -394,8 +394,15 @@ function buildReceipt() {
     authority: "npm run test:authority",
     integration: "npm run test:integration",
     operability: "npm run test:operability",
-    "e2e-core": "npm run test:e2e:core",
+    "e2e-project-experience": "npm run test:e2e:project-experience",
+    "e2e-operator-review-control":
+      "node scripts/run-canonical-test-suite.mjs e2e-operator-review-control",
+    "e2e-operator-native-host-execution":
+      "node scripts/run-canonical-test-suite.mjs e2e-operator-native-host-execution",
+    "e2e-operator-multi-candidate":
+      "node scripts/run-canonical-test-suite.mjs e2e-operator-multi-candidate",
     "e2e-continuity": "npm run test:e2e:continuity",
+    "e2e-golden": "npm run test:e2e:golden",
   };
   return {
     schema: "augnes.local-canonical-receipt.v1",

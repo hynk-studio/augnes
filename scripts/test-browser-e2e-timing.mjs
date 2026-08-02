@@ -9,7 +9,7 @@ import {
 
 let clock = 1_000;
 const timing = createBrowserE2ETimingRecorder({
-  scope: "core",
+  scope: "continuity",
   now: () => clock,
   maxEvents: 3,
 });
@@ -33,14 +33,17 @@ assert.deepEqual(summary.events[0], {
 assert.match(publicTimingLabel("/Users/private/project"), /^redacted_[a-f0-9]{12}$/u);
 assert.match(publicTimingLabel("OPENAI_API_KEY=secret"), /^redacted_[a-f0-9]{12}$/u);
 assert.equal(publicTimingLabel("Project Home refresh\nresponse"), "Project Home refresh response");
-assert.equal(createBrowserE2ETimingRecorder({ scope: "cux6b" }).summary().scope, "cux6b");
+assert.equal(
+  createBrowserE2ETimingRecorder({ scope: "cross-boundary-golden" }).summary().scope,
+  "cross-boundary-golden",
+);
 assert.equal(
   createBrowserE2ETimingRecorder({ scope: "project-experience" }).summary().scope,
   "project-experience",
 );
 assert.throws(() => createBrowserE2ETimingRecorder({ scope: "unknown" }), /scope_invalid/u);
 assert.throws(
-  () => createBrowserE2ETimingRecorder({ scope: "core", maxEvents: 513 }),
+  () => createBrowserE2ETimingRecorder({ scope: "continuity", maxEvents: 513 }),
   /event_bound_invalid/u,
 );
 timing.milestone("terminal result");

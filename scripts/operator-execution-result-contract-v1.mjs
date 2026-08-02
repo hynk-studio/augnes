@@ -2,12 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-const INVENTORY_URL = new URL(
-  "./browser-verification-ownership-inventory.v1.json",
-  import.meta.url,
-);
-const EQUIVALENCE_URL = new URL(
-  "./operator-execution-equivalence.v1.json",
+const MANIFEST_URL = new URL(
+  "./browser-verification-owners.v1.json",
   import.meta.url,
 );
 
@@ -15,98 +11,54 @@ export const OPERATOR_EXECUTION_OWNER_V1 = "operator_execution";
 
 export function loadOperatorExecutionResultContractV1({
   child_id,
-  inventory_url = INVENTORY_URL,
-  equivalence_url = EQUIVALENCE_URL,
+  manifest_url = MANIFEST_URL,
 } = {}) {
-  const inventory = JSON.parse(readFileSync(inventory_url, "utf8"));
-  const equivalenceDocument = JSON.parse(
-    readFileSync(equivalence_url, "utf8"),
-  );
-  const operatorShard = inventory.future_shards.find(
-    (entry) => entry.id === OPERATOR_EXECUTION_OWNER_V1,
-  );
-  assert(operatorShard, "operator_execution_inventory_missing");
-  const partition = operatorShard.child_partitions?.find(
+  const manifest = JSON.parse(readFileSync(manifest_url, "utf8"));
+  assert.equal(manifest.schema, "augnes.browser-verification-owners.v1");
+  const operatorOwner = manifest.owners?.operator_execution;
+  assert(operatorOwner, "operator_execution_owner_missing");
+  const partition = operatorOwner.children?.find(
     (entry) => entry.id === child_id,
   );
   assert(partition, `operator_execution_child_unknown:${String(child_id)}`);
-  const familyById = new Map(
-    inventory.coverage_equivalence.map((entry) => [entry.id, entry]),
-  );
-  const fieldIds = partition.detailed_family_ids.flatMap((familyId) =>
-    Object.keys(familyById.get(familyId)?.result_fields ?? {}),
-  );
-  const markerIds = partition.detailed_family_ids.flatMap(
-    (familyId) => familyById.get(familyId)?.record_markers ?? [],
-  );
+  const fieldIds = partition.families.flatMap((family) => family.fields);
+  const markerIds = partition.families.flatMap((family) => family.markers);
   assert.equal(fieldIds.length, new Set(fieldIds).size);
   assert.equal(markerIds.length, new Set(markerIds).size);
-  const equivalence = equivalenceDocument.detailed_fields.filter(
-    (entry) => entry.child_id === child_id,
-  );
-  assert.equal(equivalence.length, fieldIds.length);
-  assert.deepEqual(
-    new Set(equivalence.map((entry) => entry.detailed_field_id)),
-    new Set(fieldIds),
-  );
-  const markerEquivalence = equivalenceDocument.semantic_markers.filter(
-    (entry) => entry.child_id === child_id,
-  );
-  assert.equal(markerEquivalence.length, markerIds.length);
-  assert.deepEqual(
-    new Set(markerEquivalence.map((entry) => entry.marker_id)),
-    new Set(markerIds),
+  const runtimeValueContractByField = expandOperatorValueContracts(
+    partition.value_contracts,
+    fieldIds,
   );
   return Object.freeze({
     owner: OPERATOR_EXECUTION_OWNER_V1,
     child_id,
     fixture_profile: partition.fixture_profile,
     executable_source: partition.executable_source,
-    family_ids: Object.freeze([...partition.detailed_family_ids]),
+    family_ids: Object.freeze(partition.families.map((family) => family.id)),
     field_ids: Object.freeze([...fieldIds]),
     marker_ids: Object.freeze([...markerIds]),
     field_set_fingerprint: hashStringSet(fieldIds),
     marker_set_fingerprint: hashStringSet(markerIds),
-    equivalence: Object.freeze(equivalence.map(Object.freeze)),
-    marker_equivalence: Object.freeze(markerEquivalence.map(Object.freeze)),
+    runtime_value_contract_by_field: Object.freeze(runtimeValueContractByField),
   });
 }
 
 export function loadOperatorExecutionOwnerContractV1({
-  inventory_url = INVENTORY_URL,
-  equivalence_url = EQUIVALENCE_URL,
+  manifest_url = MANIFEST_URL,
 } = {}) {
-  const inventory = JSON.parse(readFileSync(inventory_url, "utf8"));
-  const operatorShard = inventory.future_shards.find(
-    (entry) => entry.id === OPERATOR_EXECUTION_OWNER_V1,
-  );
-  assert(operatorShard, "operator_execution_inventory_missing");
-  const children = operatorShard.child_partitions.map((entry) =>
+  const manifest = JSON.parse(readFileSync(manifest_url, "utf8"));
+  const operatorOwner = manifest.owners?.operator_execution;
+  assert(operatorOwner, "operator_execution_owner_missing");
+  const children = operatorOwner.children.map((entry) =>
     loadOperatorExecutionResultContractV1({
       child_id: entry.id,
-      inventory_url,
-      equivalence_url,
+      manifest_url,
     }),
   );
   const fields = children.flatMap((entry) => entry.field_ids);
   const markers = children.flatMap((entry) => entry.marker_ids);
-  const expectedFields = operatorShard.detailed_family_ids.flatMap((familyId) =>
-    Object.keys(
-      inventory.coverage_equivalence.find((entry) => entry.id === familyId)
-        ?.result_fields ?? {},
-    ),
-  );
-  const expectedMarkers = operatorShard.detailed_family_ids.flatMap(
-    (familyId) =>
-      inventory.coverage_equivalence.find((entry) => entry.id === familyId)
-        ?.record_markers ?? [],
-  );
-  assert.equal(fields.length, 125);
-  assert.equal(markers.length, 63);
   assert.equal(fields.length, new Set(fields).size, "operator_field_overlap");
   assert.equal(markers.length, new Set(markers).size, "operator_marker_overlap");
-  assert.deepEqual(new Set(fields), new Set(expectedFields));
-  assert.deepEqual(new Set(markers), new Set(expectedMarkers));
   return Object.freeze({
     owner: OPERATOR_EXECUTION_OWNER_V1,
     children: Object.freeze(children),
@@ -162,10 +114,9 @@ export function createOperatorSemanticMarkerOwnerV1(contract) {
 }
 
 export function assertOperatorExecutionDetailedValuesV1({ result, contract }) {
-  for (const entry of contract.equivalence) {
-    const id = entry.detailed_field_id;
+  for (const id of contract.field_ids) {
     const value = result[id];
-    const valueContract = entry.runtime_value_contract;
+    const valueContract = contract.runtime_value_contract_by_field[id];
     switch (valueContract.kind) {
       case "boolean_true":
         assert.equal(value, true, `${id}:boolean_true`);
@@ -347,25 +298,9 @@ export function assertOperatorExecutionFinalSuccessV1({
     Number.isSafeInteger(result.effect_operation_counts?.updated),
     true,
   );
-  assert.equal(Array.isArray(result.bounded_effect_diff_entries), true);
-  assert.equal(
-    result.effect_semantic_operation_summary !== null &&
-      typeof result.effect_semantic_operation_summary === "object" &&
-      !Array.isArray(result.effect_semantic_operation_summary),
-    true,
-  );
-  assert.equal(
-    Array.isArray(result.effect_semantic_operation_summary.seam_operations),
-    true,
-  );
-  assert.equal(
-    result.effect_semantic_operation_summary.table_operation_counts !== null &&
-      typeof result.effect_semantic_operation_summary.table_operation_counts ===
-        "object",
-    true,
-  );
+  assert.equal(result.effect_mismatch_material, null);
   assert.deepEqual(
-    result.effect_semantic_operation_summary.forbidden_effect_zero_evidence,
+    result.forbidden_effect_zero_evidence,
     {
       provider_calls: 0,
       external_network_calls: 0,
@@ -445,16 +380,16 @@ export function assertOperatorExecutionFinalSuccessV1({
 
 export function createOperatorResultFieldDefaultsV1(contract) {
   return Object.fromEntries(
-    contract.equivalence.map((entry) => {
-      const kind = entry.runtime_value_contract.kind;
+    contract.field_ids.map((fieldId) => {
+      const kind = contract.runtime_value_contract_by_field[fieldId].kind;
       if (kind === "boolean_true" || kind === "boolean_false") {
-        return [entry.detailed_field_id, false];
+        return [fieldId, false];
       }
-      if (kind === "exact_integer") return [entry.detailed_field_id, 0];
+      if (kind === "exact_integer") return [fieldId, 0];
       if (kind === "exact_string" || kind === "nonempty_string") {
-        return [entry.detailed_field_id, null];
+        return [fieldId, null];
       }
-      if (kind === "nonempty_array") return [entry.detailed_field_id, []];
+      if (kind === "nonempty_array") return [fieldId, []];
       if (
         kind === "bounded_object" ||
         kind === "exact_json" ||
@@ -462,11 +397,31 @@ export function createOperatorResultFieldDefaultsV1(contract) {
         kind === "guide_brief_transition_request_counts" ||
         kind === "expected_refusal_accounting_summary"
       ) {
-        return [entry.detailed_field_id, null];
+        return [fieldId, null];
       }
       assert.fail(`unsupported_operator_result_default:${kind}`);
     }),
   );
+}
+
+function expandOperatorValueContracts(grouped, fieldIds) {
+  const byField = {};
+  for (const [kind, value] of Object.entries(grouped)) {
+    if (Array.isArray(value)) {
+      for (const fieldId of value) {
+        assert.equal(Object.hasOwn(byField, fieldId), false, `duplicate_value_contract:${fieldId}`);
+        byField[fieldId] = { kind };
+      }
+      continue;
+    }
+    assert.equal(value !== null && typeof value === "object", true, `invalid_value_contract:${kind}`);
+    for (const [fieldId, expected] of Object.entries(value)) {
+      assert.equal(Object.hasOwn(byField, fieldId), false, `duplicate_value_contract:${fieldId}`);
+      byField[fieldId] = { kind, value: expected };
+    }
+  }
+  assert.deepEqual(new Set(Object.keys(byField)), new Set(fieldIds));
+  return byField;
 }
 
 export function hashStringSet(values) {

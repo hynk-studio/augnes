@@ -207,6 +207,14 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     issues.push("receipt_phase_inventory_mismatch");
   }
   for (const phase of phases) {
+    const browserLifecycleInvalid =
+      phase?.browser === true &&
+      (phase?.base_sha !== receipt?.repository?.base_sha ||
+        phase?.head_sha !== receipt?.repository?.head_sha ||
+        phase?.cleanup?.termination_reason !== "natural_exit" ||
+        phase?.cleanup?.exit_observed !== true ||
+        phase?.cleanup?.streams_closed !== true ||
+        phase?.cleanup?.listener_residue_count !== 0);
     if (
       phase?.status !== "pass" ||
       phase?.exit_status !== 0 ||
@@ -216,7 +224,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       !Number.isFinite(phase?.duration_ms) ||
       phase.duration_ms < 0 ||
       !isIsoTimestamp(phase?.started_at) ||
-      !isIsoTimestamp(phase?.finished_at)
+      !isIsoTimestamp(phase?.finished_at) ||
+      browserLifecycleInvalid
     ) {
       issues.push(`phase_not_passing:${safeIdentifier(phase?.id)}`);
     }

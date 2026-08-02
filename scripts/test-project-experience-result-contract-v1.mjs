@@ -12,7 +12,7 @@ import {
 const contract = loadProjectExperienceResultContractV1();
 assert.equal(contract.field_ids.length, 40);
 assert.equal(contract.marker_ids.length, 5);
-assert.equal(contract.equivalence.length, 40);
+assert.equal(Object.keys(contract.value_contract_by_field).length, 40);
 
 const completionOwner = completedOwner();
 const successResult = buildValidResult(completionOwner);
@@ -118,9 +118,7 @@ process.stdout.write(
     status: "pass",
     detailed_fields: contract.field_ids.length,
     semantic_markers: contract.marker_ids.length,
-    exact_value_contracts: new Set(
-      contract.equivalence.map((entry) => entry.value_contract),
-    ).size,
+    exact_value_contracts: new Set(Object.values(contract.value_contract_by_field)).size,
     keyed_duplicate_foreign_and_missing_refusal: true,
     staged_cleanup_and_duration_gate: true,
   })}\n`,
@@ -168,21 +166,22 @@ function buildValidResult(owner) {
     total_duration_ms: 100_000,
     acceptance_bound_ms: 360_000,
   };
-  for (const entry of contract.equivalence) {
+  for (const fieldId of contract.field_ids) {
     const runtimeContracts = contract.runtime_value_contracts;
-    switch (entry.value_contract) {
+    const valueContract = contract.value_contract_by_field[fieldId];
+    switch (valueContract) {
       case "boolean_true":
-        result[entry.detailed_field_id] = true;
+        result[fieldId] = true;
         break;
       case "canonical_project_route":
-        result[entry.detailed_field_id] = "/projects/project%3Atest-project";
+        result[fieldId] = "/projects/project%3Atest-project";
         break;
       case "minimum_project_home_unknown_status":
-        result[entry.detailed_field_id] =
+        result[fieldId] =
           runtimeContracts.minimum_project_home_unknown_status.accepted_statuses[0];
         break;
       case "retired_route_status_matrix":
-        result[entry.detailed_field_id] = Object.fromEntries(
+        result[fieldId] = Object.fromEntries(
           runtimeContracts.retired_route_status_matrix.route_ids.map((routeId) => [
             routeId,
             runtimeContracts.retired_route_status_matrix.accepted_statuses[0],
@@ -192,15 +191,15 @@ function buildValidResult(owner) {
       case "product_shell_route_matrix":
       case "product_shell_responsive_matrix":
       case "viewport_surface_matrix":
-        result[entry.detailed_field_id] = structuredClone(
-          runtimeContracts[entry.value_contract].entries,
+        result[fieldId] = structuredClone(
+          runtimeContracts[valueContract].entries,
         );
         break;
       case "empty_array":
-        result[entry.detailed_field_id] = [];
+        result[fieldId] = [];
         break;
       default:
-        assert.fail(`unsupported_test_value_contract:${entry.value_contract}`);
+        assert.fail(`unsupported_test_value_contract:${valueContract}`);
     }
   }
   return result;

@@ -140,27 +140,15 @@ function validResult(contract, fieldOwner, markerOwner) {
       updated: {},
       deleted: {},
     },
-    effect_semantic_operation_summary: {
-      table_operation_counts: {
-        inserted: {},
-        updated: {},
-        deleted: {},
-      },
-      forbidden_effect_zero_evidence: {
-        provider_calls: 0,
-        external_network_calls: 0,
-        github_calls: 0,
-        deployment_calls: 0,
-        publication_calls: 0,
-        memory_perspective_mutations: 0,
-      },
-      core_record_kind_counts: {},
-      run_contract_status_counts: {},
-      event_type_counts: {},
-      event_type_status_counts: {},
-      seam_operations: [],
+    forbidden_effect_zero_evidence: {
+      provider_calls: 0,
+      external_network_calls: 0,
+      github_calls: 0,
+      deployment_calls: 0,
+      publication_calls: 0,
+      memory_perspective_mutations: 0,
     },
-    bounded_effect_diff_entries: [],
+    effect_mismatch_material: null,
     unowned_effect_count: 0,
     unexpected_external_request_count: 0,
     unexpected_console_failure_count: 0,
@@ -206,26 +194,26 @@ function validResult(contract, fieldOwner, markerOwner) {
       events: [],
     },
   };
-  for (const entry of contract.equivalence) {
-    const valueContract = entry.runtime_value_contract;
+  for (const fieldId of contract.field_ids) {
+    const valueContract = contract.runtime_value_contract_by_field[fieldId];
     if (valueContract.kind === "boolean_true") {
-      result[entry.detailed_field_id] = true;
+      result[fieldId] = true;
     } else if (valueContract.kind === "boolean_false") {
-      result[entry.detailed_field_id] = false;
+      result[fieldId] = false;
     } else if (valueContract.kind === "exact_integer") {
-      result[entry.detailed_field_id] = valueContract.value;
+      result[fieldId] = valueContract.value;
     } else if (valueContract.kind === "exact_string") {
-      result[entry.detailed_field_id] = valueContract.value;
+      result[fieldId] = valueContract.value;
     } else if (valueContract.kind === "nonempty_string") {
-      result[entry.detailed_field_id] = "public-safe-value";
+      result[fieldId] = "public-safe-value";
     } else if (valueContract.kind === "nonempty_array") {
-      result[entry.detailed_field_id] = ["public-safe-value"];
+      result[fieldId] = ["public-safe-value"];
     } else if (valueContract.kind === "bounded_object") {
-      result[entry.detailed_field_id] = { status: "public-safe" };
+      result[fieldId] = { status: "public-safe" };
     } else if (valueContract.kind === "exact_json") {
-      result[entry.detailed_field_id] = structuredClone(valueContract.value);
+      result[fieldId] = structuredClone(valueContract.value);
     } else if (valueContract.kind === "approval_barrier_timing") {
-      result[entry.detailed_field_id] = {
+      result[fieldId] = {
         timing_version: "browser_approval_barriers.v0.1",
         events: [
           "approval_emitted",
@@ -246,7 +234,7 @@ function validResult(contract, fieldOwner, markerOwner) {
     } else if (
       valueContract.kind === "guide_brief_transition_request_counts"
     ) {
-      result[entry.detailed_field_id] = {
+      result[fieldId] = {
         before_impact: 2,
         after_impact: 2,
         after_confirmation: 2,
@@ -256,7 +244,7 @@ function validResult(contract, fieldOwner, markerOwner) {
     } else if (
       valueContract.kind === "expected_refusal_accounting_summary"
     ) {
-      result[entry.detailed_field_id] = {
+      result[fieldId] = {
         raw_console_events_preserved: true,
         tokens: [
           {

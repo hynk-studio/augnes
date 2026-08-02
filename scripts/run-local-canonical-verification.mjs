@@ -17,7 +17,10 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { planCanonicalChange } from "./canonical-change-planner.mjs";
+import {
+  PERMANENT_BROWSER_PHASE_IDS,
+  planCanonicalChange,
+} from "./canonical-change-planner.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import {
   CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
@@ -92,8 +95,12 @@ export const FULL_PHASE_IDS = Object.freeze([
   "authority",
   "integration",
   "operability",
-  "e2e-core",
+  "e2e-project-experience",
+  "e2e-operator-review-control",
+  "e2e-operator-native-host-execution",
+  "e2e-operator-multi-candidate",
   "e2e-continuity",
+  "e2e-golden",
 ]);
 export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "dependencies-root",
@@ -103,8 +110,12 @@ export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "authority",
   "integration",
   "operability",
-  "e2e-core",
+  "e2e-project-experience",
+  "e2e-operator-review-control",
+  "e2e-operator-native-host-execution",
+  "e2e-operator-multi-candidate",
   "e2e-continuity",
+  "e2e-golden",
 ]);
 
 export function evaluateWorktreePolicy({ mode, worktreeDirty }) {
@@ -182,6 +193,10 @@ export function resolveVerificationPlan({
       planner_change_count: result.change_count,
       planner_changed_paths: result.changed_paths,
       planner_full_reasons: result.full_reasons,
+      planner_browser_phase_ids:
+        mode === "full"
+          ? [...PERMANENT_BROWSER_PHASE_IDS]
+          : result.browser_phase_ids,
     };
   } catch (error) {
     if (mode === "changed") {
@@ -192,13 +207,20 @@ export function resolveVerificationPlan({
         selected_plan: "full-canonical",
         planner_reason: "planner_failure_requires_full_canonical",
         planner_error_code: safeErrorCode(error),
+        planner_browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
       };
     }
     throw error;
   }
 }
 
-export function buildPhasePlan({ mode, selectedPlan, baseSha, headSha }) {
+export function buildPhasePlan({
+  mode,
+  selectedPlan,
+  baseSha,
+  headSha,
+  browserPhaseIds = [...PERMANENT_BROWSER_PHASE_IDS],
+}) {
   if (mode === "quick") return quickPhases();
   if (selectedPlan === "documentation-only") {
     return [
@@ -223,7 +245,7 @@ export function buildPhasePlan({ mode, selectedPlan, baseSha, headSha }) {
     error.code = "unsupported_selected_plan";
     throw error;
   }
-  return fullPhases();
+  return fullPhases({ baseSha, headSha, browserPhaseIds });
 }
 
 export async function runPhasesSequentially({
@@ -300,6 +322,7 @@ export async function executeLocalCanonicalVerification({
     selectedPlan: plan.selected_plan,
     baseSha,
     headSha,
+    browserPhaseIds: plan.planner_browser_phase_ids,
   });
   const phaseReceipts = phaseDefinitions.map(notRunPhaseReceipt);
   const preflightIssues = [];
@@ -534,6 +557,7 @@ export async function executeLocalCanonicalVerification({
       planner_changed_paths: plan.planner_changed_paths ?? [],
       planner_full_reasons: plan.planner_full_reasons ?? [],
       planner_error_code: plan.planner_error_code ?? null,
+      planner_browser_phase_ids: plan.planner_browser_phase_ids ?? [],
       selected_plan: plan.selected_plan,
       deciding,
       transferable: deciding,
@@ -656,19 +680,23 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
   const machineFingerprint = ensureMachineFingerprint(artifactRoot);
   let expectedSelectedPlan = null;
   let expectedPhaseIds = null;
+  let expectedBrowserPhaseIds = [...PERMANENT_BROWSER_PHASE_IDS];
   if (receipt?.evidence?.mode === "full") {
-    resolveVerificationPlan({
+    const fullPlan = resolveVerificationPlan({
       mode: "full",
       baseSha: receipt?.repository?.base_sha,
       headSha: receipt?.repository?.head_sha,
     });
     expectedSelectedPlan = "full-canonical";
+    expectedBrowserPhaseIds = fullPlan.planner_browser_phase_ids;
   } else if (receipt?.evidence?.mode === "changed") {
-    expectedSelectedPlan = resolveVerificationPlan({
+    const changedPlan = resolveVerificationPlan({
       mode: "changed",
       baseSha: receipt?.repository?.base_sha,
       headSha: receipt?.repository?.head_sha,
-    }).selected_plan;
+    });
+    expectedSelectedPlan = changedPlan.selected_plan;
+    expectedBrowserPhaseIds = changedPlan.planner_browser_phase_ids;
   } else if (receipt?.evidence?.mode === "quick") {
     expectedSelectedPlan = "quick-feedback";
   }
@@ -678,6 +706,7 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
       selectedPlan: expectedSelectedPlan,
       baseSha: receipt?.repository?.base_sha,
       headSha: receipt?.repository?.head_sha,
+      browserPhaseIds: expectedBrowserPhaseIds,
     }).map((phase) => phase.id);
   }
   return inspectReceiptForDecision(receipt, {
@@ -752,7 +781,7 @@ function quickPhases() {
   ];
 }
 
-function fullPhases() {
+function fullPhases({ baseSha, headSha, browserPhaseIds }) {
   // Suite-level bounds cover the sum of their existing finite child bounds and
   // cleanup margin. They do not replace or widen any child-owned timeout.
   return [
@@ -790,19 +819,62 @@ function fullPhases() {
       ["run", "test:operability"],
       1_800_000,
     ),
-    npmPhase(
-      "e2e-core",
-      "Canonical browser core lane",
-      ["run", "test:e2e:core"],
-      600_000,
-    ),
-    npmPhase(
-      "e2e-continuity",
-      "Canonical browser continuity lane",
-      ["run", "test:e2e:continuity"],
-      600_000,
+    ...browserPhaseIds.map((id) =>
+      browserPhaseDefinition(id, { baseSha, headSha }),
     ),
   ];
+}
+
+function browserPhaseDefinition(id, { baseSha, headSha }) {
+  const definitions = {
+    "e2e-project-experience": {
+      label: "Canonical project experience Browser owner",
+      suite: "e2e-project-experience",
+      timeoutMs: 480_000,
+    },
+    "e2e-operator-review-control": {
+      label: "Canonical operator review and control Browser owner",
+      suite: "e2e-operator-review-control",
+      timeoutMs: 420_000,
+    },
+    "e2e-operator-native-host-execution": {
+      label: "Canonical operator native-host Browser owner",
+      suite: "e2e-operator-native-host-execution",
+      timeoutMs: 420_000,
+    },
+    "e2e-operator-multi-candidate": {
+      label: "Canonical operator multi-candidate Browser owner",
+      suite: "e2e-operator-multi-candidate",
+      timeoutMs: 420_000,
+    },
+    "e2e-continuity": {
+      label: "Canonical continuity Browser owner",
+      suite: "e2e-continuity",
+      timeoutMs: 600_000,
+    },
+    "e2e-golden": {
+      label: "Canonical cross-boundary golden Browser path",
+      suite: "e2e-golden",
+      timeoutMs: 420_000,
+    },
+  };
+  const selected = definitions[id];
+  if (!selected) {
+    const error = new Error(`unsupported_browser_phase:${id}`);
+    error.code = "unsupported_browser_phase";
+    throw error;
+  }
+  return phaseDefinition({
+    id,
+    label: selected.label,
+    command: process.execPath,
+    args: ["scripts/run-canonical-test-suite.mjs", selected.suite],
+    display: `node scripts/run-canonical-test-suite.mjs ${selected.suite}`,
+    timeoutMs: selected.timeoutMs,
+    browser: true,
+    baseSha,
+    headSha,
+  });
 }
 
 function npmPhase(id, label, args, timeoutMs, cwdScope = "root") {
@@ -825,6 +897,9 @@ function phaseDefinition({
   display,
   timeoutMs,
   cwdScope = "root",
+  browser = false,
+  baseSha = null,
+  headSha = null,
 }) {
   return {
     id,
@@ -835,6 +910,9 @@ function phaseDefinition({
     timeoutMs,
     cwdScope,
     exclusive: RESOURCE_EXCLUSIVE_PHASE_IDS.includes(id),
+    browser,
+    base_sha: baseSha,
+    head_sha: headSha,
   };
 }
 
@@ -871,6 +949,9 @@ async function executePhase({ phase, mode, runLogRoot }) {
       command: phase.display,
       cwd_scope: phase.cwdScope,
       exclusive: phase.exclusive,
+      browser: phase.browser,
+      base_sha: phase.base_sha,
+      head_sha: phase.head_sha,
       status: "failure",
       started_at: startedAt,
       finished_at: new Date(finishedMs).toISOString(),
@@ -887,17 +968,26 @@ async function executePhase({ phase, mode, runLogRoot }) {
   }
   capture.close();
   const finishedMs = Date.now();
+  const lifecyclePassed =
+    phase.browser !== true ||
+    (result.termination_reason === "natural_exit" &&
+      result.exit_observed === true &&
+      result.streams_closed === true);
   const passed =
     result.exit_code === 0 &&
     result.timed_out === false &&
     result.cleanup_completed === true &&
-    result.remaining_owned_processes === 0;
+    result.remaining_owned_processes === 0 &&
+    lifecyclePassed;
   return {
     id: phase.id,
     label: phase.label,
     command: phase.display,
     cwd_scope: phase.cwdScope,
     exclusive: phase.exclusive,
+    browser: phase.browser,
+    base_sha: phase.base_sha,
+    head_sha: phase.head_sha,
     status: passed ? "pass" : "failure",
     started_at: startedAt,
     finished_at: new Date(finishedMs).toISOString(),
@@ -915,7 +1005,9 @@ async function executePhase({ phase, mode, runLogRoot }) {
       completed: result.cleanup_completed,
       remaining_owned_processes: result.remaining_owned_processes,
       termination_reason: result.termination_reason,
+      exit_observed: result.exit_observed,
       streams_closed: result.streams_closed,
+      listener_residue_count: passed && phase.browser ? 0 : null,
     },
     log: capture.summary(logRelativePath),
   };
@@ -928,6 +1020,9 @@ function notRunPhaseReceipt(phase) {
     command: phase.display,
     cwd_scope: phase.cwdScope,
     exclusive: phase.exclusive,
+    browser: phase.browser,
+    base_sha: phase.base_sha,
+    head_sha: phase.head_sha,
     status: "not_run",
     started_at: null,
     finished_at: null,
@@ -938,6 +1033,10 @@ function notRunPhaseReceipt(phase) {
     cleanup: {
       completed: false,
       remaining_owned_processes: null,
+      termination_reason: null,
+      exit_observed: false,
+      streams_closed: false,
+      listener_residue_count: null,
     },
     log: {
       relative_path: null,

@@ -78,6 +78,41 @@ const operatorMultiCandidateStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const projectExperienceStep = {
+  id: "project-experience",
+  group: "project-experience",
+  requirements: [
+    "database", "migrations", "filesystem", "project-root", "process-owning",
+    "listener-port-owning", "browser-profile-owning", "cdp-session-owning",
+    "immutable-fixture-input",
+  ],
+  label: "independent project experience Browser owner",
+  ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const continuityStep = {
+  id: "continuity",
+  group: "continuity",
+  requirements: [
+    "database", "migrations", "filesystem", "backup-restore", "project-root",
+    "process-owning", "listener-port-owning", "browser-profile-owning",
+    "cdp-session-owning", "immutable-fixture-input",
+  ],
+  label: "independent continuity Browser owner",
+  ...rootNode("scripts/browser-validate-continuity-v1.mjs"),
+  timeoutMs: 480_000,
+  requireNaturalExit: true,
+};
+const goldenStep = {
+  id: "golden",
+  group: "cross-boundary-golden",
+  requirements: operatorExecutionRequirements,
+  label: "thin cross-boundary Browser golden path",
+  ...rootNode("scripts/browser-validate-cross-boundary-golden-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
 
 const suites = {
   unit: [
@@ -113,13 +148,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
-      label: "operator execution immutable Browser fixture profiles",
-      ...rootNode("scripts/test-operator-execution-browser-fixture-v1.ts"),
+      label: "continuity keyed result and finalization contract",
+      ...rootNode("scripts/test-continuity-result-contract-v1.mjs"),
       timeoutMs: 30_000,
     },
     {
-      label: "operator execution field marker equivalence and lexical contract",
-      ...rootNode("scripts/test-operator-execution-browser-contract-v1.mjs"),
+      label: "operator execution immutable Browser fixture profiles",
+      ...rootNode("scripts/test-operator-execution-browser-fixture-v1.ts"),
       timeoutMs: 30_000,
     },
     {
@@ -199,14 +234,8 @@ const suites = {
       ...rootNode("scripts/test-bounded-file-signal.mjs"),
     },
     {
-      label: "browser E2E responsibility and quiet-policy contract",
-      ...rootNode("scripts/test-browser-e2e-harness-contract.mjs"),
-    },
-    {
-      label: "browser verification ownership inventory contract",
-      ...rootNode(
-        "scripts/test-browser-verification-ownership-inventory.mjs",
-      ),
+      label: "permanent Browser verification owner manifest contract",
+      ...rootNode("scripts/test-browser-verification-owners.mjs"),
     },
   ],
   integration: [
@@ -605,56 +634,14 @@ const suites = {
     },
   ],
   e2e: [
-    {
-      label: "Resume, Verify, and Decide browser golden path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
-      timeoutMs: 480_000,
-    },
-    {
-      label: "portable continuity and restart reconciliation browser path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "continuity" },
-      timeoutMs: 480_000,
-    },
+    { ...projectExperienceStep },
+    { ...operatorReviewControlStep },
+    { ...operatorNativeHostExecutionStep },
+    { ...operatorMultiCandidateStep },
+    { ...continuityStep },
+    { ...goldenStep },
   ],
-  "e2e-core": [
-    {
-      label: "Resume, Verify, and Decide browser golden path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
-      timeoutMs: 480_000,
-    },
-  ],
-  "e2e-cux6b": [
-    {
-      label: "CUX6B first-work definition and separate activation browser path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "cux6b" },
-      timeoutMs: 480_000,
-    },
-  ],
-  "e2e-project-experience": [
-    {
-      id: "project-experience",
-      group: "project-experience",
-      requirements: [
-        "database",
-        "migrations",
-        "filesystem",
-        "project-root",
-        "process-owning",
-        "listener-port-owning",
-        "browser-profile-owning",
-        "cdp-session-owning",
-        "immutable-fixture-input",
-      ],
-      label: "independent project experience Browser owner",
-      ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
-      timeoutMs: 360_000,
-      requireNaturalExit: true,
-    },
-  ],
+  "e2e-project-experience": [{ ...projectExperienceStep }],
   "e2e-operator-review-control": [{ ...operatorReviewControlStep }],
   "e2e-operator-native-host-execution": [
     { ...operatorNativeHostExecutionStep },
@@ -665,14 +652,8 @@ const suites = {
     { ...operatorNativeHostExecutionStep },
     { ...operatorMultiCandidateStep },
   ],
-  "e2e-continuity": [
-    {
-      label: "portable continuity and restart reconciliation browser path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "continuity" },
-      timeoutMs: 480_000,
-    },
-  ],
+  "e2e-continuity": [{ ...continuityStep }],
+  "e2e-golden": [{ ...goldenStep }],
 };
 
 const integrationInventory = suites.integration;

@@ -16,8 +16,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 import {
+  PERMANENT_BROWSER_PHASE_IDS,
   parseNameStatus,
   planCanonicalChange,
+  selectCanonicalBrowserPhasesForChanges,
 } from "./canonical-change-planner.mjs";
 import { validateCanonicalDocumentationChange } from "./validate-canonical-docs-change.mjs";
 
@@ -121,6 +123,52 @@ try {
   assert.equal(pushPlan.plan, "full-canonical");
   assert.equal(pushPlan.reason, "main_push_always_full");
   results.push("main-push-always-full");
+
+  assert.deepEqual(
+    selectCanonicalBrowserPhasesForChanges([
+      { oldPath: null, newPath: "components/project-home/project-home.tsx" },
+    ]),
+    ["e2e-project-experience"],
+  );
+  assert.deepEqual(
+    selectCanonicalBrowserPhasesForChanges([
+      { oldPath: null, newPath: "lib/vnext/native-host-run-receipt.ts" },
+    ]),
+    ["e2e-operator-native-host-execution"],
+  );
+  assert.deepEqual(
+    selectCanonicalBrowserPhasesForChanges([
+      { oldPath: null, newPath: "lib/vnext/recovery-validator.ts" },
+    ]),
+    ["e2e-continuity"],
+  );
+  assert.deepEqual(
+    selectCanonicalBrowserPhasesForChanges([
+      { oldPath: null, newPath: "lib/vnext/project-work-initialization.ts" },
+    ]),
+    [
+      "e2e-project-experience",
+      "e2e-operator-native-host-execution",
+      "e2e-golden",
+    ],
+  );
+  assert.deepEqual(
+    selectCanonicalBrowserPhasesForChanges([
+      { oldPath: null, newPath: "scripts/canonical-child-runner.mjs" },
+    ]),
+    PERMANENT_BROWSER_PHASE_IDS,
+  );
+  assert.deepEqual(
+    selectCanonicalBrowserPhasesForChanges([
+      { oldPath: null, newPath: "unclassified/behavior-owner.ts" },
+    ]),
+    PERMANENT_BROWSER_PHASE_IDS,
+  );
+  assert.throws(
+    () => selectCanonicalBrowserPhasesForChanges([]),
+    /requires changed paths/u,
+  );
+  results.push("permanent-browser-owner-selection");
 
   runDocumentationValidatorCases();
 

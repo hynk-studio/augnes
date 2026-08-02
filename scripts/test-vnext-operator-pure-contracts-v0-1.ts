@@ -571,8 +571,18 @@ for (const retiredCommand of [
 const canonicalSuite = source("scripts/run-canonical-test-suite.mjs");
 assert.equal(
   canonicalSuite.includes("browser-validate-vnext-native-host-result-v0-1.mjs"),
-  true,
+  false,
 );
+for (const permanentBrowserSource of [
+  "browser-validate-project-experience-v1.mjs",
+  "browser-validate-operator-review-control-v1.mjs",
+  "browser-validate-operator-native-host-execution-v1.mjs",
+  "browser-validate-operator-multi-candidate-v1.mjs",
+  "browser-validate-continuity-v1.mjs",
+  "browser-validate-cross-boundary-golden-v1.mjs",
+]) {
+  assert.equal(canonicalSuite.includes(permanentBrowserSource), true);
+}
 assert.equal(
   canonicalSuite.includes("browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"),
   false,

@@ -36,7 +36,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   process_temp_root,
   environment = {},
 }) {
-  assert.match(child_id, /^operator-(?:review-control|native-host-execution|multi-candidate)$/u);
+  assert.match(
+    child_id,
+    /^(?:operator-(?:review-control|native-host-execution|multi-candidate)|cross-boundary-golden)$/u,
+  );
   assert.equal(path.isAbsolute(database_path), true);
   assert.equal(path.isAbsolute(temp_root), true);
   assert.equal(path.isAbsolute(process_temp_root), true);

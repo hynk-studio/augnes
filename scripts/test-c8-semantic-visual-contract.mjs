@@ -668,32 +668,6 @@ assert.match(
   continuitiesCss,
   /@media \(max-width: 900px\)[\s\S]*\.continuities-item-details[\s\S]*>\s*summary[\s\S]*a\.continuities-temporal-title[\s\S]*min-height:\s*44px/u,
 );
-const browserValidation = read(
-  "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
-);
-for (const assertion of [
-  "onboarding_compact_order",
-  "management_collapsed_height",
-  "temporal_links_unadorned_until_interaction",
-  "temporal_timestamps_separate",
-  "continuity_copy_action_nonoverlap",
-  "recommendation_action_nonoverlap",
-  "temporal_stream_nonoverlap",
-  "pinned_guide_nonoverlap",
-  "augnes_owned_lower_left_overlay_absent",
-  "mobile_touch_targets_minimum_size",
-  "material_surfaces_differentiated",
-  "attention_material_bounded",
-  "continuity_titles_preserve_full_text",
-  "more_context_default_secondary",
-  "more_context_keyboard_focus_visible",
-]) {
-  assert.match(browserValidation, new RegExp(assertion, "u"));
-}
-assert.match(
-  browserValidation,
-  /width === 390 \? 844 : width === 430 \? 932 : width === 1280 \? 900 : 1000/u,
-);
 const continuityPinsUi = read(
   "components/continuity-pins/continuity-pins-ui.tsx",
 );
@@ -1026,10 +1000,7 @@ assert.equal(
   packageJson.scripts["test:c8-semantic-visual"],
   "node --import tsx scripts/test-c8-semantic-visual-contract.mjs",
 );
-assert.equal(
-  packageJson.scripts["test:c8-visual-review"],
-  "AUGNES_C8_CAPTURE_REVIEW=1 node --import tsx scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
-);
+assert.equal(packageJson.scripts["test:c8-visual-review"], undefined);
 
 process.stdout.write(
   `${JSON.stringify({

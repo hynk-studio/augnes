@@ -480,62 +480,6 @@ export function boundedOperatorExecutionEffectDiffEntriesV1(diff) {
   return boundedDiffEntries(diff);
 }
 
-export function exactOperatorExecutionEffectOperationSummaryV1(diff) {
-  const insertedCore = diff.inserted.filter(
-    (entry) => entry.table === "vnext_core_records",
-  );
-  const insertedRuns = diff.inserted.filter(
-    (entry) => entry.table === "autonomy_runs",
-  );
-  const insertedEvents = diff.inserted.filter(
-    (entry) => entry.table === "autonomy_run_events",
-  );
-  return {
-    table_operation_counts: {
-      inserted: countBy(diff.inserted, (entry) => entry.table),
-      updated: countBy(diff.updated, (entry) => entry.table),
-      deleted: countBy(diff.deleted, (entry) => entry.table),
-    },
-    core_record_kind_counts: countBy(
-      insertedCore,
-      (entry) => entry.identity.record_kind,
-    ),
-    run_contract_status_counts: countBy(
-      insertedRuns,
-      (entry) =>
-        `${entry.identity.autonomy_contract_ref}:${entry.identity.status}`,
-    ),
-    event_type_counts: countBy(
-      insertedEvents,
-      (entry) => entry.identity.event_type,
-    ),
-    event_type_status_counts: countBy(
-      insertedEvents,
-      (entry) => `${entry.identity.event_type}:${entry.identity.status}`,
-    ),
-    seam_operations: [
-      ...diff.seam_diff.inserted.map((entry) => ({
-        operation: "insert",
-        key: entry.key,
-        public_event_kinds: entry.public_event_kinds ?? [],
-        content_sha256: entry.content_sha256,
-      })),
-      ...diff.seam_diff.updated.map((entry) => ({
-        operation: "update",
-        key: entry.key,
-        public_event_kinds: entry.after.public_event_kinds ?? [],
-        content_sha256: entry.after.content_sha256,
-      })),
-      ...diff.seam_diff.deleted.map((entry) => ({
-        operation: "delete",
-        key: entry.key,
-        public_event_kinds: entry.public_event_kinds ?? [],
-        content_sha256: entry.content_sha256,
-      })),
-    ].sort((left, right) => compareCodeUnits(left.key, right.key)),
-  };
-}
-
 function publicRowSnapshot(table, row, identityColumns) {
   const normalizedRow = normalizeSqliteValue(row);
   const identityMaterial = Object.fromEntries(

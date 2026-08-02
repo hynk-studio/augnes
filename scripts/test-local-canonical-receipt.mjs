@@ -200,6 +200,60 @@ assert.deepEqual(inspectReceiptForDecision(finalized, validContext), {
   content_fingerprint: finalized.integrity.content_fingerprint,
 });
 
+const browserReceipt = structuredClone(baseReceipt);
+browserReceipt.phases = [
+  {
+    ...browserReceipt.phases[0],
+    id: "e2e-golden",
+    browser: true,
+    base_sha: browserReceipt.repository.base_sha,
+    head_sha: browserReceipt.repository.head_sha,
+    cleanup: {
+      ...browserReceipt.phases[0].cleanup,
+      exit_observed: true,
+      listener_residue_count: 0,
+    },
+  },
+];
+const browserContext = {
+  ...validContext,
+  expectedPhaseIds: ["e2e-golden"],
+};
+assert.equal(
+  inspectReceiptForDecision(finalizeReceipt(browserReceipt), browserContext)
+    .valid_deciding_evidence,
+  true,
+);
+for (const mutate of [
+  (phase) => {
+    phase.base_sha = "9".repeat(40);
+  },
+  (phase) => {
+    phase.head_sha = "9".repeat(40);
+  },
+  (phase) => {
+    phase.cleanup.termination_reason = "exited_with_descendant_cleanup";
+  },
+  (phase) => {
+    phase.cleanup.exit_observed = false;
+  },
+  (phase) => {
+    phase.cleanup.streams_closed = false;
+  },
+  (phase) => {
+    phase.cleanup.listener_residue_count = 1;
+  },
+]) {
+  const candidate = structuredClone(browserReceipt);
+  mutate(candidate.phases[0]);
+  assert.equal(
+    inspectReceiptForDecision(finalizeReceipt(candidate), browserContext).issues.includes(
+      "phase_not_passing:e2e-golden",
+    ),
+    true,
+  );
+}
+
 for (const [name, mutate, issue] of [
   [
     "stale-head",
