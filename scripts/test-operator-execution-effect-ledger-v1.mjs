@@ -313,7 +313,7 @@ function nativeSnapshots() {
     rootBindingRow("project:automation"),
   ];
   const beforeSelection = activeSelectionRow("project:profile", 1);
-  const afterSelection = activeSelectionRow("project:automation", 3);
+  const afterSelection = activeSelectionRow("project:automation", 5);
   afterSelection.stable_key = beforeSelection.stable_key;
   const value = snapshots(
     [beforeSelection, ...roots],
@@ -327,6 +327,7 @@ function nativeSnapshots() {
       ),
       ...events,
       sessionRow("session:one"),
+      sessionRow("session:revoked", "project:profile", "revoked"),
       sessionRow("session:two", "project:profile"),
       sessionRow("session:three", "project:automation"),
     ],
@@ -547,7 +548,11 @@ function coreRow(kind, id, semanticBindings = {}) {
   });
 }
 
-function sessionRow(id, projectId = "project:primary") {
+function sessionRow(
+  id,
+  projectId = "project:primary",
+  sessionStatus = "active_consumed",
+) {
   return row({
     table: "vnext_local_operator_sessions",
     category: "local_operator_state",
@@ -562,7 +567,7 @@ function sessionRow(id, projectId = "project:primary") {
       action_nonce_hash: sha(`${id}:action`),
       expires_at: "2026-08-02T01:00:00.000Z",
       action_nonce_expires_at: "2026-08-02T00:10:00.000Z",
-      session_status: "active_consumed",
+      session_status: sessionStatus,
     },
   });
 }

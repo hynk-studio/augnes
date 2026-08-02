@@ -32,7 +32,10 @@ import { DecisionCenteredProposalDetail } from "./decision-centered-proposal-det
 import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
 import { FirstWorkComposer } from "./first-work-composer";
-import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
+import type {
+  ProjectWorkDefinitionV01,
+  ProjectWorkInitializationV01,
+} from "@/types/vnext/project-work-initialization";
 import type {
   SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
@@ -50,6 +53,19 @@ const PROJECT_CONTINUITY_ROUTE = "/api/vnext/operator/project-continuity";
 type PrivateSemanticReviewViewV01 =
   | { kind: "list"; value: SemanticReviewListRouteResponseV01 }
   | { kind: "detail"; value: SemanticReviewDetailRouteResponseV01 };
+
+interface WorkRevisionEditorBindingV01 {
+  workspace_id: string;
+  project_id: string;
+  active_selection_revision: number;
+  current_packet_id: string;
+  current_packet_fingerprint: string;
+  current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision";
+  session_id: string;
+  session_workspace_id: string;
+  session_project_id: string;
+  operator_id: string;
+}
 
 export function SemanticReviewSurface({
   proposalId,
@@ -77,7 +93,8 @@ export function SemanticReviewSurface({
   } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const [firstWorkBusy, setFirstWorkBusy] = useState(false);
-  const [revisionMode, setRevisionMode] = useState(false);
+  const [revisionEditorBinding, setRevisionEditorBinding] =
+    useState<WorkRevisionEditorBindingV01 | null>(null);
   const [workRevisionBusy, setWorkRevisionBusy] = useState(false);
   const revisionButtonRef = useRef<HTMLButtonElement>(null);
   const operatorMutationInFlight = useRef(false);
@@ -431,7 +448,7 @@ export function SemanticReviewSurface({
   ): Promise<void> {
     const initialization =
       privateView?.kind === "list"
-        ? privateView.value.work_initialization
+        ? privateView.value.work_initialization ?? null
         : null;
     if (
       sessionState.status !== "authenticated" ||
@@ -501,20 +518,26 @@ export function SemanticReviewSurface({
   ): Promise<void> {
     const initialization =
       privateView?.kind === "list"
-        ? privateView.value.work_initialization
+        ? privateView.value.work_initialization ?? null
         : null;
-    const eligibility = initialization?.revision_eligibility;
+    const currentBinding = workRevisionEditorBindingV01({
+      session:
+        sessionState.status === "authenticated" ? sessionState.session : null,
+      initialization,
+      delegated_stage: delegatedState.projection?.stage ?? null,
+      start_eligible: delegatedState.projection?.start_eligible ?? false,
+    });
+    const submittedBinding = revisionEditorBinding;
     if (
       sessionState.status !== "authenticated" ||
       !initialization ||
-      !eligibility?.eligible ||
-      !eligibility.current_packet_id ||
-      !eligibility.current_packet_fingerprint ||
-      !eligibility.current_lineage_kind ||
-      eligibility.active_project_id !== initialization.project_id ||
-      eligibility.active_selection_revision === null ||
+      !submittedBinding ||
+      !currentBinding ||
+      workRevisionEditorBindingKeyV01(submittedBinding) !==
+        workRevisionEditorBindingKeyV01(currentBinding) ||
       operatorMutationInFlight.current
     ) {
+      if (submittedBinding) setRevisionEditorBinding(null);
       return;
     }
     operatorMutationInFlight.current = true;
@@ -529,15 +552,15 @@ export function SemanticReviewSurface({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "revise_pre_execution_project_work",
-          workspace_id: initialization.workspace_id,
-          project_id: initialization.project_id,
-          expected_active_project_id: eligibility.active_project_id,
+          workspace_id: submittedBinding.workspace_id,
+          project_id: submittedBinding.project_id,
+          expected_active_project_id: submittedBinding.project_id,
           expected_active_selection_revision:
-            eligibility.active_selection_revision,
-          expected_current_packet_id: eligibility.current_packet_id,
+            submittedBinding.active_selection_revision,
+          expected_current_packet_id: submittedBinding.current_packet_id,
           expected_current_packet_fingerprint:
-            eligibility.current_packet_fingerprint,
-          expected_current_lineage_kind: eligibility.current_lineage_kind,
+            submittedBinding.current_packet_fingerprint,
+          expected_current_lineage_kind: submittedBinding.current_lineage_kind,
           ...definition,
         }),
       });
@@ -547,13 +570,14 @@ export function SemanticReviewSurface({
           locked(publicErrorCode(body.error_code));
           return;
         }
-        setPrivateError(workRevisionErrorCopyV01(body.error_code));
+        const conflictCopy = workRevisionErrorCopyV01(body.error_code);
         if (workRevisionConflictV01(body.error_code)) {
-          setRevisionMode(false);
+          setRevisionEditorBinding(null);
           await loadPrivateView({ announceLoading: false });
           await guideState.refresh();
           await delegatedState.refresh();
         }
+        setPrivateError(conflictCopy);
         return;
       }
       if (
@@ -566,7 +590,7 @@ export function SemanticReviewSurface({
         );
         return;
       }
-      setRevisionMode(false);
+      setRevisionEditorBinding(null);
       setDecisionStatus("Work definition revised. No execution has started.");
       await loadPrivateView({ announceLoading: false });
       await guideState.refresh();
@@ -583,12 +607,26 @@ export function SemanticReviewSurface({
   }
 
   function cancelWorkRevision(): void {
-    setRevisionMode(false);
+    const sourceKey = revisionEditorBinding
+      ? workRevisionEditorBindingKeyV01(revisionEditorBinding)
+      : null;
+    setRevisionEditorBinding(null);
     setPrivateError(null);
-    window.requestAnimationFrame(() => revisionButtonRef.current?.focus());
+    window.requestAnimationFrame(() => {
+      const button = revisionButtonRef.current;
+      if (
+        sourceKey &&
+        sourceKey === currentRevisionEditorBindingKey &&
+        button?.isConnected &&
+        !button.disabled
+      ) {
+        button.focus();
+      }
+    });
   }
 
   function authenticated(session: OperatorSessionViewV01) {
+    setRevisionEditorBinding(null);
     setPrivateView(null);
     setSessionState({
       status: "authenticated",
@@ -599,6 +637,7 @@ export function SemanticReviewSurface({
   }
 
   function locked(errorCode?: string) {
+    setRevisionEditorBinding(null);
     setPrivateView(null);
     setDecisionStatus(null);
     setSessionState({
@@ -674,6 +713,29 @@ export function SemanticReviewSurface({
     sessionState.status,
   ]);
 
+  useEffect(() => {
+    if (!revisionEditorBinding) return;
+    const refreshRevisionSources = () => {
+      void loadPrivateView({ announceLoading: false });
+      void delegatedState.refresh();
+    };
+    const refreshVisibleRevisionSources = () => {
+      if (document.visibilityState === "visible") refreshRevisionSources();
+    };
+    window.addEventListener("focus", refreshRevisionSources);
+    document.addEventListener(
+      "visibilitychange",
+      refreshVisibleRevisionSources,
+    );
+    return () => {
+      window.removeEventListener("focus", refreshRevisionSources);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshVisibleRevisionSources,
+      );
+    };
+  }, [delegatedState.refresh, loadPrivateView, revisionEditorBinding]);
+
   const privateMaterialVisible =
     sessionState.status === "authenticated" && privateView !== null;
   const guideConsistency = compareAIWorkplaneGuideProjectV01(
@@ -711,11 +773,39 @@ export function SemanticReviewSurface({
     exactReviewAvailable &&
     firstWorkInitialization?.state === "not_defined" &&
     firstWorkInitialization.mutation_eligible;
-  const revisionAvailable = Boolean(
+  const currentRevisionEditorBinding = exactReviewAvailable
+    ? workRevisionEditorBindingV01({
+        session:
+          sessionState.status === "authenticated" ? sessionState.session : null,
+        initialization: firstWorkInitialization,
+        delegated_stage: delegatedState.projection?.stage ?? null,
+        start_eligible: delegatedState.projection?.start_eligible ?? false,
+      })
+    : null;
+  const currentRevisionEditorBindingKey = currentRevisionEditorBinding
+    ? workRevisionEditorBindingKeyV01(currentRevisionEditorBinding)
+    : null;
+  const revisionAvailable = currentRevisionEditorBinding !== null;
+  const workDefinitionIsUnstarted = Boolean(
     exactReviewAvailable &&
+      sessionState.status === "authenticated" &&
       firstWorkInitialization?.current_work &&
       firstWorkInitialization.current_packet &&
-      firstWorkInitialization.revision_eligibility.eligible,
+      sessionState.session.workspace_id ===
+        firstWorkInitialization.workspace_id &&
+      sessionState.session.project_id === firstWorkInitialization.project_id &&
+      firstWorkInitialization.active_project_id ===
+        firstWorkInitialization.project_id &&
+      firstWorkInitialization.revision_eligibility.current_packet_id ===
+        firstWorkInitialization.current_packet.packet_id &&
+      firstWorkInitialization.revision_eligibility
+        .current_packet_fingerprint ===
+        firstWorkInitialization.current_packet.packet_fingerprint &&
+      (firstWorkInitialization.revision_eligibility.eligible ||
+        firstWorkInitialization.revision_eligibility.status ===
+          "revision_limit_reached") &&
+      delegatedState.projection?.stage === "not_started" &&
+      delegatedState.projection.start_eligible,
   );
   const delegatedOwnsFocus =
     !proposalId &&
@@ -734,6 +824,17 @@ export function SemanticReviewSurface({
   const projectHref = privateView
     ? `/projects/${encodeURIComponent(privateView.value.project.project_id)}`
     : "/";
+
+  useEffect(() => {
+    if (!revisionEditorBinding) return;
+    if (
+      !currentRevisionEditorBindingKey ||
+      workRevisionEditorBindingKeyV01(revisionEditorBinding) !==
+        currentRevisionEditorBindingKey
+    ) {
+      setRevisionEditorBinding(null);
+    }
+  }, [currentRevisionEditorBindingKey, revisionEditorBinding]);
 
   return (
     <ProductShell
@@ -769,10 +870,12 @@ export function SemanticReviewSurface({
               busy={firstWorkBusy}
               onSave={saveFirstWork}
             />
-          ) : revisionMode &&
-            revisionAvailable &&
+          ) : revisionEditorBinding &&
+            currentRevisionEditorBindingKey ===
+              workRevisionEditorBindingKeyV01(revisionEditorBinding) &&
             firstWorkInitialization?.current_work ? (
             <FirstWorkComposer
+              key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
               initialization={firstWorkInitialization}
               busy={workRevisionBusy}
               mode="revision"
@@ -795,12 +898,14 @@ export function SemanticReviewSurface({
               {firstWorkInitialization?.current_work ? (
                 <CurrentWorkDefinitionPanel
                   definition={firstWorkInitialization.current_work}
+                  isUnstarted={workDefinitionIsUnstarted}
                   revisionAvailable={revisionAvailable}
                   revisionButtonRef={revisionButtonRef}
                   onRevise={() => {
+                    if (!currentRevisionEditorBinding) return;
                     setDecisionStatus(null);
                     setPrivateError(null);
-                    setRevisionMode(true);
+                    setRevisionEditorBinding(currentRevisionEditorBinding);
                   }}
                 />
               ) : null}
@@ -928,13 +1033,78 @@ export function SemanticReviewSurface({
   );
 }
 
+function workRevisionEditorBindingV01(input: {
+  session: OperatorSessionViewV01 | null;
+  initialization: ProjectWorkInitializationV01 | null;
+  delegated_stage: string | null;
+  start_eligible: boolean;
+}): WorkRevisionEditorBindingV01 | null {
+  const { session, initialization } = input;
+  const packet = initialization?.current_packet;
+  const eligibility = initialization?.revision_eligibility;
+  if (
+    !session?.authenticated ||
+    !initialization?.current_work ||
+    !packet ||
+    !eligibility?.eligible ||
+    !eligibility.current_packet_id ||
+    !eligibility.current_packet_fingerprint ||
+    !eligibility.current_lineage_kind ||
+    session.workspace_id !== initialization.workspace_id ||
+    session.project_id !== initialization.project_id ||
+    initialization.active_project_id !== initialization.project_id ||
+    eligibility.active_project_id !== initialization.project_id ||
+    initialization.active_selection_revision === null ||
+    eligibility.active_selection_revision !==
+      initialization.active_selection_revision ||
+    eligibility.current_packet_id !== packet.packet_id ||
+    eligibility.current_packet_fingerprint !== packet.packet_fingerprint ||
+    eligibility.current_lineage_kind !== packet.lineage_kind ||
+    input.delegated_stage !== "not_started" ||
+    !input.start_eligible
+  ) {
+    return null;
+  }
+  return {
+    workspace_id: initialization.workspace_id,
+    project_id: initialization.project_id,
+    active_selection_revision: initialization.active_selection_revision,
+    current_packet_id: eligibility.current_packet_id,
+    current_packet_fingerprint: eligibility.current_packet_fingerprint,
+    current_lineage_kind: eligibility.current_lineage_kind,
+    session_id: session.session_id,
+    session_workspace_id: session.workspace_id,
+    session_project_id: session.project_id,
+    operator_id: session.operator_id,
+  };
+}
+
+function workRevisionEditorBindingKeyV01(
+  binding: WorkRevisionEditorBindingV01,
+): string {
+  return JSON.stringify([
+    binding.workspace_id,
+    binding.project_id,
+    binding.active_selection_revision,
+    binding.current_packet_id,
+    binding.current_packet_fingerprint,
+    binding.current_lineage_kind,
+    binding.session_id,
+    binding.session_workspace_id,
+    binding.session_project_id,
+    binding.operator_id,
+  ]);
+}
+
 function CurrentWorkDefinitionPanel({
   definition,
+  isUnstarted,
   revisionAvailable,
   revisionButtonRef,
   onRevise,
 }: {
   definition: ProjectWorkDefinitionV01;
+  isUnstarted: boolean;
   revisionAvailable: boolean;
   revisionButtonRef: RefObject<HTMLButtonElement | null>;
   onRevise: () => void;
@@ -944,9 +1114,14 @@ function CurrentWorkDefinitionPanel({
       className={styles.panel}
       aria-labelledby="current-work-definition-title"
       data-current-work-definition="read-only"
+      data-current-work-definition-phase={
+        isUnstarted ? "pre_execution" : "current_context"
+      }
     >
       <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Unstarted work</p>
+        <p className={styles.kicker}>
+          {isUnstarted ? "Unstarted work" : "Work definition"}
+        </p>
         <h2 id="current-work-definition-title">Current work definition</h2>
       </div>
       <div className={styles.materialCard}>

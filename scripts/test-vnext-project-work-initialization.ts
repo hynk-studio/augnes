@@ -30,7 +30,11 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
-import { validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
+import {
+  createTaskContextPacketFingerprintV01,
+  deriveTaskContextPacketIdV01,
+  validateTaskContextPacketV01,
+} from "../lib/vnext/task-context-packet";
 import {
   buildInitialProjectWorkTaskContextPacketV01,
   inspectInitialProjectWorkPacketLineageV01,
@@ -56,6 +60,7 @@ import {
   buildPreExecutionProjectWorkRevisionPacketV01,
   inspectPreExecutionProjectWorkRevisionChainV01,
 } from "../lib/vnext/runtime/pre-execution-project-work-revision";
+import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
   buildDirectNativeHostRunIdentityV01,
   admitPersistedHostTaskContextPacketV01,
@@ -96,6 +101,7 @@ async function main(): Promise<void> {
     assertInitializationReadPolicyV01();
     assertMutationAndReplayV01();
     assertRevisionMutationAndReplayV01();
+    assertExactSuccessorReplayHistoryBoundaryV01();
     assertRevisionRecoveryRefusalsV01();
     assertRevisionLimitV01();
     assertMutationRefusalsAndRollbackV01();
@@ -115,6 +121,7 @@ async function main(): Promise<void> {
       korean_and_unicode: true,
       exact_replay: true,
       revision_exact_replay: true,
+      revision_exact_successor_replay_requires_zero_history: true,
       revision_append_only: true,
       revision_stale_cas_refused: true,
       revision_branch_and_missing_prior_refused: true,
@@ -972,6 +979,18 @@ function assertRevisionMutationAndReplayV01(): void {
         .get() as { count: number }).count,
       0,
     );
+    const concurrentReplay = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: credentialFromCookieV01(
+        first.session_admission.cookie_value,
+      ),
+      request: firstRequest,
+      clock: fixedClock("2026-08-01T00:00:03.500Z"),
+    });
+    assert.equal(concurrentReplay.status, "exact_replay");
+    assert.equal(concurrentReplay.packet.packet_id, first.packet.packet_id);
+    assert.equal(concurrentReplay.run_created, false);
+    assert.equal(concurrentReplay.execution_started, false);
     let current = readProjectWorkInitializationV01(fixture.db, fixture.config);
     assert.equal(current.state, "defined_revised_work");
     assert.deepEqual(current.current_work, first.definition);
@@ -983,7 +1002,9 @@ function assertRevisionMutationAndReplayV01(): void {
 
     const replay = revisePreExecutionProjectWorkV01(fixture.db, {
       config: fixture.config,
-      credential: credentialFromCookieV01(first.session_admission.cookie_value),
+      credential: credentialFromCookieV01(
+        concurrentReplay.session_admission.cookie_value,
+      ),
       request: revisionRequestV01(
         fixture,
         first.packet,
@@ -1060,6 +1081,123 @@ function assertRevisionMutationAndReplayV01(): void {
     );
   } finally {
     fixture.db.close();
+  }
+}
+
+function assertExactSuccessorReplayHistoryBoundaryV01(): void {
+  const cases: Array<{
+    name: string;
+    expected_code:
+      | "work_revision_execution_started"
+      | "work_revision_history_changed"
+      | "work_revision_current_packet_changed";
+    add_history: (fixture: FixtureV01, tip: TaskContextPacketV01) => void;
+  }> = [
+    ...["queued", "running", "waiting_for_approval", "completed"].map(
+      (status) => ({
+        name: `run-${status}`,
+        expected_code: "work_revision_execution_started" as const,
+        add_history: (fixture: FixtureV01) =>
+          insertManagedRunV01(fixture, {
+            run_id: `run:exact-successor-${status}`,
+            scope: fixture.project_id,
+            status,
+            metadata_json: JSON.stringify({
+              workspace_id: fixture.workspace_id,
+              project_id: fixture.project_id,
+            }),
+            created_at: "2026-08-01T00:00:04.000Z",
+          }),
+      }),
+    ),
+    ...[
+      "run_receipt",
+      "episode_delta_proposal",
+      "review_decision",
+      "semantic_commit_gate",
+      "state_transition_receipt",
+      "semantic_state",
+    ].map((recordKind) => ({
+      name: `core-${recordKind}`,
+      expected_code: "work_revision_history_changed" as const,
+      add_history: (fixture: FixtureV01) =>
+        insertHistoryRecordV01(
+          fixture,
+          recordKind as VNextCoreRecordKindV01,
+          "2026-08-01T00:00:04.000Z",
+        ),
+    })),
+    {
+      name: "semantic-state-entry",
+      expected_code: "work_revision_current_packet_changed",
+      add_history: (fixture) => insertSemanticStateEntryV01(fixture),
+    },
+    {
+      name: "semantic-target-head",
+      expected_code: "work_revision_current_packet_changed",
+      add_history: (fixture) => insertSemanticTargetHeadV01(fixture),
+    },
+    {
+      name: "semantic-successor-packet",
+      expected_code: "work_revision_current_packet_changed",
+      add_history: (fixture, tip) =>
+        insertSemanticSuccessorPacketV01(fixture, tip),
+    },
+  ];
+
+  for (const historyCase of cases) {
+    const fixture = createFixtureV01(
+      `exact-successor-history-${historyCase.name}`,
+    );
+    try {
+      const initial = defineInitialProjectWorkV01(fixture.db, {
+        config: fixture.config,
+        credential: authenticatedSessionV01(fixture, historyCase.name),
+        request: requestV01(fixture),
+        clock: fixedClock(T2),
+      });
+      const definition = {
+        goal: `Exact successor ${historyCase.name}`,
+        success_criteria: ["Replay is permitted only before work history"],
+        non_goals: [],
+      };
+      const staleRequest = revisionRequestV01(
+        fixture,
+        initial.packet,
+        "initial_user_defined",
+        definition,
+      );
+      const inserted = revisePreExecutionProjectWorkV01(fixture.db, {
+        config: fixture.config,
+        credential: credentialFromCookieV01(
+          initial.session_admission.cookie_value,
+        ),
+        request: staleRequest,
+        clock: fixedClock("2026-08-01T00:00:03.000Z"),
+      });
+      const packetCount = countProjectPacketsV01(fixture);
+      historyCase.add_history(fixture, inserted.packet);
+      assert.throws(
+        () =>
+          revisePreExecutionProjectWorkV01(fixture.db, {
+            config: fixture.config,
+            credential: credentialFromCookieV01(
+              inserted.session_admission.cookie_value,
+            ),
+            request: staleRequest,
+            clock: fixedClock("2026-08-01T00:00:05.000Z"),
+          }),
+        errorCode(historyCase.expected_code),
+        historyCase.name,
+      );
+      assert.equal(
+        countProjectPacketsV01(fixture),
+        packetCount + (historyCase.name === "semantic-successor-packet" ? 1 : 0),
+        `${historyCase.name} wrote an additional revision packet`,
+      );
+    } finally {
+      fixture.db.close();
+    }
   }
 }
 
@@ -1220,6 +1358,7 @@ function assertRevisionLimitV01(): void {
     let currentLineage:
       | "initial_user_defined"
       | "pre_execution_user_revision" = "initial_user_defined";
+    let lastRevisionRequest: RevisePreExecutionProjectWorkRequestV01 | null = null;
     const credential = credentialFromCookieV01(
       initial.session_admission.cookie_value,
     );
@@ -1235,13 +1374,14 @@ function assertRevisionLimitV01(): void {
       const generatedAt = new Date(
         Date.parse(T2) + index * 1_000,
       ).toISOString();
+      const revisionRequest = revisionRequestV01(
+        fixture,
+        currentPacket,
+        currentLineage,
+        definition,
+      );
       const revised = buildPreExecutionProjectWorkRevisionPacketV01({
-        request: revisionRequestV01(
-          fixture,
-          currentPacket,
-          currentLineage,
-          definition,
-        ),
+        request: revisionRequest,
         operator_id: fixture.config.operator_id,
         session_id: initialCredential.session_id,
         revision_number: index,
@@ -1262,6 +1402,7 @@ function assertRevisionLimitV01(): void {
       });
       currentPacket = revised.packet;
       currentLineage = "pre_execution_user_revision";
+      lastRevisionRequest = revisionRequest;
     }
     const eligibility = readProjectWorkRevisionEligibilityV01(
       fixture.db,
@@ -1269,11 +1410,24 @@ function assertRevisionLimitV01(): void {
     );
     assert.equal(eligibility.status, "revision_limit_reached");
     assert.equal(eligibility.revision_count, 32);
+    assert(lastRevisionRequest);
+    const limitReplay = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential,
+      request: lastRevisionRequest,
+      clock: fixedClock("2026-08-01T00:00:34.500Z"),
+    });
+    assert.equal(limitReplay.status, "exact_replay");
+    assert.equal(limitReplay.packet.packet_id, currentPacket.packet_id);
+    assert.equal(limitReplay.run_created, false);
+    assert.equal(limitReplay.execution_started, false);
     assert.throws(
       () =>
         revisePreExecutionProjectWorkV01(fixture.db, {
           config: fixture.config,
-          credential,
+          credential: credentialFromCookieV01(
+            limitReplay.session_admission.cookie_value,
+          ),
           request: revisionRequestV01(
             fixture,
             currentPacket,
@@ -1765,6 +1919,7 @@ function insertManagedRunV01(
   input: {
     run_id: string;
     scope: string;
+    status?: string;
     metadata_json: string;
     created_at?: string;
   },
@@ -1782,7 +1937,7 @@ function insertManagedRunV01(
       input.run_id,
       input.scope,
       "Historical managed work",
-      "completed",
+      input.status ?? "completed",
       createdAt,
       createdAt,
       input.metadata_json,
@@ -1893,6 +2048,7 @@ function revisionRequestV01(
 function insertHistoryRecordV01(
   fixture: FixtureV01,
   recordKind: VNextCoreRecordKindV01,
+  createdAt = T1,
 ): void {
   const payload = { historical: recordKind, workspace_id: fixture.workspace_id, project_id: fixture.project_id };
   insertVNextCoreRecordV01(fixture.db, {
@@ -1903,7 +2059,92 @@ function insertHistoryRecordV01(
     fingerprint: createProtocolSha256V01(canonicalizeProtocolValueV01(payload)),
     idempotency_key: null,
     payload,
-    created_at: T1,
+    created_at: createdAt,
+  });
+}
+
+function countProjectPacketsV01(fixture: FixtureV01): number {
+  return listVNextCoreRecordsV01(fixture.db, {
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    record_kinds: ["task_context_packet"],
+    limit: 128,
+  }).length;
+}
+
+function insertSemanticStateEntryV01(fixture: FixtureV01): void {
+  const fingerprint = createProtocolSha256V01("semantic-state-entry");
+  fixture.db.prepare(
+    `INSERT INTO vnext_semantic_state_entries (
+      workspace_id, project_id, presence, target_key, target_ref_json,
+      state_ref_json, current_state_fingerprint, bounded_state_summary,
+      source_proposal_id, source_proposal_fingerprint,
+      source_candidate_id, source_candidate_fingerprint,
+      source_transition_receipt_id, source_transition_receipt_fingerprint,
+      revision, updated_at
+    ) VALUES (?, ?, 'present', ?, '{}', '{}', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+  ).run(
+    fixture.workspace_id,
+    fixture.project_id,
+    createProtocolSha256V01("semantic-state-target"),
+    fingerprint,
+    "Semantic state exists",
+    "proposal:semantic-state",
+    fingerprint,
+    "candidate:semantic-state",
+    fingerprint,
+    "transition:semantic-state",
+    fingerprint,
+    "2026-08-01T00:00:04.000Z",
+  );
+}
+
+function insertSemanticTargetHeadV01(fixture: FixtureV01): void {
+  fixture.db.prepare(
+    `INSERT INTO vnext_semantic_target_heads (
+      workspace_id, project_id, target_key, revision, presence,
+      current_state_fingerprint, source_transition_receipt_id,
+      source_transition_receipt_fingerprint, updated_at
+    ) VALUES (?, ?, ?, 1, 'absent', NULL, ?, ?, ?)`,
+  ).run(
+    fixture.workspace_id,
+    fixture.project_id,
+    createProtocolSha256V01("semantic-head-target"),
+    "transition:semantic-head",
+    createProtocolSha256V01("semantic-head-transition"),
+    "2026-08-01T00:00:04.000Z",
+  );
+}
+
+function insertSemanticSuccessorPacketV01(
+  fixture: FixtureV01,
+  prior: TaskContextPacketV01,
+): void {
+  const packet = structuredClone(prior);
+  packet.generated_at = "2026-08-01T00:00:04.000Z";
+  packet.compatibility.source_contracts = [
+    ...new Set([
+      ...packet.compatibility.source_contracts,
+      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ]),
+  ].sort();
+  packet.constraints.context_budget.estimated_tokens =
+    (packet.constraints.context_budget.estimated_tokens ?? 0) + 12;
+  packet.packet_id = deriveTaskContextPacketIdV01(packet);
+  packet.integrity.fingerprint = createTaskContextPacketFingerprintV01(packet);
+  const validation = validateTaskContextPacketV01(packet, {
+    evaluated_at: packet.generated_at,
+  });
+  assert.equal(validation.status, "valid", JSON.stringify(validation));
+  insertVNextCoreRecordV01(fixture.db, {
+    record_kind: "task_context_packet",
+    record_id: packet.packet_id,
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    fingerprint: packet.integrity.fingerprint,
+    idempotency_key: createProtocolSha256V01("semantic-successor"),
+    payload: packet,
+    created_at: packet.generated_at,
   });
 }
 

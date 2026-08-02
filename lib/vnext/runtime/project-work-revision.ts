@@ -194,18 +194,18 @@ export function readProjectWorkRevisionEligibilityStrictV01(
     "vnext_semantic_target_heads",
     input,
   );
-  if (otherHistory || semanticState > 0 || semanticHeads > 0) {
-    return eligibilityV01(input, {
-      ...binding,
-      status: "blocked_work_history",
-      reason: "durable_work_history_present",
-    });
-  }
   if (!chain.projection_current) {
     return eligibilityV01(input, {
       ...binding,
       status: "blocked_not_current",
       reason: "current_packet_stale_or_unavailable",
+    });
+  }
+  if (otherHistory || semanticState > 0 || semanticHeads > 0) {
+    return eligibilityV01(input, {
+      ...binding,
+      status: "blocked_work_history",
+      reason: "durable_work_history_present",
     });
   }
   if (
@@ -286,7 +286,13 @@ export function revisePreExecutionProjectWorkV01(
       chain.tip_packet.integrity.fingerprint ===
         request.expected_current_packet_fingerprint &&
       chain.tip_lineage_kind === request.expected_current_lineage_kind;
+    const eligibility = readProjectWorkRevisionEligibilityStrictV01(
+      db,
+      input.config,
+      { root_available: rootAvailable },
+    );
     if (!exactExpectedCurrent) {
+      assertEligibleForExactSuccessorReplayV01(eligibility, chain);
       const replay = exactConcurrentSuccessorV01({
         chain,
         request,
@@ -301,21 +307,12 @@ export function revisePreExecutionProjectWorkV01(
           "exact_replay",
           replay,
           definition,
-          readProjectWorkRevisionEligibilityStrictV01(
-            db,
-            input.config,
-            { root_available: rootAvailable },
-          ),
+          eligibility,
           sessionAdmission,
         );
       }
       refuse("work_revision_current_packet_changed", 409);
     }
-    const eligibility = readProjectWorkRevisionEligibilityStrictV01(
-      db,
-      input.config,
-      { root_available: rootAvailable },
-    );
     assertEligibleForMutationV01(eligibility);
     if (sameDefinitionV01(chain.tip_packet.task, definition)) {
       db.exec("COMMIT");
@@ -454,6 +451,36 @@ function assertEligibleForMutationV01(
   }
   if (eligibility.status === "revision_limit_reached") {
     refuse("work_revision_limit_reached", 409);
+  }
+  refuse("work_revision_not_eligible", 409);
+}
+
+function assertEligibleForExactSuccessorReplayV01(
+  eligibility: ProjectWorkRevisionEligibilityV01,
+  chain: ReturnType<typeof inspectPreExecutionProjectWorkRevisionChainV01>,
+): void {
+  if (
+    (eligibility.eligible || eligibility.status === "revision_limit_reached") &&
+    chain.projection_current &&
+    eligibility.current_packet_id === chain.tip_packet.packet_id &&
+    eligibility.current_packet_fingerprint ===
+      chain.tip_packet.integrity.fingerprint &&
+    eligibility.current_lineage_kind === chain.tip_lineage_kind &&
+    eligibility.revision_count === chain.revision_count
+  ) {
+    return;
+  }
+  if (eligibility.status === "blocked_execution_started") {
+    refuse("work_revision_execution_started", 409);
+  }
+  if (eligibility.status === "blocked_work_history") {
+    refuse("work_revision_history_changed", 409);
+  }
+  if (eligibility.status === "blocked_root_unavailable") {
+    refuse("work_revision_root_unavailable", 409);
+  }
+  if (eligibility.status === "blocked_not_current") {
+    refuse("work_revision_current_packet_changed", 409);
   }
   refuse("work_revision_not_eligible", 409);
 }
