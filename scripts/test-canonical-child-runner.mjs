@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  canonicalChildAcceptanceFailure,
   canonicalChildFailure,
   runCanonicalChild,
   runCanonicalChildGroups,
@@ -90,6 +91,91 @@ try {
   assert.equal(nonzeroFailure.code, "canonical_child_failed");
   assert.match(nonzeroFailure.message, /suite=runner-regression/);
   assert.match(nonzeroFailure.message, /label=nonzero/);
+
+  const naturalResult = {
+    label: "natural-exit-contract",
+    exit_code: 0,
+    signal: null,
+    timed_out: false,
+    duration_ms: 1,
+    spawn_error_code: null,
+    exit_observed: true,
+    streams_closed: true,
+    cleanup_completed: true,
+    remaining_owned_processes: 0,
+    termination_reason: "natural_exit",
+  };
+  assert.equal(
+    canonicalChildAcceptanceFailure(naturalResult, {
+      suite: "project-experience-contract",
+      timeoutMs: 360_000,
+      requireNaturalExit: true,
+    }),
+    null,
+  );
+  for (const [label, override, expectedCode, expectedIssue] of [
+    [
+      "exited-with-descendant-cleanup",
+      { termination_reason: "exited_with_owned_descendant_cleanup" },
+      "canonical_child_natural_exit_required",
+      "termination_not_natural",
+    ],
+    [
+      "closed-with-descendant-cleanup",
+      { termination_reason: "closed_with_owned_descendant_cleanup" },
+      "canonical_child_natural_exit_required",
+      "termination_not_natural",
+    ],
+    [
+      "exit-not-observed",
+      { exit_observed: false },
+      "canonical_child_natural_exit_required",
+      "exit_not_observed",
+    ],
+    [
+      "stream-closure-false",
+      { streams_closed: false },
+      "canonical_child_natural_exit_required",
+      "streams_not_closed",
+    ],
+    [
+      "cleanup-incomplete",
+      { cleanup_completed: false },
+      "canonical_child_natural_exit_required",
+      "cleanup_incomplete",
+    ],
+    [
+      "owned-process-residue",
+      { remaining_owned_processes: 1 },
+      "canonical_child_natural_exit_required",
+      "owned_process_residue",
+    ],
+    [
+      "timeout",
+      { timed_out: true, termination_reason: "bounded_timeout" },
+      "canonical_child_timeout",
+      null,
+    ],
+    [
+      "nonzero-exit",
+      { exit_code: 7 },
+      "canonical_child_failed",
+      null,
+    ],
+  ]) {
+    const failure = canonicalChildAcceptanceFailure(
+      { ...naturalResult, label, ...override },
+      {
+        suite: "project-experience-contract",
+        timeoutMs: 360_000,
+        requireNaturalExit: true,
+      },
+    );
+    assert.equal(failure?.code, expectedCode, label);
+    if (expectedIssue) {
+      assert.equal(failure.canonicalResult.issue, expectedIssue, label);
+    }
+  }
 
   const directState = path.join(temporaryRoot, "direct-signal.txt");
   const direct = await runFixture("hang", {
@@ -339,6 +425,7 @@ console.log(
       concurrent_groups_bounded_and_deterministic: true,
       concurrent_failure_timeout_and_cleanup_fail_closed: true,
       concurrent_incomplete_conflicting_and_duplicate_results_refused: true,
+      owner_specific_natural_exit_acceptance_refusal_matrix: true,
       temporary_root_removed: true,
       repository_database_unchanged: true,
       owned_processes_after: 0,

@@ -1419,6 +1419,8 @@
       "id": "project_experience",
       "proposed_command": "npm run test:e2e:project-experience",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": true,
+      "implementation_status": "vfy1b_extracted_legacy_core_shadow_retained",
       "primary_question": "Can the user connect, identify, recover, and navigate a project correctly?",
       "detailed_family_ids": ["project_onboarding_and_naming", "project_home_lifecycle_presentation", "project_shell_and_locked_entry", "retired_route_safety", "responsive_product_shell"],
       "resource_ownership_profile": "future_independent_shard"
@@ -1427,6 +1429,8 @@
       "id": "operator_execution",
       "proposed_command": "npm run test:e2e:operator-execution",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": false,
+      "implementation_status": "deferred_vfy1c",
       "primary_question": "Does an authenticated explicit operation follow the exact packet and lineage through execution, result, and semantic review without authority collapse?",
       "detailed_family_ids": ["first_work_definition_and_start", "project_controls_and_automation", "operator_session_bootstrap", "strategic_analysis_and_proposal_review", "direct_native_host_round_trip", "live_native_host_approval_lifecycle", "result_review_and_inspector", "review_decision_and_transition", "bounded_automation_execution", "multi_candidate_and_guidebrief_semantic_scope", "operator_session_refusal_recovery"],
       "resource_ownership_profile": "future_independent_shard"
@@ -1435,6 +1439,8 @@
       "id": "continuity",
       "proposed_command": "npm run test:e2e:continuity",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": false,
+      "implementation_status": "existing_continuity_owner_unchanged_vfy1b",
       "primary_question": "Does durable project meaning survive later use, portability, import, restart, recovery, and reconciliation with exact lineage?",
       "detailed_family_ids": ["long_term_lineage_and_cross_project_isolation", "personal_perspective_continuity", "portability_restart_and_recovery"],
       "resource_ownership_profile": "future_independent_shard"
@@ -1443,11 +1449,265 @@
       "id": "cross_boundary_golden",
       "proposed_command": "npm run test:e2e:golden",
       "implemented_in_vfy1a": false,
+      "implemented_in_vfy1b": false,
+      "implementation_status": "deferred_vfy1d",
       "primary_question": "Do the independent detailed owners still compose through one minimal happy path?",
       "detailed_family_ids": [],
       "resource_ownership_profile": "future_independent_shard"
     }
   ],
+  "implemented_shards": {
+    "project_experience": {
+      "implementation_baseline": "a22430027c3a48da60a30d9e38ea2dcde41dd49a",
+      "command": "npm run test:e2e:project-experience",
+      "canonical_suite": "e2e-project-experience",
+      "executable_source": "scripts/browser-validate-project-experience-v1.mjs",
+      "executable_source_sha256": "d3f59726313824d6c1bd5eeaef52fa5af9bcd84934a283ed114e3c4c8b2d351a",
+      "fixture_owner_source": "scripts/project-experience-browser-fixture-v1.ts",
+      "fixture_contract_source": "scripts/test-project-experience-browser-fixture-v1.ts",
+      "fixture_version": "project_experience_browser_fixture.v1",
+      "static_grammar_profile": "browser_verification_static_grammar.v1",
+      "detailed_family_ids_source": "future_shards.project_experience.detailed_family_ids",
+      "detailed_field_count": 40,
+      "detailed_field_set_sha256": "c080951e5918f64a0b02188fef9a440034b418e61e483b507a239853f95761b4",
+      "semantic_marker_count": 5,
+      "semantic_marker_set_sha256": "c60f0c2717f1e576e5181ce97905528312db49cda37932414eb64d9254fedd3a",
+      "total_output_field_count": 87,
+      "output_field_classifications": {
+        "identity": [
+          "validation_version",
+          "owner",
+          "fixture_version",
+          "fixture_fingerprint",
+          "fixture_source_database_sha256",
+          "fixture_writable_seed_sha256",
+          "completed_detailed_field_fingerprint"
+        ],
+        "counter": [
+          "detailed_field_count",
+          "detailed_marker_count",
+          "unexpected_external_request_count",
+          "unexpected_console_failure_count",
+          "unexpected_page_failure_count",
+          "unexpected_request_failure_count",
+          "known_harness_console_warning_count",
+          "owned_process_residue_count",
+          "listener_residue_count"
+        ],
+        "timing_diagnostic": [
+          "total_duration_ms",
+          "reference_headroom_ms",
+          "acceptance_bound_ms",
+          "supervisor_exit_diagnostic",
+          "e2e_timing_summary"
+        ],
+        "cleanup_invariant": [
+          "ok",
+          "credential_private_material_boundary",
+          "default_database_isolated",
+          "provider_or_external_network_call",
+          "semantic_proposal_created",
+          "review_decision_created",
+          "transition_created",
+          "work_closure_created",
+          "native_host_execution_started",
+          "resource_ownership",
+          "cleanup_complete",
+          "owned_streams_settled",
+          "temporary_root_removed",
+          "temporary_process_root_removed",
+          "temporary_profile_removed",
+          "temporary_database_removed",
+          "temporary_fixture_removed",
+          "temporary_picker_sequence_removed",
+          "runtime_shutdown_complete",
+          "chrome_cdp_shutdown_complete"
+        ],
+        "failure_material": ["failure"],
+        "collection_result_array": [
+          "semantic_markers",
+          "completed_detailed_field_ids",
+          "route_collection",
+          "viewport_collection",
+          "request_response_console_ledger_summary"
+        ]
+      },
+      "legacy_core_shadow": {
+        "retained": true,
+        "second_primary_owner": false,
+        "source": "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
+        "removal_owner": "VFY1-D",
+        "removal_condition": "Remove only after operator execution, composition golden, planner selection, and aggregate receipt semantics exist and exact equivalence remains proven."
+      },
+      "rendered_state_fixture_boundary": {
+        "source_kind": "versioned immutable production-owner database seed",
+        "admission_time": "before Browser execution",
+        "read_path": "real production readers and routes",
+        "route_mocking": false,
+        "fabricated_json_interception": false,
+        "execution_capable": false,
+        "detailed_semantics_owned_here": false
+      },
+      "completion_contract": {
+        "source": "scripts/project-experience-result-contract-v1.mjs",
+        "test": "scripts/test-project-experience-result-contract-v1.mjs",
+        "static_extractor": "extractBrowserDetailedFieldCompletionMetadata",
+        "canonical_form": "completeDetailedField(\"literal_inventory_owned_field_id\")",
+        "duplicate_refusal": true,
+        "foreign_owner_refusal": true,
+        "missing_field_refusal": true,
+        "exact_set_required": true,
+        "natural_exit_required": true,
+        "success_after_cleanup_only": true
+      },
+      "runtime_value_contracts": {
+        "minimum_project_home_unknown_status": {
+          "accepted_statuses": [200]
+        },
+        "retired_route_status_matrix": {
+          "accepted_statuses": [404, 405],
+          "route_ids": [
+            "packet_handoff_api",
+            "later_result_api",
+            "result_report_api",
+            "handoff_capsule_api",
+            "launch_card_api",
+            "handoff_generate_api",
+            "handoff_review_api",
+            "packet_export_api",
+            "packet_handoff_page"
+          ]
+        },
+        "product_shell_route_matrix": {
+          "entries": [
+            {"route": "/projects/[projectId]", "primary_zone": "blank-state", "utility_context": "none", "project_context_label": "Current project"},
+            {"route": "/workbench/semantic-review", "primary_zone": "ai-workplane", "utility_context": "none", "project_context_label": "Current project"},
+            {"route": "/workbench/inspector", "primary_zone": "ai-workplane", "utility_context": "none", "project_context_label": null},
+            {"route": "/projects", "primary_zone": "blank-state", "utility_context": "none", "project_context_label": "Current project"}
+          ]
+        },
+        "product_shell_responsive_matrix": {
+          "entries": [
+            {"route": "/projects/[projectId]", "width": 390},
+            {"route": "/projects/[projectId]", "width": 430},
+            {"route": "/workbench/semantic-review", "width": 390},
+            {"route": "/workbench/semantic-review", "width": 430},
+            {"route": "/workbench/inspector", "width": 390},
+            {"route": "/workbench/inspector", "width": 430},
+            {"route": "/projects", "width": 390},
+            {"route": "/projects", "width": 430}
+          ]
+        },
+        "viewport_surface_matrix": {
+          "entries": [
+            {"surface": "first_work_composer", "width": 1440, "height": 1000},
+            {"surface": "first_work_composer", "width": 1280, "height": 900},
+            {"surface": "first_work_composer", "width": 430, "height": 932},
+            {"surface": "first_work_composer", "width": 390, "height": 844},
+            {"surface": "project_home_first-work-not-defined", "width": 390, "height": 844},
+            {"surface": "project_home_first-work-not-defined", "width": 430, "height": 932},
+            {"surface": "project_home_first-work-not-defined", "width": 1280, "height": 900},
+            {"surface": "project_home_first-work-not-defined", "width": 1440, "height": 1000},
+            {"surface": "project_home_viewed-inactive-project", "width": 390, "height": 844},
+            {"surface": "project_home_viewed-inactive-project", "width": 430, "height": 932},
+            {"surface": "project_home_viewed-inactive-project", "width": 1280, "height": 900},
+            {"surface": "project_home_viewed-inactive-project", "width": 1440, "height": 1000},
+            {"surface": "delegated_work", "width": 390, "height": 1000},
+            {"surface": "delegated_work", "width": 430, "height": 1000},
+            {"surface": "workbench_run_result", "width": 390, "height": 1000},
+            {"surface": "workbench_run_result", "width": 430, "height": 1000},
+            {"surface": "workbench_run_result", "width": 768, "height": 1000},
+            {"surface": "workbench_run_result", "width": 1440, "height": 1000},
+            {"surface": "proposal_review", "width": 390, "height": 1000},
+            {"surface": "proposal_review", "width": 430, "height": 1000},
+            {"surface": "proposal_review", "width": 768, "height": 1000},
+            {"surface": "proposal_review", "width": 1440, "height": 1000},
+            {"surface": "shared_project_inspector", "width": 390, "height": 1000},
+            {"surface": "shared_project_inspector", "width": 430, "height": 1000},
+            {"surface": "shared_project_inspector", "width": 768, "height": 1000},
+            {"surface": "shared_project_inspector", "width": 1440, "height": 1000}
+          ]
+        }
+      },
+      "detailed_field_equivalence": [
+        {"detailed_field_id":"folder_picker_cancelled_usable","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.folder_picker_cancelled_usable =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.folder_picker_cancelled_usable =","invariant":"Cancelling the folder picker returns the exact cancelled response without connecting a project and leaves selection usable.","fixture_differences":"Independent shard-owned picker sequence and project roots replace the monolith-owned sequence.","equivalence":"exact","changed_mechanism_justification":"Same production picker route and observable response are exercised in an isolated resource root.","value_contract":"boolean_true"},
+        {"detailed_field_id":"folder_onboarding_destination","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.folder_onboarding_destination =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.folder_onboarding_destination =","invariant":"Folder selection reaches the canonical project route for the exact admitted identity.","fixture_differences":"The selected folder is shard-local.","equivalence":"exact","changed_mechanism_justification":"The production onboarding route supplies the same canonical destination.","value_contract":"canonical_project_route"},
+        {"detailed_field_id":"project_context_repeat_activation","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_context_repeat_activation =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_context_repeat_activation =","invariant":"Repeated current-project activation reopens the same settings destination and restores focus.","fixture_differences":"The active project belongs only to this shard.","equivalence":"exact","changed_mechanism_justification":"Same hash, disclosure, and focus behavior is asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_context_keyboard_activation","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_context_keyboard_activation =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_context_keyboard_activation =","invariant":"Keyboard activation opens the project settings destination and places focus on its owner.","fixture_differences":"No shared browser session is reused.","equivalence":"exact","changed_mechanism_justification":"The same production control receives keyboard input through CDP.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_name_onboarding_prefill_and_edit","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_name_onboarding_prefill_and_edit =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_name_onboarding_prefill_and_edit =","invariant":"Onboarding pre-fills the folder-derived project name and permits a valid edit.","fixture_differences":"Folder name is created under the shard root.","equivalence":"exact","changed_mechanism_justification":"Same production form and validation controls are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_name_invalid_blocked","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_name_invalid_blocked =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_name_invalid_blocked =","invariant":"Invalid project names are refused before mutation.","fixture_differences":"None beyond shard-local identity.","equivalence":"exact","changed_mechanism_justification":"Same disabled submission and unchanged project state are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_name_stale_conflict_visible","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_name_stale_conflict_visible =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_name_stale_conflict_visible =","invariant":"A stale naming revision is refused with public actionable conflict presentation.","fixture_differences":"Conflict is generated inside the shard database.","equivalence":"exact","changed_mechanism_justification":"Same revision conflict route and visible recovery state are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_name_long_korean_propagated","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_name_long_korean_propagated =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_name_long_korean_propagated =","invariant":"A long Korean project name propagates across UI and API while preserving canonical identity and root.","fixture_differences":"The preserved root is shard-owned.","equivalence":"exact","changed_mechanism_justification":"UI, API active name, project ID, and normalized root are checked as in the shadow.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_context_opens_settings","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_context_opens_settings =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_context_opens_settings =","invariant":"The current-project context opens and focuses project settings.","fixture_differences":"None beyond independent state.","equivalence":"exact","changed_mechanism_justification":"Hash, disclosure, and focus identity are all asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"folder_onboarding_restart_reopen","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.folder_onboarding_restart_reopen =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.folder_onboarding_restart_reopen =","invariant":"A retained runtime restart reopens the exact canonical project destination.","fixture_differences":"The shard restarts only its own supervisor tree.","equivalence":"exact","changed_mechanism_justification":"Same destination is checked after an independently owned restart.","value_contract":"boolean_true"},
+        {"detailed_field_id":"folder_onboarding_stale_active_conflict","coverage_family":"project_onboarding_and_naming","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.folder_onboarding_stale_active_conflict =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.folder_onboarding_stale_active_conflict =","invariant":"A stale active-project change is refused and presented as a recoverable conflict.","fixture_differences":"Conflict state is isolated to the shard DB.","equivalence":"exact","changed_mechanism_justification":"Same production conflict status and presentation are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"guide_brief_blank_state_v0_2","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.guide_brief_blank_state_v0_2 =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.guide_brief_blank_state_v0_2 =","invariant":"Blank State GuideBrief v0.2 exposes the exact project, context, focus, authority, and public-safety projection.","fixture_differences":"GuideBrief inputs are admitted before browser execution into the shard DB.","equivalence":"exact","changed_mechanism_justification":"The production GuideBrief reader is checked for the same identities and exclusions.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_home_coordination_visible","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_home_coordination_visible =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.project_home_coordination_visible =","invariant":"Project Home coordination is visibly present without the superseded project-home concept.","fixture_differences":"None beyond independent project identity.","equivalence":"exact","changed_mechanism_justification":"Same rendered coordination and absence signals are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_recovery_context_passive","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.project_recovery_context_passive =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.project_recovery_context_passive =","invariant":"A missing-root project renders passive recovery context without activation or execution.","fixture_differences":"Recovery identity is a versioned shard-local presentation fixture.","equivalence":"exact","changed_mechanism_justification":"The same real production recovery route renders the observable passive state.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_empty_state","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_empty_state =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.minimum_project_home_empty_state =","invariant":"An empty project renders the exact minimum Project Home hierarchy, one primary action, and no internal protocol vocabulary.","fixture_differences":"The empty project is constructed in the shard DB.","equivalence":"exact","changed_mechanism_justification":"The same product route and complete visible/absent state are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_expired_context_withheld","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_expired_context_withheld =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_expired_context_withheld =","invariant":"Expired working context is withheld from Project Home.","fixture_differences":"Expired state is admitted as immutable fixture material.","equivalence":"exact","changed_mechanism_justification":"Same production reader and visible withholding state are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_refresh_read_only","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_refresh_read_only =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_refresh_read_only =","invariant":"Refreshing Project Home preserves the same projection and performs no durable write.","fixture_differences":"The before/after fingerprint covers only the shard DB.","equivalence":"exact","changed_mechanism_justification":"Production refresh plus exact durable-state fingerprint proves the same invariant.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_non_active_deep_link_read_only","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_non_active_deep_link_read_only =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_non_active_deep_link_read_only =","invariant":"A viewed-inactive deep link stays read-only, explains that it did not switch the active project, and offers explicit activation.","fixture_differences":"Both projects are shard-local.","equivalence":"exact","changed_mechanism_justification":"Same copy, control absence, active selection, and conversation reset are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_explicit_activation","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_explicit_activation =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_explicit_activation =","invariant":"Only the explicit activation action switches the active project and returns an exact successful response.","fixture_differences":"Activation occurs within the shard registry.","equivalence":"exact","changed_mechanism_justification":"Same button, request identity, response status, and active-selection result are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_project_isolation","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_project_isolation =","new_shard_source_phase":"project_onboarding_and_naming","new_shard_source_anchor":"result.minimum_project_home_project_isolation =","invariant":"Project Home never leaks another project's presentation state.","fixture_differences":"Isolation is proven between two shard-local projects.","equivalence":"exact","changed_mechanism_justification":"Same cross-project absence checks are applied to real readers.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_unknown_project_status","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_unknown_project_status =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_unknown_project_status =","invariant":"An unknown project is handled by the exact accepted document status contract.","fixture_differences":"Unknown identity is generated inside the shard namespace.","equivalence":"exact","changed_mechanism_justification":"The production document response status is retained as inspectable evidence.","value_contract":"minimum_project_home_unknown_status"},
+        {"detailed_field_id":"minimum_project_home_unknown_project_safe_not_found","coverage_family":"project_home_lifecycle_presentation","legacy_source_phase":"folder_onboarding","legacy_source_anchor":"result.minimum_project_home_unknown_project_safe_not_found =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_unknown_project_safe_not_found =","invariant":"Unknown project presentation is a public-safe not-found state with no private or durable-state exposure.","fixture_differences":"Unknown identity is shard-local.","equivalence":"exact","changed_mechanism_justification":"Same visible safe-not-found contract is asserted through production routing.","value_contract":"boolean_true"},
+        {"detailed_field_id":"guide_brief_ai_workplane_v0_2","coverage_family":"project_shell_and_locked_entry","legacy_source_phase":"locked_workbench","legacy_source_anchor":"result.guide_brief_ai_workplane_v0_2 =","new_shard_source_phase":"project_shell_and_locked_entry","new_shard_source_anchor":"result.guide_brief_ai_workplane_v0_2 =","invariant":"AI Workplane GuideBrief v0.2 exposes the exact locked project-aware public projection.","fixture_differences":"The projection is seeded before browser execution.","equivalence":"exact","changed_mechanism_justification":"Same production reader and exact project/focus/authority identities are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"guide_brief_cross_surface_consistency","coverage_family":"project_shell_and_locked_entry","legacy_source_phase":"locked_workbench","legacy_source_anchor":"result.guide_brief_cross_surface_consistency =","new_shard_source_phase":"project_shell_and_locked_entry","new_shard_source_anchor":"result.guide_brief_cross_surface_consistency =","invariant":"Blank State, AI Workplane, ChatGPT, and Codex agree on project, goal, constraints, judgment, human attention, authority, and related GuideBrief projection identities.","fixture_differences":"Immutable projection input replaces mutable state inherited from earlier monolith phases.","equivalence":"exact","changed_mechanism_justification":"The complete legacy cross-projection agreement is restored against real production GuideBrief readers.","value_contract":"boolean_true"},
+        {"detailed_field_id":"workbench_compatibility_redirect","coverage_family":"project_shell_and_locked_entry","legacy_source_phase":"locked_workbench","legacy_source_anchor":"result.workbench_compatibility_redirect =","new_shard_source_phase":"project_shell_and_locked_entry","new_shard_source_anchor":"result.workbench_compatibility_redirect =","invariant":"The compatibility route redirects to the project-aware AI Workplane without exposing private material.","fixture_differences":"No shared operator session is reused.","equivalence":"exact","changed_mechanism_justification":"Same production redirect destination and locked surface are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"ai_workplane_project_context_opens_settings","coverage_family":"project_shell_and_locked_entry","legacy_source_phase":"locked_workbench","legacy_source_anchor":"result.ai_workplane_project_context_opens_settings =","new_shard_source_phase":"project_shell_and_locked_entry","new_shard_source_anchor":"result.ai_workplane_project_context_opens_settings =","invariant":"AI Workplane project context returns to the exact focused project-settings destination.","fixture_differences":"None beyond shard-local project state.","equivalence":"exact","changed_mechanism_justification":"Hash, disclosure, and focus owner are checked through the same ProductShell control.","value_contract":"boolean_true"},
+        {"detailed_field_id":"retired_route_statuses","coverage_family":"retired_route_safety","legacy_source_phase":"retired_routes","legacy_source_anchor":"  retired_route_statuses:","new_shard_source_phase":"retired_route_safety","new_shard_source_anchor":"result.retired_route_statuses =","invariant":"Every retired manual-transport route returns only the exact accepted absent or method-inaccessible status.","fixture_differences":"Leak-detection identities are immutable shard fixtures.","equivalence":"exact","changed_mechanism_justification":"The complete nine-route matrix and accepted status set are runtime-validated.","value_contract":"retired_route_status_matrix"},
+        {"detailed_field_id":"retired_routes_non_mutating","coverage_family":"retired_route_safety","legacy_source_phase":"retired_routes","legacy_source_anchor":"result.retired_routes_non_mutating =","new_shard_source_phase":"retired_route_safety","new_shard_source_anchor":"result.retired_routes_non_mutating =","invariant":"Retired routes do not redirect to manual transport, leak private material, or mutate any durable project/Core/run/proposal/decision/Transition state.","fixture_differences":"Before/after fingerprint covers the independently writable shard database.","equivalence":"exact","changed_mechanism_justification":"Exact durable-state snapshots and identity leak checks prove the same externally observable invariant.","value_contract":"boolean_true"},
+        {"detailed_field_id":"first_work_browser_viewports","coverage_family":"responsive_product_shell","legacy_source_phase":"folder_onboarding/product_shell_responsive","legacy_source_anchor":"result.first_work_browser_viewports =","new_shard_source_phase":"responsive_first_work_presentation","new_shard_source_anchor":"result.first_work_browser_viewports =","invariant":"The complete four-viewport first-work composer matrix preserves exact labels, sizing, collision, overlay, copy, overflow, and non-mutating presentation requirements.","fixture_differences":"First-work-not-defined state is admitted before Browser execution and is never saved or started.","equivalence":"exact","changed_mechanism_justification":"The legacy metric object and assertions are applied to the real production route with immutable read-only state.","value_contract":"boolean_true"},
+        {"detailed_field_id":"delegated_work_narrow_viewport_no_overflow","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.delegated_work_narrow_viewport_no_overflow =","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.delegated_work_narrow_viewport_no_overflow =","invariant":"Delegated work at both narrow viewports preserves exact heading, action, timeline, status, control-size, and overflow semantics.","fixture_differences":"Delegated state is immutable presentation-only fixture material.","equivalence":"exact","changed_mechanism_justification":"The full legacy metric and assertion matrix is restored against real readers.","value_contract":"boolean_true"},
+        {"detailed_field_id":"shared_inspector_narrow_viewport_no_overflow","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.shared_inspector_narrow_viewport_no_overflow =","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.shared_inspector_narrow_viewport_no_overflow =","invariant":"Shared Inspector preserves its complete narrow and wide semantic-role, control-size, and overflow matrix.","fixture_differences":"Inspector records are immutable presentation fixtures.","equivalence":"exact","changed_mechanism_justification":"Same production route and exact viewport metric assertions are reused.","value_contract":"boolean_true"},
+        {"detailed_field_id":"workbench_result_narrow_viewport_no_overflow","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.workbench_result_narrow_viewport_no_overflow =","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.workbench_result_narrow_viewport_no_overflow =","invariant":"Result-ready Workplane preserves the complete viewport, first-scroll action, control-size, and overflow matrix.","fixture_differences":"Result state is immutable, source-bound, and incapable of execution.","equivalence":"exact","changed_mechanism_justification":"Same real production presentation and exact metric assertions are used.","value_contract":"boolean_true"},
+        {"detailed_field_id":"proposal_review_narrow_viewport_no_overflow","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.proposal_review_narrow_viewport_no_overflow =","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.proposal_review_narrow_viewport_no_overflow =","invariant":"Proposal review preserves the complete viewport, primary-action, control-size, and overflow matrix without making a decision.","fixture_differences":"Proposal material is immutable presentation-only state.","equivalence":"exact","changed_mechanism_justification":"Same production review route and full legacy metric assertions are used read-only.","value_contract":"boolean_true"},
+        {"detailed_field_id":"minimum_project_home_narrow_viewport_no_overflow","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.minimum_project_home_narrow_viewport_no_overflow =","new_shard_source_phase":"project_home_lifecycle_presentation","new_shard_source_anchor":"result.minimum_project_home_narrow_viewport_no_overflow =","invariant":"Project Home preserves the complete narrow viewport and horizontal-overflow contract for active and viewed-inactive presentations.","fixture_differences":"Both states are shard-local and read-only.","equivalence":"exact","changed_mechanism_justification":"The same production surface is inspected at the exact legacy widths and heights.","value_contract":"boolean_true"},
+        {"detailed_field_id":"project_context_emphasized_owner","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.project_context_emphasized_owner =","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.project_context_emphasized_owner =","invariant":"Project context remains the emphasized ProductShell owner across the responsive route matrix.","fixture_differences":"No shared browser profile is reused.","equivalence":"exact","changed_mechanism_justification":"Same owner attribute and summary identity are asserted.","value_contract":"boolean_true"},
+        {"detailed_field_id":"product_shell_route_classifications","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"  product_shell_route_classifications:","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.product_shell_route_classifications =","invariant":"All four ProductShell routes retain the exact primary/secondary zone and project-tools classifications.","fixture_differences":"Routes render against independently admitted state.","equivalence":"exact","changed_mechanism_justification":"The complete route matrix is runtime-validated rather than count-only checked.","value_contract":"product_shell_route_matrix"},
+        {"detailed_field_id":"product_shell_responsive_results","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"  product_shell_responsive_results:","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.product_shell_responsive_results =","invariant":"All four ProductShell routes at 390px and 430px preserve navigation, exactly two primary destinations, project tools, control size, and overflow requirements.","fixture_differences":"Every route uses the shard browser and DB.","equivalence":"exact","changed_mechanism_justification":"The complete eight-entry responsive matrix and exact metrics are asserted.","value_contract":"product_shell_responsive_matrix"},
+        {"detailed_field_id":"management_safety_keyboard_navigation","coverage_family":"responsive_product_shell","legacy_source_phase":"product_shell_responsive","legacy_source_anchor":"result.management_safety_keyboard_navigation =","new_shard_source_phase":"rendered_state_responsive_matrix","new_shard_source_anchor":"result.management_safety_keyboard_navigation =","invariant":"Keyboard navigation reaches the deterministic project-management fragment without unsafe side effects.","fixture_differences":"Navigation remains within the shard-owned browser.","equivalence":"deliberately_stronger","changed_mechanism_justification":"The legacy destination is preserved and the shard additionally proves the disclosure closes and default navigation is prevented before the exact route transition.","value_contract":"boolean_true"},
+        {"detailed_field_id":"viewport_results","coverage_family":"responsive_product_shell","legacy_source_phase":"folder_onboarding/product_shell_responsive","legacy_source_anchor":"  viewport_results:","new_shard_source_phase":"responsive_first_work_presentation/project_home_lifecycle_presentation/rendered_state_responsive_matrix","new_shard_source_anchor":"result.viewport_results =","invariant":"Inspectable viewport evidence contains exactly the required 26 surface/viewport entries and no omitted or foreign entry.","fixture_differences":"Operator-shaped states are immutable presentation fixtures admitted before Browser execution.","equivalence":"deliberately_stronger","changed_mechanism_justification":"The legacy viewport observations are retained and exact set equality makes the formerly count-oriented collection fail closed.","value_contract":"viewport_surface_matrix"},
+        {"detailed_field_id":"viewport_warnings","coverage_family":"responsive_product_shell","legacy_source_phase":"folder_onboarding/product_shell_responsive","legacy_source_anchor":"  viewport_warnings:","new_shard_source_phase":"project_experience_global_boundaries","new_shard_source_anchor":"result.viewport_warnings =","invariant":"No responsive viewport warning is emitted.","fixture_differences":"Warnings cover only independently owned shard surfaces.","equivalence":"exact","changed_mechanism_justification":"Final value contract requires an exactly empty warning collection.","value_contract":"empty_array"}
+      ],
+      "owned_mutable_resources": [
+        "writable_database",
+        "runtime_supervisor",
+        "application_listener_port",
+        "bridge_debug_ports",
+        "browser_process",
+        "cdp_session",
+        "browser_profile",
+        "temporary_root",
+        "project_roots",
+        "download_directory",
+        "local_session_action_credentials",
+        "file_signal_barriers",
+        "request_response_console_ledgers",
+        "owned_process_tree",
+        "stream_and_cleanup_settlement"
+      ],
+      "forbidden_shared_mutable_resources": [
+        "live_database",
+        "runtime",
+        "listener",
+        "browser",
+        "cdp_session",
+        "browser_profile",
+        "active_project_selection",
+        "operator_session",
+        "approval_signal",
+        "mutable_fixture_directory"
+      ],
+      "timeout_ms": 360000,
+      "reference_bound_ms": 480000,
+      "required_reference_headroom_ms": 120000,
+      "planner_selected": false,
+      "receipt_aggregated": false,
+      "planner_receipt_semantics_changed": false
+    }
+  },
   "thin_golden_path": {
     "owner": "cross_boundary_golden",
     "proposed_command": "npm run test:e2e:golden",
@@ -1514,17 +1774,17 @@
     "current_limits_changed": false
   },
   "sequencing": [
-    {"id": "VFY1-A", "status": "this_inventory_only", "responsibility": "Inventory, ownership, dependencies, fixture boundary, golden specification, and static completeness contracts."},
-    {"id": "VFY1-B", "status": "deferred_separate_authorization", "responsibility": "Extract independent project experience shard."},
+    {"id": "VFY1-A", "status": "complete_inventory_owner", "responsibility": "Inventory, ownership, dependencies, fixture boundary, golden specification, and static completeness contracts."},
+    {"id": "VFY1-B", "status": "implemented_legacy_core_shadow_retained", "responsibility": "Extract independent project experience shard."},
     {"id": "VFY1-C", "status": "deferred_separate_authorization", "responsibility": "Extract independent operator and execution shard."},
     {"id": "VFY1-D", "status": "deferred_separate_authorization", "responsibility": "Wire planner selection, thin golden path, per-shard receipt material, aggregation, and old-owner removal after equivalence proof."}
   ],
   "non_goals": [
-    "No Browser shard extraction or new executable Browser owner command.",
-    "No Browser assertion, scope, execution ordering, timeout, retry, or sleep change.",
+    "No operator-execution, golden-path, or additional Browser shard extraction.",
+    "No legacy Browser assertion, scope, execution ordering, timeout, retry, or sleep change.",
     "No deletion or shortening of e2e-core.",
     "No Local Canonical planner selection or receipt deciding-semantics change.",
     "No product, UI, API, schema, Core, protocol, native-host, authority, or runtime behavior change.",
-    "No VFY1-B, VFY1-C, VFY1-D, C9, or PC6 implementation."
+    "No VFY1-C, VFY1-D, C9, or PC6 implementation."
   ]
 }

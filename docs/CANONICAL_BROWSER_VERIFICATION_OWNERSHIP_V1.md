@@ -1,8 +1,9 @@
 # Canonical Browser verification ownership v1
 
-Status: VFY1-A inventory and target specification. The governing roadmap is
+Status: VFY1-B project-experience extraction with legacy-core shadow retained.
+The governing roadmap is
 [Issue #103](https://github.com/hynk-studio/augnes-perspective-lab/issues/103).
-This document does not implement VFY1-B, VFY1-C, or VFY1-D.
+VFY1-C and VFY1-D remain unimplemented.
 
 The machine-readable authority for the exact counts, field/marker membership,
 owner assignments, dependency edges, and future resource requirements is
@@ -12,23 +13,29 @@ The focused static contract is
 
 ## Purpose and boundary
 
-The current Browser verifier is one long-lived harness. It builds one fixture,
+The legacy Browser verifier is one long-lived harness. It builds one fixture,
 opens one writable database, starts and restarts one supervised runtime, drives
 one Chrome process and CDP session, accumulates one browser/session history,
 and cleans one shared resource graph. Its current behavior is valuable and is
-not reduced here. VFY1-A makes that behavior and coupling reviewable before
-later owner-based sharding.
+not reduced in VFY1-B. VFY1-A made that behavior and coupling reviewable;
+VFY1-B adds the first independently runnable detailed owner without changing
+the legacy execution path.
 
-This change is static only.
+The new `project_experience` child is an independent executable, fixture,
+writable database, runtime, browser, CDP session, profile, port set, and cleanup
+graph. It is focused evidence only and is not selected by the Local Canonical
+planner or aggregated into a deciding receipt yet.
 
 ## Explicit non-goals
 
-VFY1-A does not:
+VFY1-B does not:
 
-- extract a shard or register a future Browser command;
-- change a Browser scope, assertion, route, scenario, ordering, timeout,
-  retry, sleep, fixture behavior, or cleanup behavior;
+- remove, skip, weaken, or reorder any legacy Browser assertion;
+- change the legacy Browser source, scopes, result shape, markers, phases,
+  timing identifiers, or `480000ms` core bound;
 - delete or shorten `e2e-core`;
+- implement the operator/execution shard, thin golden path, or aggregate
+  planner/receipt integration;
 - change Local Canonical planner selection or receipt deciding semantics;
 - change product, UI, API, schema, Core, protocol, runtime, native-host, or
   authority behavior.
@@ -149,7 +156,7 @@ calls; `recordLongWait` has one declaration and six direct calls; `timing` has
 one declaration, 27 direct tracked-method calls, and one supported
 `timing.summary()` reference.
 
-The dependency-free contract contains 52 synthetic negative fixtures covering
+The dependency-free contract contains 57 synthetic negative fixtures covering
 the refusal matrix below:
 
 | Unsupported form | Contract result |
@@ -168,6 +175,7 @@ the refusal matrix below:
 | Computed timing kind or milestone | fail |
 | Aliased timing object, extracted/bound method, optional call, or bracket/computed method | fail |
 | Noncanonical validation-scope declaration | fail |
+| Computed, alternate-quote, aliased, or duplicate detailed-field completion | fail |
 
 The harness SHA-256 remains a broad whole-source change tripwire. A SHA change
 is not coverage classification, and updating the stored SHA alone can never
@@ -183,11 +191,113 @@ inventory; unsupported syntax fails instead of disappearing from metadata.
 | `cux6b` | `npm run test:e2e:cux6b` | Fixture/setup plus `folder_onboarding` through first-work definition and explicit start, then focused quiet/integrity checks. |
 | `continuity` | `npm run test:e2e:continuity` | Activates the transferred fixture project, skips core-only work, and runs shared multi-candidate plus continuity-only phases. |
 | `complete` | Direct harness invocation without a scope variable | Core and continuity branches in one mutable lifecycle. It is not a package-registered Canonical lane. |
+| `project-experience` | `npm run test:e2e:project-experience` | Independent VFY1-B detailed owner for the five project-experience families. It does not run through the monolithic lifecycle. |
 
 `npm run test:e2e` currently launches separate `core` and `continuity`
 children. Local Canonical full execution likewise selects `e2e-core` followed
 by `e2e-continuity`. The planner, executor, and receipt are unchanged in
-VFY1-A.
+VFY1-B and do not select `e2e-project-experience`.
+
+## VFY1-B implemented project-experience owner
+
+`scripts/browser-validate-project-experience-v1.mjs` is registered as the
+bounded `e2e-project-experience` Canonical child with a `360000ms` limit. The
+package command reports natural exit, exit code, stream closure, cleanup,
+owned-process residue, termination reason, and duration through the existing
+Canonical child runner.
+
+The implementation derives its detailed ownership from the VFY1-A inventory,
+not a second hand-maintained list. It covers exactly five families, 40 detailed
+fields, and five semantic markers:
+
+| Detailed family | Fields | Markers |
+| --- | ---: | ---: |
+| `project_onboarding_and_naming` | 11 | 1 |
+| `project_home_lifecycle_presentation` | 11 | 1 |
+| `project_shell_and_locked_entry` | 4 | 1 |
+| `retired_route_safety` | 2 | 1 |
+| `responsive_product_shell` | 12 | 1 |
+
+The fail-closed static profile extracts one validation scope, 87 classified
+top-level output fields, five literal markers, seven phase calls over seven
+phase identifiers, 12 timing kinds, and two milestones from the new source.
+The contract rejects foreign operator/execution or continuity detailed fields,
+requires all 40 owned fields and all five markers, requires every output field
+to have one classification, verifies the command/suite/source binding and
+resource declarations, and records the old core coverage as temporary shadow
+rather than a second primary owner.
+
+### Field-keyed completion and semantic equivalence
+
+Detailed completion is no longer an integer counter. The child loads the exact
+40-field owner set from the inventory, records each successful assertion as
+`completeDetailedField("literal_field_id")`, refuses duplicate or foreign
+fields, and requires exact final set equality. The bounded static extractor
+allows only that canonical double-quoted direct-call grammar and its one exact
+function declaration. Computed IDs, aliases, alternate quotes, indirect calls,
+duplicate call sites, missing fields, and foreign-owner fields fail the
+contract. The successful result exposes the sorted completed IDs and their
+SHA-256 set fingerprint.
+
+The inventory's `detailed_field_equivalence` array is the exact 40-row
+legacy/new map. Every row binds its coverage family, legacy phase and source
+anchor, new-shard phase and source anchor, externally observable invariant,
+fixture difference, exact-or-stronger status, mechanism justification, and
+runtime value contract. Thirty-eight rows are exact; the management keyboard
+and inspectable viewport collection rows are deliberately stronger without
+weakening the legacy shadow.
+
+In particular, `guide_brief_cross_surface_consistency` once again requires the
+complete legacy invariant: ChatGPT and Codex agree on goal, constraints, and
+judgment; AI Workplane and both host projections agree on human attention; and
+the Blank State and AI Workplane GuideBrief project, focus, authority, and
+projection identities agree. Locked-shell shape or private-material absence
+alone cannot complete that field.
+
+The final-value gate is also field-aware. Boolean details must be exactly
+`true`; the onboarding destination must be a canonical project route; unknown
+Project Home status must meet the exact accepted status contract; retired
+routes must equal the complete nine-route matrix; ProductShell route and
+responsive results must equal their four-route/eight-entry matrices; viewport
+results must equal the exact 26-entry surface/viewport matrix; and viewport
+warnings must be empty.
+
+### Staged success, cleanup, and outer child acceptance
+
+The child keeps `ok: false` throughout functional execution and cleanup. It
+then finalizes result, timing, resource, and cleanup evidence and evaluates one
+success gate. Only that gate may set `ok: true`. It requires the exact 40-field
+completion set, all five markers, exact value predicates, zero unexpected
+external requests or console/page/request failures, credential and
+private-material safety, no execution or authority-bearing effects, complete
+runtime and Chrome/CDP shutdown, closed owned streams, zero owned process and
+listener residue, removal of every temporary/profile/database/fixture/picker
+root, and total duration below `360000ms`. Failure remains public-safe, exits
+nonzero, and preserves all cleanup evidence that could be finalized.
+
+The Canonical suite marks only `e2e-project-experience` as requiring exact
+natural exit. Its outer acceptance rejects timeout, nonzero exit, absent exit
+observation, open streams, incomplete cleanup, remaining owned processes, and
+both descendant-cleanup termination modes. Synthetic runner tests cover every
+refusal. Unrelated legacy suites retain their established acceptance behavior.
+
+The result contract identifies the validation owner and fixture version and
+fingerprints; preserves the exact 40 legacy field names and meanings; emits
+route, viewport, ProductShell, request/response/console, timing, cleanup, and
+failure material; and separates product behavior from infrastructure
+invariants. The raw console ledger permits at most one narrowly identified,
+phase-and-signature-bounded React diagnostic if Chrome restores the
+deliberately opened `data-management-safety` disclosure during the keyboard
+fragment proof. Any such diagnostic remains visible as
+`known_harness_console_warning_count`; every other console error remains
+unexpected and fails the child. The finalized correction run observed zero
+such warnings.
+
+The legacy `e2e-core` path remains byte-for-byte unchanged and continues to
+own its complete 221-field, 101-marker output surface during the migration.
+This shadow is removed only in VFY1-D after VFY1-C, the thin golden path,
+planner selection, per-owner receipt material, and exact aggregate equivalence
+exist.
 
 ## Owner taxonomy
 
@@ -314,11 +424,12 @@ session, or active-project selection.
 
 ## Target detailed shards
 
-The names below are specifications, not registered commands in VFY1-A.
+Only the project-experience command is implemented in VFY1-B. The remaining
+names are specifications for later separately authorized work.
 
 ### Project experience
 
-Proposed command: `npm run test:e2e:project-experience`
+Implemented focused command: `npm run test:e2e:project-experience`
 
 Owns onboarding, project identity/naming/lifecycle presentation,
 active/viewed/recovery presentation, project settings entry, ProductShell,
@@ -327,6 +438,9 @@ safety.
 
 Primary question: Can the user connect, identify, recover, and navigate a
 project correctly?
+
+The legacy-core copy is explicit temporary shadow coverage, not another
+primary owner and not proof that aggregate migration is complete.
 
 ### Operator and execution
 
@@ -381,6 +495,19 @@ A shared builder may produce immutable material:
 - portable immutable source bundles;
 - a public-safe versioned manifest and declared fingerprints.
 
+VFY1-B implements this boundary in
+`scripts/project-experience-browser-fixture-v1.ts`. It constructs a versioned
+immutable source database and manifest, copies the source database into the
+child's writable root, and admits presentation-only packet, result, proposal,
+Inspector, delegated-work, and recovery context through existing production
+builders, persistence owners, admission functions, and validators. The
+Browser reads those states through real application routes and production
+readers. It does not mock HTML, intercept route JSON, reuse another child's
+database/session, or run an operator workflow merely to reach a rendered
+state. The fixture is source-bound, fingerprinted, contains no credential or
+provider material, grants no semantic or execution authority, and cannot
+start execution.
+
 Every shard copies what it needs into its own writable resource root. No two
 shards may share a live mutable database, runtime, listener, browser, CDP
 session, profile, operator session, active selection, or approval barrier.
@@ -395,6 +522,15 @@ Each shard independently owns:
 - local bootstrap/session/action credentials;
 - file-signal barriers;
 - natural exit, stream settlement, cleanup, and residue evidence.
+
+The implemented project-experience child declares and cleans its own writable
+database, runtime-state directory, supervisor process tree, application,
+bridge, and debug ports, Chrome process, CDP session, profile, temporary and
+project roots, download directory, shard-local presentation session,
+folder-picker signal, observer ledgers, and streams. Sharing any live writable
+database, runtime, listener, browser, CDP session, profile, active-project
+selection, operator session, approval signal, or mutable fixture directory
+remains forbidden.
 
 ## Future planner selection
 
@@ -428,6 +564,8 @@ stream-settlement, and total timing stay attributable per owner before
 aggregation.
 
 This design does not change the current planner or receipt implementation.
+The VFY1-B focused result is therefore independently attributable evidence,
+not part of the current aggregated deciding receipt.
 
 ## Timing and headroom policy
 
@@ -438,14 +576,22 @@ retain meaningful normal-operation headroom rather than settle near its child
 limit.
 
 The policy forbids equal-duration-half sharding, pass-chasing retries,
-arbitrary sleeps, assertion weakening, and automatic timeout widening. VFY1-A
-changes no current timeout.
+arbitrary sleeps, assertion weakening, and automatic timeout widening. VFY1-B
+changes no legacy timeout. The finalized correction run completed its inner
+child in `101030ms` and exited naturally through the Canonical child runner in
+`111490ms`. The inner child therefore retained `378970ms` against the
+unchanged `480000ms` reference bound and `258970ms` against its `360000ms`
+acceptance bound. Its result separately attributes fixture construction,
+runtime startup, Chrome/CDP startup, seven semantic phases, navigation,
+request quiet, runtime shutdown, Chrome/CDP shutdown, global cleanup, stream
+settlement, and total child time.
 
 ## Sequencing
 
-- VFY1-A: inventory, ownership, dependency graph, fixture boundary, golden
-  specification, and static completeness contracts only.
-- VFY1-B: separately authorized project-experience extraction.
+- VFY1-A: complete inventory, ownership, dependency graph, fixture boundary,
+  golden specification, and static completeness contracts.
+- VFY1-B: implemented independent project-experience owner; legacy-core
+  shadow retained and planner/receipt integration deferred.
 - VFY1-C: separately authorized operator/execution extraction.
 - VFY1-D: separately authorized planner selection, thin golden path,
   per-shard receipt material, aggregate deciding semantics, and removal of the

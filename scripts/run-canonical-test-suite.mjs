@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  canonicalChildFailure,
+  canonicalChildAcceptanceFailure,
   DEFAULT_CANONICAL_CHILD_TIMEOUT_MS,
   runCanonicalChild,
   runCanonicalChildGroups,
@@ -61,6 +61,16 @@ const suites = {
       ...rootNode("scripts/test-vnext-operator-browser-fixture-v0-1.ts"),
       // The complete success and fail-closed contract measured 18.9s locally.
       timeoutMs: 45_000,
+    },
+    {
+      label: "project experience immutable Browser fixture contract",
+      ...rootNode("scripts/test-project-experience-browser-fixture-v1.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "project experience keyed result and finalization contract",
+      ...rootNode("scripts/test-project-experience-result-contract-v1.mjs"),
+      timeoutMs: 30_000,
     },
     {
       label: "AI Workplane human projection and exact-detail contract",
@@ -564,6 +574,27 @@ const suites = {
       timeoutMs: 480_000,
     },
   ],
+  "e2e-project-experience": [
+    {
+      id: "project-experience",
+      group: "project-experience",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "project-root",
+        "process-owning",
+        "listener-port-owning",
+        "browser-profile-owning",
+        "cdp-session-owning",
+        "immutable-fixture-input",
+      ],
+      label: "independent project experience Browser owner",
+      ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
+      timeoutMs: 360_000,
+      requireNaturalExit: true,
+    },
+  ],
   "e2e-continuity": [
     {
       label: "portable continuity and restart reconciliation browser path",
@@ -671,6 +702,7 @@ try {
       cwd: step.cwd,
       env: childEnvironment,
       timeoutMs,
+      requireNaturalExit: step.requireNaturalExit === true,
       resourceRoot,
     };
   });
@@ -726,16 +758,12 @@ try {
       console.log();
       const result = await runCanonicalChild(step);
       completedResults.push(result);
-      if (
-        result.timed_out ||
-        result.spawn_error_code ||
-        result.exit_code !== 0
-      ) {
-        throw canonicalChildFailure(result, {
-          suite: suiteName,
-          timeoutMs: step.timeoutMs,
-        });
-      }
+      const acceptanceFailure = canonicalChildAcceptanceFailure(result, {
+        suite: suiteName,
+        timeoutMs: step.timeoutMs,
+        requireNaturalExit: step.requireNaturalExit,
+      });
+      if (acceptanceFailure) throw acceptanceFailure;
     }
   }
 

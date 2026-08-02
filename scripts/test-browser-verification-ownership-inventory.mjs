@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { extractBrowserVerificationStaticMetadata } from "./browser-verification-static-metadata.mjs";
+import {
+  extractBrowserDetailedFieldCompletionMetadata,
+  extractBrowserVerificationStaticMetadata,
+} from "./browser-verification-static-metadata.mjs";
 
 const source = readFileSync(
   new URL("./browser-validate-vnext-native-host-result-v0-1.mjs", import.meta.url),
@@ -16,7 +20,30 @@ const inventory = JSON.parse(
   ),
 );
 const metadata = extractBrowserVerificationStaticMetadata(source);
+const projectExperienceSource = readFileSync(
+  new URL("./browser-validate-project-experience-v1.mjs", import.meta.url),
+  "utf8",
+);
+const projectExperienceMetadata =
+  extractBrowserVerificationStaticMetadata(projectExperienceSource);
+const projectExperienceCompletionMetadata =
+  extractBrowserDetailedFieldCompletionMetadata(projectExperienceSource);
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+);
+const canonicalSuiteSource = readFileSync(
+  new URL("./run-canonical-test-suite.mjs", import.meta.url),
+  "utf8",
+);
 let negativeFixtureCount = 0;
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function stableSetSha256(values) {
+  return sha256(JSON.stringify([...values].sort()));
+}
 
 function syntheticHarnessSource() {
   return [
@@ -67,6 +94,26 @@ function assertUnsupported(label, fixtureSource, expectedCode) {
     label,
   );
   negativeFixtureCount += 1;
+}
+
+function assertUnsupportedCompletion(label, fixtureSource, expectedCode) {
+  assert.throws(
+    () => extractBrowserDetailedFieldCompletionMetadata(fixtureSource),
+    (error) => {
+      assert.equal(error?.code, expectedCode, label);
+      return true;
+    },
+    label,
+  );
+  negativeFixtureCount += 1;
+}
+
+function syntheticCompletionSource() {
+  return [
+    "function completeDetailedField(id) { return id; }",
+    'completeDetailedField("field_one");',
+    'completeDetailedField("field_two");',
+  ].join("\n");
 }
 
 const supportedFixtureSource = syntheticHarnessSource();
@@ -350,6 +397,59 @@ for (const [label, replacement] of [
     "browser_verification_sensitive_reference_unsupported",
   );
 }
+
+const supportedCompletionSource = syntheticCompletionSource();
+assert.deepEqual(
+  extractBrowserDetailedFieldCompletionMetadata(supportedCompletionSource),
+  {
+    completion_ids: ["field_one", "field_two"],
+    raw_call_count: 2,
+    sensitive_reference_counts: {
+      canonical_declaration: 1,
+      canonical_direct_call: 2,
+      supported_non_extraction_reference: 0,
+    },
+  },
+);
+for (const [label, replacement, expectedCode] of [
+  [
+    "computed detailed completion ID",
+    'const fieldId = "field_one";\ncompleteDetailedField(fieldId);',
+    "browser_verification_complete_detailed_field_argument_unsupported",
+  ],
+  [
+    "single-quoted detailed completion ID",
+    "completeDetailedField('field_one');",
+    "browser_verification_complete_detailed_field_argument_unsupported",
+  ],
+  [
+    "template detailed completion ID",
+    "completeDetailedField(`field_one`);",
+    "browser_verification_complete_detailed_field_argument_unsupported",
+  ],
+  [
+    "aliased detailed completion owner",
+    'const complete = completeDetailedField;\ncomplete("field_one");',
+    "browser_verification_detailed_completion_reference_unsupported",
+  ],
+]) {
+  assertUnsupportedCompletion(
+    label,
+    supportedCompletionSource.replace(
+      'completeDetailedField("field_one");',
+      replacement,
+    ),
+    expectedCode,
+  );
+}
+assertUnsupportedCompletion(
+  "duplicate detailed completion ID",
+  supportedCompletionSource.replace(
+    'completeDetailedField("field_two");',
+    'completeDetailedField("field_one");',
+  ),
+  "browser_verification_detailed_completion_duplicate",
+);
 assertUnsupported(
   "computed timing kind",
   supportedFixtureSource.replace(
@@ -762,6 +862,8 @@ for (const shard of inventory.future_shards) {
   assert.equal(allowedOwners.has(shard.id), true, shard.id);
   assert.match(shard.proposed_command, /^npm run test:e2e:/u, shard.id);
   assert.equal(shard.implemented_in_vfy1a, false, shard.id);
+  assert.equal(typeof shard.implemented_in_vfy1b, "boolean", shard.id);
+  assert.match(shard.implementation_status, /\S/u, shard.id);
   assert.match(shard.primary_question, /\?$/u, shard.id);
   assert.equal(
     shard.resource_ownership_profile in resourceProfiles,
@@ -787,6 +889,218 @@ assert.equal(shardOwnedFamilies.length, new Set(shardOwnedFamilies).size);
 assert.deepEqual(
   new Set(shardOwnedFamilies),
   new Set(behavioralFamilies.map((family) => family.id)),
+);
+
+const projectExperienceShard = inventory.future_shards.find(
+  (shard) => shard.id === "project_experience",
+);
+assert(projectExperienceShard);
+assert.equal(projectExperienceShard.implemented_in_vfy1b, true);
+assert.equal(
+  projectExperienceShard.implementation_status,
+  "vfy1b_extracted_legacy_core_shadow_retained",
+);
+assert.equal(
+  inventory.future_shards
+    .filter((shard) => shard.id !== "project_experience")
+    .every((shard) => shard.implemented_in_vfy1b === false),
+  true,
+);
+
+const projectImplementation = inventory.implemented_shards.project_experience;
+assert.equal(projectImplementation.command, "npm run test:e2e:project-experience");
+assert.equal(projectImplementation.canonical_suite, "e2e-project-experience");
+assert.equal(
+  projectImplementation.executable_source,
+  "scripts/browser-validate-project-experience-v1.mjs",
+);
+assert.equal(
+  projectImplementation.executable_source_sha256,
+  projectExperienceMetadata.source_sha256,
+);
+assert.equal(projectImplementation.static_grammar_profile, metadata.grammar_version);
+assert.deepEqual(projectExperienceMetadata.scopes, ["project-experience"]);
+
+const projectFamilies = projectExperienceShard.detailed_family_ids.map(
+  (familyId) => inventory.coverage_equivalence.find((family) => family.id === familyId),
+);
+assert.equal(projectFamilies.every(Boolean), true);
+const projectDetailedFields = projectFamilies.flatMap((family) =>
+  Object.keys(family.result_fields),
+);
+const projectDetailedMarkers = projectFamilies.flatMap(
+  (family) => family.record_markers,
+);
+assert.equal(projectDetailedFields.length, 40);
+assert.equal(projectDetailedMarkers.length, 5);
+assert.equal(projectDetailedFields.length, new Set(projectDetailedFields).size);
+assert.equal(projectDetailedMarkers.length, new Set(projectDetailedMarkers).size);
+assert.equal(projectImplementation.detailed_field_equivalence.length, 40);
+assert.deepEqual(
+  new Set(
+    projectImplementation.detailed_field_equivalence.map(
+      (entry) => entry.detailed_field_id,
+    ),
+  ),
+  new Set(projectDetailedFields),
+);
+for (const entry of projectImplementation.detailed_field_equivalence) {
+  assert.equal(
+    projectExperienceShard.detailed_family_ids.includes(entry.coverage_family),
+    true,
+    entry.detailed_field_id,
+  );
+  assert.match(entry.legacy_source_phase, /\S/u, entry.detailed_field_id);
+  assert.match(entry.new_shard_source_phase, /\S/u, entry.detailed_field_id);
+  assert.match(entry.invariant, /\S/u, entry.detailed_field_id);
+  assert.match(entry.fixture_differences, /\S/u, entry.detailed_field_id);
+  assert.match(
+    entry.changed_mechanism_justification,
+    /\S/u,
+    entry.detailed_field_id,
+  );
+  assert.equal(
+    ["exact", "deliberately_stronger"].includes(entry.equivalence),
+    true,
+    entry.detailed_field_id,
+  );
+  assert.equal(
+    source.includes(entry.legacy_source_anchor),
+    true,
+    `legacy_anchor:${entry.detailed_field_id}`,
+  );
+  assert.equal(
+    projectExperienceSource.includes(entry.new_shard_source_anchor),
+    true,
+    `new_anchor:${entry.detailed_field_id}`,
+  );
+}
+assert.deepEqual(
+  new Set(projectExperienceCompletionMetadata.completion_ids),
+  new Set(projectDetailedFields),
+);
+assert.equal(projectExperienceCompletionMetadata.raw_call_count, 40);
+assert.equal(projectExperienceCompletionMetadata.completion_ids.length, 40);
+assert.deepEqual(projectExperienceCompletionMetadata.sensitive_reference_counts, {
+  canonical_declaration: 1,
+  canonical_direct_call: 40,
+  supported_non_extraction_reference: 0,
+});
+assert.equal(
+  projectImplementation.detailed_field_count,
+  projectDetailedFields.length,
+);
+assert.equal(
+  projectImplementation.detailed_field_set_sha256,
+  stableSetSha256(projectDetailedFields),
+);
+assert.equal(
+  projectImplementation.semantic_marker_count,
+  projectDetailedMarkers.length,
+);
+assert.equal(
+  projectImplementation.semantic_marker_set_sha256,
+  stableSetSha256(projectDetailedMarkers),
+);
+assert.deepEqual(
+  new Set(projectExperienceMetadata.record_markers),
+  new Set(projectDetailedMarkers),
+);
+assert.equal(
+  projectExperienceMetadata.record_markers.length,
+  projectDetailedMarkers.length,
+);
+assert.deepEqual(
+  new Set(
+    projectExperienceMetadata.output_result_fields.filter((field) =>
+      projectDetailedFields.includes(field),
+    ),
+  ),
+  new Set(projectDetailedFields),
+);
+const foreignDetailedFields = inventory.coverage_equivalence
+  .filter((family) => ["operator_execution", "continuity"].includes(family.primary_owner))
+  .flatMap((family) => Object.keys(family.result_fields));
+assert.deepEqual(
+  projectExperienceMetadata.output_result_fields.filter((field) =>
+    foreignDetailedFields.includes(field),
+  ),
+  [],
+);
+
+const classifiedProjectFields = [...projectDetailedFields];
+for (const [classification, fields] of Object.entries(
+  projectImplementation.output_field_classifications,
+)) {
+  assert.equal(allowedClassifications.has(classification), true, classification);
+  classifiedProjectFields.push(...fields);
+}
+assert.equal(
+  classifiedProjectFields.length,
+  new Set(classifiedProjectFields).size,
+  "project experience output fields must have one classification",
+);
+assert.deepEqual(
+  new Set(classifiedProjectFields),
+  new Set(projectExperienceMetadata.output_result_fields),
+);
+assert.equal(
+  projectImplementation.total_output_field_count,
+  projectExperienceMetadata.output_result_fields.length,
+);
+assert.equal(projectExperienceMetadata.output_result_fields.length, 87);
+assert.equal(projectExperienceMetadata.raw_call_counts.record, 5);
+assert.equal(projectExperienceMetadata.raw_call_counts.run_phase, 7);
+assert.equal(projectExperienceMetadata.phase_ids.length, 7);
+assert.equal(
+  packageJson.scripts["test:e2e:project-experience"],
+  "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+);
+assert.match(
+  canonicalSuiteSource,
+  /"e2e-project-experience": \[/u,
+);
+assert.match(
+  canonicalSuiteSource,
+  /rootNode\("scripts\/browser-validate-project-experience-v1\.mjs"\),\n\s+timeoutMs: 360_000,\n\s+requireNaturalExit: true,/u,
+);
+for (const requiredResource of resourceProfiles.future_independent_shard
+  .required_resources) {
+  assert.equal(
+    projectImplementation.owned_mutable_resources.includes(requiredResource),
+    true,
+    `project_experience:${requiredResource}`,
+  );
+}
+for (const forbiddenResource of resourceProfiles.future_independent_shard
+  .forbidden_shared_mutable_resources) {
+  assert.equal(
+    projectImplementation.forbidden_shared_mutable_resources.includes(
+      forbiddenResource,
+    ),
+    true,
+    `project_experience:${forbiddenResource}`,
+  );
+}
+assert.equal(projectImplementation.legacy_core_shadow.retained, true);
+assert.equal(projectImplementation.legacy_core_shadow.second_primary_owner, false);
+assert.equal(projectImplementation.completion_contract.duplicate_refusal, true);
+assert.equal(projectImplementation.completion_contract.foreign_owner_refusal, true);
+assert.equal(projectImplementation.completion_contract.missing_field_refusal, true);
+assert.equal(projectImplementation.completion_contract.exact_set_required, true);
+assert.equal(projectImplementation.completion_contract.natural_exit_required, true);
+assert.equal(projectImplementation.completion_contract.success_after_cleanup_only, true);
+assert.equal(projectImplementation.planner_selected, false);
+assert.equal(projectImplementation.receipt_aggregated, false);
+assert.equal(projectImplementation.planner_receipt_semantics_changed, false);
+assert.equal(projectImplementation.rendered_state_fixture_boundary.route_mocking, false);
+assert.equal(
+  projectImplementation.rendered_state_fixture_boundary.fabricated_json_interception,
+  false,
+);
+assert.equal(
+  projectImplementation.rendered_state_fixture_boundary.execution_capable,
+  false,
 );
 
 assert.equal(inventory.thin_golden_path.owner, "cross_boundary_golden");
@@ -891,15 +1205,19 @@ assert.deepEqual(
   inventory.sequencing.map((entry) => entry.id),
   ["VFY1-A", "VFY1-B", "VFY1-C", "VFY1-D"],
 );
-assert.equal(inventory.sequencing[0].status, "this_inventory_only");
+assert.equal(inventory.sequencing[0].status, "complete_inventory_owner");
 assert.equal(
-  inventory.sequencing.slice(1).every(
+  inventory.sequencing[1].status,
+  "implemented_legacy_core_shadow_retained",
+);
+assert.equal(
+  inventory.sequencing.slice(2).every(
     (entry) => entry.status === "deferred_separate_authorization",
   ),
   true,
 );
 assert.equal(inventory.non_goals.length >= 6, true);
-assert.equal(negativeFixtureCount, 52);
+assert.equal(negativeFixtureCount, 57);
 
 process.stdout.write(
   `${JSON.stringify({
@@ -922,8 +1240,9 @@ process.stdout.write(
     dependency_edges: inventory.dependency_graph.length,
     classification_counts: classificationCounts,
     owner_field_counts: ownerCounts,
-    future_commands_documented_only: inventory.future_shards.map(
-      (shard) => shard.proposed_command,
-    ),
+    implemented_owner_commands: [projectImplementation.command],
+    future_commands_documented_only: inventory.future_shards
+      .filter((shard) => !shard.implemented_in_vfy1b)
+      .map((shard) => shard.proposed_command),
   })}\n`,
 );
