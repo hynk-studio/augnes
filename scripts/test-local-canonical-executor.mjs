@@ -234,13 +234,17 @@ for (const required of [
   "authority",
   "integration",
   "operability",
-  "e2e-core",
+  "e2e-project-experience",
+  "e2e-operator-review-control",
+  "e2e-operator-native-host-execution",
+  "e2e-operator-multi-candidate",
   "e2e-continuity",
+  "e2e-golden",
 ]) {
   assert.equal(FULL_PHASE_IDS.includes(required), true, required);
 }
 assert(
-  fullPlan.findIndex((phase) => phase.id === "e2e-core") <
+  fullPlan.findIndex((phase) => phase.id === "e2e-project-experience") <
     fullPlan.findIndex((phase) => phase.id === "e2e-continuity"),
 );
 for (const phaseId of RESOURCE_EXCLUSIVE_PHASE_IDS) {
@@ -305,9 +309,14 @@ const canonicalScripts = {
   "test:authority": "node scripts/run-canonical-test-suite.mjs authority",
   "test:integration": "node scripts/run-canonical-test-suite.mjs integration",
   "test:operability": "node scripts/run-canonical-test-suite.mjs operability",
-  "test:e2e:core": "node scripts/run-canonical-test-suite.mjs e2e-core",
+  "test:e2e:project-experience":
+    "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+  "test:e2e:operator-execution":
+    "node scripts/run-canonical-test-suite.mjs e2e-operator-execution",
   "test:e2e:continuity":
     "node scripts/run-canonical-test-suite.mjs e2e-continuity",
+  "test:e2e:golden":
+    "node scripts/run-canonical-test-suite.mjs e2e-golden",
   "test:canonical-contract":
     "node scripts/test-local-canonical-verification-contract.mjs",
   "test:dependency-lock-compatibility":

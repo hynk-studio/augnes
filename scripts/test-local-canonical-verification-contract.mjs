@@ -39,9 +39,15 @@ const canonicalEnvironment = readRepositoryFile(
 const canonicalRunnerContract = readRepositoryFile(
   "scripts/test-canonical-child-runner.mjs",
 );
-const browserE2e = readRepositoryFile(
-  "scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
-);
+const browserE2e = [
+  "scripts/browser-validate-project-experience-v1.mjs",
+  "scripts/browser-validate-operator-review-control-v1.mjs",
+  "scripts/browser-validate-operator-native-host-execution-v1.mjs",
+  "scripts/browser-validate-operator-multi-candidate-v1.mjs",
+  "scripts/browser-validate-continuity-v1.mjs",
+  "scripts/browser-validate-cross-boundary-golden-v1.mjs",
+  "scripts/operator-execution-browser-lifecycle-v1.mjs",
+].map(readRepositoryFile).join("\n");
 const operatorSmoke = readRepositoryFile(
   "scripts/smoke-vnext-operator-pilot-v0-1.ts",
 );
@@ -225,9 +231,13 @@ const canonicalCommands = Object.freeze({
   operabilityPackage:
     "node scripts/run-canonical-test-suite.mjs operability-package",
   e2e: "node scripts/run-canonical-test-suite.mjs e2e",
-  e2eCore: "node scripts/run-canonical-test-suite.mjs e2e-core",
+  e2eProjectExperience:
+    "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+  e2eOperatorExecution:
+    "node scripts/run-canonical-test-suite.mjs e2e-operator-execution",
   e2eContinuity:
     "node scripts/run-canonical-test-suite.mjs e2e-continuity",
+  e2eGolden: "node scripts/run-canonical-test-suite.mjs e2e-golden",
   contract:
     "node scripts/test-local-canonical-verification-contract.mjs",
   localExecutorContract:
@@ -301,13 +311,18 @@ assert.equal(
 );
 assert.equal(packageJson.scripts["test:e2e"], canonicalCommands.e2e);
 assert.equal(
-  packageJson.scripts["test:e2e:core"],
-  canonicalCommands.e2eCore,
+  packageJson.scripts["test:e2e:project-experience"],
+  canonicalCommands.e2eProjectExperience,
+);
+assert.equal(
+  packageJson.scripts["test:e2e:operator-execution"],
+  canonicalCommands.e2eOperatorExecution,
 );
 assert.equal(
   packageJson.scripts["test:e2e:continuity"],
   canonicalCommands.e2eContinuity,
 );
+assert.equal(packageJson.scripts["test:e2e:golden"], canonicalCommands.e2eGolden);
 assert.equal(
   packageJson.scripts["test:canonical-contract"],
   canonicalCommands.contract,
@@ -386,8 +401,11 @@ for (const command of [
   "npm run test:authority",
   "npm run test:integration",
   "npm run test:operability",
-  "npm run test:e2e:core",
+  "npm run test:e2e:project-experience",
+  "npm run test:e2e:operator-execution",
   "npm run test:e2e:continuity",
+  "npm run test:e2e:golden",
+  "npm run test:e2e",
 ]) {
   requireText(readme, `\`${command}\``, `README is missing ${command}`);
   requireText(localPolicy, command, `policy is missing ${command}`);
@@ -449,8 +467,12 @@ for (const fragment of [
   `"authority"`,
   `"integration"`,
   `"operability"`,
-  `"e2e-core"`,
+  `"e2e-project-experience"`,
+  `"e2e-operator-review-control"`,
+  `"e2e-operator-native-host-execution"`,
+  `"e2e-operator-multi-candidate"`,
   `"e2e-continuity"`,
+  `"e2e-golden"`,
   `mode === "quick"`,
   `quick_dirty_feedback_only`,
   `deciding_mode_requires_clean_worktree`,
@@ -924,12 +946,6 @@ for (const variable of [
     `canonical child resource isolation is missing: ${variable}`,
   );
 }
-requireText(
-  canonicalEnvironment,
-  `AUGNES_BROWSER_E2E_SCOPE:`,
-  "browser scope must be suite-authored rather than ambient",
-);
-
 for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
@@ -940,7 +956,8 @@ for (const [pathName, timeout] of [
   ["scripts/test-runtime-operability.mjs", "120_000"],
   ["scripts/test-runtime-reconciliation.mjs", "480_000"],
   ["scripts/test-distributable-package.mjs", "480_000"],
-  ["scripts/browser-validate-vnext-native-host-result-v0-1.mjs", "480_000"],
+  ["scripts/browser-validate-continuity-v1.mjs", "480_000"],
+  ["scripts/browser-validate-cross-boundary-golden-v1.mjs", "360_000"],
 ]) {
   assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);
 }
@@ -1042,9 +1059,6 @@ assert.equal(
 for (const fragment of [
   `scripts/build-vnext-operator-browser-fixture-v0-1.ts`,
   `fixture_generation_duration_ms`,
-  `AUGNES_BROWSER_E2E_SCOPE`,
-  `RUN_CORE_SCOPE`,
-  `RUN_CONTINUITY_SCOPE`,
   `[browser-e2e] phase_start`,
   `[browser-e2e] phase_result`,
   `[browser-e2e] cleanup_start`,
@@ -1209,8 +1223,13 @@ function assertCanonicalChildTimeout(source, pathName, timeout) {
   const invocation = `\"${pathName}\")`;
   const invocationIndex = source.indexOf(invocation);
   assert.notEqual(invocationIndex, -1, `missing canonical child: ${pathName}`);
-  const blockStart = source.lastIndexOf("\n    {", invocationIndex);
-  const blockEnd = source.indexOf("\n    },", invocationIndex);
+  const suiteBlockStart = source.lastIndexOf("\n    {", invocationIndex);
+  const declaredBlockStart = source.lastIndexOf(" = {", invocationIndex);
+  const blockStart = Math.max(suiteBlockStart, declaredBlockStart);
+  const blockEnd =
+    blockStart === declaredBlockStart
+      ? source.indexOf("\n};", invocationIndex)
+      : source.indexOf("\n    },", invocationIndex);
   assert.notEqual(blockStart, -1, `missing canonical child block: ${pathName}`);
   assert.notEqual(blockEnd, -1, `unterminated canonical child: ${pathName}`);
   requireText(

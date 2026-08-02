@@ -137,8 +137,11 @@ npm test
 npm run test:authority
 npm run test:integration
 npm run test:operability
-npm run test:e2e:core
+npm run test:e2e:project-experience
+npm run test:e2e:operator-execution
 npm run test:e2e:continuity
+npm run test:e2e:golden
+npm run test:e2e
 ```
 
 The executor represents the nested install by running npm with the nested app

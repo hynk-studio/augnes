@@ -3,13 +3,79 @@
 import assert from "node:assert/strict";
 
 import {
+  assertOperatorRequestFailureEvidenceV1,
   assertOperatorExecutionDetailedValuesV1,
   assertOperatorExecutionFinalSuccessV1,
+  createOperatorRequestFailureEvidenceV1,
   createOperatorDetailedFieldCompletionOwnerV1,
   createOperatorResultFieldDefaultsV1,
   createOperatorSemanticMarkerOwnerV1,
   loadOperatorExecutionOwnerContractV1,
 } from "./operator-execution-result-contract-v1.mjs";
+
+const requestFailureEvidence = createOperatorRequestFailureEvidenceV1({
+  request_id: "321.45",
+  method: "get",
+  path: "/api/vnext/operator/inspector",
+  initiating_phase: "result_review_and_inspector",
+  observation_phase: "review_decision_and_transition",
+  error_text:
+    "request failed at /Users/example/private/project Authorization: Bearer private-token Cookie: session=private OPENAI_API_KEY=secret sk-privatevalue",
+  response_status: 409,
+  response_classification: "inspector_error",
+  error_code: "inspector_source_conflict",
+  navigation_epoch: 7,
+  delivery_sequence: 3,
+  delivery_cardinality: 2,
+  request_type: "Fetch",
+  private_roots: ["/Users/example/private/project"],
+});
+assert.doesNotThrow(() =>
+  assertOperatorRequestFailureEvidenceV1(requestFailureEvidence),
+);
+assert.deepEqual(
+  {
+    request_id: requestFailureEvidence.request_id,
+    method: requestFailureEvidence.method,
+    path: requestFailureEvidence.path,
+    initiating_phase: requestFailureEvidence.initiating_phase,
+    observation_phase: requestFailureEvidence.observation_phase,
+    response_status: requestFailureEvidence.response_status,
+    response_classification: requestFailureEvidence.response_classification,
+    error_code: requestFailureEvidence.error_code,
+    navigation_epoch: requestFailureEvidence.navigation_epoch,
+    delivery_sequence: requestFailureEvidence.delivery_sequence,
+    delivery_cardinality: requestFailureEvidence.delivery_cardinality,
+    duplicate_delivery_count: requestFailureEvidence.duplicate_delivery_count,
+  },
+  {
+    request_id: "321.45",
+    method: "GET",
+    path: "/api/vnext/operator/inspector",
+    initiating_phase: "result_review_and_inspector",
+    observation_phase: "review_decision_and_transition",
+    response_status: 409,
+    response_classification: "inspector_error",
+    error_code: "inspector_source_conflict",
+    navigation_epoch: 7,
+    delivery_sequence: 3,
+    delivery_cardinality: 2,
+    duplicate_delivery_count: 1,
+  },
+);
+assert.equal(Object.hasOwn(requestFailureEvidence, "post_data"), false);
+assert.equal(Object.hasOwn(requestFailureEvidence, "headers"), false);
+assert.equal(Object.hasOwn(requestFailureEvidence, "cookies"), false);
+const serializedRequestFailureEvidence = JSON.stringify(requestFailureEvidence);
+for (const privateMaterial of [
+  "/Users/example/private/project",
+  "private-token",
+  "session=private",
+  "OPENAI_API_KEY",
+  "sk-privatevalue",
+]) {
+  assert.equal(serializedRequestFailureEvidence.includes(privateMaterial), false);
+}
 
 const owner = loadOperatorExecutionOwnerContractV1();
 for (const contract of owner.children) {
@@ -93,6 +159,7 @@ process.stdout.write(
     children: owner.children.length,
     detailed_fields: owner.field_ids.length,
     semantic_markers: owner.marker_ids.length,
+    request_failure_evidence_contracts: 1,
     staged_finalization_negatives: owner.children.length * 10,
   })}\n`,
 );
@@ -140,27 +207,15 @@ function validResult(contract, fieldOwner, markerOwner) {
       updated: {},
       deleted: {},
     },
-    effect_semantic_operation_summary: {
-      table_operation_counts: {
-        inserted: {},
-        updated: {},
-        deleted: {},
-      },
-      forbidden_effect_zero_evidence: {
-        provider_calls: 0,
-        external_network_calls: 0,
-        github_calls: 0,
-        deployment_calls: 0,
-        publication_calls: 0,
-        memory_perspective_mutations: 0,
-      },
-      core_record_kind_counts: {},
-      run_contract_status_counts: {},
-      event_type_counts: {},
-      event_type_status_counts: {},
-      seam_operations: [],
+    forbidden_effect_zero_evidence: {
+      provider_calls: 0,
+      external_network_calls: 0,
+      github_calls: 0,
+      deployment_calls: 0,
+      publication_calls: 0,
+      memory_perspective_mutations: 0,
     },
-    bounded_effect_diff_entries: [],
+    effect_mismatch_material: null,
     unowned_effect_count: 0,
     unexpected_external_request_count: 0,
     unexpected_console_failure_count: 0,
@@ -206,26 +261,26 @@ function validResult(contract, fieldOwner, markerOwner) {
       events: [],
     },
   };
-  for (const entry of contract.equivalence) {
-    const valueContract = entry.runtime_value_contract;
+  for (const fieldId of contract.field_ids) {
+    const valueContract = contract.runtime_value_contract_by_field[fieldId];
     if (valueContract.kind === "boolean_true") {
-      result[entry.detailed_field_id] = true;
+      result[fieldId] = true;
     } else if (valueContract.kind === "boolean_false") {
-      result[entry.detailed_field_id] = false;
+      result[fieldId] = false;
     } else if (valueContract.kind === "exact_integer") {
-      result[entry.detailed_field_id] = valueContract.value;
+      result[fieldId] = valueContract.value;
     } else if (valueContract.kind === "exact_string") {
-      result[entry.detailed_field_id] = valueContract.value;
+      result[fieldId] = valueContract.value;
     } else if (valueContract.kind === "nonempty_string") {
-      result[entry.detailed_field_id] = "public-safe-value";
+      result[fieldId] = "public-safe-value";
     } else if (valueContract.kind === "nonempty_array") {
-      result[entry.detailed_field_id] = ["public-safe-value"];
+      result[fieldId] = ["public-safe-value"];
     } else if (valueContract.kind === "bounded_object") {
-      result[entry.detailed_field_id] = { status: "public-safe" };
+      result[fieldId] = { status: "public-safe" };
     } else if (valueContract.kind === "exact_json") {
-      result[entry.detailed_field_id] = structuredClone(valueContract.value);
+      result[fieldId] = structuredClone(valueContract.value);
     } else if (valueContract.kind === "approval_barrier_timing") {
-      result[entry.detailed_field_id] = {
+      result[fieldId] = {
         timing_version: "browser_approval_barriers.v0.1",
         events: [
           "approval_emitted",
@@ -246,7 +301,7 @@ function validResult(contract, fieldOwner, markerOwner) {
     } else if (
       valueContract.kind === "guide_brief_transition_request_counts"
     ) {
-      result[entry.detailed_field_id] = {
+      result[fieldId] = {
         before_impact: 2,
         after_impact: 2,
         after_confirmation: 2,
@@ -256,7 +311,7 @@ function validResult(contract, fieldOwner, markerOwner) {
     } else if (
       valueContract.kind === "expected_refusal_accounting_summary"
     ) {
-      result[entry.detailed_field_id] = {
+      result[fieldId] = {
         raw_console_events_preserved: true,
         tokens: [
           {

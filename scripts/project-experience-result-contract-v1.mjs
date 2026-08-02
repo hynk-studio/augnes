@@ -2,64 +2,32 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-const DEFAULT_INVENTORY_URL = new URL(
-  "./browser-verification-ownership-inventory.v1.json",
+const DEFAULT_MANIFEST_URL = new URL(
+  "./browser-verification-owners.v1.json",
   import.meta.url,
 );
 
 export function loadProjectExperienceResultContractV1({
-  inventory_url = DEFAULT_INVENTORY_URL,
+  manifest_url = DEFAULT_MANIFEST_URL,
 } = {}) {
-  const inventory = JSON.parse(readFileSync(inventory_url, "utf8"));
-  const implementation = inventory.implemented_shards?.project_experience;
-  assert(implementation, "project_experience_implementation_missing");
-  const equivalence = implementation.detailed_field_equivalence;
-  assert.equal(Array.isArray(equivalence), true);
-
-  const familyById = new Map(
-    inventory.coverage_equivalence.map((family) => [family.id, family]),
-  );
-  const projectShard = inventory.future_shards.find(
-    (shard) => shard.id === "project_experience",
-  );
-  assert(projectShard, "project_experience_shard_missing");
-  const requiredFieldIds = projectShard.detailed_family_ids.flatMap(
-    (familyId) => Object.keys(familyById.get(familyId)?.result_fields ?? {}),
-  );
-  const requiredMarkerIds = projectShard.detailed_family_ids.flatMap(
-    (familyId) => familyById.get(familyId)?.record_markers ?? [],
-  );
+  const manifest = JSON.parse(readFileSync(manifest_url, "utf8"));
+  assert.equal(manifest.schema, "augnes.browser-verification-owners.v1");
+  const owner = manifest.owners?.project_experience;
+  assert(owner, "project_experience_owner_missing");
+  const requiredFieldIds = owner.families.flatMap((family) => family.fields);
+  const requiredMarkerIds = owner.families.flatMap((family) => family.markers);
   assert.equal(requiredFieldIds.length, new Set(requiredFieldIds).size);
   assert.equal(requiredMarkerIds.length, new Set(requiredMarkerIds).size);
-  assert.equal(equivalence.length, requiredFieldIds.length);
-  assert.deepEqual(
-    new Set(equivalence.map((entry) => entry.detailed_field_id)),
-    new Set(requiredFieldIds),
+  const valueContractByField = expandValueContracts(
+    owner.value_contracts,
+    requiredFieldIds,
   );
-  for (const entry of equivalence) {
-    assert.equal(
-      projectShard.detailed_family_ids.includes(entry.coverage_family),
-      true,
-      entry.detailed_field_id,
-    );
-    assert.equal(
-      Object.hasOwn(
-        familyById.get(entry.coverage_family)?.result_fields ?? {},
-        entry.detailed_field_id,
-      ),
-      true,
-      entry.detailed_field_id,
-    );
-    assert.match(entry.value_contract, /^[a-z0-9_]+$/u);
-  }
 
   return Object.freeze({
     field_ids: Object.freeze([...requiredFieldIds]),
     marker_ids: Object.freeze([...requiredMarkerIds]),
-    equivalence: Object.freeze(equivalence.map((entry) => Object.freeze(entry))),
-    runtime_value_contracts: Object.freeze(
-      implementation.runtime_value_contracts,
-    ),
+    value_contract_by_field: Object.freeze(valueContractByField),
+    runtime_value_contracts: Object.freeze(owner.value_contracts.matrices),
   });
 }
 
@@ -97,10 +65,10 @@ export function assertProjectExperienceDetailedValuesV1({
   contract,
 }) {
   const runtimeContracts = contract.runtime_value_contracts;
-  for (const entry of contract.equivalence) {
-    const fieldId = entry.detailed_field_id;
+  for (const fieldId of contract.field_ids) {
     const value = result[fieldId];
-    switch (entry.value_contract) {
+    const valueContract = contract.value_contract_by_field[fieldId];
+    switch (valueContract) {
       case "boolean_true":
         assert.equal(value, true, `${fieldId}:boolean_true`);
         break;
@@ -155,9 +123,23 @@ export function assertProjectExperienceDetailedValuesV1({
         assert.deepEqual(value, [], `${fieldId}:empty_array`);
         break;
       default:
-        assert.fail(`unsupported_detailed_value_contract:${entry.value_contract}`);
+        assert.fail(`unsupported_detailed_value_contract:${valueContract}`);
     }
   }
+}
+
+function expandValueContracts(valueContracts, requiredFieldIds) {
+  const byField = {};
+  for (const [kind, fieldIds] of Object.entries(valueContracts)) {
+    if (kind === "matrices") continue;
+    assert.equal(Array.isArray(fieldIds), true, `invalid_value_contract:${kind}`);
+    for (const fieldId of fieldIds) {
+      assert.equal(Object.hasOwn(byField, fieldId), false, `duplicate_value_contract:${fieldId}`);
+      byField[fieldId] = kind;
+    }
+  }
+  assert.deepEqual(new Set(Object.keys(byField)), new Set(requiredFieldIds));
+  return byField;
 }
 
 export function assertProjectExperienceFinalSuccessV1({

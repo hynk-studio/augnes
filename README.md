@@ -163,8 +163,11 @@ The complete surface consists of:
 - `npm run test:authority`
 - `npm run test:integration`
 - `npm run test:operability`
-- `npm run test:e2e:core`
+- `npm run test:e2e:project-experience`
+- `npm run test:e2e:operator-execution`
 - `npm run test:e2e:continuity`
+- `npm run test:e2e:golden`
+- `npm run test:e2e`
 
 Receipts and logs remain ignored local artifacts. Their fingerprints establish
 content integrity and local provenance only; they are not hosted reproduction,

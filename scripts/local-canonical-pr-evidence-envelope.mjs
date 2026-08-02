@@ -27,8 +27,15 @@ export const PUBLIC_PHASE_COMMANDS = Object.freeze({
   authority: "npm run test:authority",
   integration: "npm run test:integration",
   operability: "npm run test:operability",
-  "e2e-core": "npm run test:e2e:core",
+  "e2e-project-experience": "npm run test:e2e:project-experience",
+  "e2e-operator-review-control":
+    "node scripts/run-canonical-test-suite.mjs e2e-operator-review-control",
+  "e2e-operator-native-host-execution":
+    "node scripts/run-canonical-test-suite.mjs e2e-operator-native-host-execution",
+  "e2e-operator-multi-candidate":
+    "node scripts/run-canonical-test-suite.mjs e2e-operator-multi-candidate",
   "e2e-continuity": "npm run test:e2e:continuity",
+  "e2e-golden": "npm run test:e2e:golden",
 });
 
 const PHASE_LABELS = Object.freeze({
@@ -41,8 +48,12 @@ const PHASE_LABELS = Object.freeze({
   authority: "Authority",
   integration: "Integration",
   operability: "Operability",
-  "e2e-core": "E2E core",
+  "e2e-project-experience": "E2E project experience",
+  "e2e-operator-review-control": "E2E operator review and control",
+  "e2e-operator-native-host-execution": "E2E native host execution",
+  "e2e-operator-multi-candidate": "E2E multi-candidate semantics",
   "e2e-continuity": "E2E continuity",
+  "e2e-golden": "E2E cross-boundary golden path",
 });
 
 const TRUST_BOUNDARY = Object.freeze({

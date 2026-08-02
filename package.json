@@ -52,8 +52,7 @@
     "test:operator-execution-browser-fixture": "node --import tsx scripts/test-operator-execution-browser-fixture-v1.ts",
     "test:operator-execution-result-contract": "node scripts/test-operator-execution-result-contract-v1.mjs",
     "test:operator-execution-effect-ledger": "node scripts/test-operator-execution-effect-ledger-v1.mjs",
-    "test:operator-execution-browser-contract": "node scripts/test-operator-execution-browser-contract-v1.mjs",
-    "test:browser-verification-inventory": "node scripts/test-browser-verification-ownership-inventory.mjs && node scripts/test-operator-execution-browser-contract-v1.mjs",
+    "test:browser-verification-owners": "node scripts/test-browser-verification-owners.mjs",
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
     "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",
     "test:local-canonical-executor": "node scripts/test-local-canonical-executor.mjs",
@@ -62,7 +61,6 @@
     "test:local-canonical-pr-evidence-transport": "node scripts/test-local-canonical-pr-evidence-transport.mjs",
     "test:dependency-lock-compatibility": "node scripts/test-dependency-lock-compatibility.mjs",
     "test:c8-semantic-visual": "node --import tsx scripts/test-c8-semantic-visual-contract.mjs",
-    "test:c8-visual-review": "AUGNES_C8_CAPTURE_REVIEW=1 node --import tsx scripts/browser-validate-vnext-native-host-result-v0-1.mjs",
     "verify:local:quick": "node scripts/run-local-canonical-verification.mjs quick",
     "verify:local:changed": "node scripts/run-local-canonical-verification.mjs changed",
     "verify:local:full": "node scripts/run-local-canonical-verification.mjs full",
@@ -84,10 +82,9 @@
     "test:operability:runtime-reconciliation": "node scripts/run-canonical-test-suite.mjs operability-runtime-reconciliation",
     "test:operability:package": "node scripts/run-canonical-test-suite.mjs operability-package",
     "test:e2e": "node scripts/run-canonical-test-suite.mjs e2e",
-    "test:e2e:core": "node scripts/run-canonical-test-suite.mjs e2e-core",
-    "test:e2e:cux6b": "node scripts/run-canonical-test-suite.mjs e2e-cux6b",
     "test:e2e:project-experience": "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
     "test:e2e:operator-execution": "node scripts/run-canonical-test-suite.mjs e2e-operator-execution",
-    "test:e2e:continuity": "node scripts/run-canonical-test-suite.mjs e2e-continuity"
+    "test:e2e:continuity": "node scripts/run-canonical-test-suite.mjs e2e-continuity",
+    "test:e2e:golden": "node scripts/run-canonical-test-suite.mjs e2e-golden"
   }
 }

@@ -12,7 +12,6 @@ import {
   captureOperatorExecutionEffectSnapshotV1,
   diffOperatorExecutionEffectSnapshotsV1,
   exactEffectSummaryV1,
-  exactOperatorExecutionEffectOperationSummaryV1,
 } from "./operator-execution-effect-ledger-v1.mjs";
 import {
   createOperatorChildTemporaryRootsV1,
@@ -50,6 +49,7 @@ export async function runOperatorExecutionBrowserChildV1({
   let functionalExecutionSucceeded = false;
   let beforeEffects = null;
   let afterEffects = null;
+  let observedEffectDiff = null;
   const result = {
     ok: false,
     validation_version: "operator_execution_browser_validation.v1",
@@ -77,8 +77,8 @@ export async function runOperatorExecutionBrowserChildV1({
     observed_effect_diff_fingerprint: null,
     effect_operation_counts: null,
     effect_operation_counts_by_category: null,
-    effect_semantic_operation_summary: null,
-    bounded_effect_diff_entries: [],
+    forbidden_effect_zero_evidence: null,
+    effect_mismatch_material: null,
     unowned_effect_count: null,
     packet_root_run_result_proposal_decision_transition_identity: null,
     request_response_console_page_refusal_summary: null,
@@ -194,16 +194,13 @@ export async function runOperatorExecutionBrowserChildV1({
       beforeEffects,
       afterEffects,
     );
+    observedEffectDiff = effectDiff;
     result.effect_diff_version = effectDiff.diff_version;
     result.after_effect_snapshot = exactEffectSummaryV1(afterEffects);
     result.observed_effect_diff_fingerprint = effectDiff.diff_fingerprint;
     result.effect_operation_counts = effectDiff.operation_counts;
     result.effect_operation_counts_by_category =
       effectDiff.operation_counts_by_category;
-    result.effect_semantic_operation_summary =
-      exactOperatorExecutionEffectOperationSummaryV1(effectDiff);
-    result.bounded_effect_diff_entries =
-      boundedOperatorExecutionEffectDiffEntriesV1(effectDiff);
     const exactEffectEvidence = assertOperatorExecutionEffectDiffV1({
       contract: fixture.manifest.permitted_effect_contract,
       manifest: fixture.manifest,
@@ -214,10 +211,13 @@ export async function runOperatorExecutionBrowserChildV1({
     });
     result.permitted_effect_diff_fingerprint =
       exactEffectEvidence.permitted_diff_fingerprint;
-    result.bounded_effect_diff_entries = exactEffectEvidence.bounded_diff_entries;
     result.unowned_effect_count = 0;
     functionalExecutionSucceeded = true;
   } catch (error) {
+    if (observedEffectDiff) {
+      result.effect_mismatch_material =
+        boundedOperatorExecutionEffectDiffEntriesV1(observedEffectDiff);
+    }
     if (beforeEffects && !afterEffects && fixture?.writable_database_path) {
       try {
         afterEffects = captureOperatorExecutionEffectSnapshotV1({
@@ -235,9 +235,8 @@ export async function runOperatorExecutionBrowserChildV1({
         result.effect_operation_counts = failedEffectDiff.operation_counts;
         result.effect_operation_counts_by_category =
           failedEffectDiff.operation_counts_by_category;
-        result.effect_semantic_operation_summary =
-          exactOperatorExecutionEffectOperationSummaryV1(failedEffectDiff);
-        result.bounded_effect_diff_entries =
+        observedEffectDiff = failedEffectDiff;
+        result.effect_mismatch_material =
           boundedOperatorExecutionEffectDiffEntriesV1(failedEffectDiff);
       } catch {
         // The bounded primary failure remains authoritative when snapshot capture
@@ -333,7 +332,7 @@ export async function runOperatorExecutionBrowserChildV1({
     result.unexpected_console_failure_count = unexpectedConsole.length;
     result.unexpected_page_failure_count = evidence?.page_errors.length ?? 0;
     result.unexpected_request_failure_count = unexpectedFailedRequests.length;
-    if (result.effect_semantic_operation_summary) {
+    if (observedEffectDiff) {
       const memoryPerspectiveMutations = ["inserted", "updated", "deleted"]
         .map(
           (operation) =>
@@ -341,7 +340,7 @@ export async function runOperatorExecutionBrowserChildV1({
               ?.memory_perspective ?? 0,
         )
         .reduce((total, count) => total + count, 0);
-      result.effect_semantic_operation_summary.forbidden_effect_zero_evidence = {
+      result.forbidden_effect_zero_evidence = {
         provider_calls: 0,
         external_network_calls: result.unexpected_external_request_count,
         github_calls: 0,
