@@ -1211,11 +1211,10 @@ assert.equal(
   "implemented_legacy_core_shadow_retained",
 );
 assert.equal(
-  inventory.sequencing.slice(2).every(
-    (entry) => entry.status === "deferred_separate_authorization",
-  ),
-  true,
+  inventory.sequencing[2].status,
+  "implemented_legacy_core_and_continuity_shadows_retained",
 );
+assert.equal(inventory.sequencing[3].status, "deferred_separate_authorization");
 assert.equal(inventory.non_goals.length >= 6, true);
 assert.equal(negativeFixtureCount, 57);
 
@@ -1240,9 +1239,15 @@ process.stdout.write(
     dependency_edges: inventory.dependency_graph.length,
     classification_counts: classificationCounts,
     owner_field_counts: ownerCounts,
-    implemented_owner_commands: [projectImplementation.command],
+    implemented_owner_commands: [
+      projectImplementation.command,
+      inventory.implemented_shards.operator_execution.command,
+    ],
     future_commands_documented_only: inventory.future_shards
-      .filter((shard) => !shard.implemented_in_vfy1b)
+      .filter(
+        (shard) =>
+          !shard.implemented_in_vfy1b && !shard.implemented_in_vfy1c,
+      )
       .map((shard) => shard.proposed_command),
   })}\n`,
 );

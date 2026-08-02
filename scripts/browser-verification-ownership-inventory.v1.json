@@ -1412,7 +1412,16 @@
     ],
     "copy_on_write_rule": "A future shard may copy immutable fixture material into its own resource root; it may not open one shared writable database.",
     "per_shard_owned_resources_profile": "future_independent_shard",
-    "forbidden_transfer": "No live mutable DB, runtime, browser, CDP session, profile, operator session, active-project selection, or approval file is transferred between shards."
+    "forbidden_transfer": "No live mutable DB, runtime, browser, CDP session, profile, operator session, active-project selection, or approval file is transferred between shards.",
+    "vfy1c_operator_profiles": {
+      "owner": "scripts/operator-execution-browser-fixture-v1.ts",
+      "version": "operator_execution_browser_fixture.v1",
+      "profiles": ["review_control", "native_host_execution", "multi_candidate"],
+      "source_seed": "vnext_operator_pilot_browser_fixture.v0.1",
+      "copy_model": "Each child constructs an immutable source database, copies it to one child-owned writable database, and never transfers the writable database or live runtime state.",
+      "provider_network_capability": "none",
+      "credential_material_included": false
+    }
   },
   "future_shards": [
     {
@@ -1430,9 +1439,42 @@
       "proposed_command": "npm run test:e2e:operator-execution",
       "implemented_in_vfy1a": false,
       "implemented_in_vfy1b": false,
-      "implementation_status": "deferred_vfy1c",
+      "implemented_in_vfy1c": true,
+      "implementation_status": "vfy1c_extracted_legacy_core_and_continuity_shadows_retained",
       "primary_question": "Does an authenticated explicit operation follow the exact packet and lineage through execution, result, and semantic review without authority collapse?",
       "detailed_family_ids": ["first_work_definition_and_start", "project_controls_and_automation", "operator_session_bootstrap", "strategic_analysis_and_proposal_review", "direct_native_host_round_trip", "live_native_host_approval_lifecycle", "result_review_and_inspector", "review_decision_and_transition", "bounded_automation_execution", "multi_candidate_and_guidebrief_semantic_scope", "operator_session_refusal_recovery"],
+      "child_partitions": [
+        {
+          "id": "operator-review-control",
+          "fixture_profile": "review_control",
+          "executable_source": "scripts/browser-validate-operator-review-control-v1.mjs",
+          "detailed_field_count": 70,
+          "detailed_field_set_sha256": "e75fa282eb4d7c942110f5ac0133ee4a8142da67d25c91c8dcaf79d1c15c5149",
+          "semantic_marker_count": 22,
+          "semantic_marker_set_sha256": "a8cae8b8292e3881308e1dd7804952cae819bfd790f5fd2f3f3d0ec84b8d48ec",
+          "detailed_family_ids": ["project_controls_and_automation", "operator_session_bootstrap", "strategic_analysis_and_proposal_review", "result_review_and_inspector", "review_decision_and_transition", "operator_session_refusal_recovery"]
+        },
+        {
+          "id": "operator-native-host-execution",
+          "fixture_profile": "native_host_execution",
+          "executable_source": "scripts/browser-validate-operator-native-host-execution-v1.mjs",
+          "detailed_field_count": 35,
+          "detailed_field_set_sha256": "b0c154c6cad215691c2ed5c72ef0daf8cc87ee0b00897f8aee8c7160757768c4",
+          "semantic_marker_count": 10,
+          "semantic_marker_set_sha256": "86301c5e04ba08428c58bb7542322728d5c32feb575bdc3d7a6e6ee1c2b8e831",
+          "detailed_family_ids": ["first_work_definition_and_start", "direct_native_host_round_trip", "live_native_host_approval_lifecycle", "bounded_automation_execution"]
+        },
+        {
+          "id": "operator-multi-candidate",
+          "fixture_profile": "multi_candidate",
+          "executable_source": "scripts/browser-validate-operator-multi-candidate-v1.mjs",
+          "detailed_field_count": 20,
+          "detailed_field_set_sha256": "8d6e9e681800ca2003c29c5c8c629f6200acad9f1bbb8ddf7950b3e62aadba81",
+          "semantic_marker_count": 31,
+          "semantic_marker_set_sha256": "35e3a087b25e07aa83c99036c0997ec75bd446f6e44f886af5365ea19c8daf22",
+          "detailed_family_ids": ["multi_candidate_and_guidebrief_semantic_scope"]
+        }
+      ],
       "resource_ownership_profile": "future_independent_shard"
     },
     {
@@ -1706,6 +1748,126 @@
       "planner_selected": false,
       "receipt_aggregated": false,
       "planner_receipt_semantics_changed": false
+    },
+    "operator_execution": {
+      "implementation_baseline": "9611e7025b906b11cf27d522c2b1f998dd29e662",
+      "command": "npm run test:e2e:operator-execution",
+      "canonical_suite": "e2e-operator-execution",
+      "child_partition_source": "future_shards.operator_execution.child_partitions",
+      "fixture_owner_source": "scripts/operator-execution-browser-fixture-v1.ts",
+      "fixture_contract_source": "scripts/test-operator-execution-browser-fixture-v1.ts",
+      "result_contract_source": "scripts/operator-execution-result-contract-v1.mjs",
+      "equivalence_source": "scripts/operator-execution-equivalence.v1.json",
+      "static_contract_source": "scripts/test-operator-execution-browser-contract-v1.mjs",
+      "fixture_version": "operator_execution_browser_fixture.v1",
+      "static_grammar_profile": "operator_execution_child_static_grammar.v1",
+      "lifecycle_timing_static_grammar_profile": "operator_execution_lifecycle_timing_static_grammar.v1",
+      "timing_kind_ids": ["runtime_startup", "chrome_startup", "phase", "navigation", "request_quiet", "stream_settlement", "runtime_shutdown", "chrome_cdp_shutdown", "wait_for_condition", "wait_for_host_condition", "fixture_construction", "global_cleanup"],
+      "timing_milestone_ids": ["operator child startup", "operator child route ready"],
+      "detailed_field_count": 125,
+      "detailed_field_union_sha256": "b79aff43487ecdfd6d4403c42644fe4f5c73ea2ab7e3396d4b1338d917550ce9",
+      "semantic_marker_count": 63,
+      "semantic_marker_union_sha256": "d252d551566bda6e013385a5a243387cdc0a08bd9af82303aa25bd0a6c408e90",
+      "child_count": 3,
+      "child_timeout_ms": 360000,
+      "successful_inner_target_ms": 300000,
+      "reference_bound_ms": 480000,
+      "required_reference_headroom_ms": 180000,
+      "planner_selected": false,
+      "receipt_aggregated": false,
+      "planner_receipt_semantics_changed": false,
+      "legacy_core_shadow_retained": true,
+      "legacy_continuity_multi_candidate_shadow_retained": true,
+      "project_experience_executable_changed": false,
+      "shadow_removal_owner": "VFY1-D",
+      "owned_mutable_resources": [
+        "immutable_fixture_copy",
+        "writable_database",
+        "runtime_state_directory",
+        "runtime_supervisor_process_tree",
+        "application_listener_port",
+        "bridge_debug_ports",
+        "browser_process",
+        "cdp_session",
+        "browser_profile",
+        "temporary_root",
+        "project_roots",
+        "download_directory",
+        "bootstrap_session_action_credentials",
+        "approval_cancel_terminal_file_barriers",
+        "deterministic_transport_fixture_and_counters",
+        "request_response_console_page_ledgers",
+        "owned_streams_and_cleanup"
+      ],
+      "forbidden_shared_mutable_resources": [
+        "live_writable_database",
+        "runtime_process",
+        "listener",
+        "browser_process",
+        "cdp_session",
+        "browser_profile",
+        "active_project_selection",
+        "operator_session",
+        "bootstrap_or_action_credential",
+        "approval_barrier",
+        "transport_counter",
+        "mutable_fixture_directory",
+        "packet_run_result_proposal_decision_transition_row"
+      ],
+      "fixture_profiles": [
+        "review_control",
+        "native_host_execution",
+        "multi_candidate"
+      ],
+      "fixture_profile_contracts": {
+        "review_control": {
+          "records_present_at_start": ["source_bound_packet", "terminal_run_receipt", "unreviewed_proposals", "non_target_applied_transition"],
+          "records_intentionally_absent": ["strategic_transfer_proposal"],
+          "permitted_effect_delta": {"task_context_packets":1,"run_receipts":0,"proposals":2,"criterion_assessments":0,"review_decisions":2,"transition_previews":1,"applied_transitions":1,"runs":0,"run_events":0,"project_control_revisions":3,"operator_sessions":3,"work_closures":0},
+          "special_fixture_boundary": "The deterministic strategic transport fixture is consumed exactly once, then retired inside the child-owned temporary root before restart and the genuine unavailable zero-model surface is asserted."
+        },
+        "native_host_execution": {
+          "records_present_at_start": ["source_bound_packet", "deterministic_native_host_seam", "clean_first_work_project", "enabled_project_automation_control_fixture_input", "fresh_bounded_automation_project_packet_fixture_input"],
+          "records_intentionally_absent": ["first_work_definition_for_clean_project", "running_native_host_process"],
+          "permitted_effect_delta": {"task_context_packets":2,"run_receipts":3,"proposals":3,"criterion_assessments":0,"review_decisions":0,"transition_previews":0,"applied_transitions":0,"runs":4,"run_events":47,"project_control_revisions":0,"operator_sessions":3,"work_closures":0},
+          "special_fixture_boundary": "The automation packet is produced by the real semantic review, confirmation, and Transition production handlers so it carries a fresh exact source grant; no provider or external service runs."
+        },
+        "multi_candidate": {
+          "records_present_at_start": ["source_bound_packet", "multi_candidate_proposal_source", "exact_binding_ready_and_newer_undecided_proposal_sources", "non_target_applied_transition"],
+          "records_intentionally_absent": ["target_candidate_decision"],
+          "permitted_effect_delta": {"task_context_packets":1,"run_receipts":0,"proposals":0,"criterion_assessments":0,"review_decisions":4,"transition_previews":1,"applied_transitions":1,"runs":0,"run_events":0,"project_control_revisions":0,"operator_sessions":1,"work_closures":0},
+          "special_fixture_boundary": "Two exact candidates, one blocked proposal, and the legacy-equivalent older-ready/newer-undecided Home-binding pair are admitted before Browser execution; only the target decisions and exact Transition records owned by this child may change."
+        }
+      },
+      "production_fixture_owners": [
+        "vnext_operator_browser_fixture_builder_v0_1",
+        "project_identity_registry_v0_1",
+        "project_lifecycle_registry_v0_1",
+        "project_control_store_v0_1",
+        "initial_project_work_context_compiler_v0_1",
+        "durable_semantic_store_v0_1",
+        "structured_run_receipt_admission_v0_1",
+        "episode_delta_proposal_admission_v0_1",
+        "local_operator_session_v0_1"
+      ],
+      "authority_effect_contract": {
+        "snapshot_source": "snapshotOperatorExecutionEffectsV1",
+        "exact_delta_required": true,
+        "unowned_effect_count_required": 0,
+        "provider_calls_required": 0,
+        "external_network_calls_required": 0,
+        "credential_private_material_boundary_required": true
+      },
+      "timing_contract": {
+        "outer_timeout_ms_per_child": 360000,
+        "successful_inner_target_ms_per_child": 300000,
+        "reference_bound_ms": 480000,
+        "minimum_reference_headroom_ms_per_child": 180000,
+        "natural_exit_required": true,
+        "descendant_cleanup_allowed_on_success": false,
+        "residue_allowed_on_success": false,
+        "parent_execution": "sequential"
+      }
     }
   },
   "thin_golden_path": {
@@ -1771,20 +1933,30 @@
       "Do not split by equal elapsed halves.",
       "Do not add pass-chasing retries, arbitrary sleeps, assertion weakening, or automatic timeout widening."
     ],
-    "current_limits_changed": false
+    "current_limits_changed": false,
+    "vfy1c_operator_execution": {
+      "children": ["operator-review-control", "operator-native-host-execution", "operator-multi-candidate"],
+      "outer_timeout_ms_each": 360000,
+      "successful_inner_target_ms_each": 300000,
+      "reference_bound_ms": 480000,
+      "minimum_reference_headroom_ms_each": 180000,
+      "parent_bound": null,
+      "execution_order": "sequential",
+      "retry_count": 0
+    }
   },
   "sequencing": [
     {"id": "VFY1-A", "status": "complete_inventory_owner", "responsibility": "Inventory, ownership, dependencies, fixture boundary, golden specification, and static completeness contracts."},
     {"id": "VFY1-B", "status": "implemented_legacy_core_shadow_retained", "responsibility": "Extract independent project experience shard."},
-    {"id": "VFY1-C", "status": "deferred_separate_authorization", "responsibility": "Extract independent operator and execution shard."},
+    {"id": "VFY1-C", "status": "implemented_legacy_core_and_continuity_shadows_retained", "responsibility": "Extract the independent operator and execution owner as three resource-isolated canonical children without planner aggregation."},
     {"id": "VFY1-D", "status": "deferred_separate_authorization", "responsibility": "Wire planner selection, thin golden path, per-shard receipt material, aggregation, and old-owner removal after equivalence proof."}
   ],
   "non_goals": [
-    "No operator-execution, golden-path, or additional Browser shard extraction.",
+    "No thin golden-path or additional Browser shard extraction beyond the VFY1-C operator-execution owner.",
     "No legacy Browser assertion, scope, execution ordering, timeout, retry, or sleep change.",
     "No deletion or shortening of e2e-core.",
     "No Local Canonical planner selection or receipt deciding-semantics change.",
     "No product, UI, API, schema, Core, protocol, native-host, authority, or runtime behavior change.",
-    "No VFY1-C, VFY1-D, C9, or PC6 implementation."
+    "No VFY1-D, C9, or PC6 implementation."
   ]
 }

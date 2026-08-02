@@ -11,7 +11,11 @@ export function createBrowserE2ETimingRecorder({
   now = Date.now,
   maxEvents = MAX_EVENTS,
 } = {}) {
-  if (!/^(?:core|continuity|complete|cux6b|project-experience)$/u.test(scope ?? "")) {
+  if (
+    !/^(?:core|continuity|complete|cux6b|project-experience|operator-review-control|operator-native-host-execution|operator-multi-candidate)$/u.test(
+      scope ?? "",
+    )
+  ) {
     throw new Error("browser_e2e_timing_scope_invalid");
   }
   if (!Number.isSafeInteger(maxEvents) || maxEvents < 1 || maxEvents > MAX_EVENTS) {
