@@ -249,6 +249,470 @@ export function extractBrowserDetailedFieldCompletionMetadata(source) {
   };
 }
 
+export function extractOperatorExecutionChildStaticMetadata(source) {
+  if (typeof source !== "string" || source.length === 0) {
+    throw metadataError(
+      "browser_verification_source_empty",
+      "operator execution child source must be non-empty",
+    );
+  }
+  const lexical = tokenizeJavaScript(source);
+  if (lexical.nextIndex !== source.length) {
+    throw metadataError(
+      "browser_verification_lexical_scan_incomplete",
+      "operator execution child lexical scan did not consume the source",
+    );
+  }
+  assertNoSensitiveTemplateExpressionSyntax(
+    source,
+    lexical.templateExpressionTokenGroups,
+  );
+  const tokens = lexical.tokens;
+  const completion = extractBrowserDetailedFieldCompletionMetadata(source);
+  const markers = extractOwnedLiteralFunctionCalls({
+    source,
+    tokens,
+    name: "record",
+  });
+  const phases = extractOwnedMemberLiteralCalls({
+    source,
+    tokens,
+    object: "lifecycle",
+    method: "runPhase",
+  });
+  const scopes = extractValidationScopes(source, tokens);
+  const resultAssignments = extractOwnerChildResultAssignments(source, tokens);
+  return {
+    grammar_version: "operator_execution_child_static_grammar.v1",
+    source_sha256: createHash("sha256").update(source).digest("hex"),
+    scopes: scopes.values,
+    detailed_completion_ids: completion.completion_ids,
+    semantic_marker_ids: markers.values,
+    phase_call_ids: phases.values,
+    result_assignment_fields: resultAssignments.fields,
+    result_assignment_count: resultAssignments.count,
+    raw_call_counts: {
+      complete_detailed_field: completion.raw_call_count,
+      record: markers.rawCount,
+      run_phase: phases.rawCount,
+      validation_scope_declaration: scopes.rawCount,
+    },
+    sensitive_reference_counts: {
+      complete_detailed_field: completion.sensitive_reference_counts,
+      record: markers.referenceCounts,
+      run_phase: phases.referenceCounts,
+    },
+  };
+}
+
+export function extractOperatorExecutionLifecycleTimingStaticMetadata(source) {
+  if (typeof source !== "string" || source.length === 0) {
+    throw metadataError(
+      "browser_verification_source_empty",
+      "operator execution lifecycle source must be non-empty",
+    );
+  }
+  const lexical = tokenizeJavaScript(source);
+  if (lexical.nextIndex !== source.length) {
+    throw metadataError(
+      "browser_verification_lexical_scan_incomplete",
+      "operator execution lifecycle lexical scan did not consume the source",
+    );
+  }
+  const tokens = lexical.tokens;
+  const starts = extractTimingLiteralCalls({
+    source,
+    tokens,
+    method: "start",
+    identifierPattern: INVENTORY_IDENTIFIER_PATTERN,
+  });
+  const milestones = extractTimingLiteralCalls({
+    source,
+    tokens,
+    method: "milestone",
+    identifierPattern: /^[A-Za-z0-9][A-Za-z0-9 _-]{0,80}$/u,
+    requireSingleArgument: true,
+  });
+  const recordWait = extractUnqualifiedLiteralCalls({
+    source,
+    tokens,
+    name: "recordWait",
+    identifierPattern: INVENTORY_IDENTIFIER_PATTERN,
+    requireFollowingComma: true,
+  });
+  const recordWaitDeclarationIndex = tokens.findIndex(
+    (token, index) =>
+      token.value === "recordWait" && tokens[index - 1]?.value === "function",
+  );
+  if (
+    recordWaitDeclarationIndex < 0 ||
+    !matchesTokenValues(tokens, recordWaitDeclarationIndex + 1, [
+      "(",
+      "kind",
+      ",",
+      "label",
+      ",",
+      "started",
+      ")",
+      "{",
+    ])
+  ) {
+    throw metadataError(
+      "browser_verification_operator_timing_forwarder_unsupported",
+      "recordWait must retain its exact canonical declaration",
+    );
+  }
+  const recordWaitBodyOpen = recordWaitDeclarationIndex + 8;
+  const recordWaitBodyClose = findMatchingToken(
+    tokens,
+    recordWaitBodyOpen,
+    "{",
+    "}",
+  );
+  const durationValues = [];
+  const durationCallIndexes = [];
+  let forwardedDurationCount = 0;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].value !== "duration") continue;
+    if (![".", "?."].includes(tokens[index - 1]?.value)) continue;
+    if (
+      tokens[index - 2]?.value !== "timing" ||
+      tokens[index - 1]?.value !== "." ||
+      tokens[index + 1]?.value !== "("
+    ) {
+      throw metadataErrorAt(
+        source,
+        tokens[index],
+        "browser_verification_operator_timing_reference_unsupported",
+        "timing.duration must be a canonical direct call",
+      );
+    }
+    const timingIndex = index - 2;
+    durationCallIndexes.push(timingIndex);
+    const closeIndex = findMatchingToken(tokens, index + 1, "(", ")");
+    const firstArgument = extractFirstArgument(tokens, index + 1, closeIndex);
+    if (
+      firstArgument.tokens.length === 1 &&
+      firstArgument.tokens[0].type === "identifier" &&
+      firstArgument.tokens[0].value === "kind" &&
+      timingIndex > recordWaitBodyOpen &&
+      timingIndex < recordWaitBodyClose
+    ) {
+      forwardedDurationCount += 1;
+      continue;
+    }
+    durationValues.push(
+      requireCanonicalDoubleString(
+        source,
+        firstArgument.tokens,
+        INVENTORY_IDENTIFIER_PATTERN,
+        "browser_verification_operator_timing_duration_argument_unsupported",
+      ),
+    );
+  }
+  if (forwardedDurationCount !== 1) {
+    throw metadataError(
+      "browser_verification_operator_timing_forwarder_unsupported",
+      `expected exactly one recordWait timing.duration(kind, ...) forwarder; observed ${forwardedDurationCount}`,
+    );
+  }
+  const summaryCallIndexes = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].value !== "summary") continue;
+    if (![".", "?."].includes(tokens[index - 1]?.value)) continue;
+    if (
+      tokens[index - 2]?.value !== "timing" ||
+      tokens[index - 1]?.value !== "." ||
+      !matchesTokenValues(tokens, index + 1, ["(", ")"])
+    ) {
+      throw metadataErrorAt(
+        source,
+        tokens[index],
+        "browser_verification_operator_timing_reference_unsupported",
+        "timing.summary must retain its exact direct zero-argument form",
+      );
+    }
+    summaryCallIndexes.push(index - 2);
+  }
+  if (summaryCallIndexes.length !== 1) {
+    throw metadataError(
+      "browser_verification_operator_timing_reference_unsupported",
+      `expected exactly one timing.summary call; observed ${summaryCallIndexes.length}`,
+    );
+  }
+  const timingDeclarationIndexes = tokens
+    .map((token, index) =>
+      token.value === "timing" &&
+      tokens[index - 1]?.value === "const" &&
+      tokens[index + 1]?.value === "=" &&
+      tokens[index + 2]?.value === "createBrowserE2ETimingRecorder"
+        ? index
+        : -1,
+    )
+    .filter((index) => index >= 0);
+  if (timingDeclarationIndexes.length !== 1) {
+    throw metadataError(
+      "browser_verification_operator_timing_declaration_unsupported",
+      `expected exactly one canonical timing declaration; observed ${timingDeclarationIndexes.length}`,
+    );
+  }
+  const directTimingReferences = new Set([
+    ...starts.callIndexes,
+    ...milestones.callIndexes,
+    ...durationCallIndexes,
+    ...summaryCallIndexes,
+  ]);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].type !== "identifier" || tokens[index].value !== "timing") {
+      continue;
+    }
+    if (
+      timingDeclarationIndexes.includes(index) ||
+      directTimingReferences.has(index)
+    ) {
+      continue;
+    }
+    throw metadataErrorAt(
+      source,
+      tokens[index],
+      "browser_verification_operator_timing_reference_unsupported",
+      "timing may appear only in its canonical declaration or a directly extracted tracked call",
+    );
+  }
+  const directRecordWaitCalls = new Set(recordWait.callIndexes);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (
+      tokens[index].type !== "identifier" ||
+      tokens[index].value !== "recordWait"
+    ) {
+      continue;
+    }
+    if (
+      index === recordWaitDeclarationIndex ||
+      directRecordWaitCalls.has(index)
+    ) {
+      continue;
+    }
+    throw metadataErrorAt(
+      source,
+      tokens[index],
+      "browser_verification_operator_timing_forwarder_unsupported",
+      "recordWait may appear only as its canonical declaration or a direct literal call",
+    );
+  }
+  return {
+    grammar_version: "operator_execution_lifecycle_timing_static_grammar.v1",
+    source_sha256: createHash("sha256").update(source).digest("hex"),
+    timing_kind_ids: uniqueInOrder([
+      ...starts.values,
+      ...durationValues,
+      ...recordWait.values,
+    ]),
+    timing_milestone_ids: milestones.values,
+    raw_call_counts: {
+      start: starts.rawCount,
+      duration: durationCallIndexes.length,
+      milestone: milestones.rawCount,
+      record_wait: recordWait.rawCount,
+      summary: summaryCallIndexes.length,
+    },
+    forwarded_duration_count: forwardedDurationCount,
+    sensitive_reference_counts: {
+      timing: {
+        canonical_declaration: 1,
+        canonical_direct_call: directTimingReferences.size,
+        supported_non_extraction_reference: 0,
+      },
+      record_wait: {
+        canonical_declaration: 1,
+        canonical_direct_call: recordWait.callIndexes.length,
+        supported_non_extraction_reference: 0,
+      },
+    },
+  };
+}
+
+function extractOwnedLiteralFunctionCalls({ source, tokens, name }) {
+  const calls = extractUnqualifiedLiteralCalls({
+    source,
+    tokens,
+    name,
+    identifierPattern: INVENTORY_IDENTIFIER_PATTERN,
+    requireSingleArgument: true,
+  });
+  const declarations = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (
+      tokens[index].value === name &&
+      tokens[index - 1]?.value === "function"
+    ) {
+      if (!matchesTokenValues(tokens, index + 1, ["(", "id", ")", "{"])) {
+        throw metadataErrorAt(
+          source,
+          tokens[index],
+          "browser_verification_owner_function_declaration_unsupported",
+          `${name} must retain its exact canonical function ${name}(id) declaration`,
+        );
+      }
+      declarations.push(index);
+    }
+  }
+  if (declarations.length !== 1) {
+    throw metadataError(
+      "browser_verification_owner_function_declaration_unsupported",
+      `expected exactly one canonical ${name} declaration; observed ${declarations.length}`,
+    );
+  }
+  const directCalls = new Set(calls.callIndexes);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].type !== "identifier" || tokens[index].value !== name) {
+      continue;
+    }
+    if (index === declarations[0] || directCalls.has(index)) continue;
+    throw metadataErrorAt(
+      source,
+      tokens[index],
+      "browser_verification_owner_function_reference_unsupported",
+      `${name} may appear only as its canonical declaration or a canonical direct literal call`,
+    );
+  }
+  if (calls.values.length !== new Set(calls.values).size) {
+    throw metadataError(
+      "browser_verification_owner_literal_duplicate",
+      `${name} literal IDs must be unique`,
+    );
+  }
+  return {
+    ...calls,
+    referenceCounts: {
+      canonical_declaration: 1,
+      canonical_direct_call: calls.callIndexes.length,
+      supported_non_extraction_reference: 0,
+    },
+  };
+}
+
+function extractOwnedMemberLiteralCalls({ source, tokens, object, method }) {
+  const values = [];
+  const callIndexes = [];
+  let rawCount = 0;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].value !== method) continue;
+    const canonical =
+      tokens[index - 2]?.value === object &&
+      tokens[index - 1]?.value === "." &&
+      tokens[index + 1]?.value === "(";
+    if (!canonical) {
+      throw metadataErrorAt(
+        source,
+        tokens[index],
+        "browser_verification_owner_member_call_unsupported",
+        `${object}.${method} may be used only as a canonical direct call`,
+      );
+    }
+    rawCount += 1;
+    const closeIndex = findMatchingToken(tokens, index + 1, "(", ")");
+    const firstArgument = extractFirstArgument(tokens, index + 1, closeIndex);
+    if (firstArgument.delimiter !== ",") {
+      throw metadataErrorAt(
+        source,
+        tokens[index],
+        "browser_verification_owner_member_call_unsupported",
+        `${object}.${method} requires a literal first argument followed by a comma`,
+      );
+    }
+    values.push(
+      requireCanonicalDoubleString(
+        source,
+        firstArgument.tokens,
+        INVENTORY_IDENTIFIER_PATTERN,
+        "browser_verification_owner_member_call_unsupported",
+      ),
+    );
+    callIndexes.push(index);
+  }
+  if (values.length !== new Set(values).size) {
+    throw metadataError(
+      "browser_verification_owner_phase_duplicate",
+      `${object}.${method} phase IDs must be unique`,
+    );
+  }
+  return {
+    values,
+    rawCount,
+    callIndexes,
+    referenceCounts: {
+      canonical_declaration: 0,
+      canonical_direct_call: callIndexes.length,
+      supported_non_extraction_reference: 0,
+    },
+  };
+}
+
+function extractOwnerChildResultAssignments(source, tokens) {
+  const fields = [];
+  let count = 0;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].value !== "result") continue;
+    const previous = tokens[index - 1]?.value;
+    const next = tokens[index + 1]?.value;
+    if (next === "." && tokens[index + 2]?.type === "identifier") {
+      const field = tokens[index + 2].value;
+      const operator = tokens[index + 3]?.value;
+      if (operator === "=") {
+        fields.push(field);
+        count += 1;
+        continue;
+      }
+      if (
+        RESULT_MUTATION_OPERATORS.has(operator) ||
+        ["delete", "++", "--"].includes(previous)
+      ) {
+        throw unsupportedResultMutation(
+          source,
+          tokens[index],
+          `operator child result mutation ${String(operator ?? previous)}`,
+        );
+      }
+      if ([".", "?.", "["].includes(operator)) {
+        throw unsupportedResultMutation(
+          source,
+          tokens[index],
+          "nested operator child result access",
+        );
+      }
+      continue;
+    }
+    if (next === "[") {
+      throw unsupportedResultMutation(
+        source,
+        tokens[index],
+        "computed operator child result access",
+      );
+    }
+    const canonicalParameter =
+      tokens[index - 1]?.value === "," &&
+      [",", "}"].includes(tokens[index + 1]?.value);
+    if (canonicalParameter) continue;
+    if (
+      next === ")" &&
+      tokens[index - 1]?.value === "(" &&
+      tokens[index - 2]?.value === "stringify" &&
+      tokens[index - 3]?.value === "." &&
+      tokens[index - 4]?.value === "JSON"
+    ) {
+      continue;
+    }
+    throw unsupportedResultMutation(
+      source,
+      tokens[index],
+      "aliased or indirect operator child result reference",
+    );
+  }
+  assertNoIndirectResultMutationHelpers(source, tokens);
+  return { fields: uniqueInOrder(fields), count };
+}
+
 function extractResultSurface(source, tokens) {
   const declarations = [];
   for (let index = 0; index < tokens.length - 3; index += 1) {

@@ -49,7 +49,11 @@
     "test:operator-browser-fixture": "node --import tsx scripts/test-vnext-operator-browser-fixture-v0-1.ts",
     "test:project-experience-browser-fixture": "node --import tsx scripts/test-project-experience-browser-fixture-v1.ts",
     "test:project-experience-result-contract": "node scripts/test-project-experience-result-contract-v1.mjs",
-    "test:browser-verification-inventory": "node scripts/test-browser-verification-ownership-inventory.mjs",
+    "test:operator-execution-browser-fixture": "node --import tsx scripts/test-operator-execution-browser-fixture-v1.ts",
+    "test:operator-execution-result-contract": "node scripts/test-operator-execution-result-contract-v1.mjs",
+    "test:operator-execution-effect-ledger": "node scripts/test-operator-execution-effect-ledger-v1.mjs",
+    "test:operator-execution-browser-contract": "node scripts/test-operator-execution-browser-contract-v1.mjs",
+    "test:browser-verification-inventory": "node scripts/test-browser-verification-ownership-inventory.mjs && node scripts/test-operator-execution-browser-contract-v1.mjs",
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
     "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",
     "test:local-canonical-executor": "node scripts/test-local-canonical-executor.mjs",
@@ -83,6 +87,7 @@
     "test:e2e:core": "node scripts/run-canonical-test-suite.mjs e2e-core",
     "test:e2e:cux6b": "node scripts/run-canonical-test-suite.mjs e2e-cux6b",
     "test:e2e:project-experience": "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+    "test:e2e:operator-execution": "node scripts/run-canonical-test-suite.mjs e2e-operator-execution",
     "test:e2e:continuity": "node scripts/run-canonical-test-suite.mjs e2e-continuity"
   }
 }

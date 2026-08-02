@@ -1,9 +1,10 @@
 # Canonical Browser verification ownership v1
 
-Status: VFY1-B project-experience extraction with legacy-core shadow retained.
+Status: VFY1-C operator-execution extraction with legacy-core and continuity
+shadows retained.
 The governing roadmap is
 [Issue #103](https://github.com/hynk-studio/augnes-perspective-lab/issues/103).
-VFY1-C and VFY1-D remain unimplemented.
+VFY1-D remains unimplemented.
 
 The machine-readable authority for the exact counts, field/marker membership,
 owner assignments, dependency edges, and future resource requirements is
@@ -17,25 +18,29 @@ The legacy Browser verifier is one long-lived harness. It builds one fixture,
 opens one writable database, starts and restarts one supervised runtime, drives
 one Chrome process and CDP session, accumulates one browser/session history,
 and cleans one shared resource graph. Its current behavior is valuable and is
-not reduced in VFY1-B. VFY1-A made that behavior and coupling reviewable;
-VFY1-B adds the first independently runnable detailed owner without changing
-the legacy execution path.
+not reduced in VFY1-C. VFY1-A made that behavior and coupling reviewable;
+VFY1-B added the independently runnable project-experience owner; VFY1-C adds
+the independently runnable operator-execution owner without changing the
+legacy execution path.
 
-The new `project_experience` child is an independent executable, fixture,
-writable database, runtime, browser, CDP session, profile, port set, and cleanup
-graph. It is focused evidence only and is not selected by the Local Canonical
-planner or aggregated into a deciding receipt yet.
+The `project_experience` owner remains one independent child. The new
+`operator_execution` owner is three sequential independent children, each
+with its own fixture copy, writable database, runtime, browser, CDP session,
+profile, port set, credentials, barriers, mutable records, and cleanup graph.
+Both commands are focused evidence only and are not selected by the Local
+Canonical planner or aggregated into a deciding receipt yet.
 
 ## Explicit non-goals
 
-VFY1-B does not:
+VFY1-C does not:
 
 - remove, skip, weaken, or reorder any legacy Browser assertion;
 - change the legacy Browser source, scopes, result shape, markers, phases,
   timing identifiers, or `480000ms` core bound;
 - delete or shorten `e2e-core`;
-- implement the operator/execution shard, thin golden path, or aggregate
-  planner/receipt integration;
+- implement the thin golden path or aggregate planner/receipt integration;
+- remove the operator multi-candidate shadow from the legacy continuity scope;
+- change the VFY1-B project-experience executable or result contract;
 - change Local Canonical planner selection or receipt deciding semantics;
 - change product, UI, API, schema, Core, protocol, runtime, native-host, or
   authority behavior.
@@ -192,11 +197,13 @@ inventory; unsupported syntax fails instead of disappearing from metadata.
 | `continuity` | `npm run test:e2e:continuity` | Activates the transferred fixture project, skips core-only work, and runs shared multi-candidate plus continuity-only phases. |
 | `complete` | Direct harness invocation without a scope variable | Core and continuity branches in one mutable lifecycle. It is not a package-registered Canonical lane. |
 | `project-experience` | `npm run test:e2e:project-experience` | Independent VFY1-B detailed owner for the five project-experience families. It does not run through the monolithic lifecycle. |
+| `operator-execution` | `npm run test:e2e:operator-execution` | Independent VFY1-C detailed owner backed by three sequential resource-isolated Canonical children. It does not run through the monolithic lifecycle. |
 
 `npm run test:e2e` currently launches separate `core` and `continuity`
 children. Local Canonical full execution likewise selects `e2e-core` followed
 by `e2e-continuity`. The planner, executor, and receipt are unchanged in
-VFY1-B and do not select `e2e-project-experience`.
+VFY1-C and do not select `e2e-project-experience` or
+`e2e-operator-execution`.
 
 ## VFY1-B implemented project-experience owner
 
@@ -298,6 +305,207 @@ own its complete 221-field, 101-marker output surface during the migration.
 This shadow is removed only in VFY1-D after VFY1-C, the thin golden path,
 planner selection, per-owner receipt material, and exact aggregate equivalence
 exist.
+
+## VFY1-C implemented operator-execution owner
+
+`npm run test:e2e:operator-execution` registers one semantic owner as three
+sequential Canonical children. Each child has a `360000ms` outer bound and
+`requireNaturalExit: true`; the parent fails on timeout, nonzero exit, absent
+exit observation, open stdout/stderr, descendant-assisted cleanup, incomplete
+cleanup, or owned-process residue. The existing Canonical runner's synthetic
+contract already rejects all of those termination states. VFY1-C does not
+apply the stronger acceptance flag to unrelated legacy Browser suites.
+
+| Canonical child | Families | Fields | Markers | Field set SHA-256 | Marker set SHA-256 |
+| --- | ---: | ---: | ---: | --- | --- |
+| `operator-review-control` | 6 | 70 | 22 | `e75fa282eb4d7c942110f5ac0133ee4a8142da67d25c91c8dcaf79d1c15c5149` | `a8cae8b8292e3881308e1dd7804952cae819bfd790f5fd2f3f3d0ec84b8d48ec` |
+| `operator-native-host-execution` | 4 | 35 | 10 | `b0c154c6cad215691c2ed5c72ef0daf8cc87ee0b00897f8aee8c7160757768c4` | `86301c5e04ba08428c58bb7542322728d5c32feb575bdc3d7a6e6ee1c2b8e831` |
+| `operator-multi-candidate` | 1 | 20 | 31 | `8d6e9e681800ca2003c29c5c8c629f6200acad9f1bbb8ddf7950b3e62aadba81` | `35e3a087b25e07aa83c99036c0997ec75bd446f6e44f886af5365ea19c8daf22` |
+| Exact owner union | 11 | 125 | 63 | `b79aff43487ecdfd6d4403c42644fe4f5c73ea2ab7e3396d4b1338d917550ce9` | `d252d551566bda6e013385a5a243387cdc0a08bd9af82303aa25bd0a6c408e90` |
+
+The review/control child owns project controls, operator bootstrap, strategic
+analysis/proposal review, result review/Inspector, ReviewDecision/Transition,
+and session refusal/recovery. The native-host child owns first-work definition
+and separate start, direct native-host round trip, managed approval lifecycle,
+and bounded automation. The multi-candidate child owns the complete candidate,
+preview-freshness, decision-target, Transition-target, and candidate-scoped
+GuideBrief matrix. Source ordering and duration do not determine this
+partition.
+
+### Exact equivalence and fail-closed completion
+
+[`scripts/operator-execution-equivalence.v1.json`](../scripts/operator-execution-equivalence.v1.json)
+contains exactly 125 field rows and 63 marker rows. Every field row binds the
+inventory family and assigned child to one legacy phase, a hashed bounded
+legacy source range, one unique legacy anchor, one new child phase and unique
+anchor, the externally observable invariant, fixture difference,
+exact-or-deliberately-stronger classification, changed-mechanism
+justification, and runtime value contract. Every marker row binds one legacy
+and one new event anchor plus its fixture/state prerequisite. No project-
+experience or continuity field or marker is present.
+
+Each child derives its required sets from the inventory and may complete a
+detail only with
+`completeDetailedField("literal_inventory_owned_field_id")`. It similarly
+records only literal inventory-owned markers. Duplicate, foreign, missing,
+computed, aliased, alternate-quote, indirect, or wrong-child calls fail. The
+runtime result exposes the sorted completed field and marker IDs and exact set
+fingerprints; the owner contract also proves the three pairwise-disjoint sets
+equal the complete 125-field/63-marker union.
+
+The operator source profile extends the bounded lexical scanner without
+weakening the legacy 57-negative grammar. It binds the exact child scope,
+direct result assignments, literal detailed completion and marker calls, and
+literal `lifecycle.runPhase(...)` IDs. All extraction-sensitive references
+must be their one canonical declaration or a direct extracted call. Thirteen
+operator lexical negatives reject computed, duplicate, aliased,
+alternate-quote, or indirect completion/marker forms, computed phases, and
+indirect result/effect mutation. Owner-union negatives additionally reject
+foreign completion, wrong-child markers, child overlap, incomplete unions,
+and project-experience or continuity ownership leakage. The public command,
+three focused suites, three executable registrations, exact sequential parent
+order, natural-exit flag, bounds, and resource declarations are also
+machine-checked.
+
+The shared operator lifecycle has its own bounded timing grammar. It extracts
+12 exact kinds (`fixture_construction`, `runtime_startup`, `chrome_startup`,
+`phase`, `navigation`, `request_quiet`, `wait_for_condition`,
+`wait_for_host_condition`, `runtime_shutdown`, `chrome_cdp_shutdown`,
+`global_cleanup`, and `stream_settlement`) and the two exact startup/route-ready
+milestones. The only computed timing-kind call is the declared
+`recordWait(kind, label, started)` forwarder, whose two direct call sites must
+use canonical literal kinds. Timing-object aliasing, extracted methods,
+computed ordinary kinds or milestones, and computed wait kinds fail five
+additional synthetic fixtures.
+
+Presence is not completion. Runtime value contracts require exact booleans,
+integers, enums, identity/lineage cross-links, request and transport counts,
+approval timing, candidate/preview matrices, ReviewDecision/Transition
+separation, refusal accounting, and empty or bounded failure collections.
+Generated identities and fingerprints are cross-bound to the admitted records
+rather than hard-coded.
+
+### Production Inspector route boundary
+
+The review/control child does not pause or fulfill Inspector requests. CDP
+Fetch interception is restricted to the semantic-Transition race proof, where
+the original production request is eventually continued unchanged. The
+Inspector executable has no queued-response owner, no caller-supplied status
+or body, and no Inspector URL pattern in `Fetch.enable`.
+
+The Browser matrix now reaches these states through production records and the
+real `/api/vnext/operator/inspector` handler:
+
+- the exact available result Inspector returns `200` for the admitted receipt;
+- a nonexistent exact receipt ID returns the production `404`
+  `shared_inspector_target_missing` classification;
+- the admitted receipt paired with a conflicting fingerprint returns the
+  production `409` `shared_inspector_target_fingerprint_conflict`
+  classification; and
+- a versioned project-local packet/receipt fixture with 65 unique capability
+  entries crosses the production 64-item projection bound and returns a real
+  `200` inactive, read-only `bounded_incomplete` Inspector.
+
+There is no deterministic bounded production-owned storage or resolver failure
+seam for the legacy unavailable `500` presentation. VFY1-C does not add a
+product/API switch and does not claim a Browser route execution for that case;
+the pure repository-owned presentation contract retains that rendering state.
+The equivalence disposition records this mechanism difference explicitly.
+
+Every expected Inspector error is bound to one exact phase, production request
+ID, route, status, and response-body error classification. The phase requires
+one request, one response, and one console delivery. A second delivery, a
+different request or error code, a missing response classification, or an
+unregistered fixture identity remains unexpected and fails finalization.
+Response, console, and loading-failure events inherit the phase recorded when
+their exact network request began, so late CDP delivery cannot nondeterministically
+reclassify an expected navigation abort under the next semantic phase.
+
+### Fixture profiles and authority/effect boundaries
+
+[`scripts/operator-execution-browser-fixture-v1.ts`](../scripts/operator-execution-browser-fixture-v1.ts)
+builds three profiles from the existing deterministic operator Browser fixture
+and production persistence/admission owners. Each profile produces an
+immutable source database and public-safe manifest, then copies that seed into
+one child-owned writable database. The manifest binds source and writable-seed
+fingerprints, exact identities, present and absent start records, permitted
+effects, forbidden effects, production owners, execution capability, and the
+zero-provider/zero-external-network boundary.
+
+| Profile | Start-state boundary | Exact permitted structural effects |
+| --- | --- | --- |
+| `review_control` | Source packet, terminal receipt, unreviewed proposals, and a non-target applied Transition are present; the strategic transfer proposal is absent. | Exact inserted Core kinds: packet `1`, proposals `2`, decisions `2`, gate `1`, semantic state `1`, Transition `1`; one exact later-packet/decision/gate/Transition chain; one source-bound completed-run metadata update; one primary control at revision `3`; five exact project-scoped sessions; one exact strategic transport call; no deletion or foreign effect. |
+| `native_host_execution` | Clean first-work project, deterministic native-host seam, enabled automation control, and a fresh grant-bound automation source packet are present; no running host exists. The automation packet is produced through the real semantic review, confirmation, and Transition handlers. | Exact inserted Core kinds: automation work items `4`, grant `1`, packets `2`, receipts `4`, proposals `4`, context-use review `1`; four exact scoped runs, including explicit production cancellation of the setup run after start admission; 52 exact run-bound events with type/status/order contracts; one profile-to-automation active-selection update at revision `+2`; three sessions; exact approval/cancellation trace and release signals; no Browser-created decision or Transition. |
+| `multi_candidate` | Two exact candidates, a blocked proposal, the legacy-equivalent older-ready/newer-undecided Home-binding pair, a source packet, and a non-target applied Transition are present; target decisions are absent. | Exact inserted Core kinds: packet `1`, decisions `4`, gate `1`, semantic state `1`, Transition `1`; the Transition targets the exact proposal and selected candidate through its exact decision and gate; one session; no run, event, selection, control, deletion, or foreign effect. |
+
+The first-work start invariant ends when the production route admits the exact
+run. The child then uses the visible production cancellation action and waits
+for the same run to reach its terminal cancelled state before changing project
+scope. This is shard-owned setup closure: it prevents a pending run from being
+reconciled nondeterministically by later runtime restarts and makes the
+cancellation receipt, proposal, run, and event sequence an explicit permitted
+effect rather than hidden mutable state.
+
+The versioned effect owner snapshots every SQLite table before Browser
+execution and after the final functional phase, before child-owned resources
+are removed. For each row it retains a stable identity, ownership scope, and a
+canonical full-row fingerprint. Public-safe identities expose record kind and
+ID, workspace/project, declared fingerprint, canonical payload hash and
+semantic bindings; run and event identity/status/contract/payload hashes and
+ordering; a public-safe project-root binding fingerprint and each run's exact
+metadata root binding; semantic/project state; active selection and automation revisions;
+and hashed session/bootstrap/action material with issuance, consumption,
+expiry, revocation, and derived status. Memory and Personal Perspective tables
+are classified explicitly rather than omitted.
+
+The structural diff keeps inserted, updated, deleted, and unchanged rows
+separate and identifies each changed row's before/after fingerprints. Exact
+profile predicates then bind generated IDs to their workspace/project, source
+packet, proposal/candidate, decision, gate, Transition, run/receipt, event
+type/lifecycle order, root/fixture identity, local session, and deterministic
+file barrier. Only after those predicates pass does the result expose equal
+permitted and observed exact-diff fingerprints, category operation counts, a
+bounded public-safe row summary, and `unowned_effect_count === 0`.
+
+The dependency-free ledger contract rejects delete-and-replace at equal count,
+same-count payload/fingerprint mutation, wrong-project insertion, wrong
+decision/candidate Transition targets, equal-count event-type replacement,
+project-control revision redistribution, active-selection changes, session
+replacement, memory/Perspective mutation, unexpected approval/cancel/
+reconciliation seams, and unchanged aggregate totals with changed row hashes.
+It also rejects a native-host run bound to any root fingerprint other than its
+exact child-owned project-root binding.
+Provider, external-network, GitHub, memory/Perspective, deployment,
+publication, and unowned authority effects remain forbidden.
+Fixture records are not approvals; sessions are not provider authority;
+assessments are not decisions; decisions are not Transitions; result review is
+not semantic authority.
+
+The fixtures use the existing operator fixture builder, project identity and
+lifecycle registries, project-control store, initial-work compiler, durable
+semantic store, structured receipt and proposal admission owners, semantic
+review/transition handlers, and local operator session owner. They do not mock
+HTML, fabricate intercepted route JSON, share live state, invoke a real
+provider/Codex/GitHub service, or seed a running execution.
+
+### Staged finalization and migration shadows
+
+Every child keeps `result.ok` false through functional execution and cleanup.
+One final gate alone may set it true after exact field and marker completion,
+runtime value contracts, exact structural effect diff, request/console/page/refusal
+accounting, credential/private-material safety, runtime and Chrome/CDP
+shutdown, stream settlement, removal of all temporary/profile/database/
+fixture/signal/transport roots, zero process/listener residue, inner duration
+below `300000ms`, and at least `180000ms` headroom against the unchanged
+`480000ms` reference. Failure remains public-safe and exits nonzero after
+preserving all cleanup evidence available.
+
+The legacy core still executes every one of its 221 fields and 101 markers.
+The continuity scope still contains its operator-owned multi-candidate shadow.
+The VFY1-B project-experience child and its result contract are unchanged.
+These copies are explicit migration shadows, not second detailed owners.
+VFY1-D alone may remove them after the thin golden path, planner selection,
+per-owner receipt aggregation, and exact aggregate equivalence exist.
 
 ## Owner taxonomy
 
@@ -424,8 +632,9 @@ session, or active-project selection.
 
 ## Target detailed shards
 
-Only the project-experience command is implemented in VFY1-B. The remaining
-names are specifications for later separately authorized work.
+Project experience and operator execution are implemented focused commands.
+Continuity remains on its current legacy owner and the golden path remains a
+specification for later separately authorized work.
 
 ### Project experience
 
@@ -444,7 +653,7 @@ primary owner and not proof that aggregate migration is complete.
 
 ### Operator and execution
 
-Proposed command: `npm run test:e2e:operator-execution`
+Implemented focused command: `npm run test:e2e:operator-execution`
 
 Owns local authentication/session, first-work operational activation,
 strategic/proposal review, direct/live native-host execution,
@@ -455,6 +664,11 @@ automation, and exact packet/lineage/root/authority bindings.
 Primary question: Does an authenticated explicit operation follow the exact
 packet and lineage through execution, result, and semantic review without
 authority collapse?
+
+Its three Canonical children are `operator-review-control`,
+`operator-native-host-execution`, and `operator-multi-candidate`. Their exact
+family, field, marker, fixture, resource, effect, and timing contracts are
+described above and machine-bound in the inventory.
 
 ### Continuity
 
@@ -508,6 +722,16 @@ state. The fixture is source-bound, fingerprinted, contains no credential or
 provider material, grants no semantic or execution authority, and cannot
 start execution.
 
+VFY1-C implements the execution-capable half in
+`scripts/operator-execution-browser-fixture-v1.ts` as three explicit profiles.
+Each profile builds and fingerprints its own source seed, copies it to its own
+writable root, and declares records present, records absent, permitted
+structural effects, forbidden effects, production owners, execution capability, and
+provider/network capability. Review-only profiles have no execution
+capability. The native-host profile permits only deterministic local execution
+through repository-owned seams. No profile transfers a mutable record,
+session, signal, counter, or runtime to another child.
+
 Every shard copies what it needs into its own writable resource root. No two
 shards may share a live mutable database, runtime, listener, browser, CDP
 session, profile, operator session, active selection, or approval barrier.
@@ -531,6 +755,14 @@ folder-picker signal, observer ledgers, and streams. Sharing any live writable
 database, runtime, listener, browser, CDP session, profile, active-project
 selection, operator session, approval signal, or mutable fixture directory
 remains forbidden.
+
+Each operator child independently declares and cleans the same full resource
+classes plus its own immutable fixture copy, runtime-state directory, project
+roots, downloads, bootstrap/session/action credentials, approval/cancel/
+terminal barriers where required, deterministic transport fixture and counters
+where required, and request/response/console/page-error ledgers. No two
+operator children share a packet, run, result, proposal, decision, Transition
+row, browser navigation state, or active-project selection.
 
 ## Future planner selection
 
@@ -564,8 +796,9 @@ stream-settlement, and total timing stay attributable per owner before
 aggregation.
 
 This design does not change the current planner or receipt implementation.
-The VFY1-B focused result is therefore independently attributable evidence,
-not part of the current aggregated deciding receipt.
+The VFY1-B project-experience and VFY1-C operator-execution focused results are
+therefore independently attributable evidence, not part of the current
+aggregated deciding receipt.
 
 ## Timing and headroom policy
 
@@ -586,13 +819,27 @@ runtime startup, Chrome/CDP startup, seven semantic phases, navigation,
 request quiet, runtime shutdown, Chrome/CDP shutdown, global cleanup, stream
 settlement, and total child time.
 
+VFY1-C changes no legacy bound and adds no parent stopwatch. Each of its three
+children has an outer `360000ms` containment bound, must complete its inner
+work below `300000ms`, and must retain at least `180000ms` against the
+unchanged `480000ms` reference. The parent runs them sequentially; acceptance
+is per independent owner child, not the combined wall time. Each result
+separately attributes fixture construction, runtime startup, Chrome/CDP
+startup, semantic phases, navigation/bounded waits, request quiet, approval or
+reconciliation waits where applicable, runtime shutdown, Chrome/CDP shutdown,
+global cleanup, stream settlement, and total inner duration. The Canonical
+runner separately records total outer duration. Exact run observations belong
+to the PR evidence for the exact head; they are not static timeout metadata.
+
 ## Sequencing
 
 - VFY1-A: complete inventory, ownership, dependency graph, fixture boundary,
   golden specification, and static completeness contracts.
 - VFY1-B: implemented independent project-experience owner; legacy-core
   shadow retained and planner/receipt integration deferred.
-- VFY1-C: separately authorized operator/execution extraction.
+- VFY1-C: implemented one operator/execution owner as three independent
+  resource-isolated children; legacy core and continuity shadows retained and
+  planner/receipt integration deferred.
 - VFY1-D: separately authorized planner selection, thin golden path,
   per-shard receipt material, aggregate deciding semantics, and removal of the
   old monolithic owner only after exact equivalence is proven.

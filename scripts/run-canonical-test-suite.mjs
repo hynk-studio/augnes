@@ -39,6 +39,46 @@ const nestedNode = (...args) => ({
   cwd: nestedAppRoot,
 });
 
+const operatorExecutionRequirements = [
+  "database",
+  "migrations",
+  "filesystem",
+  "project-root",
+  "process-owning",
+  "listener-port-owning",
+  "browser-profile-owning",
+  "cdp-session-owning",
+  "immutable-fixture-input",
+  "operator-session-owning",
+];
+const operatorReviewControlStep = {
+  id: "operator-review-control",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator review and control Browser child",
+  ...rootNode("scripts/browser-validate-operator-review-control-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const operatorNativeHostExecutionStep = {
+  id: "operator-native-host-execution",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator native-host execution Browser child",
+  ...rootNode("scripts/browser-validate-operator-native-host-execution-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const operatorMultiCandidateStep = {
+  id: "operator-multi-candidate",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator multi-candidate semantic Browser child",
+  ...rootNode("scripts/browser-validate-operator-multi-candidate-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+
 const suites = {
   unit: [
     {
@@ -70,6 +110,26 @@ const suites = {
     {
       label: "project experience keyed result and finalization contract",
       ...rootNode("scripts/test-project-experience-result-contract-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution immutable Browser fixture profiles",
+      ...rootNode("scripts/test-operator-execution-browser-fixture-v1.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution field marker equivalence and lexical contract",
+      ...rootNode("scripts/test-operator-execution-browser-contract-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution keyed result effect and finalization contract",
+      ...rootNode("scripts/test-operator-execution-result-contract-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution exact structural effect ledger contract",
+      ...rootNode("scripts/test-operator-execution-effect-ledger-v1.mjs"),
       timeoutMs: 30_000,
     },
     {
@@ -594,6 +654,16 @@ const suites = {
       timeoutMs: 360_000,
       requireNaturalExit: true,
     },
+  ],
+  "e2e-operator-review-control": [{ ...operatorReviewControlStep }],
+  "e2e-operator-native-host-execution": [
+    { ...operatorNativeHostExecutionStep },
+  ],
+  "e2e-operator-multi-candidate": [{ ...operatorMultiCandidateStep }],
+  "e2e-operator-execution": [
+    { ...operatorReviewControlStep },
+    { ...operatorNativeHostExecutionStep },
+    { ...operatorMultiCandidateStep },
   ],
   "e2e-continuity": [
     {
