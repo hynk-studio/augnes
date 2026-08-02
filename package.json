@@ -51,6 +51,7 @@
     "test:project-experience-result-contract": "node scripts/test-project-experience-result-contract-v1.mjs",
     "test:operator-execution-browser-fixture": "node --import tsx scripts/test-operator-execution-browser-fixture-v1.ts",
     "test:operator-execution-result-contract": "node scripts/test-operator-execution-result-contract-v1.mjs",
+    "test:operator-execution-effect-ledger": "node scripts/test-operator-execution-effect-ledger-v1.mjs",
     "test:operator-execution-browser-contract": "node scripts/test-operator-execution-browser-contract-v1.mjs",
     "test:browser-verification-inventory": "node scripts/test-browser-verification-ownership-inventory.mjs && node scripts/test-operator-execution-browser-contract-v1.mjs",
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",

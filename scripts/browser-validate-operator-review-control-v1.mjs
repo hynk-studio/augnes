@@ -16,6 +16,8 @@ const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 const CHILD_ID = "operator-review-control";
 const VALIDATION_SCOPE = "operator-review-control";
+const expectedInspectorConsoleDeliveries = new Map();
+const consumedInspectorConsoleDeliveries = new Map();
 assert(
   ["operator-review-control"].includes(VALIDATION_SCOPE),
   "unsupported operator review and control scope",
@@ -77,11 +79,7 @@ await runOperatorExecutionBrowserChildV1({
       entry.response_status === 409 &&
       entry.text ===
         "Failed to load resource: the server responded with a status of 409 (Conflict)") ||
-    (entry.phase === "result_review_and_inspector" &&
-      entry.request_path === "/api/vnext/operator/inspector" &&
-      [404, 409, 500].includes(entry.response_status) &&
-      entry.text ===
-        `Failed to load resource: the server responded with a status of ${entry.response_status} (${entry.response_status === 404 ? "Not Found" : entry.response_status === 409 ? "Conflict" : "Internal Server Error"})`) ||
+    allowExpectedInspectorConsoleDelivery(entry) ||
     ([
       "project_controls_and_automation",
       "strategic_analysis_and_proposal_review",
@@ -92,6 +90,20 @@ await runOperatorExecutionBrowserChildV1({
       entry.response_status === 404 &&
       entry.text ===
         "Failed to load resource: the server responded with a status of 404 (Not Found)"),
+  console_allowlist_finalize: () => {
+    assert.equal(expectedInspectorConsoleDeliveries.size, 2);
+    assert.deepEqual(
+      [...consumedInspectorConsoleDeliveries].sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+      [...expectedInspectorConsoleDeliveries]
+        .map(([requestId, expected]) => [
+          requestId,
+          expected.expected_delivery_count,
+        ])
+        .sort(([left], [right]) => left.localeCompare(right)),
+    );
+  },
   request_failure_allowlist: (entry) =>
     entry.error_text === "net::ERR_ABORTED" &&
     ((entry.phase === "strategic_analysis_and_proposal_review" &&
@@ -334,6 +346,7 @@ await runOperatorExecutionBrowserChildV1({
         completeDetailedField("strategic_proposal_pending_unknown_non_authoritative");
         result.strategic_proposal_material_visible = true;
         completeDetailedField("strategic_proposal_material_visible");
+        await lifecycle.waitForRequestQuiet();
         const inspectorHref = await lifecycle.evaluateString(
           `document.querySelector('[data-strategic-to-shared-inspector="true"]')?.getAttribute('href') ?? ''`,
         );
@@ -618,56 +631,83 @@ await runOperatorExecutionBrowserChildV1({
         liveInspectorRead.body?.inspector?.target?.target_kind,
         "run_receipt",
       );
-      const renderInspectorResponse = async ({
+      const renderProductionInspectorState = async ({
+        href,
         status,
-        body,
+        body_classification,
         condition,
         label,
+        expected_console_error = false,
       }) => {
-        lifecycle.queueNextInspectorResponse({ status, body });
         const requestStart = lifecycle.requests.length;
-        await lifecycle.navigate(new URL(inspectorHref, appOrigin).toString());
+        const responseStart = lifecycle.responses.length;
+        const consoleStart = lifecycle.console_errors.length;
+        await lifecycle.navigate(new URL(href, appOrigin).toString());
         await lifecycle.waitForCondition(condition, label);
         await lifecycle.waitForRequestQuiet();
-        lifecycle.assertNoQueuedInspectorResponse();
-        assert.equal(
-          lifecycle.requests
-            .slice(requestStart)
-            .filter(
-              (entry) =>
-                entry.path === "/api/vnext/operator/inspector" &&
-                entry.method === "GET",
-            ).length,
-          1,
+        await lifecycle.waitForHostCondition(
+          () =>
+            lifecycle.responses
+              .slice(responseStart)
+              .some(
+                (entry) =>
+                  entry.path === "/api/vnext/operator/inspector" &&
+                  entry.body_classification !== null,
+              ),
+          `${label} response classification`,
         );
+        const requests = lifecycle.requests.slice(requestStart).filter(
+          (entry) =>
+            entry.path === "/api/vnext/operator/inspector" &&
+            entry.method === "GET",
+        );
+        const responses = lifecycle.responses.slice(responseStart).filter(
+          (entry) =>
+            entry.path === "/api/vnext/operator/inspector" &&
+            entry.method === "GET",
+        );
+        assert.equal(requests.length, 1);
+        assert.equal(responses.length, 1);
+        assert.equal(responses[0].request_id, requests[0].request_id);
+        assert.equal(responses[0].phase, "result_review_and_inspector");
+        assert.equal(responses[0].status, status);
+        assert.deepEqual(
+          responses[0].body_classification,
+          body_classification,
+        );
+        const matchingConsole = lifecycle.console_errors
+          .slice(consoleStart)
+          .filter(
+            (entry) => entry.network_request_id === responses[0].request_id,
+          );
+        assert.equal(matchingConsole.length, expected_console_error ? 1 : 0);
+        if (expected_console_error) {
+          expectedInspectorConsoleDeliveries.set(responses[0].request_id, {
+            phase: "result_review_and_inspector",
+            route: "/api/vnext/operator/inspector",
+            status,
+            body_classification,
+            expected_delivery_count: 1,
+          });
+        }
+        return responses[0];
       };
-      await renderInspectorResponse({
-        status: 500,
-        body: { ok: false, error_code: "shared_inspector_read_failed" },
-        condition:
-          `document.querySelector('[data-contextual-inspector-state="unavailable"] h1')?.textContent?.trim() === 'Exact details could not be read'`,
-        label: "Inspector unavailable exact state",
-      });
-      assert.equal(
-        await lifecycle.evaluateBoolean(`(() => {
-          const state = document.querySelector('[data-contextual-inspector-state="unavailable"]');
-          const diagnostic = state?.querySelector('details code')?.closest('details');
-          const text = state?.innerText ?? '';
-          return state?.querySelector('h1')?.textContent?.trim() === 'Exact details could not be read' &&
-            !text.includes('no longer available') &&
-            text.includes('No project write, repair, provider call, or automatic retry was attempted.') &&
-            state?.querySelector('[data-contextual-inspector-return]') instanceof HTMLAnchorElement &&
-            diagnostic instanceof HTMLDetailsElement && !diagnostic.open &&
-            !text.includes('shared_inspector_read_failed');
-        })()`),
-        true,
+      const missingInspectorUrl = new URL(inspectorHref, appOrigin);
+      missingInspectorUrl.searchParams.set(
+        "record_id",
+        "run-receipt:operator-inspector-production-missing",
       );
-      await renderInspectorResponse({
+      await renderProductionInspectorState({
+        href: missingInspectorUrl.toString(),
         status: 404,
-        body: { ok: false, error_code: "shared_inspector_target_missing" },
+        body_classification: {
+          classification: "inspector_error",
+          error_code: "shared_inspector_target_missing",
+        },
         condition:
           `document.querySelector('[data-contextual-inspector-state="missing"] h1')?.textContent?.trim() === 'The exact target is no longer available'`,
         label: "Inspector missing exact state",
+        expected_console_error: true,
       });
       assert.equal(
         await lifecycle.evaluateBoolean(`(() => {
@@ -678,15 +718,22 @@ await runOperatorExecutionBrowserChildV1({
         })()`),
         true,
       );
-      await renderInspectorResponse({
+      const conflictInspectorUrl = new URL(inspectorHref, appOrigin);
+      conflictInspectorUrl.searchParams.set(
+        "fingerprint",
+        `sha256:${"0".repeat(64)}`,
+      );
+      await renderProductionInspectorState({
+        href: conflictInspectorUrl.toString(),
         status: 409,
-        body: {
-          ok: false,
-          error_code: "shared_inspector_candidate_source_conflict",
+        body_classification: {
+          classification: "inspector_error",
+          error_code: "shared_inspector_target_fingerprint_conflict",
         },
         condition:
           `document.querySelector('[data-contextual-inspector-state="conflict"] h1')?.textContent?.trim() === 'The saved exact sources no longer agree'`,
         label: "Inspector conflicting exact state",
+        expected_console_error: true,
       });
       assert.equal(
         await lifecycle.evaluateBoolean(`(() => {
@@ -698,41 +745,41 @@ await runOperatorExecutionBrowserChildV1({
         })()`),
         true,
       );
-      for (const projectionCase of [
-        {
+      const inspectorRouteFixture = fixture.manifest.inspector_route_fixture;
+      assert(inspectorRouteFixture);
+      assert.equal(
+        inspectorRouteFixture.unavailable_browser_disposition,
+        "pure_presentation_contract_only_no_production_failure_seam",
+      );
+      await lifecycle.restartRuntime(inspectorRouteFixture.project_id);
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
+      assert.equal(await lifecycle.authenticate(), true);
+      const boundedInspectorUrl = new URL("/workbench/inspector", appOrigin);
+      boundedInspectorUrl.searchParams.set("target", "run_receipt");
+      boundedInspectorUrl.searchParams.set(
+        "record_id",
+        inspectorRouteFixture.bounded_receipt_id,
+      );
+      boundedInspectorUrl.searchParams.set(
+        "fingerprint",
+        inspectorRouteFixture.bounded_receipt_fingerprint,
+      );
+      await renderProductionInspectorState({
+        href: boundedInspectorUrl.toString(),
+        status: 200,
+        body_classification: {
+          classification: "inspector_read",
+          status: "inspector_read",
           project_activity: "inactive_read_only",
-          target_status: "conflict",
-          completeness: "conflict",
-          exact_status: "conflict",
-          status_label: "Exact sources do not agree",
-        },
-        {
-          project_activity: "inactive_read_only",
+          target_kind: "run_receipt",
           target_status: "bounded_incomplete",
           completeness: "bounded_incomplete",
-          exact_status: "bounded_incomplete",
-          status_label: "This is a bounded exact view",
         },
-        {
-          project_activity: "inactive_read_only",
-          target_status: "present",
-          completeness: "partial",
-          exact_status: "partial",
-          status_label: "Some related detail is unavailable",
-        },
-      ]) {
-        const body = structuredClone(liveInspectorRead.body);
-        body.project_activity = projectionCase.project_activity;
-        body.inspector.target_status = projectionCase.target_status;
-        body.inspector.completeness = projectionCase.completeness;
-        await renderInspectorResponse({
-          status: 200,
-          body,
-          condition:
-            `document.querySelector('[data-shared-project-inspector="v0.1"][data-contextual-inspector-exact-status="${projectionCase.exact_status}"][data-contextual-inspector-project-activity="${projectionCase.project_activity}"]') !== null`,
-          label: `Inspector projection ${projectionCase.exact_status}`,
-        });
-        const projectionShape = await lifecycle.evaluateJson(`(() => {
+        condition:
+          `document.querySelector('[data-shared-project-inspector="v0.1"][data-contextual-inspector-exact-status="bounded_incomplete"][data-contextual-inspector-project-activity="inactive_read_only"]') !== null`,
+        label: "production Inspector bounded inactive projection",
+      });
+      const projectionShape = await lifecycle.evaluateJson(`(() => {
           const root = document.querySelector('[data-shared-project-inspector="v0.1"]');
           const status = root?.querySelector('[data-contextual-inspector-status-block]');
           const notice = root?.querySelector('[data-contextual-inspector-activity-notice="true"]');
@@ -748,20 +795,21 @@ await runOperatorExecutionBrowserChildV1({
             mutation_control_absent: !Array.from(root?.querySelectorAll('button, form') ?? []).some((entry) => /make active|switch project|repair/i.test(entry.textContent ?? ''))
           };
         })()`);
-        assert.deepEqual(projectionShape, {
-          exact_status: projectionCase.exact_status,
-          project_activity: projectionCase.project_activity,
-          status_label: projectionCase.status_label,
-          status_role: projectionCase.exact_status === "conflict" ? "alert" : "status",
-          activity_notice_count: 1,
-          activity_copy:
-            "This project is not current. These details remain read-only, and opening them did not switch projects.",
-          contradictory_availability_absent: true,
-          mutation_control_absent: true,
-        });
-      }
+      assert.deepEqual(projectionShape, {
+        exact_status: "bounded_incomplete",
+        project_activity: "inactive_read_only",
+        status_label: "This is a bounded exact view",
+        status_role: "status",
+        activity_notice_count: 1,
+        activity_copy:
+          "This project is not current. These details remain read-only, and opening them did not switch projects.",
+        contradictory_availability_absent: true,
+        mutation_control_absent: true,
+      });
       assert.equal(databaseFingerprint(fixture.writable_database_path), before);
+      await lifecycle.restartRuntime(projectId);
       await lifecycle.navigate(`${appOrigin}${resultHref}`);
+      assert.equal(await lifecycle.authenticate(), true);
       await lifecycle.waitForCondition(
         `document.querySelector('[data-run-result-review="v0.1"]') !== null`,
         "result reload durability",
@@ -1242,6 +1290,28 @@ await runOperatorExecutionBrowserChildV1({
     };
   },
 });
+
+function allowExpectedInspectorConsoleDelivery(entry) {
+  const expected = expectedInspectorConsoleDeliveries.get(
+    entry.network_request_id,
+  );
+  if (!expected) return false;
+  const deliveryCount =
+    (consumedInspectorConsoleDeliveries.get(entry.network_request_id) ?? 0) + 1;
+  consumedInspectorConsoleDeliveries.set(entry.network_request_id, deliveryCount);
+  return (
+    deliveryCount === expected.expected_delivery_count &&
+    entry.phase === expected.phase &&
+    entry.request_path === expected.route &&
+    entry.response_status === expected.status &&
+    entry.response_body_classification?.classification ===
+      expected.body_classification.classification &&
+    entry.response_body_classification?.error_code ===
+      expected.body_classification.error_code &&
+    entry.text ===
+      `Failed to load resource: the server responded with a status of ${entry.response_status} (${entry.response_status === 404 ? "Not Found" : entry.response_status === 409 ? "Conflict" : "Internal Server Error"})`
+  );
+}
 
 async function activateCurrentProject(lifecycle, projectId) {
   if (

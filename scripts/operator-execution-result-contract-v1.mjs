@@ -302,13 +302,105 @@ export function assertOperatorExecutionFinalSuccessV1({
   assert.equal(result.detailed_field_set_fingerprint, contract.field_set_fingerprint);
   assert.equal(result.semantic_marker_set_fingerprint, contract.marker_set_fingerprint);
   assertOperatorExecutionDetailedValuesV1({ result, contract });
-  assert.deepEqual(result.observed_effect_delta, result.permitted_effect_delta);
-  assert.equal(result.unowned_effect_count, 0);
-  assert.equal(result.unexpected_external_request_count, 0);
-  assert.equal(result.unexpected_console_failure_count, 0);
-  assert.equal(result.unexpected_page_failure_count, 0);
-  assert.equal(result.unexpected_request_failure_count, 0);
-  assert.equal(result.unexpected_refusal_accounting_failure_count, 0);
+  assert.equal(
+    result.effect_contract_version,
+    "operator_execution_exact_effect_contract.v1",
+  );
+  assert.equal(
+    result.effect_diff_version,
+    "operator_execution_exact_effect_diff.v1",
+  );
+  assert.equal(
+    result.before_effect_snapshot?.effect_snapshot_version,
+    "operator_execution_exact_effect_snapshot.v1",
+  );
+  assert.equal(
+    result.after_effect_snapshot?.effect_snapshot_version,
+    "operator_execution_exact_effect_snapshot.v1",
+  );
+  assert.match(
+    result.before_effect_snapshot?.snapshot_fingerprint ?? "",
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.match(
+    result.after_effect_snapshot?.snapshot_fingerprint ?? "",
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.match(
+    result.permitted_effect_diff_fingerprint ?? "",
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.equal(
+    result.observed_effect_diff_fingerprint,
+    result.permitted_effect_diff_fingerprint,
+  );
+  assert.equal(
+    result.effect_operation_counts?.deleted,
+    0,
+    "operator_effect_deleted_count_must_be_zero",
+  );
+  assert.equal(
+    Number.isSafeInteger(result.effect_operation_counts?.inserted),
+    true,
+  );
+  assert.equal(
+    Number.isSafeInteger(result.effect_operation_counts?.updated),
+    true,
+  );
+  assert.equal(Array.isArray(result.bounded_effect_diff_entries), true);
+  assert.equal(
+    result.effect_semantic_operation_summary !== null &&
+      typeof result.effect_semantic_operation_summary === "object" &&
+      !Array.isArray(result.effect_semantic_operation_summary),
+    true,
+  );
+  assert.equal(
+    Array.isArray(result.effect_semantic_operation_summary.seam_operations),
+    true,
+  );
+  assert.equal(
+    result.effect_semantic_operation_summary.table_operation_counts !== null &&
+      typeof result.effect_semantic_operation_summary.table_operation_counts ===
+        "object",
+    true,
+  );
+  assert.deepEqual(
+    result.effect_semantic_operation_summary.forbidden_effect_zero_evidence,
+    {
+      provider_calls: 0,
+      external_network_calls: 0,
+      github_calls: 0,
+      deployment_calls: 0,
+      publication_calls: 0,
+      memory_perspective_mutations: 0,
+    },
+  );
+  assert.equal(result.unowned_effect_count, 0, "operator_unowned_effect_count");
+  assert.equal(
+    result.unexpected_external_request_count,
+    0,
+    "operator_unexpected_external_request_count",
+  );
+  assert.equal(
+    result.unexpected_console_failure_count,
+    0,
+    "operator_unexpected_console_failure_count",
+  );
+  assert.equal(
+    result.unexpected_page_failure_count,
+    0,
+    "operator_unexpected_page_failure_count",
+  );
+  assert.equal(
+    result.unexpected_request_failure_count,
+    0,
+    "operator_unexpected_request_failure_count",
+  );
+  assert.equal(
+    result.unexpected_refusal_accounting_failure_count,
+    0,
+    "operator_unexpected_refusal_accounting_failure_count",
+  );
   assert.equal(result.credential_private_material_boundary, true);
   assert.equal(result.cleanup_complete, true);
   assert.equal(result.owned_streams_settled, true);

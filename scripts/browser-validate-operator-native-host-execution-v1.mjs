@@ -408,6 +408,22 @@ await runOperatorExecutionBrowserChildV1({
       );
       result.first_work_explicit_start_admitted = true;
       completeDetailedField("first_work_explicit_start_admitted");
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const button = document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="cancel"]');
+          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+          button.click(); return true;
+        })()`),
+        true,
+      );
+      const cancelledFirstRun = await waitForLiveState(
+        fixture.writable_database_path,
+        firstWorkProjectId,
+        "cancelled",
+        LIVE_TIMEOUT_MS,
+      );
+      assert.equal(cancelledFirstRun.run_ref, firstRun.run_ref);
+      assert.equal(cancelledFirstRun.pending_approval, null);
       await lifecycle.navigate("about:blank");
       await lifecycle.terminateRuntime();
     }, { request_quiet: false });
@@ -1184,6 +1200,10 @@ await runOperatorExecutionBrowserChildV1({
       );
       result.bounded_automation_reload_idempotent = true;
       completeDetailedField("bounded_automation_reload_idempotent");
+      await lifecycle.waitForCondition(
+        `Array.from(document.querySelectorAll('[data-project-automation-inspector="true"]')).some((entry) => entry.getBoundingClientRect().width > 0 && /^\\/workbench\\/inspector\\?target=automation_run&/u.test(entry.getAttribute('href') ?? ''))`,
+        "bounded automation exact Inspector link",
+      );
       const inspectorHref = await lifecycle.evaluateString(
         `Array.from(document.querySelectorAll('[data-project-automation-inspector="true"]')).find((entry) => entry.getBoundingClientRect().width > 0)?.getAttribute('href') ?? ''`,
       );

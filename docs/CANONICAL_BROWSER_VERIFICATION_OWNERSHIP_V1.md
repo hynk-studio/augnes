@@ -385,6 +385,42 @@ separation, refusal accounting, and empty or bounded failure collections.
 Generated identities and fingerprints are cross-bound to the admitted records
 rather than hard-coded.
 
+### Production Inspector route boundary
+
+The review/control child does not pause or fulfill Inspector requests. CDP
+Fetch interception is restricted to the semantic-Transition race proof, where
+the original production request is eventually continued unchanged. The
+Inspector executable has no queued-response owner, no caller-supplied status
+or body, and no Inspector URL pattern in `Fetch.enable`.
+
+The Browser matrix now reaches these states through production records and the
+real `/api/vnext/operator/inspector` handler:
+
+- the exact available result Inspector returns `200` for the admitted receipt;
+- a nonexistent exact receipt ID returns the production `404`
+  `shared_inspector_target_missing` classification;
+- the admitted receipt paired with a conflicting fingerprint returns the
+  production `409` `shared_inspector_target_fingerprint_conflict`
+  classification; and
+- a versioned project-local packet/receipt fixture with 65 unique capability
+  entries crosses the production 64-item projection bound and returns a real
+  `200` inactive, read-only `bounded_incomplete` Inspector.
+
+There is no deterministic bounded production-owned storage or resolver failure
+seam for the legacy unavailable `500` presentation. VFY1-C does not add a
+product/API switch and does not claim a Browser route execution for that case;
+the pure repository-owned presentation contract retains that rendering state.
+The equivalence disposition records this mechanism difference explicitly.
+
+Every expected Inspector error is bound to one exact phase, production request
+ID, route, status, and response-body error classification. The phase requires
+one request, one response, and one console delivery. A second delivery, a
+different request or error code, a missing response classification, or an
+unregistered fixture identity remains unexpected and fails finalization.
+Response, console, and loading-failure events inherit the phase recorded when
+their exact network request began, so late CDP delivery cannot nondeterministically
+reclassify an expected navigation abort under the next semantic phase.
+
 ### Fixture profiles and authority/effect boundaries
 
 [`scripts/operator-execution-browser-fixture-v1.ts`](../scripts/operator-execution-browser-fixture-v1.ts)
@@ -396,19 +432,51 @@ fingerprints, exact identities, present and absent start records, permitted
 effects, forbidden effects, production owners, execution capability, and the
 zero-provider/zero-external-network boundary.
 
-| Profile | Start-state boundary | Exact permitted authority/effect delta |
+| Profile | Start-state boundary | Exact permitted structural effects |
 | --- | --- | --- |
-| `review_control` | Source packet, terminal receipt, unreviewed proposals, and a non-target applied Transition are present; the strategic transfer proposal is absent. The one-shot deterministic strategic fixture is consumed once, retired inside the child root, then a restarted real route proves genuine unavailable/zero-model presentation. | packets `1`; proposals `2`; decisions `2`; previews `1`; applied Transitions `1`; project-control revision sum `3`; sessions `3`; all other tracked effects `0` |
-| `native_host_execution` | Clean first-work project, deterministic native-host seam, enabled automation control, and a fresh grant-bound automation source packet are present; no running host exists. The automation packet is produced through the real semantic review, confirmation, and Transition handlers. | packets `2`; receipts `3`; proposals `3`; runs `4`; run events `47`; sessions `3`; all other tracked effects `0` |
-| `multi_candidate` | Two exact candidates, a blocked proposal, the legacy-equivalent older-ready/newer-undecided Home-binding pair, a source packet, and a non-target applied Transition are present; target decisions are absent. | packets `1`; decisions `4`; previews `1`; applied Transitions `1`; sessions `1`; all other tracked effects `0` |
+| `review_control` | Source packet, terminal receipt, unreviewed proposals, and a non-target applied Transition are present; the strategic transfer proposal is absent. | Exact inserted Core kinds: packet `1`, proposals `2`, decisions `2`, gate `1`, semantic state `1`, Transition `1`; one exact later-packet/decision/gate/Transition chain; one source-bound completed-run metadata update; one primary control at revision `3`; five exact project-scoped sessions; one exact strategic transport call; no deletion or foreign effect. |
+| `native_host_execution` | Clean first-work project, deterministic native-host seam, enabled automation control, and a fresh grant-bound automation source packet are present; no running host exists. The automation packet is produced through the real semantic review, confirmation, and Transition handlers. | Exact inserted Core kinds: automation work items `4`, grant `1`, packets `2`, receipts `4`, proposals `4`, context-use review `1`; four exact scoped runs, including explicit production cancellation of the setup run after start admission; 52 exact run-bound events with type/status/order contracts; one profile-to-automation active-selection update at revision `+2`; three sessions; exact approval/cancellation trace and release signals; no Browser-created decision or Transition. |
+| `multi_candidate` | Two exact candidates, a blocked proposal, the legacy-equivalent older-ready/newer-undecided Home-binding pair, a source packet, and a non-target applied Transition are present; target decisions are absent. | Exact inserted Core kinds: packet `1`, decisions `4`, gate `1`, semantic state `1`, Transition `1`; the Transition targets the exact proposal and selected candidate through its exact decision and gate; one session; no run, event, selection, control, deletion, or foreign effect. |
 
-Tracked effects cover TaskContextPackets, receipts, proposals, criterion
-assessments, ReviewDecisions, transition previews, applied Transitions, runs,
-run events, project-control revisions, local sessions, and work closures. Each
-child snapshots the writable database before Browser execution and after
-shutdown, requires the observed delta to equal its exact permitted delta, and
-requires `unowned_effect_count === 0`. Provider, external-network, GitHub,
-memory/Perspective, deployment, and unowned authority effects remain forbidden.
+The first-work start invariant ends when the production route admits the exact
+run. The child then uses the visible production cancellation action and waits
+for the same run to reach its terminal cancelled state before changing project
+scope. This is shard-owned setup closure: it prevents a pending run from being
+reconciled nondeterministically by later runtime restarts and makes the
+cancellation receipt, proposal, run, and event sequence an explicit permitted
+effect rather than hidden mutable state.
+
+The versioned effect owner snapshots every SQLite table before Browser
+execution and after the final functional phase, before child-owned resources
+are removed. For each row it retains a stable identity, ownership scope, and a
+canonical full-row fingerprint. Public-safe identities expose record kind and
+ID, workspace/project, declared fingerprint, canonical payload hash and
+semantic bindings; run and event identity/status/contract/payload hashes and
+ordering; a public-safe project-root binding fingerprint and each run's exact
+metadata root binding; semantic/project state; active selection and automation revisions;
+and hashed session/bootstrap/action material with issuance, consumption,
+expiry, revocation, and derived status. Memory and Personal Perspective tables
+are classified explicitly rather than omitted.
+
+The structural diff keeps inserted, updated, deleted, and unchanged rows
+separate and identifies each changed row's before/after fingerprints. Exact
+profile predicates then bind generated IDs to their workspace/project, source
+packet, proposal/candidate, decision, gate, Transition, run/receipt, event
+type/lifecycle order, root/fixture identity, local session, and deterministic
+file barrier. Only after those predicates pass does the result expose equal
+permitted and observed exact-diff fingerprints, category operation counts, a
+bounded public-safe row summary, and `unowned_effect_count === 0`.
+
+The dependency-free ledger contract rejects delete-and-replace at equal count,
+same-count payload/fingerprint mutation, wrong-project insertion, wrong
+decision/candidate Transition targets, equal-count event-type replacement,
+project-control revision redistribution, active-selection changes, session
+replacement, memory/Perspective mutation, unexpected approval/cancel/
+reconciliation seams, and unchanged aggregate totals with changed row hashes.
+It also rejects a native-host run bound to any root fingerprint other than its
+exact child-owned project-root binding.
+Provider, external-network, GitHub, memory/Perspective, deployment,
+publication, and unowned authority effects remain forbidden.
 Fixture records are not approvals; sessions are not provider authority;
 assessments are not decisions; decisions are not Transitions; result review is
 not semantic authority.
@@ -424,7 +492,7 @@ provider/Codex/GitHub service, or seed a running execution.
 
 Every child keeps `result.ok` false through functional execution and cleanup.
 One final gate alone may set it true after exact field and marker completion,
-runtime value contracts, exact effect delta, request/console/page/refusal
+runtime value contracts, exact structural effect diff, request/console/page/refusal
 accounting, credential/private-material safety, runtime and Chrome/CDP
 shutdown, stream settlement, removal of all temporary/profile/database/
 fixture/signal/transport roots, zero process/listener residue, inner duration
@@ -657,8 +725,8 @@ start execution.
 VFY1-C implements the execution-capable half in
 `scripts/operator-execution-browser-fixture-v1.ts` as three explicit profiles.
 Each profile builds and fingerprints its own source seed, copies it to its own
-writable root, and declares records present, records absent, permitted effect
-delta, forbidden effects, production owners, execution capability, and
+writable root, and declares records present, records absent, permitted
+structural effects, forbidden effects, production owners, execution capability, and
 provider/network capability. Review-only profiles have no execution
 capability. The native-host profile permits only deterministic local execution
 through repository-owned seams. No profile transfers a mutable record,

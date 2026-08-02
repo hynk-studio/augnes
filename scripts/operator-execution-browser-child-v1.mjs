@@ -5,9 +5,15 @@ import path from "node:path";
 import {
   OPERATOR_EXECUTION_FIXTURE_VERSION_V1,
   buildOperatorExecutionBrowserFixtureV1,
-  operatorExecutionEffectDeltaV1,
-  snapshotOperatorExecutionEffectsV1,
 } from "./operator-execution-browser-fixture-v1.ts";
+import {
+  assertOperatorExecutionEffectDiffV1,
+  boundedOperatorExecutionEffectDiffEntriesV1,
+  captureOperatorExecutionEffectSnapshotV1,
+  diffOperatorExecutionEffectSnapshotsV1,
+  exactEffectSummaryV1,
+  exactOperatorExecutionEffectOperationSummaryV1,
+} from "./operator-execution-effect-ledger-v1.mjs";
 import {
   createOperatorChildTemporaryRootsV1,
   createOperatorExecutionBrowserLifecycleV1,
@@ -28,6 +34,7 @@ export async function runOperatorExecutionBrowserChildV1({
   prepare = async () => ({}),
   execute,
   console_allowlist = () => false,
+  console_allowlist_finalize = () => {},
   request_failure_allowlist = () => false,
 }) {
   const startedAt = Date.now();
@@ -62,8 +69,16 @@ export async function runOperatorExecutionBrowserChildV1({
     semantic_marker_ids: [],
     semantic_marker_fingerprint: null,
     ...createOperatorResultFieldDefaultsV1(contract),
-    permitted_effect_delta: null,
-    observed_effect_delta: null,
+    effect_contract_version: null,
+    effect_diff_version: null,
+    before_effect_snapshot: null,
+    after_effect_snapshot: null,
+    permitted_effect_diff_fingerprint: null,
+    observed_effect_diff_fingerprint: null,
+    effect_operation_counts: null,
+    effect_operation_counts_by_category: null,
+    effect_semantic_operation_summary: null,
+    bounded_effect_diff_entries: [],
     unowned_effect_count: null,
     packet_root_run_result_proposal_decision_transition_identity: null,
     request_response_console_page_refusal_summary: null,
@@ -130,7 +145,8 @@ export async function runOperatorExecutionBrowserChildV1({
     result.fixture_source_database_sha256 =
       fixture.manifest.source_database_sha256;
     result.fixture_writable_seed_sha256 = fixture.manifest.writable_seed_sha256;
-    result.permitted_effect_delta = fixture.manifest.permitted_effects;
+    result.effect_contract_version =
+      fixture.manifest.permitted_effect_contract.effect_contract_version;
     result.default_database_isolated =
       path.resolve(fixture.writable_database_path) !==
         path.resolve(process.env.AUGNES_DB_PATH ?? "") &&
@@ -155,9 +171,11 @@ export async function runOperatorExecutionBrowserChildV1({
       environment: prepared.environment ?? {},
     });
     lifecycle.recordFixtureConstruction(Date.now() - startedAt);
-    beforeEffects = snapshotOperatorExecutionEffectsV1(
-      fixture.writable_database_path,
-    );
+    beforeEffects = captureOperatorExecutionEffectSnapshotV1({
+      database_path: fixture.writable_database_path,
+      prepared,
+    });
+    result.before_effect_snapshot = exactEffectSummaryV1(beforeEffects);
     await lifecycle.start();
     await execute({
       contract,
@@ -168,18 +186,65 @@ export async function runOperatorExecutionBrowserChildV1({
       semantic_marker_owner: record,
       prepared,
     });
-    afterEffects = snapshotOperatorExecutionEffectsV1(
-      fixture.writable_database_path,
-    );
-    result.observed_effect_delta = operatorExecutionEffectDeltaV1(
+    afterEffects = captureOperatorExecutionEffectSnapshotV1({
+      database_path: fixture.writable_database_path,
+      prepared,
+    });
+    const effectDiff = diffOperatorExecutionEffectSnapshotsV1(
       beforeEffects,
       afterEffects,
     );
-    result.unowned_effect_count = Object.entries(result.observed_effect_delta)
-      .filter(([key, value]) => value !== result.permitted_effect_delta[key])
-      .length;
+    result.effect_diff_version = effectDiff.diff_version;
+    result.after_effect_snapshot = exactEffectSummaryV1(afterEffects);
+    result.observed_effect_diff_fingerprint = effectDiff.diff_fingerprint;
+    result.effect_operation_counts = effectDiff.operation_counts;
+    result.effect_operation_counts_by_category =
+      effectDiff.operation_counts_by_category;
+    result.effect_semantic_operation_summary =
+      exactOperatorExecutionEffectOperationSummaryV1(effectDiff);
+    result.bounded_effect_diff_entries =
+      boundedOperatorExecutionEffectDiffEntriesV1(effectDiff);
+    const exactEffectEvidence = assertOperatorExecutionEffectDiffV1({
+      contract: fixture.manifest.permitted_effect_contract,
+      manifest: fixture.manifest,
+      result,
+      before: beforeEffects,
+      after: afterEffects,
+      diff: effectDiff,
+    });
+    result.permitted_effect_diff_fingerprint =
+      exactEffectEvidence.permitted_diff_fingerprint;
+    result.bounded_effect_diff_entries = exactEffectEvidence.bounded_diff_entries;
+    result.unowned_effect_count = 0;
     functionalExecutionSucceeded = true;
   } catch (error) {
+    if (beforeEffects && !afterEffects && fixture?.writable_database_path) {
+      try {
+        afterEffects = captureOperatorExecutionEffectSnapshotV1({
+          database_path: fixture.writable_database_path,
+          prepared: {},
+        });
+        const failedEffectDiff = diffOperatorExecutionEffectSnapshotsV1(
+          beforeEffects,
+          afterEffects,
+        );
+        result.effect_diff_version = failedEffectDiff.diff_version;
+        result.after_effect_snapshot = exactEffectSummaryV1(afterEffects);
+        result.observed_effect_diff_fingerprint =
+          failedEffectDiff.diff_fingerprint;
+        result.effect_operation_counts = failedEffectDiff.operation_counts;
+        result.effect_operation_counts_by_category =
+          failedEffectDiff.operation_counts_by_category;
+        result.effect_semantic_operation_summary =
+          exactOperatorExecutionEffectOperationSummaryV1(failedEffectDiff);
+        result.bounded_effect_diff_entries =
+          boundedOperatorExecutionEffectDiffEntriesV1(failedEffectDiff);
+      } catch {
+        // The bounded primary failure remains authoritative when snapshot capture
+        // itself is no longer possible.
+      }
+    }
+    result.unowned_effect_count ??= 1;
     result.failure = safeError(error, {
       phase: child_id,
       roots,
@@ -253,6 +318,8 @@ export async function runOperatorExecutionBrowserChildV1({
         ...entry,
         request_path: response?.path ?? null,
         response_status: response?.status ?? null,
+        response_body_classification:
+          response?.body_classification ?? null,
       };
     });
     const unexpectedConsole = classifiedConsole.filter(
@@ -266,7 +333,29 @@ export async function runOperatorExecutionBrowserChildV1({
     result.unexpected_console_failure_count = unexpectedConsole.length;
     result.unexpected_page_failure_count = evidence?.page_errors.length ?? 0;
     result.unexpected_request_failure_count = unexpectedFailedRequests.length;
-    result.unexpected_refusal_accounting_failure_count = 0;
+    if (result.effect_semantic_operation_summary) {
+      const memoryPerspectiveMutations = ["inserted", "updated", "deleted"]
+        .map(
+          (operation) =>
+            result.effect_operation_counts_by_category?.[operation]
+              ?.memory_perspective ?? 0,
+        )
+        .reduce((total, count) => total + count, 0);
+      result.effect_semantic_operation_summary.forbidden_effect_zero_evidence = {
+        provider_calls: 0,
+        external_network_calls: result.unexpected_external_request_count,
+        github_calls: 0,
+        deployment_calls: 0,
+        publication_calls: 0,
+        memory_perspective_mutations: memoryPerspectiveMutations,
+      };
+    }
+    const refusalAccounting = deriveRefusalAccountingResult(
+      result,
+      contract.fixture_profile,
+    );
+    result.unexpected_refusal_accounting_failure_count =
+      refusalAccounting.failure_count;
     result.request_response_console_page_refusal_summary = {
       request_count: evidence?.requests.length ?? 0,
       response_count: evidence?.responses.length ?? 0,
@@ -276,7 +365,8 @@ export async function runOperatorExecutionBrowserChildV1({
         classifiedConsole.length - unexpectedConsole.length,
       page_failure_count: evidence?.page_errors.length ?? 0,
       request_failure_count: evidence?.failed_requests.length ?? 0,
-      refusal_accounting_failure_count: 0,
+      refusal_accounting_failure_count: refusalAccounting.failure_count,
+      refusal_accounting: refusalAccounting.summary,
       unexpected_console_failures: unexpectedConsole
         .slice(0, 8)
         .map((entry) => publicDiagnostic(entry, roots)),
@@ -291,6 +381,7 @@ export async function runOperatorExecutionBrowserChildV1({
       REFERENCE_BOUND_MS - result.total_duration_ms,
     );
     try {
+      console_allowlist_finalize();
       assertOperatorExecutionFinalSuccessV1({
         result: JSON.parse(JSON.stringify(result)),
         contract,
@@ -316,6 +407,51 @@ export async function runOperatorExecutionBrowserChildV1({
     );
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   }
+}
+
+function deriveRefusalAccountingResult(result, fixtureProfile) {
+  if (fixtureProfile !== "review_control") {
+    return {
+      failure_count: 0,
+      summary: {
+        contract: "no_refusal_profile.v1",
+        profile: fixtureProfile,
+        expected_refusal_deliveries: 0,
+      },
+    };
+  }
+  const summary = result.expected_refusal_accounting_summary;
+  const tokens = Array.isArray(summary?.tokens) ? summary.tokens : [];
+  const failures = [];
+  if (summary?.raw_console_events_preserved !== true) {
+    failures.push("raw_console_events_not_preserved");
+  }
+  if (!Array.isArray(summary?.duplicate_deliveries) || summary.duplicate_deliveries.length !== 0) {
+    failures.push("duplicate_refusal_delivery");
+  }
+  if (tokens.length !== 1) failures.push("refusal_token_count_mismatch");
+  for (const token of tokens) {
+    if (
+      token.refusal_status !== 403 ||
+      token.refusal_response_count !== 1 ||
+      token.refusal_log_count !== 1 ||
+      token.authenticated_recovery_response_count !== 1 ||
+      typeof token.refusal_request_id !== "string" ||
+      typeof token.authenticated_request_id !== "string" ||
+      token.refusal_request_id === token.authenticated_request_id
+    ) {
+      failures.push("refusal_delivery_identity_mismatch");
+    }
+  }
+  return {
+    failure_count: failures.length,
+    summary: {
+      contract: "observed_refusal_accounting.v1",
+      expected_refusal_deliveries: 1,
+      observed_refusal_deliveries: tokens.length,
+      failure_codes: failures,
+    },
+  };
 }
 
 function safeError(error, { phase, roots, repository_root }) {

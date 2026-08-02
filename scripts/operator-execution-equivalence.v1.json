@@ -3198,8 +3198,8 @@
       },
       "new_child_source": "scripts/browser-validate-operator-review-control-v1.mjs",
       "new_child_source_anchor": "record(\"contextual_inspector_route_errors_preserve_missing_conflict_and_unavailable\")",
-      "semantic_event": "Preserve the legacy contextual inspector route errors preserve missing conflict and unavailable semantic milestone.",
-      "fixture_state_prerequisite": "review_control immutable seed admitted before Browser execution.",
+      "semantic_event": "Missing and conflicting exact Inspector states are produced by the real production route; the unavailable 500 rendering remains covered only by the pure presentation contract because no bounded production failure seam exists.",
+      "fixture_state_prerequisite": "The review_control seed provides the exact available receipt; a nonexistent ID produces the real 404, a wrong fingerprint on the real receipt produces the real 409, and no Browser response substitution is permitted.",
       "new_child_phase": "result_review_and_inspector"
     },
     {
@@ -3216,8 +3216,8 @@
       },
       "new_child_source": "scripts/browser-validate-operator-review-control-v1.mjs",
       "new_child_source_anchor": "record(\"contextual_inspector_exact_status_remains_primary_for_inactive_projects\")",
-      "semantic_event": "Preserve the legacy contextual inspector exact status remains primary for inactive projects semantic milestone.",
-      "fixture_state_prerequisite": "review_control immutable seed admitted before Browser execution.",
+      "semantic_event": "The real production route preserves bounded-incomplete exact status as primary while independently classifying the project as inactive and read-only.",
+      "fixture_state_prerequisite": "A versioned immutable project-local packet and receipt with 65 unique capabilities cross the production 64-item projection bound before Browser execution.",
       "new_child_phase": "result_review_and_inspector"
     },
     {

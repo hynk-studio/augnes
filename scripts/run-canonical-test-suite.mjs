@@ -128,6 +128,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "operator execution exact structural effect ledger contract",
+      ...rootNode("scripts/test-operator-execution-effect-ledger-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "AI Workplane human projection and exact-detail contract",
       ...rootNode("scripts/test-vnext-decision-centered-workbench.tsx"),
       timeoutMs: 30_000,

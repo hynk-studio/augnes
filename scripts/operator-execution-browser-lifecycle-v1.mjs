@@ -87,8 +87,14 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let waitCount = 0;
   let quietCount = 0;
   let pausedSemanticTransition = null;
-  let queuedInspectorResponse = null;
   let activeRuntimeProjectId = project_id;
+
+  const requestForId = (requestId) => {
+    for (let index = requests.length - 1; index >= 0; index -= 1) {
+      if (requests[index].request_id === requestId) return requests[index];
+    }
+    return null;
+  };
 
   const runtimeEnvironment = (activeProjectId = project_id) => ({
     ...minimalProcessEnvironment(),
@@ -240,7 +246,6 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       cdp.send("Fetch.enable", {
         patterns: [
           { urlPattern: "*/api/vnext/operator/semantic-transition*" },
-          { urlPattern: "*/api/vnext/operator/inspector*" },
         ],
       }),
     ]);
@@ -266,16 +271,37 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       } else if (payload.method === "Network.responseReceived") {
         lastObserverActivityAt = Date.now();
         const classified = classifyUrl(params.response?.url);
+        const request = requestForId(params.requestId);
         responses.push({
           request_id: params.requestId,
-          phase: currentPhase,
+          phase: request?.phase ?? currentPhase,
           path: classified.path,
-          method:
-            requests.find((entry) => entry.request_id === params.requestId)
-              ?.method ?? null,
+          method: request?.method ?? null,
           status: params.response?.status ?? null,
           type: params.type ?? null,
+          body_classification: null,
         });
+      } else if (payload.method === "Network.loadingFinished") {
+        const response = responses.find(
+          (entry) => entry.request_id === params.requestId,
+        );
+        if (response?.path === "/api/vnext/operator/inspector") {
+          void cdp
+            .send("Network.getResponseBody", { requestId: params.requestId })
+            .then((body) => {
+              response.body_classification = classifyInspectorResponseBody(
+                body?.body ?? "",
+                body?.base64Encoded === true,
+              );
+              lastObserverActivityAt = Date.now();
+            })
+            .catch(() => {
+              response.body_classification = {
+                classification: "body_unavailable",
+              };
+              lastObserverActivityAt = Date.now();
+            });
+        }
       } else if (payload.method === "Runtime.consoleAPICalled") {
         lastObserverActivityAt = Date.now();
         if (params.type === "error") {
@@ -288,15 +314,16 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         }
       } else if (payload.method === "Log.entryAdded") {
         lastObserverActivityAt = Date.now();
+        const request = requestForId(params.entry?.networkRequestId);
         if (params.entry?.level === "error") {
           consoleErrors.push({
-            phase: currentPhase,
+            phase: request?.phase ?? currentPhase,
             text: params.entry?.text ?? "log_entry",
             network_request_id: params.entry?.networkRequestId ?? null,
           });
         } else if (params.entry?.level === "warning") {
           consoleWarnings.push({
-            phase: currentPhase,
+            phase: request?.phase ?? currentPhase,
             text: params.entry?.text ?? "log_warning",
             network_request_id: params.entry?.networkRequestId ?? null,
           });
@@ -307,33 +334,13 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           text: params.exceptionDetails?.text ?? "page_exception",
         });
       } else if (payload.method === "Network.loadingFailed") {
-        const request = requests.find(
-          (entry) => entry.request_id === params.requestId,
-        );
+        const request = requestForId(params.requestId);
         failedRequests.push({
-          phase: currentPhase,
+          phase: request?.phase ?? currentPhase,
           path: request?.path ?? null,
           error_text: params.errorText ?? "request_failed",
         });
       } else if (payload.method === "Fetch.requestPaused") {
-        const pausedPath = classifyUrl(params.request?.url).path;
-        if (
-          pausedPath === "/api/vnext/operator/inspector" &&
-          queuedInspectorResponse !== null
-        ) {
-          const response = queuedInspectorResponse;
-          queuedInspectorResponse = null;
-          void cdp.send("Fetch.fulfillRequest", {
-            requestId: params.requestId,
-            responseCode: response.status,
-            responseHeaders: [
-              { name: "content-type", value: "application/json" },
-              { name: "cache-control", value: "no-store" },
-            ],
-            body: Buffer.from(JSON.stringify(response.body)).toString("base64"),
-          });
-          return;
-        }
         const action = semanticTransitionAction(params.request);
         if (
           pausedSemanticTransition?.action === action &&
@@ -579,17 +586,6 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     pausedSemanticTransition = { action, request_id: null };
   };
 
-  const queueNextInspectorResponse = ({ status, body }) => {
-    assert.equal(queuedInspectorResponse, null);
-    assert.equal(Number.isInteger(status), true);
-    assert.equal(body !== null && typeof body === "object", true);
-    queuedInspectorResponse = { status, body: structuredClone(body) };
-  };
-
-  const assertNoQueuedInspectorResponse = () => {
-    assert.equal(queuedInspectorResponse, null);
-  };
-
   const waitForPausedSemanticTransitionRequest = async (action) => {
     await waitForHostCondition(
       () =>
@@ -744,8 +740,6 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     setFormControlValue,
     authenticate,
     pauseNextSemanticTransitionRequest,
-    queueNextInspectorResponse,
-    assertNoQueuedInspectorResponse,
     waitForPausedSemanticTransitionRequest,
     releasePausedSemanticTransitionRequest,
     restartRuntime,
@@ -769,6 +763,32 @@ function semanticTransitionAction(request) {
     return ["confirm", "apply"].includes(body.action) ? body.action : null;
   } catch {
     return null;
+  }
+}
+
+function classifyInspectorResponseBody(body, base64Encoded) {
+  try {
+    const text = base64Encoded
+      ? Buffer.from(body, "base64").toString("utf8")
+      : String(body);
+    const parsed = JSON.parse(text);
+    if (parsed?.status === "inspector_read" && parsed?.inspector) {
+      return {
+        classification: "inspector_read",
+        status: "inspector_read",
+        project_activity: parsed.project_activity ?? null,
+        target_kind: parsed.inspector.target?.target_kind ?? null,
+        target_status: parsed.inspector.target_status ?? null,
+        completeness: parsed.inspector.completeness ?? null,
+      };
+    }
+    return {
+      classification: "inspector_error",
+      error_code:
+        typeof parsed?.error_code === "string" ? parsed.error_code : null,
+    };
+  } catch {
+    return { classification: "body_unparseable" };
   }
 }
 

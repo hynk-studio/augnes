@@ -32,6 +32,7 @@ import { mutateProjectControlV01 } from "../lib/vnext/persistence/project-contro
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import { createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
+import { buildRunReceiptV01 } from "../lib/vnext/run-receipt";
 import {
   consumeVNextLocalOperatorBootstrapV01,
   issueVNextLocalOperatorBootstrapV01,
@@ -40,6 +41,7 @@ import {
 import { buildTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import { buildVNextOperatorBrowserFixtureV01 } from "./vnext-operator-browser-fixture-builder-v0-1";
+import { buildOperatorExecutionPermittedEffectContractV1 } from "./operator-execution-effect-ledger-v1.mjs";
 
 export const OPERATOR_EXECUTION_FIXTURE_VERSION_V1 =
   "operator_execution_browser_fixture.v1";
@@ -48,6 +50,8 @@ export const OPERATOR_EXECUTION_FIXTURE_PROFILES_V1 = [
   "native_host_execution",
   "multi_candidate",
 ] as const;
+export const OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1 =
+  "operator_execution_inspector_route_fixture.v1" as const;
 export type OperatorExecutionFixtureProfileV1 =
   (typeof OPERATOR_EXECUTION_FIXTURE_PROFILES_V1)[number];
 
@@ -75,6 +79,8 @@ export interface OperatorExecutionFixtureManifestV1 {
   strategic_source_catalog_fingerprint: string;
   transition_receipt_id: string;
   transition_receipt_fingerprint: string;
+  baseline_run_id: string;
+  baseline_run_contract: string;
   profile_project_id: string | null;
   automation_project_id: string | null;
   automation_packet_id: string | null;
@@ -98,9 +104,20 @@ export interface OperatorExecutionFixtureManifestV1 {
       newer_proposal_fingerprint: string;
     };
   } | null;
+  inspector_route_fixture: {
+    fixture_version: typeof OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1;
+    project_id: string;
+    bounded_receipt_id: string;
+    bounded_receipt_fingerprint: string;
+    admitted_record_count: 2;
+    production_state: "inspector_section_fixed_bound_exceeded";
+    unavailable_browser_disposition: "pure_presentation_contract_only_no_production_failure_seam";
+  } | null;
   records_present_at_start: string[];
   records_intentionally_absent: string[];
-  permitted_effects: Record<string, number>;
+  permitted_effect_contract: ReturnType<
+    typeof buildOperatorExecutionPermittedEffectContractV1
+  >;
   forbidden_effects: string[];
   production_owners: string[];
   execution_capability: "deterministic_local_only" | "none";
@@ -161,9 +178,22 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
   let automationPacketId: string | null = null;
   let automationPacketFingerprint: string | null = null;
   let multiCandidateFixture: OperatorExecutionFixtureManifestV1["multi_candidate_fixture"] = null;
+  let inspectorRouteFixture: OperatorExecutionFixtureManifestV1["inspector_route_fixture"] = null;
   const database = new Database(writableDatabasePath, { fileMustExist: true });
+  let baselineRunId = "";
+  let baselineRunContract = "";
   try {
     database.pragma("foreign_keys = ON");
+    const baselineRun = database
+      .prepare(
+        "SELECT run_id, autonomy_contract_ref FROM autonomy_runs ORDER BY run_id",
+      )
+      .get() as
+      | { run_id: string; autonomy_contract_ref: string }
+      | undefined;
+    assert(baselineRun, "operator fixture baseline run missing");
+    baselineRunId = requiredString(baselineRun.run_id);
+    baselineRunContract = requiredString(baselineRun.autonomy_contract_ref);
     if (
       input.profile === "native_host_execution" ||
       input.profile === "review_control"
@@ -225,6 +255,11 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
           workspace_id: sourceManifest.workspace_id,
           project_id: automationProjectId,
           now: input.reference_time,
+        });
+      } else {
+        inspectorRouteFixture = admitBoundedInspectorRouteFixtureV1(database, {
+          workspace_id: requiredString(sourceManifest.workspace_id),
+          project_id: profileProjectId,
         });
       }
     }
@@ -333,14 +368,18 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
     transition_receipt_fingerprint: requiredString(
       sourceManifest.transition_receipt_fingerprint,
     ),
+    baseline_run_id: baselineRunId,
+    baseline_run_contract: baselineRunContract,
     profile_project_id: profileProjectId,
     automation_project_id: automationProjectId,
     automation_packet_id: automationPacketId,
     automation_packet_fingerprint: automationPacketFingerprint,
     multi_candidate_fixture: multiCandidateFixture,
+    inspector_route_fixture: inspectorRouteFixture,
     records_present_at_start: profileContract.records_present_at_start,
     records_intentionally_absent: profileContract.records_intentionally_absent,
-    permitted_effects: profileContract.permitted_effects,
+    permitted_effect_contract:
+      buildOperatorExecutionPermittedEffectContractV1(input.profile),
     forbidden_effects: profileContract.forbidden_effects,
     production_owners: [
       "vnext_operator_browser_fixture_builder_v0_1",
@@ -389,6 +428,94 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
     source_root: sourceRoot,
     writable_root: writableRoot,
     profile_project_root: profileProjectRoot,
+  };
+}
+
+function admitBoundedInspectorRouteFixtureV1(
+  database: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+  },
+): NonNullable<OperatorExecutionFixtureManifestV1["inspector_route_fixture"]> {
+  const sourcePacket = buildSemanticReviewLoopTaskContextPacketFixture(
+    {
+      fixture_id: "operator-execution-inspector-bounded-source",
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      run_id: "run:operator-execution-inspector-bounded-source",
+    },
+    { data_classification: "public_safe" },
+  );
+  const {
+    packet_version: _packetVersion,
+    packet_id: _packetId,
+    authority_summary: _authoritySummary,
+    integrity: _integrity,
+    ...builderInput
+  } = sourcePacket;
+  const packet = buildTaskContextPacketV01({
+    ...structuredClone(builderInput),
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    task: {
+      ...structuredClone(builderInput.task),
+      goal: "Render one production Inspector view whose exact capability section exceeds its fixed presentation bound.",
+    },
+  });
+  const baseReceipt = buildSemanticReviewLoopRunReceiptFixture(
+    {
+      fixture_id: "operator-execution-inspector-bounded-receipt",
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      run_id: "run:operator-execution-inspector-bounded-receipt",
+    },
+    packet,
+  );
+  const {
+    receipt_version: _receiptVersion,
+    receipt_id: _receiptId,
+    trust_summary: _trustSummary,
+    authority_summary: _receiptAuthoritySummary,
+    idempotency_key: _receiptIdempotencyKey,
+    integrity: _receiptIntegrity,
+    ...receiptInput
+  } = baseReceipt;
+  const sourceCapability = baseReceipt.capability_coverage[0];
+  assert(sourceCapability);
+  const boundedReceipt = buildRunReceiptV01({
+    ...structuredClone(receiptInput),
+    capability_coverage: Array.from({ length: 65 }, (_, index) => ({
+      ...structuredClone(sourceCapability),
+      capability: `bounded_inspector_capability_${String(index).padStart(2, "0")}`,
+      notes: ["Immutable fixture capability used only to exercise the production Inspector presentation bound."],
+    })),
+  });
+  database.transaction(() => {
+    assert.equal(
+      insertVNextCoreRecordV01(database, {
+        record_kind: "task_context_packet",
+        record_id: packet.packet_id,
+        workspace_id: packet.workspace_id,
+        project_id: packet.project_id,
+        fingerprint: packet.integrity.fingerprint,
+        idempotency_key: null,
+        payload: packet,
+        created_at: packet.generated_at,
+      }).status,
+      "inserted",
+    );
+    assert.equal(admitStructuredRunReceiptV01(database, boundedReceipt).status, "inserted");
+  })();
+  return {
+    fixture_version: OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1,
+    project_id: input.project_id,
+    bounded_receipt_id: boundedReceipt.receipt_id,
+    bounded_receipt_fingerprint: boundedReceipt.integrity.fingerprint,
+    admitted_record_count: 2,
+    production_state: "inspector_section_fixed_bound_exceeded",
+    unavailable_browser_disposition:
+      "pure_presentation_contract_only_no_production_failure_seam",
   };
 }
 
@@ -576,72 +703,6 @@ function proposalPath(proposalId: string) {
   return `/workbench/semantic-review/${proposalId.replace(":", "~")}`;
 }
 
-export function snapshotOperatorExecutionEffectsV1(databasePath: string) {
-  const database = new Database(databasePath, {
-    readonly: true,
-    fileMustExist: true,
-  });
-  try {
-    const count = (table: string) =>
-      Number(
-        (
-          database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as {
-            count: number;
-          }
-        ).count,
-      );
-    const sumColumn = (table: string, column: string) =>
-      Number(
-        (
-          database
-            .prepare(`SELECT COALESCE(SUM(${column}), 0) AS total FROM ${table}`)
-            .get() as { total: number }
-        ).total,
-      );
-    const coreKind = (kind: string) =>
-      Number(
-        (
-          database
-            .prepare(
-              "SELECT COUNT(*) AS count FROM vnext_core_records WHERE record_kind = ?",
-            )
-            .get(kind) as { count: number }
-        ).count,
-      );
-    return {
-      task_context_packets: coreKind("task_context_packet"),
-      run_receipts: coreKind("run_receipt"),
-      proposals: coreKind("episode_delta_proposal"),
-      criterion_assessments: coreKind("criterion_assessment"),
-      review_decisions: coreKind("review_decision"),
-      transition_previews: coreKind("semantic_commit_gate"),
-      applied_transitions: coreKind("state_transition_receipt"),
-      runs: count("autonomy_runs"),
-      run_events: count("autonomy_run_events"),
-      project_control_revisions: sumColumn(
-        "vnext_project_automation_controls",
-        "revision",
-      ),
-      operator_sessions: count("vnext_local_operator_sessions"),
-      work_closures: coreKind("work_closure_record"),
-    };
-  } finally {
-    database.close();
-  }
-}
-
-export function operatorExecutionEffectDeltaV1(
-  before: Record<string, number>,
-  after: Record<string, number>,
-) {
-  assert.deepEqual(Object.keys(after).sort(), Object.keys(before).sort());
-  return Object.fromEntries(
-    Object.keys(before)
-      .sort()
-      .map((key) => [key, after[key] - before[key]]),
-  );
-}
-
 export function operatorExecutionFixtureFingerprintV1(
   manifest: OperatorExecutionFixtureManifestV1,
 ) {
@@ -650,20 +711,6 @@ export function operatorExecutionFixtureFingerprintV1(
 }
 
 function profileEffectContract(profile: OperatorExecutionFixtureProfileV1) {
-  const zero = {
-    task_context_packets: 0,
-    run_receipts: 0,
-    proposals: 0,
-    criterion_assessments: 0,
-    review_decisions: 0,
-    transition_previews: 0,
-    applied_transitions: 0,
-    runs: 0,
-    run_events: 0,
-    project_control_revisions: 0,
-    operator_sessions: 0,
-    work_closures: 0,
-  };
   if (profile === "review_control") {
     return {
       records_present_at_start: [
@@ -673,16 +720,6 @@ function profileEffectContract(profile: OperatorExecutionFixtureProfileV1) {
         "non_target_applied_transition",
       ],
       records_intentionally_absent: ["strategic_transfer_proposal"],
-      permitted_effects: {
-        ...zero,
-        proposals: 2,
-        review_decisions: 2,
-        transition_previews: 1,
-        applied_transitions: 1,
-        task_context_packets: 1,
-        project_control_revisions: 3,
-        operator_sessions: 3,
-      },
       forbidden_effects: [
         "native_host_execution",
         "provider_call",
@@ -705,15 +742,6 @@ function profileEffectContract(profile: OperatorExecutionFixtureProfileV1) {
         "first_work_definition_for_clean_project",
         "running_native_host_process",
       ],
-      permitted_effects: {
-        ...zero,
-        task_context_packets: 2,
-        run_receipts: 3,
-        proposals: 3,
-        runs: 4,
-        run_events: 47,
-        operator_sessions: 3,
-      },
       forbidden_effects: [
         "review_decision",
         "applied_transition",
@@ -731,14 +759,6 @@ function profileEffectContract(profile: OperatorExecutionFixtureProfileV1) {
       "non_target_applied_transition",
     ],
     records_intentionally_absent: ["target_candidate_decision"],
-    permitted_effects: {
-      ...zero,
-      review_decisions: 4,
-      transition_previews: 1,
-      applied_transitions: 1,
-      task_context_packets: 1,
-      operator_sessions: 1,
-    },
     forbidden_effects: [
       "native_host_execution",
       "provider_call",

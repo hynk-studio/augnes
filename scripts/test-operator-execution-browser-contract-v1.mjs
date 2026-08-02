@@ -38,6 +38,18 @@ const operatorLifecycleSource = readFileSync(
   new URL("./operator-execution-browser-lifecycle-v1.mjs", import.meta.url),
   "utf8",
 );
+const operatorEffectLedgerSource = readFileSync(
+  new URL("./operator-execution-effect-ledger-v1.mjs", import.meta.url),
+  "utf8",
+);
+const operatorReviewControlSource = readFileSync(
+  new URL("./browser-validate-operator-review-control-v1.mjs", import.meta.url),
+  "utf8",
+);
+const operatorFixtureSource = readFileSync(
+  new URL("./operator-execution-browser-fixture-v1.ts", import.meta.url),
+  "utf8",
+);
 const operatorShard = inventory.future_shards.find(
   (entry) => entry.id === "operator_execution",
 );
@@ -59,6 +71,85 @@ assert.equal(implementation.child_timeout_ms, 360_000);
 assert.equal(implementation.successful_inner_target_ms, 300_000);
 assert.equal(implementation.reference_bound_ms, 480_000);
 assert.equal(implementation.required_reference_headroom_ms, 180_000);
+for (const forbiddenInspectorFabricationOwner of [
+  "queuedInspectorResponse",
+  "queueNextInspectorResponse",
+  "assertNoQueuedInspectorResponse",
+  "Fetch.fulfillRequest",
+  'urlPattern: "*/api/vnext/operator/inspector*"',
+]) {
+  assert.equal(
+    operatorLifecycleSource.includes(forbiddenInspectorFabricationOwner),
+    false,
+    `operator_inspector_fabrication_owner_present:${forbiddenInspectorFabricationOwner}`,
+  );
+  assert.equal(
+    operatorReviewControlSource.includes(forbiddenInspectorFabricationOwner),
+    false,
+    `operator_review_inspector_fabrication_owner_present:${forbiddenInspectorFabricationOwner}`,
+  );
+}
+for (const requiredProductionInspectorOwner of [
+  "operator_execution_inspector_route_fixture.v1",
+  "inspector_section_fixed_bound_exceeded",
+  "pure_presentation_contract_only_no_production_failure_seam",
+  "capability_coverage: Array.from({ length: 65 }",
+]) {
+  assert.equal(
+    operatorFixtureSource.includes(requiredProductionInspectorOwner),
+    true,
+    `operator_production_inspector_fixture_missing:${requiredProductionInspectorOwner}`,
+  );
+}
+for (const requiredInspectorAccountingOwner of [
+  "expectedInspectorConsoleDeliveries",
+  "consumedInspectorConsoleDeliveries",
+  "expected_delivery_count: 1",
+  "console_allowlist_finalize",
+  "responses[0].request_id, requests[0].request_id",
+  "responses[0].body_classification",
+]) {
+  assert.equal(
+    operatorReviewControlSource.includes(requiredInspectorAccountingOwner),
+    true,
+    `operator_inspector_request_accounting_missing:${requiredInspectorAccountingOwner}`,
+  );
+}
+for (const requestLifecycleAccountingOwner of [
+  "const requestForId = (requestId)",
+  "phase: request?.phase ?? currentPhase",
+  "const request = requestForId(params.entry?.networkRequestId)",
+  "const request = requestForId(params.requestId)",
+]) {
+  assert.equal(
+    operatorLifecycleSource.includes(requestLifecycleAccountingOwner),
+    true,
+    `operator_request_initiation_phase_accounting_missing:${requestLifecycleAccountingOwner}`,
+  );
+}
+for (const requiredExactEffectOwner of [
+  "operator_execution_exact_effect_snapshot.v1",
+  "operator_execution_exact_effect_diff.v1",
+  "before_fingerprint",
+  "after_fingerprint",
+  "operator_effect_deletion_forbidden",
+  "operator_effect_wrong_project",
+  "operator_effect_memory_perspective_mutation_forbidden",
+  "operator_effect_native_event_type_counts_mismatch",
+]) {
+  assert.equal(
+    operatorEffectLedgerSource.includes(requiredExactEffectOwner),
+    true,
+    `operator_exact_effect_owner_missing:${requiredExactEffectOwner}`,
+  );
+}
+assert.equal(
+  canonicalSuiteSource.includes(
+    'rootNode("scripts/test-operator-execution-effect-ledger-v1.mjs")',
+  ),
+  true,
+  "operator_exact_effect_contract_not_registered_in_canonical_unit_owner",
+);
 
 const expectedChildRegistrations = [
   {

@@ -1,18 +1,22 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
   OPERATOR_EXECUTION_FIXTURE_PROFILES_V1,
   OPERATOR_EXECUTION_FIXTURE_VERSION_V1,
+  OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1,
   buildOperatorExecutionBrowserFixtureV1,
   operatorExecutionFixtureFingerprintV1,
-  snapshotOperatorExecutionEffectsV1,
 } from "./operator-execution-browser-fixture-v1";
+import { captureOperatorExecutionEffectSnapshotV1 } from "./operator-execution-effect-ledger-v1.mjs";
 
 const roots: string[] = [];
+const require = createRequire(import.meta.url);
+const Database = require("better-sqlite3");
 void main();
 
 async function main() {
@@ -48,7 +52,9 @@ try {
       "public manifest must not contain a private absolute root",
     );
     assert.doesNotThrow(() =>
-      snapshotOperatorExecutionEffectsV1(fixture.writable_database_path),
+      captureOperatorExecutionEffectSnapshotV1({
+        database_path: fixture.writable_database_path,
+      }),
     );
     const persisted = JSON.parse(readFileSync(fixture.manifest_path, "utf8"));
     assert.deepEqual(persisted, fixture.manifest);
@@ -88,7 +94,57 @@ try {
     fixtures[2].manifest.multi_candidate_fixture?.exact_binding
       .newer_proposal_id,
   );
-  assert.equal(fixtures[2].manifest.permitted_effects.review_decisions, 4);
+  assert.equal(
+    fixtures[2].manifest.permitted_effect_contract.core_insert_counts
+      .review_decision,
+    4,
+  );
+  assert.equal(
+    fixtures[0].manifest.inspector_route_fixture?.fixture_version,
+    OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1,
+  );
+  assert.equal(
+    fixtures[0].manifest.inspector_route_fixture?.admitted_record_count,
+    2,
+  );
+  assert.match(
+    fixtures[0].manifest.inspector_route_fixture?.bounded_receipt_id ?? "",
+    /^run-receipt:/u,
+  );
+  const inspectorDatabase = new Database(fixtures[0].writable_database_path, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const inspectorFixture = fixtures[0].manifest.inspector_route_fixture!;
+    const receiptRow = inspectorDatabase
+      .prepare(
+        `SELECT workspace_id, project_id, fingerprint, payload_json
+         FROM vnext_core_records
+         WHERE record_kind = 'run_receipt' AND record_id = ?`,
+      )
+      .get(inspectorFixture.bounded_receipt_id) as {
+      workspace_id: string;
+      project_id: string;
+      fingerprint: string;
+      payload_json: string;
+    };
+    assert.equal(receiptRow.workspace_id, fixtures[0].manifest.workspace_id);
+    assert.equal(receiptRow.project_id, inspectorFixture.project_id);
+    assert.equal(
+      receiptRow.fingerprint,
+      inspectorFixture.bounded_receipt_fingerprint,
+    );
+    assert.equal(
+      (JSON.parse(receiptRow.payload_json).capability_coverage as unknown[])
+        .length,
+      65,
+    );
+  } finally {
+    inspectorDatabase.close();
+  }
+  assert.equal(fixtures[1].manifest.inspector_route_fixture, null);
+  assert.equal(fixtures[2].manifest.inspector_route_fixture, null);
   process.stdout.write(
     `${JSON.stringify({
       test: "operator-execution-browser-fixture-v1",

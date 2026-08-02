@@ -1757,6 +1757,9 @@
       "fixture_owner_source": "scripts/operator-execution-browser-fixture-v1.ts",
       "fixture_contract_source": "scripts/test-operator-execution-browser-fixture-v1.ts",
       "result_contract_source": "scripts/operator-execution-result-contract-v1.mjs",
+      "exact_effect_contract_source": "scripts/operator-execution-effect-ledger-v1.mjs",
+      "exact_effect_contract_test": "scripts/test-operator-execution-effect-ledger-v1.mjs",
+      "exact_effect_contract_canonical_unit_registered": true,
       "equivalence_source": "scripts/operator-execution-equivalence.v1.json",
       "static_contract_source": "scripts/test-operator-execution-browser-contract-v1.mjs",
       "fixture_version": "operator_execution_browser_fixture.v1",
@@ -1823,19 +1826,53 @@
         "review_control": {
           "records_present_at_start": ["source_bound_packet", "terminal_run_receipt", "unreviewed_proposals", "non_target_applied_transition"],
           "records_intentionally_absent": ["strategic_transfer_proposal"],
-          "permitted_effect_delta": {"task_context_packets":1,"run_receipts":0,"proposals":2,"criterion_assessments":0,"review_decisions":2,"transition_previews":1,"applied_transitions":1,"runs":0,"run_events":0,"project_control_revisions":3,"operator_sessions":3,"work_closures":0},
-          "special_fixture_boundary": "The deterministic strategic transport fixture is consumed exactly once, then retired inside the child-owned temporary root before restart and the genuine unavailable zero-model surface is asserted."
+          "permitted_structural_effects": {
+            "core_inserts": {"task_context_packet":1,"episode_delta_proposal":2,"review_decision":2,"semantic_commit_gate":1,"semantic_state":1,"state_transition_receipt":1},
+            "core_updates_or_deletes": 0,
+            "baseline_run_update": "one exact completed primary-project run metadata revision bound to its new proposal",
+            "project_control_change": "one primary-project control row inserted at exact revision 3",
+            "operator_session_inserts": 5,
+            "strategic_transport": "one exact source-bound deterministic call",
+            "transition_binding": "one accepted candidate decision, one gate for that decision, one Transition for that decision and candidate, and one later packet",
+            "all_other_durable_or_external_effects": 0
+          },
+          "inspector_production_route_fixture": {
+            "version": "operator_execution_inspector_route_fixture.v1",
+            "real_route_states": ["available_active_result", "missing_target_404", "conflicting_source_409", "inactive_bounded_incomplete_200"],
+            "unavailable_500_disposition": "pure_presentation_contract_only_no_production_failure_seam",
+            "browser_response_substitution": false,
+            "request_phase_attribution": "exact_request_initiation_phase"
+          },
+          "special_fixture_boundary": "The deterministic strategic transport fixture is consumed exactly once and retired inside the child root. Inspector Browser states use production-admitted records and the real route; unavailable 500 remains a pure presentation-contract case because no bounded production failure seam exists."
         },
         "native_host_execution": {
           "records_present_at_start": ["source_bound_packet", "deterministic_native_host_seam", "clean_first_work_project", "enabled_project_automation_control_fixture_input", "fresh_bounded_automation_project_packet_fixture_input"],
           "records_intentionally_absent": ["first_work_definition_for_clean_project", "running_native_host_process"],
-          "permitted_effect_delta": {"task_context_packets":2,"run_receipts":3,"proposals":3,"criterion_assessments":0,"review_decisions":0,"transition_previews":0,"applied_transitions":0,"runs":4,"run_events":47,"project_control_revisions":0,"operator_sessions":3,"work_closures":0},
+          "permitted_structural_effects": {
+            "core_inserts": {"automation_work_item":4,"capability_grant":1,"task_context_packet":2,"run_receipt":4,"episode_delta_proposal":4,"context_use_review":1},
+            "core_updates_or_deletes": 0,
+            "runs": "four exact project-scoped runs: two primary completed, one profile cancelled after the first-work start-admission proof, and one automation needs_review",
+            "run_events": "52 exact run-bound events with exact type/status matrices and lifecycle ordering, including the setup-run cancellation sequence",
+            "active_project_change": "one exact profile-to-automation selection update with revision +2",
+            "operator_session_inserts": 3,
+            "file_barriers": "one exact 33-event approval trace plus exact second-approval and terminal release signals",
+            "review_decisions_or_transitions": 0,
+            "all_other_durable_or_external_effects": 0
+          },
           "special_fixture_boundary": "The automation packet is produced by the real semantic review, confirmation, and Transition production handlers so it carries a fresh exact source grant; no provider or external service runs."
         },
         "multi_candidate": {
           "records_present_at_start": ["source_bound_packet", "multi_candidate_proposal_source", "exact_binding_ready_and_newer_undecided_proposal_sources", "non_target_applied_transition"],
           "records_intentionally_absent": ["target_candidate_decision"],
-          "permitted_effect_delta": {"task_context_packets":1,"run_receipts":0,"proposals":0,"criterion_assessments":0,"review_decisions":4,"transition_previews":1,"applied_transitions":1,"runs":0,"run_events":0,"project_control_revisions":0,"operator_sessions":1,"work_closures":0},
+          "permitted_structural_effects": {
+            "core_inserts": {"task_context_packet":1,"review_decision":4,"semantic_commit_gate":1,"semantic_state":1,"state_transition_receipt":1},
+            "core_updates_or_deletes": 0,
+            "operator_session_inserts": 1,
+            "transition_binding": "one exact target-proposal and selected-candidate Transition bound to its ReviewDecision and gate, plus one later packet",
+            "runs_or_events": 0,
+            "project_selection_or_control_changes": 0,
+            "all_other_durable_or_external_effects": 0
+          },
           "special_fixture_boundary": "Two exact candidates, one blocked proposal, and the legacy-equivalent older-ready/newer-undecided Home-binding pair are admitted before Browser execution; only the target decisions and exact Transition records owned by this child may change."
         }
       },
@@ -1851,11 +1888,24 @@
         "local_operator_session_v0_1"
       ],
       "authority_effect_contract": {
-        "snapshot_source": "snapshotOperatorExecutionEffectsV1",
-        "exact_delta_required": true,
+        "snapshot_source": "captureOperatorExecutionEffectSnapshotV1",
+        "contract_version": "operator_execution_exact_effect_contract.v1",
+        "snapshot_version": "operator_execution_exact_effect_snapshot.v1",
+        "diff_version": "operator_execution_exact_effect_diff.v1",
+        "row_identity_and_content_fingerprints_required": true,
+        "public_safe_project_root_fingerprint_required": true,
+        "native_run_root_binding_required": true,
+        "insert_update_delete_distinction_required": true,
+        "exact_structural_diff_required": true,
+        "deletions_allowed": false,
+        "memory_perspective_mutations_allowed": false,
         "unowned_effect_count_required": 0,
         "provider_calls_required": 0,
         "external_network_calls_required": 0,
+        "github_calls_required": 0,
+        "deployment_calls_required": 0,
+        "publication_calls_required": 0,
+        "memory_perspective_mutations_required": 0,
         "credential_private_material_boundary_required": true
       },
       "timing_contract": {
