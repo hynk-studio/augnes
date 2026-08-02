@@ -994,13 +994,6 @@
         "one_proposal_visible_for_review"
       ],
       "detailed_fields": [],
-      "semantic_markers": [
-        "golden_project_connected",
-        "golden_first_work_defined",
-        "golden_explicit_start_admitted",
-        "golden_result_receipt_admitted",
-        "golden_proposal_visible_for_review"
-      ],
       "forbidden_detailed_matrices": [
         "onboarding_naming",
         "responsive_viewports",

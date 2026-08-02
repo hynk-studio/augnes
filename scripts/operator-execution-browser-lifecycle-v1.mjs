@@ -17,6 +17,7 @@ import {
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
+import { createOperatorRequestFailureEvidenceV1 } from "./operator-execution-result-contract-v1.mjs";
 import {
   registerOwnedChild,
   settleOwnedProcessAfterExit,
@@ -72,6 +73,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const consoleWarnings = [];
   const pageErrors = [];
   const failedRequests = [];
+  const failedRequestDeliveriesById = new Map();
   const externalRequests = [];
   const ownedProcesses = new Set();
   let currentPhase = "setup";
@@ -89,12 +91,20 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let navigationCount = 0;
   let waitCount = 0;
   let quietCount = 0;
+  let failedRequestDeliverySequence = 0;
   let pausedSemanticTransition = null;
   let activeRuntimeProjectId = project_id;
 
   const requestForId = (requestId) => {
     for (let index = requests.length - 1; index >= 0; index -= 1) {
       if (requests[index].request_id === requestId) return requests[index];
+    }
+    return null;
+  };
+
+  const responseForId = (requestId) => {
+    for (let index = responses.length - 1; index >= 0; index -= 1) {
+      if (responses[index].request_id === requestId) return responses[index];
     }
     return null;
   };
@@ -263,6 +273,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         const entry = {
           request_id: params.requestId,
           phase: currentPhase,
+          navigation_epoch: navigationCount,
           path: classified.path,
           external: classified.external,
           method: params.request?.method ?? null,
@@ -285,9 +296,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           body_classification: null,
         });
       } else if (payload.method === "Network.loadingFinished") {
-        const response = responses.find(
-          (entry) => entry.request_id === params.requestId,
-        );
+        const response = responseForId(params.requestId);
         if (response?.path === "/api/vnext/operator/inspector") {
           void cdp
             .send("Network.getResponseBody", { requestId: params.requestId })
@@ -337,12 +346,41 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           text: params.exceptionDetails?.text ?? "page_exception",
         });
       } else if (payload.method === "Network.loadingFailed") {
+        lastObserverActivityAt = Date.now();
         const request = requestForId(params.requestId);
-        failedRequests.push({
-          phase: request?.phase ?? currentPhase,
-          path: request?.path ?? null,
+        const response = responseForId(params.requestId);
+        const requestId = String(params.requestId ?? "request-id-unavailable");
+        const deliveries = failedRequestDeliveriesById.get(requestId) ?? [];
+        const deliveryCardinality = deliveries.length + 1;
+        failedRequestDeliverySequence += 1;
+        for (const priorDelivery of deliveries) {
+          priorDelivery.delivery_cardinality = deliveryCardinality;
+          priorDelivery.duplicate_delivery_count = deliveryCardinality - 1;
+        }
+        const failure = createOperatorRequestFailureEvidenceV1({
+          request_id: requestId,
+          method: request?.method ?? response?.method ?? "UNKNOWN",
+          path: request?.path ?? response?.path ?? null,
+          initiating_phase: request?.phase ?? currentPhase,
+          observation_phase: currentPhase,
           error_text: params.errorText ?? "request_failed",
+          response_status: response?.status ?? null,
+          response_classification:
+            response?.body_classification?.classification ?? null,
+          error_code:
+            params.blockedReason ??
+            params.corsErrorStatus?.corsError ??
+            response?.body_classification?.error_code ??
+            null,
+          navigation_epoch: request?.navigation_epoch ?? navigationCount,
+          delivery_sequence: failedRequestDeliverySequence,
+          delivery_cardinality: deliveryCardinality,
+          request_type: request?.type ?? response?.type ?? null,
+          private_roots: [temp_root, process_temp_root, appRepo],
         });
+        deliveries.push(failure);
+        failedRequestDeliveriesById.set(requestId, deliveries);
+        failedRequests.push(failure);
       } else if (payload.method === "Fetch.requestPaused") {
         const action = semanticTransitionAction(params.request);
         if (

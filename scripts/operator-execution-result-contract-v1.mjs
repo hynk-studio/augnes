@@ -9,6 +9,136 @@ const MANIFEST_URL = new URL(
 
 export const OPERATOR_EXECUTION_OWNER_V1 = "operator_execution";
 
+const OPERATOR_REQUEST_FAILURE_EVIDENCE_KEYS_V1 = Object.freeze([
+  "delivery_cardinality",
+  "delivery_sequence",
+  "duplicate_delivery_count",
+  "error_code",
+  "error_text",
+  "evidence_version",
+  "initiating_phase",
+  "method",
+  "navigation_epoch",
+  "observation_phase",
+  "path",
+  "phase",
+  "request_id",
+  "request_type",
+  "response_classification",
+  "response_status",
+]);
+
+export function createOperatorRequestFailureEvidenceV1({
+  request_id,
+  method,
+  path,
+  initiating_phase,
+  observation_phase,
+  error_text,
+  response_status,
+  response_classification,
+  error_code,
+  navigation_epoch,
+  delivery_sequence,
+  delivery_cardinality,
+  request_type,
+  private_roots = [],
+}) {
+  const sanitize = (value, maximumLength) =>
+    boundedOperatorRequestFailureTextV1(value, {
+      maximum_length: maximumLength,
+      private_roots,
+    });
+  const evidence = {
+    evidence_version: "operator_request_failure_evidence.v1",
+    request_id: sanitize(request_id ?? "request-id-unavailable", 128),
+    method: sanitize(String(method ?? "UNKNOWN").toUpperCase(), 16),
+    path: path === null || path === undefined ? null : sanitize(path, 240),
+    phase: sanitize(initiating_phase ?? "phase-unavailable", 96),
+    initiating_phase: sanitize(initiating_phase ?? "phase-unavailable", 96),
+    observation_phase: sanitize(observation_phase ?? "phase-unavailable", 96),
+    error_text: sanitize(error_text ?? "request_failed", 240),
+    response_status:
+      Number.isSafeInteger(response_status) && response_status >= 100 && response_status <= 599
+        ? response_status
+        : null,
+    response_classification:
+      response_classification === null || response_classification === undefined
+        ? null
+        : sanitize(response_classification, 96),
+    error_code:
+      error_code === null || error_code === undefined
+        ? null
+        : sanitize(error_code, 96),
+    navigation_epoch,
+    delivery_sequence,
+    delivery_cardinality,
+    duplicate_delivery_count: delivery_cardinality - 1,
+    request_type:
+      request_type === null || request_type === undefined
+        ? null
+        : sanitize(request_type, 32),
+  };
+  assertOperatorRequestFailureEvidenceV1(evidence);
+  return evidence;
+}
+
+export function assertOperatorRequestFailureEvidenceV1(evidence) {
+  assert.deepEqual(
+    Object.keys(evidence).sort(compareCodeUnits),
+    [...OPERATOR_REQUEST_FAILURE_EVIDENCE_KEYS_V1].sort(compareCodeUnits),
+    "operator_request_failure_evidence_shape",
+  );
+  assert.equal(
+    evidence.evidence_version,
+    "operator_request_failure_evidence.v1",
+  );
+  assert.match(evidence.request_id, /^[\x20-\x7e]{1,128}$/u);
+  assert.match(evidence.method, /^[A-Z][A-Z0-9_-]{0,15}$/u);
+  if (evidence.path !== null) {
+    assert.match(evidence.path, /^[\x20-\x7e]{1,240}$/u);
+  }
+  for (const phase of [
+    evidence.phase,
+    evidence.initiating_phase,
+    evidence.observation_phase,
+  ]) {
+    assert.match(phase, /^[\x20-\x7e]{1,96}$/u);
+  }
+  assert.equal(evidence.phase, evidence.initiating_phase);
+  assert.match(evidence.error_text, /^[\x20-\x7e]{1,240}$/u);
+  if (evidence.response_status !== null) {
+    assert.equal(Number.isSafeInteger(evidence.response_status), true);
+    assert.equal(evidence.response_status >= 100, true);
+    assert.equal(evidence.response_status <= 599, true);
+  }
+  for (const value of [
+    evidence.response_classification,
+    evidence.error_code,
+  ]) {
+    if (value !== null) assert.match(value, /^[\x20-\x7e]{1,96}$/u);
+  }
+  assert.equal(Number.isSafeInteger(evidence.navigation_epoch), true);
+  assert.equal(evidence.navigation_epoch >= 0, true);
+  assert.equal(Number.isSafeInteger(evidence.delivery_sequence), true);
+  assert.equal(evidence.delivery_sequence >= 1, true);
+  assert.equal(Number.isSafeInteger(evidence.delivery_cardinality), true);
+  assert.equal(evidence.delivery_cardinality >= 1, true);
+  assert.equal(
+    evidence.duplicate_delivery_count,
+    evidence.delivery_cardinality - 1,
+  );
+  if (evidence.request_type !== null) {
+    assert.match(evidence.request_type, /^[\x20-\x7e]{1,32}$/u);
+  }
+  const serialized = JSON.stringify(evidence);
+  assert.equal(/vnext_(?:bootstrap|session|action)_v01\./u.test(serialized), false);
+  assert.equal(/(?:OPENAI_API_KEY|GITHUB_TOKEN|sk-|ghp_)/u.test(serialized), false);
+  assert.equal(/authorization\s*[:=]/iu.test(serialized), false);
+  assert.equal(/cookie\s*[:=]/iu.test(serialized), false);
+  assert.equal(/\/(?:Users|home)\/[A-Za-z0-9._-]+\//u.test(serialized), false);
+}
+
 export function loadOperatorExecutionResultContractV1({
   child_id,
   manifest_url = MANIFEST_URL,
@@ -428,6 +558,47 @@ export function hashStringSet(values) {
   return createHash("sha256")
     .update(JSON.stringify([...values].sort(compareCodeUnits)))
     .digest("hex");
+}
+
+function boundedOperatorRequestFailureTextV1(
+  value,
+  { maximum_length, private_roots },
+) {
+  let text = String(value);
+  for (const privateRoot of private_roots) {
+    if (typeof privateRoot === "string" && privateRoot.length > 0) {
+      text = text.replaceAll(privateRoot, "<private-path>");
+    }
+  }
+  return text
+    .replace(
+      /authorization\s*[:=]\s*(?:bearer\s+)?[^\s,;]+/giu,
+      "<authorization-redacted>",
+    )
+    .replace(/cookie\s*[:=]\s*[^\s,;]+/giu, "<cookie-redacted>")
+    .replace(
+      /vnext_(?:bootstrap|session|action)_v01\.[A-Za-z0-9._-]+/gu,
+      "<credential>",
+    )
+    .replace(
+      /(?:OPENAI_API_KEY|GITHUB_TOKEN)\s*[:=]\s*[^\s,;]+/giu,
+      "<secret>",
+    )
+    .replace(/(?:sk-|ghp_)[A-Za-z0-9_-]{8,}/gu, "<secret>")
+    .replace(
+      /\/(?:Users|home)\/[A-Za-z0-9._-]+(?:\/[^\s"'<>]*)?/gu,
+      "<private-path>",
+    )
+    .replace(
+      /\/(?:private\/var|var\/folders)\/[^\s"'<>]*/gu,
+      "<private-path>",
+    )
+    .replace(
+      /[A-Za-z]:\\Users\\[^\s"'<>]+/gu,
+      "<private-path>",
+    )
+    .replace(/[\u0000-\u001f\u007f]+/gu, " ")
+    .slice(0, maximum_length);
 }
 
 function compareCodeUnits(left, right) {

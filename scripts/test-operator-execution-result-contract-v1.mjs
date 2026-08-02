@@ -3,13 +3,79 @@
 import assert from "node:assert/strict";
 
 import {
+  assertOperatorRequestFailureEvidenceV1,
   assertOperatorExecutionDetailedValuesV1,
   assertOperatorExecutionFinalSuccessV1,
+  createOperatorRequestFailureEvidenceV1,
   createOperatorDetailedFieldCompletionOwnerV1,
   createOperatorResultFieldDefaultsV1,
   createOperatorSemanticMarkerOwnerV1,
   loadOperatorExecutionOwnerContractV1,
 } from "./operator-execution-result-contract-v1.mjs";
+
+const requestFailureEvidence = createOperatorRequestFailureEvidenceV1({
+  request_id: "321.45",
+  method: "get",
+  path: "/api/vnext/operator/inspector",
+  initiating_phase: "result_review_and_inspector",
+  observation_phase: "review_decision_and_transition",
+  error_text:
+    "request failed at /Users/example/private/project Authorization: Bearer private-token Cookie: session=private OPENAI_API_KEY=secret sk-privatevalue",
+  response_status: 409,
+  response_classification: "inspector_error",
+  error_code: "inspector_source_conflict",
+  navigation_epoch: 7,
+  delivery_sequence: 3,
+  delivery_cardinality: 2,
+  request_type: "Fetch",
+  private_roots: ["/Users/example/private/project"],
+});
+assert.doesNotThrow(() =>
+  assertOperatorRequestFailureEvidenceV1(requestFailureEvidence),
+);
+assert.deepEqual(
+  {
+    request_id: requestFailureEvidence.request_id,
+    method: requestFailureEvidence.method,
+    path: requestFailureEvidence.path,
+    initiating_phase: requestFailureEvidence.initiating_phase,
+    observation_phase: requestFailureEvidence.observation_phase,
+    response_status: requestFailureEvidence.response_status,
+    response_classification: requestFailureEvidence.response_classification,
+    error_code: requestFailureEvidence.error_code,
+    navigation_epoch: requestFailureEvidence.navigation_epoch,
+    delivery_sequence: requestFailureEvidence.delivery_sequence,
+    delivery_cardinality: requestFailureEvidence.delivery_cardinality,
+    duplicate_delivery_count: requestFailureEvidence.duplicate_delivery_count,
+  },
+  {
+    request_id: "321.45",
+    method: "GET",
+    path: "/api/vnext/operator/inspector",
+    initiating_phase: "result_review_and_inspector",
+    observation_phase: "review_decision_and_transition",
+    response_status: 409,
+    response_classification: "inspector_error",
+    error_code: "inspector_source_conflict",
+    navigation_epoch: 7,
+    delivery_sequence: 3,
+    delivery_cardinality: 2,
+    duplicate_delivery_count: 1,
+  },
+);
+assert.equal(Object.hasOwn(requestFailureEvidence, "post_data"), false);
+assert.equal(Object.hasOwn(requestFailureEvidence, "headers"), false);
+assert.equal(Object.hasOwn(requestFailureEvidence, "cookies"), false);
+const serializedRequestFailureEvidence = JSON.stringify(requestFailureEvidence);
+for (const privateMaterial of [
+  "/Users/example/private/project",
+  "private-token",
+  "session=private",
+  "OPENAI_API_KEY",
+  "sk-privatevalue",
+]) {
+  assert.equal(serializedRequestFailureEvidence.includes(privateMaterial), false);
+}
 
 const owner = loadOperatorExecutionOwnerContractV1();
 for (const contract of owner.children) {
@@ -93,6 +159,7 @@ process.stdout.write(
     children: owner.children.length,
     detailed_fields: owner.field_ids.length,
     semantic_markers: owner.marker_ids.length,
+    request_failure_evidence_contracts: 1,
     staged_finalization_negatives: owner.children.length * 10,
   })}\n`,
 );

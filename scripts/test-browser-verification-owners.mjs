@@ -75,14 +75,23 @@ for (const owner of [
         : "node scripts/run-canonical-test-suite.mjs e2e-golden");
 }
 
-assert.equal(manifest.owners.cross_boundary_golden.detailed_fields.length, 0);
-assert.deepEqual(manifest.owners.cross_boundary_golden.composition_steps, [
+const golden = manifest.owners.cross_boundary_golden;
+assert.equal(golden.detailed_fields.length, 0);
+assert.equal(Object.hasOwn(golden, "semantic_markers"), false);
+assert.deepEqual(golden.composition_steps, [
   "project_connection",
   "first_work_definition",
   "explicit_deterministic_local_start",
   "one_admitted_result_receipt",
   "one_proposal_visible_for_review",
 ]);
+assert.equal(golden.composition_steps.length, new Set(golden.composition_steps).size);
+assert.equal(
+  golden.composition_steps.every(
+    (step) => typeof step === "string" && /^[a-z][a-z0-9_]{1,80}$/u.test(step),
+  ),
+  true,
+);
 assert.equal(manifest.invariant_contract.shared_mutable_resources, "forbidden");
 assert.equal(manifest.invariant_contract.provider_or_external_network, "forbidden");
 assert.equal(manifest.changed_file_selection.full_canonical, "all_permanent_browser_phases");

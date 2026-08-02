@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { buildOperatorExecutionBrowserFixtureV1 } from "./operator-execution-browser-fixture-v1.ts";
@@ -15,6 +15,31 @@ import {
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 const CHILD_ID = "cross-boundary-golden";
+const OWNER_MANIFEST = JSON.parse(
+  readFileSync(
+    new URL("./browser-verification-owners.v1.json", import.meta.url),
+    "utf8",
+  ),
+);
+assert.equal(OWNER_MANIFEST.schema, "augnes.browser-verification-owners.v1");
+const GOLDEN_COMPOSITION_STEPS = Object.freeze([
+  ...OWNER_MANIFEST.owners.cross_boundary_golden.composition_steps,
+]);
+assert.equal(GOLDEN_COMPOSITION_STEPS.length, 5);
+assert.equal(
+  new Set(GOLDEN_COMPOSITION_STEPS).size,
+  GOLDEN_COMPOSITION_STEPS.length,
+);
+for (const step of GOLDEN_COMPOSITION_STEPS) {
+  assert.match(step, /^[a-z][a-z0-9_]{1,80}$/u);
+}
+const [
+  PROJECT_CONNECTION_STEP,
+  FIRST_WORK_DEFINITION_STEP,
+  EXPLICIT_DETERMINISTIC_LOCAL_START_STEP,
+  ONE_ADMITTED_RESULT_RECEIPT_STEP,
+  ONE_PROPOSAL_VISIBLE_FOR_REVIEW_STEP,
+] = GOLDEN_COMPOSITION_STEPS;
 const ACCEPTANCE_BOUND_MS = 360_000;
 const LIVE_TIMEOUT_MS = 90_000;
 const startedAt = Date.now();
@@ -154,7 +179,7 @@ async function executeGoldenPath({ fixture, lifecycle, result, roots }) {
     const project = readProjectIdentity(fixture.writable_database_path, projectId);
     assert.equal(project.normalized_root, fixture.profile_project_root);
     result.project_id_fingerprint = publicIdentityFingerprint(projectId);
-    result.composition_steps.push("project_connection");
+    completeCompositionStep(result, PROJECT_CONNECTION_STEP);
   });
 
   await lifecycle.runPhase("first_work_definition", async () => {
@@ -211,7 +236,7 @@ async function executeGoldenPath({ fixture, lifecycle, result, roots }) {
     result.packet_id_fingerprint = publicIdentityFingerprint(
       latestCoreRecordId(fixture.writable_database_path, projectId, "task_context_packet"),
     );
-    result.composition_steps.push("first_work_definition");
+    completeCompositionStep(result, FIRST_WORK_DEFINITION_STEP);
   });
 
   await lifecycle.runPhase("explicit_deterministic_start_to_result", async () => {
@@ -280,8 +305,8 @@ async function executeGoldenPath({ fixture, lifecycle, result, roots }) {
     result.receipt_id_fingerprint = publicIdentityFingerprint(
       latestCoreRecordId(fixture.writable_database_path, projectId, "run_receipt"),
     );
-    result.composition_steps.push("explicit_deterministic_local_start");
-    result.composition_steps.push("one_result_receipt");
+    completeCompositionStep(result, EXPLICIT_DETERMINISTIC_LOCAL_START_STEP);
+    completeCompositionStep(result, ONE_ADMITTED_RESULT_RECEIPT_STEP);
   });
 
   await lifecycle.runPhase("proposal_visible_for_review", async () => {
@@ -298,10 +323,19 @@ async function executeGoldenPath({ fixture, lifecycle, result, roots }) {
       "proposal visible for semantic review",
     );
     result.proposal_id_fingerprint = publicIdentityFingerprint(proposalId);
-    result.composition_steps.push("proposal_visible_for_review");
+    completeCompositionStep(result, ONE_PROPOSAL_VISIBLE_FOR_REVIEW_STEP);
     await lifecycle.waitForRequestQuiet();
     result.provider_or_external_network_call = false;
   });
+}
+
+function completeCompositionStep(value, step) {
+  assert.equal(
+    step,
+    GOLDEN_COMPOSITION_STEPS[value.composition_steps.length],
+    "golden_composition_step_out_of_order",
+  );
+  value.composition_steps.push(step);
 }
 
 function projectCounts(databasePath, projectId) {
@@ -433,13 +467,7 @@ function assertGoldenSuccess(value, functionalSucceeded) {
   assert.equal(functionalSucceeded, true);
   assert.equal(value.ok, false);
   assert.equal(value.failure, null);
-  assert.deepEqual(value.composition_steps, [
-    "project_connection",
-    "first_work_definition",
-    "explicit_deterministic_local_start",
-    "one_result_receipt",
-    "proposal_visible_for_review",
-  ]);
+  assert.deepEqual(value.composition_steps, GOLDEN_COMPOSITION_STEPS);
   for (const key of [
     "project_id_fingerprint",
     "packet_id_fingerprint",
