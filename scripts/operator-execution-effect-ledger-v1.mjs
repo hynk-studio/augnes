@@ -107,7 +107,7 @@ const PROFILE_CONTRACTS = Object.freeze({
     core_insert_counts: Object.freeze({
       automation_work_item: 4,
       capability_grant: 1,
-      task_context_packet: 2,
+      task_context_packet: 4,
       run_receipt: 4,
       episode_delta_proposal: 4,
       context_use_review: 1,
@@ -123,7 +123,7 @@ const PROFILE_CONTRACTS = Object.freeze({
         autonomy_run_events: 52,
         autonomy_run_steps: 4,
         autonomy_runs: 4,
-        vnext_core_records: 16,
+        vnext_core_records: 18,
         vnext_local_operator_sessions: 3,
       }),
       updated: Object.freeze({ vnext_active_project_selections: 1 }),

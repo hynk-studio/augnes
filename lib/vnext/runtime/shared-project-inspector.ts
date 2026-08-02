@@ -1333,7 +1333,11 @@ function laterContextSectionV01(
     "Later context and feedback",
     packet ? "available" : input.continuity ? "pending" : exactTargetPacket ? "unavailable" : "missing",
     packet
-      ? "The later packet is compiler-produced after an applied Transition. Presentation, actual use, and usefulness remain separate."
+      ? packet.lineage_kind === "pre_execution_user_revision"
+        ? "The current packet is an append-only user revision saved before execution. Presentation, actual use, and usefulness remain separate."
+        : packet.lineage_kind === "initial_user_defined"
+          ? "The current packet is the user's initial work definition. Presentation, actual use, and usefulness remain separate."
+          : "The later packet is compiler-produced after an applied Transition. Presentation, actual use, and usefulness remain separate."
       : input.continuity
         ? "No compiler-produced later packet is available; decision-only and gate-only material did not change context."
         : exactTargetPacket
@@ -1349,7 +1353,11 @@ function laterContextSectionV01(
     packet
       ? [itemV01(
           packet.packet_id,
-          "Compiler-produced TaskContextPacket",
+          packet.lineage_kind === "pre_execution_user_revision"
+            ? "Pre-execution revised TaskContextPacket"
+            : packet.lineage_kind === "initial_user_defined"
+              ? "Initial user-defined TaskContextPacket"
+              : "Compiler-produced TaskContextPacket",
           `${packet.accepted_state_count} accepted state refs · ${input.continuity?.packet_currentness ?? "unavailable"}`,
           feedback ? "feedback_recorded" : "feedback_pending",
           packet.generated_at,

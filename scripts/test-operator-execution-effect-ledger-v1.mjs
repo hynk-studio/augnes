@@ -290,7 +290,7 @@ function nativeSnapshots() {
   const coreCounts = {
     automation_work_item: 4,
     capability_grant: 1,
-    task_context_packet: 2,
+    task_context_packet: 4,
     run_receipt: 4,
     episode_delta_proposal: 4,
     context_use_review: 1,

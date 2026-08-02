@@ -40,6 +40,7 @@ import {
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
+import { readProjectWorkRevisionEligibilityV01 } from "@/lib/vnext/runtime/project-work-revision";
 
 const MAX_PROJECT_WORK_RECORDS = 4_096;
 const REQUEST_KEYS = [
@@ -219,6 +220,11 @@ function readProjectWorkInitializationStrictV01(
   assertVNextDurableSemanticStoreSchemaV01(db);
   const registration = readCanonicalProjectWithRootV01(db, input);
   const active = readActiveProjectSelectionV01(db, input.workspace_id);
+  const revisionEligibility = readProjectWorkRevisionEligibilityV01(
+    db,
+    input,
+    dependencies,
+  );
   if (!registration) return unavailableV01(db, input, "project_unavailable");
   const rootAvailable =
     dependencies.root_available ?? rootAvailableSynchronouslyV01;
@@ -269,31 +275,36 @@ function readProjectWorkInitializationStrictV01(
       return [];
     }
   });
-  const current = inspected
-    .filter((entry) => entry.projection_current)
+  const currentCandidates = inspected.filter((entry) => entry.projection_current);
+  const current = currentCandidates
     .sort(
       (left, right) =>
         left.packet.generated_at.localeCompare(right.packet.generated_at) ||
         left.packet.packet_id.localeCompare(right.packet.packet_id),
     )
     .at(-1);
-  if (
-    current &&
-    (
-      current.lineage_kind === "semantic_transition" ||
-      packetRecords.length === 1
-    )
-  ) {
+  if (current && currentCandidates.length === 1) {
+    const state =
+      current.lineage_kind === "initial_user_defined"
+        ? "defined_initial_work"
+        : current.lineage_kind === "pre_execution_user_revision"
+          ? "defined_revised_work"
+          : "defined_transition_work";
+    const reason =
+      current.lineage_kind === "initial_user_defined"
+        ? "current_initial_packet"
+        : current.lineage_kind === "pre_execution_user_revision"
+          ? "current_revision_packet"
+          : "current_transition_packet";
     return {
-      ...baseV01(input, active?.project_id ?? null, active?.selection_revision ?? null),
-      state:
-        current.lineage_kind === "initial_user_defined"
-          ? "defined_initial_work"
-          : "defined_transition_work",
-      reason:
-        current.lineage_kind === "initial_user_defined"
-          ? "current_initial_packet"
-          : "current_transition_packet",
+      ...baseV01(
+        input,
+        active?.project_id ?? null,
+        active?.selection_revision ?? null,
+        revisionEligibility,
+      ),
+      state,
+      reason,
       current_work: structuredClone(current.packet.task),
       current_packet: {
         packet_id: current.packet.packet_id,
@@ -311,7 +322,12 @@ function readProjectWorkInitializationStrictV01(
     headCount === 0
   ) {
     return {
-      ...baseV01(input, active?.project_id ?? null, active?.selection_revision ?? null),
+      ...baseV01(
+        input,
+        active?.project_id ?? null,
+        active?.selection_revision ?? null,
+        revisionEligibility,
+      ),
       state: "not_defined",
       reason: "zero_durable_work_history",
       current_work: null,
@@ -322,7 +338,12 @@ function readProjectWorkInitializationStrictV01(
     };
   }
   return {
-    ...baseV01(input, active?.project_id ?? null, active?.selection_revision ?? null),
+    ...baseV01(
+      input,
+      active?.project_id ?? null,
+      active?.selection_revision ?? null,
+      revisionEligibility,
+    ),
     state: "existing_history_without_current_packet",
     reason: "durable_history_without_current_packet",
     current_work: null,
@@ -434,6 +455,9 @@ function baseV01(
   input: { workspace_id: string; project_id: string },
   activeProjectId: string | null,
   activeSelectionRevision: number | null,
+  revisionEligibility?: ReturnType<
+    typeof readProjectWorkRevisionEligibilityV01
+  >,
 ) {
   return {
     initialization_version: PROJECT_WORK_INITIALIZATION_VERSION_V01,
@@ -441,6 +465,25 @@ function baseV01(
     project_id: input.project_id,
     active_project_id: activeProjectId,
     active_selection_revision: activeSelectionRevision,
+    revision_eligibility:
+      revisionEligibility ??
+      ({
+        eligibility_version: "project_work_revision_eligibility.v0.1",
+        workspace_id: input.workspace_id,
+        project_id: input.project_id,
+        active_project_id: activeProjectId,
+        active_selection_revision: activeSelectionRevision,
+        current_packet_id: null,
+        current_packet_fingerprint: null,
+        current_lineage_kind: null,
+        revision_count: 0,
+        status: "unavailable",
+        reason: "source_unavailable",
+        eligible: false,
+        projection_only: true,
+        semantic_authority_granted: false,
+        execution_authority_granted: false,
+      } as const),
     projection_only: true as const,
     semantic_authority_granted: false as const,
     execution_authority_granted: false as const,
@@ -462,7 +505,12 @@ function unavailableV01(
     // The unavailable state remains conservative when lifecycle state is unreadable.
   }
   return {
-    ...baseV01(input, activeProjectId, activeSelectionRevision),
+    ...baseV01(
+      input,
+      activeProjectId,
+      activeSelectionRevision,
+      readProjectWorkRevisionEligibilityV01(db, input),
+    ),
     state: "unavailable",
     reason,
     current_work: null,

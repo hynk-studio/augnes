@@ -51,6 +51,10 @@ import {
 import type { VNextLocalOperatorPilotConfigV01 } from "../lib/vnext/runtime/local-operator-session";
 import { initialProjectWorkIdempotencyKeyV01 } from "../lib/vnext/runtime/initial-project-work-context";
 import {
+  inspectPreExecutionProjectWorkRevisionChainV01,
+  preExecutionProjectWorkRevisionIdempotencyKeyV01,
+} from "../lib/vnext/runtime/pre-execution-project-work-revision";
+import {
   inspectProjectManagedRunHistoryV01,
 } from "../lib/vnext/runtime/project-managed-run-history";
 import { createVNextOperatorPilotContextUseReviewLogicalIdentityV01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract";
@@ -544,9 +548,13 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
         workspace_id: payload.workspace_id,
         project_id: payload.project_id,
         fingerprint: exactFingerprintV01(payload),
-        idempotency_key: initialProjectWorkIdempotencyKeyV01(
-          payload as unknown as TaskContextPacketV01,
-        ),
+        idempotency_key:
+          initialProjectWorkIdempotencyKeyV01(
+            payload as unknown as TaskContextPacketV01,
+          ) ??
+          preExecutionProjectWorkRevisionIdempotencyKeyV01(
+            payload as unknown as TaskContextPacketV01,
+          ),
         created_at: payload.generated_at,
       });
       return;
@@ -1023,9 +1031,23 @@ function validateInitialProjectWorkGenesisV01(
   db: Database.Database,
   records: ParsedCanonicalRecordV01[],
 ): void {
+  const scopes = new Map<
+    string,
+    { workspace_id: string; project_id: string }
+  >();
   for (const record of records) {
     if (record.record_kind !== "task_context_packet") continue;
     const packet = record.payload as unknown as TaskContextPacketV01;
+    if (
+      initialProjectWorkIdempotencyKeyV01(packet) === null &&
+      preExecutionProjectWorkRevisionIdempotencyKeyV01(packet) === null
+    ) {
+      continue;
+    }
+    scopes.set(`${record.workspace_id}\0${record.project_id}`, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
     if (initialProjectWorkIdempotencyKeyV01(packet) === null) continue;
     const history = inspectProjectManagedRunHistoryV01(db, {
       workspace_id: record.workspace_id,
@@ -1033,6 +1055,13 @@ function validateInitialProjectWorkGenesisV01(
       created_at_lte: packet.generated_at,
     });
     if (history.status !== "none") refuseV01();
+  }
+  for (const scope of scopes.values()) {
+    try {
+      inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    } catch {
+      refuseV01("database_canonical_invariant_failed");
+    }
   }
 }
 

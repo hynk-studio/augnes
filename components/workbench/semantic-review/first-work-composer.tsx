@@ -15,14 +15,24 @@ export function FirstWorkComposer({
   initialization,
   busy,
   onSave,
+  mode = "initial",
+  initialDefinition,
+  onCancel,
 }: {
   initialization: ProjectWorkInitializationV01;
   busy: boolean;
   onSave: (definition: ProjectWorkDefinitionV01) => Promise<void>;
+  mode?: "initial" | "revision";
+  initialDefinition?: ProjectWorkDefinitionV01;
+  onCancel?: () => void;
 }) {
-  const [goal, setGoal] = useState("");
-  const [criteriaText, setCriteriaText] = useState("");
-  const [nonGoalsText, setNonGoalsText] = useState("");
+  const [goal, setGoal] = useState(initialDefinition?.goal ?? "");
+  const [criteriaText, setCriteriaText] = useState(
+    initialDefinition?.success_criteria.join("\n") ?? "",
+  );
+  const [nonGoalsText, setNonGoalsText] = useState(
+    initialDefinition?.non_goals.join("\n") ?? "",
+  );
   const goalRef = useRef<HTMLTextAreaElement>(null);
   const definition = useMemo(
     () => ({
@@ -33,27 +43,42 @@ export function FirstWorkComposer({
     [criteriaText, goal, nonGoalsText],
   );
   const issues = validationIssuesV01(definition);
+  const unchanged =
+    mode === "revision" &&
+    initialDefinition !== undefined &&
+    sameDefinitionV01(definition, initialDefinition);
+  const prefix = mode === "revision" ? "work-revision" : "first-work";
 
   useEffect(() => {
-    if (window.location.hash !== "#first-work") return;
+    if (mode === "initial" && window.location.hash !== "#first-work") return;
     window.requestAnimationFrame(() => goalRef.current?.focus());
-  }, []);
+  }, [mode]);
 
   return (
     <section
-      id="first-work"
+      id={mode === "initial" ? "first-work" : "work-revision"}
       className={`${styles.panel} ${styles.workplaneFocus}`}
-      aria-labelledby="first-work-title"
-      data-first-work-composer="project_work_initialization.v0.1"
+      aria-labelledby={`${prefix}-title`}
+      data-first-work-composer={
+        mode === "initial" ? "project_work_initialization.v0.1" : undefined
+      }
+      data-work-revision-composer={
+        mode === "revision" ? "pre_execution_user_revision" : undefined
+      }
       data-first-work-state={initialization.state}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
     >
       <div className={styles.panelHeader}>
-        <p className={styles.kicker}>First project work</p>
-        <h2 id="first-work-title">Define the first work</h2>
+        <p className={styles.kicker}>
+          {mode === "revision" ? "Current project work" : "First project work"}
+        </p>
+        <h2 id={`${prefix}-title`}>
+          {mode === "revision" ? "Revise work definition" : "Define the first work"}
+        </h2>
         <p className={styles.copy}>
-          Save one goal and the criteria that will show success. This does not
-          start Codex or change project files.
+          {mode === "revision"
+            ? "Save an append-only revision before work starts. This does not start Codex or change project files."
+            : "Save one goal and the criteria that will show success. This does not start Codex or change project files."}
         </p>
       </div>
       <form
@@ -61,49 +86,49 @@ export function FirstWorkComposer({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (issues.length > 0 || busy) return;
+          if (issues.length > 0 || busy || unchanged) return;
           void onSave(definition);
         }}
       >
-        <label htmlFor="first-work-goal">Goal</label>
+        <label htmlFor={`${prefix}-goal`}>Goal</label>
         <textarea
           ref={goalRef}
-          id="first-work-goal"
-          name="first-work-goal"
+          id={`${prefix}-goal`}
+          name={`${prefix}-goal`}
           value={goal}
           required
-          aria-describedby="first-work-goal-help"
+          aria-describedby={`${prefix}-goal-help`}
           aria-invalid={issues.some((issue) => issue.field === "goal")}
           onChange={(event) => setGoal(event.target.value)}
         />
-        <small id="first-work-goal-help" className={styles.muted}>
+        <small id={`${prefix}-goal-help`} className={styles.muted}>
           Required · up to {INITIAL_PROJECT_WORK_LIMITS_V01.goal_characters.toLocaleString()} characters.
         </small>
 
-        <label htmlFor="first-work-success-criteria">Success criteria</label>
+        <label htmlFor={`${prefix}-success-criteria`}>Success criteria</label>
         <textarea
-          id="first-work-success-criteria"
-          name="first-work-success-criteria"
+          id={`${prefix}-success-criteria`}
+          name={`${prefix}-success-criteria`}
           value={criteriaText}
           required
-          aria-describedby="first-work-success-help"
+          aria-describedby={`${prefix}-success-help`}
           aria-invalid={issues.some((issue) => issue.field === "criteria")}
           onChange={(event) => setCriteriaText(event.target.value)}
         />
-        <small id="first-work-success-help" className={styles.muted}>
+        <small id={`${prefix}-success-help`} className={styles.muted}>
           Required · one criterion per line, up to {INITIAL_PROJECT_WORK_LIMITS_V01.success_criteria} entries.
         </small>
 
-        <label htmlFor="first-work-non-goals">Out of scope</label>
+        <label htmlFor={`${prefix}-non-goals`}>Out of scope</label>
         <textarea
-          id="first-work-non-goals"
-          name="first-work-non-goals"
+          id={`${prefix}-non-goals`}
+          name={`${prefix}-non-goals`}
           value={nonGoalsText}
-          aria-describedby="first-work-non-goals-help"
+          aria-describedby={`${prefix}-non-goals-help`}
           aria-invalid={issues.some((issue) => issue.field === "non_goals")}
           onChange={(event) => setNonGoalsText(event.target.value)}
         />
-        <small id="first-work-non-goals-help" className={styles.muted}>
+        <small id={`${prefix}-non-goals-help`} className={styles.muted}>
           Optional · one non-goal per line. These boundaries are not permission grants.
         </small>
 
@@ -117,12 +142,32 @@ export function FirstWorkComposer({
           <button
             type="submit"
             className={styles.button}
-            disabled={issues.length > 0 || busy}
-            data-first-work-action="save"
-            data-augnes-primary-action="save-first-work"
+            disabled={issues.length > 0 || busy || unchanged}
+            data-first-work-action={mode === "initial" ? "save" : undefined}
+            data-work-revision-action={mode === "revision" ? "save" : undefined}
+            data-augnes-primary-action={
+              mode === "revision" ? "save-work-revision" : "save-first-work"
+            }
           >
-            {busy ? "Saving first work…" : "Save first work"}
+            {busy
+              ? mode === "revision"
+                ? "Saving revision…"
+                : "Saving first work…"
+              : mode === "revision"
+                ? "Save revision"
+                : "Save first work"}
           </button>
+          {mode === "revision" ? (
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              disabled={busy}
+              data-work-revision-action="cancel"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          ) : null}
         </div>
       </form>
     </section>
@@ -144,6 +189,9 @@ function validationIssuesV01(definition: ProjectWorkDefinitionV01): Array<{
   if ([...definition.goal].length > INITIAL_PROJECT_WORK_LIMITS_V01.goal_characters) {
     return [{ field: "goal", message: "Shorten the goal to 2,000 characters or fewer." }];
   }
+  if (containsDisallowedControlV01(definition.goal)) {
+    return [{ field: "goal", message: "Remove control characters from the goal." }];
+  }
   if (definition.success_criteria.length === 0) {
     return [{ field: "criteria", message: "Add at least one success criterion." }];
   }
@@ -153,7 +201,8 @@ function validationIssuesV01(definition: ProjectWorkDefinitionV01): Array<{
     definition.success_criteria.some(
       (entry) =>
         [...entry].length >
-        INITIAL_PROJECT_WORK_LIMITS_V01.success_criterion_characters,
+          INITIAL_PROJECT_WORK_LIMITS_V01.success_criterion_characters ||
+        containsDisallowedControlV01(entry),
     )
   ) {
     return [{
@@ -165,7 +214,8 @@ function validationIssuesV01(definition: ProjectWorkDefinitionV01): Array<{
     definition.non_goals.length > INITIAL_PROJECT_WORK_LIMITS_V01.non_goals ||
     definition.non_goals.some(
       (entry) =>
-        [...entry].length > INITIAL_PROJECT_WORK_LIMITS_V01.non_goal_characters,
+        [...entry].length > INITIAL_PROJECT_WORK_LIMITS_V01.non_goal_characters ||
+        containsDisallowedControlV01(entry),
     )
   ) {
     return [{
@@ -174,7 +224,7 @@ function validationIssuesV01(definition: ProjectWorkDefinitionV01): Array<{
     }];
   }
   if (
-    new TextEncoder().encode(JSON.stringify(definition)).byteLength >
+    new TextEncoder().encode(canonicalDefinitionV01(definition)).byteLength >
     INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes
   ) {
     return [{
@@ -183,4 +233,19 @@ function validationIssuesV01(definition: ProjectWorkDefinitionV01): Array<{
     }];
   }
   return [];
+}
+
+function sameDefinitionV01(
+  left: ProjectWorkDefinitionV01,
+  right: ProjectWorkDefinitionV01,
+): boolean {
+  return canonicalDefinitionV01(left) === canonicalDefinitionV01(right);
+}
+
+function canonicalDefinitionV01(definition: ProjectWorkDefinitionV01): string {
+  return `{"goal":${JSON.stringify(definition.goal)},"non_goals":[${definition.non_goals.map((entry) => JSON.stringify(entry)).join(",")}],"success_criteria":[${definition.success_criteria.map((entry) => JSON.stringify(entry)).join(",")}]}`;
+}
+
+function containsDisallowedControlV01(value: string): boolean {
+  return /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
 }

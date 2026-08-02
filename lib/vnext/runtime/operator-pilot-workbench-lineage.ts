@@ -23,6 +23,7 @@ import {
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
+import { preExecutionProjectWorkRevisionIdempotencyKeyV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
   type VNextOperatorPilotTransitionPacketLineageInspectionV01,
@@ -269,7 +270,9 @@ function loadValidatedCompiledPackets(
     assertRecordEnvelope(record, {
       record_id: packet.packet_id,
       fingerprint: packet.integrity.fingerprint,
-      idempotency_key: initialProjectWorkIdempotencyKeyV01(packet),
+      idempotency_key:
+        initialProjectWorkIdempotencyKeyV01(packet) ??
+        preExecutionProjectWorkRevisionIdempotencyKeyV01(packet),
       created_at: packet.generated_at,
       workspace_id: packet.workspace_id,
       project_id: packet.project_id,

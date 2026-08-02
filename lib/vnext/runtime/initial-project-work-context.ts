@@ -15,6 +15,7 @@ import {
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 
 export const INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 =
   "augnes.vnext.initial-work-context-compiler.v0.1" as const;
@@ -363,6 +364,12 @@ export function initialProjectWorkIdempotencyKeyV01(
   if (
     !packet.compatibility.source_contracts.includes(
       INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+    ) ||
+    packet.compatibility.source_contracts.includes(
+      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ) ||
+    packet.compatibility.source_contracts.includes(
+      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
     )
   ) {
     return null;
@@ -418,8 +425,16 @@ export function inspectInitialProjectWorkPacketLineageV01(
   const initialCount = initialRows.filter((row) => {
     try {
       const value = JSON.parse(row.payload_json) as TaskContextPacketV01;
-      return value.compatibility?.source_contracts?.includes(
-        INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+      return (
+        value.compatibility?.source_contracts?.includes(
+          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+        ) &&
+        !value.compatibility?.source_contracts?.includes(
+          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+        ) &&
+        !value.compatibility?.source_contracts?.includes(
+          PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+        )
       );
     } catch {
       refuse("initial_project_work_source_unavailable", 409);
@@ -547,11 +562,26 @@ export function inspectInitialProjectWorkPacketLineageV01(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
     );
   });
+  const laterRevisionPacket = initialRows.some((row) => {
+    if (row.record_id === packet.packet_id) return false;
+    const value = JSON.parse(row.payload_json) as TaskContextPacketV01;
+    return (
+      value.compatibility?.source_contracts?.includes(
+        PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+      ) &&
+      !value.compatibility?.source_contracts?.includes(
+        VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+      )
+    );
+  });
   return {
     lineage_kind: "initial_user_defined",
     packet,
     projection_current:
-      semanticState === 0 && targetHeads === 0 && !laterTransitionPacket,
+      semanticState === 0 &&
+      targetHeads === 0 &&
+      !laterTransitionPacket &&
+      !laterRevisionPacket,
     definition_ref: definitionRef,
     request_ref: requestRef,
     operator_action_ref: operatorActionRef,
