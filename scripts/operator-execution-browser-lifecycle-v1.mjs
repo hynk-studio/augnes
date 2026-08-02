@@ -74,6 +74,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const pageErrors = [];
   const failedRequests = [];
   const failedRequestDeliveriesById = new Map();
+  const inFlightDocumentRequestIds = new Set();
   const externalRequests = [];
   const ownedProcesses = new Set();
   let currentPhase = "setup";
@@ -269,6 +270,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       const params = payload.params ?? {};
       if (payload.method === "Network.requestWillBeSent") {
         lastObserverActivityAt = Date.now();
+        if (params.type === "Document") {
+          inFlightDocumentRequestIds.add(params.requestId);
+        }
         const classified = classifyUrl(params.request?.url);
         const entry = {
           request_id: params.requestId,
@@ -296,6 +300,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           body_classification: null,
         });
       } else if (payload.method === "Network.loadingFinished") {
+        inFlightDocumentRequestIds.delete(params.requestId);
         const response = responseForId(params.requestId);
         if (response?.path === "/api/vnext/operator/inspector") {
           void cdp
@@ -347,6 +352,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         });
       } else if (payload.method === "Network.loadingFailed") {
         lastObserverActivityAt = Date.now();
+        inFlightDocumentRequestIds.delete(params.requestId);
         const request = requestForId(params.requestId);
         const response = responseForId(params.requestId);
         const requestId = String(params.requestId ?? "request-id-unavailable");
@@ -508,7 +514,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     quietCount += 1;
     const started = Date.now();
     while (Date.now() - started < DEFAULT_TIMEOUT_MS) {
-      if (Date.now() - lastObserverActivityAt >= REQUEST_QUIET_MS) {
+      if (
+        inFlightDocumentRequestIds.size === 0 &&
+        Date.now() - lastObserverActivityAt >= REQUEST_QUIET_MS
+      ) {
         timing.duration(
           "request_quiet",
           `request quiet ${String(quietCount).padStart(2, "0")}`,
