@@ -1415,8 +1415,11 @@ async function runStartCommand({
       isReady: (body) =>
         body?.ok === true &&
         body?.name === "augnes-console" &&
-        body?.mode === "mock" &&
-        body?.runtime_instance_id === runtime.instanceId,
+        body?.mode === "http" &&
+        body?.live_core_status === "ready" &&
+        body?.runtime_instance_id === runtime.instanceId &&
+        body?.runtime_generation_id === runtime.generationId &&
+        body?.runtime_repository_fingerprint === runtime.repositoryFingerprint,
     });
     runtime.bridgePort = bridge.port;
 
@@ -1744,15 +1747,13 @@ export function buildSupervisorChildValues({
       NODE_OPTIONS: canonicalNodeOptions,
       PORT: String(port),
       DOTENV_CONFIG_PATH: paths.bridgeEnvironment,
-      AUGNES_CORE_MODE: "mock",
+      AUGNES_CORE_MODE: "http",
       AUGNES_API_BASE_URL: effectiveUrl,
       AUGNES_ENABLE_AGENT_BRIDGE: "true",
       ...ownershipValues,
       ...diagnosticValues,
       AUGNES_APP_PROFILE: nonEmptyString(environment.AUGNES_APP_PROFILE),
-      AUGNES_APP_TOOL_SURFACE: nonEmptyString(
-        environment.AUGNES_APP_TOOL_SURFACE,
-      ),
+      AUGNES_APP_TOOL_SURFACE: "companion_repository_readonly",
       AUGNES_APP_DOMAIN: nonEmptyString(environment.AUGNES_APP_DOMAIN),
       AUGNES_CONNECT_DOMAIN: nonEmptyString(environment.AUGNES_CONNECT_DOMAIN),
       AUGNES_RESOURCE_DOMAIN: nonEmptyString(environment.AUGNES_RESOURCE_DOMAIN),

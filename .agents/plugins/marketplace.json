@@ -15,8 +15,8 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "status": "local-scaffold",
-      "authority": "non-authoritative workflow packaging only"
+      "status": "local-live-companion-read",
+      "authority": "read-only verified local repository continuity only"
     },
     {
       "name": "augnes-codex",

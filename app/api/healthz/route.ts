@@ -42,6 +42,10 @@ export function GET(request: Request) {
       schema_version: 1,
       status: "ready",
       runtime_instance_id: process.env.AUGNES_RUNTIME_INSTANCE_ID ?? null,
+      runtime_generation_id: process.env.AUGNES_RUNTIME_GENERATION_ID ?? null,
+      runtime_repository_fingerprint:
+        process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT ?? null,
+      recovery_mode: process.env.AUGNES_RECOVERY_MODE === "1",
       ...publicRuntimeDiagnostics(),
     },
     {

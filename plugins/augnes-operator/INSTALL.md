@@ -1,69 +1,81 @@
-# Augnes Operator Plugin Install Guide
+# Augnes Operator plugin install
 
-This guide explains how to review and install the repo-local `augnes-operator`
-plugin scaffold for Codex. The plugin packages Augnes operating instructions,
-skills, and optional hook guardrails. It does not grant Codex runtime authority,
-state commit/reject authority, merge authority, provider authority, or GitHub
-mutation authority.
+## One ordinary local setup path
 
-## Local Scaffold
+1. From this repository root, register the repo-local marketplace and install
+   the reviewed plugin once:
 
-- Plugin root: `plugins/augnes-operator`
-- Plugin manifest: `plugins/augnes-operator/.codex-plugin/plugin.json`
-- Local marketplace entry: `.agents/plugins/marketplace.json`
-- Skills directory: `plugins/augnes-operator/skills/`
-- Optional hooks directory: `plugins/augnes-operator/hooks/`
+   ```bash
+   codex plugin marketplace add .
+   codex plugin add augnes-operator@augnes-local
+   ```
 
-The marketplace entry points at this repo-local plugin path. Review the manifest
-and skill files before enabling the plugin in a local Codex installation.
+2. Start the existing supervised Augnes Companion from the Augnes checkout:
 
-## Install Modes
+   ```bash
+   npm install
+   npm --prefix apps/augnes_apps install
+   npm run augnes
+   ```
 
-### Repo-native use
+3. From Codex in a registered local repository, ask:
 
-Codex can work from the repository without installing the plugin by reading
-`AGENTS.md`, `README.md`, and the relevant npm scripts. This is the safest
-default for ordinary PR work.
+   ```text
+   Resume this repository with Augnes.
+   ```
 
-### Local plugin use
+The plugin install is the one explicit setup step. No fixed bridge URL or copied
+user-level MCP config is required. The plugin manifest points to `.mcp.json`,
+which starts `mcp/companion-proxy.mjs` as a per-session stdio server. Current
+Codex plugin/MCP support recognizes the reviewed `mcpServers` manifest pointer
+and the standard `command`, `args`, and `cwd` server fields used here.
 
-Install the plugin through the local Codex plugin flow or local marketplace
-mechanism supported by your Codex build. Use the repo-local path:
+## What the proxy does
 
-```text
-plugins/augnes-operator
-```
+The proxy scans only application-owned Augnes runtime-manifest locations (or a
+single explicit test manifest), then verifies:
 
-Do not add secrets to plugin files. Do not add MCP server config or app mappings
-inside this plugin unless a future PR explicitly scopes that work.
+- regular bounded manifest and ownership files;
+- supervisor and child process liveness;
+- runtime contract, generation, instance, and repository/application identity;
+- private UI and bridge ownership health;
+- public UI health outside recovery mode;
+- bridge `mode=http` and `live_core_status=ready`.
 
-### Optional hook use
+Exactly one verified live Companion is required. Zero or multiple candidates,
+stale/foreign identity, recovery mode, mock mode, or a changed port/owner fails
+closed. The proxy then forwards only `augnes_resume_repository` to the current
+bridge port. The supported supervisor `AUGNES_RUNTIME_STATE_DIR` override is
+forwarded as a path hint and receives the same verification. The proxy is not a
+daemon, supervisor, database owner, or fallback data source.
 
-The hook scaffold under `plugins/augnes-operator/hooks/` is a guardrail layer,
-not an authority layer. Review `docs/CODEX_AUGNES_OPERATOR_HOOKS_V0_1.md` before
-enabling hooks in a local Codex installation.
+## Supported and unsupported surfaces
 
-Hooks can remind Codex about Augnes boundaries, but they do not approve work,
-merge pull requests, write Augnes state, create proof/evidence records, call
-providers, or call GitHub.
+Supported: local Codex, local filesystem checkout, installed Augnes Operator,
+and the existing local supervised Companion.
+
+Not claimed: automatic plugin installation, remote Codex filesystem access,
+ChatGPT/mobile repository attachment, remote nodes, managed delegation, Start,
+or broad Windows packaging. A Codex build without plugin `mcpServers` support
+must be upgraded or use an explicitly configured direct test connection; the
+product docs do not pretend that limitation is solved.
+
+## Security and authority
+
+Do not add secrets to plugin files. Runtime ownership material is used only for
+local verification and is never returned by the tool. Results exclude database
+paths, ownership tokens, credentials, cookies, provider configuration, private
+controller material, and unrelated projects.
+
+The tool is read-only. It cannot register or rename a project, change Browser
+selection, define/revise work, create/start/control a run, approve, write
+proof/evidence, call providers or GitHub, merge, release, or deploy.
 
 ## Verification
 
-Run these checks after editing the plugin scaffold, skills, or hooks:
-
 ```bash
-npm run smoke:augnes-operator-plugin-scaffold
-npm run smoke:augnes-operator-plugin-hooks
+npm run test:codex-companion-discovery
+npm run test:codex-repository-continuity
+npm run test:operability:supervisor
+npm --prefix apps/augnes_apps run typecheck
 ```
-
-The scaffold smoke verifies that the plugin remains local, contains no MCP
-server config, contains no app mappings, preserves proof/evidence boundaries,
-and avoids active external call configuration.
-
-## Boundary
-
-This install guide is documentation only. It does not write user-level Codex
-configuration, read secrets, install packages, start a bridge, call providers,
-call GitHub, mutate the Augnes DB, create proof/evidence rows, approve or reject
-Augnes state, merge, publish, retry, replay, enable auto-merge, or launch hidden
-background work.

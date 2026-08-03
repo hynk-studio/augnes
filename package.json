@@ -56,6 +56,8 @@
     "test:browser-verification-owners": "node scripts/test-browser-verification-owners.mjs",
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
     "test:codex-current-continuity": "node --import tsx scripts/test-vnext-codex-current-continuity.ts",
+    "test:codex-repository-continuity": "node --import tsx scripts/test-codex-repository-continuity.ts",
+    "test:codex-companion-discovery": "node scripts/test-codex-companion-discovery.mjs",
     "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",
     "test:local-canonical-executor": "node scripts/test-local-canonical-executor.mjs",
     "test:local-canonical-receipt": "node scripts/test-local-canonical-receipt.mjs",

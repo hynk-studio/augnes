@@ -119,6 +119,11 @@ capability, compatibility, or deferred work rather than default product UI.
   or legacy Work Brief material. Exit `0` means the continuity and snapshot
   are exact, `2` means local runtime transport is unavailable, and `3` means
   canonical continuity is partial/unavailable or the route contract is invalid.
+- For a fresh Codex request to resume, continue, or inspect the current local
+  repository, use the Augnes Operator `augnes_resume_repository` tool. It must
+  resolve one ownership-verified live supervised Companion and one registered
+  physical project root; never substitute docs, seeds, GuideBrief, legacy Work
+  Brief, mock data, repository reconstruction, or Browser active selection.
 - Prefer a working vertical slice with a real producer, consumer, behavior
   test, and later-use signal over planning, preview, boundary, or presence-only
   work.

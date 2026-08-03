@@ -9,7 +9,7 @@ const JSON_END = "END_AUGNES_CODEX_CURRENT_CONTINUITY_JSON";
 
 const StringArraySchema = z.array(z.string());
 const NullableStringSchema = z.string().nullable();
-const ProjectionSchema = z.object({
+export const ProjectionSchema = z.object({
   projection_version: z.literal("codex_current_continuity.v0.1"),
   generated_at: z.string().datetime(),
   source_status: z.enum(["exact", "partial", "unavailable"]),

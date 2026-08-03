@@ -213,10 +213,9 @@ try {
     recovery_response_close_shutdown_verified: true,
     concurrent_recovery_request_refusal_verified: true,
     reviewed_ui_provider_environment_verified: true,
-    bridge_core_mode: "mock",
-    public_mcp_mock_tool_verified: mcpBehaviorVerified,
-    state_runtime_mcp_tool_verified: mcpBehaviorVerified,
-    state_runtime_disposable_marker_verified: mcpBehaviorVerified,
+    bridge_core_mode: "http",
+    live_repository_mcp_tool_verified: mcpBehaviorVerified,
+    mock_contribution: false,
     legacy_root_requests_observed: legacyRootRequestCount,
     runtime_state_physical_path_verified: true,
     path_fixture_skip_reason: pathFixtureSkipReason,
@@ -260,10 +259,9 @@ try {
         reviewed_ui_provider_environment_verified:
           summary.reviewed_ui_provider_environment_verified,
         bridge_core_mode: summary.bridge_core_mode,
-        public_mcp_mock_tool_verified: summary.public_mcp_mock_tool_verified,
-        state_runtime_mcp_tool_verified: summary.state_runtime_mcp_tool_verified,
-        state_runtime_disposable_marker_verified:
-          summary.state_runtime_disposable_marker_verified,
+        live_repository_mcp_tool_verified:
+          summary.live_repository_mcp_tool_verified,
+        mock_contribution: summary.mock_contribution,
         legacy_root_requests_observed: summary.legacy_root_requests_observed,
         runtime_state_physical_path_verified:
           summary.runtime_state_physical_path_verified,
@@ -627,7 +625,8 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
     `http://127.0.0.1:${ready.bridge_port}/healthz`,
   );
   assert.equal(bridgeHealth.statusCode, 200);
-  assert.equal(bridgeHealth.body.mode, "mock");
+  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.live_core_status, "ready");
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.profile, "chrono_lab");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "poisoned bridge health");
@@ -1021,7 +1020,8 @@ async function assertReadyEndpoints(ready, environment, scenario, managed) {
   assert.equal(bridgeHealth.statusCode, 200);
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.ok, true);
-  assert.equal(bridgeHealth.body.mode, "mock");
+  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.live_core_status, "ready");
   assertSourceRuntimeDiagnostics(bridgeHealth.body);
   assertPublicSafe(JSON.stringify(uiHealth.body), "UI health response");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "bridge health response");
@@ -1042,11 +1042,11 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
     ambientEnvironment: environment,
     values,
   });
-  assert.equal(values.AUGNES_CORE_MODE, "mock");
+  assert.equal(values.AUGNES_CORE_MODE, "http");
   assert.equal(values.AUGNES_API_BASE_URL, ready.effective_url);
   assert.equal(values.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(values.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
-  assert.equal(childEnvironment.AUGNES_CORE_MODE, "mock");
+  assert.equal(childEnvironment.AUGNES_CORE_MODE, "http");
   assert.equal(childEnvironment.AUGNES_API_BASE_URL, ready.effective_url);
   assert.equal(childEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(childEnvironment.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
@@ -1067,8 +1067,7 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
   );
   const cancelPendingMcpOperation = () => transport.close();
 
-  let publicResult;
-  let runtimeResult;
+  let repositoryResult;
   try {
     await withTimeout(
       client.connect(transport),
@@ -1083,46 +1082,24 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
       cancelPendingMcpOperation,
     );
     const toolNames = tools.tools.map((tool) => tool.name);
-    assert.equal(toolNames.includes("get_working_view"), true);
-    assert.equal(toolNames.includes("augnes_get_state_brief"), true);
+    assert.equal(toolNames.includes("get_working_view"), false);
+    assert.equal(toolNames.includes("augnes_get_state_brief"), false);
+    assert.equal(toolNames.includes("augnes_resume_repository"), true);
 
-    publicResult = await withTimeout(
+    repositoryResult = await withTimeout(
       client.callTool({
-        name: "get_working_view",
-        arguments: { scope: runtimeMarkerScope },
+        name: "augnes_resume_repository",
+        arguments: { repositoryRoot: repoRoot },
       }),
       15_000,
-      "public MCP tool call",
+      "live repository continuity MCP tool call",
       cancelPendingMcpOperation,
     );
-    assert.notEqual(publicResult.isError, true);
-    assert.equal(Object.hasOwn(publicResult.structuredContent ?? {}, "error"), false);
-    assert.deepEqual(publicResult.structuredContent?.workingView?.claimIds, [
-      "claim-augnes-app-01",
-    ]);
-    assert.equal(
-      publicResult.structuredContent?.workingView?.summary,
-      "Shipping Augnes as an Evidence & Continuity Console inside ChatGPT. Current emphasis: read-only tools, strong rationale surface, boundary packet review, continuity visibility.",
-    );
-
-    runtimeResult = await withTimeout(
-      client.callTool({
-        name: "augnes_get_state_brief",
-        arguments: { scope: runtimeMarkerScope },
-      }),
-      15_000,
-      "state runtime MCP tool call",
-      cancelPendingMcpOperation,
-    );
-    assert.notEqual(runtimeResult.isError, true);
-    assert.equal(Object.hasOwn(runtimeResult.structuredContent ?? {}, "error"), false);
-    const stateBrief = runtimeResult.structuredContent?.brief;
-    assert.equal(stateBrief?.scope, runtimeMarkerScope);
-    assert.equal(Array.isArray(stateBrief?.active_state), true);
-    const markerEntry = stateBrief.active_state.find(
-      (entry) => entry?.state_key === runtimeMarkerStateKey,
-    );
-    assert.equal(markerEntry?.value, runtimeMarkerValue);
+    assert.notEqual(repositoryResult.isError, true);
+    assert.equal(repositoryResult.structuredContent?.companion?.status, "live");
+    assert.equal(repositoryResult.structuredContent?.companion?.mode, "http");
+    assert.equal(repositoryResult.structuredContent?.repository_resolution?.status, "project_not_registered");
+    assert.equal(repositoryResult.structuredContent?.continuity, null);
   } finally {
     await withTimeout(
       client.close(),
@@ -1132,9 +1109,18 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
     );
   }
 
-  const mcpPublicOutput = JSON.stringify({ publicResult, runtimeResult });
+  const sourceBlindResult = await callLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+  });
+  assert.equal(sourceBlindResult.tools.some((tool) => tool.name === "augnes_resume_repository"), true);
+  assert.notEqual(sourceBlindResult.call.isError, true);
+  assert.equal(sourceBlindResult.call.structuredContent?.companion?.status, "live");
+  assert.equal(sourceBlindResult.call.structuredContent?.repository_resolution?.status, "project_not_registered");
+
+  const mcpPublicOutput = JSON.stringify({ repositoryResult });
   assertPublicSafe(mcpPublicOutput, "real MCP tool results");
-  assert.equal(mcpPublicOutput.includes(runtimeMarkerValue), true);
+  assert.equal(mcpPublicOutput.includes("claim-augnes-app-01"), false);
   assert.deepEqual(
     snapshotDatabaseFamily(databasePath),
     databaseBeforeMcpReads,
@@ -1150,6 +1136,64 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
     "legacy public MCP tools must not target proposed dev-read API paths on the root runtime",
   );
   mcpBehaviorVerified = true;
+}
+
+async function callLiveCompanionProxyV01({ environment, manifestPath }) {
+  const child = spawn(process.execPath, [
+    path.join(repoRoot, "plugins", "augnes-operator", "mcp", "companion-proxy.mjs"),
+  ], {
+    cwd: repoRoot,
+    env: { ...environment, AUGNES_RUNTIME_STATE_DIR: path.dirname(manifestPath) },
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  const record = registerOwnedChild(ownedProcesses, child, {
+    label: "source-blind-live-companion-proxy",
+  });
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  let stdoutRemainder = "";
+  let stderr = "";
+  const replies = new Map();
+  let resolveCall;
+  const callReply = new Promise((resolve) => { resolveCall = resolve; });
+  child.stdout.on("data", (chunk) => {
+    stdoutRemainder += chunk;
+    const lines = stdoutRemainder.split(/\r?\n/u);
+    stdoutRemainder = lines.pop() ?? "";
+    for (const line of lines) {
+      const value = parseJsonLine(line);
+      if (!value || value.id === undefined) continue;
+      replies.set(value.id, value);
+      if (value.id === 3) resolveCall(value);
+    }
+  });
+  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  for (const message of [
+    { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } },
+    { jsonrpc: "2.0", method: "notifications/initialized" },
+    { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+    { jsonrpc: "2.0", id: 3, method: "tools/call", params: {
+      name: "augnes_resume_repository",
+      arguments: { repositoryRoot: repoRoot },
+    } },
+  ]) {
+    child.stdin.write(`${JSON.stringify(message)}\n`);
+  }
+  let call;
+  try {
+    call = await withTimeout(callReply, 20_000, "source-blind live Companion proxy", () => {
+      child.stdin.end();
+    });
+  } finally {
+    child.stdin.end();
+  }
+  const exit = await waitForOwnedProcessExit(record, 10_000);
+  assert.equal(exit?.code, 0, `source-blind Companion proxy failed: ${stderr}`);
+  assert.equal(replies.get(1)?.result?.serverInfo?.name, "augnes-live-companion-proxy");
+  assert.equal(Array.isArray(replies.get(2)?.result?.tools), true);
+  assert(call?.result, `source-blind Companion proxy returned no tool result: ${stderr}`);
+  return { tools: replies.get(2).result.tools, call: call.result };
 }
 
 function assertOwnershipFiles(stateDirectory, ready) {
@@ -1719,7 +1763,7 @@ function assertRuntimeEnvironmentIsolation() {
     environment: ambientEnvironment,
     ...sharedArguments,
   });
-  assert.equal(bridgeValues.AUGNES_CORE_MODE, "mock");
+  assert.equal(bridgeValues.AUGNES_CORE_MODE, "http");
   assert.equal(bridgeValues.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeValues.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(bridgeValues.NODE_ENV, "development");
@@ -1727,14 +1771,19 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(bridgeValues.AUGNES_DISTRIBUTION_MODE, "source");
   assert.equal(bridgeValues.AUGNES_APPLICATION_VERSION, applicationVersion);
   for (const [key, value] of Object.entries(reviewedBridgeCompatibilityEnvironment)) {
-    assert.equal(bridgeValues[key], value);
+    assert.equal(
+      bridgeValues[key],
+      key === "AUGNES_APP_TOOL_SURFACE"
+        ? "companion_repository_readonly"
+        : value,
+    );
   }
   const bridgeEnvironment = buildRuntimeChildEnvironment({
     role: "bridge",
     ambientEnvironment,
     values: bridgeValues,
   });
-  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "mock");
+  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "http");
   assert.equal(bridgeEnvironment.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_API_KEY"), false);

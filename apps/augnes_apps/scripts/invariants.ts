@@ -16,6 +16,7 @@ const INTENDED_LEGACY_TOOL_NAMES = [
   "get_governance_audit",
 ] as const;
 const INTENDED_BRIDGE_TOOL_NAMES = [
+  "augnes_resume_repository",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -101,6 +102,13 @@ function assertLegacyTools(tools: Record<string, RegisteredTool>) {
 }
 
 function assertBridgeTools(tools: Record<string, RegisteredTool>) {
+  const repositoryTool = tools.augnes_resume_repository;
+  assert.ok(repositoryTool, "augnes_resume_repository should be registered");
+  assert.deepEqual(
+    repositoryTool.annotations,
+    LOCAL_ROUTE_READ_ANNOTATIONS,
+    "augnes_resume_repository must be read-only, non-destructive, idempotent, and local-route bounded",
+  );
   for (const name of [
     "augnes_get_state_brief",
     "augnes_get_evidence_pack",
@@ -181,7 +189,7 @@ function assertPublicToolSurface() {
     const registeredNames = Object.keys(tools);
     assert.deepEqual(
       registeredNames,
-      [...INTENDED_PUBLIC_TOOL_NAMES, ...INTENDED_BRIDGE_TOOL_NAMES],
+      [INTENDED_BRIDGE_TOOL_NAMES[0], ...INTENDED_PUBLIC_TOOL_NAMES, ...INTENDED_BRIDGE_TOOL_NAMES.slice(1)],
       "bridge-enabled registered tools must include public tools plus the Augnes bridge surface"
     );
     assertNoDangerousTools(registeredNames, "bridge-enabled");

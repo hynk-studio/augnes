@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -58,6 +58,7 @@ export const LEGACY_PUBLIC_TOOL_NAMES = [
   "get_governance_audit",
 ] as const;
 export const AUGNES_BRIDGE_TOOL_NAMES = [
+  "augnes_resume_repository",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -211,7 +212,46 @@ function buildBridgeToolError(tool: string, error: unknown) {
   };
 }
 
-export function buildHealthPayload() {
+function companionBindingV01(): string | null {
+  if (!config.runtimeInstanceId || !config.runtimeGenerationId || !config.runtimeRepositoryFingerprint) {
+    return null;
+  }
+  return `sha256:${createHash("sha256").update(JSON.stringify({
+    instance: config.runtimeInstanceId,
+    generation: config.runtimeGenerationId,
+    repository: config.runtimeRepositoryFingerprint,
+  })).digest("hex")}`;
+}
+
+function buildRepositoryCompanionError(error: unknown) {
+  const message = error instanceof Error ? error.message : "The live Augnes Companion is unavailable.";
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    companion: { status: "unavailable", mode: config.coreMode, binding: null },
+    repository_resolution: {
+      status: "companion_unavailable",
+      project_key: null,
+      display_name: null,
+      message,
+    },
+    continuity: null,
+    current_situation: "Exact repository continuity is unavailable because the live supervised Companion could not be verified.",
+    next_meaningful_action: {
+      label: "Start or restore the local Augnes Companion",
+      reason: message,
+      executes: false,
+    },
+    browser_deep_link: null,
+  });
+  return {
+    isError: true,
+    structuredContent,
+    content: narrative(`Augnes repository continuity unavailable: ${message}`),
+    _meta: structuredContent,
+  };
+}
+
+export function buildHealthPayload(liveCoreReady = false) {
   return {
     ok: true,
     name: APP_NAME,
@@ -221,6 +261,14 @@ export function buildHealthPayload() {
     profile: config.appProfile,
     ...(config.runtimeInstanceId
       ? { runtime_instance_id: config.runtimeInstanceId }
+      : {}),
+    ...(config.coreMode === "http"
+      ? {
+          runtime_generation_id: config.runtimeGenerationId ?? null,
+          runtime_repository_fingerprint:
+            config.runtimeRepositoryFingerprint ?? null,
+          live_core_status: liveCoreReady ? "ready" : "unavailable",
+        }
       : {}),
     ...(config.distributionMode
       ? {
@@ -237,6 +285,28 @@ export function buildHealthPayload() {
         }
       : {}),
   };
+}
+
+async function verifyLiveCoreHealth(): Promise<boolean> {
+  if (config.coreMode !== "http") return false;
+  try {
+    const response = await fetch(new URL("/api/healthz", `${config.apiBaseUrl}/`), {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(1_500),
+    });
+    if (!response.ok) return false;
+    const body = await response.json() as Record<string, unknown>;
+    return body.ok === true &&
+      body.service === "augnes-ui" &&
+      body.status === "ready" &&
+      body.recovery_mode === false &&
+      body.runtime_instance_id === config.runtimeInstanceId &&
+      body.runtime_generation_id === config.runtimeGenerationId &&
+      body.runtime_repository_fingerprint === config.runtimeRepositoryFingerprint;
+  } catch {
+    return false;
+  }
 }
 
 function buildPrivateOwnershipPayload(suppliedToken: string | undefined) {
@@ -1894,8 +1964,10 @@ export function createMcpAppServer(
 ) {
   const enableAgentBridge = options.enableAgentBridge ?? config.enableAgentBridge;
   const toolSurface = options.toolSurface ?? config.appToolSurface;
-  const enableLegacyPublicTools = toolSurface !== "work_loop_readonly";
-  const enableBridgeTools = enableAgentBridge && toolSurface !== "work_loop_readonly";
+  const enableLegacyPublicTools = toolSurface === "public";
+  const enableBridgeTools = enableAgentBridge && toolSurface === "public";
+  const enableRepositoryTool = enableAgentBridge &&
+    (toolSurface === "public" || toolSurface === "companion_repository_readonly");
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION });
 
   registerAppResource(
@@ -1933,6 +2005,45 @@ export function createMcpAppServer(
       ],
     })
   );
+
+  if (enableRepositoryTool) {
+    registerAppTool(
+      server,
+      "augnes_resume_repository",
+      {
+        title: "Resume this repository with Augnes",
+        description:
+          "Use for requests such as 'Resume this repository with Augnes', 'What was I working on here?', or 'Show the current Augnes project state'. Resolves one supplied local physical repository root through the live supervised Augnes Companion and returns exact read-only project/work/run/result/review continuity.",
+        inputSchema: { repositoryRoot: z.string().min(1) },
+        annotations: localRouteReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ repositoryRoot }) => {
+        if (config.coreMode !== "http") {
+          return buildRepositoryCompanionError(new Error("The repository tool requires the live HTTP Companion profile."));
+        }
+        try {
+          const result = await stateRuntimeAdapter.getRepositoryContinuity({ repositoryRoot });
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            companion: {
+              status: "live",
+              mode: "http",
+              binding: companionBindingV01(),
+            },
+            ...result,
+          });
+          return {
+            structuredContent,
+            content: narrative(`${result.current_situation} Next: ${result.next_meaningful_action.label}.`),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          return buildRepositoryCompanionError(error);
+        }
+      },
+    );
+  }
 
   if (enableLegacyPublicTools) {
     registerAppTool(
@@ -3060,8 +3171,10 @@ export function createHttpServer(
           );
         return;
       }
-      res.writeHead(200, { "content-type": "application/json" }).end(
-        JSON.stringify(buildHealthPayload())
+      const liveCoreReady = await verifyLiveCoreHealth();
+      const status = config.coreMode === "http" && !liveCoreReady ? 503 : 200;
+      res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }).end(
+        JSON.stringify(buildHealthPayload(liveCoreReady))
       );
       return;
     }

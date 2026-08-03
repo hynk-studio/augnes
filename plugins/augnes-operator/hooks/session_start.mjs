@@ -4,6 +4,7 @@ const reminder = [
   "Augnes operator guardrails:",
   "- Read AGENTS.md and task-relevant Augnes docs before editing.",
   "- Use npm run codex:read-brief to read the current-project GuideBrief v0.2 when the local Augnes runtime is available; an optional Work Brief remains separate.",
+  "- For resume/continue/current-state requests about the current local repository, use augnes_resume_repository first; do not reconstruct missing Companion continuity from docs or fixtures.",
   "- Preserve concrete skipped reasons; do not fabricate work, evidence, action, session, or PR IDs.",
   "- Prefer proof-only closeout with npm run codex:record-completion-proof when runtime and CODEX_WORK_ID are available.",
   "- Codex may edit files and open PRs through normal GitHub workflow, but never merge PRs, enable auto-merge, or claim merge authority.",

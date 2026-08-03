@@ -251,50 +251,42 @@ CUX7 was completed and merged by
 merge commit `4a8998ed20c4f40fdf3d204db28069c6dc167b89`. PC6, C9, and later
 post-execution work editing remain separately authorized.
 
-## Current
+## CDX2A completed lifecycle
 
-### CDX2A exact read-only current continuity
+### Exact read-only current continuity
 
 [Issue #112](https://github.com/hynk-studio/augnes-perspective-lab/issues/112)
-defines the currently authorized CDX2A slice.
-[Draft PR #113](https://github.com/hynk-studio/augnes-perspective-lab/pull/113)
-is its open implementation and outcome record. CDX2A adds one versioned,
-bounded, exact current-continuity read owner over existing active-project,
-current-work, managed-execution, canonical-result, and semantic-review truth,
-with one opaque deterministic snapshot binding and thin local GET/CLI adapters.
+defined CDX2A. [PR #113](https://github.com/hynk-studio/augnes-perspective-lab/pull/113)
+is its completed implementation and outcome record, merged at
+`d02698eded2c681f1480ad0eee3612ba0f9d4d27`. CDX2A owns the versioned,
+bounded active-project `codex_current_continuity.v0.1` projection, exact
+snapshot binding, local GET route, and `npm run codex:current-continuity` CLI.
+It remains compatible and unchanged for active-project callers.
 
-CDX2A is read-only. It grants no Start, approval, cancellation, resume,
-Decision, or Transition authority; adds no persistence, provider, or model
-call; and does not make GuideBrief, legacy Work Brief, repository fallback, or
-raw TaskContextPacket export the owner. CDX2B Start control, the end-to-end CDX2
-re-diagnostic, PC6/PC6A, and C9 remain separately authorized work.
+## Current
+
+### CDX2B1 live Companion repository attachment
+
+[Issue #114](https://github.com/hynk-studio/augnes-perspective-lab/issues/114)
+defines CDX2B1. The Draft PR titled **CDX2B1 — Connect Codex to live Augnes
+project continuity** on branch
+`codex/cdx2b1-live-companion-project-attachment` is its current implementation
+and outcome record.
+
+CDX2B1 connects the existing Augnes Operator plugin to the existing supervised
+Companion. One ownership-verified dynamic-port proxy reaches one live HTTP
+bridge, resolves the supplied physical local repository root to one existing
+canonical project, and reuses the CDX2A owner for exact project/work/run/result/
+review continuity. It creates no daemon, database, project record, Browser
+selection, work, run, provider call, or fallback truth. This local read-only
+slice does not authorize Start or managed delegation.
 
 ## Next separately authorized work
 
-The next candidate phase is a model-assisted GuideBrief interpreter above the
-merged deterministic PC4 explanation and PC5 capability/plan compiler.
-
-A bounded implementation may improve Korean and English natural-language
-interpretation, omission, paraphrase, reference resolution, and one-step goal
-decomposition only by proposing a registered PC4 question intent or PC5 action
-key and opaque current target. Model output must remain untrusted candidate
-input to the deterministic exact-scope compiler. The model may not create
-capabilities, choose availability, lower effect class or confirmation policy,
-construct URLs or requests, add unsupported facts or source refs, grant
-authority, or execute its own output. Deterministic PC4/PC5 behavior must remain
-available when the provider is unavailable.
-
-This candidate is not authorized merely by appearing here. Its issue must define
-provider egress, model choice, structured-output contract, latency, cost,
-privacy, retention, failure, deterministic fallback, exact test boundary, and
-an implementation baseline from current `main` before any branch or runtime
-change begins.
-
-Owner-confirmation embedding, direct mutation, cross-project interaction,
-broader host-action integration, durable conversation or pending-plan storage,
-later PC5 slices, and later product-continuity phases remain pending separate
-explicit authorization. They do not become authorized by the interpreter
-candidate, and neither does C9.
+CDX2B2 managed delegation is next. It requires separate explicit authority and
+must define the exact Start/grant, managed-run, control, verification,
+reconciliation, cancellation, effect, and user-decision boundaries before any
+mutation is implemented. CDX2B1 does not pre-authorize it.
 
 ## Pending C9
 
@@ -332,6 +324,10 @@ a bounded part is implemented:
   context-use feedback, and metacognitive improvement;
 - additional host-native projections that preserve the same product meaning
   without replicating one interface.
+- current-session attachment beyond one repository resume read, continuous
+  control, verification-driven continuation, longer-horizon intent,
+  multi-agent orchestration, cross-platform packaging expansion, remote nodes,
+  and remote or mobile filesystem attachment;
 
 These directions do not imply a completed route, schema, engine, record,
 surface, or user experience.

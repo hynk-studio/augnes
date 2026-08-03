@@ -19,6 +19,12 @@ The canonical owner is
 route and Codex command are thin adapters over that owner; neither reconstructs
 continuity from presentation copy or repository state.
 
+CDX2A was completed by Issue #112 and PR #113 at merge commit
+`d02698eded2c681f1480ad0eee3612ba0f9d4d27`. CDX2B1 does not redefine this
+active-project contract. Its repository-scoped owner first resolves one
+canonical project by physical root, then calls the same projection owner
+through a thin explicit-project adapter.
+
 ## Public Command
 
 With a packaged local Augnes runtime already running:
@@ -147,6 +153,29 @@ proof admission, proposal, Decision, Transition, provider/GitHub call, retry,
 poll, prefetch, scheduler, daemon, or background work. Saving or revising work
 does not Start it, and the projection adds no Start control.
 
-This slice intentionally adds no MCP tool. The repository command is the
-bounded discoverable adapter; a future MCP surface would require separate
-authorization and must remain a thin adapter over the same canonical owner.
+## CDX2B1 repository-scoped adapter
+
+`codex_repository_continuity.v0.1` wraps the unchanged CDX2A projection for a
+local physical repository root. Public resolution outcomes are
+`resolved_exact`, `project_not_registered`, `project_ambiguous`,
+`root_unavailable`, `root_identity_changed`, `repository_input_invalid`, and
+`companion_unavailable`.
+
+Resolution uses canonical project/root registrations and the existing physical
+root identity owner. It does not infer identity from display name, branch,
+GitHub URL, arbitrary project ID, docs, or Browser active selection. Alias and
+symlink paths resolve only when one physical identity maps to one registered
+project. No result registers, renames, rebinds, selects, writes, starts, or
+duplicates a project.
+
+The local POST route and `augnes_resume_repository` MCP tool are thin adapters.
+The bridge validates the UI runtime instance, runtime generation, and
+repository/application fingerprint before accepting the route response. The
+tool returns ordinary current situation, one next meaningful action, an exact
+Browser project link when available, and the bounded CDX2A projection. It never
+uses mock, fixture, seed, docs, GuideBrief, legacy Work Brief, repository-source
+reconstruction, or a second database as fallback.
+
+This support is for local Codex and a local checkout only. Remote Codex,
+ChatGPT/mobile filesystem attachment, Start, and CDX2B2 managed delegation are
+not claimed.

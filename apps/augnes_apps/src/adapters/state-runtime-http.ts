@@ -5,6 +5,7 @@ import {
   AutonomyRunnerPreflightPreviewResultSchema,
   ConstellationPreviewResultSchema,
   ControlPacketSchema,
+  CodexRepositoryContinuityResultSchema,
   EvidencePackResultSchema,
   GuideBriefResultSchema,
   MailboxSummaryResultSchema,
@@ -25,6 +26,7 @@ import {
   type AutonomyRunnerPreflightPreviewResult,
   type ConstellationPreviewResult,
   type ControlPacket,
+  type CodexRepositoryContinuityResult,
   type EvidencePackResult,
   type GuideBriefResult,
   type MailboxSummaryResult,
@@ -61,6 +63,7 @@ const AUTONOMY_CONTRACT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const AUTONOMY_CONTRACT_LOCAL_READ_MARKER = "autonomy-contract-v0.1";
 const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_MARKER = "autonomy-runner-preflight-v0.1";
+const CODEX_REPOSITORY_CONTINUITY_LOCAL_READ_MARKER = "codex-repository-continuity-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
@@ -82,6 +85,7 @@ const endpointContract = {
   mailboxSummary: { method: "GET", path: "/api/mailbox/summary" },
   publicationSummary: { method: "GET", path: "/api/publications/summary" },
   controlPacket: { method: "GET", path: "/api/control/brief" },
+  repositoryContinuity: { method: "POST", path: "/api/augnes/read/codex-repository-continuity" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -93,6 +97,9 @@ export class AugnesStateRuntimeHttpError extends Error {
 
 interface StateRuntimeHttpAdapterConfig {
   apiBaseUrl?: string;
+  runtimeInstanceId?: string;
+  runtimeGenerationId?: string;
+  runtimeRepositoryFingerprint?: string;
 }
 
 function trimTrailingSlash(value: string): string {
@@ -176,9 +183,58 @@ function normalizePendingProposals(data: unknown): StateRuntimeProposal[] {
 
 export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
   private readonly apiBaseUrl: string;
+  private readonly runtimeIdentity: {
+    instance: string | undefined;
+    generation: string | undefined;
+    repository: string | undefined;
+  };
 
   constructor(config: StateRuntimeHttpAdapterConfig = {}) {
     this.apiBaseUrl = resolveApiBaseUrl(config.apiBaseUrl);
+    this.runtimeIdentity = {
+      instance: config.runtimeInstanceId ?? process.env.AUGNES_RUNTIME_INSTANCE_ID,
+      generation: config.runtimeGenerationId ?? process.env.AUGNES_RUNTIME_GENERATION_ID,
+      repository: config.runtimeRepositoryFingerprint ?? process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT,
+    };
+  }
+
+  async getRepositoryContinuity(input: { repositoryRoot: string }): Promise<CodexRepositoryContinuityResult> {
+    if (!input.repositoryRoot || !this.runtimeIdentity.instance || !this.runtimeIdentity.generation || !this.runtimeIdentity.repository) {
+      throw new AugnesStateRuntimeHttpError("Live supervised Augnes Companion identity is unavailable.");
+    }
+    const url = buildUrl(this.apiBaseUrl, endpointContract.repositoryContinuity.path, {
+      scope: "repository:local",
+    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: endpointContract.repositoryContinuity.method,
+        cache: "no-store",
+        headers: {
+          "content-type": "application/json",
+          "x-augnes-local-readonly": CODEX_REPOSITORY_CONTINUITY_LOCAL_READ_MARKER,
+        },
+        body: JSON.stringify({ repository_root: input.repositoryRoot }),
+      });
+    } catch {
+      throw new AugnesStateRuntimeHttpError("Live supervised Augnes Companion is unavailable.");
+    }
+    if (!response.ok) {
+      throw new AugnesStateRuntimeHttpError(`Augnes repository continuity request failed with status ${response.status}.`);
+    }
+    if (
+      response.headers.get("x-augnes-local-readonly") !== CODEX_REPOSITORY_CONTINUITY_LOCAL_READ_MARKER ||
+      response.headers.get("x-augnes-runtime-instance") !== this.runtimeIdentity.instance ||
+      response.headers.get("x-augnes-runtime-generation") !== this.runtimeIdentity.generation ||
+      response.headers.get("x-augnes-runtime-repository") !== this.runtimeIdentity.repository
+    ) {
+      throw new AugnesStateRuntimeHttpError("Augnes repository continuity runtime identity did not match the supervised Companion.");
+    }
+    return parseResponse(
+      CodexRepositoryContinuityResultSchema,
+      await readJson(response, "repository continuity"),
+      "repository continuity",
+    );
   }
 
   async getStateBrief(scope: StateRuntimeScope): Promise<StateBrief> {

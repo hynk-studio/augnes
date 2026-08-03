@@ -29,13 +29,16 @@ is set.
 ## Procedure
 
 1. Read repo instructions and task-relevant docs first.
-2. Check whether the local Augnes runtime is available.
-3. Run `npm run codex:read-brief` when runtime context is available.
-4. If `CODEX_WORK_ID` is set, keep it in the environment so the helper reads
+2. For a fresh local repository resume/continue/current-state request, invoke
+   `augnes_resume_repository` with the current physical repository root first.
+3. Check whether the local Augnes runtime is available.
+4. Run `npm run codex:read-brief` only when GuideBrief conversation context is
+   separately useful; it is not a fallback for repository continuity.
+5. If `CODEX_WORK_ID` is set, keep it in the environment so the helper reads
    the Work Brief context.
-5. Preserve observed, inferred, suggested and unresolved-judgment separation.
+6. Preserve observed, inferred, suggested and unresolved-judgment separation.
    GuideBrief does not override an exact `TaskContextPacket`.
-6. Do not reconstruct missing runtime output.
+7. Do not reconstruct missing runtime output.
 
 ## Commands
 
