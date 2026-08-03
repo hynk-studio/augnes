@@ -274,19 +274,24 @@ project continuity** on branch
 and outcome record.
 
 CDX2B1 connects the existing Augnes Operator plugin to the existing supervised
-Companion. One ownership-verified dynamic-port proxy reaches one live HTTP
-bridge, resolves the supplied physical local repository root to one existing
-canonical project, and reuses the CDX2A owner for exact project/work/run/result/
-review continuity. It creates no daemon, database, project record, Browser
-selection, work, run, provider call, or fallback truth. This local read-only
-slice does not authorize Start or managed delegation.
+Companion. One dynamic-port stdio proxy verifies the live bridge identity, uses
+a separate generation-bound private channel to the strict UI/Core route,
+resolves the supplied physical local repository root to one existing canonical
+project, and reuses the CDX2A owner for exact project/work/run/result/review
+continuity. It creates no daemon, database, project record, Browser selection,
+work, run, provider call, or fallback truth. This local read-only slice does not
+authorize Start or managed delegation.
 
 ## Next separately authorized work
 
 CDX2B2 managed delegation is next. It requires separate explicit authority and
 must define the exact Start/grant, managed-run, control, verification,
 reconciliation, cancellation, effect, and user-decision boundaries before any
-mutation is implemented. CDX2B1 does not pre-authorize it.
+mutation is implemented. It must also decide whether to add a durable
+registration-time physical-root identity baseline with complete migration,
+backup, restore, recovery, portability, and compatibility behavior, and how to
+separate repository-scoped eligibility from active Browser selection. CDX2B1
+does not claim either capability or pre-authorize CDX2B2.
 
 ## Pending C9
 

@@ -422,6 +422,7 @@ function testPhysicalPathSafety() {
     "runtime.json",
     "owner.lock",
     "control-token.json",
+    "companion-access.json",
     "bridge-supervisor.env",
   ]) {
     assert.equal(existsSync(path.join(fakeRepository, "nested", "backups", name)), false);

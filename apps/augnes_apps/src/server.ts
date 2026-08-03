@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
@@ -3130,9 +3130,29 @@ export function createHttpServer(
       return;
     }
 
-    const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
+    const url = new URL(req.url, "http://127.0.0.1");
+    const companionSurface = config.appToolSurface === "companion_repository_readonly";
+
+    if (url.pathname === config.mcpPath && companionSurface) {
+      const refusal = companionChannelRefusalV01(req);
+      if (refusal) {
+        res.writeHead(403, {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+        }).end(JSON.stringify({ error: "companion_channel_refused" }));
+        return;
+      }
+    }
 
     if (req.method === "OPTIONS" && url.pathname === config.mcpPath) {
+      if (companionSurface) {
+        res.writeHead(405, {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          allow: "POST, GET, DELETE",
+        }).end(JSON.stringify({ error: "browser_preflight_not_supported" }));
+        return;
+      }
       res.writeHead(204, {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, GET, OPTIONS, DELETE",
@@ -3181,8 +3201,10 @@ export function createHttpServer(
 
     const mcpMethods = new Set(["POST", "GET", "DELETE"]);
     if (url.pathname === config.mcpPath && req.method && mcpMethods.has(req.method)) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+      if (!companionSurface) {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+      }
 
       const server = createMcpAppServer(adapter, stateRuntimeAdapter, options);
       const transport = new StreamableHTTPServerTransport({
@@ -3207,6 +3229,29 @@ export function createHttpServer(
 
     res.writeHead(404).end("Not Found");
   });
+}
+
+function companionChannelRefusalV01(req: IncomingMessage): string | null {
+  const host = singleHeaderV01(req.headers.host);
+  if (host !== `127.0.0.1:${config.port}`) return "host_refused";
+  if (
+    req.headers.origin !== undefined ||
+    req.headers["sec-fetch-site"] !== undefined ||
+    req.headers["sec-fetch-mode"] !== undefined ||
+    req.headers.forwarded !== undefined ||
+    req.headers["x-forwarded-host"] !== undefined ||
+    req.headers["x-forwarded-for"] !== undefined
+  ) {
+    return "browser_or_proxy_refused";
+  }
+  const supplied = singleHeaderV01(req.headers["x-augnes-companion-proxy"]);
+  return constantTimeEqual(supplied, config.companionProxyToken)
+    ? null
+    : "credential_refused";
+}
+
+function singleHeaderV01(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? undefined : value;
 }
 
 function isDirectExecution(): boolean {

@@ -1,53 +1,66 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { createInterface } from "node:readline";
 
 import {
   candidateManifestPathsV01,
   discoverVerifiedCompanionV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 
+const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
+const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
+const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-companion-discovery-"));
 const instance = "runtime-instance-cdx2b1";
 const generation = "runtime-generation-cdx2b1";
 const repository = "a".repeat(64);
-const ownership = "b".repeat(64);
+const proxyToken = "p".repeat(64);
 let recoveryMode = false;
 let bridgeMode = "http";
 let bridgeRepository = repository;
+let continuityCalls = 0;
 
-const ui = createServer((request, response) => {
-  const privateRead = new URL(request.url ?? "/", "http://localhost").searchParams.get("ownership") === "1";
+const ui = createServer(async (request, response) => {
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
-  if (privateRead) {
-    if (request.headers["x-augnes-child-ownership"] !== ownership) return response.writeHead(403).end("{}");
-    return response.end(JSON.stringify(privatePayload("ui", ui.address().port)));
+  response.setHeader("cache-control", "no-store");
+  if (url.pathname === "/api/healthz") {
+    return response.end(JSON.stringify({
+      ok: true,
+      service: "augnes-ui",
+      status: "ready",
+      recovery_mode: recoveryMode,
+      runtime_instance_id: instance,
+      runtime_generation_id: generation,
+      runtime_repository_fingerprint: repository,
+    }));
   }
-  response.end(JSON.stringify({
-    ok: true,
-    service: "augnes-ui",
-    status: "ready",
-    recovery_mode: recoveryMode,
-    runtime_instance_id: instance,
-    runtime_generation_id: generation,
-    runtime_repository_fingerprint: repository,
-  }));
+  if (url.pathname === "/api/augnes/read/codex-repository-continuity" && request.method === "POST") {
+    continuityCalls += 1;
+    if (
+      request.headers["x-augnes-companion-proxy"] !== proxyToken ||
+      request.headers["x-augnes-local-readonly"] !== "codex-repository-continuity-v0.1"
+    ) {
+      return response.writeHead(403).end(JSON.stringify({ error: "companion_channel_refused" }));
+    }
+    response.setHeader("x-augnes-local-readonly", "codex-repository-continuity-v0.1");
+    response.setHeader("x-augnes-runtime-instance", instance);
+    response.setHeader("x-augnes-runtime-generation", generation);
+    response.setHeader("x-augnes-runtime-repository", repository);
+    return response.end(JSON.stringify(unregisteredProjectionV01()));
+  }
+  response.writeHead(404).end("{}");
 });
 
-const bridge = createServer(async (request, response) => {
-  const url = new URL(request.url ?? "/", "http://localhost");
+const bridge = createServer((request, response) => {
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   if (url.pathname === "/healthz") {
-    if (url.searchParams.get("ownership") === "1") {
-      if (request.headers["x-augnes-child-ownership"] !== ownership) return response.writeHead(403).end("{}");
-      return response.end(JSON.stringify(privatePayload("bridge", bridge.address().port)));
-    }
     return response.end(JSON.stringify({
       ok: true,
       name: "augnes-console",
@@ -56,23 +69,6 @@ const bridge = createServer(async (request, response) => {
       runtime_instance_id: instance,
       runtime_generation_id: generation,
       runtime_repository_fingerprint: bridgeRepository,
-    }));
-  }
-  if (url.pathname === "/mcp" && request.method === "POST") {
-    const chunks = [];
-    for await (const chunk of request) chunks.push(Buffer.from(chunk));
-    const message = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    return response.end(JSON.stringify({
-      jsonrpc: "2.0",
-      id: message.id,
-      result: {
-        structuredContent: {
-          companion: { status: "live", mode: "http", binding: "sha256:test" },
-          repository_resolution: { status: "resolved_exact" },
-          continuity: { projection_version: "codex_current_continuity.v0.1" },
-        },
-        content: [{ type: "text", text: "Exact repository continuity." }],
-      },
     }));
   }
   response.writeHead(404).end("{}");
@@ -94,13 +90,10 @@ try {
     ...process.env,
     AUGNES_COMPANION_RUNTIME_MANIFEST: manifestPath,
   }), []);
-  const configuredEnvironment = {
+  assert.deepEqual(candidateManifestPathsV01({
     ...process.env,
     AUGNES_RUNTIME_STATE_DIR: runtimeDirectory,
-  };
-  assert.deepEqual(candidateManifestPathsV01(configuredEnvironment), [manifestPath]);
-  assert.equal((await discoverVerifiedCompanionV01(configuredEnvironment)).status, "resolved");
-
+  }), [manifestPath]);
   assert.equal((await discoverVerifiedCompanionV01(environment)).status, "resolved");
 
   bridgeMode = "mock";
@@ -113,49 +106,45 @@ try {
   assert.equal((await discoverVerifiedCompanionV01(environment)).status, "companion_unavailable");
   recoveryMode = false;
 
-  const proxy = spawn(process.execPath, [
-    path.join(process.cwd(), "plugins", "augnes-operator", "mcp", "companion-proxy.mjs"),
-  ], { env: environment, stdio: ["pipe", "pipe", "pipe"] });
-  const lines = createInterface({ input: proxy.stdout });
-  const replies = [];
-  lines.on("line", (line) => replies.push(JSON.parse(line)));
-  proxy.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })}\n`);
-  proxy.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
-  proxy.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })}\n`);
-  proxy.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "augnes_resume_repository", arguments: { repositoryRoot: process.cwd() } } })}\n`);
-  await waitFor(() => replies.some((reply) => reply.id === 3));
-  assert.equal(replies.find((reply) => reply.id === 2).result.tools[0].name, "augnes_resume_repository");
-  assert.equal(replies.find((reply) => reply.id === 3).result.structuredContent.companion.status, "live");
-  proxy.stdin.end();
-  await new Promise((resolve) => proxy.once("exit", resolve));
+  const client = new Client({ name: "augnes-companion-discovery", version: "0.1.0" });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.join(process.cwd(), "plugins", "augnes-operator", "mcp", "companion-proxy.mjs")],
+    cwd: process.cwd(),
+    env: environment,
+    stderr: "pipe",
+  });
+  try {
+    await client.connect(transport);
+    const tools = await client.listTools();
+    assert.deepEqual(tools.tools.map((tool) => tool.name), ["augnes_resume_repository"]);
+    const result = await client.callTool({
+      name: "augnes_resume_repository",
+      arguments: { repositoryRoot: process.cwd() },
+    });
+    assert.notEqual(result.isError, true);
+    assert.equal(result.structuredContent?.companion?.status, "live");
+    assert.equal(result.structuredContent?.repository_resolution?.status, "project_not_registered");
+    assert.equal(result.structuredContent?.continuity, null);
+  } finally {
+    await client.close();
+  }
+  assert.equal(continuityCalls, 1);
 
   console.log(JSON.stringify({
     status: "pass",
     dynamic_bridge_port: bridge.address().port,
-    ownership_verified: true,
+    narrow_companion_access: true,
+    broad_runtime_ownership_read_by_proxy: false,
     stale_foreign_recovery_refused: true,
     mock_refused: true,
-    stdio_dogfood_forwarded: true,
+    official_stdio_mcp_client: true,
+    direct_ui_route_contract_parser: true,
+    synthetic_discovery_harness: true,
   }, null, 2));
 } finally {
   await Promise.all([close(ui), close(bridge)]);
   rmSync(root, { recursive: true, force: true });
-}
-
-function privatePayload(role, port) {
-  return {
-    ownership_verified: true,
-    schema_version: 2,
-    contract: "augnes-local-runtime-supervisor-v1",
-    generation_version: 1,
-    generation_id: generation,
-    repository_fingerprint: repository,
-    instance_id: instance,
-    role,
-    child_root_pid: process.pid,
-    process_pid: process.pid,
-    loopback_port: port,
-  };
 }
 
 function writeRuntimeFiles(manifestPath) {
@@ -177,16 +166,37 @@ function writeRuntimeFiles(manifestPath) {
       { role: "bridge", pid: process.pid, port: bridge.address().port, state: "ready" },
     ],
   })}\n`, { mode: 0o600 });
-  writeFileSync(path.join(path.dirname(manifestPath), "control-token.json"), `${JSON.stringify({
+  writeFileSync(path.join(path.dirname(manifestPath), "companion-access.json"), `${JSON.stringify({
     schema_version: 2,
     contract: "augnes-local-runtime-supervisor-v1",
     generation_version: 1,
     generation_id: generation,
     instance_id: instance,
     repository_fingerprint: repository,
-    token: "d".repeat(64),
-    child_ownership_token: ownership,
+    access_version: "augnes-companion-proxy-access.v0.1",
+    proxy_token: proxyToken,
   })}\n`, { mode: 0o600 });
+}
+
+function unregisteredProjectionV01() {
+  const message = "This physical repository is not registered as an Augnes project.";
+  const authority = Object.fromEntries([
+    "writes_database", "writes_project_files", "changes_project_selection", "changes_operator_session",
+    "creates_run", "starts_codex_or_native_host", "calls_provider", "approves_host_action",
+    "cancels_or_resumes_run", "creates_or_admits_result", "creates_proof_or_evidence", "creates_proposal",
+    "creates_review_decision", "creates_or_applies_transition", "mutates_accepted_state", "retries_or_replays",
+    "calls_github", "creates_branch_or_pr", "merges_releases_or_deploys", "starts_background_work",
+  ].map((key) => [key, false]));
+  return {
+    projection_version: "codex_repository_continuity.v0.1",
+    generated_at: "2026-08-04T00:00:00.000Z",
+    repository_resolution: { status: "project_not_registered", project_key: null, display_name: null, message },
+    continuity: null,
+    current_situation: message,
+    next_meaningful_action: { label: "Open this repository in Augnes first", reason: message, executes: false },
+    browser_deep_link: null,
+    authority,
+  };
 }
 
 function listen(server) {
@@ -198,13 +208,4 @@ function listen(server) {
 
 function close(server) {
   return new Promise((resolve) => server.close(() => resolve()));
-}
-
-async function waitFor(predicate) {
-  const deadline = Date.now() + 5_000;
-  while (Date.now() < deadline) {
-    if (predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error("proxy_response_timeout");
 }

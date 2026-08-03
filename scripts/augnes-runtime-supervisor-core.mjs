@@ -308,6 +308,7 @@ export function resolveRuntimePaths({
     manifest: path.join(directory, "runtime.json"),
     lock: path.join(directory, "owner.lock"),
     token: path.join(directory, "control-token.json"),
+    companionAccess: path.join(directory, "companion-access.json"),
     bridgeEnvironment: path.join(directory, "bridge-supervisor.env"),
     local: localPaths,
   });
@@ -1114,6 +1115,7 @@ async function runStartCommand({
     repositoryFingerprint,
     generationId: generation.generationId,
     childOwnershipToken: generation.childOwnershipToken,
+    companionProxyToken: generation.companionProxyToken,
     instanceId,
     supervisorPid: process.pid,
     controlPort: null,
@@ -1210,6 +1212,16 @@ async function runStartCommand({
       repository_fingerprint: runtime.repositoryFingerprint,
       token: runtime.controlToken,
       child_ownership_token: runtime.childOwnershipToken,
+    });
+    atomicWriteJson(paths.companionAccess, {
+      schema_version: RUNTIME_SCHEMA_VERSION,
+      contract: RUNTIME_CONTRACT,
+      generation_version: RUNTIME_GENERATION_VERSION,
+      generation_id: runtime.generationId,
+      instance_id: instanceId,
+      repository_fingerprint: runtime.repositoryFingerprint,
+      access_version: "augnes-companion-proxy-access.v0.1",
+      proxy_token: runtime.companionProxyToken,
     });
     atomicWriteText(paths.bridgeEnvironment, "");
     writeRuntimeManifest(runtime);
@@ -1646,6 +1658,7 @@ export function buildSupervisorChildValues({
   repositoryFingerprint = null,
   generationId = null,
   childOwnershipToken = null,
+  companionProxyToken = null,
   effectiveUrl = null,
   controlPort = null,
   recoveryMode = false,
@@ -1671,6 +1684,7 @@ export function buildSupervisorChildValues({
         }
       : {}),
     AUGNES_RUNTIME_OWNERSHIP_TOKEN: childOwnershipToken,
+    AUGNES_COMPANION_PROXY_TOKEN: companionProxyToken,
   };
   const diagnosticValues = runtimeDiagnosticEnvironmentValues(
     runtimeDistribution,
@@ -1773,6 +1787,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
     repositoryFingerprint: runtime.repositoryFingerprint,
     generationId: runtime.generationId,
     childOwnershipToken: runtime.childOwnershipToken,
+    companionProxyToken: runtime.companionProxyToken,
     effectiveUrl: runtime.effectiveUrl,
     controlPort: runtime.controlPort,
     recoveryMode: runtime.recoveryMode,
@@ -3701,6 +3716,7 @@ async function cleanupOwnedRuntime(runtime) {
   if (ownsLock(runtime.paths.lock, runtime)) {
     removeOwnedGenerationJson(runtime.paths.manifest, runtime);
     removeOwnedGenerationJson(runtime.paths.token, runtime);
+    removeOwnedGenerationJson(runtime.paths.companionAccess, runtime);
     removeRegularFile(runtime.paths.bridgeEnvironment);
     removeOwnedGenerationJson(runtime.paths.lock, runtime);
     removeDirectoryIfEmpty(runtime.paths.directory);

@@ -1665,7 +1665,6 @@ export const CodexRepositoryContinuityResultSchema = z.object({
       "project_not_registered",
       "project_ambiguous",
       "root_unavailable",
-      "root_identity_changed",
       "repository_input_invalid",
       "companion_unavailable",
     ]),

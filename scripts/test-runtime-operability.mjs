@@ -215,6 +215,9 @@ try {
     reviewed_ui_provider_environment_verified: true,
     bridge_core_mode: "http",
     live_repository_mcp_tool_verified: mcpBehaviorVerified,
+    official_stdio_mcp_client: true,
+    private_companion_bridge_refusals_verified: true,
+    narrow_companion_proxy_credential: true,
     mock_contribution: false,
     legacy_root_requests_observed: legacyRootRequestCount,
     runtime_state_physical_path_verified: true,
@@ -261,6 +264,11 @@ try {
         bridge_core_mode: summary.bridge_core_mode,
         live_repository_mcp_tool_verified:
           summary.live_repository_mcp_tool_verified,
+        official_stdio_mcp_client: summary.official_stdio_mcp_client,
+        private_companion_bridge_refusals_verified:
+          summary.private_companion_bridge_refusals_verified,
+        narrow_companion_proxy_credential:
+          summary.narrow_companion_proxy_credential,
         mock_contribution: summary.mock_contribution,
         legacy_root_requests_observed: summary.legacy_root_requests_observed,
         runtime_state_physical_path_verified:
@@ -1054,60 +1062,8 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
   assert.equal(Object.hasOwn(childEnvironment, "OPENAI_MODEL"), false);
 
   const databaseBeforeMcpReads = snapshotDatabaseFamily(databasePath);
-  const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
-  const { StreamableHTTPClientTransport } = requireMcpSdk(
-    "@modelcontextprotocol/sdk/client/streamableHttp.js",
-  );
-  const client = new Client({
-    name: "augnes-runtime-operability",
-    version: "0.1.0",
-  });
-  const transport = new StreamableHTTPClientTransport(
-    new URL(`http://127.0.0.1:${ready.bridge_port}/mcp`),
-  );
-  const cancelPendingMcpOperation = () => transport.close();
-
-  let repositoryResult;
-  try {
-    await withTimeout(
-      client.connect(transport),
-      15_000,
-      "MCP client connect",
-      cancelPendingMcpOperation,
-    );
-    const tools = await withTimeout(
-      client.listTools(),
-      15_000,
-      "MCP tool listing",
-      cancelPendingMcpOperation,
-    );
-    const toolNames = tools.tools.map((tool) => tool.name);
-    assert.equal(toolNames.includes("get_working_view"), false);
-    assert.equal(toolNames.includes("augnes_get_state_brief"), false);
-    assert.equal(toolNames.includes("augnes_resume_repository"), true);
-
-    repositoryResult = await withTimeout(
-      client.callTool({
-        name: "augnes_resume_repository",
-        arguments: { repositoryRoot: repoRoot },
-      }),
-      15_000,
-      "live repository continuity MCP tool call",
-      cancelPendingMcpOperation,
-    );
-    assert.notEqual(repositoryResult.isError, true);
-    assert.equal(repositoryResult.structuredContent?.companion?.status, "live");
-    assert.equal(repositoryResult.structuredContent?.companion?.mode, "http");
-    assert.equal(repositoryResult.structuredContent?.repository_resolution?.status, "project_not_registered");
-    assert.equal(repositoryResult.structuredContent?.continuity, null);
-  } finally {
-    await withTimeout(
-      client.close(),
-      10_000,
-      "MCP client close",
-      cancelPendingMcpOperation,
-    );
-  }
+  const access = JSON.parse(readFileSync(path.join(scenario.stateDirectory, "companion-access.json"), "utf8"));
+  await assertPrivateCompanionBridgeV01({ ready, proxyToken: access.proxy_token });
 
   const sourceBlindResult = await callLiveCompanionProxyV01({
     environment,
@@ -1118,7 +1074,7 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
   assert.equal(sourceBlindResult.call.structuredContent?.companion?.status, "live");
   assert.equal(sourceBlindResult.call.structuredContent?.repository_resolution?.status, "project_not_registered");
 
-  const mcpPublicOutput = JSON.stringify({ repositoryResult });
+  const mcpPublicOutput = JSON.stringify({ sourceBlindResult });
   assertPublicSafe(mcpPublicOutput, "real MCP tool results");
   assert.equal(mcpPublicOutput.includes("claim-augnes-app-01"), false);
   assert.deepEqual(
@@ -1139,66 +1095,77 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
 }
 
 async function callLiveCompanionProxyV01({ environment, manifestPath }) {
-  const child = spawn(process.execPath, [
-    path.join(repoRoot, "plugins", "augnes-operator", "mcp", "companion-proxy.mjs"),
-  ], {
+  const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
+  const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.join(repoRoot, "plugins", "augnes-operator", "mcp", "companion-proxy.mjs")],
     cwd: repoRoot,
     env: { ...environment, AUGNES_RUNTIME_STATE_DIR: path.dirname(manifestPath) },
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
+    stderr: "pipe",
   });
-  const record = registerOwnedChild(ownedProcesses, child, {
-    label: "source-blind-live-companion-proxy",
+  const client = new Client({
+    name: "augnes-runtime-operability-stdio",
+    version: "0.1.0",
   });
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  let stdoutRemainder = "";
   let stderr = "";
-  const replies = new Map();
-  let resolveCall;
-  const callReply = new Promise((resolve) => { resolveCall = resolve; });
-  child.stdout.on("data", (chunk) => {
-    stdoutRemainder += chunk;
-    const lines = stdoutRemainder.split(/\r?\n/u);
-    stdoutRemainder = lines.pop() ?? "";
-    for (const line of lines) {
-      const value = parseJsonLine(line);
-      if (!value || value.id === undefined) continue;
-      replies.set(value.id, value);
-      if (value.id === 3) resolveCall(value);
-    }
-  });
-  child.stderr.on("data", (chunk) => { stderr += chunk; });
-  for (const message of [
-    { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } },
-    { jsonrpc: "2.0", method: "notifications/initialized" },
-    { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
-    { jsonrpc: "2.0", id: 3, method: "tools/call", params: {
+  transport.stderr?.setEncoding("utf8");
+  transport.stderr?.on("data", (chunk) => { stderr += chunk; });
+  const cancel = () => transport.close();
+  try {
+    await withTimeout(client.connect(transport), 15_000, "official stdio MCP client connect", cancel);
+    if (transport.pid) observedOwnedPids.add(transport.pid);
+    const tools = await withTimeout(client.listTools(), 15_000, "official stdio MCP tools/list", cancel);
+    const call = await withTimeout(client.callTool({
       name: "augnes_resume_repository",
       arguments: { repositoryRoot: repoRoot },
-    } },
-  ]) {
-    child.stdin.write(`${JSON.stringify(message)}\n`);
-  }
-  let call;
-  try {
-    call = await withTimeout(callReply, 20_000, "source-blind live Companion proxy", () => {
-      child.stdin.end();
-    });
+    }), 20_000, "official stdio MCP tools/call", cancel);
+    return { tools: tools.tools, call };
   } finally {
-    child.stdin.end();
+    await withTimeout(client.close(), 10_000, "official stdio MCP client close", cancel).catch(() => {});
   }
-  const exit = await waitForOwnedProcessExit(record, 10_000);
-  assert.equal(exit?.code, 0, `source-blind Companion proxy failed: ${stderr}`);
-  assert.equal(replies.get(1)?.result?.serverInfo?.name, "augnes-live-companion-proxy");
-  assert.equal(Array.isArray(replies.get(2)?.result?.tools), true);
-  assert(call?.result, `source-blind Companion proxy returned no tool result: ${stderr}`);
-  return { tools: replies.get(2).result.tools, call: call.result };
+}
+
+async function assertPrivateCompanionBridgeV01({ ready, proxyToken }) {
+  const endpoint = `http://127.0.0.1:${ready.bridge_port}/mcp`;
+  const requestBody = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "privacy-test", version: "0.1.0" } } });
+  const cases = [
+    { name: "hostile origin", headers: { host: `127.0.0.1:${ready.bridge_port}`, origin: "https://attacker.example", "x-augnes-companion-proxy": proxyToken } },
+    { name: "hostile host", headers: { host: "attacker.example", "x-augnes-companion-proxy": proxyToken } },
+    { name: "dns rebinding host", headers: { host: "127.0.0.1.attacker.example", "x-augnes-companion-proxy": proxyToken } },
+    { name: "missing credential", headers: { host: `127.0.0.1:${ready.bridge_port}` } },
+    { name: "invalid credential", headers: { host: `127.0.0.1:${ready.bridge_port}`, "x-augnes-companion-proxy": "invalid" } },
+  ];
+  for (const testCase of cases) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...testCase.headers },
+      body: requestBody,
+      signal: AbortSignal.timeout(5_000),
+    });
+    assert.equal(response.status, 403, testCase.name);
+    assert.equal(response.headers.get("access-control-allow-origin"), null, testCase.name);
+    assert.deepEqual(await response.json(), { error: "companion_channel_refused" }, testCase.name);
+  }
+  const preflight = await fetch(endpoint, {
+    method: "OPTIONS",
+    headers: {
+      host: `127.0.0.1:${ready.bridge_port}`,
+      origin: "https://attacker.example",
+      "access-control-request-method": "POST",
+      "x-augnes-companion-proxy": proxyToken,
+    },
+    signal: AbortSignal.timeout(5_000),
+  });
+  assert.equal(preflight.status, 403);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), null);
+  assert.deepEqual(await preflight.json(), { error: "companion_channel_refused" });
 }
 
 function assertOwnershipFiles(stateDirectory, ready) {
   const expected = [
     "bridge-supervisor.env",
+    "companion-access.json",
     "control-token.json",
     "owner.lock",
     "runtime.json",
@@ -1217,6 +1184,14 @@ function assertOwnershipFiles(stateDirectory, ready) {
     }
   }
   const manifest = JSON.parse(readFileSync(path.join(stateDirectory, "runtime.json"), "utf8"));
+  const controlToken = JSON.parse(readFileSync(path.join(stateDirectory, "control-token.json"), "utf8"));
+  const companionAccess = JSON.parse(readFileSync(path.join(stateDirectory, "companion-access.json"), "utf8"));
+  assert.equal(companionAccess.access_version, "augnes-companion-proxy-access.v0.1");
+  assert.equal(typeof companionAccess.proxy_token, "string");
+  assert.notEqual(companionAccess.proxy_token, controlToken.token);
+  assert.notEqual(companionAccess.proxy_token, controlToken.child_ownership_token);
+  assert.equal("token" in companionAccess, false);
+  assert.equal("child_ownership_token" in companionAccess, false);
   assert.equal(manifest.instance_id, ready.instance_id);
   assert.equal(manifest.supervisor_pid, ready.supervisor_pid);
   assert.equal(manifest.lifecycle_state, "ready");
@@ -1695,6 +1670,7 @@ function assertRuntimeEnvironmentIsolation() {
   const sharedArguments = {
     paths: { bridgeEnvironment: bridgeEnvironmentPath },
     instanceId: "environment-isolation-instance",
+    companionProxyToken: "companion-proxy-token-environment-isolation",
     effectiveUrl: "http://127.0.0.1:3000",
     port: 8787,
   };
@@ -1738,6 +1714,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(uiValues.PORT, null);
   assert.equal(uiValues.AUGNES_DISTRIBUTION_MODE, "source");
   assert.equal(uiValues.AUGNES_APPLICATION_VERSION, applicationVersion);
+  assert.equal(uiValues.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   const uiEnvironment = buildRuntimeChildEnvironment({
     role: "ui",
     ambientEnvironment,
@@ -1756,6 +1733,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_ID, "reviewed-operator");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS, "45000");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS, "60000");
+  assert.equal(uiEnvironment.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   assert.equal(Object.hasOwn(uiEnvironment, "NODE_OPTIONS"), false);
 
   const bridgeValues = buildSupervisorChildValues({
@@ -1770,6 +1748,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(bridgeValues.NODE_OPTIONS, null);
   assert.equal(bridgeValues.AUGNES_DISTRIBUTION_MODE, "source");
   assert.equal(bridgeValues.AUGNES_APPLICATION_VERSION, applicationVersion);
+  assert.equal(bridgeValues.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   for (const [key, value] of Object.entries(reviewedBridgeCompatibilityEnvironment)) {
     assert.equal(
       bridgeValues[key],
@@ -1786,6 +1765,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "http");
   assert.equal(bridgeEnvironment.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  assert.equal(bridgeEnvironment.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_API_KEY"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_MODEL"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "CODEX_HOME"), false);

@@ -100,6 +100,7 @@ interface StateRuntimeHttpAdapterConfig {
   runtimeInstanceId?: string;
   runtimeGenerationId?: string;
   runtimeRepositoryFingerprint?: string;
+  companionProxyToken?: string;
 }
 
 function trimTrailingSlash(value: string): string {
@@ -188,6 +189,7 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
     generation: string | undefined;
     repository: string | undefined;
   };
+  private readonly companionProxyToken: string | undefined;
 
   constructor(config: StateRuntimeHttpAdapterConfig = {}) {
     this.apiBaseUrl = resolveApiBaseUrl(config.apiBaseUrl);
@@ -196,10 +198,11 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       generation: config.runtimeGenerationId ?? process.env.AUGNES_RUNTIME_GENERATION_ID,
       repository: config.runtimeRepositoryFingerprint ?? process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT,
     };
+    this.companionProxyToken = config.companionProxyToken ?? process.env.AUGNES_COMPANION_PROXY_TOKEN;
   }
 
   async getRepositoryContinuity(input: { repositoryRoot: string }): Promise<CodexRepositoryContinuityResult> {
-    if (!input.repositoryRoot || !this.runtimeIdentity.instance || !this.runtimeIdentity.generation || !this.runtimeIdentity.repository) {
+    if (!input.repositoryRoot || !this.companionProxyToken || !this.runtimeIdentity.instance || !this.runtimeIdentity.generation || !this.runtimeIdentity.repository) {
       throw new AugnesStateRuntimeHttpError("Live supervised Augnes Companion identity is unavailable.");
     }
     const url = buildUrl(this.apiBaseUrl, endpointContract.repositoryContinuity.path, {
@@ -213,6 +216,7 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
         headers: {
           "content-type": "application/json",
           "x-augnes-local-readonly": CODEX_REPOSITORY_CONTINUITY_LOCAL_READ_MARKER,
+          "x-augnes-companion-proxy": this.companionProxyToken,
         },
         body: JSON.stringify({ repository_root: input.repositoryRoot }),
       });

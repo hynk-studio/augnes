@@ -17,10 +17,16 @@ the current Augnes project state.”
    action. Use the Browser deep link only when returned.
 4. Refresh the tool after Browser-side work revision before continuing from a
    prior snapshot binding.
-5. Preserve every unavailable, ambiguous, moved-root, changed-root, or partial
+5. Preserve every unavailable, ambiguous, moved-root, or partial
    result. Do not reconstruct missing continuity from source, docs, fixtures,
    GuideBrief, Work Brief, names, branches, GitHub URLs, or active Browser
    selection.
+
+Repository identity is not redirected by Browser selection. The nested CDX2A
+projection still reports active status, selection revision, Start eligibility,
+and the corresponding next action, so do not describe those semantics as
+selection-independent. Also do not claim same-path directory replacement
+detection; the current root registry has no registration-time physical baseline.
 
 This surface is local and read-only. It does not register or rename projects,
 change Browser selection, define or revise work, create or start a run, approve

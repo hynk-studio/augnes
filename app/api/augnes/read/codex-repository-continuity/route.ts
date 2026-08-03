@@ -1,12 +1,14 @@
 import { loadCodexRepositoryContinuityV01 } from "@/lib/vnext/codex-repository-continuity/codex-repository-continuity";
 import { validateReadonlyApiLocalAccess } from "@/lib/readonly-api/access-guard";
 import { CODEX_REPOSITORY_CONTINUITY_ROUTE_MARKER_V01 } from "@/types/vnext/codex-repository-continuity";
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const HEADER = "x-augnes-local-readonly";
+const COMPANION_PROXY_HEADER = "x-augnes-companion-proxy";
 const RESPONSE_HEADERS = {
   [HEADER]: CODEX_REPOSITORY_CONTINUITY_ROUTE_MARKER_V01,
   "cache-control": "no-store",
@@ -23,6 +25,12 @@ export async function POST(request: Request) {
     allowed_methods: ["POST"],
   });
   if (!local.ok) return routeErrorV01(local.code, local.status);
+  if (!constantTimeEqualV01(
+    request.headers.get(COMPANION_PROXY_HEADER),
+    process.env.AUGNES_COMPANION_PROXY_TOKEN,
+  )) {
+    return routeErrorV01("companion_channel_refused", 403);
+  }
   if (!liveCompanionIdentityV01()) return routeErrorV01("companion_unavailable", 503);
   if ((request.headers.get("content-type") ?? "").split(";", 1)[0] !== "application/json") {
     return routeErrorV01("invalid_content_type", 415);
@@ -86,4 +94,11 @@ function routeErrorV01(code: string, status: number) {
       starts_codex_or_native_host: false,
     },
   }, { status, headers: RESPONSE_HEADERS });
+}
+
+function constantTimeEqualV01(left: string | null, right: string | undefined): boolean {
+  if (!left || !right) return false;
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }

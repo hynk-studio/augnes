@@ -39,15 +39,18 @@ void main().finally(() => rmSync(ROOT, { recursive: true, force: true }));
 
 async function main(): Promise<void> {
   await assertRepositoryResolutionMatrixV01();
+  await assertSamePathReplacementLimitationV01();
   await assertRepositoryAttachmentUsesExactProjectContinuityV01();
   await assertLiveRouteAndBridgeIdentityV01();
   console.log(JSON.stringify({
     status: "pass",
     contract: "codex_repository_continuity.v0.1",
     physical_root_resolution: true,
-    active_selection_independent_target: true,
+    active_selection_independent_target_identity: true,
+    active_selection_coupled_projection: true,
     cdx2a_projection_reused: true,
     zero_mutation: true,
+    same_path_replacement_baseline: false,
   }, null, 2));
 }
 
@@ -70,15 +73,17 @@ async function assertLiveRouteAndBridgeIdentityV01(): Promise<void> {
       AUGNES_RUNTIME_INSTANCE_ID: "instance-route",
       AUGNES_RUNTIME_GENERATION_ID: "generation-route",
       AUGNES_RUNTIME_REPOSITORY_FINGERPRINT: "f".repeat(64),
+      AUGNES_COMPANION_PROXY_TOKEN: "p".repeat(64),
     });
     delete process.env.AUGNES_RECOVERY_MODE;
-    const request = () => new Request(
+    const request = (proxyToken: string | null = "p".repeat(64)) => new Request(
       "http://127.0.0.1:3000/api/augnes/read/codex-repository-continuity?scope=repository%3Alocal",
       {
         method: "POST",
         headers: {
           "content-type": "application/json",
           "x-augnes-local-readonly": "codex-repository-continuity-v0.1",
+          ...(proxyToken ? { "x-augnes-companion-proxy": proxyToken } : {}),
         },
         body: JSON.stringify({ repository_root: repositoryRoot }),
       },
@@ -87,6 +92,15 @@ async function assertLiveRouteAndBridgeIdentityV01(): Promise<void> {
     assert.equal(routeResponse.status, 200);
     assert.equal(routeResponse.headers.get("x-augnes-runtime-instance"), "instance-route");
     assert.equal((await routeResponse.clone().json()).repository_resolution.status, "resolved_exact");
+    for (const refused of [
+      await repositoryContinuityPOST(request(null)),
+      await repositoryContinuityPOST(request("invalid-proxy-token")),
+    ]) {
+      assert.equal(refused.status, 403);
+      const refusedBody = await refused.text();
+      assert.equal(refusedBody.includes("Route Project"), false);
+      assert.equal(refusedBody.includes(repositoryRoot), false);
+    }
 
     globalThis.fetch = async (input, init) => repositoryContinuityPOST(new Request(input, init));
     const adapter = new StateRuntimeHttpAdapter({
@@ -94,6 +108,7 @@ async function assertLiveRouteAndBridgeIdentityV01(): Promise<void> {
       runtimeInstanceId: "instance-route",
       runtimeGenerationId: "generation-route",
       runtimeRepositoryFingerprint: "f".repeat(64),
+      companionProxyToken: "p".repeat(64),
     });
     assert.equal((await adapter.getRepositoryContinuity({ repositoryRoot })).repository_resolution.status, "resolved_exact");
 
@@ -102,6 +117,7 @@ async function assertLiveRouteAndBridgeIdentityV01(): Promise<void> {
       runtimeInstanceId: "foreign-instance",
       runtimeGenerationId: "generation-route",
       runtimeRepositoryFingerprint: "f".repeat(64),
+      companionProxyToken: "p".repeat(64),
     });
     await assert.rejects(
       foreignAdapter.getRepositoryContinuity({ repositoryRoot }),
@@ -161,18 +177,39 @@ async function assertRepositoryResolutionMatrixV01(): Promise<void> {
       repository_root: sharedAliasA,
     })).status, "project_ambiguous");
 
-    let inspection = 0;
-    const changed = await resolveCodexRepositoryProjectV01(db, {
-      repository_root: exactRoot,
-    }, {
-      inspect_physical_root: async () => ({
-        identity_version: "native_host_physical_root_identity.v0.1",
-        canonical_realpath_fingerprint: `sha256:${String(++inspection).padStart(64, "0")}`,
-        device: "1",
-        inode: "1",
-      }),
+  } finally {
+    db.close();
+  }
+}
+
+async function assertSamePathReplacementLimitationV01(): Promise<void> {
+  const databasePath = path.join(ROOT, "same-path-replacement.db");
+  let db = new Database(databasePath);
+  db.pragma("foreign_keys = ON");
+  applyCanonicalDatabaseMigrations(db);
+  const workspace = workspaceV01(db);
+  const repositoryPath = projectRootV01("same-path-replacement");
+  const registered = registerV01(
+    db,
+    workspace.workspace_id,
+    repositoryPath,
+    "Repository A",
+    "10000000-0000-4000-8000-000000000004",
+  );
+  db.close();
+
+  rmSync(repositoryPath, { recursive: true, force: true });
+  mkdirSync(repositoryPath, { recursive: true });
+  writeFileSync(path.join(repositoryPath, "repository-b.txt"), "repository B\n", "utf8");
+
+  db = new Database(databasePath);
+  db.pragma("foreign_keys = ON");
+  try {
+    const replaced = await resolveCodexRepositoryProjectV01(db, {
+      repository_root: repositoryPath,
     });
-    assert.equal(changed.status, "root_identity_changed");
+    assert.equal(replaced.status, "resolved_exact");
+    assert.equal(replaced.project_id, registered.project.project_id);
   } finally {
     db.close();
   }
@@ -229,6 +266,13 @@ async function assertRepositoryAttachmentUsesExactProjectContinuityV01(): Promis
     assert.equal(beforeSelection.repository_resolution.status, "resolved_exact");
     assert.equal(beforeSelection.continuity?.projection_version, "codex_current_continuity.v0.1");
     assert.equal(beforeSelection.continuity?.current_work.goal, "Continue exact repository A work");
+    assert.equal(beforeSelection.continuity?.project.status, "active_project");
+    assert.equal(beforeSelection.continuity?.project.active, true);
+    assert.equal(beforeSelection.continuity?.project.selection_revision, beforeSelectionRevisionOrThrow(db, workspace.workspace_id));
+    assert.equal(beforeSelection.continuity?.current_work.currentness, "fresh");
+    assert.equal(beforeSelection.continuity?.current_work.start_eligible, true);
+    assert.equal(beforeSelection.continuity?.current_work.start_blocker, null);
+    assert.equal(beforeSelection.continuity?.next_action.kind, "start_current_work");
     assert.match(beforeSelection.browser_deep_link ?? "", /^http:\/\/127\.0\.0\.1:3000\/projects\//u);
     const browserProjection = await readProjectHomeProjectionV01(db, {
       workspace_id: workspace.workspace_id,
@@ -249,7 +293,17 @@ async function assertRepositoryAttachmentUsesExactProjectContinuityV01(): Promis
     }, continuityDependenciesV01(config));
     assert.equal(afterSelection.repository_resolution.project_key, beforeSelection.repository_resolution.project_key);
     assert.equal(afterSelection.continuity?.current_work.goal, "Continue exact repository A work");
-    assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, projectB.project.project_id);
+    const activeB = readActiveProjectSelectionV01(db, workspace.workspace_id)!;
+    assert.equal(activeB.project_id, projectB.project.project_id);
+    assert.equal(afterSelection.continuity?.project.status, "inactive_project");
+    assert.equal(afterSelection.continuity?.project.active, false);
+    assert.equal(afterSelection.continuity?.project.selection_revision, activeB.selection_revision);
+    assert.notEqual(afterSelection.continuity?.project.selection_revision, beforeSelection.continuity?.project.selection_revision);
+    assert.notEqual(afterSelection.continuity?.snapshot.binding, beforeSelection.continuity?.snapshot.binding);
+    assert.equal(afterSelection.continuity?.current_work.currentness, "fresh");
+    assert.equal(afterSelection.continuity?.current_work.start_eligible, false);
+    assert.equal(afterSelection.continuity?.current_work.start_blocker, "The project is not active.");
+    assert.equal(afterSelection.continuity?.next_action.kind, "make_project_active");
     assert.deepEqual(afterSelection.authority, beforeSelection.authority);
     assert.equal(Object.values(afterSelection.authority).every((value) => value === false), true);
 
@@ -292,6 +346,12 @@ async function assertRepositoryAttachmentUsesExactProjectContinuityV01(): Promis
   } finally {
     db.close();
   }
+}
+
+function beforeSelectionRevisionOrThrow(db: Database.Database, workspaceId: string): number {
+  const selection = readActiveProjectSelectionV01(db, workspaceId);
+  assert(selection);
+  return selection.selection_revision;
 }
 
 function databaseV01(name: string): Database.Database {

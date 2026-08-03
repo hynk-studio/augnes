@@ -231,6 +231,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "private live Companion Host, Origin, CORS, and proxy-channel contract",
+      ...rootNode("scripts/test-codex-companion-privacy.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded local project-root verification adapter",
       ...rootNode("scripts/test-local-project-verification-adapter.ts"),
       // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.

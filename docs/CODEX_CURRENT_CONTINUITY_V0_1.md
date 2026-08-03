@@ -158,7 +158,7 @@ does not Start it, and the projection adds no Start control.
 `codex_repository_continuity.v0.1` wraps the unchanged CDX2A projection for a
 local physical repository root. Public resolution outcomes are
 `resolved_exact`, `project_not_registered`, `project_ambiguous`,
-`root_unavailable`, `root_identity_changed`, `repository_input_invalid`, and
+`root_unavailable`, `repository_input_invalid`, and
 `companion_unavailable`.
 
 Resolution uses canonical project/root registrations and the existing physical
@@ -168,9 +168,21 @@ symlink paths resolve only when one physical identity maps to one registered
 project. No result registers, renames, rebinds, selects, writes, starts, or
 duplicates a project.
 
+The v0.1 canonical root binding has no durable registration-time physical
+identity baseline. Same-path directory replacement is therefore not detected
+and is not represented by a `root_identity_changed` outcome. A future claim
+requires a versioned persistence/migration/backup/restore/portability owner.
+
+Selecting Browser project B does not redirect a repository-A attachment, but
+the reused CDX2A projection still reports A as inactive. Its selection revision
+and snapshot binding change, current-work freshness remains unchanged, Start
+eligibility closes, and its next action becomes `make_project_active`. CDX2B1
+does not claim selection-independent execution eligibility.
+
 The local POST route and `augnes_resume_repository` MCP tool are thin adapters.
-The bridge validates the UI runtime instance, runtime generation, and
-repository/application fingerprint before accepting the route response. The
+The stdio proxy validates the UI runtime instance, runtime generation,
+repository/application fingerprint, and exact route contract before accepting
+the response. The
 tool returns ordinary current situation, one next meaningful action, an exact
 Browser project link when available, and the bounded CDX2A projection. It never
 uses mock, fixture, seed, docs, GuideBrief, legacy Work Brief, repository-source

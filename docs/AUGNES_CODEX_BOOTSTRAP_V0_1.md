@@ -99,8 +99,9 @@ npm run augnes
 ```
 
 The supervisor owns both UI and bridge and may move either after a port
-collision. The plugin's stdio proxy verifies the live ownership manifest and
-follows the selected bridge port. `.codex/config.toml.example` retains only a
+collision. The plugin's stdio proxy verifies the live manifest, bridge identity,
+and narrow generation-bound Companion access record, then calls the strict
+UI/Core repository route directly. `.codex/config.toml.example` retains only a
 commented direct-URL compatibility shape for explicit test harnesses; a fixed
 `8787` URL is not the product setup.
 

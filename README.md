@@ -44,9 +44,10 @@ For source-blind local Codex resumption, install the repo-local
 `plugins/augnes-operator` plugin once with `codex plugin marketplace add .`
 then `codex plugin add augnes-operator@augnes-local`. With
 the same supervised `npm run augnes` Companion running, ask “Resume this
-repository with Augnes.” The plugin discovers the current verified bridge port
-and invokes `augnes_resume_repository`; no fixed `8787` configuration, Browser
-open page, mock, seed, docs, or legacy brief fallback is required.
+repository with Augnes.” The plugin verifies the current supervised bridge and
+calls the strict UI/Core route through a private generation-bound channel; no
+fixed `8787` configuration, Browser open page, mock, seed, docs, or legacy brief
+fallback is required.
 
 `OPENAI_API_KEY` is optional. Supported paths retain deterministic local
 fallbacks without it. A locally installed and authenticated Codex CLI with App

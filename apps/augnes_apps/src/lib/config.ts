@@ -91,6 +91,7 @@ export const config = {
     process.env.AUGNES_RUNTIME_CHILD_ROOT_PID ?? "0",
   ),
   runtimeOwnershipToken: process.env.AUGNES_RUNTIME_OWNERSHIP_TOKEN,
+  companionProxyToken: process.env.AUGNES_COMPANION_PROXY_TOKEN,
   distributionMode: process.env.AUGNES_DISTRIBUTION_MODE,
   applicationVersion: process.env.AUGNES_APPLICATION_VERSION,
   packageContract: process.env.AUGNES_PACKAGE_CONTRACT,

@@ -74,9 +74,6 @@ export async function resolveCodexRepositoryProjectV01(
     const registeredRoot = registration.root_binding.local_root.normalized_path;
     try {
       const identity = await inspect(registeredRoot);
-      if (registeredRoot === normalizedRoot && !samePhysicalIdentityV01(suppliedIdentity, identity)) {
-        return unresolvedV01("root_identity_changed");
-      }
       if (samePhysicalIdentityV01(suppliedIdentity, identity)) physicalMatches.push(registration);
     } catch {
       if (registeredRoot === normalizedRoot) return unresolvedV01("root_unavailable");
@@ -188,7 +185,6 @@ function unavailableProjectionV01(
     project_not_registered: "This physical repository is not registered as an Augnes project.",
     project_ambiguous: "More than one registered Augnes project maps to this physical repository.",
     root_unavailable: "The supplied repository root is unavailable or is not a directory.",
-    root_identity_changed: "The physical repository identity changed while it was being resolved.",
     repository_input_invalid: "A valid absolute local repository root is required.",
     companion_unavailable: "The live Augnes Companion is unavailable.",
   };
