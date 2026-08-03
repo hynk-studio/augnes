@@ -3,6 +3,7 @@ import { existsSync, statSync } from "node:fs";
 
 import { getDatabasePath } from "@/lib/db";
 import { readLatestManagedLiveDelegatedWorkLedgerSliceV01 } from "@/lib/autonomy/runner-ledger";
+import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import {
   readCanonicalProjectWithRootV01,
@@ -18,7 +19,11 @@ import {
   externalRefUsesRepositoryRelativePathV01,
   canonicalizeRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
-import { getLiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
+import {
+  LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01,
+  getLiveNativeHostRunServiceV01,
+  type LiveNativeHostRunProjectionV01,
+} from "@/lib/vnext/runtime/live-native-host-run-service";
 import {
   readVNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorPilotConfigV01,
@@ -34,7 +39,7 @@ import {
 } from "@/lib/vnext/runtime/project-run-result-read-model";
 import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
 import type { ManagedLiveDelegatedWorkLedgerSliceV01 } from "@/lib/autonomy/runner-ledger";
-import type { LiveNativeHostRunProjectionV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
+import type { AutonomyRunSummary } from "@/types/autonomy-runner-execution";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
 import type { ProjectRootAvailabilityV01 } from "@/types/vnext/project-onboarding";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
@@ -83,6 +88,12 @@ export interface CodexCurrentContinuityReadInputV01 {
   generated_at?: string;
 }
 
+export interface CodexCurrentContinuityLiveObservationV01 {
+  workspace_id: string;
+  project_id: string;
+  projection: LiveNativeHostRunProjectionV01;
+}
+
 export interface CodexCurrentContinuityDependenciesV01 {
   open_database: () => Database.Database;
   now: () => string;
@@ -90,7 +101,8 @@ export interface CodexCurrentContinuityDependenciesV01 {
   read_operator_config: () => VNextLocalOperatorPilotConfigV01 | null;
   read_live_projection: (
     config: VNextLocalOperatorPilotConfigV01,
-  ) => LiveNativeHostRunProjectionV01;
+    durable_run: AutonomyRunSummary,
+  ) => CodexCurrentContinuityLiveObservationV01;
 }
 
 export async function loadCodexCurrentContinuityV01(
@@ -188,21 +200,35 @@ export async function readCodexCurrentContinuityV01(
   });
 
   let ledger: ManagedLiveDelegatedWorkLedgerSliceV01 | null = null;
-  let live: LiveNativeHostRunProjectionV01 | null = null;
+  let liveObservation: CodexCurrentContinuityLiveObservationV01 | null = null;
   try {
     ledger = readLatestManagedLiveDelegatedWorkLedgerSliceV01(scope, db);
-    live = configuredOperator
-      ? (dependencies.read_live_projection ?? ((config) =>
-          getLiveNativeHostRunServiceV01().readProjectionOnlyV01(config)))(configuredOperator)
-      : null;
   } catch {
     ledger = null;
-    live = null;
+  }
+  if (
+    ledger?.run &&
+    !isTerminalRunnerStatus(ledger.run.status) &&
+    configuredOperator
+  ) {
+    try {
+      liveObservation = (dependencies.read_live_projection ?? ((config, durableRun) => ({
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        projection: getLiveNativeHostRunServiceV01().readProjectionOnlyV01(
+          config,
+          durableRun,
+        ),
+      })))(configuredOperator, ledger.run);
+    } catch {
+      liveObservation = null;
+    }
   }
   const executionDraft = readManagedExecutionV01(
     ledger,
-    live,
+    liveObservation,
     work.internal_packet_binding,
+    scope,
   );
 
   let overview: ReturnType<typeof readProjectRunResultOverviewV01> | null = null;
@@ -478,8 +504,9 @@ interface ManagedExecutionReadV01 {
 
 function readManagedExecutionV01(
   ledger: ManagedLiveDelegatedWorkLedgerSliceV01 | null,
-  live: LiveNativeHostRunProjectionV01 | null,
+  liveObservation: CodexCurrentContinuityLiveObservationV01 | null,
   currentPacket: { packet_id: string; packet_fingerprint: string } | null,
+  scope: ContinuityProjectScopeV01,
 ): ManagedExecutionReadV01 {
   if (!ledger) {
     return {
@@ -497,15 +524,7 @@ function readManagedExecutionV01(
   const runPacketFingerprint = stringValueV01(
     run.metadata.packet_fingerprint,
   );
-  const runTerminal = [
-    "blocked",
-    "completed",
-    "needs_review",
-    "failed",
-    "stopped",
-    "cancelled",
-    "timed_out",
-  ].includes(run.status);
+  const runTerminal = isTerminalRunnerStatus(run.status);
   if (
     runTerminal &&
     currentPacket &&
@@ -529,18 +548,47 @@ function readManagedExecutionV01(
       runPacketFingerprint === currentPacket.packet_fingerprint,
   );
   if (!exactCurrentPacketBinding) {
-    return {
-      public: emptyExecutionV01(
-        "unavailable_or_inconsistent",
-        "The managed run cannot be bound to one exact current work packet.",
-      ),
-      internal_binding: null,
-      run_relation: null,
-      gaps: ["Managed execution cannot be bound to one exact current work packet."],
-    };
+    return unavailableManagedExecutionV01(
+      "The managed run cannot be bound to one exact current work packet.",
+    );
   }
-  const effectiveStatus = live?.status ?? run.status;
-  const reconciliation = live?.reconciliation_required === true || run.metadata.reconciliation_required === true;
+  const durableMode = run.metadata.invocation_origin === "policy_triggered"
+    ? "policy_triggered" as const
+    : run.metadata.invocation_origin === "interactive"
+      ? "interactive" as const
+      : null;
+  const durableControlRevision = integerValueV01(run.metadata.control_revision);
+  const live = liveObservation?.projection ?? null;
+  const liveStage = live
+    ? classifyCodexCurrentContinuityExecutionStageV01(
+        live.status,
+        live.reconciliation_required,
+        false,
+      )
+    : "unavailable_or_inconsistent";
+  if (
+    !runTerminal &&
+    (!liveObservation ||
+      liveObservation.workspace_id !== scope.workspace_id ||
+      liveObservation.project_id !== scope.project_id ||
+      !live ||
+      live.service_version !== LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01 ||
+      live.status === "idle" ||
+      live.run_ref !== run.run_id ||
+      durableMode === null ||
+      live.mode !== durableMode ||
+      durableControlRevision === null ||
+      integerValueV01(live.control_revision) !== durableControlRevision ||
+      liveStage === "unavailable_or_inconsistent")
+  ) {
+    return unavailableManagedExecutionV01(
+      "Live managed execution cannot be bound to the exact durable run.",
+    );
+  }
+  const effectiveStatus = runTerminal ? run.status : live!.status;
+  const reconciliation = runTerminal
+    ? run.metadata.reconciliation_required === true
+    : live!.reconciliation_required;
   const receiptExpectation = run.metadata.terminal_receipt_persisted === true
     ? {
         receipt_id: stringValueV01(run.metadata.run_receipt_id),
@@ -553,7 +601,10 @@ function readManagedExecutionV01(
     false,
   );
   const reason = boundedTextV01(
-    live?.pending_approval?.public_reason ?? live?.public_reason ?? stringValueV01(run.metadata.public_reason) ?? run.stop_reason,
+    (runTerminal ? null : live!.pending_approval?.public_reason) ??
+      (runTerminal ? null : live!.public_reason) ??
+      stringValueV01(run.metadata.public_reason) ??
+      run.stop_reason,
     CODEX_CURRENT_CONTINUITY_LIMITS_V01.result_item_characters,
   );
   const checkpoint = ledger.events
@@ -562,11 +613,7 @@ function readManagedExecutionV01(
   const latestCheckpoint = checkpoint
     ? boundedTextV01(checkpoint.message || "A bounded work checkpoint was recorded.", CODEX_CURRENT_CONTINUITY_LIMITS_V01.result_item_characters)
     : null;
-  const mode = run.metadata.invocation_origin === "policy_triggered"
-    ? "policy_triggered" as const
-    : run.metadata.invocation_origin === "interactive"
-      ? "interactive" as const
-      : "unknown" as const;
+  const mode = durableMode ?? "unknown" as const;
   return {
     public: {
       stage,
@@ -590,7 +637,7 @@ function readManagedExecutionV01(
       run_id: run.run_id,
       status: effectiveStatus,
       updated_at: run.updated_at,
-      control_revision: integerValueV01(run.metadata.control_revision),
+      control_revision: durableControlRevision,
       reconciliation_required: reconciliation,
       packet_id: runPacketId,
       packet_fingerprint: runPacketFingerprint,
@@ -605,6 +652,18 @@ function readManagedExecutionV01(
       receipt_expectation: receiptExpectation,
     },
     gaps: [] as string[],
+  };
+}
+
+function unavailableManagedExecutionV01(reason: string): ManagedExecutionReadV01 {
+  return {
+    public: emptyExecutionV01(
+      "unavailable_or_inconsistent",
+      reason,
+    ),
+    internal_binding: null,
+    run_relation: null,
+    gaps: [reason],
   };
 }
 

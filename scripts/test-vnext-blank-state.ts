@@ -36,6 +36,7 @@ import type {
 } from "../types/vnext/delegated-work";
 import type { ProjectHomeProjectionV01 } from "../types/vnext/project-home";
 import type { RecentProjectEntryV01 } from "../types/vnext/project-onboarding";
+import type { ProjectWorkInitializationV01 } from "../types/vnext/project-work-initialization";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-blank-state-"));
@@ -612,6 +613,26 @@ async function main() {
       semantic_authority_granted: false as const,
       execution_authority_granted: false as const,
     },
+    {
+      initialization_version: "project_work_initialization.v0.1" as const,
+      workspace_id: "workspace:test",
+      project_id: "project:test",
+      state: "existing_history_without_current_packet" as const,
+      reason: "future_additive_recovery_reason",
+      active_project_id: "project:test",
+      active_selection_revision: 3,
+      current_work: null,
+      current_packet: null,
+      mutation_eligible: false,
+      revision_eligibility: unavailableRevisionEligibilityV01({
+        workspace_id: "workspace:test",
+        project_id: "project:test",
+        active_selection_revision: 3,
+      }),
+      projection_only: true as const,
+      semantic_authority_granted: false as const,
+      execution_authority_granted: false as const,
+    } as unknown as ProjectWorkInitializationV01,
     {
       initialization_version: "project_work_initialization.v0.1" as const,
       workspace_id: "workspace:test",

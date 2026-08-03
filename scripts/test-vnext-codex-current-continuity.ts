@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -14,6 +16,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import { readLatestManagedLiveDelegatedWorkLedgerSliceV01 } from "../lib/autonomy/runner-ledger";
 import { GET as continuityGET } from "../app/api/augnes/read/codex-current-continuity/route";
 import {
   buildCurrentContinuityUrl,
@@ -136,6 +139,7 @@ async function main(): Promise<void> {
   try {
     await assertExactOwnerStatesV01();
     await assertManagedRunPacketBindingsV01();
+    await assertManagedLiveSourceCoherenceV01();
     await assertCurrentWorkResolutionStatesV01();
     await assertSemanticContinuityOwnerPathsV01();
     assertPureClassificationMatrixV01();
@@ -200,11 +204,12 @@ async function assertManagedRunPacketBindingsV01(): Promise<void> {
       status: "running" as const,
       run_ref: runId,
       mode: "interactive" as const,
+      control_revision: 1,
     };
     const exact = await readCodexCurrentContinuityV01(
       fixture.db,
       { generated_at: "2026-08-03T02:00:00.000Z" },
-      { ...dependenciesV01(fixture.config), read_live_projection: () => runningLive },
+      { ...dependenciesV01(fixture.config), read_live_projection: () => liveObservationV01(fixture.config, runningLive) },
     );
     assert.equal(exact.managed_execution.stage, "running");
     assert.equal(exact.source_status, "exact");
@@ -221,7 +226,7 @@ async function assertManagedRunPacketBindingsV01(): Promise<void> {
       const projection = await readCodexCurrentContinuityV01(
         fixture.db,
         { generated_at: "2026-08-03T02:00:01.000Z" },
-        { ...dependenciesV01(fixture.config), read_live_projection: () => runningLive },
+        { ...dependenciesV01(fixture.config), read_live_projection: () => liveObservationV01(fixture.config, runningLive) },
       );
       assert.equal(projection.managed_execution.stage, "unavailable_or_inconsistent", name);
       assert.equal(projection.managed_execution.result_available, false, name);
@@ -346,6 +351,189 @@ async function assertManagedRunPacketBindingsV01(): Promise<void> {
   } finally {
     historical.db.close();
   }
+}
+
+async function assertManagedLiveSourceCoherenceV01(): Promise<void> {
+  const fixture = createFixtureV01(
+    "managed-live-source-coherence",
+    "30000000-0000-4000-8000-000000000014",
+  );
+  try {
+    const initial = defineInitialProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "managed-live-source"),
+      request: {
+        action: "define_initial_project_work",
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        expected_active_project_id: fixture.project_id,
+        expected_active_selection_revision:
+          readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!.selection_revision,
+        expected_initialization_state: "not_defined",
+        goal: "Read one source-coherent managed run",
+        success_criteria: ["Live and durable run identity remain exact"],
+        non_goals: ["Do not reconcile or write"],
+      },
+      clock: fixedClockV01(LATER),
+    });
+    const runId = "autonomy-run:cdx2a-live-source";
+    const metadata = {
+      lifecycle_mode: "managed_live",
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      invocation_origin: "interactive",
+      packet_id: initial.packet.packet_id,
+      packet_fingerprint: initial.packet.integrity.fingerprint,
+      control_revision: 3,
+    };
+    insertManagedRunV01(fixture.db, fixture.project_id, runId, metadata);
+    const exactLive: LiveNativeHostRunProjectionV01 = {
+      ...idleLiveProjectionV01(),
+      status: "running",
+      run_ref: runId,
+      mode: "interactive",
+      control_revision: 3,
+      capability: {
+        ...idleLiveProjectionV01().capability,
+        status: "available",
+      },
+    };
+    const exactDependencies = {
+      ...dependenciesV01(fixture.config),
+      read_live_projection: () => liveObservationV01(fixture.config, exactLive),
+    };
+    const exact = await readCodexCurrentContinuityV01(
+      fixture.db,
+      { generated_at: "2026-08-03T02:10:00.000Z" },
+      exactDependencies,
+    );
+    const exactReplay = await readCodexCurrentContinuityV01(
+      fixture.db,
+      { generated_at: "2026-08-03T02:10:01.000Z" },
+      exactDependencies,
+    );
+    assert.equal(exact.managed_execution.stage, "running");
+    assert.equal(exact.source_status, "exact");
+    assert.equal(exact.snapshot.status, "exact");
+    assert.equal(exact.current_work.start_eligible, false);
+    assert.equal(exact.managed_execution.result_available, false);
+    assert.equal(exact.next_action.kind, "view_progress");
+    assert.equal(exitCodeForProjection(exact), 0);
+    assert.equal(exactReplay.snapshot.binding, exact.snapshot.binding);
+
+    const inconsistentCases: Array<[
+      string,
+      Partial<Parameters<typeof readCodexCurrentContinuityV01>[2]>,
+    ]> = [
+      ["operator_configuration_unavailable", { read_operator_config: () => null }],
+      ["live_projection_unavailable", { read_live_projection: () => { throw new Error("live unavailable"); } }],
+      ["live_run_ref_null", { read_live_projection: () => liveObservationV01(fixture.config, { ...exactLive, run_ref: null }) }],
+      ["live_run_ref_mismatch", { read_live_projection: () => liveObservationV01(fixture.config, { ...exactLive, run_ref: "autonomy-run:other" }) }],
+      ["live_control_revision_mismatch", { read_live_projection: () => liveObservationV01(fixture.config, { ...exactLive, control_revision: 4 }) }],
+      ["live_mode_mismatch", { read_live_projection: () => liveObservationV01(fixture.config, { ...exactLive, mode: "policy_triggered" }) }],
+      ["live_idle", { read_live_projection: () => liveObservationV01(fixture.config, { ...exactLive, status: "idle" }) }],
+      ["live_scope_mismatch", { read_live_projection: () => ({ ...liveObservationV01(fixture.config, exactLive), project_id: "project:other" }) }],
+    ];
+    for (const [name, override] of inconsistentCases) {
+      const projection = await readCodexCurrentContinuityV01(
+        fixture.db,
+        { generated_at: "2026-08-03T02:10:02.000Z" },
+        { ...dependenciesV01(fixture.config), ...override },
+      );
+      assertManagedLiveUnavailableV01(projection, name);
+    }
+
+    const suppliedRun = readLatestManagedLiveDelegatedWorkLedgerSliceV01(
+      { workspace_id: fixture.workspace_id, project_id: fixture.project_id },
+      fixture.db,
+    ).run!;
+    let secondaryOpenCount = 0;
+    const projectionOnlyService = new LiveNativeHostRunServiceV01({
+      open_database: () => {
+        secondaryOpenCount += 1;
+        throw new Error("projection-only read opened a database");
+      },
+    });
+    const suppliedProjection = projectionOnlyService.readProjectionOnlyV01(
+      fixture.config,
+      suppliedRun,
+    );
+    assert.equal(suppliedProjection.run_ref, runId);
+    assert.equal(suppliedProjection.reconciliation_required, true);
+    assert.equal(secondaryOpenCount, 0);
+
+    const originalDatabasePath = process.env.AUGNES_DB_PATH;
+    process.env.AUGNES_DB_PATH = fixture.config.database_path;
+    const durableBefore = snapshotDatabaseFamilyV01(fixture.config.database_path);
+    const projectBefore = snapshotTreeV01(fixture.root);
+    const repositoryBefore = repositoryStatusV01();
+    let defaultRead: Awaited<ReturnType<typeof loadCodexCurrentContinuityV01>>;
+    try {
+      defaultRead = await loadCodexCurrentContinuityV01(
+        { generated_at: "2026-08-03T02:10:03.000Z" },
+        {
+          read_root_availability: async () => "available",
+          read_operator_config: () => fixture.config,
+        },
+      );
+    } finally {
+      if (originalDatabasePath === undefined) delete process.env.AUGNES_DB_PATH;
+      else process.env.AUGNES_DB_PATH = originalDatabasePath;
+    }
+    assert.equal(defaultRead.managed_execution.stage, "reconciliation_required");
+    assert.deepEqual(snapshotDatabaseFamilyV01(fixture.config.database_path), durableBefore);
+    assert.deepEqual(snapshotTreeV01(fixture.root), projectBefore);
+    assert.equal(repositoryStatusV01(), repositoryBefore);
+
+    let changedInserted = false;
+    const changedRunProjection = await readCodexCurrentContinuityV01(
+      fixture.db,
+      { generated_at: "2026-08-03T02:10:04.000Z" },
+      {
+        ...dependenciesV01(fixture.config),
+        read_live_projection: () => {
+          const changedRunId = "autonomy-run:zz-cdx2a-live-source-changed";
+          if (!changedInserted) {
+            insertManagedRunV01(
+              fixture.db,
+              fixture.project_id,
+              changedRunId,
+              metadata,
+            );
+            changedInserted = true;
+          }
+          return liveObservationV01(fixture.config, {
+            ...exactLive,
+            run_ref: changedRunId,
+          });
+        },
+      },
+    );
+    assertManagedLiveUnavailableV01(
+      changedRunProjection,
+      "durable_run_changed_during_observation",
+    );
+  } finally {
+    fixture.db.close();
+  }
+}
+
+function assertManagedLiveUnavailableV01(
+  projection: Awaited<ReturnType<typeof readCodexCurrentContinuityV01>>,
+  name: string,
+): void {
+  assert.equal(projection.managed_execution.stage, "unavailable_or_inconsistent", name);
+  assert.equal(projection.managed_execution.result_available, false, name);
+  assert.equal(projection.current_work.start_eligible, false, name);
+  assert.notEqual(projection.source_status, "exact", name);
+  assert.equal(projection.snapshot.status, "unavailable", name);
+  assert.equal(projection.next_action.kind, "unavailable", name);
+  assert.equal(exitCodeForProjection(projection), 3, name);
+  assert.equal(
+    projection.gaps.includes("Live managed execution cannot be bound to the exact durable run."),
+    true,
+    name,
+  );
 }
 
 async function assertCurrentWorkResolutionStatesV01(): Promise<void> {
@@ -1334,7 +1522,14 @@ async function assertExactOwnerStatesV01(): Promise<void> {
         fileMustExist: true,
       }),
     });
-    const projectionOnly = service.readProjectionOnlyV01(fixture.config);
+    const suppliedRun = readLatestManagedLiveDelegatedWorkLedgerSliceV01(
+      { workspace_id: fixture.workspace_id, project_id: fixture.project_id },
+      fixture.db,
+    ).run!;
+    const projectionOnly = service.readProjectionOnlyV01(
+      fixture.config,
+      suppliedRun,
+    );
     assert.equal(projectionOnly.status, "paused");
     assert.equal(projectionOnly.reconciliation_required, true);
     assert.equal(hashV01(fixture.db.serialize()), beforeProjectionOnly);
@@ -1347,7 +1542,7 @@ async function assertExactOwnerStatesV01(): Promise<void> {
     const afterRun = await readCodexCurrentContinuityV01(
       fixture.db,
       { generated_at: "2026-08-03T00:00:06.000Z" },
-      { ...dependenciesV01(fixture.config), read_live_projection: () => projectionOnly },
+      { ...dependenciesV01(fixture.config), read_live_projection: () => liveObservationV01(fixture.config, projectionOnly) },
     );
     assert.equal(afterRun.managed_execution.stage, "reconciliation_required");
     assert.equal(afterRun.current_work.start_eligible, false);
@@ -1815,8 +2010,63 @@ function dependenciesV01(config: VNextLocalOperatorPilotConfigV01) {
   return {
     read_root_availability: async () => "available" as const,
     read_operator_config: () => config,
-    read_live_projection: () => idleLiveProjectionV01(),
+    read_live_projection: () => liveObservationV01(config, idleLiveProjectionV01()),
   };
+}
+
+function liveObservationV01(
+  config: VNextLocalOperatorPilotConfigV01,
+  projection: LiveNativeHostRunProjectionV01,
+) {
+  return {
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+    projection,
+  };
+}
+
+function snapshotDatabaseFamilyV01(databasePath: string): Array<{
+  name: string;
+  fingerprint: string;
+}> {
+  const directory = path.dirname(databasePath);
+  const basename = path.basename(databasePath);
+  return readdirSync(directory)
+    .filter((name) => name === basename || name.startsWith(`${basename}-`))
+    .sort()
+    .map((name) => ({
+      name,
+      fingerprint: hashV01(readFileSync(path.join(directory, name))),
+    }));
+}
+
+function snapshotTreeV01(root: string): Array<{
+  path: string;
+  fingerprint: string;
+}> {
+  const result: Array<{ path: string; fingerprint: string }> = [];
+  const visit = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else if (entry.isFile()) {
+        result.push({
+          path: path.relative(root, absolute),
+          fingerprint: hashV01(readFileSync(absolute)),
+        });
+      }
+    }
+  };
+  visit(root);
+  return result.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function repositoryStatusV01(): string {
+  return execFileSync(
+    "git",
+    ["status", "--short", "--untracked-files=all"],
+    { cwd: process.cwd(), encoding: "utf8" },
+  );
 }
 
 function idleLiveProjectionV01(): LiveNativeHostRunProjectionV01 {

@@ -376,18 +376,26 @@ export class LiveNativeHostRunServiceV01 {
 
   /**
    * Projection-only read for consumers whose contract forbids reconciliation
-   * writes. A nonterminal durable run without an in-process controller is
-   * reported as requiring reconciliation, but the ledger is left unchanged.
+   * writes. The caller supplies the durable run from its own exact read so this
+   * method inspects only the in-process controller map and never opens or
+   * rereads the database. A nonterminal durable run without an exact
+   * same-run controller is reported as requiring reconciliation, but the
+   * ledger is left unchanged.
    */
   readProjectionOnlyV01(
     config: VNextLocalOperatorPilotConfigV01,
+    run: AutonomyRunSummary,
   ): LiveNativeHostRunProjectionV01 {
-    const run = this.readLatestManagedRun(config);
-    if (!run) return idleProjectionV01();
     const projection = projectionFromRunV01(run);
     const controller = this.controllers.get(projectKeyV01(config));
+    const controllerOwnsRun = Boolean(
+      controller &&
+        !controller.completionSettled &&
+        controller.runId === run.run_id &&
+        controller.mode === projection.mode,
+    );
     if (
-      !controller &&
+      !controllerOwnsRun &&
       !isTerminalRunnerStatus(run.status) &&
       run.status !== "paused"
     ) {

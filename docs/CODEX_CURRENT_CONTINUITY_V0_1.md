@@ -78,11 +78,35 @@ continuity with an unavailable snapshot. Every nonterminal run likewise must
 bind its packet ID and fingerprint to the one exact current packet before a
 running, preparing, approval, or reconciliation stage is exposed.
 
+For a nonterminal durable run, live status is usable only when one observation
+is bound to that same durable ledger row: workspace and project scope, run ID,
+invocation mode, control revision, and current packet ID/fingerprint must all
+match exactly. There is no durable-status fallback when operator configuration
+or live observation is unavailable, reports idle, or belongs to another run.
+Those cases are partial continuity with `unavailable_or_inconsistent`
+execution, no result-ready or Start claim, an unavailable next action, and an
+unavailable snapshot. The projection performs no reconciliation write.
+
+The public owner opens its one database connection read-only with
+`fileMustExist` and SQLite `query_only`. Its projection-only live service is
+given the already-read durable run and inspects only the in-process controller
+map; it does not reopen or reread the database.
+
 Durable work history is not automatically called stale. `stale_current_work`
 requires positively proven supersession. Multiple candidates, malformed
 packets, invalid revision/Transition lineage, or history without one provable
 current packet are ambiguous or unavailable, keep Start ineligible, and make
 the snapshot unavailable.
+
+`project_work_initialization.v0.1` recovery reason codes are intentionally
+additive diagnostic detail within v0.1. Exact consumers authorize only from
+the state plus explicit mutation/revision eligibility and exact packet
+bindings; they do not grant an action from a reason string. Current API
+adapters pass the owner value through, first-work and revision controls require
+their exact eligible states, and Blank State, AI Workplane, and current
+continuity use a generic unavailable recovery presentation for an unknown
+reason. An older consumer therefore fails closed when a new recovery reason is
+introduced.
 
 The review state remains relation-specific:
 
