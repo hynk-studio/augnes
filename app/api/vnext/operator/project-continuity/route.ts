@@ -27,6 +27,11 @@ import {
   isProjectWorkInitializationErrorV01,
   readProjectWorkInitializationV01,
 } from "@/lib/vnext/runtime/project-work-initialization";
+import {
+  ProjectWorkRevisionErrorV01,
+  revisePreExecutionProjectWorkV01,
+} from "@/lib/vnext/runtime/project-work-revision";
+import { PreExecutionProjectWorkRevisionErrorV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -159,6 +164,42 @@ export function createVNextOperatorContextUseReviewHandlerV01(
           }),
         );
       }
+      if (body.action === "revise_pre_execution_project_work") {
+        const result = revisePreExecutionProjectWorkV01(db, {
+          config,
+          credential,
+          request: body,
+          clock: options.clock,
+          secret_source: options.secret_source,
+        });
+        return jsonResponse(
+          {
+            ok: true,
+            route_version: ROUTE_VERSION,
+            status: result.status,
+            work_initialization: readProjectWorkInitializationV01(db, config),
+            definition: result.definition,
+            run_created: result.run_created,
+            execution_started: result.execution_started,
+            provider_called: result.provider_called,
+            project_files_written: result.project_files_written,
+            proposal_created: result.proposal_created,
+            review_decision_created: result.review_decision_created,
+            transition_created: result.transition_created,
+            semantic_state_changed: result.semantic_state_changed,
+            semantic_authority_granted: false,
+            execution_authority_granted: false,
+          },
+          result.status === "inserted" ? 201 : 200,
+          serializeVNextLocalOperatorSessionCookieV01({
+            value: result.session_admission.cookie_value,
+            expires_at: result.session_admission.cookie_expires_at,
+            max_age_seconds:
+              result.session_admission.cookie_max_age_seconds,
+            secure: url.protocol === "https:",
+          }),
+        );
+      }
       const result = recordVNextOperatorPilotContextUseReviewV01(db, {
         config,
         credential,
@@ -208,6 +249,8 @@ function errorResponse(error: unknown): NextResponse {
     error instanceof VNextLocalOperatorSessionErrorV01 ||
     error instanceof VNextOperatorPilotContinuityErrorV01 ||
     error instanceof VNextOperatorPilotContextUseReviewErrorV01 ||
+    error instanceof ProjectWorkRevisionErrorV01 ||
+    error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
     isProjectWorkInitializationErrorV01(error);
   const disabled =
     error instanceof VNextLocalOperatorSessionErrorV01 &&

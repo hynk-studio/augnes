@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import {
   AIWorkplaneShell,
@@ -26,7 +32,10 @@ import { DecisionCenteredProposalDetail } from "./decision-centered-proposal-det
 import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
 import { FirstWorkComposer } from "./first-work-composer";
-import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
+import type {
+  ProjectWorkDefinitionV01,
+  ProjectWorkInitializationV01,
+} from "@/types/vnext/project-work-initialization";
 import type {
   SemanticContextUseReviewRequestV01,
   SemanticReviewDecisionRequestV01,
@@ -44,6 +53,19 @@ const PROJECT_CONTINUITY_ROUTE = "/api/vnext/operator/project-continuity";
 type PrivateSemanticReviewViewV01 =
   | { kind: "list"; value: SemanticReviewListRouteResponseV01 }
   | { kind: "detail"; value: SemanticReviewDetailRouteResponseV01 };
+
+interface WorkRevisionEditorBindingV01 {
+  workspace_id: string;
+  project_id: string;
+  active_selection_revision: number;
+  current_packet_id: string;
+  current_packet_fingerprint: string;
+  current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision";
+  session_id: string;
+  session_workspace_id: string;
+  session_project_id: string;
+  operator_id: string;
+}
 
 export function SemanticReviewSurface({
   proposalId,
@@ -71,6 +93,10 @@ export function SemanticReviewSurface({
   } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const [firstWorkBusy, setFirstWorkBusy] = useState(false);
+  const [revisionEditorBinding, setRevisionEditorBinding] =
+    useState<WorkRevisionEditorBindingV01 | null>(null);
+  const [workRevisionBusy, setWorkRevisionBusy] = useState(false);
+  const revisionButtonRef = useRef<HTMLButtonElement>(null);
   const operatorMutationInFlight = useRef(false);
   const lastGuideSyncKey = useRef<string | null>(null);
   const lastTrustedResultRef = useRef<string | null>(null);
@@ -422,7 +448,7 @@ export function SemanticReviewSurface({
   ): Promise<void> {
     const initialization =
       privateView?.kind === "list"
-        ? privateView.value.work_initialization
+        ? privateView.value.work_initialization ?? null
         : null;
     if (
       sessionState.status !== "authenticated" ||
@@ -487,7 +513,120 @@ export function SemanticReviewSurface({
     }
   }
 
+  async function saveWorkRevision(
+    definition: ProjectWorkDefinitionV01,
+  ): Promise<void> {
+    const initialization =
+      privateView?.kind === "list"
+        ? privateView.value.work_initialization ?? null
+        : null;
+    const currentBinding = workRevisionEditorBindingV01({
+      session:
+        sessionState.status === "authenticated" ? sessionState.session : null,
+      initialization,
+      delegated_stage: delegatedState.projection?.stage ?? null,
+      start_eligible: delegatedState.projection?.start_eligible ?? false,
+    });
+    const submittedBinding = revisionEditorBinding;
+    if (
+      sessionState.status !== "authenticated" ||
+      !initialization ||
+      !submittedBinding ||
+      !currentBinding ||
+      workRevisionEditorBindingKeyV01(submittedBinding) !==
+        workRevisionEditorBindingKeyV01(currentBinding) ||
+      operatorMutationInFlight.current
+    ) {
+      if (submittedBinding) setRevisionEditorBinding(null);
+      return;
+    }
+    operatorMutationInFlight.current = true;
+    setWorkRevisionBusy(true);
+    setDecisionStatus(null);
+    setPrivateError(null);
+    try {
+      const response = await fetch(PROJECT_CONTINUITY_ROUTE, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "revise_pre_execution_project_work",
+          workspace_id: submittedBinding.workspace_id,
+          project_id: submittedBinding.project_id,
+          expected_active_project_id: submittedBinding.project_id,
+          expected_active_selection_revision:
+            submittedBinding.active_selection_revision,
+          expected_current_packet_id: submittedBinding.current_packet_id,
+          expected_current_packet_fingerprint:
+            submittedBinding.current_packet_fingerprint,
+          expected_current_lineage_kind: submittedBinding.current_lineage_kind,
+          ...definition,
+        }),
+      });
+      const body = (await response.json()) as FirstWorkMutationResponseV01;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          locked(publicErrorCode(body.error_code));
+          return;
+        }
+        const conflictCopy = workRevisionErrorCopyV01(body.error_code);
+        if (workRevisionConflictV01(body.error_code)) {
+          setRevisionEditorBinding(null);
+          await loadPrivateView({ announceLoading: false });
+          await guideState.refresh();
+          await delegatedState.refresh();
+        }
+        setPrivateError(conflictCopy);
+        return;
+      }
+      if (
+        (body.status !== "inserted" && body.status !== "exact_replay") ||
+        body.execution_started !== false ||
+        body.run_created !== false
+      ) {
+        setPrivateError(
+          "The revision response could not prove that execution remained stopped. Reload before continuing.",
+        );
+        return;
+      }
+      setRevisionEditorBinding(null);
+      setDecisionStatus("Work definition revised. No execution has started.");
+      await loadPrivateView({ announceLoading: false });
+      await guideState.refresh();
+      await delegatedState.refresh();
+      router.refresh();
+    } catch {
+      setPrivateError(
+        "The work definition could not be revised. Nothing was started; review the current work and try again.",
+      );
+    } finally {
+      operatorMutationInFlight.current = false;
+      setWorkRevisionBusy(false);
+    }
+  }
+
+  function cancelWorkRevision(): void {
+    const sourceKey = revisionEditorBinding
+      ? workRevisionEditorBindingKeyV01(revisionEditorBinding)
+      : null;
+    setRevisionEditorBinding(null);
+    setPrivateError(null);
+    window.requestAnimationFrame(() => {
+      const button = revisionButtonRef.current;
+      if (
+        sourceKey &&
+        sourceKey === currentRevisionEditorBindingKey &&
+        button?.isConnected &&
+        !button.disabled
+      ) {
+        button.focus();
+      }
+    });
+  }
+
   function authenticated(session: OperatorSessionViewV01) {
+    setRevisionEditorBinding(null);
     setPrivateView(null);
     setSessionState({
       status: "authenticated",
@@ -498,6 +637,7 @@ export function SemanticReviewSurface({
   }
 
   function locked(errorCode?: string) {
+    setRevisionEditorBinding(null);
     setPrivateView(null);
     setDecisionStatus(null);
     setSessionState({
@@ -573,6 +713,29 @@ export function SemanticReviewSurface({
     sessionState.status,
   ]);
 
+  useEffect(() => {
+    if (!revisionEditorBinding) return;
+    const refreshRevisionSources = () => {
+      void loadPrivateView({ announceLoading: false });
+      void delegatedState.refresh();
+    };
+    const refreshVisibleRevisionSources = () => {
+      if (document.visibilityState === "visible") refreshRevisionSources();
+    };
+    window.addEventListener("focus", refreshRevisionSources);
+    document.addEventListener(
+      "visibilitychange",
+      refreshVisibleRevisionSources,
+    );
+    return () => {
+      window.removeEventListener("focus", refreshRevisionSources);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshVisibleRevisionSources,
+      );
+    };
+  }, [delegatedState.refresh, loadPrivateView, revisionEditorBinding]);
+
   const privateMaterialVisible =
     sessionState.status === "authenticated" && privateView !== null;
   const guideConsistency = compareAIWorkplaneGuideProjectV01(
@@ -610,6 +773,40 @@ export function SemanticReviewSurface({
     exactReviewAvailable &&
     firstWorkInitialization?.state === "not_defined" &&
     firstWorkInitialization.mutation_eligible;
+  const currentRevisionEditorBinding = exactReviewAvailable
+    ? workRevisionEditorBindingV01({
+        session:
+          sessionState.status === "authenticated" ? sessionState.session : null,
+        initialization: firstWorkInitialization,
+        delegated_stage: delegatedState.projection?.stage ?? null,
+        start_eligible: delegatedState.projection?.start_eligible ?? false,
+      })
+    : null;
+  const currentRevisionEditorBindingKey = currentRevisionEditorBinding
+    ? workRevisionEditorBindingKeyV01(currentRevisionEditorBinding)
+    : null;
+  const revisionAvailable = currentRevisionEditorBinding !== null;
+  const workDefinitionIsUnstarted = Boolean(
+    exactReviewAvailable &&
+      sessionState.status === "authenticated" &&
+      firstWorkInitialization?.current_work &&
+      firstWorkInitialization.current_packet &&
+      sessionState.session.workspace_id ===
+        firstWorkInitialization.workspace_id &&
+      sessionState.session.project_id === firstWorkInitialization.project_id &&
+      firstWorkInitialization.active_project_id ===
+        firstWorkInitialization.project_id &&
+      firstWorkInitialization.revision_eligibility.current_packet_id ===
+        firstWorkInitialization.current_packet.packet_id &&
+      firstWorkInitialization.revision_eligibility
+        .current_packet_fingerprint ===
+        firstWorkInitialization.current_packet.packet_fingerprint &&
+      (firstWorkInitialization.revision_eligibility.eligible ||
+        firstWorkInitialization.revision_eligibility.status ===
+          "revision_limit_reached") &&
+      delegatedState.projection?.stage === "not_started" &&
+      delegatedState.projection.start_eligible,
+  );
   const delegatedOwnsFocus =
     !proposalId &&
     Boolean(
@@ -627,6 +824,17 @@ export function SemanticReviewSurface({
   const projectHref = privateView
     ? `/projects/${encodeURIComponent(privateView.value.project.project_id)}`
     : "/";
+
+  useEffect(() => {
+    if (!revisionEditorBinding) return;
+    if (
+      !currentRevisionEditorBindingKey ||
+      workRevisionEditorBindingKeyV01(revisionEditorBinding) !==
+        currentRevisionEditorBindingKey
+    ) {
+      setRevisionEditorBinding(null);
+    }
+  }, [currentRevisionEditorBindingKey, revisionEditorBinding]);
 
   return (
     <ProductShell
@@ -662,17 +870,46 @@ export function SemanticReviewSurface({
               busy={firstWorkBusy}
               onSave={saveFirstWork}
             />
+          ) : revisionEditorBinding &&
+            currentRevisionEditorBindingKey ===
+              workRevisionEditorBindingKeyV01(revisionEditorBinding) &&
+            firstWorkInitialization?.current_work ? (
+            <FirstWorkComposer
+              key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
+              initialization={firstWorkInitialization}
+              busy={workRevisionBusy}
+              mode="revision"
+              initialDefinition={firstWorkInitialization.current_work}
+              onSave={saveWorkRevision}
+              onCancel={cancelWorkRevision}
+            />
           ) : exactReviewAvailable &&
           privateView?.kind === "list" &&
           delegatedState.projection ? (
-            <DelegatedWorkPanel
-              projection={delegatedState.projection}
-              status={delegatedState.status}
-              error={delegatedState.error}
-              requestCount={delegatedState.requestCountRef.current}
-              ownsPrimaryAction={delegatedOwnsFocus}
-              onAction={delegatedState.act}
-            />
+            <>
+              <DelegatedWorkPanel
+                projection={delegatedState.projection}
+                status={delegatedState.status}
+                error={delegatedState.error}
+                requestCount={delegatedState.requestCountRef.current}
+                ownsPrimaryAction={delegatedOwnsFocus}
+                onAction={delegatedState.act}
+              />
+              {firstWorkInitialization?.current_work ? (
+                <CurrentWorkDefinitionPanel
+                  definition={firstWorkInitialization.current_work}
+                  isUnstarted={workDefinitionIsUnstarted}
+                  revisionAvailable={revisionAvailable}
+                  revisionButtonRef={revisionButtonRef}
+                  onRevise={() => {
+                    if (!currentRevisionEditorBinding) return;
+                    setDecisionStatus(null);
+                    setPrivateError(null);
+                    setRevisionEditorBinding(currentRevisionEditorBinding);
+                  }}
+                />
+              ) : null}
+            </>
           ) : null
         }
         title={proposalId ? "Review suggested change" : homeView.heading}
@@ -796,6 +1033,138 @@ export function SemanticReviewSurface({
   );
 }
 
+function workRevisionEditorBindingV01(input: {
+  session: OperatorSessionViewV01 | null;
+  initialization: ProjectWorkInitializationV01 | null;
+  delegated_stage: string | null;
+  start_eligible: boolean;
+}): WorkRevisionEditorBindingV01 | null {
+  const { session, initialization } = input;
+  const packet = initialization?.current_packet;
+  const eligibility = initialization?.revision_eligibility;
+  if (
+    !session?.authenticated ||
+    !initialization?.current_work ||
+    !packet ||
+    !eligibility?.eligible ||
+    !eligibility.current_packet_id ||
+    !eligibility.current_packet_fingerprint ||
+    !eligibility.current_lineage_kind ||
+    session.workspace_id !== initialization.workspace_id ||
+    session.project_id !== initialization.project_id ||
+    initialization.active_project_id !== initialization.project_id ||
+    eligibility.active_project_id !== initialization.project_id ||
+    initialization.active_selection_revision === null ||
+    eligibility.active_selection_revision !==
+      initialization.active_selection_revision ||
+    eligibility.current_packet_id !== packet.packet_id ||
+    eligibility.current_packet_fingerprint !== packet.packet_fingerprint ||
+    eligibility.current_lineage_kind !== packet.lineage_kind ||
+    input.delegated_stage !== "not_started" ||
+    !input.start_eligible
+  ) {
+    return null;
+  }
+  return {
+    workspace_id: initialization.workspace_id,
+    project_id: initialization.project_id,
+    active_selection_revision: initialization.active_selection_revision,
+    current_packet_id: eligibility.current_packet_id,
+    current_packet_fingerprint: eligibility.current_packet_fingerprint,
+    current_lineage_kind: eligibility.current_lineage_kind,
+    session_id: session.session_id,
+    session_workspace_id: session.workspace_id,
+    session_project_id: session.project_id,
+    operator_id: session.operator_id,
+  };
+}
+
+function workRevisionEditorBindingKeyV01(
+  binding: WorkRevisionEditorBindingV01,
+): string {
+  return JSON.stringify([
+    binding.workspace_id,
+    binding.project_id,
+    binding.active_selection_revision,
+    binding.current_packet_id,
+    binding.current_packet_fingerprint,
+    binding.current_lineage_kind,
+    binding.session_id,
+    binding.session_workspace_id,
+    binding.session_project_id,
+    binding.operator_id,
+  ]);
+}
+
+function CurrentWorkDefinitionPanel({
+  definition,
+  isUnstarted,
+  revisionAvailable,
+  revisionButtonRef,
+  onRevise,
+}: {
+  definition: ProjectWorkDefinitionV01;
+  isUnstarted: boolean;
+  revisionAvailable: boolean;
+  revisionButtonRef: RefObject<HTMLButtonElement | null>;
+  onRevise: () => void;
+}) {
+  return (
+    <section
+      className={styles.panel}
+      aria-labelledby="current-work-definition-title"
+      data-current-work-definition="read-only"
+      data-current-work-definition-phase={
+        isUnstarted ? "pre_execution" : "current_context"
+      }
+    >
+      <div className={styles.panelHeader}>
+        <p className={styles.kicker}>
+          {isUnstarted ? "Unstarted work" : "Work definition"}
+        </p>
+        <h2 id="current-work-definition-title">Current work definition</h2>
+      </div>
+      <div className={styles.materialCard}>
+        <strong>Goal</strong>
+        <p>{definition.goal}</p>
+      </div>
+      <div className={styles.materialCard}>
+        <strong>Success criteria</strong>
+        <ul>
+          {definition.success_criteria.map((criterion) => (
+            <li key={criterion}>{criterion}</li>
+          ))}
+        </ul>
+      </div>
+      <div className={styles.materialCard}>
+        <strong>Out of scope</strong>
+        {definition.non_goals.length > 0 ? (
+          <ul>
+            {definition.non_goals.map((nonGoal) => (
+              <li key={nonGoal}>{nonGoal}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No out-of-scope entries were defined.</p>
+        )}
+      </div>
+      {revisionAvailable ? (
+        <div className={styles.buttonRow}>
+          <button
+            ref={revisionButtonRef}
+            type="button"
+            className={styles.secondaryButton}
+            data-work-revision-action="open"
+            onClick={onRevise}
+          >
+            Revise work definition
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 interface SessionCheckResponseV01 {
   status?: string;
   error_code?: string | null;
@@ -894,6 +1263,42 @@ function firstWorkErrorCopyV01(value: unknown): string {
             : value === "first_work_non_goals_invalid"
               ? "Use no more than 12 out-of-scope entries, each no longer than 500 characters."
               : "First work could not be saved. Nothing was started; review the fields and try again.";
+}
+
+function workRevisionConflictV01(value: unknown): boolean {
+  return [
+    "work_revision_current_packet_changed",
+    "work_revision_execution_started",
+    "work_revision_history_changed",
+    "work_revision_active_selection_conflict",
+    "work_revision_root_unavailable",
+    "work_revision_not_eligible",
+    "work_revision_limit_reached",
+  ].includes(String(value));
+}
+
+function workRevisionErrorCopyV01(value: unknown): string {
+  return value === "work_revision_current_packet_changed"
+    ? "Another revision was saved first. The current work definition has been reloaded."
+    : value === "work_revision_execution_started" ||
+        value === "work_revision_history_changed"
+      ? "Work started or new work history appeared before this revision was saved. Continue through the review and decision flow."
+      : value === "work_revision_active_selection_conflict"
+        ? "The active project changed before this revision was saved. The current project sources have been reloaded."
+        : value === "work_revision_root_unavailable"
+          ? "The project folder became unavailable. Reconnect it from Continuities before revising work."
+          : value === "work_revision_limit_reached"
+            ? "This project reached the bounded pre-execution revision limit. Start the current work or continue through the later review flow."
+            : value === "first_work_goal_invalid"
+              ? "Enter a goal between 1 and 2,000 characters."
+              : value === "first_work_success_criteria_invalid"
+                ? "Add 1 to 12 success criteria, each no longer than 500 characters."
+                : value === "first_work_non_goals_invalid"
+                  ? "Use no more than 12 out-of-scope entries, each no longer than 500 characters."
+                  : value === "first_work_definition_too_large" ||
+                      value === "work_revision_packet_invalid"
+                    ? "Shorten the complete work definition before saving."
+                    : "The work definition could not be revised. Nothing was started; reload and review the current work.";
 }
 
 function semanticReviewProposalHref(proposalId: string | undefined): string {

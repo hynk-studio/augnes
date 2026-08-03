@@ -23,6 +23,24 @@ const NOW = "2026-07-23T00:00:00.000Z";
 const PROJECT_ID = "project:00000000-0000-4000-8000-000000000001";
 const OTHER_PROJECT_ID = "project:00000000-0000-4000-8000-000000000002";
 
+const FIRST_WORK_REVISION_UNAVAILABLE = {
+  eligibility_version: "project_work_revision_eligibility.v0.1" as const,
+  workspace_id: "workspace:00000000-0000-4000-8000-000000000001",
+  project_id: PROJECT_ID,
+  active_project_id: PROJECT_ID,
+  active_selection_revision: 1,
+  current_packet_id: null,
+  current_packet_fingerprint: null,
+  current_lineage_kind: null,
+  revision_count: 0,
+  status: "unavailable" as const,
+  reason: "source_unavailable" as const,
+  eligible: false,
+  projection_only: true as const,
+  semantic_authority_granted: false as const,
+  execution_authority_granted: false as const,
+};
+
 function projection(overrides: {
   active?: boolean;
   root?: ProjectHomeProjectionV01["project_summary"]["root_availability"];
@@ -226,7 +244,7 @@ async function main() {
     [build(source(projection({ run: { run_ref: "run:test", status: "running", mode: "interactive", started_at: NOW, updated_at: NOW, public_reason: null, reconciliation_required: false, packet_ref: null, receipt_available: false } }))), "work_in_progress"],
     [build(source(resultProjection())), "result_ready"],
     [build(source(projection({ attention: [{ attention_id: "attention:test", summary: "A decision is waiting", reason: "The next change needs user judgment", workbench_entry: null, action_href: "/workbench/semantic-review", action_label: "Review", priority: 1 }] as ProjectHomeProjectionV01["attention"]["items"] }))), "attention_required"],
-    [build(source(projection({ goal: null }), { work_initialization: { initialization_version: "project_work_initialization.v0.1", workspace_id: "workspace:00000000-0000-4000-8000-000000000001", project_id: PROJECT_ID, state: "not_defined", reason: "zero_durable_work_history", active_project_id: PROJECT_ID, active_selection_revision: 1, current_work: null, current_packet: null, mutation_eligible: true, projection_only: true, semantic_authority_granted: false, execution_authority_granted: false } })), "first_work_not_defined"],
+    [build(source(projection({ goal: null }), { work_initialization: { initialization_version: "project_work_initialization.v0.1", workspace_id: "workspace:00000000-0000-4000-8000-000000000001", project_id: PROJECT_ID, state: "not_defined", reason: "zero_durable_work_history", active_project_id: PROJECT_ID, active_selection_revision: 1, current_work: null, current_packet: null, mutation_eligible: true, revision_eligibility: FIRST_WORK_REVISION_UNAVAILABLE, projection_only: true, semantic_authority_granted: false, execution_authority_granted: false } })), "first_work_not_defined"],
     [build(source(projection())), "ready_to_continue"],
   ] as const;
 

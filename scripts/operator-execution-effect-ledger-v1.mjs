@@ -70,6 +70,7 @@ const PROFILE_CONTRACTS = Object.freeze({
     }),
     operator_session_insert_count: 5,
     operator_session_project_counts: Object.freeze({ primary: 3, profile: 2 }),
+    operator_session_status_counts: Object.freeze({ active_consumed: 5 }),
     table_operation_counts: Object.freeze({
       inserted: Object.freeze({
         vnext_core_records: 8,
@@ -107,24 +108,28 @@ const PROFILE_CONTRACTS = Object.freeze({
     core_insert_counts: Object.freeze({
       automation_work_item: 4,
       capability_grant: 1,
-      task_context_packet: 2,
+      task_context_packet: 4,
       run_receipt: 4,
       episode_delta_proposal: 4,
       context_use_review: 1,
     }),
-    operator_session_insert_count: 3,
+    operator_session_insert_count: 4,
     operator_session_project_counts: Object.freeze({
       primary: 1,
-      profile: 1,
+      profile: 2,
       automation: 1,
+    }),
+    operator_session_status_counts: Object.freeze({
+      active_consumed: 3,
+      revoked: 1,
     }),
     table_operation_counts: Object.freeze({
       inserted: Object.freeze({
         autonomy_run_events: 52,
         autonomy_run_steps: 4,
         autonomy_runs: 4,
-        vnext_core_records: 16,
-        vnext_local_operator_sessions: 3,
+        vnext_core_records: 18,
+        vnext_local_operator_sessions: 4,
       }),
       updated: Object.freeze({ vnext_active_project_selections: 1 }),
       deleted: Object.freeze({}),
@@ -173,7 +178,7 @@ const PROFILE_CONTRACTS = Object.freeze({
       "transport_fixture_path",
       "transport_counter_path",
     ]),
-    active_selection_contract: "profile_to_automation_revision_plus_2",
+    active_selection_contract: "profile_to_automation_revision_plus_4",
     project_control_contract: "unchanged",
     run_update_contract: "no_preexisting_run_update",
   }),
@@ -194,6 +199,7 @@ const PROFILE_CONTRACTS = Object.freeze({
     }),
     operator_session_insert_count: 1,
     operator_session_project_counts: Object.freeze({ primary: 1 }),
+    operator_session_status_counts: Object.freeze({ active_consumed: 1 }),
     table_operation_counts: Object.freeze({
       inserted: Object.freeze({
         vnext_core_records: 8,
@@ -941,12 +947,16 @@ function assertSessionContract(sessions, contract, manifest) {
     contract.operator_session_project_counts,
     "operator_effect_session_project_scope_mismatch",
   );
+  assert.deepEqual(
+    countBy(sessions, (entry) => entry.identity.session_status),
+    contract.operator_session_status_counts,
+    "operator_effect_session_status_mismatch",
+  );
   assert.equal(
     sessions.every(
       (entry) =>
         entry.identity.workspace_id === manifest.workspace_id &&
         entry.identity.operator_id === manifest.operator_id &&
-        entry.identity.session_status === "active_consumed" &&
         /^sha256:[a-f0-9]{64}$/u.test(entry.identity.bootstrap_token_hash ?? "") &&
         /^sha256:[a-f0-9]{64}$/u.test(entry.identity.session_token_hash ?? "") &&
         /^sha256:[a-f0-9]{64}$/u.test(entry.identity.action_nonce_hash ?? "") &&
@@ -989,11 +999,15 @@ function assertActiveSelectionContract(diff, contract, manifest) {
     return;
   }
   assert.equal(updated.length, 1);
+  assert.equal(
+    contract.active_selection_contract,
+    "profile_to_automation_revision_plus_4",
+  );
   assert.equal(updated[0].before_identity.project_id, manifest.profile_project_id);
   assert.equal(updated[0].after_identity.project_id, manifest.automation_project_id);
   assert.equal(
     updated[0].after_identity.selection_revision,
-    updated[0].before_identity.selection_revision + 2,
+    updated[0].before_identity.selection_revision + 4,
   );
 }
 

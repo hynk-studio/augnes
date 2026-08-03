@@ -97,6 +97,16 @@ export type NativeHostPacketLineageV01 =
       operator_action_ref: ExternalRefV01;
       packet_source_refs: ExternalRefV01[];
       selected_context_refs: ExternalRefV01[];
+    }
+  | {
+      lineage_kind: "pre_execution_user_revision";
+      work_definition_revision_ref: ExternalRefV01;
+      work_revision_request_ref: ExternalRefV01;
+      operator_action_ref: ExternalRefV01;
+      immediate_prior_packet_ref: ExternalRefV01;
+      origin_first_work_definition_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
     };
 
 export interface NativeHostRequestV01 {

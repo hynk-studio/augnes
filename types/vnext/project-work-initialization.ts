@@ -1,4 +1,5 @@
 import type { TaskContextPacketV01 } from "./task-context-packet";
+import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision";
 
 export const PROJECT_WORK_INITIALIZATION_VERSION_V01 =
   "project_work_initialization.v0.1" as const;
@@ -15,6 +16,7 @@ export const INITIAL_PROJECT_WORK_LIMITS_V01 = Object.freeze({
 export type ProjectWorkInitializationStateV01 =
   | "not_defined"
   | "defined_initial_work"
+  | "defined_revised_work"
   | "defined_transition_work"
   | "existing_history_without_current_packet"
   | "unavailable";
@@ -33,6 +35,7 @@ export interface ProjectWorkInitializationV01 {
   reason:
     | "zero_durable_work_history"
     | "current_initial_packet"
+    | "current_revision_packet"
     | "current_transition_packet"
     | "durable_history_without_current_packet"
     | "project_unavailable"
@@ -45,9 +48,13 @@ export interface ProjectWorkInitializationV01 {
     packet_id: string;
     packet_fingerprint: string;
     generated_at: string;
-    lineage_kind: "initial_user_defined" | "semantic_transition";
+    lineage_kind:
+      | "initial_user_defined"
+      | "pre_execution_user_revision"
+      | "semantic_transition";
   };
   mutation_eligible: boolean;
+  revision_eligibility: ProjectWorkRevisionEligibilityV01;
   projection_only: true;
   semantic_authority_granted: false;
   execution_authority_granted: false;

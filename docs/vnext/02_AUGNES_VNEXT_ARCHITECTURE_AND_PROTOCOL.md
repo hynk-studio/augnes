@@ -501,6 +501,56 @@ and transports no source-machine root or credentials. This additive
 interpretation requires neither a schema migration nor a TaskContextPacket,
 NativeHostRequest, or portable-project version bump.
 
+#### Pre-execution user revision boundary
+
+`project_work_revision_eligibility.v0.1` is the single deterministic owner for
+revising defined work before execution. It binds the exact current packet ID
+and fingerprint, current lineage kind, linear revision count, active selection,
+root availability, and a bounded eligibility reason. It composes the existing
+initialization owner with the fail-closed managed-run-history owner. Any exact
+project run row, Core work history outside the valid packet chain, semantic
+state/head, semantic successor, ambiguous or invalid lineage, unavailable
+source, inactive project, unavailable root, or the fixed 32-revision bound
+blocks revision.
+
+`revisePreExecutionProjectWorkV01` is an authenticated compare-and-set mutation.
+It reuses the initial-work normalizer and all code-point, list, control-character,
+UTF-8, and packet-budget limits. In one immediate transaction it revalidates
+session admission, project/selection/root scope, exact current packet identity,
+lineage, zero execution/work history, and revision count. An unchanged
+normalized definition is `exact_replay` with no write. An identical concurrent
+successor may replay; any different stale request refuses.
+
+The append-only compiler contract
+`augnes.vnext.pre-execution-work-revision-compiler.v0.1` creates one ordinary
+`task_context_packet` record. It never updates or replaces a prior packet. The
+packet carries the revised task, a projection-only current summary, exact
+revision-definition/request/operator-action refs, the immediate prior packet
+binding, and the one initial-definition origin. It has no accepted-state ref,
+capability grant, Evidence, Claim, proposal, Decision, Transition, semantic
+state, execution authority, or external-effect authority.
+
+Executable packet lineage therefore also includes:
+
+```text
+pre_execution_user_revision
+  → exact revision definition and request refs
+  → exact authenticated operator-action provenance
+  → exact immediate prior packet ID and fingerprint
+  → linear ancestry to exactly one initial_user_defined packet
+  → no StateTransitionReceipt
+```
+
+The latest valid linear revision tip is current until work/history appears or a
+later normal semantic Transition compiles its successor. Branches, cycles,
+missing packets, fingerprint drift, duplicate revision identity, timestamp
+inversion, invalid provenance, and ambiguous tips fail closed. NativeHostRequest
+uses an additive revision lineage branch and a new packet-bound run identity;
+the historical semantic-transition shape and semantic/initial identities remain
+unchanged. Portable project v0.1, backup, restore, and recovery preserve and
+canonically revalidate the entire chain without a schema or portable-contract
+version bump.
+
 ---
 
 ### 5.2 RunReceipt

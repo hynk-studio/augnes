@@ -42,6 +42,30 @@ const root = mkdtempSync(path.join(tmpdir(), "augnes-blank-state-"));
 const dbPath = path.join(root, "blank-state.db");
 const projectARoot = path.join(root, "Project A");
 const projectBRoot = path.join(root, "Project B");
+
+function unavailableRevisionEligibilityV01(input: {
+  workspace_id: string;
+  project_id: string;
+  active_selection_revision: number;
+}) {
+  return {
+    eligibility_version: "project_work_revision_eligibility.v0.1" as const,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    active_project_id: input.project_id,
+    active_selection_revision: input.active_selection_revision,
+    current_packet_id: null,
+    current_packet_fingerprint: null,
+    current_lineage_kind: null,
+    revision_count: 0,
+    status: "unavailable" as const,
+    reason: "source_unavailable" as const,
+    eligible: false,
+    projection_only: true as const,
+    semantic_authority_granted: false as const,
+    execution_authority_granted: false as const,
+  };
+}
 mkdirSync(projectARoot);
 mkdirSync(projectBRoot);
 
@@ -518,6 +542,11 @@ async function main() {
       current_work: null,
       current_packet: null,
       mutation_eligible: true,
+      revision_eligibility: unavailableRevisionEligibilityV01({
+        workspace_id: "workspace:test",
+        project_id: "project:test",
+        active_selection_revision: 3,
+      }),
       projection_only: true,
       semantic_authority_granted: false,
       execution_authority_granted: false,
@@ -549,6 +578,11 @@ async function main() {
       current_work: null,
       current_packet: null,
       mutation_eligible: false,
+      revision_eligibility: unavailableRevisionEligibilityV01({
+        workspace_id: "workspace:test",
+        project_id: "project:test",
+        active_selection_revision: 3,
+      }),
       projection_only: true,
       semantic_authority_granted: false,
       execution_authority_granted: false,
@@ -569,6 +603,11 @@ async function main() {
       current_work: null,
       current_packet: null,
       mutation_eligible: false,
+      revision_eligibility: unavailableRevisionEligibilityV01({
+        workspace_id: "workspace:test",
+        project_id: "project:test",
+        active_selection_revision: 3,
+      }),
       projection_only: true as const,
       semantic_authority_granted: false as const,
       execution_authority_granted: false as const,
@@ -584,6 +623,11 @@ async function main() {
       current_work: null,
       current_packet: null,
       mutation_eligible: false,
+      revision_eligibility: unavailableRevisionEligibilityV01({
+        workspace_id: "workspace:test",
+        project_id: "project:test",
+        active_selection_revision: 3,
+      }),
       projection_only: true as const,
       semantic_authority_granted: false as const,
       execution_authority_granted: false as const,

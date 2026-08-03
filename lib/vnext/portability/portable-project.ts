@@ -50,7 +50,8 @@ import { applyCanonicalDatabaseMigrations } from "@/scripts/canonical-database-m
 import type { VNextSemanticCommitGateRecordV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
-import { INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/initial-project-work-context";
+import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
+import { preExecutionProjectWorkRevisionIdempotencyKeyV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import {
   PORTABLE_PROJECT_CANONICALIZATION_V01,
   PORTABLE_PROJECT_CONTRACT_V01,
@@ -1031,9 +1032,8 @@ function readPortableOperatorProvenanceSessionsV01(
     } else if (record.record_kind === "task_context_packet") {
       const packet = record.payload as TaskContextPacketV01;
       if (
-        packet.compatibility?.source_contracts?.includes(
-          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
-        )
+        initialProjectWorkIdempotencyKeyV01(packet) !== null ||
+        preExecutionProjectWorkRevisionIdempotencyKeyV01(packet) !== null
       ) {
         provenanceRequired = true;
         refs = packet.compatibility.source_refs.filter(

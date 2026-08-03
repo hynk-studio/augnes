@@ -30,7 +30,11 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
-import { validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
+import {
+  createTaskContextPacketFingerprintV01,
+  deriveTaskContextPacketIdV01,
+  validateTaskContextPacketV01,
+} from "../lib/vnext/task-context-packet";
 import {
   buildInitialProjectWorkTaskContextPacketV01,
   inspectInitialProjectWorkPacketLineageV01,
@@ -48,6 +52,15 @@ import {
   defineInitialProjectWorkV01,
   readProjectWorkInitializationV01,
 } from "../lib/vnext/runtime/project-work-initialization";
+import {
+  readProjectWorkRevisionEligibilityV01,
+  revisePreExecutionProjectWorkV01,
+} from "../lib/vnext/runtime/project-work-revision";
+import {
+  buildPreExecutionProjectWorkRevisionPacketV01,
+  inspectPreExecutionProjectWorkRevisionChainV01,
+} from "../lib/vnext/runtime/pre-execution-project-work-revision";
+import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
   buildDirectNativeHostRunIdentityV01,
   admitPersistedHostTaskContextPacketV01,
@@ -67,6 +80,7 @@ import {
   type DefineInitialProjectWorkRequestV01,
   type ProjectWorkDefinitionV01,
 } from "../types/vnext/project-work-initialization";
+import type { RevisePreExecutionProjectWorkRequestV01 } from "../types/vnext/project-work-revision";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 
@@ -86,9 +100,15 @@ async function main(): Promise<void> {
     assertNativeHostRunIdentityCompatibilityV01();
     assertInitializationReadPolicyV01();
     assertMutationAndReplayV01();
+    assertRevisionMutationAndReplayV01();
+    assertExactSuccessorReplayHistoryBoundaryV01();
+    assertRevisionRecoveryRefusalsV01();
+    assertRevisionLimitV01();
     assertMutationRefusalsAndRollbackV01();
     assertInitialWorkPortabilityV01();
+    assertRevisionPortabilityAndRecoveryV01();
     await assertSeparateNativeHostStartV01();
+    await assertRevisedNativeHostStartV01();
     console.log(JSON.stringify({
       status: "pass",
       contract: "project_work_initialization.v0.1",
@@ -100,9 +120,16 @@ async function main(): Promise<void> {
       ],
       korean_and_unicode: true,
       exact_replay: true,
+      revision_exact_replay: true,
+      revision_exact_successor_replay_requires_zero_history: true,
+      revision_append_only: true,
+      revision_stale_cas_refused: true,
+      revision_branch_and_missing_prior_refused: true,
+      revision_limit_refused_without_write: true,
       authenticated_transaction: true,
       save_execution_started: false,
       separate_native_host_start: true,
+      revised_native_host_start: true,
       portability_round_trip: true,
       fake_transition_created: false,
       schema_migration_added: false,
@@ -307,6 +334,107 @@ function assertNormalizationAndCompilerV01(): void {
   const serialized = canonicalizeProtocolValueV01(one.packet);
   assert.equal(serialized.includes(ROOT), false);
   assert.equal(/credential|cookie|hidden_reasoning|transcript|provider_output/u.test(serialized), false);
+}
+
+function assertRevisionPortabilityAndRecoveryV01(): void {
+  const source = createFixtureV01("revision-portable-source");
+  const destination = new Database(":memory:");
+  const destinationBase = path.join(ROOT, "revision-portable-destination");
+  mkdirSync(destinationBase, { recursive: true });
+  try {
+    const initial = defineInitialProjectWorkV01(source.db, {
+      config: source.config,
+      credential: authenticatedSessionV01(source, "portable-revision"),
+      request: requestV01(source),
+      clock: fixedClock(T2),
+    });
+    const revised = revisePreExecutionProjectWorkV01(source.db, {
+      config: source.config,
+      credential: credentialFromCookieV01(initial.session_admission.cookie_value),
+      request: revisionRequestV01(
+        source,
+        initial.packet,
+        "initial_user_defined",
+        {
+          goal: "Imported revised goal remains current",
+          success_criteria: ["Revision lineage survives export and import"],
+          non_goals: ["Do not start during import"],
+        },
+      ),
+      clock: fixedClock("2026-08-01T00:00:03.000Z"),
+    });
+    const exported = exportActivePortableProjectV01(source.db, {
+      include_personal_perspective: false,
+      exported_at: "2026-08-01T00:00:04.000Z",
+    });
+    const parsed = parseAndValidatePortableProjectV01(exported.bytes);
+    assert.equal(parsed.records.length, 2);
+    assert.equal(parsed.operator_provenance_sessions.length, 1);
+    destination.pragma("foreign_keys = ON");
+    applyCanonicalDatabaseMigrations(destination);
+    const imported = importPortableProjectV01(destination, {
+      bytes: exported.bytes,
+      destination_root_base: destinationBase,
+      imported_at: "2026-08-01T00:00:05.000Z",
+    });
+    assert.equal(imported.status, "imported");
+    const importedInitialization = readProjectWorkInitializationV01(
+      destination,
+      source.config,
+    );
+    assert.equal(importedInitialization.state, "defined_revised_work");
+    assert.deepEqual(importedInitialization.current_work, revised.definition);
+    assert.equal(
+      importedInitialization.current_packet?.packet_id,
+      revised.packet.packet_id,
+    );
+    const recovered = validateRecoveryCanonicalDatabaseV01(destination);
+    assert.equal(recovered.status, "valid", recovered.code);
+    const destinationFixture: FixtureV01 = {
+      db: destination,
+      root: path.join(
+        destinationBase,
+        source.project_id.slice("project:".length),
+      ),
+      workspace_id: source.workspace_id,
+      project_id: source.project_id,
+      config: {
+        ...source.config,
+        operator_id: "operator:revision-portable-destination",
+        database_path: ":memory:",
+      },
+    };
+    const destinationCredential = authenticatedSessionV01(
+      destinationFixture,
+      "new-local-session",
+    );
+    const importedRevision = revisePreExecutionProjectWorkV01(destination, {
+      config: destinationFixture.config,
+      credential: destinationCredential,
+      request: revisionRequestV01(
+        destinationFixture,
+        revised.packet,
+        "pre_execution_user_revision",
+        {
+          goal: "Destination-local revision after import",
+          success_criteria: ["A new authenticated local session admits it"],
+          non_goals: [],
+        },
+      ),
+      clock: fixedClock("2026-08-01T00:00:07.000Z"),
+    });
+    assert.equal(importedRevision.status, "inserted");
+    assert.equal(
+      inspectPreExecutionProjectWorkRevisionChainV01(
+        destination,
+        destinationFixture.config,
+      ).revision_count,
+      2,
+    );
+  } finally {
+    source.db.close();
+    destination.close();
+  }
 }
 
 function assertNativeHostRunIdentityCompatibilityV01(): void {
@@ -801,6 +929,535 @@ function definitionAtCanonicalBytesV01(
   return value();
 }
 
+function assertRevisionMutationAndReplayV01(): void {
+  const fixture = createFixtureV01("revision-insert-and-replay");
+  try {
+    const initial = defineInitialProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "revision"),
+      request: requestV01(fixture, {
+        goal: "Initial unstarted goal",
+        success_criteria: ["Initial criterion"],
+        non_goals: [],
+      }),
+      clock: fixedClock(T2),
+    });
+    const initialEligibility = readProjectWorkRevisionEligibilityV01(
+      fixture.db,
+      fixture.config,
+    );
+    assert.equal(initialEligibility.status, "eligible_initial_packet");
+    assert.equal(initialEligibility.revision_count, 0);
+    const firstDefinition = {
+      goal: "수정된 첫 목표를 안전하게 실행한다",
+      success_criteria: ["Korean revision is current", "혼합 Unicode 🚀 works"],
+      non_goals: ["배포하지 않는다"],
+    };
+    const firstRequest = revisionRequestV01(
+      fixture,
+      initial.packet,
+      "initial_user_defined",
+      firstDefinition,
+    );
+    const first = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: credentialFromCookieV01(
+        initial.session_admission.cookie_value,
+      ),
+      request: firstRequest,
+      clock: fixedClock("2026-08-01T00:00:03.000Z"),
+    });
+    assert.equal(first.status, "inserted");
+    assert.equal(first.run_created, false);
+    assert.equal(first.execution_started, false);
+    assert.equal(first.transition_created, false);
+    assert.equal(first.semantic_state_changed, false);
+    assert.notEqual(first.packet.packet_id, initial.packet.packet_id);
+    assert.equal(
+      (fixture.db
+        .prepare("SELECT COUNT(*) AS count FROM autonomy_runs")
+        .get() as { count: number }).count,
+      0,
+    );
+    const concurrentReplay = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: credentialFromCookieV01(
+        first.session_admission.cookie_value,
+      ),
+      request: firstRequest,
+      clock: fixedClock("2026-08-01T00:00:03.500Z"),
+    });
+    assert.equal(concurrentReplay.status, "exact_replay");
+    assert.equal(concurrentReplay.packet.packet_id, first.packet.packet_id);
+    assert.equal(concurrentReplay.run_created, false);
+    assert.equal(concurrentReplay.execution_started, false);
+    let current = readProjectWorkInitializationV01(fixture.db, fixture.config);
+    assert.equal(current.state, "defined_revised_work");
+    assert.deepEqual(current.current_work, first.definition);
+    assert.equal(
+      current.current_packet?.lineage_kind,
+      "pre_execution_user_revision",
+    );
+    assert.equal(current.revision_eligibility.status, "eligible_revised_packet");
+
+    const replay = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: credentialFromCookieV01(
+        concurrentReplay.session_admission.cookie_value,
+      ),
+      request: revisionRequestV01(
+        fixture,
+        first.packet,
+        "pre_execution_user_revision",
+        firstDefinition,
+      ),
+      clock: fixedClock("2026-08-01T00:00:04.000Z"),
+    });
+    assert.equal(replay.status, "exact_replay");
+    assert.equal(replay.packet.packet_id, first.packet.packet_id);
+    assert.equal(
+      listVNextCoreRecordsV01(fixture.db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        record_kinds: ["task_context_packet"],
+        limit: 8,
+      }).length,
+      2,
+    );
+
+    const secondDefinition = {
+      goal: "Second revised goal is the only current goal",
+      success_criteria: ["Second revision is selected", "Start uses revision two"],
+      non_goals: [],
+    };
+    const second = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: credentialFromCookieV01(replay.session_admission.cookie_value),
+      request: revisionRequestV01(
+        fixture,
+        first.packet,
+        "pre_execution_user_revision",
+        secondDefinition,
+      ),
+      clock: fixedClock("2026-08-01T00:00:05.000Z"),
+    });
+    assert.equal(second.status, "inserted");
+    const chain = inspectPreExecutionProjectWorkRevisionChainV01(
+      fixture.db,
+      fixture.config,
+    );
+    assert.equal(chain.revision_count, 2);
+    assert.equal(chain.tip_packet.packet_id, second.packet.packet_id);
+    assert.deepEqual(chain.packet_ids, [
+      initial.packet.packet_id,
+      first.packet.packet_id,
+      second.packet.packet_id,
+    ]);
+    assert.throws(
+      () =>
+        revisePreExecutionProjectWorkV01(fixture.db, {
+          config: fixture.config,
+          credential: credentialFromCookieV01(
+            second.session_admission.cookie_value,
+          ),
+          request: {
+            ...firstRequest,
+            goal: "A different stale request must not win",
+          },
+          clock: fixedClock("2026-08-01T00:00:06.000Z"),
+        }),
+      errorCode("work_revision_current_packet_changed"),
+    );
+    current = readProjectWorkInitializationV01(fixture.db, fixture.config);
+    assert.equal(current.current_work?.goal, secondDefinition.goal);
+    assert.equal(
+      listVNextCoreRecordsV01(fixture.db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        record_kinds: ["task_context_packet"],
+        limit: 8,
+      }).length,
+      3,
+    );
+  } finally {
+    fixture.db.close();
+  }
+}
+
+function assertExactSuccessorReplayHistoryBoundaryV01(): void {
+  const cases: Array<{
+    name: string;
+    expected_code:
+      | "work_revision_execution_started"
+      | "work_revision_history_changed"
+      | "work_revision_current_packet_changed";
+    add_history: (fixture: FixtureV01, tip: TaskContextPacketV01) => void;
+  }> = [
+    ...["queued", "running", "waiting_for_approval", "completed"].map(
+      (status) => ({
+        name: `run-${status}`,
+        expected_code: "work_revision_execution_started" as const,
+        add_history: (fixture: FixtureV01) =>
+          insertManagedRunV01(fixture, {
+            run_id: `run:exact-successor-${status}`,
+            scope: fixture.project_id,
+            status,
+            metadata_json: JSON.stringify({
+              workspace_id: fixture.workspace_id,
+              project_id: fixture.project_id,
+            }),
+            created_at: "2026-08-01T00:00:04.000Z",
+          }),
+      }),
+    ),
+    ...[
+      "run_receipt",
+      "episode_delta_proposal",
+      "review_decision",
+      "semantic_commit_gate",
+      "state_transition_receipt",
+      "semantic_state",
+    ].map((recordKind) => ({
+      name: `core-${recordKind}`,
+      expected_code: "work_revision_history_changed" as const,
+      add_history: (fixture: FixtureV01) =>
+        insertHistoryRecordV01(
+          fixture,
+          recordKind as VNextCoreRecordKindV01,
+          "2026-08-01T00:00:04.000Z",
+        ),
+    })),
+    {
+      name: "semantic-state-entry",
+      expected_code: "work_revision_current_packet_changed",
+      add_history: (fixture) => insertSemanticStateEntryV01(fixture),
+    },
+    {
+      name: "semantic-target-head",
+      expected_code: "work_revision_current_packet_changed",
+      add_history: (fixture) => insertSemanticTargetHeadV01(fixture),
+    },
+    {
+      name: "semantic-successor-packet",
+      expected_code: "work_revision_current_packet_changed",
+      add_history: (fixture, tip) =>
+        insertSemanticSuccessorPacketV01(fixture, tip),
+    },
+  ];
+
+  for (const historyCase of cases) {
+    const fixture = createFixtureV01(
+      `exact-successor-history-${historyCase.name}`,
+    );
+    try {
+      const initial = defineInitialProjectWorkV01(fixture.db, {
+        config: fixture.config,
+        credential: authenticatedSessionV01(fixture, historyCase.name),
+        request: requestV01(fixture),
+        clock: fixedClock(T2),
+      });
+      const definition = {
+        goal: `Exact successor ${historyCase.name}`,
+        success_criteria: ["Replay is permitted only before work history"],
+        non_goals: [],
+      };
+      const staleRequest = revisionRequestV01(
+        fixture,
+        initial.packet,
+        "initial_user_defined",
+        definition,
+      );
+      const inserted = revisePreExecutionProjectWorkV01(fixture.db, {
+        config: fixture.config,
+        credential: credentialFromCookieV01(
+          initial.session_admission.cookie_value,
+        ),
+        request: staleRequest,
+        clock: fixedClock("2026-08-01T00:00:03.000Z"),
+      });
+      const packetCount = countProjectPacketsV01(fixture);
+      historyCase.add_history(fixture, inserted.packet);
+      assert.throws(
+        () =>
+          revisePreExecutionProjectWorkV01(fixture.db, {
+            config: fixture.config,
+            credential: credentialFromCookieV01(
+              inserted.session_admission.cookie_value,
+            ),
+            request: staleRequest,
+            clock: fixedClock("2026-08-01T00:00:05.000Z"),
+          }),
+        errorCode(historyCase.expected_code),
+        historyCase.name,
+      );
+      assert.equal(
+        countProjectPacketsV01(fixture),
+        packetCount + (historyCase.name === "semantic-successor-packet" ? 1 : 0),
+        `${historyCase.name} wrote an additional revision packet`,
+      );
+    } finally {
+      fixture.db.close();
+    }
+  }
+}
+
+function assertRevisionRecoveryRefusalsV01(): void {
+  const branch = createFixtureV01("revision-recovery-branch");
+  try {
+    const initial = defineInitialProjectWorkV01(branch.db, {
+      config: branch.config,
+      credential: authenticatedSessionV01(branch, "branch-initial"),
+      request: requestV01(branch),
+      clock: fixedClock(T2),
+    });
+    revisePreExecutionProjectWorkV01(branch.db, {
+      config: branch.config,
+      credential: credentialFromCookieV01(initial.session_admission.cookie_value),
+      request: revisionRequestV01(
+        branch,
+        initial.packet,
+        "initial_user_defined",
+        {
+          goal: "Valid first branch",
+          success_criteria: ["One successor exists"],
+          non_goals: [],
+        },
+      ),
+      clock: fixedClock("2026-08-01T00:00:03.000Z"),
+    });
+    const branchCredential = authenticatedSessionV01(
+      branch,
+      "branch-conflict",
+    );
+    const built = buildPreExecutionProjectWorkRevisionPacketV01({
+      request: revisionRequestV01(
+        branch,
+        initial.packet,
+        "initial_user_defined",
+        {
+          goal: "Conflicting first branch",
+          success_criteria: ["Recovery refuses ambiguity"],
+          non_goals: [],
+        },
+      ),
+      operator_id: branch.config.operator_id,
+      session_id: branchCredential.session_id,
+      revision_number: 1,
+      definition: {
+        goal: "Conflicting first branch",
+        success_criteria: ["Recovery refuses ambiguity"],
+        non_goals: [],
+      },
+      prior_packet: initial.packet,
+      origin_first_work_definition_ref:
+        inspectInitialProjectWorkPacketLineageV01(branch.db, {
+          workspace_id: branch.workspace_id,
+          project_id: branch.project_id,
+          packet: initial.packet,
+        }).definition_ref,
+      generated_at: "2026-08-01T00:00:04.000Z",
+    });
+    insertVNextCoreRecordV01(branch.db, {
+      record_kind: "task_context_packet",
+      record_id: built.packet.packet_id,
+      workspace_id: branch.workspace_id,
+      project_id: branch.project_id,
+      fingerprint: built.packet.integrity.fingerprint,
+      idempotency_key: built.lineage.idempotency_key,
+      payload: built.packet,
+      created_at: built.packet.generated_at,
+    });
+    assert.throws(
+      () =>
+        inspectPreExecutionProjectWorkRevisionChainV01(branch.db, branch.config),
+      errorCode("work_revision_branch_invalid"),
+    );
+    assert.equal(
+      validateRecoveryCanonicalDatabaseV01(branch.db).status,
+      "invalid",
+    );
+  } finally {
+    branch.db.close();
+  }
+
+  const missing = createFixtureV01("revision-recovery-missing-prior");
+  try {
+    const credential = authenticatedSessionV01(missing, "missing-initial");
+    const initialDefinition = normalizeInitialProjectWorkDefinitionV01(
+      requestV01(missing),
+    );
+    const selection = readActiveProjectSelectionV01(
+      missing.db,
+      missing.workspace_id,
+    )!;
+    const initial = buildInitialProjectWorkTaskContextPacketV01({
+      workspace_id: missing.workspace_id,
+      project_id: missing.project_id,
+      operator_id: missing.config.operator_id,
+      session_id: credential.session_id,
+      expected_active_selection_revision: selection.selection_revision,
+      definition: initialDefinition,
+      generated_at: T2,
+    });
+    const definition = {
+      goal: "Revision whose prior is unavailable",
+      success_criteria: ["Recovery refuses the incomplete chain"],
+      non_goals: [],
+    };
+    const revision = buildPreExecutionProjectWorkRevisionPacketV01({
+      request: revisionRequestV01(
+        missing,
+        initial.packet,
+        "initial_user_defined",
+        definition,
+      ),
+      operator_id: missing.config.operator_id,
+      session_id: credential.session_id,
+      revision_number: 1,
+      definition,
+      prior_packet: initial.packet,
+      origin_first_work_definition_ref: initial.lineage.definition_ref,
+      generated_at: "2026-08-01T00:00:03.000Z",
+    });
+    insertVNextCoreRecordV01(missing.db, {
+      record_kind: "task_context_packet",
+      record_id: revision.packet.packet_id,
+      workspace_id: missing.workspace_id,
+      project_id: missing.project_id,
+      fingerprint: revision.packet.integrity.fingerprint,
+      idempotency_key: revision.lineage.idempotency_key,
+      payload: revision.packet,
+      created_at: revision.packet.generated_at,
+    });
+    assert.equal(
+      validateRecoveryCanonicalDatabaseV01(missing.db).status,
+      "invalid",
+    );
+  } finally {
+    missing.db.close();
+  }
+}
+
+function assertRevisionLimitV01(): void {
+  const fixture = createFixtureV01("revision-limit");
+  try {
+    const initialCredential = authenticatedSessionV01(fixture, "limit");
+    const initial = defineInitialProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: initialCredential,
+      request: requestV01(fixture),
+      clock: fixedClock(T2),
+    });
+    const originFirstWorkDefinitionRef =
+      inspectInitialProjectWorkPacketLineageV01(fixture.db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        packet: initial.packet,
+      }).definition_ref;
+    let currentPacket = initial.packet;
+    let currentLineage:
+      | "initial_user_defined"
+      | "pre_execution_user_revision" = "initial_user_defined";
+    let lastRevisionRequest: RevisePreExecutionProjectWorkRequestV01 | null = null;
+    const credential = credentialFromCookieV01(
+      initial.session_admission.cookie_value,
+    );
+    // Build the canonical 32-packet fixture directly so this boundary test does
+    // not re-run the full authenticated chain inspection after every prefix.
+    // The mutation owner is still exercised for the actual limit refusal below.
+    for (let index = 1; index <= 32; index += 1) {
+      const definition = {
+        goal: `Bounded revision ${index}`,
+        success_criteria: [`Revision ${index} is the exact linear tip`],
+        non_goals: [],
+      };
+      const generatedAt = new Date(
+        Date.parse(T2) + index * 1_000,
+      ).toISOString();
+      const revisionRequest = revisionRequestV01(
+        fixture,
+        currentPacket,
+        currentLineage,
+        definition,
+      );
+      const revised = buildPreExecutionProjectWorkRevisionPacketV01({
+        request: revisionRequest,
+        operator_id: fixture.config.operator_id,
+        session_id: initialCredential.session_id,
+        revision_number: index,
+        definition,
+        prior_packet: currentPacket,
+        origin_first_work_definition_ref: originFirstWorkDefinitionRef,
+        generated_at: generatedAt,
+      });
+      insertVNextCoreRecordV01(fixture.db, {
+        record_kind: "task_context_packet",
+        record_id: revised.packet.packet_id,
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        fingerprint: revised.packet.integrity.fingerprint,
+        idempotency_key: revised.lineage.idempotency_key,
+        payload: revised.packet,
+        created_at: generatedAt,
+      });
+      currentPacket = revised.packet;
+      currentLineage = "pre_execution_user_revision";
+      lastRevisionRequest = revisionRequest;
+    }
+    const eligibility = readProjectWorkRevisionEligibilityV01(
+      fixture.db,
+      fixture.config,
+    );
+    assert.equal(eligibility.status, "revision_limit_reached");
+    assert.equal(eligibility.revision_count, 32);
+    assert(lastRevisionRequest);
+    const limitReplay = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential,
+      request: lastRevisionRequest,
+      clock: fixedClock("2026-08-01T00:00:34.500Z"),
+    });
+    assert.equal(limitReplay.status, "exact_replay");
+    assert.equal(limitReplay.packet.packet_id, currentPacket.packet_id);
+    assert.equal(limitReplay.run_created, false);
+    assert.equal(limitReplay.execution_started, false);
+    assert.throws(
+      () =>
+        revisePreExecutionProjectWorkV01(fixture.db, {
+          config: fixture.config,
+          credential: credentialFromCookieV01(
+            limitReplay.session_admission.cookie_value,
+          ),
+          request: revisionRequestV01(
+            fixture,
+            currentPacket,
+            currentLineage,
+            {
+              goal: "Revision 33 must be refused",
+              success_criteria: ["No packet is written"],
+              non_goals: [],
+            },
+          ),
+          clock: fixedClock("2026-08-01T00:00:35.000Z"),
+        }),
+      errorCode("work_revision_limit_reached"),
+    );
+    assert.equal(
+      listVNextCoreRecordsV01(fixture.db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        record_kinds: ["task_context_packet"],
+        limit: 64,
+      }).length,
+      33,
+    );
+    const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db);
+    assert.equal(recovery.status, "valid", recovery.code);
+  } finally {
+    fixture.db.close();
+  }
+}
+
 function assertMutationRefusalsAndRollbackV01(): void {
   const fixture = createFixtureV01("rollback");
   try {
@@ -1094,6 +1751,161 @@ async function assertSeparateNativeHostStartV01(): Promise<void> {
   }
 }
 
+async function assertRevisedNativeHostStartV01(): Promise<void> {
+  const fixture = createFixtureV01("revised-native-host-start");
+  try {
+    const initial = defineInitialProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "revised-host"),
+      request: requestV01(fixture, {
+        goal: "Old goal must not execute",
+        success_criteria: ["Initial context is append-only"],
+        non_goals: [],
+      }),
+      clock: fixedClock(T2),
+    });
+    const initialAdmission = await admitPersistedHostTaskContextPacketV01(
+      fixture.db,
+      {
+        config: fixture.config,
+        packet_id: initial.packet.packet_id,
+        packet_fingerprint: initial.packet.integrity.fingerprint,
+        evaluated_at: "2026-08-01T00:00:03.000Z",
+      },
+    );
+    const initialIdentity = buildDirectNativeHostRunIdentityV01({
+      config: fixture.config,
+      mode: "interactive",
+      admission: initialAdmission,
+      adapter: createDeterministicCodexAdapterV01(),
+      automation_context: null,
+    });
+    const revisedDefinition = {
+      goal: "Execute the exact revised packet",
+      success_criteria: ["The host request carries the revised goal"],
+      non_goals: ["Do not fabricate a Transition receipt"],
+    };
+    const revised = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config,
+      credential: credentialFromCookieV01(initial.session_admission.cookie_value),
+      request: revisionRequestV01(
+        fixture,
+        initial.packet,
+        "initial_user_defined",
+        revisedDefinition,
+      ),
+      clock: fixedClock("2026-08-01T00:00:03.000Z"),
+    });
+    const projectHome = await readProjectHomeProjectionV01(
+      fixture.db,
+      fixture.config,
+      {
+        now: () => "2026-08-01T00:00:04.000Z",
+        read_root_availability: async () => "available",
+        read_capability_statuses: () => [],
+        operator_config: fixture.config,
+      },
+    );
+    assert.equal(
+      projectHome.coordination.task_frame.goal,
+      revisedDefinition.goal,
+    );
+    assert.equal(
+      projectHome.coordination.task_frame.goal === initial.definition.goal,
+      false,
+    );
+    const initialization = readProjectWorkInitializationV01(
+      fixture.db,
+      fixture.config,
+    );
+    const guide = buildProjectGuideBriefV02({
+      source: {
+        route_mode: "canonical",
+        requested_project_id: null,
+        active_project_id: fixture.project_id,
+        recent_projects: [],
+        projection: projectHome,
+        project_resolution: "resolved",
+        direct_host_round_trip_available: true,
+        delegated_work: null,
+        work_initialization: initialization,
+      },
+      generated_at: "2026-08-01T00:00:04.000Z",
+    });
+    assert.equal(guide.coordinate.goal, revisedDefinition.goal);
+    const admission = await admitPersistedHostTaskContextPacketV01(fixture.db, {
+      config: fixture.config,
+      packet_id: revised.packet.packet_id,
+      packet_fingerprint: revised.packet.integrity.fingerprint,
+      evaluated_at: "2026-08-01T00:00:04.000Z",
+    });
+    assert.equal(
+      admission.packet_lineage.lineage_kind,
+      "pre_execution_user_revision",
+    );
+    const revisedIdentity = buildDirectNativeHostRunIdentityV01({
+      config: fixture.config,
+      mode: "interactive",
+      admission,
+      adapter: createDeterministicCodexAdapterV01(),
+      automation_context: null,
+    });
+    assert.notEqual(revisedIdentity.run_id, initialIdentity.run_id);
+    const requests: NativeHostRequestV01[] = [];
+    const result = await runDirectNativeHostRoundTripV01(
+      fixture.db,
+      {
+        config: fixture.config,
+        mode: "interactive",
+        operator_mutation: {
+          credential: credentialFromCookieV01(
+            revised.session_admission.cookie_value,
+          ),
+          clock: fixedClock("2026-08-01T00:00:04.000Z"),
+        },
+      },
+      {
+        now: timestampSequenceV01("2026-08-01T00:00:04.000Z"),
+        on_invocation_admitted: (observed) => requests.push(observed.request),
+      },
+    );
+    assert.equal(result.status, "inserted");
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]!.packet.task.goal, revisedDefinition.goal);
+    assert("lineage_kind" in requests[0]!.packet_lineage);
+    assert.equal(
+      requests[0]!.packet_lineage.lineage_kind,
+      "pre_execution_user_revision",
+    );
+    assert.deepEqual(Object.keys(requests[0]!.packet_lineage).sort(), [
+      "immediate_prior_packet_ref",
+      "lineage_kind",
+      "operator_action_ref",
+      "origin_first_work_definition_ref",
+      "packet_source_refs",
+      "selected_context_refs",
+      "work_definition_revision_ref",
+      "work_revision_request_ref",
+    ]);
+    assert.equal(
+      result.receipt.external_refs.some(
+        (ref) => ref.ref_type === "work_definition_revision",
+      ),
+      true,
+    );
+    assert.equal(result.transition_created, false);
+    assert.equal(result.semantic_state_changed, false);
+    assert.equal(
+      readProjectWorkRevisionEligibilityV01(fixture.db, fixture.config).status,
+      "blocked_execution_started",
+    );
+    const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db);
+    assert.equal(recovery.status, "valid", recovery.code);
+  } finally {
+    fixture.db.close();
+  }
+}
+
 interface FixtureV01 {
   db: Database.Database;
   root: string;
@@ -1107,6 +1919,7 @@ function insertManagedRunV01(
   input: {
     run_id: string;
     scope: string;
+    status?: string;
     metadata_json: string;
     created_at?: string;
   },
@@ -1124,7 +1937,7 @@ function insertManagedRunV01(
       input.run_id,
       input.scope,
       "Historical managed work",
-      "completed",
+      input.status ?? "completed",
       createdAt,
       createdAt,
       input.metadata_json,
@@ -1206,9 +2019,36 @@ function requestV01(
   };
 }
 
+function revisionRequestV01(
+  fixture: FixtureV01,
+  currentPacket: TaskContextPacketV01,
+  currentLineageKind:
+    | "initial_user_defined"
+    | "pre_execution_user_revision",
+  definition: ProjectWorkDefinitionV01,
+): RevisePreExecutionProjectWorkRequestV01 {
+  const selection = readActiveProjectSelectionV01(
+    fixture.db,
+    fixture.workspace_id,
+  )!;
+  return {
+    action: "revise_pre_execution_project_work",
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    expected_active_project_id: fixture.project_id,
+    expected_active_selection_revision: selection.selection_revision,
+    expected_current_packet_id: currentPacket.packet_id,
+    expected_current_packet_fingerprint:
+      currentPacket.integrity.fingerprint,
+    expected_current_lineage_kind: currentLineageKind,
+    ...definition,
+  };
+}
+
 function insertHistoryRecordV01(
   fixture: FixtureV01,
   recordKind: VNextCoreRecordKindV01,
+  createdAt = T1,
 ): void {
   const payload = { historical: recordKind, workspace_id: fixture.workspace_id, project_id: fixture.project_id };
   insertVNextCoreRecordV01(fixture.db, {
@@ -1219,7 +2059,92 @@ function insertHistoryRecordV01(
     fingerprint: createProtocolSha256V01(canonicalizeProtocolValueV01(payload)),
     idempotency_key: null,
     payload,
-    created_at: T1,
+    created_at: createdAt,
+  });
+}
+
+function countProjectPacketsV01(fixture: FixtureV01): number {
+  return listVNextCoreRecordsV01(fixture.db, {
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    record_kinds: ["task_context_packet"],
+    limit: 128,
+  }).length;
+}
+
+function insertSemanticStateEntryV01(fixture: FixtureV01): void {
+  const fingerprint = createProtocolSha256V01("semantic-state-entry");
+  fixture.db.prepare(
+    `INSERT INTO vnext_semantic_state_entries (
+      workspace_id, project_id, presence, target_key, target_ref_json,
+      state_ref_json, current_state_fingerprint, bounded_state_summary,
+      source_proposal_id, source_proposal_fingerprint,
+      source_candidate_id, source_candidate_fingerprint,
+      source_transition_receipt_id, source_transition_receipt_fingerprint,
+      revision, updated_at
+    ) VALUES (?, ?, 'present', ?, '{}', '{}', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+  ).run(
+    fixture.workspace_id,
+    fixture.project_id,
+    createProtocolSha256V01("semantic-state-target"),
+    fingerprint,
+    "Semantic state exists",
+    "proposal:semantic-state",
+    fingerprint,
+    "candidate:semantic-state",
+    fingerprint,
+    "transition:semantic-state",
+    fingerprint,
+    "2026-08-01T00:00:04.000Z",
+  );
+}
+
+function insertSemanticTargetHeadV01(fixture: FixtureV01): void {
+  fixture.db.prepare(
+    `INSERT INTO vnext_semantic_target_heads (
+      workspace_id, project_id, target_key, revision, presence,
+      current_state_fingerprint, source_transition_receipt_id,
+      source_transition_receipt_fingerprint, updated_at
+    ) VALUES (?, ?, ?, 1, 'absent', NULL, ?, ?, ?)`,
+  ).run(
+    fixture.workspace_id,
+    fixture.project_id,
+    createProtocolSha256V01("semantic-head-target"),
+    "transition:semantic-head",
+    createProtocolSha256V01("semantic-head-transition"),
+    "2026-08-01T00:00:04.000Z",
+  );
+}
+
+function insertSemanticSuccessorPacketV01(
+  fixture: FixtureV01,
+  prior: TaskContextPacketV01,
+): void {
+  const packet = structuredClone(prior);
+  packet.generated_at = "2026-08-01T00:00:04.000Z";
+  packet.compatibility.source_contracts = [
+    ...new Set([
+      ...packet.compatibility.source_contracts,
+      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ]),
+  ].sort();
+  packet.constraints.context_budget.estimated_tokens =
+    (packet.constraints.context_budget.estimated_tokens ?? 0) + 12;
+  packet.packet_id = deriveTaskContextPacketIdV01(packet);
+  packet.integrity.fingerprint = createTaskContextPacketFingerprintV01(packet);
+  const validation = validateTaskContextPacketV01(packet, {
+    evaluated_at: packet.generated_at,
+  });
+  assert.equal(validation.status, "valid", JSON.stringify(validation));
+  insertVNextCoreRecordV01(fixture.db, {
+    record_kind: "task_context_packet",
+    record_id: packet.packet_id,
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    fingerprint: packet.integrity.fingerprint,
+    idempotency_key: createProtocolSha256V01("semantic-successor"),
+    payload: packet,
+    created_at: packet.generated_at,
   });
 }
 

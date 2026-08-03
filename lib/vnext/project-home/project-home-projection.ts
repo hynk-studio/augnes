@@ -54,6 +54,7 @@ import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import { inspectVNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
 import {
+  inspectVNextOperatorPilotPacketLineageV01,
   projectVNextOperatorPilotContinuityV01,
   resolveVNextOperatorPilotPendingContextUseReviewV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
@@ -69,8 +70,9 @@ import {
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import {
   INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
-  inspectInitialProjectWorkPacketLineageV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
+import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -2015,15 +2017,26 @@ function initialPacketProjectionCurrentV01(
   packet: TaskContextPacketV01,
 ): boolean {
   if (
-    !packet.compatibility.source_contracts.includes(
+    ![
       INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ].some((contract) =>
+      packet.compatibility.source_contracts.includes(contract),
     )
   ) {
     return true;
   }
-  return inspectInitialProjectWorkPacketLineageV01(db, {
-    ...input,
-    packet,
+  return inspectVNextOperatorPilotPacketLineageV01(db, {
+    config: {
+      enabled: true,
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      operator_id: "project-home-read",
+      database_path: ":bounded-read:",
+    },
+    packet_id: packet.packet_id,
+    packet_fingerprint: packet.integrity.fingerprint,
   }).projection_current;
 }
 

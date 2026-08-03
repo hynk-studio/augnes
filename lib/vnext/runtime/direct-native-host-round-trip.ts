@@ -180,6 +180,14 @@ export interface PersistedHostPacketAdmissionV01 {
         first_work_definition_ref: ExternalRefV01;
         first_work_request_ref: ExternalRefV01;
         operator_action_ref: ExternalRefV01;
+      }
+    | {
+        lineage_kind: "pre_execution_user_revision";
+        work_definition_revision_ref: ExternalRefV01;
+        work_revision_request_ref: ExternalRefV01;
+        operator_action_ref: ExternalRefV01;
+        immediate_prior_packet_ref: ExternalRefV01;
+        origin_first_work_definition_ref: ExternalRefV01;
       };
   root_scope: NativeHostRootScopeV01;
 }
@@ -409,12 +417,24 @@ export async function admitPersistedHostTaskContextPacketV01(
               "augnes.vnext.state-transition-receipt.v0.1",
             ),
           }
-        : {
+        : lineage.lineage_kind === "initial_user_defined"
+          ? {
             lineage_kind: "initial_user_defined",
             first_work_definition_ref: lineage.first_work_definition_ref,
             first_work_request_ref: lineage.first_work_request_ref,
             operator_action_ref: lineage.operator_action_ref,
-          },
+            }
+          : {
+              lineage_kind: "pre_execution_user_revision",
+              work_definition_revision_ref:
+                lineage.revision_definition_ref,
+              work_revision_request_ref: lineage.revision_request_ref,
+              operator_action_ref: lineage.operator_action_ref,
+              immediate_prior_packet_ref:
+                lineage.immediate_prior_packet_ref,
+              origin_first_work_definition_ref:
+                lineage.origin_first_work_definition_ref,
+            },
     root_scope: {
       canonical_root: registration.root_binding.local_root.normalized_path,
       path_flavor: registration.root_binding.local_root.path_flavor,
@@ -1366,7 +1386,9 @@ function buildNativeHostRequest(input: {
               entry.external_ref ? [entry.external_ref] : [],
             ),
           }
-        : {
+        : input.admission.packet_lineage.lineage_kind ===
+              "initial_user_defined"
+          ? {
             lineage_kind: "initial_user_defined",
             first_work_definition_ref:
               input.admission.packet_lineage.first_work_definition_ref,
@@ -1378,7 +1400,25 @@ function buildNativeHostRequest(input: {
             selected_context_refs: packet.selected_context.flatMap((entry) =>
               entry.external_ref ? [entry.external_ref] : [],
             ),
-          },
+            }
+          : {
+              lineage_kind: "pre_execution_user_revision",
+              work_definition_revision_ref:
+                input.admission.packet_lineage.work_definition_revision_ref,
+              work_revision_request_ref:
+                input.admission.packet_lineage.work_revision_request_ref,
+              operator_action_ref:
+                input.admission.packet_lineage.operator_action_ref,
+              immediate_prior_packet_ref:
+                input.admission.packet_lineage.immediate_prior_packet_ref,
+              origin_first_work_definition_ref:
+                input.admission.packet_lineage
+                  .origin_first_work_definition_ref,
+              packet_source_refs: packet.compatibility.source_refs,
+              selected_context_refs: packet.selected_context.flatMap((entry) =>
+                entry.external_ref ? [entry.external_ref] : [],
+              ),
+            },
     mode: input.mode,
     root_scope: input.admission.root_scope,
     requested_capability: HOST_CAPABILITY,
@@ -1526,6 +1566,18 @@ function createRunLedgerRecord(
       first_work_definition_fingerprint:
         input.admission.packet_lineage.lineage_kind === "initial_user_defined"
           ? input.admission.packet_lineage.first_work_definition_ref.source_ref
+          : null,
+      work_definition_revision_id:
+        input.admission.packet_lineage.lineage_kind ===
+        "pre_execution_user_revision"
+          ? input.admission.packet_lineage.work_definition_revision_ref
+              .external_id
+          : null,
+      work_definition_revision_fingerprint:
+        input.admission.packet_lineage.lineage_kind ===
+        "pre_execution_user_revision"
+          ? input.admission.packet_lineage.work_definition_revision_ref
+              .source_ref
           : null,
       root_kind: input.admission.root_scope.root_kind,
       root_fingerprint: input.admission.root_scope.root_fingerprint,
@@ -2744,14 +2796,27 @@ export function buildDirectNativeHostRunIdentityV01(input: {
           source_transition_receipt_ref:
             input.admission.packet_lineage.source_transition_receipt_ref,
         }
-      : {
+      : input.admission.packet_lineage.lineage_kind === "initial_user_defined"
+        ? {
           initial_work_definition_ref:
             input.admission.packet_lineage.first_work_definition_ref,
           initial_work_request_ref:
             input.admission.packet_lineage.first_work_request_ref,
           initial_operator_action_ref:
             input.admission.packet_lineage.operator_action_ref,
-        };
+          }
+        : {
+            revised_work_definition_ref:
+              input.admission.packet_lineage.work_definition_revision_ref,
+            revised_work_request_ref:
+              input.admission.packet_lineage.work_revision_request_ref,
+            revision_operator_action_ref:
+              input.admission.packet_lineage.operator_action_ref,
+            immediate_prior_packet_ref:
+              input.admission.packet_lineage.immediate_prior_packet_ref,
+            origin_first_work_definition_ref:
+              input.admission.packet_lineage.origin_first_work_definition_ref,
+          };
   const material = canonicalizeProtocolValueV01({
     contract: DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
     workspace_id: input.config.workspace_id,
@@ -2790,11 +2855,19 @@ function admissionLineageRefsV01(
 ): ExternalRefV01[] {
   return admission.packet_lineage.lineage_kind === "semantic_transition"
     ? [admission.packet_lineage.source_transition_receipt_ref]
-    : [
+    : admission.packet_lineage.lineage_kind === "initial_user_defined"
+      ? [
         admission.packet_lineage.first_work_definition_ref,
         admission.packet_lineage.first_work_request_ref,
         admission.packet_lineage.operator_action_ref,
-      ];
+        ]
+      : [
+          admission.packet_lineage.work_definition_revision_ref,
+          admission.packet_lineage.work_revision_request_ref,
+          admission.packet_lineage.operator_action_ref,
+          admission.packet_lineage.immediate_prior_packet_ref,
+          admission.packet_lineage.origin_first_work_definition_ref,
+        ];
 }
 
 function readReceiptForRun(

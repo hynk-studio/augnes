@@ -53,6 +53,11 @@ await runOperatorExecutionBrowserChildV1({
       entry.response_status === 401 &&
       entry.text ===
         "Failed to load resource: the server responded with a status of 401 (Unauthorized)") ||
+    (entry.phase === "first_work_definition_and_start" &&
+      entry.request_path === "/api/vnext/operator/project-continuity" &&
+      entry.response_status === 409 &&
+      entry.text ===
+        "Failed to load resource: the server responded with a status of 409 (Conflict)") ||
     ([
       "first_work_definition_and_start",
       "direct_native_host_round_trip",
@@ -86,6 +91,9 @@ await runOperatorExecutionBrowserChildV1({
     assert.match(firstWorkProjectId, /^project:/u);
     const firstWorkGoal =
       "Preserve exact packet and project-root binding through one explicit local operation.";
+    const firstRevisionGoal = "한국어로 수정한 실행 전 목표를 보존한다.";
+    const revisedWorkGoal =
+      "Execute the latest mixed Unicode revision exactly 🚀 한글.";
     const criteria = [
       "The saved definition creates no run",
       "Explicit activation admits one exact run",
@@ -94,7 +102,6 @@ await runOperatorExecutionBrowserChildV1({
       "Do not write project files",
       "Do not select or invoke an external provider",
     ];
-
     await lifecycle.runPhase("first_work_definition_and_start", async () => {
       await lifecycle.navigate(`${appOrigin}/workbench/semantic-review#first-work`);
       await lifecycle.waitForCondition(
@@ -321,17 +328,341 @@ await runOperatorExecutionBrowserChildV1({
       completeDetailedField("first_work_saved_without_execution");
       result.first_work_start_eligible = true;
       completeDetailedField("first_work_start_eligible");
-      await lifecycle.cdp().send("Page.reload", { ignoreCache: true });
+      await lifecycle.waitForRequestQuiet();
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review#first-work`);
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null && document.body.textContent.includes(${JSON.stringify(firstWorkGoal)})`,
+        `document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="pre_execution"]')?.textContent?.includes('Unstarted work') === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes(${JSON.stringify(firstWorkGoal)}) === true && document.querySelector('[data-work-revision-action="open"]') !== null`,
         "first-work reload persistence",
       );
       result.first_work_reload_persisted = true;
       completeDetailedField("first_work_reload_persisted");
+
+      const beforeCancel = readFirstWorkState(
+        fixture.writable_database_path,
+        firstWorkProjectId,
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const button = document.querySelector('[data-work-revision-action="open"]');
+          if (!button) return false;
+          button.click(); return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-composer="pre_execution_user_revision"]') !== null && document.activeElement?.id === 'work-revision-goal' && document.querySelector('[data-work-revision-action="save"]')?.disabled === true`,
+        "prefilled unchanged revision form",
+      );
+      const prefilledRevision = await lifecycle.evaluateJson(`(() => ({
+        goal: document.querySelector('textarea[name="work-revision-goal"]')?.value ?? null,
+        criteria: document.querySelector('textarea[name="work-revision-success-criteria"]')?.value ?? null,
+        non_goals: document.querySelector('textarea[name="work-revision-non-goals"]')?.value ?? null
+      }))()`);
+      assert.equal(
+        prefilledRevision.goal,
+        firstWorkGoal,
+        `revision goal prefill mismatch: ${JSON.stringify(prefilledRevision)}`,
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-goal"]',
+        "",
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="save"]')?.disabled === true && document.body.textContent.includes('Enter the project goal before saving.')`,
+        "revision invalid goal",
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-goal"]',
+        firstWorkGoal,
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-success-criteria"]',
+        "",
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="save"]')?.disabled === true && document.body.textContent.includes('Add at least one success criterion.')`,
+        "revision invalid criteria",
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const button = document.querySelector('[data-work-revision-action="cancel"]');
+          if (!button) return false;
+          button.click(); return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-composer]') === null && document.activeElement?.matches('[data-work-revision-action="open"]') === true`,
+        "revision cancel focus return",
+      );
+      assert.deepEqual(
+        readFirstWorkState(
+          fixture.writable_database_path,
+          firstWorkProjectId,
+        ),
+        beforeCancel,
+      );
+      result.work_revision_cancel_zero_write = true;
+      completeDetailedField("work_revision_cancel_zero_write");
+
+      await lifecycle.evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-work-revision-action="open"]');
+        if (!button) return false;
+        button.click(); return true;
+      })()`);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="save"]')?.disabled === true`,
+        "revision form reopened",
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-goal"]',
+        firstRevisionGoal,
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-success-criteria"]',
+        "수정된 목표가 현재 작업으로 표시된다\nNo execution starts on save",
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-non-goals"]',
+        "",
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="save"]:not(:disabled)') !== null`,
+        "valid Korean revision",
+      );
+      await lifecycle.evaluateBoolean(`(() => {
+        const form = document.querySelector('[data-work-revision-composer] form');
+        if (!(form instanceof HTMLFormElement)) return false;
+        form.requestSubmit(); form.requestSubmit(); return true;
+      })()`);
+      await lifecycle.waitForCondition(
+        `document.body.textContent.includes('Work definition revised. No execution has started.') && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="pre_execution"]')?.textContent?.includes('Unstarted work') === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes(${JSON.stringify(firstRevisionGoal)}) === true`,
+        "first work revision saved",
+      );
+      assert.deepEqual(
+        readFirstWorkState(
+          fixture.writable_database_path,
+          firstWorkProjectId,
+        ),
+        { ...beforeCancel, packets: 2 },
+      );
+
+      const sessionSentinel = "SESSION-BOUND-UNSAVED-REVISION";
+      await lifecycle.evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-work-revision-action="open"]');
+        if (!button) return false;
+        button.click(); return true;
+      })()`);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-composer]') !== null`,
+        "session-bound revision editor",
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-goal"]',
+        sessionSentinel,
+      );
+      await lifecycle.waitForRequestQuiet();
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const button = [...document.querySelectorAll('[data-vnext-operator-session="authenticated"] button')]
+            .find((entry) => entry.textContent?.includes('Log out and revoke session'));
+          if (!(button instanceof HTMLButtonElement)) return false;
+          button.click(); return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-vnext-operator-session="locked"]') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(sessionSentinel)})`,
+        "revision editor closed on session lock",
+      );
+      assert.equal(await lifecycle.authenticate(), true);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="open"]') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(sessionSentinel)})`,
+        "revision editor remains closed after reauthentication",
+      );
+
+      const projectSentinel = "PROJECT-BOUND-UNSAVED-REVISION";
+      await lifecycle.evaluateBoolean(`(() => {
+        const button = document.querySelector('[data-work-revision-action="open"]');
+        if (!button) return false;
+        button.click(); return true;
+      })()`);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-composer]') !== null`,
+        "project-bound revision editor",
+      );
+      await lifecycle.setFormControlValue(
+        'textarea[name="work-revision-goal"]',
+        projectSentinel,
+      );
+      selectFixtureActiveProject(
+        fixture.writable_database_path,
+        fixture.manifest.workspace_id,
+        fixture.manifest.project_id,
+      );
+      await lifecycle.evaluateBoolean(
+        `(() => { window.dispatchEvent(new Event('focus')); return true; })()`,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-composer]') === null && document.querySelector('[data-work-revision-action="open"]') === null && !document.body.textContent.includes(${JSON.stringify(projectSentinel)})`,
+        "revision editor closed on active project switch",
+      );
+      await lifecycle.waitForRequestQuiet();
+      selectFixtureActiveProject(
+        fixture.writable_database_path,
+        fixture.manifest.workspace_id,
+        firstWorkProjectId,
+      );
+      await lifecycle.navigate(
+        `${appOrigin}/workbench/semantic-review?active-project-return=1`,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="open"]') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(projectSentinel)})`,
+        "revision editor requires fresh activation after project return",
+      );
+      const staleInitialization = await lifecycle.evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+        const body = await response.json();
+        return body.work_initialization;
+      })()`);
+      const revisionViewports = [
+        [1440, 1000],
+        [1280, 900],
+        [430, 932],
+        [390, 844],
+      ];
+      for (const [width, height] of revisionViewports) {
+        await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height,
+          deviceScaleFactor: 1,
+          mobile: width < 600,
+        });
+        const summaryMetrics = await lifecycle.evaluateJson(`(() => {
+          const revise = document.querySelector('[data-work-revision-action="open"]');
+          const start = document.querySelector('[data-delegated-work-action="start"]');
+          const primary = [...document.querySelectorAll('[data-augnes-primary-action]')]
+            .filter((entry) => entry.getBoundingClientRect().width > 0);
+          return {
+            width: window.innerWidth,
+            no_overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
+            revise_height: revise?.getBoundingClientRect().height ?? 0,
+            start_height: start?.getBoundingClientRect().height ?? 0,
+            primary_count: primary.length,
+            revision_visible: Boolean(revise),
+            start_enabled: start instanceof HTMLButtonElement && !start.disabled
+          };
+        })()`);
+        assert.equal(summaryMetrics.width, width);
+        assert.equal(summaryMetrics.no_overflow, true);
+        assert.equal(summaryMetrics.revise_height >= 44, true);
+        assert.equal(summaryMetrics.start_height >= 44, true);
+        assert.equal(summaryMetrics.primary_count, 1);
+        assert.equal(summaryMetrics.revision_visible, true);
+        assert.equal(summaryMetrics.start_enabled, true);
+      }
+      await lifecycle.cdp().send("Page.bringToFront");
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const button = document.querySelector('[data-work-revision-action="open"]');
+          if (!button) return false;
+          button.click(); return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `document.activeElement?.id === 'work-revision-goal' && document.querySelector('[data-delegated-work-action="start"]') === null`,
+        "revision editor focus",
+      );
+      for (const [width, height] of revisionViewports) {
+        await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height,
+          deviceScaleFactor: 1,
+          mobile: width < 600,
+        });
+        const editorMetrics = await lifecycle.evaluateJson(`(() => {
+          const save = document.querySelector('[data-work-revision-action="save"]');
+          const cancel = document.querySelector('[data-work-revision-action="cancel"]');
+          const primary = [...document.querySelectorAll('[data-augnes-primary-action]')]
+            .filter((entry) => entry.getBoundingClientRect().width > 0);
+          return {
+            no_overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
+            save_height: save?.getBoundingClientRect().height ?? 0,
+            cancel_height: cancel?.getBoundingClientRect().height ?? 0,
+            primary_count: primary.length,
+            keyboard_order: Boolean(save && cancel && (save.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING))
+          };
+        })()`);
+        assert.equal(editorMetrics.no_overflow, true);
+        assert.equal(editorMetrics.save_height >= 44, true);
+        assert.equal(editorMetrics.cancel_height >= 44, true);
+        assert.equal(editorMetrics.primary_count, 1);
+        assert.equal(editorMetrics.keyboard_order, true);
+      }
+      await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", {
+        width: 1440,
+        height: 1000,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await lifecycle.navigate(
+        `${appOrigin}/workbench/semantic-review?revision-viewport-return=1#first-work`,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-work-revision-action="open"]') !== null`,
+        "revision summary restored after viewport checks",
+      );
+      result.work_revision_browser_viewports = true;
+      completeDetailedField("work_revision_browser_viewports");
+      assert.equal(
+        await lifecycle.evaluateBoolean(
+          `!/(TaskContextPacket|packet fingerprint|work_definition_revision|pre_execution_user_revision|session id|revision compiler)/i.test(document.body.innerText)`,
+        ),
+        true,
+      );
+      result.work_revision_no_protocol_leakage = true;
+      completeDetailedField("work_revision_no_protocol_leakage");
+      const exactReplay = await lifecycle.evaluateJson(`(async () => {
+        const read = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+        const current = (await read.json()).work_initialization;
+        const eligibility = current.revision_eligibility;
+        const response = await fetch('/api/vnext/operator/project-continuity', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'revise_pre_execution_project_work',
+            workspace_id: eligibility.workspace_id,
+            project_id: eligibility.project_id,
+            expected_active_project_id: eligibility.active_project_id,
+            expected_active_selection_revision: eligibility.active_selection_revision,
+            expected_current_packet_id: eligibility.current_packet_id,
+            expected_current_packet_fingerprint: eligibility.current_packet_fingerprint,
+            expected_current_lineage_kind: eligibility.current_lineage_kind,
+            ...current.current_work
+          })
+        });
+        return { status: response.status, body: await response.json(), current };
+      })()`);
+      assert.equal(exactReplay.status, 200);
+      assert.equal(exactReplay.body.status, "exact_replay");
+      assert.equal(exactReplay.body.run_created, false);
+      assert.equal(exactReplay.body.execution_started, false);
+      assert.equal(
+        readFirstWorkState(
+          fixture.writable_database_path,
+          firstWorkProjectId,
+        ).packets,
+        2,
+      );
+      result.work_revision_append_only_and_replay = true;
+      completeDetailedField("work_revision_append_only_and_replay");
+      result.work_revision_saved_without_execution = true;
+      completeDetailedField("work_revision_saved_without_execution");
+
       await lifecycle.navigate(`${appOrigin}/`);
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-blank-state="v0.1"]')?.textContent?.includes(${JSON.stringify(firstWorkGoal)}) === true && document.querySelector('[data-blank-state-focus="first_work_not_defined"]') === null`,
-        "Project Home saved first-work goal",
+        `document.querySelector('[data-blank-state="v0.1"]')?.textContent?.includes(${JSON.stringify(firstRevisionGoal)}) === true && document.querySelector('[data-blank-state-focus="first_work_not_defined"]') === null`,
+        "Project Home revised work goal",
       );
       const guideGoal = await lifecycle.evaluateJson(`(async () => {
         const response = await fetch('/api/augnes/read/guide-brief?scope=project%3Aaugnes', {
@@ -345,13 +676,206 @@ await runOperatorExecutionBrowserChildV1({
           workplane: body.projections?.ai_workplane?.current_goal
         };
       })()`);
-      assert.deepEqual(new Set(Object.values(guideGoal)), new Set([firstWorkGoal]));
+      assert.deepEqual(new Set(Object.values(guideGoal)), new Set([firstRevisionGoal]));
       result.first_work_goal_cross_surface = true;
       completeDetailedField("first_work_goal_cross_surface");
       await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
       await lifecycle.waitForCondition(
         `document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null`,
         "separate first-work host start action",
+      );
+      const staleRevisionTabOpen = await lifecycle.cdp().send("Runtime.evaluate", {
+        expression: `(() => {
+          window.__cux7StaleSubmitTab = window.open('/workbench/semantic-review?revision-stale-after-start=1', 'cux7-revision-stale-submit-tab');
+          return Boolean(window.__cux7StaleSubmitTab);
+        })()`,
+        awaitPromise: true,
+        returnByValue: true,
+        userGesture: true,
+      });
+      assert.equal(staleRevisionTabOpen.exceptionDetails, undefined);
+      assert.equal(staleRevisionTabOpen.result?.value, true);
+      const sourceBindingTabOpen = await lifecycle.cdp().send(
+        "Runtime.evaluate",
+        {
+          expression: `(() => {
+            window.__cux7SourceBindingTab = window.open('/workbench/semantic-review?revision-source-binding=1', 'cux7-revision-source-binding-tab');
+            return Boolean(window.__cux7SourceBindingTab);
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+          userGesture: true,
+        },
+      );
+      assert.equal(sourceBindingTabOpen.exceptionDetails, undefined);
+      assert.equal(sourceBindingTabOpen.result?.value, true);
+      await lifecycle.waitForCondition(
+        `Boolean(document.querySelector('[data-work-revision-action="open"]') && window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-action="open"]') && window.__cux7SourceBindingTab?.document.querySelector('[data-work-revision-action="open"]'))`,
+        "revision tabs prepared from one exact source",
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const tab = window.__cux7StaleSubmitTab;
+          const bindingTab = window.__cux7SourceBindingTab;
+          const mainButton = document.querySelector('[data-work-revision-action="open"]');
+          const tabButton = tab?.document.querySelector('[data-work-revision-action="open"]');
+          const bindingButton = bindingTab?.document.querySelector('[data-work-revision-action="open"]');
+          if (!(mainButton instanceof HTMLButtonElement) || !(tabButton instanceof tab.HTMLButtonElement) || !(bindingButton instanceof bindingTab.HTMLButtonElement)) return false;
+          mainButton.click();
+          tabButton.click();
+          bindingButton.click();
+          return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `Boolean(document.querySelector('[data-work-revision-composer]') && window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]') && window.__cux7SourceBindingTab?.document.querySelector('[data-work-revision-composer]'))`,
+        "revision editors mounted from one exact source",
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const setValue = (tab, selector, value) => {
+            const control = tab.document.querySelector(selector);
+            if (!(control instanceof tab.HTMLTextAreaElement)) return false;
+            const setter = Object.getOwnPropertyDescriptor(tab.HTMLTextAreaElement.prototype, 'value')?.set;
+            setter?.call(control, value);
+            control.dispatchEvent(new tab.Event('input', { bubbles: true }));
+            return true;
+          };
+          const tab = window.__cux7StaleSubmitTab;
+          for (const target of [window, tab]) {
+            if (!setValue(target, 'textarea[name="work-revision-goal"]', ${JSON.stringify(revisedWorkGoal)})) return false;
+            if (!setValue(target, 'textarea[name="work-revision-success-criteria"]', 'The explicit Start executes this exact revision')) return false;
+            if (!setValue(target, 'textarea[name="work-revision-non-goals"]', 'Do not treat Save as execution')) return false;
+          }
+          return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `Boolean(document.querySelector('[data-work-revision-action="save"]:not(:disabled)') && window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-action="save"]:not(:disabled)'))`,
+        "identical stale-after-start revision requests ready",
+      );
+      await lifecycle.cdp().send("Page.bringToFront");
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const originalFetch = window.fetch.bind(window);
+          window.__cux7SecondRevisionRequestBody = null;
+          window.fetch = async (...args) => {
+            const url = String(args[0] ?? '');
+            const method = String(args[1]?.method ?? 'GET').toUpperCase();
+            if (url.includes('/api/vnext/operator/project-continuity') && method === 'POST') {
+              window.__cux7SecondRevisionRequestBody = String(args[1]?.body ?? '');
+            }
+            return originalFetch(...args);
+          };
+          return true;
+        })()`),
+        true,
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const form = document.querySelector('[data-work-revision-composer] form');
+          if (!(form instanceof HTMLFormElement)) return false;
+          form.requestSubmit();
+          return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="pre_execution"]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true`,
+        "tab A second revision saved",
+      );
+      const identicalStaleRevisionRequestBody = await lifecycle.evaluateJson(
+        `window.__cux7SecondRevisionRequestBody`,
+      );
+      assert.equal(typeof identicalStaleRevisionRequestBody, "string");
+      assert.notEqual(identicalStaleRevisionRequestBody, "");
+      const staleResponse = await lifecycle.evaluateJson(`(async () => {
+        const eligibility = ${JSON.stringify(staleInitialization)}.revision_eligibility;
+        const response = await fetch('/api/vnext/operator/project-continuity', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'revise_pre_execution_project_work',
+            workspace_id: eligibility.workspace_id,
+            project_id: eligibility.project_id,
+            expected_active_project_id: eligibility.active_project_id,
+            expected_active_selection_revision: eligibility.active_selection_revision,
+            expected_current_packet_id: eligibility.current_packet_id,
+            expected_current_packet_fingerprint: eligibility.current_packet_fingerprint,
+            expected_current_lineage_kind: eligibility.current_lineage_kind,
+            goal: 'A stale tab must not overwrite the current revision',
+            success_criteria: ['The stale compare-and-set is refused'],
+            non_goals: []
+          })
+        });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(staleResponse.status, 409);
+      assert.equal(
+        staleResponse.body.error_code,
+        "work_revision_current_packet_changed",
+      );
+      result.work_revision_stale_cas_refused = true;
+      completeDetailedField("work_revision_stale_cas_refused");
+      await lifecycle.evaluateBoolean(
+        `(() => {
+          const tab = window.__cux7SourceBindingTab;
+          tab?.focus();
+          tab?.dispatchEvent(new tab.Event('focus'));
+          return true;
+        })()`,
+      );
+      await lifecycle.waitForCondition(
+        `Boolean(window.__cux7SourceBindingTab && window.__cux7SourceBindingTab.document.querySelector('[data-work-revision-composer]') === null && window.__cux7SourceBindingTab.document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true)`,
+        "another-tab packet refresh closes bound revision editor",
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const tab = window.__cux7SourceBindingTab;
+          const button = tab?.document.querySelector('[data-work-revision-action="open"]');
+          if (!(button instanceof tab.HTMLButtonElement)) return false;
+          button.click();
+          return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForCondition(
+        `window.__cux7SourceBindingTab?.document.querySelector('textarea[name="work-revision-goal"]')?.value === ${JSON.stringify(revisedWorkGoal)}`,
+        "fresh editor uses refreshed packet definition",
+      );
+      assert.equal(
+        await lifecycle.evaluateBoolean(`(() => {
+          const tab = window.__cux7SourceBindingTab;
+          const goal = tab?.document.querySelector('textarea[name="work-revision-goal"]');
+          const cancel = tab?.document.querySelector('[data-work-revision-action="cancel"]');
+          if (!(goal instanceof tab.HTMLTextAreaElement) || !(cancel instanceof tab.HTMLButtonElement)) return false;
+          if (goal.value === ${JSON.stringify(firstRevisionGoal)}) return false;
+          cancel.click();
+          return true;
+        })()`),
+        true,
+      );
+      await lifecycle.waitForRequestQuiet();
+      await lifecycle.evaluateBoolean(
+        `(() => { window.__cux7SourceBindingTab?.close(); return true; })()`,
+      );
+      await lifecycle.cdp().send("Page.bringToFront");
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="pre_execution"]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes(${JSON.stringify(firstRevisionGoal)}) === false && Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]')) && document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null`,
+        "tab A saved the exact revision while tab B remained stale",
+      );
+      assert.deepEqual(
+        readFirstWorkState(fixture.writable_database_path, firstWorkProjectId),
+        {
+          packets: 3,
+          receipts: 0,
+          proposals: 0,
+          decisions: 0,
+          transitions: 0,
+          semantic_state: 0,
+          runs: 0,
+        },
       );
       const firstWorkStartResponse = lifecycle.responses.length;
       assert.equal(
@@ -372,15 +896,32 @@ await runOperatorExecutionBrowserChildV1({
           ),
         "first-work explicit start",
       );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Work definition') === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes('Unstarted work') === false && Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]'))`,
+        "queued revision work uses neutral definition label while stale tab remains mounted",
+      );
       const firstRun = await waitForLiveState(
         fixture.writable_database_path,
         firstWorkProjectId,
         "waiting_for_approval",
         LIVE_TIMEOUT_MS,
       );
-      assert.equal(firstRun.packet_lineage_kind, "initial_user_defined");
+      const liveRouteAfterStart = await lifecycle.evaluateJson(`(async () => {
+        const response = await fetch('/api/vnext/operator/host-round-trip', { cache: 'no-store' });
+        return { status: response.status, body: await response.json() };
+      })()`);
+      assert.equal(
+        liveRouteAfterStart.body?.delegated_work?.stage,
+        "waiting_for_approval",
+        `live route did not project the admitted revision run: ${JSON.stringify(liveRouteAfterStart)}`,
+      );
+      assert.equal(firstRun.packet_lineage_kind, "pre_execution_user_revision");
       assert.equal(firstRun.source_transition_receipt_id, null);
-      assert.match(firstRun.first_work_definition_id, /^first-work-definition:/u);
+      assert.equal(firstRun.first_work_definition_id, null);
+      assert.match(
+        firstRun.work_definition_revision_id,
+        /^work-definition-revision:2:/u,
+      );
       const initialTurnStart = traceEntries(prepared.approval_trace_path).find(
         (entry) =>
           entry.kind === "received" && entry.value?.method === "turn/start",
@@ -403,9 +944,136 @@ await runOperatorExecutionBrowserChildV1({
         },
       );
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="cancel"]:not(:disabled)') !== null`,
+        `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="cancel"]:not(:disabled)') !== null && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Unstarted work') === false && document.querySelector('[data-work-revision-action="open"]') === null`,
         "first-work admitted cancellation boundary",
       );
+      const packetsBeforeStaleSubmit = readFirstWorkState(
+        fixture.writable_database_path,
+        firstWorkProjectId,
+      ).packets;
+      const staleSubmission = await lifecycle.evaluateJson(`(() => {
+          const tab = window.__cux7StaleSubmitTab;
+          if (!tab || tab.closed) return { submitted: false, reason: 'tab_unavailable' };
+          const originalFetch = tab.fetch.bind(tab);
+          const exactRequestBody = ${JSON.stringify(identicalStaleRevisionRequestBody)};
+          tab.__cux7RevisionMutationResponse = null;
+          tab.fetch = async (...args) => {
+            const url = String(args[0] ?? '');
+            const method = String(args[1]?.method ?? 'GET').toUpperCase();
+            const requestArgs = url.includes('/api/vnext/operator/project-continuity') && method === 'POST'
+              ? [args[0], { ...(args[1] ?? {}), body: exactRequestBody }]
+              : args;
+            const response = await originalFetch(...requestArgs);
+            if (url.includes('/api/vnext/operator/project-continuity') && method === 'POST') {
+              const body = await response.clone().json();
+              tab.__cux7RevisionMutationResponse = { status: response.status, body };
+            }
+            return response;
+          };
+          tab.focus();
+          const form = tab.document.querySelector('[data-work-revision-composer] form');
+          if (!(form instanceof tab.HTMLFormElement)) {
+            return {
+              submitted: false,
+              reason: 'form_unavailable',
+              composer_present: Boolean(tab.document.querySelector('[data-work-revision-composer]')),
+              definition_phase: tab.document.querySelector('[data-current-work-definition="read-only"]')?.getAttribute('data-current-work-definition-phase') ?? null,
+              revision_action_present: Boolean(tab.document.querySelector('[data-work-revision-action="open"]'))
+            };
+          }
+          form.requestSubmit();
+          return { submitted: true, reason: null };
+        })()`);
+      assert.equal(
+        staleSubmission.submitted,
+        true,
+        JSON.stringify(staleSubmission),
+      );
+      await lifecycle.waitForCondition(
+        `window.__cux7StaleSubmitTab?.__cux7RevisionMutationResponse !== null`,
+        "exact stale successor response observed after start",
+      );
+      await lifecycle.waitForCondition(
+        `window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]') === null`,
+        "stale revision editor closed after start refusal",
+      );
+      await lifecycle.waitForCondition(
+        `window.__cux7StaleSubmitTab?.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.') === true`,
+        "stale revision refusal explanation settled",
+      );
+      const staleTabState = await lifecycle.evaluateJson(`(async () => {
+        const tab = window.__cux7StaleSubmitTab;
+        const response = tab.__cux7RevisionMutationResponse;
+        const definition = tab.document.querySelector('[data-current-work-definition="read-only"]');
+        const [reviewResponse, delegatedResponse] = await Promise.all([
+          tab.fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' }),
+          tab.fetch('/api/vnext/operator/host-round-trip', { cache: 'no-store' })
+        ]);
+        const review = await reviewResponse.json();
+        const delegated = await delegatedResponse.json();
+        return {
+          status: response?.status ?? null,
+          error_code: response?.body?.error_code ?? null,
+          composer_present: Boolean(tab.document.querySelector('[data-work-revision-composer]')),
+          definition_phase: definition?.getAttribute('data-current-work-definition-phase') ?? null,
+          revised_goal_visible: definition?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true,
+          revision_action_present: Boolean(tab.document.querySelector('[data-work-revision-action="open"]')),
+          refusal_copy_visible: tab.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.'),
+          success_copy_visible: tab.document.body.textContent.includes('Work definition revised. No execution has started.'),
+          exact_source_goal: review.work_initialization?.current_work?.goal ?? null,
+          exact_source_eligibility: review.work_initialization?.revision_eligibility?.status ?? null,
+          exact_delegated_stage: delegated.delegated_work?.stage ?? null
+        };
+      })()`);
+      assert.deepEqual(staleTabState, {
+        status: 409,
+        error_code: "work_revision_execution_started",
+        composer_present: false,
+        definition_phase: "current_context",
+        revised_goal_visible: true,
+        revision_action_present: false,
+        refusal_copy_visible: true,
+        success_copy_visible: false,
+        exact_source_goal: revisedWorkGoal,
+        exact_source_eligibility: "blocked_execution_started",
+        exact_delegated_stage: "waiting_for_approval",
+      });
+      const staleAfterStart = await lifecycle.evaluateJson(`(() => {
+        const response = window.__cux7StaleSubmitTab.__cux7RevisionMutationResponse;
+        return {
+          status: response.status,
+          error_code: response.body?.error_code ?? null,
+          has_run_created: Object.hasOwn(response.body ?? {}, 'run_created'),
+          has_execution_started: Object.hasOwn(response.body ?? {}, 'execution_started')
+        };
+      })()`);
+      assert.deepEqual(staleAfterStart, {
+        status: 409,
+        error_code: "work_revision_execution_started",
+        has_run_created: false,
+        has_execution_started: false,
+      });
+      assert.equal(
+        readFirstWorkState(
+          fixture.writable_database_path,
+          firstWorkProjectId,
+        ).packets,
+        packetsBeforeStaleSubmit,
+      );
+      await lifecycle.waitForRequestQuiet();
+      await lifecycle.evaluateBoolean(
+        `(() => { window.__cux7StaleSubmitTab?.close(); return true; })()`,
+      );
+      result.work_revision_exact_successor_after_history_refused = true;
+      completeDetailedField(
+        "work_revision_exact_successor_after_history_refused",
+      );
+      result.work_revision_editor_source_bound = true;
+      completeDetailedField("work_revision_editor_source_bound");
+      result.work_revision_hidden_after_start = true;
+      completeDetailedField("work_revision_hidden_after_start");
+      result.work_revision_explicit_start_uses_revision = true;
+      completeDetailedField("work_revision_explicit_start_uses_revision");
       result.first_work_explicit_start_admitted = true;
       completeDetailedField("first_work_explicit_start_admitted");
       assert.equal(
@@ -424,6 +1092,15 @@ await runOperatorExecutionBrowserChildV1({
       );
       assert.equal(cancelledFirstRun.run_ref, firstRun.run_ref);
       assert.equal(cancelledFirstRun.pending_approval, null);
+      await lifecycle.navigate(
+        `${appOrigin}/workbench/semantic-review?post-revision-terminal=1`,
+      );
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Work definition') === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes('Unstarted work') === false && document.querySelector('[data-work-revision-action="open"]') === null`,
+        "terminal revision work uses neutral definition label",
+      );
+      result.work_revision_definition_label_truthful = true;
+      completeDetailedField("work_revision_definition_label_truthful");
       await lifecycle.navigate("about:blank");
       await lifecycle.terminateRuntime();
     }, { request_quiet: false });
@@ -662,7 +1339,7 @@ await runOperatorExecutionBrowserChildV1({
       const aiWorkplaneMountRequestStart = lifecycle.requests.length;
       await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]') !== null`,
+        `document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]') !== null && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Unstarted work') === false && document.querySelector('[data-work-revision-action="open"]') === null`,
         "live delegated work projection",
       );
       const initialReads = lifecycle.requests
@@ -695,7 +1372,7 @@ await runOperatorExecutionBrowserChildV1({
       );
       assert(firstApproval.pending_approval);
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="approve-once"]:not(:disabled)') !== null`,
+        `document.querySelector('[data-delegated-work-stage="waiting_for_approval"] [data-delegated-work-action="approve-once"]:not(:disabled)') !== null && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Unstarted work') === false`,
         "first approval control",
       );
       const pendingShape = await lifecycle.evaluateJson(`(() => {
@@ -794,7 +1471,7 @@ await runOperatorExecutionBrowserChildV1({
         true,
       );
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-delegated-work-stage="working"]') !== null && document.querySelector('[data-delegated-work-stage="working"]')?.querySelectorAll('[data-augnes-primary-action]').length === 0`,
+        `document.querySelector('[data-delegated-work-stage="working"]') !== null && document.querySelector('[data-delegated-work-stage="working"]')?.querySelectorAll('[data-augnes-primary-action]').length === 0 && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Unstarted work') === false`,
         "managed-live working projection after first approval",
       );
       const turnStartsBeforeProgressVisit = traceMethodCount(
@@ -902,7 +1579,7 @@ await runOperatorExecutionBrowserChildV1({
         LIVE_TIMEOUT_MS,
       );
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-delegated-work-stage="result_ready"] [data-ai-workplane-primary-action="review-result"]') !== null`,
+        `document.querySelector('[data-delegated-work-stage="result_ready"] [data-ai-workplane-primary-action="review-result"]') !== null && document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Unstarted work') === false && document.querySelector('[data-work-revision-action="open"]') === null`,
         "managed-live terminal result",
         LIVE_TIMEOUT_MS,
       );
@@ -1641,6 +2318,8 @@ function readLatestLiveProjection(databasePath, projectId) {
       control_revision: metadata.control_revision ?? null,
       packet_lineage_kind: metadata.packet_lineage_kind ?? null,
       first_work_definition_id: metadata.first_work_definition_id ?? null,
+      work_definition_revision_id:
+        metadata.work_definition_revision_id ?? null,
       source_transition_receipt_id:
         metadata.source_transition_receipt_id ?? null,
     };

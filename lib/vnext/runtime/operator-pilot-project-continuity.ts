@@ -46,6 +46,10 @@ import {
   initialProjectWorkIdempotencyKeyV01,
   inspectInitialProjectWorkPacketLineageV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
+import {
+  inspectPreExecutionProjectWorkRevisionPacketV01,
+  preExecutionProjectWorkRevisionIdempotencyKeyV01,
+} from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { validateVNextOperatorPilotReviewDecisionProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import { validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
@@ -69,6 +73,7 @@ import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 import { STRATEGIC_ADVANTAGE_TRANSFER_PROFILE_VERSION_V01 } from "@/types/vnext/strategic-advantage-transfer";
 
 export const VNEXT_OPERATOR_PILOT_CONTINUITY_VERSION_V01 =
@@ -119,7 +124,10 @@ export interface VNextOperatorPilotProjectContinuityV01 {
     generated_at: string;
     expires_at: string | null;
     accepted_state_count: number;
-    lineage_kind?: "initial_user_defined" | "semantic_transition";
+    lineage_kind?:
+      | "initial_user_defined"
+      | "pre_execution_user_revision"
+      | "semantic_transition";
   } | null;
   packet_currentness: "fresh" | "stale" | "expired" | "not_available";
   latest_context_use_receipt: {
@@ -178,9 +186,26 @@ export interface VNextOperatorPilotInitialPacketLineageInspectionV01 {
   operator_action_ref: import("@/types/vnext/external-ref").ExternalRefV01;
 }
 
+export interface VNextOperatorPilotRevisionPacketLineageInspectionV01 {
+  lineage_kind: "pre_execution_user_revision";
+  packet: TaskContextPacketV01;
+  prior_packet: {
+    packet_id: string;
+    packet_fingerprint: string;
+  };
+  projection_current: boolean;
+  source_transition_receipt: null;
+  revision_definition_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+  revision_request_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+  operator_action_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+  immediate_prior_packet_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+  origin_first_work_definition_ref: import("@/types/vnext/external-ref").ExternalRefV01;
+}
+
 export type VNextOperatorPilotPacketLineageInspectionV01 =
   | VNextOperatorPilotTransitionPacketLineageInspectionV01
-  | VNextOperatorPilotInitialPacketLineageInspectionV01;
+  | VNextOperatorPilotInitialPacketLineageInspectionV01
+  | VNextOperatorPilotRevisionPacketLineageInspectionV01;
 
 export interface VNextOperatorPilotPendingContextUseReviewV01 {
   later_run_receipt_id: string;
@@ -232,7 +257,19 @@ export function projectVNextOperatorPilotContinuityV01(
   }
   validateTargetHeads(db, input.config, targetHeads);
   const packets = loadCurrentWorkPackets(db, input.config);
-  const latestPacketBinding = packets.at(-1) ?? null;
+  const latestSemanticPacket = packets
+    .filter((entry) => entry.lineage_kind === "semantic_transition")
+    .at(-1) ?? null;
+  const currentPreExecutionPackets = packets.filter(
+    (entry) =>
+      entry.lineage_kind !== "semantic_transition" &&
+      entry.projection_current,
+  );
+  if (!latestSemanticPacket && currentPreExecutionPackets.length > 1) {
+    throw continuityError("operator_pilot_current_packet_ambiguous", 409);
+  }
+  const latestPacketBinding =
+    latestSemanticPacket ?? currentPreExecutionPackets[0] ?? null;
   const latestPacket = latestPacketBinding?.packet ?? null;
   const contextUseReceipts = loadContextUseReceipts(db, input.config);
   const latestContextUse = latestPacket
@@ -373,6 +410,40 @@ export function inspectVNextOperatorPilotPacketLineageV01(
   validateCurrentSemanticState(db, input.config);
   if (
     packet.compatibility.source_contracts.includes(
+      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    )
+  ) {
+    return validateCompiledPacketLineage(db, input.config, packet);
+  }
+  if (
+    packet.compatibility.source_contracts.includes(
+      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+    )
+  ) {
+    const lineage = inspectPreExecutionProjectWorkRevisionPacketV01(db, {
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      packet,
+    });
+    return {
+      lineage_kind: "pre_execution_user_revision",
+      packet,
+      prior_packet: {
+        packet_id: lineage.prior_packet.packet_id,
+        packet_fingerprint: lineage.prior_packet.integrity.fingerprint,
+      },
+      projection_current: lineage.projection_current,
+      source_transition_receipt: null,
+      revision_definition_ref: lineage.revision_definition_ref,
+      revision_request_ref: lineage.revision_request_ref,
+      operator_action_ref: lineage.operator_action_ref,
+      immediate_prior_packet_ref: lineage.immediate_prior_packet_ref,
+      origin_first_work_definition_ref:
+        lineage.origin_first_work_definition_ref,
+    };
+  }
+  if (
+    packet.compatibility.source_contracts.includes(
       INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
     )
   ) {
@@ -392,7 +463,7 @@ export function inspectVNextOperatorPilotPacketLineageV01(
       operator_action_ref: lineage.operator_action_ref,
     };
   }
-  return validateCompiledPacketLineage(db, input.config, packet);
+  throw continuityError("operator_pilot_handoff_packet_not_compiled", 409);
 }
 
 export function resolveVNextOperatorPilotPendingContextUseReviewV01(
@@ -696,6 +767,9 @@ function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperato
         ) ||
         packet.compatibility.source_contracts.includes(
           INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+        ) ||
+        packet.compatibility.source_contracts.includes(
+          PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
         ),
     )
     .map((packet) =>
@@ -891,7 +965,8 @@ function loadPacket(
     packet.integrity.fingerprint,
     packet.packet_id,
     packet.generated_at,
-    initialProjectWorkIdempotencyKeyV01(packet),
+    initialProjectWorkIdempotencyKeyV01(packet) ??
+      preExecutionProjectWorkRevisionIdempotencyKeyV01(packet),
   );
   return packet;
 }

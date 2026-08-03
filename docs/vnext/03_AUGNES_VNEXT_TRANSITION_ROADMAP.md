@@ -190,7 +190,7 @@ merge commit `b61ef980124f707b9b9ec417afcc5366ab7a4481`. It added no schema
 migration or portable contract version and did not authorize first-work
 activation.
 
-## Current
+## CUX6B completed lifecycle
 
 ### CUX6B first-work definition and activation
 
@@ -213,9 +213,41 @@ StateTransitionReceipt. Existing semantic-transition lineage and its full-chain
 validation remain unchanged; a later normal Transition may compile a successor
 from the initial packet.
 
-CUX6B remains **Current** until its linked pull request is reviewed and merged.
-Its Draft PR is an outcome candidate, not completed runtime. First-work editing
-or replacement, model-authored planning, C9, and PC6 remain separate work.
+CUX6B was completed and merged by
+[PR #102](https://github.com/hynk-studio/augnes-perspective-lab/pull/102) at
+merge commit `e9e61b3cd62b1185ea42645aeb362825dff91f73`. It added no schema or
+portable-contract version and did not authorize later work revision,
+model-authored planning, C9, or PC6.
+
+## Current
+
+### CUX7 review and revise unstarted project work
+
+[Issue #108](https://github.com/hynk-studio/augnes-perspective-lab/issues/108)
+defines the currently authorized CUX7 slice. It lets an authenticated user
+review the complete current work definition in AI Workplane and save an
+append-only revision only while the project remains active, its root is
+available, the exact initial/revision packet chain is valid and current, fewer
+than 32 revisions exist, and no execution or other work history exists.
+
+Revision reuses the CUX6B normalizer and limits. It creates one ordinary
+TaskContextPacket with exact prior-packet and local operator provenance; it is
+not a Transition, accepted state, proposal, Decision, execution grant, or
+external-effect grant. An unchanged definition is exact replay without a
+write. The existing explicit `Start Codex work` action remains the sole primary
+action and executes the latest valid revision tip with a new packet-bound host
+identity.
+
+Continuities, AI Workplane, GuideBrief, delegated-work preparation, project
+continuity, portability, backup/restore, and recovery share one current-packet
+and eligibility interpretation. Branches, cycles, missing or changed prior
+packets, ambiguous tips, invalid provenance, history races, and revision-limit
+overflow fail closed. Historical semantic-transition and initial host request
+identities remain unchanged, and no schema, NativeHostRequest, TaskContextPacket,
+or portable-project version bump is introduced.
+
+CUX7 remains **Current** until its linked pull request is reviewed and merged.
+PC6, C9, and later post-execution work editing remain separately authorized.
 
 ## Next separately authorized work
 
