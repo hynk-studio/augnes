@@ -32,6 +32,9 @@ import {
   inspectVNextOperatorPilotPacketLineageV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
+  VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+} from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
+import {
   PROJECT_WORK_INITIALIZATION_VERSION_V01,
   type DefineInitialProjectWorkRequestV01,
   type DefineInitialProjectWorkResultV01,
@@ -39,6 +42,7 @@ import {
   type ProjectWorkInitializationV01,
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import { readProjectWorkRevisionEligibilityV01 } from "@/lib/vnext/runtime/project-work-revision";
 
@@ -249,9 +253,32 @@ function readProjectWorkInitializationStrictV01(
   const packetRecords = records.filter(
     (record) => record.record_kind === "task_context_packet",
   );
+  const invalidPacketReasons: ProjectWorkInitializationV01["reason"][] = [];
+  let validInitialPacketCount = 0;
   const inspected = packetRecords.flatMap((record) => {
     const packet = record.payload as TaskContextPacketV01;
     try {
+      if (
+        validateTaskContextPacketV01(packet, {
+          evaluated_at: packet.generated_at,
+        }).status !== "valid"
+      ) {
+        invalidPacketReasons.push("malformed_packet_record");
+        return [];
+      }
+      if (
+        packet.compatibility.source_contracts.includes(
+          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+        ) &&
+        !packet.compatibility.source_contracts.includes(
+          PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+        ) &&
+        !packet.compatibility.source_contracts.includes(
+          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+        )
+      ) {
+        validInitialPacketCount += 1;
+      }
       const lineage = inspectVNextOperatorPilotPacketLineageV01(db, {
         config: {
           enabled: true,
@@ -272,6 +299,8 @@ function readProjectWorkInitializationStrictV01(
       // A packet whose exact executable lineage cannot be proven is durable
       // history, not evidence that this project has never had work. Keep it
       // out of current selection and fail closed into recovery below.
+      const invalidReason = invalidPacketReasonV01(packet);
+      if (invalidReason) invalidPacketReasons.push(invalidReason);
       return [];
     }
   });
@@ -283,7 +312,29 @@ function readProjectWorkInitializationStrictV01(
         left.packet.packet_id.localeCompare(right.packet.packet_id),
     )
     .at(-1);
-  if (current && currentCandidates.length === 1) {
+  const duplicateInitialCandidate = Boolean(
+    current?.lineage_kind === "initial_user_defined" &&
+      validInitialPacketCount > 1,
+  );
+  const invalidBlocksCurrent = Boolean(
+    current &&
+      invalidPacketReasons.some((reason) => {
+        if (reason === "malformed_packet_record") return true;
+        if (current.lineage_kind === "semantic_transition") {
+          return reason === "invalid_semantic_transition_lineage";
+        }
+        if (current.lineage_kind === "pre_execution_user_revision") {
+          return reason === "invalid_revision_lineage";
+        }
+        return true;
+      }),
+  );
+  if (
+    current &&
+    currentCandidates.length === 1 &&
+    !duplicateInitialCandidate &&
+    !invalidBlocksCurrent
+  ) {
     const state =
       current.lineage_kind === "initial_user_defined"
         ? "defined_initial_work"
@@ -337,6 +388,15 @@ function readProjectWorkInitializationStrictV01(
         active.selection_revision > 0,
     };
   }
+  const unresolvedReason: ProjectWorkInitializationV01["reason"] =
+    currentCandidates.length > 1 ||
+    duplicateInitialCandidate ||
+    validInitialPacketCount > 1
+      ? "multiple_current_packet_candidates"
+      : invalidPacketReasons[0] ??
+        (inspected.some((entry) => !entry.projection_current)
+          ? "superseded_work_without_current_packet"
+          : "durable_history_without_current_packet");
   return {
     ...baseV01(
       input,
@@ -345,11 +405,36 @@ function readProjectWorkInitializationStrictV01(
       revisionEligibility,
     ),
     state: "existing_history_without_current_packet",
-    reason: "durable_history_without_current_packet",
+    reason: unresolvedReason,
     current_work: null,
     current_packet: null,
     mutation_eligible: false,
   };
+}
+
+function invalidPacketReasonV01(
+  packet: unknown,
+): ProjectWorkInitializationV01["reason"] | null {
+  if (!packet || typeof packet !== "object") {
+    return "malformed_packet_record";
+  }
+  const candidate = packet as Partial<TaskContextPacketV01>;
+  const contracts = Array.isArray(candidate.compatibility?.source_contracts)
+    ? candidate.compatibility.source_contracts
+    : [];
+  if (contracts.includes(PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01)) {
+    return "invalid_revision_lineage";
+  }
+  if (contracts.includes(VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01)) {
+    return "invalid_semantic_transition_lineage";
+  }
+  if (contracts.includes(INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01)) {
+    return "invalid_packet_lineage";
+  }
+  // Other valid packet contracts can be durable execution or verification
+  // history without participating in the current-work lineage. Their presence
+  // cannot make an otherwise exact supported current packet ambiguous.
+  return null;
 }
 
 function readBoundedProjectWorkRecordsV01(

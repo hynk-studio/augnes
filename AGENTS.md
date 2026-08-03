@@ -113,6 +113,12 @@ capability, compatibility, or deferred work rather than default product UI.
 
 ## Development defaults
 
+- For exact current-project continuity, use
+  `npm run codex:current-continuity`. It reads only the running local Augnes
+  canonical projection and never falls back to repository seeds, GuideBrief,
+  or legacy Work Brief material. Exit `0` means the continuity and snapshot
+  are exact, `2` means local runtime transport is unavailable, and `3` means
+  canonical continuity is partial/unavailable or the route contract is invalid.
 - Prefer a working vertical slice with a real producer, consumer, behavior
   test, and later-use signal over planning, preview, boundary, or presence-only
   work.

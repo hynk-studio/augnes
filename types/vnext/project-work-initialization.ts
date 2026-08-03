@@ -32,11 +32,21 @@ export interface ProjectWorkInitializationV01 {
   workspace_id: string;
   project_id: string;
   state: ProjectWorkInitializationStateV01;
+  /**
+   * Additive diagnostic detail within v0.1. Consumers must fail closed from
+   * state and explicit eligibility when they do not recognize a reason.
+   */
   reason:
     | "zero_durable_work_history"
     | "current_initial_packet"
     | "current_revision_packet"
     | "current_transition_packet"
+    | "multiple_current_packet_candidates"
+    | "malformed_packet_record"
+    | "invalid_revision_lineage"
+    | "invalid_semantic_transition_lineage"
+    | "invalid_packet_lineage"
+    | "superseded_work_without_current_packet"
     | "durable_history_without_current_packet"
     | "project_unavailable"
     | "root_unavailable"

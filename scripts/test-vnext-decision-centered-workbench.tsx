@@ -50,6 +50,7 @@ import {
 } from "@/components/workbench/semantic-review/project-verification-presentation";
 import { buildProjectVerifyWorkbenchFixtureV01 } from "@/fixtures/vnext/protocol/project-verify-workbench-v0-1";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 import type {
   ProjectVerifyExactProtocolKindV01,
   ProjectVerifyExactProtocolRefV01,
@@ -498,6 +499,12 @@ try {
       reason: "durable_history_without_current_packet" as const,
       mutation_eligible: false,
     },
+    {
+      ...firstWorkInitialization,
+      state: "existing_history_without_current_packet" as const,
+      reason: "future_additive_recovery_reason",
+      mutation_eligible: false,
+    } as unknown as ProjectWorkInitializationV01,
     unavailableInitialization,
   ]) {
     for (const [stage, expected] of [

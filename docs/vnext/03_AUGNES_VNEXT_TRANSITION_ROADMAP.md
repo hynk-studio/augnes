@@ -219,7 +219,7 @@ merge commit `e9e61b3cd62b1185ea42645aeb362825dff91f73`. It added no schema or
 portable-contract version and did not authorize later work revision,
 model-authored planning, C9, or PC6.
 
-## Current
+## CUX7 completed lifecycle
 
 ### CUX7 review and revise unstarted project work
 
@@ -246,8 +246,28 @@ overflow fail closed. Historical semantic-transition and initial host request
 identities remain unchanged, and no schema, NativeHostRequest, TaskContextPacket,
 or portable-project version bump is introduced.
 
-CUX7 remains **Current** until its linked pull request is reviewed and merged.
-PC6, C9, and later post-execution work editing remain separately authorized.
+CUX7 was completed and merged by
+[PR #109](https://github.com/hynk-studio/augnes-perspective-lab/pull/109) at
+merge commit `4a8998ed20c4f40fdf3d204db28069c6dc167b89`. PC6, C9, and later
+post-execution work editing remain separately authorized.
+
+## Current
+
+### CDX2A exact read-only current continuity
+
+[Issue #112](https://github.com/hynk-studio/augnes-perspective-lab/issues/112)
+defines the currently authorized CDX2A slice.
+[Draft PR #113](https://github.com/hynk-studio/augnes-perspective-lab/pull/113)
+is its open implementation and outcome record. CDX2A adds one versioned,
+bounded, exact current-continuity read owner over existing active-project,
+current-work, managed-execution, canonical-result, and semantic-review truth,
+with one opaque deterministic snapshot binding and thin local GET/CLI adapters.
+
+CDX2A is read-only. It grants no Start, approval, cancellation, resume,
+Decision, or Transition authority; adds no persistence, provider, or model
+call; and does not make GuideBrief, legacy Work Brief, repository fallback, or
+raw TaskContextPacket export the owner. CDX2B Start control, the end-to-end CDX2
+re-diagnostic, PC6/PC6A, and C9 remain separately authorized work.
 
 ## Next separately authorized work
 

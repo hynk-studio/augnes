@@ -216,6 +216,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "exact read-only Codex current continuity contract",
+      ...rootNode("scripts/test-vnext-codex-current-continuity.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "bounded local project-root verification adapter",
       ...rootNode("scripts/test-local-project-verification-adapter.ts"),
       // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.
