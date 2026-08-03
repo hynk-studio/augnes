@@ -299,7 +299,8 @@ function readProjectWorkInitializationStrictV01(
       // A packet whose exact executable lineage cannot be proven is durable
       // history, not evidence that this project has never had work. Keep it
       // out of current selection and fail closed into recovery below.
-      invalidPacketReasons.push(invalidPacketReasonV01(packet));
+      const invalidReason = invalidPacketReasonV01(packet);
+      if (invalidReason) invalidPacketReasons.push(invalidReason);
       return [];
     }
   });
@@ -311,10 +312,28 @@ function readProjectWorkInitializationStrictV01(
         left.packet.packet_id.localeCompare(right.packet.packet_id),
     )
     .at(-1);
+  const duplicateInitialCandidate = Boolean(
+    current?.lineage_kind === "initial_user_defined" &&
+      validInitialPacketCount > 1,
+  );
+  const invalidBlocksCurrent = Boolean(
+    current &&
+      invalidPacketReasons.some((reason) => {
+        if (reason === "malformed_packet_record") return true;
+        if (current.lineage_kind === "semantic_transition") {
+          return reason === "invalid_semantic_transition_lineage";
+        }
+        if (current.lineage_kind === "pre_execution_user_revision") {
+          return reason === "invalid_revision_lineage";
+        }
+        return true;
+      }),
+  );
   if (
     current &&
     currentCandidates.length === 1 &&
-    invalidPacketReasons.length === 0
+    !duplicateInitialCandidate &&
+    !invalidBlocksCurrent
   ) {
     const state =
       current.lineage_kind === "initial_user_defined"
@@ -370,7 +389,9 @@ function readProjectWorkInitializationStrictV01(
     };
   }
   const unresolvedReason: ProjectWorkInitializationV01["reason"] =
-    currentCandidates.length > 1 || validInitialPacketCount > 1
+    currentCandidates.length > 1 ||
+    duplicateInitialCandidate ||
+    validInitialPacketCount > 1
       ? "multiple_current_packet_candidates"
       : invalidPacketReasons[0] ??
         (inspected.some((entry) => !entry.projection_current)
@@ -393,7 +414,7 @@ function readProjectWorkInitializationStrictV01(
 
 function invalidPacketReasonV01(
   packet: unknown,
-): ProjectWorkInitializationV01["reason"] {
+): ProjectWorkInitializationV01["reason"] | null {
   if (!packet || typeof packet !== "object") {
     return "malformed_packet_record";
   }
@@ -410,7 +431,10 @@ function invalidPacketReasonV01(
   if (contracts.includes(INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01)) {
     return "invalid_packet_lineage";
   }
-  return "malformed_packet_record";
+  // Other valid packet contracts can be durable execution or verification
+  // history without participating in the current-work lineage. Their presence
+  // cannot make an otherwise exact supported current packet ambiguous.
+  return null;
 }
 
 function readBoundedProjectWorkRecordsV01(
