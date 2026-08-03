@@ -2234,7 +2234,7 @@ function assertChildEnvironmentBoundaries(environment, paths, ready, providerPre
     ambientEnvironment: environment,
     values: bridgeValues,
   });
-  assert.equal(bridge.AUGNES_CORE_MODE, "mock");
+  assert.equal(bridge.AUGNES_CORE_MODE, "http");
   assert.equal(bridge.AUGNES_API_BASE_URL, ready.effective_url);
   assert.equal(bridge.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(bridge.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
@@ -2259,7 +2259,7 @@ async function assertRuntimeHealth(ready) {
   assert.equal(ui.runtime_instance_id, ready.instance_id);
   const bridge = await fetchJson(`http://127.0.0.1:${ready.bridge_port}/healthz`);
   assert.equal(bridge.ok, true);
-  assert.equal(bridge.mode, "mock");
+  assert.equal(bridge.mode, "http");
   assert.equal(bridge.runtime_instance_id, ready.instance_id);
 }
 
