@@ -24,6 +24,11 @@ const mcpBridgeSetupCommands = [
   "AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev",
 ];
 
+const codexReadCommands = [
+  "npm run codex:current-continuity",
+  "npm run codex:next-work -- --scope project:augnes",
+];
+
 const configExamplePath = ".codex/config.toml.example";
 const configExampleText = `# Project-local example for connecting Codex to the local Augnes MCP bridge.
 # This file is inert documentation. It is not loaded automatically.
@@ -146,6 +151,11 @@ function printReport({ repoRoot, npmVersion, gitStatus, configStatus }) {
   console.log("");
   console.log("## Recommended MCP Bridge Setup Commands");
   printCommands(mcpBridgeSetupCommands);
+  console.log("");
+  console.log("## Codex Read Commands");
+  printCommands(codexReadCommands);
+  console.log("- `codex:current-continuity` is exact and runtime-only; it has no repo or docs fallback.");
+  console.log("- `codex:next-work` is legacy work discovery and may report a bounded fallback.");
   console.log("");
   console.log("## Boundary");
   console.log("- This bootstrap output is advisory and repo-local.");

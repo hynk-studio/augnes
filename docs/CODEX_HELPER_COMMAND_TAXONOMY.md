@@ -32,6 +32,10 @@ Forbidden behavior:
 
 Current check-only helpers:
 
+- `codex:current-continuity`: reads the exact active-project continuity
+  projection from a running local Augnes instance. It does not fall back to
+  GuideBrief, Work Brief, repository seeds, docs, git state, or source
+  inspection, and it never starts work or writes state.
 - `codex:read-brief`
 - `codex:next-work`
 

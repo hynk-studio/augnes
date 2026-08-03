@@ -374,6 +374,38 @@ export class LiveNativeHostRunServiceV01 {
     return projectionFromRunV01(run);
   }
 
+  /**
+   * Projection-only read for consumers whose contract forbids reconciliation
+   * writes. A nonterminal durable run without an in-process controller is
+   * reported as requiring reconciliation, but the ledger is left unchanged.
+   */
+  readProjectionOnlyV01(
+    config: VNextLocalOperatorPilotConfigV01,
+  ): LiveNativeHostRunProjectionV01 {
+    const run = this.readLatestManagedRun(config);
+    if (!run) return idleProjectionV01();
+    const projection = projectionFromRunV01(run);
+    const controller = this.controllers.get(projectKeyV01(config));
+    if (
+      !controller &&
+      !isTerminalRunnerStatus(run.status) &&
+      run.status !== "paused"
+    ) {
+      return {
+        ...projection,
+        status: "paused",
+        reconciliation_required: true,
+        public_reason: "live_host_controller_disconnected",
+        capability: {
+          ...projection.capability,
+          status: "disconnected",
+          public_reason: "live_host_controller_disconnected",
+        },
+      };
+    }
+    return projection;
+  }
+
   private async retryTerminalProposalAdmissionV01(
     config: VNextLocalOperatorPilotConfigV01,
     run: AutonomyRunSummary,
