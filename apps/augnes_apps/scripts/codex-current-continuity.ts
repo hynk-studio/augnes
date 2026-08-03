@@ -260,11 +260,21 @@ export function exitCodeForError(error: unknown): 2 | 3 {
     : 3;
 }
 
-export async function main(): Promise<void> {
+export function exitCodeForProjection(
+  projection: CodexCurrentContinuityProjection,
+): 0 | 3 {
+  return projection.source_status === "exact" &&
+    projection.snapshot.status === "exact"
+    ? 0
+    : 3;
+}
+
+export async function main(): Promise<0 | 3> {
   const { apiBaseUrl } = resolveConfig();
   const projection = await fetchCurrentContinuity(apiBaseUrl);
   console.log(formatHumanSummary(projection));
   console.log(formatMachineResult(projection));
+  return exitCodeForProjection(projection);
 }
 
 function normalizeLocalBaseUrl(value: string): string {
@@ -282,8 +292,12 @@ function normalizeLocalBaseUrl(value: string): string {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : "CODEX_CURRENT_CONTINUITY_FAILED");
-    process.exitCode = exitCodeForError(error);
-  });
+  main()
+    .then((exitCode) => {
+      process.exitCode = exitCode;
+    })
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : "CODEX_CURRENT_CONTINUITY_FAILED");
+      process.exitCode = exitCodeForError(error);
+    });
 }

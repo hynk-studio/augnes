@@ -36,10 +36,13 @@ BEGIN_AUGNES_CODEX_CURRENT_CONTINUITY_JSON
 END_AUGNES_CODEX_CURRENT_CONTINUITY_JSON
 ```
 
-Exit status `0` means a schema-valid projection was returned. Exit status `2`
-means the configured local runtime transport was unavailable. Exit status `3`
-means the route, marker, request, or canonical response was unavailable or
-invalid. No failure falls back to `codex:next-work`, GuideBrief, Work Brief,
+Exit status `0` means both `source_status` and the snapshot are exact. Exit
+status `2` means the configured local runtime transport was unavailable. Exit
+status `3` means a valid partial/unavailable projection was returned, its
+snapshot is unavailable, or the route, marker, request, or response contract
+was invalid. A valid partial/unavailable projection is printed in both human
+and machine-readable forms before exit `3`. No failure falls back to
+`codex:next-work`, GuideBrief, Work Brief,
 repository seeds, docs, git state, or source inspection.
 
 ## Local Read Route
@@ -67,6 +70,20 @@ fingerprint exactly match the validated current packet identity and
 fingerprint. A valid result for another historical packet is `stale`. A
 missing or incomplete packet relation is `unavailable_or_ambiguous`.
 
+Managed-run metadata may name an expected persisted receipt, but that claim is
+not result availability. `terminal_result_ready` and `result_available: true`
+require the canonical result reader to validate the exact receipt, run, and
+packet relation. A missing or invalid expected receipt fails closed as partial
+continuity with an unavailable snapshot. Every nonterminal run likewise must
+bind its packet ID and fingerprint to the one exact current packet before a
+running, preparing, approval, or reconciliation stage is exposed.
+
+Durable work history is not automatically called stale. `stale_current_work`
+requires positively proven supersession. Multiple candidates, malformed
+packets, invalid revision/Transition lineage, or history without one provable
+current packet are ambiguous or unavailable, keep Start ineligible, and make
+the snapshot unavailable.
+
 The review state remains relation-specific:
 
 - RunReceipt is not a proposal;
@@ -81,7 +98,9 @@ The review state remains relation-specific:
 `codex_current_continuity_snapshot.v0.1` is a deterministic SHA-256 binding over
 the minimum exact canonical material for the active workspace/project,
 selection revision, root availability, current packet identity and lineage,
-managed run, canonical result, and current review attention. It excludes
+managed run, canonical result, current review attention, operator Start
+configuration availability, Start/revision eligibility reason codes, the
+derived next-action kind, and source status. It excludes
 `generated_at` and other per-read values. Identical canonical state produces
 the same binding; a material current-owner change produces a different one.
 

@@ -24,7 +24,10 @@ import {
   type VNextLocalOperatorPilotConfigV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
-import { readVNextOperatorPilotSemanticReviewV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
+import {
+  listVNextOperatorPilotSemanticReviewsV01,
+  readVNextOperatorPilotSemanticReviewV01,
+} from "@/lib/vnext/runtime/operator-pilot-review-material";
 import {
   readProjectRunResultDetailV01,
   readProjectRunResultOverviewV01,
@@ -196,19 +199,11 @@ export async function readCodexCurrentContinuityV01(
     ledger = null;
     live = null;
   }
-  const execution = readManagedExecutionV01(
+  const executionDraft = readManagedExecutionV01(
     ledger,
     live,
     work.internal_packet_binding,
   );
-  if (
-    execution.public.stage !== "no_run" &&
-    work.public.start_eligible
-  ) {
-    work.public.start_eligible = false;
-    work.public.start_blocker =
-      "Existing managed work must settle before another run starts.";
-  }
 
   let overview: ReturnType<typeof readProjectRunResultOverviewV01> | null = null;
   let resultDetail: ProjectRunResultDetailV01 | null = null;
@@ -225,6 +220,20 @@ export async function readCodexCurrentContinuityV01(
     resultReadError = true;
   }
   const result = readLatestResultV01(overview, resultDetail, resultReadError, work.internal_packet_binding);
+  const execution = reconcileManagedExecutionWithResultV01(
+    executionDraft,
+    result,
+  );
+  if (
+    execution.public.stage !== "no_run" &&
+    work.public.start_eligible
+  ) {
+    work.public.start_eligible = false;
+    work.public.start_blocker =
+      "Existing managed work must settle before another run starts.";
+    work.snapshot_state.start_eligible = false;
+    work.snapshot_state.start_blocker_code = "managed_execution_present";
+  }
   const review = readReviewContinuityV01(db, configuredOperator, resultDetail, result.currentness);
 
   const gaps = boundedStringsV01([
@@ -238,6 +247,7 @@ export async function readCodexCurrentContinuityV01(
     work.public.status === "current_work_ambiguous" ||
     execution.public.stage === "unavailable_or_inconsistent" ||
     result.public.state === "result_unavailable" ||
+    result.public.currentness === "unavailable_or_ambiguous" ||
     review.public.state === "review_source_unavailable_or_inconsistent";
   const nextAction = chooseCodexCurrentContinuityNextActionV01({
     project_status: projectStatus,
@@ -280,12 +290,15 @@ export async function readCodexCurrentContinuityV01(
         root_binding_fingerprint: createProtocolSha256V01(canonicalizeProtocolValueV01(registration.root_binding)),
         root_availability: rootAvailability,
         current_packet: work.internal_packet_binding,
+        current_work: work.snapshot_state,
         managed_run: {
           owner_binding: execution.internal_binding,
           public_projection: execution.public,
         },
         result: result.internal_binding,
         review: review.internal_binding,
+        next_action_kind: nextAction.kind,
+        source_status: projection.source_status,
       };
   return finalizeV01(projection, bindingMaterial);
 }
@@ -347,7 +360,7 @@ function readCurrentWorkV01(
     continuity?.latest_compiled_packet?.packet_id === packet.packet_id &&
     continuity.latest_compiled_packet.packet_fingerprint === packet.packet_fingerprint;
   const ambiguous = Boolean(packet && continuity && !exactBinding);
-  const currentness = !packet
+  const packetCurrentness = !packet
     ? "not_available" as const
     : !continuity || ambiguous
       ? "unavailable_or_ambiguous" as const
@@ -356,32 +369,45 @@ function readCurrentWorkV01(
         : continuity.packet_currentness === "stale"
           ? "stale" as const
           : "unavailable_or_ambiguous" as const;
-  const status = ambiguous
+  const unresolvedHistory = initialization.state === "existing_history_without_current_packet";
+  const provenStale =
+    initialization.reason === "superseded_work_without_current_packet";
+  const historyAmbiguous =
+    initialization.reason === "multiple_current_packet_candidates";
+  const status = ambiguous || historyAmbiguous
     ? "current_work_ambiguous" as const
     : initialization.state === "not_defined"
       ? "no_current_work" as const
-      : initialization.state === "existing_history_without_current_packet"
-        ? "stale_current_work" as const
+      : unresolvedHistory
+        ? provenStale
+          ? "stale_current_work" as const
+          : "current_work_unavailable" as const
         : initialization.state === "unavailable"
           ? "current_work_unavailable" as const
-          : currentness === "stale"
+          : packetCurrentness === "stale"
             ? "stale_current_work" as const
-            : currentness === "unavailable_or_ambiguous"
+            : packetCurrentness === "unavailable_or_ambiguous"
               ? "current_work_unavailable" as const
               : "current_work" as const;
-  const startBlocker = !eligibility.is_active
-    ? "The project is not active."
+  const currentness = status === "stale_current_work"
+    ? "stale" as const
+    : status === "current_work_ambiguous" || status === "current_work_unavailable"
+      ? "unavailable_or_ambiguous" as const
+      : packetCurrentness;
+  const startBlockerCode = !eligibility.is_active
+    ? "project_inactive"
     : !eligibility.root_available
-      ? "The project folder is unavailable."
+      ? "root_unavailable"
       : !eligibility.operator_config_available
-        ? "The local managed-work configuration is unavailable for this project."
-        : status !== "current_work"
-          ? status === "no_current_work"
-            ? "Current work has not been defined."
-            : "Current work cannot be proven fresh."
-          : currentness !== "fresh"
-            ? "Current work must be refreshed before it can start."
-            : null;
+        ? "operator_configuration_unavailable"
+        : status === "no_current_work"
+          ? "no_current_work"
+          : status !== "current_work"
+            ? "current_work_not_exact"
+            : currentness !== "fresh"
+              ? "current_work_not_fresh"
+              : null;
+  const startBlocker = startBlockerCopyV01(startBlockerCode);
   const revisionEligibility = initialization.revision_eligibility;
   return {
     public: {
@@ -414,31 +440,58 @@ function readCurrentWorkV01(
           currentness,
         }
       : null,
+    snapshot_state: {
+      status,
+      lineage_kind: packet?.lineage_kind ?? null,
+      currentness,
+      operator_configuration_available: eligibility.operator_config_available,
+      start_eligible: startBlockerCode === null,
+      start_blocker_code: startBlockerCode,
+      revision_eligible: revisionEligibility.eligible,
+      revision_reason: revisionEligibility.reason,
+    },
     gaps: [
       ...(!continuity && packet ? ["Exact current packet lineage could not be read."] : []),
       ...(ambiguous ? ["More than one current packet interpretation was observed."] : []),
-      ...(initialization.state === "existing_history_without_current_packet"
-        ? ["Durable work history exists without one exact current packet."]
+      ...(unresolvedHistory
+        ? [workResolutionGapV01(initialization.reason)]
         : []),
     ],
   };
+}
+
+interface ManagedExecutionReadV01 {
+  public: CodexCurrentContinuityV01["managed_execution"];
+  internal_binding: unknown | null;
+  run_relation: null | {
+    run_id: string;
+    terminal: boolean;
+    packet_id: string;
+    packet_fingerprint: string;
+    receipt_expectation: null | {
+      receipt_id: string | null;
+      receipt_fingerprint: string | null;
+    };
+  };
+  gaps: string[];
 }
 
 function readManagedExecutionV01(
   ledger: ManagedLiveDelegatedWorkLedgerSliceV01 | null,
   live: LiveNativeHostRunProjectionV01 | null,
   currentPacket: { packet_id: string; packet_fingerprint: string } | null,
-) {
+): ManagedExecutionReadV01 {
   if (!ledger) {
     return {
       public: emptyExecutionV01("unavailable_or_inconsistent", "Managed execution state could not be read."),
       internal_binding: null,
+      run_relation: null,
       gaps: ["Managed execution state is unavailable or inconsistent."],
     };
   }
   const run = ledger.run;
   if (!run) {
-    return { public: emptyExecutionV01("no_run", null), internal_binding: { state: "no_run" }, gaps: [] as string[] };
+    return { public: emptyExecutionV01("no_run", null), internal_binding: { state: "no_run" }, run_relation: null, gaps: [] as string[] };
   }
   const runPacketId = stringValueV01(run.metadata.packet_id);
   const runPacketFingerprint = stringValueV01(
@@ -464,19 +517,40 @@ function readManagedExecutionV01(
     return {
       public: emptyExecutionV01("no_run", null),
       internal_binding: { state: "no_run_for_current_packet" },
+      run_relation: null,
       gaps: [] as string[],
+    };
+  }
+  const exactCurrentPacketBinding = Boolean(
+    currentPacket &&
+      runPacketId &&
+      runPacketFingerprint &&
+      runPacketId === currentPacket.packet_id &&
+      runPacketFingerprint === currentPacket.packet_fingerprint,
+  );
+  if (!exactCurrentPacketBinding) {
+    return {
+      public: emptyExecutionV01(
+        "unavailable_or_inconsistent",
+        "The managed run cannot be bound to one exact current work packet.",
+      ),
+      internal_binding: null,
+      run_relation: null,
+      gaps: ["Managed execution cannot be bound to one exact current work packet."],
     };
   }
   const effectiveStatus = live?.status ?? run.status;
   const reconciliation = live?.reconciliation_required === true || run.metadata.reconciliation_required === true;
-  const receiptAvailable =
-    typeof run.metadata.run_receipt_id === "string" &&
-    typeof run.metadata.run_receipt_fingerprint === "string" &&
-    run.metadata.terminal_receipt_persisted === true;
+  const receiptExpectation = run.metadata.terminal_receipt_persisted === true
+    ? {
+        receipt_id: stringValueV01(run.metadata.run_receipt_id),
+        receipt_fingerprint: stringValueV01(run.metadata.run_receipt_fingerprint),
+      }
+    : null;
   const stage = classifyCodexCurrentContinuityExecutionStageV01(
     effectiveStatus,
     reconciliation,
-    receiptAvailable,
+    false,
   );
   const reason = boundedTextV01(
     live?.pending_approval?.public_reason ?? live?.public_reason ?? stringValueV01(run.metadata.public_reason) ?? run.stop_reason,
@@ -509,7 +583,7 @@ function readManagedExecutionV01(
         "timed_out",
       ].includes(stage),
       reconciliation_required: stage === "reconciliation_required",
-      result_available: receiptAvailable,
+      result_available: false,
       updated_at: run.updated_at,
     },
     internal_binding: {
@@ -523,8 +597,65 @@ function readManagedExecutionV01(
       receipt_id: stringValueV01(run.metadata.run_receipt_id),
       receipt_fingerprint: stringValueV01(run.metadata.run_receipt_fingerprint),
     },
+    run_relation: {
+      run_id: run.run_id,
+      terminal: runTerminal,
+      packet_id: runPacketId!,
+      packet_fingerprint: runPacketFingerprint!,
+      receipt_expectation: receiptExpectation,
+    },
     gaps: [] as string[],
   };
+}
+
+function reconcileManagedExecutionWithResultV01(
+  execution: ManagedExecutionReadV01,
+  result: ReturnType<typeof readLatestResultV01>,
+): ManagedExecutionReadV01 {
+  const relation = execution.run_relation;
+  if (!relation || !relation.terminal) return execution;
+  const resultBinding = result.public.state === "result_present"
+    ? result.internal_binding
+    : null;
+  const expected = relation.receipt_expectation;
+  const exactReceiptRelation = Boolean(
+    resultBinding &&
+      resultBinding.run_id === relation.run_id &&
+      resultBinding.packet_id === relation.packet_id &&
+      resultBinding.packet_fingerprint === relation.packet_fingerprint &&
+      (!expected ||
+        (expected.receipt_id !== null &&
+          expected.receipt_fingerprint !== null &&
+          expected.receipt_id === resultBinding.receipt_id &&
+          expected.receipt_fingerprint === resultBinding.receipt_fingerprint)),
+  );
+  if (exactReceiptRelation) {
+    return {
+      ...execution,
+      public: {
+        ...execution.public,
+        stage: "terminal_result_ready",
+        attention_required: true,
+        reconciliation_required: false,
+        result_available: true,
+      },
+    };
+  }
+  if (expected || (resultBinding && resultBinding.run_id === relation.run_id)) {
+    return {
+      ...execution,
+      public: emptyExecutionV01(
+        "unavailable_or_inconsistent",
+        "The managed run's expected canonical result could not be validated.",
+      ),
+      internal_binding: null,
+      gaps: boundedStringsV01([
+        ...execution.gaps,
+        "The managed run's expected canonical result or exact run/packet relation is unavailable.",
+      ], CODEX_CURRENT_CONTINUITY_LIMITS_V01.gaps, CODEX_CURRENT_CONTINUITY_LIMITS_V01.result_item_characters),
+    };
+  }
+  return execution;
 }
 
 export function classifyCodexCurrentContinuityExecutionStageV01(
@@ -577,7 +708,9 @@ function readLatestResultV01(
   }
   const packetRef = detail.identity.packet_ref;
   const currentness = classifyCodexCurrentContinuityResultCurrentnessV01(
-    packetRef
+    packetRef &&
+      detail.packet.status === "available" &&
+      detail.packet.packet_fingerprint === packetRef.source_ref
       ? { packet_id: packetRef.external_id, packet_fingerprint: packetRef.source_ref ?? null }
       : null,
     currentPacket,
@@ -631,8 +764,12 @@ function readLatestResultV01(
       receipt_id: detail.identity.receipt_ref,
       receipt_fingerprint: detail.identity.receipt_fingerprint,
       run_id: detail.identity.run_ref,
-      packet_id: packetRef?.external_id ?? null,
-      packet_fingerprint: packetRef?.source_ref ?? null,
+      packet_id: detail.packet.status === "available"
+        ? packetRef?.external_id ?? null
+        : null,
+      packet_fingerprint: detail.packet.status === "available"
+        ? packetRef?.source_ref ?? null
+        : null,
       currentness,
     },
     gaps_for_projection: currentness === "unavailable_or_ambiguous"
@@ -717,11 +854,16 @@ export function classifyCodexCurrentContinuityReviewV01(
     input.requested_project_change &&
     !input.matching_transition_receipt_present
   ) {
+    const current = input.result_currentness === "current";
     return {
-      state: "transition_blocked",
-      summary: "A Decision requested project change, but exact Transition admission is currently blocked.",
+      state: current
+        ? "accepted_decision_awaiting_transition"
+        : "transition_blocked",
+      summary: current
+        ? "An accepted Decision is recorded; Transition completion still requires its exact user-authority path."
+        : "A Decision requested project change, but exact currentness blocks Transition completion.",
       decision_kind: input.decision_kind,
-      transition_currentness: "blocked",
+      transition_currentness: current ? "current" : "blocked",
     };
   }
   return {
@@ -738,11 +880,57 @@ function readReviewContinuityV01(
   detail: ProjectRunResultDetailV01 | null,
   resultCurrentness: "current" | "stale" | "unavailable_or_ambiguous" | "not_available",
 ) {
-  const proposal = detail?.proposal ?? null;
-  if (!proposal || (proposal.status === "unavailable" && proposal.reason === "not_created")) {
+  const resultProposal = detail?.proposal ?? null;
+  let proposalBinding = resultProposal?.status === "available"
+    ? {
+        proposal_id: resultProposal.proposal_id,
+        proposal_fingerprint: resultProposal.proposal_fingerprint,
+      }
+    : null;
+  if (
+    detail &&
+    config &&
+    (!resultProposal ||
+      (resultProposal.status === "unavailable" &&
+        resultProposal.reason === "not_created"))
+  ) {
+    try {
+      const exact = listVNextOperatorPilotSemanticReviewsV01(db, {
+        config,
+        authenticated_session_id: null,
+      }).filter((candidate) =>
+        candidate.source_receipts.some((receipt) =>
+          receipt.receipt_id === detail.identity.receipt_ref &&
+          receipt.receipt_fingerprint === detail.identity.receipt_fingerprint));
+      if (exact.length > 1) {
+        throw new Error("codex_current_continuity_review_attention_ambiguous");
+      }
+      if (exact[0]) {
+        proposalBinding = {
+          proposal_id: exact[0].proposal_id,
+          proposal_fingerprint: exact[0].proposal_fingerprint,
+        };
+      }
+    } catch {
+      return reviewResultV01(
+        "review_source_unavailable_or_inconsistent",
+        "Exact proposal, Decision, or Transition continuity could not be validated.",
+        null,
+        "not_available",
+        null,
+        ["Review continuity is unavailable or inconsistent."],
+      );
+    }
+  }
+  if (
+    !proposalBinding &&
+    (!resultProposal ||
+      (resultProposal.status === "unavailable" &&
+        resultProposal.reason === "not_created"))
+  ) {
     return reviewResultV01("no_proposal", "No exact proposal is bound to the latest result.", null, "not_available", { state: "no_proposal" });
   }
-  if (proposal.status !== "available" || !config) {
+  if (!proposalBinding || !config) {
     return reviewResultV01(
       "review_source_unavailable_or_inconsistent",
       "Exact proposal, Decision, or Transition continuity could not be validated.",
@@ -755,11 +943,11 @@ function readReviewContinuityV01(
   try {
     const review = readVNextOperatorPilotSemanticReviewV01(db, {
       config,
-      proposal_id: proposal.proposal_id,
+      proposal_id: proposalBinding.proposal_id,
       authenticated_session_id: null,
     });
     if (
-      review.proposal_fingerprint !== proposal.proposal_fingerprint ||
+      review.proposal_fingerprint !== proposalBinding.proposal_fingerprint ||
       !review.source_receipts.some((receipt) =>
         receipt.receipt_id === detail?.identity.receipt_ref &&
         receipt.receipt_fingerprint === detail.identity.receipt_fingerprint)
@@ -830,6 +1018,7 @@ export function chooseCodexCurrentContinuityNextActionV01(input: {
   if (["no_workspace", "no_active_project"].includes(input.project_status)) return actionV01("choose_project", "Choose a project", "Current continuity begins with one explicitly active project.", true);
   if (input.project_status === "project_source_unavailable") return actionV01("unavailable", "Current project is unavailable", "Canonical project state must be restored before choosing another action.", false);
   if (input.project_status === "active_project_root_unavailable") return actionV01("restore_project_root", "Restore the project folder", "Recovery reconnects the existing project without rewriting history.", true);
+  if (input.source_unavailable) return actionV01("unavailable", "Current continuity is unavailable", "Resolve the reported canonical source gap before acting.", false);
   if (input.execution.stage === "waiting_for_approval") return actionV01("review_host_approval", "Review requested access", "Approval permits only the displayed bounded host action; it does not accept the result.", true);
   if (input.execution.stage === "reconciliation_required") return actionV01("resume_or_reconcile_work", "Resume or reconcile Codex work", "The same admitted run needs explicit recovery before progress can continue.", true);
   if (["preparing", "running", "cancellation_requested"].includes(input.execution.stage)) return actionV01("view_progress", "View current progress", "The managed run is still active; reading it changes nothing.", false);
@@ -841,7 +1030,6 @@ export function chooseCodexCurrentContinuityNextActionV01(input: {
   if (input.work.status === "no_current_work") return actionV01("define_work", "Define current work", "Defining work creates instructions but does not start execution.", true);
   if (["stale_current_work", "current_work_unavailable", "current_work_ambiguous"].includes(input.work.status)) return actionV01("revise_or_refresh_work", "Restore exact current work", "Start remains blocked until one fresh current packet is validated.", true);
   if (input.work.start_eligible) return actionV01("start_current_work", "Start current work", "Starting creates managed execution; this read does not start it.", true);
-  if (input.source_unavailable) return actionV01("unavailable", "Current continuity is unavailable", "Resolve the reported canonical source gap before acting.", false);
   return actionV01("no_available_action", "No consequential action is available", "The current exact state does not expose another action.", false);
 }
 
@@ -1190,4 +1378,40 @@ function revisionReasonV01(reason: ProjectWorkInitializationV01["revision_eligib
     source_unavailable: "Revision eligibility could not be read.",
   };
   return copy[reason];
+}
+
+function startBlockerCopyV01(code: string | null): string | null {
+  if (code === null) return null;
+  const copy: Record<string, string> = {
+    project_inactive: "The project is not active.",
+    root_unavailable: "The project folder is unavailable.",
+    operator_configuration_unavailable:
+      "The local managed-work configuration is unavailable for this project.",
+    no_current_work: "Current work has not been defined.",
+    current_work_not_exact: "Current work cannot be proven fresh.",
+    current_work_not_fresh: "Current work must be refreshed before it can start.",
+  };
+  return copy[code] ?? "Current work cannot start from this exact state.";
+}
+
+function workResolutionGapV01(
+  reason: ProjectWorkInitializationV01["reason"],
+): string {
+  const copy: Partial<Record<ProjectWorkInitializationV01["reason"], string>> = {
+    multiple_current_packet_candidates:
+      "More than one current work packet candidate exists.",
+    malformed_packet_record:
+      "A durable work packet record is malformed.",
+    invalid_revision_lineage:
+      "The append-only work revision lineage is invalid.",
+    invalid_semantic_transition_lineage:
+      "The semantic-transition work lineage is invalid.",
+    invalid_packet_lineage:
+      "A durable work packet lineage cannot be validated.",
+    superseded_work_without_current_packet:
+      "Durable work is provably superseded without a current packet.",
+    durable_history_without_current_packet:
+      "Durable work history exists without one provable current packet.",
+  };
+  return copy[reason] ?? "Current work cannot be resolved from canonical history.";
 }

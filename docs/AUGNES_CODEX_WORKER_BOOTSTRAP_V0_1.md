@@ -36,8 +36,10 @@ Use this command when the running local Augnes instance is the required source
 of exact active-project state. It reports the current work, managed execution,
 canonical result, review continuity, one next consequential action, and an
 opaque snapshot binding. It has no repository or documentation fallback and
-returns a nonzero status when the runtime or canonical projection is
-unavailable. It performs no execution, Start, approval, Decision, Transition,
+returns `0` only for an exact projection with an exact snapshot, `2` for local
+runtime transport unavailability, and `3` for partial/unavailable continuity
+or an invalid route response. It still prints a valid bounded partial result
+before returning `3`. It performs no execution, Start, approval, Decision, Transition,
 persistence, provider, or GitHub action.
 
 For legacy work-item discovery with an explicitly reported repository fallback:

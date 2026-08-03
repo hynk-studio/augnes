@@ -35,7 +35,10 @@ Current check-only helpers:
 - `codex:current-continuity`: reads the exact active-project continuity
   projection from a running local Augnes instance. It does not fall back to
   GuideBrief, Work Brief, repository seeds, docs, git state, or source
-  inspection, and it never starts work or writes state.
+  inspection, and it never starts work or writes state. It exits `0` only for
+  exact continuity plus an exact snapshot, `2` for runtime transport
+  unavailability, and `3` for partial/unavailable continuity or contract
+  failure.
 - `codex:read-brief`
 - `codex:next-work`
 
