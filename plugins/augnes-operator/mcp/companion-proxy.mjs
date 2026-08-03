@@ -235,7 +235,10 @@ export function parseRepositoryContinuityResponseV01(value) {
   if (value.browser_deep_link !== null) {
     stringV01(value.browser_deep_link);
     const link = new URL(value.browser_deep_link);
-    if (link.protocol !== "http:" || link.hostname !== "127.0.0.1") invalidContractV01();
+    if (
+      link.protocol !== "http:" ||
+      !["127.0.0.1", "localhost", "[::1]"].includes(link.hostname)
+    ) invalidContractV01();
   }
   authorityV01(value.authority);
   if (value.continuity !== null) continuityV01(value.continuity);

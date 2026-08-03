@@ -96,7 +96,13 @@ npm --prefix apps/augnes_apps run typecheck
 `test:codex-companion-discovery` is a synthetic discovery/contract harness.
 `test:operability:supervisor` is the real source-runtime test: it starts the
 actual supervised UI/Core and bridge, invokes the actual stdio proxy with the
-official MCP stdio client, and parses the live route contract. Neither test is
-described as a genuine model-mediated Codex conversation. The current Codex
-CLI has no provider-free direct `tools/call` command, so automating that final
-conversation would require a separately configured model/provider invocation.
+official MCP stdio client, registers disposable repositories through canonical
+onboarding, defines and revises work through the production work owners, and
+parses the live route contract. It proves the revised binding refreshes and
+repository A remains the target while Browser selection moves to B, with the
+documented inactive/Start-ineligible projection. Every continuity read leaves
+the one canonical database and disposable project files unchanged. Neither
+test is described as a genuine model-mediated Codex conversation. The current
+Codex CLI has no provider-free direct `tools/call` command, so automating that
+final conversation would require a separately configured model/provider
+invocation.

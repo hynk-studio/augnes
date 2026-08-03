@@ -143,6 +143,12 @@ complete owned-process cleanup.
 `test:codex-companion-discovery` is a synthetic discovery and contract harness.
 The supervisor owner is the actual source-runtime end-to-end path: it starts
 the real UI/Core and bridge and calls the stdio proxy through the official MCP
-client. These tests are not described as a model-mediated Codex conversation;
-the locally verified Codex CLI `0.143.0` has no provider-free direct
-`tools/call` command.
+client. Its disposable positive path registers repository A through canonical
+onboarding, defines initial work through the production owner, observes an
+exact binding, revises that work through the production owner, observes a new
+binding, then selects disposable repository B and proves repository A remains
+the target with the documented inactive/Start-ineligible projection. Each MCP
+read leaves the canonical database and project files unchanged, and no Browser
+process is required. These tests are not described as a model-mediated Codex
+conversation; the locally verified Codex CLI `0.143.0` has no provider-free
+direct `tools/call` command.
