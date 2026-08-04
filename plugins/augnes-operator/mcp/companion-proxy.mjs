@@ -304,7 +304,7 @@ function parseRepositoryExecutionResponseV01(value, action) {
     stringV01(value.run_id);
     repositoryManagedAuthorityV01(value.authority);
   } else if (action === "cancel_run") {
-    if (value.status !== "cancel_requested" || value.semantic_authority_granted !== false || value.decision_created !== false || value.transition_created !== false || value.work_closed !== false) invalidExecutionContractV01();
+    if (!["cancel_requested", "cancelled", "exact_replay", "reconciliation_required"].includes(value.status) || value.semantic_authority_granted !== false || value.decision_created !== false || value.transition_created !== false || value.work_closed !== false) invalidExecutionContractV01();
     stringV01(value.ordinary_text);
   }
   return value;

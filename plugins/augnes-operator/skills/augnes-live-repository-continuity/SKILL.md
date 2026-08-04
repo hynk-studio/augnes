@@ -49,7 +49,10 @@ the current Augnes project state.”
 10. Use `augnes_resume_repository` for managed status/result/review continuity.
     Use `augnes_cancel_repository_delegation` only with the exact attachment,
     run, binding, and control revision. Cancellation is risk-reducing and needs
-    no second Browser decision.
+    no second Browser decision. It remains available when current packet, work,
+    root, baseline, worktree, or Browser selection has drifted. A missing
+    controller reports disconnected reconciliation and never starts or resumes
+    a worker.
 
 Repository identity is not redirected by Browser selection. The nested CDX2A
 projection still reports active status, selection revision, Start eligibility,
@@ -61,8 +64,12 @@ Continuity is read-only. CDX2B2A tools write only node-local baseline,
 attachment, rebind-receipt, and lifecycle metadata. A Browser-confirmed CDX2B2B
 Start may consume one attachment, create one run, and permit bounded reversible
 local work only inside the exact macOS Git root. It never grants arbitrary
-network commands, downloads, push/GitHub, secrets, external publication,
+network commands, downloads, push/GitHub, injected Browser/Companion/provider/
+database/runtime/OS credentials, outside-root secret material, external publication,
 semantic approval, ReviewDecision, Transition, accepted state, work closure,
 remote/mobile execution, automatic resume, continuous automation, or another
 attachment/run/project. Later operation approval and semantic review remain
-separate from Start.
+separate from Start. Files already inside the exact repository remain in the
+repository read scope; do not claim content-based secret unreadability. Exact
+Start replay reports the bound run's actual state and never starts another
+worker.

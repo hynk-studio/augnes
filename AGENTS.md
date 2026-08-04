@@ -144,11 +144,18 @@ capability, compatibility, or deferred work rather than default product UI.
   for managed repository delegation in v0.1.
 - The CDX2B2B execution envelope permits broad bounded local reversible work
   only inside the exact macOS repository root. Network project commands,
-  dependency downloads, push/GitHub, release/deploy/publish, secret access,
-  outside-root writes, and semantic approval remain outside the envelope.
+  dependency downloads, push/GitHub, release/deploy/publish, injected
+  Browser/Companion/provider/database/runtime/OS credentials, outside-root
+  secret material or writes, and semantic approval remain outside the
+  envelope. Files already present inside the exact repository remain in its
+  read scope; do not claim content-based secret unreadability without a
+  separately enforced read-time owner.
   Existing operation approval is separate from Start, and result review,
   ReviewDecision, and Transition remain separate from both. A durable run
   without its exact controller is disconnected/paused and never auto-resumes.
+  Risk-reducing cancellation binds only the immutable consumed attachment and
+  exact run/controller ownership; packet, work, root, baseline, worktree, and
+  Browser-selection drift must not prevent cancelling that owned run.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical

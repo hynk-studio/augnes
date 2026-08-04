@@ -36,6 +36,7 @@ import {
   REPOSITORY_MANAGED_DELEGATION_START_VERSION_V01,
   type RepositoryExecutionEnvelopeV01,
   type RepositoryManagedDelegationAuthorityV01,
+  type RepositoryManagedDelegationCancellationResultV01,
   type RepositoryManagedDelegationExpectedStateV01,
   type RepositoryManagedDelegationPreparationV01,
   type RepositoryManagedDelegationStartResultV01,
@@ -356,7 +357,7 @@ export async function cancelRepositoryManagedDelegationV01(
     control_revision: number;
   },
   service: LiveNativeHostRunServiceV01,
-) {
+): Promise<RepositoryManagedDelegationCancellationResultV01> {
   const attachment = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
   if (
     !attachment ||
@@ -379,8 +380,11 @@ export async function cancelRepositoryManagedDelegationV01(
     control_revision: input.control_revision,
   });
   return {
-    status: "cancel_requested" as const,
-    ordinary_text: "Cancellation is being applied to the exact managed repository run.",
+    status: cancelled.outcome,
+    ordinary_text: ordinaryCancellationTextV01(
+      cancelled.outcome,
+      cancelled.projection,
+    ),
     attachment_id: input.attachment_id,
     run_id: input.run_id,
     projection: cancelled.projection,
@@ -617,7 +621,8 @@ function buildExecutionEnvelopeV01(
       "git_push_or_remote_branch_creation",
       "github_api_pull_request_merge_or_settings",
       "release_deployment_publication_or_external_posting",
-      "credential_secret_keychain_cookie_or_browser_profile_access",
+      "ambient_browser_companion_provider_database_runtime_or_os_credential_access",
+      "outside_root_secret_material_access",
       "destructive_preexisting_untracked_data_mutation",
       "semantic_approval_decision_transition_or_work_closure",
       "another_attachment_run_project_or_automation_cycle",
@@ -746,35 +751,18 @@ function exactConsumedReplayV01(
   ) {
     throw new RepositoryManagedDelegationErrorV01("repository_delegation_replay_conflict");
   }
-  const projection = service.read(input.config);
+  const projection = service.readExactRepositoryDelegationProjectionV01(
+    input.config,
+    runId,
+  );
   return startResultV01(
     "exact_replay",
     attachment,
     {
-      envelope_version: REPOSITORY_EXECUTION_ENVELOPE_VERSION_V01,
-      platform: "darwin",
-      run_mode: "repository_attachment",
-      filesystem_scope: "exact_repository_root",
-      network_scope: "provider_egress_only",
       provider_egress:
         run.metadata.adapter_provider_egress === "forbidden"
           ? "forbidden"
           : "native_host_managed",
-      timeout_ms: 0,
-      stop_settle_timeout_ms: 0,
-      budgets: {
-        max_changed_files: 0,
-        max_artifacts: 0,
-        max_commands: 0,
-        max_checks: 0,
-        max_correction_attempts: 1,
-      },
-      allowed_operation_categories: [],
-      forbidden_operation_categories: [],
-      protected_untracked_paths_fingerprint:
-        String(run.metadata.repository_protected_untracked_paths_fingerprint),
-      adapter_version: String(run.metadata.adapter_version),
-      capability_version: String(run.metadata.capability_version),
       envelope_fingerprint: input.expected_execution_envelope_fingerprint,
     },
     runId,
@@ -786,7 +774,10 @@ function exactConsumedReplayV01(
 function startResultV01(
   status: RepositoryManagedDelegationStartResultV01["status"],
   attachment: RepositoryExecutionAttachmentV01,
-  envelope: RepositoryExecutionEnvelopeV01,
+  envelope: Pick<
+    RepositoryExecutionEnvelopeV01,
+    "envelope_fingerprint" | "provider_egress"
+  >,
   runId: string,
   projection: RepositoryManagedDelegationStartResultV01["projection"],
   workerStarted: boolean,
@@ -797,8 +788,10 @@ function startResultV01(
     status,
     ordinary_text:
       status === "blocked"
-        ? `The managed run was created but did not start: ${reason ?? projection.public_reason ?? "the exact launch gate changed"}.`
-        : "The exact repository work is running in one managed Codex run.",
+        ? `The managed run was created but did not start: ${reason ?? projection.public_reason ?? "the exact launch gate changed"}. Its current state is ${ordinaryRunStateV01(projection)}.`
+        : status === "exact_replay"
+          ? `This is the same previously admitted managed run. Its current state is ${ordinaryRunStateV01(projection)}.`
+          : `One managed repository run was admitted by this request. Its current state is ${ordinaryRunStateV01(projection)}.`,
     attachment_id: attachment.attachment_id,
     run_id: runId,
     attachment_binding_fingerprint: attachment.binding_fingerprint,
@@ -822,6 +815,57 @@ function startResultV01(
       work_closed: false,
     },
   };
+}
+
+function ordinaryRunStateV01(
+  projection: RepositoryManagedDelegationStartResultV01["projection"],
+): string {
+  if (projection.status === "paused" && projection.reconciliation_required) {
+    return "paused and disconnected";
+  }
+  switch (projection.status) {
+    case "idle":
+      return "unavailable";
+    case "queued":
+      return "queued";
+    case "starting":
+      return "starting";
+    case "running":
+      return "running";
+    case "waiting_for_approval":
+      return "waiting for approval";
+    case "cancelling":
+      return "cancelling";
+    case "paused":
+      return "paused";
+    case "blocked":
+      return "blocked";
+    case "completed":
+      return "completed";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "cancelled";
+    case "timed_out":
+      return "timed out";
+  }
+}
+
+function ordinaryCancellationTextV01(
+  outcome: RepositoryManagedDelegationCancellationResultV01["status"],
+  projection: RepositoryManagedDelegationCancellationResultV01["projection"],
+): string {
+  const state = ordinaryRunStateV01(projection);
+  if (outcome === "cancel_requested") {
+    return `Cancellation was sent once to the exact managed repository worker. Its current state is ${state}.`;
+  }
+  if (outcome === "cancelled") {
+    return "The exact queued managed repository run was cancelled before a worker started.";
+  }
+  if (outcome === "reconciliation_required") {
+    return `The exact managed repository run is ${state}; no owned worker was available to signal and no worker was started.`;
+  }
+  return `This is the same cancellation state for the exact managed repository run. Its current state is ${state}; no new signal was sent.`;
 }
 
 function startResultFingerprintV01(input: {

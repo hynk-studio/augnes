@@ -1986,7 +1986,12 @@ export const RepositoryExecutionResultSchema = z.union([
     authority: RepositoryManagedDelegationAuthoritySchema,
   }).strict(),
   z.object({
-    status: z.literal("cancel_requested"),
+    status: z.enum([
+      "cancel_requested",
+      "cancelled",
+      "exact_replay",
+      "reconciliation_required",
+    ]),
     ordinary_text: z.string(),
     attachment_id: z.string(),
     run_id: z.string(),

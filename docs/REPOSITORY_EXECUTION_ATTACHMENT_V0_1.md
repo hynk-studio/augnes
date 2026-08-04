@@ -221,18 +221,33 @@ last. The existing NativeHost delivery path repeats that gate immediately
 before invocation. Any drift blocks the same run without invoking the worker;
 the attachment remains consumed for truthful reconciliation. Exact replay
 returns the same run and launches no second controller, provider request,
-command, or file mutation.
+command, or file mutation. Its ordinary text is derived from the exact run
+projection and distinguishes queued, starting, running, waiting for approval,
+cancelling, paused/disconnected, blocked, completed, failed, cancelled, and
+timed-out states. `worker_started` means that this specific Start request newly
+started the worker; it is false for exact replay even when the bound run still
+has an owned worker.
 
 The envelope pre-authorizes bounded repository reads, in-root file creation and
 edits, tracked-file deletion, local tests/typechecks/linters/formatters/builds,
 Git inspection, and bounded local branch/commit work. It refuses arbitrary
 project-command network access, dependency downloads, push/GitHub, release,
-deployment, publication, secret access, outside-root writes, OS persistence,
-and semantic authority. A destructive change that could cover pre-existing
+deployment, publication, injected Browser/Companion/provider/database/runtime
+or OS credentials, outside-root secret material or writes, OS persistence, and
+semantic authority. System secrets outside the repository remain blocked by
+the root/sandbox boundary. Files already present inside the exact repository
+remain within repository read scope and are not made technically unreadable by
+content classification; no such content or secret-detection result is added to
+MCP output. A destructive change that could cover pre-existing
 untracked user data is not silently pre-authorized. Existing NativeHost
 operation approval remains separate from Start and stays bound to the exact
-run/operation. Cancellation is selection-independent, exact-run scoped,
-idempotent, and creates no semantic acceptance.
+run/operation. Cancellation is selection-independent, exact-run scoped, and
+idempotent. It relies only on the immutable consumed attachment/run binding and
+exact controller ownership, so packet/work expiry or change, root/baseline or
+worktree drift, root unavailability/replacement, and Browser selection do not
+prevent signalling an owned worker. A queued run cancels atomically without a
+worker; a missing controller reports paused/disconnected reconciliation and
+never creates or resumes one. Cancellation creates no semantic acceptance.
 
 The existing live service owns one controller per exact project/run. A durable
 nonterminal run without that controller projects disconnected/paused and is
@@ -259,7 +274,8 @@ Preparation, validation, adoption, rebind, supersession, and revocation may
 write only their canonical metadata. CDX2B2B Start may additionally consume one
 attachment, admit one run, invoke one separately managed worker, and perform
 only the bounded local work in its exact envelope. GitHub, arbitrary network,
-secret, semantic approval, ReviewDecision, Transition, accepted-state, work
+ambient/outside-root credential or secret access, semantic approval,
+ReviewDecision, Transition, accepted-state, work
 closure, merge, release, deployment, and publication authority remain false.
 Explicit
 revocation uses the same preview, Browser grant, atomic consumption, and exact

@@ -73,6 +73,11 @@ export interface RepositoryManagedDelegationPreparationV01 {
 export interface RepositoryManagedDelegationAuthorityV01 {
   attachment_consumed: boolean;
   managed_run_created: boolean;
+  /**
+   * True only when this specific start request newly started the managed
+   * worker. Exact replay is always false, even when the already-admitted run
+   * still has an owned worker.
+   */
   worker_started: boolean;
   project_files_may_be_written: boolean;
   project_commands_may_be_executed: boolean;
@@ -97,4 +102,20 @@ export interface RepositoryManagedDelegationStartResultV01 {
   execution_envelope_fingerprint: string;
   projection: LiveNativeHostRunProjectionV01;
   authority: RepositoryManagedDelegationAuthorityV01;
+}
+
+export interface RepositoryManagedDelegationCancellationResultV01 {
+  status:
+    | "cancel_requested"
+    | "cancelled"
+    | "exact_replay"
+    | "reconciliation_required";
+  ordinary_text: string;
+  attachment_id: string;
+  run_id: string;
+  projection: LiveNativeHostRunProjectionV01;
+  semantic_authority_granted: false;
+  decision_created: false;
+  transition_created: false;
+  work_closed: false;
 }

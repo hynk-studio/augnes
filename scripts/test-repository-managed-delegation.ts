@@ -2,13 +2,24 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import { readAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
+import {
+  readAutonomyRunLedgerRecord,
+  updateAutonomyRunLedgerFields,
+} from "../lib/autonomy/runner-ledger";
 import {
   confirmLocalProjectOnboardingV01,
   pickAndInspectLocalProjectV01,
@@ -23,6 +34,7 @@ import {
 import {
   grantRepositoryExecutionDecisionFromBrowserSessionV01,
   prepareRepositoryExecutionV01,
+  readExpectedDatabaseAdmissionStateV01,
 } from "../lib/vnext/repository-execution/repository-execution";
 import {
   cancelRepositoryManagedDelegationV01,
@@ -162,6 +174,8 @@ async function main(): Promise<void> {
     });
     assert.equal(replay.status, "exact_replay");
     assert.equal(replay.run_id, result.run_id);
+    assert.equal(replay.authority.worker_started, false);
+    assert.match(replay.ordinary_text, /current state is/u);
     assert.equal(invocationCount, 1, "exact replay must not launch a second worker");
     await assert.rejects(
       startRepositoryManagedDelegationV01(db, {
@@ -189,11 +203,15 @@ async function main(): Promise<void> {
     await assertPostCommitRootRaceV01(db, service, projectA.workspace_id);
     await assertPostCommitManagedRunRaceV01(db, service, projectA.workspace_id);
     await assertAdapterCapabilityRaceV01(db, projectA.workspace_id);
+    await assertExactReplayStateMatrixV01(db, projectA.workspace_id);
     await assertQueuedCancellationV01(db, service, projectA.workspace_id);
     await assertRunningCancellationV01(db, projectA.workspace_id);
+    await assertCancellationDriftMatrixV01(db, projectA.workspace_id);
+    await assertCancellationWithoutControllerV01(db, projectA.workspace_id);
     await assertAdapterLaunchFailureV01(db, projectA.workspace_id);
     await assertStartDecisionMismatchAndExpiryV01(db, service, projectA.workspace_id);
     assertExecutionEnvelopeAuthorityV01();
+    assertSecretBoundaryDocumentationV01();
     await assertPlatformAndNonGitRefusalV01(db, service, projectA.workspace_id);
 
     await waitForTerminalV01(db, result.run_id);
@@ -207,6 +225,22 @@ async function main(): Promise<void> {
     assert.equal(countWhere(db, "vnext_core_records", "record_kind = 'review_decision'"), 0);
     assert.equal(countWhere(db, "vnext_core_records", "record_kind = 'state_transition_receipt'"), 0);
     assert.equal(invocationCount >= 1, true);
+    const completedReplay = await startRepositoryManagedDelegationV01(
+      db,
+      {
+        config: operatorConfig(projectA.workspace_id, projectA.project_id),
+        workspace_id: projectA.workspace_id,
+        project_id: projectA.project_id,
+        attachment_id: projectA.attachment_id,
+        expected_attachment_binding_fingerprint: projectA.binding_fingerprint,
+        expected_execution_envelope_fingerprint:
+          request.execution_envelope.envelope_fingerprint,
+        decision_request_fingerprint: granted.request_fingerprint,
+        decision_grant_fingerprint: granted.grant_fingerprint!,
+      },
+      service,
+    );
+    assertExactReplayProjectionV01(completedReplay, "completed");
 
     console.log(JSON.stringify({
       status: "pass",
@@ -229,11 +263,15 @@ async function main(): Promise<void> {
       post_commit_root_binding_race_blocked_before_worker: true,
       post_commit_managed_run_race_blocked_before_worker: true,
       adapter_capability_race_blocked_before_worker: true,
+      exact_replay_state_matrix_truthful: true,
       queued_cancellation_idempotent: true,
       running_cancellation_idempotent: true,
+      cancellation_execution_eligibility_independent: true,
+      cancellation_missing_controller_truthful: true,
       adapter_launch_failure_preserves_consumption: true,
       start_decision_mismatch_and_expiry_refused: true,
       execution_envelope_authority_classification: true,
+      in_repository_secret_scope_claim_bounded: true,
       cdx2b2a_schema_migration_preserved_and_upgraded: true,
       windows_status: "unsupported_no_run",
       linux_status: "non_product_no_run",
@@ -652,6 +690,508 @@ async function assertAdapterCapabilityRaceV01(
   }
 }
 
+type ManagedCancellationCountersV01 = {
+  invocations: number;
+  cancellation_signals: number;
+};
+
+function createCancellableRepositoryServiceV01(
+  now: () => string,
+  counters: ManagedCancellationCountersV01,
+): LiveNativeHostRunServiceV01 {
+  return new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => {
+      const delegate = createDeterministicCodexAdapterV01({ now });
+      return {
+        ...delegate,
+        invoke(request, control) {
+          counters.invocations += 1;
+          let settled = false;
+          let resolveResult!: (
+            value: Awaited<ReturnType<typeof delegate.invoke>["result"]>,
+          ) => void;
+          let rejectResult!: (error: unknown) => void;
+          const result = new Promise<
+            Awaited<ReturnType<typeof delegate.invoke>["result"]>
+          >((resolve, reject) => {
+            resolveResult = resolve;
+            rejectResult = reject;
+          });
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            try {
+              const delegated = delegate.invoke(request, control);
+              void delegated.result.then(resolveResult, rejectResult);
+            } catch (error) {
+              rejectResult(error);
+            }
+          };
+          const observeCancellation = () => {
+            counters.cancellation_signals += 1;
+            finish();
+          };
+          control.cancellation_signal.addEventListener(
+            "abort",
+            observeCancellation,
+            { once: true },
+          );
+          if (control.cancellation_signal.aborted) observeCancellation();
+          return {
+            result,
+            settled: result.then(() => undefined, () => undefined),
+            request_stop: async () => { finish(); },
+          };
+        },
+      };
+    },
+    now,
+  });
+}
+
+async function assertExactReplayStateMatrixV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  const queuedFixture = await createPreparedFixtureV01(
+    db,
+    "replay-queued-repository",
+    "Replay Queued Repository",
+    "2026-08-04T01:05:33.000Z",
+  );
+  const queuedService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => createDeterministicCodexAdapterV01(),
+    now: () => "2026-08-04T01:05:39.000Z",
+  });
+  try {
+    const request = await requestAndGrantV01(
+      db,
+      queuedService,
+      queuedFixture,
+      "2026-08-04T01:05:36.000Z",
+    );
+    let queuedReplay: Awaited<
+      ReturnType<typeof startRepositoryManagedDelegationV01>
+    > | null = null;
+    const before = invocationCount;
+    const blocked = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(queuedFixture, request),
+      queuedService,
+      {
+        now: () => "2026-08-04T01:05:38.000Z",
+        platform: "darwin",
+        after_start_transaction_commit: async () => {
+          queuedReplay = await startRepositoryManagedDelegationV01(
+            db,
+            startInputV01(queuedFixture, request),
+            queuedService,
+          );
+          throw new Error("injected_post_commit_block_after_queued_replay");
+        },
+      },
+    );
+    assert(queuedReplay);
+    assertExactReplayProjectionV01(queuedReplay, "queued");
+    assert.equal(blocked.status, "blocked");
+    const blockedReplay = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(queuedFixture, request),
+      queuedService,
+    );
+    assertExactReplayProjectionV01(blockedReplay, "blocked");
+    assert.equal(invocationCount, before);
+  } finally {
+    await queuedService.shutdown();
+  }
+
+  const counters = { invocations: 0, cancellation_signals: 0 };
+  let now = "2026-08-04T01:05:55.000Z";
+  const service = createCancellableRepositoryServiceV01(() => now, counters);
+  try {
+    const fixture = await createPreparedFixtureV01(
+      db,
+      "replay-live-repository",
+      "Replay Live Repository",
+      "2026-08-04T01:05:42.000Z",
+    );
+    const request = await requestAndGrantV01(
+      db,
+      service,
+      fixture,
+      "2026-08-04T01:05:50.000Z",
+    );
+    const input = startInputV01(fixture, request);
+    const started = await startRepositoryManagedDelegationV01(
+      db,
+      input,
+      service,
+      { now: () => "2026-08-04T01:05:52.000Z", platform: "darwin" },
+    );
+    assert.equal(started.status, "accepted");
+    setManagedRunStatusV01(db, started.run_id, "running", now);
+    const runningReplay = await startRepositoryManagedDelegationV01(
+      db,
+      input,
+      service,
+    );
+    assertExactReplayProjectionV01(runningReplay, "running");
+
+    now = "2026-08-04T01:05:56.000Z";
+    setManagedRunStatusV01(db, started.run_id, "waiting_for_approval", now);
+    const waitingReplay = await startRepositoryManagedDelegationV01(
+      db,
+      input,
+      service,
+    );
+    assertExactReplayProjectionV01(waitingReplay, "waiting_for_approval");
+
+    const disconnectedService = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () => createDeterministicCodexAdapterV01(),
+    });
+    try {
+      const disconnectedReplay = await startRepositoryManagedDelegationV01(
+        db,
+        input,
+        disconnectedService,
+      );
+      assertExactReplayProjectionV01(disconnectedReplay, "paused");
+      assert.equal(disconnectedReplay.projection.reconciliation_required, true);
+      assert.match(disconnectedReplay.ordinary_text, /paused and disconnected/u);
+    } finally {
+      await disconnectedService.shutdown();
+    }
+
+    const waiting = readAutonomyRunLedgerRecord(started.run_id, { db });
+    assert(waiting);
+    const cancelled = await cancelRepositoryManagedDelegationV01(db, {
+      config: operatorConfig(workspaceId, fixture.project_id),
+      attachment_id: fixture.attachment_id,
+      expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+      run_id: started.run_id,
+      control_revision: Number(waiting.metadata.control_revision),
+    }, service);
+    assert.equal(cancelled.status, "cancel_requested");
+    assert.equal(counters.cancellation_signals, 1);
+    await waitForTerminalV01(db, started.run_id);
+    const cancelledReplay = await startRepositoryManagedDelegationV01(
+      db,
+      input,
+      service,
+    );
+    assertExactReplayProjectionV01(cancelledReplay, "cancelled");
+    assert.equal(counters.invocations, 1);
+  } finally {
+    await service.shutdown();
+  }
+}
+
+function assertExactReplayProjectionV01(
+  result: Awaited<ReturnType<typeof startRepositoryManagedDelegationV01>>,
+  expectedStatus: "queued" | "running" | "waiting_for_approval" | "paused" | "blocked" | "completed" | "cancelled",
+): void {
+  assert.equal(result.status, "exact_replay");
+  assert.equal(result.projection.status, expectedStatus);
+  assert.equal(result.authority.worker_started, false);
+  assert.equal(result.authority.project_files_may_be_written, false);
+  assert.equal(result.authority.project_commands_may_be_executed, false);
+  assert.equal(result.authority.provider_egress_may_occur, false);
+  const expectedText = expectedStatus === "waiting_for_approval"
+    ? "waiting for approval"
+    : expectedStatus;
+  assert.equal(result.ordinary_text.includes(expectedText), true, result.ordinary_text);
+}
+
+function setManagedRunStatusV01(
+  db: Database.Database,
+  runId: string,
+  status: "running" | "waiting_for_approval",
+  now: string,
+): void {
+  const run = readAutonomyRunLedgerRecord(runId, { db });
+  assert(run);
+  updateAutonomyRunLedgerFields(runId, {
+    status,
+    updated_at: now,
+    metadata: {
+      ...run.metadata,
+      control_revision: Number(run.metadata.control_revision) + 1,
+      reconciliation_required: false,
+      public_reason: null,
+    },
+  }, { db });
+}
+
+function injectCurrentPacketDriftV01(
+  db: Database.Database,
+  fixture: PreparedFixtureV01,
+): void {
+  const attachment = readRepositoryExecutionAttachmentV01(
+    db,
+    fixture.attachment_id,
+  );
+  assert(attachment);
+  const row = db.prepare(`SELECT payload_json
+    FROM vnext_core_records
+    WHERE workspace_id = ? AND project_id = ?
+      AND record_kind = 'task_context_packet' AND record_id = ?`).get(
+        fixture.workspace_id,
+        fixture.project_id,
+        attachment.task_context_packet_id,
+      ) as { payload_json: string } | undefined;
+  assert(row);
+  const packet = JSON.parse(row.payload_json) as {
+    task?: { goal?: string };
+  };
+  assert(packet.task);
+  packet.task.goal = "Injected post-admission packet drift";
+  db.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+  try {
+    db.prepare(`UPDATE vnext_core_records SET payload_json = ?
+      WHERE workspace_id = ? AND project_id = ?
+        AND record_kind = 'task_context_packet' AND record_id = ?`).run(
+          JSON.stringify(packet),
+          fixture.workspace_id,
+          fixture.project_id,
+          attachment.task_context_packet_id,
+        );
+  } finally {
+    db.exec(`CREATE TRIGGER trg_vnext_core_records_immutable_update
+      BEFORE UPDATE ON vnext_core_records
+      BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END`);
+  }
+  const current = readExpectedDatabaseAdmissionStateV01(db, {
+    workspace_id: fixture.workspace_id,
+    project_id: fixture.project_id,
+    node_scope_fingerprint: attachment.node_scope_fingerprint,
+  });
+  assert.notEqual(current.task_context_packet_fingerprint, attachment.task_context_packet_fingerprint);
+  assert.notEqual(current.current_work_fingerprint, attachment.current_work_fingerprint);
+}
+
+async function assertCancellationDriftMatrixV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  const cases: Array<{
+    id: string;
+    mutate: (input: {
+      fixture: PreparedFixtureV01;
+      run_id: string;
+      set_now: (value: string) => void;
+    }) => void | Promise<void>;
+  }> = [
+    {
+      id: "packet_expired",
+      mutate: ({ set_now }) => set_now("2036-08-04T01:00:00.000Z"),
+    },
+    {
+      id: "current_work_packet_changed",
+      mutate: ({ fixture }) => injectCurrentPacketDriftV01(db, fixture),
+    },
+    {
+      id: "root_unavailable",
+      mutate: ({ fixture }) => {
+        renameSync(fixture.root, `${fixture.root}-unavailable`);
+      },
+    },
+    {
+      id: "root_binding_changed",
+      mutate: ({ fixture }) => {
+        const replacementRoot = createRepositoryV01("cancel-root-binding-new-root");
+        db.prepare(`UPDATE vnext_project_root_bindings
+          SET normalized_root = ?, bound_at = ?
+          WHERE workspace_id = ? AND project_id = ?`).run(
+            replacementRoot,
+            "2026-08-04T01:08:31.000Z",
+            fixture.workspace_id,
+            fixture.project_id,
+          );
+      },
+    },
+    {
+      id: "physical_baseline_unavailable",
+      mutate: ({ fixture }) => {
+        const removed = db.prepare(`DELETE FROM vnext_physical_root_baselines
+          WHERE workspace_id = ? AND project_id = ?`).run(
+            fixture.workspace_id,
+            fixture.project_id,
+          );
+        assert.equal(removed.changes, 1);
+      },
+    },
+    {
+      id: "same_path_replaced",
+      mutate: ({ fixture }) => {
+        const before = statSync(fixture.root);
+        renameSync(fixture.root, `${fixture.root}-original`);
+        initializeRepositoryAtPathV01(fixture.root, "same-path-replacement");
+        const after = statSync(fixture.root);
+        assert.notEqual(`${before.dev}:${before.ino}`, `${after.dev}:${after.ino}`);
+      },
+    },
+    {
+      id: "browser_project_b_selected",
+      mutate: async ({ fixture }) => {
+        const projectB = await createPreparedFixtureV01(
+          db,
+          `cancel-browser-b-${fixture.project_id.slice(-8)}`,
+          "Cancellation Browser B",
+          "2026-08-04T01:08:32.000Z",
+        );
+        selectProjectV01(db, workspaceId, projectB.project_id);
+        assert.equal(
+          readActiveProjectSelectionV01(db, workspaceId)?.project_id,
+          projectB.project_id,
+        );
+      },
+    },
+    {
+      id: "waiting_for_approval",
+      mutate: ({ run_id }) => {
+        setManagedRunStatusV01(
+          db,
+          run_id,
+          "waiting_for_approval",
+          "2026-08-04T01:08:33.000Z",
+        );
+      },
+    },
+  ];
+
+  for (let index = 0; index < cases.length; index += 1) {
+    const entry = cases[index]!;
+    let now = new Date(Date.parse("2026-08-04T01:08:00.000Z") + index * 60_000)
+      .toISOString();
+    const counters = { invocations: 0, cancellation_signals: 0 };
+    const service = createCancellableRepositoryServiceV01(() => now, counters);
+    try {
+      const fixture = await createPreparedFixtureV01(
+        db,
+        `cancel-drift-${entry.id}`,
+        `Cancel Drift ${entry.id}`,
+        now,
+      );
+      const request = await requestAndGrantV01(
+        db,
+        service,
+        fixture,
+        new Date(Date.parse(now) + 10_000).toISOString(),
+      );
+      const started = await startRepositoryManagedDelegationV01(
+        db,
+        startInputV01(fixture, request),
+        service,
+        {
+          now: () => new Date(Date.parse(now) + 12_000).toISOString(),
+          platform: "darwin",
+        },
+      );
+      assert.equal(started.status, "accepted", entry.id);
+      setManagedRunStatusV01(
+        db,
+        started.run_id,
+        "running",
+        new Date(Date.parse(now) + 13_000).toISOString(),
+      );
+      const runCount = count(db, "autonomy_runs");
+      const decisions = countWhere(db, "vnext_core_records", "record_kind = 'review_decision'");
+      const transitions = countWhere(db, "vnext_core_records", "record_kind = 'state_transition_receipt'");
+      await entry.mutate({
+        fixture,
+        run_id: started.run_id,
+        set_now: (value) => { now = value; },
+      });
+      const run = readAutonomyRunLedgerRecord(started.run_id, { db });
+      assert(run);
+      const cancelled = await cancelRepositoryManagedDelegationV01(db, {
+        config: operatorConfig(workspaceId, fixture.project_id),
+        attachment_id: fixture.attachment_id,
+        expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+        run_id: started.run_id,
+        control_revision: Number(run.metadata.control_revision),
+      }, service);
+      assert.equal(cancelled.status, "cancel_requested", entry.id);
+      assert.equal(cancelled.run_id, started.run_id, entry.id);
+      assert.equal(counters.invocations, 1, entry.id);
+      assert.equal(counters.cancellation_signals, 1, entry.id);
+      assert.equal(count(db, "autonomy_runs"), runCount, entry.id);
+      assert.equal(
+        countWhere(db, "vnext_core_records", "record_kind = 'review_decision'"),
+        decisions,
+        entry.id,
+      );
+      assert.equal(
+        countWhere(db, "vnext_core_records", "record_kind = 'state_transition_receipt'"),
+        transitions,
+        entry.id,
+      );
+    } finally {
+      await service.shutdown();
+      assert.equal(counters.cancellation_signals, 1, entry.id);
+    }
+  }
+}
+
+async function assertCancellationWithoutControllerV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  let now = "2026-08-04T01:20:00.000Z";
+  const counters = { invocations: 0, cancellation_signals: 0 };
+  const owner = createCancellableRepositoryServiceV01(() => now, counters);
+  const observer = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => createDeterministicCodexAdapterV01(),
+  });
+  try {
+    const fixture = await createPreparedFixtureV01(
+      db,
+      "cancel-controller-missing",
+      "Cancel Controller Missing",
+      now,
+    );
+    const request = await requestAndGrantV01(
+      db,
+      owner,
+      fixture,
+      "2026-08-04T01:20:10.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(fixture, request),
+      owner,
+      { now: () => "2026-08-04T01:20:12.000Z", platform: "darwin" },
+    );
+    setManagedRunStatusV01(db, started.run_id, "running", "2026-08-04T01:20:13.000Z");
+    const run = readAutonomyRunLedgerRecord(started.run_id, { db });
+    assert(run);
+    const runCount = count(db, "autonomy_runs");
+    const result = await cancelRepositoryManagedDelegationV01(db, {
+      config: operatorConfig(workspaceId, fixture.project_id),
+      attachment_id: fixture.attachment_id,
+      expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+      run_id: started.run_id,
+      control_revision: Number(run.metadata.control_revision),
+    }, observer);
+    assert.equal(result.status, "reconciliation_required");
+    assert.equal(result.projection.status, "paused");
+    assert.equal(result.projection.reconciliation_required, true);
+    assert.equal(result.projection.capability.status, "disconnected");
+    assert.match(result.ordinary_text, /no owned worker was available to signal/u);
+    assert.equal(counters.cancellation_signals, 0);
+    assert.equal(count(db, "autonomy_runs"), runCount);
+  } finally {
+    await observer.shutdown();
+    await owner.shutdown();
+    assert.equal(counters.cancellation_signals, 1);
+    now = "2026-08-04T01:20:20.000Z";
+  }
+}
+
 async function assertQueuedCancellationV01(
   db: Database.Database,
   service: LiveNativeHostRunServiceV01,
@@ -694,6 +1234,7 @@ async function assertQueuedCancellationV01(
     run_id: cancelledRunId,
     control_revision: 0,
   }, service);
+  assert.equal(replay.status, "exact_replay");
   assert.equal(replay.run_id, cancelledRunId);
   assert.equal(readAutonomyRunLedgerRecord(cancelledRunId, { db })?.status, "cancelled");
 }
@@ -761,6 +1302,7 @@ async function assertRunningCancellationV01(
       run_id: started.run_id,
       control_revision: Number(running.metadata.control_revision),
     }, service);
+    assert.equal(cancelled.status, "cancel_requested");
     assert.equal(cancelled.run_id, started.run_id);
     await waitForTerminalV01(db, started.run_id);
     assert.equal(readAutonomyRunLedgerRecord(started.run_id, { db })?.status, "cancelled");
@@ -771,6 +1313,7 @@ async function assertRunningCancellationV01(
       run_id: started.run_id,
       control_revision: 0,
     }, service);
+    assert.equal(replay.status, "exact_replay");
     assert.equal(replay.run_id, started.run_id);
     assert.equal(invocations, 1);
   } finally {
@@ -904,6 +1447,28 @@ function assertExecutionEnvelopeAuthorityV01(): void {
     operation_class: "network_permission",
     repository_envelope_classification: "refused",
   }), "decline");
+}
+
+function assertSecretBoundaryDocumentationV01(): void {
+  const contract = readFileSync(
+    path.join(process.cwd(), "docs/REPOSITORY_EXECUTION_ATTACHMENT_V0_1.md"),
+    "utf8",
+  );
+  const architecture = readFileSync(
+    path.join(process.cwd(), "docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md"),
+    "utf8",
+  );
+  const adapter = readFileSync(
+    path.join(process.cwd(), "lib/vnext/native-host/codex-app-server-adapter.ts"),
+    "utf8",
+  );
+  for (const source of [contract, architecture, adapter]) {
+    assert.match(source, /Files already (?:present )?inside the exact repository|file already inside the exact root/u);
+    assert.match(source, /does not claim|do not claim|not made technically unreadable/u);
+    assert.match(source, /outside-root/u);
+  }
+  assert.match(contract, /no such content or secret-detection result is added to\s+MCP output/u);
+  assert.match(adapter, /their contents must not be exposed through the bounded result surface/u);
 }
 
 async function assertPlatformAndNonGitRefusalV01(
@@ -1185,6 +1750,11 @@ function projectScopeV01(db: Database.Database, projectId: string): string {
 
 function createRepositoryV01(name: string): string {
   const root = path.join(ROOT, name);
+  initializeRepositoryAtPathV01(root, name);
+  return root;
+}
+
+function initializeRepositoryAtPathV01(root: string, name: string): void {
   mkdirSync(root, { recursive: true });
   writeFileSync(path.join(root, "README.md"), `# ${name}\n`, "utf8");
   execFileSync("git", ["init", "--quiet", root]);
@@ -1195,7 +1765,6 @@ function createRepositoryV01(name: string): string {
     "-c", "user.email=test@augnes.local",
     "commit", "--quiet", "-m", "fixture",
   ]);
-  return root;
 }
 
 function openDatabaseV01(): Database.Database {

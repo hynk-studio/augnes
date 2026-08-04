@@ -346,10 +346,18 @@ The v0.1 execution envelope allows bounded reads, in-root repository edits,
 tracked deletion, local test/typecheck/lint/format/build commands, Git
 inspection, and bounded local branch/commit work. It refuses network-enabled
 project commands, dependency downloads, push/GitHub, release/deploy/publish,
-secret access, outside-root writes, and semantic authority. Destructive
+injected Browser/Companion/provider/database/runtime/OS credentials,
+outside-root secret material or writes, and semantic authority. Files already
+inside the exact repository remain in repository read scope; the phase does
+not claim content-based secret unreadability. Destructive
 pre-existing untracked-data changes and other outside-envelope operations use
 the existing exact run approval boundary or refuse. Cancellation is exact,
-selection-independent, idempotent, and creates no semantic acceptance.
+selection-independent, idempotent, and creates no semantic acceptance. It
+remains available across packet/work/root/baseline/worktree and Browser
+selection drift, signals only the exact owned controller, and truthfully
+projects missing ownership as disconnected/reconciliation-required. Exact
+Start replay reports the persisted queued, active, approval, disconnected,
+blocked, or terminal state without creating another effect.
 
 CDX2B2B is product-supported only on a verified local macOS filesystem. Linux
 remains non-product without a separate real filesystem/runtime proof. Windows,

@@ -74,6 +74,16 @@ managed-delegation product boundary is verified local macOS only: Linux has no
 separate product filesystem/runtime proof, and Windows remains unavailable
 while stable physical identity is unsupported.
 
+Cancellation remains available from the immutable consumed attachment/run
+binding even when current packet, work, root, baseline, worktree, or Browser
+selection has drifted. Exact Start replay reports the persisted run's actual
+queued, active, approval, disconnected, blocked, or terminal state and never
+starts another worker. Browser, Companion, provider, database, runtime, and OS
+credentials are not injected into the worker, and outside-root material stays
+blocked. Files already inside the exact repository are nevertheless within the
+repository read scope; Augnes does not claim content-based secret unreadability
+for those files.
+
 The checked-in runtime currently provides:
 
 - local workspace/project onboarding and project isolation;

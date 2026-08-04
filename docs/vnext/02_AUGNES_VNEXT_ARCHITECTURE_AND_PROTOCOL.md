@@ -578,12 +578,32 @@ The execution envelope pre-authorizes bounded reversible work inside the exact
 verified macOS Git root: reads, file creation/edit, tracked deletion, local
 repository checks/builds, Git inspection, and bounded local branch/commit work.
 Arbitrary command network, dependency downloads, push/GitHub, external posting,
-release/deploy/publish, credentials/secrets, outside-root writes, OS
-persistence, destructive pre-existing untracked-data mutation, semantic
+release/deploy/publish, injected Browser/Companion/provider/database/runtime
+or OS credentials, outside-root secret material or writes, OS persistence,
+destructive pre-existing untracked-data mutation, semantic
 approval, Decision, Transition, accepted state, and work closure are not
 pre-authorized. Existing run-operation approval, cancellation, result
 normalization, RunReceipt, and proposal review owners remain authoritative and
 separate from Start.
+
+Repository read scope is path-based, not content-classified: a potentially
+sensitive file already inside the exact root can be read as repository
+material. The protocol therefore does not claim arbitrary in-repository secret
+content is unreadable. It continues to omit Browser/Companion/provider/runtime
+credentials from delegated inputs, block system and other outside-root secret
+sources, minimize the child environment, refuse command-network egress, and
+keep file contents and secret-detection results out of MCP projections.
+
+Repository-delegation cancellation is a separate risk-reducing control. It
+validates only the immutable consumed attachment/run binding and exact live
+controller ownership, never current packet/work/root/baseline/worktree or
+Browser selection. Queued cancellation atomically cancels the planned step and
+run. An owned active or approval-waiting controller receives one signal.
+Missing ownership projects paused/disconnected reconciliation and never
+launches or resumes a worker. Exact terminal/cancelling replay performs no new
+signal. Exact Start replay likewise uses the exact run projection for ordinary
+state text; `worker_started` records only a worker newly started by that
+specific request.
 
 The product boundary is a verified local macOS filesystem. Linux has no
 separate product filesystem/runtime proof in v0.1. Windows, non-Git, remote,

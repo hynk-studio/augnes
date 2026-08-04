@@ -85,10 +85,20 @@ continuity.
 
 The start decision permits bounded reversible local work inside the exact
 repository root. It does not grant arbitrary command network access,
-dependency downloads, push/GitHub, secret access, release/deployment,
-publication, or semantic result acceptance. A later NativeHost operation
+dependency downloads, push/GitHub, injected Browser/Companion/provider/
+database/runtime/OS credentials, outside-root secret material,
+release/deployment, publication, or semantic result acceptance. Files already
+inside the repository remain in repository read scope; no content-based secret
+unreadability is claimed. A later NativeHost operation
 approval is separate from Start; ReviewDecision and Transition are separate
 from both.
+
+Cancellation uses the immutable consumed attachment/run binding rather than
+current execution eligibility. It can still signal the exact owned controller
+after packet, work, root, baseline, worktree, or Browser-selection drift. If
+the controller is absent it reports disconnected reconciliation and does not
+start or resume anything. Exact Start replay reports the run's actual state;
+`worker_started` is true only when that specific request started the worker.
 
 ## Supported and unsupported surfaces
 

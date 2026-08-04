@@ -23,6 +23,7 @@ import {
   readActiveProjectSelectionV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
+import { readRepositoryExecutionAttachmentV01 } from "@/lib/vnext/persistence/repository-execution-store";
 import {
   admitPreparedNativeHostRunClaimInsideTransactionV01,
   admitPersistedHostTaskContextPacketV01,
@@ -549,6 +550,29 @@ export class LiveNativeHostRunServiceV01 {
     return projection;
   }
 
+  /**
+   * Read one exact attachment-backed run without revalidating current packet,
+   * root, worktree, baseline, or Browser selection. A queued claim is still a
+   * truthful queued replay before launch; any other nonterminal run without
+   * its exact controller is projected as paused/disconnected without a write.
+   */
+  readExactRepositoryDelegationProjectionV01(
+    config: VNextLocalOperatorPilotConfigV01,
+    runRef: string,
+  ): LiveNativeHostRunProjectionV01 {
+    const db = this.openDatabase(config);
+    try {
+      const run = this.requireRunV01(db, config, runRef);
+      if (!isRepositoryAttachmentRunV01(run)) {
+        refuseV01("live_host_repository_run_binding_mismatch", 409);
+      }
+      if (run.status === "queued") return projectionFromRunV01(run);
+      return this.readProjectionOnlyV01(config, run);
+    } finally {
+      db.close();
+    }
+  }
+
   private async retryTerminalProposalAdmissionV01(
     config: VNextLocalOperatorPilotConfigV01,
     run: AutonomyRunSummary,
@@ -752,41 +776,40 @@ export class LiveNativeHostRunServiceV01 {
     attachment_id: string;
     expected_attachment_binding_fingerprint: string;
     control_revision: number;
-  }): Promise<{ projection: LiveNativeHostRunProjectionV01; session_admission: null }> {
+  }): Promise<{
+    outcome:
+      | "cancel_requested"
+      | "cancelled"
+      | "exact_replay"
+      | "reconciliation_required";
+    projection: LiveNativeHostRunProjectionV01;
+    session_admission: null;
+  }> {
     const controller = this.controllers.get(projectKeyV01(input.config));
     const db = this.openDatabase(input.config);
-    let repeated = false;
+    let outcome:
+      | "cancel_requested"
+      | "cancelled"
+      | "exact_replay"
+      | "reconciliation_required" = "exact_replay";
     let interrupt = false;
     try {
-      const prevalidatedRun = this.requireRunV01(db, input.config, input.run_ref);
-      if (
-        !isRepositoryAttachmentRunV01(prevalidatedRun) ||
-        prevalidatedRun.metadata.repository_attachment_id !== input.attachment_id ||
-        prevalidatedRun.metadata.repository_attachment_binding_fingerprint !==
-          input.expected_attachment_binding_fingerprint
-      ) {
-        refuseV01("live_host_repository_run_binding_mismatch", 409);
-      }
-      const scopeAdmission = await this.revalidateRunScopeV01(
-        db,
-        input.config,
-        prevalidatedRun,
-      );
       db.exec("BEGIN IMMEDIATE");
       const run = this.requireRunV01(db, input.config, input.run_ref);
-      this.assertPrevalidatedScopeCurrentInsideTransactionV01(
-        db,
-        input.config,
+      assertRepositoryCancellationBindingV01(db, input, run);
+      const activeController = controllerOwnsRepositoryCancellationV01(
+        controller,
+        input,
         run,
-        scopeAdmission,
       );
       if (isTerminalRunnerStatus(run.status)) {
-        repeated = true;
+        outcome = "exact_replay";
       } else if (run.status === "cancelling") {
-        repeated = true;
-      } else if (numberMetadataV01(run.metadata.control_revision) !== input.control_revision) {
-        refuseV01("live_host_control_revision_conflict", 409);
+        outcome = "exact_replay";
       } else if (run.status === "queued") {
+        if (numberMetadataV01(run.metadata.control_revision) !== input.control_revision) {
+          refuseV01("live_host_control_revision_conflict", 409);
+        }
         const step = run.steps[0];
         if (!step || step.status !== "planned") {
           refuseV01("live_host_repository_queued_claim_invalid", 409);
@@ -819,25 +842,32 @@ export class LiveNativeHostRunServiceV01 {
           payload: { worker_invoked: false, semantic_approval_created: false },
           created_at: observedAt,
         }), { db });
+        outcome = "cancelled";
+      } else if (run.status === "paused") {
+        outcome = "reconciliation_required";
       } else {
-        if (
-          !controller ||
-          controller.completionSettled ||
-          controller.runId !== run.run_id
-        ) {
-          refuseV01("live_host_cancel_owner_unavailable", 409);
+        if (controller && !controller.completionSettled && !activeController) {
+          refuseV01("live_host_repository_cancel_controller_mismatch", 409);
         }
-        this.transitionRunV01(db, run, {
-          status: "cancelling",
-          event_type: "run_cancelling",
-          message: "Cancellation was requested for the exact attachment-backed run.",
-          observed_at: this.now(),
-          metadata: {
-            cancellation_requested: true,
-            cancellation_request_revision: input.control_revision,
-          },
-        });
-        interrupt = true;
+        if (!activeController) {
+          outcome = "reconciliation_required";
+        } else {
+          if (numberMetadataV01(run.metadata.control_revision) !== input.control_revision) {
+            refuseV01("live_host_control_revision_conflict", 409);
+          }
+          this.transitionRunV01(db, run, {
+            status: "cancelling",
+            event_type: "run_cancelling",
+            message: "Cancellation was requested for the exact attachment-backed run.",
+            observed_at: this.now(),
+            metadata: {
+              cancellation_requested: true,
+              cancellation_request_revision: input.control_revision,
+            },
+          });
+          interrupt = true;
+          outcome = "cancel_requested";
+        }
       }
       db.exec("COMMIT");
     } catch (error) {
@@ -846,8 +876,12 @@ export class LiveNativeHostRunServiceV01 {
     } finally {
       db.close();
     }
-    if (!repeated && interrupt) controller!.cancel();
-    return { projection: this.read(input.config), session_admission: null };
+    if (interrupt) controller!.cancel();
+    const projection = this.readExactRepositoryDelegationProjectionV01(
+      input.config,
+      input.run_ref,
+    );
+    return { outcome, projection, session_admission: null };
   }
 
   async resume(input: {
@@ -2498,6 +2532,73 @@ function isRepositoryAttachmentRunV01(
   run: Pick<AutonomyRunSummary, "metadata">,
 ): boolean {
   return run.metadata.invocation_origin === "repository_attachment";
+}
+
+function assertRepositoryCancellationBindingV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    run_ref: string;
+    attachment_id: string;
+    expected_attachment_binding_fingerprint: string;
+  },
+  run: AutonomyRunRecord,
+): void {
+  if (!db.inTransaction) refuseV01("live_host_transaction_required", 500);
+  const attachment = readRepositoryExecutionAttachmentV01(
+    db,
+    input.attachment_id,
+  );
+  if (
+    !isRepositoryAttachmentRunV01(run) ||
+    run.run_id !== input.run_ref ||
+    run.metadata.workspace_id !== input.config.workspace_id ||
+    run.metadata.project_id !== input.config.project_id ||
+    run.metadata.repository_attachment_id !== input.attachment_id ||
+    run.metadata.repository_attachment_binding_fingerprint !==
+      input.expected_attachment_binding_fingerprint ||
+    !attachment ||
+    attachment.workspace_id !== input.config.workspace_id ||
+    attachment.project_id !== input.config.project_id ||
+    attachment.attachment_id !== input.attachment_id ||
+    attachment.binding_fingerprint !==
+      input.expected_attachment_binding_fingerprint ||
+    attachment.lifecycle !== "consumed" ||
+    attachment.consumed_run_id !== input.run_ref
+  ) {
+    refuseV01("live_host_repository_run_binding_mismatch", 409);
+  }
+}
+
+function controllerOwnsRepositoryCancellationV01(
+  controller: LiveRunControllerV01 | undefined,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    run_ref: string;
+    attachment_id: string;
+    expected_attachment_binding_fingerprint: string;
+  },
+  run: AutonomyRunRecord,
+): boolean {
+  if (
+    !controller ||
+    controller.completionSettled ||
+    controller.runId !== run.run_id ||
+    controller.mode !== "repository_attachment"
+  ) {
+    return false;
+  }
+  const request = controller.request;
+  return Boolean(
+    request &&
+      request.workspace_id === input.config.workspace_id &&
+      request.project_id === input.config.project_id &&
+      request.run_id === input.run_ref &&
+      request.repository_delegation_context?.attachment_id ===
+        input.attachment_id &&
+      request.repository_delegation_context.attachment_binding_fingerprint ===
+        input.expected_attachment_binding_fingerprint,
+  );
 }
 
 function startMaterialMatchesRunV01(
