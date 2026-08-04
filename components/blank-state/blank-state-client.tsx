@@ -375,6 +375,8 @@ export function BlankStateClient({
         project_id: entry.project.project_id,
         selection_token: chosen.selection_token,
         inspection_fingerprint: chosen.inspection.inspection_fingerprint,
+        expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+        expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint,
       });
       window.location.assign(value.result.destination);
     } catch (error) {

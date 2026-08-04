@@ -57,6 +57,7 @@
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
     "test:codex-current-continuity": "node --import tsx scripts/test-vnext-codex-current-continuity.ts",
     "test:codex-repository-continuity": "node --import tsx scripts/test-codex-repository-continuity.ts",
+    "test:repository-execution-attachment": "node --import tsx scripts/test-repository-execution-attachment.ts",
     "test:codex-companion-discovery": "node scripts/test-codex-companion-discovery.mjs",
     "test:codex-companion-privacy": "node scripts/test-codex-companion-privacy.mjs",
     "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",

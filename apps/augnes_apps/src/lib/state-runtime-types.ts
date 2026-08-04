@@ -1685,8 +1685,186 @@ export const CodexRepositoryContinuityResultSchema = z.object({
 
 export type CodexRepositoryContinuityResult = z.infer<typeof CodexRepositoryContinuityResultSchema>;
 
+const RepositoryExecutionAuthoritySchema = z.object({
+  project_files_written: z.literal(false),
+  project_commands_executed: z.literal(false),
+  managed_run_created: z.literal(false),
+  execution_started: z.literal(false),
+  provider_called: z.literal(false),
+  branch_or_commit_created: z.literal(false),
+  github_called: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+  execution_authority_granted: z.literal(false),
+  external_effect_authority_granted: z.literal(false),
+}).strict();
+
+const RepositoryWorktreeObservationSchema = z.union([
+  z.object({
+    observation_version: z.literal("repository_worktree_observation.v0.1"),
+    status: z.literal("exact"),
+    repository_kind: z.enum(["git_repository", "git_worktree"]),
+    git_common_dir_fingerprint: z.string(),
+    head_commit: z.string().nullable(),
+    head_state: z.enum(["branch", "detached", "unborn"]),
+    branch_name: z.string().nullable(),
+    index_fingerprint: z.string(),
+    tracked_dirty_paths_fingerprint: z.string(),
+    relevant_untracked_paths_fingerprint: z.string(),
+    observed_at: z.string().datetime(),
+    observation_fingerprint: z.string(),
+  }).strict(),
+  z.object({
+    observation_version: z.literal("repository_worktree_observation.v0.1"),
+    status: z.literal("non_git"),
+    repository_kind: z.literal("plain_folder"),
+    observed_at: z.string().datetime(),
+    observation_fingerprint: z.string(),
+  }).strict(),
+  z.object({
+    observation_version: z.literal("repository_worktree_observation.v0.1"),
+    status: z.enum(["unavailable", "ambiguous"]),
+    repository_kind: z.literal("unknown"),
+    reason: z.string(),
+    observed_at: z.string().datetime(),
+    observation_fingerprint: z.string(),
+  }).strict(),
+]);
+
+const RepositoryExecutionAttachmentSchema = z.object({
+  attachment_version: z.literal("repository_execution_attachment.v0.1"),
+  attachment_id: z.string(),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  node_scope_fingerprint: z.string(),
+  physical_root_baseline_fingerprint: z.string(),
+  root_binding_fingerprint: z.string(),
+  task_context_packet_id: z.string(),
+  task_context_packet_fingerprint: z.string(),
+  current_work_fingerprint: z.string(),
+  project_execution_admission_fingerprint: z.string(),
+  worktree_observation_fingerprint: z.string(),
+  managed_run_state_fingerprint: z.string(),
+  binding_fingerprint: z.string(),
+  prepared_at: z.string().datetime(),
+  freshness_policy: z.object({
+    policy_version: z.literal("repository_execution_freshness_policy.v0.1"),
+    max_age_ms: z.number().int().positive(),
+    expires_at: z.string().datetime(),
+  }).strict(),
+  lifecycle: z.enum(["prepared", "stale", "superseded", "revoked", "consumed"]),
+  stale_reason: z.enum([
+    "physical_root_mismatch",
+    "root_binding_changed",
+    "packet_changed",
+    "current_work_changed",
+    "project_unavailable",
+    "managed_run_conflict",
+    "worktree_changed",
+    "freshness_expired",
+    "explicitly_revoked",
+    "superseded",
+  ]).nullable(),
+  lifecycle_updated_at: z.string().datetime(),
+  consumed_run_id: z.null(),
+}).strict();
+
+const ProjectExecutionAdmissionSchema = z.object({
+  admission_version: z.literal("project_execution_admission.v0.1"),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  readiness: z.enum(["ready", "decision_required", "blocked"]),
+  reason: z.enum([
+    "ready",
+    "project_unavailable",
+    "root_unavailable",
+    "baseline_adoption_required",
+    "physical_root_mismatch",
+    "identity_unavailable",
+    "identity_unsupported",
+    "identity_ambiguous",
+    "current_work_unavailable",
+    "worktree_unavailable",
+    "worktree_ambiguous",
+    "managed_run_conflict",
+  ]),
+  node_scope_fingerprint: z.string().nullable(),
+  physical_root_observation_fingerprint: z.string().nullable(),
+  root_binding_fingerprint: z.string().nullable(),
+  physical_root_baseline_fingerprint: z.string().nullable(),
+  task_context_packet_id: z.string().nullable(),
+  task_context_packet_fingerprint: z.string().nullable(),
+  current_work_fingerprint: z.string().nullable(),
+  managed_run_state_fingerprint: z.string(),
+  worktree_observation: RepositoryWorktreeObservationSchema.nullable(),
+  admission_fingerprint: z.string(),
+  browser_observation: z.object({
+    active_project_id: z.string().nullable(),
+    selected_project_is_target: z.boolean(),
+  }).strict(),
+  projection_only: z.literal(true),
+  execution_authority_granted: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+}).strict();
+
+const RepositoryExecutionPreparationSchema = z.object({
+  preparation_version: z.literal("repository_execution_preparation.v0.1"),
+  status: z.enum(["prepared", "baseline_adoption_required", "blocked"]),
+  reason: ProjectExecutionAdmissionSchema.shape.reason,
+  project: z.object({
+    project_id: z.string(),
+    display_name: z.string().nullable(),
+  }).strict().nullable(),
+  ordinary_text: z.string(),
+  attachment: RepositoryExecutionAttachmentSchema.nullable(),
+  admission: ProjectExecutionAdmissionSchema.nullable(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const PhysicalRootMutationProjectionSchema = z.object({
+  status: z.enum(["adopted", "rebound", "exact_replay"]),
+  project_id: z.string(),
+  baseline_fingerprint: z.string(),
+  ordinary_text: z.string(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const RepositoryRootRebindPreviewSchema = z.object({
+  preview_version: z.literal("repository_execution_root_rebind_preview.v0.1"),
+  status: z.enum(["ready", "blocked"]),
+  reason: z.enum([
+    "ready",
+    "project_unavailable",
+    "identity_unavailable",
+    "identity_unsupported",
+    "identity_ambiguous",
+  ]),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  expected_old_root_binding_fingerprint: z.string().nullable(),
+  expected_old_baseline_fingerprint: z.string().nullable(),
+  expected_new_observation_fingerprint: z.string().nullable(),
+  ordinary_text: z.string(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+export const RepositoryExecutionResultSchema = z.union([
+  RepositoryExecutionPreparationSchema,
+  PhysicalRootMutationProjectionSchema,
+  RepositoryRootRebindPreviewSchema,
+  z.object({
+    status: z.literal("validated"),
+    attachment: RepositoryExecutionAttachmentSchema.nullable(),
+  }).strict(),
+  z.object({
+    status: z.literal("revoked"),
+    attachment: RepositoryExecutionAttachmentSchema,
+  }).strict(),
+]);
+export type RepositoryExecutionResult = z.infer<typeof RepositoryExecutionResultSchema>;
+
 export interface StateRuntimeBridgeAdapter {
   getRepositoryContinuity(input: { repositoryRoot: string }): Promise<CodexRepositoryContinuityResult>;
+  callRepositoryExecution(input: Record<string, unknown>): Promise<RepositoryExecutionResult>;
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
   getGuideBrief(input: { scope: StateRuntimeScope; projectId?: string }): Promise<GuideBriefResult>;

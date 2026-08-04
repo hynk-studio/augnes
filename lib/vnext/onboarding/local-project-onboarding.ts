@@ -26,7 +26,6 @@ import {
   normalizeLocalProjectRootRefV01,
   readDefaultWorkspaceIdentityV01,
   readCanonicalProjectWithRootV01,
-  rebindCanonicalProjectLocalRootV01,
   renameCanonicalProjectDisplayNameV01,
   normalizeProjectDisplayNameV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
@@ -38,6 +37,14 @@ import {
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { writePhysicalRootBaselineInsideTransactionV01 } from "@/lib/vnext/persistence/repository-execution-store";
+import { readPhysicalRootBaselineV01 } from "@/lib/vnext/persistence/repository-execution-store";
+import {
+  buildPhysicalRootBaselineV01,
+  fingerprintProjectRootBindingV01,
+  inspectPhysicalRootForExecutionV01,
+  rebindRepositoryExecutionRootV01,
+} from "@/lib/vnext/repository-execution/repository-execution";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   LOCAL_PROJECT_INSPECTION_VERSION_V01,
@@ -321,6 +328,11 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   catch { throw new ProjectOnboardingErrorV01("selection_inaccessible", 403); }
 
   const inspectedAt = (options.now ?? (() => new Date().toISOString()))();
+  const physical = options.db
+    ? await inspectPhysicalRootForExecutionV01(options.db, localRoot.normalized_path, {
+        now: () => inspectedAt,
+      })
+    : null;
   let git;
   try {
     git = await inspectGitMetadata(
@@ -335,6 +347,9 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     root: localRoot,
     displayName,
     repository: { is_repository: git.isRepository, display: git.display },
+    physical_identity_status: physical?.status ?? "identity_unavailable",
+    physical_root_observation_fingerprint:
+      physical?.status === "exact" ? physical.observation_fingerprint : null,
   });
   const existingRegistration = options.db && options.workspace_id
     ? findCanonicalProjectByLocalRootV01(options.db, {
@@ -352,6 +367,9 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     repository_status: !git.isRepository ? "not_repository" : git.ref ? "configured" : "no_remote",
     inspected_at: inspectedAt,
     inspection_fingerprint: `sha256:${createHash("sha256").update(fingerprintPayload).digest("hex")}`,
+    physical_identity_status: physical?.status ?? "identity_unavailable",
+    physical_root_observation_fingerprint:
+      physical?.status === "exact" ? physical.observation_fingerprint : null,
     already_added: existingRegistration !== null,
     existing_project: existingRegistration?.project ?? null,
   };
@@ -381,7 +399,8 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
     const inspection = await inspectLocalProjectRootV01(picked.absolute_path, {
       now: options.now,
       metadata_reader: options.metadata_reader,
-      ...(workspace ? { db, workspace_id: workspace.workspace_id } : {}),
+      db,
+      ...(workspace ? { workspace_id: workspace.workspace_id } : {}),
     });
     const active = workspace
       ? readActiveProjectSelectionV01(db, workspace.workspace_id)
@@ -415,11 +434,33 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   const existingWorkspace = readDefaultWorkspaceIdentityV01(db);
   const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
     now: options.now,
+    db,
     ...(existingWorkspace
-      ? { db, workspace_id: existingWorkspace.workspace_id }
+      ? { workspace_id: existingWorkspace.workspace_id }
       : {}),
   });
   if (inspection.inspection_fingerprint !== record.fingerprint) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  if (inspection.physical_identity_status !== "exact") {
+    throw new ProjectOnboardingErrorV01(
+      inspection.physical_identity_status === "identity_unsupported"
+        ? "physical_identity_unsupported"
+        : inspection.physical_identity_status === "identity_ambiguous"
+          ? "physical_identity_ambiguous"
+          : "physical_identity_unavailable",
+      409,
+    );
+  }
+  const physical = await inspectPhysicalRootForExecutionV01(
+    db,
+    inspection.local_root.normalized_path,
+    { now: options.now },
+  );
+  if (
+    physical.status !== "exact" ||
+    physical.observation_fingerprint !== inspection.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
   const displayName = inspection.already_added
     ? undefined
     : normalizeProjectDisplayNameV01(
@@ -439,6 +480,18 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
       local_root: inspection.local_root,
       ...(displayName === undefined ? {} : { display_name: displayName }),
     }, { now: options.now, create_uuid: options.create_uuid });
+    if (registration.status === "inserted") {
+      writePhysicalRootBaselineInsideTransactionV01(
+        db,
+        buildPhysicalRootBaselineV01({
+          workspace_id: workspace.workspace_id,
+          project_id: registration.project.project_id,
+          root_binding: registration.root_binding,
+          observation: physical,
+          provenance: "canonical_new_project_onboarding",
+        }),
+      );
+    }
     const existingRepositoryRefs = listProjectExternalRefsV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: registration.project.project_id,
@@ -505,7 +558,11 @@ export function renameActiveProjectDisplayNameV01(
 }
 
 export async function rebindLocalProjectRootFromSelectionV01(db: Database.Database, input: {
-  project_id: string; selection_token: string; inspection_fingerprint: string;
+  project_id: string;
+  selection_token: string;
+  inspection_fingerprint: string;
+  expected_old_root_binding_fingerprint: string;
+  expected_old_baseline_fingerprint: string | null;
 }, options: { now?: () => string; now_ms?: () => number } = {}): Promise<ProjectRootRebindResultV01> {
   const record = consumeSelection(input.selection_token, options.now_ms);
   if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
@@ -516,24 +573,46 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
   const inspection = await inspectLocalProjectRootV01(record.absolute_path, { now: options.now, db, workspace_id: workspace.workspace_id });
   if (inspection.inspection_fingerprint !== record.fingerprint) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
   const now = (options.now ?? (() => new Date().toISOString()))();
-  return db.transaction(() => {
-    rebindCanonicalProjectLocalRootV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, local_root: inspection.local_root }, { now: () => now });
-    touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
-    selectActiveProjectV01(db, {
-      workspace_id: workspace.workspace_id,
-      project_id: input.project_id,
-      now,
-      expected_project_id: record.expected_active_project_id,
-      expected_revision: record.expected_active_revision,
-    });
-    return { status: "rebound" as const, project: project.project, local_root: inspection.local_root, destination: projectDestination(input.project_id) };
-  }).immediate();
+  if (!inspection.physical_root_observation_fingerprint) {
+    throw new ProjectOnboardingErrorV01("physical_identity_unavailable", 409);
+  }
+  await rebindRepositoryExecutionRootV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    new_local_root: inspection.local_root,
+    expected_old_root_binding_fingerprint: input.expected_old_root_binding_fingerprint,
+    expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
+    expected_new_observation_fingerprint: inspection.physical_root_observation_fingerprint,
+    user_intent: "rebind_project_root",
+  }, {
+    now: () => now,
+    after_rebind_inside_transaction: () => {
+      touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
+      selectActiveProjectV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: input.project_id,
+        now,
+        expected_project_id: record.expected_active_project_id,
+        expected_revision: record.expected_active_revision,
+      });
+    },
+  });
+  return {
+    status: "rebound" as const,
+    project: project.project,
+    local_root: inspection.local_root,
+    destination: projectDestination(input.project_id),
+  };
 }
 
 export async function listRecentProjectsV01(db: Database.Database): Promise<RecentProjectEntryV01[]> {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) return [];
   const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+  const nodeObservation = await inspectPhysicalRootForExecutionV01(
+    db,
+    path.dirname(path.resolve(db.name)),
+  );
   const rows = listRecentProjectRowsV01(db, workspace.workspace_id);
   return Promise.all(rows.map(async (row) => {
     const registration = readCanonicalProjectWithRootV01(db, row)!;
@@ -547,6 +626,14 @@ export async function listRecentProjectsV01(db: Database.Database): Promise<Rece
       is_active: active?.project_id === row.project_id,
       active_project_id: active?.project_id ?? null,
       active_selection_revision: active?.selection_revision ?? null,
+      root_binding_fingerprint: fingerprintProjectRootBindingV01(registration.root_binding),
+      physical_root_baseline_fingerprint: nodeObservation.status === "exact"
+        ? readPhysicalRootBaselineV01(db, {
+            workspace_id: workspace.workspace_id,
+            project_id: row.project_id,
+            node_scope_fingerprint: nodeObservation.node_scope_fingerprint,
+          })?.baseline_fingerprint ?? null
+        : null,
     };
   }));
 }

@@ -29,6 +29,7 @@ import {
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { getOrCreateDefaultWorkspaceIdentityV01, VNEXT_PROJECT_IDENTITY_REGISTRY_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/project-identity-registry";
 import { VNEXT_PROJECT_LIFECYCLE_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { fingerprintProjectRootBindingV01 } from "../lib/vnext/repository-execution/repository-execution";
 import { POST as projectRoutePost } from "../app/api/vnext/projects/route";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-project-onboarding-"));
@@ -171,6 +172,8 @@ try {
         repository_status: "not_repository",
         inspected_at: "2026-07-15T00:00:00.000Z",
         inspection_fingerprint: "inspection-fingerprint",
+        physical_identity_status: "exact",
+        physical_root_observation_fingerprint: "sha256:physical-observation",
         already_added: false,
         existing_project: null,
       },
@@ -546,10 +549,15 @@ try {
 
   const occupiedRecovery = await selection(folderB, "2026-07-15T00:02:30.000Z");
   assert.equal(occupiedRecovery.status, "selected");
+  const occupiedExpected = (await listRecentProjectsV01(db)).find(
+    (entry) => entry.project.project_id === confirmedA.project.project_id,
+  )!;
   await assert.rejects(rebindLocalProjectRootFromSelectionV01(db, {
     project_id: confirmedA.project.project_id,
     selection_token: occupiedRecovery.selection_token,
     inspection_fingerprint: occupiedRecovery.inspection.inspection_fingerprint,
+    expected_old_root_binding_fingerprint: occupiedExpected.root_binding_fingerprint,
+    expected_old_baseline_fingerprint: occupiedExpected.physical_root_baseline_fingerprint,
   }), /project_root_rebind_conflict/);
   assert.equal((await readProjectDestinationV01(db, confirmedB.project.project_id))?.root_binding.local_root.normalized_path, folderB);
 
@@ -659,10 +667,26 @@ try {
     recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
     active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
   });
+  const staleDestination = await readProjectDestinationV01(
+    db,
+    confirmedA.project.project_id,
+  );
+  assert(staleDestination);
+  const staleBaseline = db.prepare(
+    `SELECT baseline_fingerprint FROM vnext_physical_root_baselines
+      WHERE workspace_id = ? AND project_id = ?`,
+  ).get(
+    confirmedA.project.workspace_id,
+    confirmedA.project.project_id,
+  ) as { baseline_fingerprint: string };
   await assert.rejects(rebindLocalProjectRootFromSelectionV01(db, {
     project_id: confirmedA.project.project_id,
     selection_token: staleRecovery.selection_token,
     inspection_fingerprint: staleRecovery.inspection.inspection_fingerprint,
+    expected_old_root_binding_fingerprint: fingerprintProjectRootBindingV01(
+      staleDestination.root_binding,
+    ),
+    expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
   }, { now: () => "2026-07-15T00:04:50.000Z" }), /active_selection_conflict/);
   assert.equal(JSON.stringify({
     roots: db.prepare("SELECT * FROM vnext_project_root_bindings ORDER BY workspace_id, project_id").all(),
@@ -676,7 +700,15 @@ try {
 
   const recovery = await selection(folderA2, "2026-07-15T00:05:00.000Z");
   assert.equal(recovery.status, "selected");
-  const rebound = await rebindLocalProjectRootFromSelectionV01(db, { project_id: confirmedA.project.project_id, selection_token: recovery.selection_token, inspection_fingerprint: recovery.inspection.inspection_fingerprint }, { now: () => "2026-07-15T00:05:00.000Z" });
+  const rebound = await rebindLocalProjectRootFromSelectionV01(db, {
+    project_id: confirmedA.project.project_id,
+    selection_token: recovery.selection_token,
+    inspection_fingerprint: recovery.inspection.inspection_fingerprint,
+    expected_old_root_binding_fingerprint: fingerprintProjectRootBindingV01(
+      staleDestination.root_binding,
+    ),
+    expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
+  }, { now: () => "2026-07-15T00:05:00.000Z" });
   assert.equal(rebound.project.project_id, confirmedA.project.project_id);
   assert.equal(rebound.project.display_name, renamedProjectName);
   assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.root_binding.local_root.normalized_path, folderA2);
@@ -831,6 +863,6 @@ try {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : "project_onboarding_test_failed");
+  console.error(error instanceof Error ? error.stack ?? error.message : "project_onboarding_test_failed");
   process.exitCode = 1;
 });

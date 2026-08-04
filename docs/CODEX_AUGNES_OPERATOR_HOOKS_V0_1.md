@@ -1,5 +1,20 @@
 # Codex Augnes Operator Hooks v0.1
 
+## Trusted repository preparation
+
+Use `augnes_prepare_repository_execution` when later work needs an exact future
+managed-execution attachment. Preparation is automatic when the canonical
+project/root baseline, current packet/work, managed-run state, and bounded
+worktree observation are exact. Browser selecting another project does not
+require a warning or confirmation and does not change the attachment.
+
+If preparation reports `baseline_adoption_required`, present exactly one
+ordinary decision to use the current folder as that project's trusted execution
+root, then call the explicit adoption tool with its expected-state
+fingerprints. A moved root uses the separate rebind tool; never infer rebind
+from Git remote equality. Do not expose device, inode/file-ID, node-scope, or
+baseline details in normal user text.
+
 ## Purpose
 
 The `augnes-operator` plugin hooks add local guardrails around Codex workflow

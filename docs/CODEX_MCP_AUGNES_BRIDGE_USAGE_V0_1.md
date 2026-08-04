@@ -1,5 +1,31 @@
 # Codex MCP / Augnes Companion usage v0.1
 
+## Repository execution attachment tools
+
+The supervised Companion keeps `augnes_resume_repository` as the
+selection-coupled, read-only CDX2B1 continuity tool and adds a separate
+selection-independent CDX2B2A family:
+
+- `augnes_prepare_repository_execution` prepares or returns one exact
+  project-scoped attachment;
+- `augnes_validate_repository_execution_attachment` rechecks current root,
+  work, managed-run, freshness, and bounded worktree state;
+- `augnes_adopt_repository_execution_root` is the explicit legacy baseline
+  decision;
+- `augnes_preview_repository_execution_root_rebind` performs the bounded
+  read-only new-root observation and returns the expected state for rebind;
+- `augnes_rebind_repository_execution_root` is the explicit moved-root
+  decision;
+- `augnes_revoke_repository_execution_attachment` explicitly revokes one
+  prepared attachment.
+
+Normal preparation requires no confirmation and ordinary text contains no
+filesystem identifiers. Adoption, rebind, and revocation require exact
+expected-state fields plus literal user intent; assistant or tool prose is not
+approval. These local metadata tools do not create or consume a managed run,
+Start Codex/NativeHost, run project commands, write project files, call a
+provider or GitHub, or create external effects.
+
 ## Current local product path
 
 The supported CDX2B1 path is:

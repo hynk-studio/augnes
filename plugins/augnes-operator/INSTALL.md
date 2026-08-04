@@ -54,6 +54,18 @@ as a partial HTTP MCP client. The supported supervisor
 forwarded as a path hint and receives the same verification. The proxy is not a
 daemon, supervisor, database owner, or fallback data source.
 
+The same verified Companion exposes the CDX2B2A tools
+`augnes_prepare_repository_execution`,
+`augnes_validate_repository_execution_attachment`,
+`augnes_adopt_repository_execution_root`,
+`augnes_preview_repository_execution_root_rebind`,
+`augnes_rebind_repository_execution_root`, and
+`augnes_revoke_repository_execution_attachment`. They persist only node-local
+trust and attachment metadata. They never Start a host, create or consume a
+managed run, run repository commands as product behavior, or write project
+files. Legacy adoption, root rebind, and revocation require exact expected
+state and literal user intent.
+
 ## Supported and unsupported surfaces
 
 Supported: local Codex, local filesystem checkout, installed Augnes Operator,

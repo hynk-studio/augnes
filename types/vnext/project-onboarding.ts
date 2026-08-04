@@ -34,6 +34,12 @@ export interface LocalProjectInspectionV01 {
   repository_status: "configured" | "no_remote" | "not_repository";
   inspected_at: string;
   inspection_fingerprint: string;
+  physical_identity_status:
+    | "exact"
+    | "identity_unavailable"
+    | "identity_unsupported"
+    | "identity_ambiguous";
+  physical_root_observation_fingerprint: string | null;
   already_added: boolean;
   existing_project: ProjectIdentityV01 | null;
 }
@@ -48,6 +54,8 @@ export interface RecentProjectEntryV01 {
   is_active: boolean;
   active_project_id: string | null;
   active_selection_revision: number | null;
+  root_binding_fingerprint: string;
+  physical_root_baseline_fingerprint: string | null;
 }
 
 export interface ActiveProjectSelectionV01 {
@@ -78,6 +86,9 @@ export type ProjectOnboardingErrorCodeV01 =
   | "selection_inaccessible"
   | "selection_not_directory"
   | "inspection_failed"
+  | "physical_identity_unavailable"
+  | "physical_identity_unsupported"
+  | "physical_identity_ambiguous"
   | "inspection_stale"
   | "selection_tampered"
   | "duplicate_root"

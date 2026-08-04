@@ -618,7 +618,10 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
     database.pragma("foreign_keys = ON");
     database.exec(
       "DROP TABLE vnext_project_continuity_pins;" +
-        "DROP TABLE vnext_project_continuity_pin_collections;",
+        "DROP TABLE vnext_project_continuity_pin_collections;" +
+        "DROP TABLE vnext_repository_execution_attachments;" +
+        "DROP TABLE vnext_repository_root_rebind_receipts;" +
+        "DROP TABLE vnext_physical_root_baselines;",
     );
     database.exec("DROP TABLE perspective_memory_items");
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");

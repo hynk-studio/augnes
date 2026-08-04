@@ -41,6 +41,7 @@ import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
   migrateVNextProjectIdentityRegistryV01,
+  migrateVNextRepositoryExecutionStoreV01,
   migrateVNextProjectLifecycleV01,
   migrateVNextProjectControlsV01,
   migrateVNextProjectContinuityPinsV01,
@@ -70,6 +71,10 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
     // Exact CUX2 structural predecessor used by the ledgerless recovery lane.
     "a6fb21f4cf5a33df52d130f4b05b9b26094ac151afff274592979f9fe535d302",
+    // Exact CDX2B2A structural predecessor used by the ledgerless recovery
+    // lane. The migration ledger and package identity guard are both absent;
+    // arbitrary partial schemas remain fail-closed.
+    "cdc300623c2a79fadba08eb452d34aeb3a009ae15c4e45737e5edc7e004bdd53",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",
@@ -89,6 +94,8 @@ export function applyCanonicalDatabaseMigrations(db) {
   const vNextLocalOperatorSessionResult = migrateVNextLocalOperatorSessionsV01(db);
   const vNextProjectIdentityRegistryResult =
     migrateVNextProjectIdentityRegistryV01(db);
+  const vNextRepositoryExecutionStoreResult =
+    migrateVNextRepositoryExecutionStoreV01(db);
   const vNextProjectLifecycleResult = migrateVNextProjectLifecycleV01(db);
   const vNextProjectControlResult = migrateVNextProjectControlsV01(db);
   const vNextProjectContinuityPinResult =
@@ -159,6 +166,7 @@ export function applyCanonicalDatabaseMigrations(db) {
     vNextDurableSemanticStoreResult,
     vNextLocalOperatorSessionResult,
     vNextProjectIdentityRegistryResult,
+    vNextRepositoryExecutionStoreResult,
     vNextProjectLifecycleResult,
     vNextProjectControlResult,
     vNextProjectContinuityPinResult,

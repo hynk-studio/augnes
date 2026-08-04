@@ -263,15 +263,14 @@ bounded active-project `codex_current_continuity.v0.1` projection, exact
 snapshot binding, local GET route, and `npm run codex:current-continuity` CLI.
 It remains compatible and unchanged for active-project callers.
 
-## Current
+## CDX2B1 completed lifecycle
 
-### CDX2B1 live Companion repository attachment
+### Live Companion repository continuity
 
 [Issue #114](https://github.com/hynk-studio/augnes-perspective-lab/issues/114)
-defines CDX2B1. The Draft PR titled **CDX2B1 — Connect Codex to live Augnes
-project continuity** on branch
-`codex/cdx2b1-live-companion-project-attachment` is its current implementation
-and outcome record.
+defined CDX2B1. [PR #115](https://github.com/hynk-studio/augnes-perspective-lab/pull/115)
+is its completed implementation and outcome record, merged at
+`5f965c56b0e594f6c887cbf4b758d62e7d9626fd`.
 
 CDX2B1 connects the existing Augnes Operator plugin to the existing supervised
 Companion. One dynamic-port stdio proxy verifies the live bridge identity, uses
@@ -282,16 +281,40 @@ continuity. It creates no daemon, database, project record, Browser selection,
 work, run, provider call, or fallback truth. This local read-only slice does not
 authorize Start or managed delegation.
 
+## Current
+
+### CDX2B2A trusted repository execution attachment
+
+[Issue #116](https://github.com/hynk-studio/augnes-perspective-lab/issues/116)
+defines CDX2B2A. The Draft PR titled **CDX2B2A — Establish trusted repository
+execution attachment** on branch
+`codex/cdx2b2a-execution-admission-substrate` is its current implementation and
+outcome record.
+
+CDX2B2A strongly identifies the canonical project, its node-local physical
+root, current TaskContextPacket/current work, managed-run absence, and bounded
+worktree state once, then prepares one durable project-scoped attachment for
+later reversible local autonomy. Browser active-project selection is
+observational only: selecting or viewing another project changes neither
+project execution admission nor the attachment binding. New onboarding creates
+the physical baseline atomically; legacy adoption and moved-root rebind remain
+narrow explicit identity decisions. Preparation, validation, supersession,
+staleness, and revocation create no run, Start, project command, project-file
+write, provider call, or external effect.
+
 ## Next separately authorized work
 
-CDX2B2 managed delegation is next. It requires separate explicit authority and
+CDX2B2B managed delegation is next. It requires separate explicit authority and
 must define the exact Start/grant, managed-run, control, verification,
 reconciliation, cancellation, effect, and user-decision boundaries before any
-mutation is implemented. It must also decide whether to add a durable
-registration-time physical-root identity baseline with complete migration,
-backup, restore, recovery, portability, and compatibility behavior, and how to
-separate repository-scoped eligibility from active Browser selection. CDX2B1
-does not claim either capability or pre-authorize CDX2B2.
+execution mutation is implemented. It may consume an exact prepared CDX2B2A
+attachment into one managed run, but CDX2B2A does not produce `consumed`, start
+Codex or NativeHost, run project commands, or pre-authorize CDX2B2B.
+
+The phase doctrine is: establish one strong repository, project, current-work,
+and execution attachment, then permit broad local reversible autonomy only
+inside that exact attachment. Current-session attachment and continuous
+control remain later and separate.
 
 ## Pending C9
 

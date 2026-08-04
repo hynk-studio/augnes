@@ -84,6 +84,8 @@ export async function POST(request: Request) {
         project_id: requiredString(body.project_id),
         selection_token: requiredString(body.selection_token),
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
+        expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
+        expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
       }) });
     }
     throw new ProjectOnboardingErrorV01("selection_invalid", 400);

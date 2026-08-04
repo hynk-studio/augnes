@@ -117,7 +117,15 @@ try {
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map((tool) => tool.name), ["augnes_resume_repository"]);
+    assert.deepEqual(tools.tools.map((tool) => tool.name), [
+      "augnes_resume_repository",
+      "augnes_prepare_repository_execution",
+      "augnes_adopt_repository_execution_root",
+      "augnes_validate_repository_execution_attachment",
+      "augnes_preview_repository_execution_root_rebind",
+      "augnes_rebind_repository_execution_root",
+      "augnes_revoke_repository_execution_attachment",
+    ]);
     const result = await client.callTool({
       name: "augnes_resume_repository",
       arguments: { repositoryRoot: process.cwd() },

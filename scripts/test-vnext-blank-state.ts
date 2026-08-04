@@ -174,6 +174,8 @@ function recentEntry(overrides: Partial<RecentProjectEntryV01> = {}): RecentProj
     is_active: false,
     active_project_id: null,
     active_selection_revision: null,
+    root_binding_fingerprint: "sha256:root-binding",
+    physical_root_baseline_fingerprint: "sha256:physical-root-baseline",
     ...overrides,
   };
 }

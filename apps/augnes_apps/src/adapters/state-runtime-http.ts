@@ -6,6 +6,7 @@ import {
   ConstellationPreviewResultSchema,
   ControlPacketSchema,
   CodexRepositoryContinuityResultSchema,
+  RepositoryExecutionResultSchema,
   EvidencePackResultSchema,
   GuideBriefResultSchema,
   MailboxSummaryResultSchema,
@@ -27,6 +28,7 @@ import {
   type ConstellationPreviewResult,
   type ControlPacket,
   type CodexRepositoryContinuityResult,
+  type RepositoryExecutionResult,
   type EvidencePackResult,
   type GuideBriefResult,
   type MailboxSummaryResult,
@@ -64,6 +66,7 @@ const AUTONOMY_CONTRACT_LOCAL_READ_MARKER = "autonomy-contract-v0.1";
 const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_MARKER = "autonomy-runner-preflight-v0.1";
 const CODEX_REPOSITORY_CONTINUITY_LOCAL_READ_MARKER = "codex-repository-continuity-v0.1";
+const REPOSITORY_EXECUTION_MARKER = "repository-execution-attachment-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
@@ -86,6 +89,7 @@ const endpointContract = {
   publicationSummary: { method: "GET", path: "/api/publications/summary" },
   controlPacket: { method: "GET", path: "/api/control/brief" },
   repositoryContinuity: { method: "POST", path: "/api/augnes/read/codex-repository-continuity" },
+  repositoryExecution: { method: "POST", path: "/api/augnes/repository-execution" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -238,6 +242,44 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       CodexRepositoryContinuityResultSchema,
       await readJson(response, "repository continuity"),
       "repository continuity",
+    );
+  }
+
+  async callRepositoryExecution(input: Record<string, unknown>): Promise<RepositoryExecutionResult> {
+    if (!this.companionProxyToken || !this.runtimeIdentity.instance || !this.runtimeIdentity.generation || !this.runtimeIdentity.repository) {
+      throw new AugnesStateRuntimeHttpError("Live supervised Augnes Companion identity is unavailable.");
+    }
+    const url = buildUrl(this.apiBaseUrl, endpointContract.repositoryExecution.path);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: endpointContract.repositoryExecution.method,
+        cache: "no-store",
+        headers: {
+          "content-type": "application/json",
+          "x-augnes-repository-execution": REPOSITORY_EXECUTION_MARKER,
+          "x-augnes-companion-proxy": this.companionProxyToken,
+        },
+        body: JSON.stringify(input),
+      });
+    } catch {
+      throw new AugnesStateRuntimeHttpError("Live supervised Augnes Companion is unavailable.");
+    }
+    if (!response.ok) {
+      throw new AugnesStateRuntimeHttpError(`Augnes repository execution request failed with status ${response.status}.`);
+    }
+    if (
+      response.headers.get("x-augnes-repository-execution") !== REPOSITORY_EXECUTION_MARKER ||
+      response.headers.get("x-augnes-runtime-instance") !== this.runtimeIdentity.instance ||
+      response.headers.get("x-augnes-runtime-generation") !== this.runtimeIdentity.generation ||
+      response.headers.get("x-augnes-runtime-repository") !== this.runtimeIdentity.repository
+    ) {
+      throw new AugnesStateRuntimeHttpError("Augnes repository execution runtime identity did not match the supervised Companion.");
+    }
+    return parseResponse(
+      RepositoryExecutionResultSchema,
+      await readJson(response, "repository execution"),
+      "repository execution",
     );
   }
 

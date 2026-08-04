@@ -41,6 +41,7 @@ import {
 } from "../lib/vnext/episode-delta-proposal";
 import {
   confirmLocalProjectOnboardingV01,
+  listRecentProjectsV01,
   pickAndInspectLocalProjectV01,
   rebindLocalProjectRootFromSelectionV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
@@ -1686,12 +1687,17 @@ async function main() {
       "2026-07-15T09:04:00.000Z",
     );
     assert.equal(recoverySelection.status, "selected");
+    const recoveryExpected = (await listRecentProjectsV01(db)).find(
+      (entry) => entry.project.project_id === confirmedA.project.project_id,
+    )!;
     const rebound = await rebindLocalProjectRootFromSelectionV01(
       db,
       {
         project_id: confirmedA.project.project_id,
         selection_token: recoverySelection.selection_token,
         inspection_fingerprint: recoverySelection.inspection.inspection_fingerprint,
+        expected_old_root_binding_fingerprint: recoveryExpected.root_binding_fingerprint,
+        expected_old_baseline_fingerprint: recoveryExpected.physical_root_baseline_fingerprint,
       },
       { now: () => "2026-07-15T09:04:00.000Z" },
     );
