@@ -1752,6 +1752,11 @@ export function buildSupervisorChildValues({
         environment.AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER === "1"
           ? "1"
           : null,
+      AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1"
+          ? "1"
+          : null,
     };
   }
 

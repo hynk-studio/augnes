@@ -105,6 +105,7 @@ import {
   type NativeHostInvocationV01,
   type NativeHostLifecycleSinkV01,
   type NativeHostRequestV01,
+  type NativeHostRepositoryDelegationContextV01,
   type NativeHostResultV01,
   type NativeHostResumeBindingV01,
   type NativeHostRootScopeV01,
@@ -202,6 +203,8 @@ export interface PreparedNativeHostRunClaimV01 {
   capability_version: string;
   root_physical_identity_fingerprint: string;
   claimed_at: string;
+  repository_attachment_id: string | null;
+  repository_execution_envelope_fingerprint: string | null;
 }
 
 export interface DirectNativeHostRoundTripResultV01 {
@@ -254,8 +257,10 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
   live_host_egress_authorized?: boolean;
   pre_admitted_run_claim?: {
     claim: PreparedNativeHostRunClaimV01;
-    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
   };
+  repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
+  before_adapter_invoke?: (request: NativeHostRequestV01) => Promise<void>;
   proposal_admission?: RunAssessmentProposalAdmissionDependenciesV01;
   on_invocation_admitted?: (input: {
     request: NativeHostRequestV01;
@@ -466,8 +471,9 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
   db: Database.Database,
   input: {
     config: VNextLocalOperatorPilotConfigV01;
-    mode: "policy_triggered";
-    automation_context: NativeHostAutomationContextV01;
+    mode: "policy_triggered" | "repository_attachment";
+    automation_context: NativeHostAutomationContextV01 | null;
+    repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
     packet_id: string;
     packet_fingerprint: string;
     claimed_at: string;
@@ -480,16 +486,24 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
 }> {
   if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
   ensureAutonomyRunnerLedgerSchemaV01(db);
-  assertBoundedHostContractV01({
-    automation_context: input.automation_context,
-    adapter: input.adapter,
-    timeout_ms: input.timeout_ms,
-  });
+  if (input.mode === "policy_triggered") {
+    if (!input.automation_context || input.repository_delegation_context) {
+      refuse("direct_host_automation_context_required");
+    }
+    assertBoundedHostContractV01({
+      automation_context: input.automation_context,
+      adapter: input.adapter,
+      timeout_ms: input.timeout_ms,
+    });
+  } else if (!input.repository_delegation_context || input.automation_context) {
+    refuse("direct_host_repository_delegation_context_required");
+  }
   const admission = await admitPersistedHostTaskContextPacketV01(db, {
     config: input.config,
     packet_id: input.packet_id,
     packet_fingerprint: input.packet_fingerprint,
     evaluated_at: input.claimed_at,
+    require_active_project: input.mode !== "repository_attachment",
   });
   revalidateAdmissionInsideTransaction(db, {
     config: input.config,
@@ -497,6 +511,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     evaluated_at: input.claimed_at,
     automation_context: null,
     run_id: "preparing",
+    require_active_project: input.mode !== "repository_attachment",
   });
   const identity = buildDirectNativeHostRunIdentityV01({
     config: input.config,
@@ -504,6 +519,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     admission,
     adapter: input.adapter,
     automation_context: input.automation_context,
+    repository_delegation_context: input.repository_delegation_context,
   });
   return {
     claim: {
@@ -517,6 +533,10 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
           admission.root_scope.physical_root_identity,
         ),
       claimed_at: input.claimed_at,
+      repository_attachment_id:
+        input.repository_delegation_context?.attachment_id ?? null,
+      repository_execution_envelope_fingerprint:
+        input.repository_delegation_context?.execution_envelope_fingerprint ?? null,
     },
     admission,
   };
@@ -527,7 +547,9 @@ export function admitPreparedNativeHostRunClaimInsideTransactionV01(
   db: Database.Database,
   input: {
     config: VNextLocalOperatorPilotConfigV01;
-    automation_context: NativeHostAutomationContextV01;
+    mode: "policy_triggered" | "repository_attachment";
+    automation_context: NativeHostAutomationContextV01 | null;
+    repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
     prepared: {
       claim: PreparedNativeHostRunClaimV01;
       admission: PersistedHostPacketAdmissionV01;
@@ -548,12 +570,14 @@ export function admitPreparedNativeHostRunClaimInsideTransactionV01(
     automation_context: input.automation_context,
     run_id: input.prepared.claim.run_id,
     transition_bounded_work: false,
+    require_active_project: input.mode !== "repository_attachment",
   });
   createRunLedgerRecord(db, {
     input: {
       config: input.config,
-      mode: "policy_triggered",
+      mode: input.mode,
       automation_context: input.automation_context,
+      repository_delegation_context: input.repository_delegation_context,
     },
     admission: input.prepared.admission,
     request_id: input.prepared.claim.request_id,
@@ -571,6 +595,7 @@ export async function runDirectNativeHostRoundTripV01(
     config: VNextLocalOperatorPilotConfigV01;
     mode: NativeHostRunModeV01;
     automation_context?: NativeHostAutomationContextV01 | null;
+    repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
     operator_mutation?: {
       credential: VNextLocalOperatorSessionCredentialV01;
       clock?: VNextLocalRuntimeClockV01;
@@ -612,8 +637,49 @@ export async function runDirectNativeHostRoundTripV01(
   if (input.mode === "interactive" && input.automation_context) {
     refuse("direct_host_automation_context_forbidden");
   }
+  if (
+    input.mode === "repository_attachment"
+      ? !input.repository_delegation_context || Boolean(input.automation_context)
+      : Boolean(input.repository_delegation_context)
+  ) {
+    refuse("direct_host_repository_delegation_context_invalid");
+  }
   const managedLive = dependencies.lifecycle_mode === "managed_live";
   const preAdmitted = dependencies.pre_admitted_run_claim ?? null;
+  if (
+    input.mode === "repository_attachment" &&
+    (!managedLive || !preAdmitted || !dependencies.before_adapter_invoke)
+  ) {
+    refuse("direct_host_repository_start_owner_required", 403);
+  }
+  if (input.mode === "repository_attachment") {
+    const context = input.repository_delegation_context!;
+    const fingerprints = [
+      context.attachment_id,
+      context.attachment_binding_fingerprint,
+      context.execution_envelope_fingerprint,
+      context.start_decision_request_fingerprint,
+      context.protected_untracked_paths_fingerprint,
+    ];
+    if (
+      context.context_version !== "native_host_repository_delegation_context.v0.1" ||
+      fingerprints.some((value) => !/^sha256:[a-f0-9]{64}$/u.test(value)) ||
+      context.protected_untracked_paths.length > 4_096 ||
+      context.protected_untracked_paths.some(
+        (value, index, values) =>
+          value.length < 1 ||
+          value.includes("\0") ||
+          value.startsWith("/") ||
+          value.startsWith("../") ||
+          (index > 0 && values[index - 1] >= value),
+      ) ||
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(context.protected_untracked_paths),
+      ) !== context.protected_untracked_paths_fingerprint
+    ) {
+      refuse("direct_host_repository_delegation_context_invalid", 422);
+    }
+  }
   if (preAdmitted && input.operator_mutation) {
     refuse("direct_host_pre_admitted_mutation_conflict", 409);
   }
@@ -624,6 +690,7 @@ export async function runDirectNativeHostRoundTripV01(
       automation_context: input.automation_context ?? null,
       evaluated_at: null,
       interactive_authorized: dependencies.live_host_egress_authorized === true,
+      repository_delegation_context: input.repository_delegation_context ?? null,
     });
   }
   if (input.operator_mutation) {
@@ -647,6 +714,7 @@ export async function runDirectNativeHostRoundTripV01(
     config: input.config,
     ...selection,
     evaluated_at: prevalidatedAt,
+    require_active_project: input.mode !== "repository_attachment",
   });
   if (managedLive && adapter.provider_egress === "native_host_managed") {
     assertLiveHostEgressAdmissionV01({
@@ -655,6 +723,7 @@ export async function runDirectNativeHostRoundTripV01(
       automation_context: input.automation_context ?? null,
       evaluated_at: prevalidatedAt,
       interactive_authorized: dependencies.live_host_egress_authorized === true,
+      repository_delegation_context: input.repository_delegation_context ?? null,
     });
   }
   let taskStartGuide: NativeHostRequestV01["guide_brief"];
@@ -681,6 +750,7 @@ export async function runDirectNativeHostRoundTripV01(
     admission: admitted,
     adapter,
     automation_context: input.automation_context ?? null,
+    repository_delegation_context: input.repository_delegation_context ?? null,
   });
   if (
     preAdmitted &&
@@ -692,7 +762,11 @@ export async function runDirectNativeHostRoundTripV01(
       preAdmitted.claim.root_physical_identity_fingerprint !==
         fingerprintNativeHostPhysicalRootIdentityV01(
           admitted.root_scope.physical_root_identity,
-        ))
+        ) ||
+      preAdmitted.claim.repository_attachment_id !==
+        (input.repository_delegation_context?.attachment_id ?? null) ||
+      preAdmitted.claim.repository_execution_envelope_fingerprint !==
+        (input.repository_delegation_context?.execution_envelope_fingerprint ?? null))
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
   }
@@ -719,6 +793,7 @@ export async function runDirectNativeHostRoundTripV01(
       evaluated_at: startedAt,
       automation_context: input.automation_context ?? null,
       run_id: identity.run_id,
+      require_active_project: input.mode !== "repository_attachment",
     });
     const existingReceipt = readReceiptForRun(db, {
       workspace_id: input.config.workspace_id,
@@ -751,6 +826,12 @@ export async function runDirectNativeHostRoundTripV01(
           run: existingRun,
           admission: admitted,
           automation_context: input.automation_context!,
+          repository_delegation_context:
+            input.repository_delegation_context ?? null,
+          mode:
+            input.mode === "interactive"
+              ? refuse("direct_host_pre_admitted_mode_invalid", 409)
+              : input.mode,
           observed_at: startedAt,
         });
         db.exec("COMMIT");
@@ -795,6 +876,7 @@ export async function runDirectNativeHostRoundTripV01(
     config: input.config,
     mode: input.mode,
     automation_context: input.automation_context ?? null,
+    repository_delegation_context: input.repository_delegation_context ?? null,
     admission: admitted,
     request_id: identity.request_id,
     run_id: identity.run_id,
@@ -809,6 +891,25 @@ export async function runDirectNativeHostRoundTripV01(
     request,
     session_admission: sessionAdmission,
   });
+  if (dependencies.before_adapter_invoke) {
+    try {
+      await dependencies.before_adapter_invoke(request);
+    } catch (error) {
+      markRunLaunchGateBlockedV01(db, {
+        run_id: identity.run_id,
+        admission: admitted,
+        observed_at: strictTimestamp(now()),
+        reason:
+          error instanceof Error && "code" in error && typeof error.code === "string"
+            ? error.code
+            : "repository_delegation_launch_gate_changed",
+      });
+      throw new DirectNativeHostRoundTripErrorV01(
+        "direct_host_repository_launch_gate_blocked",
+        409,
+      );
+    }
+  }
   let hostResult: NativeHostResultV01;
   let adapterInvocationStarted = false;
   try {
@@ -1071,6 +1172,7 @@ function revalidateAdmissionInsideTransaction(
     automation_context: NativeHostAutomationContextV01 | null;
     run_id: string;
     transition_bounded_work?: boolean;
+    require_active_project?: boolean;
   },
 ): void {
   const registration = readCanonicalProjectWithRootV01(db, input.config);
@@ -1080,7 +1182,8 @@ function revalidateAdmissionInsideTransaction(
   );
   if (
     !registration ||
-    active?.project_id !== input.config.project_id ||
+    (input.require_active_project !== false &&
+      active?.project_id !== input.config.project_id) ||
     registration.root_binding.local_root.normalized_path !==
       input.admission.root_scope.canonical_root ||
     registration.root_binding.local_root.path_flavor !==
@@ -1274,6 +1377,81 @@ function revalidateRunBeforeFinalization(
   }
 }
 
+function markRunLaunchGateBlockedV01(
+  db: Database.Database,
+  input: {
+    run_id: string;
+    admission: PersistedHostPacketAdmissionV01;
+    observed_at: string;
+    reason: string;
+  },
+): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const current = readAutonomyRunLedgerRecord(input.run_id, { db });
+    const step = current?.steps[0];
+    if (!current || !step) refuse("direct_host_run_conflict", 409);
+    if (isTerminalRunnerStatus(current.status) || current.status === "paused") {
+      db.exec("COMMIT");
+      return;
+    }
+    if (
+      current.metadata.packet_id !== input.admission.packet.packet_id ||
+      current.metadata.packet_fingerprint !==
+        input.admission.packet.integrity.fingerprint
+    ) {
+      refuse("direct_host_run_conflict", 409);
+    }
+    updateAutonomyRunStepLedgerFields(
+      step.step_id,
+      {
+        status: "blocked",
+        finished_at: input.observed_at,
+        updated_at: input.observed_at,
+        error_message: input.reason,
+      },
+      { db },
+    );
+    updateAutonomyRunLedgerFields(
+      current.run_id,
+      {
+        status: "blocked",
+        finished_at: input.observed_at,
+        updated_at: input.observed_at,
+        stop_reason: input.reason,
+        metadata: {
+          ...current.metadata,
+          public_reason: input.reason,
+          repository_launch_gate_passed: false,
+          worker_invoked: false,
+          reconciliation_required: false,
+        },
+      },
+      { db },
+    );
+    appendAutonomyRunLedgerEvent(
+      buildAutonomyRunEventRecord({
+        run_id: current.run_id,
+        event_type: "run_blocked",
+        status: "blocked",
+        message:
+          "The attachment-backed launch gate changed before the worker was invoked.",
+        payload: {
+          reason: input.reason,
+          worker_invoked: false,
+          attachment_remains_consumed: true,
+        },
+        created_at: input.observed_at,
+      }),
+      { db },
+    );
+    db.exec("COMMIT");
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 function markRunStopUnconfirmedV01(
   db: Database.Database,
   input: {
@@ -1353,6 +1531,7 @@ function buildNativeHostRequest(input: {
   config: VNextLocalOperatorPilotConfigV01;
   mode: NativeHostRunModeV01;
   automation_context: NativeHostAutomationContextV01 | null;
+  repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
   admission: PersistedHostPacketAdmissionV01;
   request_id: string;
   run_id: string;
@@ -1425,12 +1604,20 @@ function buildNativeHostRequest(input: {
     allowed_operation_categories: [
       "read_validated_task_context",
       "return_bounded_structured_result",
-      ...(input.adapter.execution_profile === "native_host_managed_model"
+      ...(input.mode === "repository_attachment"
         ? [
+            "repository_file_read",
+            "repository_file_change_inside_exact_root",
+            "bounded_local_repository_command",
+            "local_git_inspection_branch_and_commit",
+            "bounded_correction_attempt",
+          ]
+        : input.adapter.execution_profile === "native_host_managed_model"
+          ? [
             "project_scoped_command_with_approval",
             "project_scoped_file_change_with_approval",
           ]
-        : []),
+          : []),
     ],
     forbidden_operation_categories: [
       "filesystem_outside_selected_project_root",
@@ -1438,6 +1625,13 @@ function buildNativeHostRequest(input: {
         ? []
         : ["network_egress", "provider_or_model_call"]),
       "external_state_mutation",
+      "git_push_or_remote_branch_creation",
+      "github_api_or_pull_request_mutation",
+      "release_deployment_or_publication",
+      "arbitrary_project_command_network_access",
+      "dependency_download_or_installation",
+      "credential_secret_or_browser_profile_access",
+      "destructive_preexisting_untracked_data_mutation",
       "semantic_commit",
       "raw_output_return",
       ...packet.constraints.forbidden_actions,
@@ -1446,6 +1640,7 @@ function buildNativeHostRequest(input: {
     execution_grant_ref:
       input.automation_context?.capability_grant_ref ?? null,
     automation_context: input.automation_context,
+    repository_delegation_context: input.repository_delegation_context,
     policy: {
       filesystem: "selected_project_root_only",
       network:
@@ -1461,7 +1656,9 @@ function buildNativeHostRequest(input: {
       host_egress: input.adapter.provider_egress === "native_host_managed"
         ? input.mode === "interactive"
           ? "explicit_interactive_start"
-          : "bounded_capability_grant"
+          : input.mode === "repository_attachment"
+            ? "explicit_interactive_start"
+            : "bounded_capability_grant"
         : "forbidden",
       max_changed_files: MAX_CHANGED_FILES,
       max_artifacts: MAX_ARTIFACTS,
@@ -1493,6 +1690,7 @@ function createRunLedgerRecord(
       config: VNextLocalOperatorPilotConfigV01;
       mode: NativeHostRunModeV01;
       automation_context?: NativeHostAutomationContextV01 | null;
+      repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
     };
     admission: PersistedHostPacketAdmissionV01;
     request_id: string;
@@ -1588,6 +1786,8 @@ function createRunLedgerRecord(
       request_id: input.request_id,
       adapter_version: input.adapter.adapter_version,
       capability_version: input.adapter.capability_version,
+      adapter_execution_profile: input.adapter.execution_profile,
+      adapter_provider_egress: input.adapter.provider_egress,
       policy_ref_id:
         input.input.automation_context?.policy_ref.external_id ?? null,
       policy_ref: input.input.automation_context?.policy_ref ?? null,
@@ -1598,6 +1798,18 @@ function createRunLedgerRecord(
       automation_control_revision:
         input.input.automation_context?.control_revision ?? null,
       automation_context: input.input.automation_context ?? null,
+      repository_attachment_id:
+        input.input.repository_delegation_context?.attachment_id ?? null,
+      repository_attachment_binding_fingerprint:
+        input.input.repository_delegation_context?.attachment_binding_fingerprint ?? null,
+      repository_execution_envelope_fingerprint:
+        input.input.repository_delegation_context?.execution_envelope_fingerprint ?? null,
+      repository_start_decision_request_fingerprint:
+        input.input.repository_delegation_context?.start_decision_request_fingerprint ?? null,
+      repository_protected_untracked_paths_fingerprint:
+        input.input.repository_delegation_context?.protected_untracked_paths_fingerprint ?? null,
+      repository_protected_untracked_paths:
+        input.input.repository_delegation_context?.protected_untracked_paths ?? [],
       bounded_automation_cycle_id:
         input.input.automation_context?.bounded_cycle?.cycle_id ?? null,
       bounded_automation_attempt:
@@ -1698,6 +1910,10 @@ function assertPreparedRunClaimMatchesV01(
     run.metadata.capability_version !== claim.capability_version ||
     run.metadata.root_physical_identity_fingerprint !==
       claim.root_physical_identity_fingerprint ||
+    (run.metadata.repository_attachment_id ?? null) !==
+      claim.repository_attachment_id ||
+    (run.metadata.repository_execution_envelope_fingerprint ?? null) !==
+      claim.repository_execution_envelope_fingerprint ||
     run.created_at !== claim.claimed_at
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
@@ -1709,7 +1925,9 @@ function startPreparedRunInsideTransactionV01(
   input: {
     run: AutonomyRunRecord;
     admission: PersistedHostPacketAdmissionV01;
-    automation_context: NativeHostAutomationContextV01;
+    automation_context: NativeHostAutomationContextV01 | null;
+    repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
+    mode: "policy_triggered" | "repository_attachment";
     observed_at: string;
   },
 ): void {
@@ -1724,7 +1942,11 @@ function startPreparedRunInsideTransactionV01(
     input.run.metadata.packet_fingerprint !==
       input.admission.packet.integrity.fingerprint ||
     canonicalizeProtocolValueV01(input.run.metadata.automation_context) !==
-      canonicalizeProtocolValueV01(input.automation_context)
+      canonicalizeProtocolValueV01(input.automation_context) ||
+    (input.run.metadata.repository_attachment_id ?? null) !==
+      (input.repository_delegation_context?.attachment_id ?? null) ||
+    (input.run.metadata.repository_execution_envelope_fingerprint ?? null) !==
+      (input.repository_delegation_context?.execution_envelope_fingerprint ?? null)
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
   }
@@ -1756,7 +1978,7 @@ function startPreparedRunInsideTransactionV01(
       event_type: "run_starting",
       status: "starting",
       message: "The exact admitted run claim entered host invocation.",
-      payload: { mode: "policy_triggered", automatic_retry: false },
+      payload: { mode: input.mode, automatic_retry: false },
       created_at: input.observed_at,
     }),
     { db },
@@ -1847,12 +2069,17 @@ function assertLiveHostEgressAdmissionV01(input: {
   mode: NativeHostRunModeV01;
   packet: TaskContextPacketV01 | null;
   automation_context: NativeHostAutomationContextV01 | null;
+  repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
   evaluated_at: string | null;
   interactive_authorized: boolean;
 }): void {
   if (input.mode === "interactive") {
     if (!input.interactive_authorized) {
       refuse("direct_host_live_egress_permission_required", 403);
+    }
+  } else if (input.mode === "repository_attachment") {
+    if (!input.repository_delegation_context || !input.interactive_authorized) {
+      refuse("direct_host_repository_start_grant_required", 403);
     }
   } else if (!input.packet) {
     return;
@@ -2789,6 +3016,7 @@ export function buildDirectNativeHostRunIdentityV01(input: {
   admission: PersistedHostPacketAdmissionV01;
   adapter: NativeHostAdapterV01;
   automation_context: NativeHostAutomationContextV01 | null;
+  repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
 }) {
   const lineageMaterial =
     input.admission.packet_lineage.lineage_kind === "semantic_transition"
@@ -2833,6 +3061,9 @@ export function buildDirectNativeHostRunIdentityV01(input: {
     adapter_version: input.adapter.adapter_version,
     capability_version: input.adapter.capability_version,
     automation_context: input.automation_context,
+    ...(input.repository_delegation_context
+      ? { repository_delegation_context: input.repository_delegation_context }
+      : {}),
   });
   const digest = createHash("sha256").update(material).digest("hex");
   return {

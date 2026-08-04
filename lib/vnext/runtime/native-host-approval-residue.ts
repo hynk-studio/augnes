@@ -161,6 +161,7 @@ function isApprovalDecisionV01(
       [
         "explicit_local_operator",
         "bounded_capability_grant",
+        "repository_execution_envelope",
         "run_cancellation",
       ].includes(candidate.decision_source ?? "") &&
       typeof candidate.decided_at === "string" &&

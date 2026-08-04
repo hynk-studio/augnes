@@ -24,6 +24,9 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_validate_repository_execution_attachment",
   "augnes_preview_repository_execution_attachment_revocation",
   "augnes_revoke_repository_execution_attachment",
+  "augnes_request_repository_delegation",
+  "augnes_start_repository_delegation",
+  "augnes_cancel_repository_delegation",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -124,6 +127,8 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
     "augnes_validate_repository_execution_attachment",
     "augnes_preview_repository_execution_root_rebind",
     "augnes_preview_repository_execution_attachment_revocation",
+    "augnes_request_repository_delegation",
+    "augnes_cancel_repository_delegation",
   ] as const) {
     const tool = tools[name];
     assert.ok(tool, `${name} should be registered`);
@@ -140,6 +145,7 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
     "augnes_adopt_repository_execution_root",
     "augnes_rebind_repository_execution_root",
     "augnes_revoke_repository_execution_attachment",
+    "augnes_start_repository_delegation",
   ] as const) {
     const tool = tools[name];
     assert.ok(tool, `${name} should be registered`);
@@ -239,7 +245,7 @@ function assertPublicToolSurface() {
     const registeredNames = Object.keys(tools);
     assert.deepEqual(
       registeredNames,
-      [...INTENDED_BRIDGE_TOOL_NAMES.slice(0, 8), ...INTENDED_PUBLIC_TOOL_NAMES, ...INTENDED_BRIDGE_TOOL_NAMES.slice(8)],
+      [...INTENDED_BRIDGE_TOOL_NAMES.slice(0, 11), ...INTENDED_PUBLIC_TOOL_NAMES, ...INTENDED_BRIDGE_TOOL_NAMES.slice(11)],
       "bridge-enabled registered tools must include public tools plus the Augnes bridge surface"
     );
     assertNoDangerousTools(registeredNames, "bridge-enabled");

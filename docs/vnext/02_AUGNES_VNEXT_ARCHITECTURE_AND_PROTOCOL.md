@@ -551,6 +551,46 @@ unchanged. Portable project v0.1, backup, restore, and recovery preserve and
 canonically revalidate the entire chain without a schema or portable-contract
 version bump.
 
+#### RepositoryExecutionAttachment and managed delegation v0.1
+
+Repository identity, local root binding, node-local physical-root baseline,
+Browser active selection, execution attachment, and managed-run binding are
+independent meanings. `repository_execution_attachment.v0.1` immutably binds
+the canonical workspace/project, node scope, baseline/root binding, current
+TaskContextPacket and work semantics, project-scoped admission, bounded Git
+worktree, managed-run absence, and freshness. Browser project ID and selection
+revision are excluded.
+
+CDX2B2B adds `repository_execution_envelope.v0.1` and the explicit
+`repository_attachment` NativeHost run mode. One Browser-confirmed start grant
+is bound to one prepared attachment, its complete expected database state, the
+physical/worktree fingerprints, adapter/capability versions, timeout/budgets,
+and envelope fingerprint. An immediate transaction validates and consumes the
+grant, prepares and admits one existing NativeHost claim, changes the
+attachment to `consumed` with its exact run ID, and creates one queued managed
+run. These writes commit all or none. Post-commit physical/worktree observation
+precedes the final database read, and NativeHost delivery repeats the gate
+before invocation. Drift blocks the same run and never un-consumes the
+attachment. Exact replay returns the same run and creates no duplicate
+controller or effect.
+
+The execution envelope pre-authorizes bounded reversible work inside the exact
+verified macOS Git root: reads, file creation/edit, tracked deletion, local
+repository checks/builds, Git inspection, and bounded local branch/commit work.
+Arbitrary command network, dependency downloads, push/GitHub, external posting,
+release/deploy/publish, credentials/secrets, outside-root writes, OS
+persistence, destructive pre-existing untracked-data mutation, semantic
+approval, Decision, Transition, accepted state, and work closure are not
+pre-authorized. Existing run-operation approval, cancellation, result
+normalization, RunReceipt, and proposal review owners remain authoritative and
+separate from Start.
+
+The product boundary is a verified local macOS filesystem. Linux has no
+separate product filesystem/runtime proof in v0.1. Windows, non-Git, remote,
+network, virtual, unsupported, unavailable, and ambiguous roots create no run.
+A durable nonterminal run without its exact live controller projects
+disconnected/paused and is never automatically resumed in this phase.
+
 ---
 
 ### 5.2 RunReceipt

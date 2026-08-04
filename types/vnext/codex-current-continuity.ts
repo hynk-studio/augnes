@@ -183,7 +183,12 @@ export interface CodexCurrentContinuityV01 {
   };
   managed_execution: {
     stage: CodexCurrentContinuityExecutionStageV01;
-    mode: "interactive" | "policy_triggered" | "unknown" | null;
+    mode:
+      | "interactive"
+      | "policy_triggered"
+      | "repository_attachment"
+      | "unknown"
+      | null;
     latest_checkpoint: string | null;
     blocker_or_attention: string | null;
     attention_required: boolean;

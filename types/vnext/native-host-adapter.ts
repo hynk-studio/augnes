@@ -12,7 +12,10 @@ export const NATIVE_HOST_RESULT_RETURN_VERSION_V01 =
 export const NATIVE_HOST_APPROVAL_VERSION_V01 =
   "native_host_approval.v0.1" as const;
 
-export type NativeHostRunModeV01 = "interactive" | "policy_triggered";
+export type NativeHostRunModeV01 =
+  | "interactive"
+  | "policy_triggered"
+  | "repository_attachment";
 export type NativeHostRootKindV01 =
   | "plain_folder"
   | "git_repository"
@@ -131,6 +134,7 @@ export interface NativeHostRequestV01 {
   packet_capability_grant: TaskContextPacketV01["capability_grant"];
   execution_grant_ref: ExternalRefV01 | null;
   automation_context: NativeHostAutomationContextV01 | null;
+  repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
   policy: {
     filesystem: "selected_project_root_only";
     network: "forbidden" | "exact_grant_only";
@@ -159,6 +163,16 @@ export interface NativeHostRequestV01 {
     raw_output_allowed: false;
     max_result_bytes: number;
   };
+}
+
+export interface NativeHostRepositoryDelegationContextV01 {
+  context_version: "native_host_repository_delegation_context.v0.1";
+  attachment_id: string;
+  attachment_binding_fingerprint: string;
+  execution_envelope_fingerprint: string;
+  start_decision_request_fingerprint: string;
+  protected_untracked_paths_fingerprint: string;
+  protected_untracked_paths: string[];
 }
 
 export interface NativeHostChangedFileV01 {
@@ -297,6 +311,11 @@ export interface NativeHostApprovalRequestV01 {
   issued_at: string;
   expires_at: string | null;
   coverage: NativeHostCoverageClassV01;
+  repository_envelope_classification?:
+    | "preauthorized"
+    | "approval_required"
+    | "refused"
+    | null;
 }
 
 export interface NativeHostApprovalDecisionV01 {
@@ -306,6 +325,7 @@ export interface NativeHostApprovalDecisionV01 {
   decision_source:
     | "explicit_local_operator"
     | "bounded_capability_grant"
+    | "repository_execution_envelope"
     | "run_cancellation";
   decided_at: string;
   control_revision: number;

@@ -1776,7 +1776,7 @@ const RepositoryExecutionAttachmentSchema = z.object({
     "superseded",
   ]).nullable(),
   lifecycle_updated_at: z.string().datetime(),
-  consumed_run_id: z.null(),
+  consumed_run_id: z.string().nullable(),
 }).strict();
 
 const ProjectExecutionAdmissionSchema = z.object({
@@ -1823,7 +1823,7 @@ const ProjectExecutionAdmissionSchema = z.object({
 const RepositoryExecutionDecisionRequestSchema = z.object({
   decision_request_version: z.literal("repository_execution_decision_request.v0.1"),
   request_fingerprint: z.string(),
-  action: z.enum(["adopt_legacy_baseline", "rebind_root", "revoke_attachment"]),
+  action: z.enum(["adopt_legacy_baseline", "rebind_root", "revoke_attachment", "start_repository_managed_delegation"]),
   workspace_id: z.string(),
   project_id: z.string(),
   expected_state_fingerprint: z.string(),
@@ -1886,6 +1886,71 @@ const RepositoryAttachmentRevocationPreviewSchema = z.object({
   authority: RepositoryExecutionAuthoritySchema,
 }).strict();
 
+const RepositoryManagedDelegationAuthoritySchema = z.object({
+  attachment_consumed: z.boolean(),
+  managed_run_created: z.boolean(),
+  worker_started: z.boolean(),
+  project_files_may_be_written: z.boolean(),
+  project_commands_may_be_executed: z.boolean(),
+  provider_egress_may_occur: z.boolean(),
+  arbitrary_network_access_granted: z.literal(false),
+  github_authority_granted: z.literal(false),
+  release_authority_granted: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+  decision_created: z.literal(false),
+  transition_created: z.literal(false),
+  accepted_state_mutated: z.literal(false),
+  work_closed: z.literal(false),
+}).strict();
+
+const RepositoryExecutionEnvelopeSchema = z.object({
+  envelope_version: z.literal("repository_execution_envelope.v0.1"),
+  platform: z.literal("darwin"),
+  run_mode: z.literal("repository_attachment"),
+  filesystem_scope: z.literal("exact_repository_root"),
+  network_scope: z.literal("provider_egress_only"),
+  provider_egress: z.enum(["forbidden", "native_host_managed"]),
+  timeout_ms: z.number().int().positive(),
+  stop_settle_timeout_ms: z.number().int().positive(),
+  budgets: z.object({
+    max_changed_files: z.number().int().positive(),
+    max_artifacts: z.number().int().positive(),
+    max_commands: z.number().int().positive(),
+    max_checks: z.number().int().positive(),
+    max_correction_attempts: z.literal(1),
+  }).strict(),
+  allowed_operation_categories: z.array(z.string()),
+  forbidden_operation_categories: z.array(z.string()),
+  protected_untracked_paths_fingerprint: z.string(),
+  adapter_version: z.string(),
+  capability_version: z.string(),
+  envelope_fingerprint: z.string(),
+}).strict();
+
+const LiveRepositoryRunProjectionSchema = z.object({
+  service_version: z.literal("live_native_host_run_service.v0.1"),
+  status: z.enum(["idle", "queued", "starting", "running", "waiting_for_approval", "cancelling", "paused", "blocked", "completed", "failed", "cancelled", "timed_out"]),
+  run_ref: z.string().nullable(),
+  mode: z.enum(["interactive", "policy_triggered", "repository_attachment"]).nullable(),
+  control_revision: z.number().int().nonnegative(),
+  reconciliation_required: z.boolean(),
+  public_reason: z.string().nullable(),
+  capability: z.object({
+    status: z.enum(["not_checked", "checking", "available", "unavailable", "disconnected"]),
+    adapter_version: z.string().nullable(),
+    capability_version: z.string().nullable(),
+    cli_version: z.string().nullable(),
+    public_reason: z.string().nullable(),
+  }).strict(),
+  pending_approval: z.unknown().nullable(),
+  receipt: z.unknown().nullable(),
+  packet_copy_actions: z.literal(0),
+  handoff_paste_actions: z.literal(0),
+  result_paste_actions: z.literal(0),
+  internal_id_entry_actions: z.literal(0),
+  semantic_authority_granted: z.literal(false),
+}).strict();
+
 export const RepositoryExecutionResultSchema = z.union([
   RepositoryExecutionPreparationSchema,
   PhysicalRootMutationProjectionSchema,
@@ -1898,6 +1963,38 @@ export const RepositoryExecutionResultSchema = z.union([
   z.object({
     status: z.literal("revoked"),
     attachment: RepositoryExecutionAttachmentSchema,
+  }).strict(),
+  z.object({
+    preparation_version: z.literal("repository_managed_delegation_preparation.v0.1"),
+    status: z.enum(["decision_required", "blocked"]),
+    ordinary_text: z.string(),
+    project: z.object({ project_id: z.string(), display_name: z.string().nullable() }).strict().nullable(),
+    attachment_id: z.string().nullable(),
+    execution_envelope: RepositoryExecutionEnvelopeSchema.nullable(),
+    decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
+    authority: RepositoryManagedDelegationAuthoritySchema,
+  }).strict(),
+  z.object({
+    start_version: z.literal("repository_managed_delegation_start.v0.1"),
+    status: z.enum(["accepted", "exact_replay", "blocked"]),
+    ordinary_text: z.string(),
+    attachment_id: z.string(),
+    run_id: z.string(),
+    attachment_binding_fingerprint: z.string(),
+    execution_envelope_fingerprint: z.string(),
+    projection: LiveRepositoryRunProjectionSchema,
+    authority: RepositoryManagedDelegationAuthoritySchema,
+  }).strict(),
+  z.object({
+    status: z.literal("cancel_requested"),
+    ordinary_text: z.string(),
+    attachment_id: z.string(),
+    run_id: z.string(),
+    projection: LiveRepositoryRunProjectionSchema,
+    semantic_authority_granted: z.literal(false),
+    decision_created: z.literal(false),
+    transition_created: z.literal(false),
+    work_closed: z.literal(false),
   }).strict(),
 ]);
 export type RepositoryExecutionResult = z.infer<typeof RepositoryExecutionResultSchema>;

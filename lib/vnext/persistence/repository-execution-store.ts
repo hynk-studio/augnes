@@ -78,7 +78,11 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
       'worktree_changed', 'freshness_expired', 'explicitly_revoked', 'superseded'
     )),
     lifecycle_updated_at TEXT NOT NULL CHECK (length(trim(lifecycle_updated_at)) > 0),
-    consumed_run_id TEXT CHECK (consumed_run_id IS NULL),
+    consumed_run_id TEXT,
+    CHECK (
+      (lifecycle = 'consumed' AND consumed_run_id IS NOT NULL AND length(trim(consumed_run_id)) > 0)
+      OR (lifecycle <> 'consumed' AND consumed_run_id IS NULL)
+    ),
     FOREIGN KEY (workspace_id, project_id)
       REFERENCES vnext_project_identities(workspace_id, project_id)
       ON UPDATE RESTRICT ON DELETE CASCADE
@@ -92,6 +96,10 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
   CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_prepared
     ON vnext_repository_execution_attachments(workspace_id, project_id)
     WHERE lifecycle = 'prepared';
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_consumed_run
+    ON vnext_repository_execution_attachments(consumed_run_id)
+    WHERE consumed_run_id IS NOT NULL;
 
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
@@ -118,7 +126,8 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
       decision_request_version = 'repository_execution_decision_request.v0.1'
     ),
     action TEXT NOT NULL CHECK (action IN (
-      'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment'
+      'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment',
+      'start_repository_managed_delegation'
     )),
     workspace_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
@@ -173,6 +182,7 @@ export function assertVNextRepositoryExecutionStoreSchemaV01(
     ["index", "idx_vnext_physical_root_baselines_project"],
     ["index", "idx_vnext_repository_execution_attachments_project"],
     ["index", "idx_vnext_repository_execution_one_prepared"],
+    ["index", "idx_vnext_repository_execution_consumed_run"],
     ["index", "idx_vnext_repository_root_rebind_receipts_project"],
     ["table", "vnext_repository_execution_decision_requests"],
     ["index", "idx_vnext_repository_execution_decisions_project"],
@@ -397,9 +407,8 @@ export function pruneRepositoryExecutionDecisionsInsideTransactionV01(
   ).run(input.workspace_id, input.project_id, input.retain).changes;
 }
 
-interface AttachmentRowV01 extends Omit<RepositoryExecutionAttachmentV01, "freshness_policy" | "consumed_run_id"> {
+interface AttachmentRowV01 extends Omit<RepositoryExecutionAttachmentV01, "freshness_policy"> {
   freshness_policy_json: string;
-  consumed_run_id: null;
 }
 
 export function readRepositoryExecutionAttachmentV01(
@@ -492,7 +501,7 @@ export function updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01
   const result = db.prepare(
     `UPDATE vnext_repository_execution_attachments
        SET lifecycle = ?, stale_reason = ?, lifecycle_updated_at = ?
-     WHERE attachment_id = ?${input.from ? " AND lifecycle = ?" : ""}`,
+     WHERE attachment_id = ? AND lifecycle <> 'consumed'${input.from ? " AND lifecycle = ?" : ""}`,
   ).run(
     input.to,
     input.stale_reason,
@@ -501,6 +510,50 @@ export function updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01
     ...(input.from ? [input.from] : []),
   );
   return result.changes === 1;
+}
+
+export function consumeRepositoryExecutionAttachmentInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    attachment_id: string;
+    expected_binding_fingerprint: string;
+    consumed_run_id: string;
+    consumed_at: string;
+  },
+): "consumed" | "exact_replay" {
+  if (!db.inTransaction) throw new Error("repository_execution_attachment_transaction_required");
+  const existing = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
+  if (
+    existing?.lifecycle === "consumed" &&
+    existing.binding_fingerprint === input.expected_binding_fingerprint &&
+    existing.consumed_run_id === input.consumed_run_id
+  ) {
+    return "exact_replay";
+  }
+  if (
+    !existing ||
+    existing.lifecycle !== "prepared" ||
+    existing.binding_fingerprint !== input.expected_binding_fingerprint ||
+    existing.consumed_run_id !== null
+  ) {
+    throw new Error("repository_execution_attachment_consumption_conflict");
+  }
+  const result = db.prepare(
+    `UPDATE vnext_repository_execution_attachments
+       SET lifecycle = 'consumed', stale_reason = NULL,
+           lifecycle_updated_at = ?, consumed_run_id = ?
+     WHERE attachment_id = ? AND binding_fingerprint = ?
+       AND lifecycle = 'prepared' AND consumed_run_id IS NULL`,
+  ).run(
+    input.consumed_at,
+    input.consumed_run_id,
+    input.attachment_id,
+    input.expected_binding_fingerprint,
+  );
+  if (result.changes !== 1) {
+    throw new Error("repository_execution_attachment_consumption_conflict");
+  }
+  return "consumed";
 }
 
 export function pruneRepositoryExecutionAttachmentsInsideTransactionV01(
@@ -512,7 +565,8 @@ export function pruneRepositoryExecutionAttachmentsInsideTransactionV01(
     `DELETE FROM vnext_repository_execution_attachments
       WHERE attachment_id IN (
         SELECT attachment_id FROM vnext_repository_execution_attachments
-         WHERE workspace_id = ? AND project_id = ? AND lifecycle <> 'prepared'
+         WHERE workspace_id = ? AND project_id = ?
+           AND lifecycle NOT IN ('prepared', 'consumed')
          ORDER BY lifecycle_updated_at DESC, attachment_id DESC
          LIMIT -1 OFFSET ?
       )`,
@@ -525,6 +579,5 @@ function parseAttachment(row: AttachmentRowV01): RepositoryExecutionAttachmentV0
   return {
     ...rest,
     freshness_policy: JSON.parse(freshness_policy_json) as RepositoryExecutionAttachmentV01["freshness_policy"],
-    consumed_run_id: null,
   };
 }

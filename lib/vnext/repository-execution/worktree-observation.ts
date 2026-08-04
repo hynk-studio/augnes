@@ -23,6 +23,13 @@ export interface WorktreeObservationProcessV01 {
   run(root: string, args: readonly string[]): Promise<string>;
 }
 
+export interface ProtectedUntrackedPathsV01 {
+  status: "exact" | "ambiguous" | "unavailable";
+  paths: string[];
+  paths_fingerprint: string;
+  reason: string | null;
+}
+
 const SYSTEM_GIT_PROCESS_V01: WorktreeObservationProcessV01 = {
   async run(root, args) {
     const result = await execFileAsync("git", ["--no-optional-locks", "-C", root, ...args], {
@@ -227,6 +234,53 @@ export async function inspectRepositoryWorktreeV01(
     }
     return unavailable(observedAt, "bounded_git_inspection_failed");
   }
+}
+
+/**
+ * Returns only the bounded path identities needed to avoid silently
+ * overwriting pre-existing untracked user data. File contents remain owned by
+ * the normal worktree observation and are never returned by this helper.
+ */
+export async function inspectProtectedUntrackedPathsV01(
+  root: string,
+  options: { process?: WorktreeObservationProcessV01 } = {},
+): Promise<ProtectedUntrackedPathsV01> {
+  const git = options.process ?? SYSTEM_GIT_PROCESS_V01;
+  try {
+    const raw = await git.run(root, ["ls-files", "--others", "--exclude-standard", "-z"]);
+    if (Buffer.byteLength(raw, "utf8") > MAX_GIT_OUTPUT_BYTES) {
+      return protectedPathsFailureV01("ambiguous", "worktree_total_content_bound_exceeded");
+    }
+    const paths = raw.split("\0").filter(Boolean).map(normalizeRepositoryPath);
+    if (paths.some((value) => value === null) || paths.length > MAX_STATUS_PATHS) {
+      return protectedPathsFailureV01("ambiguous", "worktree_path_bound_exceeded");
+    }
+    const exactPaths = [...new Set(paths as string[])].sort();
+    return {
+      status: "exact",
+      paths: exactPaths,
+      paths_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(exactPaths),
+      ),
+      reason: null,
+    };
+  } catch {
+    return protectedPathsFailureV01("unavailable", "bounded_git_inspection_failed");
+  }
+}
+
+function protectedPathsFailureV01(
+  status: "ambiguous" | "unavailable",
+  reason: string,
+): ProtectedUntrackedPathsV01 {
+  return {
+    status,
+    paths: [],
+    paths_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({ status, reason }),
+    ),
+    reason,
+  };
 }
 
 function normalizeRepositoryPath(value: string): string | null {

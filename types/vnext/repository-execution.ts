@@ -172,7 +172,7 @@ export interface RepositoryExecutionAttachmentV01 {
   lifecycle: RepositoryExecutionAttachmentLifecycleV01;
   stale_reason: RepositoryExecutionAttachmentStaleReasonV01 | null;
   lifecycle_updated_at: string;
-  consumed_run_id: null;
+  consumed_run_id: string | null;
 }
 
 export interface RepositoryExecutionAuthorityBoundaryV01 {
@@ -203,7 +203,8 @@ export interface RepositoryExecutionPreparationV01 {
 export type RepositoryExecutionDecisionActionV01 =
   | "adopt_legacy_baseline"
   | "rebind_root"
-  | "revoke_attachment";
+  | "revoke_attachment"
+  | "start_repository_managed_delegation";
 
 export type RepositoryExecutionDecisionStatusV01 =
   | "pending"

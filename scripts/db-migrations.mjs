@@ -4639,13 +4639,16 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
     lifecycle TEXT NOT NULL CHECK (lifecycle IN ('prepared', 'stale', 'superseded', 'revoked', 'consumed')),
     stale_reason TEXT CHECK (stale_reason IS NULL OR stale_reason IN ('physical_root_mismatch', 'root_binding_changed', 'packet_changed', 'current_work_changed', 'project_unavailable', 'managed_run_conflict', 'worktree_changed', 'freshness_expired', 'explicitly_revoked', 'superseded')),
     lifecycle_updated_at TEXT NOT NULL CHECK (length(trim(lifecycle_updated_at)) > 0),
-    consumed_run_id TEXT CHECK (consumed_run_id IS NULL),
+    consumed_run_id TEXT,
+    CHECK ((lifecycle = 'consumed' AND consumed_run_id IS NOT NULL AND length(trim(consumed_run_id)) > 0) OR (lifecycle <> 'consumed' AND consumed_run_id IS NULL)),
     FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_vnext_repository_execution_attachments_project
     ON vnext_repository_execution_attachments(workspace_id, project_id, lifecycle_updated_at DESC, attachment_id);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_prepared
     ON vnext_repository_execution_attachments(workspace_id, project_id) WHERE lifecycle = 'prepared';
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_consumed_run
+    ON vnext_repository_execution_attachments(consumed_run_id) WHERE consumed_run_id IS NOT NULL;
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
     workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
@@ -4661,7 +4664,7 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
   CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71 AND substr(request_fingerprint, 1, 7) = 'sha256:'),
     decision_request_version TEXT NOT NULL CHECK (decision_request_version = 'repository_execution_decision_request.v0.1'),
-    action TEXT NOT NULL CHECK (action IN ('adopt_legacy_baseline', 'rebind_root', 'revoke_attachment')),
+    action TEXT NOT NULL CHECK (action IN ('adopt_legacy_baseline', 'rebind_root', 'revoke_attachment', 'start_repository_managed_delegation')),
     workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
     expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
     expected_state_json TEXT NOT NULL CHECK (json_valid(expected_state_json) AND json_type(expected_state_json) = 'object'),
@@ -4690,6 +4693,7 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
     "idx_vnext_physical_root_baselines_project",
     "idx_vnext_repository_execution_attachments_project",
     "idx_vnext_repository_execution_one_prepared",
+    "idx_vnext_repository_execution_consumed_run",
     "idx_vnext_repository_root_rebind_receipts_project",
     "idx_vnext_repository_execution_decisions_project",
     "idx_vnext_repository_execution_one_open_decision",
@@ -4697,6 +4701,86 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
   const before = new Set(db.prepare(
     `SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (${names.map(() => "?").join(", ")})`,
   ).all(...names).map((row) => row.key));
+  const attachmentSql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_execution_attachments'",
+  ).pluck().get();
+  const decisionSql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_execution_decision_requests'",
+  ).pluck().get();
+  const attachmentUpgradeRequired =
+    typeof attachmentSql === "string" &&
+    !attachmentSql.includes("lifecycle = 'consumed' AND consumed_run_id IS NOT NULL");
+  const decisionUpgradeRequired =
+    typeof decisionSql === "string" &&
+    !decisionSql.includes("start_repository_managed_delegation");
+  if (attachmentUpgradeRequired || decisionUpgradeRequired) {
+    if (
+      attachmentUpgradeRequired &&
+      db.prepare(
+        "SELECT 1 FROM vnext_repository_execution_attachments WHERE lifecycle = 'consumed' LIMIT 1",
+      ).get()
+    ) {
+      throw new Error("repository_execution_legacy_consumed_attachment_invalid");
+    }
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (attachmentUpgradeRequired) {
+        db.exec(
+          "ALTER TABLE vnext_repository_execution_attachments RENAME TO vnext_repository_execution_attachments_cdx2b2a",
+        );
+      }
+      if (decisionUpgradeRequired) {
+        db.exec(
+          "ALTER TABLE vnext_repository_execution_decision_requests RENAME TO vnext_repository_execution_decision_requests_cdx2b2a",
+        );
+      }
+      db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
+      if (attachmentUpgradeRequired) {
+        db.exec(`INSERT INTO vnext_repository_execution_attachments (
+          attachment_id, attachment_version, workspace_id, project_id,
+          node_scope_fingerprint, physical_root_baseline_fingerprint,
+          root_binding_fingerprint, task_context_packet_id,
+          task_context_packet_fingerprint, current_work_fingerprint,
+          project_execution_admission_fingerprint, worktree_observation_fingerprint,
+          managed_run_state_fingerprint, binding_fingerprint, prepared_at,
+          freshness_policy_json, lifecycle, stale_reason, lifecycle_updated_at,
+          consumed_run_id
+        ) SELECT
+          attachment_id, attachment_version, workspace_id, project_id,
+          node_scope_fingerprint, physical_root_baseline_fingerprint,
+          root_binding_fingerprint, task_context_packet_id,
+          task_context_packet_fingerprint, current_work_fingerprint,
+          project_execution_admission_fingerprint, worktree_observation_fingerprint,
+          managed_run_state_fingerprint, binding_fingerprint, prepared_at,
+          freshness_policy_json, lifecycle, stale_reason, lifecycle_updated_at,
+          NULL
+        FROM vnext_repository_execution_attachments_cdx2b2a`);
+        db.exec("DROP TABLE vnext_repository_execution_attachments_cdx2b2a");
+      }
+      if (decisionUpgradeRequired) {
+        db.exec(`INSERT INTO vnext_repository_execution_decision_requests (
+          request_fingerprint, decision_request_version, action, workspace_id,
+          project_id, expected_state_fingerprint, expected_state_json,
+          requested_at, expires_at, status, grant_fingerprint,
+          confirmation_source, granted_at, consumed_at, result_fingerprint
+        ) SELECT
+          request_fingerprint, decision_request_version, action, workspace_id,
+          project_id, expected_state_fingerprint, expected_state_json,
+          requested_at, expires_at, status, grant_fingerprint,
+          confirmation_source, granted_at, consumed_at, result_fingerprint
+        FROM vnext_repository_execution_decision_requests_cdx2b2a`);
+        db.exec("DROP TABLE vnext_repository_execution_decision_requests_cdx2b2a");
+      }
+      // Renaming the prior tables carries their index names with them. The
+      // drops above release those names; a second schema pass recreates every
+      // canonical index against the upgraded tables.
+      db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
+      db.exec("COMMIT");
+    } catch (error) {
+      if (db.inTransaction) db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
   return {
     created_tables: names.slice(0, 4).filter((name) => !before.has(`table:${name}`)),

@@ -11,6 +11,7 @@ import {
 import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { assertNativeHostPublicTextV01 } from "@/lib/vnext/native-host/native-host-contract";
 import { createCodexAppServerAdapterV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
+import { createCanonicalRepositoryDelegationTestAdapterV01 } from "@/lib/vnext/native-host/canonical-repository-delegation-test-adapter";
 import { canonicalizeRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
 import { validateExternalRefV01 } from "@/lib/vnext/task-context-packet";
 import {
@@ -62,6 +63,7 @@ import {
   type NativeHostLifecycleEventV01,
   type NativeHostLifecycleSinkV01,
   type NativeHostRequestV01,
+  type NativeHostRepositoryDelegationContextV01,
   type NativeHostResumeBindingV01,
   type NativeHostRunModeV01,
 } from "@/types/vnext/native-host-adapter";
@@ -180,6 +182,7 @@ export class LiveNativeHostRunServiceV01 {
     adapter_version: string;
     capability_version: string;
     timeout_ms: number;
+    stop_settle_timeout_ms: number;
     execution_profile: NativeHostAdapterV01["execution_profile"];
     provider_egress: NativeHostAdapterV01["provider_egress"];
   } {
@@ -188,6 +191,8 @@ export class LiveNativeHostRunServiceV01 {
       adapter_version: adapter.adapter_version,
       capability_version: adapter.capability_version,
       timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+      stop_settle_timeout_ms:
+        this.options.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS,
       execution_profile: adapter.execution_profile,
       provider_egress: adapter.provider_egress,
     };
@@ -208,6 +213,7 @@ export class LiveNativeHostRunServiceV01 {
       {
         ...input,
         mode: "policy_triggered",
+        repository_delegation_context: null,
         adapter: this.currentAdapterContract(),
         timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
       },
@@ -228,8 +234,126 @@ export class LiveNativeHostRunServiceV01 {
   ): void {
     admitPreparedNativeHostRunClaimInsideTransactionV01(db, {
       ...input,
+      mode: "policy_triggered",
+      repository_delegation_context: null,
       adapter: this.currentAdapterContract(),
     });
+  }
+
+  async prepareRepositoryDelegationRunClaimInsideTransactionV01(
+    db: Database.Database,
+    input: {
+      config: VNextLocalOperatorPilotConfigV01;
+      repository_delegation_context: NativeHostRepositoryDelegationContextV01;
+      packet_id: string;
+      packet_fingerprint: string;
+      claimed_at: string;
+    },
+  ) {
+    return prepareNativeHostRunClaimInsideTransactionV01(db, {
+      ...input,
+      mode: "repository_attachment",
+      automation_context: null,
+      adapter: this.currentAdapterContract(),
+      timeout_ms: this.options.timeout_ms ?? DEFAULT_LIVE_TIMEOUT_MS,
+    });
+  }
+
+  admitRepositoryDelegationRunClaimInsideTransactionV01(
+    db: Database.Database,
+    input: {
+      config: VNextLocalOperatorPilotConfigV01;
+      repository_delegation_context: NativeHostRepositoryDelegationContextV01;
+      prepared: Awaited<
+        ReturnType<
+          LiveNativeHostRunServiceV01["prepareRepositoryDelegationRunClaimInsideTransactionV01"]
+        >
+      >;
+    },
+  ): void {
+    admitPreparedNativeHostRunClaimInsideTransactionV01(db, {
+      ...input,
+      mode: "repository_attachment",
+      automation_context: null,
+      adapter: this.currentAdapterContract(),
+    });
+  }
+
+  async startAdmittedRepositoryDelegationV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    repository_delegation_context: NativeHostRepositoryDelegationContextV01;
+    claim: PreparedNativeHostRunClaimV01;
+    before_adapter_invoke: (request: NativeHostRequestV01) => Promise<void>;
+  }): Promise<LiveNativeHostStartResultV01> {
+    const key = projectKeyV01(input.config);
+    const active = this.controllers.get(key);
+    if (active && !active.completionSettled) {
+      if (active.runId !== input.claim.run_id || active.mode !== "repository_attachment") {
+        refuseV01("live_host_start_conflict", 409);
+      }
+      return {
+        status: "exact_replay",
+        projection: this.read(input.config),
+        session_admission: null,
+      };
+    }
+    const existing = this.readLatestManagedRun(input.config);
+    if (existing && existing.run_id === input.claim.run_id) {
+      if (existing.status !== "queued") {
+        return {
+          status: "exact_replay",
+          projection: projectionFromRunV01(existing),
+          session_admission: null,
+        };
+      }
+    } else if (existing && !isTerminalRunnerStatus(existing.status)) {
+      refuseV01("live_host_start_conflict", 409);
+    }
+    return this.launch({
+      config: input.config,
+      mode: "repository_attachment",
+      automation_context: null,
+      repository_delegation_context: input.repository_delegation_context,
+      resume_binding: null,
+      resume_existing: false,
+      pre_admitted_run_claim: {
+        claim: input.claim,
+        session_admission: null,
+      },
+      before_adapter_invoke: input.before_adapter_invoke,
+    });
+  }
+
+  blockAdmittedRepositoryDelegationV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    run_id: string;
+    reason: string;
+  }): LiveNativeHostRunProjectionV01 {
+    const db = this.openDatabase(input.config);
+    try {
+      const run = this.requireRunV01(db, input.config, input.run_id);
+      if (!isRepositoryAttachmentRunV01(run)) {
+        refuseV01("live_host_repository_run_binding_mismatch", 409);
+      }
+      if (!isTerminalRunnerStatus(run.status) && run.status !== "paused") {
+        this.transitionRunV01(db, run, {
+          status: "blocked",
+          event_type: "run_blocked",
+          message:
+            "The attachment-backed post-commit launch gate changed before worker invocation.",
+          observed_at: this.now(),
+          metadata: {
+            public_reason: input.reason,
+            repository_launch_gate_passed: false,
+            worker_invoked: false,
+            attachment_remains_consumed: true,
+          },
+        });
+      }
+    } finally {
+      db.close();
+    }
+    return this.read(input.config);
   }
 
   async startAdmittedPolicyTriggeredV01(input: {
@@ -247,12 +371,14 @@ export class LiveNativeHostRunServiceV01 {
       config: input.config,
       mode: "policy_triggered",
       automation_context: input.automation_context,
+      repository_delegation_context: null,
       resume_binding: null,
       resume_existing: false,
       pre_admitted_run_claim: {
         claim: input.claim,
         session_admission: input.session_admission,
       },
+      before_adapter_invoke: undefined,
     });
   }
 
@@ -266,6 +392,9 @@ export class LiveNativeHostRunServiceV01 {
       secret_source?: VNextLocalOperatorSecretSourceV01;
     };
   }): Promise<LiveNativeHostStartResultV01> {
+    if (input.mode === "repository_attachment") {
+      refuseV01("live_host_repository_start_owner_required", 403);
+    }
     if (
       input.mode === "interactive" &&
       !input.operator_mutation &&
@@ -355,7 +484,13 @@ export class LiveNativeHostRunServiceV01 {
       }
     }
 
-    return this.launch({ ...input, resume_binding: null, resume_existing: false });
+    return this.launch({
+      ...input,
+      repository_delegation_context: null,
+      resume_binding: null,
+      resume_existing: false,
+      before_adapter_invoke: undefined,
+    });
   }
 
   read(config: VNextLocalOperatorPilotConfigV01): LiveNativeHostRunProjectionV01 {
@@ -611,6 +746,110 @@ export class LiveNativeHostRunServiceV01 {
     return { projection: this.read(input.config), session_admission: admission };
   }
 
+  async cancelRepositoryDelegationV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    run_ref: string;
+    attachment_id: string;
+    expected_attachment_binding_fingerprint: string;
+    control_revision: number;
+  }): Promise<{ projection: LiveNativeHostRunProjectionV01; session_admission: null }> {
+    const controller = this.controllers.get(projectKeyV01(input.config));
+    const db = this.openDatabase(input.config);
+    let repeated = false;
+    let interrupt = false;
+    try {
+      const prevalidatedRun = this.requireRunV01(db, input.config, input.run_ref);
+      if (
+        !isRepositoryAttachmentRunV01(prevalidatedRun) ||
+        prevalidatedRun.metadata.repository_attachment_id !== input.attachment_id ||
+        prevalidatedRun.metadata.repository_attachment_binding_fingerprint !==
+          input.expected_attachment_binding_fingerprint
+      ) {
+        refuseV01("live_host_repository_run_binding_mismatch", 409);
+      }
+      const scopeAdmission = await this.revalidateRunScopeV01(
+        db,
+        input.config,
+        prevalidatedRun,
+      );
+      db.exec("BEGIN IMMEDIATE");
+      const run = this.requireRunV01(db, input.config, input.run_ref);
+      this.assertPrevalidatedScopeCurrentInsideTransactionV01(
+        db,
+        input.config,
+        run,
+        scopeAdmission,
+      );
+      if (isTerminalRunnerStatus(run.status)) {
+        repeated = true;
+      } else if (run.status === "cancelling") {
+        repeated = true;
+      } else if (numberMetadataV01(run.metadata.control_revision) !== input.control_revision) {
+        refuseV01("live_host_control_revision_conflict", 409);
+      } else if (run.status === "queued") {
+        const step = run.steps[0];
+        if (!step || step.status !== "planned") {
+          refuseV01("live_host_repository_queued_claim_invalid", 409);
+        }
+        const observedAt = this.now();
+        updateAutonomyRunStepLedgerFields(step.step_id, {
+          status: "cancelled",
+          finished_at: observedAt,
+          updated_at: observedAt,
+          error_message: null,
+        }, { db });
+        updateAutonomyRunLedgerFields(run.run_id, {
+          status: "cancelled",
+          finished_at: observedAt,
+          updated_at: observedAt,
+          stop_reason: "cancelled_before_worker_start",
+          metadata: {
+            ...run.metadata,
+            control_revision: input.control_revision + 1,
+            cancellation_requested: true,
+            worker_invoked: false,
+            semantic_approval_created: false,
+          },
+        }, { db });
+        appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+          run_id: run.run_id,
+          event_type: "run_cancelled",
+          status: "cancelled",
+          message: "The exact queued repository run was cancelled before worker invocation.",
+          payload: { worker_invoked: false, semantic_approval_created: false },
+          created_at: observedAt,
+        }), { db });
+      } else {
+        if (
+          !controller ||
+          controller.completionSettled ||
+          controller.runId !== run.run_id
+        ) {
+          refuseV01("live_host_cancel_owner_unavailable", 409);
+        }
+        this.transitionRunV01(db, run, {
+          status: "cancelling",
+          event_type: "run_cancelling",
+          message: "Cancellation was requested for the exact attachment-backed run.",
+          observed_at: this.now(),
+          metadata: {
+            cancellation_requested: true,
+            cancellation_request_revision: input.control_revision,
+          },
+        });
+        interrupt = true;
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      if (db.inTransaction) db.exec("ROLLBACK");
+      throw error;
+    } finally {
+      db.close();
+    }
+    if (!repeated && interrupt) controller!.cancel();
+    return { projection: this.read(input.config), session_admission: null };
+  }
+
   async resume(input: {
     config: VNextLocalOperatorPilotConfigV01;
     run_ref: string;
@@ -638,7 +877,12 @@ export class LiveNativeHostRunServiceV01 {
       binding = resumeBindingFromRunV01(run);
       mode = run.metadata.invocation_origin === "policy_triggered"
         ? "policy_triggered"
+        : run.metadata.invocation_origin === "repository_attachment"
+          ? "repository_attachment"
         : "interactive";
+      if (mode === "repository_attachment") {
+        refuseV01("live_host_repository_resume_not_supported", 409);
+      }
     } finally {
       db.close();
     }
@@ -659,6 +903,7 @@ export class LiveNativeHostRunServiceV01 {
       mode,
       automation_context:
         mode === "policy_triggered" ? automationContextFromRunV01(run) : null,
+      repository_delegation_context: null,
       operator_mutation: {
         credential: input.credential,
         clock: input.clock,
@@ -666,6 +911,7 @@ export class LiveNativeHostRunServiceV01 {
       },
       resume_binding: binding,
       resume_existing: true,
+      before_adapter_invoke: undefined,
     });
   }
 
@@ -681,6 +927,7 @@ export class LiveNativeHostRunServiceV01 {
     config: VNextLocalOperatorPilotConfigV01;
     mode: NativeHostRunModeV01;
     automation_context?: NativeHostAutomationContextV01 | null;
+    repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
     operator_mutation?: {
       credential: VNextLocalOperatorSessionCredentialV01;
       clock?: VNextLocalRuntimeClockV01;
@@ -690,8 +937,9 @@ export class LiveNativeHostRunServiceV01 {
     resume_existing: boolean;
     pre_admitted_run_claim?: {
       claim: PreparedNativeHostRunClaimV01;
-      session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+      session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
     };
+    before_adapter_invoke: ((request: NativeHostRequestV01) => Promise<void>) | undefined;
   }): Promise<LiveNativeHostStartResultV01> {
     const db = this.openDatabase(input.config);
     const delegate =
@@ -711,6 +959,7 @@ export class LiveNativeHostRunServiceV01 {
         config: input.config,
         mode: input.mode,
         automation_context: input.automation_context ?? null,
+        repository_delegation_context: input.repository_delegation_context,
         operator_mutation: input.operator_mutation,
       },
       {
@@ -725,8 +974,10 @@ export class LiveNativeHostRunServiceV01 {
         lifecycle_mode: "managed_live",
         resume_binding: input.resume_binding,
         resume_existing_run: input.resume_existing,
-        live_host_egress_authorized: input.mode === "interactive",
+        live_host_egress_authorized:
+          input.mode === "interactive" || input.mode === "repository_attachment",
         pre_admitted_run_claim: input.pre_admitted_run_claim,
+        before_adapter_invoke: input.before_adapter_invoke,
         on_invocation_admitted: ({ request, session_admission }) =>
           controller.admit(request, session_admission),
       },
@@ -894,8 +1145,9 @@ export class LiveNativeHostRunServiceV01 {
     config: VNextLocalOperatorPilotConfigV01,
     run: AutonomyRunSummary,
   ): Promise<PersistedHostPacketAdmissionV01> {
+    const repositoryAttachmentRun = isRepositoryAttachmentRunV01(run);
     const active = readActiveProjectSelectionV01(db, config.workspace_id);
-    if (active?.project_id !== config.project_id) {
+    if (!repositoryAttachmentRun && active?.project_id !== config.project_id) {
       refuseV01("live_host_project_not_active", 409);
     }
     const packetId = stringMetadataV01(run.metadata.packet_id);
@@ -906,6 +1158,7 @@ export class LiveNativeHostRunServiceV01 {
       packet_id: packetId,
       packet_fingerprint: packetFingerprint,
       evaluated_at: this.now(),
+      require_active_project: !repositoryAttachmentRun,
     });
     if (admitted.root_scope.root_fingerprint !== run.metadata.root_fingerprint) {
       refuseV01("live_host_root_binding_mismatch", 409);
@@ -938,7 +1191,8 @@ export class LiveNativeHostRunServiceV01 {
         )
       : null;
     if (
-      active?.project_id !== config.project_id ||
+      (!isRepositoryAttachmentRunV01(run) &&
+        active?.project_id !== config.project_id) ||
       continuity.packet_currentness !== "fresh" ||
       continuity.latest_compiled_packet?.packet_id !== admitted.packet.packet_id ||
       continuity.latest_compiled_packet.packet_fingerprint !==
@@ -1549,7 +1803,8 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           refuseV01("live_host_approval_conflict", 409);
         }
         pending = existing;
-        automatic = exactPolicyGrantCoversV01(db, request, approval);
+        automatic = exactPolicyGrantCoversV01(db, request, approval) ||
+          repositoryEnvelopeDecisionV01(request, approval) === "approve";
         db.exec("COMMIT");
       } else {
         const revision = numberMetadataV01(run.metadata.control_revision) + 1;
@@ -1558,7 +1813,8 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           control_revision: revision,
           decision_submitted: false,
         };
-        automatic = exactPolicyGrantCoversV01(db, request, approval);
+        automatic = exactPolicyGrantCoversV01(db, request, approval) ||
+          repositoryEnvelopeDecisionV01(request, approval) === "approve";
         updateAutonomyRunLedgerFields(
           run.run_id,
           {
@@ -1603,7 +1859,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       request.mode === "policy_triggered" &&
       request.automation_context?.bounded_cycle != null &&
       !automatic;
-    if (automatic || boundedPolicyDenial) {
+    const repositoryEnvelopeDenial =
+      request.mode === "repository_attachment" &&
+      repositoryEnvelopeDecisionV01(request, approval) === "decline";
+    if (automatic || boundedPolicyDenial || repositoryEnvelopeDenial) {
       const run = requireBoundRunV01(db, request);
       db.exec("BEGIN IMMEDIATE");
       try {
@@ -1614,8 +1873,14 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           {
             approval_ref: pending.approval_id,
             expected_revision: pending.control_revision,
-            decision: boundedPolicyDenial ? "decline" : "approve_once",
-            decision_source: "bounded_capability_grant",
+            decision:
+              boundedPolicyDenial || repositoryEnvelopeDenial
+                ? "decline"
+                : "approve_once",
+            decision_source:
+              request.mode === "repository_attachment"
+                ? "repository_execution_envelope"
+                : "bounded_capability_grant",
             decided_at: this.input.now(),
           },
         );
@@ -1648,7 +1913,15 @@ declare global {
 
 export function getLiveNativeHostRunServiceV01(): LiveNativeHostRunServiceV01 {
   globalThis.__augnesLiveNativeHostRunServiceV01 ??=
-    new LiveNativeHostRunServiceV01();
+    new LiveNativeHostRunServiceV01(
+      process.env.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        process.env.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1"
+        ? {
+            adapter_factory: () =>
+              createCanonicalRepositoryDelegationTestAdapterV01(),
+          }
+        : {},
+    );
   return globalThis.__augnesLiveNativeHostRunServiceV01;
 }
 
@@ -1933,7 +2206,11 @@ function validateApprovalV01(
         !["approve_once", "decline", "cancel_run"].includes(decision),
     ) ||
     (approval.command_fingerprint !== null &&
-      !/^sha256:[a-f0-9]{64}$/u.test(approval.command_fingerprint))
+      !/^sha256:[a-f0-9]{64}$/u.test(approval.command_fingerprint)) ||
+    (approval.repository_envelope_classification !== undefined &&
+      !["preauthorized", "approval_required", "refused", null].includes(
+        approval.repository_envelope_classification,
+      ))
   ) {
     refuseV01("live_host_approval_binding_invalid", 422);
   }
@@ -2203,7 +2480,9 @@ function automationContextMatchesRunV01(
   mode: NativeHostRunModeV01,
   automationContext: NativeHostAutomationContextV01 | null,
 ): boolean {
-  if (mode === "interactive") return automationContext === null;
+  if (mode === "interactive" || mode === "repository_attachment") {
+    return automationContext === null;
+  }
   if (!automationContext) return false;
   try {
     return (
@@ -2215,6 +2494,12 @@ function automationContextMatchesRunV01(
   }
 }
 
+function isRepositoryAttachmentRunV01(
+  run: Pick<AutonomyRunSummary, "metadata">,
+): boolean {
+  return run.metadata.invocation_origin === "repository_attachment";
+}
+
 function startMaterialMatchesRunV01(
   run: AutonomyRunSummary,
   mode: NativeHostRunModeV01,
@@ -2224,7 +2509,9 @@ function startMaterialMatchesRunV01(
   return (
     (run.metadata.invocation_origin === "policy_triggered"
       ? "policy_triggered"
-      : "interactive") === mode &&
+      : run.metadata.invocation_origin === "repository_attachment"
+        ? "repository_attachment"
+        : "interactive") === mode &&
     automationContextMatchesRunV01(run, mode, automationContext) &&
     run.metadata.adapter_version === adapter.adapter_version &&
     run.metadata.capability_version === adapter.capability_version
@@ -2302,6 +2589,43 @@ function exactPolicyGrantCoversV01(
   );
 }
 
+export function repositoryEnvelopeDecisionV01(
+  request: NativeHostRequestV01,
+  approval: NativeHostApprovalRequestV01,
+): "approve" | "decline" | "defer" {
+  if (request.mode !== "repository_attachment") return "defer";
+  const context = request.repository_delegation_context;
+  if (!context) return "decline";
+  if (
+    approval.operation_class === "network_permission" ||
+    approval.repository_envelope_classification === "refused"
+  ) {
+    return "decline";
+  }
+  if (approval.repository_envelope_classification !== "preauthorized") {
+    return "defer";
+  }
+  const protectedPaths = context.protected_untracked_paths;
+  if (approval.operation_class === "command_execution") {
+    return protectedPaths.length === 0 ? "approve" : "defer";
+  }
+  if (
+    approval.operation_class !== "file_change" &&
+    approval.operation_class !== "filesystem_permission"
+  ) {
+    return "defer";
+  }
+  if (protectedPaths.length === 0) return "approve";
+  if (approval.repository_relative_paths.length === 0) return "defer";
+  const coversProtectedPath = approval.repository_relative_paths.some((scope) =>
+    scope === "." || protectedPaths.some(
+      (protectedPath) =>
+        protectedPath === scope || protectedPath.startsWith(`${scope}/`),
+    ),
+  );
+  return coversProtectedPath ? "defer" : "approve";
+}
+
 function projectionFromRunV01(
   run: AutonomyRunSummary,
 ): LiveNativeHostRunProjectionV01 {
@@ -2324,6 +2648,8 @@ function projectionFromRunV01(
     mode:
       run.metadata.invocation_origin === "policy_triggered"
         ? "policy_triggered"
+        : run.metadata.invocation_origin === "repository_attachment"
+          ? "repository_attachment"
         : "interactive",
     control_revision: numberMetadataV01(run.metadata.control_revision),
     reconciliation_required: run.metadata.reconciliation_required === true,

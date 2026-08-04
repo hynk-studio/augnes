@@ -4104,7 +4104,11 @@ CREATE TABLE IF NOT EXISTS vnext_repository_execution_attachments (
     'worktree_changed', 'freshness_expired', 'explicitly_revoked', 'superseded'
   )),
   lifecycle_updated_at TEXT NOT NULL CHECK (length(trim(lifecycle_updated_at)) > 0),
-  consumed_run_id TEXT CHECK (consumed_run_id IS NULL),
+  consumed_run_id TEXT,
+  CHECK (
+    (lifecycle = 'consumed' AND consumed_run_id IS NOT NULL AND length(trim(consumed_run_id)) > 0)
+    OR (lifecycle <> 'consumed' AND consumed_run_id IS NULL)
+  ),
   FOREIGN KEY (workspace_id, project_id)
     REFERENCES vnext_project_identities(workspace_id, project_id)
     ON UPDATE RESTRICT ON DELETE CASCADE
@@ -4117,6 +4121,10 @@ CREATE INDEX IF NOT EXISTS idx_vnext_repository_execution_attachments_project
 CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_prepared
   ON vnext_repository_execution_attachments(workspace_id, project_id)
   WHERE lifecycle = 'prepared';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_consumed_run
+  ON vnext_repository_execution_attachments(consumed_run_id)
+  WHERE consumed_run_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
   request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
@@ -4143,7 +4151,8 @@ CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
     decision_request_version = 'repository_execution_decision_request.v0.1'
   ),
   action TEXT NOT NULL CHECK (action IN (
-    'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment'
+    'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment',
+    'start_repository_managed_delegation'
   )),
   workspace_id TEXT NOT NULL,
   project_id TEXT NOT NULL,

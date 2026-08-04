@@ -263,7 +263,7 @@ export function buildPhysicalRootBaselineV01(input: {
   };
 }
 
-function readExpectedDatabaseAdmissionStateV01(
+export function readExpectedDatabaseAdmissionStateV01(
   db: Database.Database,
   input: {
     workspace_id: string;
@@ -593,7 +593,10 @@ function decisionOrdinaryTextV01(action: RepositoryExecutionDecisionActionV01): 
   if (action === "rebind_root") {
     return "Use the selected folder as this project's new trusted execution root?";
   }
-  return "Revoke this prepared repository attachment?";
+  if (action === "revoke_attachment") {
+    return "Revoke this prepared repository attachment?";
+  }
+  return "Start one managed Codex run for this exact repository work?";
 }
 
 function adoptionDecisionExpectedStateV01(input: {
@@ -650,7 +653,7 @@ function revocationDecisionExpectedStateV01(input: {
   };
 }
 
-function assertGrantedRepositoryExecutionDecisionInsideTransactionV01(
+export function assertGrantedRepositoryExecutionDecisionInsideTransactionV01(
   db: Database.Database,
   input: {
     action: RepositoryExecutionDecisionActionV01;
@@ -689,7 +692,7 @@ function assertGrantedRepositoryExecutionDecisionInsideTransactionV01(
   return request;
 }
 
-function consumeRepositoryExecutionDecisionInsideTransactionV01(
+export function consumeRepositoryExecutionDecisionInsideTransactionV01(
   db: Database.Database,
   input: {
     request: RepositoryExecutionDecisionRequestV01;

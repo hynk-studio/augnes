@@ -574,6 +574,8 @@ function readManagedExecutionV01(
     ? "policy_triggered" as const
     : run.metadata.invocation_origin === "interactive"
       ? "interactive" as const
+      : run.metadata.invocation_origin === "repository_attachment"
+        ? "repository_attachment" as const
       : null;
   const durableControlRevision = integerValueV01(run.metadata.control_revision);
   const live = liveObservation?.projection ?? null;
